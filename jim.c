@@ -3175,12 +3175,7 @@ void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
  * to deal with tokens of type JIM_TT_DICTSUGAR. objPtr points to an
  * object that is *guaranteed* to be in the form VARNAME(INDEX).
  * The 'index' part is [subst]ituted, and is used to lookup a key inside
- * the [dict]ionary contained in variable VARNAME.
- *
- * TODO: It's possible to create a Jim_Obj type with preparsed
- * key/index parts, storing the two parts as objects with the
- * advantage of variable lookup caching and compilation of the
- * index substitution. */
+ * the [dict]ionary contained in variable VARNAME. */
 Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr;

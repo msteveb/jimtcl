@@ -1,5 +1,6 @@
 CORE LANGUAGE FEATURES
 
+- Proc default arguments
 - Traces
 - Closures, exported as a command that can set/get/unset elements
   from a dictionary associated with the current procedure.

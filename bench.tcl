@@ -187,6 +187,21 @@ proc rotate {count} {
     }
 }
 
+### DYNAMICALLY GENERATED CODE #################################################
+
+proc dyncode {} {
+    for {set i 0} {$i < 100000} {incr i} {
+        set script "lappend foo $i"
+        eval $script
+    }
+}
+
+proc dyncode_list {} {
+    for {set i 0} {$i < 100000} {incr i} {
+        set script [list lappend foo $i]
+        eval $script
+    }
+}
 
 ### RUN ALL ####################################################################
 
@@ -199,3 +214,5 @@ bench {repeat} {use_repeat}
 bench {upvar} {upvartest}
 bench {nested loops} {nestedloops}
 bench {rotate} {rotate 100000}
+bench {dynamic code} {dyncode}
+bench {dynamic code (list)} {dyncode_list}

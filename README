@@ -1,11 +1,102 @@
 The Jim Interpreter
 A small-footprint implementation of the Tcl programming language.
 
-It is a work in progress for now.
+--------------------------------------------------------------------------------
+WHAT IS JIM?
+--------------------------------------------------------------------------------
+
+Jim is a small footprint implementation of the Tcl programming language
+written from scratch. Currently it's a work in progress, but already
+capable to run non-trivial scripts (see the benchmark.tcl file for
+an example). There are many Tcl core commands not implemented, but the
+language itself offers already interesting features like {expand} and
+[dict], that are features that will appear on Tcl8.5, [lambda] with
+garbage collection, and a general GC/references system to build linked
+data structure with automatic memory managment. Arrays in Jim are
+not collection of variables, but instead syntax sugar for [dict]tionaries.
+
+Ohter common features of the Tcl programming language are present, like
+the "everything is a string" behaviour, implemented internally as
+dual ported objects to ensure that the execution time does not reflect
+the semantic of the language :)
+
+--------------------------------------------------------------------------------
+WHERE JIM IS USEFUL?
+--------------------------------------------------------------------------------
+
+1) If you are writing an application, and want to make it scriptable, with
+Jim you have a way to do it that does not require to link your application
+with a big system. You can just put jim.c and jim.h files in your project
+and use the Jim API to write the glue code that makes your application
+scriptable in Jim, with the following advantages:
+
+- Jim is simple, 10k lines of code. If you want to adapt it you can hack
+  the source code to feet the needs of your application. It makes you
+  able to have scripting for default, and avoid external dependences.
+
+  Having scripting support *inside*, and in a way that a given version
+  of your program always gets shipped a given version of Jim, you can
+  write part of your application in Jim itself. Like it happens for
+  Emacs/Elisp, or Gimp/Scheme, both this applications have the interpreter
+  inside.
+
+- Jim is Tcl, and Tcl looks like a configuration file if you want. So
+  if you use Jim you have also a flexible syntax for your config file.
+  This is a valid Tcl script:
+
+     set MyFeature on
+     ifssl {
+       set SslPort 45000
+       use compression
+     }
+
+  It looks like a configuration file, but if you implement the [ifssl]
+  and [use] commands, it's a valid Tcl script.
+
+- Tcl scales with the user. Not all know it, but Tcl is so powerful that
+  you can reprogram the language in itself. Jim support this features
+  of the Tcl programming language. You can write new control structures,
+  use the flexible data types it offers (Lists are a central data structure,
+  with Dictioaries that are also lists). Still Tcl is simpler for the
+  casual programmer, expecially if compared to other languages offering
+  small footprint implementations (like Scheme and FORTH).
+
+- Because of the Tcl semantic (pass by value, everything is a command
+  since there are no reserved words), there is a nice API to glue
+  your application with Jim. See under the 'docs' directory to find
+  examples and documentation about it.
+
+- Jim is supported. If you need commercial software, contact the author
+  writing an email to 'antirez@gmail.com'.
+
+2) The other "field" where Jim can be useful is obviously embedded systems.
+
+3) We are working to make Jim as feature-complete as possible, thanks to
+   dynamically loaded extensions it may stay as little as it is today
+   but able to do interesting things for you. So it's not excluded that
+   in the future you will able to use Jim as a general purpose language.
+
+--------------------------------------------------------------------------------
+COPYRIGHT and LICENSE
+--------------------------------------------------------------------------------
 
 Copyright (C) 2005 Salvatore Sanfilippo
 All Rights Reserved
-This software is under the APACHE 2.0 LICENSE
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ A copy of the license is also included in the source distribution
+ of Jim, as a TXT file name called LICENSE.
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 
 --------------------------------------------------------------------------------
 Extensions
