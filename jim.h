@@ -523,7 +523,7 @@ JIM_STATIC void JIM_API(Jim_InitStringRep) (Jim_Obj *objPtr, const char *bytes,
         int length);
 JIM_STATIC Jim_Obj * JIM_API(Jim_DuplicateObj) (Jim_Interp *interp,
         Jim_Obj *objPtr);
-JIM_STATIC const char * JIM_API(Jim_GetString)(const Jim_Obj *objPtr,
+JIM_STATIC const char * JIM_API(Jim_GetString)(Jim_Obj *objPtr,
         int *lenPtr);
 JIM_STATIC void JIM_API(Jim_InvalidateStringRep)(Jim_Obj *objPtr);
 
@@ -538,10 +538,10 @@ JIM_STATIC void JIM_API(Jim_AppendObj) (Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *appendObjPtr);
 JIM_STATIC void JIM_API(Jim_AppendStrings) (Jim_Interp *interp,
         Jim_Obj *objPtr, ...);
-JIM_STATIC int JIM_API(Jim_StringEqObj) (const Jim_Obj *aObjPtr,
-        const Jim_Obj *bObjPtr, int nocase);
-JIM_STATIC int JIM_API(Jim_StringMatchObj) (const Jim_Obj *patternObjPtr,
-        const Jim_Obj *objPtr, int nocase);
+JIM_STATIC int JIM_API(Jim_StringEqObj) (Jim_Obj *aObjPtr,
+        Jim_Obj *bObjPtr, int nocase);
+JIM_STATIC int JIM_API(Jim_StringMatchObj) (Jim_Obj *patternObjPtr,
+        Jim_Obj *objPtr, int nocase);
 JIM_STATIC Jim_Obj * JIM_API(Jim_StringRangeObj) (Jim_Interp *interp,
         Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr,
         Jim_Obj *lastObjPtr);

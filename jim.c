@@ -1771,7 +1771,7 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
 /* Return the string representation for objPtr. If the object
  * string representation is invalid, calls the method to create
  * a new one starting from the internal representation of the object. */
-const char *Jim_GetString(const Jim_Obj *objPtr, int *lenPtr)
+const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
@@ -1779,7 +1779,7 @@ const char *Jim_GetString(const Jim_Obj *objPtr, int *lenPtr)
             Jim_Panic("UpdataStringProc called against '%s' type.",
                 objPtr->typePtr->name);
         }
-        objPtr->typePtr->updateStringProc((Jim_Obj*)objPtr);
+        objPtr->typePtr->updateStringProc(objPtr);
     }
     if (lenPtr)
         *lenPtr = objPtr->length;
@@ -1927,7 +1927,7 @@ void Jim_AppendStrings(Jim_Interp *interp, Jim_Obj *objPtr, ...)
     va_end(ap);
 }
 
-int Jim_StringEqObj(const Jim_Obj *aObjPtr, const Jim_Obj *bObjPtr, int nocase)
+int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr, int nocase)
 {
     const char *aStr, *bStr;
     int aLen, bLen, i;
@@ -1945,7 +1945,7 @@ int Jim_StringEqObj(const Jim_Obj *aObjPtr, const Jim_Obj *bObjPtr, int nocase)
     return 1;
 }
 
-int Jim_StringMatchObj(const Jim_Obj *patternObjPtr, const Jim_Obj *objPtr,
+int Jim_StringMatchObj(Jim_Obj *patternObjPtr, Jim_Obj *objPtr,
         int nocase)
 {
     const char *pattern, *string;
@@ -1956,8 +1956,8 @@ int Jim_StringMatchObj(const Jim_Obj *patternObjPtr, const Jim_Obj *objPtr,
     return JimStringMatch(pattern, patternLen, string, stringLen, nocase);
 }
 
-int Jim_StringCompareObj(const Jim_Obj *firstObjPtr,
-        const Jim_Obj *secondObjPtr, int nocase)
+int Jim_StringCompareObj(Jim_Obj *firstObjPtr,
+        Jim_Obj *secondObjPtr, int nocase)
 {
     const char *s1, *s2;
     int l1, l2;
@@ -4572,7 +4572,7 @@ unsigned int JimObjectHTHashFunction(const void *key)
     const char *str;
     int len;
 
-    str = Jim_GetString(key, &len);
+    str = Jim_GetString((Jim_Obj*)key, &len); /* ATTENTION: const cast */
     return Jim_DjbHashFunction(str, len);
 }
 
@@ -4580,7 +4580,7 @@ int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
     privdata = privdata; /* not used */
 
-    return Jim_StringEqObj(key1, key2, 0);
+    return Jim_StringEqObj((Jim_Obj*)key1, (Jim_Obj*)key2, 0);
 }
 
 static void JimObjectHTKeyValDestructor(void *interp, void *val)
