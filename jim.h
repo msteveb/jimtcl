@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.36 2005/03/05 12:22:35 antirez Exp $
+ * $Id: jim.h,v 1.37 2005/03/05 15:01:38 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 
 #include <time.h>
 #include <limits.h>
+#include <stdlib.h> /* In order to export the Jim_Free() macro */
 
 /* -----------------------------------------------------------------------------
 * Some /very/ old compiler maybe do not know how to
@@ -295,6 +296,7 @@ typedef struct Jim_Obj {
     if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr)
 #define Jim_IsShared(objPtr) \
     ((objPtr)->refCount > 1)
+#define Jim_Length(objPtr) ((objPtr)->length)
 
 /* Free the internal representation of the object. */
 #define Jim_FreeIntRep(i,o) \
@@ -502,7 +504,8 @@ JIM_STATIC void * JIM_API(Jim_Alloc) (int size);
 JIM_STATIC char * JIM_API(Jim_StrDup) (const char *s);
 
 /* evaluation */
-JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, char *script);
+JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, const char *script);
+JIM_STATIC int JIM_API(Jim_EvalGlobal)(Jim_Interp *interp, const char *script);
 JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, char *filename);
 JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
@@ -716,6 +719,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   // Jim_Alloc = Jim_GetApi(interp, "Jim_Alloc");
   JIM_GET_API(Alloc);
   JIM_GET_API(Eval);
+  JIM_GET_API(EvalGlobal);
   JIM_GET_API(EvalFile);
   JIM_GET_API(EvalObj);
   JIM_GET_API(EvalObjVector);

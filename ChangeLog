@@ -1,3 +1,9 @@
+2005-03-05 13:22  antirez
+
+	* ChangeLog, jim-posix.c, jim-win32.c, jim-win32com.c, jim.c,
+	  jim.h: delProc callback added to Jim_CreateCommand().  Core
+	  commands handling updated to respect the new sematic.
+
 2005-03-05 13:13  antirez
 
 	* ChangeLog, jim-posix.c: extern int errno declaration removed from

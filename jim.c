@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.64 2005/03/05 12:22:35 antirez Exp $
+ * $Id: jim.c,v 1.65 2005/03/05 15:01:38 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -6724,7 +6724,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     return retcode;
 }
 
-int Jim_Eval(Jim_Interp *interp, char *script)
+int Jim_Eval(Jim_Interp *interp, const char *script)
 {
     Jim_Obj *scriptObjPtr = Jim_NewStringObj(interp, script, -1);
     int retval;
@@ -6732,6 +6732,19 @@ int Jim_Eval(Jim_Interp *interp, char *script)
     Jim_IncrRefCount(scriptObjPtr);
     retval = Jim_EvalObj(interp, scriptObjPtr);
     Jim_DecrRefCount(interp, scriptObjPtr);
+    return retval;
+}
+
+/* Execute script in the scope of the global level */
+int Jim_EvalGlobal(Jim_Interp *interp, const char *script)
+{
+    Jim_CallFrame *savedFramePtr;
+    int retval;
+
+    savedFramePtr = interp->framePtr;
+    interp->framePtr = interp->topFramePtr;
+    retval = Jim_Eval(interp, script);
+    interp->framePtr = savedFramePtr;
     return retval;
 }
 
@@ -7004,6 +7017,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   interp->getApiFuncPtr = Jim_GetApi;
   JIM_REGISTER_API(Alloc);
   JIM_REGISTER_API(Eval);
+  JIM_REGISTER_API(EvalGlobal);
   JIM_REGISTER_API(EvalFile);
   JIM_REGISTER_API(EvalObj);
   JIM_REGISTER_API(EvalObjVector);

@@ -34,6 +34,7 @@ stopit:
 	@echo "make jim        - to build the Jim interpreter"
 	@echo "make extensions - to build all the dynamic loadable extensions"
 	@echo "make posix      - to build only the posix extension"
+	@echo "make aio        - to build only the ANSI I/O extension"
 
 all: $(DEFAULT_BUILD)
 
@@ -60,8 +61,9 @@ jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
 posix: jim-posix.so
+aio: jim-aio.so
 win32: jim-win32.dll jim-win32com.dll
-extensions: posix
+extensions: posix aio
 
 clean:
 	$(RM) *.o *.so *.dll core .depend .*.swp gmon.out $(PROGRAMS)
