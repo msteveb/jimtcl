@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.58 2005/03/04 22:04:19 antirez Exp $
+ * $Id: jim.c,v 1.59 2005/03/04 22:44:41 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -890,62 +890,6 @@ static Jim_HashTableType JimSharedStringsHashTableType = {
     JimStringCopyHTKeyDestructor,        /* key destructor */
     NULL                    /* val destructor */
 };
-
-/* --------------------------- Int Hash Table Type ---------------------------*/
-unsigned int Jim_IntHT_HashFunction(const void *key)
-{
-    return Jim_IntHashFunction((unsigned int)key);
-}
-
-#if 0
-static Jim_HashTableType JimIntHashTableType = {
-    Jim_IntHT_HashFunction,            /* hash function */
-    NULL,                    /* key dup */
-    NULL,                    /* val dup */
-    NULL,                    /* key compare */
-    NULL,                    /* key destructor */
-    NULL                    /* val destructor */
-};
-#endif
-
-/* ---------------------------- Test & Benchmark  ----------------------------*/
-
-int testHashTable(void)
-{
-    Jim_HashTable t;
-    Jim_HashTableIterator *iterator;
-    Jim_HashEntry *entry;
-    int i;
-
-    Jim_InitHashTable(&t, &JimStringCopyHashTableType, NULL);
-    Jim_AddHashEntry(&t, "foo", (void*)"bar");
-    Jim_AddHashEntry(&t, "ciao", (void*)"foobar");
-    Jim_AddHashEntry(&t, "a", (void*)"1");
-    Jim_AddHashEntry(&t, "b", (void*)"2");
-    Jim_AddHashEntry(&t, "c", (void*)"3");
-    printf("Used: %d, Size: %d\n", t.used, t.size);
-
-    iterator = Jim_GetHashTableIterator(&t);
-    while ((entry = Jim_NextHashEntry(iterator))) {
-        printf("%s -> %s\n", (const char*)entry->key,
-            (const char*)entry->val);
-    }
-    Jim_FreeHashTableIterator(iterator);
-    Jim_FreeHashTable(&t);
-
-
-    Jim_InitHashTable(&t, &JimStringCopyHashTableType, NULL);
-    for (i = 0; i < 150000; i++) {
-        char buf[64];
-        sprintf(buf, "%d", i);
-        Jim_AddHashEntry(&t, (void*)buf, (void*)i);
-    }
-    printf("Size: %d\n", Jim_GetHashTableSize(&t));
-    printf("Used: %d\n", Jim_GetHashTableUsed(&t));
-    printf("Collisions: %d\n", Jim_GetHashTableCollisions(&t));
-    Jim_FreeHashTable(&t);
-    return 0;
-}
 
 /* -----------------------------------------------------------------------------
  * Stack - This is a simple generic stack implementation. It is used for
