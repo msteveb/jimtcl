@@ -21,7 +21,7 @@ dual ported objects to ensure that the execution time does not reflect
 the semantic of the language :)
 
 ------------------------------------------------------------------------------
-WHERE JIM IS USEFUL?
+WHEN JIM CAN BE USEFUL?
 ------------------------------------------------------------------------------
 
 1) If you are writing an application, and want to make it scriptable, with
@@ -29,6 +29,11 @@ Jim you have a way to do it that does not require to link your application
 with a big system. You can just put jim.c and jim.h files in your project
 and use the Jim API to write the glue code that makes your application
 scriptable in Jim, with the following advantages:
+
+- Jim is not the next "little language", but it's a Tcl implementation.
+  You can reuse your knowledge if you already Tcl skills, or enjoy
+  the availability of documentation, books, web resources, ...
+  (for example check my online Tcl book at http://www.invece.org/tclwise)
 
 - Jim is simple, 10k lines of code. If you want to adapt it you can hack
   the source code to feet the needs of your application. It makes you
@@ -77,6 +82,31 @@ scriptable in Jim, with the following advantages:
    in the future Jim will be an option as general purpose language.
    But don't mind, for this there is already the mainstream Tcl
    implementation ;).
+
+--------------------------------------------------------------------------------
+HOW BIG IS IT?
+--------------------------------------------------------------------------------
+
+Jim compiled with -Os is 65k currently. Still it lacks core commands
+that will make it a little bigger, but not too much... only what's
+strictly required will end inside the core, the rest will be implemented
+as extensions.
+
+Note that the actual Jim core is much smaller, if you strip away commands.
+If you can do without [expr] (that's big about code size), and some
+other command you may probably end with a 40k executable.
+
+--------------------------------------------------------------------------------
+HOW FAST IS IT?
+--------------------------------------------------------------------------------
+
+Jim is in most code faster than Tcl7.6p2 (latest 7.x version),
+and slower than Tcl 8.4.x. You can expect pretty decent performances
+for such a little interpreter.
+
+If you want a more precise measure, there is 'bench.tcl' inside this
+distribution that will run both under Jim and Tcl, so just execute
+it with both the interpreters and see what you get :)
 
 --------------------------------------------------------------------------------
 HOW TO COMPILE

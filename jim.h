@@ -157,7 +157,7 @@ typedef struct Jim_HashTableIterator {
 } Jim_HashTableIterator;
 
 /* This is the initial size of every hash table */
-#define JIM_HT_INITIAL_SIZE     256
+#define JIM_HT_INITIAL_SIZE     32
 
 /* ------------------------------- Macros ------------------------------------*/
 #define Jim_FreeEntryVal(ht, entry) \

@@ -36,10 +36,11 @@ set last 42
 
 proc make_gen_random {} {
     global IM IA IC
-    set body "
+    set params [list IM $IM IA $IA IC $IC]
+    set body [string map $params {
         global last
-        expr {(\$max * \[set last \[expr {(\$last * $IA + $IC) % $IM}\]\]) / $IM}
-    "
+        expr {($max * [set last [expr {($last * IA + IC) % IM}]]) / IM}
+    }]
     proc gen_random {max} $body
 }
 
@@ -203,6 +204,56 @@ proc dyncode_list {} {
     }
 }
 
+### PI DIGITS ##################################################################
+
+proc pi_digits {} {
+    set N 300
+    set LEN [expr {10*$N/3}]
+    set result ""
+
+    set a [string repeat " 2" $LEN]
+    set nines 0
+    set predigit 0
+    set nines {}
+
+    set i0 [expr {$LEN+1}]
+    set quot0 [expr {2*$LEN+1}]
+    for {set j 0} {$j<$N} {incr j} {
+    set q 0
+    set i $i0
+    set quot $quot0
+    set pos -1
+    foreach apos $a {
+        set x [expr {10*$apos + $q * [incr i -1]}]
+        lset a [incr pos] [expr {$x % [incr quot -2]}]
+        set q [expr {$x / $quot}]
+    }
+    lset a end [expr {$q % 10}]
+    set q [expr {$q / 10}]
+    if {$q < 8} {
+        append result $predigit $nines
+        set nines {}
+        set predigit $q
+    } elseif {$q == 9} {
+        append nines 9
+    } else {
+        append result [expr {$predigit+1}][string map {9 0} $nines]
+        set nines {}
+        set predigit 0
+    }
+    }
+    #puts $result$predigit
+}
+
+### EXPAND #####################################################################
+
+proc expand {} {
+    for {set i 0} {$i < 100000} {incr i} {
+        set a [list a b c d e f]
+        lappend b {expand}$a
+    }
+}
+
 ### RUN ALL ####################################################################
 
 bench {busy loop} {x}
@@ -216,3 +267,5 @@ bench {nested loops} {nestedloops}
 bench {rotate} {rotate 100000}
 bench {dynamic code} {dyncode}
 bench {dynamic code (list)} {dyncode_list}
+bench {PI digits} {pi_digits}
+bench {expand} {expand}

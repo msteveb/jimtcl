@@ -28,6 +28,8 @@ EXTENSIONS
 SPEED OPTIMIZATIONS
 
 - Cache call frames instead to free/realloc they at every proc call.
+  (partially done, now there is to cache the variables has table
+   contained in the call frames).
 
 IMPLEMENTATION ISSUES
 
