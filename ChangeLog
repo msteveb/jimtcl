@@ -1,3 +1,30 @@
+2005-03-04 22:59  antirez
+
+	* jim.c: binary safe parsers for scripts,lists,expr,subst.
+
+2005-03-04 21:12  antirez
+
+	* jim.c: Fixed a bug in Jim_Collect() thanks to Colin McPhail that
+	  reported it.
+
+2005-03-04 16:37  antirez
+
+	* jim-posix.c, jim-win32.c, jim-win32com.c, jim.c: JIM_NOTUSED
+	  moved after var declarations blocks.
+
+2005-03-04 16:33  antirez
+
+	* jim.c: [info locals/vars/globals]
+
+2005-03-04 15:09  antirez
+
+	* BUGS, ChangeLog, jim.c, jim.h, test.tcl: jim::libpath renamed
+	  into jim.libpath. Also there was a bug listed in the BUG file
+	  about jim.libpath lookup performed using the local variable API
+	  that's now fixed. In order to fix the problem the new API call
+	  Jim_GetGlobalVariableStr() was added.  Jim_GetVariableStr() and
+	  Jim_GetGlobalVariableStr() are now exported.
+
 2005-03-04 13:32  antirez
 
 	* ChangeLog, jim-posix.c, jim-win32.c, jim-win32com.c, jim.c,

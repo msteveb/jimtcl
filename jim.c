@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.57 2005/03/04 21:59:40 antirez Exp $
+ * $Id: jim.c,v 1.58 2005/03/04 22:04:19 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7125,6 +7125,11 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr,
     if (mode == JIM_VARLIST_GLOBALS) {
         htiter = Jim_GetHashTableIterator(&interp->topFramePtr->vars);
     } else {
+        /* For [info locals], if we are at top level an emtpy list
+         * is returned. I don't agree, but we aim at compatibility (SS) */
+        if (mode == JIM_VARLIST_LOCALS &&
+            interp->framePtr == interp->topFramePtr)
+            return listObjPtr;
         htiter = Jim_GetHashTableIterator(&interp->framePtr->vars);
     }
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
