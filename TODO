@@ -48,3 +48,16 @@ ERROR MESSAGES
   instead of just:
 
   In procedure 'check' called at file "test.tcl", line 1024
+
+REFERENCES SYSTEM
+
+- The format of the reference will be changed form ~reference:000............:
+  to <reference-<typename>-000000000......>, where typename is the name
+  of the type supplied to the [ref] command at reference creation time.
+  This name is only informative but is stored inside the reference
+  structure, so that for example [lambda] will have as reference name
+  something like <reference-<function>-00000000000000001>, and
+  a list node <reference-<listnode>-00000000000000002> and so on.
+  This makes debugging easier. The name is totally ignored by the
+  garbage collection stage.
+

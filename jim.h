@@ -462,7 +462,8 @@ char * JIM_API(Jim_GetString)(Jim_Obj *objPtr, int *lenPtr);
 void JIM_API(Jim_InvalidateStringRep)(Jim_Obj *objPtr);
 
 /* string object */
-Jim_Obj * JIM_API(Jim_NewStringObj) (Jim_Interp *interp, char *s, int len);
+Jim_Obj * JIM_API(Jim_NewStringObj) (Jim_Interp *interp, const char *s,
+		int len);
 Jim_Obj * JIM_API(Jim_NewStringObjNoAlloc) (Jim_Interp *interp, char *s,
 		int len);
 void JIM_API(Jim_AppendString) (Jim_Interp *interp, Jim_Obj *objPtr, char *str,

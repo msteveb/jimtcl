@@ -1772,7 +1772,7 @@ int SetStringFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 	return JIM_OK;
 }
 
-Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, char *s, int len)
+Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
 {
 	Jim_Obj *objPtr = Jim_NewObj(interp);
 
