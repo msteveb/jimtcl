@@ -1,3 +1,7 @@
+2005-03-16 14:11  antirez
+
+	* ChangeLog, jim.c: more GC fixes.
+
 2005-03-16 13:55  antirez
 
 	* ChangeLog, jim.c: Fixed a bug introduced in the Gargage

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.109 2005/03/16 13:11:35 antirez Exp $
+ * $Id: jim.c,v 1.110 2005/03/16 13:35:13 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10113,6 +10113,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
+    printf("CVS ID: $Id: jim.c,v 1.110 2005/03/16 13:35:13 antirez Exp $\n");
     while (1) {
         char prg[1024];
         const char *result;
