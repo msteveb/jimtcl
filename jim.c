@@ -2487,7 +2487,7 @@ Jim_HashTableType Jim_CommandsHashTableType = {
 /* ------------------------- Commands related functions --------------------- */
 
 int Jim_CreateCommand(Jim_Interp *interp, char *cmdName, Jim_CmdProc cmdProc,
-		int arityMin, int arityMax, void *privData)
+		void *privData)
 {
 	Jim_HashEntry *he;
 	Jim_Cmd *cmdPtr;
@@ -2496,8 +2496,6 @@ int Jim_CreateCommand(Jim_Interp *interp, char *cmdName, Jim_CmdProc cmdProc,
 	if (he == NULL) { /* New command to create */
 		cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 		cmdPtr->cmdProc = cmdProc;
-		cmdPtr->arityMin = arityMin;
-		cmdPtr->arityMax = arityMax;
 		cmdPtr->privData = privData;
 		Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
 	} else {
@@ -2508,8 +2506,6 @@ int Jim_CreateCommand(Jim_Interp *interp, char *cmdName, Jim_CmdProc cmdProc,
 			Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
 		}
 		cmdPtr->cmdProc = cmdProc;
-		cmdPtr->arityMin = arityMin;
-		cmdPtr->arityMax = arityMax;
 		cmdPtr->privData = privData;
 	}
 	/* There is no need to increment the 'proc epoch' because
@@ -2587,7 +2583,6 @@ int Jim_RenameCommand(Jim_Interp *interp, char *oldName, char *newName)
 		Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
 	} else {			/* Or C-coded command. */
 		Jim_CreateCommand(interp, newName, cmdPtr->cmdProc,
-				cmdPtr->arityMin, cmdPtr->arityMax,
 				cmdPtr->privData);
 	}
 	/* DeleteCommand will incr the proc epoch */
@@ -8102,50 +8097,49 @@ int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 struct {
 	char *name;
 	Jim_CmdProc cmdProc;
-	int arityMin, arityMax;
 } Jim_CoreCommandsTable[] = {
-	{"set", Jim_SetCoreCommand, 2, 3},
-	{"unset", Jim_UnsetCoreCommand, 2, -1},
-	{"puts", Jim_PutsCoreCommand, 2, 2},
-	{"+", Jim_AddCoreCommand, 1, -1},
-	{"*", Jim_MulCoreCommand, 1, -1},
-	{"-", Jim_SubCoreCommand, 2, -1},
-	{"/", Jim_DivCoreCommand, 2, -1},
-	{"incr", Jim_IncrCoreCommand, 2, 3},
-	{"while", Jim_WhileCoreCommand, 3, 3},
-	{"for", Jim_ForCoreCommand, 5, 5},
-	{"if", Jim_IfCoreCommand, 3, -1},
-	{"list", Jim_ListCoreCommand, 1, -1},
-	{"lindex", Jim_LindexCoreCommand, 3, -1},
-	{"lset", Jim_LsetCoreCommand, 4, -1},
-	{"llength", Jim_LlengthCoreCommand, 2, 2},
-	{"lappend", Jim_LappendCoreCommand, 2, -1},
-	{"append", Jim_AppendCoreCommand, 2, -1},
-	{"debug", Jim_DebugCoreCommand, 2, -1},
-	{"eval", Jim_EvalCoreCommand, 2, -1},
-	{"uplevel", Jim_UplevelCoreCommand, 2, -1},
-	{"expr", Jim_ExprCoreCommand, 2, -1},
-	{"break", Jim_BreakCoreCommand, 1, 1},
-	{"continue", Jim_ContinueCoreCommand, 1, 1},
-	{"proc", Jim_ProcCoreCommand, 4, 4},
-	{"concat", Jim_ConcatCoreCommand, 1, -1},
-	{"return", Jim_ReturnCoreCommand, 1, 4},
-	{"upvar", Jim_UpvarCoreCommand, 3, -1},
-	{"global", Jim_GlobalCoreCommand, 2, -1},
-	{"string", Jim_StringCoreCommand, 3, -1},
-	{"time", Jim_TimeCoreCommand, 2, 3},
-	{"exit", Jim_ExitCoreCommand, 1, 2},
-	{"catch", Jim_CatchCoreCommand, 2, 3},
-	{"ref", Jim_RefCoreCommand, 2, 3},
-	{"getref", Jim_GetrefCoreCommand, 2, 2},
-	{"setref", Jim_SetrefCoreCommand, 3, 3},
-	{"collect", Jim_CollectCoreCommand, 1, 1},
-	{"rename", Jim_RenameCoreCommand, 3, 3},
-	{"dict", Jim_DictCoreCommand, 2, -1},
-	{"load", Jim_LoadCoreCommand, 2, 2},
-	{"subst", Jim_SubstCoreCommand, 2, -1},
-	{"info", Jim_InfoCoreCommand, 2, -1},
-	{NULL, NULL, 0, 0}
+	{"set", Jim_SetCoreCommand},
+	{"unset", Jim_UnsetCoreCommand},
+	{"puts", Jim_PutsCoreCommand},
+	{"+", Jim_AddCoreCommand},
+	{"*", Jim_MulCoreCommand},
+	{"-", Jim_SubCoreCommand},
+	{"/", Jim_DivCoreCommand},
+	{"incr", Jim_IncrCoreCommand},
+	{"while", Jim_WhileCoreCommand},
+	{"for", Jim_ForCoreCommand},
+	{"if", Jim_IfCoreCommand},
+	{"list", Jim_ListCoreCommand},
+	{"lindex", Jim_LindexCoreCommand},
+	{"lset", Jim_LsetCoreCommand},
+	{"llength", Jim_LlengthCoreCommand},
+	{"lappend", Jim_LappendCoreCommand},
+	{"append", Jim_AppendCoreCommand},
+	{"debug", Jim_DebugCoreCommand},
+	{"eval", Jim_EvalCoreCommand},
+	{"uplevel", Jim_UplevelCoreCommand},
+	{"expr", Jim_ExprCoreCommand},
+	{"break", Jim_BreakCoreCommand},
+	{"continue", Jim_ContinueCoreCommand},
+	{"proc", Jim_ProcCoreCommand},
+	{"concat", Jim_ConcatCoreCommand},
+	{"return", Jim_ReturnCoreCommand},
+	{"upvar", Jim_UpvarCoreCommand},
+	{"global", Jim_GlobalCoreCommand},
+	{"string", Jim_StringCoreCommand},
+	{"time", Jim_TimeCoreCommand},
+	{"exit", Jim_ExitCoreCommand},
+	{"catch", Jim_CatchCoreCommand},
+	{"ref", Jim_RefCoreCommand},
+	{"getref", Jim_GetrefCoreCommand},
+	{"setref", Jim_SetrefCoreCommand},
+	{"collect", Jim_CollectCoreCommand},
+	{"rename", Jim_RenameCoreCommand},
+	{"dict", Jim_DictCoreCommand},
+	{"load", Jim_LoadCoreCommand},
+	{"subst", Jim_SubstCoreCommand},
+	{"info", Jim_InfoCoreCommand},
+	{NULL, NULL},
 };
 
 /* Some Jim core command is actually a procedure written in Jim itself. */
@@ -8171,8 +8165,6 @@ void Jim_RegisterCoreCommands(Jim_Interp *interp)
 		Jim_CreateCommand(interp, 
 				Jim_CoreCommandsTable[i].name,
 				Jim_CoreCommandsTable[i].cmdProc,
-				Jim_CoreCommandsTable[i].arityMin,
-				Jim_CoreCommandsTable[i].arityMax,
 				NULL);
 		i++;
 	}

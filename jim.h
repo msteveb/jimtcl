@@ -481,8 +481,7 @@ void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
 /* commands */
 void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
 int JIM_API(Jim_CreateCommand) (Jim_Interp *interp, char *cmdName,
-		Jim_CmdProc cmdProc, int arityMin, int arityMax,
-		void *privData);
+		Jim_CmdProc cmdProc, void *privData);
 int JIM_API(Jim_CreateProcedure) (Jim_Interp *interp, char *cmdName,
                 Jim_Obj *argListObjPtr, Jim_Obj *bodyObjPtr,
                 int arityMin, int arityMax);

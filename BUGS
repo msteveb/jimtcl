@@ -7,3 +7,6 @@ jim::libPath variable is accessed in the local context instead than
 globally, so the [load] command will fail inside procs.
 
 [subst] ingores special meaning of JIM_BREAK and alike.
+
+[info level ?level?] takes the level argument like [uplevel], but
+it should be different, positive is absolute, negative is relative.

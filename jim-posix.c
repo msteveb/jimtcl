@@ -103,10 +103,10 @@ static int Jim_PosixSethostnameCommand(Jim_Interp *interp, int argc,
 int Jim_OnLoad(Jim_Interp *interp)
 {
 	Jim_InitExtension(interp, "1.0");
-	Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, 1, 1, NULL);
-	Jim_CreateCommand(interp, "os.sleep", Jim_PosixSleepCommand, 2, 2, NULL);
-	Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, 1, 2, NULL);
-	Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, 1, 1, NULL);
-	Jim_CreateCommand(interp, "os.sethostname", Jim_PosixSethostnameCommand, 2, 2, NULL);
+	Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL);
+	Jim_CreateCommand(interp, "os.sleep", Jim_PosixSleepCommand, NULL);
+	Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL);
+	Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL);
+	Jim_CreateCommand(interp, "os.sethostname", Jim_PosixSethostnameCommand, NULL);
 	return JIM_OK;
 }
