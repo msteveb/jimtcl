@@ -1,3 +1,10 @@
+2005-04-04 09:58  antirez
+
+	* ChangeLog, Makefile, jim-stdlib-1.0.tcl, jim.c: Some change in
+	  the standard library, a bug about [info body/args] fixed. some
+	  commented work in progress for exposing the Jim parse at script
+	  level. Default compilation set to -Os again.
+
 2005-04-02 23:35  antirez
 
 	* ChangeLog, Makefile, README, TODO, jim-sqlite.c,
