@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.47 2005/03/10 15:58:28 antirez Exp $
+ * $Id: jim.h,v 1.48 2005/03/11 07:21:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -349,7 +349,8 @@ typedef struct Jim_ObjType {
 /* Call frame */
 typedef struct Jim_CallFrame {
     unsigned jim_wide id; /* Call Frame ID. Used for caching. */
-    struct Jim_HashTable vars;
+    struct Jim_HashTable vars; /* Where local vars are stored */
+    struct Jim_HashTable *staticVars; /* pointer to procedure static vars */
     struct Jim_CallFrame *parentCallFrame;
     Jim_Obj *const *argv; /* object vector of the current procedure call. */
     int argc; /* number of args of the current procedure call. */
@@ -384,6 +385,7 @@ typedef struct Jim_Cmd {
     Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
     Jim_Obj *argListObjPtr;
     Jim_Obj *bodyObjPtr;
+    Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
     int arityMin; /* Min number of arguments. */
     int arityMax; /* Max number of arguments. */
 } Jim_Cmd;
@@ -583,8 +585,8 @@ JIM_STATIC int JIM_API(Jim_CreateCommand) (Jim_Interp *interp,
         const char *cmdName, Jim_CmdProc cmdProc, void *privData,
          Jim_DelCmdProc delProc);
 JIM_STATIC int JIM_API(Jim_CreateProcedure) (Jim_Interp *interp, 
-        const char *cmdName, Jim_Obj *argListObjPtr, Jim_Obj *bodyObjPtr,
-        int arityMin, int arityMax);
+        const char *cmdName, Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr,
+        Jim_Obj *bodyObjPtr, int arityMin, int arityMax);
 JIM_STATIC int JIM_API(Jim_DeleteCommand) (Jim_Interp *interp,
         const char *cmdName);
 JIM_STATIC int JIM_API(Jim_RenameCommand) (Jim_Interp *interp, 

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.87 2005/03/10 15:58:28 antirez Exp $
+ * $Id: jim.c,v 1.88 2005/03/11 07:21:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@
 
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and don't try to free. */
-static char *JimEmptyStringRep = (char *)"";
+static char *JimEmptyStringRep = (char*) "";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -65,6 +65,8 @@ static char *JimEmptyStringRep = (char *)"";
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static void JimRegisterCoreApi(Jim_Interp *interp);
+
+extern Jim_HashTableType JimVariablesHashTableType;
 
 /* -----------------------------------------------------------------------------
  * Utility functions
@@ -2684,6 +2686,11 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
         if (cmdPtr->cmdProc == NULL) {
             Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
             Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+            if (cmdPtr->staticVars) {
+                Jim_FreeHashTable(cmdPtr->staticVars);
+                Jim_Free(cmdPtr->staticVars);
+            }
+            cmdPtr->staticVars = NULL;
         } else if (cmdPtr->delProc != NULL) {
             /* If it was a C coded command, call the delProc if any */
             cmdPtr->delProc(cmdPtr->privData);
@@ -2698,7 +2705,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
 }
 
 int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
-        Jim_Obj *argListObjPtr, Jim_Obj *bodyObjPtr,
+        Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
         int arityMin, int arityMax)
 {
     Jim_HashEntry *he;
@@ -2708,12 +2715,6 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
     if (he == NULL) { /* New procedure to create */
         cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
         cmdPtr->cmdProc = NULL; /* Not a C coded command */
-        cmdPtr->argListObjPtr = argListObjPtr;
-        cmdPtr->bodyObjPtr = bodyObjPtr;
-        Jim_IncrRefCount(argListObjPtr);
-        Jim_IncrRefCount(bodyObjPtr);
-        cmdPtr->arityMin = arityMin;
-        cmdPtr->arityMax = arityMax;
         Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     } else {
         Jim_InterpIncrProcEpoch(interp);
@@ -2722,22 +2723,100 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         if (cmdPtr->cmdProc == NULL) {
             Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
             Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+            if (cmdPtr->staticVars) {
+                Jim_FreeHashTable(cmdPtr->staticVars);
+                Jim_Free(cmdPtr->staticVars);
+            }
+            cmdPtr->staticVars = NULL;
         } else if (cmdPtr->delProc != NULL) {
             /* If it was a C coded command, call the delProc if any */
             cmdPtr->delProc(cmdPtr->privData);
         }
         cmdPtr->cmdProc = NULL; /* Not a C coded command */
-        cmdPtr->arityMin = arityMin;
-        cmdPtr->arityMax = arityMax;
-        cmdPtr->argListObjPtr = argListObjPtr;
-        cmdPtr->bodyObjPtr = bodyObjPtr;
-        Jim_IncrRefCount(argListObjPtr);
-        Jim_IncrRefCount(bodyObjPtr);
     }
+    cmdPtr->argListObjPtr = argListObjPtr;
+    cmdPtr->bodyObjPtr = bodyObjPtr;
+    Jim_IncrRefCount(argListObjPtr);
+    Jim_IncrRefCount(bodyObjPtr);
+    cmdPtr->arityMin = arityMin;
+    cmdPtr->arityMax = arityMax;
+    cmdPtr->staticVars = NULL;
+   
+    /* Create the statics hash table. */
+    if (staticsListObjPtr) {
+        int len, i;
+
+        Jim_ListLength(interp, staticsListObjPtr, &len);
+        if (len != 0) {
+            cmdPtr->staticVars = Jim_Alloc(sizeof(Jim_HashTable));
+            Jim_InitHashTable(cmdPtr->staticVars, &JimVariablesHashTableType,
+                    interp);
+            for (i = 0; i < len; i++) {
+                Jim_Obj *objPtr, *initObjPtr, *nameObjPtr;
+                Jim_Var *varPtr;
+                int subLen;
+
+                Jim_ListIndex(interp, staticsListObjPtr, i, &objPtr, JIM_NONE);
+                /* Check if it's composed of two elements. */
+                Jim_ListLength(interp, objPtr, &subLen);
+                if (subLen == 1 || subLen == 2) {
+                    /* Try to get the variable value from the current
+                     * environment. */
+                    Jim_ListIndex(interp, objPtr, 0, &nameObjPtr, JIM_NONE);
+                    if (subLen == 1) {
+                        initObjPtr = Jim_GetVariable(interp, nameObjPtr,
+                                JIM_NONE);
+                        if (initObjPtr == NULL) {
+                            Jim_SetResult(interp,
+                                    Jim_NewEmptyStringObj(interp));
+                            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                                "variable for initialization of static \"",
+                                Jim_GetString(nameObjPtr, NULL),
+                                "\" not found in the local context",
+                                NULL);
+                            goto err;
+                        }
+                    } else {
+                        Jim_ListIndex(interp, objPtr, 1, &initObjPtr, JIM_NONE);
+                    }
+                    varPtr = Jim_Alloc(sizeof(*varPtr));
+                    varPtr->objPtr = initObjPtr;
+                    Jim_IncrRefCount(initObjPtr);
+                    varPtr->linkFramePtr = NULL;
+                    if (Jim_AddHashEntry(cmdPtr->staticVars,
+                            Jim_GetString(nameObjPtr, NULL),
+                            varPtr) != JIM_OK)
+                    {
+                        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+                        Jim_AppendStrings(interp, Jim_GetResult(interp),
+                            "static variable name \"",
+                            Jim_GetString(objPtr, NULL), "\"",
+                            " duplicated in statics list", NULL);
+                        Jim_DecrRefCount(interp, initObjPtr);
+                        Jim_Free(varPtr);
+                        goto err;
+                    }
+                } else {
+                    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+                    Jim_AppendStrings(interp, Jim_GetResult(interp),
+                        "too many fields in static specifier \"",
+                        objPtr, "\"", NULL);
+                    goto err;
+                }
+            }
+        }
+    }
+
     /* There is no need to increment the 'proc epoch' because
      * creation of a new procedure can never affect existing
      * cached commands. We don't do negative caching. */
     return JIM_OK;
+
+err:
+    Jim_FreeHashTable(cmdPtr->staticVars);
+    Jim_Free(cmdPtr->staticVars);
+    return JIM_ERR;
+
 }
 
 int Jim_DeleteCommand(Jim_Interp *interp, const char *cmdName)
@@ -2764,7 +2843,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
     if (cmdPtr->cmdProc == NULL) {    /* Tcl procedure? */
         Jim_IncrRefCount(cmdPtr->argListObjPtr);
         Jim_IncrRefCount(cmdPtr->bodyObjPtr);
-        Jim_CreateProcedure(interp, newName, cmdPtr->argListObjPtr,
+        Jim_CreateProcedure(interp, newName, cmdPtr->argListObjPtr, NULL,
                 cmdPtr->bodyObjPtr, cmdPtr->arityMin, cmdPtr->arityMax);
         Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
         Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
@@ -2904,9 +2983,13 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             return JIM_DICT_SUGAR;
     /* Lookup this name into the variables hash table */
     he = Jim_FindHashEntry(&interp->framePtr->vars, varName);
-    if (he == NULL)
-        return JIM_ERR;
-
+    if (he == NULL) {
+        /* Try with static vars. */
+        if (interp->framePtr->staticVars == NULL)
+            return JIM_ERR;
+        if (!(he = Jim_FindHashEntry(interp->framePtr->staticVars, varName)))
+            return JIM_ERR;
+    }
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &variableObjType;
@@ -3337,6 +3420,7 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp)
     cf->procArgsObjPtr = NULL;
     cf->procBodyObjPtr = NULL;
     cf->nextFramePtr = NULL;
+    cf->staticVars = NULL;
     if (cf->vars.table == NULL)
         Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     return cf;
@@ -6891,6 +6975,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     callFramePtr->argc = argc;
     callFramePtr->procArgsObjPtr = cmd->argListObjPtr;
     callFramePtr->procBodyObjPtr = cmd->bodyObjPtr;
+    callFramePtr->staticVars = cmd->staticVars;
     Jim_IncrRefCount(cmd->argListObjPtr);
     Jim_IncrRefCount(cmd->bodyObjPtr);
     interp->framePtr = callFramePtr;
@@ -8853,8 +8938,8 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
     int argListLen;
     int arityMin, arityMax;
 
-    if (argc != 4) {
-        Jim_WrongNumArgs(interp, 1, argv, "name arglist body");
+    if (argc != 4 && argc != 5) {
+        Jim_WrongNumArgs(interp, 1, argv, "name arglist ?statics? body");
         return JIM_ERR;
     }
     Jim_ListLength(interp, argv[2], &argListLen);
@@ -8871,8 +8956,13 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
             arityMax = -1;
         }
     }
-    Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
-            argv[2], argv[3], arityMin, arityMax);
+    if (argc == 4) {
+        Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+                argv[2], NULL, argv[3], arityMin, arityMax);
+    } else {
+        Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+                argv[2], argv[3], argv[4], arityMin, arityMax);
+    }
     return JIM_OK;
 }
 
