@@ -1,6 +1,6 @@
 /* WIN32 extension
  *
- * Copyright(C) 2005 Pat Thoyts.
+ * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,6 +138,57 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
     return JIM_OK;
 }
 
+static int
+Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)GetActiveWindow()));
+    return JIM_OK;
+}
+
+static int
+Win32_SetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HWND hwnd, old;
+    int r = JIM_OK;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "windowHandle");
+        return JIM_ERR;
+    }
+    r = Jim_GetLong(interp, objv[1], (long *)&hwnd);
+    if (r == JIM_OK) {
+	old = SetActiveWindow(hwnd);
+	if (old == NULL) {
+	    Jim_SetResult(interp,
+		Win32ErrorObj(interp, "SetActiveWindow", GetLastError()));
+	    r = JIM_ERR;
+	} else {
+	    Jim_SetResult(interp, Jim_NewIntObj(interp, (long)old));
+	}
+    }
+    return r;
+}
+
+static int
+Win32_SetForegroundWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HWND hwnd;
+    int r = JIM_OK;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "windowHandle");
+        return JIM_ERR;
+    }
+    r = Jim_GetLong(interp, objv[1], (long *)&hwnd);
+    if (r == JIM_OK) {
+	if (!SetForegroundWindow(hwnd)) {
+	    Jim_SetResult(interp,
+		Win32ErrorObj(interp, "SetForegroundWindow", GetLastError()));
+	    r = JIM_ERR;
+	}
+    }
+    return r;
+}
 
 static int
 Win32_Beep(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -276,19 +327,28 @@ Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
 
 
 /* ---------------------------------------------------------------------- */
+
 int
 Jim_OnLoad(Jim_Interp *interp)
 {
     Jim_InitExtension(interp, "1.0");
-    Jim_CreateCommand(interp, "win32.ShellExecute", Win32_ShellExecute, NULL);
-    Jim_CreateCommand(interp, "win32.FindWindow", Win32_FindWindow, NULL);
-    Jim_CreateCommand(interp, "win32.CloseWindow", Win32_CloseWindow, NULL);
-    Jim_CreateCommand(interp, "win32.Beep", Win32_Beep, NULL);
-    Jim_CreateCommand(interp, "win32.GetComputerName", Win32_GetComputerName, NULL);
-    Jim_CreateCommand(interp, "win32.SetComputerName", Win32_SetComputerName, NULL);
-    Jim_CreateCommand(interp, "win32.GetUserName", Win32_GetUserName, NULL);
-    Jim_CreateCommand(interp, "win32.GetVersion", Win32_GetVersion, NULL);
-    Jim_CreateCommand(interp, "win32.GetTickCount", Win32_GetTickCount, NULL);
-    Jim_CreateCommand(interp, "win32.GetSystemTime", Win32_GetSystemTime, NULL);
+
+#define CMD(name) \
+    Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL)
+
+    CMD(ShellExecute);
+    CMD(FindWindow);
+    CMD(CloseWindow);
+    CMD(GetActiveWindow);
+    CMD(SetActiveWindow);
+    CMD(SetForegroundWindow);
+    CMD(Beep);
+    CMD(GetComputerName);
+    CMD(SetComputerName);
+    CMD(GetUserName);
+    CMD(GetVersion);
+    CMD(GetTickCount);
+    CMD(GetSystemTime);
+
     return JIM_OK;
 }
