@@ -30,9 +30,10 @@ EXTENSIONS
 
 SPEED OPTIMIZATIONS
 
-- Cache call frames instead to free/realloc they at every proc call.
-  (partially done, now there is to cache the variables has table
-   contained in the call frames).
+- Find a way to avoid interpolation/reparsing in "foo($bar)" tokens.
+  See the "sieve" and "ary" bench performances, result of this problem.
+  (to compare with sieve_dict is also useful.)
+- Many other possible things, including better literal sharing.
 
 IMPLEMENTATION ISSUES
 
@@ -54,13 +55,8 @@ ERROR MESSAGES
 
 REFERENCES SYSTEM
 
-- The format of the reference will be changed form ~reference:000............:
-  to <reference-<typename>-000000000......>, where typename is the name
-  of the type supplied to the [ref] command at reference creation time.
-  This name is only informative but is stored inside the reference
-  structure, so that for example [lambda] will have as reference name
-  something like <reference-<function>-00000000000000001>, and
-  a list node <reference-<listnode>-00000000000000002> and so on.
-  This makes debugging easier. The name is totally ignored by the
-  garbage collection stage.
+- All ok for now, already done things deleted from the TODO list.
 
+API FUNCTIONS TO EXPORT
+
+- Jim_FormatString()

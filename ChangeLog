@@ -1,3 +1,10 @@
+2005-03-08 18:06  antirez
+
+	* ChangeLog, jim.c, jim.h, jimsh.c: Did some fix in jimsh.c,
+	  exported some more API function to set variables and global
+	  variables using a string C as name instead of a Jim_Obj. This is
+	  more handy in mani conditions.
+
 2005-03-08 16:10  patthoyts
 
 	* bench.tcl, jim.c, jim.h: JIM_VERSION is to be an integer value

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.83 2005/03/08 17:06:08 antirez Exp $
+ * $Id: jim.c,v 1.84 2005/03/09 07:19:41 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1882,7 +1882,8 @@ void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str,
     StringAppendString(objPtr, str, len);
 }
 
-void Jim_AppendObj(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *appendObjPtr)
+void Jim_AppendObj(Jim_Interp *interp, Jim_Obj *objPtr,
+        Jim_Obj *appendObjPtr)
 {
     int len;
     const char *str;
@@ -1992,6 +1993,63 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
     if (rangeLen < 0)
         rangeLen = 0;
     return Jim_NewStringObj(interp, str+first, rangeLen);
+}
+
+/* This is the core of the [format] command.
+ * TODO: Export it, make it real... for now only %s and %%
+ * specifiers supported. */
+Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
+        int objc, Jim_Obj *const *objv)
+{
+    const char *fmt;
+    int fmtLen;
+    Jim_Obj *resObjPtr;
+
+    fmt = Jim_GetString(fmtObjPtr, &fmtLen);
+    resObjPtr = Jim_NewStringObj(interp, "", 0);
+    while (fmtLen) {
+        const char *p = fmt;
+        char spec[2];
+
+        while (*fmt != '%' && fmtLen) {
+            fmt++; fmtLen--;
+        }
+        Jim_AppendString(interp, resObjPtr, p, fmt-p);
+        if (fmtLen == 0)
+            break;
+        fmt++; fmtLen--; /* skip '%' */
+        if (*fmt != '%') {
+            if (objc == 0) {
+                Jim_IncrRefCount(resObjPtr);
+                Jim_DecrRefCount(interp, resObjPtr);
+                Jim_SetResultString(interp,
+                        "not enough arguments for all format specifiers", -1);
+                return NULL;
+            } else {
+                objc--;
+            }
+        }
+        switch(*fmt) {
+        case 's':
+            Jim_AppendObj(interp, resObjPtr, objv[0]);
+            objv++;
+            break;
+        case '%':
+            Jim_AppendString(interp, resObjPtr, "%" , 1);
+            break;
+        default:
+            spec[1] = *fmt; spec[2] = '\0';
+            Jim_IncrRefCount(resObjPtr);
+            Jim_DecrRefCount(interp, resObjPtr);
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "bad field specifier \"",  spec, "\"", NULL);
+            return NULL;
+        }
+        fmt++;
+        fmtLen--;
+    }
+    return resObjPtr;
 }
 
 /* -----------------------------------------------------------------------------
@@ -9435,6 +9493,23 @@ static int Jim_JoinCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [format] */
+static int Jim_FormatCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "formatString ?arg arg ...?");
+        return JIM_ERR;
+    }
+    objPtr = Jim_FormatString(interp, argv[1], argc-2, argv+2);
+    if (objPtr == NULL)
+        return JIM_ERR;
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -9485,6 +9560,7 @@ static struct {
     {"info", Jim_InfoCoreCommand},
     {"split", Jim_SplitCoreCommand},
     {"join", Jim_JoinCoreCommand},
+    {"format", Jim_FormatCoreCommand},
     {NULL, NULL},
 };
 

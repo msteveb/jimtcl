@@ -125,6 +125,26 @@ proc sieve {num} {
     return $count
 }
 
+proc sieve_dict {num} {
+    while {$num > 0} {
+	incr num -1
+	set count 0
+	for {set i 2} {$i <= 8192} {incr i} {
+	    dict set flags $i 1
+	}
+	for {set i 2} {$i <= 8192} {incr i} {
+	    if {[dict get $flags $i] == 1} {
+		# remove all multiples of prime: i
+		for {set k [expr {$i+$i}]} {$k <= 8192} {incr k $i} {
+		    dict set flags $k 0
+		}
+		incr count
+	    }
+	}
+    }
+    return $count
+}
+
 ### ARY ########################################################################
 
 proc ary n {
@@ -290,6 +310,7 @@ bench {mini loops} {miniloops}
 bench {fibonacci(25)} {fibonacci 25}
 bench {heapsort} {heapsort_main}
 bench {sieve} {sieve 10}
+bench {sieve [dict]} {sieve_dict 10}
 bench {ary} {ary 100000}
 bench {repeat} {use_repeat}
 bench {upvar} {upvartest}
