@@ -764,6 +764,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(RegisterApi);
   JIM_GET_API(PrintErrorMessage);
   JIM_GET_API(InteractivePrompt);
+  JIM_GET_API(RegisterCoreCommands);
 
   Jim_SetResultString(interp, version, -1);
 }

@@ -7030,6 +7030,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(RegisterApi);
   JIM_REGISTER_API(PrintErrorMessage);
   JIM_REGISTER_API(InteractivePrompt);
+  JIM_REGISTER_API(RegisterCoreCommands);
 }
 
 /* -----------------------------------------------------------------------------
