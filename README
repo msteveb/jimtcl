@@ -87,7 +87,7 @@ scriptable in Jim, with the following advantages:
 HOW BIG IS IT?
 --------------------------------------------------------------------------------
 
-Jim compiled with -Os is 65k currently. Still it lacks core commands
+Jim compiled with -Os is 85k currently. Still it lacks core commands
 that will make it a little bigger, but not too much... only what's
 strictly required will end inside the core, the rest will be implemented
 as extensions.
@@ -240,13 +240,14 @@ the development of new core commands was faster, and also more
 people hacking on the same code had as result fixes in the API,
 C macros, and so on.
 
-Currently we are at the point that the core interpreter is nearly
-done. There is to add some more core command, to do a code review
-to ensure quality of all the parts and to write documentation.
+Currently we are at the point that the core interpreter is almost finished
+and it is entering the Beta stage. There is to add some other core command,
+to do a code review to ensure quality of all the parts and to write
+documentation.
 
-The next step will be to start key extensions like OOP, event loop,
-I/O, networking, regexp, ..., and to end the extensions already
-available: win32, win32com, posix.
+We already started to work on extensions like OOP, event loop,
+I/O, networking, regexp. Some extensions are already ready for
+prime time, like the Sqlite extension and the ANSI I/O.
 
 ------------------------------------------------------------------------------
 Thanks to...
