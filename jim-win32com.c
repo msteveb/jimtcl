@@ -148,7 +148,7 @@ void
 UnicodeFreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
 	JIM_TRACE("UnicodeFreeInternalRep 0x%08x\n", (DWORD)objPtr);
-    Jim_Free(objPtr->internalRep.binaryValue.data);
+	Jim_Free(objPtr->internalRep.binaryValue.data);
 	objPtr->internalRep.binaryValue.data = NULL;
     objPtr->internalRep.binaryValue.len = 0;
 	objPtr->typePtr = NULL;
@@ -162,9 +162,11 @@ UnicodeDupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 	JIM_TRACE("UnicodeDupInternalRep 0x%08x duped into 0x%08x\n", (DWORD)srcPtr, (DWORD)dupPtr);
     interp;
     dupPtr->internalRep.binaryValue.len = len;
-    dupPtr->internalRep.binaryValue.data = Jim_Alloc(len + sizeof(WCHAR));
-    wcsncpy((LPWSTR)dupPtr->internalRep.binaryValue.data, 
-        (LPWSTR)srcPtr->internalRep.binaryValue.data, len);
+	if (srcPtr->internalRep.binaryValue.data != NULL) {
+		dupPtr->internalRep.binaryValue.data = Jim_Alloc(sizeof(WCHAR) * (len + 1));
+		wcsncpy((LPWSTR)dupPtr->internalRep.binaryValue.data, 
+			(LPWSTR)srcPtr->internalRep.binaryValue.data, len);
+	}
 }
 
 int
@@ -191,24 +193,24 @@ UnicodeSetFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 Jim_Obj *
 Jim_NewUnicodeObj(Jim_Interp *interp, LPCWSTR wsz, size_t len)
 {
-    Jim_Obj *objPtr = Jim_NewObj(interp);
+    Jim_Obj *objPtr;
     JIM_ASSERT(wsz != NULL);
     if (wsz != NULL && len == -1)
         len = wcslen(wsz);
     if (wsz == NULL || len == 0) {
-        objPtr->bytes = "";
-        objPtr->length = 0;
+		objPtr = Jim_NewStringObj(interp, "", 0);
+		objPtr->internalRep.binaryValue.data = NULL;
+		objPtr->internalRep.binaryValue.len = 0;
     } else {
+		objPtr = Jim_NewObj(interp);
         objPtr->internalRep.binaryValue.data = Jim_Alloc(sizeof(WCHAR) * (len + 1));
         wcsncpy((LPWSTR)objPtr->internalRep.binaryValue.data, wsz, len);
         ((LPWSTR)objPtr->internalRep.binaryValue.data)[len] = 0;
         objPtr->internalRep.binaryValue.len = len;
+		objPtr->bytes = OLE2A(wsz);
+		objPtr->length = len;
     }
     objPtr->typePtr = &unicodeObjType;
-
-    objPtr->bytes = OLE2A(wsz);
-    objPtr->length = strlen(objPtr->bytes);
-
     return objPtr;
 }
 
@@ -383,6 +385,13 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
 
         VariantInit(&v);
         dp = Ole32_GetDispParams(interp, objc-(argc+2), objv+argc+2);
+
+		if (mode & DISPATCH_PROPERTYPUT || mode & DISPATCH_PROPERTYPUTREF) {
+			static DISPID putid = DISPID_PROPERTYPUT;
+			dp->rgdispidNamedArgs = &putid;
+			dp->cNamedArgs = 1;
+		}
+
         hr = pdisp->lpVtbl->Invoke(pdisp, dispid, &IID_NULL, LOCALE_SYSTEM_DEFAULT, mode, dp, &v, &ei, &uierr);
         Ole32_FreeDispParams(dp);
 
@@ -447,9 +456,7 @@ Ole32_Command(Jim_Interp *interp, int objc, Jim_Obj **objv)
         HRESULT hr = S_OK;
         LPWSTR wsz = Jim_GetUnicode(objv[2], NULL);
         hr = CLSIDFromProgID(wsz, &clsid);
-        //if (SUCCEEDED(hr))
-        //    hr = CoCreateInstance(&clsid, NULL, CLSCTX_ALL, &IID_IDispatch, (LPVOID*)&pdisp);
-        //if (hr == E_NOINTERFACE)
+		if (SUCCEEDED(hr))
             hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
         if (SUCCEEDED(hr)) {
             Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
