@@ -1,3 +1,7 @@
+# -*- Makefile -*- 
+#
+#
+
 SRCDIR =.
 
 !ifdef DEBUG
@@ -17,13 +21,14 @@ OBJS   = $(TMPDIR)\jim.obj
 CC     =cl -nologo
 LD     =link -nologo
 
-CFLAGS =$(CFLAGS) -W3 -GX -Fd$(TARGET:.dll=.pdb) -YX -Fp$(TMPDIR)^\
+# -Fd$(TMPDIR)^\ 
+CFLAGS =$(CFLAGS) -W3 -GX -YX -Fp$(TMPDIR)^\
 INC    =
 DEFS   =-DWIN32
 LIBS   =
 
 
-all:     jim dll win32 win32com
+all:     jim win32 win32com
 jim:     setup $(OUTDIR)\jim.exe
 dll:     setup $(OUTDIR)\jim.dll
 win32:   setup $(OUTDIR)\jim-win32.dll
@@ -31,19 +36,19 @@ win32api: setup $(OUTDIR)\jim-win32api.dll
 win32com: setup $(OUTDIR)\jim-win32com.dll
 
 $(OUTDIR)\jim.exe: $(OBJS)
-	$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
+	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim.dll: $(OBJS)
-	$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
-        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
-        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim-win32com.dll: $(TMPDIR)\jim-win32com.obj
-        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 #-------------------------------------------------------------------------
 setup:
@@ -55,22 +60,22 @@ test: jim
 	$(OUTDIR)\jim.exe test.tcl
 
 clean:
-        @if exist $(TMPDIR) rmdir /q /s $(TMPDIR) >NUL
+        @if exist $(TMPDIR)\NUL rmdir /q /s $(TMPDIR) >NUL
 
 realclean: clean
-        @if exist $(OUTDIR) rmdir /q /s $(OUTDIR) >NUL
+        @if exist $(OUTDIR)\NUL rmdir /q /s $(OUTDIR) >NUL
 
 #-------------------------------------------------------------------------
 
 .SUFFIXES:.c .cpp
 
 {$(SRCDIR)}.c{$(TMPDIR)}.obj::
-        $(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)^\ -Fo$(TMPDIR)^\ -c @<<
+        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)^\ -Fo$(TMPDIR)^\ -c @<<
 $<
 <<
 
 {$(SRCDIR)}.cpp{$(TMPDIR)}.obj::
-        $(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)^\ -c @<<
+        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)^\ -c @<<
 $<
 <<
 

@@ -74,7 +74,7 @@
  * ---------------------------------------------------------------------------*/
 
 #ifdef HAVE_LONG_LONG
-# ifdef __MSVCRT__
+# if defined(_MSC_VER) || defined(__MSVCRT__)
 #    define JIM_WIDE_MODIFIER "I64d"
 # else
 #    define JIM_WIDE_MODIFIER "lld"
