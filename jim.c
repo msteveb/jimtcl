@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+#define __JIM_CORE__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +51,7 @@
 
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and don't try to free. */
-char *JimEmptyStringRep = "";
+static char *JimEmptyStringRep = "";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -826,7 +828,7 @@ void Jim_StringCopyHT_KeyDestructor(void *privdata, void *key)
 	Jim_Free(key);
 }
 	
-Jim_HashTableType Jim_StringCopyHashTableType = {
+static Jim_HashTableType Jim_StringCopyHashTableType = {
 	Jim_StringCopyHT_HashFunction,		/* hash function */
 	Jim_StringCopyHT_KeyDup,		/* key dup */
 	NULL,					/* val dup */
@@ -837,7 +839,7 @@ Jim_HashTableType Jim_StringCopyHashTableType = {
 
 /* This is like StringCopy but does not auto-duplicate the key.
  * It's used for intepreter's shared strings. */
-Jim_HashTableType Jim_SharedStringsHashTableType = {
+static Jim_HashTableType Jim_SharedStringsHashTableType = {
 	Jim_StringCopyHT_HashFunction,		/* hash function */
 	NULL,					/* key dup */
 	NULL,					/* val dup */
@@ -852,7 +854,8 @@ unsigned int Jim_IntHT_HashFunction(void *key)
 	return Jim_IntHashFunction((unsigned int)key);
 }
 
-Jim_HashTableType Jim_IntHashTableType = {
+#if 0
+static Jim_HashTableType Jim_IntHashTableType = {
 	Jim_IntHT_HashFunction,			/* hash function */
 	NULL,					/* key dup */
 	NULL,					/* val dup */
@@ -860,6 +863,7 @@ Jim_HashTableType Jim_IntHashTableType = {
 	NULL,					/* key destructor */
 	NULL					/* val destructor */
 };
+#endif
 
 /* ---------------------------- Test & Benchmark  ----------------------------*/
 
@@ -1737,7 +1741,7 @@ char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetStringFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType stringObjType = {
+static Jim_ObjType stringObjType = {
 	"string",
 	NULL,
 	DupStringInternalRep,
@@ -1961,7 +1965,7 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
  * this works pretty well even if comparisons are at different places
  * inside the C code. */
 
-Jim_ObjType comparedStringObjType = {
+static Jim_ObjType comparedStringObjType = {
 	"compared-string",
 	NULL,
 	NULL,
@@ -2014,7 +2018,7 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, char *str)
 static void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 
-Jim_ObjType sourceObjType = {
+static Jim_ObjType sourceObjType = {
 	"source",
 	FreeSourceInternalRep,
 	DupSourceInternalRep,
@@ -2061,7 +2065,7 @@ static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType scriptObjType = {
+static Jim_ObjType scriptObjType = {
 	"script",
 	FreeScriptInternalRep,
 	DupScriptInternalRep,
@@ -2480,7 +2484,7 @@ static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
 	Jim_Free(val);
 }
 
-Jim_HashTableType Jim_CommandsHashTableType = {
+static Jim_HashTableType Jim_CommandsHashTableType = {
 	Jim_StringCopyHT_HashFunction,		/* hash function */
 	Jim_StringCopyHT_KeyDup,		/* key dup */
 	NULL,					/* val dup */
@@ -2600,7 +2604,7 @@ int Jim_RenameCommand(Jim_Interp *interp, char *oldName, char *newName)
 
 static int SetCommandFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType commandObjType = {
+static Jim_ObjType commandObjType = {
 	"command",
 	NULL,
 	NULL,
@@ -2664,7 +2668,7 @@ static void Jim_VariablesHT_ValDestructor(void *interp, void *val)
 	Jim_Free(val);
 }
 
-Jim_HashTableType Jim_VariablesHashTableType = {
+static Jim_HashTableType Jim_VariablesHashTableType = {
 	Jim_StringCopyHT_HashFunction,		/* hash function */
 	Jim_StringCopyHT_KeyDup,		/* key dup */
 	NULL,					/* val dup */
@@ -2681,7 +2685,7 @@ Jim_HashTableType Jim_VariablesHashTableType = {
 
 static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType variableObjType = {
+static Jim_ObjType variableObjType = {
 	"variable",
 	NULL,
 	NULL,
@@ -3040,7 +3044,7 @@ static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
 		Jim_Obj *dupPtr);
 
-Jim_ObjType dictSubstObjType = {
+static Jim_ObjType dictSubstObjType = {
 	"dict-substitution",
 	FreeDictSubstInternalRep,
 	DupDictSubstInternalRep,
@@ -3220,7 +3224,7 @@ void Jim_ReferencesHT_KeyDestructor(void *privdata, void *key)
 	Jim_Free(key);
 }
 
-Jim_HashTableType Jim_ReferencesHashTableType = {
+static Jim_HashTableType Jim_ReferencesHashTableType = {
 	Jim_ReferencesHT_HashFunction,		/* hash function */
 	Jim_ReferencesHT_KeyDup,		/* key dup */
 	NULL,					/* val dup */
@@ -3235,7 +3239,7 @@ Jim_HashTableType Jim_ReferencesHashTableType = {
 
 static void UpdateStringOfReference(struct Jim_Obj *objPtr);
 
-Jim_ObjType referenceObjType = {
+static Jim_ObjType referenceObjType = {
 	"reference",
 	NULL,
 	NULL,
@@ -3344,7 +3348,7 @@ Jim_Reference *Jim_GetReference(Jim_Interp *interp, Jim_Obj *objPtr)
  * ---------------------------------------------------------------------------*/
 
 /* This the hash table type for the "MARK" phase of the GC */
-Jim_HashTableType Jim_RefMarkHashTableType = {
+static Jim_HashTableType Jim_RefMarkHashTableType = {
 	Jim_ReferencesHT_HashFunction,		/* hash function */
 	Jim_ReferencesHT_KeyDup,		/* key dup */
 	NULL,					/* val dup */
@@ -3768,7 +3772,7 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, char *str)
 static void UpdateStringOfInt(struct Jim_Obj *objPtr);
 static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
-Jim_ObjType intObjType = {
+static Jim_ObjType intObjType = {
 	"int",
 	NULL,
 	NULL,
@@ -3867,7 +3871,7 @@ Jim_Obj *Jim_NewIntObj(Jim_Interp *interp, jim_wide wideValue)
 static void UpdateStringOfDouble(struct Jim_Obj *objPtr);
 static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
-Jim_ObjType doubleObjType = {
+static Jim_ObjType doubleObjType = {
 	"double",
 	NULL,
 	NULL,
@@ -3952,7 +3956,7 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
  * the list object itself can't. This basically means that the
  * list object string representation as a whole can't contain references
  * that are not presents in the single elements. */
-Jim_ObjType listObjType = {
+static Jim_ObjType listObjType = {
 	"list",
 	FreeListInternalRep,
 	DupListInternalRep,
@@ -4482,7 +4486,7 @@ static void Jim_ObjectHT_KeyValDestructor(void *interp, void *val)
 	Jim_DecrRefCount(interp, objPtr);
 }
 
-Jim_HashTableType Jim_DictHashTableType = {
+static Jim_HashTableType Jim_DictHashTableType = {
 	Jim_ObjectHT_HashFunction,		/* hash function */
 	NULL,					/* key dup */
 	NULL,					/* val dup */
@@ -4495,7 +4499,7 @@ Jim_HashTableType Jim_DictHashTableType = {
  * the list object itself can't. This basically means that the
  * dict object string representation as a whole can't contain references
  * that are not presents in the single elements. */
-Jim_ObjType dictObjType = {
+static Jim_ObjType dictObjType = {
 	"dict",
 	FreeDictInternalRep,
 	DupDictInternalRep,
@@ -4870,7 +4874,7 @@ err:
 static void UpdateStringOfIndex(struct Jim_Obj *objPtr);
 static int SetIndexFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType indexObjType = {
+static Jim_ObjType indexObjType = {
 	"index",
 	NULL,
 	NULL,
@@ -4957,7 +4961,7 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
 
 static int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
-Jim_ObjType returnCodeObjType = {
+static Jim_ObjType returnCodeObjType = {
 	"return-code",
 	NULL,
 	NULL,
@@ -5256,7 +5260,7 @@ static void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-Jim_ObjType exprObjType = {
+static Jim_ObjType exprObjType = {
 	"expression",
 	FreeExprInternalRep,
 	DupExprInternalRep,
@@ -6649,7 +6653,7 @@ static int JimParseSubst(struct JimParserCtx *pc, int flags)
  * for what is needed for [subst]itution tasks, but the reuse helps to
  * deal with a single data structure at the cost of some more memory
  * usage for substitutions. */
-Jim_ObjType substObjType = {
+static Jim_ObjType substObjType = {
 	"subst",
 	FreeScriptInternalRep,
 	DupScriptInternalRep,
@@ -8210,7 +8214,7 @@ int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	}
 }
 
-struct {
+static struct {
 	char *name;
 	Jim_CmdProc cmdProc;
 } Jim_CoreCommandsTable[] = {
