@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.74 2005/03/07 17:58:19 antirez Exp $
+ * $Id: jim.c,v 1.75 2005/03/07 20:34:16 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ static char *JimEmptyStringRep = (char *)"";
  * Required prototypes of not exported functions
  * ---------------------------------------------------------------------------*/
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
-static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf);
+static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static void JimRegisterCoreApi(Jim_Interp *interp);
 
 /* -----------------------------------------------------------------------------
@@ -814,7 +814,7 @@ static int JimExpandHashTableIfNeeded(Jim_HashTable *ht)
 /* Our hash table capability is a power of two */
 static unsigned int JimHashTableNextPower(unsigned int size)
 {
-    unsigned int i = 256;
+    unsigned int i = JIM_HT_INITIAL_SIZE;
 
     if (size >= 2147483648U)
         return 2147483648U;
@@ -883,22 +883,22 @@ static void JimStringCopyHTKeyDestructor(void *privdata, const void *key)
 
 static Jim_HashTableType JimStringCopyHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,        /* key dup */
-    NULL,                    /* val dup */
-    JimStringCopyHTKeyCompare,        /* key compare */
-    JimStringCopyHTKeyDestructor,        /* key destructor */
-    NULL                    /* val destructor */
+    JimStringCopyHTKeyDup,              /* key dup */
+    NULL,                               /* val dup */
+    JimStringCopyHTKeyCompare,          /* key compare */
+    JimStringCopyHTKeyDestructor,       /* key destructor */
+    NULL                                /* val destructor */
 };
 
 /* This is like StringCopy but does not auto-duplicate the key.
  * It's used for intepreter's shared strings. */
 static Jim_HashTableType JimSharedStringsHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
-    NULL,                    /* key dup */
-    NULL,                    /* val dup */
-    JimStringCopyHTKeyCompare,        /* key compare */
-    JimStringCopyHTKeyDestructor,        /* key destructor */
-    NULL                    /* val destructor */
+    NULL,                               /* key dup */
+    NULL,                               /* val dup */
+    JimStringCopyHTKeyCompare,          /* key compare */
+    JimStringCopyHTKeyDestructor,       /* key destructor */
+    NULL                                /* val destructor */
 };
 
 typedef struct AssocDataValue {
@@ -3274,6 +3274,7 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp)
         interp->freeFramesList = cf->nextFramePtr;
     } else {
         cf = Jim_Alloc(sizeof(*cf));
+        cf->vars.table = NULL;
     }
 
     cf->id = interp->callFrameEpoch++;
@@ -3283,7 +3284,8 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp)
     cf->procArgsObjPtr = NULL;
     cf->procBodyObjPtr = NULL;
     cf->nextFramePtr = NULL;
-    Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
+    if (cf->vars.table == NULL)
+        Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     return cf;
 }
 
@@ -3293,11 +3295,35 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf)
     cf->id = interp->callFrameEpoch++;
 }
 
-static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf)
+#define JIM_FCF_NONE 0 /* no flags */
+#define JIM_FCF_NOHT 1 /* don't free the hash table */
+static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf,
+        int flags)
 {
     if (cf->procArgsObjPtr) Jim_DecrRefCount(interp, cf->procArgsObjPtr);
     if (cf->procBodyObjPtr) Jim_DecrRefCount(interp, cf->procBodyObjPtr);
-    Jim_FreeHashTable(&cf->vars);
+    if (!(flags & JIM_FCF_NOHT))
+        Jim_FreeHashTable(&cf->vars);
+    else {
+        int i;
+        Jim_HashEntry **table = cf->vars.table, *he;
+
+        for (i = 0; i < JIM_HT_INITIAL_SIZE; i++) {
+            he = table[i];
+            while (he != NULL) {
+                Jim_HashEntry *nextEntry = he->next;
+                Jim_Var *varPtr = (void*) he->val;
+
+                Jim_DecrRefCount(interp, varPtr->objPtr);
+                Jim_Free(he->val);
+                Jim_Free((void*)he->key); /* ATTENTION: const cast */
+                Jim_Free(he);
+                table[i] = NULL;
+                he = nextEntry;
+            }
+        }
+        cf->vars.used = 0;
+    }
     cf->nextFramePtr = interp->freeFramesList;
     interp->freeFramesList = cf;
 }
@@ -3759,7 +3785,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     /* Free the call frames list */
     while(cf) {
         prevcf = cf->parentCallFrame;
-        JimFreeCallFrame(i, cf);
+        JimFreeCallFrame(i, cf, JIM_FCF_NONE);
         cf = prevcf;
     }
     /* Check that the live object list is empty, otherwise
@@ -6828,7 +6854,11 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     /* Destroy the callframe */
     interp->numLevels --;
     interp->framePtr = interp->framePtr->parentCallFrame;
-    JimFreeCallFrame(interp, callFramePtr);
+    if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
+        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
+    } else {
+        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
+    }
 
     /* Handle the return code */
     if (retcode == JIM_RETURN) {

@@ -1,3 +1,10 @@
+2005-03-07 18:58  antirez
+
+	* ChangeLog, jim.c: Added "increasing", "decreasing", "ascii",
+	  "nocase" options to lsort (SS). The plan is to don't add more
+	  options than this, but -command, and put "dictionary style"
+	  comparison in [string dictcompare].
+
 2005-03-07 17:03  antirez
 
 	* ChangeLog, Makefile, bench.tcl, jim.c: [lsort] command and list

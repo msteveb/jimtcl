@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.41 2005/03/07 15:30:34 patthoyts Exp $
+ * $Id: jim.h,v 1.42 2005/03/07 20:34:16 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,7 +168,7 @@ typedef struct Jim_HashTableIterator {
 } Jim_HashTableIterator;
 
 /* This is the initial size of every hash table */
-#define JIM_HT_INITIAL_SIZE     32
+#define JIM_HT_INITIAL_SIZE     16
 
 /* ------------------------------- Macros ------------------------------------*/
 #define Jim_FreeEntryVal(ht, entry) \
