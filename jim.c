@@ -460,7 +460,7 @@ unsigned int Jim_RightDbjHashFunction(unsigned char *buf, int len)
 }
 
 /* Another simple hash function mixing bit rotation and addition */
-#define ROT32R(x,n) (((x)>>n)|(x<<(32-n)))
+#define ROT32R(x,n) (((x)>>(n))|((x)<<(32-(n))))
 unsigned int Jim_RotHashFunction(unsigned char *buf, int len)
 {
 	unsigned int h = 0;
@@ -1543,14 +1543,14 @@ int JimParseListStr(struct JimParserCtx *pc)
 /* Free the internal representation of the object. */
 #define Jim_FreeIntRep(i,o) \
 	if ((o)->typePtr && (o)->typePtr->freeIntRepProc) \
-		(o)->typePtr->freeIntRepProc(i, o);
+		(o)->typePtr->freeIntRepProc(i, o)
 
 /* Get the internal representation pointer */
 #define Jim_GetIntRepPtr(o) (o)->internalRep.ptr
 
 /* Set the internal representation pointer */
 #define Jim_SetIntRepPtr(o, p) \
-	(o)->internalRep.ptr = p;
+	(o)->internalRep.ptr = (p)
 
 /* Return a new initialized object. */
 Jim_Obj *Jim_NewObj(Jim_Interp *interp)
@@ -1628,7 +1628,7 @@ void Jim_InvalidateStringRep(Jim_Obj *objPtr)
 }
 
 #define Jim_SetStringRep(o, b, l) \
-	do { (o)->bytes = b; (o)->length = l; } while (0);
+	do { (o)->bytes = b; (o)->length = l; } while (0)
 
 /* Set the initial string representation for an object.
  * Does not try to free an old one. */

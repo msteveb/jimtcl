@@ -137,24 +137,24 @@ typedef struct Jim_HashTableIterator {
 /* ------------------------------- Macros ------------------------------------*/
 #define Jim_FreeEntryVal(ht, entry) \
 	if ((ht)->type->valDestructor) \
-		(ht)->type->valDestructor((ht)->privdata, entry->val)
+		(ht)->type->valDestructor((ht)->privdata, (entry)->val)
 
-#define Jim_SetHashVal(ht, entry, val) do { \
+#define Jim_SetHashVal(ht, entry, _val_) do { \
 	if ((ht)->type->valDup) \
-		entry->val = (ht)->type->valDup((ht)->privdata, val); \
+		entry->val = (ht)->type->valDup((ht)->privdata, _val_); \
 	else \
-		entry->val = val; \
+		entry->val = (_val_); \
 } while(0)
 
 #define Jim_FreeEntryKey(ht, entry) \
 	if ((ht)->type->keyDestructor) \
-		(ht)->type->keyDestructor((ht)->privdata, entry->key)
+		(ht)->type->keyDestructor((ht)->privdata, (entry)->key)
 
-#define Jim_SetHashKey(ht, entry, key) do { \
+#define Jim_SetHashKey(ht, entry, _key_) do { \
 	if ((ht)->type->keyDup) \
-		entry->key = (ht)->type->keyDup((ht)->privdata, key); \
+		entry->key = (ht)->type->keyDup((ht)->privdata, _key_); \
 	else \
-		entry->key = key; \
+		entry->key = (_key_); \
 } while(0)
 
 #define Jim_CompareHashKeys(ht, key1, key2) \
@@ -246,9 +246,9 @@ typedef struct Jim_Obj {
 
 /* Jim_Obj related macros */
 #define Jim_IncrRefCount(objPtr) \
-	++(objPtr)->refCount;
+	++(objPtr)->refCount
 #define Jim_DecrRefCount(interp, objPtr) \
-	if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr);
+	if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr)
 #define Jim_IsShared(objPtr) \
 	((objPtr)->refCount > 1)
 
@@ -381,22 +381,20 @@ typedef struct Jim_Interp {
  * cached can no longer considered valid. */
 #define Jim_InterpIncrProcEpoch(i) (i)->procEpoch++
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
-#define Jim_SetEmptyResult(i) Jim_SetResult(i, i->emptyObj)
+#define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
 
 /* Note that 'o' is expanded only one time inside this macro,
  * so it's safe to use side effects. */
-#define Jim_SetResult(i,o) do { \
-	Jim_Obj *resultObjPtr = o; \
-	Jim_IncrRefCount(resultObjPtr); \
-	Jim_DecrRefCount(i,(i)->result); \
-	(i)->result = resultObjPtr; \
+#define Jim_SetResult(i,o) do {     \
+	Jim_Obj *_resultObjPtr_ = (o);    \
+	Jim_IncrRefCount(_resultObjPtr_); \
+	Jim_DecrRefCount(i,(i)->result);  \
+	(i)->result = _resultObjPtr_;     \
 } while(0)
 
-/* Reference structure. Unfortunately like for commands and vars
- * we need the interpreter pointer. This should be fixed in the future
- * holding some 'privData' field into the hashtable. */
+/* Reference structure. The interpreter pointer is held within privdata member in HashTable */
 typedef struct Jim_Reference {
 	Jim_Obj *objPtr;
 	Jim_Obj *finalizerCmdNamePtr;
