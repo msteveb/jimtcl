@@ -1,3 +1,7 @@
+2005-03-17 08:40  antirez
+
+	* ChangeLog, jim.c, jim.h: [source] command added.
+
 2005-03-17 08:22  antirez
 
 	* ChangeLog, Makefile, TODO, jim.c, jim.h: The interactive prompt

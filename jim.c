@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.115 2005/03/17 07:40:25 antirez Exp $
+ * $Id: jim.c,v 1.116 2005/03/17 13:06:27 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -548,44 +548,13 @@ unsigned int Jim_IdentityHashFunction(unsigned int key)
     return key;
 }
 
-/* The djb hash function, that's under public domain */
-unsigned int Jim_DjbHashFunction(const unsigned char *buf, int len)
-{
-    unsigned int h = 5381;
-    while(len--)
-        h = (h + (h << 5)) ^ *buf++;
-    return h;
-}
-
-unsigned int Jim_RightDbjHashFunction(const unsigned char *buf, int len)
-{
-    unsigned int h = 5381;
-    buf += len-1;
-    while(len--)
-        h = (h + (h << 5)) ^ *buf--;
-    return h;
-}
-
-/* Another simple hash function mixing bit rotation and addition */
-#define ROT32R(x,n) (((x)>>(n))|((x)<<(32-(n))))
-unsigned int Jim_RotHashFunction(const unsigned char *buf, int len)
+/* Generic hash function (we are using to multiply by 9 and add the byte
+ * as Tcl) */
+unsigned int Jim_GenHashFunction(const unsigned char *buf, int len)
 {
     unsigned int h = 0;
-    while(len--) {
-        h = h + *buf++;
-        h = ROT32R(h, 3);
-    }
-    return h;
-}
-
-unsigned int Jim_RightRotHashFunction(const unsigned char *buf, int len)
-{
-    unsigned int h = 0;
-    buf += len-1;
-    while(len--) {
-        h = h + *buf--;
-        h = ROT32R(h, 3);
-    }
+    while(len--)
+        h += (h<<3)+*buf++;
     return h;
 }
 
@@ -873,7 +842,7 @@ static int JimInsertHashEntry(Jim_HashTable *ht, const void *key)
 
 static unsigned int JimStringCopyHTHashFunction(const void *key)
 {
-    return Jim_DjbHashFunction(key, strlen(key));
+    return Jim_GenHashFunction(key, strlen(key));
 }
 
 static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
@@ -2544,8 +2513,9 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
 {
     int i, j;
 
+    return;
     /* Try to share with toplevel object. */
-    if (0 && topLevelScript != NULL) {
+    if (topLevelScript != NULL) {
         for (i = 0; i < script->len; i++) {
             Jim_Obj *foundObjPtr;
             char *str = script->token[i].objPtr->bytes;
@@ -2565,7 +2535,6 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
             }
         }
     }
-    return;
     /* Try to share locally */
     for (i = 0; i < script->len; i++) {
         char *str = script->token[i].objPtr->bytes;
@@ -5097,10 +5066,12 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 unsigned int JimObjectHTHashFunction(const void *key)
 {
     const char *str;
-    int len;
+    Jim_Obj *objPtr = (Jim_Obj*) key;
+    int len, h;
 
-    str = Jim_GetString((Jim_Obj*)key, &len); /* ATTENTION: const cast */
-    return Jim_DjbHashFunction(str, len);
+    str = Jim_GetString(objPtr, &len);
+    h = Jim_GenHashFunction(str, len);
+    return h;
 }
 
 int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
@@ -10163,7 +10134,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.115 2005/03/17 07:40:25 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.116 2005/03/17 13:06:27 antirez Exp $\n");
     while (1) {
         char buf[1024];
         const char *result;

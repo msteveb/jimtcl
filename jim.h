@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.59 2005/03/17 07:40:25 antirez Exp $
+ * $Id: jim.h,v 1.60 2005/03/17 13:06:27 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -231,6 +231,8 @@ typedef struct Jim_Obj {
     union {
         /* integer number type */
         jim_wide wideValue;
+        /* hashed object type value */
+        int hashValue;
         /* index type */
         int indexValue;
         /* return code type */
