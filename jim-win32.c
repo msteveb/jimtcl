@@ -26,7 +26,6 @@
 #include <psapi.h>
 #include <ctype.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
 
 #if _MSC_VER >= 1000

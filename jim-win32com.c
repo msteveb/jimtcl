@@ -17,15 +17,15 @@
 
 #define STRICT
 #define WIN32_LEAN_AND_MEAN
+#include <stdio.h>
 #include <windows.h>
 #include <ole2.h>
 #include <tchar.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <ctype.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
-#include <stdio.h>
 
 #if _MSC_VER >= 1000
 #pragma comment(lib, "shell32")
