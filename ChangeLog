@@ -1,3 +1,7 @@
+2005-04-05 14:16  antirez
+
+	* ChangeLog, jim-rlprompt-1.0.tcl: minor rlprompt fix.
+
 2005-04-05 13:51  antirez
 
 	* ChangeLog, Makefile, jim-readline.c, jim-rlprompt-1.0.tcl, jim.c,

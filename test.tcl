@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.29 2005/03/29 16:50:22 antirez Exp $
+# $Id: test.tcl,v 1.30 2005/04/05 12:18:27 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -4140,6 +4140,7 @@ test range-5.0 {lindex llength range test} {
 ################################################################################
 # SCOPE
 ################################################################################
+if 0 {
 test scope-1.0 {Non existing var} {
     catch {unset x}
     scope x {
@@ -4192,6 +4193,7 @@ test scope-1.5 {Info exists} {
 
 catch {unset x}
 catch {unset y}
+}
 
 ################################################################################
 # RAND

@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.145 2005/04/05 11:51:17 antirez Exp $
+ * $Id: jim.c,v 1.146 2005/04/05 12:18:27 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11216,49 +11216,6 @@ static int Jim_RangeCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-/* [scope] */
-static int Jim_ScopeCoreCommand(Jim_Interp *interp, int argc,
-        Jim_Obj *const *argv)
-{
-    Jim_Obj **savedVect, *resultObjPtr, *varNameObjPtr;
-    int len, i, retCode;
-
-    if (argc != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "varList body");
-        return JIM_ERR;
-    }
-    /* Save the value of every var in varList into the 'savedVect' vector.
-     * Also unset every var name. */
-    Jim_ListLength(interp, argv[1], &len);
-    savedVect = Jim_Alloc(len*sizeof(Jim_Obj*));
-    for (i = 0; i < len; i++) {
-        Jim_ListIndex(interp, argv[1], i, &varNameObjPtr, JIM_NONE);
-        savedVect[i] = Jim_GetVariable(interp, varNameObjPtr, JIM_NONE);
-        if (savedVect[i] != NULL)
-            Jim_IncrRefCount(savedVect[i]);
-        Jim_UnsetVariable(interp, varNameObjPtr, JIM_NONE);
-    }
-    /* Eval the body */
-    retCode = Jim_EvalObj(interp, argv[2]);
-    resultObjPtr = Jim_GetResult(interp);
-    Jim_IncrRefCount(resultObjPtr);
-    /* Restore the status of vars. */
-    for (i = 0; i < len; i++) {
-        Jim_ListIndex(interp, argv[1], i, &varNameObjPtr, JIM_NONE);
-        if (savedVect[i] != NULL) {
-            Jim_SetVariable(interp, varNameObjPtr, savedVect[i]);
-            Jim_DecrRefCount(interp, savedVect[i]);
-        } else {
-            Jim_UnsetVariable(interp, varNameObjPtr, JIM_NONE);
-        }
-    }
-    Jim_Free(savedVect);
-    /* Done */
-    Jim_SetResult(interp, resultObjPtr);
-    Jim_DecrRefCount(interp, resultObjPtr);
-    return retCode;
-}
-
 /* [rand] */
 static int Jim_RandCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
@@ -11405,7 +11362,6 @@ static struct {
     {"source", Jim_SourceCoreCommand},
     {"lreverse", Jim_LreverseCoreCommand},
     {"range", Jim_RangeCoreCommand},
-    {"scope", Jim_ScopeCoreCommand},
     {"rand", Jim_RandCoreCommand},
     {"package", Jim_PackageCoreCommand},
     {NULL, NULL},
@@ -11476,7 +11432,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.145 2005/04/05 11:51:17 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.146 2005/04/05 12:18:27 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
