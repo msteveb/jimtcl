@@ -9,11 +9,15 @@ proc bench {title script} {
 
 ### BUSY LOOP ##################################################################
 
-proc busyloop {} {
+proc whilebusyloop {} {
     set i 0
     while {$i < 1850000} {
 	incr i
     }
+}
+
+proc forbusyloop {} {
+    for {set i 0} {$i < 1850000} {incr i} {}
 }
 
 ### FIBONACCI ##################################################################
@@ -67,7 +71,6 @@ proc heapsort {ra_name} {
 	    if {$j < $ir} {
 		if {$tmp < [lindex $ra [expr {$j + 1}]]} {
 		    set tmp [lindex $ra [incr j]]
-		    #eval [list a b c]
 		}
 	    }
             if {$rra >= $tmp} {
@@ -268,7 +271,8 @@ proc miniloops {} {
 
 ### RUN ALL ####################################################################
 
-bench {busy loop} {busyloop}
+bench {[while] busy loop} {whilebusyloop}
+bench {[for] busy loop} {forbusyloop}
 bench {mini loops} {miniloops}
 bench {fibonacci(25)} {fibonacci 25}
 bench {heapsort} {heapsort_main}

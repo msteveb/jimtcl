@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.72 2005/03/07 15:30:34 patthoyts Exp $
+ * $Id: jim.c,v 1.73 2005/03/07 16:03:29 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3974,7 +3974,7 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 #define JIM_INTEGER_SPACE 24
 
 static void UpdateStringOfInt(struct Jim_Obj *objPtr);
-static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
+static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
 
 static Jim_ObjType intObjType = {
     "int",
@@ -3995,7 +3995,7 @@ void UpdateStringOfInt(struct Jim_Obj *objPtr)
     objPtr->length = len;
 }
 
-int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
+int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     jim_wide wideValue;
     const char *str;
@@ -4004,9 +4004,11 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     str = Jim_GetString(objPtr, NULL);
     /* Try to convert into a jim_wide */
     if (Jim_StringToWide(str, &wideValue, 0) != JIM_OK) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "expected integer but got \"", str, "\"", NULL);
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "expected integer but got \"", str, "\"", NULL);
+        }
         return JIM_ERR;
     }
     if ((wideValue == JIM_WIDE_MIN || wideValue == JIM_WIDE_MAX) &&
@@ -4025,7 +4027,18 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 int Jim_GetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide *widePtr)
 {
     if (objPtr->typePtr != &intObjType &&
-        SetIntFromAny(interp, objPtr) == JIM_ERR)
+        SetIntFromAny(interp, objPtr, JIM_ERRMSG) == JIM_ERR)
+        return JIM_ERR;
+    *widePtr = objPtr->internalRep.wideValue;
+    return JIM_OK;
+}
+
+/* Get a wide but does not set an error if the format is bad. */
+static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr,
+        jim_wide *widePtr)
+{
+    if (objPtr->typePtr != &intObjType &&
+        SetIntFromAny(interp, objPtr, JIM_NONE) == JIM_ERR)
         return JIM_ERR;
     *widePtr = objPtr->internalRep.wideValue;
     return JIM_OK;
@@ -4464,21 +4477,29 @@ static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     return strcmp(lhs, rhs);
 }
 
-static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObj, int type)
+/* Sort a list *in place*. MUST be called with non-shared objects. */
+static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
 {
     typedef int (qsort_comparator)(const void *, const void *);
     int (*fn)(Jim_Obj**, Jim_Obj**);
-    Jim_Obj **vector = listObj->internalRep.listValue.ele;
-    int len = listObj->internalRep.listValue.len;
+    Jim_Obj **vector;
+    int len;
 
-    assert(listObj->typePtr == &listObjType);
+    if (Jim_IsShared(listObjPtr))
+        Jim_Panic("Jim_ListSortElements called with shared object");
+    if (listObjPtr->typePtr != &listObjType)
+        SetListFromAny(interp, listObjPtr);
+
+    vector = listObjPtr->internalRep.listValue.ele;
+    len = listObjPtr->internalRep.listValue.len;
     switch (type) {
         case JIM_LSORT_STRING: fn = ListSortString;  break;
         default:
+            fn = NULL; /* avoid warning */
             Jim_Panic("ListSort called with invalid sort type");
     }
     qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *)fn);
-    Jim_InvalidateStringRep(listObj);
+    Jim_InvalidateStringRep(listObjPtr);
 }
 
 /* This is the low-level function to append an element to a list.
@@ -5959,8 +5980,8 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
             /* --- Integer --- */
             if ((A->typePtr == &doubleObjType && !A->bytes) ||
                 (B->typePtr == &doubleObjType && !B->bytes) ||
-                Jim_GetWide(interp, A, &wA) != JIM_OK ||
-                Jim_GetWide(interp, B, &wB) != JIM_OK) {
+                JimGetWideNoErr(interp, A, &wA) != JIM_OK ||
+                JimGetWideNoErr(interp, B, &wB) != JIM_OK) {
                 goto trydouble;
             }
             Jim_DecrRefCount(interp, A);
@@ -6109,7 +6130,7 @@ trydouble:
 
             /* --- Integer --- */
             if ((A->typePtr == &doubleObjType && !A->bytes) ||
-                Jim_GetWide(interp, A, &wA) != JIM_OK) {
+                JimGetWideNoErr(interp, A, &wA) != JIM_OK) {
                 goto trydouble_unary;
             }
             Jim_DecrRefCount(interp, A);
@@ -6188,7 +6209,7 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
     retcode = Jim_EvalExpression(interp, exprObjPtr, &exprResultPtr);
     if (retcode != JIM_OK)
         return retcode;
-    if (Jim_GetWide(interp, exprResultPtr, &wideValue) != JIM_OK) {
+    if (JimGetWideNoErr(interp, exprResultPtr, &wideValue) != JIM_OK) {
         if (Jim_GetDouble(interp, exprResultPtr, &doubleValue) != JIM_OK)
         {
             Jim_DecrRefCount(interp, exprResultPtr);
@@ -9254,6 +9275,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
                 case INFO_GLOBALS: mode = JIM_VARLIST_GLOBALS; break;
                 case INFO_LOCALS:  mode = JIM_VARLIST_LOCALS; break;
                 case INFO_VARS:    mode = JIM_VARLIST_VARS; break;
+                default: mode = 0; /* avoid warning */; break;
             }
             if (argc != 2 && argc != 3) {
                 Jim_WrongNumArgs(interp, 2, argv, "?pattern?");

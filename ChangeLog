@@ -1,3 +1,15 @@
+2005-03-07 16:30  patthoyts
+
+	* jim.c, jim.h: Refactored the [info] command and added body and
+	  version to the command.  Added a simple version of [lsort] (no
+	  options yet).
+
+2005-03-07 15:17  antirez
+
+	* ChangeLog, jim.c: specializing version of while (still not
+	  complete, but already handles most of the cases that it's worth
+	  to optimize).
+
 2005-03-07 09:23  antirez
 
 	* ChangeLog, TODO: TODO changes
