@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.22 2005/04/06 12:52:08 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.23 2005/04/06 13:08:01 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ static HINSTANCE g_hInstance = 0;
 BOOL APIENTRY
 DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID reserved)
 {
+    JIM_NOTUSED(reserved);
     if (dwReason == DLL_PROCESS_ATTACH) {
         g_hInstance = hInstance;
     }
@@ -166,6 +167,8 @@ Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     WNDCLASSEX wc;
     TCHAR szClass[16] = _T("JimWindowClass");
     TCHAR szTitle[16] = _T("JimWindow");
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
 
     hInst = g_hInstance; //(HINSTANCE)GetModuleHandle(NULL);
 
@@ -445,6 +448,8 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     PERFORMANCE_INFORMATION pi;
     LPFNGETPERFORMANCEINFO lpfnGetPerformanceInfo = NULL;
     HMODULE hLib = (HMODULE)Jim_CmdPrivData(interp);
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
 
     if (hLib != NULL)
         lpfnGetPerformanceInfo = (LPFNGETPERFORMANCEINFO)GetProcAddress(hLib, "GetPerformanceInfo");
@@ -463,7 +468,7 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 
 #define JIMADD(name) \
     a[n++] = Jim_NewStringObj(interp, #name, -1); \
-    a[n++] = Jim_NewIntObj(interp, pi. ## name )
+    a[n++] = Jim_NewIntObj(interp, pi.name )
 
     JIMADD(CommitTotal);
     JIMADD(CommitLimit);
@@ -489,7 +494,7 @@ Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     Jim_Obj *a[8];
     size_t n = 0;
-    CURSORINFO ci = {0};
+    CURSORINFO ci;
 
     JIM_NOTUSED(objc);
     JIM_NOTUSED(objv);
@@ -537,7 +542,7 @@ static int
 Win32_SetCursorPos(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     int r = JIM_OK;
-    POINT pt = {0};
+    POINT pt;
 
     if (objc != 3) {
         Jim_WrongNumArgs(interp, 1, objv, "x y");
@@ -717,6 +722,7 @@ static void
 Win32_ReleasePrivLib(Jim_Interp *interp, void *clientData)
 {
     HMODULE hLib = (HMODULE)clientData;
+    JIM_NOTUSED(interp);
     if (hLib)
         FreeLibrary(hLib);
 }
