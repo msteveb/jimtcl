@@ -1,3 +1,11 @@
+2005-03-12 10:18  antirez
+
+	* ChangeLog, jim.c, jim.h: Added the Jim_FreeNewObj() macro to free
+	  objects with refcount == 0 instead to call Jim_IncrRefCount +
+	  Jim_DecrRefCount(), or directly Jim_FreeObj(). Code modified
+	  accordingly where needed.  Make test + valgrind test passed after
+	  the change.
+
 2005-03-12 09:52  antirez
 
 	* ChangeLog, README, jim.c: It's now possible to exclude

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.96 2005/03/12 09:18:53 antirez Exp $
+ * $Id: jim.c,v 1.97 2005/03/12 20:26:31 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@
 
 #define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
-#define JIM_DYNLIB       /* comment to complile without dynamic lib support */
+
+#ifndef JIM_ANSIC
+#define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
+#endif /* JIM_ANSIC */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -480,15 +483,13 @@ char *Jim_StrDupLen(char *s, int l)
  * Time related functions
  * ---------------------------------------------------------------------------*/
 /* Returns microseconds of CPU used since start. */
-#ifndef JIM_ANSIC
-#ifndef WIN32
+#if !(defined WIN32) || !(defined JIM_ANSIC)
 #include <sys/time.h>
-#endif
 #endif
 
 static jim_wide JimClock(void)
 {
-#ifdef WIN32
+#if (defined WIN32) && !(defined JIM_ANSIC)
     LARGE_INTEGER t, f;
     QueryPerformanceFrequency(&f);
     QueryPerformanceCounter(&t);

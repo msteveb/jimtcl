@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.49 2005/03/12 09:18:53 antirez Exp $
+ * $Id: jim.h,v 1.50 2005/03/12 20:26:31 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,7 +111,7 @@
 #define JIM_RETURN 2
 #define JIM_BREAK 3
 #define JIM_CONTINUE 4
-#define JIM_MAX_NESTING_DEPTH 5000 /* default max nesting depth */
+#define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
  * the behaviour. */
