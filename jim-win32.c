@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.20 2005/04/05 17:59:43 antirez Exp $
+ * $Id: jim-win32.c,v 1.21 2005/04/06 10:13:03 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,6 @@
 #include <tchar.h>
 #include <shellapi.h>
 #include <lmcons.h>
-#if 0
-#include <psapi.h>
-#endif
 #include <ctype.h>
 
 #define JIM_EXTENSION
@@ -159,7 +156,7 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
-#if 1
+#if 0
     Jim_SetResultString(interp, "not implemented", -1);
     return JIM_ERR;
 #else
@@ -420,17 +417,45 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 
-#if 0 /* Disabled for now, creates problems on MSVC too */
-#ifndef __MINGW32__ /* function not available on mingw */
-// FIX ME: win2k+ so should do version checks really.
+// Declared here because its not available without recent versions of the
+// Platform SDK. mingw32 doesn't declare it all either.
+typedef struct _PERFORMANCE_INFORMATION {
+    DWORD cb;
+    SIZE_T CommitTotal;
+    SIZE_T CommitLimit;
+    SIZE_T CommitPeak;
+    SIZE_T PhysicalTotal;
+    SIZE_T PhysicalAvailable;
+    SIZE_T SystemCache;
+    SIZE_T KernelTotal;
+    SIZE_T KernelPaged;
+    SIZE_T KernelNonpaged;
+    SIZE_T PageSize;
+    DWORD HandleCount;
+    DWORD ProcessCount;
+    DWORD ThreadCount;
+} PERFORMANCE_INFORMATION;
+typedef BOOL (STDAPICALLTYPE *LPFNGETPERFORMANCEINFO)(PERFORMANCE_INFORMATION *, DWORD);
+
 static int
 Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_Obj *a[26];
     size_t n = 0;
     PERFORMANCE_INFORMATION pi;
+    LPFNGETPERFORMANCEINFO lpfnGetPerformanceInfo = NULL;
+    HMODULE hLib = (HMODULE)Jim_CmdPrivData(interp);
 
-    if (!GetPerformanceInfo(&pi, sizeof(pi))) {
+    if (hLib != NULL)
+        lpfnGetPerformanceInfo = (LPFNGETPERFORMANCEINFO)GetProcAddress(hLib, "GetPerformanceInfo");
+    if (lpfnGetPerformanceInfo == NULL) {
+        /* should never happen */
+        Jim_SetResultString(interp, "argh!", -1);
+        return JIM_ERR;
+    }
+
+    pi.cb = sizeof(pi);
+    if (!lpfnGetPerformanceInfo(&pi, sizeof(pi))) {
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "GetPerformanceInfo", GetLastError()));
         return JIM_ERR;
@@ -458,8 +483,6 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
     return JIM_OK;
 }
-#endif /* !MINGW32 */
-#endif
 
 static int
 Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -686,11 +709,27 @@ Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 }
 
 
-/* ---------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+ * Cleanup for dynamically loaded commands.
+ */
+
+static void
+Win32_ReleasePrivLib(Jim_Interp *interp, void *clientData)
+{
+    HMODULE hLib = (HMODULE)clientData;
+    if (hLib)
+        FreeLibrary(hLib);
+}
+
+/* ----------------------------------------------------------------------
+ * package load function.
+ */
 
 int
 Jim_OnLoad(Jim_Interp *interp)
 {
+    HMODULE hLib;
+
     Jim_InitExtension(interp);
     if (Jim_PackageProvide(interp, "win32", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
@@ -719,12 +758,16 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetVersion);
     CMD(GetTickCount);
     CMD(GetSystemTime);
-#if 0
-    CMD(GetPerformanceInfo);
-#endif
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
+
+    /* Check that this DLL is available before creating the command. */
+    hLib = LoadLibrary(_T("psapi"));
+    if (hLib != NULL) {
+        Jim_CreateCommand(interp, "win32.GetPerformanceInfo",
+            Win32_GetPerformanceInfo, hLib, Win32_ReleasePrivLib);
+    }
 
     return JIM_OK;
 }

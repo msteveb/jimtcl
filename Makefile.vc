@@ -14,7 +14,7 @@
 # Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
 #-------------------------------------------------------------------------
-# $Id: Makefile.vc,v 1.10 2005/03/09 13:42:02 patthoyts Exp $
+# $Id: Makefile.vc,v 1.11 2005/04/06 10:13:03 patthoyts Exp $
 #-------------------------------------------------------------------------
 
 SRCDIR =.
@@ -42,6 +42,12 @@ CFLAGS =$(CFLAGS) -Zi
 LDFLAGS=$(LDFLAGS) -profile -map
 !endif
 
+!if "$(OS)" == "Windows_NT"
+RMDIR = rmdir /s /q
+!else
+RMDIR = deltree /y
+!endif
+
 TMPDIR =$(OUTDIR)\Objects
 
 CC     =cl -nologo
@@ -54,8 +60,9 @@ DEFS   =-DWIN32
 LIBS   =
 
 
-all:     jim win32 win32com
+all:     jim win32 win32com win32api
 jim:     setup $(OUTDIR)\jim.exe
+jimwish: setup $(OUTDIR)\jimwish.exe
 dll:     setup $(OUTDIR)\jim.dll
 win32:   setup $(OUTDIR)\jim-win32.dll
 win32api: setup $(OUTDIR)\jim-win32api.dll
@@ -76,6 +83,9 @@ $(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
 $(OUTDIR)\jim-win32com.dll: $(TMPDIR)\jim-win32com.obj
         @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
+$(OUTDIR)\jimwish.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimwish.obj
+        @$(LD) $(LDFLAGS) -out:$@ $** $(LIBS) user32.lib
+
 .PHONY: all jim dll win32 win32api win32com
 
 #-------------------------------------------------------------------------
@@ -88,22 +98,22 @@ test: jim
 	$(OUTDIR)\jim.exe test.tcl
 
 clean:
-        @if exist $(TMPDIR)\NUL rmdir /q /s $(TMPDIR) >NUL
+        @if exist $(TMPDIR)\NUL $(RMDIR) $(TMPDIR) >NUL
 
 realclean: clean
-        @if exist $(OUTDIR)\NUL rmdir /q /s $(OUTDIR) >NUL
+        @if exist $(OUTDIR)\NUL $(RMDIR) $(OUTDIR) >NUL
 
 #-------------------------------------------------------------------------
 
 .SUFFIXES:.c .cpp
 
 {$(SRCDIR)}.c{$(TMPDIR)}.obj::
-        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)^\ -Fo$(TMPDIR)^\ -c @<<
+        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)\ -Fo$(TMPDIR)\ -c @<<
 $<
 <<
 
 {$(SRCDIR)}.cpp{$(TMPDIR)}.obj::
-        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)^\ -c @<<
+        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)\ -c @<<
 $<
 <<
 
