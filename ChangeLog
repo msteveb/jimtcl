@@ -1,3 +1,7 @@
+2005-03-08 10:50  antirez
+
+	* ChangeLog, jim.c, test.tcl: Info exists + tests (Clemens Hintze).
+
 2005-03-08 10:42  antirez
 
 	* ChangeLog, jim.c, regtest.tcl: Applied patch about unset a(x)

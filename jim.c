@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.78 2005/03/08 09:50:46 antirez Exp $
+ * $Id: jim.c,v 1.79 2005/03/08 11:01:54 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9694,44 +9694,3 @@ int Jim_InteractivePrompt(void)
     Jim_FreeInterp(interp);
     return 0;
 }
-
-#if 0
-int main(int argc, char **argv)
-{
-    int retcode;
-    Jim_Interp *interp;
-    
-    if (argc == 1)
-        return Jim_InteractivePrompt();
-
-    /* Parser? */
-    if (argc == 3 && !strcmp(argv[1], "--parse")) {
-        test_parser(argv[2], 0);
-        return 0;
-    } else if (argc == 3 && !strcmp(argv[1], "--parse-expr")) {
-        test_parser(argv[2], 1);
-        return 0;
-    } else if (argc == 3 && !strcmp(argv[1], "--parse-subst")) {
-        test_parser(argv[2], 2);
-        return 0;
-    } else if (argc == 2 && !strcmp(argv[1], "--test-ht")) {
-        testHashTable();
-        return 0;
-    }
-
-    /* Load the program */
-    if (argc != 2) {
-        fprintf(stderr, "missing filename\n");
-        exit(1);
-    }
-
-    /* Run it */
-    interp = Jim_CreateInterp();
-    Jim_RegisterCoreCommands(interp);
-    if ((retcode = Jim_EvalFile(interp, argv[1])) == JIM_ERR) {
-        Jim_PrintErrorMessage(interp);
-    }
-    Jim_FreeInterp(interp);
-    return retcode;
-}
-#endif
