@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.24 2005/03/21 11:59:44 chi Exp $
+# $Id: test.tcl,v 1.25 2005/03/21 12:39:36 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -8,10 +8,11 @@
 # Sometimes tests are modified to reflect different error messages.
 
 set failedTests 0
+set failedList {}
 set passedTests 0
 
 proc test {id descr script expectedResult} {
-    global failedTests passedTests
+    global failedTests failedList passedTests
 
     puts -nonewline "$id $descr: "
     set result [uplevel 1 $script]
@@ -23,6 +24,7 @@ proc test {id descr script expectedResult} {
 	puts "Expected: '$expectedResult'"
 	puts "Got     : '$result'"
 	incr failedTests
+        lappend failedList $id
     }
 }
 
@@ -4069,5 +4071,8 @@ test regression-1.1 {lrange bug with negative indexes of type int} {
 
 puts "----------------------------------------------------------------------"
 puts "FAILED: $failedTests"
+foreach testId $failedList {
+    puts "\t$testId"
+}
 puts "PASSED: $passedTests"
 puts "----------------------------------------------------------------------\n"

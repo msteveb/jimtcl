@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.123 2005/03/21 11:59:44 chi Exp $
+ * $Id: jim.c,v 1.124 2005/03/21 12:39:36 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5649,42 +5649,41 @@ typedef struct Jim_ExprOperator {
 
 /* Exrp's Stack machine operators opcodes. */
 
-/* Operators */
-#define JIM_EXPROP_NOT 0
-#define JIM_EXPROP_BITNOT 1
-#define JIM_EXPROP_UNARYMINUS 2
-#define JIM_EXPROP_UNARYPLUS 3
+/* Binary operators (numbers) */
+#define JIM_EXPROP_BINARY_NUM_FIRST 0 /* first */
+#define JIM_EXPROP_MUL 0
+#define JIM_EXPROP_DIV 1
+#define JIM_EXPROP_MOD 2
+#define JIM_EXPROP_SUB 3
+#define JIM_EXPROP_ADD 4
+#define JIM_EXPROP_LSHIFT 5
+#define JIM_EXPROP_RSHIFT 6
+#define JIM_EXPROP_ROTL 7
+#define JIM_EXPROP_ROTR 8
+#define JIM_EXPROP_LT 9
+#define JIM_EXPROP_GT 10
+#define JIM_EXPROP_LTE 11
+#define JIM_EXPROP_GTE 12
+#define JIM_EXPROP_NUMEQ 13
+#define JIM_EXPROP_NUMNE 14
+#define JIM_EXPROP_BITAND 15
+#define JIM_EXPROP_BITXOR 16
+#define JIM_EXPROP_BITOR 17
+#define JIM_EXPROP_LOGICAND 18
+#define JIM_EXPROP_LOGICOR 19
+#define JIM_EXPROP_BINARY_NUM_LAST 19 /* last */
 
-#define JIM_EXPROP_MUL 4
-#define JIM_EXPROP_DIV 5
-#define JIM_EXPROP_MOD 6
+/* Binary operators (strings) */
+#define JIM_EXPROP_STREQ 20
+#define JIM_EXPROP_STRNE 21
 
-#define JIM_EXPROP_SUB 7
-#define JIM_EXPROP_ADD 8
+/* Unary operators (numbers) */
+#define JIM_EXPROP_NOT 22
+#define JIM_EXPROP_BITNOT 23
+#define JIM_EXPROP_UNARYMINUS 24
+#define JIM_EXPROP_UNARYPLUS 25
 
-#define JIM_EXPROP_LSHIFT 9
-#define JIM_EXPROP_RSHIFT 10
-#define JIM_EXPROP_ROTL 11
-#define JIM_EXPROP_ROTR 12
-
-#define JIM_EXPROP_LT 13
-#define JIM_EXPROP_GT 14
-#define JIM_EXPROP_LTE 15
-#define JIM_EXPROP_GTE 16
-
-#define JIM_EXPROP_NUMEQ 17
-#define JIM_EXPROP_NUMNE 18
-
-#define JIM_EXPROP_STREQ 19
-#define JIM_EXPROP_STRNE 20
-
-#define JIM_EXPROP_BITAND 21
-#define JIM_EXPROP_BITXOR 22
-#define JIM_EXPROP_BITOR 23
-
-#define JIM_EXPROP_LOGICAND 24
-#define JIM_EXPROP_LOGICOR 25
-
+/* Ternary operators */
 #define JIM_EXPROP_TERNARY 26
 
 /* Operands */
@@ -6236,17 +6235,6 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
         int Alen, Blen, retcode;
 
         switch(expr->opcode[i]) {
-        case JIM_EXPROP_SUBST:
-            if ((retcode = Jim_SubstObj(interp, expr->obj[i],
-                        &objPtr, JIM_NONE)) != JIM_OK)
-            {
-                error = 1;
-                errRetCode = retcode;
-                goto err;
-            }
-            stack[stacklen++] = objPtr;
-            Jim_IncrRefCount(objPtr);
-            break;
         case JIM_EXPROP_NUMBER:
         case JIM_EXPROP_STRING:
             stack[stacklen++] = expr->obj[i];
@@ -6256,6 +6244,17 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
             objPtr = Jim_GetVariable(interp, expr->obj[i], JIM_ERRMSG);
             if (objPtr == NULL) {
                 error = 1;
+                goto err;
+            }
+            stack[stacklen++] = objPtr;
+            Jim_IncrRefCount(objPtr);
+            break;
+        case JIM_EXPROP_SUBST:
+            if ((retcode = Jim_SubstObj(interp, expr->obj[i],
+                        &objPtr, JIM_NONE)) != JIM_OK)
+            {
+                error = 1;
+                errRetCode = retcode;
                 goto err;
             }
             stack[stacklen++] = objPtr;
@@ -10710,7 +10709,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.123 2005/03/21 11:59:44 chi Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.124 2005/03/21 12:39:36 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

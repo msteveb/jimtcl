@@ -1,3 +1,40 @@
+2005-03-21 12:59  chi
+
+	* jim.c, jim.h, test.tcl: Add the [scan] command and the
+	  Jim_ScanString function + tests.
+
+	    The scanformat specification will be converted to a new Jim_Obj
+	  of type
+	  scanFormatStringObjType, that will contain the parsed
+	  representation within its internal object representation. This
+	  speed up multiple scanning within e.g. a loop, of objects were
+	  cached.
+
+	    For internal scanning we use sscanf currently (I am lazy right
+	  now). That
+	  means also, we will inherit its incapability to handle string
+	  with embedded ZERO. It would be not too difficult to implement
+	  another scanner just for the string and charset conversion type
+	  that could be able to handle those embedded ZEROs, however.
+
+	  Furthermore two small details were fixed:
+
+	  1. Jim_DoubleToString should also recognize a number if a leading
+	  '+' or    '-' occured. By recognizing I mean, add a ".0" to such
+	  a number.
+
+	  2. Jim_StrDupLen should also properly handle duplication of
+	  substrings. So    now it should be possible to do this:
+
+	       const char *str1 = "This is a long string";
+	       char *substr1 = Jim_StrDupLen(str1, 4);
+
+	     Now substr1 should contain a properly ZERO ended "This".
+
+2005-03-19 22:39  antirez
+
+	* ChangeLog, jim.c, test.tcl: Jim_GetIndex() bug fixed (SS)
+
 2005-03-19 20:12  antirez
 
 	* ChangeLog, Makefile, TODO, jim.c, jim.h: [finalize] command and
