@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.17 2005/03/05 12:22:35 antirez Exp $
+ * $Id: jim-win32.c,v 1.18 2005/03/14 16:36:11 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #define STRICT
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <tchar.h>
 #include <shellapi.h>
 #include <lmcons.h>
 #include <psapi.h>
@@ -39,6 +40,17 @@
 #endif /* _MSC_VER >= 1000 */
 
 __declspec(dllexport) int Jim_OnLoad(Jim_Interp *interp);
+
+static HINSTANCE g_hInstance = 0;
+
+BOOL APIENTRY
+DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID reserved)
+{
+    if (dwReason == DLL_PROCESS_ATTACH) {
+        g_hInstance = hInstance;
+    }
+    return TRUE;
+}
 
 static Jim_Obj *
 Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
@@ -143,7 +155,63 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 }
 
 static int
-Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+#if 1
+    Jim_SetResultString(interp, "not implemented", -1);
+    return JIM_ERR;
+#else
+    int r = JIM_ERR;
+    HINSTANCE hInst;
+    HWND hwnd;
+    WNDCLASSEX wc;
+    TCHAR szClass[16] = _T("JimWindowClass");
+    TCHAR szTitle[16] = _T("JimWindow");
+
+    hInst = g_hInstance; //(HINSTANCE)GetModuleHandle(NULL);
+
+    wc.cbSize        = sizeof(WNDCLASSEX);
+    wc.style         = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc   = DefWindowProc;
+    wc.cbClsExtra    = 0;
+    wc.cbWndExtra    = 0;
+    wc.hInstance     = hInst;
+    wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);
+    wc.lpszMenuName  = szClass;
+    wc.lpszClassName = szClass;
+    
+    if (! RegisterClassEx(&wc)) {
+        Jim_SetResult(interp,
+                      Win32ErrorObj(interp, "RegisterClassEx", GetLastError()));
+        return JIM_ERR;
+    }
+
+    hwnd = CreateWindow(szClass, szTitle,
+                        WS_VISIBLE | WS_OVERLAPPED,
+                        CW_USEDEFAULT, CW_USEDEFAULT, 
+                        CW_USEDEFAULT, CW_USEDEFAULT,
+                        HWND_DESKTOP, NULL, hInst, NULL);
+    if (hwnd) {
+        SetWindowLong(hwnd, GWL_USERDATA, (LONG)interp);
+        ShowWindow(hwnd, SW_SHOW);
+        UpdateWindow(hwnd);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hwnd));
+        r = JIM_OK;
+    } else {
+        Jim_SetResult(interp,
+                      Win32ErrorObj(interp, "CreateWindow", GetLastError()));
+        r = JIM_ERR;
+    }
+
+    return r;
+#endif
+}
+
+static int
+Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     JIM_NOTUSED(objc);
     JIM_NOTUSED(objv);
@@ -389,6 +457,150 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 }
 #endif /* !MINGW32 */
 
+
+static int
+Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    Jim_Obj *a[8];
+    size_t n = 0;
+    CURSORINFO ci = {0};
+
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
+    ci.cbSize = sizeof(ci);
+    if (!GetCursorInfo(&ci)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "GetCursorInfo", GetLastError()));
+        return JIM_ERR;
+    }
+    
+#define JIMADDN(name) a[n++] = Jim_NewStringObj(interp, #name, -1);
+#define JIMADDV(v)    a[n++] = Jim_NewIntObj(interp, (v));
+    JIMADDN(flags);   JIMADDV(ci.flags);
+    JIMADDN(hCursor); JIMADDV((DWORD)ci.hCursor);
+    JIMADDN(x);       JIMADDV(ci.ptScreenPos.x);
+    JIMADDN(y);       JIMADDV(ci.ptScreenPos.y);
+#undef JIMADDN
+#undef JIMADDV
+
+    Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
+    return JIM_OK;
+}
+
+static int
+Win32_GetCursorPos(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    Jim_Obj *a[2];
+    POINT pt;
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
+    if (!GetCursorPos(&pt)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "GetCursorPos", GetLastError()));
+        return JIM_ERR;
+    }
+    a[0] = Jim_NewIntObj(interp, pt.x);
+    a[1] = Jim_NewIntObj(interp, pt.y);
+    Jim_SetResult(interp, Jim_NewListObj(interp, a, 2));
+    return JIM_OK;
+}
+
+static int
+Win32_SetCursorPos(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    int r = JIM_OK;
+    POINT pt = {0};
+
+    if (objc != 3) {
+        Jim_WrongNumArgs(interp, 1, objv, "x y");
+        return JIM_ERR;
+    }
+    
+    r = Jim_GetLong(interp, objv[1], &pt.x);
+    if (r == JIM_OK)
+        r = Jim_GetLong(interp, objv[2], &pt.y);
+    if (r == JIM_OK) {
+        if (!SetCursorPos(pt.x, pt.y)) {
+            Jim_SetResult(interp, 
+                Win32ErrorObj(interp, "SetCursorPos", GetLastError()));
+            r = JIM_ERR;
+        }
+    }
+    return r;
+}
+
+static int
+Win32_GetCursor(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HCURSOR hCursor;
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
+    hCursor = GetCursor();
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hCursor));
+    return JIM_OK;
+}
+
+static int
+Win32_SetCursor(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HCURSOR hCursor;
+    int r = JIM_OK;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "hCursor");
+        return JIM_ERR;
+    }
+    
+    r = Jim_GetLong(interp, objv[1], (long *)&hCursor);
+    if (r == JIM_OK) {
+        hCursor = SetCursor(hCursor);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hCursor));
+    }
+    return r;
+}
+
+#ifndef IDC_HAND
+#define IDC_HAND MAKEINTRESOURCE(32649)
+#endif
+
+static int
+Win32_LoadCursor(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HCURSOR hCursor;
+    int ndx;
+    static const char *name[] = {
+        "appstarting", "arrow", "cross", "hand", "help", "ibeam",
+        "icon", "no", "size", "sizeall", "sizenesw", "sizens",
+        "sizenwse", "sizewe", "uparrow", "wait", NULL
+    };
+    static LPCTSTR id[] = {
+        IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP, IDC_IBEAM,
+        IDC_ICON, IDC_NO, IDC_SIZEALL, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS,
+        IDC_SIZENWSE, IDC_UPARROW, IDC_WAIT, NULL
+    };
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "name");
+        return JIM_ERR;
+    }
+    
+    if (Jim_GetEnum(interp, objv[1], name, &ndx, "cursor name", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+    
+    hCursor = LoadCursor((HINSTANCE)NULL, id[ndx]);
+    if (hCursor == NULL) {
+        Jim_SetResult(interp,
+                      Win32ErrorObj(interp, "LoadCursor", GetLastError()));
+        return JIM_ERR;
+    }
+    
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hCursor));
+    return JIM_OK;
+}
+
 static int
 Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
@@ -484,9 +696,16 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(ShellExecute);
     CMD(FindWindow);
     CMD(CloseWindow);
+    CMD(CreateWindow);
     CMD(GetActiveWindow);
     CMD(SetActiveWindow);
     CMD(SetForegroundWindow);
+    CMD(GetCursorInfo);
+    CMD(GetCursorPos);
+    CMD(SetCursorPos);
+    CMD(GetCursor);
+    CMD(SetCursor);
+    CMD(LoadCursor);
     CMD(Beep);
     CMD(GetComputerName);
     CMD(SetComputerName);
