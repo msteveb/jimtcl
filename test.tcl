@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.22 2005/03/15 14:05:38 antirez Exp $
+# $Id: test.tcl,v 1.23 2005/03/19 21:39:34 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -27,21 +27,6 @@ proc test {id descr script expectedResult} {
 }
 
 proc error {msg} { return -code error $msg }
-
-################################################################################
-# JIM REGRESSION TESTS
-################################################################################
-test regression-1.0 {Rename against procedures with static vars} {
-    proc foobar {x} {{y 10}} {
-        incr y $x
-    }
-    foobar 30
-    foobar 20
-    rename foobar barfoo
-    list [barfoo 1] [barfoo 2] [barfoo 3]
-} {61 63 66}
-
-rename barfoo {}
 
 ################################################################################
 # SET
@@ -3457,6 +3442,25 @@ test lrange-2.4 {error conditions} {
 #test lrange-2.6 {error conditions} {
 #    list [catch {lrange "a b c \{ d e" 1 4} msg] $msg
 #} {1 {unmatched open brace in list}}
+
+################################################################################
+# JIM REGRESSION TESTS
+################################################################################
+test regression-1.0 {Rename against procedures with static vars} {
+    proc foobar {x} {{y 10}} {
+        incr y $x
+    }
+    foobar 30
+    foobar 20
+    rename foobar barfoo
+    list [barfoo 1] [barfoo 2] [barfoo 3]
+} {61 63 66}
+
+rename barfoo {}
+
+test regression-1.1 {lrange bug with negative indexes of type int} {
+    lrange {a b c} 0 [- 0 1]
+} {}
 
 ################################################################################
 # FINAL REPORT

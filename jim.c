@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.121 2005/03/19 19:12:30 antirez Exp $
+ * $Id: jim.c,v 1.122 2005/03/19 21:39:34 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5563,7 +5563,7 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
     if (objPtr->typePtr == &intObjType) {
         jim_wide val = objPtr->internalRep.wideValue;
         if (!(val < LONG_MIN) && !(val > LONG_MAX)) {
-            *indexPtr = (val < 0) ? INT_MAX : (long)val;;
+            *indexPtr = (val < 0) ? -INT_MAX : (long)val;;
             return JIM_OK;
         }
     }
@@ -10206,7 +10206,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.121 2005/03/19 19:12:30 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.122 2005/03/19 21:39:34 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

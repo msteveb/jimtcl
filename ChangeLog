@@ -1,3 +1,8 @@
+2005-03-19 20:12  antirez
+
+	* ChangeLog, Makefile, TODO, jim.c, jim.h: [finalize] command and
+	  relative C API added (SS).
+
 2005-03-18 12:39  antirez
 
 	* ChangeLog, jim.c: now [setref] returns the value assigned to the
