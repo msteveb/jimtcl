@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.53 2005/03/04 14:09:29 antirez Exp $
+ * $Id: jim.c,v 1.54 2005/03/04 15:33:09 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7079,6 +7079,41 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr)
     return listObjPtr;
 }
 
+#define JIM_VARLIST_GLOBALS 0
+#define JIM_VARLIST_LOCALS 1
+#define JIM_VARLIST_VARS 2
+
+static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr,
+        int mode)
+{
+    Jim_HashTableIterator *htiter;
+    Jim_HashEntry *he;
+    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    const char *pattern;
+    int patternLen;
+    
+    pattern = patternObjPtr ? Jim_GetString(patternObjPtr, &patternLen) : NULL;
+    if (mode == JIM_VARLIST_GLOBALS) {
+        htiter = Jim_GetHashTableIterator(&interp->topFramePtr->vars);
+    } else {
+        htiter = Jim_GetHashTableIterator(&interp->framePtr->vars);
+    }
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        Jim_Var *varPtr = (Jim_Var*) he->val;
+        if (mode == JIM_VARLIST_LOCALS) {
+            if (varPtr->linkFramePtr != NULL)
+                continue;
+        }
+        if (pattern && !JimStringMatch(pattern, patternLen, he->key, 
+                    strlen((const char*)he->key), 0))
+            continue;
+        Jim_ListAppendElement(interp, listObjPtr,
+                Jim_NewStringObj(interp, he->key, -1));
+    }
+    Jim_FreeHashTableIterator(htiter);
+    return listObjPtr;
+}
+
 static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
         Jim_Obj **objPtrPtr)
 {
@@ -8513,9 +8548,27 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         else
             Jim_SetResult(interp, JimCommandsList(interp, NULL));
         return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "globals") ||
+        Jim_CompareStringImmediate(interp, argv[1], "locals") ||
+        Jim_CompareStringImmediate(interp, argv[1], "vars")) {
+        int mode;
+        if (Jim_CompareStringImmediate(interp, argv[1], "globals"))
+            mode = JIM_VARLIST_GLOBALS;
+        else if (Jim_CompareStringImmediate(interp, argv[1], "locals"))
+            mode = JIM_VARLIST_LOCALS;
+        else
+            mode = JIM_VARLIST_VARS;
+        if (argc != 2 && argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
+            return JIM_ERR;
+        }
+        if (argc == 3)
+            Jim_SetResult(interp,JimVariablesList(interp, argv[2], mode));
+        else
+            Jim_SetResult(interp, JimVariablesList(interp, NULL, mode));
+        return JIM_OK;
     } else if (Jim_CompareStringImmediate(interp, argv[1], "level")) {
-        
-    Jim_Obj *objPtr;
+        Jim_Obj *objPtr;
 
         if (argc != 2 && argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
