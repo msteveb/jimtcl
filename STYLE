@@ -1,11 +1,11 @@
-This file summarize the C style used for Jim.
+This file summarizes the C style used for Jim.
 Copyright (C) 2005 Salvatore Sanfilippo.
 
 -----------
 INDENTATION
 -----------
 
-indentation is 4 spaces, no smart-tabs are used (i.e.
+Indentation is 4 spaces, no smart-tabs are used (i.e.
 two indentation steps of 4 spaces will not be converted
 into a real tab, but 8 spaces).
 
