@@ -1,0 +1,23 @@
+The Jim Interpreter
+A small-footprint implementation of the Tcl programming language.
+
+It is a work in progress for now.
+
+Copyright (C) 2005 Salvatore Sanfilippo
+All Rights Reserved
+This software is under the APACHE 2.0 LICENSE
+
+CREDITS
+
+- Pat Thoyts that contributed WIN32/MVC portablity fixes.
+- Clemens Hintze for fixes, suggestions, a better implementation
+  of the [if] command.
+
+THANKS
+
+- Many people on the Tclers Chat that helped me to explore issues
+  about the use and the implementation of the Tcl programming language.
+- David Welton for the tech info sharing and our chats about
+  programming languages design and the ability of software to scale down.
+- The autors of "valgrind", for this wonderful tool, that helped me a
+  lot to fix bugs in minutes instead of hours.

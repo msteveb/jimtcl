@@ -1,0 +1,39 @@
+CORE LANGUAGE FEATURES
+
+- Traces
+- Closures, exported as a command that can set/get/unset elements
+  from a dictionary associated with the current procedure.
+  The [closure] command should allow to perform this operations,
+  and to access the closure of a procedure from another one.
+
+CORE COMMANDS
+
+- All the missing standard core commands not related to I/O, namespaces, ...
+- [tail] command for programmer-driven tail recursion optimization
+- The current [expr] needs a lot of work, expecially operators && and ||
+  are not lazy. Math functions are not present but probably will never
+  be added as expr functions, but as Tcl commands, like [sin], [cos] and
+  so on.
+
+COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
+
+- commands to operate on sets (that are lists semantically).
+
+EXTENSIONS
+
+- Regexp extension
+- OOP system (this will possibly part of the core)
+
+SPEED OPTIMIZATIONS
+
+- Cache call frames instead to free/realloc they at every proc call.
+
+IMPLEMENTATION ISSUES
+
+- Objects lazy free.
+- [split $string {}] should generate a list with Jim_Obj of chars shared.
+- [closure] command to set/get procedures-specific closure variables.
+  For example:
+- Remove SetTypeFromAny() method from the Jim_ObjType structure.
+  It's not useful, and it may be useful to have different prototypes
+  for the Set*FromAny() procedures of different types.
