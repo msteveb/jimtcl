@@ -7096,24 +7096,35 @@ int Jim_IfCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	int boolean, retval, current = 1, falsebody = 0;
 	if (argc >= 3) {
 		while (1) {
-			if (current >= argc) goto err;  /* Far not enough arguments given! */
-			if ((retval = Jim_GetBoolFromExpr(interp, argv[current++], &boolean))
+			/* Far not enough arguments given! */
+			if (current >= argc) goto err;
+			if ((retval = Jim_GetBoolFromExpr(interp,
+						argv[current++], &boolean))
 					!= JIM_OK)
 				return retval;
-			if (current >= argc) goto err;  /* There lacks something, isn't it? */
-			if (Jim_CompareStringImmediate(interp, argv[current], "then"))
-				current++;
-			if (current >= argc) goto err;        /* Tsk tsk, no then-clause? */
-		  if (boolean)
-			  return Jim_EvalObj(interp, argv[current]);
-			if (++current >= argc) return JIM_OK; /* Ok: no else-clause follows */
-			falsebody = current++;
-			if (Jim_CompareStringImmediate(interp, argv[falsebody], "else")) {
-				if (current != argc-1) goto err;    /* IIICKS - else-clause isn't last cmd? */
+			/* There lacks something, isn't it? */
+			if (current >= argc) goto err;
+			if (Jim_CompareStringImmediate(interp, argv[current],
+						"then")) current++;
+			/* Tsk tsk, no then-clause? */
+			if (current >= argc) goto err;
+			if (boolean)
 				return Jim_EvalObj(interp, argv[current]);
-			}	else if (Jim_CompareStringImmediate(interp, argv[falsebody], "elseif"))
-				continue;  /* Ok: elseif follows meaning all the stuff again (how boring...) */
-			else if (falsebody != argc-1)  /* OOPS - else-clause is not last cmd?*/
+			 /* Ok: no else-clause follows */
+			if (++current >= argc) return JIM_OK;
+			falsebody = current++;
+			if (Jim_CompareStringImmediate(interp, argv[falsebody],
+						"else")) {
+				/* IIICKS - else-clause isn't last cmd? */
+				if (current != argc-1) goto err;
+				return Jim_EvalObj(interp, argv[current]);
+			} else if (Jim_CompareStringImmediate(interp,
+						argv[falsebody], "elseif"))
+				/* Ok: elseif follows meaning all the stuff
+				 * again (how boring...) */
+				continue;
+			/* OOPS - else-clause is not last cmd?*/
+			else if (falsebody != argc-1)
 				goto err;
 			return Jim_EvalObj(interp, argv[falsebody]);
 		}
