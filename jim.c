@@ -5018,11 +5018,12 @@ static struct Jim_ExprOperator Jim_ExprOperators[] = {
 
 int JimParseExpression(struct JimParserCtx *pc)
 {
-	/* Discard spaces */
+	/* Discard spaces and quoted newline */
 	while(*(pc->p) == ' ' ||
 	      *(pc->p) == '\t' ||
 	      *(pc->p) == '\r' ||
-	      *(pc->p) == '\n') {
+	      *(pc->p) == '\n' ||
+		    (*(pc->p) == '\\' && *(pc->p+1) == '\n')) {
 		pc->p++;
 	}
 

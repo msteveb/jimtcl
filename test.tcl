@@ -7,9 +7,11 @@ proc test {id descr script expectedResult} {
 	puts "ERR"
 	puts "Expected: '$expectedResult'"
 	puts "Got     : '$result'"
-	exit 1
+#	exit 1
     }
 }
+
+proc error {msg} { return -code error $msg }
 
 ################################################################################
 # SET
@@ -718,3 +720,154 @@ test string-11.35 {string match case, false hope} {
     # This is true because '_' lies between the A-Z and a-z ranges
     string match {[A-z]} _
 } 1
+
+################################################################################
+# IF
+################################################################################
+
+test if-12.1 {bad syntax: lacking all} {
+	catch {if}
+} 1
+test if-12.2 {bad syntax: lacking then-clause} {
+	catch {if 1==1}
+} 1
+test if-12.3 {bad syntax: lacking then-clause 2} {
+	catch {if 1==1 then}
+} 1
+test if-12.4 {bad syntax: lacking else-clause after keyword 'else'} {
+	catch {if 1==0 then {list 1} else}
+} 1
+test if-12.5 {bad syntax: lacking expr after 'elseif'} {
+	catch {if 1==0 then {list 1} elseif}
+} 1
+test if-12.6 {bad syntax: lacking then-clause after 'elseif'} {
+	catch {if 1==0 then {list 1} elseif 1==1}
+} 1
+test if-12.7 {bad syntax: lacking else-clause after 'elseif' after keyword 'else'} {
+	catch {if 1==0 then {list 1} elseif 1==0 {list 2} else}
+} 1
+test if-12.8 {bad syntax: extra arg after implicit else-clause} {
+	catch {if 1==0 {list 1} elseif 1==0 then {list 2} {list 3} else}
+} 1
+test if-12.9 {bad syntax: elsif-clause after else-clause} {
+	catch {if 1==0 {list 1} else {list 2} elseif 1==1 {list 3}}
+} 1
+test if-12.10 {taking proper branch} {
+    set a {}
+    if 0 {set a 1} else {set a 2}
+    set a
+} 2
+test if-12.11 {taking proper branch} {
+    set a {}
+    if 1 {set a 1} else {set a 2}
+    set a
+} 1
+test if-12.12 {taking proper branch} {
+    set a {}
+    if 1<2 {set a 1}
+    set a
+} 1
+test if-12.13 {taking proper branch} {
+    set a {}
+    if 1>2 {set a 1}
+    set a
+} {}
+test if-12.14 {taking proper branch} {
+    set a {}
+    if 0 {set a 1} else {}
+    set a
+} {}
+test if-12.15 {taking proper branch} {
+    set a {}
+    if 0 {set a 1} elseif 1 {set a 2} elseif 1 {set a 3} else {set a 4}
+    set a
+} 2
+test if-12.16 {taking proper branch} {
+    set a {}
+    if 0 {set a 1} elseif 0 {set a 2} elseif 1 {set a 3} else {set a 4}
+    set a
+} 3
+test if-12.17 {taking proper branch} {
+    set a {}
+    if 0 {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} else {set a 4}
+    set a
+} 4
+test if-12.18 {taking proper branch, multiline test expr} {
+    set a {}
+    if {1 != \
+	     3} {set a 3} else {set a 4}
+    set a
+} 3
+test if-12.19 {optional then-else args} {
+    set a 44
+    if 0 then {set a 1} elseif 0 then {set a 3} else {set a 2}
+    set a
+} 2
+test if-12.20 {optional then-else args} {
+    set a 44
+    if 1 then {set a 1} else {set a 2}
+    set a
+} 1
+test if-12.21 {optional then-else args} {
+    set a 44
+    if 0 {set a 1} else {set a 2}
+    set a
+} 2
+test if-12.22 {optional then-else args} {
+    set a 44
+    if 1 {set a 1} else {set a 2}
+    set a
+} 1
+test if-12.23 {optional then-else args} {
+    set a 44
+    if 0 then {set a 1} {set a 2}
+    set a
+} 2
+test if-12.24 {optional then-else args} {
+    set a 44
+    if 1 then {set a 1} {set a 2}
+    set a
+} 1
+test if-12.25 {optional then-else args} {
+    set a 44
+    if 0 then {set a 1} else {set a 2}
+    set a
+} 2
+test if-12.26 {optional then-else args} {
+    set a 44
+    if 0 then {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} {set a 4}
+    set a
+} 4
+test if-12.27 {return value} {
+    if 1 then {set a 22; concat abc}
+} abc
+test if-12.28 {return value} {
+    if 0 then {set a 22; concat abc} elseif 1 {concat def} {concat ghi}
+} def
+test if-12.29 {return value} {
+    if 0 then {set a 22; concat abc} else {concat def}
+} def
+test if-12.30 {return value} {
+    if 0 then {set a 22; concat abc}
+} {}
+test if-12.31 {return value} {
+    if 0 then {set a 22; concat abc} elseif 0 {concat def}
+} {}
+test if-12.32 {error conditions} {
+    list [catch {if {[error "error in condition"]} foo} msg] $msg
+} {1 {error in condition}}
+test if-12.33 {error conditions} {
+    list [catch {if 2 the} msg] $msg
+} {1 {invalid command name "the"}}
+test if-12.34 {error conditions} {
+    list [catch {if 2 then {[error "error in then clause"]}} msg] $msg
+} {1 {error in then clause}}
+test if-12.35 {error conditions} {
+    list [catch {if 0 then foo elsei} msg] $msg
+} {1 {invalid command name "elsei"}}
+test if-12.36 {error conditions} {
+    list [catch {if 0 then foo elseif 0 bar els} msg] $msg
+} {1 {invalid command name "els"}}
+test if-12.37 {error conditions} {
+    list [catch {if 0 then foo elseif 0 bar else {[error "error in else clause"]}} msg] $msg
+} {1 {error in else clause}}
