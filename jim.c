@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.138 2005/03/31 12:20:21 antirez Exp $
+ * $Id: jim.c,v 1.139 2005/04/02 07:44:24 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7341,37 +7341,52 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 /* -----------------------------------------------------------------------------
  * Packages handling
  * ---------------------------------------------------------------------------*/
+
+#define JIM_PKG_ANY_VERSION -1
+
 /* Convert a string of the type "1.2" into an integer.
  * MAJOR.MINOR is converted as MAJOR*100+MINOR, so "1.2" is converted 
  * to the integer with value 102 */
 static int JimPackageVersionToInt(Jim_Interp *interp, const char *v,
         int *intPtr, int flags)
 {
-    char *buf = Jim_Alloc(strlen(v)+1), *p;
-    jim_wide wideValue;
+    char *copy;
+    jim_wide major, minor;
+    char *majorStr, *minorStr, *p;
 
-    p = buf;
-    while (*v) {
-        if (!isdigit(*v)) continue;
-            *p++ = *v++;
+    if (v[0] == '\0') {
+        *intPtr = JIM_PKG_ANY_VERSION;
+        return JIM_OK;
     }
+
+    copy = Jim_StrDup(v);
+    p = strchr(copy, '.');
+    if (p == NULL) goto badfmt;
     *p = '\0';
-    if (Jim_StringToWide(buf, &wideValue, 10) != JIM_OK) {
-        Jim_Free(buf);
-        if (flags & JIM_ERRMSG) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "invalid package version '", v, "'", NULL);
-        }
-        return JIM_ERR;
-    }
-    *intPtr = wideValue;
+    majorStr = copy;
+    minorStr = p+1;
+
+    if (Jim_StringToWide(majorStr, &major, 10) != JIM_OK ||
+        Jim_StringToWide(minorStr, &minor, 10) != JIM_OK)
+        goto badfmt;
+    *intPtr = major*100+minor;
+    Jim_Free(copy);
     return JIM_OK;
+
+badfmt:
+    Jim_Free(copy);
+    if (flags & JIM_ERRMSG) {
+        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+                "invalid package version '", v, "'", NULL);
+    }
+    return JIM_ERR;
 }
 
 #define JIM_MATCHVER_EXACT (1<<JIM_PRIV_FLAG_SHIFT)
 static int JimPackageMatchVersion(int needed, int actual, int flags)
 {
+    if (needed == JIM_PKG_ANY_VERSION) return 1;
     if (flags & JIM_MATCHVER_EXACT) {
         return needed == actual;
     } else {
@@ -7395,13 +7410,156 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
     return JIM_OK;
 }
 
-const char *Jim_PackageRequire(Jim_Interp *interp, char *name, char *ver, int flags)
+#ifndef JIM_ANSIC
+#ifndef WIN32
+
+#include <sys/types.h>
+#include <dirent.h>
+
+static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
+        int prefixc, const char *pkgName, int pkgVer, int flags)
+{
+    int bestVer = -1, i;
+    int pkgNameLen = strlen(pkgName);
+    char *bestPackage = NULL;
+    struct dirent *de;
+
+    for (i = 0; i < prefixc; i++) {
+        DIR *dir;
+        char buf[JIM_LIBPATH_LEN];
+        int prefixLen;
+
+        if (prefixes[i] == NULL) continue;
+        strncpy(buf, prefixes[i], JIM_LIBPATH_LEN);
+        buf[JIM_LIBPATH_LEN-1] = '\0';
+        prefixLen = strlen(buf);
+        if (prefixLen && buf[prefixLen-1] == '/')
+            buf[prefixLen-1] = '\0';
+
+        if ((dir = opendir(buf)) == NULL) continue;
+        while ((de = readdir(dir)) != NULL) {
+            char *fileName = de->d_name;
+            int fileNameLen = strlen(fileName);
+
+            if (strncmp(fileName, "jim-", 4) == 0 &&
+                strncmp(fileName+4, pkgName, pkgNameLen) == 0 &&
+                *(fileName+4+pkgNameLen) == '-' &&
+                fileNameLen > 4 && /* note that this is not really useful */
+                (strncmp(fileName+fileNameLen-4, ".tcl", 4) == 0 ||
+                 strncmp(fileName+fileNameLen-4, ".dll", 4) == 0 ||
+                 strncmp(fileName+fileNameLen-3, ".so", 3) == 0))
+            {
+                char ver[6]; /* xx.yy<nulterm> */
+                char *p = strrchr(fileName, '.');
+                int verLen, fileVer;
+
+                verLen = p - (fileName+4+pkgNameLen+1);
+                if (verLen < 3 || verLen > 5) continue;
+                memcpy(ver, fileName+4+pkgNameLen+1, verLen);
+                ver[verLen] = '\0';
+                if (JimPackageVersionToInt(interp, ver, &fileVer, JIM_NONE)
+                        != JIM_OK) continue;
+                if (JimPackageMatchVersion(pkgVer, fileVer, flags) &&
+                    (bestVer == -1 || bestVer < fileVer))
+                {
+                    bestVer = fileVer;
+                    Jim_Free(bestPackage);
+                    bestPackage = Jim_Alloc(strlen(buf)+strlen(fileName)+2);
+                    sprintf(bestPackage, "%s/%s", buf, fileName);
+                }
+            }
+        }
+        closedir(dir);
+    }
+    return bestPackage;
+}
+
+#else /* WIN32 */
+
+static char *JimFindBestPackage(char **prefixes, int prefixc,
+        const char *name, int ver)
+{
+    JIM_NOTUSED(prefixes);
+    JIM_NOTUSED(prefixc);
+    JIM_NOTUSED(name);
+    JIM_NOTUSED(ver);
+    return NULL;
+}
+
+#endif /* WIN32 */
+#endif /* JIM_ANSIC */
+
+/* Search for a suitable package under every dir specified by jim_libpath
+ * and load it if possible. If a suitable package was loaded with success
+ * JIM_OK is returned, otherwise JIM_ERR is returned. */
+static int JimLoadPackage(Jim_Interp *interp, const char *name, int ver,
+        int flags)
+{
+    Jim_Obj *libPathObjPtr;
+    char **prefixes, *best;
+    int prefixc, i, retCode = JIM_OK;
+
+    libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim_libpath", JIM_NONE);
+    if (libPathObjPtr == NULL) {
+        prefixc = 0;
+        libPathObjPtr = NULL;
+    } else {
+        Jim_IncrRefCount(libPathObjPtr);
+        Jim_ListLength(interp, libPathObjPtr, &prefixc);
+    }
+
+    prefixes = malloc(sizeof(char*)*prefixc);
+    for (i = 0; i < prefixc; i++) {
+            Jim_Obj *prefixObjPtr;
+            if (Jim_ListIndex(interp, libPathObjPtr, i,
+                    &prefixObjPtr, JIM_NONE) != JIM_OK)
+            {
+                prefixes[i] = NULL;
+                continue;
+            }
+            prefixes[i] = Jim_StrDup(Jim_GetString(prefixObjPtr, NULL));
+    }
+    /* Scan every directory to find the "best" package. */
+    best = JimFindBestPackage(interp, prefixes, prefixc, name, ver, flags);
+    if (best != NULL) {
+        char *p = strrchr(best, '.');
+        /* Try to load/source it */
+        if (p && strcmp(p, ".tcl") == 0) {
+            retCode = Jim_EvalFile(interp, best);
+        } else {
+            retCode = Jim_LoadLibrary(interp, best);
+        }
+    } else {
+        retCode = JIM_ERR;
+    }
+    Jim_Free(best);
+    for (i = 0; i < prefixc; i++)
+        Jim_Free(prefixes[i]);
+    Jim_Free(prefixes);
+    if (libPathObjPtr)
+        Jim_DecrRefCount(interp, libPathObjPtr);
+    return retCode;
+}
+
+const char *Jim_PackageRequire(Jim_Interp *interp, const char *name,
+        const char *ver, int flags)
 {
     Jim_HashEntry *he;
+    int requiredVer;
 
+    if (JimPackageVersionToInt(interp, ver, &requiredVer, JIM_ERRMSG) != JIM_OK)
+        return NULL;
     he = Jim_FindHashEntry(&interp->packages, name);
     if (he == NULL) {
-        /* TODO: try to load the given extension. */
+        /* Try to load the package. */
+        if (JimLoadPackage(interp, name, requiredVer, flags) == JIM_OK) {
+            he = Jim_FindHashEntry(&interp->packages, name);
+            if (he == NULL) {
+                return "?";
+            }
+            return he->val;
+        }
+        /* No way... return an error. */
         if (flags & JIM_ERRMSG) {
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
@@ -7409,10 +7567,8 @@ const char *Jim_PackageRequire(Jim_Interp *interp, char *name, char *ver, int fl
         }
         return NULL;
     } else {
-        int requiredVer, actualVer;
-        if (JimPackageVersionToInt(interp, ver, &requiredVer, JIM_ERRMSG)
-                != JIM_OK ||
-            JimPackageVersionToInt(interp, he->key, &actualVer, JIM_ERRMSG)
+        int actualVer;
+        if (JimPackageVersionToInt(interp, he->val, &actualVer, JIM_ERRMSG)
                 != JIM_OK)
         {
             return NULL;
@@ -7422,10 +7578,10 @@ const char *Jim_PackageRequire(Jim_Interp *interp, char *name, char *ver, int fl
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
                     "Package '", name, "' already loaded, but with version ",
-                    he->key, NULL);
+                    he->val, NULL);
             return NULL;
         }
-        return he->key;
+        return he->val;
     }
 }
 
@@ -11043,6 +11199,47 @@ static int Jim_RandCoreCommand(Jim_Interp *interp, int argc,
     }
 }
 
+/* [package] */
+static int Jim_PackageCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    int option;
+    const char *options[] = {
+        "require", NULL
+    };
+    enum {OPT_REQUIRE};
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
+        return JIM_ERR;
+    }
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (option == OPT_REQUIRE) {
+        int exact = 0;
+        const char *ver;
+
+        if (Jim_CompareStringImmediate(interp, argv[2], "-exact")) {
+            exact = 1;
+            argv++;
+            argc--;
+        }
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "?-exact? package ?version?");
+            return JIM_ERR;
+        }
+        ver = Jim_PackageRequire(interp, Jim_GetString(argv[2], NULL),
+                argc == 4 ? Jim_GetString(argv[3], NULL) : "",
+                JIM_ERRMSG);
+        if (ver == NULL)
+            return JIM_ERR;
+        Jim_SetResultString(interp, ver, -1);
+    }
+    return JIM_OK;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -11106,6 +11303,7 @@ static struct {
     {"range", Jim_RangeCoreCommand},
     {"scope", Jim_ScopeCoreCommand},
     {"rand", Jim_RandCoreCommand},
+    {"package", Jim_PackageCoreCommand},
     {NULL, NULL},
 };
 
@@ -11174,7 +11372,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.138 2005/03/31 12:20:21 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.139 2005/04/02 07:44:24 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

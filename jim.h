@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.65 2005/03/31 12:20:21 antirez Exp $
+ * $Id: jim.h,v 1.66 2005/04/02 07:44:24 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -747,7 +747,8 @@ JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp,
 /* Packages C API */
 JIM_STATIC int JIM_API(Jim_PackageProvide) (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
-JIM_STATIC const char * JIM_API(Jim_PackageRequire) (Jim_Interp *interp, char *name, char *ver, int flags);
+JIM_STATIC const char * JIM_API(Jim_PackageRequire) (Jim_Interp *interp,
+        const char *name, const char *ver, int flags);
 
 /* error messages */
 JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);

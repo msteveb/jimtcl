@@ -1,3 +1,9 @@
+2005-03-31 14:20  antirez
+
+	* ChangeLog, STYLE, TODO, jim-aio.c, jim-posix.c, jim-sdl.c,
+	  jim-win32.c, jim-win32com.c, jim.c, jim.h: Implemented the C API
+	  "background" for the packages system of Jim.
+
 2005-03-29 18:50  antirez
 
 	* ChangeLog, jim.c, test.tcl: [info args] added

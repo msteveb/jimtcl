@@ -12,6 +12,7 @@
 
 .SUFFIXES:
 .SUFFIXES: .c .so .xo .o .dll
+.PHONY: jim-aio-1.0.so
 
 SHELL   = /bin/sh
 RM      = rm -f
@@ -32,11 +33,17 @@ LIBS        = -ldl
 
 stopit:
 	@echo "Use:"
-	@echo "make jim        - to build the Jim interpreter"
-	@echo "make extensions - to build the aio,posix and sdl extensions"
-	@echo "make posix      - to build only the posix extension"
-	@echo "make aio        - to build only the ANSI I/O extension"
-	@echo "make sdl        - to build only the SDL extension"
+	@echo "make jim       - to build the Jim interpreter"
+	@echo "---"
+	@echo "make aio       - to build only the ANSI I/O extension"
+	@echo "---"
+	@echo "make unix-ext  - to build the AIO, POSIX and SDL extensions"
+	@echo "make posix     - to build only the POSIX extension"
+	@echo "make sdl       - to build only the SDL extension"
+	@echo "---"
+	@echo "make win32-ext - to build the WIN32 and WIN32COM extensions"
+	@echo "make win32     - to build only the WIN32 extension"
+	@echo "make win32com  - to build only the WIN32COM extension"
 
 all: $(DEFAULT_BUILD)
 
@@ -69,11 +76,19 @@ jim-sdl.so: jim-sdl.xo
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
-posix: jim-posix.so
-aio: jim-aio.so
-sdl: jim-sdl.so
-win32: jim-win32.dll jim-win32com.dll
-extensions: posix aio sdl
+posix: jim-posix-1.0.so
+aio: jim-aio-1.0.so
+sdl: jim-sdl-1.0.so
+win32: jim-win32-1.0.dll
+win32com: jim-win32com-1.0.dll
+unix-extensions: posix aio sdl
+win32-extensions: win32 win32com
+
+jim-posix-1.0.so: jim-posix.xo
+jim-aio-1.0.so: jim-aio.xo
+jim-sdl-1.0.so: jim-sdl.xo
+jim-win32-1.0.dll: jim-win32.o
+jim-win32com-1.0.dll: jim-win32com.o
 
 clean:
 	$(RM) *.o *.so *.dll *.xo core .depend .*.swp gmon.out $(PROGRAMS)

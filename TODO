@@ -34,17 +34,30 @@ EXTENSIONS
 
 - Regexp extension
 - OOP system
+- Event loop
+- Files
+- Sockets
+- Tuplespace extension (http://wiki.tcl.tk/3947) (using sqlite as backend)
 
 SPEED OPTIMIZATIONS
 
 - Find a way to avoid interpolation/reparsing in "foo($bar)" tokens.
   See the "sieve" and "ary" bench performances, result of this problem.
   (to compare with sieve_dict is also useful.)
-- Many other possible things, including better literal sharing.
+- Experiment with better ways to do literal sharing.
+- Organize the 'script' object so that a single data structure is
+  used for a full command, and interpolation is done using an
+  'interpolation token type' like JIM_TT_VAR and so on.
+  This way there is no need to run the array if integer objects
+  with the command structure. Also should help for better cache usage.
 - Generate .c from Jim programs, as calls to the Jim API to avoid
   the performance penality of Jim_EvalObj() overhead. In the future
   try to generate the calls like a JIT emitting assembler from
   Jim directly.
+- Jim_GetDouble() should check if the object type is an integer into
+  a range that a double can represent without any loss, and directly
+  return the double value converting the integer one instead to pass
+  for the string repr.
 
 IMPLEMENTATION ISSUES
 
