@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.58 2005/03/17 07:22:04 antirez Exp $
+ * $Id: jim.h,v 1.59 2005/03/17 07:40:25 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -520,7 +520,7 @@ JIM_STATIC char * JIM_API(Jim_StrDup) (const char *s);
 /* evaluation */
 JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, const char *script);
 JIM_STATIC int JIM_API(Jim_EvalGlobal)(Jim_Interp *interp, const char *script);
-JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, char *filename);
+JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, const char *filename);
 JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.114 2005/03/17 07:22:03 antirez Exp $
+ * $Id: jim.c,v 1.115 2005/03/17 07:40:25 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2283,7 +2283,7 @@ void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 }
 
 static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
-        char *fileName, int lineNumber)
+        const char *fileName, int lineNumber)
 {
     if (Jim_IsShared(objPtr))
         Jim_Panic("JimSetSourceInfo called with shared object");
@@ -7172,7 +7172,7 @@ int Jim_EvalGlobal(Jim_Interp *interp, const char *script)
     return retval;
 }
 
-int Jim_EvalFile(Jim_Interp *interp, char *filename)
+int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
     char *prg = NULL;
     FILE *fp;
@@ -9972,6 +9972,22 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [source] */
+static int Jim_SourceCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    int retval;
+
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "fileName");
+        return JIM_ERR;
+    }
+    retval = Jim_EvalFile(interp, Jim_GetString(argv[1], NULL));
+    if (retval == JIM_RETURN)
+        return JIM_OK;
+    return retval;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -10028,6 +10044,7 @@ static struct {
     {"error", Jim_ErrorCoreCommand},
     {"lrange", Jim_LrangeCoreCommand},
     {"env", Jim_EnvCoreCommand},
+    {"source", Jim_SourceCoreCommand},
     {NULL, NULL},
 };
 
@@ -10146,7 +10163,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.114 2005/03/17 07:22:03 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.115 2005/03/17 07:40:25 antirez Exp $\n");
     while (1) {
         char buf[1024];
         const char *result;

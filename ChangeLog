@@ -1,3 +1,10 @@
+2005-03-17 08:22  antirez
+
+	* ChangeLog, Makefile, TODO, jim.c, jim.h: The interactive prompt
+	  can now used to type/paste multi line scripts.  Every line is
+	  appended to the previous until the script does not appear to be
+	  complete (tested by Jim_IsScriptComplete()).
+
 2005-03-16 17:28  antirez
 
 	* ChangeLog, jim-aio.c, jim.c, jim.h: [env] modified to just be
