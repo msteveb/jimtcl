@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.32 2005/03/04 14:09:29 antirez Exp $
+ * $Id: jim.h,v 1.33 2005/03/05 09:34:13 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -347,7 +347,7 @@ typedef struct Jim_CallFrame {
     unsigned jim_wide id; /* Call Frame ID. Used for caching. */
     struct Jim_HashTable vars;
     struct Jim_CallFrame *parentCallFrame;
-    Jim_Obj **argv; /* object vector of the current procedure call. */
+    Jim_Obj *const *argv; /* object vector of the current procedure call. */
     int argc; /* number of args of the current procedure call. */
     Jim_Obj *procArgsObjPtr; /* arglist object of the running procedure */
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
@@ -499,7 +499,7 @@ JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, char *script);
 JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, char *filename);
 JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
-        Jim_Obj **objv);
+        Jim_Obj *const *objv);
 JIM_STATIC int JIM_API(Jim_SubstObj) (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 

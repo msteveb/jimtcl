@@ -1,3 +1,19 @@
+2005-03-05 00:59  patthoyts
+
+	* Makefile.vc, jim-win32com.c, jim.c: Added ole32.foreach command,
+	  changed creation to ole32.create.  Added support for dealing with
+	  returned ole32 obejcts.  Couple of const fixes in jim core.
+
+2005-03-04 23:44  antirez
+
+	* jim.c: Removed two unused parts of code resulting in warnings
+	  compiling under 64bit systems.
+
+2005-03-04 23:04  antirez
+
+	* ChangeLog, jim.c: Fix for [info local], at top level an empty
+	  list is now returned.
+
 2005-03-04 22:59  antirez
 
 	* jim.c: binary safe parsers for scripts,lists,expr,subst.

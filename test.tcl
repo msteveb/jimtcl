@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.15 2005/03/04 14:09:29 antirez Exp $
+# $Id: test.tcl,v 1.16 2005/03/05 09:34:13 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -646,150 +646,150 @@ catch {unset ::y}
 # IF
 ################################################################################
 
-test if-12.1 {bad syntax: lacking all} {
+test if-1.1 {bad syntax: lacking all} {
 	catch {if}
 } 1
-test if-12.2 {bad syntax: lacking then-clause} {
+test if-1.2 {bad syntax: lacking then-clause} {
 	catch {if 1==1}
 } 1
-test if-12.3 {bad syntax: lacking then-clause 2} {
+test if-1.3 {bad syntax: lacking then-clause 2} {
 	catch {if 1==1 then}
 } 1
-test if-12.4 {bad syntax: lacking else-clause after keyword 'else'} {
+test if-1.4 {bad syntax: lacking else-clause after keyword 'else'} {
 	catch {if 1==0 then {list 1} else}
 } 1
-test if-12.5 {bad syntax: lacking expr after 'elseif'} {
+test if-1.5 {bad syntax: lacking expr after 'elseif'} {
 	catch {if 1==0 then {list 1} elseif}
 } 1
-test if-12.6 {bad syntax: lacking then-clause after 'elseif'} {
+test if-1.6 {bad syntax: lacking then-clause after 'elseif'} {
 	catch {if 1==0 then {list 1} elseif 1==1}
 } 1
-test if-12.7 {bad syntax: lacking else-clause after 'elseif' after keyword 'else'} {
+test if-1.7 {bad syntax: lacking else-clause after 'elseif' after keyword 'else'} {
 	catch {if 1==0 then {list 1} elseif 1==0 {list 2} else}
 } 1
-test if-12.8 {bad syntax: extra arg after implicit else-clause} {
+test if-1.8 {bad syntax: extra arg after implicit else-clause} {
 	catch {if 1==0 {list 1} elseif 1==0 then {list 2} {list 3} else}
 } 1
-test if-12.9 {bad syntax: elsif-clause after else-clause} {
+test if-1.9 {bad syntax: elsif-clause after else-clause} {
 	catch {if 1==0 {list 1} else {list 2} elseif 1==1 {list 3}}
 } 1
-test if-12.10 {taking proper branch} {
+test if-2.1 {taking proper branch} {
     set a {}
     if 0 {set a 1} else {set a 2}
     set a
 } 2
-test if-12.11 {taking proper branch} {
+test if-2.2 {taking proper branch} {
     set a {}
     if 1 {set a 1} else {set a 2}
     set a
 } 1
-test if-12.12 {taking proper branch} {
+test if-2.3 {taking proper branch} {
     set a {}
     if 1<2 {set a 1}
     set a
 } 1
-test if-12.13 {taking proper branch} {
+test if-2.4 {taking proper branch} {
     set a {}
     if 1>2 {set a 1}
     set a
 } {}
-test if-12.14 {taking proper branch} {
+test if-2.5 {taking proper branch} {
     set a {}
     if 0 {set a 1} else {}
     set a
 } {}
-test if-12.15 {taking proper branch} {
+test if-2.6 {taking proper branch} {
     set a {}
     if 0 {set a 1} elseif 1 {set a 2} elseif 1 {set a 3} else {set a 4}
     set a
 } 2
-test if-12.16 {taking proper branch} {
+test if-2.7 {taking proper branch} {
     set a {}
     if 0 {set a 1} elseif 0 {set a 2} elseif 1 {set a 3} else {set a 4}
     set a
 } 3
-test if-12.17 {taking proper branch} {
+test if-2.8 {taking proper branch} {
     set a {}
     if 0 {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} else {set a 4}
     set a
 } 4
-test if-12.18 {taking proper branch, multiline test expr} {
+test if-2.9 {taking proper branch, multiline test expr} {
     set a {}
     if {1 != \
 	     3} {set a 3} else {set a 4}
     set a
 } 3
-test if-12.19 {optional then-else args} {
+test if-3.1 {optional then-else args} {
     set a 44
     if 0 then {set a 1} elseif 0 then {set a 3} else {set a 2}
     set a
 } 2
-test if-12.20 {optional then-else args} {
+test if-3.2 {optional then-else args} {
     set a 44
     if 1 then {set a 1} else {set a 2}
     set a
 } 1
-test if-12.21 {optional then-else args} {
+test if-3.3 {optional then-else args} {
     set a 44
     if 0 {set a 1} else {set a 2}
     set a
 } 2
-test if-12.22 {optional then-else args} {
+test if-3.4 {optional then-else args} {
     set a 44
     if 1 {set a 1} else {set a 2}
     set a
 } 1
-test if-12.23 {optional then-else args} {
+test if-3.5 {optional then-else args} {
     set a 44
     if 0 then {set a 1} {set a 2}
     set a
 } 2
-test if-12.24 {optional then-else args} {
+test if-3.6 {optional then-else args} {
     set a 44
     if 1 then {set a 1} {set a 2}
     set a
 } 1
-test if-12.25 {optional then-else args} {
+test if-3.7 {optional then-else args} {
     set a 44
     if 0 then {set a 1} else {set a 2}
     set a
 } 2
-test if-12.26 {optional then-else args} {
+test if-3.8 {optional then-else args} {
     set a 44
     if 0 then {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} {set a 4}
     set a
 } 4
-test if-12.27 {return value} {
+test if-4.1 {return value} {
     if 1 then {set a 22; concat abc}
 } abc
-test if-12.28 {return value} {
+test if-4.2 {return value} {
     if 0 then {set a 22; concat abc} elseif 1 {concat def} {concat ghi}
 } def
-test if-12.29 {return value} {
+test if-4.3 {return value} {
     if 0 then {set a 22; concat abc} else {concat def}
 } def
-test if-12.30 {return value} {
+test if-4.4 {return value} {
     if 0 then {set a 22; concat abc}
 } {}
-test if-12.31 {return value} {
+test if-4.5 {return value} {
     if 0 then {set a 22; concat abc} elseif 0 {concat def}
 } {}
-test if-12.32 {error conditions} {
+test if-5.1 {error conditions} {
     list [catch {if {[error "error in condition"]} foo} msg] $msg
 } {1 {error in condition}}
-test if-12.33 {error conditions} {
+test if-5.2 {error conditions} {
     list [catch {if 2 the} msg] $msg
 } {1 {invalid command name "the"}}
-test if-12.34 {error conditions} {
+test if-5.3 {error conditions} {
     list [catch {if 2 then {[error "error in then clause"]}} msg] $msg
 } {1 {error in then clause}}
-test if-12.35 {error conditions} {
+test if-5.4 {error conditions} {
     list [catch {if 0 then foo elsei} msg] $msg
 } {1 {invalid command name "elsei"}}
-test if-12.36 {error conditions} {
+test if-5.5 {error conditions} {
     list [catch {if 0 then foo elseif 0 bar els} msg] $msg
 } {1 {invalid command name "els"}}
-test if-12.37 {error conditions} {
+test if-5.6 {error conditions} {
     list [catch {if 0 then foo elseif 0 bar else {[error "error in else clause"]}} msg] $msg
 } {1 {error in else clause}}
 
@@ -1860,25 +1860,25 @@ catch {unset x}
 
 # Basic "foreach" operation.
 
-test foreach-13.1 {basic foreach tests} {
+test foreach-1.1 {basic foreach tests} {
 	set a {}
 	foreach i {a b c d} {
 		set a [concat $a $i]
 	}
 	set a
 } {a b c d}
-test foreach-13.2 {basic foreach tests} {
+test foreach-1.2 {basic foreach tests} {
   set a {}
   foreach i {a b {{c d} e} {123 {{x}}}} {
 		set a [concat $a $i]
 	}
   set a
 } {a b {c d} e 123 {{x}}}
-test foreach-13.3 {basic foreach tests} {catch {foreach} msg} 1
-test foreach-13.4 {basic foreach tests} {catch {foreach i} msg} 1
-test foreach-13.5 {basic foreach tests} {catch {foreach i j} msg} 1
-test foreach-13.6 {basic foreach tests} {catch {foreach i j k l} msg} 1
-test foreach-13.7 {basic foreach tests} {
+test foreach-1.3 {basic foreach tests} {catch {foreach} msg} 1
+test foreach-1.4 {basic foreach tests} {catch {foreach i} msg} 1
+test foreach-1.5 {basic foreach tests} {catch {foreach i j} msg} 1
+test foreach-1.6 {basic foreach tests} {catch {foreach i j k l} msg} 1
+test foreach-1.7 {basic foreach tests} {
   set a {}
   foreach i {} {
 		set a [concat $a $i]
@@ -1886,61 +1886,61 @@ test foreach-13.7 {basic foreach tests} {
   set a
 } {}
 catch {unset a}
-test foreach-13.10 {foreach errors} {
+test foreach-2.1 {foreach errors} {
     list [catch {foreach {} {} {}} msg] $msg
 } {1 {foreach varlist is empty}}
 catch {unset a}
 
-test foreach-13.20 {parallel foreach tests} {
+test foreach-3.1 {parallel foreach tests} {
   set x {}
   foreach {a b} {1 2 3 4} {
 		append x $b $a
 	}
   set x
 } {2143}
-test foreach-13.21 {parallel foreach tests} {
+test foreach-3.2 {parallel foreach tests} {
   set x {}
   foreach {a b} {1 2 3 4 5} {
 		append x $b $a
   }
 	set x
 } {21435}
-test foreach-13.22 {parallel foreach tests} {
+test foreach-3.3 {parallel foreach tests} {
   set x {}
   foreach a {1 2 3} b {4 5 6} {
 		append x $b $a
 	}
   set x
 } {415263}
-test foreach-13.23 {parallel foreach tests} {
+test foreach-3.4 {parallel foreach tests} {
   set x {}
   foreach a {1 2 3} b {4 5 6 7 8} {
 		append x $b $a
 	}
   set x
 } {41526378}
-test foreach-13.24 {parallel foreach tests} {
+test foreach-3.5 {parallel foreach tests} {
   set x {}
   foreach {a b} {a b A B aa bb} c {c C cc CC} {
 		append x $a $b $c
 	}
   set x
 } {abcABCaabbccCC}
-test foreach-13.25 {parallel foreach tests} {
+test foreach-3.6 {parallel foreach tests} {
   set x {}
   foreach a {1 2 3} b {1 2 3} c {1 2 3} d {1 2 3} e {1 2 3} {
 		append x $a $b $c $d $e
   }
 	set x
 } {111112222233333}
-test foreach-13.26 {parallel foreach tests} {
+test foreach-3.7 {parallel foreach tests} {
   set x {}
   foreach a {} b {1 2 3} c {1 2} d {1 2 3 4} e {{1 2}} {
 		append x $a $b $c $d $e
   }
 	set x
 } {1111 2222334}
-test foreach-13.27 {foreach only sets vars if repeating loop} {
+test foreach-4.1 {foreach only sets vars if repeating loop} {
   proc foo {} {
 		set rgb {65535 0 0}
 		foreach {r g b} [set rgb] {}
@@ -1948,7 +1948,7 @@ test foreach-13.27 {foreach only sets vars if repeating loop} {
 	}
 	foo
 } {r=65535, g=0, b=0}
-test foreach-13.28 {foreach supports dict syntactic sugar} {
+test foreach-5.1 {foreach supports dict syntactic sugar} {
 	proc foo {} {
     set x {}
     foreach {a(3)} {1 2 3 4} {lappend x [set {a(3)}]}
@@ -1957,7 +1957,7 @@ test foreach-13.28 {foreach supports dict syntactic sugar} {
 	foo
 } {{3 4} {1 2 3 4}}
 
-test foreach-13.29 {noncompiled foreach and shared variable or value list objects that are converted to another type} {
+test foreach-6.1 {noncompiled foreach and shared variable or value list objects that are converted to another type} {
   catch {unset x}
   foreach {12.0} {a b c} {
     set x 12.0  
@@ -1968,8 +1968,8 @@ test foreach-13.29 {noncompiled foreach and shared variable or value list object
 
 # Check "continue".
 
-test foreach-13.40 {continue tests} {catch continue} 4
-test foreach-13.41 {continue tests} {
+test foreach-7.1 {continue tests} {catch continue} 4
+test foreach-7.2 {continue tests} {
   set a {}
   foreach i {a b c d} {
 		if {[string compare $i "b"] == 0} continue
@@ -1977,7 +1977,7 @@ test foreach-13.41 {continue tests} {
 	}
    set a
 } {a c d}
-test foreach-13.42 {continue tests} {
+test foreach-7.3 {continue tests} {
 	set a {}
   foreach i {a b c d} {
 		if {[string compare $i "b"] != 0} continue
@@ -1985,16 +1985,16 @@ test foreach-13.42 {continue tests} {
 	}
   set a
 } {b}
-test foreach-13.43 {continue tests} {catch {continue foo} msg} 1
-test foreach-13.44 {continue tests} {
+test foreach-7.4 {continue tests} {catch {continue foo} msg} 1
+test foreach-7.5 {continue tests} {
 	catch {continue foo} msg
   set msg
 } {wrong # args: should be "continue"}
 
 # Check "break".
 
-test foreach-13.50 {break tests} {catch break} 3
-test foreach-13.51 {break tests} {
+test foreach-8.1 {break tests} {catch break} 3
+test foreach-8.2 {break tests} {
   set a {}
 	foreach i {a b c d} {
 		if {[string compare $i "c"] == 0} break
@@ -2002,15 +2002,15 @@ test foreach-13.51 {break tests} {
 	}
   set a
 } {a b}
-test foreach-13.52 {break tests} {catch {break foo} msg} 1
-test foreach-13.53 {break tests} {
+test foreach-8.3 {break tests} {catch {break foo} msg} 1
+test foreach-8.4 {break tests} {
   catch {break foo} msg
   set msg
 } {wrong # args: should be "break"}
 
 # Test for incorrect "double evaluation" semantics
 
-test foreach-13.60 {delayed substitution of body - knownbugs} {
+test foreach-9.1 {delayed substitution of body - knownbugs} {
   proc foo {} {
     set a 0
     foreach a [list 1 2 3] "
@@ -2398,6 +2398,250 @@ test join-3.2 {join is binary ok} {
   string length [join "a\0b a\0b a\0b"]
 } 11
 
+################################################################################
+# SWITCH
+################################################################################
+
+test switch-1.1 {simple patterns} {
+    switch a a {expr 1} b {expr 2} c {expr 3} default {expr 4}
+} 1
+test switch-1.2 {simple patterns} {
+    switch b a {expr 1} b {expr 2} c {expr 3} default {expr 4}
+} 2
+test switch-1.3 {simple patterns} {
+    switch x a {expr 1} b {expr 2} c {expr 3} default {expr 4}
+} 4
+test switch-1.4 {simple patterns} {
+    switch x a {expr 1} b {expr 2} c {expr 3}
+} {}
+test switch-1.5 {simple pattern matches many times} {
+    switch b a {expr 1} b {expr 2} b {expr 3} b {expr 4}
+} 2
+test switch-1.6 {simple patterns} {
+    switch default a {expr 1} default {expr 2} c {expr 3} default {expr 4}
+} 2
+test switch-1.7 {simple patterns} {
+    switch x a {expr 1} default {expr 2} c {expr 3} default {expr 4}
+} 4
+
+test switch-2.1 {single-argument form for pattern/command pairs} {
+    switch b {
+	a {expr 1}
+	b {expr 2}
+	default {expr 6}
+    }
+} {2}
+test switch-2.2 {single-argument form for pattern/command pairs} {
+    list [catch {switch z {a 2 b}}]
+} 1
+
+test switch-3.1 {-exact vs. -glob vs. -regexp} {
+    switch -exact aaaab {
+	^a*b$	{concat regexp}
+	*b	{concat glob}
+	aaaab	{concat exact}
+	default	{concat none}
+    }
+} exact
+test switch-3.2 {-exact vs. -glob vs. -regexp (no [regexp] cmd)} {
+    catch {
+        switch -regexp aaaab {
+        ^a*b$	{concat regexp}
+        *b	{concat glob}
+        aaaab	{concat exact}
+        default	{concat none}
+        }
+    }
+} 1
+test switch-3.3 {-exact vs. -glob vs. -regexp (with [regexp] cmd)} {
+    proc regexp {pat str} {expr {$pat eq "^a*b$" && $str eq "aaaab"}}
+    switch -regexp aaaab {
+	^a*b$	{concat regexp}
+	*b	    {concat glob}
+	aaaab	{concat exact}
+	default	{concat none}
+    }
+} regexp
+test switch-3.4 {-exact vs. -glob vs. -regexp} {
+    switch -glob aaaab {
+	^a*b$	{concat regexp}
+	*b	    {concat glob}
+	aaaab	{concat exact}
+	default	{concat none}
+    }
+} glob
+test switch-3.5 {-exact vs. -glob vs. -regexp} {
+    switch aaaab {^a*b$} {concat regexp} *b {concat glob} \
+	    aaaab {concat exact} default {concat none}
+} exact
+test switch-3.6 {-exact vs. -glob vs. -regexp} {
+    switch -- -glob {
+	^g.*b$	{concat regexp}
+	-*	{concat glob}
+	-glob	{concat exact}
+	default {concat none}
+    }
+} exact
+test switch-3.7 {-exact vs. -glob vs. -regexp} {
+    list [catch {switch -foo a b c} msg] $msg
+} {1 {bad option "-foo": must be -exact, -glob, -regexp, -command procname or --}}
+
+test switch-4.1 {error in executed command} {
+    list [catch {switch a a {error "Just a test"} default {expr 1}} msg] \
+	    $msg
+} {1 {Just a test}}
+test switch-4.2 {error: not enough args} {
+    catch {switch}
+} 1
+test switch-4.3 {error: pattern with no body} {
+    catch {switch a b}
+} 1
+test switch-4.4 {error: pattern with no body} {
+    catch {switch a b {expr 1} c}
+} 1
+test switch-4.5 {error in default command} {
+    list [catch {switch foo a {error switch1} b {error switch 3} \
+	    default {error switch2}} msg] $msg
+} {1 switch2}
+
+#~ test switch-5.1 {errors in -regexp matching} {
+    #~ list [catch {switch -regexp aaaab {
+	#~ *b	{concat glob}
+	#~ aaaab	{concat exact}
+	#~ default	{concat none}
+    #~ }} msg] $msg
+#~ } {1 {couldn't compile regular expression pattern: quantifier operand invalid}}
+
+test switch-6.1 {backslashes in patterns} {
+    switch -exact {\a\$\.\[} {
+	\a\$\.\[	{concat first}
+	\a\\$\.\\[	{concat second}
+	\\a\\$\\.\\[	{concat third}
+	{\a\\$\.\\[}	{concat fourth}
+	{\\a\\$\\.\\[}	{concat fifth}
+	default		{concat none}
+    }
+} third
+test switch-6.2 {backslashes in patterns} {
+    switch -exact {\a\$\.\[} {
+	\a\$\.\[	{concat first}
+	{\a\$\.\[}	{concat second}
+	{{\a\$\.\[}}	{concat third}
+	default		{concat none}
+    }
+} second
+
+test switch-7.1 {"-" bodies} {
+    switch a {
+	a -
+	b -
+	c {concat 1}
+	default {concat 2}
+    }
+} 1
+test switch-7.2 {"-" bodies} {
+    list [catch {
+	switch a {
+	    a -
+	    b -
+	    c -
+	}
+    } msg] $msg
+} {1 {no body specified for pattern "c"}}
+# Following original Tcl test makes no sense, I feel! Please review ...
+#~ test switch-7.3 {"-" bodies} {
+    #~ list [catch {
+	#~ switch a {
+	    #~ a -
+	    #~ b -foo
+	    #~ c -
+	#~ }
+    #~ } msg] $msg
+#~ } {1 {no body specified for pattern "c"}}
+test switch-7.3 {"-" bodies} {
+    list [catch {
+	switch a {
+	    a -
+	    b -foo
+	    c -
+	}
+    } msg] $msg
+} {1 {invalid command name "-foo"}}
+
+test switch-8.1 {empty body} {
+    set msg {}
+    switch {2} {
+    	1 {set msg 1}
+        2 {}
+        default {set msg 2}
+    }
+} {}
+
+test switch-9.1 {empty pattern/body list} {
+    catch {switch x}
+} 1
+test switch-9.2 {empty pattern/body list} {
+    catch {switch -- x} 
+} 1 
+test switch-9.3 {empty pattern/body list} {
+    catch {switch x {}} 
+} 1
+test switch-9.4 {empty pattern/body list} {
+    catch {switch -- x {}}
+} 1
+test switch-9.5 {unpaired pattern} {
+    catch {switch x a {} b}
+} 1
+test switch-9.6 {unpaired pattern} {
+    catch {switch x {a {} b}}
+} 1
+test switch-9.7 {unpaired pattern} {
+    catch {switch x a {} # comment b}
+} 1
+test switch-9.8 {unpaired pattern} {
+    catch {switch x {a {} # comment b}}
+} 1
+test switch-9.9 {unpaired pattern} {
+    catch {switch x a {} x {} # comment b}
+} 1
+test switch-9.10 {unpaired pattern} {
+    catch {switch x {a {} x {} # comment b}}
+} 1
+
+test switch-10.1 {no callback given to -command} {
+    catch {switch -command a { a {expr 1} b {expr 2} }} 
+} 1
+test switch-10.2 {callback expect wrong # args for -command} {
+    catch {switch -command [lambda {p1} {expr 1}] a { a {expr 1} b {expr 2} }}
+} 1
+test switch-10.3 {callback to -command returns ever 0: no match} {
+    switch -command [lambda {p1 p2} {expr 0}] a a {expr 1} b {expr 2}
+} {}
+test switch-10.4 {callback to -command returns 3 at first match} {
+    switch -command [lambda {p1 p2} {expr 3}] a a {expr 1} b {expr 2}
+} 1
+test switch-10.5 {[error] in callback to -command} {
+    list [catch {
+        switch -command [lambda {p1 p2} {error "foo"}] a a {expr 1} b {expr 2}
+    } msg] $msg
+} {1 foo}
+test switch-10.6 {[continue] in callback to -command} {
+    list [catch {
+        switch -command [lambda {p1 p2} {continue}] a a {expr 1} b {expr 2}
+    } msg] $msg
+} {4 {}}
+test switch-10.7 {callback matches first if pat < str} {
+    switch -command [lambda {pat str} {expr {$pat < $str}}] 3 \
+        5 {expr 1} 3 {expr 2}
+} {}
+test switch-10.8 {callback matches first if pat < str} {
+    switch -command [lambda {pat str} {expr {$pat < $str}}] 7 \
+        5 {expr 1} 3 {expr 2}
+} 1
+test switch-10.9 {callback matches first if pat < str} {
+    switch -command [lambda {pat str} {expr {$pat < $str}}] 4 \
+        5 {expr 1} 3 {expr 2}
+} 2
 
 ################################################################################
 # FINAL REPORT
