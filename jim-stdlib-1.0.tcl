@@ -2,7 +2,7 @@
 #
 # Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
 #
-# $Id: jim-stdlib-1.0.tcl,v 1.2 2005/04/04 07:58:11 antirez Exp $
+# $Id: jim-stdlib-1.0.tcl,v 1.3 2005/04/04 11:59:54 antirez Exp $
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,13 @@ proc curry {cmd args} {
     lambda args [list cmd [list pref $args]] {
         uplevel 1 [list $cmd {expand}$pref {expand}$args]
     }
+}
+
+proc memoize {} {{Memo {}}} {
+    set cmd [info level -1]
+    if {[info level] > 2 && [lindex [info level -2] 0] eq "memoize"} return
+    if {![info exists Memo($cmd)]} {set Memo($cmd) [eval $cmd]}
+    return -code return $Memo($cmd)
 }
 
 ### Control structures ###

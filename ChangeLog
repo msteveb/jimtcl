@@ -1,3 +1,7 @@
+2005-04-04 10:01  antirez
+
+	* ChangeLog, jim.h: Version marked as "0.51".
+
 2005-04-04 09:58  antirez
 
 	* ChangeLog, Makefile, jim-stdlib-1.0.tcl, jim.c: Some change in
