@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.50 2005/03/12 20:26:31 antirez Exp $
+ * $Id: jim.h,v 1.51 2005/03/13 17:43:13 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -437,7 +437,7 @@ typedef struct Jim_Interp {
     Jim_Obj *unknown; /* Unknown command cache */
     int errorFlag; /* Set if an error occurred during execution. */
     void *cmdPrivData; /* Used to pass the private data pointer to
-                  command. It is set to what the user specified
+                  a command. It is set to what the user specified
                   via Jim_CreateCommand(). */
 
     struct Jim_HashTable stub; /* Stub hash table to export API */

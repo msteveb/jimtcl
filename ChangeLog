@@ -1,3 +1,8 @@
+2005-03-13 16:53  antirez
+
+	* ChangeLog, jim.c: [string first]. Tests still not added, until
+	  [string] is not (almost instead) complete.
+
 2005-03-13 09:36  antirez
 
 	* ChangeLog, jim.c: [string index] implemented
