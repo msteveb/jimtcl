@@ -48,7 +48,7 @@ win32: jim-win32.dll
 extensions: posix
 
 clean:
-	rm -f *.o *.so core .depend .*.swp $(PROGRAMS) gmon.out
+	rm -f *.o *.so *.dll core .depend .*.swp gmon.out $(PROGRAMS)
 
 test: jim
 	./jim test.tcl
