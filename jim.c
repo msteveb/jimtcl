@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.73 2005/03/07 16:03:29 antirez Exp $
+ * $Id: jim.c,v 1.74 2005/03/07 17:58:19 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -4467,14 +4467,28 @@ static void JimListGetElements(Jim_Interp *interp, Jim_Obj *listObj, int *argc,
 }
 
 /* ListSortElements type values */
-enum {JIM_LSORT_STRING};
+enum {JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_ASCII_DECR,
+      JIM_LSORT_NOCASE_DECR};
 
 /* Sort the internal rep of a list. */
 static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    const char *lhs = Jim_GetString(*lhsObj, NULL);
-    const char *rhs = Jim_GetString(*rhsObj, NULL);
-    return strcmp(lhs, rhs);
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0);
+}
+
+static int ListSortStringDecr(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0) * -1;
+}
+
+static int ListSortStringNoCase(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1);
+}
+
+static int ListSortStringNoCaseDecr(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1) * -1;
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
@@ -4493,7 +4507,10 @@ static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
     switch (type) {
-        case JIM_LSORT_STRING: fn = ListSortString;  break;
+        case JIM_LSORT_ASCII: fn = ListSortString;  break;
+        case JIM_LSORT_NOCASE: fn = ListSortStringNoCase;  break;
+        case JIM_LSORT_ASCII_DECR: fn = ListSortStringDecr;  break;
+        case JIM_LSORT_NOCASE_DECR: fn = ListSortStringNoCaseDecr;  break;
         default:
             fn = NULL; /* avoid warning */
             Jim_Panic("ListSort called with invalid sort type");
@@ -8356,13 +8373,39 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc,
 /* [lsort] */
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
+    const char *options[] = {
+        "-ascii", "-nocase", "-increasing", "-decreasing", NULL
+    };
+    enum {OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING};
     Jim_Obj *resObj;
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "list");
+    int i, lsortType = JIM_LSORT_ASCII; /* default sort type */
+    int decreasing = 0;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "?options? list");
         return JIM_ERR;
     }
-    resObj = Jim_DuplicateObj(interp, argv[1]);
-    ListSortElements(interp, resObj, JIM_LSORT_STRING);
+    for (i = 1; i < (argc-1); i++) {
+        int option;
+
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG)
+                != JIM_OK)
+            return JIM_ERR;
+        switch(option) {
+        case OPT_ASCII: lsortType = JIM_LSORT_ASCII; break;
+        case OPT_NOCASE: lsortType = JIM_LSORT_NOCASE; break;
+        case OPT_INCREASING: decreasing = 0; break;
+        case OPT_DECREASING: decreasing = 1; break;
+        }
+    }
+    if (decreasing) {
+        switch(lsortType) {
+        case JIM_LSORT_ASCII: lsortType = JIM_LSORT_ASCII_DECR; break;
+        case JIM_LSORT_NOCASE: lsortType = JIM_LSORT_NOCASE_DECR; break;
+        }
+    }
+    resObj = Jim_DuplicateObj(interp, argv[argc-1]);
+    ListSortElements(interp, resObj, lsortType);
     Jim_SetResult(interp, resObj);
     return JIM_OK;
 }

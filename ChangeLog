@@ -1,3 +1,9 @@
+2005-03-07 17:03  antirez
+
+	* ChangeLog, Makefile, bench.tcl, jim.c: [lsort] command and list
+	  sorting low-level functions (Pat Thoyts).  Speedup for floating
+	  point math (me).
+
 2005-03-07 16:30  patthoyts
 
 	* jim.c, jim.h: Refactored the [info] command and added body and
