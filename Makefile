@@ -60,6 +60,9 @@ test: jim
 bench: jim
 	./jim bench.tcl
 
+dep:
+	gcc -MM *.[ch] 2> /dev/null
+
 # Dependences
 jim-posix.o: jim-posix.c jim.h
 jim-win32com.o: jim-win32com.c jim.h

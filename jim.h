@@ -759,7 +759,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   Jim_SetDictKeysVector = Jim_GetApi(interp, "Jim_SetDictKeysVector");
   Jim_SubstObj = Jim_GetApi(interp, "Jim_SubstObj");
   Jim_RegisterApi = Jim_GetApi(interp, "Jim_RegisterApi");
-  Jim_PrintErrorMessage = Jim_GetApi(interp, "Jim_RegisterApi");
+  Jim_PrintErrorMessage = Jim_GetApi(interp, "Jim_PrintErrorMessage");
   Jim_InteractivePrompt = Jim_GetApi(interp, "Jim_InteractivePrompt");
   Jim_SetResultString(interp, version, -1);
 }
