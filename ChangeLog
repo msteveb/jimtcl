@@ -1,3 +1,9 @@
+2005-03-14 10:16  antirez
+
+	* ChangeLog, TODO, jim.c: Removed the inclusion of a not-needed
+	  header file "sys/time.h" that prevented compilation with
+	  JIM_ANSIC under non POSIX systems.
+
 2005-03-14 08:22  antirez
 
 	* ChangeLog, TODO, jim.c: [lmap] command.

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.51 2005/03/13 17:43:13 antirez Exp $
+ * $Id: jim.h,v 1.52 2005/03/14 12:20:48 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,10 @@
 
 #ifndef __JIM__H
 #define __JIM__H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <time.h>
 #include <limits.h>
@@ -553,7 +557,6 @@ JIM_STATIC Jim_Obj * JIM_API(Jim_DuplicateObj) (Jim_Interp *interp,
 JIM_STATIC const char * JIM_API(Jim_GetString)(Jim_Obj *objPtr,
         int *lenPtr);
 JIM_STATIC int JIM_API(Jim_Length)(Jim_Obj *objPtr);
-JIM_STATIC void JIM_API(Jim_InvalidateStringRep)(Jim_Obj *objPtr);
 
 /* string object */
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewStringObj) (Jim_Interp *interp,
@@ -662,8 +665,6 @@ JIM_STATIC int JIM_API(Jim_DictKey) (Jim_Interp *interp, Jim_Obj *dictPtr,
 JIM_STATIC int JIM_API(Jim_DictKeysVector) (Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj **objPtrPtr, int flags);
-JIM_STATIC int JIM_API(Jim_GetIndex) (Jim_Interp *interp, Jim_Obj *objPtr,
-        int *indexPtr);
 JIM_STATIC int JIM_API(Jim_SetDictKeysVector) (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr);
@@ -845,5 +846,9 @@ static void Jim_InitEmbedded(void) {
 }
 #endif /* JIM_EMBEDDED */
 #endif /* __JIM_CORE__ */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __JIM__H */
