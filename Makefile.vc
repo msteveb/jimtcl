@@ -21,7 +21,7 @@ OBJS   = $(TMPDIR)\jim.obj
 CC     =cl -nologo
 LD     =link -nologo
 
-# -Fd$(TMPDIR)^\ 
+# -Fd$(TMPDIR)^\
 CFLAGS =$(CFLAGS) -W3 -GX -YX -Fp$(TMPDIR)^\
 INC    =
 DEFS   =-DWIN32
@@ -35,7 +35,7 @@ win32:   setup $(OUTDIR)\jim-win32.dll
 win32api: setup $(OUTDIR)\jim-win32api.dll
 win32com: setup $(OUTDIR)\jim-win32com.dll
 
-$(OUTDIR)\jim.exe: $(OBJS)
+$(OUTDIR)\jim.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimsh.obj
 	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim.dll: $(OBJS)
@@ -49,6 +49,8 @@ $(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
 
 $(OUTDIR)\jim-win32com.dll: $(TMPDIR)\jim-win32com.obj
         @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+
+.PHONY: all jim dll win32 win32api win32com
 
 #-------------------------------------------------------------------------
 setup:

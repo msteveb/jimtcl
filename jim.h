@@ -275,6 +275,18 @@ typedef struct Jim_Obj {
 #define Jim_IsShared(objPtr) \
     ((objPtr)->refCount > 1)
 
+/* Free the internal representation of the object. */
+#define Jim_FreeIntRep(i,o) \
+    if ((o)->typePtr && (o)->typePtr->freeIntRepProc) \
+        (o)->typePtr->freeIntRepProc(i, o)
+
+/* Get the internal representation pointer */
+#define Jim_GetIntRepPtr(o) (o)->internalRep.ptr
+
+/* Set the internal representation pointer */
+#define Jim_SetIntRepPtr(o, p) \
+    (o)->internalRep.ptr = (p)
+
 /* The object type structure.
  * There are four methods.
  *

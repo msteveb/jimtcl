@@ -147,7 +147,9 @@ OLE2A(LPCOLESTR wsz)
 void 
 UnicodeFreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
+	JIM_TRACE("UnicodeFreeInternalRep 0x%08x\n", (DWORD)objPtr);
     Jim_Free(objPtr->internalRep.binaryValue.data);
+	objPtr->internalRep.binaryValue.data = NULL;
     objPtr->internalRep.binaryValue.len = 0;
 }
 
@@ -156,6 +158,7 @@ void
 UnicodeDupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     int len = srcPtr->internalRep.binaryValue.len;
+	JIM_TRACE("UnicodeDupInternalRep 0x%08x duped into 0x%08x\n", (DWORD)srcPtr, (DWORD)dupPtr);
     interp;
     dupPtr->internalRep.binaryValue.len = len;
     dupPtr->internalRep.binaryValue.data = Jim_Alloc(len + sizeof(WCHAR));
@@ -169,8 +172,9 @@ UnicodeSetFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     int nChars;
     LPWSTR wsz;
 
-    Jim_GetString(objPtr, NULL);
-    //Jim_FreeIntRep(interp, objPtr);
+    JIM_TRACE("UnicodeSetFromAny 0x%08x\n", (DWORD)objPtr);
+	Jim_GetString(objPtr, NULL);
+    Jim_FreeIntRep(interp, objPtr);
 
     nChars = MultiByteToWideChar(CP_ACP, 0, objPtr->bytes, objPtr->length, NULL, 0);
     wsz = Jim_Alloc((nChars + 1) * sizeof(WCHAR));
@@ -213,8 +217,8 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
     if (objPtr->typePtr != &unicodeObjType) {
         if (UnicodeSetFromAny(NULL, objPtr) != JIM_OK) {
             JIM_ASSERT("Jim_GetUnicode cannot convert item to unicode rep");
-            //Jim_Panic("Jim_GetUnicode cannot convert item to unicode rep",
-            //objPtr->typePtr->name);
+            Jim_Panic("Jim_GetUnicode cannot convert item to unicode rep",
+				objPtr->typePtr->name);
         }
     }
     
@@ -238,18 +242,19 @@ void
 Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int r = JIM_OK;
-    IDispatch *p = (IDispatch *)objPtr->internalRep.ptr;
-    p->lpVtbl->Release(p);
+    IDispatch *p = (IDispatch *)Jim_GetIntRepPtr(objPtr);
     JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
+    p->lpVtbl->Release(p);
+	p = NULL;
 }
 
 void 
 Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    IDispatch *p = (IDispatch *)srcPtr->internalRep.ptr;
+    IDispatch *p = (IDispatch *)Jim_GetIntRepPtr(srcPtr);
+    JIM_TRACE("dup ole32 object 0x%08x\n", (unsigned long)p);
     dupPtr->internalRep.ptr = p;
     p->lpVtbl->AddRef(p);
-    JIM_TRACE("dup ole32 object 0x%08x\n", (unsigned long)p);
 }
 
 static DISPPARAMS* 
@@ -313,7 +318,7 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
         return JIM_ERR;
     }
 
-    pdisp = (LPDISPATCH)objv[1]->internalRep.ptr;
+    pdisp = (LPDISPATCH)Jim_GetIntRepPtr(objv[1]);
     name = Jim_GetUnicode(objv[2], NULL);
     hr = pdisp->lpVtbl->GetIDsOfNames(pdisp, &IID_NULL, &name, 1, 
                                       LOCALE_SYSTEM_DEFAULT, &dispid);
@@ -327,7 +332,7 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
 
         VariantInit(&v);
         dp = Ole32_GetDispParams(interp, objc-3, objv+3);
-        mode = INVOKE_PROPERTYGET;
+        mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
         hr = pdisp->lpVtbl->Invoke(pdisp, dispid, &IID_NULL, LOCALE_SYSTEM_DEFAULT, mode, dp, &v, &ei, &uierr);
         Ole32_FreeDispParams(dp);
 

@@ -1646,18 +1646,6 @@ int JimParseListStr(struct JimParserCtx *pc)
  * Jim_Obj related functions
  * ---------------------------------------------------------------------------*/
 
-/* Free the internal representation of the object. */
-#define Jim_FreeIntRep(i,o) \
-    if ((o)->typePtr && (o)->typePtr->freeIntRepProc) \
-        (o)->typePtr->freeIntRepProc(i, o)
-
-/* Get the internal representation pointer */
-#define Jim_GetIntRepPtr(o) (o)->internalRep.ptr
-
-/* Set the internal representation pointer */
-#define Jim_SetIntRepPtr(o, p) \
-    (o)->internalRep.ptr = (p)
-
 /* Return a new initialized object. */
 Jim_Obj *Jim_NewObj(Jim_Interp *interp)
 {
