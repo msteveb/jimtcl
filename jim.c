@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.54 2005/03/04 15:33:09 antirez Exp $
+ * $Id: jim.c,v 1.55 2005/03/04 15:37:54 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -847,9 +847,9 @@ static unsigned int JimStringCopyHTHashFunction(const void *key)
 
 static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
 {
-    JIM_NOTUSED(privdata);
     int len = strlen(key);
     char *copy = Jim_Alloc(len+1);
+    JIM_NOTUSED(privdata);
 
     memcpy(copy, key, len);
     copy[len] = '\0';
@@ -3291,8 +3291,8 @@ unsigned int JimReferencesHTDoubleHashFunction(const void *key)
 
 const void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
-    JIM_NOTUSED(privdata);
     void *copy = Jim_Alloc(sizeof(jim_wide));
+    JIM_NOTUSED(privdata);
 
     memcpy(copy, key, sizeof(jim_wide));
     return copy;
@@ -4106,8 +4106,8 @@ void FreeListInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    JIM_NOTUSED(interp);
     int i;
+    JIM_NOTUSED(interp);
 
     dupPtr->internalRep.listValue.len = srcPtr->internalRep.listValue.len;
     dupPtr->internalRep.listValue.maxLen =

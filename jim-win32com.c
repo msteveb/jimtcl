@@ -2,7 +2,7 @@
  *
  * Windows COM extension.
  *
- * $Id: jim-win32com.c,v 1.13 2005/03/04 12:32:21 antirez Exp $
+ * $Id: jim-win32com.c,v 1.14 2005/03/04 15:37:54 antirez Exp $
  *
  * Example:
  *   load jim-win32com
@@ -251,10 +251,10 @@ Jim_ObjType ole32ObjType = {
 void 
 Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    JIM_NOTUSED(interp);
-
     IDispatch *p = Ole32_DispatchPtr(objPtr);
     ITypeInfo *t = Ole32_TypeInfoPtr(objPtr);
+    JIM_NOTUSED(interp);
+
     JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
     p->lpVtbl->Release(p), p = NULL;
     if (t != NULL)
@@ -265,9 +265,9 @@ Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 void 
 Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
+    IDispatch *p = Ole32_DispatchPtr(srcPtr);
     JIM_NOTUSED(interp);
 
-    IDispatch *p = Ole32_DispatchPtr(srcPtr);
     JIM_TRACE("dup ole32 object 0x%08x from 0x%08x to 0x%08x\n", p, srcPtr, dupPtr);
     Ole32_DispatchPtr(dupPtr) = p;
     p->lpVtbl->AddRef(p);
@@ -334,13 +334,13 @@ static int
 Jim_GetIndexFromObj(Jim_Interp *interp, Jim_Obj *objPtr, const char **tablePtr,
 					const char *msg, int flags, int *indexPtr)
 {
-    JIM_NOTUSED(msg);
-    JIM_NOTUSED(flags);
-
     const char **entryPtr = NULL;
     const char *p1, *p2;
     const char *key = Jim_GetString(objPtr, NULL);
     int i;
+    JIM_NOTUSED(msg);
+    JIM_NOTUSED(flags);
+
     *indexPtr = -1;
     for (entryPtr = tablePtr, i = 0; *entryPtr != NULL; entryPtr++, i++) {
         for (p1 = key, p2 = *entryPtr; *p1 == *p2; p1++, p2++) {

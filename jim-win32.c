@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.15 2005/03/04 12:32:21 antirez Exp $
+ * $Id: jim-win32.c,v 1.16 2005/03/04 15:37:54 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -324,12 +324,12 @@ Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
-    JIM_NOTUSED(objc);
-    JIM_NOTUSED(objv);
-
     Jim_Obj *a[16];
     size_t n = 0;
     SYSTEMTIME t;
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
     GetSystemTime(&t);
 
 #define JIMADD(name) \
