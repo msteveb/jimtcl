@@ -380,12 +380,12 @@ int Jim_StringToIndex(const char *str, int *intPtr)
  * in length, this allows to avoid to check every object with a string
  * repr < 32, and usually there are many of this objects. */
 
-#define JIM_REFERENCE_SPACE 32
+#define JIM_REFERENCE_SPACE (35+JIM_REFERENCE_TAGLEN)
 
-int Jim_WideToReferenceString(char *buf, jim_wide wideValue)
+static int JimFormatReference(char *buf, Jim_Reference *refPtr, jim_wide id)
 {
-    const char *fmt = "~reference:%020" JIM_WIDE_MODIFIER ":";
-    sprintf(buf, fmt, wideValue);
+    const char *fmt = "<reference.<%s>.%020" JIM_WIDE_MODIFIER ">";
+    sprintf(buf, fmt, refPtr->tag, id);
     return JIM_REFERENCE_SPACE;
 }
 
@@ -3343,17 +3343,29 @@ void UpdateStringOfReference(struct Jim_Obj *objPtr)
 {
     int len;
     char buf[JIM_REFERENCE_SPACE+1];
+    Jim_Reference *refPtr;
 
-    len = Jim_WideToReferenceString(buf, objPtr->internalRep.refValue.id);
+    refPtr = objPtr->internalRep.refValue.refPtr;
+    len = JimFormatReference(buf, refPtr,
+            objPtr->internalRep.refValue.id);
     objPtr->bytes = Jim_Alloc(len+1);
     memcpy(objPtr->bytes, buf, len+1);
     objPtr->length = len;
 }
 
+/* returns true if 'c' is a valid reference tag character.
+ * i.e. inside the range [_a-zA-Z0-9] */
+static int isrefchar(int c)
+{
+    if (c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9')) return 1;
+    return 0;
+}
+
 int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     jim_wide wideValue;
-    int len;
+    int i, len;
     const char *str, *start, *end;
     char refId[21];
     Jim_Reference *refPtr;
@@ -3369,9 +3381,15 @@ int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     while (*start == ' ') start++;
     while (*end == ' ' && end > start) end--;
     if (end-start+1 != JIM_REFERENCE_SPACE) goto badformat;
-    if (memcmp(start, "~reference:", 11) != 0) goto badformat;
-    if (end[0] != ':') goto badformat;
-    memcpy(refId, start+11, 20);
+    /* <reference.<1234567>.%020> */
+    if (memcmp(start, "<reference.<", 12) != 0) goto badformat;
+    if (start[12+JIM_REFERENCE_TAGLEN] != '>' || end[0] != '>') goto badformat;
+    /* The tag can't contain chars other than a-zA-Z0-9 + '_'. */
+    for (i = 0; i < JIM_REFERENCE_TAGLEN; i++) {
+        if (!isrefchar(start[12+i])) goto badformat;
+    }
+    /* Extract info from the refernece. */
+    memcpy(refId, start+14+JIM_REFERENCE_TAGLEN, 20);
     refId[20] = '\0';
     /* Try to convert the ID into a jim_wide */
     if (Jim_StringToWide(refId, &wideValue, 10) != JIM_OK) goto badformat;
@@ -3401,12 +3419,14 @@ badformat:
 /* Returns a new reference pointing to objPtr, having cmdNamePtr
  * as finalizer command (or NULL if there is no finalizer).
  * The returned reference object has refcount = 0. */
-Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr,
+Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *tagPtr,
         Jim_Obj *cmdNamePtr)
 {
     struct Jim_Reference *refPtr;
     jim_wide wideValue = interp->referenceNextId;
     Jim_Obj *refObjPtr;
+    const char *tag;
+    int tagLen, i;
 
     /* Perform the Garbage Collection if needed. */
     Jim_CollectIfNeeded(interp);
@@ -3424,6 +3444,18 @@ Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr,
     refObjPtr->internalRep.refValue.id = interp->referenceNextId;
     refObjPtr->internalRep.refValue.refPtr = refPtr;
     interp->referenceNextId++;
+    /* Set the tag. Trimmered at JIM_REFERENCE_TAGLEN. Everything
+     * that does not pass the 'isrefchar' test is replaced with '_' */
+    tag = Jim_GetString(tagPtr, &tagLen);
+    if (tagLen > JIM_REFERENCE_TAGLEN)
+        tagLen = JIM_REFERENCE_TAGLEN;
+    for (i = 0; i < JIM_REFERENCE_TAGLEN; i++) {
+        if (i < tagLen)
+            refPtr->tag[i] = tag[i];
+        else
+            refPtr->tag[i] = '_';
+    }
+    refPtr->tag[JIM_REFERENCE_TAGLEN] = '\0';
     return refObjPtr;
 }
 
@@ -3552,7 +3584,7 @@ int Jim_Collect(Jim_Interp *interp)
                 char *refstr = Jim_Alloc(JIM_REFERENCE_SPACE+1);
                 Jim_Obj *objv[2], *oldResult;
 
-                Jim_WideToReferenceString(refstr, *refId);
+                JimFormatReference(refstr, refPtr, *refId);
 
                 objv[0] = refPtr->finalizerCmdNamePtr;
                 objv[1] = Jim_NewStringObjNoAlloc(interp,
@@ -8155,14 +8187,15 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_RefCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    if (argc != 2 && argc != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "string ?finalizer?");
+    if (argc != 3 && argc != 4) {
+        Jim_WrongNumArgs(interp, 1, argv, "string tag ?finalizer?");
         return JIM_ERR;
     }
-    if (argc == 2) {
-        Jim_SetResult(interp, Jim_NewReference(interp, argv[1], NULL));
+    if (argc == 3) {
+        Jim_SetResult(interp, Jim_NewReference(interp, argv[1], argv[2], NULL));
     } else {
-        Jim_SetResult(interp, Jim_NewReference(interp, argv[1], argv[2]));
+        Jim_SetResult(interp, Jim_NewReference(interp, argv[1], argv[2],
+                    argv[3]));
     }
     return JIM_OK;
 }
@@ -8449,7 +8482,7 @@ static void Jim_RegisterCoreProcedures(Jim_Interp *interp)
 {
     Jim_Eval(interp,
 "proc lambda {arglist body} {\n"
-"    set name [ref {} lambdaFinalizer]\n"
+"    set name [ref {} function lambdaFinalizer]\n"
 "    proc $name $arglist $body\n"
 "    return $name\n"
 "}\n"

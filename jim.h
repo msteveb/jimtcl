@@ -443,9 +443,12 @@ typedef struct Jim_Interp {
 } while(0)
 
 /* Reference structure. The interpreter pointer is held within privdata member in HashTable */
+#define JIM_REFERENCE_TAGLEN 7 /* The tag is fixed-length, because the reference
+                                  string representation must be fixed length. */
 typedef struct Jim_Reference {
     Jim_Obj *objPtr;
     Jim_Obj *finalizerCmdNamePtr;
+    char tag[JIM_REFERENCE_TAGLEN+1];
 } Jim_Reference;
 
 /* -----------------------------------------------------------------------------
@@ -550,7 +553,7 @@ JIM_STATIC int JIM_API(Jim_CompareStringImmediate) (Jim_Interp *interp,
 
 /* reference object */
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewReference) (Jim_Interp *interp,
-        Jim_Obj *objPtr, Jim_Obj *cmdNamePtr);
+        Jim_Obj *objPtr, Jim_Obj *tagPtr, Jim_Obj *cmdNamePtr);
 JIM_STATIC Jim_Reference * JIM_API(Jim_GetReference) (Jim_Interp *interp,
         Jim_Obj *objPtr);
 
