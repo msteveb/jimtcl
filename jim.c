@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.107 2005/03/15 14:42:30 antirez Exp $
+ * $Id: jim.c,v 1.108 2005/03/16 12:55:37 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -471,6 +471,10 @@ void *Jim_Alloc(int size)
         Jim_Panic("Out of memory");
     return p;
 }
+#if 0
+#define Jim_Alloc(n) \
+    (printf("%d in %s:%d\n", n, __FILE__, __LINE__),_Jim_Alloc(n))
+#endif
 
 void *Jim_Realloc(void *ptr, int size)
 {
@@ -3814,7 +3818,7 @@ int Jim_Collect(Jim_Interp *interp)
                 jim_wide id;
                 char buf[21];
 
-                if ((p = strstr(p, "~reference:")) == NULL)
+                if ((p = strstr(p, "<reference:")) == NULL)
                     break;
                 /* Check if it's a valid reference. */
                 if (len-(p-str) < JIM_REFERENCE_SPACE) break;

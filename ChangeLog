@@ -1,3 +1,8 @@
+2005-03-15 22:58  antirez
+
+	* ChangeLog, Makefile: clean target of Makefile now deletes .xo
+	  files too.
+
 2005-03-15 15:42  antirez
 
 	* ChangeLog, jim.c, jim.h: A first version of [info complete].
