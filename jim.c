@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.110 2005/03/16 13:35:13 antirez Exp $
+ * $Id: jim.c,v 1.111 2005/03/16 15:30:40 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and don't try to free. */
 static char *JimEmptyStringRep = (char*) "";
+extern char **environ; /* needed by the [env] command */
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -9941,6 +9942,56 @@ static int Jim_LrangeCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [env] */
+static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    if (argc == 1) {
+        char **e = environ;
+        Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
+        while (*e) {
+            Jim_Obj *keyPtr, *valPtr;
+            char *p = strchr(*e, '=');
+            if (p == NULL) continue;
+
+            keyPtr = Jim_NewStringObj(interp, *e, p-(*e));
+            valPtr = Jim_NewStringObj(interp, p+1, -1);
+            Jim_ListAppendElement(interp, objPtr, keyPtr);
+            Jim_ListAppendElement(interp, objPtr, valPtr);
+            e++;
+        }
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
+    } else if (argc == 2) {
+        const char *key = Jim_GetString(argv[1], NULL);
+        char *val = getenv(key);
+
+        if (val == NULL) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "environment variable \"",
+                    key, "\" does not exist", NULL);
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, Jim_NewStringObj(interp, val, -1));
+        return JIM_OK;
+    } else if (argc == 3) {
+        const char *key = Jim_GetString(argv[1], NULL);
+        const char *val = Jim_GetString(argv[2], NULL);
+
+        if (setenv(key, val, 1) == -1) {
+            Jim_SetResultString(interp, "insufficient space in the environment",
+                    -1);
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, argv[2]);
+        return JIM_OK;
+    } else {
+        Jim_WrongNumArgs(interp, 1, argv, "env ?varname? ?newval?");
+        return JIM_ERR;
+    }
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -9996,6 +10047,7 @@ static struct {
     {"format", Jim_FormatCoreCommand},
     {"error", Jim_ErrorCoreCommand},
     {"lrange", Jim_LrangeCoreCommand},
+    {"env", Jim_EnvCoreCommand},
     {NULL, NULL},
 };
 
@@ -10113,13 +10165,22 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.110 2005/03/16 13:35:13 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.111 2005/03/16 15:30:40 antirez Exp $\n");
     while (1) {
         char prg[1024];
         const char *result;
+        const char *retcodestr[] = {
+            "ok", "error", "return", "break", "continue"
+        };
         int reslen;
 
-        printf("%d jim> ", retcode);
+        if (retcode != 0) {
+            if (retcode >= 2 && retcode <= 4)
+                printf("[%s] . ", retcodestr[retcode]);
+            else
+                printf("[%d] . ", retcode);
+        } else
+            printf(". ");
         fflush(stdout);
         if (fgets(prg, 1024, stdin) == NULL) break;
         retcode = Jim_Eval(interp, prg);

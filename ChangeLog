@@ -1,3 +1,7 @@
+2005-03-16 14:35  antirez
+
+	* ChangeLog, jim.c: added CVS ID info in the banner.
+
 2005-03-16 14:11  antirez
 
 	* ChangeLog, jim.c: more GC fixes.
