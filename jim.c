@@ -6201,18 +6201,21 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken *token,
             intv[i] = token[i].objPtr;
             break;
         case JIM_TT_VAR:
-            intv[i] = Jim_GetVariable(
-                    interp,
-                    token[i].objPtr,
-                    JIM_ERRMSG);
+            intv[i] = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
+            if (!intv[i]) {
+                retcode = JIM_ERR;
+                goto err;
+            }
+            break;
+        case JIM_TT_DICTSUGAR:
+            intv[i] = Jim_ExpandDictSugar(interp, token[i].objPtr);
             if (!intv[i]) {
                 retcode = JIM_ERR;
                 goto err;
             }
             break;
         case JIM_TT_CMD:
-            retcode = Jim_EvalObj(interp,
-                    token[i].objPtr);
+            retcode = Jim_EvalObj(interp, token[i].objPtr);
             if (retcode != JIM_OK)
                 goto err;
             intv[i] = Jim_GetResult(interp);
@@ -6220,7 +6223,7 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken *token,
         default:
             Jim_Panic(
               "default token type reached "
-              "in Jim_EvalObj().");
+              "in Jim_InterpolateTokens().");
             break;
         }
         Jim_IncrRefCount(intv[i]);
