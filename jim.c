@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.59 2005/03/04 22:44:41 antirez Exp $
+ * $Id: jim.c,v 1.60 2005/03/04 23:59:45 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@
 #define STRICT
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#if _MSC_VER >= 1000
+#pragma warning(disable:4146)
+#endif /* _MSC_VER */
 #else
 #include <dlfcn.h>
 #endif
@@ -6922,7 +6925,7 @@ int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, void *funcptr)
 }
 
 #define JIM_REGISTER_API(name) \
-    Jim_RegisterApi(interp, "Jim_" #name, Jim_ ## name)
+    Jim_RegisterApi(interp, "Jim_" #name, (void *)Jim_ ## name)
 
 void JimRegisterCoreApi(Jim_Interp *interp)
 {
@@ -8112,7 +8115,7 @@ static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
         Jim_AppendString(interp, resultObjPtr,
             noMatchStart, str-noMatchStart);
     }
-    Jim_Free(key);
+    Jim_Free((void*)key);
     Jim_Free(keyLen);
     Jim_Free(value);
     return resultObjPtr;

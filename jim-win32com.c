@@ -2,7 +2,7 @@
  *
  * Windows COM extension.
  *
- * $Id: jim-win32com.c,v 1.14 2005/03/04 15:37:54 antirez Exp $
+ * $Id: jim-win32com.c,v 1.15 2005/03/04 23:59:45 patthoyts Exp $
  *
  * Example:
  *   load jim-win32com
@@ -228,7 +228,8 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
 				objPtr->typePtr->name);
         }
     }
-    *lenPtr = objPtr->internalRep.binaryValue.len;
+	if (lenPtr != NULL)
+		*lenPtr = objPtr->internalRep.binaryValue.len;
     return (LPWSTR)objPtr->internalRep.binaryValue.data;
 }
 
@@ -239,6 +240,7 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
 
 static void Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
+Jim_Obj *Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch);
 
 Jim_ObjType ole32ObjType = {
     "ole32",
@@ -274,7 +276,7 @@ Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 }
 
 static DISPPARAMS* 
-Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     DISPPARAMS * dp;
     int cn;
@@ -330,6 +332,49 @@ Ole32_FreeDispParams(DISPPARAMS *dp)
     Jim_Free(dp);
 }
 
+static HRESULT
+VariantToJim(Jim_Interp *interp, VARIANT v, Jim_Obj **resultPtr)
+{
+	HRESULT hr = S_OK;
+
+	/*
+	 * FIX ME: Needs to handle VT_ARRAY and VT_BYREF flags
+	 */
+
+    switch (v.vt) {
+		case VT_BOOL: 
+			*resultPtr = Jim_NewStringObj(interp, (v.boolVal == VARIANT_TRUE) ? "True" : "False", -1); 
+			break;
+        case VT_I2:
+			*resultPtr = Jim_NewIntObj(interp, v.iVal);
+			break;
+        case VT_I4:
+			*resultPtr = Jim_NewIntObj(interp, v.lVal);
+			break;
+        case VT_R4:
+			*resultPtr = Jim_NewDoubleObj(interp, v.fltVal);
+			break;
+        case VT_R8:
+			*resultPtr = Jim_NewDoubleObj(interp, v.dblVal);
+			break;
+		case VT_UNKNOWN:
+			hr = VariantChangeType(&v, &v, 0, VT_DISPATCH);
+			if (SUCCEEDED(hr))
+				*resultPtr = Jim_NewOle32Obj(interp, v.pdispVal);
+			break;
+		case VT_DISPATCH:
+			*resultPtr = Jim_NewOle32Obj(interp, v.pdispVal);
+			break;
+		case VT_CY:	case VT_DATE: case VT_DECIMAL:
+        default: {
+            hr = VariantChangeType(&v, &v, VARIANT_ALPHABOOL, VT_BSTR);
+            if (SUCCEEDED(hr))
+                *resultPtr = Jim_NewUnicodeObj(interp, v.bstrVal, -1);
+        }
+    }
+	return hr;
+}
+
 static int
 Jim_GetIndexFromObj(Jim_Interp *interp, Jim_Obj *objPtr, const char **tablePtr,
 					const char *msg, int flags, int *indexPtr)
@@ -356,7 +401,7 @@ Jim_GetIndexFromObj(Jim_Interp *interp, Jim_Obj *objPtr, const char **tablePtr,
 
 /* $object method|prop ?args...? */
 static int
-Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     HRESULT hr = S_OK;
     LPWSTR name;
@@ -412,17 +457,7 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         Ole32_FreeDispParams(dp);
 
         if (SUCCEEDED(hr)) {
-            switch (v.vt) {
-                case VT_I2:  resultObj = Jim_NewIntObj(interp, v.iVal); break;
-                case VT_I4:  resultObj = Jim_NewIntObj(interp, v.lVal); break;
-                case VT_R4:  resultObj = Jim_NewDoubleObj(interp, v.fltVal); break;
-                case VT_R8:  resultObj = Jim_NewDoubleObj(interp, v.dblVal); break;
-                default: {
-                    hr = VariantChangeType(&v, &v, VARIANT_ALPHABOOL, VT_BSTR);
-                    if (SUCCEEDED(hr))
-                        resultObj = Jim_NewUnicodeObj(interp, v.bstrVal, -1);
-                }
-            }
+			hr = VariantToJim(interp, v, &resultObj);
         }
         VariantClear(&v);
     }
@@ -461,7 +496,6 @@ Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
     if (n != 0)
         pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT,
             (LPTYPEINFO*)&objPtr->internalRep.twoPtrValue.ptr2);
-/*          &(Ole32_TypeInfoPtr(objPtr)));*/
 
     objPtr->typePtr = &ole32ObjType;
 
@@ -471,40 +505,88 @@ Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
 
 /* ---------------------------------------------------------------------- */
 
-/* ole32 createobject progid
- */
-int
-Ole32_Command(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+static int
+Ole32_Create(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
     HRESULT hr = S_OK;
-    const char *cmd;
+    IDispatch *pdisp = NULL;
+    CLSID clsid;
     
-    if (objc != 3) {
-        Jim_WrongNumArgs(interp, 1, objv, "createobject");
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "progid");
         return JIM_ERR;
     }
 
-    cmd = Jim_GetString(objv[1], NULL);
-    if (strncmp(cmd, "create", 6) == 0) {
-        IDispatch *pdisp = NULL;
-        CLSID clsid;
-        HRESULT hr = S_OK;
-        LPWSTR wsz = Jim_GetUnicode(objv[2], NULL);
-        hr = CLSIDFromProgID(wsz, &clsid);
-		if (SUCCEEDED(hr))
-            hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
-        if (SUCCEEDED(hr)) {
-            Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
-            pdisp->lpVtbl->Release(pdisp);
-        } else {
-            Jim_SetResult(interp, Win32ErrorObj(interp, "CreateObject", hr));
-        }
-
+    hr = CLSIDFromProgID(Jim_GetUnicode(objv[1], NULL), &clsid);
+	if (SUCCEEDED(hr))
+        hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
+    if (SUCCEEDED(hr)) {
+        Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
+        pdisp->lpVtbl->Release(pdisp);
     } else {
-        Jim_SetResultString(interp, "bad option: must be create object", -1);
-        hr = E_FAIL;
+        Jim_SetResult(interp, Win32ErrorObj(interp, "CreateObject", hr));
     }
     return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
+}
+
+/* ole32.foreach varname $object body */
+static int
+Ole32_Foreach(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+	HRESULT hr = S_OK;
+	IDispatch *pdisp;
+	VARIANT vEnum;
+	DISPPARAMS dpNull = {NULL, NULL, 0, 0};
+	int result = JIM_OK;
+
+    if (objc != 4) {
+        Jim_WrongNumArgs(interp, 1, objv, "varname ole32object script");
+        return JIM_ERR;
+    }
+	 
+    if (objv[2]->typePtr != &ole32ObjType) {
+        Jim_SetResultString(interp, "second argument must be a ole32 created object", -1);
+        return JIM_ERR;
+    }
+
+	VariantInit(&vEnum);
+    pdisp = Ole32_DispatchPtr(objv[2]);
+	hr = pdisp->lpVtbl->Invoke(pdisp, DISPID_NEWENUM, &IID_NULL, LOCALE_SYSTEM_DEFAULT, 
+		DISPATCH_PROPERTYGET, &dpNull, &vEnum, NULL, NULL);
+	if (SUCCEEDED(hr)) {
+		IEnumVARIANT *pEnum;
+		hr = vEnum.punkVal->lpVtbl->QueryInterface(vEnum.punkVal, &IID_IEnumVARIANT, (LPVOID*)&pEnum);
+		if (SUCCEEDED(hr)) {
+			HRESULT hrLoop = S_OK;
+			ULONG n, cbElt;
+			VARIANT rgVar[16];
+			for (n = 0; n < 16; n++) VariantInit(&rgVar[n]);
+			do {
+				hrLoop = pEnum->lpVtbl->Next(pEnum, 16, rgVar, &cbElt);
+				for (n = 0; SUCCEEDED(hr) && n < cbElt; n++) {
+					Jim_Obj *valPtr = NULL;
+					hr = VariantToJim(interp, rgVar[n], &valPtr);
+					if (SUCCEEDED(hr)) {
+						Jim_SetVariable(interp, objv[1], valPtr);
+				        switch (result = Jim_EvalObj(interp, objv[3])) {
+							case JIM_OK: case JIM_CONTINUE: break;
+							case JIM_BREAK:
+							default:
+								goto break_for;
+						}
+					}
+				}
+break_for:
+				for (n = 0; n < cbElt; n++) VariantClear(&rgVar[n]);
+			} while ((result == JIM_OK || result == JIM_CONTINUE) && hrLoop == S_OK && SUCCEEDED(hr));
+			pEnum->lpVtbl->Release(pEnum);
+		}
+		VariantClear(&vEnum);
+	}
+	if (FAILED(hr))
+		Jim_SetResult(interp, Win32ErrorObj(interp, "ole32.foreach", (DWORD)hr));
+	if (result == JIM_BREAK) result = JIM_OK;
+	return SUCCEEDED(hr) ? result : JIM_ERR;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -520,8 +602,9 @@ Jim_OnLoad(Jim_Interp *interp)
             Win32ErrorObj(interp, "CoInitialize", (DWORD)hr));
         return JIM_ERR;
     }
-    Jim_CreateCommand(interp, "ole32", Ole32_Command, NULL);
-    Jim_CreateCommand(interp, "ole32.invoke", Ole32_Invoke, NULL);
+    Jim_CreateCommand(interp, "ole32.create",  Ole32_Create, NULL);
+    Jim_CreateCommand(interp, "ole32.invoke",  Ole32_Invoke, NULL);
+	Jim_CreateCommand(interp, "ole32.foreach", Ole32_Foreach, NULL);
     return JIM_OK;
 }
 

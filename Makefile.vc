@@ -16,8 +16,6 @@ LDFLAGS=-release -opt:ref -opt:icf,3
 
 TMPDIR =$(OUTDIR)\Objects
 
-OBJS   = $(TMPDIR)\jim.obj
-
 CC     =cl -nologo
 LD     =link -nologo
 
@@ -38,7 +36,7 @@ win32com: setup $(OUTDIR)\jim-win32com.dll
 $(OUTDIR)\jim.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimsh.obj
 	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
 
-$(OUTDIR)\jim.dll: $(OBJS)
+$(OUTDIR)\jim.dll: $(TMPDIR)\jim.obj
 	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
