@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.2 2005/03/05 18:51:50 antirez Exp $
+ * $Id: jim-aio.c,v 1.3 2005/03/05 21:11:24 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,6 +69,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
     /* SEEK */
         int orig = SEEK_SET;
         long offset;
+
         if (argc != 3 && argc != 4) {
             Jim_WrongNumArgs(interp, 2, argv, "offset ?origin?");
             return JIM_ERR;
@@ -94,6 +95,17 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             JimAioSetError(interp);
             return JIM_ERR;
         }
+        return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "tell")) {
+    /* TELL */
+        long position;
+
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        position = ftell(af->fp);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, position));
         return JIM_OK;
     } else if (Jim_CompareStringImmediate(interp, argv[1], "gets")) {
     /* GETS */
@@ -150,11 +162,39 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, objPtr);
         }
         return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "puts")) {
+    /* PUTS */
+        unsigned int wlen;
+        const char *wdata;
+
+        if (argc != 3 && (argc != 4 || !Jim_CompareStringImmediate(
+                        interp, argv[2], "-nonewline"))) {
+            Jim_WrongNumArgs(interp, 2, argv, "?-nonewline? string");
+            return JIM_ERR;
+        }
+        wdata = Jim_GetString(argv[2+(argc==4)], &wlen);
+        if (fwrite(wdata, 1, wlen, af->fp) != wlen ||
+            (argc == 3 && fwrite("\n", 1, 1, af->fp) != 1)) {
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "flush")) {
+    /* FLUSH */
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        if (fflush(af->fp) == EOF) {
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        return JIM_OK;
     } else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
                 "Invalid option for AIO file, should be: "
-                "close, gets, read, puts, seek, tell", NULL);
+                "close, flush, gets, read, puts, seek, tell", NULL);
         return JIM_ERR;
     }
 }

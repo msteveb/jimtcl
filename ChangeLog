@@ -1,3 +1,7 @@
+2005-03-05 19:51  antirez
+
+	* ChangeLog, jim-aio.c: ANSI I/O seek method implemented.
+
 2005-03-05 16:04  antirez
 
 	* ChangeLog, jim.c, jim.h: Solved a problem with Jim_Length()
