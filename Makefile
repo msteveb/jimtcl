@@ -66,7 +66,7 @@ win32: jim-win32.dll jim-win32com.dll
 extensions: posix aio
 
 clean:
-	$(RM) *.o *.so *.dll core .depend .*.swp gmon.out $(PROGRAMS)
+	$(RM) *.o *.so *.dll *.xo core .depend .*.swp gmon.out $(PROGRAMS)
 
 test: jim
 	./jim test.tcl

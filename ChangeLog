@@ -1,3 +1,7 @@
+2005-03-15 15:42  antirez
+
+	* ChangeLog, jim.c, jim.h: A first version of [info complete].
+
 2005-03-15 15:05  antirez
 
 	* BUGS, ChangeLog, jim.c, test.tcl: [info level ?level?] fixed.
