@@ -1,3 +1,9 @@
+2005-03-29 16:03  antirez
+
+	* ChangeLog, jim.c: random number generator fixed. Was a problem
+	  with the initialization of the sbox. (see prev CVS commit
+	  comment.)
+
 2005-03-29 15:43  antirez
 
 	* ChangeLog, jim.c: First fix for [rand]. More later as there is an
