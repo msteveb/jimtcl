@@ -37,7 +37,7 @@
 
 /* MSC has _stricmp instead of strcasecmp */
 #ifdef _MSC_VER
-  #define strcasecmp _stricmp
+#  define strcasecmp _stricmp
 #endif /* _MSC_VER */
 
 /* -----------------------------------------------------------------------------
@@ -57,33 +57,33 @@
 #define JIM_MAX_NESTING_DEPTH 5000 /* default max nesting depth */
 
 #ifdef HAVE_LONG_LONG
-  #ifdef _MSC_VER /* MSC compiler */
-    #define jim_wide _int64
-    #ifndef LLONG_MAX
-      #define LLONG_MAX	9223372036854775807I64
-    #endif
-    #ifndef LLONG_MIN
-      #define LLONG_MIN	(-LLONG_MAX - 1I64)
-    #endif
-    #define JIM_WIDE_MIN LLONG_MIN
-    #define JIM_WIDE_MAX LLONG_MAX
-    #define JIM_LL_MODIFIER "I64d"
-  #else /* Other compilers (mainly GCC) */
-    #define jim_wide long long
-    #ifndef LLONG_MAX
-      #define LLONG_MAX	9223372036854775807LL
-    #endif
-    #ifndef LLONG_MIN
-      #define LLONG_MIN	(-LLONG_MAX - 1LL)
-    #endif
-    #define JIM_WIDE_MIN LLONG_MIN
-    #define JIM_WIDE_MAX LLONG_MAX
-    #define JIM_LL_MODIFIER "lld"
-  #endif
+#  ifdef _MSC_VER /* MSC compiler */
+#    define jim_wide _int64
+#    ifndef LLONG_MAX
+#      define LLONG_MAX	9223372036854775807I64
+#    endif
+#    ifndef LLONG_MIN
+#      define LLONG_MIN	(-LLONG_MAX - 1I64)
+#    endif
+#    define JIM_WIDE_MIN LLONG_MIN
+#    define JIM_WIDE_MAX LLONG_MAX
+#    define JIM_LL_MODIFIER "I64d"
+#  else /* Other compilers (mainly GCC) */
+#    define jim_wide long long
+#    ifndef LLONG_MAX
+#      define LLONG_MAX	9223372036854775807LL
+#    endif
+#    ifndef LLONG_MIN
+#      define LLONG_MIN	(-LLONG_MAX - 1LL)
+#    endif
+#    define JIM_WIDE_MIN LLONG_MIN
+#    define JIM_WIDE_MAX LLONG_MAX
+#    define JIM_LL_MODIFIER "lld"
+#  endif
 #else
-  #define jim_wide long
-  #define JIM_WIDE_MIN LONG_MIN
-  #define JIM_WIDE_MAX LONG_MAX
+#  define jim_wide long
+#  define JIM_WIDE_MIN LONG_MIN
+#  define JIM_WIDE_MAX LONG_MAX
 #endif
 
 /* Some function get an integer argument with flags to change

@@ -24,11 +24,15 @@ DEFS   =-DWIN32
 LIBS   =
 
 
-all:    jim
+all:    jim jim-win32
 jim:    setup $(OUTDIR)\jim.exe
+jim-win32:  setup $(OUTDIR)\jim-win32.dll
 
 $(OUTDIR)\jim.exe: $(OBJS)
 	$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
+
+$(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
+        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 #-------------------------------------------------------------------------
 setup:
@@ -36,10 +40,8 @@ setup:
 	@if not exist $(TMPDIR) mkdir $(TMPDIR)
 
 
-test: testapp
-	@if exist ztest.mk del ztest.mk >NUL
-	@$(OUTDIR)\testapp.exe
-	kviewer ztest.mk
+test: jim
+	$(OUTDIR)\jim.exe test.tcl
 
 clean:
         @if exist $(TMPDIR) rmdir /q /s $(TMPDIR) >NUL
@@ -52,7 +54,7 @@ realclean: clean
 .SUFFIXES:.c .cpp
 
 {$(SRCDIR)}.c{$(TMPDIR)}.obj::
-        $(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)^\ -c @<<
+        $(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)^\ -Fo$(TMPDIR)^\ -c @<<
 $<
 <<
 

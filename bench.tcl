@@ -176,6 +176,16 @@ proc nestedloops {} {
     }
 }
 
+### ROTATE #####################################################################
+
+proc rotate {count} {
+    set v 1
+    for {set n 0} {$n < $count} {incr n} {
+	set v [expr {$v <<< 1}]
+    }
+}
+
+
 ### RUN ALL ####################################################################
 
 bench {busy loop} {x}
@@ -186,3 +196,4 @@ bench {ary} {ary 100000}
 bench {repeat} {use_repeat}
 bench {upvar} {upvartest}
 bench {nested loops} {nestedloops}
+bench {rotate} {rotate 100000}

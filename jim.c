@@ -27,6 +27,16 @@
 #include <errno.h>
 #include <time.h>
 
+/* Include the platform dependent libraries for
+ * dynamic loading of libraries. */
+#ifdef WIN32
+#define STRICT
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
 #include "jim.h"
 
 #ifdef HAVE_BACKTRACE
@@ -315,10 +325,15 @@ int Jim_DoubleToString(char *buf, double doubleValue)
 		if (*s == '.') return len;
 		s++;
 	}
-	s[0] = '.';
-	s[1] = '0';
-	s[2] = '\0';
-	return len+2;
+	/* Add a final ".0" if it's a number. But not
+	 * for NaN or InF */
+	if (isdigit((int)buf[0])) {
+		s[0] = '.';
+		s[1] = '0';
+		s[2] = '\0';
+		return len+2;
+	}
+	return len;
 }
 
 int Jim_StringToDouble(char *str, double *doublePtr)
@@ -4931,6 +4946,7 @@ int Jim_GetReturnCode(Jim_Interp *interp, Jim_Obj *objPtr, int *intPtr)
  * ---------------------------------------------------------------------------*/
 static int JimParseExprOperator(struct JimParserCtx *pc);
 static int JimParseExprNumber(struct JimParserCtx *pc);
+static int JimParseExprIrrational(struct JimParserCtx *pc);
 
 /* Operators table */
 typedef struct Jim_ExprOperator {
@@ -5086,6 +5102,11 @@ int JimParseExpression(struct JimParserCtx *pc)
 		pc->tt = JIM_TT_NONE; /* Make sure it's sensed as a new word. */
 		return JimParseListStr(pc);
 		break;
+	case 'N': case 'I':
+	case 'n': case 'i':
+		if (JimParseExprIrrational(pc) == JIM_ERR)
+		    return JimParseExprOperator(pc);
+		break;
 	default:
 		return JimParseExprOperator(pc);
 		break;
@@ -5110,6 +5131,24 @@ int JimParseExprNumber(struct JimParserCtx *pc)
 	pc->tend = pc->p-1;
 	pc->tt = JIM_TT_EXPR_NUMBER;
 	return JIM_OK;
+}
+
+int JimParseExprIrrational(struct JimParserCtx *pc)
+{
+    const char *Tokens[] = {"NaN", "nan", "NAN", "Inf", "inf", "INF", NULL};
+    const char **token;
+    for (token = Tokens; *token != NULL; token++) {
+	int len = strlen(*token);
+	if (strncmp(*token, pc->p, len) == 0) {
+	    pc->tstart = pc->p;
+	    pc->tend = pc->p + len - 1;
+	    pc->p += len;
+	    pc->tline = pc->linenr;
+	    pc->tt = JIM_TT_EXPR_NUMBER;
+	    return JIM_OK;
+	}
+    }
+    return JIM_ERR;
 }
 
 int JimParseExprOperator(struct JimParserCtx *pc)
@@ -5622,15 +5661,24 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 				wC = wA%wB;
 				break;
 			case JIM_EXPROP_ROTL: {
-			    unsigned long uA = (unsigned jim_wide)wA&0xFFFFFFFF;
+                /* uint32_t would be better. But not everyone has inttypes.h?*/
+			    unsigned long uA = (unsigned long)wA;
+#ifdef _MSC_VER
+			    wC = _rotl(uA,(unsigned long)wB);
+#else
 			    const unsigned int S = sizeof(unsigned long) * 8;
-			    wC = (jim_wide)((uA<<wB)|(uA>>(S-wB)));
+			    wC = (unsigned long)((uA<<wB)|(uA>>(S-wB)));
+#endif
 			    break;
 			}
 			case JIM_EXPROP_ROTR: {
-			    unsigned long uA = (unsigned jim_wide)wA&0xFFFFFFFF;
+			    unsigned long uA = (unsigned long)wA;
+#ifdef _MSC_VER
+			    wC = _rotr(uA,(unsigned long)wB);
+#else
 			    const unsigned int S = sizeof(unsigned long) * 8;
-			    wC = (jim_wide)((uA>>wB)|(uA<<(S-wB)));
+			    wC = (unsigned long)((uA>>wB)|(uA<<(S-wB)));
+#endif
 			    break;
 			}
 
@@ -5830,8 +5878,30 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
-#ifndef WIN32
-#include <dlfcn.h>
+#ifdef WIN32
+#define RTLD_LAZY 0
+void * dlopen(const char *path, int mode) 
+{
+    return (void *)LoadLibraryA(path);
+}
+int dlclose(void *handle)
+{
+    FreeLibrary((HANDLE)handle);
+    return 0;
+}
+void *dlsym(void *handle, const char *symbol)
+{
+    return GetProcAddress((HMODULE)handle, symbol);
+}
+static char win32_dlerror_string[121];
+const char *dlerror()
+{
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
+                   LANG_NEUTRAL, win32_dlerror_string, 120, NULL);
+    return win32_dlerror_string;
+}
+#endif /* WIN32 */
+
 #define JIM_LIBPATH_LEN 1024
 int Jim_LoadLibrary(Jim_Interp *interp, char *pathName)
 {
@@ -5905,15 +5975,6 @@ err:
 		Jim_DecrRefCount(interp, libPathObjPtr);
 	return JIM_ERR;
 }
-#else
-int Jim_LoadLibrary(Jim_Interp *interp, char *pathName)
-{
-	pathName = pathName;
-	Jim_SetResultString(interp,
-			"Dynamic libraries not supported under WIN32", -1);
-	return JIM_ERR;
-}
-#endif /* ! WIN32 */
 
 /* -----------------------------------------------------------------------------
  * Eval
