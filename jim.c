@@ -3218,7 +3218,7 @@ int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 	if (he == NULL) {
 		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 		Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Invalid reference ID '", str, "'", NULL);
+				"Invalid reference ID \"", str, "\"", NULL);
 		return JIM_ERR;
 	}
 	refPtr = he->val;
@@ -3232,7 +3232,7 @@ int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 badformat:
 	Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 	Jim_AppendStrings(interp, Jim_GetResult(interp),
-			"Expected reference but got '", str, "'", NULL);
+			"expected reference but got \"", str, "\"", NULL);
 	return JIM_ERR;
 }
 
@@ -3732,7 +3732,7 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 	if (Jim_StringToWide(str, &wideValue, 0) != JIM_OK) {
 		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 		Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Expected integer but got '", str, "'", NULL);
+				"expected integer but got \"", str, "\"", NULL);
 		return JIM_ERR;
 	}
 	if ((wideValue == JIM_WIDE_MIN || wideValue == JIM_WIDE_MAX) &&
@@ -3831,7 +3831,7 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 	if (Jim_StringToDouble(str, &doubleValue) != JIM_OK) {
 		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 		Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Expected number but got '", str, "'", NULL);
+				"expected number but got '", str, "'", NULL);
 		return JIM_ERR;
 	}
 	/* Free the old internal repr and set the new one. */
@@ -4921,7 +4921,7 @@ int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 	else {
 		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 		Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Expected return code but got '", str, "'",
+				"expected return code but got '", str, "'",
 				NULL);
 		return JIM_ERR;
 	}
