@@ -44,7 +44,7 @@ jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) -ldl
 
 posix: jim-posix.so
-win32: jim-win32.dll
+win32: jim-win32.dll jim-win32com.dll
 extensions: posix
 
 clean:

@@ -23,11 +23,12 @@ DEFS   =-DWIN32
 LIBS   =
 
 
-all:     jim dll win32
+all:     jim dll win32 win32com
 jim:     setup $(OUTDIR)\jim.exe
 dll:     setup $(OUTDIR)\jim.dll
 win32:   setup $(OUTDIR)\jim-win32.dll
 win32api: setup $(OUTDIR)\jim-win32api.dll
+win32com: setup $(OUTDIR)\jim-win32com.dll
 
 $(OUTDIR)\jim.exe: $(OBJS)
 	$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
@@ -39,6 +40,9 @@ $(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
         $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
+        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+
+$(OUTDIR)\jim-win32com.dll: $(TMPDIR)\jim-win32com.obj
         $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 #-------------------------------------------------------------------------

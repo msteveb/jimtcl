@@ -250,6 +250,11 @@ typedef struct Jim_Obj {
 			struct Jim_Obj *varNameObjPtr;
 			struct Jim_Obj *indexObjPtr;
 		} dictSubstValue;
+        /* tagged binary type */
+        struct {
+            unsigned char *data;
+            size_t         len;
+        } binaryValue;
 	} internalRep;
 	/* This are 8 or 16 bytes more for every object
 	 * but this is required for efficient garbage collection
