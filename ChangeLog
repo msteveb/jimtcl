@@ -1,3 +1,8 @@
+2005-03-07 21:53  antirez
+
+	* ChangeLog, jim.c: Fixed a memory leak introduced with the last
+	  callframe caching code commit.
+
 2005-03-07 21:34  antirez
 
 	* ChangeLog, jim.c, jim.h: Faster procedure calls (obtained caching

@@ -35,6 +35,16 @@ puts "TEST 4 PASSED"
 for {set i 0} {$i < 10} {incr i} {continue}
 puts "TEST 5 PASSED"
 
+# REGTEST 6
+# 07Mar2005 - Unset create variable + dict is using dict syntax sugar at
+#             currently non-existing variable
+catch {unset thisvardoesnotexists(thiskeytoo)}
+if {[catch {set thisvardoesnotexists}] == 0} {
+  puts "TEST 6 FAILED - unset created dict for non-existing variable"
+  break
+}
+puts "TEST 6 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

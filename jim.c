@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.76 2005/03/07 20:53:32 antirez Exp $
+ * $Id: jim.c,v 1.77 2005/03/08 09:42:02 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3137,21 +3137,14 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *valObjPtr)
 {
     Jim_Obj *varObjPtr, *keyObjPtr;
-    int err, retval = JIM_OK;
+    int err = JIM_OK;
 
     JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
     err = Jim_SetDictKeysVector(interp, varObjPtr, &keyObjPtr, 1,
             valObjPtr);
-    if (err != JIM_OK) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "Variable '", Jim_GetString(varObjPtr, NULL),
-                "' does not contain a valid dictionary", NULL);
-        retval = err;
-    }
     Jim_DecrRefCount(interp, varObjPtr);
     Jim_DecrRefCount(interp, keyObjPtr);
-    return retval;
+    return err;
 }
 
 /* Helper of Jim_GetVariable() to deal with dict-syntax variable names */
@@ -3168,11 +3161,6 @@ static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr)
     if (Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_ERRMSG)
             != JIM_OK) {
         resObjPtr = NULL;
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "Variable '", Jim_GetString(varObjPtr, NULL),
-                "' does not contain a valid dictionary", NULL);
-        goto err;
     }
 err:
     Jim_DecrRefCount(interp, varObjPtr);
@@ -4997,7 +4985,7 @@ int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         Jim_DecrRefCount(interp, objv[0]);
         objPtr->typePtr = NULL;
         Jim_FreeHashTable(ht);
-        Jim_SetResultString(interp, "missing value to go with key", -1);
+        Jim_SetResultString(interp, "invalid dictionary value: must be a list with an even number of elements", -1);
         return JIM_ERR;
     }
     return JIM_OK;
@@ -5127,6 +5115,8 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
 
     varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
     if (objPtr == NULL) {
+        if (newObjPtr == NULL) /* Cannot remove a key from non existing var */
+            return JIM_ERR;
         varObjPtr = objPtr = Jim_NewDictObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
             Jim_IncrRefCount(varObjPtr);
@@ -5186,7 +5176,6 @@ err:
     }
     return JIM_ERR;
 }
-
 
 /* -----------------------------------------------------------------------------
  * Index object
