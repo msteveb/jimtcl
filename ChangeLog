@@ -1,3 +1,7 @@
+2005-03-18 10:36  antirez
+
+	* ChangeLog, Makefile, jim.c: Fixed an EXPR bug.
+
 2005-03-17 22:39  antirez
 
 	* ChangeLog, README, TODO, jim.c: [lreverse]
