@@ -73,10 +73,14 @@
  * LIBC specific fixes
  * ---------------------------------------------------------------------------*/
 
-#ifdef __MSVCRT__
-#    define JIM_LL_MODIFIER "I64d"
+#ifdef HAVE_LONG_LONG
+# ifdef __MSVCRT__
+#    define JIM_WIDE_MODIFIER "I64d"
+# else
+#    define JIM_WIDE_MODIFIER "lld"
+# endif
 #else
-#    define JIM_LL_MODIFIER "lld"
+#    define JIM_WIDE_MODIFIER "ld"
 #endif
 
 /* -----------------------------------------------------------------------------

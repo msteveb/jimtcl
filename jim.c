@@ -287,12 +287,8 @@ int testGlobMatching(void)
 
 int Jim_WideToString(char *buf, jim_wide wideValue)
 {
-#ifdef HAVE_LONG_LONG
-    const char *fmt = "%" JIM_LL_MODIFIER;
+    const char *fmt = "%" JIM_WIDE_MODIFIER;
     return sprintf(buf, fmt, wideValue);
-#else
-    return sprintf(buf, "%ld", wideValue);
-#endif
 }
 
 int Jim_StringToWide(char *str, jim_wide *widePtr, int base)
@@ -344,12 +340,8 @@ int Jim_StringToIndex(char *str, int *intPtr)
 
 int Jim_WideToReferenceString(char *buf, jim_wide wideValue)
 {
-#ifdef HAVE_LONG_LONG
-    const char *fmt = "~reference:%020" JIM_LL_MODIFIER ":";
+    const char *fmt = "~reference:%020" JIM_WIDE_MODIFIER ":";
     sprintf(buf, fmt, wideValue);
-#else
-    sprintf(buf, "~reference:%020ld:", wideValue);
-#endif
     return JIM_REFERENCE_SPACE;
 }
 
@@ -455,14 +447,20 @@ char *Jim_StrDupLen(char *s, int l)
  * Time related functions
  * ---------------------------------------------------------------------------*/
 /* Returns microseconds of CPU used since start. */
-static long JimClock(void)
+#ifndef JIM_ANSIC
+#ifndef WIN32
+#include <sys/time.h>
+#endif
+#endif
+
+static jim_wide JimClock(void)
 {
 #ifdef WIN32
     LARGE_INTEGER t, f;
     QueryPerformanceFrequency(&f);
     QueryPerformanceCounter(&t);
     return (long)((t.QuadPart * 1000000) / f.QuadPart);
-#else /* ! WIN32 */
+#else /* !WIN32 */
     clock_t clocks = clock();
 
     return (long)(clocks*(1000000/CLOCKS_PER_SEC));
@@ -7974,8 +7972,10 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 /* [time] */
 static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 {
-    long i, count = 1, start, elapsed;
+    long i, count = 1;
+    jim_wide start, elapsed;
     char buf [256];
+    char *fmt = "%" JIM_WIDE_MODIFIER " microseconds per iteration";
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?count?");
@@ -7996,7 +7996,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
             return retval;
     }
     elapsed = JimClock() - start;
-    sprintf(buf, "%ld microseconds per iteration", elapsed/count);
+    sprintf(buf, fmt, elapsed/count);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
 }
