@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.25 2005/03/21 12:39:36 antirez Exp $
+# $Id: test.tcl,v 1.26 2005/03/24 13:58:05 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -4045,6 +4045,99 @@ test scan-13.8 {Tcl_ScanObjCmd, inline XPG case lots of arguments} {
     list [llength $msg] [lindex $msg 99] [lindex $msg 4] [lindex $msg 199]
 } {200 10 20 30}
 
+################################################################################
+# RANGE
+################################################################################
+
+test range-1.1 {basic range tests} {
+    range 0 10
+} {0 1 2 3 4 5 6 7 8 9}
+
+test range-1.2 {basic range tests} {
+    range 10 0 -1
+} {10 9 8 7 6 5 4 3 2 1}
+
+test range-1.3 {basic range tests} {
+    range 1 10 11
+} {1}
+
+test range-1.4 {basic range tests} {
+    range 1 10 11
+} {1}
+
+test range-1.5 {basic range tests} {
+    range 10 10
+} {}
+
+test range-1.6 {basic range tests} {
+    range 10 10 2
+} {}
+
+test range-1.7 {basic range test} {
+    range 5
+} {0 1 2 3 4}
+
+test range-1.8 {basic range test} {
+    range -10 -20 -2
+} {-10 -12 -14 -16 -18}
+
+test range-1.9 {basic range test} {
+    range -20 -10 3
+} {-20 -17 -14 -11}
+
+test range-2.0 {foreach range test} {
+    set k 0
+    foreach {x y} [range 100] {
+	incr k [expr {$x*$y}]
+    }
+    set k
+} {164150}
+
+test range-2.1 {foreach range test without obj reuse} {
+    set k 0
+    set trash {}
+    foreach {x y} [range 100] {
+	incr k [expr {$x*$y}]
+	lappend trash $x $y
+    }
+    set trash {}
+    set k
+} {164150}
+
+test range-2.2 {range element shimmering test} {
+    set k {}
+    foreach x [range 0 10] {
+	append k [llength $x]
+    }
+    set k
+} {1111111111}
+
+test range-3.0 {llength range test} {
+    llength [range 5000]
+} {5000}
+
+test range-3.1 {llength range test} {
+    llength [range 5000 5000]
+} {0}
+
+test range-4.0 {lindex range test} {
+    lindex [range 1000] 500
+} {500}
+
+test range-4.1 {lindex range test} {
+    lindex [range 1000] end-2
+} {997}
+
+test range-5.0 {lindex llength range test} {
+    set k 0
+    set trash {}
+    set r [range 100]
+    for {set i 0} {$i < [llength $r]} {incr i 2} {
+	incr k [expr {[lindex $r $i]*[lindex $r [expr {$i+1}]]}]
+    }
+    set trash {}
+    set k
+} {164150}
 
 ################################################################################
 # JIM REGRESSION TESTS

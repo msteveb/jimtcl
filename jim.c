@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.127 2005/03/22 14:32:50 antirez Exp $
+ * $Id: jim.c,v 1.128 2005/03/24 13:58:05 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10698,6 +10698,60 @@ static int Jim_LreverseCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+static int JimRangeLen(jim_wide start, jim_wide end, jim_wide step)
+{
+    jim_wide len;
+
+    if (step == 0) return -1;
+    if (start == end) return 0;
+    else if (step > 0 && start > end) return -1;
+    else if (step < 0 && end > start) return -1;
+    len = end-start;
+    if (len < 0) len = -len; /* abs(len) */
+    if (step < 0) step = -step; /* abs(step) */
+    len = 1 + ((len-1)/step);
+    /* We can truncate safely to INT_MAX, the range command
+     * will always return an error for a such long range
+     * because Tcl lists can't be so long. */
+    if (len > INT_MAX) len = INT_MAX;
+    return (int)((len < 0) ? -1 : len);
+}
+
+/* [range] */
+static int Jim_RangeCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    jim_wide start = 0, end, step = 1;
+    int len, i;
+    Jim_Obj *objPtr;
+
+    if (argc < 2 || argc > 4) {
+        Jim_WrongNumArgs(interp, 1, argv, "?start? end ?step?");
+        return JIM_ERR;
+    }
+    if (argc == 2) {
+        if (Jim_GetWide(interp, argv[1], &end) != JIM_OK)
+            return JIM_ERR;
+    } else {
+        if (Jim_GetWide(interp, argv[1], &start) != JIM_OK ||
+            Jim_GetWide(interp, argv[2], &end) != JIM_OK)
+            return JIM_ERR;
+        if (argc == 4 && Jim_GetWide(interp, argv[3], &step) != JIM_OK)
+            return JIM_ERR;
+    }
+    if ((len = JimRangeLen(start, end, step)) == -1) {
+        Jim_SetResultString(interp, "Invalid (infinite?) range specified", -1);
+        return JIM_ERR;
+    }
+    objPtr = Jim_NewListObj(interp, NULL, 0);
+    for (i = 0; i < len; i++)
+        ListAppendElement(objPtr, Jim_NewIntObj(interp, start+i*step));
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
+/* [lrange] */
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -10758,6 +10812,7 @@ static struct {
     {"env", Jim_EnvCoreCommand},
     {"source", Jim_SourceCoreCommand},
     {"lreverse", Jim_LreverseCoreCommand},
+    {"range", Jim_RangeCoreCommand},
     {NULL, NULL},
 };
 
@@ -10876,7 +10931,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.127 2005/03/22 14:32:50 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.128 2005/03/24 13:58:05 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
