@@ -245,6 +245,11 @@ typedef struct Jim_Obj {
 			char *fileName;
 			int lineNumber;
 		} sourceValue;
+		/* Dict substitution type */
+		struct {
+			struct Jim_Obj *varNameObjPtr;
+			struct Jim_Obj *indexObjPtr;
+		} dictSubstValue;
 	} internalRep;
 	/* This are 8 or 16 bytes more for every object
 	 * but this is required for efficient garbage collection
@@ -587,6 +592,7 @@ static void Jim_InitExtension(Jim_Interp *interp, char *version)
 {
   Jim_GetApi = interp->getApiFuncPtr;
   
+  Jim_Alloc = Jim_GetApi(interp, "Jim_Alloc");
   Jim_EvalObj = Jim_GetApi(interp, "Jim_EvalObj");
   Jim_EvalObjVector = Jim_GetApi(interp, "Jim_EvalObjVector");
   Jim_InitHashTable = Jim_GetApi(interp, "Jim_InitHashTable");

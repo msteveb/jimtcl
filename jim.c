@@ -1875,6 +1875,7 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr, int nocase)
 	char *aStr, *bStr;
 	int aLen, bLen, i;
 
+	if (aObjPtr == bObjPtr) return 1;
 	aStr = Jim_GetString(aObjPtr, &aLen);
 	bStr = Jim_GetString(bObjPtr, &bLen);
 	if (aLen != bLen) return 0;
@@ -2289,11 +2290,13 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
 	int i, j;
 
 	/* Try to share with toplevel object. */
-	if (0 && topLevelScript != NULL) {
+	if (1 && topLevelScript != NULL) {
 		for (i = 0; i < script->len; i++) {
 			Jim_Obj *foundObjPtr;
+			char *str = script->token[i].objPtr->bytes;
 
 			if (script->token[i].objPtr->refCount != 1) continue;
+			if (strchr(str, ' ') || strchr(str, '\n')) continue;
 			foundObjPtr = ScriptSearchLiteral(interp,
 					topLevelScript,
 					script->token[i].objPtr);
@@ -2307,7 +2310,10 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
 	}
 	/* Try to share locally */
 	for (i = 0; i < script->len; i++) {
+		char *str = script->token[i].objPtr->bytes;
+
 		if (script->token[i].objPtr->refCount != 1) continue;
+		if (strchr(str, ' ') || strchr(str, '\n')) continue;
 		for (j = 0; j < script->len; j++) {
 			if (script->token[i].objPtr !=
 					script->token[j].objPtr &&
@@ -3027,6 +3033,38 @@ err:
 	return resObjPtr;
 }
 
+/* --------- $var(INDEX) substitution, using a specialized object ----------- */
+
+static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
+static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
+		Jim_Obj *dupPtr);
+
+Jim_ObjType dictSubstObjType = {
+	"dict-substitution",
+	FreeDictSubstInternalRep,
+	DupDictSubstInternalRep,
+	NULL,
+	JIM_TYPE_NONE,
+};
+
+void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+	Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr);
+	Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
+}
+
+void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
+		Jim_Obj *dupPtr)
+{
+	interp = interp; /* unused */
+
+	dupPtr->internalRep.dictSubstValue.varNameObjPtr =
+		srcPtr->internalRep.dictSubstValue.varNameObjPtr;
+	dupPtr->internalRep.dictSubstValue.indexObjPtr =
+		srcPtr->internalRep.dictSubstValue.indexObjPtr;
+	dupPtr->typePtr = &dictSubstObjType;
+}
+
 /* This function is used to expand [dict get] sugar in the form
  * of $var(INDEX). The function is mainly used by Jim_EvalObj()
  * to deal with tokens of type JIM_TT_DICTSUGAR. objPtr points to an
@@ -3043,14 +3081,26 @@ Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 	Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr;
 	Jim_Obj *substKeyObjPtr = NULL;
 
-	Jim_DictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
-	if (Jim_SubstObj(interp, keyObjPtr, &substKeyObjPtr, JIM_NONE)
+	if (objPtr->typePtr != &dictSubstObjType) {
+		Jim_DictSugarParseVarKey(interp, objPtr, &varObjPtr,
+				&keyObjPtr);
+		Jim_FreeIntRep(interp, objPtr);
+		objPtr->typePtr = &dictSubstObjType;
+		objPtr->internalRep.dictSubstValue.varNameObjPtr =
+			varObjPtr;
+		objPtr->internalRep.dictSubstValue.indexObjPtr =
+			keyObjPtr;
+	}
+	if (Jim_SubstObj(interp, objPtr->internalRep.dictSubstValue.indexObjPtr,
+				&substKeyObjPtr, JIM_NONE)
 			!= JIM_OK) {
 		substKeyObjPtr = NULL;
 		goto err;
 	}
 	Jim_IncrRefCount(substKeyObjPtr);
-	dictObjPtr = Jim_GetVariable(interp, varObjPtr, JIM_ERRMSG);
+	dictObjPtr = Jim_GetVariable(interp,
+			objPtr->internalRep.dictSubstValue.varNameObjPtr,
+			JIM_ERRMSG);
 	if (!dictObjPtr) {
 		resObjPtr = NULL;
 		goto err;
@@ -3067,8 +3117,6 @@ Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 	}
 err:
 	if (substKeyObjPtr) Jim_DecrRefCount(interp, substKeyObjPtr);
-	Jim_DecrRefCount(interp, varObjPtr);
-	Jim_DecrRefCount(interp, keyObjPtr);
 	return resObjPtr;
 }
 
@@ -6755,6 +6803,7 @@ int Jim_RegisterApi(Jim_Interp *interp, char *funcname, void *funcptr)
 void Jim_RegisterCoreApi(Jim_Interp *interp)
 {
   interp->getApiFuncPtr = Jim_GetApi;
+  Jim_RegisterApi(interp, "Jim_Alloc", Jim_Alloc);
   Jim_RegisterApi(interp, "Jim_EvalObj", Jim_EvalObj);
   Jim_RegisterApi(interp, "Jim_EvalObjVector", Jim_EvalObjVector);
   Jim_RegisterApi(interp, "Jim_InitHashTable", Jim_InitHashTable);
