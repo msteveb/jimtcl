@@ -8,7 +8,8 @@ The AIO (ANSI I/O) extension implements an I/O interface for Jim using only
 ANSI-C capabilities. The goal of the extension is to make Jim able to
 work with files in environments where the only assumption that can be
 done is that there is an ANSI-C compiler, or where the binary size matters
-(the AIO extension is very small compared to size the real Tcl Channels).
+(the AIO extension is very small compared to size that the real Tcl-alike
+channels implementation will have).
 
 Goals
 ~~~~~
@@ -20,6 +21,7 @@ The first is the idea to build a replacement for autoconf/automake
 using the fact that Jim is small and ANSI-C, so the build process may
 build Jim with the assumption of an ANSI-C compiler, and a Jim script will
 check what exists in the system and will generate the Makefile and config.h.
+Autconf/make is such a crap that it's worth to experiment with this idea...
 
 The second idea is to create a micro starkit runtime, using a very small
 implementation of zlib called muzcat, and AIO.
