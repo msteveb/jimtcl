@@ -114,12 +114,17 @@ HOW TO COMPILE
 
 Jim was tested under Linux, FreeBSD, MacosX, Windows XP (mingw, MVC).
 
-To compile jim itself try: 'make jim'.
+To compile jim itself try:
 
-In non-linux systems you may have to remove the "-ldl" from the
-Makefile because it's not needed but will cause a compilation error
-(no configure for now... applications embedding Jim will probably
- have one already)
+  make jim
+
+In non-linux systems you may have to complile without "-ldl" because
+it's not needed but will cause a compilation error (no configure for
+now... applications embedding Jim will probably have one already).
+
+In order to avoid to link against 'dl' just use:
+
+  make LIBS="" jim
 
 For instructions about how to compile extensions just try 'make'
 and see the available options. Check also the next section of this file.

@@ -2355,6 +2355,42 @@ test split-2.2 {split errors} {
 catch {rename foo {}}
 
 ################################################################################
+# JOIN
+################################################################################
+
+test join-1.1 {basic join commands} {
+    join {a b c} xyz
+} axyzbxyzc
+test join-1.2 {basic join commands} {
+    join {a b c} {}
+} abc
+test join-1.3 {basic join commands} {
+    join {} xyz
+} {}
+test join-1.4 {basic join commands} {
+    join {12 34 56}
+} {12 34 56}
+
+test join-2.1 {join errors} {
+    list [catch join msg] $msg
+} {1 {wrong # args: should be "join list ?joinString?"}}
+test join-2.2 {join errors} {
+    list [catch {join a b c} msg] $msg
+} {1 {wrong # args: should be "join list ?joinString?"}}
+#test join-2.3 {join errors} {
+#    list [catch {join "a \{ c" 111} msg] $msg
+#} {1 {unmatched open brace in list}}
+
+test join-3.1 {joinString is binary ok} {
+  string length [join {a b c} a\0b]
+} 9
+
+test join-3.2 {join is binary ok} {
+  string length [join "a\0b a\0b a\0b"]
+} 11
+
+
+################################################################################
 # FINAL REPORT
 ################################################################################
 

@@ -219,28 +219,28 @@ proc pi_digits {} {
     set i0 [expr {$LEN+1}]
     set quot0 [expr {2*$LEN+1}]
     for {set j 0} {$j<$N} {incr j} {
-    set q 0
-    set i $i0
-    set quot $quot0
-    set pos -1
-    foreach apos $a {
-        set x [expr {10*$apos + $q * [incr i -1]}]
-        lset a [incr pos] [expr {$x % [incr quot -2]}]
-        set q [expr {$x / $quot}]
-    }
-    lset a end [expr {$q % 10}]
-    set q [expr {$q / 10}]
-    if {$q < 8} {
-        append result $predigit $nines
-        set nines {}
-        set predigit $q
-    } elseif {$q == 9} {
-        append nines 9
-    } else {
-        append result [expr {$predigit+1}][string map {9 0} $nines]
-        set nines {}
-        set predigit 0
-    }
+        set q 0
+        set i $i0
+        set quot $quot0
+        set pos -1
+        foreach apos $a {
+            set x [expr {10*$apos + $q * [incr i -1]}]
+            lset a [incr pos] [expr {$x % [incr quot -2]}]
+            set q [expr {$x / $quot}]
+        }
+        lset a end [expr {$q % 10}]
+        set q [expr {$q / 10}]
+        if {$q < 8} {
+            append result $predigit $nines
+            set nines {}
+            set predigit $q
+        } elseif {$q == 9} {
+            append nines 9
+        } else {
+            append result [expr {$predigit+1}][string map {9 0} $nines]
+            set nines {}
+            set predigit 0
+        }
     }
     #puts $result$predigit
 }

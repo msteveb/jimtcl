@@ -8580,6 +8580,41 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [join] */
+static int Jim_JoinCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    const char *joinStr;
+    int joinStrLen, i, listLen;
+    Jim_Obj *resObjPtr;
+
+    if (argc != 2 && argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "list ?joinString?");
+        return JIM_ERR;
+    }
+    /* Init */
+    if (argc == 2) {
+        joinStr = " ";
+        joinStrLen = 1;
+    } else {
+        joinStr = Jim_GetString(argv[2], &joinStrLen);
+    }
+    Jim_ListLength(interp, argv[1], &listLen);
+    resObjPtr = Jim_NewStringObj(interp, NULL, 0);
+    /* Split */
+    for (i = 0; i < listLen; i++) {
+        Jim_Obj *objPtr;
+
+        Jim_ListIndex(interp, argv[1], i, &objPtr, JIM_NONE);
+        Jim_AppendObj(interp, resObjPtr, objPtr);
+        if (i+1 != listLen) {
+            Jim_AppendString(interp, resObjPtr, joinStr, joinStrLen);
+        }
+    }
+    Jim_SetResult(interp, resObjPtr);
+    return JIM_OK;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -8627,6 +8662,7 @@ static struct {
     {"subst", Jim_SubstCoreCommand},
     {"info", Jim_InfoCoreCommand},
     {"split", Jim_SplitCoreCommand},
+    {"join", Jim_JoinCoreCommand},
     {NULL, NULL},
 };
 
