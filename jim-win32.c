@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.19 2005/03/31 12:20:21 antirez Exp $
+ * $Id: jim-win32.c,v 1.20 2005/04/05 17:59:43 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,9 @@
 #include <tchar.h>
 #include <shellapi.h>
 #include <lmcons.h>
+#if 0
 #include <psapi.h>
+#endif
 #include <ctype.h>
 
 #define JIM_EXTENSION
@@ -418,6 +420,7 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 
+#if 0 /* Disabled for now, creates problems on MSVC too */
 #ifndef __MINGW32__ /* function not available on mingw */
 // FIX ME: win2k+ so should do version checks really.
 static int
@@ -456,7 +459,7 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 #endif /* !MINGW32 */
-
+#endif
 
 static int
 Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -716,7 +719,7 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetVersion);
     CMD(GetTickCount);
     CMD(GetSystemTime);
-#ifndef __MINGW32__
+#if 0
     CMD(GetPerformanceInfo);
 #endif
     CMD(GetModuleHandle);
