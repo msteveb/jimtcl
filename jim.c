@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.67 2005/03/05 22:06:51 patthoyts Exp $
+ * $Id: jim.c,v 1.68 2005/03/06 08:31:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2039,6 +2039,38 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr,
         objPtr->internalRep.ptr = (char*)str; /*ATTENTION: const cast */
         return 1;
     }
+}
+
+int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
+        const char **tablePtr, int *indexPtr, const char *name, int flags)
+{
+    const char **entryPtr = NULL;
+    int i, count = 0;
+
+    *indexPtr = -1;
+    for (entryPtr = tablePtr, i = 0; *entryPtr != NULL; entryPtr++, i++) {
+        if (Jim_CompareStringImmediate(interp, objPtr, *entryPtr)) {
+            *indexPtr = i;
+            return JIM_OK;
+        }
+        count++; /* If nothing matches, this will reach the len of tablePtr */
+    }
+    if (flags & JIM_ERRMSG) {
+        if (name == NULL)
+            name = "option";
+        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+            "bad ", name, " \"", Jim_GetString(objPtr, NULL), "\": must be ",
+            NULL);
+        for (i = 0; i < count; i++) {
+            if (i+1 == count && count > 1)
+                Jim_AppendString(interp, Jim_GetResult(interp), "or ", -1);
+            Jim_AppendString(interp, Jim_GetResult(interp), tablePtr[i], -1);
+            if (i+1 != count)
+                Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
+        }
+    }
+    return JIM_ERR;
 }
 
 /* -----------------------------------------------------------------------------
@@ -7111,6 +7143,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(GetAssocData);
   JIM_REGISTER_API(SetAssocData);
   JIM_REGISTER_API(DeleteAssocData);
+  JIM_REGISTER_API(GetEnum);
 }
 
 /* -----------------------------------------------------------------------------
@@ -8338,11 +8371,24 @@ static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
 static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
+    int option;
+    const char *options[] = {
+        "length", "compare", "match", "equal", "range", "map", "repeat", NULL
+    };
+    enum {
+        OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE,
+        OPT_MAP, OPT_REPEAT
+    };
+
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
         return JIM_ERR;
     }
-    if (Jim_CompareStringImmediate(interp, argv[1], "length")) {
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (option == OPT_LENGTH) {
         int len;
 
         if (argc != 3) {
@@ -8352,7 +8398,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         Jim_GetString(argv[2], &len);
         Jim_SetResult(interp, Jim_NewIntObj(interp, len));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "compare")) {
+    } else if (option == OPT_COMPARE) {
         int nocase = 0;
         if ((argc != 4 && argc != 5) ||
             (argc == 5 && Jim_CompareStringImmediate(interp,
@@ -8368,7 +8414,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
                     Jim_StringCompareObj(argv[2],
                             argv[3], nocase)));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "match")) {
+    } else if (option == OPT_MATCH) {
         int nocase = 0;
         if ((argc != 4 && argc != 5) ||
             (argc == 5 && Jim_CompareStringImmediate(interp,
@@ -8385,7 +8431,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             Jim_NewIntObj(interp, Jim_StringMatchObj(argv[2],
                     argv[3], nocase)));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "equal")) {
+    } else if (option == OPT_EQUAL) {
         if (argc != 4) {
             Jim_WrongNumArgs(interp, 2, argv, "string1 string2");
             return JIM_ERR;
@@ -8394,7 +8440,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             Jim_NewIntObj(interp, Jim_StringEqObj(argv[2],
                     argv[3], 0)));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "range")) {
+    } else if (option == OPT_RANGE) {
         Jim_Obj *objPtr;
 
         if (argc != 5) {
@@ -8406,7 +8452,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "map")) {
+    } else if (option == OPT_MAP) {
         int nocase = 0;
         Jim_Obj *objPtr;
 
@@ -8426,7 +8472,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "repeat")) {
+    } else if (option == OPT_REPEAT) {
         Jim_Obj *objPtr;
         jim_wide count;
 
@@ -8442,13 +8488,6 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         }
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
-    } else {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-            "bad option \"", Jim_GetString(argv[1], NULL), "\":",
-            " must be length, compare, match, equal, range, repeat",
-            NULL);
-        return JIM_ERR;
     }
     return JIM_OK;
 }

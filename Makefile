@@ -85,6 +85,9 @@ wc:
 	wc -l jim.[ch]
 	wc -l *.[ch]
 
+clog:
+	cvs2cl
+
 commit:
 	cvs2cl
 	cvs commit

@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.3 2005/03/05 21:11:24 antirez Exp $
+ * $Id: jim-aio.c,v 1.4 2005/03/06 08:31:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 
 typedef struct AioFile {
     FILE *fp;
+    int keepOpen; /* If set, the file is not fclosed on cleanup (stdin, ...) */
 } AioFile;
 
 static void JimAioSetError(Jim_Interp *interp)
@@ -52,20 +53,28 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+    int option;
+    const char *options[] = {
+        "close", "seek", "tell", "gets", "puts", "flush", NULL
+    };
+    enum {OPT_CLOSE, OPT_SEEK, OPT_TELL, OPT_GETS, OPT_PUTS, OPT_FLUSH};
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
         return JIM_ERR;
     }
+    if (Jim_GetEnum(interp, argv[1], options, &option, "AIO method",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
     /* CLOSE */
-    if (Jim_CompareStringImmediate(interp, argv[1], "close")) {
+    if (option == OPT_CLOSE) {
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
         Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "seek")) {
+    } else if (option == OPT_SEEK) {
     /* SEEK */
         int orig = SEEK_SET;
         long offset;
@@ -96,7 +105,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "tell")) {
+    } else if (option == OPT_TELL) {
     /* TELL */
         long position;
 
@@ -107,7 +116,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         position = ftell(af->fp);
         Jim_SetResult(interp, Jim_NewIntObj(interp, position));
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "gets")) {
+    } else if (option == OPT_GETS) {
     /* GETS */
         char buf[AIO_BUF_LEN];
         Jim_Obj *objPtr;
@@ -162,7 +171,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, objPtr);
         }
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "puts")) {
+    } else if (option == OPT_PUTS) {
     /* PUTS */
         unsigned int wlen;
         const char *wdata;
@@ -179,7 +188,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "flush")) {
+    } else if (option  == OPT_FLUSH) {
     /* FLUSH */
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
@@ -190,13 +199,8 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         return JIM_OK;
-    } else {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "Invalid option for AIO file, should be: "
-                "close, flush, gets, read, puts, seek, tell", NULL);
-        return JIM_ERR;
     }
+    return JIM_OK;
 }
 
 static int JimAioOpenCommand(Jim_Interp *interp, int argc, 

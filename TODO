@@ -36,7 +36,7 @@ IMPLEMENTATION ISSUES
 - Objects lazy free.
 - [split $string {}] should generate a list with Jim_Obj of chars shared.
 - [closure] command to set/get procedures-specific closure variables.
-  For example:
+- Rewrite all the commands accepting a set of options to use Jim_GetEnum().
 
 ERROR MESSAGES
 
