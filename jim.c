@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.56 2005/03/04 20:12:14 antirez Exp $
+ * $Id: jim.c,v 1.57 2005/03/04 21:59:40 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1034,6 +1034,7 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr))
 struct JimParserCtx {
     const char *prg;     /* Program text */
     const char *p;       /* Pointer to the point of the program we are parsing */
+    int len;             /* Left length of 'prg' */
     int linenr;          /* Current line number */
     const char *tstart;
     const char *tend;    /* Returned token is at tstart-tend in 'prg'. */
@@ -1064,10 +1065,12 @@ static char *JimParserGetToken(struct JimParserCtx *pc,
 /* Initialize a parser context.
  * 'prg' is a pointer to the program text, linenr is the line
  * number of the first line contained in the program. */
-void JimParserInit(struct JimParserCtx *pc, const char *prg, int linenr)
+void JimParserInit(struct JimParserCtx *pc, const char *prg, 
+        int len, int linenr)
 {
     pc->prg = prg;
     pc->p = prg;
+    pc->len = len;
     pc->tstart = NULL;
     pc->tend = NULL;
     pc->tline = 0;
@@ -1081,13 +1084,14 @@ void JimParserInit(struct JimParserCtx *pc, const char *prg, int linenr)
 int JimParseScript(struct JimParserCtx *pc)
 {
     while(1) { /* the while is used to reiterate with continue if needed */
-        switch(*(pc->p)) {
-        case '\0':
+        if (!pc->len) {
             pc->tstart = pc->tend = pc->p;
             pc->tline = pc->linenr;
             pc->tt = JIM_TT_EOL;
             pc->eof = 1;
-            break;
+            return JIM_OK;
+        }
+        switch(*(pc->p)) {
         case '\\':
             if (*(pc->p+1) == '\n')
                 return JimParseSep(pc);
@@ -1121,7 +1125,7 @@ int JimParseScript(struct JimParserCtx *pc)
         case '$':
             pc->comment = 0;
             if (JimParseVar(pc) == JIM_ERR) {
-                pc->tstart = pc->tend = pc->p++;
+                pc->tstart = pc->tend = pc->p++; pc->len--;
                 pc->tline = pc->linenr;
                 pc->tt = JIM_TT_STR;
                 return JIM_OK;
@@ -1151,10 +1155,10 @@ int JimParseSep(struct JimParserCtx *pc)
     while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' ||
            (*pc->p == '\\' && *(pc->p+1) == '\n')) {
         if (*pc->p == '\\') {
-            pc->p++;
+            pc->p++; pc->len--;
             pc->linenr++;
         }
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_SEP;
@@ -1170,7 +1174,7 @@ int JimParseEol(struct JimParserCtx *pc)
            *pc->p == ';') {
         if (*pc->p == '\n')
             pc->linenr++;
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_EOL;
@@ -1184,30 +1188,32 @@ int JimParseCmd(struct JimParserCtx *pc)
     int level = 1;
     int blevel = 0;
 
-    pc->tstart = ++pc->p;
+    pc->tstart = ++pc->p; pc->len--;
     pc->tline = pc->linenr;
     while (1) {
-        if (*pc->p == '[' && blevel == 0)
+        if (pc->len == 0) {
+            break;
+        } else if (*pc->p == '[' && blevel == 0) {
             level++;
-        else if (*pc->p == ']' && blevel == 0) {
+        } else if (*pc->p == ']' && blevel == 0) {
             level--;
             if (!level) break;
         } else if (*pc->p == '\\') {
-            pc->p++;
+            pc->p++; pc->len--;
         } else if (*pc->p == '{') {
             blevel++;
         } else if (*pc->p == '}') {
             if (blevel != 0)
                 blevel--;
-        } else if (*pc->p == '\0') {
-            break;
         } else if (*pc->p == '\n')
             pc->linenr++;
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_CMD;
-    if (*pc->p == ']') pc->p++;
+    if (*pc->p == ']') {
+        pc->p++; pc->len--;
+    }
     return JIM_OK;
 }
 
@@ -1215,24 +1221,24 @@ int JimParseVar(struct JimParserCtx *pc)
 {
     int brace = 0, stop = 0, ttype = JIM_TT_VAR;
 
-    pc->tstart = ++pc->p; /* skip the $ */
+    pc->tstart = ++pc->p; pc->len--; /* skip the $ */
     pc->tline = pc->linenr;
     if (*pc->p == '{') {
-        pc->tstart = ++pc->p;
+        pc->tstart = ++pc->p; pc->len--;
         brace = 1;
     }
     if (brace) {
         while (!stop) {
-            if (*pc->p == '}' || *pc->p == '\0') {
+            if (*pc->p == '}' || pc->len == 0) {
                 stop = 1;
-                if (*pc->p == '\0')
+                if (pc->len == 0)
                     continue;
             }
             else if (*pc->p == '\n')
                 pc->linenr++;
-            pc->p++;
+            pc->p++; pc->len--;
         }
-        if (*pc->p == '\0')
+        if (pc->len == 0)
             pc->tend = pc->p-1;
         else
             pc->tend = pc->p-2;
@@ -1243,18 +1249,21 @@ int JimParseVar(struct JimParserCtx *pc)
                 (*pc->p >= '0' && *pc->p <= '9') ||
                 *pc->p == '_'))
                 stop = 1;
-            else
-                pc->p++;
+            else {
+                pc->p++; pc->len--;
+            }
         }
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
-            while (*pc->p != ')' && *pc->p != '\0') {
-                pc->p++;
-                if (*pc->p == '\\' && *(pc->p+1) != '\0')
-                    pc->p+=2;
+            while (*pc->p != ')' && pc->len) {
+                pc->p++; pc->len--;
+                if (*pc->p == '\\' && pc->len >= 2) {
+                    pc->p += 2; pc->len -= 2;
+                }
             }
-            if (*pc->p != '\0')
-                pc->p++;
+            if (*pc->p != '\0') {
+                pc->p++; pc->len--;
+            }
             ttype = JIM_TT_DICTSUGAR;
         }
         pc->tend = pc->p-1;
@@ -1264,7 +1273,7 @@ int JimParseVar(struct JimParserCtx *pc)
      * to tell the state machine to consider this '$' just
      * a string. */
     if (pc->tstart == pc->p) {
-        pc->p--;
+        pc->p--; pc->len++;
         return JIM_ERR;
     }
     pc->tt = ttype;
@@ -1275,27 +1284,29 @@ int JimParseBrace(struct JimParserCtx *pc)
 {
     int level = 1;
 
-    pc->tstart = ++pc->p;
+    pc->tstart = ++pc->p; pc->len--;
     pc->tline = pc->linenr;
     while (1) {
-        if (*pc->p == '\\' && *(pc->p+1) != '\0') {
-            pc->p++;
+        if (*pc->p == '\\' && pc->len >= 2) {
+            pc->p++; pc->len--;
             if (*pc->p == '\n')
                 pc->linenr++;
         } else if (*pc->p == '{') {
             level++;
-        } else if (*pc->p == '\0' || *pc->p == '}') {
+        } else if (pc->len == 0 || *pc->p == '}') {
             level--;
-            if (*pc->p == '\0' || level == 0) {
+            if (pc->len == 0 || level == 0) {
                 pc->tend = pc->p-1;
-                if (*pc->p != '\0') pc->p++;
+                if (pc->len != 0) {
+                    pc->p++; pc->len--;
+                }
                 pc->tt = JIM_TT_STR;
                 return JIM_OK;
             }
         } else if (*pc->p == '\n') {
             pc->linenr++;
         }
-        pc->p++;
+        pc->p++; pc->len--;
     }
     return JIM_OK; /* unreached */
 }
@@ -1308,11 +1319,16 @@ int JimParseStr(struct JimParserCtx *pc)
         return JimParseBrace(pc);
     } else if (newword && *pc->p == '"') {
         pc->state = JIM_PS_QUOTE;
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     while (1) {
+        if (pc->len == 0) {
+            pc->tend = pc->p-1;
+            pc->tt = JIM_TT_ESC;
+            return JIM_OK;
+        }
         switch(*pc->p) {
         case '\\':
             if (pc->state == JIM_PS_DEF &&
@@ -1321,11 +1337,12 @@ int JimParseStr(struct JimParserCtx *pc)
                 pc->tt = JIM_TT_ESC;
                 return JIM_OK;
             }
-            if (*(pc->p+1) != '\0') pc->p++;
+            if (pc->len >= 2) {
+                pc->p++; pc->len--;
+            }
             break;
         case '$':
         case '[':
-        case '\0':
             pc->tend = pc->p-1;
             pc->tt = JIM_TT_ESC;
             return JIM_OK;
@@ -1346,13 +1363,13 @@ int JimParseStr(struct JimParserCtx *pc)
             if (pc->state == JIM_PS_QUOTE) {
                 pc->tend = pc->p-1;
                 pc->tt = JIM_TT_ESC;
-                pc->p++;
+                pc->p++; pc->len--;
                 pc->state = JIM_PS_DEF;
                 return JIM_OK;
             }
             break;
         }
-        pc->p++;
+        pc->p++; pc->len--;
     }
     return JIM_OK; /* unreached */
 }
@@ -1363,11 +1380,11 @@ int JimParseComment(struct JimParserCtx *pc)
         if (*pc->p == '\n') {
             pc->linenr++;
             if (*(pc->p-1) != '\\') {
-                pc->p++;
+                pc->p++; pc->len--;
                 return JIM_OK;
             }
         }
-        pc->p++;
+        pc->p++; pc->len--;
     }
     return JIM_OK;
 }
@@ -1543,13 +1560,14 @@ static int JimParseListStr(struct JimParserCtx *pc);
 
 int JimParseList(struct JimParserCtx *pc)
 {
-    switch(*pc->p) {
-    case '\0':
+    if (pc->len == 0) {
         pc->tstart = pc->tend = pc->p;
         pc->tline = pc->linenr;
         pc->tt = JIM_TT_EOL;
         pc->eof = 1;
-        break;
+        return JIM_OK;
+    }
+    switch(*pc->p) {
     case ' ':
     case '\n':
     case '\t':
@@ -1573,7 +1591,7 @@ int JimParseListSep(struct JimParserCtx *pc)
     while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' ||
            *pc->p == '\n')
     {
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_SEP;
@@ -1588,19 +1606,20 @@ int JimParseListStr(struct JimParserCtx *pc)
         return JimParseBrace(pc);
     } else if (newword && *pc->p == '"') {
         pc->state = JIM_PS_QUOTE;
-        pc->p++;
+        pc->p++; pc->len--;
     }
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     while (1) {
-        switch(*pc->p) {
-        case '\\':
-            pc->p++;
-            break;
-        case '\0':
+        if (pc->len == 0) {
             pc->tend = pc->p-1;
             pc->tt = JIM_TT_ESC;
             return JIM_OK;
+        }
+        switch(*pc->p) {
+        case '\\':
+            pc->p++; pc->len--;
+            break;
         case ' ':
         case '\t':
         case '\n':
@@ -1617,13 +1636,13 @@ int JimParseListStr(struct JimParserCtx *pc)
             if (pc->state == JIM_PS_QUOTE) {
                 pc->tend = pc->p-1;
                 pc->tt = JIM_TT_ESC;
-                pc->p++;
+                pc->p++; pc->len--;
                 pc->state = JIM_PS_DEF;
                 return JIM_OK;
             }
             break;
         }
-        pc->p++;
+        pc->p++; pc->len--;
     }
     return JIM_OK; /* unreached */
 }
@@ -2417,7 +2436,8 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
  * of the script. */
 int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
-    const char *scriptText = Jim_GetString(objPtr, NULL);
+    int scriptTextLen;
+    const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
     struct JimParserCtx parser;
     struct ScriptObj *script = Jim_Alloc(sizeof(*script));
     ScriptToken *token;
@@ -2442,7 +2462,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         initialLineNumber = 1;
     }
 
-    JimParserInit(&parser, scriptText, initialLineNumber);
+    JimParserInit(&parser, scriptText, scriptTextLen, initialLineNumber);
     while(!JimParserEof(&parser)) {
         char *token;
         int len, type, linenr;
@@ -4316,9 +4336,10 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     struct JimParserCtx parser;
     const char *str;
+    int strLen;
 
     /* Get the string representation */
-    str = Jim_GetString(objPtr, NULL);
+    str = Jim_GetString(objPtr, &strLen);
 
     /* Free the old internal repr just now and initialize the
      * new one just now. The string->list conversion can't fail. */
@@ -4329,7 +4350,7 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->internalRep.listValue.ele = NULL;
 
     /* Convert into a list */
-    JimParserInit(&parser, str, 1);
+    JimParserInit(&parser, str, strLen, 1);
     while(!JimParserEof(&parser)) {
         char *token;
         int tokenLen, type;
@@ -4769,10 +4790,10 @@ int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_HashTable *ht;
     Jim_Obj *objv[2];
     const char *str;
-    int i;
+    int i, strLen;
 
     /* Get the string representation */
-    str = Jim_GetString(objPtr, NULL);
+    str = Jim_GetString(objPtr, &strLen);
 
     /* Free the old internal repr just now and initialize the
      * new one just now. The string->list conversion can't fail. */
@@ -4783,7 +4804,7 @@ int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->internalRep.ptr = ht;
 
     /* Convert into a dict */
-    JimParserInit(&parser, str, 1);
+    JimParserInit(&parser, str, strLen, 1);
     i = 0;
     while(!JimParserEof(&parser)) {
         char *token;
@@ -5260,27 +5281,28 @@ int JimParseExpression(struct JimParserCtx *pc)
           *(pc->p) == '\r' ||
           *(pc->p) == '\n' ||
             (*(pc->p) == '\\' && *(pc->p+1) == '\n')) {
-        pc->p++;
+        pc->p++; pc->len--;
     }
 
-    switch(*(pc->p)) {
-    case '\0':
+    if (pc->len == 0) {
         pc->tstart = pc->tend = pc->p;
         pc->tline = pc->linenr;
         pc->tt = JIM_TT_EOL;
         pc->eof = 1;
-        break;
+        return JIM_OK;
+    }
+    switch(*(pc->p)) {
     case '(':
         pc->tstart = pc->tend = pc->p;
         pc->tline = pc->linenr;
         pc->tt = JIM_TT_SUBEXPR_START;
-        pc->p++;
+        pc->p++; pc->len--;
         break;
     case ')':
         pc->tstart = pc->tend = pc->p;
         pc->tline = pc->linenr;
         pc->tt = JIM_TT_SUBEXPR_END;
-        pc->p++;
+        pc->p++; pc->len--;
         break;
     case '[':
         return JimParseCmd(pc);
@@ -5326,13 +5348,16 @@ int JimParseExprNumber(struct JimParserCtx *pc)
 
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    if (*pc->p == '-') pc->p++;
+    if (*pc->p == '-') {
+        pc->p++; pc->len--;
+    }
     while (isdigit((int)*pc->p) || (allowdot && *pc->p == '.')) {
         if (*pc->p == '.')
             allowdot = 0;
-        pc->p++;
-        if (!allowdot && *pc->p == 'e' && *(pc->p+1) == '-')
-            pc->p += 2;
+        pc->p++; pc->len--;
+        if (!allowdot && *pc->p == 'e' && *(pc->p+1) == '-') {
+            pc->p += 2; pc->len -= 2;
+        }
     }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_EXPR_NUMBER;
@@ -5344,15 +5369,15 @@ int JimParseExprIrrational(struct JimParserCtx *pc)
     const char *Tokens[] = {"NaN", "nan", "NAN", "Inf", "inf", "INF", NULL};
     const char **token;
     for (token = Tokens; *token != NULL; token++) {
-    int len = strlen(*token);
-    if (strncmp(*token, pc->p, len) == 0) {
-        pc->tstart = pc->p;
-        pc->tend = pc->p + len - 1;
-        pc->p += len;
-        pc->tline = pc->linenr;
-        pc->tt = JIM_TT_EXPR_NUMBER;
-        return JIM_OK;
-    }
+        int len = strlen(*token);
+        if (strncmp(*token, pc->p, len) == 0) {
+            pc->tstart = pc->p;
+            pc->tend = pc->p + len - 1;
+            pc->p += len; pc->len -= len;
+            pc->tline = pc->linenr;
+            pc->tt = JIM_TT_EXPR_NUMBER;
+            return JIM_OK;
+        }
     }
     return JIM_ERR;
 }
@@ -5375,7 +5400,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
     if (bestIdx == -1) return JIM_ERR;
     pc->tstart = pc->p;
     pc->tend = pc->p + bestLen - 1;
-    pc->p += bestLen;
+    pc->p += bestLen; pc->len -= bestLen;
     pc->tline = pc->linenr;
     pc->tt = JIM_TT_EXPR_OPERATOR;
     return JIM_OK;
@@ -5534,7 +5559,8 @@ static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
  * and generates a program for the Expr's stack-based VM. */
 int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
-    const char *exprText = Jim_GetString(objPtr, NULL);
+    int exprTextLen;
+    const char *exprText = Jim_GetString(objPtr, &exprTextLen);
     struct JimParserCtx parser;
     int i, shareLiterals;
     ExprByteCode *expr = Jim_Alloc(sizeof(*expr));
@@ -5552,7 +5578,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     expr->inUse = 1;
 
     Jim_InitStack(&stack);
-    JimParserInit(&parser, exprText, 1);
+    JimParserInit(&parser, exprText, exprTextLen, 1);
     while(!JimParserEof(&parser)) {
         char *token;
         int len, type;
@@ -6733,8 +6759,9 @@ static int JimParseSubstStr(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (*pc->p && *pc->p != '$' && *pc->p != '[')
-        pc->p++;
+    while (*pc->p && *pc->p != '$' && *pc->p != '[') {
+        pc->p++; pc->len--;
+    }
     pc->tend = pc->p-1;
     pc->tt = JIM_TT_ESC;
     return JIM_OK;
@@ -6744,13 +6771,14 @@ static int JimParseSubst(struct JimParserCtx *pc, int flags)
 {
     int retval;
 
-    switch(*pc->p) {
-    case '\0':
+    if (pc->len == 0) {
         pc->tstart = pc->tend = pc->p;
         pc->tline = pc->linenr;
         pc->tt = JIM_TT_EOL;
         pc->eof = 1;
-        break;
+        return JIM_OK;
+    }
+    switch(*pc->p) {
     case '[':
         retval = JimParseCmd(pc);
         if (flags & JIM_SUBST_NOCMD) {
@@ -6763,7 +6791,7 @@ static int JimParseSubst(struct JimParserCtx *pc, int flags)
         break;
     case '$':
         if (JimParseVar(pc) == JIM_ERR) {
-            pc->tstart = pc->tend = pc->p++;
+            pc->tstart = pc->tend = pc->p++; pc->len--;
             pc->tline = pc->linenr;
             pc->tt = JIM_TT_STR;
         } else {
@@ -6809,7 +6837,8 @@ static Jim_ObjType substObjType = {
  * the pre-parsed internal representation. */
 int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags)
 {
-    const char *scriptText = Jim_GetString(objPtr, NULL);
+    int scriptTextLen;
+    const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
     struct JimParserCtx parser;
     struct ScriptObj *script = Jim_Alloc(sizeof(*script));
 
@@ -6822,7 +6851,7 @@ int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags)
     script->substFlags = flags;
     script->fileName = NULL;
 
-    JimParserInit(&parser, scriptText, 1);
+    JimParserInit(&parser, scriptText, scriptTextLen, 1);
     while(!JimParserEof(&parser)) {
         char *token;
         int len, type, linenr;
@@ -8786,7 +8815,7 @@ int test_parser(char *filename, int parsetype)
     prg[nread] = '\0';
     fclose(fp);
 
-    JimParserInit(&parser, prg, 1);
+    JimParserInit(&parser, prg, nread, 1);
     while(!JimParserEof(&parser)) {
         const char *type = "", *tok;
         int len, retval = 0;
