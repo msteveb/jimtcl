@@ -309,26 +309,6 @@ int JimStringCompare(const char *s1, int l1, const char *s2, int l2,
     }
 }
 
-int testGlobMatching(void)
-{
-    char buf[1024];
-    char *str = "hello worldo";
-    
-    printf("string: %s\n", str);
-    while(1) {
-        int len;
-
-        printf("pattern> ");
-        if (fgets(buf, 1024, stdin) == NULL) return 0;
-        len = strlen(buf);
-        if (len && buf[len-1] == '\n') {
-            buf[len-1] = '\0';
-        }
-        printf("%d\n", JimStringMatch(buf, strlen(buf), str, strlen(str), 0));
-    }
-    return 0;
-}
-
 int Jim_WideToString(char *buf, jim_wide wideValue)
 {
     const char *fmt = "%" JIM_WIDE_MODIFIER;
@@ -8540,6 +8520,66 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     }
 }
 
+/* [split] */
+static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    const char *str, *splitChars, *noMatchStart;
+    int splitLen, strLen, i;
+    Jim_Obj *resObjPtr;
+
+    if (argc != 2 && argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "string ?splitChars?");
+        return JIM_ERR;
+    }
+    /* Init */
+    if (argc == 2) {
+        splitChars = " \n\t\r";
+        splitLen = 4;
+    } else {
+        splitChars = Jim_GetString(argv[2], &splitLen);
+    }
+    str = Jim_GetString(argv[1], &strLen);
+    if (!strLen) return JIM_OK;
+    noMatchStart = str;
+    resObjPtr = Jim_NewListObj(interp, NULL, 0);
+    /* Split */
+    if (splitLen) {
+        while (strLen) {
+            for (i = 0; i < splitLen; i++) {
+                if (*str == splitChars[i]) {
+                    Jim_Obj *objPtr;
+
+                    objPtr = Jim_NewStringObj(interp, noMatchStart,
+                            (str-noMatchStart));
+                    Jim_ListAppendElement(interp, resObjPtr, objPtr);
+                    noMatchStart = str+1;
+                    break;
+                }
+            }
+            str ++;
+            strLen --;
+        }
+        Jim_ListAppendElement(interp, resObjPtr,
+                Jim_NewStringObj(interp, noMatchStart, (str-noMatchStart)));
+    } else {
+        /* This handles the special case of splitchars eq {}. This
+         * is trivial but we want to perform object sharing as Tcl does. */
+        Jim_Obj *objCache[256];
+        const unsigned char *u = (unsigned char*) str;
+        memset(objCache, 0, sizeof(objCache));
+        for (i = 0; i < strLen; i++) {
+            int c = u[i];
+            
+            if (objCache[c] == NULL)
+                objCache[c] = Jim_NewStringObj(interp, u+i, 1);
+            Jim_ListAppendElement(interp, resObjPtr, objCache[c]);
+        }
+    }
+    Jim_SetResult(interp, resObjPtr);
+    return JIM_OK;
+}
+
 static struct {
     char *name;
     Jim_CmdProc cmdProc;
@@ -8586,6 +8626,7 @@ static struct {
     {"load", Jim_LoadCoreCommand},
     {"subst", Jim_SubstCoreCommand},
     {"info", Jim_InfoCoreCommand},
+    {"split", Jim_SplitCoreCommand},
     {NULL, NULL},
 };
 

@@ -2285,6 +2285,74 @@ test string-10.19 {string map, empty arguments} {
     string map -nocase {{} abc f bar {} def} foo
 } baroo
 
+################################################################################
+# SPLIT
+################################################################################
+
+test split-1.1 {basic split commands} {
+    split "a\n b\t\r c\n "
+} {a {} b {} {} c {} {}}
+test split-1.2 {basic split commands} {
+    split "word 1xyzword 2zword 3" xyz
+} {{word 1} {} {} {word 2} {word 3}}
+test split-1.3 {basic split commands} {
+    split "12345" {}
+} {1 2 3 4 5}
+test split-1.4 {basic split commands} {
+    split "a\}b\[c\{\]\$"
+} "a\\}b\\\[c\\{\\\]\\\$"
+test split-1.5 {basic split commands} {
+    split {} {}
+} {}
+test split-1.6 {basic split commands} {
+    split {}
+} {}
+test split-1.7 {basic split commands} {
+    split {   }
+} {{} {} {} {}}
+test split-1.8 {basic split commands} {
+    proc foo {} {
+        set x {}
+        foreach f [split {]\n} {}] {
+            append x $f
+        }
+        return $x	
+    }
+    foo
+} {]\n}
+test split-1.9 {basic split commands} {
+    proc foo {} {
+        set x ab\000c
+        set y [split $x {}]
+        return $y
+    }
+    foo
+} "a b \000 c"
+test split-1.10 {basic split commands} {
+    split "a0ab1b2bbb3\000c4" ab\000c
+} {{} 0 {} 1 2 {} {} 3 {} 4}
+test split-1.11 {basic split commands} {
+    split "12,3,45" {,}
+} {12 3 45}
+#test split-1.12 {basic split commands} {
+#    split "\u0001ab\u0001cd\u0001\u0001ef\u0001" \1
+#} {{} ab cd {} ef {}}
+test split-1.13 {basic split commands} {
+    split "12,34,56," {,}
+} {12 34 56 {}}
+test split-1.14 {basic split commands} {
+    split ",12,,,34,56," {,}
+} {{} 12 {} {} 34 56 {}}
+
+test split-2.1 {split errors} {
+    list [catch split msg] $msg
+} {1 {wrong # args: should be "split string ?splitChars?"}}
+test split-2.2 {split errors} {
+    list [catch {split a b c} msg] $msg
+} {1 {wrong # args: should be "split string ?splitChars?"}}
+
+# cleanup
+catch {rename foo {}}
 
 ################################################################################
 # FINAL REPORT
