@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.18 2005/03/08 09:50:46 antirez Exp $
+# $Id: test.tcl,v 1.19 2005/03/09 11:06:42 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -3280,6 +3280,95 @@ test info-7.5 {info vars with temporary variables} {
     }
     t1
 } {a}
+
+
+################################################################################
+# linsert
+################################################################################
+
+test linsert-1.1 {linsert command} {
+    linsert {1 2 3 4 5} 0 a
+} {a 1 2 3 4 5}
+test linsert-1.2 {linsert command} {
+    linsert {1 2 3 4 5} 1 a
+} {1 a 2 3 4 5}
+test linsert-1.3 {linsert command} {
+    linsert {1 2 3 4 5} 2 a
+} {1 2 a 3 4 5}
+test linsert-1.4 {linsert command} {
+    linsert {1 2 3 4 5} 3 a
+} {1 2 3 a 4 5}
+test linsert-1.5 {linsert command} {
+    linsert {1 2 3 4 5} 4 a
+} {1 2 3 4 a 5}
+test linsert-1.6 {linsert command} {
+    linsert {1 2 3 4 5} 5 a
+} {1 2 3 4 5 a}
+test linsert-1.7 {linsert command} {
+    linsert {1 2 3 4 5} 2 one two \{three \$four
+} {1 2 one two \{three {$four} 3 4 5}
+test linsert-1.8 {linsert command} {
+    linsert {\{one \$two \{three \ four \ five} 2 a b c
+} {\{one {$two} a b c \{three { four} { five}}
+test linsert-1.9 {linsert command} {
+    linsert {{1 2} {3 4} {5 6} {7 8}} 2 {x y} {a b}
+} {{1 2} {3 4} {x y} {a b} {5 6} {7 8}}
+test linsert-1.10 {linsert command} {
+    linsert {} 2 a b c
+} {a b c}
+test linsert-1.11 {linsert command} {
+    linsert {} 2 {}
+} {{}}
+test linsert-1.12 {linsert command} {
+    linsert {a b "c c" d e} 3 1
+} {a b {c c} 1 d e}
+test linsert-1.13 {linsert command} {
+    linsert { a b c d} 0 1 2
+} {1 2 a b c d}
+test linsert-1.14 {linsert command} {
+    linsert {a b c {d e f}} 4 1 2
+} {a b c {d e f} 1 2}
+test linsert-1.15 {linsert command} {
+    linsert {a b c \{\  abc} 4 q r
+} {a b c \{\  q r abc}
+test linsert-1.16 {linsert command} {
+    linsert {a b c \{ abc} 4 q r
+} {a b c \{ q r abc}
+test linsert-1.17 {linsert command} {
+    linsert {a b c} end q r
+} {a b c q r}
+test linsert-1.18 {linsert command} {
+    linsert {a} end q r
+} {a q r}
+test linsert-1.19 {linsert command} {
+    linsert {} end q r
+} {q r}
+test linsert-1.20 {linsert command, use of end-int index} {
+    linsert {a b c d} end-2 e f
+} {a b e f c d}
+
+test linsert-2.1 {linsert errors} {
+    list [catch linsert msg] $msg
+} {1 {wrong # args: should be "linsert list index element ?element ...?"}}
+test linsert-2.2 {linsert errors} {
+    list [catch {linsert a b} msg] $msg
+} {1 {wrong # args: should be "linsert list index element ?element ...?"}}
+test linsert-2.3 {linsert errors} {
+    list [catch {linsert a 12x 2} msg] $msg
+} {1 {bad index "12x": must be integer or end?-integer?}}
+
+test linsert-3.1 {linsert won't modify shared argument objects} {
+    proc p {} {
+        linsert "a b c" 1 "x y"
+        return "a b c"
+    }
+    p
+} "a b c"
+test linsert-3.2 {linsert won't modify shared argument objects} {
+    catch {unset lis}
+    set lis [concat a \"b\" c]
+    linsert $lis 0 [string length $lis]
+} "7 a b c"
 
 ################################################################################
 # FINAL REPORT

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.45 2005/03/08 17:06:08 antirez Exp $
+ * $Id: jim.h,v 1.46 2005/03/09 11:06:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -625,6 +625,8 @@ JIM_STATIC int JIM_API(Jim_GetIndex) (Jim_Interp *interp, Jim_Obj *objPtr,
 /* list object */
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewListObj) (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
+JIM_STATIC void JIM_API(Jim_ListInsertElements) (Jim_Interp *interp,
+        Jim_Obj *listPtr, int index, int objc, Jim_Obj *const *objVec);
 JIM_STATIC void JIM_API(Jim_ListAppendElement) (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *objPtr);
 JIM_STATIC void JIM_API(Jim_ListAppendList) (Jim_Interp *interp,
@@ -777,6 +779,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(CollectIfNeeded);
   JIM_GET_API(GetIndex);
   JIM_GET_API(NewListObj);
+  JIM_GET_API(ListInsertElements);
   JIM_GET_API(ListAppendElement);
   JIM_GET_API(ListAppendList);
   JIM_GET_API(ListLength);

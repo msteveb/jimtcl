@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.84 2005/03/09 07:19:41 antirez Exp $
+ * $Id: jim.c,v 1.85 2005/03/09 11:06:42 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -4600,6 +4600,38 @@ void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
     Jim_IncrRefCount(objPtr);
 }
 
+/* This is the low-level function to insert elements into a list.
+ * The higher-level Jim_ListInsertElements() performs shared object
+ * check and invalidate the string repr. This version is used
+ * in the internals of the List Object and is not exported.
+ *
+ * NOTE: this function can be called only against objects
+ * with internal type of List. */
+void ListInsertElements(Jim_Obj *listPtr, int index, int elemc,
+        Jim_Obj *const *elemVec)
+{
+    int currentLen = listPtr->internalRep.listValue.len;
+    int requiredLen = currentLen + elemc;
+    int i;
+    Jim_Obj **point;
+
+    if (requiredLen > listPtr->internalRep.listValue.maxLen) {
+        int maxLen = requiredLen * 2;
+
+        listPtr->internalRep.listValue.ele =
+            Jim_Realloc(listPtr->internalRep.listValue.ele,
+                    sizeof(Jim_Obj*)*maxLen);
+        listPtr->internalRep.listValue.maxLen = maxLen;
+    }
+    point = listPtr->internalRep.listValue.ele + index;
+    memmove(point+elemc, point, (currentLen-index) * sizeof(Jim_Obj*));
+    for (i=0; i < elemc; ++i) {
+        point[i] = elemVec[i];
+        Jim_IncrRefCount(point[i]);
+    }
+    listPtr->internalRep.listValue.len += elemc;
+}
+
 /* Appends every element of appendListPtr into listPtr.
  * Both have to be of the list type. */
 void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
@@ -4649,6 +4681,21 @@ void Jim_ListLength(Jim_Interp *interp, Jim_Obj *listPtr, int *intPtr)
     if (listPtr->typePtr != &listObjType)
         SetListFromAny(interp, listPtr);
     *intPtr = listPtr->internalRep.listValue.len;
+}
+
+void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int index,
+        int objc, Jim_Obj *const *objVec)
+{
+    if (Jim_IsShared(listPtr))
+        Jim_Panic("Jim_ListInsertElement called with shared object");
+    if (listPtr->typePtr != &listObjType)
+        SetListFromAny(interp, listPtr);
+    if (index >= 0 && index > listPtr->internalRep.listValue.len)
+        index = listPtr->internalRep.listValue.len;
+    else if (index < 0 ) 
+        index = 0;
+    Jim_InvalidateStringRep(listPtr);
+    ListInsertElements(listPtr, index, objc, objVec);
 }
 
 int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index,
@@ -5268,7 +5315,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         else
             index = -(index+1);
     } else if (!end && index < 0)
-        index = INT_MAX;
+        index = -INT_MAX;
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &indexObjType;
@@ -8363,6 +8410,39 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [linsert] */
+static int Jim_LinsertCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    int index, len;
+    Jim_Obj *listPtr;
+
+    if (argc < 4) {
+        Jim_WrongNumArgs(interp, 1, argv, "list index element "
+            "?element ...?");
+        return JIM_ERR;
+    }
+    listPtr = argv[1];
+    if (Jim_IsShared(listPtr))
+        listPtr = Jim_DuplicateObj(interp, listPtr);
+    if (Jim_GetIndex(interp, argv[2], &index) != JIM_OK)
+        goto err;
+    Jim_ListLength(interp, listPtr, &len);
+    if (index >= len)
+        index = len;
+    else if (index < 0)
+        index = len + index + 1;
+    Jim_ListInsertElements(interp, listPtr, index, argc-3, &argv[3]);
+    Jim_SetResult(interp, listPtr);
+    return JIM_OK;
+err:
+    if (listPtr != argv[1]) {
+        Jim_IncrRefCount(listPtr);
+        Jim_DecrRefCount(interp, listPtr);
+    }
+    return JIM_ERR;
+}
+
 /* [lset] */
 static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
@@ -9532,6 +9612,7 @@ static struct {
     {"lset", Jim_LsetCoreCommand},
     {"llength", Jim_LlengthCoreCommand},
     {"lappend", Jim_LappendCoreCommand},
+    {"linsert", Jim_LinsertCoreCommand},
     {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
     {"debug", Jim_DebugCoreCommand},
