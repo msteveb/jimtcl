@@ -1,3 +1,8 @@
+2005-04-02 09:44  antirez
+
+	* ChangeLog, Makefile, TODO, jim.c, jim.h: [package require] +
+	  Makefile changes about libraries currently not working...
+
 2005-03-31 14:20  antirez
 
 	* ChangeLog, STYLE, TODO, jim-aio.c, jim-posix.c, jim-sdl.c,
