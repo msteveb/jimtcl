@@ -1,7 +1,7 @@
 /* Jim - SDL extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-sdl.c,v 1.2 2005/03/26 14:12:32 antirez Exp $
+ * $Id: jim-sdl.c,v 1.3 2005/03/31 12:20:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -224,8 +224,9 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc,
 
 int Jim_OnLoad(Jim_Interp *interp)
 {
-    Jim_InitExtension(interp, "1.0");
-
+    Jim_InitExtension(interp);
+    if (Jim_PackageProvide(interp, "sdl", "1.0", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         JimSdlSetError(interp);
         return JIM_ERR;

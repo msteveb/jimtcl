@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.64 2005/03/29 13:38:04 antirez Exp $
+ * $Id: jim.h,v 1.65 2005/03/31 12:20:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -358,6 +358,11 @@ typedef struct Jim_ObjType {
 #define JIM_TYPE_NONE 0        /* No flags */
 #define JIM_TYPE_REFERENCES 1    /* The object may contain referneces. */
 
+/* Starting from 1 << 20 flags are reserved for private uses of
+ * different calls. This way the same 'flags' argument may be used
+ * to pass both global flags and private flags. */
+#define JIM_PRIV_FLAG_SHIFT 20
+
 /* -----------------------------------------------------------------------------
  * Call frame, vars, commands structures
  * ---------------------------------------------------------------------------*/
@@ -459,6 +464,7 @@ typedef struct Jim_Interp {
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
+    struct Jim_HashTable packages; /* Provided packages hash table */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -738,6 +744,11 @@ JIM_STATIC int JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname,
 JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp, 
         const char *funcname, void *funcptr);
 
+/* Packages C API */
+JIM_STATIC int JIM_API(Jim_PackageProvide) (Jim_Interp *interp,
+        const char *name, const char *ver, int flags);
+JIM_STATIC const char * JIM_API(Jim_PackageRequire) (Jim_Interp *interp, char *name, char *ver, int flags);
+
 /* error messages */
 JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
 
@@ -753,7 +764,7 @@ JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
     Jim_GetApi(interp, "Jim_" #name, &Jim_ ## name)
 
 /* This must be included "inline" inside the extension */
-static void Jim_InitExtension(Jim_Interp *interp, const char *version)
+static void Jim_InitExtension(Jim_Interp *interp)
 {
   Jim_GetApi = interp->getApiFuncPtr;
 
@@ -855,15 +866,15 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(DeleteAssocData);
   JIM_GET_API(GetEnum);
   JIM_GET_API(ScriptIsComplete);
-
-  Jim_SetResultString(interp, version, -1);
+  JIM_GET_API(PackageProvide);
+  JIM_GET_API(PackageRequire);
 }
 
 #ifdef JIM_EMBEDDED
 Jim_Interp *ExportedJimCreateInterp(void);
 static void Jim_InitEmbedded(void) {
     Jim_Interp *i = ExportedJimCreateInterp();
-    Jim_InitExtension(i, "");
+    Jim_InitExtension(i);
     Jim_FreeInterp(i);
 }
 #endif /* JIM_EMBEDDED */

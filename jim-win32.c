@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.18 2005/03/14 16:36:11 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.19 2005/03/31 12:20:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -688,7 +688,9 @@ Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 int
 Jim_OnLoad(Jim_Interp *interp)
 {
-    Jim_InitExtension(interp, "1.0");
+    Jim_InitExtension(interp);
+    if (Jim_PackageProvide(interp, "win32", "1.0", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
 
 #define CMD(name) \
     Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL, NULL)

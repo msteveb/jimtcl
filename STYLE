@@ -28,7 +28,7 @@ Another example is:
 JimNotExportedFunction()
 
 Not exported functions that are not general, like functions
-implementing hashtables or jim objects methods can be named
+implementing hashtables or Jim objects methods can be named
 in any prefix as long as capitalization rules are followed,
 like in:
 
@@ -47,10 +47,19 @@ lowcase:
 
 thisIsALogVarName
 
+----
+GOTO
+----
+
+Goto is allowed every time it makes the code cleaner, like in complex
+functions that need to handle exceptions, there is often an "err" label
+at the end of the function where allocated resources are freed before to exit
+with an error. Goto is also used in order to excape multiple nexted loops.
+
 ----------
 C FEATURES
 ----------
 
 Only C89 ANSI C is allowed. C99 features can't be used currently.
-
+GCC extensions are not allowed.
 

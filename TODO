@@ -23,6 +23,13 @@ OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
 - Set commands: [lunion], [lintersect], and [ldifference]
 
+EXTENSIONS LOADING
+
+- Avoid that the same extension can be loaded multiple times inside the
+  same interpreter. The extension should return its name on initialization
+  together with the version so that Jim_InitExtension will fail if the
+  extension with the same name is already loaded.
+
 EXTENSIONS
 
 - Regexp extension
@@ -43,6 +50,12 @@ IMPLEMENTATION ISSUES
 
 - Objects lazy free.
 - Rewrite all the commands accepting a set of options to use Jim_GetEnum().
+- Every time an extension is loaded Jim should put the dlopen() (or win32
+  equivalent) handle in a list inside the interpreter structure. When
+  the interpreter is freed all this handles should be closed with dlclose().
+- *AssocData() function should allow to specify a delProc C function like
+  in the Tcl API. When the interpreter is destroied all the delProc functions
+  should be called to free the memory before to free the interpreter.
 
 ERROR MESSAGES
 

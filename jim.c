@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.137 2005/03/29 16:50:22 antirez Exp $
+ * $Id: jim.c,v 1.138 2005/03/31 12:20:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -860,6 +860,17 @@ static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
     return copy;
 }
 
+static void *JimStringKeyValCopyHTValDup(void *privdata, const void *val)
+{
+    int len = strlen(val);
+    char *copy = Jim_Alloc(len+1);
+    JIM_NOTUSED(privdata);
+
+    memcpy(copy, val, len);
+    copy[len] = '\0';
+    return copy;
+}
+
 static int JimStringCopyHTKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -873,6 +884,13 @@ static void JimStringCopyHTKeyDestructor(void *privdata, const void *key)
     JIM_NOTUSED(privdata);
 
     Jim_Free((void*)key); /* ATTENTION: const cast */
+}
+
+static void JimStringKeyValCopyHTValDestructor(void *privdata, void *val)
+{
+    JIM_NOTUSED(privdata);
+
+    Jim_Free((void*)val); /* ATTENTION: const cast */
 }
 
 static Jim_HashTableType JimStringCopyHashTableType = {
@@ -893,6 +911,17 @@ static Jim_HashTableType JimSharedStringsHashTableType = {
     JimStringCopyHTKeyCompare,          /* key compare */
     JimStringCopyHTKeyDestructor,       /* key destructor */
     NULL                                /* val destructor */
+};
+
+/* This is like StringCopy but also automatically handle dynamic
+ * allocated C strings as values. */
+static Jim_HashTableType JimStringKeyValCopyHashTableType = {
+    JimStringCopyHTHashFunction,        /* hash function */
+    JimStringCopyHTKeyDup,              /* key dup */
+    JimStringKeyValCopyHTValDup,        /* val dup */
+    JimStringCopyHTKeyCompare,          /* key compare */
+    JimStringCopyHTKeyDestructor,       /* key destructor */
+    JimStringKeyValCopyHTValDestructor, /* val destructor */
 };
 
 typedef struct AssocDataValue {
@@ -2075,7 +2104,8 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
     resObjPtr = Jim_NewStringObj(interp, "", 0);
     while (fmtLen) {
         const char *p = fmt;
-        char spec[2];
+        char spec[2], c;
+        jim_wide wideValue;
 
         while (*fmt != '%' && fmtLen) {
             fmt++; fmtLen--;
@@ -2098,6 +2128,14 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         case 's':
             Jim_AppendObj(interp, resObjPtr, objv[0]);
             objv++;
+            break;
+        case 'c':
+            if (Jim_GetWide(interp, objv[0], &wideValue) == JIM_ERR) {
+                Jim_FreeNewObj(interp, resObjPtr);
+                return NULL;
+            }
+            c = (char) wideValue;
+            Jim_AppendString(interp, resObjPtr, &c, 1);
             break;
         case '%':
             Jim_AppendString(interp, resObjPtr, "%" , 1);
@@ -3953,6 +3991,7 @@ Jim_Interp *Jim_CreateInterp(void)
             NULL);
     Jim_InitHashTable(&i->stub, &JimStringCopyHashTableType, NULL);
     Jim_InitHashTable(&i->assocData, &JimAssocDataHashTableType, i);
+    Jim_InitHashTable(&i->packages, &JimStringKeyValCopyHashTableType, NULL);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i);
     i->emptyObj = Jim_NewEmptyStringObj(i);
     i->result = i->emptyObj;
@@ -3996,6 +4035,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->references);
     Jim_FreeHashTable(&i->stub);
     Jim_FreeHashTable(&i->assocData);
+    Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
     /* Free the call frames list */
     while(cf) {
@@ -7277,6 +7317,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             dlclose(handle);
             goto err;
         }
+        Jim_SetEmptyResult(interp);
         if (libPathObjPtr != NULL)
             Jim_DecrRefCount(interp, libPathObjPtr);
         return JIM_OK;
@@ -7296,6 +7337,97 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     return JIM_ERR;
 }
 #endif/* JIM_DYNLIB */
+
+/* -----------------------------------------------------------------------------
+ * Packages handling
+ * ---------------------------------------------------------------------------*/
+/* Convert a string of the type "1.2" into an integer.
+ * MAJOR.MINOR is converted as MAJOR*100+MINOR, so "1.2" is converted 
+ * to the integer with value 102 */
+static int JimPackageVersionToInt(Jim_Interp *interp, const char *v,
+        int *intPtr, int flags)
+{
+    char *buf = Jim_Alloc(strlen(v)+1), *p;
+    jim_wide wideValue;
+
+    p = buf;
+    while (*v) {
+        if (!isdigit(*v)) continue;
+            *p++ = *v++;
+    }
+    *p = '\0';
+    if (Jim_StringToWide(buf, &wideValue, 10) != JIM_OK) {
+        Jim_Free(buf);
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "invalid package version '", v, "'", NULL);
+        }
+        return JIM_ERR;
+    }
+    *intPtr = wideValue;
+    return JIM_OK;
+}
+
+#define JIM_MATCHVER_EXACT (1<<JIM_PRIV_FLAG_SHIFT)
+static int JimPackageMatchVersion(int needed, int actual, int flags)
+{
+    if (flags & JIM_MATCHVER_EXACT) {
+        return needed == actual;
+    } else {
+        return needed/100 == actual/100 && (needed <= actual);
+    }
+}
+
+int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
+        int flags)
+{
+    /* If the package was already provided returns an error. */
+    if (Jim_FindHashEntry(&interp->packages, name) != NULL) {
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "package '", name, "' was already provided", NULL);
+        }
+        return JIM_ERR;
+    }
+    Jim_AddHashEntry(&interp->packages, name, (char*) ver);
+    return JIM_OK;
+}
+
+const char *Jim_PackageRequire(Jim_Interp *interp, char *name, char *ver, int flags)
+{
+    Jim_HashEntry *he;
+
+    he = Jim_FindHashEntry(&interp->packages, name);
+    if (he == NULL) {
+        /* TODO: try to load the given extension. */
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "Can't find package '", name, "'", NULL);
+        }
+        return NULL;
+    } else {
+        int requiredVer, actualVer;
+        if (JimPackageVersionToInt(interp, ver, &requiredVer, JIM_ERRMSG)
+                != JIM_OK ||
+            JimPackageVersionToInt(interp, he->key, &actualVer, JIM_ERRMSG)
+                != JIM_OK)
+        {
+            return NULL;
+        }
+        /* Check if version matches. */
+        if (JimPackageMatchVersion(requiredVer, actualVer, flags) == 0) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "Package '", name, "' already loaded, but with version ",
+                    he->key, NULL);
+            return NULL;
+        }
+        return he->key;
+    }
+}
 
 /* -----------------------------------------------------------------------------
  * Eval
@@ -8182,6 +8314,8 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(DeleteAssocData);
   JIM_REGISTER_API(GetEnum);
   JIM_REGISTER_API(ScriptIsComplete);
+  JIM_REGISTER_API(PackageRequire);
+  JIM_REGISTER_API(PackageProvide);
 }
 
 /* -----------------------------------------------------------------------------
@@ -11040,7 +11174,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.137 2005/03/29 16:50:22 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.138 2005/03/31 12:20:21 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

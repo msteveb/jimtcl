@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.6 2005/03/16 16:28:34 antirez Exp $
+ * $Id: jim-aio.c,v 1.7 2005/03/31 12:20:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -265,7 +265,9 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 
 int Jim_OnLoad(Jim_Interp *interp)
 {
-    Jim_InitExtension(interp, "1.0");
+    Jim_InitExtension(interp);
+    if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
     Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);
     return JIM_OK;
 }

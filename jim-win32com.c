@@ -2,7 +2,7 @@
  *
  * Windows COM extension.
  *
- * $Id: jim-win32com.c,v 1.16 2005/03/05 12:22:35 antirez Exp $
+ * $Id: jim-win32com.c,v 1.17 2005/03/31 12:20:21 antirez Exp $
  *
  * Example:
  *   load jim-win32com
@@ -595,7 +595,9 @@ __declspec(dllexport) int
 Jim_OnLoad(Jim_Interp *interp)
 {
     HRESULT hr;
-    Jim_InitExtension(interp, "1.0");
+    Jim_InitExtension(interp);
+    if (Jim_PackageProvide(interp, "win32com", "1.0", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
     hr = CoInitialize(0);
     if (FAILED(hr)) {
         Jim_SetResult(interp,
