@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.69 2005/04/06 06:35:00 antirez Exp $
+ * $Id: jim.h,v 1.70 2005/04/06 10:14:09 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -784,7 +784,7 @@ JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
 #ifndef __JIM_CORE__
 
 #define JIM_GET_API(name) \
-    Jim_GetApi(interp, "Jim_" #name, &Jim_ ## name)
+    Jim_GetApi(interp, "Jim_" #name, ((void *)&Jim_ ## name))
 
 /* This must be included "inline" inside the extension */
 static void Jim_InitExtension(Jim_Interp *interp)

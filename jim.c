@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.147 2005/04/06 06:35:00 antirez Exp $
+ * $Id: jim.c,v 1.148 2005/04/06 10:14:09 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -6468,7 +6468,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
             case JIM_EXPROP_BITOR: wC = wA|wB; break;
             case JIM_EXPROP_LOGICAND_LEFT:
                 if (wA == 0) {
-                    i += wB;
+                    i += (int)wB;
                     wC = 0;
                 } else {
                     continue;
@@ -6476,7 +6476,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
                 break;
             case JIM_EXPROP_LOGICOR_LEFT:
                 if (wA != 0) {
-                    i += wB;
+                    i += (int)wB;
                     wC = 1;
                 } else {
                     continue;
@@ -6788,7 +6788,7 @@ void FreeScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    jim_wide size = ((ScanFmtStringObj*)srcPtr->internalRep.ptr)->size;
+    size_t size = (size_t)((ScanFmtStringObj*)srcPtr->internalRep.ptr)->size;
     ScanFmtStringObj *newVec = (ScanFmtStringObj*)Jim_Alloc(size);
 
     JIM_NOTUSED(interp);
@@ -7366,7 +7366,7 @@ static int JimPackageVersionToInt(Jim_Interp *interp, const char *v,
     if (Jim_StringToWide(majorStr, &major, 10) != JIM_OK ||
         Jim_StringToWide(minorStr, &minor, 10) != JIM_OK)
         goto badfmt;
-    *intPtr = major*100+minor;
+    *intPtr = (int)(major*100+minor);
     Jim_Free(copy);
     return JIM_OK;
 
@@ -11433,7 +11433,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.147 2005/04/06 06:35:00 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.148 2005/04/06 10:14:09 patthoyts Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
