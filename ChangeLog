@@ -1,3 +1,8 @@
+2005-03-26 15:12  antirez
+
+	* ChangeLog, Makefile, jim-sdl.c, jim.c: some GFX primitive to SDL
+	  extension. Minor changes to jim.c
+
 2005-03-25 10:34  antirez
 
 	* ChangeLog, bench.tcl, jim.c: SetReturnCodeFromAny() modified to

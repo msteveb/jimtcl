@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.26 2005/03/24 13:58:05 antirez Exp $
+# $Id: test.tcl,v 1.27 2005/03/28 16:57:36 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -27,8 +27,6 @@ proc test {id descr script expectedResult} {
         lappend failedList $id
     }
 }
-
-proc error {msg} { return -code error $msg }
 
 ################################################################################
 # SET
@@ -4138,6 +4136,62 @@ test range-5.0 {lindex llength range test} {
     set trash {}
     set k
 } {164150}
+
+################################################################################
+# SCOPE
+################################################################################
+test scope-1.0 {Non existing var} {
+    catch {unset x}
+    scope x {
+        set x 10
+        set y [+ $x 1]
+    }
+    list [info exists x] $y
+} {0 11}
+
+test scope-1.1 {Existing var restore} {
+    set x 100
+    scope x {
+        for {set x 0} {$x < 10} {incr x} {}
+    }
+    set x
+} {100}
+
+test scope-1.2 {Mix of 1.0 and 1.1 tests} {
+    catch {unset x}
+    set y 10
+    scope {x y} {
+        set y 100
+        set x 200
+    }
+    list [info exists x] $y
+} {0 10}
+
+test scope-1.3 {Array element} {
+    set x "a 1 b 2"
+    scope x(a) {
+        set x(a) Hello!
+    }
+    set x(a)
+} {1}
+
+test scope-1.4 {Non existing array element} {
+    catch {unset x}
+    scope x(a) {
+        set x(a) Hello!
+    }
+    info exists x(a)
+} {0}
+
+test scope-1.5 {Array element and var contaning the dict modifications} {
+    set x "a 1 b 2"
+    scope {x(a) x} {
+        set x "foo"
+    }
+    set x
+} {a 1 b 2}
+
+catch {unset y}
 
 ################################################################################
 # JIM REGRESSION TESTS
