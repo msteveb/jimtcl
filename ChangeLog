@@ -1,3 +1,11 @@
+2005-03-11 09:43  antirez
+
+	* jim.c: tons of static var fixes...
+
+2005-03-11 08:21  antirez
+
+	* ChangeLog, jim.c, jim.h: static variables support
+
 2005-03-10 16:58  antirez
 
 	* ChangeLog, jim.c, jim.h, test.tcl: lrange command (me)

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.89 2005/03/11 08:43:36 antirez Exp $
+ * $Id: jim.c,v 1.90 2005/03/11 09:25:45 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2712,9 +2712,9 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
         int arityMin, int arityMax)
 {
-    Jim_HashEntry *he;
     Jim_Cmd *cmdPtr;
 
+#if 0
     he = Jim_FindHashEntry(&interp->commands, cmdName);
     if (he == NULL) { /* New procedure to create */
         cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
@@ -2738,6 +2738,9 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         }
         cmdPtr->cmdProc = NULL; /* Not a C coded command */
     }
+#endif
+    cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
+    cmdPtr->cmdProc = NULL; /* Not a C coded command */
     cmdPtr->argListObjPtr = argListObjPtr;
     cmdPtr->bodyObjPtr = bodyObjPtr;
     Jim_IncrRefCount(argListObjPtr);
@@ -2811,6 +2814,9 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         }
     }
 
+    /* Add the new command */
+    Jim_DeleteHashEntry(&interp->commands, cmdName); /* it may already exist */
+    Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     /* There is no need to increment the 'proc epoch' because
      * creation of a new procedure can never affect existing
      * cached commands. We don't do negative caching. */
@@ -2819,8 +2825,10 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
 err:
     Jim_FreeHashTable(cmdPtr->staticVars);
     Jim_Free(cmdPtr->staticVars);
+    Jim_DecrRefCount(interp, argListObjPtr);
+    Jim_DecrRefCount(interp, bodyObjPtr);
+    Jim_Free(cmdPtr);
     return JIM_ERR;
-
 }
 
 int Jim_DeleteCommand(Jim_Interp *interp, const char *cmdName)
@@ -8965,13 +8973,12 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
         }
     }
     if (argc == 4) {
-        Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+        return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
                 argv[2], NULL, argv[3], arityMin, arityMax);
     } else {
-        Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+        return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
                 argv[2], argv[3], argv[4], arityMin, arityMax);
     }
-    return JIM_OK;
 }
 
 /* [concat] */
