@@ -151,6 +151,7 @@ UnicodeFreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_Free(objPtr->internalRep.binaryValue.data);
 	objPtr->internalRep.binaryValue.data = NULL;
     objPtr->internalRep.binaryValue.len = 0;
+	objPtr->typePtr = NULL;
 }
 
 // string rep is copied and internal dep is duplicated.
@@ -246,6 +247,7 @@ Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
     p->lpVtbl->Release(p);
 	p = NULL;
+	objPtr->typePtr = NULL;
 }
 
 void 
@@ -275,12 +277,28 @@ Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj **objv)
         /* Note: this array is filled backwards */
         for (cn = 0; cn < objc; cn++) {
             LPOLESTR olestr;
+			Jim_Obj *objPtr = objv[objc - cn - 1];
+			const char *type = NULL;
+			
+			if (objPtr->typePtr != NULL)
+				type = objPtr->typePtr->name;
 
-            olestr = A2OLE(Jim_GetString(objv[objc - cn - 1], NULL));
             VariantInit(&dp->rgvarg[cn]);
-            dp->rgvarg[cn].vt = VT_BSTR;
-            dp->rgvarg[cn].bstrVal = SysAllocString(olestr);
-            Jim_Free(olestr);
+			if (type != NULL) {
+				if (strcmp(type, "int") == 0) {
+					Jim_GetLong(interp, objPtr, &(dp->rgvarg[cn].lVal));
+					dp->rgvarg[cn].vt = VT_I4;
+				} else if (strcmp(type, "double") == 0) {
+					Jim_GetDouble(interp, objPtr, &(dp->rgvarg[cn].dblVal));
+					dp->rgvarg[cn].vt = VT_R8;
+				}
+			}
+			if (dp->rgvarg[cn].vt == VT_EMPTY) {
+				olestr = A2OLE(Jim_GetString(objv[objc - cn - 1], NULL));
+				dp->rgvarg[cn].bstrVal = SysAllocString(olestr);
+				dp->rgvarg[cn].vt = VT_BSTR;
+				Jim_Free(olestr);
+			}
         }
     }
     return dp;
@@ -298,6 +316,27 @@ Ole32_FreeDispParams(DISPPARAMS *dp)
     Jim_Free(dp);
 }
 
+static int
+Jim_GetIndexFromObj(Jim_Interp *interp, Jim_Obj *objPtr, const char **tablePtr,
+					const char *msg, int flags, int *indexPtr)
+{
+	const char **entryPtr = NULL;
+	const char *p1, *p2;
+	const char *key = Jim_GetString(objPtr, NULL);
+	int i;
+	*indexPtr = -1;
+	for (entryPtr = tablePtr, i = 0; *entryPtr != NULL; entryPtr++, i++) {
+		for (p1 = key, p2 = *entryPtr; *p1 == *p2; p1++, p2++) {
+			if (*p1 == '\0') {
+				*indexPtr = i;
+				return JIM_OK;
+			}
+		}
+	}
+	Jim_SetResultString(interp, "needs a better message", -1);
+	return JIM_ERR;
+}
+
 /* $object method|prop ?args...? */
 static int
 Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -307,19 +346,32 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
     DISPID dispid;
     LPDISPATCH pdisp;
     Jim_Obj *resultObj = NULL;
+	int optind, argc = 1, mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
+	static const char *options[] = {"-get", "-put", "-putref", "-call", NULL };
+	enum { OPT_GET, OPT_PUT, OPT_PUTREF, OPT_CALL };
     
     if (objc < 3) {
-        Jim_WrongNumArgs(interp, 1, objv, "object method|property ?args ...?");
+        Jim_WrongNumArgs(interp, 1, objv, "?options? object method|property ?args ...?");
         return JIM_ERR;
     }
  
-    if (objv[1]->typePtr != &ole32ObjType) {
+	if (Jim_GetIndexFromObj(interp, objv[1], options, "", 0, &optind) == JIM_OK) {
+		argc++;
+		switch (optind) {
+			case OPT_GET:    mode = DISPATCH_PROPERTYGET; break;
+			case OPT_PUT:    mode = DISPATCH_PROPERTYPUT; break;
+			case OPT_PUTREF: mode = DISPATCH_PROPERTYPUTREF; break;
+			case OPT_CALL:   mode = DISPATCH_METHOD; break;
+		}
+	}
+
+    if (objv[argc]->typePtr != &ole32ObjType) {
         Jim_SetResultString(interp, "first argument must be a ole32 created object", -1);
         return JIM_ERR;
     }
 
-    pdisp = (LPDISPATCH)Jim_GetIntRepPtr(objv[1]);
-    name = Jim_GetUnicode(objv[2], NULL);
+    pdisp = (LPDISPATCH)Jim_GetIntRepPtr(objv[argc]);
+    name = Jim_GetUnicode(objv[argc+1], NULL);
     hr = pdisp->lpVtbl->GetIDsOfNames(pdisp, &IID_NULL, &name, 1, 
                                       LOCALE_SYSTEM_DEFAULT, &dispid);
 
@@ -327,12 +379,10 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
         VARIANT v;
         EXCEPINFO ei;
         DISPPARAMS *dp = NULL;
-        WORD mode;
         UINT uierr;
 
         VariantInit(&v);
-        dp = Ole32_GetDispParams(interp, objc-3, objv+3);
-        mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
+        dp = Ole32_GetDispParams(interp, objc-(argc+2), objv+argc+2);
         hr = pdisp->lpVtbl->Invoke(pdisp, dispid, &IID_NULL, LOCALE_SYSTEM_DEFAULT, mode, dp, &v, &ei, &uierr);
         Ole32_FreeDispParams(dp);
 
@@ -340,8 +390,8 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
             switch (v.vt) {
                 case VT_I2:  resultObj = Jim_NewIntObj(interp, v.iVal); break;
                 case VT_I4:  resultObj = Jim_NewIntObj(interp, v.lVal); break;
-                //case VT_R4:  resultObj = Jim_NewIntObj(interp, v.lVal); break;
-                //case VT_R8:  resultObj = Jim_NewIntObj(interp, v.lVal); break;
+                case VT_R4:  resultObj = Jim_NewDoubleObj(interp, v.fltVal); break;
+                case VT_R8:  resultObj = Jim_NewDoubleObj(interp, v.dblVal); break;
                 default: {
                     hr = VariantChangeType(&v, &v, VARIANT_ALPHABOOL, VT_BSTR);
                     if (SUCCEEDED(hr))
@@ -397,10 +447,10 @@ Ole32_Command(Jim_Interp *interp, int objc, Jim_Obj **objv)
         HRESULT hr = S_OK;
         LPWSTR wsz = Jim_GetUnicode(objv[2], NULL);
         hr = CLSIDFromProgID(wsz, &clsid);
-        if (SUCCEEDED(hr))
-            hr = CoCreateInstance(&clsid, NULL, CLSCTX_ALL, &IID_IDispatch, (LPVOID*)&pdisp);
-        if (hr == E_NOINTERFACE)
-            hr = CoCreateInstance(&clsid, NULL, CLSCTX_LOCAL_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
+        //if (SUCCEEDED(hr))
+        //    hr = CoCreateInstance(&clsid, NULL, CLSCTX_ALL, &IID_IDispatch, (LPVOID*)&pdisp);
+        //if (hr == E_NOINTERFACE)
+            hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
         if (SUCCEEDED(hr)) {
             Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
             pdisp->lpVtbl->Release(pdisp);

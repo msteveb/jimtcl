@@ -6972,6 +6972,9 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   Jim_RegisterApi(interp, "Jim_GetLong", Jim_GetLong);
   Jim_RegisterApi(interp, "Jim_SetWide", Jim_SetWide);
   Jim_RegisterApi(interp, "Jim_NewIntObj", Jim_NewIntObj);
+  Jim_RegisterApi(interp, "Jim_GetDouble", Jim_GetDouble);
+  Jim_RegisterApi(interp, "Jim_SetDouble", Jim_SetDouble);
+  Jim_RegisterApi(interp, "Jim_NewDoubleObj", Jim_NewDoubleObj);
   Jim_RegisterApi(interp, "Jim_WrongNumArgs", Jim_WrongNumArgs);
   Jim_RegisterApi(interp, "Jim_SetDictKeysVector", Jim_SetDictKeysVector);
   Jim_RegisterApi(interp, "Jim_SubstObj", Jim_SubstObj);

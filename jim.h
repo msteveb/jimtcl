@@ -629,6 +629,13 @@ JIM_STATIC void JIM_API(Jim_SetWide) (Jim_Interp *interp, Jim_Obj *objPtr,
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewIntObj) (Jim_Interp *interp,
         jim_wide wideValue);
 
+/* double object */
+JIM_STATIC int JIM_API(Jim_GetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
+		double *doublePtr);
+JIM_STATIC void JIM_API(Jim_SetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
+	    double doubleValue);
+JIM_STATIC Jim_Obj * JIM_API(Jim_NewDoubleObj)(Jim_Interp *interp, double doubleValue);
+
 /* shared strings */
 JIM_STATIC char JIM_API(*Jim_GetSharedString) (Jim_Interp *interp, char *str);
 JIM_STATIC void JIM_API(Jim_ReleaseSharedString) (Jim_Interp *interp, char *str);
@@ -724,6 +731,9 @@ static void Jim_InitExtension(Jim_Interp *interp, char *version)
   Jim_GetLong = Jim_GetApi(interp, "Jim_GetLong");
   Jim_SetWide = Jim_GetApi(interp, "Jim_SetWide");
   Jim_NewIntObj = Jim_GetApi(interp, "Jim_NewIntObj");
+  Jim_GetDouble = Jim_GetApi(interp, "Jim_GetDouble");
+  Jim_SetDouble = Jim_GetApi(interp, "Jim_SetDouble");
+  Jim_NewDoubleObj = Jim_GetApi(interp, "Jim_NewDoubleObj");
   Jim_WrongNumArgs = Jim_GetApi(interp, "Jim_WrongNumArgs");
   Jim_SetDictKeysVector = Jim_GetApi(interp, "Jim_SetDictKeysVector");
   Jim_SubstObj = Jim_GetApi(interp, "Jim_SubstObj");
