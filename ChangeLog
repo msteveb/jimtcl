@@ -1,3 +1,9 @@
+2005-03-07 21:34  antirez
+
+	* ChangeLog, jim.c, jim.h: Faster procedure calls (obtained caching
+	  the hashtable, and with a fast path to free the cached hash
+	  tables elements).
+
 2005-03-07 18:58  antirez
 
 	* ChangeLog, jim.c: Added "increasing", "decreasing", "ascii",

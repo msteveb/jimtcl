@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.75 2005/03/07 20:34:16 antirez Exp $
+ * $Id: jim.c,v 1.76 2005/03/07 20:53:32 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3823,6 +3823,8 @@ void Jim_FreeInterp(Jim_Interp *i)
     cf = i->freeFramesList;
     while(cf) {
         nextcf = cf->nextFramePtr;
+        if (cf->vars.table != NULL)
+            Jim_Free(cf->vars.table);
         free(cf);
         cf = nextcf;
     }
