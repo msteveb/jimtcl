@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.54 2005/03/14 14:39:01 antirez Exp $
+ * $Id: jim.h,v 1.55 2005/03/15 14:42:30 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -708,6 +708,7 @@ JIM_STATIC void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
 JIM_STATIC int JIM_API(Jim_GetEnum) (Jim_Interp *interp, Jim_Obj *objPtr,
         const char **tablePtr, int *indexPtr, const char *name, int flags);
+JIM_STATIC int JIM_API(Jim_ScriptIsComplete) (const char *s, int len);
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);
@@ -835,6 +836,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(SetAssocData);
   JIM_GET_API(DeleteAssocData);
   JIM_GET_API(GetEnum);
+  JIM_GET_API(ScriptIsComplete);
 
   Jim_SetResultString(interp, version, -1);
 }

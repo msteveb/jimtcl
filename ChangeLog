@@ -1,3 +1,8 @@
+2005-03-15 15:05  antirez
+
+	* BUGS, ChangeLog, jim.c, test.tcl: [info level ?level?] fixed.
+	  Tests uncommented.
+
 2005-03-15 11:31  antirez
 
 	* AUTHORS, ChangeLog: More credits in the AUTHORS file

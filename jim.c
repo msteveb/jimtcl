@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.106 2005/03/15 14:05:38 antirez Exp $
+ * $Id: jim.c,v 1.107 2005/03/15 14:42:30 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1540,6 +1540,53 @@ char *JimParserGetToken(struct JimParserCtx *pc,
     if (typePtr) *typePtr = JimParserTtype(pc);
     if (linePtr) *linePtr = JimParserTline(pc);
     return token;
+}
+
+/* The following functin is not really part of the parsing engine of Jim,
+ * but it somewhat related. Given an string and its length, it tries
+ * to guess if the script is complete or there are instead " " or { }
+ * open and not completed. This is useful for interactive shells
+ * implementation and for [info complete].
+ *
+ * If the script is complete, 1 is returned, otherwise 0. */
+int Jim_ScriptIsComplete(const char *s, int len)
+{
+    int level = 0;
+    int state = ' ';
+
+    while(len) {
+        switch (*s) {
+            case '\\':
+                if (len > 1)
+                    s++;
+                break;
+            case '"':
+                if (state == ' ') {
+                    state = '"';
+                } else if (state == '"') {
+                    state = ' ';
+                }
+                break;
+            case '{':
+                if (state == '{') {
+                    level++;
+                } else if (state == ' ') {
+                    state = '{';
+                    level++;
+                }
+                break;
+            case '}':
+                if (state == '{') {
+                    level--;
+                    if (level == 0)
+                        state = ' ';
+                }
+                break;
+        }
+        s++;
+        len--;
+    }
+    return state == ' ';
 }
 
 /* -----------------------------------------------------------------------------
@@ -7488,6 +7535,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(SetAssocData);
   JIM_REGISTER_API(DeleteAssocData);
   JIM_REGISTER_API(GetEnum);
+  JIM_REGISTER_API(ScriptIsComplete);
 }
 
 /* -----------------------------------------------------------------------------
@@ -9651,10 +9699,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     int cmd, result = JIM_OK;
     static const char *commands[] = {
         "body", "commands", "exists", "globals", "level", "locals",
-        "vars", "version", NULL
+        "vars", "version", "complete", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-          INFO_LOCALS, INFO_VARS, INFO_VERSION};
+          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_COMPLETE};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -9665,90 +9713,86 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     
-    switch (cmd)  {
-        case INFO_COMMANDS: {
-            if (argc != 2 && argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-                return JIM_ERR;
-            }
-            if (argc == 3)
-                Jim_SetResult(interp,JimCommandsList(interp, argv[2]));
-            else
-                Jim_SetResult(interp, JimCommandsList(interp, NULL));
-            break;
+    if (cmd == INFO_COMMANDS) {
+        if (argc != 2 && argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
+            return JIM_ERR;
         }
-        case INFO_EXISTS: {
-            Jim_Obj *exists;
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName");
-                return JIM_ERR;
-            }
-            exists = Jim_GetVariable(interp, argv[2], 0);
-            Jim_SetResult(interp, Jim_NewIntObj(interp, exists != 0));
-            return JIM_OK;
+        if (argc == 3)
+            Jim_SetResult(interp,JimCommandsList(interp, argv[2]));
+        else
+            Jim_SetResult(interp, JimCommandsList(interp, NULL));
+    } else if (cmd == INFO_EXISTS) {
+        Jim_Obj *exists;
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "varName");
+            return JIM_ERR;
         }
-        case INFO_GLOBALS:
-        case INFO_LOCALS:
-        case INFO_VARS: {
-            int mode;
-            switch (cmd) {
-                case INFO_GLOBALS: mode = JIM_VARLIST_GLOBALS; break;
-                case INFO_LOCALS:  mode = JIM_VARLIST_LOCALS; break;
-                case INFO_VARS:    mode = JIM_VARLIST_VARS; break;
-                default: mode = 0; /* avoid warning */; break;
-            }
-            if (argc != 2 && argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-                return JIM_ERR;
-            }
-            if (argc == 3)
-                Jim_SetResult(interp,JimVariablesList(interp, argv[2], mode));
-            else
-                Jim_SetResult(interp, JimVariablesList(interp, NULL, mode));
-            break;
+        exists = Jim_GetVariable(interp, argv[2], 0);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, exists != 0));
+    } else if (cmd == INFO_GLOBALS || cmd == INFO_LOCALS || cmd == INFO_VARS) {
+        int mode;
+        switch (cmd) {
+            case INFO_GLOBALS: mode = JIM_VARLIST_GLOBALS; break;
+            case INFO_LOCALS:  mode = JIM_VARLIST_LOCALS; break;
+            case INFO_VARS:    mode = JIM_VARLIST_VARS; break;
+            default: mode = 0; /* avoid warning */; break;
         }
-        case INFO_LEVEL: {
-            Jim_Obj *objPtr;
-            switch (argc) {
-                case 2:
-                    Jim_SetResult(interp,
-                                  Jim_NewIntObj(interp, interp->numLevels));
-                    break;
-                case 3:
-                    if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK)
-                        return JIM_ERR;
-                    Jim_SetResult(interp, objPtr);
-                    break;
-                default:
-                    Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
+        if (argc != 2 && argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
+            return JIM_ERR;
+        }
+        if (argc == 3)
+            Jim_SetResult(interp,JimVariablesList(interp, argv[2], mode));
+        else
+            Jim_SetResult(interp, JimVariablesList(interp, NULL, mode));
+    } else if (cmd == INFO_LEVEL) {
+        Jim_Obj *objPtr;
+        switch (argc) {
+            case 2:
+                Jim_SetResult(interp,
+                              Jim_NewIntObj(interp, interp->numLevels));
+                break;
+            case 3:
+                if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK)
                     return JIM_ERR;
-            }
-            break;
-        }
-        case INFO_BODY: {
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "procname");
+                Jim_SetResult(interp, objPtr);
+                break;
+            default:
+                Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
                 return JIM_ERR;
-            }
-            if (SetCommandFromAny(interp, argv[2]) != JIM_OK)
-                return JIM_ERR;
-            if (argv[2]->internalRep.cmdValue.cmdPtr->cmdProc != NULL) {
-                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-                Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "command \"", Jim_GetString(argv[2], NULL),
-                    "\" is not a procedure", NULL);
-                return JIM_ERR;
-            }
-            Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
-            break;
         }
-        case INFO_VERSION: {
-            char buf[(JIM_INTEGER_SPACE * 2) + 1];
-            sprintf(buf, "%d.%d", 
-                    JIM_VERSION / 100, JIM_VERSION % 100);
-            Jim_SetResultString(interp, buf, -1);
-            break;
+    } else if (cmd == INFO_BODY) {
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "procname");
+            return JIM_ERR;
         }
+        if (SetCommandFromAny(interp, argv[2]) != JIM_OK)
+            return JIM_ERR;
+        if (argv[2]->internalRep.cmdValue.cmdPtr->cmdProc != NULL) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                "command \"", Jim_GetString(argv[2], NULL),
+                "\" is not a procedure", NULL);
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
+    } else if (cmd == INFO_VERSION) {
+        char buf[(JIM_INTEGER_SPACE * 2) + 1];
+        sprintf(buf, "%d.%d", 
+                JIM_VERSION / 100, JIM_VERSION % 100);
+        Jim_SetResultString(interp, buf, -1);
+    } else if (cmd == INFO_COMPLETE) {
+        const char *s;
+        int len;
+
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "script");
+            return JIM_ERR;
+        }
+        s = Jim_GetString(argv[2], &len);
+        Jim_SetResult(interp,
+                Jim_NewIntObj(interp, Jim_ScriptIsComplete(s, len)));
     }
     return result;
 }
