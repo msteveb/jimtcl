@@ -23,6 +23,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <lmcons.h>
+#include <psapi.h>
 #include <ctype.h>
 
 #define JIM_EXTENSION
@@ -32,6 +33,7 @@
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "user32")
 #pragma comment(lib, "advapi32")
+#pragma comment(lib, "psapi")
 #endif /* _MSC_VER >= 1000 */
 
 __declspec(dllexport) int Jim_OnLoad(Jim_Interp *interp);
@@ -44,13 +46,13 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
     DWORD  dwLen = 0;
     
     dwLen = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER 
-	| FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwError, LANG_NEUTRAL,
-	(char *)&lpBuffer, 0, NULL);
+        | FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwError, LANG_NEUTRAL,
+        (char *)&lpBuffer, 0, NULL);
     if (dwLen < 1) {
         dwLen = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
-	    | FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY,
-	    "code 0x%1!08X!%n", 0, LANG_NEUTRAL,
-	    (char *)&lpBuffer, 0, (va_list *)&dwError);
+            | FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY,
+            "code 0x%1!08X!%n", 0, LANG_NEUTRAL,
+            (char *)&lpBuffer, 0, (va_list *)&dwError);
     }
     
     msgObj = Jim_NewStringObj(interp, szPrefix, -1);
@@ -59,8 +61,8 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
         for ( ; p && *p && isspace(*p); p--)
             ;
         *++p = 0;
-	Jim_AppendString(interp, msgObj, ": ", 2);
-	Jim_AppendString(interp, msgObj, lpBuffer, -1);
+        Jim_AppendString(interp, msgObj, ": ", 2);
+        Jim_AppendString(interp, msgObj, lpBuffer, -1);
     }
     LocalFree((HLOCAL)lpBuffer);
     return msgObj;
@@ -75,18 +77,18 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
     char cwd[MAX_PATH + 1];
     
     if (objc < 3 || objc > 4) {
-	Jim_WrongNumArgs(interp, 1, objv, "verb path ?parameters?");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "verb path ?parameters?");
+        return JIM_ERR;
     }
     verb = Jim_GetString(objv[1], NULL);
     file = Jim_GetString(objv[2], NULL);
     GetCurrentDirectoryA(MAX_PATH + 1, cwd);
     if (objc == 4) 
-	parm = Jim_GetString(objv[3], NULL);
+        parm = Jim_GetString(objv[3], NULL);
     r = (int)ShellExecuteA(NULL, verb, file, parm, cwd, SW_SHOWNORMAL);
     if (r < 33)
-	Jim_SetResult(interp, 
-	    Win32ErrorObj(interp, "ShellExecute", GetLastError()));
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "ShellExecute", GetLastError()));
     return (r < 33) ? JIM_ERR : JIM_OK;
 }
 
@@ -100,20 +102,20 @@ Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r = JIM_OK;
 
     if (objc < 2 || objc > 3) {
-	Jim_WrongNumArgs(interp, 1, objv, "title ?class?");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "title ?class?");
+        return JIM_ERR;
     }
     title = Jim_GetString(objv[1], NULL);
     if (objc == 3)
-	class = Jim_GetString(objv[2], NULL);
+        class = Jim_GetString(objv[2], NULL);
     hwnd = FindWindowA(class, title);
 
     if (hwnd == NULL) {
-	Jim_SetResult(interp, 
-	    Win32ErrorObj(interp, "FindWindow", GetLastError()));
-	r = JIM_ERR;
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "FindWindow", GetLastError()));
+        r = JIM_ERR;
     } else {
-	Jim_SetResult(interp, Jim_NewIntObj(interp, (long)hwnd));
+        Jim_SetResult(interp, Jim_NewIntObj(interp, (long)hwnd));
     }
     return r;
 }
@@ -157,14 +159,14 @@ Win32_SetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
     }
     r = Jim_GetLong(interp, objv[1], (long *)&hwnd);
     if (r == JIM_OK) {
-	old = SetActiveWindow(hwnd);
-	if (old == NULL) {
-	    Jim_SetResult(interp,
-		Win32ErrorObj(interp, "SetActiveWindow", GetLastError()));
-	    r = JIM_ERR;
-	} else {
-	    Jim_SetResult(interp, Jim_NewIntObj(interp, (long)old));
-	}
+        old = SetActiveWindow(hwnd);
+        if (old == NULL) {
+            Jim_SetResult(interp,
+                Win32ErrorObj(interp, "SetActiveWindow", GetLastError()));
+            r = JIM_ERR;
+        } else {
+            Jim_SetResult(interp, Jim_NewIntObj(interp, (long)old));
+        }
     }
     return r;
 }
@@ -181,11 +183,11 @@ Win32_SetForegroundWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
     }
     r = Jim_GetLong(interp, objv[1], (long *)&hwnd);
     if (r == JIM_OK) {
-	if (!SetForegroundWindow(hwnd)) {
-	    Jim_SetResult(interp,
-		Win32ErrorObj(interp, "SetForegroundWindow", GetLastError()));
-	    r = JIM_ERR;
-	}
+        if (!SetForegroundWindow(hwnd)) {
+            Jim_SetResult(interp,
+                Win32ErrorObj(interp, "SetForegroundWindow", GetLastError()));
+            r = JIM_ERR;
+        }
     }
     return r;
 }
@@ -197,20 +199,20 @@ Win32_Beep(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r = JIM_OK;
 
     if (objc != 3) {
-	Jim_WrongNumArgs(interp, 1, objv, "freq duration");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "freq duration");
+        return JIM_ERR;
     }
     r = Jim_GetLong(interp, objv[1], &freq);
     if (r == JIM_OK)
-	r = Jim_GetLong(interp, objv[2], &duration);
+        r = Jim_GetLong(interp, objv[2], &duration);
     if (freq < 0x25) freq = 0x25;
     if (freq > 0x7fff) freq = 0x7fff;
     if (r == JIM_OK) {
-	if (!Beep(freq, duration)) {
-	    Jim_SetResult(interp, 
-			  Win32ErrorObj(interp, "Beep", GetLastError()));
-	    r = JIM_ERR;
-	}
+        if (!Beep(freq, duration)) {
+            Jim_SetResult(interp, 
+                Win32ErrorObj(interp, "Beep", GetLastError()));
+            r = JIM_ERR;
+        }
     }
     return r;
 }
@@ -223,17 +225,17 @@ Win32_GetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r = JIM_OK;
 
     if (objc != 1) {
-	Jim_WrongNumArgs(interp, 1, objv, "");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "");
+        return JIM_ERR;
     }
 
     if (GetComputerNameA(name, &size)) {
-	Jim_Obj *nameObj = Jim_NewStringObj(interp, name, size);
-	Jim_SetResult(interp, nameObj);
+        Jim_Obj *nameObj = Jim_NewStringObj(interp, name, size);
+        Jim_SetResult(interp, nameObj);
     } else {
-	Jim_SetResult(interp, 
-	    Win32ErrorObj(interp, "GetComputerName", GetLastError()));
-	r = JIM_ERR;
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "GetComputerName", GetLastError()));
+        r = JIM_ERR;
     }
     
     return r;
@@ -247,22 +249,52 @@ Win32_GetUserName(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r = JIM_OK;
 
     if (objc != 1) {
-	Jim_WrongNumArgs(interp, 1, objv, "");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "");
+        return JIM_ERR;
     }
 
     if (GetUserNameA(name, &size)) {
-	Jim_Obj *nameObj = Jim_NewStringObj(interp, name, size);
-	Jim_SetResult(interp, nameObj);
+        Jim_Obj *nameObj = Jim_NewStringObj(interp, name, size);
+        Jim_SetResult(interp, nameObj);
     } else {
-	Jim_SetResult(interp, 
-	    Win32ErrorObj(interp, "GetUserName", GetLastError()));
-	r = JIM_ERR;
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "GetUserName", GetLastError()));
+        r = JIM_ERR;
     }
     
     return r;
 }
 
+static int
+Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HMODULE hModule = NULL;
+    char path[MAX_PATH];
+    DWORD len = 0;
+
+    if (objc > 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "?moduleid?");
+        return JIM_ERR;
+    }
+
+    if (objc == 2) {
+        if (Jim_GetLong(interp, objv[1], (long *)&hModule) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
+    len = GetModuleFileNameA(hModule, path, MAX_PATH);
+    if (len != 0) {
+        Jim_Obj *pathObj = Jim_NewStringObj(interp, path, len);
+        Jim_SetResult(interp, pathObj);
+    } else {
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "GetModuleFileName", GetLastError()));
+        return JIM_ERR;
+    }
+    
+    return JIM_OK;
+}
 
 static int
 Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -306,6 +338,43 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj **objv)
     return JIM_OK;
 }
 
+// FIX ME: win2k+
+static int
+Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    Jim_Obj *a[26];
+    size_t n = 0;
+    PERFORMANCE_INFORMATION pi;
+
+    if (!GetPerformanceInfo(&pi, sizeof(pi))) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "GetPerformanceInfo", GetLastError()));
+        return JIM_ERR;
+    }
+
+#define JIMADD(name) \
+    a[n++] = Jim_NewStringObj(interp, #name, -1); \
+    a[n++] = Jim_NewIntObj(interp, pi. ## name )
+
+    JIMADD(CommitTotal);
+    JIMADD(CommitLimit);
+    JIMADD(CommitPeak);
+    JIMADD(PhysicalTotal);
+    JIMADD(PhysicalAvailable);
+    JIMADD(SystemCache);
+    JIMADD(KernelTotal);
+    JIMADD(KernelPaged);
+    JIMADD(KernelNonpaged);
+    JIMADD(PageSize);
+    JIMADD(HandleCount);
+    JIMADD(ProcessCount);
+    JIMADD(ThreadCount);
+
+#undef JIMADD
+
+    Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
+    return JIM_OK;
+}
 
 static int
 Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -313,15 +382,78 @@ Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r = JIM_OK;
     char *name;
     if (objc != 2) {
-	Jim_WrongNumArgs(interp, 1, objv, "computername");
-	return JIM_ERR;
+        Jim_WrongNumArgs(interp, 1, objv, "computername");
+        return JIM_ERR;
     }
     name = Jim_GetString(objv[1], NULL);
     if (!SetComputerNameA(name)) {
-	Jim_SetResult(interp,
-	    Win32ErrorObj(interp, "SetComputerName", GetLastError()));
-	r = JIM_ERR;
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "SetComputerName", GetLastError()));
+        r = JIM_ERR;
     }
+    return r;
+}
+
+static int
+Win32_GetModuleHandle(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HMODULE hModule = NULL;
+    const char *name = NULL;
+
+    if (objc < 1 || objc >  2) {
+        Jim_WrongNumArgs(interp, 1, objv, "?name?");
+        return JIM_ERR;
+    }
+    if (objc == 2)
+        name = Jim_GetString(objv[1], NULL);
+    hModule = GetModuleHandleA(name);
+    if (hModule == NULL) {
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "GetModuleHandle", GetLastError()));
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (unsigned long)hModule));
+    return JIM_OK;
+}
+
+static int
+Win32_LoadLibrary(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HMODULE hLib = NULL;
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "path");
+        return JIM_ERR;
+    }
+    hLib = LoadLibraryA(Jim_GetString(objv[1], NULL));
+    if (hLib == NULL) {
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "LoadLibrary", GetLastError()));
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (unsigned long)hLib));
+    return JIM_OK;
+}
+
+static int
+Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    HMODULE hModule = NULL;
+    int r = JIM_OK;
+    
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "hmodule");
+        return JIM_ERR;
+    }
+    
+    r = Jim_GetLong(interp, objv[1], (long *)&hModule);
+    if (r == JIM_OK) {
+        if (!FreeLibrary(hModule)) {
+            Jim_SetResult(interp, 
+                Win32ErrorObj(interp, "FreeLibrary", GetLastError()));
+            r = JIM_ERR;
+        }
+    }
+    
     return r;
 }
 
@@ -346,9 +478,14 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetComputerName);
     CMD(SetComputerName);
     CMD(GetUserName);
+    CMD(GetModuleFileName);
     CMD(GetVersion);
     CMD(GetTickCount);
     CMD(GetSystemTime);
+    CMD(GetPerformanceInfo);
+    CMD(GetModuleHandle);
+    CMD(LoadLibrary);
+    CMD(FreeLibrary);
 
     return JIM_OK;
 }
