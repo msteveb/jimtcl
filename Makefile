@@ -15,8 +15,9 @@
 
 SHELL   = /bin/sh
 RM      = rm -f
+OPT     = -O2
 LDFLAGS = $(PROFILE)
-CFLAGS  = -Wall -Wwrite-strings -W -O2 -g $(PROFILE)
+CFLAGS  = -Wall -Wwrite-strings -W $(OPT) -g $(PROFILE)
 AR      = /usr/bin/ar
 RANLIB  = /usr/bin/ranlib
 LIBPATH =-L.
@@ -91,6 +92,11 @@ clog:
 commit:
 	cvs2cl
 	cvs commit
+
+bak:
+	cp -f jim.c jim.c.orig
+	cp -f jimsh.c jimsh.c.orig
+	cp -f jim.h jim.h.orig
 
 # Dependences
 jim-posix.o: jim-posix.c jim.h

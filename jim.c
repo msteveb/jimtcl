@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.113 2005/03/16 16:28:34 antirez Exp $
+ * $Id: jim.c,v 1.114 2005/03/17 07:22:03 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -471,10 +471,10 @@ void *Jim_Alloc(int size)
         Jim_Panic("Out of memory");
     return p;
 }
-#if 0
-#define Jim_Alloc(n) \
-    (printf("%d in %s:%d\n", n, __FILE__, __LINE__),_Jim_Alloc(n))
-#endif
+
+void Jim_Free(void *ptr) {
+    free(ptr);
+}
 
 void *Jim_Realloc(void *ptr, int size)
 {
@@ -1552,8 +1552,12 @@ char *JimParserGetToken(struct JimParserCtx *pc,
  * open and not completed. This is useful for interactive shells
  * implementation and for [info complete].
  *
+ * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
+ * '{' on scripts incomplete missing one or more '}' to be balanced.
+ * '"' on scripts incomplete missing a '"' char.
+ *
  * If the script is complete, 1 is returned, otherwise 0. */
-int Jim_ScriptIsComplete(const char *s, int len)
+int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
 {
     int level = 0;
     int state = ' ';
@@ -1590,6 +1594,8 @@ int Jim_ScriptIsComplete(const char *s, int len)
         s++;
         len--;
     }
+    if (stateCharPtr)
+        *stateCharPtr = state;
     return state == ' ';
 }
 
@@ -7448,6 +7454,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
 {
   interp->getApiFuncPtr = Jim_GetApi;
   JIM_REGISTER_API(Alloc);
+  JIM_REGISTER_API(Free);
   JIM_REGISTER_API(Eval);
   JIM_REGISTER_API(EvalGlobal);
   JIM_REGISTER_API(EvalFile);
@@ -9796,7 +9803,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         }
         s = Jim_GetString(argv[2], &len);
         Jim_SetResult(interp,
-                Jim_NewIntObj(interp, Jim_ScriptIsComplete(s, len)));
+                Jim_NewIntObj(interp, Jim_ScriptIsComplete(s, len, NULL)));
     }
     return result;
 }
@@ -9949,7 +9956,7 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
     char *val;
 
     if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "env varName");
+        Jim_WrongNumArgs(interp, 1, argv, "varName");
         return JIM_ERR;
     }
     key = Jim_GetString(argv[1], NULL);
@@ -10134,13 +10141,14 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
     int retcode = JIM_OK;
+    Jim_Obj *scriptObjPtr;
 
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.113 2005/03/16 16:28:34 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.114 2005/03/17 07:22:03 antirez Exp $\n");
     while (1) {
-        char prg[1024];
+        char buf[1024];
         const char *result;
         const char *retcodestr[] = {
             "ok", "error", "return", "break", "continue"
@@ -10155,8 +10163,26 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         } else
             printf(". ");
         fflush(stdout);
-        if (fgets(prg, 1024, stdin) == NULL) break;
-        retcode = Jim_Eval(interp, prg);
+        scriptObjPtr = Jim_NewStringObj(interp, "", 0);
+        Jim_IncrRefCount(scriptObjPtr);
+        while(1) {
+            const char *str;
+            char state;
+            int len;
+
+            if (fgets(buf, 1024, stdin) == NULL) {
+                Jim_DecrRefCount(interp, scriptObjPtr);
+                goto out;
+            }
+            Jim_AppendString(interp, scriptObjPtr, buf, -1);
+            str = Jim_GetString(scriptObjPtr, &len);
+            if (Jim_ScriptIsComplete(str, len, &state))
+                break;
+            printf("%c> ", state);
+            fflush(stdout);
+        }
+        retcode = Jim_EvalObj(interp, scriptObjPtr);
+        Jim_DecrRefCount(interp, scriptObjPtr);
         result = Jim_GetString(Jim_GetResult(interp), &reslen);
         if (retcode == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
@@ -10167,5 +10193,6 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             }
         }
     }
+out:
     return 0;
 }

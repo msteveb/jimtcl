@@ -1,3 +1,11 @@
+2005-03-16 17:28  antirez
+
+	* ChangeLog, jim-aio.c, jim.c, jim.h: [env] modified to just be
+	  able to read a specified var name form the environment, i.e. to
+	  be ANSI-C.
+
+	  Minor fix to AIO extension to use the new DelProc API.
+
 2005-03-16 17:06  patthoyts
 
 	* jim.c, jim.h: Added interpreter pointer to the command delete

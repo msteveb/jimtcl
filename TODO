@@ -62,3 +62,10 @@ REFERENCES SYSTEM
 API FUNCTIONS TO EXPORT
 
 - Jim_FormatString()
+
+
+RANDOM THINGS TO DO ASAP
+
+- .jimrc loading, using the ENV variable
+- [source]
+

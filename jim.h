@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.57 2005/03/16 16:28:34 antirez Exp $
+ * $Id: jim.h,v 1.58 2005/03/17 07:22:04 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -497,7 +497,6 @@ typedef struct Jim_Reference {
  * versions of Jim (as long as the API is still compatible.) */
 
 /* Macros are common for core and extensions */
-#define Jim_Free free
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
 #ifndef __JIM_CORE__
@@ -515,6 +514,7 @@ typedef struct Jim_Reference {
 
 /* Memory allocation */
 JIM_STATIC void * JIM_API(Jim_Alloc) (int size);
+JIM_STATIC void JIM_API(Jim_Free) (void *ptr);
 JIM_STATIC char * JIM_API(Jim_StrDup) (const char *s);
 
 /* evaluation */
@@ -708,7 +708,8 @@ JIM_STATIC void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
 JIM_STATIC int JIM_API(Jim_GetEnum) (Jim_Interp *interp, Jim_Obj *objPtr,
         const char **tablePtr, int *indexPtr, const char *name, int flags);
-JIM_STATIC int JIM_API(Jim_ScriptIsComplete) (const char *s, int len);
+JIM_STATIC int JIM_API(Jim_ScriptIsComplete) (const char *s, int len,
+        char *stateCharPtr);
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);
@@ -742,8 +743,8 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
 {
   Jim_GetApi = interp->getApiFuncPtr;
 
-  // Jim_Alloc = Jim_GetApi(interp, "Jim_Alloc");
   JIM_GET_API(Alloc);
+  JIM_GET_API(Free);
   JIM_GET_API(Eval);
   JIM_GET_API(EvalGlobal);
   JIM_GET_API(EvalFile);
