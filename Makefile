@@ -112,7 +112,9 @@ bak:
 	cp -f jim.h jim.h.orig
 
 # Dependences
+jim-aio.o: jim-aio.c jim.h
 jim-posix.o: jim-posix.c jim.h
+jim-sdl.o: jim-sdl.c jim.h
 jim-win32com.o: jim-win32com.c jim.h
 jim.o: jim.c jim.h
 jimsh.o: jimsh.c jim.h

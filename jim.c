@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.132 2005/03/28 17:47:15 antirez Exp $
+ * $Id: jim.c,v 1.133 2005/03/29 13:38:04 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1710,7 +1710,8 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     /* Check if the object was already freed, panic. */
     if (objPtr->refCount != 0)  {
-        Jim_Panic("!!!Object %p freed with refcount not 0!!!", objPtr);
+        Jim_Panic("!!!Object %p freed with bad refcount %d", objPtr,
+                objPtr->refCount);
     }
     /* Free the internal representation */
     Jim_FreeIntRep(interp, objPtr);
@@ -3089,9 +3090,9 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
     } else {
         var = nameObjPtr->internalRep.varValue.varPtr;
         if (var->linkFramePtr == NULL) {
+            Jim_IncrRefCount(valObjPtr);
             Jim_DecrRefCount(interp, var->objPtr);
             var->objPtr = valObjPtr;
-            Jim_IncrRefCount(valObjPtr);
         } else { /* Else handle the link */
             Jim_CallFrame *savedCallFrame;
 
@@ -3941,6 +3942,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->lastCollectId = 0;
     i->lastCollectTime = time(NULL);
     i->freeFramesList = NULL;
+    i->prngState = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -3994,6 +3996,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->references);
     Jim_FreeHashTable(&i->stub);
     Jim_FreeHashTable(&i->assocData);
+    Jim_Free(i->prngState);
     /* Free the call frames list */
     while(cf) {
         prevcf = cf->parentCallFrame;
@@ -4993,10 +4996,8 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
         goto err;
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
-    if (shared) {
-        if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
-            goto err;
-    }
+    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
+        goto err;
     Jim_SetResult(interp, varObjPtr);
     return JIM_OK;
 err:
@@ -5479,10 +5480,8 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
         goto err;
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
-    if (shared) {
-        if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
-            goto err;
-    }
+    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
+        goto err;
     Jim_SetResult(interp, varObjPtr);
     return JIM_OK;
 err:
@@ -7115,6 +7114,68 @@ err:
 }
 
 /* -----------------------------------------------------------------------------
+ * Pseudo Random Number Generation
+ * ---------------------------------------------------------------------------*/
+static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed,
+        int seedLen);
+
+/* Initialize the sbox with the numbers from 0 to 255 */
+static void JimPrngInit(Jim_Interp *interp)
+{
+    int i;
+    unsigned int seed[256];
+
+    interp->prngState = Jim_Alloc(sizeof(Jim_PrngState));
+    for (i = 0; i < 256; i++)
+        seed[i] = (rand() ^ time(NULL) ^ clock());
+    JimPrngSeed(interp, (unsigned char*) seed, sizeof(int)*256);
+}
+
+/* Generates N bytes of random data */
+static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len)
+{
+    Jim_PrngState *prng;
+    unsigned char *destByte = (unsigned char*) dest;
+    unsigned int si, sj, x;
+
+    /* initialization, only needed the first time */
+    if (interp->prngState == NULL)
+        JimPrngInit(interp);
+    prng = interp->prngState;
+    /* generates 'len' bytes of pseudo-random numbers */
+    for (x = 0; x < len; x++) {
+        prng->i = (prng->i+1) & 0xff;
+        si = prng->sbox[prng->i];
+        prng->j = (prng->j + si) & 0xff;
+        sj = prng->sbox[prng->j];
+        prng->sbox[prng->i] = sj;
+        prng->sbox[prng->j] = si;
+        *destByte++ = prng->sbox[(si+sj)&0xff];
+    }
+}
+
+/* Re-seed the generator with user-provided bytes */
+static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed,
+        int seedLen)
+{
+    int i;
+    unsigned char buf[256];
+    Jim_PrngState *prng;
+
+    /* initialization, only needed the first time */
+    if (interp->prngState == NULL)
+        JimPrngInit(interp);
+    prng = interp->prngState;
+
+    memset(prng->sbox, 0, 256);
+    for (i = 0; i < seedLen; i++)
+        prng->sbox[i&0xFF] ^= seed[i];
+    prng->i = prng->j = 0;
+    /* discard the first 256 bytes of stream. */
+    JimRandomBytes(interp, buf, 256);
+}
+
+/* -----------------------------------------------------------------------------
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
@@ -8430,7 +8491,6 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc,
     jim_wide wideValue, increment = 1;
     Jim_Obj *intObjPtr;
 
-    /* Common cases */
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "varName ?increment?");
         return JIM_ERR;
@@ -8451,6 +8511,11 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc,
         }
     } else {
         Jim_SetWide(interp, intObjPtr, wideValue+increment);
+        /* The following step is required in order to invalidate the
+         * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
+        if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
+            return JIM_ERR;
+        }
     }
     Jim_SetResult(interp, intObjPtr);
     return JIM_OK;
@@ -9247,11 +9312,10 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc,
         listObjPtr = Jim_DuplicateObj(interp, listObjPtr);
     for (i = 2; i < argc; i++)
         Jim_ListAppendElement(interp, listObjPtr, argv[i]);
-    if (shared) {
-        if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
+    if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
+        if (shared)
             Jim_FreeNewObj(interp, listObjPtr);
-            return JIM_ERR;
-        }
+        return JIM_ERR;
     }
     Jim_SetResult(interp, listObjPtr);
     return JIM_OK;
@@ -9378,11 +9442,10 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc,
         stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
     for (i = 2; i < argc; i++)
         Jim_AppendObj(interp, stringObjPtr, argv[i]);
-    if (shared) {
-        if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
+    if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
+        if (shared)
             Jim_FreeNewObj(interp, stringObjPtr);
-            return JIM_ERR;
-        }
+        return JIM_ERR;
     }
     Jim_SetResult(interp, stringObjPtr);
     return JIM_OK;
@@ -10796,6 +10859,43 @@ static int Jim_ScopeCoreCommand(Jim_Interp *interp, int argc,
     return retCode;
 }
 
+/* [rand] */
+static int Jim_RandCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    jim_wide min = 0, max, len, maxMul;
+
+    if (argc < 1 || argc > 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "?min? max");
+        return JIM_ERR;
+    }
+    if (argc == 1) {
+        max = JIM_WIDE_MAX;
+    } else if (argc == 2) {
+        if (Jim_GetWide(interp, argv[1], &max) != JIM_OK)
+            return JIM_ERR;
+    } else if (argc == 3) {
+        if (Jim_GetWide(interp, argv[1], &min) != JIM_OK ||
+            Jim_GetWide(interp, argv[2], &max) != JIM_OK)
+            return JIM_ERR;
+    }
+    len = max-min-1;
+    if (len < 0) {
+        Jim_SetResultString(interp, "Invalid arguments (max < min)", -1);
+        return JIM_ERR;
+    }
+    maxMul = JIM_WIDE_MAX - (JIM_WIDE_MAX%len);
+    while (1) {
+        jim_wide r;
+
+        JimRandomBytes(interp, &r, sizeof(jim_wide));
+        if (r < 0 || r >= maxMul) continue;
+        r = r%len;
+        Jim_SetResult(interp, Jim_NewIntObj(interp, min+r));
+        return JIM_OK;
+    }
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -10858,6 +10958,7 @@ static struct {
     {"lreverse", Jim_LreverseCoreCommand},
     {"range", Jim_RangeCoreCommand},
     {"scope", Jim_ScopeCoreCommand},
+    {"rand", Jim_RandCoreCommand},
     {NULL, NULL},
 };
 
@@ -10926,7 +11027,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.132 2005/03/28 17:47:15 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.133 2005/03/29 13:38:04 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

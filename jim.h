@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.63 2005/03/21 17:04:38 chi Exp $
+ * $Id: jim.h,v 1.64 2005/03/29 13:38:04 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -406,6 +406,12 @@ typedef struct Jim_Cmd {
     int arityMax; /* Max number of arguments. */
 } Jim_Cmd;
 
+/* Pseudo Random Number Generator State structure */
+typedef struct Jim_PrngState {
+    unsigned char sbox[256];
+    unsigned int i, j;
+} Jim_PrngState;
+
 /* -----------------------------------------------------------------------------
  * Jim interpreter structure.
  * Fields similar to the real Tcl interpreter structure have the same names.
@@ -452,6 +458,7 @@ typedef struct Jim_Interp {
     int (*getApiFuncPtr)(struct Jim_Interp *, const char *, void *);
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
+    Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
