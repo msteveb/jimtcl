@@ -1,3 +1,7 @@
+2005-04-02 10:54  antirez
+
+	* ChangeLog, jim.c: win32 opendir() and related compatibility API.
+
 2005-04-02 09:48  antirez
 
 	* ChangeLog, jim.c: fix for win32

@@ -35,7 +35,8 @@ stopit:
 	@echo "Use:"
 	@echo "make jim       - to build the Jim interpreter"
 	@echo "---"
-	@echo "make aio       - to build only the ANSI I/O extension"
+	@echo "make aio       - to build only the ANSI I/O extension (.SO)"
+	@echo "make aio-dll   - to build only the ANSI I/O extension (.DLL)"
 	@echo "---"
 	@echo "make unix-ext  - to build the AIO, POSIX and SDL extensions"
 	@echo "make posix     - to build only the POSIX extension"
@@ -44,6 +45,8 @@ stopit:
 	@echo "make win32-ext - to build the WIN32 and WIN32COM extensions"
 	@echo "make win32     - to build only the WIN32 extension"
 	@echo "make win32com  - to build only the WIN32COM extension"
+	@echo ""
+	@echo "Note, if 'make jim' does not work try 'make jim LIBS=\"\"'"
 
 all: $(DEFAULT_BUILD)
 
@@ -53,42 +56,42 @@ profile:
 .c.o:
 	$(CC) -I. $(CFLAGS) $(DEFS) -c $< -o $@
 
-.xo.so:
-	rm -f $@
-	$(LD) -G -z text -o $@ $< -ldl -lc
-
 .c.xo:
 	$(CC) -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
-.o.dll:
+jim-win32-1.0.dll: jim-win32.o
 	$(CC) -shared -o $@ $<
 
-jim-win32com.dll: jim-win32com.o
+jim-aio-1.0.dll: jim-aio.o
+	$(CC) -shared -o $@ $<
+
+jim-win32com-1.0.dll: jim-win32com.o
 	$(CC) -shared -o $@ $< -lole32 -luuid -loleaut32
+
+jim-aio-1.0.so: jim-aio.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc
+
+jim-posix-1.0.so: jim-posix.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
 jim-sdl.xo: jim-sdl.c
 	$(CC)  `sdl-config --cflags` -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
-jim-sdl.so: jim-sdl.xo
+jim-sdl-1.0.so: jim-sdl.xo
 	rm -f $@
-	$(LD) -G -z text -o $@ $< -ldl -lc -L/usr/local/lib -lSDL -lSDL_gfx -lpthread
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc -L/usr/local/lib -lSDL -lSDL_gfx -lpthread
 
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
 posix: jim-posix-1.0.so
 aio: jim-aio-1.0.so
+aio-dll: jim-aio-1.0.dll
 sdl: jim-sdl-1.0.so
 win32: jim-win32-1.0.dll
 win32com: jim-win32com-1.0.dll
 unix-extensions: posix aio sdl
 win32-extensions: win32 win32com
-
-jim-posix-1.0.so: jim-posix.xo
-jim-aio-1.0.so: jim-aio.xo
-jim-sdl-1.0.so: jim-sdl.xo
-jim-win32-1.0.dll: jim-win32.o
-jim-win32com-1.0.dll: jim-win32com.o
 
 clean:
 	$(RM) *.o *.so *.dll *.xo core .depend .*.swp gmon.out $(PROGRAMS)
