@@ -1,3 +1,7 @@
+2005-03-05 16:04  antirez
+
+	* ChangeLog, jim.c, jim.h: Solved a problem with Jim_Length()
+
 2005-03-05 16:01  antirez
 
 	* ChangeLog, Makefile, jim-aio.c, jim.c, jim.h: Initial version of

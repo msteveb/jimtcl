@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.1 2005/03/05 15:01:38 antirez Exp $
+ * $Id: jim-aio.c,v 1.2 2005/03/05 18:51:50 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +64,36 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
+        return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "seek")) {
+    /* SEEK */
+        int orig = SEEK_SET;
+        long offset;
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "offset ?origin?");
+            return JIM_ERR;
+        }
+        if (argc == 4) {
+            if (Jim_CompareStringImmediate(interp, argv[3], "start"))
+                orig = SEEK_SET;
+            else if (Jim_CompareStringImmediate(interp, argv[3], "current"))
+                orig = SEEK_CUR;
+            else if (Jim_CompareStringImmediate(interp, argv[3], "end"))
+                orig = SEEK_END;
+            else {
+                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+                Jim_AppendStrings(interp, Jim_GetResult(interp),
+                        "bad origin \"", Jim_GetString(argv[3], NULL),
+                        "\" must be: start, current, or end", NULL);
+                return JIM_ERR;
+            }
+        }
+        if (Jim_GetLong(interp, argv[2], &offset) != JIM_OK)
+            return JIM_ERR;
+        if (fseek(af->fp, offset, orig) == -1) {
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
         return JIM_OK;
     } else if (Jim_CompareStringImmediate(interp, argv[1], "gets")) {
     /* GETS */
