@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.39 2005/03/06 08:31:42 antirez Exp $
+ * $Id: jim.h,v 1.40 2005/03/06 10:43:06 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -163,7 +163,7 @@ typedef struct Jim_HashTable {
 typedef struct Jim_HashTableIterator {
     Jim_HashTable *ht;
     int index;
-    Jim_HashEntry *entry;
+    Jim_HashEntry *entry, *nextEntry;
 } Jim_HashTableIterator;
 
 /* This is the initial size of every hash table */

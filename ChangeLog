@@ -1,3 +1,7 @@
+2005-03-06 10:05  antirez
+
+	* ChangeLog, doc/AIO-Extension.txt: AIO doc update
+
 2005-03-06 10:03  antirez
 
 	* ChangeLog, doc/AIO-Extension.txt: Documentation for the AIO

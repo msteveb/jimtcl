@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.68 2005/03/06 08:31:42 antirez Exp $
+ * $Id: jim.c,v 1.69 2005/03/06 10:43:06 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -771,6 +771,7 @@ Jim_HashTableIterator *Jim_GetHashTableIterator(Jim_HashTable *ht)
     iterator->ht = ht;
     iterator->index = -1;
     iterator->entry = NULL;
+    iterator->nextEntry = NULL;
     return iterator;
 }
 
@@ -783,10 +784,14 @@ Jim_HashEntry *Jim_NextHashEntry(Jim_HashTableIterator *iterator)
                     (signed)iterator->ht->size) break;
             iterator->entry = iterator->ht->table[iterator->index];
         } else {
-            iterator->entry = iterator->entry->next;
+            iterator->entry = iterator->nextEntry;
         }
-        if (iterator->entry)
+        if (iterator->entry) {
+            /* We need to save the 'next' here, the iterator user
+             * may delete the entry we are returning. */
+            iterator->nextEntry = iterator->entry->next;
             return iterator->entry;
+        }
     }
     return NULL;
 }
