@@ -1,3 +1,8 @@
+2005-03-29 15:43  antirez
+
+	* ChangeLog, jim.c: First fix for [rand]. More later as there is an
+	  evident bias due to some programming error probably.
+
 2005-03-29 15:38  antirez
 
 	* ChangeLog, Makefile, jim.c, jim.h: A number of fix for commands

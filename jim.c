@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.134 2005/03/29 13:43:53 antirez Exp $
+ * $Id: jim.c,v 1.135 2005/03/29 14:03:44 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7167,9 +7167,17 @@ static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed,
         JimPrngInit(interp);
     prng = interp->prngState;
 
-    memset(prng->sbox, 0, 256);
-    for (i = 0; i < seedLen; i++)
-        prng->sbox[i&0xFF] ^= seed[i];
+    /* Set the sbox[i] with i */
+    for (i = 0; i < 256; i++)
+        prng->sbox[i] = i;
+    /* Now use the seed to perform a random permutation of the sbox */
+    for (i = 0; i < seedLen; i++) {
+        unsigned char t;
+
+        t = prng->sbox[i&0xFF];
+        prng->sbox[i&0xFF] = prng->sbox[seed[i]];
+        prng->sbox[seed[i]] = t;
+    }
     prng->i = prng->j = 0;
     /* discard the first 256 bytes of stream. */
     JimRandomBytes(interp, buf, 256);
@@ -11027,7 +11035,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.134 2005/03/29 13:43:53 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.135 2005/03/29 14:03:44 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
