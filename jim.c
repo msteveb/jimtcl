@@ -8122,7 +8122,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "bad option \"", Jim_GetString(argv[1], NULL), "\":",
-            " must be length, compare, match, equal, range",
+            " must be length, compare, match, equal, range, repeat",
             NULL);
         return JIM_ERR;
     }
@@ -8623,7 +8623,8 @@ int Jim_InteractivePrompt(void)
             Jim_PrintErrorMessage(interp);
         } else {
             if (reslen) {
-                printf("%s\n", result);
+                fwrite(result, 1, reslen, stdout);
+                printf("\n");
             }
         }
     }
