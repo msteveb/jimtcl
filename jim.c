@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.95 2005/03/12 08:52:56 antirez Exp $
+ * $Id: jim.c,v 1.96 2005/03/12 09:18:53 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1718,7 +1718,7 @@ void Jim_InitStringRep(Jim_Obj *objPtr, const char *bytes, int length)
     }
 }
 
-/* Duplicate an object. */
+/* Duplicate an object. The returned object has refcount = 0. */
 Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_Obj *dupPtr;
@@ -2040,8 +2040,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         fmt++; fmtLen--; /* skip '%' */
         if (*fmt != '%') {
             if (objc == 0) {
-                Jim_IncrRefCount(resObjPtr);
-                Jim_DecrRefCount(interp, resObjPtr);
+                Jim_FreeNewObj(interp, resObjPtr);
                 Jim_SetResultString(interp,
                         "not enough arguments for all format specifiers", -1);
                 return NULL;
@@ -2059,8 +2058,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
             break;
         default:
             spec[1] = *fmt; spec[2] = '\0';
-            Jim_IncrRefCount(resObjPtr);
-            Jim_DecrRefCount(interp, resObjPtr);
+            Jim_FreeNewObj(interp, resObjPtr);
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
                     "bad field specifier \"",  spec, "\"", NULL);
@@ -4900,8 +4898,7 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
     return JIM_OK;
 err:
     if (shared) {
-        Jim_IncrRefCount(varObjPtr);
-        Jim_DecrRefCount(interp, varObjPtr);
+        Jim_FreeNewObj(interp, varObjPtr);
     }
     return JIM_ERR;
 }
@@ -5199,8 +5196,7 @@ int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         }
     }
     if (i) {
-        Jim_IncrRefCount(objv[0]);
-        Jim_DecrRefCount(interp, objv[0]);
+        Jim_FreeNewObj(interp, objv[0]);
         objPtr->typePtr = NULL;
         Jim_FreeHashTable(ht);
         Jim_SetResultString(interp, "invalid dictionary value: must be a list with an even number of elements", -1);
@@ -5336,8 +5332,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
             return JIM_ERR;
         varObjPtr = objPtr = Jim_NewDictObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
-            Jim_IncrRefCount(varObjPtr);
-            Jim_DecrRefCount(interp, varObjPtr);
+            Jim_FreeNewObj(interp, varObjPtr);
             return JIM_ERR;
         }
     }
@@ -5387,8 +5382,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     return JIM_OK;
 err:
     if (shared) {
-        Jim_IncrRefCount(varObjPtr);
-        Jim_DecrRefCount(interp, varObjPtr);
+        Jim_FreeNewObj(interp, varObjPtr);
     }
     return JIM_ERR;
 }
@@ -7322,8 +7316,7 @@ ok:
     *resObjPtrPtr = resObjPtr;
     return retcode;
 err:
-    Jim_IncrRefCount(resObjPtr);
-    Jim_DecrRefCount(interp, resObjPtr);
+    Jim_FreeNewObj(interp, resObjPtr);
     retcode = JIM_ERR;
     goto ok;
 }
@@ -7778,8 +7771,7 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc,
     if (Jim_IsShared(intObjPtr)) {
         intObjPtr = Jim_NewIntObj(interp, wideValue+increment);
         if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-            Jim_IncrRefCount(intObjPtr);
-            Jim_DecrRefCount(interp, intObjPtr);
+            Jim_FreeNewObj(interp, intObjPtr);
             return JIM_ERR;
         }
     } else {
@@ -8094,8 +8086,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
             Jim_DecrRefCount(interp, varNamePtr);
             if (stopVarNamePtr) Jim_DecrRefCount(interp, stopVarNamePtr);
-            Jim_IncrRefCount(objPtr);
-            Jim_DecrRefCount(interp, objPtr);
+            Jim_FreeNewObj(interp, objPtr);
             goto evalstart;
         }
         while (1) {
@@ -8170,8 +8161,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
                     if (stopVarNamePtr)
                         Jim_DecrRefCount(interp, stopVarNamePtr);
                     Jim_DecrRefCount(interp, varNamePtr);
-                    Jim_IncrRefCount(auxObjPtr);
-                    Jim_DecrRefCount(interp, auxObjPtr);
+                    Jim_FreeNewObj(interp, auxObjPtr);
                     goto evalnext;
                 }
             }
@@ -8541,8 +8531,7 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc,
         /* Create the list if it does not exists */
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
-            Jim_IncrRefCount(listObjPtr);
-            Jim_DecrRefCount(interp, listObjPtr);
+            Jim_FreeNewObj(interp, listObjPtr);
             return JIM_ERR;
         }
     }
@@ -8553,8 +8542,7 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc,
         Jim_ListAppendElement(interp, listObjPtr, argv[i]);
     if (shared) {
         if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
-            Jim_IncrRefCount(listObjPtr);
-            Jim_DecrRefCount(interp, listObjPtr);
+            Jim_FreeNewObj(interp, listObjPtr);
             return JIM_ERR;
         }
     }
@@ -8589,8 +8577,7 @@ static int Jim_LinsertCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 err:
     if (listPtr != argv[1]) {
-        Jim_IncrRefCount(listPtr);
-        Jim_DecrRefCount(interp, listPtr);
+        Jim_FreeNewObj(interp, listPtr);
     }
     return JIM_ERR;
 }
@@ -8674,8 +8661,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc,
             stringObjPtr = Jim_NewEmptyStringObj(interp);
             if (Jim_SetVariable(interp, argv[1], stringObjPtr)
                     != JIM_OK) {
-                Jim_IncrRefCount(stringObjPtr);
-                Jim_DecrRefCount(interp, stringObjPtr);
+                Jim_FreeNewObj(interp, stringObjPtr);
                 return JIM_ERR;
             }
         }
@@ -8687,8 +8673,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc,
         Jim_AppendObj(interp, stringObjPtr, argv[i]);
     if (shared) {
         if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
-            Jim_IncrRefCount(stringObjPtr);
-            Jim_DecrRefCount(interp, stringObjPtr);
+            Jim_FreeNewObj(interp, stringObjPtr);
             return JIM_ERR;
         }
     }

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.48 2005/03/11 07:21:42 antirez Exp $
+ * $Id: jim.h,v 1.49 2005/03/12 09:18:53 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -295,6 +295,15 @@ typedef struct Jim_Obj {
     if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr)
 #define Jim_IsShared(objPtr) \
     ((objPtr)->refCount > 1)
+
+/* This macro is used when we allocate a new object using
+ * Jim_New...Obj(), but for some error we need to destroy it.
+ * Instead to use Jim_IncrRefCount() + Jim_DecrRefCount() we
+ * can just call Jim_FreeNewObj. To call Jim_Free directly
+ * seems too raw, the object handling may change and we want
+ * that Jim_FreeNewObj() can be called only against objects
+ * that are belived to have refcount == 0. */
+#define Jim_FreeNewObj Jim_FreeObj
 
 /* Free the internal representation of the object. */
 #define Jim_FreeIntRep(i,o) \

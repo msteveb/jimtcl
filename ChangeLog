@@ -1,3 +1,9 @@
+2005-03-12 09:52  antirez
+
+	* ChangeLog, README, jim.c: It's now possible to exclude
+	  compilation of dynamic loaded libraries commenting the JIM_DYNLIB
+	  define from the first lines of jim.c.
+
 2005-03-12 07:43  antirez
 
 	* ChangeLog, jim.c: Modified Jim_Free() to be more strict, now it
