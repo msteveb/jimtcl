@@ -1,3 +1,7 @@
+2005-03-13 18:43  antirez
+
+	* ChangeLog, jim.h: Max nesting depth modified to 10000
+
 2005-03-13 16:53  antirez
 
 	* ChangeLog, jim.c: [string first]. Tests still not added, until

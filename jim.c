@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.100 2005/03/13 15:53:51 antirez Exp $
+ * $Id: jim.c,v 1.101 2005/03/14 07:22:02 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8225,16 +8225,21 @@ out:
     return JIM_OK;
 }
 
-/* [foreach] */
-static int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+/* foreach + lmap implementation. */
+static int JimForeachMapHelper(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv, int doMap)
 {
     int result = JIM_ERR, i, nbrOfLists, *listsIdx, *listsEnd;
     int nbrOfLoops = 0;
-    Jim_Obj *emptyStr, *script;
+    Jim_Obj *emptyStr, *script, *mapRes = NULL;
+
     if (argc < 4 || argc % 2 != 0) {
         Jim_WrongNumArgs(interp, 1, argv, "varList list ?varList list ...? script");
         return JIM_ERR;
+    }
+    if (doMap) {
+        mapRes = Jim_NewListObj(interp, NULL, 0);
+        Jim_IncrRefCount(mapRes);
     }
     emptyStr = Jim_NewEmptyStringObj(interp);
     Jim_IncrRefCount(emptyStr);
@@ -8285,19 +8290,46 @@ static int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc,
             }
         }
         switch (result = Jim_EvalObj(interp, script)) {
-            case JIM_OK: case JIM_CONTINUE: break;
-            case JIM_BREAK: goto out; break;
-            default: goto err;
+            case JIM_OK:
+                if (doMap)
+                    Jim_ListAppendElement(interp, mapRes, interp->result);
+                break;
+            case JIM_CONTINUE:
+                break;
+            case JIM_BREAK:
+                goto out;
+                break;
+            default:
+                goto err;
         }
     }
 out:
     result = JIM_OK;
-    Jim_SetEmptyResult(interp);
+    if (doMap)
+        Jim_SetResult(interp, mapRes);
+    else
+        Jim_SetEmptyResult(interp);
 err:
+    if (doMap)
+        Jim_DecrRefCount(interp, mapRes);
     Jim_DecrRefCount(interp, emptyStr);
     Jim_Free(listsIdx);
     Jim_Free(listsEnd);
     return result;
+}
+
+/* [foreach] */
+static int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    return JimForeachMapHelper(interp, argc, argv, 0);
+}
+
+/* [lmap] */
+static int Jim_LmapCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    return JimForeachMapHelper(interp, argc, argv, 1);
 }
 
 /* [if] */
@@ -9833,6 +9865,7 @@ static struct {
     {"while", Jim_WhileCoreCommand},
     {"for", Jim_ForCoreCommand},
     {"foreach", Jim_ForeachCoreCommand},
+    {"lmap", Jim_LmapCoreCommand},
     {"if", Jim_IfCoreCommand},
     {"switch", Jim_SwitchCoreCommand},
     {"list", Jim_ListCoreCommand},

@@ -15,7 +15,7 @@ CORE COMMANDS
   are not lazy. Math functions are not present but probably will never
   be added as expr functions, but as Tcl commands, like [sin], [cos] and
   so on.
-- onleave commnad, executing something as soon as the current procedure
+- onleave command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
 
