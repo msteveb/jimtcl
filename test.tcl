@@ -1,4 +1,4 @@
-# * $Id: test.tcl,v 1.14 2005/03/04 12:32:21 antirez Exp $
+# $Id: test.tcl,v 1.15 2005/03/04 14:09:29 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.31 2005/03/04 12:32:21 antirez Exp $
+ * $Id: jim.h,v 1.32 2005/03/04 14:09:29 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -586,6 +586,10 @@ JIM_STATIC int JIM_API(Jim_SetVariableLink) (Jim_Interp *interp,
         Jim_CallFrame *targetCallFrame);
 JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
+JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariableStr) (Jim_Interp *interp,
+        const char *name, int flags);
+JIM_STATIC Jim_Obj * JIM_API(Jim_GetGlobalVariableStr) (Jim_Interp *interp,
+        const char *name, int flags);
 JIM_STATIC int JIM_API(Jim_UnsetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 
@@ -775,6 +779,8 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(Panic);
   JIM_GET_API(StrDup);
   JIM_GET_API(UnsetVariable);
+  JIM_GET_API(GetVariableStr);
+  JIM_GET_API(GetGlobalVariableStr);
 
   Jim_SetResultString(interp, version, -1);
 }

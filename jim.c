@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.52 2005/03/04 12:32:21 antirez Exp $
+ * $Id: jim.c,v 1.53 2005/03/04 14:09:29 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2969,7 +2969,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
     }
 }
 
-Jim_Obj *Jim_GetVariableString(Jim_Interp *interp, const char *name, int flags)
+Jim_Obj *Jim_GetVariableStr(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_Obj *nameObjPtr, *varObjPtr;
 
@@ -2978,6 +2978,20 @@ Jim_Obj *Jim_GetVariableString(Jim_Interp *interp, const char *name, int flags)
     varObjPtr = Jim_GetVariable(interp, nameObjPtr, flags);
     Jim_DecrRefCount(interp, nameObjPtr);
     return varObjPtr;
+}
+
+Jim_Obj *Jim_GetGlobalVariableStr(Jim_Interp *interp, const char *name,
+        int flags)
+{
+    Jim_CallFrame *savedFramePtr;
+    Jim_Obj *objPtr;
+
+    savedFramePtr = interp->framePtr;
+    interp->framePtr = interp->topFramePtr;
+    objPtr = Jim_GetVariableStr(interp, name, flags);
+    interp->framePtr = savedFramePtr;
+
+    return objPtr;
 }
 
 /* Unset a variable.
@@ -3661,7 +3675,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->unknown);
 
     /* Initialize key variables every interpreter should contain */
-    Jim_SetVariableString(i, "jim::libpath", "./ /usr/local/lib/jim");
+    Jim_SetVariableString(i, "jim.libpath", "./ /usr/local/lib/jim");
 
     /* Export the core API to extensions */
     JimRegisterCoreApi(i);
@@ -6106,7 +6120,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     void *handle;
     int (*onload)(Jim_Interp *interp);
 
-    libPathObjPtr = Jim_GetVariableString(interp, "jim::libpath", JIM_NONE);
+    libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim.libpath", JIM_NONE);
     if (libPathObjPtr == NULL) {
         prefixc = 0;
         libPathObjPtr = NULL;
@@ -7020,6 +7034,8 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(Panic);
   JIM_REGISTER_API(StrDup);
   JIM_REGISTER_API(UnsetVariable);
+  JIM_REGISTER_API(GetVariableStr);
+  JIM_REGISTER_API(GetGlobalVariableStr);
 }
 
 /* -----------------------------------------------------------------------------
