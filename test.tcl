@@ -2108,6 +2108,213 @@ catch {unset a}
 catch {unset x}
 
 ################################################################################
+# STRING MATCH                                                                 #
+################################################################################
+
+## string match
+##
+test string-11.1 {string match, too few args} {
+    proc foo {} {string match a}
+    list [catch {foo} msg] $msg
+} {1 {wrong # args: should be "string match ?-nocase? pattern string"}}
+test string-11.2 {string match, too many args} {
+    proc foo {} {string match a b c d}
+    list [catch {foo} msg] $msg
+} {1 {wrong # args: should be "string match ?-nocase? pattern string"}}
+test string-11.3 {string match} {
+    proc foo {} {string match abc abc}
+    foo
+} 1
+#test string-11.4 {string match} {
+#    proc foo {} {string mat abc abd}
+#    foo
+#} 0
+test string-11.5 {string match} {
+    proc foo {} {string match ab*c abc}
+    foo
+} 1
+test string-11.6 {string match} {
+    proc foo {} {string match ab**c abc}
+    foo
+} 1
+test string-11.7 {string match} {
+    proc foo {} {string match ab* abcdef}
+    foo
+} 1
+test string-11.8 {string match} {
+    proc foo {} {string match *c abc}
+    foo
+} 1
+test string-11.9 {string match} {
+    proc foo {} {string match *3*6*9 0123456789}
+    foo
+} 1
+test string-11.10 {string match} {
+    proc foo {} {string match *3*6*9 01234567890}
+    foo
+} 0
+test string-11.11 {string match} {
+    proc foo {} {string match a?c abc}
+    foo
+} 1
+test string-11.12 {string match} {
+    proc foo {} {string match a??c abc}
+    foo
+} 0
+test string-11.13 {string match} {
+    proc foo {} {string match ?1??4???8? 0123456789}
+    foo
+} 1
+test string-11.14 {string match} {
+    proc foo {} {string match {[abc]bc} abc}
+    foo
+} 1
+test string-11.15 {string match} {
+    proc foo {} {string match {a[abc]c} abc}
+    foo
+} 1
+test string-11.16 {string match} {
+    proc foo {} {string match {a[xyz]c} abc}
+    foo
+} 0
+test string-11.17 {string match} {
+    proc foo {} {string match {12[2-7]45} 12345}
+    foo
+} 1
+test string-11.18 {string match} {
+    proc foo {} {string match {12[ab2-4cd]45} 12345}
+    foo
+} 1
+test string-11.19 {string match} {
+    proc foo {} {string match {12[ab2-4cd]45} 12b45}
+    foo
+} 1
+test string-11.20 {string match} {
+    proc foo {} {string match {12[ab2-4cd]45} 12d45}
+    foo
+} 1
+test string-11.21 {string match} {
+    proc foo {} {string match {12[ab2-4cd]45} 12145}
+    foo
+} 0
+test string-11.22 {string match} {
+    proc foo {} {string match {12[ab2-4cd]45} 12545}
+    foo
+} 0
+test string-11.23 {string match} {
+    proc foo {} {string match {a\*b} a*b}
+    foo
+} 1
+test string-11.24 {string match} {
+    proc foo {} {string match {a\*b} ab}
+    foo
+} 0
+test string-11.25 {string match} {
+    proc foo {} {string match {a\*\?\[\]\\\x} "a*?\[\]\\x"}
+    foo
+} 1
+test string-11.26 {string match} {
+    proc foo {} {string match ** ""}
+    foo
+} 1
+test string-11.27 {string match} {
+    proc foo {} {string match *. ""}
+    foo
+} 0
+test string-11.28 {string match} {
+    proc foo {} {string match "" ""}
+    foo
+} 1
+test string-11.29 {string match} {
+    proc foo {} {string match \[a a}
+    foo
+} 1
+test string-11.31 {string match case} {
+    proc foo {} {string match a A}
+    foo
+} 0
+#test string-11.32 {string match nocase} {
+#    proc foo {} {string match -n a A}
+#    foo
+#} 1
+#test string-11.33 {string match nocase} {
+#    proc foo {} {string match -nocase a\334 A\374}
+#    foo
+#} 1
+test string-11.34 {string match nocase} {
+    proc foo {} {string match -nocase a*f ABCDEf}
+    foo
+} 1
+test string-11.35 {string match case, false hope} {
+    # This is true because '_' lies between the A-Z and a-z ranges
+    proc foo {} {string match {[A-z]} _}
+    foo
+} 1
+test string-11.36 {string match nocase range} {
+    # This is false because although '_' lies between the A-Z and a-z ranges,
+    # we lower case the end points before checking the ranges.
+    proc foo {} {string match -nocase {[A-z]} _}
+    foo
+} 0
+test string-11.37 {string match nocase} {
+    proc foo {} {string match -nocase {[A-fh-Z]} g}
+    foo
+} 0
+test string-11.38 {string match case, reverse range} {
+    proc foo {} {string match {[A-fh-Z]} g}
+    foo
+} 1
+test string-11.39 {string match, *\ case} {
+    proc foo {} {string match {*\abc} abc}
+    foo
+} 1
+test string-11.40 {string match, *special case} {
+    proc foo {} {string match {*[ab]} abc}
+    foo
+} 0
+test string-11.41 {string match, *special case} {
+    proc foo {} {string match {*[ab]*} abc}
+    foo
+} 1
+#test string-11.42 {string match, *special case} {
+#    proc foo {} {string match "*\\" "\\"}
+#    foo
+#} 0
+test string-11.43 {string match, *special case} {
+    proc foo {} {string match "*\\\\" "\\"}
+    foo
+} 1
+test string-11.44 {string match, *special case} {
+    proc foo {} {string match "*???" "12345"}
+    foo
+} 1
+test string-11.45 {string match, *special case} {
+    proc foo {} {string match "*???" "12"}
+    foo
+} 0
+test string-11.46 {string match, *special case} {
+    proc foo {} {string match "*\\*" "abc*"}
+    foo
+} 1
+test string-11.47 {string match, *special case} {
+    proc foo {} {string match "*\\*" "*"}
+    foo
+} 1
+test string-11.48 {string match, *special case} {
+    proc foo {} {string match "*\\*" "*abc"}
+    foo
+} 0
+test string-11.49 {string match, *special case} {
+    proc foo {} {string match "?\\*" "a*"}
+    foo
+} 1
+#test string-11.50 {string match, *special case} {
+#    proc foo {} {string match "\\" "\\"}
+#    foo
+#} 0
+
+
+################################################################################
 # FINAL REPORT
 ################################################################################
 

@@ -167,7 +167,7 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 		case '*':
 			while (pattern[1] == '*')
 				pattern++;
-			if (string[0] == '\0' || pattern[1] == '\0')
+			if (pattern[1] == '\0')
 				return 1; /* match */
 			while(string[0]) {
 				if (Jim_StringMatch(pattern+1, string, nocase))
@@ -203,6 +203,11 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 					   pattern[2] != '\0') {
 					int start = pattern[0];
 					int end = pattern[2];
+					if (start > end) {
+						int t = start;
+						start = end;
+						end = t;
+					}
 					int c = string[0];
 					if (nocase) {
 						start = tolower(start);
