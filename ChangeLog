@@ -1,0 +1,407 @@
+2005-03-04 12:54  antirez
+
+	* jim-posix.c, jim-win32.c, jim-win32com.c, jim.c, jim.h: Added
+	  JIM_NOTUSED macro. Macro used where appropriate.
+
+2005-03-04 11:47  antirez
+
+	* README, bench.tcl, jim.c, test.tcl: Small README change to
+	  reflect LIBS Makefile var.
+
+2005-03-04 11:06  patthoyts
+
+	* Makefile, jim-win32com.c, jim.c, jim.h: Use command line vars in
+	  the Makefile.  Make const quiet with gcc -Wwrite-strings Fixed
+	  macro usage in COM extension that gcc doesn't like.
+
+2005-03-04 10:45  antirez
+
+	* jim.c, test.tcl: [split] command added + tests.
+
+2005-03-04 09:30  antirez
+
+	* README, doc/Embedder-HOWTO.txt: Embedder-HOWTO added
+
+2005-03-04 09:03  antirez
+
+	* AUTHORS, README, TODO, bench.tcl, jim.h: more benchmarks. Initial
+	  size of hashtables modified.	Some documentation change.
+
+2005-03-03 23:10  antirez
+
+	* jim.c, test.tcl: [string map ?-nocase? ...] implemented. tests
+	  added.
+
+2005-03-03 17:41  antirez
+
+	* jim.c, jim.h: Missing functions exported
+
+2005-03-03 17:33  antirez
+
+	* jim.c, jim.h: RegisterCoreCommands now exported (broken in the
+	  last commit)
+
+2005-03-03 17:24  patthoyts
+
+	* jim-win32com.c: Added preliminary support for using typelibrary
+	  information
+
+2005-03-03 16:43  antirez
+
+	* jim.c: interactive prompt output binary safe (using fwrite
+	  instead of printf).
+
+2005-03-03 16:36  antirez
+
+	* jim.c: [string repeat] implemented.
+
+2005-03-03 16:30  antirez
+
+	* Makefile, jim.c, jim.h: Made exporting of symbols to the API less
+	  error prone with JIM_REGISTER_API and JIM_GET_API macros.
+
+2005-03-03 15:41  antirez
+
+	* Makefile, jim.h: improtant fix! jim error message visualization
+	  was broken because Jim_PrintErrorMessage() was not exported using
+	  the right funciton pointer.
+
+2005-03-03 14:13  antirez
+
+	* Makefile: Makefile dependences updated
+
+2005-03-03 14:10  antirez
+
+	* jim.c, jim.h: changes to the reference system. Now references
+	  string rep includes a 'tag' that makes interactive usage and
+	  debugging simpler.
+
+2005-03-03 12:01  antirez
+
+	* jim-posix.c, jim.h: Fixed a minor typo introduced with
+	  const-safeness patch.
+
+2005-03-03 11:34  antirez
+
+	* jim.c, jim.h: const removed from Jim_GetString().
+
+2005-03-03 04:29  patthoyts
+
+	* jim-win32.c, jim-win32com.c, jim.c, jim.h: Applied patches 363
+	  and 366 for const correctness to the win32 modules and jim.[ch]
+
+2005-03-03 04:11  patthoyts
+
+	* jim-win32com.c: Fixed my evil unicode type problem. Didn't do a
+	  good job with zero length unicode strings.
+
+2005-03-03 02:48  patthoyts
+
+	* jim-win32com.c, jim.c, jim.h: Exported the double object type to
+	  the API.  Paranoid cleanup of unicode object type internal
+	  representation.
+
+2005-03-02 23:50  antirez
+
+	* Makefile, README: more verbose README, a Makefile fix for mingw.
+
+2005-03-02 23:37  patthoyts
+
+	* README: Fixed some typos.
+
+2005-03-02 23:34  patthoyts
+
+	* Makefile.vc, jim-win32com.c, jim.c, jim.h: Moved the internal rep
+	  accessor macros and Jim_FreeIntRep into the header as they are
+	  useful to people writing new object types.  Enabled calling COM
+	  methods, some object type bugs cleaned.
+
+2005-03-02 23:29  antirez
+
+	* README, TODO, bench.tcl, jim.c: one more benchmark
+
+2005-03-02 20:29  antirez
+
+	* jimsh.c: jimsh added
+
+2005-03-02 20:27  antirez
+
+	* Makefile, jim-posix.c, jim-win32.c, jim-win32com.c, jim.c, jim.h:
+	  shell and library splitted. Now jim.c contains only the language
+	  implementation, while the shell is into jimsh.c, that is actually
+	  the first example of embedder of Jim.
+
+	  Important changes in jim.h to make Jim play well with
+	  extensions/embedders at the same time, and to deal with multiple
+	  files.
+
+	  Extensions now must define JIM_EXTENSION before to include jim.h,
+	  embedders must define JIM_EMBEDDED before to include jim.h.
+
+2005-03-02 18:05  antirez
+
+	* jim-posix.c, jim-win32.c, jim-win32com.c: removed JIM_EXTENSION
+	  define from extensions. Is no longer useful because only the core
+	  has to defile __JIM_CORE__.
+
+	  Added ctype.h in jim-win32com.c.
+
+2005-03-02 17:40  patthoyts
+
+	* Makefile.vc, jim-win32com.c, jim.h: Can now create and relese
+	  objects and use ole32.invoke to call propert get on them.  See
+	  the sample at the top of the file. NB: ONLY propget so far.
+
+2005-03-02 17:02  antirez
+
+	* jim.c: binary safe JimStringCompare and thus [string compare].
+	  Now [string compare] supports -nocase.
+
+2005-03-02 16:41  antirez
+
+	* jim.c, test.tcl: binary safe JimStringMatch()
+
+2005-03-02 15:20  antirez
+
+	* jim-win32.c: win32 compilation under mingw fixed,
+	  GetPerformanceInfo() is not available under mingw.
+
+2005-03-02 15:03  antirez
+
+	* jim.c: fix for [ Bug #3513 ] Jim crashed after dict sugar
+	  substitution in string
+
+2005-03-02 14:31  antirez
+
+	* jim.c, jim.h: JIM_LL_MODIFIER is now called JIM_WIDE_MODIFIER so
+	  that's set simply to "ld" if the system isn't 64bit capable. This
+	  allows to remove few ifdefs from jim.c.
+
+2005-03-02 13:36  antirez
+
+	* STYLE, bench.tcl, jim.c: non local literal sharing disabled.
+	  bench.tcl modified to be more verbose.
+
+2005-03-02 13:07  patthoyts
+
+	* bench.tcl, jim.c: Improved the [time] resolution on windows.
+
+2005-03-02 11:54  patthoyts
+
+	* jim-win32.c: Codified structure rep
+
+2005-03-02 11:46  patthoyts
+
+	* jim-win32.c: Whitespace police and added new APIs.
+	  GetPerformaceInfo, LoadLibary, GetModuleFileName, GetModuleHandle
+	  and FreeLibrary.
+
+2005-03-02 08:18  patthoyts
+
+	* jim-win32com.c: Slowly progressing.
+
+2005-03-02 00:49  antirez
+
+	* STYLE, jim.c, jim.h: A lot of changes to functions names of
+	  jim.c/h to reflect the STYLE file rules.  More functions exported
+	  to the visible API.
+
+2005-03-02 00:16  antirez
+
+	* STYLE: style bugs into the style document ;)
+
+2005-03-02 00:04  antirez
+
+	* STYLE: Style guidelines
+
+2005-03-01 23:54  antirez
+
+	* jim-posix.c, jim.c, jim.h: Indentation style changed to the new
+	  Jim standard 4 spaces. No tabs used at all.
+
+2005-03-01 23:07  antirez
+
+	* jim.c, test.tcl: removed a C99-ism
+
+2005-03-01 22:57  antirez
+
+	* jim.c, test.tcl: many string match tests added.
+
+2005-03-01 22:38  antirez
+
+	* TODO, jim.c: Fix to Jim_StringMatch. Still not embedded nuls
+	  safe.
+
+2005-03-01 16:55  antirez
+
+	* jim.c: Clemens's patch for foreach speed/memusage.
+
+2005-03-01 16:48  patthoyts
+
+	* Makefile, Makefile.vc, jim-win32com.c, jim.h: Added fledgling COM
+	  support for Win32. Unicode object and a Ole32 object types for
+	  managing ascii-unicode and IDispatch references.
+
+2005-03-01 16:22  antirez
+
+	* jim.c, jim.h: Change in design of the Jim STUBS system.  Should
+	  avoid problems on Solaris, and apperas to be generally more sane
+	  about exported symbols restriction.
+
+2005-02-28 20:29  antirez
+
+	* jim.c, test.tcl: Foreach command! Thanks to Clemens.	Also a
+	  patch about empty string and StringAppendString causing memory
+	  corruption, and a patch about Jim_WrongNumArgs that I modified
+	  because caused other tests to fail.
+
+2005-02-28 17:27  patthoyts
+
+	* jim-win32.c: A few more APIs and a macro for declaring them.
+
+2005-02-28 16:10  patthoyts
+
+	* jim-win32.c: Added some more API functions, Beep,
+	  GetComputerName, SetComputerName, GetUserName, GetVersion,
+	  GetTickCount, GetSystemTime.
+
+2005-02-28 13:31  antirez
+
+	* jim-win32.c: jim-win32 changes to fix the last commit.
+
+2005-02-28 13:29  antirez
+
+	* jim-win32.c: win32.CloseWindow added, ctype.h included in
+	  jim-win32.c
+
+2005-02-28 02:12  patthoyts
+
+	* Makefile.vc, jim-win32.c: Fixed line endings and added findwindow
+
+2005-02-28 01:44  antirez
+
+	* jim.c: literal sharing re-enabled after the Jim_DuplicateObj()
+	  fix.
+
+2005-02-28 01:43  antirez
+
+	* jim.c: Fixed a bug in Jim_DuplicateObj()
+
+2005-02-28 01:20  antirez
+
+	* jim.c, jim.h: Jim_Alloc/Free now really exported.  Literal
+	  sharing enabled in a more aggressive form.  New object for
+	  var/index substution.
+
+2005-02-27 23:57  antirez
+
+	* jim.c, jim.h: Jim_Alloc/Free exported to extensions.
+
+2005-02-27 23:35  antirez
+
+	* TODO, jim.c, jim.h: const added to Jim_NewStringObj
+
+2005-02-27 22:51  antirez
+
+	* Makefile: make clean now deletes *.dll too
+
+2005-02-27 22:49  antirez
+
+	* Makefile, README: documentation changes, makefile modified to
+	  build jim-win32.dll
+
+2005-02-27 22:17  antirez
+
+	* jim.c: other minor chage about 64bit printf modifer
+
+2005-02-27 22:04  antirez
+
+	* jim.h: mingw compilation fixes
+
+2005-02-27 21:30  antirez
+
+	* jim.c: warning about win32 dlopen wrapper suppressed with
+	  no-operation code.
+
+2005-02-27 18:06  antirez
+
+	* AUTHORS, BUGS, README, jim-posix.c, jim-win32.c, jim.c, jim.h:
+	  aritymin/aritymax information no longer used for C-coded
+	  commands.  API changed accordingly.
+
+2005-02-27 17:39  antirez
+
+	* jim-win32.c: win32 test extensiona added (thanks to Pat Thoyts)
+
+2005-02-27 17:05  antirez
+
+	* jim.c, test.tcl: more tests and a fix for [lindex $a $a $a]
+	  sharing hell.
+
+2005-02-27 15:23  antirez
+
+	* jim.c, test.tcl: more tests
+
+2005-02-27 15:04  antirez
+
+	* Makefile.vc, bench.tcl, jim.c, jim.h: Pat's patch for [load] on
+	  win32! Pat's match for nan/inf modified a bit.
+
+2005-02-27 14:07  antirez
+
+	* jim.c, jim.h, test.tcl: More test and fixes to pass this tests,
+	  mainly about upvar.
+
+2005-02-27 12:28  antirez
+
+	* TODO, jim.c, test.tcl: Now there is implicit subst in expr's
+	  strings like expr {"foo $i" eq $bar}.  More tests. A fix in the
+	  parsing code for line number calculation.
+
+2005-02-27 11:26  antirez
+
+	* BUGS, Makefile, jim.c: Fixed a bug in the parsing of
+	  <backslash><newline>. Now it's rendered as a single space.
+
+2005-02-27 10:57  antirez
+
+	* jim.c, jim.h: Clemens patch for macros sanity applied.
+
+2005-02-27 00:39  antirez
+
+	* jim.c: ifcorecommand indented using Jim's source style.
+
+2005-02-27 00:36  antirez
+
+	* jim.c: Pat <<< and >>> operators but converted to 32bit rotation.
+
+2005-02-27 00:04  antirez
+
+	* Makefile.vc: Makefile.vc with unix line endings
+
+2005-02-27 00:03  antirez
+
+	* Makefile.vc: removed to add it again without DOS line endings
+
+2005-02-26 23:43  antirez
+
+	* README, jim.c, jim.h: Pat's patch about callframe id type,
+	  strtoll casting and errno applied.
+
+2005-02-26 23:15  antirez
+
+	* jim.c, test.tcl: Clemem's patch fixing expressions containing
+	  newlines parsing.
+
+2005-02-26 21:14  antirez
+
+	* AUTHORS, BUGS, LICENSE, Makefile, Makefile.vc, README, TODO,
+	  bench.tcl, jim-posix.c, jim.c, jim.h, regtest.tcl, test.tcl:
+	  Initial import
+
+2005-02-26 21:14  antirez
+
+	* AUTHORS, BUGS, LICENSE, Makefile, Makefile.vc, README, TODO,
+	  bench.tcl, jim-posix.c, jim.c, jim.h, regtest.tcl, test.tcl:
+	  Initial revision
+
