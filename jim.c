@@ -3545,25 +3545,26 @@ void Jim_FreeInterp(Jim_Interp *i)
  * levelObjPtr into *framePtrPtr. If levelObjPtr == NULL, the
  * level is assumed to be '1'. */
 int Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
-		Jim_CallFrame **framePtrPtr)
+		Jim_CallFrame **framePtrPtr, int *newLevelPtr)
 {
 	long level;
 	char *str;
 	Jim_CallFrame *framePtr;
 
+	if (newLevelPtr) *newLevelPtr = interp->numLevels;
 	if (levelObjPtr) {
 		str = Jim_GetString(levelObjPtr, NULL);
 		if (str[0] == '#') {
 			char *endptr;
 			/* speedup for the toplevel (level #0) */
 			if (str[1] == '0' && str[2] == '\0') {
+				if (newLevelPtr) *newLevelPtr = 0;
 				*framePtrPtr = interp->topFramePtr;
 				return JIM_OK;
 			}
 
-			str++;
-			level = strtol(str, &endptr, 0);
-			if (str[0] == '\0' || endptr[0] != '\0' || level < 0)
+			level = strtol(str+1, &endptr, 0);
+			if (str[1] == '\0' || endptr[0] != '\0' || level < 0)
 				goto badlevel;
 			/* An 'absolute' level is converted into the
 			 * 'number of levels to go back' format. */
@@ -3575,10 +3576,12 @@ int Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 				goto badlevel;
 		}
 	} else {
+		str = "1"; /* Needed to format the error message. */
 		level = 1;
 	}
 	/* Lookup */
 	framePtr = interp->framePtr;
+	if (newLevelPtr) *newLevelPtr = (*newLevelPtr)-level;
 	while (level--) {
 		framePtr = framePtr->parentCallFrame;
 		if (framePtr == NULL) goto badlevel;
@@ -3586,7 +3589,9 @@ int Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 	*framePtrPtr = framePtr;
 	return JIM_OK;
 badlevel:
-	Jim_SetResultString(interp, "Bad level", -1);
+	Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+	Jim_AppendStrings(interp, Jim_GetResult(interp),
+			"bad level \"", str, "\"", NULL);
 	return JIM_ERR;
 }
 
@@ -6784,12 +6789,15 @@ static int Jim_InfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 {
 	Jim_CallFrame *targetCallFrame;
 
-	if (Jim_GetCallFrameByLevel(interp, levelObjPtr, &targetCallFrame)
+	if (Jim_GetCallFrameByLevel(interp, levelObjPtr, &targetCallFrame, NULL)
 			!= JIM_OK)
 		return JIM_ERR;
 	/* No proc call at toplevel callframe */
 	if (targetCallFrame == interp->topFramePtr) {
-		Jim_SetResultString(interp, "Bad level", -1);
+		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+		Jim_AppendStrings(interp, Jim_GetResult(interp),
+				"bad level \"",
+				Jim_GetString(levelObjPtr, NULL), "\"", NULL);
 		return JIM_ERR;
 	}
 	*objPtrPtr = Jim_NewListObj(interp,
@@ -7413,7 +7421,7 @@ int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 {
 	if (argc >= 2) {
-		int retcode;
+		int retcode, newLevel, oldLevel;
 		Jim_CallFrame *savedCallFrame, *targetCallFrame;
 		Jim_Obj *objPtr;
 		char *str;
@@ -7423,21 +7431,31 @@ int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 
 		/* Lookup the target frame pointer */
 		str = Jim_GetString(argv[1], NULL);
-		if (argc >= 3 && 
-		    ((str[0] >= '0' && str[0] <= '9') || str[0] == '#'))
+		if ((str[0] >= '0' && str[0] <= '9') || str[0] == '#')
 		{
 			if (Jim_GetCallFrameByLevel(interp, argv[1],
-						&targetCallFrame) != JIM_OK)
+						&targetCallFrame,
+						&newLevel) != JIM_OK)
 				return JIM_ERR;
 			argc--;
 			argv++;
 		} else {
 			if (Jim_GetCallFrameByLevel(interp, NULL,
-						&targetCallFrame) != JIM_OK)
+						&targetCallFrame,
+						&newLevel) != JIM_OK)
 				return JIM_ERR;
+		}
+		if (argc < 2) {
+			argc++;
+			argv--;
+			Jim_WrongNumArgs(interp, 1, argv,
+					"?level? command ?arg ...?");
+			return JIM_ERR;
 		}
 		/* Eval the code in the target callframe. */
 		interp->framePtr = targetCallFrame;
+		oldLevel = interp->numLevels;
+		interp->numLevels = newLevel;
 		if (argc == 2) {
 			retcode = Jim_EvalObj(interp, argv[1]);
 		} else {
@@ -7446,10 +7464,11 @@ int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 			retcode = Jim_EvalObj(interp, objPtr);
 			Jim_DecrRefCount(interp, objPtr);
 		}
+		interp->numLevels = oldLevel;
 		interp->framePtr = savedCallFrame;
 		return retcode;
 	} else {
-		Jim_WrongNumArgs(interp, 1, argv, "?level? script ?...?");
+		Jim_WrongNumArgs(interp, 1, argv, "?level? command ?arg ...?");
 		return JIM_ERR;
 	}
 }
@@ -7572,13 +7591,13 @@ int Jim_UpvarCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	    ((str[0] >= '0' && str[0] <= '9') || str[0] == '#'))
 	{
 		if (Jim_GetCallFrameByLevel(interp, argv[1],
-					&targetCallFrame) != JIM_OK)
+					&targetCallFrame, NULL) != JIM_OK)
 			return JIM_ERR;
 		argc--;
 		argv++;
 	} else {
 		if (Jim_GetCallFrameByLevel(interp, NULL,
-					&targetCallFrame) != JIM_OK)
+					&targetCallFrame, NULL) != JIM_OK)
 			return JIM_ERR;
 	}
 	/* Check for arity */

@@ -502,7 +502,7 @@ int JIM_API(Jim_UnsetVariable) (Jim_Interp *interp, Jim_Obj *nameObjPtr,
 
 /* call frame */
 int JIM_API(Jim_GetCallFrameByLevel) (Jim_Interp *interp, Jim_Obj *levelObjPtr,
-                Jim_CallFrame **framePtrPtr);
+                Jim_CallFrame **framePtrPtr, int *newLevelPtr);
 
 /* garbage collection */
 int JIM_API(Jim_Collect) (Jim_Interp *interp);
