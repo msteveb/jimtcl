@@ -1,0 +1,45 @@
+This file summarize the C style used for Jim.
+Copyright (C) 2005 Salvatore Sanfilippo.
+
+-----------
+INDENTATION
+-----------
+
+indentation is 4 spaces, no smart-tabs are used (i.e.
+two indentation steps of 4 spaces will not be converted
+into a real tab, but 8 spaces).
+
+---------------
+FUNCTIONS NAMES
+---------------
+
+Functions names of exported functions are in the form:
+
+Jim_ExportedFunctionName()
+
+The prefix is "Jim_", every word composing the function name
+is capitalized.
+
+Non exported functions are also capitalized, but in such
+a case the prefix is just "Jim", like in
+
+JimNotExportedFunction()
+
+---------------
+VARIABLES NAMES
+---------------
+
+Global variables follow the same names convention of functions.
+
+Local variables have usually short names. A counter is just 'i', or 'j',
+or something like this. When a longer name is required, composed of
+more words, capitalization is used, but the first word starts in
+lowcase:
+
+thisIsALogVarName
+
+----------
+C FEATURES
+----------
+
+Only C89 ANSI C is allowed. C99 features can't be used currently.
