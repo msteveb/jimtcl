@@ -61,4 +61,7 @@ bench: jim
 	./jim bench.tcl
 
 # Dependences
+jim-posix.o: jim-posix.c jim.h
+jim-win32com.o: jim-win32com.c jim.h
 jim.o: jim.c jim.h
+jimsh.o: jimsh.c jim.h
