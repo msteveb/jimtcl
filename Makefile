@@ -46,9 +46,12 @@ extensions: posix
 clean:
 	rm -f *.o *.so core .depend .*.swp $(PROGRAMS) gmon.out
 
-test:
+test: jim
 	./jim test.tcl
 	./jim regtest.tcl
+
+bench: jim
+	./jim bench.tcl
 
 # Dependences
 jim.o: jim.c jim.h

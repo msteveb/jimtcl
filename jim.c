@@ -1334,6 +1334,7 @@ static int Jim_Escape(char *dest, char *s, int slen)
 			case 't': *p++ = 0x9; i++; break;
 			case 'v': *p++ = 0xb; i++; break;
 			case '\0': *p++ = '\\'; i++; break;
+			case '\n': *p++ = ' '; i++; break;
 			default:
 				  if (s[i+1] == 'x') {
 					int val = 0;
