@@ -457,9 +457,16 @@ char *Jim_StrDupLen(char *s, int l)
 /* Returns microseconds of CPU used since start. */
 static long JimClock(void)
 {
+#ifdef WIN32
+    LARGE_INTEGER t, f;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&t);
+    return (long)((t.QuadPart * 1000000) / f.QuadPart);
+#else /* ! WIN32 */
     clock_t clocks = clock();
 
     return (long)(clocks*(1000000/CLOCKS_PER_SEC));
+#endif /* WIN32 */
 }
 
 /* -----------------------------------------------------------------------------

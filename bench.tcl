@@ -2,7 +2,8 @@ proc bench {title script} {
     while {[string length $title] < 20} {
 	append title " "
     }
-    puts "$title - [time $script]"
+    catch {time $script} res
+    puts "$title - $res"
 }
 
 ### BUSY LOOP ##################################################################
