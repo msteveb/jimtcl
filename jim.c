@@ -1812,7 +1812,8 @@ void StringAppendString(Jim_Obj *objPtr, char *str, int len)
 	if (len == -1)
 		len = strlen(str);
 	needlen = objPtr->length + len;
-	if (objPtr->internalRep.strValue.maxLength < needlen) {
+	if (objPtr->internalRep.strValue.maxLength < needlen ||
+	    objPtr->internalRep.strValue.maxLength == 0) {
 		if (objPtr->bytes == JimEmptyStringRep) {
 			objPtr->bytes = Jim_Alloc((needlen*2)+1);
 		} else {
@@ -6885,7 +6886,8 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj **argv, char *msg)
 	Jim_AppendString(interp, objPtr, "wrong # args: should be \"", -1);
 	for (i = 0; i < argc; i++) {
 		Jim_AppendObj(interp, objPtr, argv[i]);
-		Jim_AppendString(interp, objPtr, " ", 1);
+		if (!(i+1 == argc && msg[0] == '\0'))
+			Jim_AppendString(interp, objPtr, " ", 1);
 	}
 	Jim_AppendString(interp, objPtr, msg, -1);
 	Jim_AppendString(interp, objPtr, "\"", 1);
@@ -7244,6 +7246,72 @@ int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 out:
 	Jim_SetEmptyResult(interp);
 	return JIM_OK;
+}
+
+/* [foreach] */
+int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
+{
+	int result = JIM_ERR, i, any, nbrOfLists, *listsIdx, *listsEnd;
+	Jim_Obj *emptyStr, *script;
+	if (argc < 4 || argc % 2 != 0) {
+		Jim_WrongNumArgs(interp, 1, argv, "varList list ?varList list ...? script");
+		return JIM_ERR;
+	}
+	emptyStr = Jim_NewEmptyStringObj(interp);
+	Jim_IncrRefCount(emptyStr);
+	script = argv[argc-1];        /* Last argument is a script */
+	nbrOfLists = (argc - 1 - 1);  /* argc - 'foreach' - script */
+	listsIdx = (int*)Jim_Alloc(nbrOfLists * sizeof(int));
+	listsEnd = (int*)Jim_Alloc(nbrOfLists * sizeof(int));
+	/* Initialize iterators and remember max nbr elements each list */
+	for (i=0; i < nbrOfLists; ++i) {
+		listsIdx[i] = 0;       /* Each list begins with at index ZERO */
+		Jim_ListLength(interp, argv[i+1], &listsEnd[i]);
+		if (i%2 == 0 && listsEnd[i] == 0) {
+			Jim_SetResultString(interp, "foreach varlist is empty", -1);
+			goto err;
+		}
+	}
+	for (;;) {
+		/* Check if there is really anything to do */
+		for (i=1, any=0; !any && i < nbrOfLists; i+= 2)
+			any = listsIdx[i] < listsEnd[i];
+		if (!any) goto out;
+		for (i=0; i < nbrOfLists; i += 2) {
+			int varIdx = 0;
+			while (varIdx < listsEnd[i]) {
+				Jim_Obj *varName, *ele;
+				if (Jim_ListIndex(interp, argv[i+1], varIdx, &varName, JIM_ERRMSG) != JIM_OK)
+						goto err;
+				if (listsIdx[i+1] < listsEnd[i+1]) {
+					if (Jim_ListIndex(interp, argv[i+2], listsIdx[i+1], &ele, JIM_ERRMSG) != JIM_OK)
+						goto err;
+					if (Jim_SetVariable(interp, varName, ele) != JIM_OK) {
+						Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
+						goto err;
+					}
+					++listsIdx[i+1];  /* Remember next iterator of current list */ 
+				} else if (Jim_SetVariable(interp, varName, emptyStr) != JIM_OK) {
+					Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
+					goto err;
+				}
+				++varIdx;  /* Next variable */
+			}
+		}
+		switch (result = Jim_EvalObj(interp, script)) {
+			case JIM_OK: case JIM_CONTINUE: break;
+			case JIM_BREAK: goto out; break;
+			default: goto err;
+		}
+	}
+out:
+	result = JIM_OK;
+	Jim_SetEmptyResult(interp);
+err:
+	Jim_DecrRefCount(interp, emptyStr);
+	Jim_Free(listsIdx);
+	Jim_Free(listsEnd);
+	return result;
 }
 
 /* [if] */
@@ -8156,6 +8224,7 @@ struct {
 	{"incr", Jim_IncrCoreCommand},
 	{"while", Jim_WhileCoreCommand},
 	{"for", Jim_ForCoreCommand},
+ 	{"foreach", Jim_ForeachCoreCommand},
 	{"if", Jim_IfCoreCommand},
 	{"list", Jim_ListCoreCommand},
 	{"lindex", Jim_LindexCoreCommand},

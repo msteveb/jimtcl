@@ -1933,6 +1933,179 @@ test lindex-16.3 {data reuse} {
 catch { unset lindex}
 catch { unset minus }
 
+################################################################################
+# LINDEX
+################################################################################
+
+catch {unset a}
+catch {unset x}
+
+# Basic "foreach" operation.
+
+test foreach-13.1 {basic foreach tests} {
+	set a {}
+	foreach i {a b c d} {
+		set a [concat $a $i]
+	}
+	set a
+} {a b c d}
+test foreach-13.2 {basic foreach tests} {
+  set a {}
+  foreach i {a b {{c d} e} {123 {{x}}}} {
+		set a [concat $a $i]
+	}
+  set a
+} {a b {c d} e 123 {{x}}}
+test foreach-13.3 {basic foreach tests} {catch {foreach} msg} 1
+test foreach-13.4 {basic foreach tests} {catch {foreach i} msg} 1
+test foreach-13.5 {basic foreach tests} {catch {foreach i j} msg} 1
+test foreach-13.6 {basic foreach tests} {catch {foreach i j k l} msg} 1
+test foreach-13.7 {basic foreach tests} {
+  set a {}
+  foreach i {} {
+		set a [concat $a $i]
+	}
+  set a
+} {}
+catch {unset a}
+test foreach-13.10 {foreach errors} {
+    list [catch {foreach {} {} {}} msg] $msg
+} {1 {foreach varlist is empty}}
+catch {unset a}
+
+test foreach-13.20 {parallel foreach tests} {
+  set x {}
+  foreach {a b} {1 2 3 4} {
+		append x $b $a
+	}
+  set x
+} {2143}
+test foreach-13.21 {parallel foreach tests} {
+  set x {}
+  foreach {a b} {1 2 3 4 5} {
+		append x $b $a
+  }
+	set x
+} {21435}
+test foreach-13.22 {parallel foreach tests} {
+  set x {}
+  foreach a {1 2 3} b {4 5 6} {
+		append x $b $a
+	}
+  set x
+} {415263}
+test foreach-13.23 {parallel foreach tests} {
+  set x {}
+  foreach a {1 2 3} b {4 5 6 7 8} {
+		append x $b $a
+	}
+  set x
+} {41526378}
+test foreach-13.24 {parallel foreach tests} {
+  set x {}
+  foreach {a b} {a b A B aa bb} c {c C cc CC} {
+		append x $a $b $c
+	}
+  set x
+} {abcABCaabbccCC}
+test foreach-13.25 {parallel foreach tests} {
+  set x {}
+  foreach a {1 2 3} b {1 2 3} c {1 2 3} d {1 2 3} e {1 2 3} {
+		append x $a $b $c $d $e
+  }
+	set x
+} {111112222233333}
+test foreach-13.26 {parallel foreach tests} {
+  set x {}
+  foreach a {} b {1 2 3} c {1 2} d {1 2 3 4} e {{1 2}} {
+		append x $a $b $c $d $e
+  }
+	set x
+} {1111 2222334}
+test foreach-13.27 {foreach only sets vars if repeating loop} {
+  proc foo {} {
+		set rgb {65535 0 0}
+		foreach {r g b} [set rgb] {}
+		return "r=$r, g=$g, b=$b"
+	}
+	foo
+} {r=65535, g=0, b=0}
+test foreach-13.28 {foreach supports dict syntactic sugar} {
+	proc foo {} {
+    set x {}
+    foreach {a(3)} {1 2 3 4} {lappend x [set {a(3)}]}
+		list $a $x
+	}
+	foo
+} {{3 4} {1 2 3 4}}
+
+test foreach-13.29 {noncompiled foreach and shared variable or value list objects that are converted to another type} {
+  catch {unset x}
+  foreach {12.0} {a b c} {
+    set x 12.0  
+    set x [expr $x + 1]
+  }
+  set x
+} 13.0
+
+# Check "continue".
+
+test foreach-13.40 {continue tests} {catch continue} 4
+test foreach-13.41 {continue tests} {
+  set a {}
+  foreach i {a b c d} {
+		if {[string compare $i "b"] == 0} continue
+		set a [concat $a $i]
+	}
+   set a
+} {a c d}
+test foreach-13.42 {continue tests} {
+	set a {}
+  foreach i {a b c d} {
+		if {[string compare $i "b"] != 0} continue
+		set a [concat $a $i]
+	}
+  set a
+} {b}
+test foreach-13.43 {continue tests} {catch {continue foo} msg} 1
+test foreach-13.44 {continue tests} {
+	catch {continue foo} msg
+  set msg
+} {wrong # args: should be "continue"}
+
+# Check "break".
+
+test foreach-13.50 {break tests} {catch break} 3
+test foreach-13.51 {break tests} {
+  set a {}
+	foreach i {a b c d} {
+		if {[string compare $i "c"] == 0} break
+		set a [concat $a $i]
+	}
+  set a
+} {a b}
+test foreach-13.52 {break tests} {catch {break foo} msg} 1
+test foreach-13.53 {break tests} {
+  catch {break foo} msg
+  set msg
+} {wrong # args: should be "break"}
+
+# Test for incorrect "double evaluation" semantics
+
+test foreach-13.60 {delayed substitution of body - knownbugs} {
+  proc foo {} {
+    set a 0
+    foreach a [list 1 2 3] "
+      set x $a
+    "
+    set x
+  }
+  foo
+} {0}
+
+# cleanup
+catch {unset a}
+catch {unset x}
 
 ################################################################################
 # FINAL REPORT
