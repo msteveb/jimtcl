@@ -1,3 +1,16 @@
+2005-03-14 17:36  patthoyts
+
+	* jim-win32.c: Added a bunch of cursor handling apis
+
+2005-03-14 17:35  patthoyts
+
+	* jim.c: const police
+
+2005-03-14 15:39  antirez
+
+	* ChangeLog, jim.c, jim.h: 'iterator' argument modified to 'iter'
+	  for C++ STL safety.
+
 2005-03-14 14:11  antirez
 
 	* ChangeLog, jim.c, jim.h: more fixes to allow inclusion of jim.h
