@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.149 2005/04/06 14:16:56 patthoyts Exp $
+ * $Id: jim.c,v 1.150 2005/04/06 18:20:00 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2226,7 +2226,7 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "bad ", name, " \"", Jim_GetString(objPtr, NULL), "\": must be one of ",
             NULL);
-        tablePtrSorted = malloc(sizeof(char*)*count);
+        tablePtrSorted = Jim_Alloc(sizeof(char*)*count);
         memcpy(tablePtrSorted, tablePtr, sizeof(char*)*count);
         qsort(tablePtrSorted, count, sizeof(char*), qsortCompareStringPointers);
         for (i = 0; i < count; i++) {
@@ -3961,32 +3961,6 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
  * Interpreter related functions
  * ---------------------------------------------------------------------------*/
 
-static int
-AppendExePath(Jim_Interp *interp, Jim_Obj *objPtr)
-{
-#ifdef _WIN32
-    char path[MAX_PATH], dst[MAX_PATH], *p;
-    int nsrc = 0, ndst = 0;
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-    if ((p = strrchr(path, '\\')) != NULL)
-        *p = 0;
-    dst[ndst++] = 32;
-    for (nsrc = 0; nsrc < MAX_PATH && path[nsrc]; nsrc++) {
-        switch (path[nsrc]) {
-            case '\\': dst[ndst++] = '/'; break;
-            case ' ': dst[ndst++] = '\\'; dst[ndst++] = ' '; break;
-            case '/': dst[ndst++] = '\\'; dst[ndst++] = '/'; break;
-            default:  dst[ndst++] = path[nsrc]; break;
-        }
-    }
-    dst[ndst++] = 0;
-    Jim_AppendString(interp, objPtr, dst, -1);
-#else
-    Jim_AppendString(interp, objPtr, " /usr/local/lib/jim/", -1);
-#endif
-    return JIM_OK;
-}
-
 Jim_Interp *Jim_CreateInterp(void)
 {
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
@@ -4029,7 +4003,6 @@ Jim_Interp *Jim_CreateInterp(void)
 
     /* Initialize key variables every interpreter should contain */
     pathPtr = Jim_NewStringObj(i, "./", -1);
-    AppendExePath(i, pathPtr);
     Jim_SetVariableStr(i, "jim_libpath", pathPtr);
     Jim_SetVariableStrWithStr(i, "jim_interactive", "0");
 
@@ -7628,7 +7601,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int ver,
         Jim_ListLength(interp, libPathObjPtr, &prefixc);
     }
 
-    prefixes = malloc(sizeof(char*)*prefixc);
+    prefixes = Jim_Alloc(sizeof(char*)*prefixc);
     for (i = 0; i < prefixc; i++) {
             Jim_Obj *prefixObjPtr;
             if (Jim_ListIndex(interp, libPathObjPtr, i,
@@ -11462,7 +11435,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.149 2005/04/06 14:16:56 patthoyts Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.150 2005/04/06 18:20:00 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

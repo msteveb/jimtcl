@@ -1,3 +1,33 @@
+2005-04-06 16:16  patthoyts
+
+	* Makefile.vc, jim.c: Add the executable file location into
+	  jim_libpath for finding packages.
+
+2005-04-06 15:08  patthoyts
+
+	* jim-win32.c: Fix a problem with usie of mingw gcc and remove some
+	  gcc warnings.
+
+2005-04-06 14:52  patthoyts
+
+	* jim-win32.c: Use __stdcall for mingw
+
+2005-04-06 12:14  patthoyts
+
+	* jim.c, jim.h: Shhhhh. Silenced a number of warnings when using
+	  MSVC.
+
+2005-04-06 12:13  patthoyts
+
+	* Makefile.vc, jim-win32.c: Made GetPerformanceInfo dynamically
+	  available at runtime only if the relevant library can be loaded.
+	  Fixed for impoverished compilers.
+
+2005-04-06 08:35  antirez
+
+	* ChangeLog, jim.c, jim.h: Generic API implementing the Stack data
+	  structure exported to extensions.
+
 2005-04-05 19:59  antirez
 
 	* ChangeLog, jim-win32.c: Disabled from jim-win32.c commands that

@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.4 2005/04/05 11:51:18 antirez Exp $
+ * $Id: jimsh.c,v 1.5 2005/04/06 18:20:00 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,69 @@
 #define JIM_EMBEDDED
 #include "jim.h"
 
-void JimLoadJimRc(Jim_Interp *interp)
+
+/* JimGetExePath try to get the absolute path of the directory
+ * of the jim binary, in order to add this path to the library path.
+ * Likely shipped libraries are in the same path too. */
+
+/* That's simple on windows: */
+#ifdef WIN32
+static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
+{
+    char path[MAX_PATH+1];
+    JIM_NOTUSED(argv0);
+
+    GetModuleFileNameA(NULL, path, MAX_PATH);
+    return Jim_NewStringObj(interp, path, -1);
+}
+#else /* WIN32 */
+#ifndef JIM_ANSIC
+/* A bit complex on POSIX */
+#include <unistd.h>
+static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
+{
+    char path[JIM_PATH_LEN+1];
+
+    /* Check if the executable was called with an absolute pathname */
+    if (argv0[0] == '/') {
+        strncpy(path, argv0, JIM_PATH_LEN);
+        char *p = strrchr(path, '/');
+        if (p != path)
+            *p = '\0';
+        return Jim_NewStringObj(interp, path, -1);
+    } else {
+        char cwd[JIM_PATH_LEN+1];
+        char base[JIM_PATH_LEN+1], *p;
+        int l;
+
+        strncpy(base, argv0, JIM_PATH_LEN);
+        if (getcwd(cwd, JIM_PATH_LEN) == NULL) {
+            return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
+        }
+        l = strlen(cwd);
+        if (l > 0 && cwd[l-1] == '/')
+            cwd[l-1] = '\0';
+        p = strrchr(base, '/');
+        if (p != base)
+            *p = '\0';
+        sprintf(path, "%s/%s", cwd, base);
+        l = strlen(path);
+        if (l > 2 && path[l-2] == '/' && path[l-1] == '.')
+            path[l-1] = '\0';
+        return Jim_NewStringObj(interp, path, -1);
+    }
+}
+#else /* JIM_ANSIC */
+/* ... and impossible with just ANSI C */
+static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
+{
+    JIM_UNUSED(argv0);
+    return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
+}
+#endif /* JIM_ANSIC */
+#endif /* WIN32 */
+
+static void JimLoadJimRc(Jim_Interp *interp)
 {
     const char *home;
     char buf [JIM_PATH_LEN+1];
@@ -60,6 +122,15 @@ int main(int argc, char *const argv[])
     interp = Jim_CreateInterp();
     Jim_RegisterCoreCommands(interp);
 
+    /* Append the path where the executed Jim binary is contained
+     * in the jim_libpath list. */
+    listObj = Jim_GetVariableStr(interp, "jim_libpath", JIM_NONE);
+    if (Jim_IsShared(listObj))
+        listObj = Jim_DuplicateObj(interp, listObj);
+    Jim_ListAppendElement(interp, listObj, JimGetExePath(interp, argv[0]));
+    Jim_SetVariableStr(interp, "jim_libpath", listObj);
+
+    /* Populate argv and argv0 global vars */
     listObj = Jim_NewListObj(interp, NULL, 0);
     for (n = 2; n < argc; n++) {
         Jim_Obj *obj = Jim_NewStringObj(interp, argv[n], -1);
