@@ -1,3 +1,7 @@
+2005-03-22 15:32  antirez
+
+	* ChangeLog, jim.c: Fix for short circuit in expr.
+
 2005-03-22 13:47  antirez
 
 	* ChangeLog, jim.c: expr's || and && operators are now lazy.

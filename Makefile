@@ -33,9 +33,10 @@ LIBS        = -ldl
 stopit:
 	@echo "Use:"
 	@echo "make jim        - to build the Jim interpreter"
-	@echo "make extensions - to build all the dynamic loadable extensions"
+	@echo "make extensions - to build the aio,posix and sdl extensions"
 	@echo "make posix      - to build only the posix extension"
 	@echo "make aio        - to build only the ANSI I/O extension"
+	@echo "make sdl        - to build only the SDL extension"
 
 all: $(DEFAULT_BUILD)
 
@@ -58,13 +59,21 @@ profile:
 jim-win32com.dll: jim-win32com.o
 	$(CC) -shared -o $@ $< -lole32 -luuid -loleaut32
 
+jim-sdl.xo: jim-sdl.c
+	$(CC)  `sdl-config --cflags` -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
+
+jim-sdl.so: jim-sdl.xo
+	rm -f $@
+	$(LD) -G -z text -o $@ $< -ldl -lc -L/usr/local/lib -lSDL -lpthread
+
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
 posix: jim-posix.so
 aio: jim-aio.so
+sdl: jim-sdl.so
 win32: jim-win32.dll jim-win32com.dll
-extensions: posix aio
+extensions: posix aio sdl
 
 clean:
 	$(RM) *.o *.so *.dll *.xo core .depend .*.swp gmon.out $(PROGRAMS)

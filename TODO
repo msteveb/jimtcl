@@ -34,6 +34,10 @@ SPEED OPTIMIZATIONS
   See the "sieve" and "ary" bench performances, result of this problem.
   (to compare with sieve_dict is also useful.)
 - Many other possible things, including better literal sharing.
+- Generate .c from Jim programs, as calls to the Jim API to avoid
+  the performance penality of Jim_EvalObj() overhead. In the future
+  try to generate the calls like a JIT emitting assembler from
+  Jim directly.
 
 IMPLEMENTATION ISSUES
 
