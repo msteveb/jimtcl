@@ -160,47 +160,59 @@ static jim_wide JimStrtoll(const char *nptr, char **endptr, register int base)
 #endif
 
 /* Glob-style pattern matching. */
-static int JimStringMatch(char *pattern, char *string, int nocase)
+static int JimStringMatch(char *pattern, int patternLen,
+        char *string, int stringLen, int nocase)
 {
-    while(pattern[0]) {
+    while(patternLen) {
         switch(pattern[0]) {
         case '*':
-            while (pattern[1] == '*')
+            while (pattern[1] == '*') {
                 pattern++;
-            if (pattern[1] == '\0')
+                patternLen--;
+            }
+            if (patternLen == 1)
                 return 1; /* match */
-            while(string[0]) {
-                if (JimStringMatch(pattern+1, string, nocase))
+            while(stringLen) {
+                if (JimStringMatch(pattern+1, patternLen-1,
+                            string, stringLen, nocase))
                     return 1; /* match */
                 string++;
+                stringLen--;
             }
             return 0; /* no match */
             break;
         case '?':
-            if (string[0] == '\0')
+            if (stringLen == 0)
                 return 0; /* no match */
             string++;
+            stringLen--;
             break;
         case '[':
         {
             int not, match;
 
             pattern++;
+            patternLen--;
             not = pattern[0] == '^';
-            if (not) pattern++;
+            if (not) {
+                pattern++;
+                patternLen--;
+            }
             match = 0;
             while(1) {
                 if (pattern[0] == '\\') {
                     pattern++;
+                    patternLen--;
                     if (pattern[0] == string[0])
                         match = 1;
                 } else if (pattern[0] == ']') {
                     break;
-                } else if (pattern[0] == '\0') {
+                } else if (patternLen == 0) {
                     pattern--;
+                    patternLen++;
                     break;
                 } else if (pattern[1] == '-' &&
-                       pattern[2] != '\0') {
+                       patternLen >= 3) {
                     int start = pattern[0];
                     int end = pattern[2];
                     int c = string[0];
@@ -215,6 +227,7 @@ static int JimStringMatch(char *pattern, char *string, int nocase)
                         c = tolower(c);
                     }
                     pattern += 2;
+                    patternLen -= 2;
                     if (c >= start && c <= end)
                         match = 1;
                 } else {
@@ -228,17 +241,21 @@ static int JimStringMatch(char *pattern, char *string, int nocase)
                     }
                 }
                 pattern++;
+                patternLen--;
             }
             if (not)
                 match = !match;
             if (!match)
                 return 0; /* no match */
             string++;
+            stringLen--;
             break;
         }
         case '\\':
-            if (pattern[1] != '\0')
+            if (patternLen >= 2) {
                 pattern++;
+                patternLen--;
+            }
             /* fall through */
         default:
             if (!nocase) {
@@ -250,17 +267,20 @@ static int JimStringMatch(char *pattern, char *string, int nocase)
                     return 0; /* no match */
             }
             string++;
+            stringLen--;
             break;
         }
         pattern++;
-        if (string[0] == '\0') {
-            while(*pattern == '*')
+        patternLen--;
+        if (stringLen == 0) {
+            while(*pattern == '*') {
                 pattern++;
+                patternLen--;
+            }
             break;
         }
     }
-    if (pattern[0] == '\0' &&
-            string[0] == '\0')
+    if (patternLen == 0 && stringLen == 0)
         return 1;
     return 0;
 }
@@ -280,7 +300,7 @@ int testGlobMatching(void)
         if (len && buf[len-1] == '\n') {
             buf[len-1] = '\0';
         }
-        printf("%d\n", JimStringMatch(buf, str, 0));
+        printf("%d\n", JimStringMatch(buf, strlen(buf), str, strlen(str), 0));
     }
     return 0;
 }
@@ -1912,10 +1932,11 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr, int nocase)
 int Jim_StringMatchObj(Jim_Obj *patternObjPtr, Jim_Obj *objPtr, int nocase)
 {
     char *pattern, *string;
+    int patternLen, stringLen;
 
-    pattern = Jim_GetString(patternObjPtr, NULL);
-    string = Jim_GetString(objPtr, NULL);
-    return JimStringMatch(pattern, string, nocase);
+    pattern = Jim_GetString(patternObjPtr, &patternLen);
+    string = Jim_GetString(objPtr, &stringLen);
+    return JimStringMatch(pattern, patternLen, string, stringLen, nocase);
 }
 
 /* Convert a range, as returned by Jim_GetRange(), into
@@ -6954,11 +6975,13 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr)
     Jim_HashEntry *he;
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
     char *pattern;
+    int patternLen;
     
-    pattern = patternObjPtr ? Jim_GetString(patternObjPtr, NULL) : NULL;
+    pattern = patternObjPtr ? Jim_GetString(patternObjPtr, &patternLen) : NULL;
     htiter = Jim_GetHashTableIterator(&interp->commands);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        if (pattern && !JimStringMatch(pattern, he->key, 0))
+        if (pattern && !JimStringMatch(pattern, patternLen, he->key, 
+                    strlen((char*)he->key), 0))
             continue;
         Jim_ListAppendElement(interp, listObjPtr,
                 Jim_NewStringObj(interp, he->key, -1));
