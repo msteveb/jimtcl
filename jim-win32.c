@@ -70,10 +70,10 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
 
 /* win32.ShellExecute verb file args */
 static int 
-Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int r;
-    char *verb, *file, *parm = NULL;
+    const char *verb, *file, *parm = NULL;
     char cwd[MAX_PATH + 1];
     
     if (objc < 3 || objc > 4) {
@@ -95,9 +95,9 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
 
 /* win32.FindWindow title ?class? */
 static int
-Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
-    char *title = NULL, *class = NULL;
+    const char *title = NULL, *class = NULL;
     HWND hwnd = NULL;
     int r = JIM_OK;
 
@@ -122,7 +122,7 @@ Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
 
 /* win32.CloseWindow windowHandle */
 static int
-Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     long hwnd;
 
@@ -141,14 +141,14 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)GetActiveWindow()));
     return JIM_OK;
 }
 
 static int
-Win32_SetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_SetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HWND hwnd, old;
     int r = JIM_OK;
@@ -172,7 +172,7 @@ Win32_SetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_SetForegroundWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_SetForegroundWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HWND hwnd;
     int r = JIM_OK;
@@ -193,7 +193,7 @@ Win32_SetForegroundWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_Beep(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_Beep(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     long freq, duration;
     int r = JIM_OK;
@@ -218,7 +218,7 @@ Win32_Beep(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetComputerName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     char name[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD size = MAX_COMPUTERNAME_LENGTH;
@@ -242,7 +242,7 @@ Win32_GetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetUserName(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetUserName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     char name[UNLEN + 1];
     DWORD size = UNLEN;
@@ -266,7 +266,7 @@ Win32_GetUserName(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HMODULE hModule = NULL;
     char path[MAX_PATH];
@@ -297,21 +297,21 @@ Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_SetResult(interp, Jim_NewIntObj(interp, GetVersion()));
     return JIM_OK;
 }
 
 static int
-Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_SetResult(interp, Jim_NewIntObj(interp, GetTickCount()));
     return JIM_OK;
 }
 
 static int
-Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_Obj *a[16];
     size_t n = 0;
@@ -339,7 +339,7 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj **objv)
 #ifndef __MINGW32__ /* function not available on mingw */
 // FIX ME: win2k+ so should do version checks really.
 static int
-Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     Jim_Obj *a[26];
     size_t n = 0;
@@ -376,10 +376,10 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
 #endif /* !MINGW32 */
 
 static int
-Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int r = JIM_OK;
-    char *name;
+    const char *name;
     if (objc != 2) {
         Jim_WrongNumArgs(interp, 1, objv, "computername");
         return JIM_ERR;
@@ -394,7 +394,7 @@ Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_GetModuleHandle(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_GetModuleHandle(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HMODULE hModule = NULL;
     const char *name = NULL;
@@ -416,7 +416,7 @@ Win32_GetModuleHandle(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_LoadLibrary(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_LoadLibrary(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HMODULE hLib = NULL;
     if (objc != 2) {
@@ -434,7 +434,7 @@ Win32_LoadLibrary(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 static int
-Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HMODULE hModule = NULL;
     int r = JIM_OK;

@@ -262,7 +262,7 @@ Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 }
 
 static DISPPARAMS* 
-Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     DISPPARAMS * dp;
     int cn;
@@ -341,7 +341,7 @@ Jim_GetIndexFromObj(Jim_Interp *interp, Jim_Obj *objPtr, const char **tablePtr,
 
 /* $object method|prop ?args...? */
 static int
-Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HRESULT hr = S_OK;
     LPWSTR name;
@@ -439,10 +439,10 @@ Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
 /* ole32 createobject progid
  */
 int
-Ole32_Command(Jim_Interp *interp, int objc, Jim_Obj **objv)
+Ole32_Command(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     HRESULT hr = S_OK;
-    char *cmd;
+    const char *cmd;
     
     if (objc != 3) {
         Jim_WrongNumArgs(interp, 1, objv, "createobject");
