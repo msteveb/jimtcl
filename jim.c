@@ -167,16 +167,18 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 		case '*':
 			while (pattern[1] == '*')
 				pattern++;
-			if (pattern[1] == '\0')
+			if (string[0] == '\0' || pattern[1] == '\0')
 				return 1; /* match */
 			while(string[0]) {
 				if (Jim_StringMatch(pattern+1, string, nocase))
-					return 1;
-				string++; /* match */
+					return 1; /* match */
+				string++;
 			}
 			return 0; /* no match */
 			break;
 		case '?':
+			if (string[0] == '\0')
+				return 0; /* no match */
 			string++;
 			break;
 		case '[':
@@ -230,7 +232,8 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 			break;
 		}
 		case '\\':
-			pattern++;
+			if (pattern[1] != '\0')
+				pattern++;
 			/* fall through */
 		default:
 			if (!nocase) {
@@ -245,8 +248,11 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 			break;
 		}
 		pattern++;
-		if (string[0] == '\0')
+		if (string[0] == '\0') {
+			while(*pattern == '*')
+				pattern++;
 			break;
+		}
 	}
 	if (pattern[0] == '\0' &&
 			string[0] == '\0')
@@ -2855,6 +2861,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 {
 	int err;
 
+	/* All the rest is handled here */
 	if ((err = SetVariableFromAny(interp, nameObjPtr)) != JIM_OK) {
 		/* Check for [dict] syntax sugar. */
 		if (err == JIM_DICT_SUGAR)

@@ -34,9 +34,6 @@ IMPLEMENTATION ISSUES
 - [split $string {}] should generate a list with Jim_Obj of chars shared.
 - [closure] command to set/get procedures-specific closure variables.
   For example:
-- Remove SetTypeFromAny() method from the Jim_ObjType structure.
-  It's not useful, and it may be useful to have different prototypes
-  for the Set*FromAny() procedures of different types.
 
 ERROR MESSAGES
 
