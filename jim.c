@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.104 2005/03/14 14:39:01 antirez Exp $
+ * $Id: jim.c,v 1.105 2005/03/14 16:35:07 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2133,8 +2133,8 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr,
 
 int qsortCompareStringPointers(const void *a, const void *b)
 {
-    char * const *sa = a;
-    char * const *sb = b;
+    char * const *sa = (char * const *)a;
+    char * const *sb = (char * const *)b;
     return strcmp(*sa, *sb);
 }
 
