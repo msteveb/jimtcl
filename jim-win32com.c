@@ -160,7 +160,7 @@ UnicodeDupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     int len = srcPtr->internalRep.binaryValue.len;
 	JIM_TRACE("UnicodeDupInternalRep 0x%08x duped into 0x%08x\n", (DWORD)srcPtr, (DWORD)dupPtr);
-    interp;
+    interp = interp;
     dupPtr->internalRep.binaryValue.len = len;
 	if (srcPtr->internalRep.binaryValue.data != NULL) {
 		dupPtr->internalRep.binaryValue.data = Jim_Alloc(sizeof(WCHAR) * (len + 1));
@@ -191,11 +191,11 @@ UnicodeSetFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 }
     
 Jim_Obj *
-Jim_NewUnicodeObj(Jim_Interp *interp, LPCWSTR wsz, size_t len)
+Jim_NewUnicodeObj(Jim_Interp *interp, LPCWSTR wsz, int len)
 {
     Jim_Obj *objPtr;
     JIM_ASSERT(wsz != NULL);
-    if (wsz != NULL && len == -1)
+    if (wsz != NULL && len < 0)
         len = wcslen(wsz);
     if (wsz == NULL || len == 0) {
 		objPtr = Jim_NewStringObj(interp, "", 0);
@@ -224,7 +224,7 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
 				objPtr->typePtr->name);
         }
     }
-    
+    *lenPtr = objPtr->internalRep.binaryValue.len;
     return (LPWSTR)objPtr->internalRep.binaryValue.data;
 }
 
@@ -247,7 +247,6 @@ Jim_ObjType ole32ObjType = {
 void 
 Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    int r = JIM_OK;
     IDispatch *p = Ole32_DispatchPtr(objPtr);
     ITypeInfo *t = Ole32_TypeInfoPtr(objPtr);
     JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
@@ -441,7 +440,7 @@ Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
     Jim_Obj *objPtr = Jim_NewObj(interp);
 
     objPtr->bytes = Jim_Alloc(23);
-    sprintf(objPtr->bytes, "ole32:%08x", (unsigned long)pdispatch);
+    sprintf(objPtr->bytes, "ole32:%08lx", (unsigned long)pdispatch);
     objPtr->length = strlen(objPtr->bytes);
     Ole32_DispatchPtr(objPtr) = pdispatch;
     Ole32_TypeInfoPtr(objPtr) = NULL;
@@ -449,7 +448,9 @@ Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
 
     pdispatch->lpVtbl->GetTypeInfoCount(pdispatch, &n);
     if (n != 0)
-        pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT, &Ole32_TypeInfoPtr(objPtr));
+        pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT,
+            (LPTYPEINFO*)&objPtr->internalRep.twoPtrValue.ptr2);
+/*          &(Ole32_TypeInfoPtr(objPtr)));*/
 
     objPtr->typePtr = &ole32ObjType;
 

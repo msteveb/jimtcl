@@ -322,7 +322,7 @@ typedef void (Jim_DupInternalRepProc)(struct Jim_Interp *interp,
 typedef void (Jim_UpdateStringProc)(struct Jim_Obj *objPtr);
     
 typedef struct Jim_ObjType {
-    char *name; /* The name of the type. */
+    const char *name; /* The name of the type. */
     Jim_FreeInternalRepProc *freeIntRepProc;
     Jim_DupInternalRepProc *dupIntRepProc;
     Jim_UpdateStringProc *updateStringProc;

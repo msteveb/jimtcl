@@ -1,20 +1,33 @@
+# Jim makefile
+#
+# This is a simple Makefile as it is expected that most users are likely
+# to embed Jim directly into their current build system. Jim is able to
+# make use of dynamically loaded extensions on unix provided you have the
+# dl library available. If not, set JIM_LIBS= on the make command line.
+#
+# make CC=gcc jim         builds a standard Jim binary using gcc.
+# make CC=gcc LIBS= jim   avoids attempts to link in libdl.a
+#
+#
+
 .SUFFIXES:
 .SUFFIXES: .c .so .xo .o .dll
 
-SHELL= /bin/sh
-LD= ld
-LDFLAGS= $(PROFILE)
-CFLAGS= -Wall -W -O2 -g $(PROFILE)
-AR=/usr/bin/ar
-RANLIB=/usr/bin/ranlib
-LIBPATH=-L.
-INSTALL= /usr/bin/install
+SHELL   = /bin/sh
+RM      = rm -f
+LDFLAGS = $(PROFILE)
+CFLAGS  = -Wall -Wwrite-strings -W -O2 -g $(PROFILE)
+AR      = /usr/bin/ar
+RANLIB  = /usr/bin/ranlib
+LIBPATH =-L.
+INSTALL = /usr/bin/install
 INSTALL_PROGRAM= $(INSTALL)
 INSTALL_DATA= $(INSTALL) -m 644
-DESTDIR= /usr/local/bin/
+DESTDIR = /usr/local/bin/
 
-PROGRAMS= 		jim
-JIM_OBJECTS=		jim.o jimsh.o
+PROGRAMS    = jim
+JIM_OBJECTS = jim.o jimsh.o
+LIBS        = -ldl
 
 stopit:
 	@echo "Use:"
@@ -44,14 +57,14 @@ jim-win32com.dll: jim-win32com.o
 	$(CC) -shared -o $@ $< -lole32 -luuid -loleaut32
 
 jim: $(JIM_OBJECTS)
-	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) -ldl
+	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
 posix: jim-posix.so
 win32: jim-win32.dll jim-win32com.dll
 extensions: posix
 
 clean:
-	rm -f *.o *.so *.dll core .depend .*.swp gmon.out $(PROGRAMS)
+	$(RM) *.o *.so *.dll core .depend .*.swp gmon.out $(PROGRAMS)
 
 test: jim
 	./jim test.tcl
@@ -62,6 +75,9 @@ bench: jim
 
 dep:
 	gcc -MM *.[ch] 2> /dev/null
+
+TAGS: jim.h jim.c jim-posix.c jim-win32.c jim-win32com.c
+	etags -o $@ $^
 
 wc:
 	wc -l jim.[ch]

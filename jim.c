@@ -51,7 +51,7 @@
 
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and don't try to free. */
-static char *JimEmptyStringRep = "";
+static char *JimEmptyStringRep = (char *)"";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -916,11 +916,11 @@ int testHashTable(void)
     int i;
 
     Jim_InitHashTable(&t, &JimStringCopyHashTableType, NULL);
-    Jim_AddHashEntry(&t, "foo", "bar");
-    Jim_AddHashEntry(&t, "ciao", "foobar");
-    Jim_AddHashEntry(&t, "a", "1");
-    Jim_AddHashEntry(&t, "b", "2");
-    Jim_AddHashEntry(&t, "c", "3");
+    Jim_AddHashEntry(&t, "foo", (void*)"bar");
+    Jim_AddHashEntry(&t, "ciao", (void*)"foobar");
+    Jim_AddHashEntry(&t, "a", (void*)"1");
+    Jim_AddHashEntry(&t, "b", (void*)"2");
+    Jim_AddHashEntry(&t, "c", (void*)"3");
     printf("Used: %d, Size: %d\n", t.used, t.size);
 
     iterator = Jim_GetHashTableIterator(&t);
@@ -2868,7 +2868,7 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
     return JIM_OK;
 }
 
-int Jim_SetVariableString(Jim_Interp *interp, char *name, char *val)
+int Jim_SetVariableString(Jim_Interp *interp, const char *name, const char *val)
 {
     Jim_Obj *nameObjPtr, *valObjPtr;
     int result;
@@ -2966,7 +2966,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
     }
 }
 
-Jim_Obj *Jim_GetVariableString(Jim_Interp *interp, char *name, int flags)
+Jim_Obj *Jim_GetVariableString(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_Obj *nameObjPtr, *varObjPtr;
 
@@ -3702,7 +3702,7 @@ void Jim_FreeInterp(Jim_Interp *i)
         printf("\n-------------------------------------\n");
         printf("Objects still in the free list:\n");
         while(objPtr) {
-            char *type = objPtr->typePtr ?
+            const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
             printf("%p \"%-10s\": '%.20s' (refCount: %d)\n",
                     objPtr, type,
@@ -3812,7 +3812,7 @@ static void JimResetStackTrace(Jim_Interp *interp)
 }
 
 static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
-        char *filename, int linenr)
+        const char *filename, int linenr)
 {
     if (Jim_IsShared(interp->stackTrace)) {
         interp->stackTrace =
@@ -5139,7 +5139,7 @@ static int JimParseExprIrrational(struct JimParserCtx *pc);
 
 /* Operators table */
 typedef struct Jim_ExprOperator {
-    char *name;
+    const char *name;
     int precedence;
     int arity;
     int opcode;
@@ -5347,7 +5347,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
 
     /* Try to get the longest match. */
     for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
-        char *opname = Jim_ExprOperators[i].name;
+        const char *opname = Jim_ExprOperators[i].name;
         int oplen = strlen(opname);
 
         if (strncmp(opname, pc->p, oplen) == 0 && oplen > bestLen) {
@@ -7735,7 +7735,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
         while (objPtr) {
             char buf[128];
-            char *type = objPtr->typePtr ?
+            const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
             subListObjPtr = Jim_NewListObj(interp, NULL, 0);
             sprintf(buf, "%p", objPtr);
@@ -8211,7 +8211,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc,
     long i, count = 1;
     jim_wide start, elapsed;
     char buf [256];
-    char *fmt = "%" JIM_WIDE_MODIFIER " microseconds per iteration";
+    const char *fmt = "%" JIM_WIDE_MODIFIER " microseconds per iteration";
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?count?");
@@ -8581,7 +8581,7 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc,
 }
 
 static struct {
-    char *name;
+    const char *name;
     Jim_CmdProc cmdProc;
 } Jim_CoreCommandsTable[] = {
     {"set", Jim_SetCoreCommand},
@@ -8633,7 +8633,7 @@ static struct {
 /* Some Jim core command is actually a procedure written in Jim itself. */
 static void Jim_RegisterCoreProcedures(Jim_Interp *interp)
 {
-    Jim_Eval(interp,
+    Jim_Eval(interp, (char*)
 "proc lambda {arglist body} {\n"
 "    set name [ref {} function lambdaFinalizer]\n"
 "    proc $name $arglist $body\n"
@@ -8679,7 +8679,7 @@ int test_parser(char *filename, int parsetype)
 
     JimParserInit(&parser, prg, 1);
     while(!JimParserEof(&parser)) {
-        char *type = "", *tok;
+        const char *type = "", *tok;
         int len, retval = 0;
         if (parsetype == 0)
             retval = JimParseScript(&parser);
