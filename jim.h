@@ -615,9 +615,18 @@ JIM_STATIC void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
         Jim_Obj **argv, char *msg);
 
 /* API import/export functions */
-JIM_STATIC void* JIM_API(Jim_GetApi)(Jim_Interp *interp, char *funcname);
-JIM_STATIC int JIM_API(Jim_RegisterApi)(Jim_Interp *interp, char *funcname,
+JIM_STATIC void* JIM_API(Jim_GetApi) (Jim_Interp *interp, char *funcname);
+JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp, char *funcname,
         void *funcptr);
+
+/* error messages */
+JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
+
+/* interactive mode */
+JIM_STATIC int JIM_API(Jim_InteractivePrompt) (void);
+
+/* Misc */
+JIM_STATIC void JIM_API(Jim_Panic) (char *fmt, ...);
 
 #ifndef __JIM_CORE__
 /* This must be included "inline" inside the extension */
@@ -694,6 +703,8 @@ static void Jim_InitExtension(Jim_Interp *interp, char *version)
   Jim_SetDictKeysVector = Jim_GetApi(interp, "Jim_SetDictKeysVector");
   Jim_SubstObj = Jim_GetApi(interp, "Jim_SubstObj");
   Jim_RegisterApi = Jim_GetApi(interp, "Jim_RegisterApi");
+  Jim_PrintErrorMessage = Jim_GetApi(interp, "Jim_RegisterApi");
+  Jim_InteractivePrompt = Jim_GetApi(interp, "Jim_InteractivePrompt");
   Jim_SetResultString(interp, version, -1);
 }
 #endif /* __JIM_CORE__ */

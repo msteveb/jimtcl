@@ -20,10 +20,19 @@ Jim_ExportedFunctionName()
 The prefix is "Jim_", every word composing the function name
 is capitalized.
 
-Non exported functions are also capitalized, but in such
-a case the prefix is just "Jim", like in
+Not exported functions that are of general interest for the Jim
+core, like JimFreeInterp() are capitalized the same way, but the
+prefix used for this functions is "Jim" instead of "Jim_".
+Another example is:
 
 JimNotExportedFunction()
+
+Not exported functions that are not general, like functions
+implementing hashtables or jim objects methods can be named
+in any prefix as long as capitalization rules are followed,
+like in:
+
+ListSetIndex()
 
 ---------------
 VARIABLES NAMES
