@@ -1,3 +1,7 @@
+2005-03-13 09:36  antirez
+
+	* ChangeLog, jim.c: [string index] implemented
+
 2005-03-12 22:42  antirez
 
 	* ChangeLog, jim.c: Jim_GetEnum() will now sort the options in the

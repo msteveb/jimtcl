@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.99 2005/03/13 08:36:39 antirez Exp $
+ * $Id: jim.c,v 1.100 2005/03/13 15:53:51 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -319,6 +319,24 @@ int JimStringCompare(const char *s1, int l1, const char *s2, int l2,
         if (!l1 && !l2) return 0;
         return l1-l2;
     }
+}
+
+/* Search 's1' inside 's2', starting to search from char 'index' of 's2'.
+ * The index of the first occurrence of s1 in s2 is returned. 
+ * If s1 is not found inside s2, -1 is returned. */
+int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int index)
+{
+    int i;
+
+    if (!l1 || !l2 || l1 > l2) return -1;
+    if (index < 0) index = 0;
+    s2 += index;
+    for (i = index; i <= l2-l1; i++) {
+        if (memcmp(s2, s1, l1) == 0)
+            return i;
+        s2++;
+    }
+    return -1;
 }
 
 int Jim_WideToString(char *buf, jim_wide wideValue)
@@ -9110,11 +9128,11 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
     int option;
     const char *options[] = {
         "length", "compare", "match", "equal", "range", "map", "repeat",
-        "index", NULL
+        "index", "first", NULL
     };
     enum {
         OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE,
-        OPT_MAP, OPT_REPEAT, OPT_INDEX
+        OPT_MAP, OPT_REPEAT, OPT_INDEX, OPT_FIRST
     };
 
     if (argc < 2) {
@@ -9245,6 +9263,24 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, Jim_NewStringObj(interp, str+index, 1));
             return JIM_OK;
         }
+    } else if (option == OPT_FIRST) {
+        int index = 0, l1, l2;
+        const char *s1, *s2;
+
+        if (argc != 4 && argc != 5) {
+            Jim_WrongNumArgs(interp, 2, argv, "subString string ?startIndex?");
+            return JIM_ERR;
+        }
+        s1 = Jim_GetString(argv[2], &l1);
+        s2 = Jim_GetString(argv[3], &l2);
+        if (argc == 5) {
+            if (Jim_GetIndex(interp, argv[4], &index) != JIM_OK)
+                return JIM_ERR;
+            index = JimRelToAbsIndex(l2, index);
+        }
+        Jim_SetResult(interp, Jim_NewIntObj(interp,
+                    JimStringFirst(s1, l1, s2, l2, index)));
+        return JIM_OK;
     }
     return JIM_OK;
 }
@@ -9414,11 +9450,24 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
+    int option;
+    const char *options[] = {
+        "create", "get", "set", "unset", "exists", NULL
+    };
+    enum {
+        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST
+    };
+
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
         return JIM_ERR;
     }
-    if (Jim_CompareStringImmediate(interp, argv[1], "create")) {
+
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (option == OPT_CREATE) {
         Jim_Obj *objPtr;
 
         if (argc % 2) {
@@ -9428,7 +9477,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc,
         objPtr = Jim_NewDictObj(interp, argv+2, argc-2);
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "get")) {
+    } else if (option == OPT_GET) {
         Jim_Obj *objPtr;
 
         if (Jim_DictKeysVector(interp, argv[2], argv+3, argc-3, &objPtr,
@@ -9436,21 +9485,21 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "set")) {
+    } else if (option == OPT_SET) {
         if (argc < 5) {
             Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...? value");
             return JIM_ERR;
         }
         return Jim_SetDictKeysVector(interp, argv[2], argv+3, argc-4,
                     argv[argc-1]);
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "unset")) {
+    } else if (option == OPT_UNSET) {
         if (argc < 4) {
             Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...?");
             return JIM_ERR;
         }
         return Jim_SetDictKeysVector(interp, argv[2], argv+3, argc-3,
                     NULL);
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "exists")) {
+    } else if (option == OPT_EXIST) {
         Jim_Obj *objPtr;
         int exists;
 
