@@ -14,7 +14,7 @@
 # Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
 #-------------------------------------------------------------------------
-# $Id: Makefile.vc,v 1.11 2005/04/06 10:13:03 patthoyts Exp $
+# $Id: Makefile.vc,v 1.12 2005/04/06 14:16:56 patthoyts Exp $
 #-------------------------------------------------------------------------
 
 SRCDIR =.
@@ -64,9 +64,9 @@ all:     jim win32 win32com win32api
 jim:     setup $(OUTDIR)\jim.exe
 jimwish: setup $(OUTDIR)\jimwish.exe
 dll:     setup $(OUTDIR)\jim.dll
-win32:   setup $(OUTDIR)\jim-win32.dll
-win32api: setup $(OUTDIR)\jim-win32api.dll
-win32com: setup $(OUTDIR)\jim-win32com.dll
+win32:   setup $(OUTDIR)\jim-win32-1.0.dll
+win32api: setup $(OUTDIR)\jim-win32api-1.0.dll
+win32com: setup $(OUTDIR)\jim-win32com-1.0.dll
 
 $(OUTDIR)\jim.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimsh.obj
 	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
@@ -74,13 +74,13 @@ $(OUTDIR)\jim.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimsh.obj
 $(OUTDIR)\jim.dll: $(TMPDIR)\jim.obj
 	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
-$(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
+$(OUTDIR)\jim-win32-1.0.dll: $(TMPDIR)\jim-win32.obj
         @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
-$(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
+$(OUTDIR)\jim-win32api-1.0.dll: $(TMPDIR)\jim-win32api.obj
         @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
-$(OUTDIR)\jim-win32com.dll: $(TMPDIR)\jim-win32com.obj
+$(OUTDIR)\jim-win32com-1.0.dll: $(TMPDIR)\jim-win32com.obj
         @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 $(OUTDIR)\jimwish.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimwish.obj

@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.148 2005/04/06 10:14:09 patthoyts Exp $
+ * $Id: jim.c,v 1.149 2005/04/06 14:16:56 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3961,9 +3961,36 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
  * Interpreter related functions
  * ---------------------------------------------------------------------------*/
 
+static int
+AppendExePath(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+#ifdef _WIN32
+    char path[MAX_PATH], dst[MAX_PATH], *p;
+    int nsrc = 0, ndst = 0;
+    GetModuleFileNameA(NULL, path, MAX_PATH);
+    if ((p = strrchr(path, '\\')) != NULL)
+        *p = 0;
+    dst[ndst++] = 32;
+    for (nsrc = 0; nsrc < MAX_PATH && path[nsrc]; nsrc++) {
+        switch (path[nsrc]) {
+            case '\\': dst[ndst++] = '/'; break;
+            case ' ': dst[ndst++] = '\\'; dst[ndst++] = ' '; break;
+            case '/': dst[ndst++] = '\\'; dst[ndst++] = '/'; break;
+            default:  dst[ndst++] = path[nsrc]; break;
+        }
+    }
+    dst[ndst++] = 0;
+    Jim_AppendString(interp, objPtr, dst, -1);
+#else
+    Jim_AppendString(interp, objPtr, " /usr/local/lib/jim/", -1);
+#endif
+    return JIM_OK;
+}
+
 Jim_Interp *Jim_CreateInterp(void)
 {
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
+    Jim_Obj *pathPtr;
 
     i->errorLine = 0;
     i->errorFileName = Jim_StrDup("");
@@ -4001,7 +4028,9 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->unknown);
 
     /* Initialize key variables every interpreter should contain */
-    Jim_SetVariableStrWithStr(i, "jim_libpath", "./ /usr/local/lib/jim");
+    pathPtr = Jim_NewStringObj(i, "./", -1);
+    AppendExePath(i, pathPtr);
+    Jim_SetVariableStr(i, "jim_libpath", pathPtr);
     Jim_SetVariableStrWithStr(i, "jim_interactive", "0");
 
     /* Export the core API to extensions */
@@ -11433,7 +11462,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.148 2005/04/06 10:14:09 patthoyts Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.149 2005/04/06 14:16:56 patthoyts Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
