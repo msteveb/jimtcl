@@ -7,8 +7,33 @@ Copyright (C) 2005 Salvatore Sanfilippo
 All Rights Reserved
 This software is under the APACHE 2.0 LICENSE
 
-ALSO THANKS TO:
+--------------------------------------------------------------------------------
+Extensions
+--------------------------------------------------------------------------------
 
+JIM-POSIX
+
+This is the start of a library that should export to Jim useful bits of the
+POSIX API. For now there are just a few utility functions, but it's
+an example on how to write a simple library for Jim.
+
+JIM-WIN32
+
+This is the start of a library that should export to Jim useful bits of the
+WIN32 API. Currently there is just one function that is used to call windows
+applications. For example run jim and try the extension with:
+
+  load jim-win32.dll
+  win32.shellexecute open notepad
+
+You should see a notepad application running.
+
+--------------------------------------------------------------------------------
+Thanks to...
+--------------------------------------------------------------------------------
+
+- First of all, thanks to every guy that's listed in the AUTHORS file,
+  that directly helped with code and ideas.
 - Many people on the Tclers Chat that helped me to explore issues
   about the use and the implementation of the Tcl programming language.
 - David Welton for the tech info sharing and our chats about

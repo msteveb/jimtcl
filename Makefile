@@ -1,5 +1,5 @@
 .SUFFIXES:
-.SUFFIXES: .c .so .xo .o
+.SUFFIXES: .c .so .xo .o .dll
 
 SHELL= /bin/sh
 LD= ld
@@ -37,10 +37,14 @@ profile:
 .c.xo:
 	$(CC) -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
+.o.dll:
+	$(CC) -shared -o $@ $<
+
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) -ldl
 
 posix: jim-posix.so
+win32: jim-win32.dll
 extensions: posix
 
 clean:
