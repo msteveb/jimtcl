@@ -275,7 +275,8 @@ int testGlobMatching(void)
 int Jim_WideToString(char *buf, jim_wide wideValue)
 {
 #ifdef HAVE_LONG_LONG
-	return sprintf(buf, "%" JIM_LL_MODIFIER, wideValue);
+	const char *fmt = "%" JIM_LL_MODIFIER;
+	return sprintf(buf, fmt, wideValue);
 #else
 	return sprintf(buf, "%ld", wideValue);
 #endif
@@ -331,7 +332,8 @@ int Jim_StringToIndex(char *str, int *intPtr)
 int Jim_WideToReferenceString(char *buf, jim_wide wideValue)
 {
 #ifdef HAVE_LONG_LONG
-	sprintf(buf, "~reference:%020" JIM_LL_MODIFIER ":", wideValue);
+	const char *fmt = "~reference:%020" JIM_LL_MODIFIER ":";
+	sprintf(buf, fmt, wideValue);
 #else
 	sprintf(buf, "~reference:%020ld:", wideValue);
 #endif
