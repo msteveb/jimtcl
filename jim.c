@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.122 2005/03/19 21:39:34 antirez Exp $
+ * $Id: jim.c,v 1.123 2005/03/21 11:59:44 chi Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -412,7 +412,9 @@ int Jim_DoubleToString(char *buf, double doubleValue)
     }
     /* Add a final ".0" if it's a number. But not
      * for NaN or InF */
-    if (isdigit((int)buf[0])) {
+    if (isdigit((int)buf[0])
+        || ((buf[0] == '-' || buf[0] == '+')
+            && isdigit((int)buf[1]))) {
         s[0] = '.';
         s[1] = '0';
         s[2] = '\0';
@@ -498,6 +500,7 @@ char *Jim_StrDupLen(char *s, int l)
     char *copy = Jim_Alloc(l+1);
     
     memcpy(copy, s, l+1);
+    copy[l] = 0;    /* Just to be sure, original could be substring */
     return copy;
 }
 
@@ -6547,6 +6550,442 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 }
 
 /* -----------------------------------------------------------------------------
+ * ScanFormat String Object
+ * ---------------------------------------------------------------------------*/
+
+/* This Jim_Obj will held a parsed representation of a format string passed to
+ * the Jim_ScanString command. For error diagnostics, the scanformat string has
+ * to be parsed in its entirely first and then, if correct, can be used for
+ * scanning. To avoid endless re-parsing, the parsed representation will be
+ * stored in an internal representation and re-used for performance reason. */
+ 
+/* A ScanFmtPartDescr will held the information of /one/ part of the whole
+ * scanformat string. This part will later be used to extract information
+ * out from the string to be parsed by Jim_ScanString */
+ 
+typedef struct ScanFmtPartDescr {
+    char type;         /* Type of conversion (e.g. c, d, f) */
+    char modifier;     /* Modify type (e.g. l - long, h - short */
+    int  width;        /* Maximal width of input to be converted */
+    int  pos;          /* -1 - no assign, 0 - natural pos, >0 - XPG3 pos */ 
+    char *arg;         /* Specification of a CHARSET conversion */
+    char *prefix;      /* Prefix to be scanned literally before conversion */
+} ScanFmtPartDescr;
+
+/* The ScanFmtStringObj will held the internal representation of a scanformat
+ * string parsed and separated in part descriptions. Furthermore it contains
+ * the original string representation of the scanformat string to allow for
+ * fast update of the Jim_Obj's string representation part.
+ *
+ * As add-on the internal object representation add some scratch pad area
+ * for usage by Jim_ScanString to avoid endless allocating and freeing of
+ * memory for purpose of string scanning.
+ *
+ * The error member points to a static allocated string in case of a mal-
+ * formed scanformat string or it contains '0' (NULL) in case of a valid
+ * parse representation.
+ *
+ * The whole memory of the internal representation is allocated as a single
+ * area of memory that will be internally separated. So freeing and duplicating
+ * of such an object is cheap */
+
+typedef struct ScanFmtStringObj {
+    jim_wide        size;         /* Size of internal repr in bytes */
+    char            *stringRep;   /* Original string representation */
+    int             count;        /* Number of ScanFmtPartDescr contained */
+    int             convCount;    /* Number of conversions that will assign */
+    int             maxPos;       /* Max position index if XPG3 is used */
+    const char      *error;       /* Ptr to error text (NULL if no error */
+    char            *scratch;     /* Some scratch pad used by Jim_ScanString */
+    ScanFmtPartDescr descr[1];    /* The vector of partial descriptions */
+} ScanFmtStringObj;
+
+
+static void FreeScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
+static void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
+static void UpdateStringOfScanFmt(Jim_Obj *objPtr);
+
+static Jim_ObjType scanFmtStringObjType = {
+    "scanformatstring",
+    FreeScanFmtInternalRep,
+    DupScanFmtInternalRep,
+    UpdateStringOfScanFmt,
+    JIM_TYPE_NONE,
+};
+
+void FreeScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    JIM_NOTUSED(interp);
+    Jim_Free((char*)objPtr->internalRep.ptr);
+    objPtr->internalRep.ptr = 0;
+}
+
+void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+{
+    jim_wide size = ((ScanFmtStringObj*)srcPtr->internalRep.ptr)->size;
+    ScanFmtStringObj *newVec = (ScanFmtStringObj*)Jim_Alloc(size);
+
+    JIM_NOTUSED(interp);
+    memcpy(newVec, srcPtr->internalRep.ptr, size);
+    dupPtr->internalRep.ptr = newVec;
+    dupPtr->typePtr = &scanFmtStringObjType;
+}
+
+void UpdateStringOfScanFmt(Jim_Obj *objPtr)
+{
+    char *bytes = ((ScanFmtStringObj*)objPtr->internalRep.ptr)->stringRep;
+
+    objPtr->bytes = Jim_StrDup(bytes);
+    objPtr->length = strlen(bytes);
+}
+
+/* SetScanFmtFromAny will parse a given string and create the internal
+ * representation of the format specification. In case of an error
+ * the error data member of the internal representation will be set
+ * to an descriptive error text and the function will be left with
+ * JIM_ERR to indicate unsucessful parsing (aka. malformed scanformat
+ * specification */
+
+static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    ScanFmtStringObj *fmtObj;
+    char *buffer;
+    int maxCount, i, approxSize, lastPos = -1;
+    const char *fmt = objPtr->bytes;
+    int maxFmtLen = objPtr->length;
+    const char *fmtEnd = fmt + maxFmtLen;
+    int curr;
+
+    Jim_FreeIntRep(interp, objPtr);
+    /* Count how many conversions could take place maximally */
+    for (i=0, maxCount=0; i < maxFmtLen; ++i)
+        if (fmt[i] == '%')
+            ++maxCount;
+    /* Calculate an approximation of the memory necessary */
+    approxSize = sizeof(ScanFmtStringObj)           /* Size of the container */
+        + (maxCount + 1) * sizeof(ScanFmtPartDescr) /* Size of all partials */
+        + maxFmtLen * sizeof(char) + 3 + 1          /* Scratch + "%n" + '\0' */
+        + maxFmtLen * sizeof(char) + 1              /* Original stringrep */
+        + maxFmtLen * sizeof(char)                  /* Arg for CHARSETs */
+        + (maxCount +1) * sizeof(char)              /* '\0' for every partial */
+        + 1;                                        /* safety byte */
+    fmtObj = (ScanFmtStringObj*)Jim_Alloc(approxSize);
+    memset(fmtObj, 0, approxSize);
+    fmtObj->size = approxSize;
+    fmtObj->maxPos = -1;
+    fmtObj->scratch = (char*)&fmtObj->descr[maxCount+1];
+    fmtObj->stringRep = fmtObj->scratch + maxFmtLen + 3 + 1;
+    memcpy(fmtObj->stringRep, fmt, maxFmtLen);
+    buffer = fmtObj->stringRep + maxFmtLen + 1;
+    objPtr->internalRep.ptr = fmtObj;
+    objPtr->typePtr = &scanFmtStringObjType;
+    for (i=0, curr=0; fmt < fmtEnd; ++fmt) {
+        int width=0, skip;
+        ScanFmtPartDescr *descr = &fmtObj->descr[curr];
+        fmtObj->count++;
+        descr->width = 0;                   /* Assume width unspecified */ 
+        /* Overread and store any "literal" prefix */
+        if (*fmt != '%' || fmt[1] == '%') {
+            descr->type = 0;
+            descr->prefix = &buffer[i];
+            for (; fmt < fmtEnd; ++fmt) {
+                if (*fmt == '%') {
+                    if (fmt[1] != '%') break;
+                    buffer[i++] = *fmt++;
+                }
+                buffer[i++] = *fmt;
+            }
+            buffer[i++] = 0;
+        } 
+        /* Skip the conversion introducing '%' sign */
+        ++fmt;      
+        /* End reached due to non-conversion literal only? */
+        if (fmt >= fmtEnd)
+            goto done;
+        descr->pos = 0;                     /* Assume "natural" positioning */
+        if (*fmt == '*') {
+            descr->pos = -1;       /* Okay, conversion will not be assigned */
+            ++fmt;
+        } else
+            fmtObj->convCount++;    /* Otherwise count as assign-conversion */
+        /* Check if next token is a number (could be width or pos */
+        if (sscanf(fmt, "%d%n", &width, &skip) == 1) {
+            fmt += skip;
+            /* Was the number a XPG3 position specifier? */
+            if (descr->pos != -1 && *fmt == '$') {
+                int prev;
+                ++fmt;
+                descr->pos = width;
+                width = 0;
+                /* Look if "natural" postioning and XPG3 one was mixed */
+                if ((lastPos == 0 && descr->pos > 0)
+                        || (lastPos > 0 && descr->pos == 0)) {
+                    fmtObj->error = "cannot mix \"%\" and \"%n$\" conversion specifiers";
+                    return JIM_ERR;
+                }
+                /* Look if this position was already used */
+                for (prev=0; prev < curr; ++prev) {
+                    if (fmtObj->descr[prev].pos == -1) continue;
+                    if (fmtObj->descr[prev].pos == descr->pos) {
+                        fmtObj->error = "same \"%n$\" conversion specifier "
+                            "used more than once";
+                        return JIM_ERR;
+                    }
+                }
+                /* Try to find a width after the XPG3 specifier */
+                if (sscanf(fmt, "%d%n", &width, &skip) == 1) {
+                    descr->width = width;
+                    fmt += skip;
+                }
+                if (descr->pos > fmtObj->maxPos)
+                    fmtObj->maxPos = descr->pos;
+            } else {
+                /* Number was not a XPG3, so it has to be a width */
+                descr->width = width;
+            }
+        }
+        /* If positioning mode was undetermined yet, fix this */
+        if (lastPos == -1)
+            lastPos = descr->pos;
+        /* Handle CHARSET conversion type ... */
+        if (*fmt == '[') {
+            int swapped = 1, beg = i, end, j;
+            descr->type = '[';
+            descr->arg = &buffer[i];
+            ++fmt;
+            if (*fmt == '^') buffer[i++] = *fmt++;
+            if (*fmt == ']') buffer[i++] = *fmt++;
+            while (*fmt && *fmt != ']') buffer[i++] = *fmt++;
+            if (*fmt != ']') {
+                fmtObj->error = "unmatched [ in format string";
+                return JIM_ERR;
+            } 
+            end = i;
+            buffer[i++] = 0;
+            /* In case a range fence was given "backwards", swap it */
+            while (swapped) {
+                swapped = 0;
+                for (j=beg+1; j < end-1; ++j) {
+                    if (buffer[j] == '-' && buffer[j-1] > buffer[j+1]) {
+                        char tmp = buffer[j-1];
+                        buffer[j-1] = buffer[j+1];
+                        buffer[j+1] = tmp;
+                        swapped = 1;
+                    }
+                }
+            }
+        } else {
+            /* Remember any valid modifier if given */
+            if (strchr("hlL", *fmt) != 0)
+                descr->modifier = tolower(*fmt++);
+            
+            descr->type = *fmt;
+            if (strchr("efgcsndoxui", *fmt) == 0) {
+                fmtObj->error = "bad scan conversion character";
+                return JIM_ERR;
+            } else if (*fmt == 'c' && descr->width != 0) {
+                fmtObj->error = "field width may not be specified in %c "
+                    "conversion";
+                return JIM_ERR;
+            }
+        }
+        curr++;
+    }
+done:
+    if (fmtObj->convCount == 0) {
+        fmtObj->error = "no any conversion specifier given";
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+/* Some accessor macros to allow lowlevel access to fields of internal repr */
+
+#define FormatGetCnvCount(_fo_) \
+    ((ScanFmtStringObj*)((_fo_)->internalRep.ptr))->convCount
+#define FormatGetMaxPos(_fo_) \
+    ((ScanFmtStringObj*)((_fo_)->internalRep.ptr))->maxPos
+#define FormatGetError(_fo_) \
+    ((ScanFmtStringObj*)((_fo_)->internalRep.ptr))->error
+
+/* BuildScanFormat will build a format string suitable for usage in functions
+ * of the scanf family. The information to build such a format specification
+ * will be taken from the part description of the parsed format information
+ * contained in the internal object representation.
+ *
+ * The format string will be build within the scratch pad area of the
+ * object representation and therefore overwritten every time another one
+ * is build. A '%n' will be appended to the format string to get the number
+ * of characters scanned so far.  */
+
+static const char *BuildScanFormat(ScanFmtStringObj *fmtObj, long index)
+{
+    ScanFmtPartDescr *descr = &fmtObj->descr[index];
+    char *buffer = fmtObj->scratch;
+    if (descr->prefix) {
+        strcpy(buffer, descr->prefix);
+        buffer += strlen(descr->prefix);
+    }
+    *buffer++ = '%';
+    if (descr->width != 0) {
+        sprintf(buffer, "%d", descr->width);
+        buffer += strlen(buffer);
+    }
+    if (descr->type == '[') {
+        sprintf(buffer, "[%s]%%n", descr->arg);
+    } else {
+        if (descr->modifier == 'l' && strchr("ndioux", descr->type) != 0)
+            *buffer++ = 'q';
+        else if (strchr("ndiouxefg", descr->type) != 0)
+            *buffer++ = 'l';
+        sprintf(buffer, "%c%%n", descr->type);
+    }
+    return fmtObj->scratch;
+}
+
+/* ScanOneEntry will scan one entry out of the string passed as argument.
+ * It use the sscanf() function for this task. After extracting and
+ * converting of the value, the count of scanned characters will be
+ * returned of -1 in case of no conversion tool place and string was
+ * already scanned thru */
+
+static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
+        ScanFmtStringObj *fmtObj, long index, Jim_Obj **valObjPtr)
+{
+    char buffer[256];
+    char *value = buffer;
+    const char *fmt;
+    const ScanFmtPartDescr *descr = &fmtObj->descr[index];
+    long sLen = 0, scanned = 0;
+    int rc;
+
+    /* In case of a string value to be parsed we look if a larger
+     * buffer is necessary to hold the result */
+    if (descr->type == 's' || descr->type == '[') {
+        sLen = strlen(&str[pos]);
+        if ((unsigned)sLen >= sizeof(buffer))
+            value = Jim_Alloc(sLen * sizeof(char) + 1);
+    }
+    fmt = BuildScanFormat(fmtObj, index);
+    rc = sscanf(&str[pos], fmt, value, &scanned);
+    if (descr->type == 'n') {
+        if (descr->modifier == 'l')
+            *valObjPtr = Jim_NewIntObj(interp, pos + *(jim_wide*)value);
+        else
+            *valObjPtr = Jim_NewIntObj(interp, pos + *(long*)value);
+        /* Probably a prefix was before the '%n' spec? Add that length */
+        scanned = *(long*)value; 
+    } else if (rc == EOF) {
+        scanned = -1;
+    } else if (rc == 1) {
+        /* Convert the scanned value and add assign to be returned */
+        switch (descr->type) {
+            case 'c':
+                *valObjPtr = Jim_NewIntObj(interp, *value);
+                break;
+            case 'd': case 'o': case 'x': case 'u': case 'i':
+                if (descr->modifier == 'l')
+                    *valObjPtr = Jim_NewIntObj(interp, *(jim_wide*)value);
+                else
+                    *valObjPtr = Jim_NewIntObj(interp, *(long*)value);
+                break;
+            case 's': case '[':
+                *valObjPtr = Jim_NewStringObj(interp, value, -1);
+                break;
+            case 'e': case 'f': case 'g':
+                *valObjPtr = Jim_NewDoubleObj(interp, *(double*)value);
+                break;
+        }
+    }
+    /* If string was scanned and additional buffer allocated, free it! */
+    if ((descr->type == 's' || descr->type == '[') 
+        && value != buffer)
+        Jim_Free((char*)value);
+    return scanned;
+}
+
+/* Jim_ScanString is the workhorse of string scanning. It will scan a given
+ * string and returns all converted (and not ignored) values in a list back
+ * to the caller. If an error occured, a NULL pointer will be returned */
+
+Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr,
+        Jim_Obj *fmtObjPtr, int flags)
+{
+    int i, strLen, pos, scanned = 1;
+    const char *str = Jim_GetString(strObjPtr, &strLen);
+    Jim_Obj *resultList = 0;
+    Jim_Obj **resultVec;
+    int resultc;
+    Jim_Obj *emptyStr = 0;
+    ScanFmtStringObj *fmtObj;
+
+    /* If format specification is not an object, convert it! */
+    if (fmtObjPtr->typePtr != &scanFmtStringObjType)
+        SetScanFmtFromAny(interp, fmtObjPtr);
+    fmtObj = (ScanFmtStringObj*)fmtObjPtr->internalRep.ptr;
+    /* Check if format specification was valid */
+    if (fmtObj->error != 0) {
+        if (flags & JIM_ERRMSG)
+            Jim_SetResultString(interp, fmtObj->error, -1);
+        return 0;
+    }
+    /* Allocate a new "shared" empty string for all unassigned conversions */
+    emptyStr = Jim_NewEmptyStringObj(interp);
+    Jim_IncrRefCount(emptyStr);
+    /* Create a list and fill it with empty strings up to max specified XPG3 */
+    resultList = Jim_NewListObj(interp, 0, 0);
+    if (fmtObj->maxPos > 0) {
+        for (i=0; i < fmtObj->maxPos; ++i)
+            Jim_ListAppendElement(interp, resultList, emptyStr);
+        JimListGetElements(interp, resultList, &resultc, &resultVec);
+    }
+    /* Now handle every partial format description */
+    for (i=0, pos=0; i < fmtObj->count; ++i) {
+        ScanFmtPartDescr *descr = &(fmtObj->descr[i]);
+        Jim_Obj *value = 0;
+        /* Only last type may be "literal" w/o conversion - skip it! */
+        if (descr->type == 0) continue;
+        /* As long as any conversion could be done, we will proceed */
+        if (scanned > 0)
+            scanned = ScanOneEntry(interp, str, pos, fmtObj, i, &value);
+        /* In case our first try results in EOF, we will leave */
+        if (scanned == -1 && i == 0)
+            goto eof;
+        /* Advance next pos-to-be-scanned for the amount scanned already */
+        pos += scanned;
+        /* value == 0 means no conversion took place so take empty string */
+        if (value == 0)
+            value = Jim_NewEmptyStringObj(interp);
+        /* If value is a non-assignable one, skip it */
+        if (descr->pos == -1) {
+            Jim_FreeNewObj(interp, value);
+        } else if (descr->pos == 0)
+            /* Otherwise append it to the result list if no XPG3 was given */
+            Jim_ListAppendElement(interp, resultList, value);
+        else if (resultVec[descr->pos-1] == emptyStr) {
+            /* But due to given XPG3, put the value into the corr. slot */
+            Jim_DecrRefCount(interp, resultVec[descr->pos-1]);
+            Jim_IncrRefCount(value);
+            resultVec[descr->pos-1] = value;
+        } else {
+            /* Otherwise, the slot was already used - free obj and ERROR */
+            Jim_FreeNewObj(interp, value);
+            goto err;
+        }
+    }
+    Jim_DecrRefCount(interp, emptyStr);
+    return resultList;
+eof:
+    Jim_DecrRefCount(interp, emptyStr);
+    Jim_FreeNewObj(interp, resultList);
+    return (Jim_Obj*)EOF;
+err:
+    Jim_DecrRefCount(interp, emptyStr);
+    Jim_FreeNewObj(interp, resultList);
+    return 0;
+}
+
+/* -----------------------------------------------------------------------------
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
@@ -9941,6 +10380,70 @@ static int Jim_FormatCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [scan] */
+static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *listPtr, **outVec;
+    int outc, i, count = 0;
+
+    if (argc < 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "string formatString ?varName ...?");
+        return JIM_ERR;
+    } 
+    if (argv[2]->typePtr != &scanFmtStringObjType)
+        SetScanFmtFromAny(interp, argv[2]);
+    if (FormatGetError(argv[2]) != 0) {
+        Jim_SetResultString(interp, FormatGetError(argv[2]), -1);
+        return JIM_ERR;
+    }
+    if (argc > 3) {
+        int maxPos = FormatGetMaxPos(argv[2]);
+        int count = FormatGetCnvCount(argv[2]);
+        if (maxPos > argc-3) {
+            Jim_SetResultString(interp, "\"%n$\" argument index out of range", -1);
+            return JIM_ERR;
+        } else if (count != 0 && count < argc-3) {
+            Jim_SetResultString(interp, "variable is not assigned by any "
+                "conversion specifiers", -1);
+            return JIM_ERR;
+        } else if (count > argc-3) {
+            Jim_SetResultString(interp, "different numbers of variable names and "
+                "field specifiers", -1);
+            return JIM_ERR;
+        }
+    } 
+    listPtr = Jim_ScanString(interp, argv[1], argv[2], JIM_ERRMSG);
+    if (listPtr == 0)
+        return JIM_ERR;
+    if (argc > 3) {
+        if (listPtr == (Jim_Obj*)EOF) {
+            Jim_SetResult(interp, Jim_NewIntObj(interp, -1));
+            return JIM_OK;
+        }
+        JimListGetElements(interp, listPtr, &outc, &outVec);
+        for (i = 0; i < outc; ++i) {
+            if (Jim_Length(outVec[i]) > 0) {
+                ++count;
+                if (Jim_SetVariable(interp, argv[3+i], outVec[i]) != JIM_OK)
+                    goto err;
+            }
+        }
+        Jim_FreeNewObj(interp, listPtr);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, count));
+    } else {
+        if (listPtr == (Jim_Obj*)EOF) {
+            Jim_SetResult(interp, Jim_NewListObj(interp, 0, 0));
+            return JIM_OK;
+        }
+        Jim_SetResult(interp, listPtr);
+    }
+    return JIM_OK;
+err:
+    Jim_FreeNewObj(interp, listPtr);
+    return JIM_ERR;
+}
+
 /* [error] */
 static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
@@ -10083,6 +10586,7 @@ static struct {
     {"split", Jim_SplitCoreCommand},
     {"join", Jim_JoinCoreCommand},
     {"format", Jim_FormatCoreCommand},
+    {"scan", Jim_ScanCoreCommand},
     {"error", Jim_ErrorCoreCommand},
     {"lrange", Jim_LrangeCoreCommand},
     {"env", Jim_EnvCoreCommand},
@@ -10206,7 +10710,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.122 2005/03/19 21:39:34 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.123 2005/03/21 11:59:44 chi Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

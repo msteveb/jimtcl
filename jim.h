@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.61 2005/03/19 19:12:30 antirez Exp $
+ * $Id: jim.h,v 1.62 2005/03/21 11:59:44 chi Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -581,6 +581,8 @@ JIM_STATIC Jim_Obj * JIM_API(Jim_StringRangeObj) (Jim_Interp *interp,
         Jim_Obj *lastObjPtr);
 JIM_STATIC Jim_Obj * JIM_API(Jim_FormatString) (Jim_Interp *interp,
         Jim_Obj *fmtObjPtr, int objc, Jim_Obj *const *objv);
+JIM_STATIC Jim_Obj * JIM_API(Jim_ScanString) (Jim_Interp *interp, Jim_Obj *strObjPtr,
+        Jim_Obj *fmtObjPtr, int flags);
 JIM_STATIC int JIM_API(Jim_CompareStringImmediate) (Jim_Interp *interp,
         Jim_Obj *objPtr, const char *str);
 
@@ -696,9 +698,9 @@ JIM_STATIC Jim_Obj * JIM_API(Jim_NewIntObj) (Jim_Interp *interp,
 
 /* double object */
 JIM_STATIC int JIM_API(Jim_GetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
-		double *doublePtr);
+        double *doublePtr);
 JIM_STATIC void JIM_API(Jim_SetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
-	    double doubleValue);
+        double doubleValue);
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewDoubleObj)(Jim_Interp *interp, double doubleValue);
 
 /* shared strings */
@@ -781,6 +783,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(StringMatchObj);
   JIM_GET_API(StringRangeObj);
   JIM_GET_API(FormatString);
+  JIM_GET_API(ScanString);
   JIM_GET_API(CompareStringImmediate);
   JIM_GET_API(NewReference);
   JIM_GET_API(GetReference);
