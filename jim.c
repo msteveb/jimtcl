@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.55 2005/03/04 15:37:54 antirez Exp $
+ * $Id: jim.c,v 1.56 2005/03/04 20:12:14 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3579,7 +3579,7 @@ int Jim_Collect(Jim_Interp *interp)
             refPtr = he->val;
             if (refPtr->finalizerCmdNamePtr) {
                 char *refstr = Jim_Alloc(JIM_REFERENCE_SPACE+1);
-                Jim_Obj *objv[2], *oldResult;
+                Jim_Obj *objv[3], *oldResult;
 
                 JimFormatReference(refstr, refPtr, *refId);
 
