@@ -8102,6 +8102,22 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "repeat")) {
+        Jim_Obj *objPtr;
+        jim_wide count;
+
+        if (argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "string count");
+            return JIM_ERR;
+        }
+        if (Jim_GetWide(interp, argv[3], &count) != JIM_OK)
+            return JIM_ERR;
+        objPtr = Jim_NewStringObj(interp, "", 0);
+        while (count--) {
+            Jim_AppendObj(interp, objPtr, argv[2]);
+        }
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
     } else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
