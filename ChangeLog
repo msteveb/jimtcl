@@ -1,3 +1,13 @@
+2005-03-21 18:04  chi
+
+	* jim.c, jim.h: Add copyright notice within jim.c & jim.h to
+	  acknowledge Jim's license.
+
+2005-03-21 13:39  antirez
+
+	* ChangeLog, jim.c, test.tcl: Modified test.tcl to report the list
+	  of failed tests at the end.
+
 2005-03-21 12:59  chi
 
 	* jim.c, jim.h, test.tcl: Add the [scan] command and the
