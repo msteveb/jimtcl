@@ -1,3 +1,13 @@
+2005-03-06 09:31  antirez
+
+	* ChangeLog, Makefile, TODO, jim-aio.c, jim.c, jim.h: Added
+	  Jim_GetEnum() API function. StringCoreCommand and AIO extension
+	  modified to use this API. There are plenty of other places where
+	  this will work better than the raw CompareStringImmediate().
+	  Original idea from Tcl, Original implementation from Pat Thoyts,
+	  I changed the implementationto use CSI and for automatic error
+	  generation with all the valid options listed.
+
 2005-03-05 23:06  patthoyts
 
 	* jim.c: Free an objects internal representation before freeing the

@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.4 2005/03/06 08:31:42 antirez Exp $
+ * $Id: jim-aio.c,v 1.5 2005/03/06 08:48:16 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,8 @@ static void JimAioDelProc(void *privData)
 {
     AioFile *af = privData;
 
-    fclose(af->fp);
+    if (!af->keepOpen)
+        fclose(af->fp);
     Jim_Free(af);
 }
 
@@ -212,17 +213,36 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     const char *mode = "r";
     Jim_Obj *objPtr;
     long fileId;
+    const char *options[] = {"input", "output", "error"};
+    enum {OPT_INPUT, OPT_OUTPUT, OPT_ERROR};
+    int keepOpen = 0, modeLen;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
         return JIM_ERR;
     }
     if (argc == 3)
-        mode = Jim_GetString(argv[2], NULL);
-    fp = fopen(Jim_GetString(argv[1], NULL), mode);
-    if (fp == NULL) {
-        JimAioSetError(interp);
-        return JIM_ERR;
+        mode = Jim_GetString(argv[2], &modeLen);
+    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "standard") &&
+            modeLen >= 3) {
+            int option;
+        if (Jim_GetEnum(interp, argv[2], options, &option, "standard channel",
+                    JIM_ERRMSG) != JIM_OK)
+            return JIM_ERR;
+        keepOpen = 1;
+        switch (option) {
+        case OPT_INPUT: fp = stdin; break;
+        case OPT_OUTPUT: fp = stdout; break;
+        case OPT_ERROR: fp = stderr; break;
+        default: fp = NULL; Jim_Panic("default reached in JimAioOpenCommand()");
+                 break;
+        }
+    } else {
+        fp = fopen(Jim_GetString(argv[1], NULL), mode);
+        if (fp == NULL) {
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
     }
     /* Get the next file id */
     if (Jim_EvalGlobal(interp,
@@ -235,6 +255,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
+    af->keepOpen = keepOpen;
     sprintf(buf, "aio.handle%ld", fileId);
     Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
