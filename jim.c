@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.105 2005/03/14 16:35:07 patthoyts Exp $
+ * $Id: jim.c,v 1.106 2005/03/15 14:05:38 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3995,7 +3995,20 @@ void Jim_FreeInterp(Jim_Interp *i)
 
 /* Store the call frame relative to the level represented by
  * levelObjPtr into *framePtrPtr. If levelObjPtr == NULL, the
- * level is assumed to be '1'. */
+ * level is assumed to be '1'.
+ *
+ * If a newLevelptr int pointer is specified, the function stores
+ * the absolute level integer value of the new target callframe into
+ * *newLevelPtr. (this is used to adjust interp->numLevels
+ * in the implementation of [uplevel], so that [info level] will
+ * return a correct information).
+ *
+ * This function accepts the 'level' argument in the form
+ * of the commands [uplevel] and [upvar].
+ *
+ * For a function accepting a relative integer as level suitable
+ * for implementation of [info level ?level?] check the
+ * GetCallFrameByInteger() function. */
 int Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
         Jim_CallFrame **framePtrPtr, int *newLevelPtr)
 {
@@ -4043,6 +4056,39 @@ badlevel:
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
     Jim_AppendStrings(interp, Jim_GetResult(interp),
             "bad level \"", str, "\"", NULL);
+    return JIM_ERR;
+}
+
+/* Similar to Jim_GetCallFrameByLevel() but the level is specified
+ * as a relative integer like in the [info level ?level?] command. */
+static int JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *levelObjPtr,
+        Jim_CallFrame **framePtrPtr)
+{
+    jim_wide level;
+    long relLevel; /* level relative to the current one. */
+    Jim_CallFrame *framePtr;
+
+    if (Jim_GetWide(interp, levelObjPtr, &level) != JIM_OK)
+        goto badlevel;
+    if (level > 0) {
+        /* An 'absolute' level is converted into the
+         * 'number of levels to go back' format. */
+        relLevel = interp->numLevels - level;
+    } else {
+        relLevel = -level;
+    }
+    /* Lookup */
+    framePtr = interp->framePtr;
+    while (relLevel--) {
+        framePtr = framePtr->parentCallFrame;
+        if (framePtr == NULL) goto badlevel;
+    }
+    *framePtrPtr = framePtr;
+    return JIM_OK;
+badlevel:
+    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+    Jim_AppendStrings(interp, Jim_GetResult(interp),
+            "bad level \"", Jim_GetString(levelObjPtr, NULL), "\"", NULL);
     return JIM_ERR;
 }
 
@@ -7530,7 +7576,7 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 {
     Jim_CallFrame *targetCallFrame;
 
-    if (Jim_GetCallFrameByLevel(interp, levelObjPtr, &targetCallFrame, NULL)
+    if (JimGetCallFrameByInteger(interp, levelObjPtr, &targetCallFrame)
             != JIM_OK)
         return JIM_ERR;
     /* No proc call at toplevel callframe */

@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.21 2005/03/11 09:31:36 antirez Exp $
+# $Id: test.tcl,v 1.22 2005/03/15 14:05:38 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -1055,17 +1055,17 @@ test uplevel-4.4 {error: not enough args} {
     list [catch upBug msg] $msg
 } {1 {wrong # args: should be "uplevel ?level? command ?arg ...?"}}
 
-#proc a2 {} {
-#    uplevel a3
-#}
-#proc a3 {} {
-#    global x y
-#    set x [info level]
-#    set y [info level 1]
-#}
-#a2
-#test uplevel-5.1 {info level} {set x} 1
-#test uplevel-5.2 {info level} {set y} a3
+proc a2 {} {
+    uplevel a3
+}
+proc a3 {} {
+    global x y
+    set x [info level]
+    set y [info level 1]
+}
+a2
+test uplevel-5.1 {info level} {set x} 1
+test uplevel-5.2 {info level} {set y} a3
 
 ################################################################################
 # UNKNOWN
@@ -3173,32 +3173,33 @@ test info-4.3 {info globals option} {
 test info-5.1 {info level option} {
     info level
 } 0
-#~ test info-5.2 {info level option} {
-    #~ proc t1 {a b} {
-        #~ set x [info level]
-        #~ set y [info level 1]
-        #~ list $x $y
-    #~ }
-    #~ t1 146 testString
-#~ } {1 {t1 146 testString}}
-#~ test info-5.3 {info level option} {
-    #~ proc t1 {a b} {
-        #~ t2 [expr $a*2] $b
-    #~ }
-    #~ proc t2 {x y} {
-        #~ list [info level] [info level 1] [info level 2] [info level -1] \
-                #~ [info level 0]
-    #~ }
-    #~ t1 146 {a {b c} {{{c}}}}
-#~ } {2 {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}} {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}}}
-#~ test info-5.4 {info level option} {
-    #~ proc t1 {} {
-        #~ set x [info level]
-        #~ set y [info level 1]
-        #~ list $x $y
-    #~ }
-    #~ t1
-#~ } {1 t1}
+
+test info-5.2 {info level option} {
+    proc t1 {a b} {
+        set x [info level]
+        set y [info level 1]
+        list $x $y
+    }
+    t1 146 testString
+} {1 {t1 146 testString}}
+test info-5.3 {info level option} {
+    proc t1 {a b} {
+        t2 [expr $a*2] $b
+    }
+    proc t2 {x y} {
+        list [info level] [info level 1] [info level 2] [info level -1] \
+                [info level 0]
+    }
+    t1 146 {a {b c} {{{c}}}}
+} {2 {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}} {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}}}
+test info-5.4 {info level option} {
+    proc t1 {} {
+        set x [info level]
+        set y [info level 1]
+        list $x $y
+    }
+    t1
+} {1 t1}
 test info-5.5 {info level option} {
     list [catch {info level 1 2} msg] $msg
 } {1 {wrong # args: should be "info level ?levelNum?"}}

@@ -1,3 +1,7 @@
+2005-03-15 11:31  antirez
+
+	* AUTHORS, ChangeLog: More credits in the AUTHORS file
+
 2005-03-14 17:36  patthoyts
 
 	* jim-win32.c: Added a bunch of cursor handling apis

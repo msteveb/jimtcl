@@ -4,6 +4,3 @@ EXPR: || and && are not lazy. ?: is not implemented. Double math not
       implemented. Functions like sin(), cos(), not implemented.
 
 [subst] ingores special meaning of JIM_BREAK and alike.
-
-[info level ?level?] takes the level argument like [uplevel], but
-it should be different, positive is absolute, negative is relative.
