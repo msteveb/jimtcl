@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 
+#define JIM_EXTENSION
 #include "jim.h"
 
 extern int errno;

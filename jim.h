@@ -445,11 +445,16 @@ typedef struct Jim_Reference {
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
 #ifndef __JIM_CORE__
-#define JIM_API(x) (*x)
-#define JIM_STATIC
+# if defined JIM_EXTENSION || defined JIM_EMBEDDED
+#  define JIM_API(x) (*x)
+#  define JIM_STATIC
+# else
+#  define JIM_API(x) (*x)
+#  define JIM_STATIC extern
+# endif
 #else
-#define JIM_API(x) x
-#define JIM_STATIC static
+# define JIM_API(x) x
+# define JIM_STATIC static
 #endif /* __JIM_CORE__ */
 
 /* Memory allocation */
@@ -457,6 +462,8 @@ JIM_STATIC void * JIM_API(Jim_Alloc) (int size);
 JIM_STATIC char * JIM_API(Jim_StrDup) (char *s);
 
 /* evaluation */
+JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, char *script);
+JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, char *filename);
 JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
         Jim_Obj **objv);
@@ -639,6 +646,8 @@ static void Jim_InitExtension(Jim_Interp *interp, char *version)
   Jim_GetApi = interp->getApiFuncPtr;
   
   Jim_Alloc = Jim_GetApi(interp, "Jim_Alloc");
+  Jim_Eval = Jim_GetApi(interp, "Jim_Eval");
+  Jim_EvalFile = Jim_GetApi(interp, "Jim_EvalFile");
   Jim_EvalObj = Jim_GetApi(interp, "Jim_EvalObj");
   Jim_EvalObjVector = Jim_GetApi(interp, "Jim_EvalObjVector");
   Jim_InitHashTable = Jim_GetApi(interp, "Jim_InitHashTable");
@@ -711,6 +720,15 @@ static void Jim_InitExtension(Jim_Interp *interp, char *version)
   Jim_InteractivePrompt = Jim_GetApi(interp, "Jim_InteractivePrompt");
   Jim_SetResultString(interp, version, -1);
 }
+
+#ifdef JIM_EMBEDDED
+Jim_Interp *ExportedJimCreateInterp(void);
+static void Jim_InitEmbedded(void) {
+    Jim_Interp *i = ExportedJimCreateInterp();
+    Jim_InitExtension(i, "");
+    Jim_FreeInterp(i);
+}
+#endif /* JIM_EMBEDDED */
 #endif /* __JIM_CORE__ */
 
 #endif /* __JIM__H */

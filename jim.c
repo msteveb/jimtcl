@@ -3661,6 +3661,15 @@ Jim_Interp *Jim_CreateInterp(void)
     return i;
 }
 
+/* This is the only function Jim exports directly without
+ * to use the STUB system. It is only used by embedders
+ * in order to get an interpreter with the Jim API pointers
+ * registered. */
+Jim_Interp *ExportedJimCreateInterp(void)
+{
+    return Jim_CreateInterp();
+}
+
 void Jim_FreeInterp(Jim_Interp *i)
 {
     Jim_CallFrame *cf = i->framePtr, *prevcf, *nextcf;
@@ -6914,6 +6923,8 @@ void JimRegisterCoreApi(Jim_Interp *interp)
 {
   interp->getApiFuncPtr = Jim_GetApi;
   Jim_RegisterApi(interp, "Jim_Alloc", Jim_Alloc);
+  Jim_RegisterApi(interp, "Jim_Eval", Jim_Eval);
+  Jim_RegisterApi(interp, "Jim_EvalFile", Jim_EvalFile);
   Jim_RegisterApi(interp, "Jim_EvalObj", Jim_EvalObj);
   Jim_RegisterApi(interp, "Jim_EvalObjVector", Jim_EvalObjVector);
   Jim_RegisterApi(interp, "Jim_InitHashTable", Jim_InitHashTable);
@@ -6982,8 +6993,8 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   Jim_RegisterApi(interp, "Jim_SetDictKeysVector", Jim_SetDictKeysVector);
   Jim_RegisterApi(interp, "Jim_SubstObj", Jim_SubstObj);
   Jim_RegisterApi(interp, "Jim_RegisterApi", Jim_RegisterApi);
-  Jim_RegisterApi(interp, "Jim_PrintErrorMessage", Jim_RegisterApi);
-  Jim_RegisterApi(interp, "Jim_InteractivePrompt", Jim_RegisterApi);
+  Jim_RegisterApi(interp, "Jim_PrintErrorMessage", Jim_PrintErrorMessage);
+  Jim_RegisterApi(interp, "Jim_InteractivePrompt", Jim_InteractivePrompt);
 }
 
 /* -----------------------------------------------------------------------------
@@ -8523,6 +8534,7 @@ int Jim_InteractivePrompt(void)
     return 0;
 }
 
+#if 0
 int main(int argc, char **argv)
 {
     int retcode;
@@ -8561,3 +8573,4 @@ int main(int argc, char **argv)
     Jim_FreeInterp(interp);
     return retcode;
 }
+#endif

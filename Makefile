@@ -14,7 +14,7 @@ INSTALL_DATA= $(INSTALL) -m 644
 DESTDIR= /usr/local/bin/
 
 PROGRAMS= 		jim
-JIM_OBJECTS=		jim.o
+JIM_OBJECTS=		jim.o jimsh.o
 
 stopit:
 	@echo "Use:"
