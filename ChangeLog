@@ -1,3 +1,8 @@
+2005-04-05 19:59  antirez
+
+	* ChangeLog, jim-win32.c: Disabled from jim-win32.c commands that
+	  need include <psapi.h> because this is not generally available.
+
 2005-04-05 14:18  antirez
 
 	* ChangeLog, jim.c, test.tcl: [scope] command removed. Will be

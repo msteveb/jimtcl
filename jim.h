@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.68 2005/04/05 11:51:18 antirez Exp $
+ * $Id: jim.h,v 1.69 2005/04/06 06:35:00 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,6 +137,16 @@ extern "C" {
 
 /* Filesystem related */
 #define JIM_PATH_LEN 1024
+
+/* -----------------------------------------------------------------------------
+ * Stack
+ * ---------------------------------------------------------------------------*/
+
+typedef struct Jim_Stack {
+    int len;
+    int maxlen;
+    void **vector;
+} Jim_Stack;
 
 /* -----------------------------------------------------------------------------
  * Hash table
@@ -546,6 +556,15 @@ JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
 JIM_STATIC int JIM_API(Jim_SubstObj) (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
+/* stack */
+JIM_STATIC void JIM_API(Jim_InitStack)(Jim_Stack *stack);
+JIM_STATIC void JIM_API(Jim_FreeStack)(Jim_Stack *stack);
+JIM_STATIC int JIM_API(Jim_StackLen)(Jim_Stack *stack);
+JIM_STATIC void JIM_API(Jim_StackPush)(Jim_Stack *stack, void *element);
+JIM_STATIC void * JIM_API(Jim_StackPop)(Jim_Stack *stack);
+JIM_STATIC void * JIM_API(Jim_StackPeek)(Jim_Stack *stack);
+JIM_STATIC void JIM_API(Jim_FreeStackElements)(Jim_Stack *stack, void (*freeFunc)(void *ptr));
+
 /* hash table */
 JIM_STATIC int JIM_API(Jim_InitHashTable) (Jim_HashTable *ht,
         Jim_HashTableType *type, void *privdata);
@@ -872,6 +891,13 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(ScriptIsComplete);
   JIM_GET_API(PackageProvide);
   JIM_GET_API(PackageRequire);
+  JIM_GET_API(InitStack);
+  JIM_GET_API(FreeStack);
+  JIM_GET_API(StackLen);
+  JIM_GET_API(StackPush);
+  JIM_GET_API(StackPop);
+  JIM_GET_API(StackPeek);
+  JIM_GET_API(FreeStackElements);
 }
 
 #ifdef JIM_EMBEDDED
