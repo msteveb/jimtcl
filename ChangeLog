@@ -1,3 +1,7 @@
+2005-03-09 08:19  antirez
+
+	* ChangeLog, TODO, bench.tcl, jim.c: An initial [format] command.
+
 2005-03-08 18:06  antirez
 
 	* ChangeLog, jim.c, jim.h, jimsh.c: Did some fix in jimsh.c,
