@@ -1,3 +1,8 @@
+2005-03-11 10:33  antirez
+
+	* ChangeLog, Makefile: default Makefile optimization level set to
+	  -O2 again.  I committed a Makefile with -Os for an error. (me)
+
 2005-03-11 10:31  antirez
 
 	* ChangeLog, jim.c, test.tcl: Fix about [rename] against procedures

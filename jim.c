@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.91 2005/03/11 09:31:36 antirez Exp $
+ * $Id: jim.c,v 1.92 2005/03/11 09:37:08 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9821,9 +9821,9 @@ static struct {
 static void Jim_RegisterCoreProcedures(Jim_Interp *interp)
 {
     Jim_Eval(interp, (char*)
-"proc lambda {arglist body} {\n"
+"proc lambda {arglist args} {\n"
 "    set name [ref {} function lambdaFinalizer]\n"
-"    proc $name $arglist $body\n"
+"    uplevel 1 [list proc $name $arglist {expand}$args]\n"
 "    return $name\n"
 "}\n"
 "proc lambdaFinalizer {name val} {\n"
