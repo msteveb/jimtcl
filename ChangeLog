@@ -1,3 +1,8 @@
+2005-04-02 11:09  antirez
+
+	* ChangeLog, Makefile: Changes to Makefile to reflect that now
+	  libraries must have the version in the .so/.dll filename.
+
 2005-04-02 10:54  antirez
 
 	* ChangeLog, jim.c: win32 opendir() and related compatibility API.

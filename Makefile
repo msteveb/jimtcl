@@ -27,7 +27,7 @@ INSTALL_PROGRAM= $(INSTALL)
 INSTALL_DATA= $(INSTALL) -m 644
 DESTDIR = /usr/local/bin/
 
-PROGRAMS    = jim
+PROGRAMS    = jim jim.exe
 JIM_OBJECTS = jim.o jimsh.o
 LIBS        = -ldl
 

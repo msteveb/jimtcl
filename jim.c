@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.141 2005/04/02 08:54:27 antirez Exp $
+ * $Id: jim.c,v 1.142 2005/04/02 10:08:33 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7397,6 +7397,10 @@ static int JimPackageMatchVersion(int needed, int actual, int flags)
 int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
         int flags)
 {
+    int intVersion;
+    /* Check if the version format is ok */
+    if (JimPackageVersionToInt(interp, ver, &intVersion, JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
     /* If the package was already provided returns an error. */
     if (Jim_FindHashEntry(&interp->packages, name) != NULL) {
         if (flags & JIM_ERRMSG) {
@@ -11295,9 +11299,9 @@ static int Jim_PackageCoreCommand(Jim_Interp *interp, int argc,
 {
     int option;
     const char *options[] = {
-        "require", NULL
+        "require", "provide", NULL
     };
-    enum {OPT_REQUIRE};
+    enum {OPT_REQUIRE, OPT_PROVIDE};
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
@@ -11326,6 +11330,13 @@ static int Jim_PackageCoreCommand(Jim_Interp *interp, int argc,
         if (ver == NULL)
             return JIM_ERR;
         Jim_SetResultString(interp, ver, -1);
+    } else if (option == OPT_PROVIDE) {
+        if (argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "package version");
+            return JIM_ERR;
+        }
+        return Jim_PackageProvide(interp, Jim_GetString(argv[2], NULL),
+                    Jim_GetString(argv[3], NULL), JIM_ERRMSG);
     }
     return JIM_OK;
 }
@@ -11462,7 +11473,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.141 2005/04/02 08:54:27 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.142 2005/04/02 10:08:33 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
