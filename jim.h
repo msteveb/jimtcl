@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.46 2005/03/09 11:06:42 antirez Exp $
+ * $Id: jim.h,v 1.47 2005/03/10 15:58:28 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -562,6 +562,8 @@ JIM_STATIC int JIM_API(Jim_StringMatchObj) (Jim_Obj *patternObjPtr,
 JIM_STATIC Jim_Obj * JIM_API(Jim_StringRangeObj) (Jim_Interp *interp,
         Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr,
         Jim_Obj *lastObjPtr);
+JIM_STATIC Jim_Obj * JIM_API(Jim_FormatString) (Jim_Interp *interp,
+        Jim_Obj *fmtObjPtr, int objc, Jim_Obj *const *objv);
 JIM_STATIC int JIM_API(Jim_CompareStringImmediate) (Jim_Interp *interp,
         Jim_Obj *objPtr, const char *str);
 
@@ -758,6 +760,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(StringEqObj);
   JIM_GET_API(StringMatchObj);
   JIM_GET_API(StringRangeObj);
+  JIM_GET_API(FormatString);
   JIM_GET_API(CompareStringImmediate);
   JIM_GET_API(NewReference);
   JIM_GET_API(GetReference);

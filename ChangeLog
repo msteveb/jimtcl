@@ -1,3 +1,29 @@
+2005-03-10 11:03  antirez
+
+	* Makefile, README, bench.tcl, jim.c, tools/benchtable.tcl: Some
+	  fix to bench.tcl to make it able to run in Tcl7.6.  README
+	  update.
+
+2005-03-09 14:42  patthoyts
+
+	* Makefile.vc: Add profile option
+
+2005-03-09 13:00  patthoyts
+
+	* bench.tcl: Improved formatting for normal output
+
+2005-03-09 12:57  patthoyts
+
+	* tools/benchtable.tcl: New file to tabulate accumulated benchmark
+	  data from bench.tcl -batch
+
+2005-03-09 12:06  antirez
+
+	* ChangeLog, jim.c, jim.h, test.tcl: [linsert] command added
+	  (Clemens Hintze).  Jim_GetIndex() semantic changed to make
+	  [lindex] more compatible with Tcl's one, without effects on other
+	  commnads (me).
+
 2005-03-09 09:52  antirez
 
 	* ChangeLog, bench.tcl: New test added to the benchmark

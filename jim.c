@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.86 2005/03/10 10:03:32 antirez Exp $
+ * $Id: jim.c,v 1.87 2005/03/10 15:58:28 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1950,30 +1950,47 @@ int Jim_StringCompareObj(Jim_Obj *firstObjPtr,
 
 /* Convert a range, as returned by Jim_GetRange(), into
  * an absolute index into an object of the specified length.
- * Indexes that result in an absolute value less than 0 are
- * returned as zero. Indexes resulting in an absolute value
- * greater than the object length are returned as the last
- * element of the object. If outOfRangePtr is not NULL,
- * it's set to 1 on this last two special conditions, otherwise
- * it's set to 0. */
-int Jim_RelToAbsIndex(int len, int index, int *outOfRangePtr)
+ * This function may return negative values, or values
+ * bigger or equal to the length of the list if the index
+ * is out of range. */
+static int JimRelToAbsIndex(int len, int index)
 {
-    if (outOfRangePtr) *outOfRangePtr = 0;
-    if (index >= len) {
-        index = len-1;
-        if (outOfRangePtr) *outOfRangePtr = 1;
-    }
-    else if (index < 0) {
-        index = len + index;
-        if (index < 0) {
-            index = 0;
-            if (outOfRangePtr) *outOfRangePtr = 1;
-        } else if (index >= len) {
-            index = len-1;
-            if (outOfRangePtr) *outOfRangePtr = 1;
+    if (index < 0)
+        return len + index;
+    return index;
+}
+
+/* Convert a pair of index as normalize by JimRelToAbsIndex(),
+ * into a range stored in *firstPtr, *lastPtr, *rangeLenPtr, suitable
+ * for implementation of commands like [string range] and [lrange].
+ *
+ * The resulting range is guaranteed to address valid elements of
+ * the structure. */
+static void JimRelToAbsRange(int len, int first, int last,
+        int *firstPtr, int *lastPtr, int *rangeLenPtr)
+{
+    int rangeLen;
+
+    if (first > last) {
+        rangeLen = 0;
+    } else {
+        rangeLen = last-first+1;
+        if (rangeLen) {
+            if (first < 0) {
+                rangeLen += first;
+                first = 0;
+            }
+            if (last >= len) {
+                rangeLen -= (last-(len-1));
+                last = len-1;
+            }
         }
     }
-    return index;
+    if (rangeLen < 0) rangeLen = 0;
+
+    *firstPtr = first;
+    *lastPtr = last;
+    *rangeLenPtr = rangeLen;
 }
 
 Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
@@ -1987,11 +2004,9 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
         Jim_GetIndex(interp, lastObjPtr, &last) != JIM_OK)
         return NULL;
     str = Jim_GetString(strObjPtr, &len);
-    first = Jim_RelToAbsIndex(len, first, NULL);
-    last = Jim_RelToAbsIndex(len, last, NULL);
-    rangeLen = last-first+1;
-    if (rangeLen < 0)
-        rangeLen = 0;
+    first = JimRelToAbsIndex(len, first);
+    last = JimRelToAbsIndex(len, last);
+    JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
     return Jim_NewStringObj(interp, str+first, rangeLen);
 }
 
@@ -4840,6 +4855,25 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     }
 }
 
+/* Returns a list composed of the elements in the specified range.
+ * first and start are directly accepted as Jim_Objects and
+ * processed for the end?-index? case. */
+Jim_Obj *Jim_ListRange(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr)
+{
+    int first, last;
+    int len, rangeLen;
+
+    if (Jim_GetIndex(interp, firstObjPtr, &first) != JIM_OK ||
+        Jim_GetIndex(interp, lastObjPtr, &last) != JIM_OK)
+        return NULL;
+    Jim_ListLength(interp, listObjPtr, &len); /* will convert into list */
+    first = JimRelToAbsIndex(len, first);
+    last = JimRelToAbsIndex(len, last);
+    JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    return Jim_NewListObj(interp,
+            listObjPtr->internalRep.listValue.ele+first, rangeLen);
+}
+
 /* -----------------------------------------------------------------------------
  * Dict object
  * ---------------------------------------------------------------------------*/
@@ -7234,6 +7268,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(StringEqObj);
   JIM_REGISTER_API(StringMatchObj);
   JIM_REGISTER_API(StringRangeObj);
+  JIM_REGISTER_API(FormatString);
   JIM_REGISTER_API(CompareStringImmediate);
   JIM_REGISTER_API(NewReference);
   JIM_REGISTER_API(GetReference);
@@ -9602,6 +9637,22 @@ static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
     return JIM_ERR;
 }
 
+/* [lrange] */
+static int Jim_LrangeCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr;
+
+    if (argc != 4) {
+        Jim_WrongNumArgs(interp, 1, argv, "list first last");
+        return JIM_ERR;
+    }
+    if ((objPtr = Jim_ListRange(interp, argv[1], argv[2], argv[3])) == NULL)
+        return JIM_ERR;
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -9655,6 +9706,7 @@ static struct {
     {"join", Jim_JoinCoreCommand},
     {"format", Jim_FormatCoreCommand},
     {"error", Jim_ErrorCoreCommand},
+    {"lrange", Jim_LrangeCoreCommand},
     {NULL, NULL},
 };
 
