@@ -7,13 +7,12 @@ Copyright (C) 2005 Salvatore Sanfilippo
 All Rights Reserved
 This software is under the APACHE 2.0 LICENSE
 
-CREDITS
+CREDITS (people that contributed source code/patches/ideas)
 
-- Pat Thoyts that contributed WIN32/MVC portablity fixes.
-- Clemens Hintze for fixes, suggestions, a better implementation
-  of the [if] command.
+- Pat Thoyts
+- Clemens Hintze
 
-THANKS
+ALSO THANKS TO:
 
 - Many people on the Tclers Chat that helped me to explore issues
   about the use and the implementation of the Tcl programming language.

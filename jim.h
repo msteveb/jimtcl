@@ -292,7 +292,7 @@ typedef struct Jim_ObjType {
 
 /* Call frame */
 typedef struct Jim_CallFrame {
-	unsigned int id; /* Call Frame ID. Used for caching. */
+	unsigned jim_wide id; /* Call Frame ID. Used for caching. */
 	struct Jim_HashTable vars;
 	struct Jim_CallFrame *parentCallFrame;
 	Jim_Obj **argv; /* object vector of the current procedure call. */

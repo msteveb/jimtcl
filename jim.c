@@ -27,8 +27,6 @@
 #include <errno.h>
 #include <time.h>
 
-extern int errno;
-
 #include "jim.h"
 
 #ifdef HAVE_BACKTRACE
@@ -117,7 +115,7 @@ static jim_wide Jim_Strtoll(const char *nptr, char **endptr, register int base)
 	qbase = (unsigned)base;
 	cutoff = neg ? (unsigned jim_wide)-(LLONG_MIN + LLONG_MAX) + LLONG_MAX
 	    : LLONG_MAX;
-	cutlim = cutoff % qbase;
+	cutlim = (int)(cutoff % qbase);
 	cutoff /= qbase;
 	for (acc = 0, any = 0;; c = *s++) {
 		if (!isascii(c))
