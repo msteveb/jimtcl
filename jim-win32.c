@@ -22,6 +22,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
+#include <ctype.h>
 
 #define JIM_EXTENSION
 #include "jim.h"
@@ -127,8 +128,8 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
         return JIM_ERR;
     if (!CloseWindow((HWND)hwnd)) {
         Jim_SetResult(interp,
-        Win32ErrorObj(interp, "closewindow", GetLastError()));^M
-            return JIM_ERR;
+            Win32ErrorObj(interp, "closewindow", GetLastError()));
+        return JIM_ERR;
     }
     return JIM_OK;
 }
