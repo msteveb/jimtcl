@@ -1,3 +1,8 @@
+2005-03-14 14:11  antirez
+
+	* ChangeLog, jim.c, jim.h: more fixes to allow inclusion of jim.h
+	  into C++ programs.
+
 2005-03-14 13:20  antirez
 
 	* ChangeLog, jim.h: Some change to make jim.h more C++ friendly,

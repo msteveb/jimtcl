@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.103 2005/03/14 13:11:26 antirez Exp $
+ * $Id: jim.c,v 1.104 2005/03/14 14:39:01 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -784,31 +784,31 @@ Jim_HashEntry *Jim_FindHashEntry(Jim_HashTable *ht, const void *key)
 
 Jim_HashTableIterator *Jim_GetHashTableIterator(Jim_HashTable *ht)
 {
-    Jim_HashTableIterator *iterator = Jim_Alloc(sizeof(*iterator));
+    Jim_HashTableIterator *iter = Jim_Alloc(sizeof(*iter));
 
-    iterator->ht = ht;
-    iterator->index = -1;
-    iterator->entry = NULL;
-    iterator->nextEntry = NULL;
-    return iterator;
+    iter->ht = ht;
+    iter->index = -1;
+    iter->entry = NULL;
+    iter->nextEntry = NULL;
+    return iter;
 }
 
-Jim_HashEntry *Jim_NextHashEntry(Jim_HashTableIterator *iterator)
+Jim_HashEntry *Jim_NextHashEntry(Jim_HashTableIterator *iter)
 {
     while (1) {
-        if (iterator->entry == NULL) {
-            iterator->index++;
-            if (iterator->index >=
-                    (signed)iterator->ht->size) break;
-            iterator->entry = iterator->ht->table[iterator->index];
+        if (iter->entry == NULL) {
+            iter->index++;
+            if (iter->index >=
+                    (signed)iter->ht->size) break;
+            iter->entry = iter->ht->table[iter->index];
         } else {
-            iterator->entry = iterator->nextEntry;
+            iter->entry = iter->nextEntry;
         }
-        if (iterator->entry) {
+        if (iter->entry) {
             /* We need to save the 'next' here, the iterator user
              * may delete the entry we are returning. */
-            iterator->nextEntry = iterator->entry->next;
-            return iterator->entry;
+            iter->nextEntry = iter->entry->next;
+            return iter->entry;
         }
     }
     return NULL;

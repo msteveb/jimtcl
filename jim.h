@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.53 2005/03/14 13:11:26 antirez Exp $
+ * $Id: jim.h,v 1.54 2005/03/14 14:39:01 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -545,7 +545,7 @@ JIM_STATIC int JIM_API(Jim_ResizeHashTable) (Jim_HashTable *ht);
 JIM_STATIC Jim_HashTableIterator *JIM_API(Jim_GetHashTableIterator)
         (Jim_HashTable *ht);
 JIM_STATIC Jim_HashEntry * JIM_API(Jim_NextHashEntry)
-        (Jim_HashTableIterator *iterator);
+        (Jim_HashTableIterator *iter);
 
 /* objects */
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewObj) (Jim_Interp *interp);
