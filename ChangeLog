@@ -1,3 +1,7 @@
+2005-03-22 13:47  antirez
+
+	* ChangeLog, jim.c: expr's || and && operators are now lazy.
+
 2005-03-21 18:04  chi
 
 	* jim.c, jim.h: Add copyright notice within jim.c & jim.h to

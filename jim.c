@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.126 2005/03/22 12:47:41 antirez Exp $
+ * $Id: jim.c,v 1.127 2005/03/22 14:32:50 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -6114,7 +6114,7 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
                 sizeof(Jim_Obj*)*(expr->len-leftindex));
         expr->len += 2;
         index += 2;
-        offset = index-leftindex;
+        offset = (index-leftindex)-1;
         Jim_DecrRefCount(interp, expr->obj[index]);
         if (expr->opcode[index] == JIM_EXPROP_LOGICAND) {
             expr->opcode[leftindex+1] = JIM_EXPROP_LOGICAND_LEFT;
@@ -10876,7 +10876,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.126 2005/03/22 12:47:41 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.127 2005/03/22 14:32:50 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
