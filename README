@@ -130,6 +130,12 @@ For instructions about how to compile extensions just try 'make'
 and see the available options. Check also the next section of this file.
 
 --------------------------------------------------------------------------------
+HOW TO COMPILE WITHOUT DYNAMIC LIBRARY SUPPORT ([load] command)
+--------------------------------------------------------------------------------
+
+Edit jim.c before to complile and uncomment the JIM_DYNLIB define.
+
+--------------------------------------------------------------------------------
 EXTENSIONS
 --------------------------------------------------------------------------------
 

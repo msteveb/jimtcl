@@ -1,3 +1,10 @@
+2005-03-12 07:43  antirez
+
+	* ChangeLog, jim.c: Modified Jim_Free() to be more strict, now it
+	  panics if the refcount of the object is not exactly 0.  Now new
+	  objects that are not used may be freed using Jim_Free instead to
+	  use Jim_IncrRefCount() + Jim_DecrRefCount() calls.
+
 2005-03-11 23:00  antirez
 
 	* ChangeLog, jim.c: Converted some free() call to Jim_Free().

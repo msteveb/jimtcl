@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.94 2005/03/12 06:43:13 antirez Exp $
+ * $Id: jim.c,v 1.95 2005/03/12 08:52:56 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@
  */
 
 #define __JIM_CORE__
-#define JIM_OPTIMIZATION
+#define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
+#define JIM_DYNLIB       /* comment to complile without dynamic lib support */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,7 @@
 
 /* Include the platform dependent libraries for
  * dynamic loading of libraries. */
+#ifdef JIM_DYNLIB
 #ifdef WIN32
 #define STRICT
 #define WIN32_LEAN_AND_MEAN
@@ -43,7 +45,8 @@
 #endif /* _MSC_VER */
 #else
 #include <dlfcn.h>
-#endif
+#endif /* WIN32 */
+#endif /* JIM_DYNLIB */
 
 #include "jim.h"
 
@@ -6451,6 +6454,7 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
+#ifdef JIM_DYNLIB
 #ifdef WIN32
 #define RTLD_LAZY 0
 void * dlopen(const char *path, int mode) 
@@ -6549,6 +6553,16 @@ err:
         Jim_DecrRefCount(interp, libPathObjPtr);
     return JIM_ERR;
 }
+#else /* JIM_DYNLIB */
+int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
+{
+    JIM_NOTUSED(interp);
+    JIM_NOTUSED(pathName);
+
+    Jim_SetResultString(interp, "the Jim binary has no support for [load]", -1);
+    return JIM_ERR;
+}
+#endif/* JIM_DYNLIB */
 
 /* -----------------------------------------------------------------------------
  * Eval
