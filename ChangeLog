@@ -1,3 +1,9 @@
+2005-03-29 15:38  antirez
+
+	* ChangeLog, Makefile, jim.c, jim.h: A number of fix for commands
+	  optimizing a bit too much objects not shared, that didn't played
+	  very well with Jim arrays.  Added the [rand] command.
+
 2005-03-28 19:47  antirez
 
 	* ChangeLog, jim.c, test.tcl: The behaviour of [scope] modified a
