@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.71 2005/03/07 14:17:44 antirez Exp $
+ * $Id: jim.c,v 1.72 2005/03/07 15:30:34 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2066,7 +2066,7 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
             name = "option";
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
-            "bad ", name, " \"", Jim_GetString(objPtr, NULL), "\": must be ",
+            "bad ", name, " \"", Jim_GetString(objPtr, NULL), "\": must be one of ",
             NULL);
         for (i = 0; i < count; i++) {
             if (i+1 == count && count > 1)
@@ -4451,6 +4451,34 @@ static void JimListGetElements(Jim_Interp *interp, Jim_Obj *listObj, int *argc,
     Jim_ListLength(interp, listObj, argc);
     assert(listObj->typePtr == &listObjType);
     *listVec = listObj->internalRep.listValue.ele;
+}
+
+/* ListSortElements type values */
+enum {JIM_LSORT_STRING};
+
+/* Sort the internal rep of a list. */
+static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    const char *lhs = Jim_GetString(*lhsObj, NULL);
+    const char *rhs = Jim_GetString(*rhsObj, NULL);
+    return strcmp(lhs, rhs);
+}
+
+static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObj, int type)
+{
+    typedef int (qsort_comparator)(const void *, const void *);
+    int (*fn)(Jim_Obj**, Jim_Obj**);
+    Jim_Obj **vector = listObj->internalRep.listValue.ele;
+    int len = listObj->internalRep.listValue.len;
+
+    assert(listObj->typePtr == &listObjType);
+    switch (type) {
+        case JIM_LSORT_STRING: fn = ListSortString;  break;
+        default:
+            Jim_Panic("ListSort called with invalid sort type");
+    }
+    qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *)fn);
+    Jim_InvalidateStringRep(listObj);
 }
 
 /* This is the low-level function to append an element to a list.
@@ -8234,7 +8262,7 @@ static int Jim_LindexCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-/* [llenght] */
+/* [llength] */
 static int Jim_LlengthCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
@@ -8301,6 +8329,20 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc,
     }
     if (Jim_SetListIndex(interp, argv[1], argv+2, argc-3, argv[argc-1])
             == JIM_ERR) return JIM_ERR;
+    return JIM_OK;
+}
+
+/* [lsort] */
+static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
+{
+    Jim_Obj *resObj;
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "list");
+        return JIM_ERR;
+    }
+    resObj = Jim_DuplicateObj(interp, argv[1]);
+    ListSortElements(interp, resObj, JIM_LSORT_STRING);
+    Jim_SetResult(interp, resObj);
     return JIM_OK;
 }
 
@@ -9176,63 +9218,97 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
+    int cmd, result = JIM_OK;
+    static const char *commands[] = {
+        "commands", "level", "globals", "locals", "vars", "body", "version", NULL
+    };
+    enum {INFO_COMMANDS, INFO_LEVEL, INFO_GLOBALS, INFO_LOCALS, INFO_VARS,
+          INFO_BODY, INFO_VERSION};
+    
     if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "option ?args ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
         return JIM_ERR;
     }
-    if (Jim_CompareStringImmediate(interp, argv[1], "commands")) {
-        if (argc != 2 && argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-            return JIM_ERR;
-        }
-        if (argc == 3)
-            Jim_SetResult(interp,JimCommandsList(interp, argv[2]));
-        else
-            Jim_SetResult(interp, JimCommandsList(interp, NULL));
-        return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "globals") ||
-        Jim_CompareStringImmediate(interp, argv[1], "locals") ||
-        Jim_CompareStringImmediate(interp, argv[1], "vars")) {
-        int mode;
-        if (Jim_CompareStringImmediate(interp, argv[1], "globals"))
-            mode = JIM_VARLIST_GLOBALS;
-        else if (Jim_CompareStringImmediate(interp, argv[1], "locals"))
-            mode = JIM_VARLIST_LOCALS;
-        else
-            mode = JIM_VARLIST_VARS;
-        if (argc != 2 && argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-            return JIM_ERR;
-        }
-        if (argc == 3)
-            Jim_SetResult(interp,JimVariablesList(interp, argv[2], mode));
-        else
-            Jim_SetResult(interp, JimVariablesList(interp, NULL, mode));
-        return JIM_OK;
-    } else if (Jim_CompareStringImmediate(interp, argv[1], "level")) {
-        Jim_Obj *objPtr;
-
-        if (argc != 2 && argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
-            return JIM_ERR;
-        }
-        if (argc == 2) {
-            Jim_SetResult(interp,
-                Jim_NewIntObj(interp, interp->numLevels));
-            return JIM_OK;
-        }
-        /* argc == 3 case: */
-        if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK)
-            return JIM_ERR;
-        Jim_SetResult(interp, objPtr);
-        return JIM_OK;
-    } else {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-            "bad option \"", Jim_GetString(argv[1], NULL), "\":",
-            " must be commands, level", NULL);
+    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "command", JIM_ERRMSG)
+        != JIM_OK) {
         return JIM_ERR;
     }
+    
+    switch (cmd)  {
+        case INFO_COMMANDS: {
+            if (argc != 2 && argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
+                return JIM_ERR;
+            }
+            if (argc == 3)
+                Jim_SetResult(interp,JimCommandsList(interp, argv[2]));
+            else
+                Jim_SetResult(interp, JimCommandsList(interp, NULL));
+            break;
+        }
+        case INFO_GLOBALS:
+        case INFO_LOCALS:
+        case INFO_VARS: {
+            int mode;
+            switch (cmd) {
+                case INFO_GLOBALS: mode = JIM_VARLIST_GLOBALS; break;
+                case INFO_LOCALS:  mode = JIM_VARLIST_LOCALS; break;
+                case INFO_VARS:    mode = JIM_VARLIST_VARS; break;
+            }
+            if (argc != 2 && argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
+                return JIM_ERR;
+            }
+            if (argc == 3)
+                Jim_SetResult(interp,JimVariablesList(interp, argv[2], mode));
+            else
+                Jim_SetResult(interp, JimVariablesList(interp, NULL, mode));
+            break;
+        }
+        case INFO_LEVEL: {
+            Jim_Obj *objPtr;
+            switch (argc) {
+                case 2:
+                    Jim_SetResult(interp,
+                                  Jim_NewIntObj(interp, interp->numLevels));
+                    break;
+                case 3:
+                    if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK)
+                        return JIM_ERR;
+                    Jim_SetResult(interp, objPtr);
+                    break;
+                default:
+                    Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
+                    return JIM_ERR;
+            }
+            break;
+        }
+        case INFO_BODY: {
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "procname");
+                return JIM_ERR;
+            }
+            if (SetCommandFromAny(interp, argv[2]) != JIM_OK)
+                return JIM_ERR;
+            if (argv[2]->internalRep.cmdValue.cmdPtr->cmdProc != NULL) {
+                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+                Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "command \"", Jim_GetString(argv[2], NULL),
+                    "\" is not a procedure", NULL);
+                return JIM_ERR;
+            }
+            Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
+            break;
+        }
+        case INFO_VERSION: {
+            char buf[(JIM_INTEGER_SPACE * 3) + 1];
+            sprintf(buf, "%d.%d.%d", 
+                    JIM_MAJOR_VERSION, JIM_MINOR_VERSION, JIM_PATCH_LEVEL);
+            Jim_SetResultString(interp, buf, -1);
+            break;
+        }
+    }
+    return result;
 }
 
 /* [split] */
@@ -9352,6 +9428,7 @@ static struct {
     {"lset", Jim_LsetCoreCommand},
     {"llength", Jim_LlengthCoreCommand},
     {"lappend", Jim_LappendCoreCommand},
+    {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
     {"debug", Jim_DebugCoreCommand},
     {"eval", Jim_EvalCoreCommand},
@@ -9495,8 +9572,9 @@ int Jim_InteractivePrompt(void)
     int retcode = JIM_OK;
 
     Jim_RegisterCoreCommands(interp);
-    printf("Welcome to Jim version %d, "
-           "Copyright (c) 2005 Salvatore Sanfilippo\n", JIM_VERSION);
+    printf("Welcome to Jim version %d.%d.%d, "
+           "Copyright (c) 2005 Salvatore Sanfilippo\n",
+           JIM_MAJOR_VERSION, JIM_MINOR_VERSION, JIM_PATCH_LEVEL);
     while (1) {
         char prg[1024];
         const char *result;

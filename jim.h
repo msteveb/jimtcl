@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.40 2005/03/06 10:43:06 antirez Exp $
+ * $Id: jim.h,v 1.41 2005/03/07 15:30:34 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,9 @@
 * define JIM_NO_CONST activated
 * ---------------------------------------------------------------------------*/
 
-#ifdef JIM_NO_CONST                                                               
-#  define const                                                                    
-#endif                                                                            
-
+#ifdef JIM_NO_CONST
+#  define const
+#endif
 
 /* -----------------------------------------------------------------------------
  * System configuration
@@ -105,7 +104,9 @@
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 0
+#define JIM_MAJOR_VERSION 0
+#define JIM_MINOR_VERSION 0
+#define JIM_PATCH_LEVEL   2
 
 #define JIM_OK 0
 #define JIM_ERR 1
