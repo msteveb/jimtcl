@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.34 2005/03/05 09:46:12 antirez Exp $
+ * $Id: jim.h,v 1.35 2005/03/05 10:45:15 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -430,6 +430,7 @@ typedef struct Jim_Interp {
     struct Jim_HashTable stub; /* Stub hash table to export API */
     void *getApiFuncPtr; /* Jim_GetApi() function pointer. */
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
+    struct Jim_HashTable assocData; /* per-interp storage for use by packages */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -678,6 +679,13 @@ JIM_STATIC void JIM_API(Jim_ReleaseSharedString) (Jim_Interp *interp,
 JIM_STATIC void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
 
+/* package utilities */
+typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);
+JIM_STATIC void * JIM_API(Jim_GetAssocData)(Jim_Interp *interp, const char *key);
+JIM_STATIC int JIM_API(Jim_SetAssocData)(Jim_Interp *interp, const char *key,
+        Jim_InterpDeleteProc *delProc, void *data);
+JIM_STATIC int JIM_API(Jim_DeleteAssocData)(Jim_Interp *interp, const char *key);
+
 /* API import/export functions */
 JIM_STATIC void* JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname);
 JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp, 
@@ -785,6 +793,9 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(UnsetVariable);
   JIM_GET_API(GetVariableStr);
   JIM_GET_API(GetGlobalVariableStr);
+  JIM_GET_API(GetAssocData);
+  JIM_GET_API(SetAssocData);
+  JIM_GET_API(DeleteAssocData);
 
   Jim_SetResultString(interp, version, -1);
 }

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.62 2005/03/05 09:46:12 antirez Exp $
+ * $Id: jim.c,v 1.63 2005/03/05 10:45:15 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -874,7 +874,7 @@ static void JimStringCopyHTKeyDestructor(void *privdata, const void *key)
 
     Jim_Free((void*)key); /* ATTENTION: const cast */
 }
-    
+
 static Jim_HashTableType JimStringCopyHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
     JimStringCopyHTKeyDup,        /* key dup */
@@ -893,6 +893,28 @@ static Jim_HashTableType JimSharedStringsHashTableType = {
     JimStringCopyHTKeyCompare,        /* key compare */
     JimStringCopyHTKeyDestructor,        /* key destructor */
     NULL                    /* val destructor */
+};
+
+typedef struct AssocDataValue {
+    Jim_InterpDeleteProc *delProc;
+    void *data;
+} AssocDataValue;
+
+static void JimAssocDataHashTableValueDestructor(void *privdata, void *data)
+{
+    AssocDataValue *assocPtr = (AssocDataValue *)data;
+    if (assocPtr->delProc != NULL)
+        assocPtr->delProc((Jim_Interp *)privdata, assocPtr->data);
+    Jim_Free(data);
+}
+
+static Jim_HashTableType JimAssocDataHashTableType = {
+    JimStringCopyHTHashFunction,         /* hash function */
+    JimStringCopyHTKeyDup,               /* key dup */
+    NULL,                                /* val dup */
+    JimStringCopyHTKeyCompare,           /* key compare */
+    JimStringCopyHTKeyDestructor,        /* key destructor */
+    JimAssocDataHashTableValueDestructor /* val destructor */
 };
 
 /* -----------------------------------------------------------------------------
@@ -3632,6 +3654,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_InitHashTable(&i->sharedStrings, &JimSharedStringsHashTableType,
             NULL);
     Jim_InitHashTable(&i->stub, &JimStringCopyHashTableType, NULL);
+    Jim_InitHashTable(&i->assocData, &JimAssocDataHashTableType, i);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i);
     i->emptyObj = Jim_NewEmptyStringObj(i);
     i->result = i->emptyObj;
@@ -3673,6 +3696,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->commands);
     Jim_FreeHashTable(&i->references);
     Jim_FreeHashTable(&i->stub);
+    Jim_FreeHashTable(&i->assocData);
     /* Free the call frames list */
     while(cf) {
         prevcf = cf->parentCallFrame;
@@ -3810,6 +3834,29 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
             Jim_NewStringObj(interp, filename, -1));
     Jim_ListAppendElement(interp, interp->stackTrace,
             Jim_NewIntObj(interp, linenr));
+}
+
+int Jim_SetAssocData(Jim_Interp *interp, const char *key, Jim_InterpDeleteProc *delProc, void *data)
+{
+    AssocDataValue *assocEntryPtr = (AssocDataValue *)Jim_Alloc(sizeof(AssocDataValue));
+    assocEntryPtr->delProc = delProc;
+    assocEntryPtr->data = data;
+    return Jim_AddHashEntry(&interp->assocData, key, assocEntryPtr);
+}
+
+void *Jim_GetAssocData(Jim_Interp *interp, const char *key)
+{
+    Jim_HashEntry *entryPtr = Jim_FindHashEntry(&interp->assocData, key);
+    if (entryPtr != NULL) {
+        AssocDataValue *assocEntryPtr = (AssocDataValue *)entryPtr->val;
+        return assocEntryPtr->data;
+    }
+    return NULL;
+}
+
+int Jim_DeleteAssocData(Jim_Interp *interp, const char *key)
+{
+    return Jim_DeleteHashEntry(&interp->assocData, key);
 }
 
 /* -----------------------------------------------------------------------------
@@ -7027,6 +7074,9 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(UnsetVariable);
   JIM_REGISTER_API(GetVariableStr);
   JIM_REGISTER_API(GetGlobalVariableStr);
+  JIM_REGISTER_API(GetAssocData);
+  JIM_REGISTER_API(SetAssocData);
+  JIM_REGISTER_API(DeleteAssocData);
 }
 
 /* -----------------------------------------------------------------------------
