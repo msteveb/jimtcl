@@ -1,3 +1,9 @@
+2005-03-11 10:31  antirez
+
+	* ChangeLog, jim.c, test.tcl: Fix about [rename] against procedures
+	  with statics.  Added a regression test to test.tcl (I plan to
+	  move everything inside regtest.tcl into test.tcl).
+
 2005-03-11 10:25  antirez
 
 	* ChangeLog, jim.c: more static fixes (me)
