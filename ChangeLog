@@ -1,3 +1,18 @@
+2005-03-06 23:42  antirez
+
+	* bench.tcl, jim.c, regtest.tcl, test.tcl: A specializing version
+	  of [for] that appears able to match the performaces of Tcl8.4 for
+	  the specialized forms. The implementation is a bit complex so may
+	  contain bugs... to handle with care.	Also a [for] bug about
+	  [continue] was fixed and the regression test added.
+
+2005-03-06 11:43  antirez
+
+	* ChangeLog, jim.c, jim.h, doc/AIO-Extension.txt: Fixed a race
+	  condition in the garbage collection code.  In order to fix this,
+	  now the hash table iterator works in a way that's save to delete
+	  returned entries during the iteration.
+
 2005-03-06 10:05  antirez
 
 	* ChangeLog, doc/AIO-Extension.txt: AIO doc update
