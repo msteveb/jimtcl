@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.21 2005/04/06 10:13:03 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.22 2005/04/06 12:52:08 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -435,7 +435,7 @@ typedef struct _PERFORMANCE_INFORMATION {
     DWORD ProcessCount;
     DWORD ThreadCount;
 } PERFORMANCE_INFORMATION;
-typedef BOOL (STDAPICALLTYPE *LPFNGETPERFORMANCEINFO)(PERFORMANCE_INFORMATION *, DWORD);
+typedef BOOL (__stdcall  *LPFNGETPERFORMANCEINFO)(PERFORMANCE_INFORMATION *, DWORD);
 
 static int
 Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
