@@ -40,6 +40,9 @@ profile:
 .o.dll:
 	$(CC) -shared -o $@ $<
 
+jim-win32com.dll: jim-win32com.o
+	$(CC) -shared -o $@ $< -lole32 -luuid -loleaut32
+
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) -ldl
 

@@ -74,7 +74,46 @@ scriptable in Jim, with the following advantages:
 3) We are working to make Jim as feature-complete as possible, thanks to
    dynamically loaded extensions it may stay as little as it is today
    but able to do interesting things for you. So it's not excluded that
-   in the future you will able to use Jim as a general purpose language.
+   in the future Jim will be an option as general purpose language.
+   But don't mind, for this there is already the mainstream Tcl
+   implementation ;).
+
+--------------------------------------------------------------------------------
+HOW TO COMPILE
+--------------------------------------------------------------------------------
+
+Jim was tested under Linux, FreeBSD, MacosX, Windows XP (mingw, MVC).
+
+To compile jim itself try: 'make jim'.
+
+In non-linux systems you may have to remove the "-ldl" from the
+Makefile because it's not needed but will cause a compilation error
+(no configure for now... applications embedding Jim will probably
+ have one already)
+
+For instructions about how to compile extensions just try 'make'
+and see the available options. Check also the next section of this file.
+
+------------------------------------------------------------------------------
+EXTENSIONS
+------------------------------------------------------------------------------
+
+JIM-POSIX
+
+This is the start of a library that should export to Jim useful bits of the
+POSIX API. For now there are just a few utility functions, but it's
+an example on how to write a simple library for Jim.
+
+JIM-WIN32
+
+This is the start of a library that should export to Jim useful bits of the
+WIN32 API. Currently there is just one function that is used to call windows
+applications. For example run jim and try the extension with:
+
+  load jim-win32.dll
+  win32.shellexecute open notepad
+
+You should see a notepad application running.
 
 ------------------------------------------------------------------------------
 COPYRIGHT and LICENSE
@@ -97,27 +136,6 @@ All Rights Reserved
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
-
-------------------------------------------------------------------------------
-Extensions
-------------------------------------------------------------------------------
-
-JIM-POSIX
-
-This is the start of a library that should export to Jim useful bits of the
-POSIX API. For now there are just a few utility functions, but it's
-an example on how to write a simple library for Jim.
-
-JIM-WIN32
-
-This is the start of a library that should export to Jim useful bits of the
-WIN32 API. Currently there is just one function that is used to call windows
-applications. For example run jim and try the extension with:
-
-  load jim-win32.dll
-  win32.shellexecute open notepad
-
-You should see a notepad application running.
 
 ------------------------------------------------------------------------------
 Thanks to...
