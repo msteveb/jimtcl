@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.98 2005/03/12 21:42:28 antirez Exp $
+ * $Id: jim.c,v 1.99 2005/03/13 08:36:39 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2729,31 +2729,6 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
 {
     Jim_Cmd *cmdPtr;
 
-#if 0
-    he = Jim_FindHashEntry(&interp->commands, cmdName);
-    if (he == NULL) { /* New procedure to create */
-        cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
-        cmdPtr->cmdProc = NULL; /* Not a C coded command */
-        Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
-    } else {
-        Jim_InterpIncrProcEpoch(interp);
-        /* Free the arglist/body objects if it was a Tcl procedure */
-        cmdPtr = he->val;
-        if (cmdPtr->cmdProc == NULL) {
-            Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
-            Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
-            if (cmdPtr->staticVars) {
-                Jim_FreeHashTable(cmdPtr->staticVars);
-                Jim_Free(cmdPtr->staticVars);
-            }
-            cmdPtr->staticVars = NULL;
-        } else if (cmdPtr->delProc != NULL) {
-            /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(cmdPtr->privData);
-        }
-        cmdPtr->cmdProc = NULL; /* Not a C coded command */
-    }
-#endif
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
     cmdPtr->cmdProc = NULL; /* Not a C coded command */
     cmdPtr->argListObjPtr = argListObjPtr;
@@ -9134,11 +9109,12 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
 {
     int option;
     const char *options[] = {
-        "length", "compare", "match", "equal", "range", "map", "repeat", NULL
+        "length", "compare", "match", "equal", "range", "map", "repeat",
+        "index", NULL
     };
     enum {
         OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE,
-        OPT_MAP, OPT_REPEAT
+        OPT_MAP, OPT_REPEAT, OPT_INDEX
     };
 
     if (argc < 2) {
@@ -9249,6 +9225,26 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         }
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
+    } else if (option == OPT_INDEX) {
+        int index, len;
+        const char *str;
+
+        if (argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "string index");
+            return JIM_ERR;
+        }
+        if (Jim_GetIndex(interp, argv[3], &index) != JIM_OK)
+            return JIM_ERR;
+        str = Jim_GetString(argv[2], &len);
+        if (index != INT_MIN && index != INT_MAX)
+            index = JimRelToAbsIndex(len, index);
+        if (index < 0 || index >= len) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            return JIM_OK;
+        } else {
+            Jim_SetResult(interp, Jim_NewStringObj(interp, str+index, 1));
+            return JIM_OK;
+        }
     }
     return JIM_OK;
 }

@@ -1,3 +1,8 @@
+2005-03-12 22:42  antirez
+
+	* ChangeLog, jim.c: Jim_GetEnum() will now sort the options in the
+	  error message (ss)
+
 2005-03-12 21:26  antirez
 
 	* ChangeLog, jim.c, jim.h: Added the ability to compile with
