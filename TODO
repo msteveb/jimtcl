@@ -15,6 +15,9 @@ CORE COMMANDS
 - [onleave] command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
+- [proc] without arguments may return a list of all the procedures
+  (no C commands). While with a single argument (the name of a proc)
+  may return [list $args $statics $body].
 
 OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
@@ -50,7 +53,9 @@ ERROR MESSAGES
 
 REFERENCES SYSTEM
 
-- All ok for now, already done things deleted from the TODO list.
+- Unify ref/getref/setref/collect/finalize under an unique [ref] command.
+- Add a 'call' attribute to references in order to call a given procedure
+  if the name of a reference is used as command name.
 
 API FUNCTIONS TO EXPORT
 

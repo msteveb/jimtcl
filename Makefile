@@ -93,6 +93,10 @@ commit:
 	cvs2cl
 	cvs commit
 
+update:
+	cvs update
+	cvs2cl
+
 bak:
 	cp -f jim.c jim.c.orig
 	cp -f jimsh.c jimsh.c.orig

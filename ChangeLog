@@ -1,3 +1,8 @@
+2005-03-18 12:39  antirez
+
+	* ChangeLog, jim.c: now [setref] returns the value assigned to the
+	  reference instead of the reference itself.
+
 2005-03-18 10:36  antirez
 
 	* ChangeLog, Makefile, jim.c: Fixed an EXPR bug.

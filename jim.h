@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.60 2005/03/17 13:06:27 antirez Exp $
+ * $Id: jim.h,v 1.61 2005/03/19 19:12:30 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -589,6 +589,8 @@ JIM_STATIC Jim_Obj * JIM_API(Jim_NewReference) (Jim_Interp *interp,
         Jim_Obj *objPtr, Jim_Obj *tagPtr, Jim_Obj *cmdNamePtr);
 JIM_STATIC Jim_Reference * JIM_API(Jim_GetReference) (Jim_Interp *interp,
         Jim_Obj *objPtr);
+JIM_STATIC int JIM_API(Jim_SetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *cmdNamePtr);
+JIM_STATIC int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPtr);
 
 /* interpreter */
 JIM_STATIC Jim_Interp * JIM_API(Jim_CreateInterp) (void);
@@ -782,6 +784,8 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(CompareStringImmediate);
   JIM_GET_API(NewReference);
   JIM_GET_API(GetReference);
+  JIM_GET_API(SetFinalizer);
+  JIM_GET_API(GetFinalizer);
   JIM_GET_API(CreateInterp);
   JIM_GET_API(FreeInterp);
   JIM_GET_API(CreateCommand);

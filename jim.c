@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.120 2005/03/18 11:39:10 antirez Exp $
+ * $Id: jim.c,v 1.121 2005/03/19 19:12:30 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3721,6 +3721,29 @@ Jim_Reference *Jim_GetReference(Jim_Interp *interp, Jim_Obj *objPtr)
         SetReferenceFromAny(interp, objPtr) == JIM_ERR)
         return NULL;
     return objPtr->internalRep.refValue.refPtr;
+}
+
+int Jim_SetFinalizer(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *cmdNamePtr)
+{
+    Jim_Reference *refPtr;
+
+    if ((refPtr = Jim_GetReference(interp, objPtr)) == NULL)
+        return JIM_ERR;
+    Jim_IncrRefCount(cmdNamePtr);
+    if (refPtr->finalizerCmdNamePtr)
+        Jim_DecrRefCount(interp, refPtr->finalizerCmdNamePtr);
+    refPtr->finalizerCmdNamePtr = cmdNamePtr;
+    return JIM_OK;
+}
+
+int Jim_GetFinalizer(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPtr)
+{
+    Jim_Reference *refPtr;
+
+    if ((refPtr = Jim_GetReference(interp, objPtr)) == NULL)
+        return JIM_ERR;
+    *cmdNamePtrPtr = refPtr->finalizerCmdNamePtr;
+    return JIM_OK;
 }
 
 /* -----------------------------------------------------------------------------
@@ -7463,6 +7486,8 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(CompareStringImmediate);
   JIM_REGISTER_API(NewReference);
   JIM_REGISTER_API(GetReference);
+  JIM_REGISTER_API(SetFinalizer);
+  JIM_REGISTER_API(GetFinalizer);
   JIM_REGISTER_API(CreateInterp);
   JIM_REGISTER_API(FreeInterp);
   JIM_REGISTER_API(CreateCommand);
@@ -9528,9 +9553,31 @@ static int Jim_CollectCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-/* TODO */
 /* [finalize] reference ?newValue? */
-/* [references] (list of all the references/finalizers) */
+static int Jim_FinalizeCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    if (argc != 2 && argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "reference ?finalizerProc?");
+        return JIM_ERR;
+    }
+    if (argc == 2) {
+        Jim_Obj *cmdNamePtr;
+
+        if (Jim_GetFinalizer(interp, argv[1], &cmdNamePtr) != JIM_OK)
+            return JIM_ERR;
+        if (cmdNamePtr != NULL) /* otherwise the null string is returned. */
+            Jim_SetResult(interp, cmdNamePtr);
+    } else {
+        if (Jim_SetFinalizer(interp, argv[1], argv[2]) != JIM_OK)
+            return JIM_ERR;
+        Jim_SetResult(interp, argv[2]);
+    }
+    return JIM_OK;
+}
+
+/* TODO */
+/* [info references] (list of all the references/finalizers) */
 
 /* [rename] */
 static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, 
@@ -10026,6 +10073,7 @@ static struct {
     {"ref", Jim_RefCoreCommand},
     {"getref", Jim_GetrefCoreCommand},
     {"setref", Jim_SetrefCoreCommand},
+    {"finalize", Jim_FinalizeCoreCommand},
     {"collect", Jim_CollectCoreCommand},
     {"rename", Jim_RenameCoreCommand},
     {"dict", Jim_DictCoreCommand},
@@ -10158,7 +10206,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.120 2005/03/18 11:39:10 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.121 2005/03/19 19:12:30 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
