@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.111 2005/03/16 15:30:40 antirez Exp $
+ * $Id: jim.c,v 1.112 2005/03/16 16:06:31 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2735,7 +2735,7 @@ static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
         }
     } else if (cmdPtr->delProc != NULL) {
             /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(cmdPtr->privData);
+            cmdPtr->delProc(interp, cmdPtr->privData);
     }
     Jim_Free(val);
 }
@@ -2778,7 +2778,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
             cmdPtr->staticVars = NULL;
         } else if (cmdPtr->delProc != NULL) {
             /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(cmdPtr->privData);
+            cmdPtr->delProc(interp, cmdPtr->privData);
         }
         cmdPtr->cmdProc = cmdProc;
         cmdPtr->privData = privData;
@@ -4117,7 +4117,7 @@ static int JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *levelObjPtr,
         Jim_CallFrame **framePtrPtr)
 {
     jim_wide level;
-    long relLevel; /* level relative to the current one. */
+    jim_wide relLevel; /* level relative to the current one. */
     Jim_CallFrame *framePtr;
 
     if (Jim_GetWide(interp, levelObjPtr, &level) != JIM_OK)
@@ -10165,7 +10165,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.111 2005/03/16 15:30:40 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.112 2005/03/16 16:06:31 patthoyts Exp $\n");
     while (1) {
         char prg[1024];
         const char *result;
