@@ -74,6 +74,9 @@ jim-aio-1.0.so: jim-aio.xo
 jim-posix-1.0.so: jim-posix.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
+jim-sqlite-1.0.so: jim-sqlite.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lsqlite
+
 jim-sdl.xo: jim-sdl.c
 	$(CC)  `sdl-config --cflags` -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
@@ -85,6 +88,7 @@ jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
 posix: jim-posix-1.0.so
+sqlite: jim-sqlite-1.0.so
 aio: jim-aio-1.0.so
 aio-dll: jim-aio-1.0.dll
 sdl: jim-sdl-1.0.so

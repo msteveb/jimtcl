@@ -1,0 +1,155 @@
+Jim Sqlite extension documentation.
+Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
+
+$Id: Sqlite-Extension.txt,v 1.1 2005/04/02 21:35:33 antirez Exp $
+
+Overview
+~~~~~~~~
+
+The Sqlite extension makes possible to work with sqlite (http://www.sqlite.org)
+databases from Jim. SQLite is a small C library that implements a
+self-contained, embeddable, zero-configuration SQL database engine. This
+means it is perfect for embedded systems, and for stand-alone applications
+that need the power of SQL without to use an external server like Mysql.
+
+Basic usage
+~~~~~~~~~~~
+
+The Sqlite extension exports an Object Based interface for databases. In order
+to open a database use:
+
+  set f [sqlite.open dbname]
+
+The [sqlite.open] command returns a db handle, that is a command name that
+can be used to perform operations on the database. A real example:
+
+    . set db [sqlite.open test.db]
+    sqlite.handle0
+    . $db query "SELECT * from tbl1" 
+    {one hello! two 10} {one goodbye two 20}
+
+In the second line the handle is used as a command name, followed
+by the 'method' or 'subcommand' ("query" in the example), and the arguments.
+
+The query method
+~~~~~~~~~~~~~~~~
+
+The query method has the following signature:
+
+    $db query SqlQuery ?args?
+
+The sql query may contain occurrences of "%s" that are substituted
+in the actual query with the following arguments, quoted in order
+to make sure that the query is correct even if this arguments contain
+"'" characters. So for example it is possible to write:
+
+    . $db query "SELECT * from tbl1 WHERE one='%s'" hello!
+    {one hello! two 10}
+
+Instead of hello! it is possible to use a string with embedded "'":
+
+    . $db query "SELECT * from tbl1 WHERE one='%s'" a'b
+    (no matches - the empty list is returned)
+
+This does not work instead using the Tcl variable expansion in the string:
+
+    . $db query "SELECT * from tbl1 WHERE one='$foo'"
+    Runtime error, file "?", line 1:
+        near "b": syntax error
+
+In order to obtain an actual '%' character in the query, there is just
+to use two, like in "foo %% bar". This is the same as the [format] argument.
+
+Specification of query results
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In one of the above examples, the following query was used:
+
+    . $db query "SELECT * from tbl1" 
+    {one hello! two 10} {one goodbye two 20}
+
+As you can see the result of a query is a list of lists. Every
+element of the list represents a row, as a list of key/value pairs,
+so actually every row is a Jim dictionary.
+
+The following example and generated output show how to take advantage
+of this representation:
+
+    . set res [$db query "SELECT * from tbl1"]
+    {one hello! two 10} {one goodbye two 20}
+    . foreach row $res {puts "One: $row(one), Two: $row(two)"}
+    One: hello!, Two: 10
+    One: goodbye, Two: 20
+
+To access every row sequentially is very simple, and field of a row
+can be accessed using the $row(field) syntax.
+
+The close method
+~~~~~~~~~~~~~~~~
+
+In order to close the db, use the 'close' method that will have as side effect
+to close the db and to remove the command associated with the db.
+Just use:
+
+    $db close
+
+Handling NULL values
+~~~~~~~~~~~~~~~~~~~~
+
+In the SQL language there is a special value NULL that is not the empty
+string, so how to represent it in a typeless language like Tcl?
+For default this extension will use the empty string, but it is possible
+to specify a different string for the NULL value.
+
+In the above example there were two rows in the 'tbl1' table. Now
+we can add usign the "sqlite" command line client another one with
+a NULL value:
+
+    sqlite> INSERT INTO tbl1 VALUES(NULL,30);
+    sqlite> .exit
+
+That's what the sqlite extension will return for default:
+
+    . $db query "SELECT * from tbl1"
+    {one hello! two 10} {one goodbye two 20} {one {} two 30}
+
+As you can see in the last row, the NULL is represented as {}, that's
+the empty string. Using the -null option of the 'query' command we
+can change this default, and tell the sqlite extension to represent
+the NULL value as a different string:
+
+    . $db query -null <<NULL>> "SELECT * from tbl1"
+    {one hello! two 10} {one goodbye two 20} {one <<NULL>> two 30}
+
+This way if the emtpy string has some semantical value for your
+dataset you can change it.
+
+Finding the ID of the last inserted row
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is as simple as:
+
+    . $db lastid
+    10
+
+Number of rows changed by the most recent query
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is also very simple, there is just to use the 'changes' method
+without arugments.
+
+    . $db changes
+    5
+
+Note that if you drop an entire table the number of changes will
+be reported as zero, because of details of the sqlite implementation.
+
+That's all,
+Enjoy!
+Salvatore Sanfilippo
+
+p.s. this extension is just the work of some hour thanks to the cool
+clean C API that sqlite exports. Thanks to the author of sqlite for this
+great work.
+
+

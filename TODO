@@ -69,6 +69,7 @@ IMPLEMENTATION ISSUES
 - *AssocData() function should allow to specify a delProc C function like
   in the Tcl API. When the interpreter is destroied all the delProc functions
   should be called to free the memory before to free the interpreter.
+- Convert dicts from lists directly without to pass from the string repr.
 
 ERROR MESSAGES
 

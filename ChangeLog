@@ -1,3 +1,7 @@
+2005-04-02 12:14  antirez
+
+	* ChangeLog, README, doc/AIO-Extension.txt: minor docs update
+
 2005-04-02 12:08  antirez
 
 	* ChangeLog, Makefile, jim-stdlib-1.0.tcl, jim.c: Added a very

@@ -143,13 +143,15 @@ This should compile Jim almost everywhere there is a decent ANSI-C compiler.
 EXTENSIONS
 --------------------------------------------------------------------------------
 
-JIM-POSIX
+POSIX
+=====
 
 This is the start of a library that should export to Jim useful bits of the
 POSIX API. For now there are just a few utility functions, but it's
 an example on how to write a simple library for Jim.
 
-JIM-WIN32
+WIN32
+=====
 
 This is the start of a library that should export to Jim useful bits of the
 WIN32 API. Currently there is just one function that is used to call windows
@@ -159,6 +161,40 @@ applications. For example run jim and try the extension with:
   win32.shellexecute open notepad
 
 You should see a notepad application running.
+
+ANSI-I/O, SQLITE
+================
+
+There is documentation under the "doc" dictory about the "ANSI I/O"
+and "SQLITE" extensions.
+
+SDL
+===
+
+The SDL extension is currently undocumented (work in progress), but
+there is enought to start to play. That's an example script:
+
+    package require sdl
+
+    set xres 800
+    set yres 800
+    set s [sdl.screen $xres $yres]
+
+    set i 0
+    while 1 {
+        set x1 [rand $xres]
+        set y1 [rand $yres]
+        set x2 [rand $xres]
+        set y2 [rand $yres]
+        set rad [rand 40]
+        set r [rand 256]
+        set g [rand 256]
+        set b [rand 256]
+        $s fcircle $x1 $y1 $rad $r $g $b 200
+        incr i
+        if {$i > 2000} {$s flip}
+        if {$i == 3000} exit
+    }
 
 --------------------------------------------------------------------------------
 HOW TO EMBED JIM INTO APPLICATIONS / HOW TO WRITE EXTENSIONS FOR JIM
