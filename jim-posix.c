@@ -16,8 +16,8 @@ static void Jim_PosixSetError(Jim_Interp *interp)
 static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
+    JIM_NOTUSED(argv);
     pid_t pid;
-    argv = argv; /* not used */
     
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");

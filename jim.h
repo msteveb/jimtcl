@@ -121,6 +121,9 @@
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
 
+/* Unused arguments generate annoying warnings... */
+#define JIM_NOTUSED(V) ((void) V)
+
 /* -----------------------------------------------------------------------------
  * Hash table
  * ---------------------------------------------------------------------------*/

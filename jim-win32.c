@@ -143,6 +143,9 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
     Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)GetActiveWindow()));
     return JIM_OK;
 }
@@ -299,6 +302,9 @@ Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
     Jim_SetResult(interp, Jim_NewIntObj(interp, GetVersion()));
     return JIM_OK;
 }
@@ -306,6 +312,9 @@ Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
     Jim_SetResult(interp, Jim_NewIntObj(interp, GetTickCount()));
     return JIM_OK;
 }
@@ -313,6 +322,9 @@ Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 static int
 Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
     Jim_Obj *a[16];
     size_t n = 0;
     SYSTEMTIME t;

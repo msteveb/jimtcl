@@ -845,9 +845,9 @@ static unsigned int JimStringCopyHTHashFunction(const void *key)
 
 static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
 {
+    JIM_NOTUSED(privdata);
     int len = strlen(key);
     char *copy = Jim_Alloc(len+1);
-    privdata = privdata; /* not used */
 
     memcpy(copy, key, len);
     copy[len] = '\0';
@@ -857,14 +857,14 @@ static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
 static int JimStringCopyHTKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
-    privdata = privdata; /* not used */
+    JIM_NOTUSED(privdata);
 
     return strcmp(key1, key2) == 0;
 }
 
 static void JimStringCopyHTKeyDestructor(void *privdata, const void *key)
 {
-    privdata = privdata; /* not used */
+    JIM_NOTUSED(privdata);
 
     Jim_Free((void*)key); /* ATTENTION: const cast */
 }
@@ -1782,7 +1782,8 @@ static Jim_ObjType stringObjType = {
 
 void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    interp = interp; /* unused */
+    JIM_NOTUSED(interp);
+
     /* This is a bit subtle: the only caller of this function
      * should be Jim_DuplicateObj(), that will copy the
      * string representaion. After the copy, the duplicated
@@ -2241,8 +2242,8 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    interp = interp;
-    srcPtr = srcPtr;
+    JIM_NOTUSED(interp);
+    JIM_NOTUSED(srcPtr);
 
     /* Just returns an simple string. */
     dupPtr->typePtr = NULL;
@@ -3137,7 +3138,7 @@ void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
         Jim_Obj *dupPtr)
 {
-    interp = interp; /* unused */
+    JIM_NOTUSED(interp);
 
     dupPtr->internalRep.dictSubstValue.varNameObjPtr =
         srcPtr->internalRep.dictSubstValue.varNameObjPtr;
@@ -3274,8 +3275,8 @@ unsigned int JimReferencesHTDoubleHashFunction(const void *key)
 
 const void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
+    JIM_NOTUSED(privdata);
     void *copy = Jim_Alloc(sizeof(jim_wide));
-    privdata = privdata; /* not used */
 
     memcpy(copy, key, sizeof(jim_wide));
     return copy;
@@ -3284,14 +3285,14 @@ const void *JimReferencesHTKeyDup(void *privdata, const void *key)
 int JimReferencesHTKeyCompare(void *privdata, const void *key1, 
         const void *key2)
 {
-    privdata = privdata; /* not used */
+    JIM_NOTUSED(privdata);
 
     return memcmp(key1, key2, sizeof(jim_wide)) == 0;
 }
 
 void JimReferencesHTKeyDestructor(void *privdata, const void *key)
 {
-    privdata = privdata; /* not used */
+    JIM_NOTUSED(privdata);
 
     Jim_Free((void*)key);
 }
@@ -4089,8 +4090,8 @@ void FreeListInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
+    JIM_NOTUSED(interp);
     int i;
-    interp = interp; /* unused */
 
     dupPtr->internalRep.listValue.len = srcPtr->internalRep.listValue.len;
     dupPtr->internalRep.listValue.maxLen =
@@ -4590,7 +4591,7 @@ unsigned int JimObjectHTHashFunction(const void *key)
 
 int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
-    privdata = privdata; /* not used */
+    JIM_NOTUSED(privdata);
 
     return Jim_StringEqObj((Jim_Obj*)key1, (Jim_Obj*)key2, 0);
 }
@@ -4626,7 +4627,7 @@ static Jim_ObjType dictObjType = {
 
 void FreeDictInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    interp = interp; /* not used */
+    JIM_NOTUSED(interp);
 
     Jim_FreeHashTable(objPtr->internalRep.ptr);
     Jim_Free(objPtr->internalRep.ptr);
@@ -5412,8 +5413,8 @@ void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    interp = interp;
-    srcPtr = srcPtr;
+    JIM_NOTUSED(interp);
+    JIM_NOTUSED(srcPtr);
 
     /* Just returns an simple string. */
     dupPtr->typePtr = NULL;
@@ -6073,7 +6074,8 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 #define RTLD_LAZY 0
 void * dlopen(const char *path, int mode) 
 {
-    mode = mode; /* not used */
+    JIM_NOTUSED(mode);
+
     return (void *)LoadLibraryA(path);
 }
 int dlclose(void *handle)
