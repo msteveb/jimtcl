@@ -203,12 +203,12 @@ int Jim_StringMatch(char *pattern, char *string, int nocase)
 					   pattern[2] != '\0') {
 					int start = pattern[0];
 					int end = pattern[2];
+					int c = string[0];
 					if (start > end) {
 						int t = start;
 						start = end;
 						end = t;
 					}
-					int c = string[0];
 					if (nocase) {
 						start = tolower(start);
 						end = tolower(end);

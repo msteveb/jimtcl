@@ -1178,6 +1178,8 @@ proc unknown args {
     error "unknown failed"
 }
 
+rename unknown {}
+
 #test unknown-4.1 {errors in "unknown" procedure} {
 #    list [catch {non-existent a b} msg] $msg $errorCode
 #} {1 {unknown failed} NONE}
@@ -2108,7 +2110,7 @@ catch {unset a}
 catch {unset x}
 
 ################################################################################
-# STRING MATCH                                                                 #
+# STRING
 ################################################################################
 
 ## string match
@@ -2313,6 +2315,20 @@ test string-11.49 {string match, *special case} {
 #    foo
 #} 0
 
+## string length
+##
+test string-9.1 {string length} {
+    proc foo {} {string length}
+    list [catch {foo} msg] $msg
+} {1 {wrong # args: should be "string length string"}}
+test string-9.2 {string length} {
+    proc foo {} {string length a b}
+    list [catch {foo} msg] $msg
+} {1 {wrong # args: should be "string length string"}}
+test string-9.3 {string length} {
+    proc foo {} {string length "a little string"}
+    foo
+} 15
 
 ################################################################################
 # FINAL REPORT
