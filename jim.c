@@ -285,6 +285,29 @@ static int JimStringMatch(char *pattern, int patternLen,
     return 0;
 }
 
+int JimStringCompare(char *s1, int l1, char *s2, int l2, int nocase)
+{
+    unsigned char *u1 = (unsigned char*) s1, *u2 = (unsigned char*) s2;
+
+    if (nocase == 0) {
+        while(l1 && l2) {
+            if (*u1 != *u2)
+                return (int)*u1-*u2;
+            u1++; u2++; l1--; l2--;
+        }
+        if (!l1 && !l2) return 0;
+        return l1-l2;
+    } else {
+        while(l1 && l2) {
+            if (tolower((int)*u1) != tolower((int)*u2))
+                return tolower((int)*u1)-tolower((int)*u2);
+            u1++; u2++; l1--; l2--;
+        }
+        if (!l1 && !l2) return 0;
+        return l1-l2;
+    }
+}
+
 int testGlobMatching(void)
 {
     char buf[1024];
@@ -1939,6 +1962,17 @@ int Jim_StringMatchObj(Jim_Obj *patternObjPtr, Jim_Obj *objPtr, int nocase)
     return JimStringMatch(pattern, patternLen, string, stringLen, nocase);
 }
 
+int Jim_StringCompareObj(Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr,
+        int nocase)
+{
+    char *s1, *s2;
+    int l1, l2;
+
+    s1 = Jim_GetString(firstObjPtr, &l1);
+    s2 = Jim_GetString(secondObjPtr, &l2);
+    return JimStringCompare(s1, l1, s2, l2, nocase);
+}
+
 /* Convert a range, as returned by Jim_GetRange(), into
  * an absolute index into an object of the specified length.
  * Indexes that result in an absolute value less than 0 are
@@ -2012,7 +2046,9 @@ static Jim_ObjType comparedStringObjType = {
 
 /* The only way this object is exposed to the API is via the following
  * function. Returns true if the string and the object string repr.
- * are the same, otherwise zero is returned. */
+ * are the same, otherwise zero is returned.
+ *
+ * Note: this isn't binary safe, but it hardly needs to be.*/
 int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, char *str)
 {
     if (objPtr->typePtr == &comparedStringObjType &&
@@ -7936,15 +7972,20 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
         Jim_SetResult(interp, Jim_NewIntObj(interp, len));
         return JIM_OK;
     } else if (Jim_CompareStringImmediate(interp, argv[1], "compare")) {
-        char *a, *b;
-
-        if (argc != 4) {
+        int nocase = 0;
+        if ((argc != 4 && argc != 5) ||
+            (argc == 5 && Jim_CompareStringImmediate(interp,
+                argv[2], "-nocase") == 0)) {
             Jim_WrongNumArgs(interp, 2, argv, "string1 string2");
             return JIM_ERR;
         }
-        a = Jim_GetString(argv[2], NULL);
-        b = Jim_GetString(argv[3], NULL);
-        Jim_SetResult(interp, Jim_NewIntObj(interp, strcmp(a,b)));
+        if (argc == 5) {
+            nocase = 1;
+            argv++;
+        }
+        Jim_SetResult(interp, Jim_NewIntObj(interp,
+                    Jim_StringCompareObj(argv[2],
+                            argv[3], nocase)));
         return JIM_OK;
     } else if (Jim_CompareStringImmediate(interp, argv[1], "match")) {
         int nocase = 0;
