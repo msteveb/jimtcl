@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.90 2005/03/11 09:25:45 antirez Exp $
+ * $Id: jim.c,v 1.91 2005/03/11 09:31:36 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2859,6 +2859,8 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
      * freed by the hash table methods, fake a C-coded command
      * setting cmdPtr->cmdProc as not NULL */
     cmdPtr->cmdProc = (void*)1;
+    /* Also make sure delProc is NULL. */
+    cmdPtr->delProc = NULL;
     /* Destroy the old command, and make sure the new is freed
      * as well. */
     Jim_DeleteHashEntry(&interp->commands, oldName);

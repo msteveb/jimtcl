@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.20 2005/03/10 15:58:28 antirez Exp $
+# $Id: test.tcl,v 1.21 2005/03/11 09:31:36 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -27,6 +27,21 @@ proc test {id descr script expectedResult} {
 }
 
 proc error {msg} { return -code error $msg }
+
+################################################################################
+# JIM REGRESSION TESTS
+################################################################################
+test regression-1.0 {Rename against procedures with static vars} {
+    proc foobar {x} {{y 10}} {
+        incr y $x
+    }
+    foobar 30
+    foobar 20
+    rename foobar barfoo
+    list [barfoo 1] [barfoo 2] [barfoo 3]
+} {61 63 66}
+
+rename barfoo {}
 
 ################################################################################
 # SET

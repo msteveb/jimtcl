@@ -1,3 +1,7 @@
+2005-03-11 10:25  antirez
+
+	* ChangeLog, jim.c: more static fixes (me)
+
 2005-03-11 09:43  antirez
 
 	* jim.c: tons of static var fixes...
