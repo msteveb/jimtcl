@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.35 2005/03/05 10:45:15 patthoyts Exp $
+ * $Id: jim.h,v 1.36 2005/03/05 12:22:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -373,6 +373,7 @@ typedef struct Jim_Var {
 /* The cmd structure. */
 typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
+typedef void (*Jim_DelCmdProc)(void *privData);
 
 /* A command is implemented in C if funcPtr is != NULL, otherwise
  * it's a Tcl procedure with the arglist and body represented by the
@@ -380,6 +381,7 @@ typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
 typedef struct Jim_Cmd {
     Jim_CmdProc cmdProc; /* Not-NULL for a C command. */
     void *privData; /* Only used for C commands. */
+    Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
     Jim_Obj *argListObjPtr;
     Jim_Obj *bodyObjPtr;
     int arityMin; /* Min number of arguments. */
@@ -574,7 +576,8 @@ JIM_STATIC void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
 /* commands */
 JIM_STATIC void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
 JIM_STATIC int JIM_API(Jim_CreateCommand) (Jim_Interp *interp, 
-        const char *cmdName, Jim_CmdProc cmdProc, void *privData);
+        const char *cmdName, Jim_CmdProc cmdProc, void *privData,
+         Jim_DelCmdProc delProc);
 JIM_STATIC int JIM_API(Jim_CreateProcedure) (Jim_Interp *interp, 
         const char *cmdName, Jim_Obj *argListObjPtr, Jim_Obj *bodyObjPtr,
         int arityMin, int arityMax);

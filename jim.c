@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.63 2005/03/05 10:45:15 patthoyts Exp $
+ * $Id: jim.c,v 1.64 2005/03/05 12:22:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2547,6 +2547,9 @@ static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
     if (cmdPtr->cmdProc == NULL) {
         Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
         Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+    } else if (cmdPtr->delProc != NULL) {
+            /* If it was a C coded command, call the delProc if any */
+            cmdPtr->delProc(cmdPtr->privData);
     }
     Jim_Free(val);
 }
@@ -2563,7 +2566,7 @@ static Jim_HashTableType JimCommandsHashTableType = {
 /* ------------------------- Commands related functions --------------------- */
 
 int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
-        Jim_CmdProc cmdProc, void *privData)
+        Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
 {
     Jim_HashEntry *he;
     Jim_Cmd *cmdPtr;
@@ -2573,6 +2576,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
         cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
         cmdPtr->cmdProc = cmdProc;
         cmdPtr->privData = privData;
+        cmdPtr->delProc = delProc;
         Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     } else {
         /* Free the arglist/body objects if it was a Tcl procedure */
@@ -2580,6 +2584,9 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
         if (cmdPtr->cmdProc == NULL) {
             Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
             Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+        } else if (cmdPtr->delProc != NULL) {
+            /* If it was a C coded command, call the delProc if any */
+            cmdPtr->delProc(cmdPtr->privData);
         }
         cmdPtr->cmdProc = cmdProc;
         cmdPtr->privData = privData;
@@ -2614,6 +2621,9 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         if (cmdPtr->cmdProc == NULL) {
             Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
             Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+        } else if (cmdPtr->delProc != NULL) {
+            /* If it was a C coded command, call the delProc if any */
+            cmdPtr->delProc(cmdPtr->privData);
         }
         cmdPtr->cmdProc = NULL; /* Not a C coded command */
         cmdPtr->arityMin = arityMin;
@@ -2660,7 +2670,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
         Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
     } else {            /* Or C-coded command. */
         Jim_CreateCommand(interp, newName, cmdPtr->cmdProc,
-                cmdPtr->privData);
+                cmdPtr->privData, cmdPtr->delProc);
     }
     /* DeleteCommand will incr the proc epoch */
     return Jim_DeleteCommand(interp, oldName);
@@ -8923,7 +8933,7 @@ void Jim_RegisterCoreCommands(Jim_Interp *interp)
         Jim_CreateCommand(interp, 
                 Jim_CoreCommandsTable[i].name,
                 Jim_CoreCommandsTable[i].cmdProc,
-                NULL);
+                NULL, NULL);
         i++;
     }
     Jim_RegisterCoreProcedures(interp);

@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.16 2005/03/04 15:37:54 antirez Exp $
+ * $Id: jim-win32.c,v 1.17 2005/03/05 12:22:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -479,7 +479,7 @@ Jim_OnLoad(Jim_Interp *interp)
     Jim_InitExtension(interp, "1.0");
 
 #define CMD(name) \
-    Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL)
+    Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL, NULL)
 
     CMD(ShellExecute);
     CMD(FindWindow);

@@ -2,7 +2,7 @@
  *
  * Windows COM extension.
  *
- * $Id: jim-win32com.c,v 1.15 2005/03/04 23:59:45 patthoyts Exp $
+ * $Id: jim-win32com.c,v 1.16 2005/03/05 12:22:35 antirez Exp $
  *
  * Example:
  *   load jim-win32com
@@ -602,9 +602,9 @@ Jim_OnLoad(Jim_Interp *interp)
             Win32ErrorObj(interp, "CoInitialize", (DWORD)hr));
         return JIM_ERR;
     }
-    Jim_CreateCommand(interp, "ole32.create",  Ole32_Create, NULL);
-    Jim_CreateCommand(interp, "ole32.invoke",  Ole32_Invoke, NULL);
-	Jim_CreateCommand(interp, "ole32.foreach", Ole32_Foreach, NULL);
+    Jim_CreateCommand(interp, "ole32.create",  Ole32_Create, NULL, NULL);
+    Jim_CreateCommand(interp, "ole32.invoke",  Ole32_Invoke, NULL, NULL);
+    Jim_CreateCommand(interp, "ole32.foreach", Ole32_Foreach, NULL, NULL);
     return JIM_OK;
 }
 

@@ -1,7 +1,7 @@
 /* Jim - POSIX extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-posix.c,v 1.10 2005/03/05 12:13:30 antirez Exp $
+ * $Id: jim-posix.c,v 1.11 2005/03/05 12:22:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,10 +124,10 @@ static int Jim_PosixSethostnameCommand(Jim_Interp *interp, int argc,
 int Jim_OnLoad(Jim_Interp *interp)
 {
     Jim_InitExtension(interp, "1.0");
-    Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL);
-    Jim_CreateCommand(interp, "os.sleep", Jim_PosixSleepCommand, NULL);
-    Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL);
-    Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL);
-    Jim_CreateCommand(interp, "os.sethostname", Jim_PosixSethostnameCommand, NULL);
+    Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "os.sleep", Jim_PosixSleepCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "os.sethostname", Jim_PosixSethostnameCommand, NULL, NULL);
     return JIM_OK;
 }
