@@ -1,3 +1,15 @@
+2005-03-05 11:45  patthoyts
+
+	* jim.c, jim.h: Added Jim_GetAssocData api. This for permitting
+	  packages to register a data structure with a Jim interpreter.
+
+2005-03-05 10:46  antirez
+
+	* ChangeLog, jim.c, jim.h: removed strcasecmp() and isascii(). Now
+	  the Jim core is fully ANSI-C excluding the [load] command. I plan
+	  to add a JIM_FORCE_ANSIC ifdef to exclude the load command for
+	  compilation.
+
 2005-03-05 10:34  antirez
 
 	* AUTHORS, ChangeLog, README, jim.c, jim.h, test.tcl: [switch]

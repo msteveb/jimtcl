@@ -1,7 +1,7 @@
 /* Jim - POSIX extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-posix.c,v 1.9 2005/03/04 15:37:54 antirez Exp $
+ * $Id: jim-posix.c,v 1.10 2005/03/05 12:13:30 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@
 
 #define JIM_EXTENSION
 #include "jim.h"
-
-extern int errno;
 
 static void Jim_PosixSetError(Jim_Interp *interp)
 {
