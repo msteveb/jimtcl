@@ -1,3 +1,9 @@
+2005-03-17 15:47  antirez
+
+	* ChangeLog, jim.c: Applied PATCH #389 "debug command is missing
+	  NULL terminator in options :)" Thanks to Jaen Saul for report +
+	  patch.
+
 2005-03-17 14:06  antirez
 
 	* ChangeLog, jim.c, jim.h: Objects hash function changed.

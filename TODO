@@ -2,10 +2,7 @@ CORE LANGUAGE FEATURES
 
 - Proc default arguments
 - Traces
-- Closures, exported as a command that can set/get/unset elements
-  from a dictionary associated with the current procedure.
-  The [closure] command should allow to perform this operations,
-  and to access the closure of a procedure from another one.
+- [static] command
 
 CORE COMMANDS
 
@@ -15,20 +12,19 @@ CORE COMMANDS
   are not lazy. Math functions are not present but probably will never
   be added as expr functions, but as Tcl commands, like [sin], [cos] and
   so on.
-- onleave command, executing something as soon as the current procedure
+- [onleave] command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
 - List commands to add: [lreverse], [squeeze]
+
+OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
+
 - Set commands: [lunion], [lintersect], and [ldifference]
-
-COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
-
-- commands to operate on sets (that are lists semantically).
 
 EXTENSIONS
 
 - Regexp extension
-- OOP system (this will possibly part of the core)
+- OOP system
 
 SPEED OPTIMIZATIONS
 
@@ -40,8 +36,6 @@ SPEED OPTIMIZATIONS
 IMPLEMENTATION ISSUES
 
 - Objects lazy free.
-- [split $string {}] should generate a list with Jim_Obj of chars shared.
-- [closure] command to set/get procedures-specific closure variables.
 - Rewrite all the commands accepting a set of options to use Jim_GetEnum().
 
 ERROR MESSAGES
@@ -63,9 +57,6 @@ API FUNCTIONS TO EXPORT
 
 - Jim_FormatString()
 
-
 RANDOM THINGS TO DO ASAP
 
 - .jimrc loading, using the ENV variable
-- [source]
-
