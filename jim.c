@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.136 2005/03/29 14:17:28 antirez Exp $
+ * $Id: jim.c,v 1.137 2005/03/29 16:50:22 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10410,10 +10410,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     int cmd, result = JIM_OK;
     static const char *commands[] = {
         "body", "commands", "exists", "globals", "level", "locals",
-        "vars", "version", "complete", NULL
+        "vars", "version", "complete", "args", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_COMPLETE};
+          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_COMPLETE, INFO_ARGS};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -10473,7 +10473,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
                 Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
                 return JIM_ERR;
         }
-    } else if (cmd == INFO_BODY) {
+    } else if (cmd == INFO_BODY || cmd == INFO_ARGS) {
         if (argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "procname");
             return JIM_ERR;
@@ -10487,7 +10487,12 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
                 "\" is not a procedure", NULL);
             return JIM_ERR;
         }
-        Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
+        if (cmd == INFO_BODY)
+            Jim_SetResult(interp,
+                    argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
+        else
+            Jim_SetResult(interp,
+                    argv[2]->internalRep.cmdValue.cmdPtr->argListObjPtr);
     } else if (cmd == INFO_VERSION) {
         char buf[(JIM_INTEGER_SPACE * 2) + 1];
         sprintf(buf, "%d.%d", 
@@ -11035,7 +11040,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.136 2005/03/29 14:17:28 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.137 2005/03/29 16:50:22 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

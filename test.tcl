@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.28 2005/03/28 17:47:15 antirez Exp $
+# $Id: test.tcl,v 1.29 2005/03/29 16:50:22 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -4192,6 +4192,28 @@ test scope-1.5 {Info exists} {
 
 catch {unset x}
 catch {unset y}
+
+################################################################################
+# RAND
+################################################################################
+test rand-1.0 {Only one output is valid} {
+    list [rand 100 100] [rand 101 101]
+} {100 101}
+
+test rand-1.1 {invalid arguments} {
+    catch {rand 100 50} err
+    set err
+} {Invalid arguments (max < min)}
+
+test rand-1.2 {Check limits} {
+    set sum 0
+    for {set i 0} {$i < 100} {incr i} {
+        incr sum [expr {([rand $i] >= 0)+([rand $i] < 100)}]
+    }
+    set sum
+} {200}
+
+catch {unset sum; unset err; unset i}
 
 ################################################################################
 # JIM REGRESSION TESTS
