@@ -12,26 +12,33 @@ LDFLAGS=-release -opt:ref -opt:icf,3
 
 TMPDIR =$(OUTDIR)\Objects
 
-OBJS   = \
-	$(TMPDIR)\jim.obj
+OBJS   = $(TMPDIR)\jim.obj
 
 CC     =cl -nologo
 LD     =link -nologo
 
 CFLAGS =$(CFLAGS) -W3 -GX -Fd$(TARGET:.dll=.pdb) -YX -Fp$(TMPDIR)^\
-INC    =-I../metakit/include -I/opt/include
+INC    =
 DEFS   =-DWIN32
 LIBS   =
 
 
-all:    jim jim-win32
-jim:    setup $(OUTDIR)\jim.exe
-jim-win32:  setup $(OUTDIR)\jim-win32.dll
+all:     jim dll win32
+jim:     setup $(OUTDIR)\jim.exe
+dll:     setup $(OUTDIR)\jim.dll
+win32:   setup $(OUTDIR)\jim-win32.dll
+win32api: setup $(OUTDIR)\jim-win32api.dll
 
 $(OUTDIR)\jim.exe: $(OBJS)
 	$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
 
+$(OUTDIR)\jim.dll: $(OBJS)
+	$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+
 $(OUTDIR)\jim-win32.dll: $(TMPDIR)\jim-win32.obj
+        $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+
+$(OUTDIR)\jim-win32api.dll: $(TMPDIR)\jim-win32api.obj
         $(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
 
 #-------------------------------------------------------------------------

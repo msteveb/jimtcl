@@ -22,12 +22,46 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
-#pragma comment(lib, "shell32")
 
 #define JIM_EXTENSION
 #include "jim.h"
 
+#if _MSC_VER >= 1000
+#pragma comment(lib, "shell32")
+#pragma comment(lib, "user32")
+#endif /* _MSC_VER >= 1000 */
+
 __declspec(dllexport) int Jim_OnLoad(Jim_Interp *interp);
+
+static Jim_Obj *
+Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
+{
+    Jim_Obj *msgObj = NULL;
+    char * lpBuffer = NULL;
+    DWORD  dwLen = 0;
+    
+    dwLen = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER 
+	| FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwError, LANG_NEUTRAL,
+	(char *)&lpBuffer, 0, NULL);
+    if (dwLen < 1) {
+        dwLen = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+	    | FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY,
+	    "code 0x%1!08X!%n", 0, LANG_NEUTRAL,
+	    (char *)&lpBuffer, 0, (va_list *)&dwError);
+    }
+    
+    msgObj = Jim_NewStringObj(interp, szPrefix, -1);
+    if (dwLen > 0) {
+        char *p = lpBuffer + dwLen - 1;        /* remove cr-lf at end */
+        for ( ; p && *p && isspace(*p); p--)
+            ;
+        *++p = 0;
+	Jim_AppendString(interp, msgObj, ": ", 2);
+	Jim_AppendString(interp, msgObj, lpBuffer, -1);
+    }
+    LocalFree((HLOCAL)lpBuffer);
+    return msgObj;
+}
 
 /* shellexec verb file args */
 static int 
@@ -36,10 +70,9 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
     int r;
     char *verb, *file, *parm = NULL;
     char cwd[MAX_PATH + 1];
-
+    
     if (objc < 3 || objc > 4) {
-	Jim_WrongNumArgs(interp, 1, objv, 
-	    "shellexecute verb path ?parameters?");
+	Jim_WrongNumArgs(interp, 1, objv, "verb path ?parameters?");
 	return JIM_ERR;
     }
     verb = Jim_GetString(objv[1], NULL);
@@ -49,14 +82,44 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
 	parm = Jim_GetString(objv[3], NULL);
     r = (int)ShellExecuteA(NULL, verb, file, parm, cwd, SW_SHOWNORMAL);
     if (r < 33)
-	Jim_SetResultString(interp, "failed.", -1);
+	Jim_SetResult(interp, Win32ErrorObj(interp, "shellexecute", GetLastError()));
     return (r < 33) ? JIM_ERR : JIM_OK;
 }
 
+
+/* win32.findwindow title ?class? */
+static int
+Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    char *title = NULL, *class = NULL;
+    HWND hwnd = NULL;
+    int r = JIM_OK;
+
+    if (objc < 2 || objc > 3) {
+	Jim_WrongNumArgs(interp, 1, objv, "title ?class?");
+	return JIM_ERR;
+    }
+    title = Jim_GetString(objv[1], NULL);
+    if (objc == 3)
+	class = Jim_GetString(objv[2], NULL);
+    hwnd = FindWindowA(class, title);
+
+    if (hwnd == NULL) {
+	Jim_SetResult(interp, Win32ErrorObj(interp, "findwindow", GetLastError()));
+	r = JIM_ERR;
+    } else {
+	Jim_SetResult(interp, Jim_NewIntObj(interp, (long)hwnd));
+    }
+    return r;
+}
+
+
+/* ---------------------------------------------------------------------- */
 int
 Jim_OnLoad(Jim_Interp *interp)
 {
     Jim_InitExtension(interp, "1.0");
-    Jim_CreateCommand(interp, "win32.shellexecute", Win32_ShellExecute, NULL);
+    Jim_CreateCommand(interp, "win32.ShellExecute", Win32_ShellExecute, NULL);
+    Jim_CreateCommand(interp, "win32.FindWindow", Win32_FindWindow, NULL);
     return JIM_OK;
 }
