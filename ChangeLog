@@ -1,3 +1,8 @@
+2005-04-04 21:44  antirez
+
+	* ChangeLog, README, jim.c: Fixed a memory leak introduced some day
+	  ago.	Thanks to 'valgrind'.
+
 2005-04-04 13:59  antirez
 
 	* ChangeLog, jim-stdlib-1.0.tcl: [memoize] is now inside the Jim

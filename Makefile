@@ -41,12 +41,17 @@ stopit:
 	@echo "make unix-ext  - to build the AIO, POSIX and SDL extensions"
 	@echo "make posix     - to build only the POSIX extension"
 	@echo "make sdl       - to build only the SDL extension"
+	@echo "make readline  - to build only the READLINE extension"
 	@echo "---"
 	@echo "make win32-ext - to build the WIN32 and WIN32COM extensions"
 	@echo "make win32     - to build only the WIN32 extension"
 	@echo "make win32com  - to build only the WIN32COM extension"
 	@echo ""
 	@echo "Note, if 'make jim' does not work try 'make jim LIBS=\"\"'"
+	@echo ""
+	@echo "For default Jim is compiled with -Os, if you need more"
+	@echo "speed try: 'make OPT=\"-O3 -fomit-frame-pointer\"' but"
+	@echo "this will result in a much larger binary."
 
 all: $(DEFAULT_BUILD)
 
@@ -77,6 +82,9 @@ jim-posix-1.0.so: jim-posix.xo
 jim-sqlite-1.0.so: jim-sqlite.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lsqlite
 
+jim-readline-1.0.so: jim-readline.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lreadline
+
 jim-sdl.xo: jim-sdl.c
 	$(CC)  `sdl-config --cflags` -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
@@ -87,6 +95,7 @@ jim-sdl-1.0.so: jim-sdl.xo
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
+readline: jim-readline-1.0.so
 posix: jim-posix-1.0.so
 sqlite: jim-sqlite-1.0.so
 aio: jim-aio-1.0.so

@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.3 2005/03/08 17:06:08 antirez Exp $
+ * $Id: jimsh.c,v 1.4 2005/04/05 11:51:18 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,32 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define JIM_EMBEDDED
 #include "jim.h"
+
+void JimLoadJimRc(Jim_Interp *interp)
+{
+    const char *home;
+    char buf [JIM_PATH_LEN+1];
+    const char *names[] = {".jimrc", "jimrc.tcl", NULL};
+    int i;
+    FILE *fp;
+
+    if ((home = getenv("HOME")) == NULL) return;
+    for (i = 0; names[i] != NULL; i++) {
+        if (strlen(home)+strlen(names[i])+1 > JIM_PATH_LEN) continue;
+        sprintf(buf, "%s/%s", home, names[i]);
+        if ((fp = fopen(buf, "r")) != NULL) {
+            fclose(fp);
+            if (Jim_EvalFile(interp, buf) != JIM_OK) {
+                Jim_PrintErrorMessage(interp);
+            }
+            return;
+        }
+    }
+}
 
 int main(int argc, char *const argv[])
 {
@@ -47,13 +70,15 @@ int main(int argc, char *const argv[])
     Jim_SetVariableStr(interp, "argv", listObj);
     
     if (argc == 1) {
+        Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
+        JimLoadJimRc(interp);
         retcode = Jim_InteractivePrompt(interp);
     } else {
+        Jim_SetVariableStrWithStr(interp, "jim_interactive", "0");
         if ((retcode = Jim_EvalFile(interp, argv[1])) == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
         }
     }
-
     Jim_FreeInterp(interp);
     return retcode;
 }

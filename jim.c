@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.144 2005/04/04 19:44:55 antirez Exp $
+ * $Id: jim.c,v 1.145 2005/04/05 11:51:17 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7258,7 +7258,6 @@ const char *dlerror()
 }
 #endif /* WIN32 */
 
-#define JIM_LIBPATH_LEN 1024
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {
     Jim_Obj *libPathObjPtr;
@@ -7280,7 +7279,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             handle = dlopen(pathName, RTLD_LAZY);
         } else {
             FILE *fp;
-            char buf[JIM_LIBPATH_LEN];
+            char buf[JIM_PATH_LEN];
             const char *prefix;
             int prefixlen;
             Jim_Obj *prefixObjPtr;
@@ -7291,7 +7290,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 continue;
             prefix = Jim_GetString(prefixObjPtr, NULL);
             prefixlen = strlen(prefix);
-            if (prefixlen+strlen(pathName)+1 >= JIM_LIBPATH_LEN)
+            if (prefixlen+strlen(pathName)+1 >= JIM_PATH_LEN)
                 continue;
             if (prefixlen && prefix[prefixlen-1] == '/')
                 sprintf(buf, "%s%s", prefix, pathName);
@@ -7523,12 +7522,12 @@ static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
 
     for (i = 0; i < prefixc; i++) {
         DIR *dir;
-        char buf[JIM_LIBPATH_LEN];
+        char buf[JIM_PATH_LEN];
         int prefixLen;
 
         if (prefixes[i] == NULL) continue;
-        strncpy(buf, prefixes[i], JIM_LIBPATH_LEN);
-        buf[JIM_LIBPATH_LEN-1] = '\0';
+        strncpy(buf, prefixes[i], JIM_PATH_LEN);
+        buf[JIM_PATH_LEN-1] = '\0';
         prefixLen = strlen(buf);
         if (prefixLen && buf[prefixLen-1] == '/')
             buf[prefixLen-1] = '\0';
@@ -11477,7 +11476,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.144 2005/04/04 19:44:55 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.145 2005/04/05 11:51:17 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

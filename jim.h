@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.67 2005/04/04 08:01:28 antirez Exp $
+ * $Id: jim.h,v 1.68 2005/04/05 11:51:18 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,6 +134,9 @@ extern "C" {
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
 #define JIM_NOCASE      1   /* no case */
+
+/* Filesystem related */
+#define JIM_PATH_LEN 1024
 
 /* -----------------------------------------------------------------------------
  * Hash table
