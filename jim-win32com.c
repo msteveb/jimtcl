@@ -230,13 +230,16 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
 
 /* ---------------------------------------------------------------------- */
 
+#define Ole32_DispatchPtr(o) (LPDISPATCH)((o)->internalRep.twoPtrValue.ptr1)
+#define Ole32_TypeInfoPtr(o) (LPTYPEINFO)((o)->internalRep.twoPtrValue.ptr2)
+
 static void Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 
 Jim_ObjType ole32ObjType = {
     "ole32",
     Ole32FreeInternalRep,
-    UnicodeDupInternalRep,
+    Ole32DupInternalRep,
     NULL, /*UpdateUnicodeStringProc*/
     JIM_TYPE_REFERENCES,
 };
@@ -245,19 +248,21 @@ void
 Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int r = JIM_OK;
-    IDispatch *p = (IDispatch *)Jim_GetIntRepPtr(objPtr);
+    IDispatch *p = Ole32_DispatchPtr(objPtr);
+    ITypeInfo *t = Ole32_TypeInfoPtr(objPtr);
     JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
-    p->lpVtbl->Release(p);
-	p = NULL;
+    p->lpVtbl->Release(p), p = NULL;
+    if (t != NULL)
+        t->lpVtbl->Release(t), t = NULL;
 	objPtr->typePtr = NULL;
 }
 
 void 
 Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    IDispatch *p = (IDispatch *)Jim_GetIntRepPtr(srcPtr);
-    JIM_TRACE("dup ole32 object 0x%08x\n", (unsigned long)p);
-    dupPtr->internalRep.ptr = p;
+    IDispatch *p = Ole32_DispatchPtr(srcPtr);
+    JIM_TRACE("dup ole32 object 0x%08x from 0x%08x to 0x%08x\n", p, srcPtr, dupPtr);
+    Ole32_DispatchPtr(dupPtr) = p;
     p->lpVtbl->AddRef(p);
 }
 
@@ -348,7 +353,8 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     DISPID dispid;
     LPDISPATCH pdisp;
     Jim_Obj *resultObj = NULL;
-	int optind, argc = 1, mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
+	int optind, argc = 1;
+    WORD mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
 	static const char *options[] = {"-get", "-put", "-putref", "-call", NULL };
 	enum { OPT_GET, OPT_PUT, OPT_PUTREF, OPT_CALL };
     
@@ -372,7 +378,7 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         return JIM_ERR;
     }
 
-    pdisp = (LPDISPATCH)Jim_GetIntRepPtr(objv[argc]);
+    pdisp = Ole32_DispatchPtr(objv[argc]);
     name = Jim_GetUnicode(objv[argc+1], NULL);
     hr = pdisp->lpVtbl->GetIDsOfNames(pdisp, &IID_NULL, &name, 1, 
                                       LOCALE_SYSTEM_DEFAULT, &dispid);
@@ -417,20 +423,37 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
 }
 
+/*
+ *  Jim_NewOle32Obj --
+ *
+ *      This is the only way to create Ole32 objects in Jim. These hold a reference to the
+ *      IDispatch interface of the COM object. We also attempt to acquire the typelibrary
+ *      information if this is available. Objects with typeinfo know how many arguments are
+ *      required for a method/property call and can manage without programmer hints.
+ *
+ *      The string rep never changes and when this object is destroyed we release our COM 
+ *      references.
+ */
 Jim_Obj *
 Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
 {
+    unsigned int n = 0;
     Jim_Obj *objPtr = Jim_NewObj(interp);
+
     objPtr->bytes = Jim_Alloc(23);
     sprintf(objPtr->bytes, "ole32:%08x", (unsigned long)pdispatch);
     objPtr->length = strlen(objPtr->bytes);
-    objPtr->internalRep.ptr = (void *)pdispatch;
+    Ole32_DispatchPtr(objPtr) = pdispatch;
+    Ole32_TypeInfoPtr(objPtr) = NULL;
     pdispatch->lpVtbl->AddRef(pdispatch);
+
+    pdispatch->lpVtbl->GetTypeInfoCount(pdispatch, &n);
+    if (n != 0)
+        pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT, &Ole32_TypeInfoPtr(objPtr));
+
     objPtr->typePtr = &ole32ObjType;
 
-    //refPtr = Jim_NewReference(interp, objPtr, NULL);
-    //Jim_CreateCommand(interp, Jim_GetString(refPtr, NULL), Ole32_Invoke, (void *)objPtr);
-    JIM_TRACE("created ole32 object 0x%08x\n", pdispatch);
+    JIM_TRACE("created ole32 object 0x%08x in Jim obj 0x%08x\n", pdispatch, objPtr);
     return objPtr;
 }
 
