@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.101 2005/03/14 07:22:02 antirez Exp $
+ * $Id: jim.c,v 1.102 2005/03/14 09:16:36 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -501,10 +501,6 @@ char *Jim_StrDupLen(char *s, int l)
  * Time related functions
  * ---------------------------------------------------------------------------*/
 /* Returns microseconds of CPU used since start. */
-#if !(defined WIN32) || !(defined JIM_ANSIC)
-#include <sys/time.h>
-#endif
-
 static jim_wide JimClock(void)
 {
 #if (defined WIN32) && !(defined JIM_ANSIC)
