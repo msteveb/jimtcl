@@ -1,3 +1,7 @@
+2005-03-28 18:57  antirez
+
+	* ChangeLog, jim.c, test.tcl: [scope] command + tests
+
 2005-03-26 15:12  antirez
 
 	* ChangeLog, Makefile, jim-sdl.c, jim.c: some GFX primitive to SDL

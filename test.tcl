@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.27 2005/03/28 16:57:36 antirez Exp $
+# $Id: test.tcl,v 1.28 2005/03/28 17:47:15 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -4183,14 +4183,14 @@ test scope-1.4 {Non existing array element} {
     info exists x(a)
 } {0}
 
-test scope-1.5 {Array element and var contaning the dict modifications} {
-    set x "a 1 b 2"
-    scope {x(a) x} {
-        set x "foo"
+test scope-1.5 {Info exists} {
+    set x foo
+    scope x {
+        info exists x
     }
-    set x
-} {a 1 b 2}
+} {0}
 
+catch {unset x}
 catch {unset y}
 
 ################################################################################

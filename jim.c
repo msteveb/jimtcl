@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.131 2005/03/28 16:57:36 antirez Exp $
+ * $Id: jim.c,v 1.132 2005/03/28 17:47:15 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10764,7 +10764,8 @@ static int Jim_ScopeCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "varList body");
         return JIM_ERR;
     }
-    /* Save the value of every var in varList into the 'savedVect' vector. */
+    /* Save the value of every var in varList into the 'savedVect' vector.
+     * Also unset every var name. */
     Jim_ListLength(interp, argv[1], &len);
     savedVect = Jim_Alloc(len*sizeof(Jim_Obj*));
     for (i = 0; i < len; i++) {
@@ -10772,6 +10773,7 @@ static int Jim_ScopeCoreCommand(Jim_Interp *interp, int argc,
         savedVect[i] = Jim_GetVariable(interp, varNameObjPtr, JIM_NONE);
         if (savedVect[i] != NULL)
             Jim_IncrRefCount(savedVect[i]);
+        Jim_UnsetVariable(interp, varNameObjPtr, JIM_NONE);
     }
     /* Eval the body */
     retCode = Jim_EvalObj(interp, argv[2]);
@@ -10924,7 +10926,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.131 2005/03/28 16:57:36 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.132 2005/03/28 17:47:15 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
