@@ -432,6 +432,11 @@ typedef struct Jim_Reference {
 #define JIM_API(x) x
 #endif
 
+/* Memory allocation */
+void * JIM_API(Jim_Alloc) (int size);
+char * JIM_API(Jim_StrDup) (char *s);
+#define Jim_Free free
+
 /* evaluation */
 int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc, Jim_Obj **objv);

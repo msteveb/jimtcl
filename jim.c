@@ -404,8 +404,6 @@ void Jim_Panic(char *fmt, ...)
 /* -----------------------------------------------------------------------------
  * Memory allocation
  * ---------------------------------------------------------------------------*/
-static void *Jim_Alloc(int size);
-static char *Jim_StrDup(char *s);
 
 void *Jim_Alloc(int size)
 {
@@ -439,8 +437,6 @@ char *Jim_StrDupLen(char *s, int l)
 	memcpy(copy, s, l+1);
 	return copy;
 }
-
-#define Jim_Free free
 
 /* -----------------------------------------------------------------------------
  * Time related functions
