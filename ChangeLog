@@ -1,3 +1,10 @@
+2005-03-11 23:00  antirez
+
+	* ChangeLog, jim.c: Converted some free() call to Jim_Free().
+	  Actually Jim_Free is a macro that just expands to free for now,
+	  but in the future Jim may include a specialized allocator for
+	  better performances.
+
 2005-03-11 10:37  antirez
 
 	* ChangeLog, jim.c: [lambda] modified to be 'statics' capable.
