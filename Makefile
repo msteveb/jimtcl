@@ -63,6 +63,10 @@ bench: jim
 dep:
 	gcc -MM *.[ch] 2> /dev/null
 
+wc:
+	wc -l jim.[ch]
+	wc -l *.[ch]
+
 # Dependences
 jim-posix.o: jim-posix.c jim.h
 jim-win32com.o: jim-win32com.c jim.h
