@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.52 2005/03/14 12:20:48 antirez Exp $
+ * $Id: jim.h,v 1.53 2005/03/14 13:11:26 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -445,7 +445,8 @@ typedef struct Jim_Interp {
                   via Jim_CreateCommand(). */
 
     struct Jim_HashTable stub; /* Stub hash table to export API */
-    void *getApiFuncPtr; /* Jim_GetApi() function pointer. */
+    /* Jim_GetApi() function pointer, used to bootstrap the STUB table */
+    int (*getApiFuncPtr)(struct Jim_Interp *, const char *, void *);
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
 } Jim_Interp;
@@ -716,7 +717,8 @@ JIM_STATIC int JIM_API(Jim_SetAssocData)(Jim_Interp *interp, const char *key,
 JIM_STATIC int JIM_API(Jim_DeleteAssocData)(Jim_Interp *interp, const char *key);
 
 /* API import/export functions */
-JIM_STATIC void* JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname);
+JIM_STATIC int JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname,
+        void *targetPtrPtr);
 JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp, 
         const char *funcname, void *funcptr);
 
@@ -732,7 +734,7 @@ JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
 #ifndef __JIM_CORE__
 
 #define JIM_GET_API(name) \
-    Jim_ ## name = Jim_GetApi(interp, "Jim_" #name)
+    Jim_GetApi(interp, "Jim_" #name, &Jim_ ## name)
 
 /* This must be included "inline" inside the extension */
 static void Jim_InitExtension(Jim_Interp *interp, const char *version)

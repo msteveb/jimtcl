@@ -1,3 +1,8 @@
+2005-03-14 13:20  antirez
+
+	* ChangeLog, jim.h: Some change to make jim.h more C++ friendly,
+	  still not working with g++ btw.
+
 2005-03-14 10:16  antirez
 
 	* ChangeLog, TODO, jim.c: Removed the inclusion of a not-needed

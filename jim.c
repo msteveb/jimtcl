@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.102 2005/03/14 09:16:36 antirez Exp $
+ * $Id: jim.c,v 1.103 2005/03/14 13:11:26 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7328,14 +7328,15 @@ err:
  * API Input/Export functions
  * ---------------------------------------------------------------------------*/
 
-void *Jim_GetApi(Jim_Interp *interp, const char *funcname)
+int Jim_GetApi(Jim_Interp *interp, const char *funcname, void *targetPtrPtr)
 {
     Jim_HashEntry *he;
 
     he = Jim_FindHashEntry(&interp->stub, funcname);
     if (!he)
-        return NULL;
-    return he->val;
+        return JIM_ERR;
+    memcpy(targetPtrPtr, &he->val, sizeof(void*));
+    return JIM_OK;
 }
 
 int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, void *funcptr)
