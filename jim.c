@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.61 2005/03/05 09:34:13 antirez Exp $
+ * $Id: jim.c,v 1.62 2005/03/05 09:46:12 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ static void JimRegisterCoreApi(Jim_Interp *interp);
  * alphabets and digits are each contiguous.
  */
 #ifdef HAVE_LONG_LONG
+#define JimIsAscii(c) (((c) & ~0x7f) == 0)
 static jim_wide JimStrtoll(const char *nptr, char **endptr, register int base)
 {
     register const char *s;
@@ -135,7 +136,7 @@ static jim_wide JimStrtoll(const char *nptr, char **endptr, register int base)
     cutlim = (int)(cutoff % qbase);
     cutoff /= qbase;
     for (acc = 0, any = 0;; c = *s++) {
-        if (!isascii(c))
+        if (!JimIsAscii(c))
             break;
         if (isdigit(c))
             c -= '0';
@@ -5091,20 +5092,20 @@ static Jim_ObjType returnCodeObjType = {
 int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     const char *str;
-    int returnCode;
+    int strLen, returnCode;
 
     /* Get the string representation */
-    str = Jim_GetString(objPtr, NULL);
+    str = Jim_GetString(objPtr, &strLen);
     /* Try to convert into a jim_wide */
-    if (!strcasecmp(str, "ok"))
+    if (!JimStringCompare(str, strLen, "ok", 2, JIM_NOCASE))
         returnCode = JIM_OK;
-    else if (!strcasecmp(str, "error"))
+    else if (!JimStringCompare(str, strLen, "error", 5, JIM_NOCASE))
         returnCode = JIM_ERR;
-    else if (!strcasecmp(str, "return"))
+    else if (!JimStringCompare(str, strLen, "return", 6, JIM_NOCASE))
         returnCode = JIM_RETURN;
-    else if (!strcasecmp(str, "break"))
+    else if (!JimStringCompare(str, strLen, "break", 5, JIM_NOCASE))
         returnCode = JIM_BREAK;
-    else if (!strcasecmp(str, "continue"))
+    else if (!JimStringCompare(str, strLen, "continue", 8, JIM_NOCASE))
         returnCode = JIM_CONTINUE;
     else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));

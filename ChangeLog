@@ -1,3 +1,10 @@
+2005-03-05 10:34  antirez
+
+	* AUTHORS, ChangeLog, README, jim.c, jim.h, test.tcl: [switch]
+	  command contributed by Clemens Hintze, modified to avoid problems
+	  with -command and shimmering of the objects passed as [switch]
+	  arguments.
+
 2005-03-05 00:59  patthoyts
 
 	* Makefile.vc, jim-win32com.c, jim.c: Added ole32.foreach command,

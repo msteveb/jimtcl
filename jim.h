@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.33 2005/03/05 09:34:13 antirez Exp $
+ * $Id: jim.h,v 1.34 2005/03/05 09:46:12 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,6 +125,10 @@
 
 /* Unused arguments generate annoying warnings... */
 #define JIM_NOTUSED(V) ((void) V)
+
+/* Flags used by API calls getting a 'nocase' argument. */
+#define JIM_CASESENS    0   /* case sensitive */
+#define JIM_NOCASE      1   /* no case */
 
 /* -----------------------------------------------------------------------------
  * Hash table
