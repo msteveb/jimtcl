@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.44 2005/03/08 15:10:16 patthoyts Exp $
+ * $Id: jim.h,v 1.45 2005/03/08 17:06:08 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -591,6 +591,12 @@ JIM_STATIC Jim_Cmd * JIM_API(Jim_GetCommand) (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
 JIM_STATIC int JIM_API(Jim_SetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
+JIM_STATIC int JIM_API(Jim_SetVariableStr) (Jim_Interp *interp,
+        const char *name, Jim_Obj *objPtr);
+JIM_STATIC int JIM_API(Jim_SetGlobalVariableStr) (Jim_Interp *interp,
+        const char *name, Jim_Obj *objPtr);
+JIM_STATIC int JIM_API(Jim_SetVariableStrWithStr) (Jim_Interp *interp,
+        const char *name, const char *val);
 JIM_STATIC int JIM_API(Jim_SetVariableLink) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
@@ -761,6 +767,9 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(RenameCommand);
   JIM_GET_API(GetCommand);
   JIM_GET_API(SetVariable);
+  JIM_GET_API(SetVariableStr);
+  JIM_GET_API(SetGlobalVariableStr);
+  JIM_GET_API(SetVariableStrWithStr);
   JIM_GET_API(SetVariableLink);
   JIM_GET_API(GetVariable);
   JIM_GET_API(GetCallFrameByLevel);

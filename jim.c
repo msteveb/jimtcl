@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.82 2005/03/08 15:10:16 patthoyts Exp $
+ * $Id: jim.c,v 1.83 2005/03/08 17:06:08 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2898,7 +2898,31 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
     return JIM_OK;
 }
 
-int Jim_SetVariableString(Jim_Interp *interp, const char *name, const char *val)
+int Jim_SetVariableStr(Jim_Interp *interp, const char *name, Jim_Obj *objPtr)
+{
+    Jim_Obj *nameObjPtr;
+    int result;
+
+    nameObjPtr = Jim_NewStringObj(interp, name, -1);
+    Jim_IncrRefCount(nameObjPtr);
+    result = Jim_SetVariable(interp, nameObjPtr, objPtr);
+    Jim_DecrRefCount(interp, nameObjPtr);
+    return result;
+}
+
+int Jim_SetGlobalVariableStr(Jim_Interp *interp, const char *name, Jim_Obj *objPtr)
+{
+    Jim_CallFrame *savedFramePtr;
+    int result;
+
+    savedFramePtr = interp->framePtr;
+    interp->framePtr = interp->topFramePtr;
+    result = Jim_SetVariableStr(interp, name, objPtr);
+    interp->framePtr = savedFramePtr;
+    return result;
+}
+
+int Jim_SetVariableStrWithStr(Jim_Interp *interp, const char *name, const char *val)
 {
     Jim_Obj *nameObjPtr, *valObjPtr;
     int result;
@@ -3706,7 +3730,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->unknown);
 
     /* Initialize key variables every interpreter should contain */
-    Jim_SetVariableString(i, "jim.libpath", "./ /usr/local/lib/jim");
+    Jim_SetVariableStrWithStr(i, "jim.libpath", "./ /usr/local/lib/jim");
 
     /* Export the core API to extensions */
     JimRegisterCoreApi(i);
@@ -7116,6 +7140,9 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(RenameCommand);
   JIM_REGISTER_API(GetCommand);
   JIM_REGISTER_API(SetVariable);
+  JIM_REGISTER_API(SetVariableStr);
+  JIM_REGISTER_API(SetGlobalVariableStr);
+  JIM_REGISTER_API(SetVariableStrWithStr);
   JIM_REGISTER_API(SetVariableLink);
   JIM_REGISTER_API(GetVariable);
   JIM_REGISTER_API(GetCallFrameByLevel);

@@ -1,3 +1,19 @@
+2005-03-08 16:10  patthoyts
+
+	* bench.tcl, jim.c, jim.h: JIM_VERSION is to be an integer value
+	  which we present as MAJOR.MINOR to users. MAJOR is JIM_VERSION /
+	  100
+
+2005-03-08 14:45  patthoyts
+
+	* bench.tcl, jim.c, jim.h, jimsh.c: Added [info patchlevel] and
+	  setup argv0 and argv variables in jimsh.  Changed
+	  Jim_InteractivePrompt to take a pre-initialized interpreter.
+
+2005-03-08 12:32  antirez
+
+	* ChangeLog, jim.c: aesthetic changes to source code (SS)
+
 2005-03-08 12:01  antirez
 
 	* ChangeLog, jim.c: Removed an useless #if0 ... #endif block of
