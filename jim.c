@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.108 2005/03/16 12:55:37 antirez Exp $
+ * $Id: jim.c,v 1.109 2005/03/16 13:11:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3818,16 +3818,16 @@ int Jim_Collect(Jim_Interp *interp)
                 jim_wide id;
                 char buf[21];
 
-                if ((p = strstr(p, "<reference:")) == NULL)
+                if ((p = strstr(p, "<reference.<")) == NULL)
                     break;
                 /* Check if it's a valid reference. */
                 if (len-(p-str) < JIM_REFERENCE_SPACE) break;
-                if (p[31] != ':') break;
-                for (i = 11; i < 30; i++)
+                if (p[41] != '>' || p[19] != '>' || p[20] != '.') break;
+                for (i = 21; i <= 40; i++)
                     if (!isdigit((int)p[i]))
                         break;
                 /* Get the ID */
-                memcpy(buf, p+11, 20);
+                memcpy(buf, p+21, 20);
                 buf[20] = '\0';
                 Jim_StringToWide(buf, &id, 10);
 
