@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.66 2005/03/05 15:04:13 antirez Exp $
+ * $Id: jim.c,v 1.67 2005/03/05 22:06:51 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1663,13 +1663,13 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
     if (objPtr->refCount == -1)  {
         Jim_Panic("Object %p double freed!", objPtr);
     }
+    /* Free the internal representation */
+    Jim_FreeIntRep(interp, objPtr);
     /* Free the string representation */
     if (objPtr->bytes != NULL) {
         if (objPtr->bytes != JimEmptyStringRep)
             Jim_Free(objPtr->bytes);
     }
-    /* Free the internal representation */
-    Jim_FreeIntRep(interp, objPtr);
     /* Unlink the object from the live objects list */
     if (objPtr->prevObjPtr)
         objPtr->prevObjPtr->nextObjPtr = objPtr->nextObjPtr;
