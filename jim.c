@@ -7031,6 +7031,11 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(PrintErrorMessage);
   JIM_REGISTER_API(InteractivePrompt);
   JIM_REGISTER_API(RegisterCoreCommands);
+  JIM_REGISTER_API(GetSharedString);
+  JIM_REGISTER_API(ReleaseSharedString);
+  JIM_REGISTER_API(Panic);
+  JIM_REGISTER_API(StrDup);
+  JIM_REGISTER_API(UnsetVariable);
 }
 
 /* -----------------------------------------------------------------------------
