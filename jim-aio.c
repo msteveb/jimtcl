@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.5 2005/03/06 08:48:16 antirez Exp $
+ * $Id: jim-aio.c,v 1.6 2005/03/16 16:28:34 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,9 +39,10 @@ static void JimAioSetError(Jim_Interp *interp)
     Jim_SetResultString(interp, strerror(errno), -1);
 }
 
-static void JimAioDelProc(void *privData)
+static void JimAioDelProc(Jim_Interp *interp, void *privData)
 {
     AioFile *af = privData;
+    JIM_NOTUSED(interp);
 
     if (!af->keepOpen)
         fclose(af->fp);

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.56 2005/03/16 16:06:31 patthoyts Exp $
+ * $Id: jim.h,v 1.57 2005/03/16 16:28:34 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -387,8 +387,7 @@ typedef struct Jim_Var {
 /* The cmd structure. */
 typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
-typedef struct Jim_Interp Jim_Interp;
-typedef void (*Jim_DelCmdProc)(Jim_Interp *interp, void *privData);
+typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
 
 /* A command is implemented in C if funcPtr is != NULL, otherwise
  * it's a Tcl procedure with the arglist and body represented by the
