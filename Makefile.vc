@@ -1,10 +1,33 @@
 # -*- Makefile -*- 
 #
+# This is a Microsoft Visual C NMAKE makefile to use in building the
+# Jim interpreter.
 #
+# Usage:
+#   nmake -f Makefile.vc clean all
+#
+# To build a debug build, add DEBUG=1 to the command line. To build
+# for profiling, add PROFILE=1. eg:
+#   nmake -f Makefile.vc DEBUG=1 clean all
+#
+#
+# Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
+#
+#-------------------------------------------------------------------------
+# $Id: Makefile.vc,v 1.10 2005/03/09 13:42:02 patthoyts Exp $
+#-------------------------------------------------------------------------
 
 SRCDIR =.
 
-!ifdef DEBUG
+!ifndef DEBUG
+DEBUG   =0
+!endif
+!ifndef PROFILE
+PROFILE =0
+!endif
+
+
+!if $(DEBUG)
 OUTDIR =Debug
 CFLAGS =-Od -Zi -GZ -MDd -D_DEBUG
 LDFLAGS=-debug:full -debugtype:cv
@@ -12,6 +35,11 @@ LDFLAGS=-debug:full -debugtype:cv
 OUTDIR =Release
 CFLAGS =-O2 -Op -Gs -MD -DNDEBUG
 LDFLAGS=-release -opt:ref -opt:icf,3
+!endif
+
+!if $(PROFILE)
+CFLAGS =$(CFLAGS) -Zi
+LDFLAGS=$(LDFLAGS) -profile -map
 !endif
 
 TMPDIR =$(OUTDIR)\Objects
