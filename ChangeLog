@@ -1,3 +1,11 @@
+2005-04-05 13:51  antirez
+
+	* ChangeLog, Makefile, jim-readline.c, jim-rlprompt-1.0.tcl, jim.c,
+	  jim.h, jimsh.c: .jimrc support (or jimrc.tcl). Minimal readline
+	  extension, just enough to allow to the pure-Jim rlprompt
+	  extension to provide a readline-aware interactive shell with
+	  history.
+
 2005-04-04 21:44  antirez
 
 	* ChangeLog, README, jim.c: Fixed a memory leak introduced some day

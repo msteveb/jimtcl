@@ -23,7 +23,7 @@ proc rlprompt.shell {} {
             continue
         }
         readline.addhistory $line
-        set errCode [catch {uplevel #1 $line} err]
+        set errCode [catch {uplevel #0 $line} err]
         if {$err ne {}} {
             puts $err
         }
