@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.116 2005/03/17 13:06:27 antirez Exp $
+ * $Id: jim.c,v 1.117 2005/03/17 14:47:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8799,6 +8799,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
 {
     const char *options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
+        NULL
     };
     enum {
         OPT_REFCOUNT, OPT_OBJCOUNT, OPT_OBJECTS, OPT_INVSTR, OPT_SCRIPTLEN,
@@ -10134,7 +10135,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.116 2005/03/17 13:06:27 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.117 2005/03/17 14:47:35 antirez Exp $\n");
     while (1) {
         char buf[1024];
         const char *result;

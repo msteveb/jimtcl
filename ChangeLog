@@ -1,3 +1,7 @@
+2005-03-17 14:06  antirez
+
+	* ChangeLog, jim.c, jim.h: Objects hash function changed.
+
 2005-03-17 08:40  antirez
 
 	* ChangeLog, jim.c, jim.h: [source] command added.
