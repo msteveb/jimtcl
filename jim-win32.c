@@ -336,6 +336,7 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj **objv)
     return JIM_OK;
 }
 
+#ifndef __MINGW32__ /* function not available on mingw */
 // FIX ME: win2k+ so should do version checks really.
 static int
 Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -372,6 +373,7 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
     Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
     return JIM_OK;
 }
+#endif /* !MINGW32 */
 
 static int
 Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj **objv)
@@ -479,7 +481,9 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetVersion);
     CMD(GetTickCount);
     CMD(GetSystemTime);
+#ifndef __MINGW32__
     CMD(GetPerformanceInfo);
+#endif
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
