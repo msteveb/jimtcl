@@ -1,3 +1,8 @@
+2005-03-06 09:48  antirez
+
+	* ChangeLog, jim-aio.c: Added support for stdin/stdout/stderr to
+	  AIO
+
 2005-03-06 09:31  antirez
 
 	* ChangeLog, Makefile, TODO, jim-aio.c, jim.c, jim.h: Added

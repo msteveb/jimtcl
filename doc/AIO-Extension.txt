@@ -1,0 +1,79 @@
+ANSI I/O extensiond documentation
+$id: $
+
+Overview
+~~~~~~~~
+
+The AIO (ANSI I/O) extension implements an I/O interface for Jim using only
+ANSI-C capabilities. The goal of the extension is to make Jim able to
+work with files in environments where the only assumption that can be
+done is that there is an ANSI-C compiler, or where the binary size matters
+(the AIO extension is very small compared to size the real Tcl Channels).
+
+Goals
+~~~~~
+
+The AIO extension was developed in order to be able to experiment with
+two ideas.
+
+The first is the idea to build a replacement for autoconf/automake
+using the fact that Jim is small and ANSI-C, so the build process may
+build Jim with the assumption of an ANSI-C compiler, and a Jim script will
+check what exists in the system and will generate the Makefile and config.h.
+
+The second idea is to create a micro starkit runtime, using a very small
+implementation of zlib called muzcat, and AIO.
+
+Usage
+~~~~~
+
+The AIO extension exports an Object Based interface for files. In order
+to open a file use:
+
+  set f [aio.open filename]
+
+this will open the file in read-only. It's possible to specify the mode:
+
+  set f [aio.open filename w+]
+
+The [aio.open] command returns a file handle, that is a command name that
+can be used to perform operations on the file. A real example:
+
+  Welcome to Jim version 0, Copyright (c) 2005 Salvatore Sanfilippo
+  0 jim> load jim-aio.so
+  1.0
+  0 jim> set f [aio.open /etc/passwd]
+  aio.handle0
+  0 jim> $f gets line
+  30
+  0 jim> puts $line
+  root:x:0:0:root:/root:/bin/zsh
+
+The "methods" of an AIO file object are an exact copy of the usual
+Tcl commands for file I/O. In order to have the full list of
+the methods currenty supported, pass a bad method as argument,
+like in the example (but don't trust the example, the extension is
+in active development so probably there will be more functionality when
+you are reading this document):
+
+  0 jim> $f helpme
+  Runtime error, file "?", line 1:
+      bad AIO method "helpme": must be close, seek, tell, gets, puts, or flush
+
+In order to close the file, use the 'close' method that will have as side effect
+to close the file and that the command associated with the file will be removed.
+
+Standard files
+~~~~~~~~~~~~~~
+
+The AIO library is able to return handles about the standard C channels
+stdin, stdout and stderr. In order to do so just use:
+
+  set f [aio.open standard input]
+
+Valid standard file names are "input", "output", "error".
+
+For standard files, the close method will just remove the command associated
+with the handle, without to really close the file.
+
+
