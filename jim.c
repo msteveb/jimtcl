@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.140 2005/04/02 07:48:03 antirez Exp $
+ * $Id: jim.c,v 1.141 2005/04/02 08:54:27 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7411,10 +7411,99 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
 }
 
 #ifndef JIM_ANSIC
-#ifndef WIN32
 
-#include <sys/types.h>
-#include <dirent.h>
+#ifndef WIN32
+# include <sys/types.h>
+# include <dirent.h>
+#else
+# include <io.h>
+/* Posix dirent.h compatiblity layer for WIN32.
+ * Copyright Kevlin Henney, 1997, 2003. All rights reserved.
+ * Copyright Salvatore Sanfilippo ,2005.
+ *
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose is hereby granted without fee, provided
+ * that this copyright and permissions notice appear in all copies and
+ * derivatives.
+ *
+ * This software is supplied "as is" without express or implied warranty.
+ * This software was modified by Salvatore Sanfilippo for the Jim Interpreter.
+ */
+
+struct dirent {
+    char *d_name;
+};
+
+typedef struct DIR {
+    long                handle; /* -1 for failed rewind */
+    struct _finddata_t  info;
+    struct dirent       result; /* d_name null iff first time */
+    char                *name;  /* null-terminated char string */
+} DIR;
+
+DIR *opendir(const char *name)
+{
+    DIR *dir = 0;
+
+    if(name && name[0]) {
+        size_t base_length = strlen(name);
+        const char *all = /* search pattern must end with suitable wildcard */
+            strchr("/\\", name[base_length - 1]) ? "*" : "/*";
+
+        if((dir = (DIR *) Jim_Alloc(sizeof *dir)) != 0 &&
+           (dir->name = (char *) Jim_Alloc(base_length + strlen(all) + 1)) != 0)
+        {
+            strcat(strcpy(dir->name, name), all);
+
+            if((dir->handle = (long) _findfirst(dir->name, &dir->info)) != -1)
+                dir->result.d_name = 0;
+            else { /* rollback */
+                Jim_Free(dir->name);
+                Jim_Free(dir);
+                dir = 0;
+            }
+        } else { /* rollback */
+            Jim_Free(dir);
+            dir   = 0;
+            errno = ENOMEM;
+        }
+    } else {
+        errno = EINVAL;
+    }
+    return dir;
+}
+
+int closedir(DIR *dir)
+{
+    int result = -1;
+
+    if(dir) {
+        if(dir->handle != -1)
+            result = _findclose(dir->handle);
+        Jim_Free(dir->name);
+        Jim_Free(dir);
+    }
+    if(result == -1) /* map all errors to EBADF */
+        errno = EBADF;
+    return result;
+}
+
+struct dirent *readdir(DIR *dir)
+{
+    struct dirent *result = 0;
+
+    if(dir && dir->handle != -1) {
+        if(!dir->result.d_name || _findnext(dir->handle, &dir->info) != -1) {
+            result         = &dir->result;
+            result->d_name = dir->info.name;
+        }
+    } else {
+        errno = EBADF;
+    }
+    return result;
+}
+
+#endif /* WIN32 */
 
 static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
         int prefixc, const char *pkgName, int pkgVer, int flags)
@@ -7474,7 +7563,7 @@ static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
     return bestPackage;
 }
 
-#else /* WIN32 */
+#else /* JIM_ANSIC */
 
 static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
         int prefixc, const char *pkgName, int pkgVer, int flags)
@@ -7488,7 +7577,6 @@ static char *JimFindBestPackage(Jim_Interp *interp, char **prefixes,
     return NULL;
 }
 
-#endif /* WIN32 */
 #endif /* JIM_ANSIC */
 
 /* Search for a suitable package under every dir specified by jim_libpath
@@ -11374,7 +11462,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.140 2005/04/02 07:48:03 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.141 2005/04/02 08:54:27 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
