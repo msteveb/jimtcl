@@ -130,10 +130,14 @@ For instructions about how to compile extensions just try 'make'
 and see the available options. Check also the next section of this file.
 
 --------------------------------------------------------------------------------
-HOW TO COMPILE WITHOUT DYNAMIC LIBRARY SUPPORT ([load] command)
+HOW TO COMPILE IN SYSTEMS WITH JUST ANSI-C SUPPORT
 --------------------------------------------------------------------------------
 
-Edit jim.c before to complile and uncomment the JIM_DYNLIB define.
+Try:
+
+  make LIBS="" DEFS="-DJIM_ANSIC" jim
+
+This should compile Jim almost everywhere there is a decent ANSI-C compiler.
 
 --------------------------------------------------------------------------------
 EXTENSIONS
@@ -151,7 +155,7 @@ This is the start of a library that should export to Jim useful bits of the
 WIN32 API. Currently there is just one function that is used to call windows
 applications. For example run jim and try the extension with:
 
-  load jim-win32.dll
+  package require win32
   win32.shellexecute open notepad
 
 You should see a notepad application running.

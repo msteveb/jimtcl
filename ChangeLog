@@ -1,3 +1,8 @@
+2005-04-02 12:08  antirez
+
+	* ChangeLog, Makefile, jim-stdlib-1.0.tcl, jim.c: Added a very
+	  immature start of a Jim standard library.
+
 2005-04-02 11:09  antirez
 
 	* ChangeLog, Makefile: Changes to Makefile to reflect that now
