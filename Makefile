@@ -16,7 +16,7 @@
 
 SHELL   = /bin/sh
 RM      = rm -f
-OPT     = -O2
+OPT     = -Os
 LDFLAGS = $(PROFILE)
 CFLAGS  = -Wall -Wwrite-strings -W $(OPT) -g $(PROFILE)
 AR      = /usr/bin/ar

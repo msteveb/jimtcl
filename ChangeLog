@@ -1,3 +1,9 @@
+2005-04-02 23:35  antirez
+
+	* ChangeLog, Makefile, README, TODO, jim-sqlite.c,
+	  doc/Sqlite-Extension.txt: Committed the sqlite extension and
+	  documentation.
+
 2005-04-02 12:14  antirez
 
 	* ChangeLog, README, doc/AIO-Extension.txt: minor docs update

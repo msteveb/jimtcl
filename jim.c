@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.142 2005/04/02 10:08:33 antirez Exp $
+ * $Id: jim.c,v 1.143 2005/04/04 07:58:11 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1084,7 +1084,8 @@ int JimParseScript(struct JimParserCtx *pc)
 {
     while(1) { /* the while is used to reiterate with continue if needed */
         if (!pc->len) {
-            pc->tstart = pc->tend = pc->p;
+            pc->tstart = pc->p;
+            pc->tend = pc->p-1;
             pc->tline = pc->linenr;
             pc->tt = JIM_TT_EOL;
             pc->eof = 1;
@@ -1530,7 +1531,9 @@ char *JimParserGetToken(struct JimParserCtx *pc,
         if (lenPtr) *lenPtr = 0;
         if (typePtr) *typePtr = JimParserTtype(pc);
         if (linePtr) *linePtr = JimParserTline(pc);
-        return JimEmptyStringRep;
+        token = Jim_Alloc(1);
+        token[0] = '\0';
+        return token;
     }
     len = (end-start)+1;
     token = Jim_Alloc(len+1);
@@ -10858,13 +10861,15 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
                 return JIM_ERR;
         }
     } else if (cmd == INFO_BODY || cmd == INFO_ARGS) {
+        Jim_Cmd *cmdPtr;
+
         if (argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "procname");
             return JIM_ERR;
         }
-        if (SetCommandFromAny(interp, argv[2]) != JIM_OK)
+        if ((cmdPtr = Jim_GetCommand(interp, argv[2], JIM_ERRMSG)) == NULL)
             return JIM_ERR;
-        if (argv[2]->internalRep.cmdValue.cmdPtr->cmdProc != NULL) {
+        if (cmdPtr->cmdProc != NULL) {
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
                 "command \"", Jim_GetString(argv[2], NULL),
@@ -10872,11 +10877,9 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         if (cmd == INFO_BODY)
-            Jim_SetResult(interp,
-                    argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
+            Jim_SetResult(interp, cmdPtr->bodyObjPtr);
         else
-            Jim_SetResult(interp,
-                    argv[2]->internalRep.cmdValue.cmdPtr->argListObjPtr);
+            Jim_SetResult(interp, cmdPtr->argListObjPtr);
     } else if (cmd == INFO_VERSION) {
         char buf[(JIM_INTEGER_SPACE * 2) + 1];
         sprintf(buf, "%d.%d", 
@@ -11341,6 +11344,102 @@ static int Jim_PackageCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+#if 0 /* WORK IN PROGRESS (SS) */
+/* [code] */
+static int Jim_CodeCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    int option;
+    const char *options[] = {"parse", "glue", NULL};
+    const char *tokenTypeStr[] = {"str", "esc", "var", "array", "cmd", "sep",
+                                  "eol", NULL};
+
+    enum {OPT_PARSE, OPT_GLUE};
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
+        return JIM_ERR;
+    }
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (option == OPT_PARSE) {
+        struct JimParserCtx parser;
+        const char *scriptText;
+        int scriptTextLen;
+        Jim_Obj *objPtr;
+
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "program");
+            return JIM_ERR;
+        }
+
+        scriptText = Jim_GetString(argv[2], &scriptTextLen);
+        JimParserInit(&parser, scriptText, scriptTextLen, 0);
+        objPtr = Jim_NewListObj(interp, NULL, 0);
+        while(!JimParserEof(&parser)) {
+            char *token;
+            int len, type, linenr;
+            Jim_Obj *subListObjPtr;
+            
+            JimParseScript(&parser);
+            token = JimParserGetToken(&parser, &len, &type, &linenr);
+
+            subListObjPtr = Jim_NewListObj(interp, NULL, 0);
+            Jim_ListAppendElement(interp, subListObjPtr,
+                    Jim_NewStringObj(interp, tokenTypeStr[type], -1));
+            Jim_ListAppendElement(interp, subListObjPtr,
+                    Jim_NewStringObjNoAlloc(interp, token, len));
+            Jim_ListAppendElement(interp, objPtr, subListObjPtr);
+        }
+        Jim_SetResult(interp, objPtr);
+    } else if (option == OPT_GLUE) {
+        Jim_Obj *objPtr;
+        int tokens, i;
+
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "tokens");
+            return JIM_ERR;
+        }
+        objPtr = Jim_NewStringObj(interp, "", 0);
+        Jim_ListLength(interp, argv[2], &tokens);
+        for (i = 0; i < tokens; i++) {
+            Jim_Obj *subListObjPtr, **objv;
+            int subListLen, ttype;
+
+            Jim_ListIndex(interp, argv[2], i, &subListObjPtr, JIM_NONE);
+            JimListGetElements(interp, subListObjPtr, &subListLen, &objv);
+            if (subListLen != 2) {
+                char buf[64];
+                sprintf(buf, "%d", subListLen);
+                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+                Jim_AppendStrings(interp, Jim_GetResult(interp),
+                        "bad tokens list: element at index '", buf, "' "
+                        "is not a two elements list", NULL);
+                Jim_FreeNewObj(objPtr);
+            }
+            if (Jim_GetEnum(interp, objv[0], tokenTypeStr, &ttype, "token type",
+                        JIM_ERRMSG) != JIM_OK) {
+                Jim_FreeNewObj(objPtr);
+                return JIM_ERR;
+            }
+            switch (ttype) {
+            case JIM_TT_STR:
+            case JIM_TT_ESC:
+            case JIM_TT_VAR:
+            case JIM_TT_DICTSUGAR:
+            case JIM_TT_CMD:
+            case JIM_TT_SEP:
+            case JIM_TT_EOL:
+            }
+        }
+        Jim_SetResult(interp, objPtr);
+    }
+    return JIM_OK;
+}
+#endif
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -11405,6 +11504,9 @@ static struct {
     {"scope", Jim_ScopeCoreCommand},
     {"rand", Jim_RandCoreCommand},
     {"package", Jim_PackageCoreCommand},
+#if 0 /* work in progress */
+    {"code", Jim_CodeCoreCommand},
+#endif
     {NULL, NULL},
 };
 
@@ -11473,7 +11575,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.142 2005/04/02 10:08:33 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.143 2005/04/04 07:58:11 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

@@ -2,7 +2,7 @@
 #
 # Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
 #
-# $Id: jim-stdlib-1.0.tcl,v 1.1 2005/04/02 10:08:33 antirez Exp $
+# $Id: jim-stdlib-1.0.tcl,v 1.2 2005/04/04 07:58:11 antirez Exp $
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,3 +39,11 @@ proc repeat {n body} {
         uplevel 1 $body
     }
 }
+
+### List procedures ###
+
+proc first {list} {lindex $list 0}
+proc rest {list} {lrange $list 1 end}
+proc last {list} {lindex $list end}
+
+### EOF ###
