@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.128 2005/03/24 13:58:05 antirez Exp $
+ * $Id: jim.c,v 1.129 2005/03/25 09:34:51 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5596,11 +5596,14 @@ int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     const char *str;
     int strLen, returnCode;
+    jim_wide wideValue;
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &strLen);
-    /* Try to convert into a jim_wide */
-    if (!JimStringCompare(str, strLen, "ok", 2, JIM_NOCASE))
+    /* Try to convert into an integer */
+    if (JimGetWideNoErr(interp, objPtr, &wideValue) != JIM_ERR)
+        returnCode = (int) wideValue;
+    else if (!JimStringCompare(str, strLen, "ok", 2, JIM_NOCASE))
         returnCode = JIM_OK;
     else if (!JimStringCompare(str, strLen, "error", 5, JIM_NOCASE))
         returnCode = JIM_ERR;
@@ -10931,7 +10934,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.128 2005/03/24 13:58:05 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.129 2005/03/25 09:34:51 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

@@ -508,6 +508,32 @@ proc commonsub_test {} {
  matched [llength $x] [llength $y] {}
 }
 
+### MANDEL #####################################################################
+
+proc mandel {xres yres infx infy supx supy} {
+    set incremx [expr {(0.0+$supx-$infx)/$xres}]
+    set incremy [expr {(0.0+$supy-$infy)/$yres}]
+
+    for {set j 0} {$j < $yres} {incr j} {
+	set cim [expr {$infy+($incremy*$j)}]
+	set line {}
+	for {set i 0} {$i < $xres} {incr i} {
+	    set counter 0
+	    set zim 0
+	    set zre 0
+	    set cre [expr {$infx+($incremx*$i)}]
+	    while {$counter < 255} {
+		set dam [expr {$zre*$zre-$zim*$zim+$cre}]
+		set zim [expr {2*$zim*$zre+$cim}]
+		set zre $dam
+		if {$zre*$zre+$zim*$zim > 4} break
+		incr counter
+	    }
+	    # output pixel $i $j
+	}
+    }
+}
+
 ### RUN ALL ####################################################################
 
 if {[string compare [lindex $argv 0] "-batch"] == 0} {
@@ -531,6 +557,7 @@ bench {dynamic code (list)} {dyncode_list}
 bench {PI digits} {pi_digits}
 bench {expand} {expand}
 bench {wiki.tcl.tk/8566} {commonsub_test}
+bench {mandel} {mandel 60 60 -2 -1.5 1 1.5}
 
 proc istcl {} {
     return [expr {![catch {info tclversion}]}]
