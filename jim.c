@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.85 2005/03/09 11:06:42 antirez Exp $
+ * $Id: jim.c,v 1.86 2005/03/10 10:03:32 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9590,6 +9590,18 @@ static int Jim_FormatCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [error] */
+static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "message");
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, argv[1]);
+    return JIM_ERR;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -9642,6 +9654,7 @@ static struct {
     {"split", Jim_SplitCoreCommand},
     {"join", Jim_JoinCoreCommand},
     {"format", Jim_FormatCoreCommand},
+    {"error", Jim_ErrorCoreCommand},
     {NULL, NULL},
 };
 

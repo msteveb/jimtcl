@@ -16,7 +16,7 @@
 SHELL   = /bin/sh
 RM      = rm -f
 LDFLAGS = $(PROFILE)
-CFLAGS  = -Wall -Wwrite-strings -W -O2 -g $(PROFILE)
+CFLAGS  = -Wall -Wwrite-strings -W -Os -g $(PROFILE)
 AR      = /usr/bin/ar
 RANLIB  = /usr/bin/ranlib
 LIBPATH =-L.

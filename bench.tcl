@@ -4,7 +4,7 @@ set benchmarks {}
 proc bench {title script} {
     global benchmarks batchmode
 
-    set Title [string range "$title [string repeat " " 20]" 0 20]
+    set Title [string range "$title                     " 0 20]
 
     set failed [catch {time $script} res]
     if {$failed} {
@@ -13,8 +13,8 @@ proc bench {title script} {
     } else {
         set t [lindex $res 0]
         lappend benchmarks $title $t
-        set ts "[string repeat " " 10]$t"
-        set ts [string range $ts end-10 end]
+        set ts "          $t"
+        set ts [string range $ts [expr {[string length $ts]-10}] end]
         if {!$batchmode} {puts "$Title -$ts microseconds per iteration"}
     }
 }

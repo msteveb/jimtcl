@@ -178,6 +178,30 @@ All Rights Reserved
  See the License for the specific language governing permissions and
  limitations under the License.
 
+--------------------------------------------------------------------------------
+HISTORY
+--------------------------------------------------------------------------------
+
+"first Jim goal: to vent my need to hack on Tcl."
+
+And actually this is exactly why I started Jim, in the first days
+of Jenuary 2005. After a month of hacking Jim was able to run
+simple scripts, now, after two months it started to be clear to
+me that it was not just the next toy to throw away but something
+that may evolve into a real interpreter. In the same time
+Pat Thoyts and Clemens Hintze started to contribute code, so that
+the development of new core commands was faster, and also more
+people hacking on the same code had as result fixes in the API,
+C macros, and so on.
+
+Currently we are at the point that the core interpreter is nearly
+done. There is to add some more core command, to do a code review
+to ensure quality of all the parts and to write documentation.
+
+The next step will be to start key extensions like OOP, event loop,
+I/O, networking, regexp, ..., and to end the extensions already
+available: win32, win32com, posix.
+
 ------------------------------------------------------------------------------
 Thanks to...
 ------------------------------------------------------------------------------
@@ -193,3 +217,11 @@ Thanks to...
   problems with [load] on this arch, 64bit tests.
 - The authors of "valgrind", for this wonderful tool, that helped me a
   lot to fix bugs in minutes instead of hours.
+
+
+----
+Enjoy!
+Salvatore Sanfilippo
+10 Mar 2005
+
+

@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
-# $Id: benchtable.tcl,v 1.1 2005/03/09 11:57:50 patthoyts Exp $
+# $Id: benchtable.tcl,v 1.2 2005/03/10 10:03:32 antirez Exp $
 
 proc main {filename} {
     set versions {}
@@ -45,4 +45,3 @@ if {!$tcl_interactive} {
     puts $res
     exit $r
 }
-    
