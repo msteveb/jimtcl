@@ -1,3 +1,8 @@
+2005-03-12 21:26  antirez
+
+	* ChangeLog, jim.c, jim.h: Added the ability to compile with
+	  -DJIM_ANSIC to use only ANSI-C features and libraries.
+
 2005-03-12 10:18  antirez
 
 	* ChangeLog, jim.c, jim.h: Added the Jim_FreeNewObj() macro to free

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.97 2005/03/12 20:26:31 antirez Exp $
+ * $Id: jim.c,v 1.98 2005/03/12 21:42:28 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2117,10 +2117,18 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr,
     }
 }
 
+int qsortCompareStringPointers(const void *a, const void *b)
+{
+    char * const *sa = a;
+    char * const *sb = b;
+    return strcmp(*sa, *sb);
+}
+
 int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
         const char **tablePtr, int *indexPtr, const char *name, int flags)
 {
     const char **entryPtr = NULL;
+    char **tablePtrSorted;
     int i, count = 0;
 
     *indexPtr = -1;
@@ -2138,13 +2146,18 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "bad ", name, " \"", Jim_GetString(objPtr, NULL), "\": must be one of ",
             NULL);
+        tablePtrSorted = malloc(sizeof(char*)*count);
+        memcpy(tablePtrSorted, tablePtr, sizeof(char*)*count);
+        qsort(tablePtrSorted, count, sizeof(char*), qsortCompareStringPointers);
         for (i = 0; i < count; i++) {
             if (i+1 == count && count > 1)
                 Jim_AppendString(interp, Jim_GetResult(interp), "or ", -1);
-            Jim_AppendString(interp, Jim_GetResult(interp), tablePtr[i], -1);
+            Jim_AppendString(interp, Jim_GetResult(interp),
+                    tablePtrSorted[i], -1);
             if (i+1 != count)
                 Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
         }
+        free(tablePtrSorted);
     }
     return JIM_ERR;
 }
