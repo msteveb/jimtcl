@@ -1065,7 +1065,10 @@ int JimParseSep(struct JimParserCtx *pc)
 	pc->tline = pc->linenr;
 	while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' ||
 	       (*pc->p == '\\' && *(pc->p+1) == '\n')) {
-		if (*pc->p == '\\') pc->p++;
+		if (*pc->p == '\\') {
+			pc->p++;
+			pc->linenr++;
+		}
 		pc->p++;
 	}
 	pc->tend = pc->p-1;
@@ -1192,6 +1195,8 @@ int JimParseBrace(struct JimParserCtx *pc)
 	while (1) {
 		if (*pc->p == '\\' && *(pc->p+1) != '\0') {
 			pc->p++;
+			if (*pc->p == '\n')
+				pc->linenr++;
 		} else if (*pc->p == '{') {
 			level++;
 		} else if (*pc->p == '\0' || *pc->p == '}') {
@@ -2814,7 +2819,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 		if (flags & JIM_ERRMSG) {
 			Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 			Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Can't read \"", nameObjPtr->bytes,
+				"can't read \"", nameObjPtr->bytes,
 				"\": no such variable",
 				NULL);
 		}
@@ -2834,7 +2839,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 		if (objPtr == NULL && flags & JIM_ERRMSG) {
 			Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 			Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Can't read \"", nameObjPtr->bytes,
+				"can't read \"", nameObjPtr->bytes,
 				"\": no such variable",
 				NULL);
 		}
@@ -2869,7 +2874,7 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 			return Jim_DictSugarSet(interp, nameObjPtr, NULL);
 		Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 		Jim_AppendStrings(interp, Jim_GetResult(interp),
-			"Can't unset \"", nameObjPtr->bytes,
+			"can't unset \"", nameObjPtr->bytes,
 			"\": no such variable",
 			NULL);
 		return JIM_ERR; /* var not found */
@@ -2888,7 +2893,7 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 		if (retval != JIM_OK && flags & JIM_ERRMSG) {
 			Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 			Jim_AppendStrings(interp, Jim_GetResult(interp),
-				"Can't unset \"", nameObjPtr->bytes,
+				"can't unset \"", nameObjPtr->bytes,
 				"\": no such variable",
 				NULL);
 		}
@@ -4947,35 +4952,36 @@ typedef struct Jim_ExprOperator {
 
 #define JIM_EXPROP_LSHIFT 9
 #define JIM_EXPROP_RSHIFT 10
-#define JIM_EXPROP_ROTL 30
-#define JIM_EXPROP_ROTR 31
+#define JIM_EXPROP_ROTL 11
+#define JIM_EXPROP_ROTR 12
 
-#define JIM_EXPROP_LT 11
-#define JIM_EXPROP_GT 12
-#define JIM_EXPROP_LTE 13
-#define JIM_EXPROP_GTE 14
+#define JIM_EXPROP_LT 13
+#define JIM_EXPROP_GT 14
+#define JIM_EXPROP_LTE 15
+#define JIM_EXPROP_GTE 16
 
-#define JIM_EXPROP_NUMEQ 15
-#define JIM_EXPROP_NUMNE 16
+#define JIM_EXPROP_NUMEQ 17
+#define JIM_EXPROP_NUMNE 18
 
-#define JIM_EXPROP_STREQ 17
-#define JIM_EXPROP_STRNE 18
+#define JIM_EXPROP_STREQ 19
+#define JIM_EXPROP_STRNE 20
 
-#define JIM_EXPROP_BITAND 19
-#define JIM_EXPROP_BITXOR 20
-#define JIM_EXPROP_BITOR 21
+#define JIM_EXPROP_BITAND 21
+#define JIM_EXPROP_BITXOR 22
+#define JIM_EXPROP_BITOR 23
 
-#define JIM_EXPROP_LOGICAND 22
-#define JIM_EXPROP_LOGICOR 23
+#define JIM_EXPROP_LOGICAND 24
+#define JIM_EXPROP_LOGICOR 25
 
-#define JIM_EXPROP_TERNARY 24
+#define JIM_EXPROP_TERNARY 26
 
 /* Operands */
-#define JIM_EXPROP_NUMBER 25
-#define JIM_EXPROP_COMMAND 26
-#define JIM_EXPROP_VARIABLE 27
-#define JIM_EXPROP_DICTSUGAR 28
-#define JIM_EXPROP_STRING 29
+#define JIM_EXPROP_NUMBER 27
+#define JIM_EXPROP_COMMAND 28
+#define JIM_EXPROP_VARIABLE 29
+#define JIM_EXPROP_DICTSUGAR 30
+#define JIM_EXPROP_SUBST 31
+#define JIM_EXPROP_STRING 32
 
 static struct Jim_ExprOperator Jim_ExprOperators[] = {
 	{"!", 300, 1, JIM_EXPROP_NOT},
@@ -5205,6 +5211,7 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
 		switch(expr->opcode[i]) {
 		case JIM_EXPROP_NUMBER:
 		case JIM_EXPROP_STRING:
+		case JIM_EXPROP_SUBST:
 		case JIM_EXPROP_VARIABLE:
 		case JIM_EXPROP_DICTSUGAR:
 		case JIM_EXPROP_COMMAND:
@@ -5310,9 +5317,11 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 		}
 		switch(type) {
 		case JIM_TT_STR:
-		case JIM_TT_ESC:
 			ExprObjAddInstr(interp, expr,
 					JIM_EXPROP_STRING, token, len);
+		case JIM_TT_ESC:
+			ExprObjAddInstr(interp, expr,
+					JIM_EXPROP_SUBST, token, len);
 			break;
 		case JIM_TT_VAR:
 			ExprObjAddInstr(interp, expr,
@@ -5501,6 +5510,17 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 		int Alen, Blen, retcode;
 
 		switch(expr->opcode[i]) {
+		case JIM_EXPROP_SUBST:
+			if ((retcode = Jim_SubstObj(interp, expr->obj[i],
+						&objPtr, JIM_NONE)) != JIM_OK)
+			{
+				error = 1;
+				errRetCode = retcode;
+				goto err;
+			}
+			stack[stacklen++] = objPtr;
+			Jim_IncrRefCount(objPtr);
+			break;
 		case JIM_EXPROP_NUMBER:
 		case JIM_EXPROP_STRING:
 			stack[stacklen++] = expr->obj[i];
@@ -7195,7 +7215,7 @@ int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	int shared, i;
 
 	if (argc < 2) {
-		Jim_WrongNumArgs(interp, 1, argv, "listVar ?element ...?");
+		Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
 		return JIM_ERR;
 	}
 	listObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
@@ -7248,7 +7268,7 @@ int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	int shared, i;
 
 	if (argc < 2) {
-		Jim_WrongNumArgs(interp, 1, argv, "listVar ?string ...?");
+		Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
 		return JIM_ERR;
 	}
 	if (argc == 2) {

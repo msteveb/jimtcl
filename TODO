@@ -37,3 +37,14 @@ IMPLEMENTATION ISSUES
 - Remove SetTypeFromAny() method from the Jim_ObjType structure.
   It's not useful, and it may be useful to have different prototypes
   for the Set*FromAny() procedures of different types.
+
+ERROR MESSAGES
+
+- Display the procedure relative file number where the error happened.
+  Like:
+
+  In procedure 'check' line 11, called at file "test.tcl", line 1024
+
+  instead of just:
+
+  In procedure 'check' called at file "test.tcl", line 1024
