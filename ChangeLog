@@ -1,3 +1,9 @@
+2005-03-08 10:42  antirez
+
+	* ChangeLog, jim.c, regtest.tcl: Applied patch about unset a(x)
+	  against non existing 'a' variable (Clemens Hintze). Dictionary
+	  handling code and error messages modified a bit (me).
+
 2005-03-07 21:53  antirez
 
 	* ChangeLog, jim.c: Fixed a memory leak introduced with the last

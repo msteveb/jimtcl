@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.17 2005/03/06 22:42:33 antirez Exp $
+# $Id: test.tcl,v 1.18 2005/03/08 09:50:46 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -3039,6 +3039,247 @@ test for-6.16 {Tcl_ForObjCmd: for command result} {
     set a
 } {}
 
+################################################################################
+# INFO
+################################################################################
+
+test info-1.1 {info body option} {
+    proc t1 {} {body of t1}
+    info body t1
+} {body of t1}
+test info-1.2 {info body option} {
+    list [catch {info body set} msg] $msg
+} {1 {command "set" is not a procedure}}
+#~ test info-1.3 {info body option} {
+    #~ list [catch {info args set 1} msg] $msg
+#~ } {1 {wrong # args: should be "info args procname"}}
+test info-1.5 {info body option, returning bytecompiled bodies} {
+    catch {unset args}
+    proc foo {args} {
+        foreach v $args {
+            upvar $v var
+            return "variable $v existence: [info exists var]"
+        }
+    }
+    foo a
+    list [catch [info body foo] msg] $msg
+} {1 {can't read "args": no such variable}}
+#~ test info-1.6 {info body option, returning list bodies} {
+    #~ proc foo args [list subst bar]
+    #~ list [string bytelength [info body foo]] \
+	    #~ [foo; string bytelength [info body foo]]
+#~ } {9 9}
+test info-2.1 {info commands option} {
+    proc t1 {} {}
+    proc t2 {} {}
+    set x " [info commands] "
+    list [string match {* t1 *} $x] [string match {* t2 *} $x] \
+            [string match {* set *} $x] [string match {* list *} $x]
+} {1 1 1 1}
+test info-2.2 {info commands option} {
+    proc t1 {} {}
+    rename t1 {}
+    set x [info commands]
+    string match {* t1 *} $x
+} 0
+test info-2.3 {info commands option} {
+    proc _t1_ {} {}
+    proc _t2_ {} {}
+    info commands _t1_
+} _t1_
+test info-2.4 {info commands option} {
+    proc _t1_ {} {}
+    proc _t2_ {} {}
+    lsort [info commands _t*]
+} {_t1_ _t2_}
+catch {rename _t1_ {}}
+catch {rename _t2_ {}}
+test info-2.5 {info commands option} {
+    list [catch {info commands a b} msg] $msg
+} {1 {wrong # args: should be "info commands ?pattern?"}}
+test info-3.1 {info exists option} {
+    set value foo
+    info exists value
+} 1
+catch {unset _nonexistent_}
+test info-3.2 {info exists option} {
+    info exists _nonexistent_
+} 0
+test info-3.3 {info exists option} {
+    proc t1 {x} {return [info exists x]}
+    t1 2
+} 1
+test info-3.4 {info exists option} {
+    proc t1 {x} {
+        global _nonexistent_
+        return [info exists _nonexistent_]
+    }
+    t1 2
+} 0
+test info-3.5 {info exists option} {
+    proc t1 {x} {
+        set y 47
+        return [info exists y]
+    }
+    t1 2
+} 1
+test info-3.6 {info exists option} {
+    proc t1 {x} {return [info exists value]}
+    t1 2
+} 0
+test info-3.7 {info exists option} {
+    catch {unset x}
+    set x(2) 44
+    list [info exists x] [info exists x(1)] [info exists x(2)]
+} {1 0 1}
+catch {unset x}
+test info-3.8 {info exists option} {
+    list [catch {info exists} msg] $msg
+} {1 {wrong # args: should be "info exists varName"}}
+test info-3.9 {info exists option} {
+    list [catch {info exists 1 2} msg] $msg
+} {1 {wrong # args: should be "info exists varName"}}
+test info-4.1 {info globals option} {
+    set x 1
+    set y 2
+    set value 23
+    set a " [info globals] "
+    list [string match {* x *} $a] [string match {* y *} $a] \
+            [string match {* value *} $a] [string match {* _foobar_ *} $a]
+} {1 1 1 0}
+test info-4.2 {info globals option} {
+    set _xxx1 1
+    set _xxx2 2
+    lsort [info globals _xxx*]
+} {_xxx1 _xxx2}
+test info-4.3 {info globals option} {
+    list [catch {info globals 1 2} msg] $msg
+} {1 {wrong # args: should be "info globals ?pattern?"}}
+test info-5.1 {info level option} {
+    info level
+} 0
+#~ test info-5.2 {info level option} {
+    #~ proc t1 {a b} {
+        #~ set x [info level]
+        #~ set y [info level 1]
+        #~ list $x $y
+    #~ }
+    #~ t1 146 testString
+#~ } {1 {t1 146 testString}}
+#~ test info-5.3 {info level option} {
+    #~ proc t1 {a b} {
+        #~ t2 [expr $a*2] $b
+    #~ }
+    #~ proc t2 {x y} {
+        #~ list [info level] [info level 1] [info level 2] [info level -1] \
+                #~ [info level 0]
+    #~ }
+    #~ t1 146 {a {b c} {{{c}}}}
+#~ } {2 {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}} {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}}}
+#~ test info-5.4 {info level option} {
+    #~ proc t1 {} {
+        #~ set x [info level]
+        #~ set y [info level 1]
+        #~ list $x $y
+    #~ }
+    #~ t1
+#~ } {1 t1}
+test info-5.5 {info level option} {
+    list [catch {info level 1 2} msg] $msg
+} {1 {wrong # args: should be "info level ?levelNum?"}}
+test info-5.6 {info level option} {
+    list [catch {info level 123a} msg] $msg
+} {1 {bad level "123a"}}
+test info-5.7 {info level option} {
+    list [catch {info level 0} msg] $msg
+} {1 {bad level "0"}}
+test info-5.8 {info level option} {
+    proc t1 {} {info level -1}
+    list [catch {t1} msg] $msg
+} {1 {bad level "-1"}}
+test info-5.9 {info level option} {
+    proc t1 {x} {info level $x}
+    list [catch {t1 -3} msg] $msg
+} {1 {bad level "-3"}}
+test info-6.1 {info locals option} {
+    set a 22
+    proc t1 {x y} {
+        set b 13
+        set c testing
+        global a
+	global aa
+	set aa 23
+        return [info locals]
+    }
+    lsort [t1 23 24]
+} {b c x y}
+test info-6.2 {info locals option} {
+    proc t1 {x y} {
+        set xx1 2
+        set xx2 3
+        set y 4
+        return [info locals x*]
+    }
+    lsort [t1 2 3]
+} {x xx1 xx2}
+test info-6.3 {info locals option} {
+    list [catch {info locals 1 2} msg] $msg
+} {1 {wrong # args: should be "info locals ?pattern?"}}
+test info-6.4 {info locals option} {
+    info locals
+} {}
+test info-6.5 {info locals option} {
+    proc t1 {} {return [info locals]}
+    t1
+} {}
+test info-6.6 {info locals vs unset compiled locals} {
+    proc t1 {lst} {
+        foreach $lst $lst {}
+        unset lst
+        return [info locals]
+    }
+    lsort [t1 {a b c c d e f}]
+} {a b c d e f}
+test info-6.7 {info locals with temporary variables} {
+    proc t1 {} {
+        foreach a {b c} {}
+        info locals
+    }
+    t1
+} {a}
+test info-7.1 {info vars option} {
+    set a 1
+    set b 2
+    proc t1 {x y} {
+        global a b
+        set c 33
+        return [info vars]
+    }
+    lsort [t1 18 19]
+} {a b c x y}
+test info-7.2 {info vars option} {
+    set xxx1 1
+    set xxx2 2
+    proc t1 {xxa y} {
+        global xxx1 xxx2
+        set c 33
+        return [info vars x*]
+    }
+    lsort [t1 18 19]
+} {xxa xxx1 xxx2}
+test info-7.3 {info vars option} {
+    lsort [info vars]
+} [lsort [info globals]]
+test info-7.4 {info vars option} {
+    list [catch {info vars a b} msg] $msg
+} {1 {wrong # args: should be "info vars ?pattern?"}}
+test info-7.5 {info vars with temporary variables} {
+    proc t1 {} {
+        foreach a {b c} {}
+        info vars
+    }
+    t1
+} {a}
 
 ################################################################################
 # FINAL REPORT

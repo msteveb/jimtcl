@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.77 2005/03/08 09:42:02 antirez Exp $
+ * $Id: jim.c,v 1.78 2005/03/08 09:50:46 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9305,10 +9305,11 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
 {
     int cmd, result = JIM_OK;
     static const char *commands[] = {
-        "commands", "level", "globals", "locals", "vars", "body", "version", NULL
+        "body", "commands", "exists", "globals", "level", "locals",
+        "vars", "version", NULL
     };
-    enum {INFO_COMMANDS, INFO_LEVEL, INFO_GLOBALS, INFO_LOCALS, INFO_VARS,
-          INFO_BODY, INFO_VERSION};
+    enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
+          INFO_LOCALS, INFO_VARS, INFO_VERSION};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -9330,6 +9331,16 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
             else
                 Jim_SetResult(interp, JimCommandsList(interp, NULL));
             break;
+        }
+        case INFO_EXISTS: {
+            Jim_Obj *exists;
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "varName");
+                return JIM_ERR;
+            }
+            exists = Jim_GetVariable(interp, argv[2], 0);
+            Jim_SetResult(interp, Jim_NewIntObj(interp, exists != 0));
+            return JIM_OK;
         }
         case INFO_GLOBALS:
         case INFO_LOCALS:
