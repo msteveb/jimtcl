@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.92 2005/03/11 09:37:08 antirez Exp $
+ * $Id: jim.c,v 1.93 2005/03/11 22:00:41 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2369,12 +2369,12 @@ static void ScriptObjAddToken(Jim_Interp *interp, struct ScriptObj *script,
      * so on. */
     if (prevtype == JIM_TT_EOL) {
         if (type == JIM_TT_EOL || type == JIM_TT_SEP) {
-            free(strtoken);
+            Jim_Free(strtoken);
             return;
         }
     } else if (prevtype == JIM_TT_SEP) {
         if (type == JIM_TT_SEP) {
-            free(strtoken);
+            Jim_Free(strtoken);
             return;
         } else if (type == JIM_TT_EOL) {
             /* If an EOL is following by a SEP, drop the previous
@@ -3979,7 +3979,7 @@ void Jim_FreeInterp(Jim_Interp *i)
         nextcf = cf->nextFramePtr;
         if (cf->vars.table != NULL)
             Jim_Free(cf->vars.table);
-        free(cf);
+        Jim_Free(cf);
         cf = nextcf;
     }
     /* Free the sharedString hash table. Make sure to free it
@@ -4569,7 +4569,7 @@ void UpdateStringOfList(struct Jim_Obj *objPtr)
     }
     *p = '\0'; /* nul term. */
     objPtr->length = realLength;
-    free(quotingType);
+    Jim_Free(quotingType);
 }
 
 int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
@@ -5145,8 +5145,8 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
     }
     *p = '\0'; /* nul term. */
     objPtr->length = realLength;
-    free(quotingType);
-    free(objv);
+    Jim_Free(quotingType);
+    Jim_Free(objv);
 }
 
 int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
