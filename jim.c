@@ -2284,23 +2284,38 @@ static void ScriptObjAddInt(struct ScriptObj *script, int val)
 /* Search a Jim_Obj contained in 'script' with the same stinrg repr.
  * of objPtr. Search nested script objects recursively. */
 static Jim_Obj *ScriptSearchLiteral(Jim_Interp *interp, ScriptObj *script,
-        Jim_Obj *objPtr)
+        ScriptObj *scriptBarrier, Jim_Obj *objPtr)
 {
     int i;
 
     for (i = 0; i < script->len; i++) {
         if (script->token[i].objPtr != objPtr &&
-            Jim_StringEqObj(script->token[i].objPtr, objPtr, 0))
+            Jim_StringEqObj(script->token[i].objPtr, objPtr, 0)) {
+            /*
+            printf("Found at %s, %d\n", script->fileName,
+                    script->token[i].linenr);
+                    */
             return script->token[i].objPtr;
-        if (script->token[i].objPtr->typePtr == &scriptObjType) {
+        }
+        /* Enter recursively on scripts only if the object
+         * is not the same as the one we are searching for
+         * shared occurrences. */
+        if (script->token[i].objPtr->typePtr == &scriptObjType &&
+            script->token[i].objPtr != objPtr) {
             Jim_Obj *foundObjPtr;
 
             ScriptObj *subScript =
                 script->token[i].objPtr->internalRep.ptr;
-            foundObjPtr =
-                ScriptSearchLiteral(interp, subScript, objPtr);
-            if (foundObjPtr != NULL)
-                return foundObjPtr;
+            /* Don't recursively enter the script we are trying
+             * to make shared to avoid circular references. */
+            if (subScript == scriptBarrier) continue;
+            if (subScript != script) {
+                foundObjPtr =
+                    ScriptSearchLiteral(interp, subScript,
+                            scriptBarrier, objPtr);
+                if (foundObjPtr != NULL)
+                    return foundObjPtr;
+            }
         }
     }
     return NULL;
@@ -2313,17 +2328,28 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
     int i, j;
 
     /* Try to share with toplevel object. */
-    if (1 && topLevelScript != NULL) {
+    if (0 && topLevelScript != NULL) {
         for (i = 0; i < script->len; i++) {
             Jim_Obj *foundObjPtr;
             char *str = script->token[i].objPtr->bytes;
 
             if (script->token[i].objPtr->refCount != 1) continue;
+            if (script->token[i].objPtr->typePtr == &scriptObjType) continue;
             if (strchr(str, ' ') || strchr(str, '\n')) continue;
             foundObjPtr = ScriptSearchLiteral(interp,
                     topLevelScript,
+                    script, /* barrier */
                     script->token[i].objPtr);
             if (foundObjPtr != NULL) {
+                /*
+                printf("Sharing '%s' (%p), at %s, %d\n",
+                        script->token[i].objPtr->bytes,
+                        script->token[i].objPtr,
+                        script->fileName,
+                        script->token[i].linenr);
+                printf("Proc '%s'\n", interp->framePtr->procArgsObjPtr->bytes);
+                printf("---\n");
+                */
                 Jim_IncrRefCount(foundObjPtr);
                 Jim_DecrRefCount(interp,
                         script->token[i].objPtr);
@@ -2331,6 +2357,7 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
             }
         }
     }
+    return;
     /* Try to share locally */
     for (i = 0; i < script->len; i++) {
         char *str = script->token[i].objPtr->bytes;
@@ -5395,11 +5422,13 @@ static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
 {
     int i;
 
+    return;
     for (i = 0; i < expr->len; i++) {
         Jim_Obj *foundObjPtr;
 
         if (expr->obj[i] == NULL) continue;
         foundObjPtr = ScriptSearchLiteral(interp, topLevelScript,
+                NULL,
                 expr->obj[i]);
         if (foundObjPtr != NULL) {
             Jim_IncrRefCount(foundObjPtr);

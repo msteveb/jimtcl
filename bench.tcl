@@ -2,8 +2,9 @@ proc bench {title script} {
     while {[string length $title] < 20} {
 	append title " "
     }
-    catch {time $script} res
-    puts "$title - $res"
+    if {[catch {puts "$title - [time $script]"}]} {
+        puts "$title - This test can't run on this interpreter"
+    }
 }
 
 ### BUSY LOOP ##################################################################
