@@ -1,9 +1,18 @@
+set batchmode 0
+set benchmarks {}
+
 proc bench {title script} {
-    while {[string length $title] < 20} {
-	append title " "
-    }
-    if {[catch {puts "$title - [time $script]"}]} {
-        puts "$title - This test can't run on this interpreter"
+    global benchmarks batchmode
+
+    set Title [string range "$title [string repeat " " 20]" 0 20]
+
+    set failed [catch {time $script} res]
+    if {$failed} {
+        if {!$batchmode} {puts "$Title - This test can't run on this interpreter"}
+        lappend benchmarks $title F
+    } else {
+        if {!$batchmode} {puts "$Title - $res"}
+        lappend benchmarks $title [lindex $res 0]
     }
 }
 
@@ -271,6 +280,10 @@ proc miniloops {} {
 
 ### RUN ALL ####################################################################
 
+if {[string compare [lindex $argv 0] "-batch"] == 0} {
+    set batchmode 1
+}
+
 bench {[while] busy loop} {whilebusyloop}
 bench {[for] busy loop} {forbusyloop}
 bench {mini loops} {miniloops}
@@ -286,3 +299,7 @@ bench {dynamic code} {dyncode}
 bench {dynamic code (list)} {dyncode_list}
 bench {PI digits} {pi_digits}
 bench {expand} {expand}
+
+if {$batchmode} {
+    puts [list [info patchlevel] $benchmarks]
+}

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.80 2005/03/08 11:32:33 antirez Exp $
+ * $Id: jim.c,v 1.81 2005/03/08 13:45:20 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9211,10 +9211,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     int cmd, result = JIM_OK;
     static const char *commands[] = {
         "body", "commands", "exists", "globals", "level", "locals",
-        "vars", "version", NULL
+        "vars", "version", "patchlevel", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-          INFO_LOCALS, INFO_VARS, INFO_VERSION};
+          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -9302,6 +9302,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
             break;
         }
+        case INFO_PATCHLEVEL: /* tcl compatability */
         case INFO_VERSION: {
             char buf[(JIM_INTEGER_SPACE * 3) + 1];
             sprintf(buf, "%d.%d.%d", 
@@ -9568,12 +9569,10 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
     }
 }
 
-int Jim_InteractivePrompt(void)
+int Jim_InteractivePrompt(Jim_Interp *interp)
 {
-    Jim_Interp *interp = Jim_CreateInterp();
     int retcode = JIM_OK;
 
-    Jim_RegisterCoreCommands(interp);
     printf("Welcome to Jim version %d.%d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_MAJOR_VERSION, JIM_MINOR_VERSION, JIM_PATCH_LEVEL);
@@ -9596,6 +9595,5 @@ int Jim_InteractivePrompt(void)
             }
         }
     }
-    Jim_FreeInterp(interp);
     return 0;
 }

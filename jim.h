@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.42 2005/03/07 20:34:16 antirez Exp $
+ * $Id: jim.h,v 1.43 2005/03/08 13:45:20 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -704,7 +704,7 @@ JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp,
 JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
 
 /* interactive mode */
-JIM_STATIC int JIM_API(Jim_InteractivePrompt) (void);
+JIM_STATIC int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
 
 /* Misc */
 JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
