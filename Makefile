@@ -83,6 +83,10 @@ wc:
 	wc -l jim.[ch]
 	wc -l *.[ch]
 
+commit:
+	cvs2cl
+	cvs commit
+
 # Dependences
 jim-posix.o: jim-posix.c jim.h
 jim-win32com.o: jim-win32com.c jim.h
