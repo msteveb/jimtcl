@@ -290,8 +290,32 @@ int Jim_StringToWide(char *str, jim_wide *widePtr, int base)
 #else
 	*widePtr = strtol(str, &endptr, base);
 #endif
-	if (str[0] == '\0' || endptr[0] != '\0')
+	if (str[0] == '\0')
 		return JIM_ERR;
+	if (endptr[0] != '\0') {
+		while(*endptr) {
+			if (!isspace((int)*endptr))
+				return JIM_ERR;
+			endptr++;
+		}
+	}
+	return JIM_OK;
+}
+
+int Jim_StringToIndex(char *str, int *intPtr)
+{
+	char *endptr;
+
+	*intPtr = strtol(str, &endptr, 10);
+	if (str[0] == '\0')
+		return JIM_ERR;
+	if (endptr[0] != '\0') {
+		while(*endptr) {
+			if (!isspace((int)*endptr))
+				return JIM_ERR;
+			endptr++;
+		}
+	}
 	return JIM_OK;
 }
 
@@ -4832,7 +4856,7 @@ void UpdateStringOfIndex(struct Jim_Obj *objPtr)
 int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
 	int index, end = 0;
-	char *str, *endptr;
+	char *str;
 
 	/* Get the string representation */
 	str = Jim_GetString(objPtr, NULL);
@@ -4845,11 +4869,10 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 			str += 4;
 			end = 1;
 		}
-		index = strtol(str, &endptr, 0);
-		if (str[0] == '\0' || endptr[0] != '\0') {
+		if (Jim_StringToIndex(str, &index) != JIM_OK) {
 			Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 			Jim_AppendStrings(interp, Jim_GetResult(interp),
-					"bad index \"", str, "\": "
+					"bad index \"", Jim_GetString(objPtr, NULL), "\": "
 					"must be integer or end?-integer?",
 					NULL);
 			return JIM_ERR;
@@ -6003,7 +6026,7 @@ static int Jim_Unknown(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	if (argc+1 <= JIM_EVAL_SARGV_LEN)
 		v = sv;
 	else
-		v = Jim_Alloc(sizeof(Jim_Obj*)*argc+1);
+		v = Jim_Alloc(sizeof(Jim_Obj*)*(argc+1));
 	/* Make a copy of the arguments vector, but shifted on
 	 * the right of one position. The command name of the
 	 * command will be instead the first argument of the
@@ -7243,23 +7266,30 @@ int Jim_LindexCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	int index;
 
 	if (argc < 3) {
-		Jim_WrongNumArgs(interp, 1, argv, "listValue index ?...?");
+		Jim_WrongNumArgs(interp, 1, argv, "list index ?...?");
 		return JIM_ERR;
 	}
 	objPtr = argv[1];
+	Jim_IncrRefCount(objPtr);
 	for (i = 2; i < argc; i++) {
 		listObjPtr = objPtr;
-		if (Jim_GetIndex(interp, argv[i], &index) != JIM_OK)
+		if (Jim_GetIndex(interp, argv[i], &index) != JIM_OK) {
+			Jim_DecrRefCount(interp, listObjPtr);
 			return JIM_ERR;
+		}
 		if (Jim_ListIndex(interp, listObjPtr, index, &objPtr,
 					JIM_NONE) != JIM_OK) {
 			/* Returns an empty object if the index
 			 * is out of range. */
+			Jim_DecrRefCount(interp, listObjPtr);
 			Jim_SetEmptyResult(interp);
 			return JIM_OK;
 		}
+		Jim_IncrRefCount(objPtr);
+		Jim_DecrRefCount(interp, listObjPtr);
 	}
 	Jim_SetResult(interp, objPtr);
+	Jim_DecrRefCount(interp, objPtr);
 	return JIM_OK;
 }
 
@@ -7269,7 +7299,7 @@ int Jim_LlengthCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	int len;
 
 	if (argc != 2) {
-		Jim_WrongNumArgs(interp, 1, argv, "listValue");
+		Jim_WrongNumArgs(interp, 1, argv, "list");
 		return JIM_ERR;
 	}
 	Jim_ListLength(interp, argv[1], &len);

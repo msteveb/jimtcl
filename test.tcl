@@ -1605,6 +1605,334 @@ test incr-2.29 {incr command (not compiled): runtime error, bad variable value} 
     list [catch {$z x 1} msg] $msg
 } {1 {expected integer but got "  -  "}}
 
+################################################################################
+# LLENGTH
+################################################################################
+
+test llength-1.1 {length of list} {
+    llength {a b c d}
+} 4
+test llength-1.2 {length of list} {
+    llength {a b c {a b {c d}} d}
+} 5
+test llength-1.3 {length of list} {
+    llength {}
+} 0
+
+test llength-2.1 {error conditions} {
+    list [catch {llength} msg] $msg
+} {1 {wrong # args: should be "llength list"}}
+test llength-2.2 {error conditions} {
+    list [catch {llength 123 2} msg] $msg
+} {1 {wrong # args: should be "llength list"}}
+
+################################################################################
+# LINDEX
+################################################################################
+
+set lindex lindex
+set minus -
+
+# Tests of Tcl_LindexObjCmd, NOT COMPILED
+
+#test lindex-1.1 {wrong # args} {
+#    list [catch {eval $lindex} result] $result
+#} "1 {wrong # args: should be \"lindex list ?index...?\"}"
+
+# Indices that are lists or convertible to lists
+
+#test lindex-2.1 {empty index list} {
+#    set x {}
+#    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+#} {{a b c} {a b c}}
+
+test lindex-2.2 {singleton index list} {
+    set x { 1 }
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {b b}
+
+test lindex-2.4 {malformed index list} {
+    set x \{
+    list [catch { eval [list $lindex {a b c} $x] } result] $result
+} {1 bad\ index\ \"\{\":\ must\ be\ integer\ or\ end?-integer?}
+
+# Indices that are integers or convertible to integers
+
+test lindex-3.1 {integer -1} {
+    set x ${minus}1
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {{} {}}
+
+test lindex-3.2 {integer 0} {
+    set x [string range 00 0 0]
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {a a}
+
+test lindex-3.3 {integer 2} {
+    set x [string range 22 0 0]
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {c c}
+
+test lindex-3.4 {integer 3} {
+    set x [string range 33 0 0]
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {{} {}}
+
+test lindex-3.7 {indexes don't shimmer wide ints} {
+    set x [expr {(1<<31) - 2}]
+    list $x [lindex {1 2 3} $x] [incr x] [incr x]
+} {2147483646 {} 2147483647 2147483648}
+
+# Indices relative to end
+
+test lindex-4.1 {index = end} {
+    set x end
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {c c}
+
+test lindex-4.2 {index = end--1} {
+    set x end--1
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {{} {}}
+
+test lindex-4.3 {index = end-0} {
+    set x end-0
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {c c}
+
+test lindex-4.4 {index = end-2} {
+    set x end-2
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {a a}
+
+test lindex-4.5 {index = end-3} {
+    set x end-3
+    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+} {{} {}}
+
+test lindex-4.8 {bad integer, not octal} {
+    set x end-0a2
+    list [catch { eval [list $lindex {a b c} $x] } result] $result
+} "1 {bad index \"end-0a2\": must be integer or end?-integer?}"
+
+#test lindex-4.9 {incomplete end} {
+#    set x en
+#    list [eval [list $lindex {a b c} $x]] [eval [list $lindex {a b c} $x]]
+#} {c c}
+
+test lindex-4.10 {incomplete end-} {
+    set x end-
+    list [catch { eval [list $lindex {a b c} $x] } result] $result
+} "1 {bad index \"end-\": must be integer or end?-integer?}"
+
+test lindex-5.1 {bad second index} {
+    list [catch { eval [list $lindex {a b c} 0 0a2] } result] $result
+} "1 {bad index \"0a2\": must be integer or end?-integer?}"
+
+test lindex-5.2 {good second index} {
+    eval [list $lindex {{a b c} {d e f} {g h i}} 1 2]
+} f
+
+test lindex-5.3 {three indices} {
+    eval [list $lindex {{{a b} {c d}} {{e f} {g h}}} 1 0 1]
+} f
+
+test lindex-7.1 {quoted elements} {
+    eval [list $lindex {a "b c" d} 1]
+} {b c}
+test lindex-7.2 {quoted elements} {
+    eval [list $lindex {"{}" b c} 0]
+} {{}}
+test lindex-7.3 {quoted elements} {
+    eval [list $lindex {ab "c d \" x" y} 1]
+} {c d " x}
+test lindex-7.4 {quoted elements} {
+    lindex {a b {c d "e} {f g"}} 2
+} {c d "e}
+
+test lindex-8.1 {data reuse} {
+    set x 0
+    eval [list $lindex $x $x]
+} {0}
+
+test lindex-8.2 {data reuse} {
+    set a 0
+    eval [list $lindex $a $a $a]
+} 0
+test lindex-8.3 {data reuse} {
+    set a 1
+    eval [list $lindex $a $a $a]
+} {}
+
+#----------------------------------------------------------------------
+
+test lindex-10.2 {singleton index list} {
+    set x { 1 }
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {b b}
+
+test lindex-10.4 {malformed index list} {
+    set x \{
+    list [catch { lindex {a b c} $x } result] $result
+} {1 bad\ index\ \"\{\":\ must\ be\ integer\ or\ end?-integer?}
+
+# Indices that are integers or convertible to integers
+
+test lindex-11.1 {integer -1} {
+    set x ${minus}1
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {{} {}}
+
+test lindex-11.2 {integer 0} {
+    set x [string range 00 0 0]
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {a a}
+
+test lindex-11.3 {integer 2} {
+    set x [string range 22 0 0]
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {c c}
+
+test lindex-11.4 {integer 3} {
+    set x [string range 33 0 0]
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {{} {}}
+
+# Indices relative to end
+test lindex-12.1 {index = end} {
+    set x end
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {c c}
+
+test lindex-12.2 {index = end--1} {
+    set x end--1
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {{} {}}
+
+test lindex-12.3 {index = end-0} {
+    set x end-0
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {c c}
+
+test lindex-12.4 {index = end-2} {
+    set x end-2
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {a a}
+
+test lindex-12.5 {index = end-3} {
+    set x end-3
+    catch {
+	list [lindex {a b c} $x] [lindex {a b c} $x]
+    } result
+    set result
+} {{} {}}
+
+test lindex-12.8 {bad integer, not octal} {
+    set x end-0a2
+    list [catch { lindex {a b c} $x } result] $result
+} "1 {bad index \"end-0a2\": must be integer or end?-integer?}"
+
+test lindex-12.10 {incomplete end-} {
+    set x end-
+    list [catch { lindex {a b c} $x } result] $result
+} "1 {bad index \"end-\": must be integer or end?-integer?}"
+
+test lindex-13.1 {bad second index} {
+    list [catch { lindex {a b c} 0 0a2 } result] $result
+} "1 {bad index \"0a2\": must be integer or end?-integer?}"
+
+test lindex-13.2 {good second index} {
+    catch {
+	lindex {{a b c} {d e f} {g h i}} 1 2
+    } result
+    set result
+} f
+
+test lindex-13.3 {three indices} {
+    catch {
+	lindex {{{a b} {c d}} {{e f} {g h}}} 1 0 1
+    } result
+    set result
+} f
+
+test lindex-15.1 {quoted elements} {
+    catch {
+	lindex {a "b c" d} 1
+    } result
+    set result
+} {b c}
+test lindex-15.2 {quoted elements} {
+    catch {
+	lindex {"{}" b c} 0
+    } result
+    set result
+} {{}}
+test lindex-15.3 {quoted elements} {
+    catch {
+	lindex {ab "c d \" x" y} 1
+    } result
+    set result
+} {c d " x}
+test lindex-15.4 {quoted elements} {
+    catch {
+	lindex {a b {c d "e} {f g"}} 2
+    } result
+    set result
+} {c d "e}
+
+test lindex-16.1 {data reuse} {
+    set x 0
+    catch {
+	lindex $x $x
+    } result
+    set result
+} {0}
+
+test lindex-16.2 {data reuse} {
+    set a 0
+    catch {
+	lindex $a $a $a
+    } result
+    set result
+} 0
+test lindex-16.3 {data reuse} {
+    set a 1
+    catch {
+	lindex $a $a $a
+    } result
+    set result
+} {}
+
+catch { unset lindex}
+catch { unset minus }
+
 
 ################################################################################
 # FINAL REPORT
