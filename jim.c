@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.81 2005/03/08 13:45:20 patthoyts Exp $
+ * $Id: jim.c,v 1.82 2005/03/08 15:10:16 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9211,10 +9211,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     int cmd, result = JIM_OK;
     static const char *commands[] = {
         "body", "commands", "exists", "globals", "level", "locals",
-        "vars", "version", "patchlevel", NULL
+        "vars", "version", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL};
+          INFO_LOCALS, INFO_VARS, INFO_VERSION};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -9302,11 +9302,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, argv[2]->internalRep.cmdValue.cmdPtr->bodyObjPtr);
             break;
         }
-        case INFO_PATCHLEVEL: /* tcl compatability */
         case INFO_VERSION: {
-            char buf[(JIM_INTEGER_SPACE * 3) + 1];
-            sprintf(buf, "%d.%d.%d", 
-                    JIM_MAJOR_VERSION, JIM_MINOR_VERSION, JIM_PATCH_LEVEL);
+            char buf[(JIM_INTEGER_SPACE * 2) + 1];
+            sprintf(buf, "%d.%d", 
+                    JIM_VERSION / 100, JIM_VERSION % 100);
             Jim_SetResultString(interp, buf, -1);
             break;
         }
@@ -9573,9 +9572,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 {
     int retcode = JIM_OK;
 
-    printf("Welcome to Jim version %d.%d.%d, "
+    printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
-           JIM_MAJOR_VERSION, JIM_MINOR_VERSION, JIM_PATCH_LEVEL);
+           JIM_VERSION / 100, JIM_VERSION % 100);
     while (1) {
         char prg[1024];
         const char *result;

@@ -300,6 +300,13 @@ bench {dynamic code (list)} {dyncode_list}
 bench {PI digits} {pi_digits}
 bench {expand} {expand}
 
+proc istcl {} {
+    return [expr {![catch {info tclversion}]}]
+}
+
 if {$batchmode} {
-    puts [list [info patchlevel] $benchmarks]
+    if {[catch {info patchlevel} ver]} {
+        set ver Jim[info version]
+    }
+    puts [list $ver $benchmarks]
 }
