@@ -2,6 +2,8 @@
  *
  * Windows COM extension.
  *
+ * $Id: jim-win32com.c,v 1.13 2005/03/04 12:32:21 antirez Exp $
+ *
  * Example:
  *   load jim-win32com
  *   set obj [ole32 createobject "SysInfo.SysInfo"]

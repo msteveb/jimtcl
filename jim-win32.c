@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
+ * $Id: jim-win32.c,v 1.15 2005/03/04 12:32:21 antirez Exp $
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at

@@ -1,3 +1,12 @@
+# * $Id: test.tcl,v 1.14 2005/03/04 12:32:21 antirez Exp $
+#
+# This are Tcl tests imported into Jim. Tests that will probably not be passed
+# in the long term are usually removed (for example all the tests about
+# unicode things, about errors in list parsing that are always valid in Jim
+# and so on).
+#
+# Sometimes tests are modified to reflect different error messages.
+
 set failedTests 0
 set passedTests 0
 
