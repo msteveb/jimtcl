@@ -63,7 +63,7 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
     return msgObj;
 }
 
-/* shellexec verb file args */
+/* win32.ShellExecute verb file args */
 static int 
 Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
 {
@@ -87,7 +87,7 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj **objv)
 }
 
 
-/* win32.findwindow title ?class? */
+/* win32.FindWindow title ?class? */
 static int
 Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
 {
@@ -113,6 +113,25 @@ Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
     return r;
 }
 
+/* win32.CloseWindow windowHandle */
+static int
+Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj **objv)
+{
+    long hwnd;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "?windowHandle?");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, objv[1], &hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (!CloseWindow((HWND)hwnd)) {
+        Jim_SetResult(interp,
+        Win32ErrorObj(interp, "closewindow", GetLastError()));^M
+            return JIM_ERR;
+    }
+    return JIM_OK;
+}
 
 /* ---------------------------------------------------------------------- */
 int
@@ -121,5 +140,6 @@ Jim_OnLoad(Jim_Interp *interp)
     Jim_InitExtension(interp, "1.0");
     Jim_CreateCommand(interp, "win32.ShellExecute", Win32_ShellExecute, NULL);
     Jim_CreateCommand(interp, "win32.FindWindow", Win32_FindWindow, NULL);
+    Jim_CreateCommand(interp, "win32.CloseWindow", Win32_CloseWindow, NULL);
     return JIM_OK;
 }
