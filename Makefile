@@ -64,7 +64,7 @@ jim-sdl.xo: jim-sdl.c
 
 jim-sdl.so: jim-sdl.xo
 	rm -f $@
-	$(LD) -G -z text -o $@ $< -ldl -lc -L/usr/local/lib -lSDL -lpthread
+	$(LD) -G -z text -o $@ $< -ldl -lc -L/usr/local/lib -lSDL -lSDL_gfx -lpthread
 
 jim: $(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)

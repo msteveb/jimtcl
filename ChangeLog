@@ -1,3 +1,8 @@
+2005-03-25 10:34  antirez
+
+	* ChangeLog, bench.tcl, jim.c: SetReturnCodeFromAny() modified to
+	  accept numerical codes.
+
 2005-03-24 14:58  antirez
 
 	* ChangeLog, jim.c, test.tcl: [range] command + tests

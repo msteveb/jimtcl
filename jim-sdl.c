@@ -1,7 +1,7 @@
 /* Jim - SDL extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-sdl.c,v 1.1 2005/03/24 11:00:44 antirez Exp $
+ * $Id: jim-sdl.c,v 1.2 2005/03/26 14:12:32 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include <string.h>
 #include <errno.h>
 #include <SDL.h>
+#include <SDL_gfxPrimitives.h>
 
 #define JIM_EXTENSION
 #include "jim.h"
@@ -48,77 +49,6 @@ static void JimSdlDelProc(Jim_Interp *interp, void *privData)
     Jim_Free(jss);
 }
 
-static void JimSdlSetPixel(SDL_Surface *screen, int x, int y,
-        Uint8 r, Uint8 g, Uint8 b)
-{
-  Uint8 *ubuff8;
-  Uint16 *ubuff16;
-  Uint32 *ubuff32;
-  Uint32 color;
-  char c1, c2, c3;
-  
-  /* Lock the screen, if needed */
-  if(SDL_MUSTLOCK(screen)) {
-    if(SDL_LockSurface(screen) < 0) 
-      return;
-  }
-  
-  /* Get the color */
-  color = SDL_MapRGB( screen->format, r, g, b );
-  
-  /* How we draw the pixel depends on the bitdepth */
-  switch(screen->format->BytesPerPixel) 
-    {
-    case 1: 
-      ubuff8 = (Uint8*) screen->pixels;
-      ubuff8 += (y * screen->pitch) + x; 
-      *ubuff8 = (Uint8) color;
-      break;
-
-    case 2:
-      ubuff8 = (Uint8*) screen->pixels;
-      ubuff8 += (y * screen->pitch) + (x*2);
-      ubuff16 = (Uint16*) ubuff8;
-      *ubuff16 = (Uint16) color; 
-      break;  
-
-    case 3:
-      ubuff8 = (Uint8*) screen->pixels;
-      ubuff8 += (y * screen->pitch) + (x*3);
-      
-
-      if(SDL_BYTEORDER == SDL_LIL_ENDIAN) {
-	c1 = (color & 0xFF0000) >> 16;
-	c2 = (color & 0x00FF00) >> 8;
-	c3 = (color & 0x0000FF);
-      } else {
-	c3 = (color & 0xFF0000) >> 16;
-	c2 = (color & 0x00FF00) >> 8;
-	c1 = (color & 0x0000FF);	
-      }
-
-      ubuff8[0] = c3;
-      ubuff8[1] = c2;
-      ubuff8[2] = c1;
-      break;
-      
-    case 4:
-      ubuff8 = (Uint8*) screen->pixels;
-      ubuff8 += (y*screen->pitch) + (x*4);
-      ubuff32 = (Uint32*)ubuff8;
-      *ubuff32 = color;
-      break;
-      
-    default:
-      fprintf(stderr, "Error: Unknown bitdepth!\n");
-    }
-  
-  /* Unlock the screen if needed */
-  if(SDL_MUSTLOCK(screen)) {
-    SDL_UnlockSurface(screen);
-  }
-}
-
 /* Calls to commands created via [sdl.surface] are implemented by this
  * C command. */
 static int JimSdlHandlerCommand(Jim_Interp *interp, int argc,
@@ -127,9 +57,11 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc,
     JimSdlSurface *jss = Jim_CmdPrivData(interp);
     int option;
     const char *options[] = {
-        "free", "setpixel", "flip", NULL
+        "free", "flip", "pixel", "rectangle", "box", "line", "aaline",
+        "circle", "aacircle", "fcircle", NULL
     };
-    enum {OPT_FREE, OPT_SETPIXEL, OPT_FLIP};
+    enum {OPT_FREE, OPT_FLIP, OPT_PIXEL, OPT_RECTANGLE, OPT_BOX, OPT_LINE,
+          OPT_AALINE, OPT_CIRCLE, OPT_AACIRCLE, OPT_FCIRCLE};
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
@@ -138,12 +70,12 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc,
     if (Jim_GetEnum(interp, argv[1], options, &option, "SDL surface method",
                 JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
-    /* SETPIXEL */
-    if (option == OPT_SETPIXEL) {
-        long x, y, red, green, blue;
+    if (option == OPT_PIXEL) {
+    /* PIXEL */
+        long x, y, red, green, blue, alpha = 255;
 
-        if (argc != 7) {
-            Jim_WrongNumArgs(interp, 2, argv, "x y red green blue");
+        if (argc != 7 && argc != 8) {
+            Jim_WrongNumArgs(interp, 2, argv, "x y red green blue ?alpha?");
             return JIM_ERR;
         }
         if (Jim_GetLong(interp, argv[2], &x) != JIM_OK ||
@@ -154,7 +86,81 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc,
         {
             return JIM_ERR;
         }
-        JimSdlSetPixel(jss->screen, x, y, red, green, blue);
+        if (argc == 8 && Jim_GetLong(interp, argv[7], &alpha) != JIM_OK)
+            return JIM_ERR;
+        pixelRGBA(jss->screen, x, y, red, green, blue, alpha);
+        return JIM_OK;
+    } else if (option == OPT_RECTANGLE || option == OPT_BOX ||
+               option == OPT_LINE || option == OPT_AALINE)
+    {
+    /* RECTANGLE, BOX, LINE, AALINE */
+        long x1, y1, x2, y2, red, green, blue, alpha = 255;
+
+        if (argc != 9 && argc != 10) {
+            Jim_WrongNumArgs(interp, 2, argv, "x y red green blue ?alpha?");
+            return JIM_ERR;
+        }
+        if (Jim_GetLong(interp, argv[2], &x1) != JIM_OK ||
+            Jim_GetLong(interp, argv[3], &y1) != JIM_OK ||
+            Jim_GetLong(interp, argv[4], &x2) != JIM_OK ||
+            Jim_GetLong(interp, argv[5], &y2) != JIM_OK ||
+            Jim_GetLong(interp, argv[6], &red) != JIM_OK ||
+            Jim_GetLong(interp, argv[7], &green) != JIM_OK ||
+            Jim_GetLong(interp, argv[8], &blue) != JIM_OK)
+        {
+            return JIM_ERR;
+        }
+        if (argc == 10 && Jim_GetLong(interp, argv[9], &alpha) != JIM_OK)
+            return JIM_ERR;
+        switch(option) {
+        case OPT_RECTANGLE:
+            rectangleRGBA(jss->screen, x1, y1, x2, y2, red, green, blue, alpha);
+            break;
+        case OPT_BOX:
+            boxRGBA(jss->screen, x1, y1, x2, y2, red, green, blue, alpha);
+            break;
+        case OPT_LINE:
+            lineRGBA(jss->screen, x1, y1, x2, y2, red, green, blue, alpha);
+            break;
+        case OPT_AALINE:
+            aalineRGBA(jss->screen, x1, y1, x2, y2, red, green, blue, alpha);
+            break;
+        }
+        return JIM_OK;
+    } else if (option == OPT_CIRCLE || option == OPT_AACIRCLE ||
+               option == OPT_FCIRCLE)
+    {
+    /* CIRCLE, AACIRCLE, FCIRCLE */
+        long x, y, radius, red, green, blue, alpha = 255;
+
+        if (argc != 8 && argc != 9) {
+            Jim_WrongNumArgs(interp, 2, argv,
+                    "x y radius red green blue ?alpha?");
+            return JIM_ERR;
+        }
+        if (Jim_GetLong(interp, argv[2], &x) != JIM_OK ||
+            Jim_GetLong(interp, argv[3], &y) != JIM_OK ||
+            Jim_GetLong(interp, argv[4], &radius) != JIM_OK ||
+            Jim_GetLong(interp, argv[5], &red) != JIM_OK ||
+            Jim_GetLong(interp, argv[6], &green) != JIM_OK ||
+            Jim_GetLong(interp, argv[7], &blue) != JIM_OK)
+        {
+            return JIM_ERR;
+        }
+        if (argc == 9 && Jim_GetLong(interp, argv[8], &alpha) != JIM_OK)
+            return JIM_ERR;
+        switch(option) {
+        case OPT_CIRCLE:
+            circleRGBA(jss->screen, x, y, radius, red, green, blue, alpha);
+            break;
+        case OPT_AACIRCLE:
+            aacircleRGBA(jss->screen, x, y, radius, red, green, blue, alpha);
+            break;
+        case OPT_FCIRCLE:
+            filledCircleRGBA(jss->screen, x, y, radius, red, green, blue,
+                    alpha);
+            break;
+        }
         return JIM_OK;
     } else if (option == OPT_FREE) {
     /* FREE */

@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.129 2005/03/25 09:34:51 antirez Exp $
+ * $Id: jim.c,v 1.130 2005/03/26 14:12:32 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7237,7 +7237,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
         Jim_Obj *const *argv);
 
-/* Hanlde class to the [unknown] command */
+/* Handle calls to the [unknown] command */
 static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
@@ -10849,58 +10849,8 @@ void Jim_RegisterCoreCommands(Jim_Interp *interp)
 }
 
 /* -----------------------------------------------------------------------------
- * Test
+ * Interactive prompt
  * ---------------------------------------------------------------------------*/
-int test_parser(char *filename, int parsetype)
-{
-    struct JimParserCtx parser;
-    char prg[1024];
-    FILE *fp;
-    int nread;
-
-    if ((fp = fopen(filename, "r")) == NULL) {
-        perror("fopen");
-        exit(1);
-    }
-    nread = fread(prg, 1, 1024, fp);
-    prg[nread] = '\0';
-    fclose(fp);
-
-    JimParserInit(&parser, prg, nread, 1);
-    while(!JimParserEof(&parser)) {
-        const char *type = "", *tok;
-        int len, retval = 0;
-        if (parsetype == 0)
-            retval = JimParseScript(&parser);
-        else if (parsetype == 1)
-            retval = JimParseExpression(&parser);
-        else if (parsetype == 2)
-            retval = JimParseSubst(&parser, 0);
-        if (retval != JIM_OK) {
-            printf("PARSE ERROR\n");
-            exit(1);
-        }
-        switch(JimParserTtype(&parser)) {
-        case JIM_TT_STR: type = "STR"; break;
-        case JIM_TT_ESC: type = "ESC"; break;
-        case JIM_TT_VAR: type = "VAR"; break;
-        case JIM_TT_DICTSUGAR: type = "DICTSUGAR"; break;
-        case JIM_TT_CMD: type = "CMD"; break;
-        case JIM_TT_SEP: type = "SEP"; break;
-        case JIM_TT_EOL: type = "EOL"; break;
-        case JIM_TT_NONE: type = "NONE"; break;
-        case JIM_TT_SUBEXPR_START: type = "SUBEXPR_START"; break;
-        case JIM_TT_SUBEXPR_END : type = "SUBEXPR_END"; break;
-        case JIM_TT_EXPR_NUMBER : type = "EXPR_NUMBER"; break;
-        case JIM_TT_EXPR_OPERATOR: type = "EXPR_OPERATOR"; break;
-        }
-        printf("%d %s: ", JimParserTline(&parser), type);
-        tok = JimParserGetToken(&parser, &len, NULL, NULL);
-        printf("'%s' (%d)\n", tok, len);
-    }
-    return 0;
-}
-
 void Jim_PrintErrorMessage(Jim_Interp *interp)
 {
     int len, i;
@@ -10934,7 +10884,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.129 2005/03/25 09:34:51 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.130 2005/03/26 14:12:32 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
