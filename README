@@ -1,9 +1,9 @@
 The Jim Interpreter
 A small-footprint implementation of the Tcl programming language.
 
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 WHAT IS JIM?
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 Jim is a small footprint implementation of the Tcl programming language
 written from scratch. Currently it's a work in progress, but already
@@ -12,17 +12,17 @@ an example). There are many Tcl core commands not implemented, but the
 language itself offers already interesting features like {expand} and
 [dict], that are features that will appear on Tcl8.5, [lambda] with
 garbage collection, and a general GC/references system to build linked
-data structure with automatic memory managment. Arrays in Jim are
+data structure with automatic memory management. Arrays in Jim are
 not collection of variables, but instead syntax sugar for [dict]tionaries.
 
-Ohter common features of the Tcl programming language are present, like
+Other common features of the Tcl programming language are present, like
 the "everything is a string" behaviour, implemented internally as
 dual ported objects to ensure that the execution time does not reflect
 the semantic of the language :)
 
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 WHERE JIM IS USEFUL?
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 1) If you are writing an application, and want to make it scriptable, with
 Jim you have a way to do it that does not require to link your application
@@ -57,8 +57,8 @@ scriptable in Jim, with the following advantages:
   you can reprogram the language in itself. Jim support this features
   of the Tcl programming language. You can write new control structures,
   use the flexible data types it offers (Lists are a central data structure,
-  with Dictioaries that are also lists). Still Tcl is simpler for the
-  casual programmer, expecially if compared to other languages offering
+  with Dictionaries that are also lists). Still Tcl is simpler for the
+  casual programmer, especially if compared to other languages offering
   small footprint implementations (like Scheme and FORTH).
 
 - Because of the Tcl semantic (pass by value, everything is a command
@@ -76,9 +76,9 @@ scriptable in Jim, with the following advantages:
    but able to do interesting things for you. So it's not excluded that
    in the future you will able to use Jim as a general purpose language.
 
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 COPYRIGHT and LICENSE
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 Copyright (C) 2005 Salvatore Sanfilippo
 All Rights Reserved
@@ -98,9 +98,9 @@ All Rights Reserved
  See the License for the specific language governing permissions and
  limitations under the License.
 
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 Extensions
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 JIM-POSIX
 
@@ -119,9 +119,9 @@ applications. For example run jim and try the extension with:
 
 You should see a notepad application running.
 
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 Thanks to...
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 - First of all, thanks to every guy that's listed in the AUTHORS file,
   that directly helped with code and ideas.
@@ -129,5 +129,5 @@ Thanks to...
   about the use and the implementation of the Tcl programming language.
 - David Welton for the tech info sharing and our chats about
   programming languages design and the ability of software to scale down.
-- The autors of "valgrind", for this wonderful tool, that helped me a
+- The authors of "valgrind", for this wonderful tool, that helped me a
   lot to fix bugs in minutes instead of hours.
