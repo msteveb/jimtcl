@@ -5900,6 +5900,7 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 #define RTLD_LAZY 0
 void * dlopen(const char *path, int mode) 
 {
+    mode = mode; /* not used */
     return (void *)LoadLibraryA(path);
 }
 int dlclose(void *handle)
