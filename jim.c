@@ -2289,7 +2289,6 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
 {
 	int i, j;
 
-	return;
 	/* Try to share with toplevel object. */
 	if (1 && topLevelScript != NULL) {
 		for (i = 0; i < script->len; i++) {
@@ -5373,7 +5372,6 @@ static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
 {
 	int i;
 
-	return;
 	for (i = 0; i < expr->len; i++) {
 		Jim_Obj *foundObjPtr;
 
