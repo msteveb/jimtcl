@@ -215,6 +215,8 @@ Thanks to...
 - First of all, thanks to every guy that are listed in the AUTHORS file,
   that directly helped with code and ideas. Also check the ChangeLog
   file for additional credits about patches or bug reports.
+- Elisa Manara that helped me to select this ill conceived name for
+  an interpreter.
 - Many people on the Tclers Chat that helped me to explore issues
   about the use and the implementation of the Tcl programming language.
 - David Welton for the tech info sharing and our chats about

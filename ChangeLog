@@ -1,3 +1,7 @@
+2005-03-17 15:56  antirez
+
+	* ChangeLog, TODO: TODO file updated, things already done removed.
+
 2005-03-17 15:47  antirez
 
 	* ChangeLog, jim.c: Applied PATCH #389 "debug command is missing

@@ -15,7 +15,6 @@ CORE COMMANDS
 - [onleave] command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
-- List commands to add: [lreverse], [squeeze]
 
 OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.117 2005/03/17 14:47:35 antirez Exp $
+ * $Id: jim.c,v 1.118 2005/03/17 21:39:24 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9960,6 +9960,26 @@ static int Jim_SourceCoreCommand(Jim_Interp *interp, int argc,
     return retval;
 }
 
+/* [lreverse] */
+static int Jim_LreverseCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *revObjPtr, **ele;
+    int len;
+
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "list");
+        return JIM_ERR;
+    }
+    JimListGetElements(interp, argv[1], &len, &ele);
+    len--;
+    revObjPtr = Jim_NewListObj(interp, NULL, 0);
+    while (len >= 0)
+        ListAppendElement(revObjPtr, ele[len--]);
+    Jim_SetResult(interp, revObjPtr);
+    return JIM_OK;
+}
+
 static struct {
     const char *name;
     Jim_CmdProc cmdProc;
@@ -10017,6 +10037,7 @@ static struct {
     {"lrange", Jim_LrangeCoreCommand},
     {"env", Jim_EnvCoreCommand},
     {"source", Jim_SourceCoreCommand},
+    {"lreverse", Jim_LreverseCoreCommand},
     {NULL, NULL},
 };
 
@@ -10135,7 +10156,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.117 2005/03/17 14:47:35 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.118 2005/03/17 21:39:24 antirez Exp $\n");
     while (1) {
         char buf[1024];
         const char *result;
