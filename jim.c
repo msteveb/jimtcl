@@ -7255,7 +7255,8 @@ out:
 /* [foreach] */
 int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 {
-	int result = JIM_ERR, i, any, nbrOfLists, *listsIdx, *listsEnd;
+	int result = JIM_ERR, i, nbrOfLists, *listsIdx, *listsEnd;
+	int nbrOfLoops = 0;
 	Jim_Obj *emptyStr, *script;
 	if (argc < 4 || argc % 2 != 0) {
 		Jim_WrongNumArgs(interp, 1, argv, "varList list ?varList list ...? script");
@@ -7263,38 +7264,45 @@ int Jim_ForeachCoreCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 	}
 	emptyStr = Jim_NewEmptyStringObj(interp);
 	Jim_IncrRefCount(emptyStr);
-	script = argv[argc-1];        /* Last argument is a script */
-	nbrOfLists = (argc - 1 - 1);  /* argc - 'foreach' - script */
+	script = argv[argc-1];            /* Last argument is a script */
+	nbrOfLists = (argc - 1 - 1) / 2;  /* argc - 'foreach' - script */
 	listsIdx = (int*)Jim_Alloc(nbrOfLists * sizeof(int));
-	listsEnd = (int*)Jim_Alloc(nbrOfLists * sizeof(int));
+	listsEnd = (int*)Jim_Alloc(nbrOfLists*2 * sizeof(int));
 	/* Initialize iterators and remember max nbr elements each list */
-	for (i=0; i < nbrOfLists; ++i) {
-		listsIdx[i] = 0;       /* Each list begins with at index ZERO */
+	memset(listsIdx, 0, nbrOfLists * sizeof(int));
+	/* Remember lengths of all lists and calculate how much rounds to loop */
+	for (i=0; i < nbrOfLists*2; i += 2) {
+		div_t cnt;
+		int count;
 		Jim_ListLength(interp, argv[i+1], &listsEnd[i]);
-		if (i%2 == 0 && listsEnd[i] == 0) {
+		Jim_ListLength(interp, argv[i+2], &listsEnd[i+1]);
+		if (listsEnd[i] == 0) {
 			Jim_SetResultString(interp, "foreach varlist is empty", -1);
 			goto err;
 		}
+		cnt = div(listsEnd[i+1], listsEnd[i]);
+		count = cnt.quot + (cnt.rem ? 1 : 0);
+		if (count > nbrOfLoops)
+			nbrOfLoops = count;
 	}
-	for (;;) {
-		/* Check if there is really anything to do */
-		for (i=1, any=0; !any && i < nbrOfLists; i+= 2)
-			any = listsIdx[i] < listsEnd[i];
-		if (!any) goto out;
-		for (i=0; i < nbrOfLists; i += 2) {
-			int varIdx = 0;
-			while (varIdx < listsEnd[i]) {
+	for (; nbrOfLoops-- > 0; ) {
+		for (i=0; i < nbrOfLists; ++i) {
+			int varIdx = 0, var = i * 2;
+			while (varIdx < listsEnd[var]) {
 				Jim_Obj *varName, *ele;
-				if (Jim_ListIndex(interp, argv[i+1], varIdx, &varName, JIM_ERRMSG) != JIM_OK)
+				int lst = i * 2 + 1;
+				if (Jim_ListIndex(interp, argv[var+1], varIdx, &varName, JIM_ERRMSG)
+						!= JIM_OK)
 						goto err;
-				if (listsIdx[i+1] < listsEnd[i+1]) {
-					if (Jim_ListIndex(interp, argv[i+2], listsIdx[i+1], &ele, JIM_ERRMSG) != JIM_OK)
+				if (listsIdx[i] < listsEnd[lst]) {
+					if (Jim_ListIndex(interp, argv[lst+1], listsIdx[i], &ele, JIM_ERRMSG)
+						!= JIM_OK)
 						goto err;
 					if (Jim_SetVariable(interp, varName, ele) != JIM_OK) {
 						Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
 						goto err;
 					}
-					++listsIdx[i+1];  /* Remember next iterator of current list */ 
+					++listsIdx[i];  /* Remember next iterator of current list */ 
 				} else if (Jim_SetVariable(interp, varName, emptyStr) != JIM_OK) {
 					Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
 					goto err;
