@@ -4946,6 +4946,8 @@ typedef struct Jim_ExprOperator {
 
 #define JIM_EXPROP_LSHIFT 9
 #define JIM_EXPROP_RSHIFT 10
+#define JIM_EXPROP_ROTL 30
+#define JIM_EXPROP_ROTR 31
 
 #define JIM_EXPROP_LT 11
 #define JIM_EXPROP_GT 12
@@ -4987,6 +4989,8 @@ static struct Jim_ExprOperator Jim_ExprOperators[] = {
 	{"-", 100, 2, JIM_EXPROP_SUB},
 	{"+", 100, 2, JIM_EXPROP_ADD},
 
+	{"<<<", 90, 3, JIM_EXPROP_ROTL},
+	{">>>", 90, 3, JIM_EXPROP_ROTR},
 	{"<<", 90, 2, JIM_EXPROP_LSHIFT},
 	{">>", 90, 2, JIM_EXPROP_RSHIFT},
 
@@ -5221,6 +5225,8 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
 		case JIM_EXPROP_GT:
 		case JIM_EXPROP_LTE:
 		case JIM_EXPROP_GTE:
+		case JIM_EXPROP_ROTL:
+		case JIM_EXPROP_ROTR:
 		case JIM_EXPROP_LSHIFT:
 		case JIM_EXPROP_RSHIFT:
 		case JIM_EXPROP_NUMEQ:
@@ -5538,6 +5544,8 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 		case JIM_EXPROP_GT:
 		case JIM_EXPROP_LTE:
 		case JIM_EXPROP_GTE:
+		case JIM_EXPROP_ROTL:
+		case JIM_EXPROP_ROTR:
 		case JIM_EXPROP_LSHIFT:
 		case JIM_EXPROP_RSHIFT:
 		case JIM_EXPROP_NUMEQ:
@@ -5587,6 +5595,18 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 				if (wB == 0) goto divbyzero;
 				wC = wA%wB;
 				break;
+			case JIM_EXPROP_ROTL: {
+			    unsigned long uA = (unsigned jim_wide)wA&0xFFFFFFFF;
+			    const unsigned int S = sizeof(unsigned long) * 8;
+			    wC = (jim_wide)((uA<<wB)|(uA>>(S-wB)));
+			    break;
+			}
+			case JIM_EXPROP_ROTR: {
+			    unsigned long uA = (unsigned jim_wide)wA&0xFFFFFFFF;
+			    const unsigned int S = sizeof(unsigned long) * 8;
+			    wC = (jim_wide)((uA>>wB)|(uA<<(S-wB)));
+			    break;
+			}
 
 			default:
 				wC = 0; /* avoid gcc warning */
@@ -5608,6 +5628,8 @@ trydouble:
 			Jim_DecrRefCount(interp, A);
 			Jim_DecrRefCount(interp, B);
 			switch(expr->opcode[i]) {
+			case JIM_EXPROP_ROTL:
+			case JIM_EXPROP_ROTR:
 			case JIM_EXPROP_LSHIFT:
 			case JIM_EXPROP_RSHIFT:
 			case JIM_EXPROP_BITAND:
