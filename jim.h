@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.h,v 1.37 2005/03/05 15:01:38 antirez Exp $
+ * $Id: jim.h,v 1.38 2005/03/05 15:04:14 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -296,7 +296,6 @@ typedef struct Jim_Obj {
     if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr)
 #define Jim_IsShared(objPtr) \
     ((objPtr)->refCount > 1)
-#define Jim_Length(objPtr) ((objPtr)->length)
 
 /* Free the internal representation of the object. */
 #define Jim_FreeIntRep(i,o) \
@@ -543,6 +542,7 @@ JIM_STATIC Jim_Obj * JIM_API(Jim_DuplicateObj) (Jim_Interp *interp,
         Jim_Obj *objPtr);
 JIM_STATIC const char * JIM_API(Jim_GetString)(Jim_Obj *objPtr,
         int *lenPtr);
+JIM_STATIC int JIM_API(Jim_Length)(Jim_Obj *objPtr);
 JIM_STATIC void JIM_API(Jim_InvalidateStringRep)(Jim_Obj *objPtr);
 
 /* string object */
@@ -739,6 +739,7 @@ static void Jim_InitExtension(Jim_Interp *interp, const char *version)
   JIM_GET_API(InitStringRep);
   JIM_GET_API(DuplicateObj);
   JIM_GET_API(GetString);
+  JIM_GET_API(Length);
   JIM_GET_API(InvalidateStringRep);
   JIM_GET_API(NewStringObj);
   JIM_GET_API(NewStringObjNoAlloc);

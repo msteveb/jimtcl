@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.65 2005/03/05 15:01:38 antirez Exp $
+ * $Id: jim.c,v 1.66 2005/03/05 15:04:13 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1755,6 +1755,15 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
     if (lenPtr)
         *lenPtr = objPtr->length;
     return objPtr->bytes;
+}
+
+/* Just returns the length of the object's string rep */
+int Jim_Length(Jim_Obj *objPtr)
+{
+    int len;
+
+    Jim_GetString(objPtr, &len);
+    return len;
 }
 
 /* -----------------------------------------------------------------------------
@@ -7037,6 +7046,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(InitStringRep);
   JIM_REGISTER_API(DuplicateObj);
   JIM_REGISTER_API(GetString);
+  JIM_REGISTER_API(Length);
   JIM_REGISTER_API(InvalidateStringRep);
   JIM_REGISTER_API(NewStringObj);
   JIM_REGISTER_API(NewStringObjNoAlloc);
