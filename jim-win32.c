@@ -314,31 +314,29 @@ static int
 Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj **objv)
 {
     Jim_Obj *a[16];
+    size_t n = 0;
     SYSTEMTIME t;
     GetSystemTime(&t);
 
-    a[0]  = Jim_NewStringObj(interp, "year", -1); 
-    a[1]  = Jim_NewIntObj(interp, t.wYear);
-    a[2]  = Jim_NewStringObj(interp, "month", -1); 
-    a[3]  = Jim_NewIntObj(interp, t.wMonth);
-    a[4]  = Jim_NewStringObj(interp, "dayofweek", -1); 
-    a[5]  = Jim_NewIntObj(interp, t.wDayOfWeek);
-    a[6]  = Jim_NewStringObj(interp, "day", -1); 
-    a[7]  = Jim_NewIntObj(interp, t.wDay);
-    a[8]  = Jim_NewStringObj(interp, "hour", -1); 
-    a[9]  = Jim_NewIntObj(interp, t.wHour);
-    a[10] = Jim_NewStringObj(interp, "minute", -1); 
-    a[11] = Jim_NewIntObj(interp, t.wMinute);
-    a[12] = Jim_NewStringObj(interp, "second", -1); 
-    a[13] = Jim_NewIntObj(interp, t.wSecond);
-    a[14] = Jim_NewStringObj(interp, "milliseconds", -1); 
-    a[15] = Jim_NewIntObj(interp, t.wMilliseconds);
+#define JIMADD(name) \
+    a[n++] = Jim_NewStringObj(interp, #name, -1); \
+    a[n++] = Jim_NewIntObj(interp, t.w ## name )
+    
+    JIMADD(Year);
+    JIMADD(Month);
+    JIMADD(DayOfWeek);
+    JIMADD(Day);
+    JIMADD(Hour);
+    JIMADD(Minute);
+    JIMADD(Second);
+    JIMADD(Milliseconds);
+#undef JIMADD
 
-    Jim_SetResult(interp, Jim_NewListObj(interp, a, 16));
+    Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
     return JIM_OK;
 }
 
-// FIX ME: win2k+
+// FIX ME: win2k+ so should do version checks really.
 static int
 Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
 {
@@ -369,7 +367,6 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj **objv)
     JIMADD(HandleCount);
     JIMADD(ProcessCount);
     JIMADD(ThreadCount);
-
 #undef JIMADD
 
     Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
