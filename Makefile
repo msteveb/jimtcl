@@ -40,7 +40,7 @@ stopit:
 all: $(DEFAULT_BUILD)
 
 profile:
-	@$(MAKE) clean jim PROFILE=-p
+	@$(MAKE) clean jim PROFILE=-pg
 
 .c.o:
 	$(CC) -I. $(CFLAGS) $(DEFS) -c $< -o $@

@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.118 2005/03/17 21:39:24 antirez Exp $
+ * $Id: jim.c,v 1.119 2005/03/18 09:36:26 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3935,7 +3935,8 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->unknown);
 
     /* Initialize key variables every interpreter should contain */
-    Jim_SetVariableStrWithStr(i, "jim.libpath", "./ /usr/local/lib/jim");
+    Jim_SetVariableStrWithStr(i, "jim_libpath", "./ /usr/local/lib/jim");
+    Jim_SetVariableStrWithStr(i, "jim_interactive", "0");
 
     /* Export the core API to extensions */
     JimRegisterCoreApi(i);
@@ -6031,6 +6032,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         switch(type) {
         case JIM_TT_STR:
             ExprObjAddInstr(interp, expr, JIM_EXPROP_STRING, token, len);
+            break;
         case JIM_TT_ESC:
             ExprObjAddInstr(interp, expr, JIM_EXPROP_SUBST, token, len);
             break;
@@ -6560,7 +6562,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     void *handle;
     int (*onload)(Jim_Interp *interp);
 
-    libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim.libpath", JIM_NONE);
+    libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim_libpath", JIM_NONE);
     if (libPathObjPtr == NULL) {
         prefixc = 0;
         libPathObjPtr = NULL;
@@ -10156,7 +10158,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.118 2005/03/17 21:39:24 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.119 2005/03/18 09:36:26 antirez Exp $\n");
+    Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
         const char *result;

@@ -1,3 +1,7 @@
+2005-03-17 22:39  antirez
+
+	* ChangeLog, README, TODO, jim.c: [lreverse]
+
 2005-03-17 15:56  antirez
 
 	* ChangeLog, TODO: TODO file updated, things already done removed.
