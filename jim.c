@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.88 2005/03/11 07:21:42 antirez Exp $
+ * $Id: jim.c,v 1.89 2005/03/11 08:43:36 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2648,6 +2648,10 @@ static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
     if (cmdPtr->cmdProc == NULL) {
         Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
         Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+        if (cmdPtr->staticVars) {
+            Jim_FreeHashTable(cmdPtr->staticVars);
+            Jim_Free(cmdPtr->staticVars);
+        }
     } else if (cmdPtr->delProc != NULL) {
             /* If it was a C coded command, call the delProc if any */
             cmdPtr->delProc(cmdPtr->privData);
@@ -2832,6 +2836,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
 {
     Jim_Cmd *cmdPtr;
     Jim_HashEntry *he;
+    Jim_Cmd *copyCmdPtr;
 
     if (newName[0] == '\0') /* Delete! */
         return Jim_DeleteCommand(interp, oldName);
@@ -2840,19 +2845,22 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
     if (he == NULL)
         return JIM_ERR; /* Invalid command name */
     cmdPtr = he->val;
-    if (cmdPtr->cmdProc == NULL) {    /* Tcl procedure? */
-        Jim_IncrRefCount(cmdPtr->argListObjPtr);
-        Jim_IncrRefCount(cmdPtr->bodyObjPtr);
-        Jim_CreateProcedure(interp, newName, cmdPtr->argListObjPtr, NULL,
-                cmdPtr->bodyObjPtr, cmdPtr->arityMin, cmdPtr->arityMax);
-        Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
-        Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
-    } else {            /* Or C-coded command. */
-        Jim_CreateCommand(interp, newName, cmdPtr->cmdProc,
-                cmdPtr->privData, cmdPtr->delProc);
-    }
-    /* DeleteCommand will incr the proc epoch */
-    return Jim_DeleteCommand(interp, oldName);
+    copyCmdPtr = Jim_Alloc(sizeof(Jim_Cmd));
+    *copyCmdPtr = *cmdPtr;
+    /* In order to avoid that a procedure will get arglist/body/statics
+     * freed by the hash table methods, fake a C-coded command
+     * setting cmdPtr->cmdProc as not NULL */
+    cmdPtr->cmdProc = (void*)1;
+    /* Destroy the old command, and make sure the new is freed
+     * as well. */
+    Jim_DeleteHashEntry(&interp->commands, oldName);
+    Jim_DeleteHashEntry(&interp->commands, newName);
+    /* Now the new command. We are sure it can't fail because
+     * the target name was already freed. */
+    Jim_AddHashEntry(&interp->commands, newName, copyCmdPtr);
+    /* Increment the epoch */
+    Jim_InterpIncrProcEpoch(interp);
+    return JIM_OK;
 }
 
 /* -----------------------------------------------------------------------------
