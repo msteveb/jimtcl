@@ -13,7 +13,8 @@ static void Jim_PosixSetError(Jim_Interp *interp)
     Jim_SetResultString(interp, strerror(errno), -1);
 }
 
-static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
+static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
 {
     pid_t pid;
     argv = argv; /* not used */
@@ -30,7 +31,8 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
     return JIM_OK;
 }
 
-static int Jim_PosixSleepCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
+static int Jim_PosixSleepCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
 {
     long longValue;
     
@@ -44,7 +46,8 @@ static int Jim_PosixSleepCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
     return JIM_OK;
 }
 
-static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
+static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
 {
     Jim_Obj *objv[8];
     if (argc != 1) {
@@ -65,7 +68,7 @@ static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj **argv)
 
 #define JIM_HOST_NAME_MAX 1024
 static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc,
-        Jim_Obj **argv)
+        Jim_Obj *const *argv)
 {
     char buf[JIM_HOST_NAME_MAX];
 
@@ -82,9 +85,9 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc,
 }
 
 static int Jim_PosixSethostnameCommand(Jim_Interp *interp, int argc,
-        Jim_Obj **argv)
+        Jim_Obj *const *argv)
 {
-    char *hostname;
+    const char *hostname;
     int len;
 
     if (argc != 2) {

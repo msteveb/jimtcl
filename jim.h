@@ -653,7 +653,7 @@ JIM_STATIC void JIM_API(Jim_SetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
 JIM_STATIC Jim_Obj * JIM_API(Jim_NewDoubleObj)(Jim_Interp *interp, double doubleValue);
 
 /* shared strings */
-JIM_STATIC const char JIM_API(*Jim_GetSharedString) (Jim_Interp *interp, 
+JIM_STATIC const char * JIM_API(Jim_GetSharedString) (Jim_Interp *interp, 
         const char *str);
 JIM_STATIC void JIM_API(Jim_ReleaseSharedString) (Jim_Interp *interp,
         const char *str);
