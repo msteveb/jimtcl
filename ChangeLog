@@ -1,3 +1,7 @@
+2005-03-07 09:23  antirez
+
+	* ChangeLog, TODO: TODO changes
+
 2005-03-06 23:42  antirez
 
 	* bench.tcl, jim.c, regtest.tcl, test.tcl: A specializing version

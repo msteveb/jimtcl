@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.70 2005/03/06 22:42:33 antirez Exp $
+ * $Id: jim.c,v 1.71 2005/03/07 14:17:44 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7486,6 +7486,7 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc,
     jim_wide wideValue, increment = 1;
     Jim_Obj *intObjPtr;
 
+    /* Common cases */
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "varName ?increment?");
         return JIM_ERR;
@@ -7520,6 +7521,190 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "condition body");
         return JIM_ERR;
     }
+    /* Try to run a specialized version of while if the expression
+     * is in one of the following forms:
+     *
+     *   $a < CONST, $a < $b
+     *   $a <= CONST, $a <= $b
+     *   $a > CONST, $a > $b
+     *   $a >= CONST, $a >= $b
+     *   $a != CONST, $a != $b
+     *   $a == CONST, $a == $b
+     *   $a
+     *   !$a
+     *   CONST
+     */
+
+#ifdef JIM_OPTIMIZATION
+    {
+        ExprByteCode *expr;
+        Jim_Obj *varAObjPtr = NULL, *varBObjPtr = NULL, *objPtr;
+        int exprLen, retval;
+
+        /* STEP 1 -- Check if there are the conditions to run the specialized
+         * version of while */
+        
+        if ((expr = Jim_GetExpression(interp, argv[1])) == NULL) goto noopt;
+        if (expr->len <= 0 || expr->len > 3) goto noopt;
+        switch(expr->len) {
+        case 1:
+            if (expr->opcode[0] != JIM_EXPROP_VARIABLE &&
+                expr->opcode[0] != JIM_EXPROP_NUMBER)
+                goto noopt;
+            break;
+        case 2:
+            if (expr->opcode[1] != JIM_EXPROP_NOT ||
+                expr->opcode[0] != JIM_EXPROP_VARIABLE)
+                goto noopt;
+            break;
+        case 3:
+            if (expr->opcode[0] != JIM_EXPROP_VARIABLE ||
+                (expr->opcode[1] != JIM_EXPROP_NUMBER &&
+                 expr->opcode[1] != JIM_EXPROP_VARIABLE))
+                goto noopt;
+            switch(expr->opcode[2]) {
+            case JIM_EXPROP_LT:
+            case JIM_EXPROP_LTE:
+            case JIM_EXPROP_GT:
+            case JIM_EXPROP_GTE:
+            case JIM_EXPROP_NUMEQ:
+            case JIM_EXPROP_NUMNE:
+                /* nothing to do */
+                break;
+            default:
+                goto noopt;
+            }
+            break;
+        default:
+            Jim_Panic("Unexpected default reached in Jim_WhileCoreCommand()");
+            break;
+        }
+
+        /* STEP 2 -- conditions meet. Initialization. Take different
+         * branches for different expression lengths. */
+        exprLen = expr->len;
+
+        if (exprLen == 1) {
+            jim_wide wideValue;
+
+            if (expr->opcode[0] == JIM_EXPROP_VARIABLE) {
+                varAObjPtr = expr->obj[0];
+                Jim_IncrRefCount(varAObjPtr);
+            } else {
+                if (Jim_GetWide(interp, expr->obj[0], &wideValue) != JIM_OK)
+                    goto noopt;
+            }
+            while (1) {
+                if (varAObjPtr) {
+                    if (!(objPtr =
+                               Jim_GetVariable(interp, varAObjPtr, JIM_NONE)) ||
+                        Jim_GetWide(interp, objPtr, &wideValue) != JIM_OK)
+                    {
+                        Jim_DecrRefCount(interp, varAObjPtr);
+                        goto noopt;
+                    }
+                }
+                if (!wideValue) break;
+                if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
+                    switch(retval) {
+                    case JIM_BREAK:
+                        if (varAObjPtr)
+                            Jim_DecrRefCount(interp, varAObjPtr);
+                        goto out;
+                        break;
+                    case JIM_CONTINUE:
+                        continue;
+                        break;
+                    default:
+                        if (varAObjPtr)
+                            Jim_DecrRefCount(interp, varAObjPtr);
+                        return retval;
+                    }
+                }
+            }
+            if (varAObjPtr)
+                Jim_DecrRefCount(interp, varAObjPtr);
+        } else if (exprLen == 3) {
+            jim_wide wideValueA, wideValueB, cmpRes = 0;
+            int cmpType = expr->opcode[2];
+
+            varAObjPtr = expr->obj[0];
+            Jim_IncrRefCount(varAObjPtr);
+            if (expr->opcode[1] == JIM_EXPROP_VARIABLE) {
+                varBObjPtr = expr->obj[1];
+                Jim_IncrRefCount(varBObjPtr);
+            } else {
+                if (Jim_GetWide(interp, expr->obj[1], &wideValueB) != JIM_OK)
+                    goto noopt;
+            }
+            while (1) {
+                if (!(objPtr = Jim_GetVariable(interp, varAObjPtr, JIM_NONE)) ||
+                    Jim_GetWide(interp, objPtr, &wideValueA) != JIM_OK)
+                {
+                    Jim_DecrRefCount(interp, varAObjPtr);
+                    if (varBObjPtr)
+                        Jim_DecrRefCount(interp, varBObjPtr);
+                    goto noopt;
+                }
+                if (varBObjPtr) {
+                    if (!(objPtr =
+                               Jim_GetVariable(interp, varBObjPtr, JIM_NONE)) ||
+                        Jim_GetWide(interp, objPtr, &wideValueB) != JIM_OK)
+                    {
+                        Jim_DecrRefCount(interp, varAObjPtr);
+                        if (varBObjPtr)
+                            Jim_DecrRefCount(interp, varBObjPtr);
+                        goto noopt;
+                    }
+                }
+                switch(cmpType) {
+                case JIM_EXPROP_LT:
+                    cmpRes = wideValueA < wideValueB; break;
+                case JIM_EXPROP_LTE:
+                    cmpRes = wideValueA <= wideValueB; break;
+                case JIM_EXPROP_GT:
+                    cmpRes = wideValueA > wideValueB; break;
+                case JIM_EXPROP_GTE:
+                    cmpRes = wideValueA >= wideValueB; break;
+                case JIM_EXPROP_NUMEQ:
+                    cmpRes = wideValueA == wideValueB; break;
+                case JIM_EXPROP_NUMNE:
+                    cmpRes = wideValueA != wideValueB; break;
+                }
+                if (!cmpRes) break;
+                if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
+                    switch(retval) {
+                    case JIM_BREAK:
+                        Jim_DecrRefCount(interp, varAObjPtr);
+                        if (varBObjPtr)
+                            Jim_DecrRefCount(interp, varBObjPtr);
+                        goto out;
+                        break;
+                    case JIM_CONTINUE:
+                        continue;
+                        break;
+                    default:
+                        Jim_DecrRefCount(interp, varAObjPtr);
+                        if (varBObjPtr)
+                            Jim_DecrRefCount(interp, varBObjPtr);
+                        return retval;
+                    }
+                }
+            }
+            Jim_DecrRefCount(interp, varAObjPtr);
+            if (varBObjPtr)
+                Jim_DecrRefCount(interp, varBObjPtr);
+        } else {
+            /* TODO: case for len == 2 */
+            goto noopt;
+        }
+        Jim_SetEmptyResult(interp);
+        return JIM_OK;
+    }
+noopt:
+#endif
+
+    /* The general purpose implementation of while starts here */
     while (1) {
         int boolean, retval;
 
@@ -7555,8 +7740,12 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "start test next body");
         return JIM_ERR;
     }
-    /* Check if the for is on the form: for {set i 0} {$i < CONST} {incr i} */
-    /* XXX: NOTE: if variable traces are implemented, this optimization
+    /* Check if the for is on the form:
+     *      for {set i CONST} {$i < CONST} {incr i}
+     *      for {set i CONST} {$i < $j} {incr i}
+     *      for {set i CONST} {$i <= CONST} {incr i}
+     *      for {set i CONST} {$i <= $j} {incr i}
+     * XXX: NOTE: if variable traces are implemented, this optimization
      * need to be modified to check for the proc epoch at every variable
      * update. */
 #ifdef JIM_OPTIMIZATION
@@ -7675,7 +7864,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
                     if (stopVarNamePtr)
                         Jim_DecrRefCount(interp, stopVarNamePtr);
                     Jim_DecrRefCount(interp, varNamePtr);
-                    return JIM_ERR;
+                    return retval;
                 }
             }
             /* If there was a change in procedures/command continue
