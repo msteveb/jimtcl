@@ -30,6 +30,11 @@ proc fibonacci {x} {
 fibonacci 6
 puts "TEST 4 PASSED"
 
+# REGTEST 5
+# 06Mar2005 - This looped forever...
+for {set i 0} {$i < 10} {incr i} {continue}
+puts "TEST 5 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -9,7 +9,7 @@ proc bench {title script} {
 
 ### BUSY LOOP ##################################################################
 
-proc x {} {
+proc busyloop {} {
     set i 0
     while {$i < 1850000} {
 	incr i
@@ -97,16 +97,16 @@ proc sieve {num} {
     while {$num > 0} {
 	incr num -1
 	set count 0
-	for {set i 2} {$i <= 8192} {incr i 1} {
+	for {set i 2} {$i <= 8192} {incr i} {
 	    set flags($i) 1
 	}
-	for {set i 2} {$i <= 8192} {incr i 1} {
+	for {set i 2} {$i <= 8192} {incr i} {
 	    if {$flags($i) == 1} {
 		# remove all multiples of prime: i
 		for {set k [expr {$i+$i}]} {$k <= 8192} {incr k $i} {
 		    set flags($k) 0
 		}
-		incr count 1
+		incr count
 	    }
 	}
     }
@@ -254,9 +254,22 @@ proc expand {} {
     }
 }
 
+### MINLOOPS ###################################################################
+
+proc miniloops {} {
+    for {set i 0} {$i < 100000} {incr i} {
+        set sum 0
+        for {set j 0} {$j < 10} {incr j} {
+            # something of more or less real
+            incr sum $j
+        }
+    }
+}
+
 ### RUN ALL ####################################################################
 
-bench {busy loop} {x}
+bench {busy loop} {busyloop}
+bench {mini loops} {miniloops}
 bench {fibonacci(25)} {fibonacci 25}
 bench {heapsort} {heapsort_main}
 bench {sieve} {sieve 10}

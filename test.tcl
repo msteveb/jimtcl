@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.16 2005/03/05 09:34:13 antirez Exp $
+# $Id: test.tcl,v 1.17 2005/03/06 22:42:33 antirez Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -2642,6 +2642,403 @@ test switch-10.9 {callback matches first if pat < str} {
     switch -command [lambda {pat str} {expr {$pat < $str}}] 4 \
         5 {expr 1} 3 {expr 2}
 } 2
+
+################################################################################
+# FOR
+################################################################################
+
+# Basic "for" operation.
+
+test for-1.1 {TclCompileForCmd: missing initial command} {
+    list [catch {for} msg] $msg
+} {1 {wrong # args: should be "for start test next body"}}
+test for-1.2 {TclCompileForCmd: error in initial command} {
+    list [catch {for {set}} msg] $msg
+} {1 {wrong # args: should be "for start test next body"}}
+catch {unset i}
+test for-1.3 {TclCompileForCmd: missing test expression} {
+    catch {for {set i 0}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-1.5 {TclCompileForCmd: test expression is enclosed in quotes} {
+    set i 0
+    for {} "$i > 5" {incr i} {}
+} {}
+test for-1.6 {TclCompileForCmd: missing "next" command} {
+    catch {for {set i 0} {$i < 5}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-1.7 {TclCompileForCmd: missing command body} {
+    catch {for {set i 0} {$i < 5} {incr i}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+catch {unset a}
+test for-1.9 {TclCompileForCmd: simple command body} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 break
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+test for-1.10 {TclCompileForCmd: command body in quotes} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} "append a x"
+    set a
+} {xxxxx}
+test for-1.11 {TclCompileForCmd: computed command body} {
+    catch {unset x1}
+    catch {unset bb}
+    catch {unset x2}
+    set x1 {append a x1; }
+    set bb {break}
+    set x2 {; append a x2}
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} $x1$bb$x2
+    set a
+} {x1}
+test for-1.13 {TclCompileForCmd: long command body} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 break
+	if $i>5 continue
+        set tcl_platform(machine) i686
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+test for-1.14 {TclCompileForCmd: for command result} {
+    set a [for {set i 0} {$i < 5} {incr i} {}]
+    set a
+} {}
+test for-1.15 {TclCompileForCmd: for command result} {
+    set a [for {set i 0} {$i < 5} {incr i} {if $i==3 break}]
+    set a
+} {}
+
+# Check "for" and "continue".
+
+test for-2.1 {TclCompileContinueCmd: arguments after "continue"} {
+    catch {continue foo} msg
+    set msg
+} {wrong # args: should be "continue"}
+test for-2.2 {TclCompileContinueCmd: continue result} {
+    catch continue
+} 4
+test for-2.3 {continue tests} {
+    set a {}
+    for {set i 1} {$i <= 4} {set i [expr $i+1]} {
+	if {$i == 2} continue
+	set a [concat $a $i]
+    }
+    set a
+} {1 3 4}
+test for-2.4 {continue tests} {
+    set a {}
+    for {set i 1} {$i <= 4} {set i [expr $i+1]} {
+	if {$i != 2} continue
+	set a [concat $a $i]
+    }
+    set a
+} {2}
+test for-2.5 {continue tests, nested loops} {
+    set msg {}
+    for {set i 1} {$i <= 4} {incr i} {
+	for {set a 1} {$a <= 2} {incr a} {
+            if {$i>=2 && $a>=2} continue
+            set msg [concat $msg "$i.$a"]
+        }
+    }
+    set msg
+} {1.1 1.2 2.1 3.1 4.1}
+test for-2.6 {continue tests, long command body} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==2 continue
+	if $i==4 break
+	if $i>5 continue
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	set a [concat $a $i]
+    }
+    set a
+} {1 3}
+
+# Check "for" and "break".
+
+test for-3.1 {TclCompileBreakCmd: arguments after "break"} {
+    catch {break foo} msg
+    set msg
+} {wrong # args: should be "break"}
+test for-3.2 {TclCompileBreakCmd: break result} {
+    catch break
+} 3
+test for-3.3 {break tests} {
+    set a {}
+    for {set i 1} {$i <= 4} {incr i} {
+	if {$i == 3} break
+	set a [concat $a $i]
+    }
+    set a
+} {1 2}
+test for-3.4 {break tests, nested loops} {
+    set msg {}
+    for {set i 1} {$i <= 4} {incr i} {
+	for {set a 1} {$a <= 2} {incr a} {
+            if {$i>=2 && $a>=2} break
+            set msg [concat $msg "$i.$a"]
+        }
+    }
+    set msg
+} {1.1 1.2 2.1 3.1 4.1}
+test for-3.5 {break tests, long command body} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==2 continue
+	if $i==5 break
+	if $i>5 continue
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i == 4} break
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	set a [concat $a $i]
+    }
+    set a
+} {1 3}
+test for-4.1 {break must reset the interp result} {
+    catch {
+        set z GLOBTESTDIR/dir2/file2.c
+        if [string match GLOBTESTDIR/dir2/* $z] {
+            break
+        }
+    } j
+    set j
+} {}
+
+# Test for incorrect "double evaluation" semantics
+
+test for-5.1 {possible delayed substitution of increment command} {
+    # Increment should be 5, and lappend should always append $a
+    catch {unset a}
+    catch {unset i}
+    set a 5
+    set i {}
+    for {set a 1} {$a < 12} "incr a $a" {lappend i $a}
+    set i
+} {1 6 11}
+
+test for-5.2 {possible delayed substitution of increment command} {
+    # Increment should be 5, and lappend should always append $a
+    catch {rename p ""}
+    proc p {} {
+	set a 5
+	set i {}
+	for {set a 1} {$a < 12} "incr a $a" {lappend i $a}
+	set i
+    }
+    p
+} {1 6 11}
+test for-5.3 {possible delayed substitution of body command} {
+    # Increment should be $a, and lappend should always append 5
+    set a 5
+    set i {}
+    for {set a 1} {$a < 12} {incr a $a} "lappend i $a"
+    set i
+} {5 5 5 5}
+test for-5.4 {possible delayed substitution of body command} {
+    # Increment should be $a, and lappend should always append 5
+    catch {rename p ""}
+    proc p {} {
+	set a 5
+	set i {}
+	for {set a 1} {$a < 12} {incr a $a} "lappend i $a"
+	set i
+    }
+    p
+} {5 5 5 5}
+
+# In the following tests we need to bypass the bytecode compiler by
+# substituting the command from a variable.  This ensures that command
+# procedure is invoked directly.
+
+test for-6.1 {Tcl_ForObjCmd: number of args} {
+    set z for
+    catch {$z} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-6.2 {Tcl_ForObjCmd: number of args} {
+    set z for
+    catch {$z {set i 0}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-6.3 {Tcl_ForObjCmd: number of args} {
+    set z for
+    catch {$z {set i 0} {$i < 5}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-6.4 {Tcl_ForObjCmd: number of args} {
+    set z for
+    catch {$z {set i 0} {$i < 5} {incr i}} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-6.5 {Tcl_ForObjCmd: number of args} {
+    set z for
+    catch {$z {set i 0} {$i < 5} {incr i} {body} extra} msg
+    set msg
+} {wrong # args: should be "for start test next body"}
+test for-6.6 {Tcl_ForObjCmd: error in initial command} {
+    set z for
+    list [catch {$z {set} {$i < 5} {incr i} {body}} msg] $msg
+} {1 {wrong # args: should be "set varName ?newValue?"}}
+test for-6.8 {Tcl_ForObjCmd: test expression is enclosed in quotes} {
+    set z for
+    set i 0
+    $z {set i 6} "$i > 5" {incr i} {set y $i}
+    set i
+} 6
+test for-6.10 {Tcl_ForObjCmd: simple command body} {
+    set z for
+    set a {}
+    $z {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 break
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+test for-6.11 {Tcl_ForObjCmd: command body in quotes} {
+    set z for
+    set a {}
+    $z {set i 1} {$i<6} {set i [expr $i+1]} "append a x"
+    set a
+} {xxxxx}
+test for-6.12 {Tcl_ForObjCmd: computed command body} {
+    set z for
+    catch {unset x1}
+    catch {unset bb}
+    catch {unset x2}
+    set x1 {append a x1; }
+    set bb {break}
+    set x2 {; append a x2}
+    set a {}
+    $z {set i 1} {$i<6} {set i [expr $i+1]} $x1$bb$x2
+    set a
+} {x1}
+test for-6.14 {Tcl_ForObjCmd: long command body} {
+    set z for
+    set a {}
+    $z {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 break
+	if $i>5 continue
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	if {$i>6 && $tcl_platform(machine) eq "xxx"} {
+	    catch {set a $a} msg
+	    catch {incr i 5} msg
+	    catch {incr i -5} msg
+	}
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+test for-6.15 {Tcl_ForObjCmd: for command result} {
+    set z for
+    set a [$z {set i 0} {$i < 5} {incr i} {}]
+    set a
+} {}
+test for-6.16 {Tcl_ForObjCmd: for command result} {
+    set z for
+    set a [$z {set i 0} {$i < 5} {incr i} {if $i==3 break}]
+    set a
+} {}
+
 
 ################################################################################
 # FINAL REPORT

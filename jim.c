@@ -1,7 +1,7 @@
 /* Jim - A small embeddable Tcl interpreter
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim.c,v 1.69 2005/03/06 10:43:06 antirez Exp $
+ * $Id: jim.c,v 1.70 2005/03/06 22:42:33 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
  */
 
 #define __JIM_CORE__
+#define JIM_OPTIMIZATION
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2625,6 +2626,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
         cmdPtr->delProc = delProc;
         Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     } else {
+        Jim_InterpIncrProcEpoch(interp);
         /* Free the arglist/body objects if it was a Tcl procedure */
         cmdPtr = he->val;
         if (cmdPtr->cmdProc == NULL) {
@@ -2662,6 +2664,7 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         cmdPtr->arityMax = arityMax;
         Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     } else {
+        Jim_InterpIncrProcEpoch(interp);
         /* Free the arglist/body objects if it was a Tcl procedure */
         cmdPtr = he->val;
         if (cmdPtr->cmdProc == NULL) {
@@ -6930,11 +6933,12 @@ int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags)
     script->fileName = NULL;
 
     JimParserInit(&parser, scriptText, scriptTextLen, 1);
-    while(!JimParserEof(&parser)) {
+    while(1) {
         char *token;
         int len, type, linenr;
 
         JimParseSubst(&parser, flags);
+        if (JimParserEof(&parser)) break;
         token = JimParserGetToken(&parser, &len, &type, &linenr);
         ScriptObjAddToken(interp, script, token, len, type,
                 NULL, linenr);
@@ -6968,8 +6972,26 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
     int i, len, retcode = JIM_OK;
     Jim_Obj *resObjPtr, *savedResultObjPtr;
 
-    Jim_IncrRefCount(substObjPtr); /* Make sure it's shared. */
     script = Jim_GetSubst(interp, substObjPtr, flags);
+#ifdef JIM_OPTIMIZATION
+    /* Fast path for a very common case with array-alike syntax,
+     * that's: $foo($bar) */
+    if (script->len == 1 && script->token[0].type == JIM_TT_VAR) {
+        Jim_Obj *varObjPtr = script->token[0].objPtr;
+        
+        Jim_IncrRefCount(varObjPtr);
+        resObjPtr = Jim_GetVariable(interp, varObjPtr, JIM_ERRMSG);
+        if (resObjPtr == NULL) {
+            Jim_DecrRefCount(interp, varObjPtr);
+            return JIM_ERR;
+        }
+        Jim_DecrRefCount(interp, varObjPtr);
+        *resObjPtrPtr = resObjPtr;
+        return JIM_OK;
+    }
+#endif
+
+    Jim_IncrRefCount(substObjPtr); /* Make sure it's shared. */
     /* In order to preserve the internal rep, we increment the
      * inUse field of the script internal rep structure. */
     script->inUse++;
@@ -7006,8 +7028,6 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
             if (Jim_EvalObj(interp, token[i].objPtr) != JIM_OK)
                 goto err;
             Jim_AppendObj(interp, resObjPtr, interp->result);
-            break;
-        case JIM_TT_EOL:
             break;
         default:
             Jim_Panic(
@@ -7535,11 +7555,176 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "start test next body");
         return JIM_ERR;
     }
+    /* Check if the for is on the form: for {set i 0} {$i < CONST} {incr i} */
+    /* XXX: NOTE: if variable traces are implemented, this optimization
+     * need to be modified to check for the proc epoch at every variable
+     * update. */
+#ifdef JIM_OPTIMIZATION
+    {
+        ScriptObj *initScript, *incrScript;
+        ExprByteCode *expr;
+        jim_wide start, stop, currentVal;
+        unsigned jim_wide procEpoch = interp->procEpoch;
+        Jim_Obj *varNamePtr, *stopVarNamePtr = NULL, *objPtr;
+        int cmpType;
+        struct Jim_Cmd *cmdPtr;
+
+        /* Do it only if there aren't shared arguments */
+        if (argv[1] == argv[2] || argv[2] == argv[3] || argv[1] == argv[3])
+            goto evalstart;
+        initScript = Jim_GetScript(interp, argv[1]);
+        expr = Jim_GetExpression(interp, argv[2]);
+        incrScript = Jim_GetScript(interp, argv[3]);
+
+        /* Ensure proper lengths to start */
+        if (initScript->len != 6) goto evalstart;
+        if (incrScript->len != 4) goto evalstart;
+        if (expr->len != 3) goto evalstart;
+        /* Ensure proper token types. */
+        if (initScript->token[2].type != JIM_TT_ESC ||
+            initScript->token[4].type != JIM_TT_ESC ||
+            incrScript->token[2].type != JIM_TT_ESC ||
+            expr->opcode[0] != JIM_EXPROP_VARIABLE ||
+            (expr->opcode[1] != JIM_EXPROP_NUMBER &&
+             expr->opcode[1] != JIM_EXPROP_VARIABLE) ||
+            (expr->opcode[2] != JIM_EXPROP_LT &&
+             expr->opcode[2] != JIM_EXPROP_LTE))
+            goto evalstart;
+        cmpType = expr->opcode[2];
+        /* Initialization command must be [set] */
+        cmdPtr = Jim_GetCommand(interp, initScript->token[0].objPtr, JIM_NONE);
+        if (cmdPtr == NULL || cmdPtr->cmdProc != Jim_SetCoreCommand)
+            goto evalstart;
+        /* Update command must be incr */
+        cmdPtr = Jim_GetCommand(interp, incrScript->token[0].objPtr, JIM_NONE);
+        if (cmdPtr == NULL || cmdPtr->cmdProc != Jim_IncrCoreCommand)
+            goto evalstart;
+        /* set, incr, expression must be about the same variable */
+        if (!Jim_StringEqObj(initScript->token[2].objPtr,
+                            incrScript->token[2].objPtr, 0))
+            goto evalstart;
+        if (!Jim_StringEqObj(initScript->token[2].objPtr,
+                            expr->obj[0], 0))
+            goto evalstart;
+        /* Check that the initialization and comparison are valid integers */
+        if (Jim_GetWide(interp, initScript->token[4].objPtr, &start) == JIM_ERR)
+            goto evalstart;
+        if (expr->opcode[1] == JIM_EXPROP_NUMBER &&
+            Jim_GetWide(interp, expr->obj[1], &stop) == JIM_ERR)
+        {
+            goto evalstart;
+        }
+
+        /* Initialization */
+        varNamePtr = expr->obj[0];
+        if (expr->opcode[1] == JIM_EXPROP_VARIABLE) {
+            stopVarNamePtr = expr->obj[1];
+            Jim_IncrRefCount(stopVarNamePtr);
+        }
+        Jim_IncrRefCount(varNamePtr);
+
+        /* --- OPTIMIZED FOR --- */
+        /* Start to loop */
+        objPtr = Jim_NewIntObj(interp, start);
+        if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
+            Jim_DecrRefCount(interp, varNamePtr);
+            if (stopVarNamePtr) Jim_DecrRefCount(interp, stopVarNamePtr);
+            Jim_IncrRefCount(objPtr);
+            Jim_DecrRefCount(interp, objPtr);
+            goto evalstart;
+        }
+        while (1) {
+            /* === Check condition === */
+            /* Common code: */
+            objPtr = Jim_GetVariable(interp, varNamePtr, JIM_NONE);
+            if (objPtr == NULL ||
+                Jim_GetWide(interp, objPtr, &currentVal) != JIM_OK)
+            {
+                Jim_DecrRefCount(interp, varNamePtr);
+                if (stopVarNamePtr) Jim_DecrRefCount(interp, stopVarNamePtr);
+                goto testcond;
+            }
+            /* Immediate or Variable? get the 'stop' value if the latter. */
+            if (stopVarNamePtr) {
+                objPtr = Jim_GetVariable(interp, stopVarNamePtr, JIM_NONE);
+                if (objPtr == NULL ||
+                    Jim_GetWide(interp, objPtr, &stop) != JIM_OK)
+                {
+                    Jim_DecrRefCount(interp, varNamePtr);
+                    Jim_DecrRefCount(interp, stopVarNamePtr);
+                    goto testcond;
+                }
+            }
+            if (cmpType == JIM_EXPROP_LT) {
+                if (currentVal >= stop) break;
+            } else {
+                if (currentVal > stop) break;
+            }
+            /* Eval body */
+            if ((retval = Jim_EvalObj(interp, argv[4])) != JIM_OK) {
+                switch(retval) {
+                case JIM_BREAK:
+                    if (stopVarNamePtr)
+                        Jim_DecrRefCount(interp, stopVarNamePtr);
+                    Jim_DecrRefCount(interp, varNamePtr);
+                    goto out;
+                case JIM_CONTINUE:
+                    /* nothing to do */
+                    break;
+                default:
+                    if (stopVarNamePtr)
+                        Jim_DecrRefCount(interp, stopVarNamePtr);
+                    Jim_DecrRefCount(interp, varNamePtr);
+                    return JIM_ERR;
+                }
+            }
+            /* If there was a change in procedures/command continue
+             * with the usual [for] command implementation */
+            if (procEpoch != interp->procEpoch) {
+                if (stopVarNamePtr)
+                    Jim_DecrRefCount(interp, stopVarNamePtr);
+                Jim_DecrRefCount(interp, varNamePtr);
+                goto evalnext;
+            }
+            /* Increment */
+            objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
+            if (objPtr->refCount == 1 && objPtr->typePtr == &intObjType) {
+                objPtr->internalRep.wideValue ++;
+                Jim_InvalidateStringRep(objPtr);
+            } else {
+                Jim_Obj *auxObjPtr;
+
+                if (Jim_GetWide(interp, objPtr, &currentVal) == JIM_ERR) {
+                    if (stopVarNamePtr)
+                        Jim_DecrRefCount(interp, stopVarNamePtr);
+                    Jim_DecrRefCount(interp, varNamePtr);
+                    goto evalnext;
+                }
+                auxObjPtr = Jim_NewIntObj(interp, currentVal+1);
+                if (Jim_SetVariable(interp, varNamePtr, auxObjPtr) == JIM_ERR) {
+                    if (stopVarNamePtr)
+                        Jim_DecrRefCount(interp, stopVarNamePtr);
+                    Jim_DecrRefCount(interp, varNamePtr);
+                    Jim_IncrRefCount(auxObjPtr);
+                    Jim_DecrRefCount(interp, auxObjPtr);
+                    goto evalnext;
+                }
+            }
+        }
+        if (stopVarNamePtr)
+            Jim_DecrRefCount(interp, stopVarNamePtr);
+        Jim_DecrRefCount(interp, varNamePtr);
+        Jim_SetEmptyResult(interp);
+        return JIM_OK;
+    }
+#endif
+evalstart:
     /* Eval start */
     if ((retval = Jim_EvalObj(interp, argv[1])) != JIM_OK)
         return retval;
     while (1) {
         int boolean;
+testcond:
         /* Test the condition */
         if ((retval = Jim_GetBoolFromExpr(interp, argv[2], &boolean))
                 != JIM_OK)
@@ -7552,12 +7737,13 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
                 goto out;
                 break;
             case JIM_CONTINUE:
-                continue;
+                /* Nothing to do */
                 break;
             default:
                 return retval;
             }
         }
+evalnext:
         /* Eval next */
         if ((retval = Jim_EvalObj(interp, argv[3])) != JIM_OK) {
             switch(retval) {
@@ -7976,21 +8162,30 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    const char *subcommand;
+    const char *options[] = {
+        "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
+    };
+    enum {
+        OPT_REFCOUNT, OPT_OBJCOUNT, OPT_OBJECTS, OPT_INVSTR, OPT_SCRIPTLEN,
+        OPT_EXPRLEN
+    };
+    int option;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "option ?...?");
         return JIM_ERR;
     }
-    subcommand = Jim_GetString(argv[1], NULL);
-    if (!strcmp(subcommand, "refcount")) {
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+    if (option == OPT_REFCOUNT) {
         if (argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "object");
             return JIM_ERR;
         }
         Jim_SetResult(interp, Jim_NewIntObj(interp, argv[2]->refCount));
         return JIM_OK;
-    } else if (!strcmp(subcommand, "objcount")) {
+    } else if (option == OPT_OBJCOUNT) {
         int freeobj = 0, liveobj = 0;
         char buf[256];
         Jim_Obj *objPtr;
@@ -8015,7 +8210,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         sprintf(buf, "free %d used %d", freeobj, liveobj);
         Jim_SetResultString(interp, buf, -1);
         return JIM_OK;
-    } else if (!strcmp(subcommand, "objects")) {
+    } else if (option == OPT_OBJECTS) {
         Jim_Obj *objPtr, *listObjPtr, *subListObjPtr;
         /* Count the number of live objects. */
         objPtr = interp->liveList;
@@ -8038,7 +8233,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         }
         Jim_SetResult(interp, listObjPtr);
         return JIM_OK;
-    } else if (!strcmp(subcommand, "invstr")) {
+    } else if (option == OPT_INVSTR) {
         Jim_Obj *objPtr;
 
         if (argc != 3) {
@@ -8049,6 +8244,26 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         if (objPtr->typePtr != NULL)
             Jim_InvalidateStringRep(objPtr);
         Jim_SetEmptyResult(interp);
+        return JIM_OK;
+    } else if (option == OPT_SCRIPTLEN) {
+        ScriptObj *script;
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "script");
+            return JIM_ERR;
+        }
+        script = Jim_GetScript(interp, argv[2]);
+        Jim_SetResult(interp, Jim_NewIntObj(interp, script->len));
+        return JIM_OK;
+    } else if (option == OPT_EXPRLEN) {
+        ExprByteCode *expr;
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "expression");
+            return JIM_ERR;
+        }
+        expr = Jim_GetExpression(interp, argv[2]);
+        if (expr == NULL)
+            return JIM_ERR;
+        Jim_SetResult(interp, Jim_NewIntObj(interp, expr->len));
         return JIM_OK;
     } else {
         Jim_SetResultString(interp,
