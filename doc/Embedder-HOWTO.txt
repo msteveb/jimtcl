@@ -1,0 +1,104 @@
+Embedder HOWTO
+--------------
+
+This document explains how to embed Jim into an existing application, in
+order to make the application scriptable, to write parts of the application
+in Jim on top of a C core, or just to use Jim as a configuration file format.
+
+STEP 1
+------
+
+Copy jim.c and jim.h into your project, and modify the Makefile in
+order to compile jim.c and link jim.o into your application.
+
+STEP 2
+------
+
+Include the file "jim.h" in your application, in the file where you
+defined your main() function. Before to include jim.h, only for this
+file you have to define JIM_EMBEDDED. So the two lines to add are:
+
+  #define JIM_EMBEDDED
+  #include "jim.h"
+
+Then add the call to Jim_InitEmbedded(); into your main() function.
+This call need to be placed before any other call to the Jim API.
+Example:
+
+  int main(int argc, char **argv) {
+     ....
+     Jim_InitEmbedded();
+     ...
+
+     /* Here is possible to call other Jim API functions */
+  }
+
+NOTE: If you require to call the Jim API from other files of your project
+you have just to include "jim.h" WITHOUT to define JIM_EMBEDDED.
+This definition is only useful inside the file that calls Jim_InitEmbedded(),
+i.e. in the file containing your main() function.
+
+STEP 3
+------
+
+Use the Jim API in order to glue your program with Jim. First of all you
+probably want to create an interpreter, add some command, and use
+Jim_Eval() to execute Jim scripts from your application:
+
+  #define JIM_EMBEDDED
+  #include "jim.h"
+  
+  #include <stdio.h>
+  
+  static int foobarJimHelloCommand(Jim_Interp *interp, int argc,
+          Jim_Obj *const *argv)
+  {
+      printf("Hello World!\n");
+      return JIM_OK;
+  }
+  
+  int main(void)
+  {
+      Jim_Interp *interp;
+      
+      Jim_InitEmbedded();
+      printf("Welcome to The FooBar Application\n");
+  
+      /* Create an interpreter */
+      interp = Jim_CreateInterp();
+      /* Add all the Jim core commands */
+      Jim_RegisterCoreCommands(interp);
+      /* Add a new foobar.hello command to Jim */
+      Jim_CreateCommand(interp, "foobar.hello", foobarJimHelloCommand, NULL);
+      /* Eval some Jim code. */
+      Jim_Eval(interp, "for {set i 0} {$i < 10} {incr i} {foobar.hello}");
+      return 0;
+  }
+
+STEP 4
+------
+
+To test this example complile with:
+
+  gcc main.c jim.c -ldl
+
+(you need to link against the 'dl' lib because Jim supports dynamic loading
+ of extensions)
+
+The run the example with ./a.out. The output should be:
+
+  Welcome to The FooBar Application
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+  Hello World!
+
+Check the API reference for more information.
+
+

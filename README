@@ -1,9 +1,9 @@
 The Jim Interpreter
 A small-footprint implementation of the Tcl programming language.
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 WHAT IS JIM?
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 Jim is a small footprint implementation of the Tcl programming language
 written from scratch. Currently it's a work in progress, but already
@@ -20,9 +20,9 @@ the "everything is a string" behaviour, implemented internally as
 dual ported objects to ensure that the execution time does not reflect
 the semantic of the language :)
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 WHEN JIM CAN BE USEFUL?
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 1) If you are writing an application, and want to make it scriptable, with
 Jim you have a way to do it that does not require to link your application
@@ -124,9 +124,9 @@ Makefile because it's not needed but will cause a compilation error
 For instructions about how to compile extensions just try 'make'
 and see the available options. Check also the next section of this file.
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 EXTENSIONS
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 JIM-POSIX
 
@@ -145,9 +145,15 @@ applications. For example run jim and try the extension with:
 
 You should see a notepad application running.
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+HOW TO EMBED JIM INTO APPLICATIONS / HOW TO WRITE EXTENSIONS FOR JIM
+--------------------------------------------------------------------------------
+
+See the documentation under the "doc" directory (work in progress).
+
+--------------------------------------------------------------------------------
 COPYRIGHT and LICENSE
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 Copyright (C) 2005 Salvatore Sanfilippo
 All Rights Reserved
