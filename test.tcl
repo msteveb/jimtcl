@@ -2237,6 +2237,55 @@ test string-9.3 {string length} {
     foo
 } 15
 
+# string map
+
+test string-10.4 {string map} {
+    string map {a b} abba
+} {bbbb}
+test string-10.5 {string map} {
+    string map {a b} a
+} {b}
+test string-10.6 {string map -nocase} {
+    string map -nocase {a b} Abba
+} {bbbb}
+test string-10.7 {string map} {
+    string map {abc 321 ab * a A} aabcabaababcab
+} {A321*A*321*}
+test string-10.8 {string map -nocase} {
+    string map -nocase {aBc 321 Ab * a A} aabcabaababcab
+} {A321*A*321*}
+test string-10.10 {string map} {
+    list [catch {string map {a b c} abba} msg] $msg
+} {1 {list must contain an even number of elements}}
+test string-10.11 {string map, nulls} {
+    string map {\x00 NULL blah \x00nix} {qwerty}
+} {qwerty}
+test string-10.12 {string map, unicode} {
+    string map [list \374 ue UE \334] "a\374ueUE\000EU"
+} aueue\334\0EU
+test string-10.13 {string map, -nocase unicode} {
+    string map -nocase [list \374 ue UE \334] "a\374ueUE\000EU"
+} aue\334\334\0EU
+test string-10.14 {string map, -nocase null arguments} {
+    string map -nocase {{} abc} foo
+} foo
+test string-10.15 {string map, one pair case} {
+    string map -nocase {abc 32} aAbCaBaAbAbcAb
+} {a32aBaAb32Ab}
+test string-10.16 {string map, one pair case} {
+    string map -nocase {ab 4321} aAbCaBaAbAbcAb
+} {a4321C4321a43214321c4321}
+test string-10.17 {string map, one pair case} {
+    string map {Ab 4321} aAbCaBaAbAbcAb
+} {a4321CaBa43214321c4321}
+test string-10.18 {string map, empty argument} {
+    string map -nocase {{} abc} foo
+} foo
+test string-10.19 {string map, empty arguments} {
+    string map -nocase {{} abc f bar {} def} foo
+} baroo
+
+
 ################################################################################
 # FINAL REPORT
 ################################################################################

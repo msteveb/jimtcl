@@ -8036,6 +8036,75 @@ static int Jim_GlobalCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* does the [string map] operation. On error NULL is returned,
+ * otherwise a new string object with the result, having refcount = 0,
+ * is returned. */
+static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
+        Jim_Obj *objPtr, int nocase)
+{
+    int numMaps;
+    const char **key, *str, *noMatchStart = NULL;
+    Jim_Obj **value;
+    int *keyLen, strLen, i;
+    Jim_Obj *resultObjPtr;
+    
+    Jim_ListLength(interp, mapListObjPtr, &numMaps);
+    if (numMaps % 2) {
+        Jim_SetResultString(interp,
+                "list must contain an even number of elements", -1);
+        return NULL;
+    }
+    /* Initialization */
+    numMaps /= 2;
+    key = Jim_Alloc(sizeof(char*)*numMaps);
+    keyLen = Jim_Alloc(sizeof(int)*numMaps);
+    value = Jim_Alloc(sizeof(Jim_Obj*)*numMaps);
+    resultObjPtr = Jim_NewStringObj(interp, "", 0);
+    for (i = 0; i < numMaps; i++) {
+        Jim_Obj *eleObjPtr;
+
+        Jim_ListIndex(interp, mapListObjPtr, i*2, &eleObjPtr, JIM_NONE);
+        key[i] = Jim_GetString(eleObjPtr, &keyLen[i]);
+        Jim_ListIndex(interp, mapListObjPtr, i*2+1, &eleObjPtr, JIM_NONE);
+        value[i] = eleObjPtr;
+    }
+    str = Jim_GetString(objPtr, &strLen);
+    /* Map it */
+    while(strLen) {
+        for (i = 0; i < numMaps; i++) {
+            if (strLen >= keyLen[i] && keyLen[i]) {
+                if (!JimStringCompare(str, keyLen[i], key[i], keyLen[i],
+                            nocase))
+                {
+                    if (noMatchStart) {
+                        Jim_AppendString(interp, resultObjPtr,
+                                noMatchStart, str-noMatchStart);
+                        noMatchStart = NULL;
+                    }
+                    Jim_AppendObj(interp, resultObjPtr, value[i]);
+                    str += keyLen[i];
+                    strLen -= keyLen[i];
+                    break;
+                }
+            }
+        }
+        if (i == numMaps) { /* no match */
+            if (noMatchStart == NULL)
+                noMatchStart = str;
+            str ++;
+            strLen --;
+        }
+    }
+    if (noMatchStart) {
+        Jim_AppendString(interp, resultObjPtr,
+            noMatchStart, str-noMatchStart);
+    }
+    Jim_Free(key);
+    Jim_Free(keyLen);
+    Jim_Free(value);
+    return resultObjPtr;
+}
+
 /* [string] */
 static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
@@ -8104,6 +8173,26 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         objPtr = Jim_StringRangeObj(interp, argv[2], argv[3], argv[4]);
+        if (objPtr == NULL)
+            return JIM_ERR;
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
+    } else if (Jim_CompareStringImmediate(interp, argv[1], "map")) {
+        int nocase = 0;
+        Jim_Obj *objPtr;
+
+        if ((argc != 4 && argc != 5) ||
+            (argc == 5 && Jim_CompareStringImmediate(interp,
+                argv[2], "-nocase") == 0)) {
+            Jim_WrongNumArgs(interp, 2, argv, "?-nocase? mapList "
+                    "string");
+            return JIM_ERR;
+        }
+        if (argc == 5) {
+            nocase = 1;
+            argv++;
+        }
+        objPtr = JimStringMap(interp, argv[2], argv[3], nocase);
         if (objPtr == NULL)
             return JIM_ERR;
         Jim_SetResult(interp, objPtr);
