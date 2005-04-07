@@ -1,3 +1,8 @@
+2005-04-06 20:20  antirez
+
+	* ChangeLog, jim.c, jimsh.c: Modified jimsh.c in order to put the
+	  directory of the Jim executable as a component of jim_libpath.
+
 2005-04-06 16:16  patthoyts
 
 	* Makefile.vc, jim.c: Add the executable file location into

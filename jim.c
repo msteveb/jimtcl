@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.150 2005/04/06 18:20:00 antirez Exp $
+ * $Id: jim.c,v 1.151 2005/04/07 06:52:14 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -432,6 +432,14 @@ int Jim_StringToDouble(const char *str, double *doublePtr)
     if (str[0] == '\0' || endptr[0] != '\0')
         return JIM_ERR;
     return JIM_OK;
+}
+
+static jim_wide JimPowWide(jim_wide b, jim_wide e)
+{
+    jim_wide i, res = 1;
+    if ((b==0 && e!=0) || (e<0)) return 0;
+    for(i=0; i<e; i++) {res *= b;}
+    return res;
 }
 
 /* -----------------------------------------------------------------------------
@@ -1384,25 +1392,15 @@ int JimParseComment(struct JimParserCtx *pc)
 /* xdigitval and odigitval are helper functions for JimParserGetToken() */
 static int xdigitval(int c)
 {
-    switch(c) {
-    case '0': return 0; case '1': return 1; case '2': return 2;
-    case '3': return 3; case '4': return 4; case '5': return 5;
-    case '6': return 6; case '7': return 7; case '8': return 8;
-    case '9': return 9; case 'A': case 'a': return 10;
-    case 'B': case 'b': return 11; case 'C': case 'c': return 12;
-    case 'D': case 'd': return 13; case 'E': case 'e': return 14;
-    case 'F': case 'f': return 15;
-    }
+    if (c >= '0' && c <= '7') return c-'0';
+    if (c >= 'a' && c <= 'f') return c-'a'+10;
+    if (c >= 'A' && c <= 'F') return c-'A'+10;
     return -1;
 }
 
 static int odigitval(int c)
 {
-    switch(c) {
-    case '0': return 0; case '1': return 1; case '2': return 2;
-    case '3': return 3; case '4': return 4; case '5': return 5;
-    case '6': return 6; case '7': return 7;
-    }
+    if (c >= '0' && c <= '7') return c-'0';
     return -1;
 }
 
@@ -5708,30 +5706,31 @@ static int JimParseExprIrrational(struct JimParserCtx *pc);
 #define JIM_EXPROP_LOGICOR 19
 #define JIM_EXPROP_LOGICAND_LEFT 20
 #define JIM_EXPROP_LOGICOR_LEFT 21
-#define JIM_EXPROP_BINARY_NUM_LAST 21 /* last */
+#define JIM_EXPROP_POW 22
+#define JIM_EXPROP_BINARY_NUM_LAST 22 /* last */
 
 /* Binary operators (strings) */
-#define JIM_EXPROP_STREQ 22
-#define JIM_EXPROP_STRNE 23
+#define JIM_EXPROP_STREQ 23
+#define JIM_EXPROP_STRNE 24
 
 /* Unary operators (numbers) */
-#define JIM_EXPROP_NOT 24
-#define JIM_EXPROP_BITNOT 25
-#define JIM_EXPROP_UNARYMINUS 26
-#define JIM_EXPROP_UNARYPLUS 27
-#define JIM_EXPROP_LOGICAND_RIGHT 28
-#define JIM_EXPROP_LOGICOR_RIGHT 29
+#define JIM_EXPROP_NOT 25
+#define JIM_EXPROP_BITNOT 26
+#define JIM_EXPROP_UNARYMINUS 27
+#define JIM_EXPROP_UNARYPLUS 28
+#define JIM_EXPROP_LOGICAND_RIGHT 29
+#define JIM_EXPROP_LOGICOR_RIGHT 30
 
 /* Ternary operators */
-#define JIM_EXPROP_TERNARY 30
+#define JIM_EXPROP_TERNARY 31
 
 /* Operands */
-#define JIM_EXPROP_NUMBER 31
-#define JIM_EXPROP_COMMAND 32
-#define JIM_EXPROP_VARIABLE 33
-#define JIM_EXPROP_DICTSUGAR 34
-#define JIM_EXPROP_SUBST 35
-#define JIM_EXPROP_STRING 36
+#define JIM_EXPROP_NUMBER 32
+#define JIM_EXPROP_COMMAND 33
+#define JIM_EXPROP_VARIABLE 34
+#define JIM_EXPROP_DICTSUGAR 35
+#define JIM_EXPROP_SUBST 36
+#define JIM_EXPROP_STRING 37
 
 /* Operators table */
 typedef struct Jim_ExprOperator {
@@ -5747,6 +5746,8 @@ static struct Jim_ExprOperator Jim_ExprOperators[] = {
     {"~", 300, 1, JIM_EXPROP_BITNOT},
     {"unarymin", 300, 1, JIM_EXPROP_UNARYMINUS},
     {"unaryplus", 300, 1, JIM_EXPROP_UNARYPLUS},
+
+    {"**", 250, 2, JIM_EXPROP_POW},
 
     {"*", 200, 2, JIM_EXPROP_MUL},
     {"/", 200, 2, JIM_EXPROP_DIV},
@@ -6051,6 +6052,7 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
         case JIM_EXPROP_BITOR:
         case JIM_EXPROP_LOGICAND:
         case JIM_EXPROP_LOGICOR:
+        case JIM_EXPROP_POW:
             /* binary operations */
             if (stacklen < 2) return JIM_ERR;
             stacklen--;
@@ -6468,6 +6470,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
             case JIM_EXPROP_BITAND: wC = wA&wB; break;
             case JIM_EXPROP_BITXOR: wC = wA^wB; break;
             case JIM_EXPROP_BITOR: wC = wA|wB; break;
+            case JIM_EXPROP_POW: wC = JimPowWide(wA,wB); break;
             case JIM_EXPROP_LOGICAND_LEFT:
                 if (wA == 0) {
                     i += (int)wB;
@@ -6542,6 +6545,7 @@ trydouble:
             case JIM_EXPROP_BITXOR:
             case JIM_EXPROP_BITOR:
             case JIM_EXPROP_MOD:
+            case JIM_EXPROP_POW:
                 Jim_SetResultString(interp,
                     "Got floating-point value where integer was expected", -1);
                 error = 1;
@@ -11435,7 +11439,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.150 2005/04/06 18:20:00 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.151 2005/04/07 06:52:14 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
