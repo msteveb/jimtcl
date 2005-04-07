@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.5 2005/04/06 18:20:00 antirez Exp $
+ * $Id: jimsh.c,v 1.6 2005/04/07 07:27:52 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 /* ... and impossible with just ANSI C */
 static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 {
-    JIM_UNUSED(argv0);
+    JIM_NOTUSED(argv0);
     return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
 }
 #endif /* JIM_ANSIC */

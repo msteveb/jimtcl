@@ -1,3 +1,10 @@
+2005-04-07 08:52  antirez
+
+	* ChangeLog, jim.c: The ** expr operator, thanks to Richard
+	  Suchenwirth.	Limited to integers because pow() needs the
+	  inclusion of math.h.	The plan is to put everything depends on
+	  math.h in the math lib.
+
 2005-04-06 20:20  antirez
 
 	* ChangeLog, jim.c, jimsh.c: Modified jimsh.c in order to put the
