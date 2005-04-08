@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.23 2005/04/06 13:08:01 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.24 2005/04/08 14:07:23 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -489,6 +489,7 @@ Win32_GetPerformanceInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 
+#if WINVER >= 0x0500
 static int
 Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
@@ -518,6 +519,7 @@ Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
     return JIM_OK;
 }
+#endif /* WINVER >= 0x0500 */
 
 static int
 Win32_GetCursorPos(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -750,7 +752,6 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetActiveWindow);
     CMD(SetActiveWindow);
     CMD(SetForegroundWindow);
-    CMD(GetCursorInfo);
     CMD(GetCursorPos);
     CMD(SetCursorPos);
     CMD(GetCursor);
@@ -767,6 +768,10 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
+
+#if WINVER >= 0x0500
+    CMD(GetCursorInfo);
+#endif
 
     /* Check that this DLL is available before creating the command. */
     hLib = LoadLibrary(_T("psapi"));
