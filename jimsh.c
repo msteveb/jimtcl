@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.6 2005/04/07 07:27:52 antirez Exp $
+ * $Id: jimsh.c,v 1.7 2005/04/08 14:06:00 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef WIN32
+#define STRICT
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif /* WIN32 */
 
 #include <stdio.h>
 #include <stdlib.h>
