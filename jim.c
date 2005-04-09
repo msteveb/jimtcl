@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.153 2005/04/09 08:23:40 antirez Exp $
+ * $Id: jim.c,v 1.154 2005/04/09 12:57:49 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3990,6 +3990,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->lastCollectTime = time(NULL);
     i->freeFramesList = NULL;
     i->prngState = NULL;
+    i->evalRetcodeFlag = 0;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -5662,6 +5663,8 @@ int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         returnCode = JIM_BREAK;
     else if (!JimStringCompare(str, strLen, "continue", 8, JIM_NOCASE))
         returnCode = JIM_CONTINUE;
+    else if (!JimStringCompare(str, strLen, "eval", 4, JIM_NOCASE))
+        returnCode = JIM_EVAL;
     else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
@@ -8081,6 +8084,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     j = 0; /* on normal termination, the argv array is already
           Jim_DecrRefCount-ed. */
 err:
+    /* Handle errors. */
     if (retcode == JIM_ERR && !interp->errorFlag) {
         interp->errorFlag = 1;
         JimSetErrorFileName(interp, script->fileName);
@@ -8168,12 +8172,21 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     } else {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
     }
-
-    /* Handle the return code */
+    /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
-        int returnCode = interp->returnCode;
+        retcode = interp->returnCode;
         interp->returnCode = JIM_OK;
-        return returnCode;
+    }
+    /* Handle the JIM_EVAL return code */
+    if (retcode == JIM_EVAL && !interp->evalRetcodeFlag) {
+        interp->evalRetcodeFlag = 1;
+        while (retcode == JIM_EVAL) {
+            Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
+            Jim_IncrRefCount(resultScriptObjPtr);
+            retcode = Jim_EvalObj(interp, resultScriptObjPtr);
+            Jim_DecrRefCount(interp, resultScriptObjPtr);
+        }
+        interp->evalRetcodeFlag = 0;
     }
     return retcode;
 }
@@ -11451,7 +11464,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.153 2005/04/09 08:23:40 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.154 2005/04/09 12:57:49 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

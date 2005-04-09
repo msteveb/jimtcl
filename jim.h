@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.70 2005/04/06 10:14:09 patthoyts Exp $
+ * $Id: jim.h,v 1.71 2005/04/09 12:57:49 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,6 +116,7 @@ extern "C" {
 #define JIM_RETURN 2
 #define JIM_BREAK 3
 #define JIM_CONTINUE 4
+#define JIM_EVAL 5
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
@@ -467,6 +468,8 @@ typedef struct Jim_Interp {
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *unknown; /* Unknown command cache */
     int errorFlag; /* Set if an error occurred during execution. */
+    int evalRetcodeFlag; /* True if the current script is executed as result
+                            of a JIM_EVAL retcode. */
     void *cmdPrivData; /* Used to pass the private data pointer to
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */
