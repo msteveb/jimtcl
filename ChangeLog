@@ -1,3 +1,16 @@
+2005-04-08 16:07  patthoyts
+
+	* jim-win32.c: Do not add cursorinfo if build target cannot cope.
+
+2005-04-08 16:06  patthoyts
+
+	* jim.c, jimsh.c: Fix win32 build
+
+2005-04-07 09:27  antirez
+
+	* ChangeLog, jimsh.c: Fixed a typo that prevented compilation with
+	  JIM_ANSIC
+
 2005-04-07 08:52  antirez
 
 	* ChangeLog, jim.c: The ** expr operator, thanks to Richard

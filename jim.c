@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.152 2005/04/08 14:06:00 patthoyts Exp $
+ * $Id: jim.c,v 1.153 2005/04/09 08:23:40 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -477,6 +477,15 @@ void Jim_Panic(const char *fmt, ...)
 /* -----------------------------------------------------------------------------
  * Memory allocation
  * ---------------------------------------------------------------------------*/
+
+/* Macro used for memory debugging.
+ * In order for they to work you have to rename Jim_Alloc into _Jim_Alloc
+ * and similary for Jim_Realloc and Jim_Free */
+#if 0
+#define Jim_Alloc(s) (printf("%s %d: Jim_Alloc(%d)\n",__FILE__,__LINE__,s),_Jim_Alloc(s))
+#define Jim_Free(p) (printf("%s %d: Jim_Free(%p)\n",__FILE__,__LINE__,p),_Jim_Free(p))
+#define Jim_Realloc(p,s) (printf("%s %d: Jim_Realloc(%p,%d)\n",__FILE__,__LINE__,p,s),_Jim_Realloc(p,s))
+#endif
 
 void *Jim_Alloc(int size)
 {
@@ -2238,7 +2247,7 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
             if (i+1 != count)
                 Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
         }
-        free(tablePtrSorted);
+        Jim_Free(tablePtrSorted);
     }
     return JIM_ERR;
 }
@@ -11442,7 +11451,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.152 2005/04/08 14:06:00 patthoyts Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.153 2005/04/09 08:23:40 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
