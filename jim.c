@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.155 2005/04/10 09:51:11 antirez Exp $
+ * $Id: jim.c,v 1.156 2005/04/10 17:04:12 chi Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -516,7 +516,7 @@ char *Jim_StrDup(const char *s)
     return copy;
 }
 
-char *Jim_StrDupLen(char *s, int l)
+char *Jim_StrDupLen(const char *s, int l)
 {
     char *copy = Jim_Alloc(l+1);
     
@@ -6753,7 +6753,7 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 typedef struct ScanFmtPartDescr {
     char type;         /* Type of conversion (e.g. c, d, f) */
     char modifier;     /* Modify type (e.g. l - long, h - short */
-    int  width;        /* Maximal width of input to be converted */
+    size_t  width;     /* Maximal width of input to be converted */
     int  pos;          /* -1 - no assign, 0 - natural pos, >0 - XPG3 pos */ 
     char *arg;         /* Specification of a CHARSET conversion */
     char *prefix;      /* Prefix to be scanned literally before conversion */
@@ -6779,9 +6779,9 @@ typedef struct ScanFmtPartDescr {
 typedef struct ScanFmtStringObj {
     jim_wide        size;         /* Size of internal repr in bytes */
     char            *stringRep;   /* Original string representation */
-    int             count;        /* Number of ScanFmtPartDescr contained */
-    int             convCount;    /* Number of conversions that will assign */
-    int             maxPos;       /* Max position index if XPG3 is used */
+    size_t          count;        /* Number of ScanFmtPartDescr contained */
+    size_t          convCount;    /* Number of conversions that will assign */
+    size_t          maxPos;       /* Max position index if XPG3 is used */
     const char      *error;       /* Ptr to error text (NULL if no error */
     char            *scratch;     /* Some scratch pad used by Jim_ScanString */
     ScanFmtPartDescr descr[1];    /* The vector of partial descriptions */
@@ -6859,7 +6859,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     fmtObj = (ScanFmtStringObj*)Jim_Alloc(approxSize);
     memset(fmtObj, 0, approxSize);
     fmtObj->size = approxSize;
-    fmtObj->maxPos = -1;
+    fmtObj->maxPos = 0;
     fmtObj->scratch = (char*)&fmtObj->descr[maxCount+1];
     fmtObj->stringRep = fmtObj->scratch + maxFmtLen + 3 + 1;
     memcpy(fmtObj->stringRep, fmt, maxFmtLen);
@@ -6878,7 +6878,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
             for (; fmt < fmtEnd; ++fmt) {
                 if (*fmt == '%') {
                     if (fmt[1] != '%') break;
-                    buffer[i++] = *fmt++;
+                    ++fmt;
                 }
                 buffer[i++] = *fmt;
             }
@@ -6924,7 +6924,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
                     descr->width = width;
                     fmt += skip;
                 }
-                if (descr->pos > fmtObj->maxPos)
+                if (descr->pos > 0 && (size_t)descr->pos > fmtObj->maxPos)
                     fmtObj->maxPos = descr->pos;
             } else {
                 /* Number was not a XPG3, so it has to be a width */
@@ -6995,39 +6995,89 @@ done:
 #define FormatGetError(_fo_) \
     ((ScanFmtStringObj*)((_fo_)->internalRep.ptr))->error
 
-/* BuildScanFormat will build a format string suitable for usage in functions
- * of the scanf family. The information to build such a format specification
- * will be taken from the part description of the parsed format information
- * contained in the internal object representation.
- *
- * The format string will be build within the scratch pad area of the
- * object representation and therefore overwritten every time another one
- * is build. A '%n' will be appended to the format string to get the number
- * of characters scanned so far.  */
+/* Some Bit testing/setting/cleaning routines. For now only used in handling
+ * charsets ([a-z123]) within scanning. Later on perhaps a base for a 
+ * bitvector implementation in Jim? */ 
 
-static const char *BuildScanFormat(ScanFmtStringObj *fmtObj, long index)
+static int JimTestBit(const char *bitvec, char ch)
 {
-    ScanFmtPartDescr *descr = &fmtObj->descr[index];
-    char *buffer = fmtObj->scratch;
-    if (descr->prefix) {
-        strcpy(buffer, descr->prefix);
-        buffer += strlen(descr->prefix);
+    div_t pos = div(ch-1, 8);
+    return bitvec[pos.quot] & (1 << pos.rem);
+}
+
+static void JimSetBit(char *bitvec, char ch)
+{
+    div_t pos = div(ch-1, 8);
+    bitvec[pos.quot] |= (1 << pos.rem);
+}
+
+static void JimClearBit(char *bitvec, char ch)
+{
+    div_t pos = div(ch-1, 8);
+    bitvec[pos.quot] &= ~(1 << pos.rem);
+}
+
+/* JimScanAString is used to scan an unspecified string that ends with
+ * next WS, or a string that is specified via a charset. The charset
+ * is currently implemented in a way to only allow for usage with
+ * ASCII. Whenever we will switch to UNICODE, another idea has to
+ * be born :-/
+ *
+ * FIXME: Works only with ASCII */
+
+static Jim_Obj *
+JimScanAString(Jim_Interp *interp, const char *sdescr, const char *str)
+{
+    size_t i;
+    Jim_Obj *result;
+    char charset[256/8+1];  /* A Charset may contain max 256 chars */
+    char *buffer = Jim_Alloc(strlen(str)+1), *anchor = buffer;
+
+    /* First init charset to nothing or all, depending if a specified
+     * or an unspecified string has to be parsed */
+    memset(charset, (sdescr ? 0 : 255), sizeof(charset));
+    if (sdescr) {
+        /* There was a set description given, that means we are parsing
+         * a specified string. So we have to build a corresponding 
+         * charset reflecting the description */
+        int notFlag = 0;
+        /* Should the set be negated at the end? */
+        if (*sdescr == '^') {
+            notFlag = 1;
+            ++sdescr;
+        }
+        /* Here '-' is meant literally and not to define a range */
+        if (*sdescr == '-') {
+            JimSetBit(charset, '-');
+            ++sdescr;
+        }
+        while (*sdescr) {
+            if (sdescr[1] == '-' && sdescr[2] != 0) {
+                /* Handle range definitions */
+                int i;
+                for (i=sdescr[0]; i <= sdescr[2]; ++i)
+                    JimSetBit(charset, i);
+                sdescr += 3;
+            } else {
+                /* Handle verbatim character definitions */
+                JimSetBit(charset, *sdescr++);
+            }
+        }
+        /* Negate the charset if there was a NOT given */
+        for (i=0; notFlag && i < sizeof(charset); ++i)
+            charset[i] = ~charset[i];
+    } 
+    /* And after all the mess above, the real work begin ... */
+    while (str && *str) {
+        if (!sdescr && isspace((int)*str))
+            break; /* EOS via WS if unspecified */
+        if (JimTestBit(charset, *str)) *buffer++ = *str++;
+        else break;             /* EOS via mismatch if specified scanning */
     }
-    *buffer++ = '%';
-    if (descr->width != 0) {
-        sprintf(buffer, "%d", descr->width);
-        buffer += strlen(buffer);
-    }
-    if (descr->type == '[') {
-        sprintf(buffer, "[%s]%%n", descr->arg);
-    } else {
-        if (descr->modifier == 'l' && strchr("ndioux", descr->type) != 0)
-            *buffer++ = 'q';
-        else if (strchr("ndiouxefg", descr->type) != 0)
-            *buffer++ = 'l';
-        sprintf(buffer, "%c%%n", descr->type);
-    }
-    return fmtObj->scratch;
+    *buffer = 0;                /* Close the string properly ... */
+    result = Jim_NewStringObj(interp, anchor, -1);
+    Jim_Free(anchor);           /* ... and free it afer usage */
+    return result;
 }
 
 /* ScanOneEntry will scan one entry out of the string passed as argument.
@@ -7039,55 +7089,134 @@ static const char *BuildScanFormat(ScanFmtStringObj *fmtObj, long index)
 static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
         ScanFmtStringObj *fmtObj, long index, Jim_Obj **valObjPtr)
 {
-    char buffer[256];
+#   define MAX_SIZE (sizeof(jim_wide) > sizeof(double) \
+        ? sizeof(jim_wide)                             \
+        : sizeof(double))
+    char buffer[MAX_SIZE];
     char *value = buffer;
-    const char *fmt;
+    const char *tok;
     const ScanFmtPartDescr *descr = &fmtObj->descr[index];
-    long sLen = 0, scanned = 0;
-    int rc;
+    size_t sLen = strlen(&str[pos]), scanned = 0;
+    size_t anchor = pos;
+    int i;
 
-    /* In case of a string value to be parsed we look if a larger
-     * buffer is necessary to hold the result */
-    if (descr->type == 's' || descr->type == '[') {
-        sLen = strlen(&str[pos]);
-        if ((unsigned)sLen >= sizeof(buffer))
-            value = Jim_Alloc(sLen * sizeof(char) + 1);
+    /* First pessimiticly assume, we will not scan anything :-) */
+    *valObjPtr = 0;
+    if (descr->prefix) {
+        /* There was a prefix given before the conversion, skip it and adjust
+         * the string-to-be-parsed accordingly */
+        for (i=0; str[pos] && descr->prefix[i]; ++i) {
+            /* If prefix require, skip WS */
+            if (isspace((int)descr->prefix[i]))
+                while (str[pos] && isspace((int)str[pos])) ++pos;
+            else if (descr->prefix[i] != str[pos]) 
+                break;  /* Prefix do not match here, leave the loop */
+            else
+                ++pos;  /* Prefix matched so far, next round */
+        }
+        if (str[pos] == 0)
+            return -1;  /* All of str consumed: EOF condition */
+        else if (descr->prefix[i] != 0)
+            return 0;   /* Not whole prefix consumed, no conversion possible */
     }
-    fmt = BuildScanFormat(fmtObj, index);
-    rc = sscanf(&str[pos], fmt, value, &scanned);
+    /* For all but following conversion, skip leading WS */
+    if (descr->type != 'c' && descr->type != '[' && descr->type != 'n')
+        while (isspace((int)str[pos])) ++pos;
+    /* Determine how much skipped/scanned so far */
+    scanned = pos - anchor;
     if (descr->type == 'n') {
-        if (descr->modifier == 'l')
-            *valObjPtr = Jim_NewIntObj(interp, pos + *(jim_wide*)value);
-        else
-            *valObjPtr = Jim_NewIntObj(interp, pos + *(long*)value);
-        /* Probably a prefix was before the '%n' spec? Add that length */
-        scanned = *(long*)value; 
-    } else if (rc == EOF) {
-        scanned = -1;
-    } else if (rc == 1) {
-        /* Convert the scanned value and add assign to be returned */
+        /* Return pseudo conversion means: how much scanned so far? */
+        *valObjPtr = Jim_NewIntObj(interp, anchor + scanned);
+    } else if (str[pos] == 0) {
+        /* Cannot scan anything, as str is totally consumed */
+        return -1;
+    } else {
+        /* Processing of conversions follows ... */
+        if (descr->width > 0) {
+            /* Do not try to scan as fas as possible but only the given width.
+             * To ensure this, we copy the part that should be scanned. */
+            size_t tLen = descr->width > sLen ? sLen : descr->width;
+            tok = Jim_StrDupLen(&str[pos], tLen);
+        } else {
+            /* As no width was given, simply refer to the original string */
+            tok = &str[pos];
+        }
         switch (descr->type) {
             case 'c':
-                *valObjPtr = Jim_NewIntObj(interp, *value);
+                *valObjPtr = Jim_NewIntObj(interp, *tok);
+                scanned += 1;
                 break;
-            case 'd': case 'o': case 'x': case 'u': case 'i':
-                if (descr->modifier == 'l')
-                    *valObjPtr = Jim_NewIntObj(interp, *(jim_wide*)value);
-                else
-                    *valObjPtr = Jim_NewIntObj(interp, *(long*)value);
+            case 'd': case 'o': case 'x': case 'u': case 'i': {
+                char *endp;  /* Position where the number finished */
+                int base = descr->type == 'o' ? 8
+                    : descr->type == 'x' ? 16
+                    : descr->type == 'i' ? 0
+                    : 10;
+                    
+                do {
+                    /* Try to scan a number with the given base */
+                    if (descr->modifier == 'l')
+                      if (descr->type == 'u')
+                        *(jim_wide*)value = strtoull(tok, &endp, base);
+                      else
+                        *(jim_wide*)value = strtoll(tok, &endp, base);
+                    else
+                      if (descr->type == 'u')
+                        *(long*)value = strtoul(tok, &endp, base);
+                      else
+                        *(long*)value = strtol(tok, &endp, base);
+                    /* If scanning failed, and base was undetermined, simply
+                     * put it to 10 and try once more. This should catch the
+                     * case where %i begin to parse a number prefix (e.g. 
+                     * '0x' but no further digits follows. This will be
+                     * handled as a ZERO followed by a char 'x' by Tcl */
+                    if (endp == tok && base == 0) base = 10;
+                    else break;
+                } while (1);
+                if (endp != tok) {
+                    /* There was some number sucessfully scanned! */
+                    if (descr->modifier == 'l')
+                        *valObjPtr = Jim_NewIntObj(interp, *(jim_wide*)value);
+                    else
+                        *valObjPtr = Jim_NewIntObj(interp, *(long*)value);
+                    /* Adjust the number-of-chars scanned so far */
+                    scanned += endp - tok;
+                } else {
+                    /* Nothing was scanned. We have to determine if this
+                     * happened due to e.g. prefix mismatch or input str
+                     * exhausted */
+                    scanned = *tok ? 0 : -1;
+                }
                 break;
-            case 's': case '[':
-                *valObjPtr = Jim_NewStringObj(interp, value, -1);
+            }
+            case 's': case '[': {
+                *valObjPtr = JimScanAString(interp, descr->arg, tok);
+                scanned += Jim_Length(*valObjPtr);
                 break;
-            case 'e': case 'f': case 'g':
-                *valObjPtr = Jim_NewDoubleObj(interp, *(double*)value);
+            }
+            case 'e': case 'f': case 'g': {
+                char *endp;
+
+                *(double*)value = strtod(tok, &endp);
+                if (endp != tok) {
+                    /* There was some number sucessfully scanned! */
+                    *valObjPtr = Jim_NewDoubleObj(interp, *(double*)value);
+                    /* Adjust the number-of-chars scanned so far */
+                    scanned += endp - tok;
+                } else {
+                    /* Nothing was scanned. We have to determine if this
+                     * happened due to e.g. prefix mismatch or input str
+                     * exhausted */
+                    scanned = *tok ? 0 : -1;
+                }
                 break;
+            }
         }
+        /* If a substring was allocated (due to pre-defined width) do not
+         * forget to free it */
+        if (tok != &str[pos])
+            Jim_Free((char*)tok);
     }
-    /* If string was scanned and additional buffer allocated, free it! */
-    if ((descr->type == 's' || descr->type == '[') 
-        && value != buffer)
-        Jim_Free((char*)value);
     return scanned;
 }
 
@@ -7098,8 +7227,9 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
 Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr,
         Jim_Obj *fmtObjPtr, int flags)
 {
-    int i, strLen, pos, scanned = 1;
-    const char *str = Jim_GetString(strObjPtr, &strLen);
+    size_t i, pos;
+    int scanned = 1;
+    const char *str = Jim_GetString(strObjPtr, 0);
     Jim_Obj *resultList = 0;
     Jim_Obj **resultVec;
     int resultc;
@@ -11083,7 +11213,10 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
     if (listPtr == 0)
         return JIM_ERR;
     if (argc > 3) {
-        if (listPtr == (Jim_Obj*)EOF) {
+        int len = 0;
+        if (listPtr != 0 && listPtr != (Jim_Obj*)EOF)
+            Jim_ListLength(interp, listPtr, &len);
+        if (listPtr == (Jim_Obj*)EOF || len == 0) { // XXX
             Jim_SetResult(interp, Jim_NewIntObj(interp, -1));
             return JIM_OK;
         }
@@ -11466,7 +11599,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.155 2005/04/10 09:51:11 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.156 2005/04/10 17:04:12 chi Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

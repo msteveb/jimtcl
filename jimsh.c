@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.7 2005/04/08 14:06:00 patthoyts Exp $
+ * $Id: jimsh.c,v 1.8 2005/04/10 17:04:13 chi Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,8 +57,9 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 
     /* Check if the executable was called with an absolute pathname */
     if (argv0[0] == '/') {
+		char *p;
         strncpy(path, argv0, JIM_PATH_LEN);
-        char *p = strrchr(path, '/');
+        p = strrchr(path, '/');
         if (p != path)
             *p = '\0';
         return Jim_NewStringObj(interp, path, -1);
