@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.154 2005/04/09 12:57:49 antirez Exp $
+ * $Id: jim.c,v 1.155 2005/04/10 09:51:11 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3990,7 +3990,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->lastCollectTime = time(NULL);
     i->freeFramesList = NULL;
     i->prngState = NULL;
-    i->evalRetcodeFlag = 0;
+    i->evalRetcodeLevel = -1;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -8178,15 +8178,17 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
         interp->returnCode = JIM_OK;
     }
     /* Handle the JIM_EVAL return code */
-    if (retcode == JIM_EVAL && !interp->evalRetcodeFlag) {
-        interp->evalRetcodeFlag = 1;
+    if (retcode == JIM_EVAL && interp->evalRetcodeLevel != interp->numLevels) {
+        int savedLevel = interp->evalRetcodeLevel;
+
+        interp->evalRetcodeLevel = interp->numLevels;
         while (retcode == JIM_EVAL) {
             Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
             Jim_IncrRefCount(resultScriptObjPtr);
             retcode = Jim_EvalObj(interp, resultScriptObjPtr);
             Jim_DecrRefCount(interp, resultScriptObjPtr);
         }
-        interp->evalRetcodeFlag = 0;
+        interp->evalRetcodeLevel = savedLevel;
     }
     return retcode;
 }
@@ -11464,7 +11466,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.154 2005/04/09 12:57:49 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.155 2005/04/10 09:51:11 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

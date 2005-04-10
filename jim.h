@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.71 2005/04/09 12:57:49 antirez Exp $
+ * $Id: jim.h,v 1.72 2005/04/10 09:51:11 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -468,8 +468,8 @@ typedef struct Jim_Interp {
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *unknown; /* Unknown command cache */
     int errorFlag; /* Set if an error occurred during execution. */
-    int evalRetcodeFlag; /* True if the current script is executed as result
-                            of a JIM_EVAL retcode. */
+    int evalRetcodeLevel; /* Level where the last return with code JIM_EVAL
+                             happened. */
     void *cmdPrivData; /* Used to pass the private data pointer to
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */

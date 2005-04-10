@@ -1,3 +1,14 @@
+2005-04-09 14:57  antirez
+
+	* ChangeLog, jim.c, jim.h: Experimental verison of JIM_EVAL retcode
+	  in order to implement what RHS proposed in the Wiki for tail
+	  recursion:
+
+	  return -code eval [list proc $a $b ...]
+
+	  I'm not sure I'll take this, but it needs to be inside for some
+	  time in order to experiment and evaluate it I guess.
+
 2005-04-09 10:23  antirez
 
 	* ChangeLog, TODO, jim.c: TODO updated, spurious free changed into
