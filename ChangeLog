@@ -1,3 +1,7 @@
+2005-04-11 13:17  antirez
+
+	* ChangeLog, jim.c: [tailcall] command added
+
 2005-04-11 10:25  antirez
 
 	* ChangeLog, jim.c, jimsh.c: Fixes for this two bugs:

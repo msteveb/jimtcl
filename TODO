@@ -7,7 +7,6 @@ CORE LANGUAGE FEATURES
 CORE COMMANDS
 
 - All the missing standard core commands not related to I/O, namespaces, ...
-- [tail] command for programmer-driven tail recursion optimization
 - The current [expr] needs a lot of work, expecially operators && and ||
   are not lazy. Math functions are not present but probably will never
   be added as expr functions, but as Tcl commands, like [sin], [cos] and

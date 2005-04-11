@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.158 2005/04/11 11:17:55 antirez Exp $
+ * $Id: jim.c,v 1.159 2005/04/11 14:34:18 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8304,11 +8304,6 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     } else {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
     }
-    /* Handle the JIM_RETURN return code */
-    if (retcode == JIM_RETURN) {
-        retcode = interp->returnCode;
-        interp->returnCode = JIM_OK;
-    }
     /* Handle the JIM_EVAL return code */
     if (retcode == JIM_EVAL && interp->evalRetcodeLevel != interp->numLevels) {
         int savedLevel = interp->evalRetcodeLevel;
@@ -8321,6 +8316,11 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
             Jim_DecrRefCount(interp, resultScriptObjPtr);
         }
         interp->evalRetcodeLevel = savedLevel;
+    }
+    /* Handle the JIM_RETURN return code */
+    if (retcode == JIM_RETURN) {
+        retcode = interp->returnCode;
+        interp->returnCode = JIM_OK;
     }
     return retcode;
 }
@@ -10328,8 +10328,7 @@ static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc,
 
     objPtr = Jim_NewListObj(interp, argv+1, argc-1);
     Jim_SetResult(interp, objPtr);
-    interp->returnCode = JIM_EVAL;
-    return JIM_RETURN;
+    return JIM_EVAL;
 }
 
 /* [proc] */
@@ -11614,18 +11613,18 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.158 2005/04/11 11:17:55 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.159 2005/04/11 14:34:18 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
         const char *result;
         const char *retcodestr[] = {
-            "ok", "error", "return", "break", "continue"
+            "ok", "error", "return", "break", "continue", "eval"
         };
         int reslen;
 
         if (retcode != 0) {
-            if (retcode >= 2 && retcode <= 4)
+            if (retcode >= 2 && retcode <= 5)
                 printf("[%s] . ", retcodestr[retcode]);
             else
                 printf("[%d] . ", retcode);
