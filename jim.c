@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.159 2005/04/11 14:34:18 antirez Exp $
+ * $Id: jim.c,v 1.160 2005/04/11 17:25:56 chi Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -279,7 +279,7 @@ static int JimStringMatch(const char *pattern, int patternLen,
                 if (pattern[0] != string[0])
                     return 0; /* no match */
             } else {
-                if (tolower(pattern[0]) != tolower(string[0]))
+                if (tolower((int)pattern[0]) != tolower((int)string[0]))
                     return 0; /* no match */
             }
             string++;
@@ -4674,7 +4674,7 @@ void UpdateStringOfList(struct Jim_Obj *objPtr)
     Jim_Obj **ele = objPtr->internalRep.listValue.ele;
 
     /* (Over) Estimate the space needed. */
-    quotingType = Jim_Alloc(sizeof(int)*objPtr->internalRep.listValue.len);
+    quotingType = Jim_Alloc(sizeof(int)*objPtr->internalRep.listValue.len+1);
     bufLen = 0;
     for (i = 0; i < objPtr->internalRep.listValue.len; i++) {
         int len;
@@ -6964,7 +6964,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         } else {
             /* Remember any valid modifier if given */
             if (strchr("hlL", *fmt) != 0)
-                descr->modifier = tolower(*fmt++);
+                descr->modifier = tolower((int)*fmt++);
             
             descr->type = *fmt;
             if (strchr("efgcsndoxui", *fmt) == 0) {
@@ -6973,6 +6973,9 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
             } else if (*fmt == 'c' && descr->width != 0) {
                 fmtObj->error = "field width may not be specified in %c "
                     "conversion";
+                return JIM_ERR;
+            } else if (*fmt == 'u' && descr->modifier == 'l') {
+                fmtObj->error = "unsigned wide not supported";
                 return JIM_ERR;
             }
         }
@@ -7158,10 +7161,11 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
                 do {
                     /* Try to scan a number with the given base */
                     if (descr->modifier == 'l')
-                      if (descr->type == 'u')
-                        *(jim_wide*)value = strtoull(tok, &endp, base);
-                      else
-                        *(jim_wide*)value = strtoll(tok, &endp, base);
+#ifdef HAVE_LONG_LONG
+                      *(jim_wide*)value = JimStrtoll(tok, &endp, base);
+#else
+                      *(jim_wide*)value = strtol(tok, &endp, base);
+#endif
                     else
                       if (descr->type == 'u')
                         *(long*)value = strtoul(tok, &endp, base);
@@ -11613,7 +11617,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.159 2005/04/11 14:34:18 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.160 2005/04/11 17:25:56 chi Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
