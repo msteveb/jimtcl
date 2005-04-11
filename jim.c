@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.157 2005/04/11 08:25:35 antirez Exp $
+ * $Id: jim.c,v 1.158 2005/04/11 11:17:55 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10317,7 +10317,19 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "?-code code? ?result?");
         return JIM_ERR;
     }
-    return JIM_CONTINUE;
+    return JIM_RETURN; /* unreached */
+}
+
+/* [tailcall] */
+static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr;
+
+    objPtr = Jim_NewListObj(interp, argv+1, argc-1);
+    Jim_SetResult(interp, objPtr);
+    interp->returnCode = JIM_EVAL;
+    return JIM_RETURN;
 }
 
 /* [proc] */
@@ -11533,6 +11545,7 @@ static struct {
     {"range", Jim_RangeCoreCommand},
     {"rand", Jim_RandCoreCommand},
     {"package", Jim_PackageCoreCommand},
+    {"tailcall", Jim_TailcallCoreCommand},
     {NULL, NULL},
 };
 
@@ -11601,7 +11614,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.157 2005/04/11 08:25:35 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.158 2005/04/11 11:17:55 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

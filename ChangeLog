@@ -1,3 +1,19 @@
+2005-04-11 10:25  antirez
+
+	* ChangeLog, jim.c, jimsh.c: Fixes for this two bugs:
+
+	  (1) jim.c   Jim_FormatString()       char array spec[] is defined
+	  as having two elements but at the 'default:' case of the switch
+	  statement an assignment is made to the third element
+
+	  (2) jimsh.c  JimGetExePath()	     After the call of strrchr()
+	  the value of p could be NULL in the case that argv[0] is just
+	  plain "jim". The next line should have a test for NULL added to
+	  avoid dereferencing the NULL pointer.  (This is the cause of a
+	  Bus Error on Mac OS X.)
+
+	  Many thanks to Colin McPhail for reporting this two problems.
+
 2005-04-10 19:04  chi
 
 	* jim.c, jimsh.c: Rework of the [scan] command finished. It does
