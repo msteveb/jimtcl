@@ -1,3 +1,20 @@
+2005-04-10 19:04  chi
+
+	* jim.c, jimsh.c: Rework of the [scan] command finished. It does
+	  not any longer use sscanf for scanning purposes, only for parsing
+	  within SetScanFmtFromAny. We could get rid of it there too, if
+	  necessary.
+
+	  It pass all tests on all platforms I had access to (mainly Linux,
+	  Solaris, FreeBSD, MacOS X). But I am confident, that it will pass
+	  on the others as well.
+
+	  A small new introduced C99-ism was fixed in jimsh.c as well.
+
+2005-04-10 11:51  antirez
+
+	* ChangeLog, jim.c, jim.h: Fix for [return -code eval]
+
 2005-04-09 14:57  antirez
 
 	* ChangeLog, jim.c, jim.h: Experimental verison of JIM_EVAL retcode

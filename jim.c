@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.156 2005/04/10 17:04:12 chi Exp $
+ * $Id: jim.c,v 1.157 2005/04/11 08:25:35 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2148,7 +2148,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
             Jim_AppendString(interp, resObjPtr, "%" , 1);
             break;
         default:
-            spec[1] = *fmt; spec[2] = '\0';
+            spec[0] = *fmt; spec[1] = '\0';
             Jim_FreeNewObj(interp, resObjPtr);
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
@@ -7011,11 +7011,13 @@ static void JimSetBit(char *bitvec, char ch)
     bitvec[pos.quot] |= (1 << pos.rem);
 }
 
+#if 0 /* currently not used */
 static void JimClearBit(char *bitvec, char ch)
 {
     div_t pos = div(ch-1, 8);
     bitvec[pos.quot] &= ~(1 << pos.rem);
 }
+#endif
 
 /* JimScanAString is used to scan an unspecified string that ends with
  * next WS, or a string that is specified via a charset. The charset
@@ -11599,7 +11601,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.156 2005/04/10 17:04:12 chi Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.157 2005/04/11 08:25:35 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
