@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.160 2005/04/11 17:25:56 chi Exp $
+ * $Id: jim.c,v 1.161 2005/04/12 12:27:15 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2095,6 +2095,28 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
     last = JimRelToAbsIndex(len, last);
     JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
     return Jim_NewStringObj(interp, str+first, rangeLen);
+}
+
+static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
+{
+    char *buf = Jim_Alloc(strObjPtr->length+1);
+    int i;
+
+    memcpy(buf, strObjPtr->bytes, strObjPtr->length+1);
+    for (i = 0; i < strObjPtr->length; i++)
+        buf[i] = tolower(buf[i]);
+    return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
+}
+
+static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
+{
+    char *buf = Jim_Alloc(strObjPtr->length+1);
+    int i;
+
+    memcpy(buf, strObjPtr->bytes, strObjPtr->length+1);
+    for (i = 0; i < strObjPtr->length; i++)
+        buf[i] = toupper(buf[i]);
+    return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
 /* This is the core of the [format] command.
@@ -10508,11 +10530,11 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
     int option;
     const char *options[] = {
         "length", "compare", "match", "equal", "range", "map", "repeat",
-        "index", "first", NULL
+        "index", "first", "tolower", "toupper", NULL
     };
     enum {
         OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE,
-        OPT_MAP, OPT_REPEAT, OPT_INDEX, OPT_FIRST
+        OPT_MAP, OPT_REPEAT, OPT_INDEX, OPT_FIRST, OPT_TOLOWER, OPT_TOUPPER
     };
 
     if (argc < 2) {
@@ -10661,6 +10683,18 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp, Jim_NewIntObj(interp,
                     JimStringFirst(s1, l1, s2, l2, index)));
         return JIM_OK;
+    } else if (option == OPT_TOLOWER) {
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "string");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, JimStringToLower(interp, argv[2]));
+    } else if (option == OPT_TOUPPER) {
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "string");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, JimStringToUpper(interp, argv[2]));
     }
     return JIM_OK;
 }
@@ -11617,7 +11651,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.160 2005/04/11 17:25:56 chi Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.161 2005/04/12 12:27:15 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

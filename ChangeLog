@@ -1,3 +1,8 @@
+2005-04-12 10:34  antirez
+
+	* ChangeLog, jim-aio.c: new methods for AIO files, 'read' and
+	  'eof'. Documentation still no longer in sync.
+
 2005-04-11 19:25  chi
 
 	* jim.c: - Remove the '%lu' scan format specification. The largest
