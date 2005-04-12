@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.7 2005/03/31 12:20:21 antirez Exp $
+ * $Id: jim-aio.c,v 1.8 2005/04/12 08:34:41 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,9 +57,10 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
     AioFile *af = Jim_CmdPrivData(interp);
     int option;
     const char *options[] = {
-        "close", "seek", "tell", "gets", "puts", "flush", NULL
+        "close", "seek", "tell", "gets", "read", "puts", "flush", "eof", NULL
     };
-    enum {OPT_CLOSE, OPT_SEEK, OPT_TELL, OPT_GETS, OPT_PUTS, OPT_FLUSH};
+    enum {OPT_CLOSE, OPT_SEEK, OPT_TELL, OPT_GETS, OPT_READ, OPT_PUTS,
+          OPT_FLUSH, OPT_EOF};
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
@@ -173,6 +174,72 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             Jim_SetResult(interp, objPtr);
         }
         return JIM_OK;
+    } else if (option == OPT_READ) {
+    /* READ */
+        char buf[AIO_BUF_LEN];
+        Jim_Obj *objPtr;
+        int nonewline = 0;
+        int neededLen = -1; /* -1 is "read as much as possible" */
+
+        if (argc != 2 && argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "?-nonewline? ?len?");
+            return JIM_ERR;
+        }
+        if (argc == 3 &&
+            Jim_CompareStringImmediate(interp, argv[2], "-nonewline"))
+        {
+            nonewline = 1;
+            argv++;
+            argc--;
+        }
+        if (argc == 3) {
+            jim_wide wideValue;
+            if (Jim_GetWide(interp, argv[2], &wideValue) != JIM_OK)
+                return JIM_ERR;
+            if (wideValue < 0) {
+                Jim_SetResultString(interp, "invalid parameter: negative len",
+                        -1);
+                return JIM_ERR;
+            }
+            neededLen = (int) wideValue;
+        }
+        objPtr = Jim_NewStringObj(interp, NULL, 0);
+        while (neededLen != 0) {
+            int retval;
+            int readlen;
+           
+            if (neededLen == -1) {
+                readlen = AIO_BUF_LEN;
+            } else {
+                readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
+            }
+            retval = fread(buf, 1, readlen, af->fp);
+            if (retval > 0) {
+                Jim_AppendString(interp, objPtr, buf, retval);
+                if (neededLen != -1) {
+                    neededLen -= retval;
+                }
+            }
+            if (retval != readlen) break;
+        }
+        /* Check for error conditions */
+        if (ferror(af->fp)) {
+            /* I/O error */
+            Jim_FreeNewObj(interp, objPtr);
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        if (nonewline) {
+            int len;
+            const char *s = Jim_GetString(objPtr, &len);
+
+            if (len > 0 && s[len-1] == '\n') {
+                objPtr->length--;
+                objPtr->bytes[objPtr->length] = '\0';
+            }
+        }
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
     } else if (option == OPT_PUTS) {
     /* PUTS */
         unsigned int wlen;
@@ -200,6 +267,14 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             JimAioSetError(interp);
             return JIM_ERR;
         }
+        return JIM_OK;
+    } else if (option  == OPT_EOF) {
+    /* EOF */
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, Jim_NewIntObj(interp, feof(af->fp)));
         return JIM_OK;
     }
     return JIM_OK;

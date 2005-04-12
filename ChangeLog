@@ -1,3 +1,27 @@
+2005-04-11 19:25  chi
+
+	* jim.c: - Remove the '%lu' scan format specification. The largest
+	  possible type   in the Jim core is jim_wide. That type is a
+	  signed one. A unsigned   variante of jim_wide is not forseen. So
+	  a '%lu' specification seems not   to make any sense.
+
+	  - Some extra castings necessary to let the Jim core interpreter
+	  compile and	run under Tru64U on Dec Alpha.
+
+	  - Fix a bug in UpdateStringOfList(). If a list was created via
+	  the Jim   command [list] w/o any argument, the internal
+	  representation of that list	pointed to ZERO and the len
+	  attribute was equally set to ZERO. If now   UpdateStringOfList
+	  was called to create the string representation of   the list,
+	  Jim_Alloc for quotingType got a ZERO size for number of bytes
+	  to allocate. That let to SIGSEGV under Tru64U, so I changed that
+	  to   allocate at least 1 byte then.
+
+2005-04-11 16:34  antirez
+
+	* ChangeLog, TODO, jim.c: RHS/Nem vision about [tailcall]
+	  implementation/behaviour is now Jim's way to go.
+
 2005-04-11 13:17  antirez
 
 	* ChangeLog, jim.c: [tailcall] command added
