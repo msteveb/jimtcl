@@ -1,3 +1,7 @@
+2005-04-12 14:27  antirez
+
+	* ChangeLog, jim.c: string tolower/toupper support
+
 2005-04-12 10:34  antirez
 
 	* ChangeLog, jim-aio.c: new methods for AIO files, 'read' and

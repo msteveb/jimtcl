@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.8 2005/04/12 08:34:41 antirez Exp $
+ * $Id: jim-aio.c,v 1.9 2005/04/12 12:36:57 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -324,7 +324,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     if (Jim_EvalGlobal(interp,
                 "if {[catch {incr aio.fileId}]} {set aio.fileId 0}") != JIM_OK)
         return JIM_ERR;
-    objPtr = Jim_GetVariableStr(interp, "aio.fileId", JIM_ERRMSG);
+    objPtr = Jim_GetGlobalVariableStr(interp, "aio.fileId", JIM_ERRMSG);
     if (objPtr == NULL) return JIM_ERR;
     if (Jim_GetLong(interp, objPtr, &fileId) != JIM_OK) return JIM_ERR;
 
