@@ -1,7 +1,7 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.9 2005/04/11 08:25:36 antirez Exp $
+ * $Id: jimsh.c,v 1.10 2005/04/13 19:50:18 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,10 +41,12 @@
 #ifdef WIN32
 static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 {
-    char path[MAX_PATH+1];
+    char path[MAX_PATH+1], *p;
     JIM_NOTUSED(argv0);
 
     GetModuleFileNameA(NULL, path, MAX_PATH);
+    if ((p = strrchr(path, '\\')) != NULL)
+        *p = 0;
     return Jim_NewStringObj(interp, path, -1);
 }
 #else /* WIN32 */
