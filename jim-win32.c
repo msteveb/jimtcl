@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.24 2005/04/08 14:07:23 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.25 2005/04/13 19:57:22 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -519,6 +519,37 @@ Win32_GetCursorInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
     return JIM_OK;
 }
+
+static BOOL
+Win32_GetLastInputInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    struct lastinputinfo_t {
+        UINT cbSize;
+        DWORD dwTime;
+    } lii;
+    typedef BOOL (__stdcall *LPFNGETLASTINPUTINFO)(struct lastinputinfo_t *);
+    LPFNGETLASTINPUTINFO lpfnGetLastInputInfo = NULL;
+    HMODULE hLib = (HMODULE)Jim_CmdPrivData(interp);
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+
+    if (hLib != NULL)
+        lpfnGetLastInputInfo = (LPFNGETLASTINPUTINFO)GetProcAddress(hLib, "GetLastInputInfo");
+    if (lpfnGetLastInputInfo == NULL) {
+        Jim_SetResultString(interp, "command not available on this platform", -1);
+        return JIM_ERR;
+    }
+
+    lii.cbSize = sizeof(lii);
+    if (!lpfnGetLastInputInfo(&lii)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "GetLastInputInfo", GetLastError()));
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, Jim_NewIntObj(interp, lii.dwTime));
+    return JIM_OK;
+}
+
 #endif /* WINVER >= 0x0500 */
 
 static int
@@ -778,6 +809,11 @@ Jim_OnLoad(Jim_Interp *interp)
     if (hLib != NULL) {
         Jim_CreateCommand(interp, "win32.GetPerformanceInfo",
             Win32_GetPerformanceInfo, hLib, Win32_ReleasePrivLib);
+    }
+    hLib = LoadLibrary(_T("user32"));
+    if (hLib != NULL) {
+        Jim_CreateCommand(interp, "win32.GetLastInputInfo",
+            Win32_GetLastInputInfo, hLib, Win32_ReleasePrivLib);
     }
 
     return JIM_OK;
