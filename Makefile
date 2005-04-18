@@ -79,6 +79,12 @@ jim-aio-1.0.so: jim-aio.xo
 jim-posix-1.0.so: jim-posix.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
+jim-eventloop-1.0.so: jim-eventloop.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc
+
+jim-udp-1.0.so: jim-udp.xo
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc
+
 jim-sqlite-1.0.so: jim-sqlite.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lsqlite
 
@@ -97,6 +103,8 @@ jim: $(JIM_OBJECTS)
 
 readline: jim-readline-1.0.so
 posix: jim-posix-1.0.so
+eventloop: jim-eventloop-1.0.so
+udp: jim-udp-1.0.so
 sqlite: jim-sqlite-1.0.so
 aio: jim-aio-1.0.so
 aio-dll: jim-aio-1.0.dll

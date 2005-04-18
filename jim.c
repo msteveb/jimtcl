@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.161 2005/04/12 12:27:15 antirez Exp $
+ * $Id: jim.c,v 1.162 2005/04/18 08:31:26 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3292,6 +3292,20 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
         interp->framePtr = savedCallFrame;
         return objPtr;
     }
+}
+
+Jim_Obj *Jim_GetGlobalVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr,
+        int flags)
+{
+    Jim_CallFrame *savedFramePtr;
+    Jim_Obj *objPtr;
+
+    savedFramePtr = interp->framePtr;
+    interp->framePtr = interp->topFramePtr;
+    objPtr = Jim_GetVariable(interp, nameObjPtr, flags);
+    interp->framePtr = savedFramePtr;
+
+    return objPtr;
 }
 
 Jim_Obj *Jim_GetVariableStr(Jim_Interp *interp, const char *name, int flags)
@@ -8375,6 +8389,34 @@ int Jim_EvalGlobal(Jim_Interp *interp, const char *script)
     return retval;
 }
 
+int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
+{
+    Jim_CallFrame *savedFramePtr;
+    int retval;
+
+    savedFramePtr = interp->framePtr;
+    interp->framePtr = interp->topFramePtr;
+    retval = Jim_EvalObj(interp, scriptObjPtr);
+    interp->framePtr = savedFramePtr;
+    /* Try to report the error (if any) via the bgerror proc */
+    if (retval != JIM_OK) {
+        Jim_Obj *objv[2];
+
+        objv[0] = Jim_NewStringObj(interp, "bgerror", -1);
+        objv[1] = Jim_GetResult(interp);
+        Jim_IncrRefCount(objv[0]);
+        Jim_IncrRefCount(objv[1]);
+        if (Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
+            /* Report the error to stderr. */
+            fprintf(stderr, "Background error:\n");
+            Jim_PrintErrorMessage(interp);
+        }
+        Jim_DecrRefCount(interp, objv[0]);
+        Jim_DecrRefCount(interp, objv[1]);
+    }
+    return retval;
+}
+
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
     char *prg = NULL;
@@ -8662,6 +8704,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(EvalGlobal);
   JIM_REGISTER_API(EvalFile);
   JIM_REGISTER_API(EvalObj);
+  JIM_REGISTER_API(EvalObjBackground);
   JIM_REGISTER_API(EvalObjVector);
   JIM_REGISTER_API(InitHashTable);
   JIM_REGISTER_API(ExpandHashTable);
@@ -8746,6 +8789,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(StrDup);
   JIM_REGISTER_API(UnsetVariable);
   JIM_REGISTER_API(GetVariableStr);
+  JIM_REGISTER_API(GetGlobalVariable);
   JIM_REGISTER_API(GetGlobalVariableStr);
   JIM_REGISTER_API(GetAssocData);
   JIM_REGISTER_API(SetAssocData);
@@ -11622,9 +11666,9 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
 {
     int len, i;
 
-    printf("Runtime error, file \"%s\", line %d:\n",
+    fprintf(stderr, "Runtime error, file \"%s\", line %d:\n",
             interp->errorFileName, interp->errorLine);
-    printf("    %s\n", Jim_GetString(interp->result, NULL));
+    fprintf(stderr, "    %s\n", Jim_GetString(interp->result, NULL));
     Jim_ListLength(interp, interp->stackTrace, &len);
     for (i = 0; i < len; i+= 3) {
         Jim_Obj *objPtr;
@@ -11638,7 +11682,7 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
         Jim_ListIndex(interp, interp->stackTrace, i+2, &objPtr,
                 JIM_NONE);
         line = Jim_GetString(objPtr, NULL);
-        printf("In procedure '%s' called at file \"%s\", line %s\n",
+        fprintf(stderr, "In procedure '%s' called at file \"%s\", line %s\n",
                 proc, file, line);
     }
 }
@@ -11651,7 +11695,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.161 2005/04/12 12:27:15 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.162 2005/04/18 08:31:26 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

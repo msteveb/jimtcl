@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.72 2005/04/10 09:51:11 antirez Exp $
+ * $Id: jim.h,v 1.73 2005/04/18 08:31:26 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -554,6 +554,8 @@ JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, const char *script);
 JIM_STATIC int JIM_API(Jim_EvalGlobal)(Jim_Interp *interp, const char *script);
 JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, const char *filename);
 JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
+JIM_STATIC int JIM_API(Jim_EvalObjBackground) (Jim_Interp *interp,
+        Jim_Obj *scriptObjPtr);
 JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
 JIM_STATIC int JIM_API(Jim_SubstObj) (Jim_Interp *interp, Jim_Obj *substObjPtr,
@@ -663,6 +665,8 @@ JIM_STATIC int JIM_API(Jim_SetVariableLink) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
 JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariable) (Jim_Interp *interp,
+        Jim_Obj *nameObjPtr, int flags);
+JIM_STATIC Jim_Obj * JIM_API(Jim_GetGlobalVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariableStr) (Jim_Interp *interp,
         const char *name, int flags);
@@ -784,11 +788,15 @@ JIM_STATIC int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
 /* Misc */
 JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
 
+#undef JIM_STATIC
+#undef JIM_API
+
 #ifndef __JIM_CORE__
 
 #define JIM_GET_API(name) \
     Jim_GetApi(interp, "Jim_" #name, ((void *)&Jim_ ## name))
 
+#if defined JIM_EXTENSION || defined JIM_EMBEDDED
 /* This must be included "inline" inside the extension */
 static void Jim_InitExtension(Jim_Interp *interp)
 {
@@ -800,6 +808,7 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(EvalGlobal);
   JIM_GET_API(EvalFile);
   JIM_GET_API(EvalObj);
+  JIM_GET_API(EvalObjBackground);
   JIM_GET_API(EvalObjVector);
   JIM_GET_API(InitHashTable);
   JIM_GET_API(ExpandHashTable);
@@ -886,6 +895,7 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(StrDup);
   JIM_GET_API(UnsetVariable);
   JIM_GET_API(GetVariableStr);
+  JIM_GET_API(GetGlobalVariable);
   JIM_GET_API(GetGlobalVariableStr);
   JIM_GET_API(GetAssocData);
   JIM_GET_API(SetAssocData);
@@ -902,6 +912,9 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(StackPeek);
   JIM_GET_API(FreeStackElements);
 }
+#endif /* defined JIM_EXTENSION || defined JIM_EMBEDDED */
+
+#undef JIM_GET_API
 
 #ifdef JIM_EMBEDDED
 Jim_Interp *ExportedJimCreateInterp(void);

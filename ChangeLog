@@ -1,3 +1,22 @@
+2005-04-13 21:57  patthoyts
+
+	* jim-win32.c: Added GetLastInputInfo API
+
+2005-04-13 21:54  patthoyts
+
+	* jim-win32api.c: Win32API module permits dynamic creation of Jim
+	  commands that call into Win32 DLL functions. Its not complete and
+	  at the moment only void or integer parameters are working.
+
+2005-04-13 21:50  patthoyts
+
+	* jimsh.c: JimGetExePath needs to be a _path_ not the file name.
+
+2005-04-12 14:36  antirez
+
+	* ChangeLog, jim-aio.c: AIO fix: the Id is not get with the
+	  GetGlobalVar function.
+
 2005-04-12 14:27  antirez
 
 	* ChangeLog, jim.c: string tolower/toupper support
