@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.25 2005/04/13 19:57:22 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.26 2005/04/19 15:33:28 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -748,6 +748,55 @@ Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 
 
 /* ----------------------------------------------------------------------
+ * Filesystem APIs
+ */
+
+static int
+Win32_CreateDirectory(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+{
+    const char * path;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "path");
+        return JIM_ERR;
+    }
+
+    path = Jim_GetString(objv[1], NULL);
+    if (!CreateDirectoryA(path, NULL)) {
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "CreateDirectory", GetLastError()));
+        return JIM_ERR;
+    }
+    
+    return JIM_OK;
+}
+
+static int
+Win32_RemoveDirectory(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+{
+    const char * path;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "path");
+        return JIM_ERR;
+    }
+
+    path = Jim_GetString(objv[1], NULL);
+    if (!RemoveDirectoryA(path)) {
+        Jim_SetResult(interp, 
+            Win32ErrorObj(interp, "RemoveDirectory", GetLastError()));
+        return JIM_ERR;
+    }
+    
+    return JIM_OK;
+}
+
+/*
+ * CopyFile, MoveFile, CreateFile, DeleteFile, LockFile,
+ * ReadFile and WriteFile should get rolled into a stream/channel thing.
+ */
+
+/* ----------------------------------------------------------------------
  * Cleanup for dynamically loaded commands.
  */
 
@@ -799,6 +848,8 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
+    CMD(CreateDirectory);
+    CMD(RemoveDirectory);
 
 #if WINVER >= 0x0500
     CMD(GetCursorInfo);
