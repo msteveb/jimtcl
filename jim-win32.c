@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.26 2005/04/19 15:33:28 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.27 2005/04/20 15:34:40 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -155,6 +155,25 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 }
 
 static int
+Win32_DestroyWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+{
+    long hwnd;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "?windowHandle?");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, objv[1], &hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (!DestroyWindow((HWND)hwnd)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "DestroyWindow", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+static int
 Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
 #if 0
@@ -192,7 +211,7 @@ Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     }
 
     hwnd = CreateWindow(szClass, szTitle,
-                        WS_VISIBLE | WS_OVERLAPPED,
+                        WS_VISIBLE | WS_OVERLAPPEDWINDOW,
                         CW_USEDEFAULT, CW_USEDEFAULT, 
                         CW_USEDEFAULT, CW_USEDEFAULT,
                         HWND_DESKTOP, NULL, hInst, NULL);
@@ -210,6 +229,126 @@ Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 
     return r;
 #endif
+}
+
+static int
+Win32_MoveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HWND hwnd;
+    int n, param[4];
+
+    if (objc != 6) {
+        Jim_WrongNumArgs(interp, 1, objv, "hwnd x y width height");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
+        return JIM_ERR;
+    for (n = 2; n < 6; n++) {
+        if (Jim_GetLong(interp, objv[n], &param[n-2]) != JIM_OK)
+            return JIM_ERR;
+    }
+
+    if (!MoveWindow(hwnd, param[0], param[1], param[2], param[3], FALSE)) {
+        Jim_SetResult(interp,
+                      Win32ErrorObj(interp, "MoveWindow", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+static int
+Win32_ShowWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HWND hwnd;
+    int cmd;
+    const char *cmds[] = { 
+        "SW_HIDE", "SW_SHOWNORMAL", "SW_SHOWMINIMIZED", "SW_MAXIMIZE",
+        "SW_SHOWNOACTIVATE", "SW_SHOW", "SW_MINIMIZE", "SW_SHOWMINNOACTIVE",
+        "SW_SHOWNA", "SW_RESTORE", "SW_SHOWDEFAULT", "SW_FORCEMINIMIZE",
+        NULL
+    };
+    if (objc != 3) {
+        Jim_WrongNumArgs(interp, 1, objv, "windowhandle option");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (Jim_GetEnum(interp, objv[2], cmds, &cmd, "command", JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+    
+    
+    if (!ShowWindow(hwnd, cmd)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "ShowWindow", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+
+#define F(x) { #x , x }
+typedef struct { const char *s; unsigned long f; } ANIMATEWINDOWFLAGSMAP;
+static ANIMATEWINDOWFLAGSMAP AnimateWindowFlagsMap[] = {
+    F(AW_SLIDE), F(AW_ACTIVATE), F(AW_BLEND), F(AW_HIDE), F(AW_CENTER),
+    F(AW_HOR_POSITIVE), F(AW_HOR_NEGATIVE), F(AW_VER_POSITIVE),
+    F(AW_VER_NEGATIVE), { NULL, 0 }
+};
+#undef F
+
+static int
+GetAnimateWindowFlagsFromObj(Jim_Interp *interp, Jim_Obj *listObj, DWORD *flags)
+{
+    int r = JIM_OK, n, nLength;
+    *flags = 0;
+    Jim_ListLength(interp, listObj, &nLength);
+    if (r == JIM_OK) {
+        for (n = 0; n < nLength; n++) {
+            ANIMATEWINDOWFLAGSMAP *p;
+            Jim_Obj *obj;
+            r = Jim_ListIndex(interp, listObj, n, &obj, 1);
+            for (p = AnimateWindowFlagsMap; r == JIM_OK && p->s != NULL; p++) {
+                size_t len;
+                const char *name = Jim_GetString(obj, &len);
+                if (strncmp(p->s, name, len) == 0) {
+                    *flags |= p->f;
+                    break;
+                }
+            }
+            if (p->s == NULL) {
+                Jim_SetResultString(interp, "invalid option", -1);
+                return JIM_ERR;
+            }
+        }
+    }
+        
+    return r;
+}
+
+static int
+Win32_AnimateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HWND hwnd;
+    DWORD dwTime = 0, dwFlags = 0;
+    struct map_t { const char* s; DWORD f; };
+    
+    if (objc != 4) {
+        Jim_WrongNumArgs(interp, 1, objv, "windowhandle time flags");
+        return JIM_ERR;
+    }
+
+    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (Jim_GetLong(interp, objv[2], &dwTime) != JIM_OK)
+        return JIM_ERR;
+    if (GetAnimateWindowFlagsFromObj(interp, objv[3], &dwFlags) != JIM_OK)
+        return JIM_ERR;
+
+    if (AnimateWindow(hwnd, dwTime, dwFlags) == 0) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "AnimateWindow", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
 }
 
 static int
@@ -826,9 +965,13 @@ Jim_OnLoad(Jim_Interp *interp)
     Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL, NULL)
 
     CMD(ShellExecute);
+    CMD(CreateWindow);
     CMD(FindWindow);
     CMD(CloseWindow);
-    CMD(CreateWindow);
+    CMD(ShowWindow);
+    CMD(MoveWindow);
+    CMD(AnimateWindow);
+    CMD(DestroyWindow);
     CMD(GetActiveWindow);
     CMD(SetActiveWindow);
     CMD(SetForegroundWindow);
