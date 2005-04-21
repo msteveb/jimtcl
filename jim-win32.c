@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.27 2005/04/20 15:34:40 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.28 2005/04/21 07:35:57 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -174,61 +174,91 @@ Win32_DestroyWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 }
 
 static int
-Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+Win32_RegisterClass(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
-#if 0
-    Jim_SetResultString(interp, "not implemented", -1);
-    return JIM_ERR;
-#else
-    int r = JIM_ERR;
-    HINSTANCE hInst;
-    HWND hwnd;
-    WNDCLASSEX wc;
-    TCHAR szClass[16] = _T("JimWindowClass");
-    TCHAR szTitle[16] = _T("JimWindow");
-    JIM_NOTUSED(objc);
-    JIM_NOTUSED(objv);
+    WNDCLASSEXA wc;
 
-    hInst = g_hInstance; //(HINSTANCE)GetModuleHandle(NULL);
+    if (objc < 2 || objc > 3) {
+        Jim_WrongNumArgs(interp, 1, objv, "classname ?windowproc?");
+        return JIM_ERR;
+    }
+
+    // FIX ME: deal with the windowproc
 
     wc.cbSize        = sizeof(WNDCLASSEX);
     wc.style         = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc   = DefWindowProc;
     wc.cbClsExtra    = 0;
     wc.cbWndExtra    = 0;
-    wc.hInstance     = hInst;
+    wc.hInstance     = g_hInstance;
     wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
     wc.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);
-    wc.lpszMenuName  = szClass;
-    wc.lpszClassName = szClass;
+    wc.lpszMenuName  =  wc.lpszClassName = Jim_GetString(objv[1], NULL);
     
-    if (! RegisterClassEx(&wc)) {
+    if (!RegisterClassExA(&wc)) {
         Jim_SetResult(interp,
-                      Win32ErrorObj(interp, "RegisterClassEx", GetLastError()));
+            Win32ErrorObj(interp, "RegisterClassEx", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+static int
+Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    int r = JIM_ERR;
+    HWND hwnd, hwndParent = HWND_DESKTOP;
+    DWORD style = WS_VISIBLE | WS_OVERLAPPEDWINDOW;
+    const char *class, *title;
+
+    if (objc < 3 || objc > 4) {
+        Jim_WrongNumArgs(interp, 1, objv, "class title ?parent?");
         return JIM_ERR;
     }
 
-    hwnd = CreateWindow(szClass, szTitle,
-                        WS_VISIBLE | WS_OVERLAPPEDWINDOW,
-                        CW_USEDEFAULT, CW_USEDEFAULT, 
-                        CW_USEDEFAULT, CW_USEDEFAULT,
-                        HWND_DESKTOP, NULL, hInst, NULL);
+    class = Jim_GetString(objv[1], NULL);
+    title = Jim_GetString(objv[2], NULL);
+    if (objc == 4) {
+        if (Jim_GetLong(interp, objv[3], (long *)&hwndParent) != JIM_OK)
+            return JIM_ERR;
+        style = WS_VISIBLE | WS_CHILD  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+    }
+
+    hwnd = CreateWindowA(class, title, style,
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+        hwndParent, NULL, g_hInstance, NULL);
     if (hwnd) {
         SetWindowLong(hwnd, GWL_USERDATA, (LONG)interp);
-        ShowWindow(hwnd, SW_SHOW);
-        UpdateWindow(hwnd);
         Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hwnd));
         r = JIM_OK;
     } else {
         Jim_SetResult(interp,
-                      Win32ErrorObj(interp, "CreateWindow", GetLastError()));
+            Win32ErrorObj(interp, "CreateWindow", GetLastError()));
         r = JIM_ERR;
     }
 
     return r;
-#endif
+}
+
+static int
+Win32_UpdateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HWND hwnd;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "hwnd");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (!UpdateWindow(hwnd)) {
+        Jim_SetResult(interp,
+            Win32ErrorObj(interp, "UpdateWindow", GetLastError()));
+        return JIM_ERR;
+    }
+    return JIM_OK;
 }
 
 static int
@@ -248,9 +278,9 @@ Win32_MoveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
             return JIM_ERR;
     }
 
-    if (!MoveWindow(hwnd, param[0], param[1], param[2], param[3], FALSE)) {
+    if (!MoveWindow(hwnd, param[0], param[1], param[2], param[3], TRUE)) {
         Jim_SetResult(interp,
-                      Win32ErrorObj(interp, "MoveWindow", GetLastError()));
+            Win32ErrorObj(interp, "MoveWindow", GetLastError()));
         return JIM_ERR;
     }
     return JIM_OK;
@@ -343,9 +373,15 @@ Win32_AnimateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     if (GetAnimateWindowFlagsFromObj(interp, objv[3], &dwFlags) != JIM_OK)
         return JIM_ERR;
 
-    if (AnimateWindow(hwnd, dwTime, dwFlags) == 0) {
-        Jim_SetResult(interp,
-            Win32ErrorObj(interp, "AnimateWindow", GetLastError()));
+    if (!AnimateWindow(hwnd, dwTime, dwFlags)) {
+        DWORD err = GetLastError();
+        Jim_Obj *errObj;
+        if (err == ERROR_SUCCESS)
+            errObj = Jim_NewStringObj(interp, "error: "
+                " calling thread does not own the window", -1);
+        else
+            errObj = Win32ErrorObj(interp, "AnimateWindow", err);
+        Jim_SetResult(interp, errObj);
         return JIM_ERR;
     }
     return JIM_OK;
@@ -965,11 +1001,13 @@ Jim_OnLoad(Jim_Interp *interp)
     Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL, NULL)
 
     CMD(ShellExecute);
+    CMD(RegisterClass);
     CMD(CreateWindow);
     CMD(FindWindow);
     CMD(CloseWindow);
     CMD(ShowWindow);
     CMD(MoveWindow);
+    CMD(UpdateWindow);
     CMD(AnimateWindow);
     CMD(DestroyWindow);
     CMD(GetActiveWindow);
