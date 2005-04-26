@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.29 2005/04/26 10:47:21 antirez Exp $
+ * $Id: jim-win32.c,v 1.30 2005/04/26 13:31:46 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +173,31 @@ Win32_DestroyWindow(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 
+static LRESULT CALLBACK
+JimWin32WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    int objc = 0, r;
+    Jim_Obj *objv[16];
+    Jim_Interp *interp = (Jim_Interp *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    
+    if (interp) {
+        objv[objc++] = Jim_NewStringObj(interp, "WndProc", -1);
+        switch (uMsg) {
+            case WM_CREATE:
+                //Jim_EvalObjVector(interp, objc, objv);
+                break;
+            case WM_COMMAND:
+                objv[objc++] = Jim_NewIntObj(interp, HIWORD(wParam));
+                objv[objc++] = Jim_NewIntObj(interp, LOWORD(wParam));
+                objv[objc++] = Jim_NewIntObj(interp, lParam);
+                r = Jim_EvalObjVector(interp, objc, objv);
+                if (r == JIM_BREAK) return 0L;
+                break;
+        }
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
 static int
 Win32_RegisterClass(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 {
@@ -188,7 +213,7 @@ Win32_RegisterClass(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     wc.cbSize        = sizeof(WNDCLASSEX);
     wc.style         = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc   = DefWindowProc;
-    wc.cbClsExtra    = 0;
+    wc.cbClsExtra    = 16;
     wc.cbWndExtra    = 0;
     wc.hInstance     = g_hInstance;
     wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
@@ -196,12 +221,17 @@ Win32_RegisterClass(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);
     wc.lpszMenuName  =  wc.lpszClassName = Jim_GetString(objv[1], NULL);
+
+    if (objc == 3) {
+        wc.lpfnWndProc = JimWin32WindowProc;
+    }
     
     if (!RegisterClassExA(&wc)) {
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "RegisterClassEx", GetLastError()));
         return JIM_ERR;
     }
+
     return JIM_OK;
 }
 
@@ -211,10 +241,11 @@ Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     int r = JIM_ERR;
     HWND hwnd, hwndParent = HWND_DESKTOP;
     DWORD style = WS_VISIBLE | WS_OVERLAPPEDWINDOW;
+    UINT id = 0;
     const char *class, *title;
 
-    if (objc < 3 || objc > 4) {
-        Jim_WrongNumArgs(interp, 1, objv, "class title ?parent?");
+    if (objc < 3 || objc > 5) {
+        Jim_WrongNumArgs(interp, 1, objv, "class title ?parent? ?id?");
         return JIM_ERR;
     }
 
@@ -225,12 +256,16 @@ Win32_CreateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
             return JIM_ERR;
         style = WS_VISIBLE | WS_CHILD  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
     }
+    if (objc == 5) {
+        if (Jim_GetLong(interp, objv[4], (long *)&id) != JIM_OK)
+            return JIM_ERR;
+    }
 
     hwnd = CreateWindowA(class, title, style,
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        hwndParent, NULL, g_hInstance, NULL);
+        hwndParent, (HMENU)id, g_hInstance, NULL);
     if (hwnd) {
-        SetWindowLong(hwnd, GWL_USERDATA, (LONG)interp);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)interp);
         Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)hwnd));
         r = JIM_OK;
     } else {
@@ -274,7 +309,7 @@ Win32_MoveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
         return JIM_ERR;
     for (n = 2; n < 6; n++) {
-        if (Jim_GetLong(interp, objv[n], &param[n-2]) != JIM_OK)
+        if (Jim_GetLong(interp, objv[n], (long*)&param[n-2]) != JIM_OK)
             return JIM_ERR;
     }
 
@@ -314,79 +349,6 @@ Win32_ShowWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     }
     return JIM_OK;
 }
-
-#ifndef MINGW /* Many needed structures/definiitons are not present in mingw */
-#define F(x) { #x , x }
-typedef struct { const char *s; unsigned long f; } ANIMATEWINDOWFLAGSMAP;
-static ANIMATEWINDOWFLAGSMAP AnimateWindowFlagsMap[] = {
-    F(AW_SLIDE), F(AW_ACTIVATE), F(AW_BLEND), F(AW_HIDE), F(AW_CENTER),
-    F(AW_HOR_POSITIVE), F(AW_HOR_NEGATIVE), F(AW_VER_POSITIVE),
-    F(AW_VER_NEGATIVE), { NULL, 0 }
-};
-#undef F
-
-static int
-GetAnimateWindowFlagsFromObj(Jim_Interp *interp, Jim_Obj *listObj, DWORD *flags)
-{
-    int r = JIM_OK, n, nLength;
-    *flags = 0;
-    Jim_ListLength(interp, listObj, &nLength);
-    if (r == JIM_OK) {
-        for (n = 0; n < nLength; n++) {
-            ANIMATEWINDOWFLAGSMAP *p;
-            Jim_Obj *obj;
-            r = Jim_ListIndex(interp, listObj, n, &obj, 1);
-            for (p = AnimateWindowFlagsMap; r == JIM_OK && p->s != NULL; p++) {
-                size_t len;
-                const char *name = Jim_GetString(obj, &len);
-                if (strncmp(p->s, name, len) == 0) {
-                    *flags |= p->f;
-                    break;
-                }
-            }
-            if (p->s == NULL) {
-                Jim_SetResultString(interp, "invalid option", -1);
-                return JIM_ERR;
-            }
-        }
-    }
-        
-    return r;
-}
-
-static int
-Win32_AnimateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
-{
-    HWND hwnd;
-    DWORD dwTime = 0, dwFlags = 0;
-    struct map_t { const char* s; DWORD f; };
-    
-    if (objc != 4) {
-        Jim_WrongNumArgs(interp, 1, objv, "windowhandle time flags");
-        return JIM_ERR;
-    }
-
-    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
-        return JIM_ERR;
-    if (Jim_GetLong(interp, objv[2], &dwTime) != JIM_OK)
-        return JIM_ERR;
-    if (GetAnimateWindowFlagsFromObj(interp, objv[3], &dwFlags) != JIM_OK)
-        return JIM_ERR;
-
-    if (!AnimateWindow(hwnd, dwTime, dwFlags)) {
-        DWORD err = GetLastError();
-        Jim_Obj *errObj;
-        if (err == ERROR_SUCCESS)
-            errObj = Jim_NewStringObj(interp, "error: "
-                " calling thread does not own the window", -1);
-        else
-            errObj = Win32ErrorObj(interp, "AnimateWindow", err);
-        Jim_SetResult(interp, errObj);
-        return JIM_ERR;
-    }
-    return JIM_OK;
-}
-#endif /* !MINGW */
 
 static int
 Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -726,6 +688,77 @@ Win32_GetLastInputInfo(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     return JIM_OK;
 }
 
+#define F(x) { #x , x }
+typedef struct { const char *s; unsigned long f; } ANIMATEWINDOWFLAGSMAP;
+static ANIMATEWINDOWFLAGSMAP AnimateWindowFlagsMap[] = {
+    F(AW_SLIDE), F(AW_ACTIVATE), F(AW_BLEND), F(AW_HIDE), F(AW_CENTER),
+    F(AW_HOR_POSITIVE), F(AW_HOR_NEGATIVE), F(AW_VER_POSITIVE),
+    F(AW_VER_NEGATIVE), { NULL, 0 }
+};
+#undef F
+
+static int
+GetAnimateWindowFlagsFromObj(Jim_Interp *interp, Jim_Obj *listObj, DWORD *flags)
+{
+    int r = JIM_OK, n, nLength;
+    *flags = 0;
+    Jim_ListLength(interp, listObj, &nLength);
+    if (r == JIM_OK) {
+        for (n = 0; n < nLength; n++) {
+            ANIMATEWINDOWFLAGSMAP *p;
+            Jim_Obj *obj;
+            r = Jim_ListIndex(interp, listObj, n, &obj, 1);
+            for (p = AnimateWindowFlagsMap; r == JIM_OK && p->s != NULL; p++) {
+                size_t len;
+                const char *name = Jim_GetString(obj, &len);
+                if (strncmp(p->s, name, len) == 0) {
+                    *flags |= p->f;
+                    break;
+                }
+            }
+            if (p->s == NULL) {
+                Jim_SetResultString(interp, "invalid option", -1);
+                return JIM_ERR;
+            }
+        }
+    }
+        
+    return r;
+}
+
+static int
+Win32_AnimateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HWND hwnd;
+    DWORD dwTime = 0, dwFlags = 0;
+    struct map_t { const char* s; DWORD f; };
+    
+    if (objc != 4) {
+        Jim_WrongNumArgs(interp, 1, objv, "windowhandle time flags");
+        return JIM_ERR;
+    }
+
+    if (Jim_GetLong(interp, objv[1], (long *)&hwnd) != JIM_OK)
+        return JIM_ERR;
+    if (Jim_GetLong(interp, objv[2], &dwTime) != JIM_OK)
+        return JIM_ERR;
+    if (GetAnimateWindowFlagsFromObj(interp, objv[3], &dwFlags) != JIM_OK)
+        return JIM_ERR;
+
+    if (!AnimateWindow(hwnd, dwTime, dwFlags)) {
+        DWORD err = GetLastError();
+        Jim_Obj *errObj;
+        if (err == ERROR_SUCCESS)
+            errObj = Jim_NewStringObj(interp, "error: "
+                " calling thread does not own the window", -1);
+        else
+            errObj = Win32ErrorObj(interp, "AnimateWindow", err);
+        Jim_SetResult(interp, errObj);
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
 #endif /* WINVER >= 0x0500 */
 
 static int
@@ -1009,9 +1042,6 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(ShowWindow);
     CMD(MoveWindow);
     CMD(UpdateWindow);
-#ifndef MINGW
-    CMD(AnimateWindow);
-#endif
     CMD(DestroyWindow);
     CMD(GetActiveWindow);
     CMD(SetActiveWindow);
@@ -1037,6 +1067,7 @@ Jim_OnLoad(Jim_Interp *interp)
 
 #if WINVER >= 0x0500
     CMD(GetCursorInfo);
+    CMD(AnimateWindow);
 #endif
 
     /* Check that this DLL is available before creating the command. */
@@ -1045,11 +1076,13 @@ Jim_OnLoad(Jim_Interp *interp)
         Jim_CreateCommand(interp, "win32.GetPerformanceInfo",
             Win32_GetPerformanceInfo, hLib, Win32_ReleasePrivLib);
     }
+#if WINVER >= 0x0500
     hLib = LoadLibrary(_T("user32"));
     if (hLib != NULL) {
         Jim_CreateCommand(interp, "win32.GetLastInputInfo",
             Win32_GetLastInputInfo, hLib, Win32_ReleasePrivLib);
     }
+#endif /* WINVER >= 0x0500 */
 
     return JIM_OK;
 }
