@@ -1,3 +1,27 @@
+2005-04-21 09:35  patthoyts
+
+	* jim-win32.c: RegisterClass, CreateWindow and UpdateWindow. Need
+	  to add user defined Window procedures though.
+
+2005-04-20 17:34  patthoyts
+
+	* jim-win32.c: Added some window managing APIs - MoveWindow,
+	  ShowWindow, DestroyWindow and AnimateWindow (which doesn't seem
+	  to work).
+
+2005-04-19 17:33  patthoyts
+
+	* jim-win32.c: Added CreateDirectory and RemoveDirectory
+
+2005-04-18 10:31  antirez
+
+	* ChangeLog, Makefile, jim-eventloop.c, jim-eventloop.h, jim.c,
+	  jim.h: First version of the Jim eventloop extension, exporting
+	  [after], [vwait], and the C API to write other extensions using
+	  events. No win32 port for now, just posix. UDP extension will
+	  follow shortly and will be the first extension using the event
+	  loop.
+
 2005-04-13 21:57  patthoyts
 
 	* jim-win32.c: Added GetLastInputInfo API

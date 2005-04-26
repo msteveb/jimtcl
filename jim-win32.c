@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.28 2005/04/21 07:35:57 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.29 2005/04/26 10:47:21 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -315,7 +315,7 @@ Win32_ShowWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     return JIM_OK;
 }
 
-
+#ifndef MINGW /* Many needed structures/definiitons are not present in mingw */
 #define F(x) { #x , x }
 typedef struct { const char *s; unsigned long f; } ANIMATEWINDOWFLAGSMAP;
 static ANIMATEWINDOWFLAGSMAP AnimateWindowFlagsMap[] = {
@@ -386,6 +386,7 @@ Win32_AnimateWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     }
     return JIM_OK;
 }
+#endif /* !MINGW */
 
 static int
 Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -1008,7 +1009,9 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(ShowWindow);
     CMD(MoveWindow);
     CMD(UpdateWindow);
+#ifndef MINGW
     CMD(AnimateWindow);
+#endif
     CMD(DestroyWindow);
     CMD(GetActiveWindow);
     CMD(SetActiveWindow);

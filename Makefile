@@ -35,6 +35,7 @@ stopit:
 	@echo "Use:"
 	@echo "make jim       - to build the Jim interpreter"
 	@echo "---"
+	@echo "make eventloop - to build only the event loop extension (.SO)"
 	@echo "make aio       - to build only the ANSI I/O extension (.SO)"
 	@echo "make aio-dll   - to build only the ANSI I/O extension (.DLL)"
 	@echo "---"
