@@ -1,3 +1,13 @@
+2005-09-19 17:47  antirez
+
+	* BUGS, ChangeLog, jim.c: Updated BUGS, fixed some minor problem
+	  with GCC 4.x compilation.
+
+2005-09-19 16:17  antirez
+
+	* doc/Sqlite-Extension.txt: Added info about in-memory databases in
+	  the Sqlite extension doc.
+
 2005-04-26 15:31  patthoyts
 
 	* jim-win32.c: Check available windows target version for more

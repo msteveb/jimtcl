@@ -1,7 +1,7 @@
 /* Jim - Event Loop extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-eventloop.c,v 1.1 2005/04/18 08:31:26 antirez Exp $
+ * $Id: jim-eventloop.c,v 1.2 2005/09/19 15:56:39 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -222,8 +222,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         int fd = (int) fe->handle;
 
         if (fe->mask & JIM_EVENT_READABLE) FD_SET(fd, &rfds);
-        if (fe->mask & JIM_EVENT_WRITABLE) FD_SET(fd, &rfds);
-        if (fe->mask & JIM_EVENT_EXCEPTION) FD_SET(fd, &rfds);
+        if (fe->mask & JIM_EVENT_WRITABLE) FD_SET(fd, &wfds);
+        if (fe->mask & JIM_EVENT_EXCEPTION) FD_SET(fd, &efds);
         if (maxfd < fd) maxfd = fd;
         numfd++;
         fe = fe->next;
