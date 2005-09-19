@@ -1,7 +1,7 @@
 Jim Sqlite extension documentation.
 Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
 
-$Id: Sqlite-Extension.txt,v 1.1 2005/04/02 21:35:33 antirez Exp $
+$Id: Sqlite-Extension.txt,v 1.2 2005/09/19 14:17:38 antirez Exp $
 
 Overview
 ~~~~~~~~
@@ -152,4 +152,27 @@ p.s. this extension is just the work of some hour thanks to the cool
 clean C API that sqlite exports. Thanks to the author of sqlite for this
 great work.
 
+In memory databases
+~~~~~~~~~~~~~~~~~~~
 
+SQLite is able to create in-memory databases instead to use files.
+This is of course faster and does not need the ability to write
+to the filesystem. Of course this databases are only useful for
+temp data.
+
+In-memory DBs are used just like regular databases, just the name used to
+open the database is :memory:. That's an example that does not use the
+filesystem at all to create and work with the db.
+
+  package require sqlite
+  set db [sqlite.open :memory:]
+  $db query {CREATE TABLE plays (id, author, title)}
+  $db query {INSERT INTO plays (id, author, title) VALUES (1, 'Goethe', 'Faust');}
+  $db query {INSERT INTO plays (id, author, title) VALUES (2, 'Shakespeare', 'Hamlet');}
+  $db query {INSERT INTO plays (id, author, title) VALUES (3, 'Sophocles', 'Oedipus Rex');}
+  set res [$db query "SELECT * FROM plays"]
+  $db close
+  foreach r $res {puts $r(author)}
+
+Of course once the Jim process is destroyed the database will no longer
+exists.
