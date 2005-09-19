@@ -1,3 +1,13 @@
+2005-04-26 15:31  patthoyts
+
+	* jim-win32.c: Check available windows target version for more
+	  things.
+
+2005-04-26 12:47  antirez
+
+	* ChangeLog, Makefile, jim-win32.c: mingw compilation fix
+	  (excluding the compilation of animate window win32 cmd)
+
 2005-04-21 09:35  patthoyts
 
 	* jim-win32.c: RegisterClass, CreateWindow and UpdateWindow. Need

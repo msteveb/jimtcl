@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.162 2005/04/18 08:31:26 antirez Exp $
+ * $Id: jim.c,v 1.163 2005/09/19 15:47:15 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static void JimRegisterCoreApi(Jim_Interp *interp);
 
-extern Jim_HashTableType JimVariablesHashTableType;
+static Jim_HashTableType JimVariablesHashTableType;
 
 /* -----------------------------------------------------------------------------
  * Utility functions
@@ -5186,7 +5186,7 @@ unsigned int JimObjectHTHashFunction(const void *key)
     int len, h;
 
     str = Jim_GetString(objPtr, &len);
-    h = Jim_GenHashFunction(str, len);
+    h = Jim_GenHashFunction((unsigned char*)str, len);
     return h;
 }
 
@@ -11211,7 +11211,7 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc,
             int c = u[i];
             
             if (objCache[c] == NULL)
-                objCache[c] = Jim_NewStringObj(interp, u+i, 1);
+                objCache[c] = Jim_NewStringObj(interp, (char*)u+i, 1);
             Jim_ListAppendElement(interp, resObjPtr, objCache[c]);
         }
     }
@@ -11695,7 +11695,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.162 2005/04/18 08:31:26 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.163 2005/09/19 15:47:15 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
