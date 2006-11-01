@@ -1,3 +1,8 @@
+2006-11-01 18:18  antirez
+
+	* ChangeLog, jim.c: Minor change to (hopefully) avoid a warning
+	  with some (non-gcc) compiler.
+
 2006-11-01 17:03  antirez
 
 	* ChangeLog, jim.c: Fixed error message when trying to access a non

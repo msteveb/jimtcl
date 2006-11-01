@@ -26,5 +26,5 @@ Also the following ideas are due to the following authors:
 - The [lmap] command is my (SS) design, but I incorporated inside the
   command an interesting idea of Donal K. Fellows that proposed that
   the [continue] command may be used to skip the accumulation of the
-  current-iteartion result, providing in one command the powerful of
+  current-iteartion result, providing in one command the power of
   [map] and [filter] together.
