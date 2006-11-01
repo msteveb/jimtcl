@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.164 2006/11/01 13:37:05 antirez Exp $
+ * $Id: jim.c,v 1.165 2006/11/01 16:03:13 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3522,10 +3522,6 @@ Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     if (Jim_DictKey(interp, dictObjPtr, substKeyObjPtr, &resObjPtr, JIM_ERRMSG)
             != JIM_OK) {
         resObjPtr = NULL;
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "Variable '", Jim_GetString(varObjPtr, NULL),
-                "' does not contain a valid dictionary", NULL);
         goto err;
     }
 err:
@@ -11708,7 +11704,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.164 2006/11/01 13:37:05 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.165 2006/11/01 16:03:13 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

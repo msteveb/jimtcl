@@ -1,3 +1,14 @@
+2006-11-01 14:37  antirez
+
+	* jim.c, jim.h: Fix to expr parsing (now hex digits work as
+	  literals).  the exit command is now implemented as a special
+	  return value of JIM_EXIT.
+
+2005-09-19 17:56  antirez
+
+	* ChangeLog, jim-eventloop.c: Fixed a bug reported by Craig Denson
+	  about jim-eveloop.c and filemasks.
+
 2005-09-19 17:47  antirez
 
 	* BUGS, ChangeLog, jim.c: Updated BUGS, fixed some minor problem
