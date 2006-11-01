@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.73 2005/04/18 08:31:26 antirez Exp $
+ * $Id: jim.h,v 1.74 2006/11/01 13:37:05 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,6 +117,7 @@ extern "C" {
 #define JIM_BREAK 3
 #define JIM_CONTINUE 4
 #define JIM_EVAL 5
+#define JIM_EXIT 6
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
@@ -442,6 +443,7 @@ typedef struct Jim_Interp {
     int numLevels; /* Number of current nested calls. */
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */
+    int exitCode; /* Code to return to the OS on JIM_EXIT. */
     Jim_CallFrame *framePtr; /* Pointer to the current call frame */
     Jim_CallFrame *topFramePtr; /* toplevel/global frame pointer. */
     struct Jim_HashTable commands; /* Commands hash table */
@@ -638,6 +640,7 @@ JIM_STATIC int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, J
 /* interpreter */
 JIM_STATIC Jim_Interp * JIM_API(Jim_CreateInterp) (void);
 JIM_STATIC void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
+JIM_STATIC int Jim_GetExitCode(Jim_Interp *interp);
 
 /* commands */
 JIM_STATIC void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);

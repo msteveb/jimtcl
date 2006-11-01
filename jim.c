@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.163 2005/09/19 15:47:15 antirez Exp $
+ * $Id: jim.c,v 1.164 2006/11/01 13:37:05 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1404,7 +1404,7 @@ int JimParseComment(struct JimParserCtx *pc)
 /* xdigitval and odigitval are helper functions for JimParserGetToken() */
 static int xdigitval(int c)
 {
-    if (c >= '0' && c <= '7') return c-'0';
+    if (c >= '0' && c <= '9') return c-'0';
     if (c >= 'a' && c <= 'f') return c-'a'+10;
     if (c >= 'A' && c <= 'F') return c-'A'+10;
     return -1;
@@ -4017,6 +4017,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->numLevels = 0;
     i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
     i->returnCode = JIM_OK;
+    i->exitCode = 0;
     i->procEpoch = 0;
     i->callFrameEpoch = 0;
     i->liveList = i->freeList = NULL;
@@ -4291,6 +4292,10 @@ void *Jim_GetAssocData(Jim_Interp *interp, const char *key)
 int Jim_DeleteAssocData(Jim_Interp *interp, const char *key)
 {
     return Jim_DeleteHashEntry(&interp->assocData, key);
+}
+
+int Jim_GetExitCode(Jim_Interp *interp) {
+    return interp->exitCode;
 }
 
 /* -----------------------------------------------------------------------------
@@ -5701,6 +5706,8 @@ int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         returnCode = JIM_CONTINUE;
     else if (!JimStringCompare(str, strLen, "eval", 4, JIM_NOCASE))
         returnCode = JIM_EVAL;
+    else if (!JimStringCompare(str, strLen, "exit", 4, JIM_NOCASE))
+        returnCode = JIM_EXIT;
     else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
@@ -5919,7 +5926,10 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     if (*pc->p == '-') {
         pc->p++; pc->len--;
     }
-    while (isdigit((int)*pc->p) || (allowdot && *pc->p == '.')) {
+    while (isdigit((int)*pc->p) || (allowdot && *pc->p == '.') ||
+           (pc->p-pc->tstart == 1 && *pc->tstart == '0' &&
+              (*pc->p == 'x' || *pc->p == 'X')))
+    {
         if (*pc->p == '.')
             allowdot = 0;
         pc->p++; pc->len--;
@@ -8984,9 +8994,12 @@ static int Jim_SubDivHelper(Jim_Interp *interp, int argc,
     double doubleValue, doubleRes = 0;
     int i = 2;
 
-    /* The arity = 2 case is different. For [- x] returns -x,
-     * while [/ x] returns 1/x. */
-    if (argc == 2) {
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "number ?number ... number?");
+        return JIM_ERR;
+    } else if (argc == 2) {
+        /* The arity = 2 case is different. For [- x] returns -x,
+         * while [/ x] returns 1/x. */
         if (Jim_GetWide(interp, argv[1], &wideValue) != JIM_OK) {
             if (Jim_GetDouble(interp, argv[1], &doubleValue) !=
                     JIM_OK)
@@ -10790,8 +10803,8 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc,
         if (Jim_GetLong(interp, argv[1], &exitCode) != JIM_OK)
             return JIM_ERR;
     }
-    exit(exitCode);
-    return JIM_OK; /* unreached */
+    interp->exitCode = exitCode;
+    return JIM_EXIT;
 }
 
 /* [catch] */
@@ -11695,18 +11708,18 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.163 2005/09/19 15:47:15 antirez Exp $\n");
+    printf("CVS ID: $Id: jim.c,v 1.164 2006/11/01 13:37:05 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
         const char *result;
         const char *retcodestr[] = {
-            "ok", "error", "return", "break", "continue", "eval"
+            "ok", "error", "return", "break", "continue", "eval", "exit"
         };
         int reslen;
 
         if (retcode != 0) {
-            if (retcode >= 2 && retcode <= 5)
+            if (retcode >= 2 && retcode <= 6)
                 printf("[%s] . ", retcodestr[retcode]);
             else
                 printf("[%d] . ", retcode);
@@ -11736,6 +11749,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         result = Jim_GetString(Jim_GetResult(interp), &reslen);
         if (retcode == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
+        } else if (retcode == JIM_EXIT) {
+            exit(Jim_GetExitCode(interp));
         } else {
             if (reslen) {
                 fwrite(result, 1, reslen, stdout);
