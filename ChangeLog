@@ -1,3 +1,11 @@
+2006-11-02 23:38  antirez
+
+	* ChangeLog, jim.c, jim.h: Ability to configure file descriptors
+	  for standard input, output, error.  Default is
+	  stdin,stdout,stderr but it's possible to change the default after
+	  creating the interpreter using Jim_(Set|Get)(Stdin|Stdout|Stderr)
+	  if needed.
+
 2006-11-02 00:31  antirez
 
 	* AUTHORS, ChangeLog: Minor doc typo
