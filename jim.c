@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.166 2006/11/01 17:18:25 antirez Exp $
+ * $Id: jim.c,v 1.167 2006/11/02 22:38:56 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -448,14 +448,19 @@ static jim_wide JimPowWide(jim_wide b, jim_wide e)
 /* -----------------------------------------------------------------------------
  * Special functions
  * ---------------------------------------------------------------------------*/
-void Jim_Panic(const char *fmt, ...)
+
+/* Note that 'interp' may be NULL if not available in the
+ * context of the panic. It's only useful to get the error
+ * file descriptor, it will default to stderr otherwise. */
+void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 {
     va_list ap;
+    FILE *fp = interp ? interp->stderr : stderr;
 
     va_start(ap, fmt);
-    fprintf(stderr, "\nJIM INTERPRETER PANIC: ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n\n");
+    fprintf(fp, "\nJIM INTERPRETER PANIC: ");
+    vfprintf(fp, fmt, ap);
+    fprintf(fp, "\n\n");
     va_end(ap);
 #ifdef HAVE_BACKTRACE
     {
@@ -466,9 +471,9 @@ void Jim_Panic(const char *fmt, ...)
         size = backtrace(array, 40);
         strings = backtrace_symbols(array, size);
         for (i = 0; i < size; i++)
-            printf("[backtrace] %s\n", strings[i]);
-        printf("[backtrace] Include the above lines and the output\n");
-        printf("[backtrace] of 'nm <executable>' in the bug report.\n");
+            fprintf(fp,"[backtrace] %s\n", strings[i]);
+        fprintf(fp,"[backtrace] Include the above lines and the output\n");
+        fprintf(fp,"[backtrace] of 'nm <executable>' in the bug report.\n");
     }
 #endif
     abort();
@@ -491,7 +496,7 @@ void *Jim_Alloc(int size)
 {
     void *p = malloc(size);
     if (p == NULL)
-        Jim_Panic("Out of memory");
+        Jim_Panic(NULL,"Out of memory");
     return p;
 }
 
@@ -503,7 +508,7 @@ void *Jim_Realloc(void *ptr, int size)
 {
     void *p = realloc(ptr, size);
     if (p == NULL)
-        Jim_Panic("Out of memory");
+        Jim_Panic(NULL,"Out of memory");
     return p;
 }
 
@@ -1746,7 +1751,7 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     /* Check if the object was already freed, panic. */
     if (objPtr->refCount != 0)  {
-        Jim_Panic("!!!Object %p freed with bad refcount %d", objPtr,
+        Jim_Panic(interp,"!!!Object %p freed with bad refcount %d", objPtr,
                 objPtr->refCount);
     }
     /* Free the internal representation */
@@ -1833,7 +1838,7 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
         if (objPtr->typePtr->updateStringProc == NULL) {
-            Jim_Panic("UpdataStringProc called against '%s' type.",
+            Jim_Panic(NULL,"UpdataStringProc called against '%s' type.",
                 objPtr->typePtr->name);
         }
         objPtr->typePtr->updateStringProc(objPtr);
@@ -1963,7 +1968,7 @@ void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str,
         int len)
 {
     if (Jim_IsShared(objPtr))
-        Jim_Panic("Jim_AppendString called with shared object");
+        Jim_Panic(interp,"Jim_AppendString called with shared object");
     if (objPtr->typePtr != &stringObjType)
         SetStringFromAny(interp, objPtr);
     StringAppendString(objPtr, str, len);
@@ -2327,9 +2332,9 @@ static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
         const char *fileName, int lineNumber)
 {
     if (Jim_IsShared(objPtr))
-        Jim_Panic("JimSetSourceInfo called with shared object");
+        Jim_Panic(interp,"JimSetSourceInfo called with shared object");
     if (objPtr->typePtr != NULL)
-        Jim_Panic("JimSetSourceInfo called with typePtr != NULL");
+        Jim_Panic(interp,"JimSetSourceInfo called with typePtr != NULL");
     objPtr->internalRep.sourceValue.fileName =
         Jim_GetSharedString(interp, fileName);
     objPtr->internalRep.sourceValue.lineNumber = lineNumber;
@@ -3878,7 +3883,8 @@ int Jim_Collect(Jim_Interp *interp)
                 Jim_AddHashEntry(&marks,
                     &objPtr->internalRep.refValue.id, NULL);
 #ifdef JIM_DEBUG_GC
-                printf("MARK (reference): %d refcount: %d\n", 
+                fprintf(interp->stdout,
+                    "MARK (reference): %d refcount: %d\n", 
                     (int) objPtr->internalRep.refValue.id,
                     objPtr->refCount);
 #endif
@@ -3916,7 +3922,7 @@ int Jim_Collect(Jim_Interp *interp)
                  * was found. Mark it. */
                 Jim_AddHashEntry(&marks, &id, NULL);
 #ifdef JIM_DEBUG_GC
-                printf("MARK: %d\n", (int)id);
+                fprintf(interp->stdout,"MARK: %d\n", (int)id);
 #endif
                 p += JIM_REFERENCE_SPACE;
             }
@@ -3936,7 +3942,7 @@ int Jim_Collect(Jim_Interp *interp)
          * this reference. */
         if (Jim_FindHashEntry(&marks, refId) == NULL) {
 #ifdef JIM_DEBUG_GC
-            printf("COLLECTING %d\n", (int)*refId);
+            fprintf(interp->stdout,"COLLECTING %d\n", (int)*refId);
 #endif
             collected++;
             /* Drop the reference, but call the
@@ -4024,6 +4030,9 @@ Jim_Interp *Jim_CreateInterp(void)
     i->freeFramesList = NULL;
     i->prngState = NULL;
     i->evalRetcodeLevel = -1;
+    i->stdin = stdin;
+    i->stdout = stdout;
+    i->stderr = stderr;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -4092,24 +4101,24 @@ void Jim_FreeInterp(Jim_Interp *i)
     if (i->liveList != NULL) {
         Jim_Obj *objPtr = i->liveList;
     
-        printf("\n-------------------------------------\n");
-        printf("Objects still in the free list:\n");
+        fprintf(i->stdout,"\n-------------------------------------\n");
+        fprintf(i->stdout,"Objects still in the free list:\n");
         while(objPtr) {
             const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
-            printf("%p \"%-10s\": '%.20s' (refCount: %d)\n",
+            fprintf(i->stdout,"%p \"%-10s\": '%.20s' (refCount: %d)\n",
                     objPtr, type,
                     objPtr->bytes ? objPtr->bytes
                     : "(null)", objPtr->refCount);
             if (objPtr->typePtr == &sourceObjType) {
-                printf("FILE %s LINE %d\n",
+                fprintf(i->stdout, "FILE %s LINE %d\n",
                 objPtr->internalRep.sourceValue.fileName,
                 objPtr->internalRep.sourceValue.lineNumber);
             }
             objPtr = objPtr->nextObjPtr;
         }
-        printf("-------------------------------------\n\n");
-        Jim_Panic("Live list non empty freeing the interpreter! Leak?");
+        fprintf(stdout, "-------------------------------------\n\n");
+        Jim_Panic(i,"Live list non empty freeing the interpreter! Leak?");
     }
     /* Free all the freed objects. */
     objPtr = i->freeList;
@@ -4294,6 +4303,13 @@ int Jim_GetExitCode(Jim_Interp *interp) {
     return interp->exitCode;
 }
 
+void Jim_SetStdin(Jim_Interp *interp, FILE *fp) {interp->stdin = fp;}
+void Jim_SetStdout(Jim_Interp *interp, FILE *fp) {interp->stdout = fp;}
+void Jim_SetStderr(Jim_Interp *interp, FILE *fp) {interp->stderr = fp;}
+FILE *Jim_GetStdin(Jim_Interp *interp) {return interp->stdin;}
+FILE *Jim_GetStdout(Jim_Interp *interp) {return interp->stdout;}
+FILE *Jim_GetStderr(Jim_Interp *interp) {return interp->stderr;}
+
 /* -----------------------------------------------------------------------------
  * Shared strings.
  * Every interpreter has an hash table where to put shared dynamically
@@ -4333,7 +4349,7 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
     if (he == NULL)
-        Jim_Panic("Jim_ReleaseSharedString called with "
+        Jim_Panic(interp,"Jim_ReleaseSharedString called with "
               "unknown shared string '%s'", str);
     refCount = (long) he->val;
     refCount--;
@@ -4436,7 +4452,7 @@ int Jim_GetLong(Jim_Interp *interp, Jim_Obj *objPtr, long *longPtr)
 void Jim_SetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide wideValue)
 {
     if (Jim_IsShared(objPtr))
-        Jim_Panic("Jim_SetWide called with shared object");
+        Jim_Panic(interp,"Jim_SetWide called with shared object");
     if (objPtr->typePtr != &intObjType) {
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &intObjType;
@@ -4516,7 +4532,7 @@ int Jim_GetDouble(Jim_Interp *interp, Jim_Obj *objPtr, double *doublePtr)
 void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr, double doubleValue)
 {
     if (Jim_IsShared(objPtr))
-        Jim_Panic("Jim_SetDouble called with shared object");
+        Jim_Panic(interp,"Jim_SetDouble called with shared object");
     if (objPtr->typePtr != &doubleObjType) {
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &doubleObjType;
@@ -4868,7 +4884,7 @@ static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
     int len;
 
     if (Jim_IsShared(listObjPtr))
-        Jim_Panic("Jim_ListSortElements called with shared object");
+        Jim_Panic(interp,"Jim_ListSortElements called with shared object");
     if (listObjPtr->typePtr != &listObjType)
         SetListFromAny(interp, listObjPtr);
 
@@ -4881,7 +4897,7 @@ static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
         case JIM_LSORT_NOCASE_DECR: fn = ListSortStringNoCaseDecr;  break;
         default:
             fn = NULL; /* avoid warning */
-            Jim_Panic("ListSort called with invalid sort type");
+            Jim_Panic(interp,"ListSort called with invalid sort type");
     }
     qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *)fn);
     Jim_InvalidateStringRep(listObjPtr);
@@ -4971,7 +4987,7 @@ void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr)
 {
     if (Jim_IsShared(listPtr))
-        Jim_Panic("Jim_ListAppendElement called with shared object");
+        Jim_Panic(interp,"Jim_ListAppendElement called with shared object");
     if (listPtr->typePtr != &listObjType)
         SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
@@ -4981,7 +4997,7 @@ void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr
 void Jim_ListAppendList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 {
     if (Jim_IsShared(listPtr))
-        Jim_Panic("Jim_ListAppendList called with shared object");
+        Jim_Panic(interp,"Jim_ListAppendList called with shared object");
     if (listPtr->typePtr != &listObjType)
         SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
@@ -4999,7 +5015,7 @@ void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int index,
         int objc, Jim_Obj *const *objVec)
 {
     if (Jim_IsShared(listPtr))
-        Jim_Panic("Jim_ListInsertElement called with shared object");
+        Jim_Panic(interp,"Jim_ListInsertElement called with shared object");
     if (listPtr->typePtr != &listObjType)
         SetListFromAny(interp, listPtr);
     if (index >= 0 && index > listPtr->internalRep.listValue.len)
@@ -5433,7 +5449,7 @@ int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr)
 {
     if (Jim_IsShared(objPtr))
-        Jim_Panic("Jim_DictAddElement called with shared object");
+        Jim_Panic(interp,"Jim_DictAddElement called with shared object");
     if (objPtr->typePtr != &dictObjType) {
         if (SetDictFromAny(interp, objPtr) != JIM_OK)
             return JIM_ERR;
@@ -5449,7 +5465,7 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     int i;
 
     if (len % 2)
-        Jim_Panic("Jim_NewDicObj() 'len' argument must be even");
+        Jim_Panic(interp,"Jim_NewDicObj() 'len' argument must be even");
 
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &dictObjType;
@@ -6115,7 +6131,7 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
             stacklen--;
             break;
         default:
-            Jim_Panic("Default opcode reached ExprCheckCorrectness");
+            Jim_Panic(NULL,"Default opcode reached ExprCheckCorrectness");
             break;
         }
     }
@@ -6198,7 +6214,7 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
             default:
                 op = JimExprOperatorInfoByOpcode(expr->opcode[i]);
                 if (op == NULL) {
-                    Jim_Panic("Default reached in ExprMakeLazy()");
+                    Jim_Panic(interp,"Default reached in ExprMakeLazy()");
                 }
                 arity += op->arity;
                 break;
@@ -6340,7 +6356,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             Jim_Free(token);
             break;
         default:
-            Jim_Panic("Default reached in SetExprFromAny()");
+            Jim_Panic(interp,"Default reached in SetExprFromAny()");
             break;
         }
     }
@@ -6725,7 +6741,7 @@ trydouble_unary:
             Jim_IncrRefCount(stack[stacklen]);
             stacklen++;
         } else {
-            Jim_Panic("Unknown opcode in Jim_EvalExpression");
+            Jim_Panic(interp,"Unknown opcode in Jim_EvalExpression");
         }
     }
 err:
@@ -8004,7 +8020,7 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken *token,
             intv[i] = Jim_GetResult(interp);
             break;
         default:
-            Jim_Panic(
+            Jim_Panic(interp,
               "default token type reached "
               "in Jim_InterpolateTokens().");
             break;
@@ -8181,7 +8197,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                     argv[j] = Jim_GetResult(interp);
                     break;
                 default:
-                    Jim_Panic(
+                    Jim_Panic(interp,
                       "default token type reached "
                       "in Jim_EvalObj().");
                     break;
@@ -8414,7 +8430,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_IncrRefCount(objv[1]);
         if (Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
             /* Report the error to stderr. */
-            fprintf(stderr, "Background error:\n");
+            fprintf(interp->stderr, "Background error:\n");
             Jim_PrintErrorMessage(interp);
         }
         Jim_DecrRefCount(interp, objv[0]);
@@ -8653,7 +8669,7 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
             Jim_AppendObj(interp, resObjPtr, interp->result);
             break;
         default:
-            Jim_Panic(
+            Jim_Panic(interp,
               "default token type (%d) reached "
               "in Jim_SubstObj().", token[i].type);
             break;
@@ -8746,6 +8762,13 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(GetFinalizer);
   JIM_REGISTER_API(CreateInterp);
   JIM_REGISTER_API(FreeInterp);
+  JIM_REGISTER_API(GetExitCode);
+  JIM_REGISTER_API(SetStdin);
+  JIM_REGISTER_API(SetStdout);
+  JIM_REGISTER_API(SetStderr);
+  JIM_REGISTER_API(GetStdin);
+  JIM_REGISTER_API(GetStdout);
+  JIM_REGISTER_API(GetStderr);
   JIM_REGISTER_API(CreateCommand);
   JIM_REGISTER_API(CreateProcedure);
   JIM_REGISTER_API(DeleteCommand);
@@ -8943,8 +8966,8 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc,
         }
     }
     str = Jim_GetString(argv[1], &len);
-    fwrite(str, 1, len, stdout);
-    if (!nonewline) printf("\n");
+    fwrite(str, 1, len, interp->stdout);
+    if (!nonewline) fprintf(interp->stdout, "\n");
     return JIM_OK;
 }
 
@@ -9224,7 +9247,8 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc,
             }
             break;
         default:
-            Jim_Panic("Unexpected default reached in Jim_WhileCoreCommand()");
+            Jim_Panic(interp,
+                "Unexpected default reached in Jim_WhileCoreCommand()");
             break;
         }
 
@@ -11675,9 +11699,9 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
 {
     int len, i;
 
-    fprintf(stderr, "Runtime error, file \"%s\", line %d:\n",
+    fprintf(interp->stderr, "Runtime error, file \"%s\", line %d:\n",
             interp->errorFileName, interp->errorLine);
-    fprintf(stderr, "    %s\n", Jim_GetString(interp->result, NULL));
+    fprintf(interp->stderr, "    %s\n", Jim_GetString(interp->result, NULL));
     Jim_ListLength(interp, interp->stackTrace, &len);
     for (i = 0; i < len; i+= 3) {
         Jim_Obj *objPtr;
@@ -11691,7 +11715,8 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
         Jim_ListIndex(interp, interp->stackTrace, i+2, &objPtr,
                 JIM_NONE);
         line = Jim_GetString(objPtr, NULL);
-        fprintf(stderr, "In procedure '%s' called at file \"%s\", line %s\n",
+        fprintf(interp->stderr,
+                "In procedure '%s' called at file \"%s\", line %s\n",
                 proc, file, line);
     }
 }
@@ -11701,10 +11726,11 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     int retcode = JIM_OK;
     Jim_Obj *scriptObjPtr;
 
-    printf("Welcome to Jim version %d.%d, "
+    fprintf(interp->stdout, "Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
-    printf("CVS ID: $Id: jim.c,v 1.166 2006/11/01 17:18:25 antirez Exp $\n");
+    fprintf(interp->stdout,
+            "CVS ID: $Id: jim.c,v 1.167 2006/11/02 22:38:56 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
@@ -11716,12 +11742,12 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 
         if (retcode != 0) {
             if (retcode >= 2 && retcode <= 6)
-                printf("[%s] . ", retcodestr[retcode]);
+                fprintf(interp->stdout, "[%s] . ", retcodestr[retcode]);
             else
-                printf("[%d] . ", retcode);
+                fprintf(interp->stdout, "[%d] . ", retcode);
         } else
-            printf(". ");
-        fflush(stdout);
+            fprintf(interp->stdout, ". ");
+        fflush(interp->stdout);
         scriptObjPtr = Jim_NewStringObj(interp, "", 0);
         Jim_IncrRefCount(scriptObjPtr);
         while(1) {
@@ -11729,7 +11755,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             char state;
             int len;
 
-            if (fgets(buf, 1024, stdin) == NULL) {
+            if (fgets(buf, 1024, interp->stdin) == NULL) {
                 Jim_DecrRefCount(interp, scriptObjPtr);
                 goto out;
             }
@@ -11737,7 +11763,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             str = Jim_GetString(scriptObjPtr, &len);
             if (Jim_ScriptIsComplete(str, len, &state))
                 break;
-            printf("%c> ", state);
+            fprintf(interp->stdout, "%c> ", state);
             fflush(stdout);
         }
         retcode = Jim_EvalObj(interp, scriptObjPtr);
@@ -11749,8 +11775,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             exit(Jim_GetExitCode(interp));
         } else {
             if (reslen) {
-                fwrite(result, 1, reslen, stdout);
-                printf("\n");
+                fwrite(result, 1, reslen, interp->stdout);
+                fprintf(interp->stdout, "\n");
             }
         }
     }

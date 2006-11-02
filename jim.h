@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.74 2006/11/01 13:37:05 antirez Exp $
+ * $Id: jim.h,v 1.75 2006/11/02 22:38:56 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ extern "C" {
 
 #include <time.h>
 #include <limits.h>
+#include <stdio.h>  /* for the FILE typedef definition */
 #include <stdlib.h> /* In order to export the Jim_Free() macro */
 
 /* -----------------------------------------------------------------------------
@@ -483,6 +484,9 @@ typedef struct Jim_Interp {
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
+    FILE *stdin; /* input file pointer, 'stdin' by default */
+    FILE *stdout; /* output file pointer, 'stdout' by default */
+    FILE *stderr; /* errors file pointer, 'stderr' by default */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -640,7 +644,13 @@ JIM_STATIC int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, J
 /* interpreter */
 JIM_STATIC Jim_Interp * JIM_API(Jim_CreateInterp) (void);
 JIM_STATIC void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
-JIM_STATIC int Jim_GetExitCode(Jim_Interp *interp);
+JIM_STATIC int JIM_API(Jim_GetExitCode) (Jim_Interp *interp);
+JIM_STATIC void JIM_API(Jim_SetStdin) (Jim_Interp *interp, FILE *fp);
+JIM_STATIC void JIM_API(Jim_SetStdout) (Jim_Interp *interp, FILE *fp);
+JIM_STATIC void JIM_API(Jim_SetStderr) (Jim_Interp *interp, FILE *fp);
+JIM_STATIC FILE * JIM_API(Jim_GetStdin) (Jim_Interp *interp);
+JIM_STATIC FILE * JIM_API(Jim_GetStdout) (Jim_Interp *interp);
+JIM_STATIC FILE * JIM_API(Jim_GetStderr) (Jim_Interp *interp);
 
 /* commands */
 JIM_STATIC void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
@@ -789,7 +799,7 @@ JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
 JIM_STATIC int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
 
 /* Misc */
-JIM_STATIC void JIM_API(Jim_Panic) (const char *fmt, ...);
+JIM_STATIC void JIM_API(Jim_Panic) (Jim_Interp *interp, const char *fmt, ...);
 
 #undef JIM_STATIC
 #undef JIM_API
@@ -848,6 +858,13 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(GetFinalizer);
   JIM_GET_API(CreateInterp);
   JIM_GET_API(FreeInterp);
+  JIM_GET_API(GetExitCode);
+  JIM_GET_API(SetStdin);
+  JIM_GET_API(SetStdout);
+  JIM_GET_API(SetStderr);
+  JIM_GET_API(GetStdin);
+  JIM_GET_API(GetStdout);
+  JIM_GET_API(GetStderr);
   JIM_GET_API(CreateCommand);
   JIM_GET_API(CreateProcedure);
   JIM_GET_API(DeleteCommand);
