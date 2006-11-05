@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.167 2006/11/02 22:38:56 antirez Exp $
+ * $Id: jim.c,v 1.168 2006/11/05 00:26:57 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2700,7 +2700,8 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
                 if (token[end].type == JIM_TT_STR &&
                     token[end+1].type != JIM_TT_SEP &&
                     token[end+1].type != JIM_TT_EOL &&
-                    !strcmp(token[end].objPtr->bytes, "expand"))
+                    (!strcmp(token[end].objPtr->bytes, "expand") ||
+                     !strcmp(token[end].objPtr->bytes, "*")))
                     expand++;
             }
             if (token[end].type == JIM_TT_SEP)
@@ -2729,7 +2730,8 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
                 tokens = 0;
                 continue;
             } else if (tokens == 0 && token[i].type == JIM_TT_STR &&
-                   !strcmp(token[i].objPtr->bytes, "expand"))
+                   (!strcmp(token[i].objPtr->bytes, "expand") ||
+                    !strcmp(token[i].objPtr->bytes, "*")))
             {
                 expand++;
             }
@@ -11730,7 +11732,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
            "Copyright (c) 2005 Salvatore Sanfilippo\n",
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout,
-            "CVS ID: $Id: jim.c,v 1.167 2006/11/02 22:38:56 antirez Exp $\n");
+            "CVS ID: $Id: jim.c,v 1.168 2006/11/05 00:26:57 antirez Exp $\n");
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];

@@ -1,3 +1,7 @@
+2006-11-02 23:39  antirez
+
+	* ChangeLog: [no log message]
+
 2006-11-02 23:38  antirez
 
 	* ChangeLog, jim.c, jim.h: Ability to configure file descriptors
