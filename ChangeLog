@@ -1,3 +1,13 @@
+2006-11-06 17:54  antirez
+
+	* jim-aio.c: Jim-aio is now able to be statically linked with jim.c
+	  on systems like eCos where there is no dynamic libraries support.
+
+2006-11-05 01:26  antirez
+
+	* ChangeLog, jim.c: {*} as alias for {expand} like in recent Tcl
+	  8.5 versions
+
 2006-11-02 23:39  antirez
 
 	* ChangeLog: [no log message]

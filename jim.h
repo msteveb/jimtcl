@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.75 2006/11/02 22:38:56 antirez Exp $
+ * $Id: jim.h,v 1.76 2006/11/06 20:29:15 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,13 @@ extern "C" {
 
 /* Filesystem related */
 #define JIM_PATH_LEN 1024
+
+/* Newline, some embedded system may need -DJIM_CRLF */
+#ifdef JIM_CRLF
+#define JIM_NL "\r\n"
+#else
+#define JIM_NL "\n"
+#endif
 
 /* -----------------------------------------------------------------------------
  * Stack
@@ -645,12 +652,9 @@ JIM_STATIC int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, J
 JIM_STATIC Jim_Interp * JIM_API(Jim_CreateInterp) (void);
 JIM_STATIC void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
 JIM_STATIC int JIM_API(Jim_GetExitCode) (Jim_Interp *interp);
-JIM_STATIC void JIM_API(Jim_SetStdin) (Jim_Interp *interp, FILE *fp);
-JIM_STATIC void JIM_API(Jim_SetStdout) (Jim_Interp *interp, FILE *fp);
-JIM_STATIC void JIM_API(Jim_SetStderr) (Jim_Interp *interp, FILE *fp);
-JIM_STATIC FILE * JIM_API(Jim_GetStdin) (Jim_Interp *interp);
-JIM_STATIC FILE * JIM_API(Jim_GetStdout) (Jim_Interp *interp);
-JIM_STATIC FILE * JIM_API(Jim_GetStderr) (Jim_Interp *interp);
+JIM_STATIC FILE * JIM_API(Jim_SetStdin) (Jim_Interp *interp, FILE *fp);
+JIM_STATIC FILE * JIM_API(Jim_SetStdout) (Jim_Interp *interp, FILE *fp);
+JIM_STATIC FILE * JIM_API(Jim_SetStderr) (Jim_Interp *interp, FILE *fp);
 
 /* commands */
 JIM_STATIC void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
@@ -862,9 +866,6 @@ static void Jim_InitExtension(Jim_Interp *interp)
   JIM_GET_API(SetStdin);
   JIM_GET_API(SetStdout);
   JIM_GET_API(SetStderr);
-  JIM_GET_API(GetStdin);
-  JIM_GET_API(GetStdout);
-  JIM_GET_API(GetStderr);
   JIM_GET_API(CreateCommand);
   JIM_GET_API(CreateProcedure);
   JIM_GET_API(DeleteCommand);

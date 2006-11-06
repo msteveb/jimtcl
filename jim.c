@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.168 2006/11/05 00:26:57 antirez Exp $
+ * $Id: jim.c,v 1.169 2006/11/06 20:29:15 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -458,9 +458,9 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
     FILE *fp = interp ? interp->stderr : stderr;
 
     va_start(ap, fmt);
-    fprintf(fp, "\nJIM INTERPRETER PANIC: ");
+    fprintf(fp, JIM_NL "JIM INTERPRETER PANIC: ");
     vfprintf(fp, fmt, ap);
-    fprintf(fp, "\n\n");
+    fprintf(fp, JIM_NL JIM_NL);
     va_end(ap);
 #ifdef HAVE_BACKTRACE
     {
@@ -471,9 +471,9 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
         size = backtrace(array, 40);
         strings = backtrace_symbols(array, size);
         for (i = 0; i < size; i++)
-            fprintf(fp,"[backtrace] %s\n", strings[i]);
-        fprintf(fp,"[backtrace] Include the above lines and the output\n");
-        fprintf(fp,"[backtrace] of 'nm <executable>' in the bug report.\n");
+            fprintf(fp,"[backtrace] %s" JIM_NL, strings[i]);
+        fprintf(fp,"[backtrace] Include the above lines and the output" JIM_NL);
+        fprintf(fp,"[backtrace] of 'nm <executable>' in the bug report." JIM_NL);
     }
 #endif
     abort();
@@ -3886,7 +3886,7 @@ int Jim_Collect(Jim_Interp *interp)
                     &objPtr->internalRep.refValue.id, NULL);
 #ifdef JIM_DEBUG_GC
                 fprintf(interp->stdout,
-                    "MARK (reference): %d refcount: %d\n", 
+                    "MARK (reference): %d refcount: %d" JIM_NL, 
                     (int) objPtr->internalRep.refValue.id,
                     objPtr->refCount);
 #endif
@@ -3924,7 +3924,7 @@ int Jim_Collect(Jim_Interp *interp)
                  * was found. Mark it. */
                 Jim_AddHashEntry(&marks, &id, NULL);
 #ifdef JIM_DEBUG_GC
-                fprintf(interp->stdout,"MARK: %d\n", (int)id);
+                fprintf(interp->stdout,"MARK: %d" JIM_NL, (int)id);
 #endif
                 p += JIM_REFERENCE_SPACE;
             }
@@ -3944,7 +3944,7 @@ int Jim_Collect(Jim_Interp *interp)
          * this reference. */
         if (Jim_FindHashEntry(&marks, refId) == NULL) {
 #ifdef JIM_DEBUG_GC
-            fprintf(interp->stdout,"COLLECTING %d\n", (int)*refId);
+            fprintf(interp->stdout,"COLLECTING %d" JIM_NL, (int)*refId);
 #endif
             collected++;
             /* Drop the reference, but call the
@@ -4103,23 +4103,23 @@ void Jim_FreeInterp(Jim_Interp *i)
     if (i->liveList != NULL) {
         Jim_Obj *objPtr = i->liveList;
     
-        fprintf(i->stdout,"\n-------------------------------------\n");
-        fprintf(i->stdout,"Objects still in the free list:\n");
+        fprintf(i->stdout,JIM_NL "-------------------------------------" JIM_NL);
+        fprintf(i->stdout,"Objects still in the free list:" JIM_NL);
         while(objPtr) {
             const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
-            fprintf(i->stdout,"%p \"%-10s\": '%.20s' (refCount: %d)\n",
+            fprintf(i->stdout,"%p \"%-10s\": '%.20s' (refCount: %d)" JIM_NL,
                     objPtr, type,
                     objPtr->bytes ? objPtr->bytes
                     : "(null)", objPtr->refCount);
             if (objPtr->typePtr == &sourceObjType) {
-                fprintf(i->stdout, "FILE %s LINE %d\n",
+                fprintf(i->stdout, "FILE %s LINE %d" JIM_NL,
                 objPtr->internalRep.sourceValue.fileName,
                 objPtr->internalRep.sourceValue.lineNumber);
             }
             objPtr = objPtr->nextObjPtr;
         }
-        fprintf(stdout, "-------------------------------------\n\n");
+        fprintf(stdout, "-------------------------------------" JIM_NL JIM_NL);
         Jim_Panic(i,"Live list non empty freeing the interpreter! Leak?");
     }
     /* Free all the freed objects. */
@@ -4305,12 +4305,23 @@ int Jim_GetExitCode(Jim_Interp *interp) {
     return interp->exitCode;
 }
 
-void Jim_SetStdin(Jim_Interp *interp, FILE *fp) {interp->stdin = fp;}
-void Jim_SetStdout(Jim_Interp *interp, FILE *fp) {interp->stdout = fp;}
-void Jim_SetStderr(Jim_Interp *interp, FILE *fp) {interp->stderr = fp;}
-FILE *Jim_GetStdin(Jim_Interp *interp) {return interp->stdin;}
-FILE *Jim_GetStdout(Jim_Interp *interp) {return interp->stdout;}
-FILE *Jim_GetStderr(Jim_Interp *interp) {return interp->stderr;}
+FILE *Jim_SetStdin(Jim_Interp *interp, FILE *fp)
+{
+    if (fp != NULL) interp->stdin = fp;
+    return interp->stdin;
+}
+
+FILE *Jim_SetStdout(Jim_Interp *interp, FILE *fp)
+{
+    if (fp != NULL) interp->stdout = fp;
+    return interp->stdout;
+}
+
+FILE *Jim_SetStderr(Jim_Interp *interp, FILE *fp)
+{
+    if (fp != NULL) interp->stderr = fp;
+    return interp->stderr;
+}
 
 /* -----------------------------------------------------------------------------
  * Shared strings.
@@ -8432,7 +8443,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_IncrRefCount(objv[1]);
         if (Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
             /* Report the error to stderr. */
-            fprintf(interp->stderr, "Background error:\n");
+            fprintf(interp->stderr, "Background error:" JIM_NL);
             Jim_PrintErrorMessage(interp);
         }
         Jim_DecrRefCount(interp, objv[0]);
@@ -8768,9 +8779,6 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(SetStdin);
   JIM_REGISTER_API(SetStdout);
   JIM_REGISTER_API(SetStderr);
-  JIM_REGISTER_API(GetStdin);
-  JIM_REGISTER_API(GetStdout);
-  JIM_REGISTER_API(GetStderr);
   JIM_REGISTER_API(CreateCommand);
   JIM_REGISTER_API(CreateProcedure);
   JIM_REGISTER_API(DeleteCommand);
@@ -8969,7 +8977,7 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc,
     }
     str = Jim_GetString(argv[1], &len);
     fwrite(str, 1, len, interp->stdout);
-    if (!nonewline) fprintf(interp->stdout, "\n");
+    if (!nonewline) fprintf(interp->stdout, JIM_NL);
     return JIM_OK;
 }
 
@@ -11701,9 +11709,10 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
 {
     int len, i;
 
-    fprintf(interp->stderr, "Runtime error, file \"%s\", line %d:\n",
+    fprintf(interp->stderr, "Runtime error, file \"%s\", line %d:" JIM_NL,
             interp->errorFileName, interp->errorLine);
-    fprintf(interp->stderr, "    %s\n", Jim_GetString(interp->result, NULL));
+    fprintf(interp->stderr, "    %s" JIM_NL,
+            Jim_GetString(interp->result, NULL));
     Jim_ListLength(interp, interp->stackTrace, &len);
     for (i = 0; i < len; i+= 3) {
         Jim_Obj *objPtr;
@@ -11718,7 +11727,7 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
                 JIM_NONE);
         line = Jim_GetString(objPtr, NULL);
         fprintf(interp->stderr,
-                "In procedure '%s' called at file \"%s\", line %s\n",
+                "In procedure '%s' called at file \"%s\", line %s" JIM_NL,
                 proc, file, line);
     }
 }
@@ -11729,10 +11738,11 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     Jim_Obj *scriptObjPtr;
 
     fprintf(interp->stdout, "Welcome to Jim version %d.%d, "
-           "Copyright (c) 2005 Salvatore Sanfilippo\n",
+           "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout,
-            "CVS ID: $Id: jim.c,v 1.168 2006/11/05 00:26:57 antirez Exp $\n");
+            "CVS ID: $Id: jim.c,v 1.169 2006/11/06 20:29:15 antirez Exp $"
+            JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
@@ -11778,7 +11788,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         } else {
             if (reslen) {
                 fwrite(result, 1, reslen, interp->stdout);
-                fprintf(interp->stdout, "\n");
+                fprintf(interp->stdout, JIM_NL);
             }
         }
     }
