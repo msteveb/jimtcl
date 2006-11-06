@@ -1,3 +1,11 @@
+2006-11-06 21:29  antirez
+
+	* ChangeLog, jim.c, jim.h: Jim_GetStdin/out/err API removed, now
+	  Jim-SetStdin/out/err returns the old value if called with NULL.
+	  JIM_NL define introduced in order to force Jim to output CRLF
+	  instead of just LF in the core output printf/fwrite calls. This
+	  appears to be useful in some kind of terminal under eCos.
+
 2006-11-06 17:54  antirez
 
 	* jim-aio.c: Jim-aio is now able to be statically linked with jim.c

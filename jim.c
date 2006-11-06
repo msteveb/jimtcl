@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.169 2006/11/06 20:29:15 antirez Exp $
+ * $Id: jim.c,v 1.170 2006/11/06 21:48:57 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2925,11 +2925,18 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
     }
 
     /* Add the new command */
-    Jim_DeleteHashEntry(&interp->commands, cmdName); /* it may already exist */
+
+    /* it may already exist, so we try to delete the old one */
+    if (Jim_DeleteHashEntry(&interp->commands, cmdName) != JIM_ERR) {
+        /* There was an old procedure with the same name, this requires
+         * a 'proc epoch' update. */
+        Jim_InterpIncrProcEpoch(interp);
+    }
+    /* If a procedure with the same name didn't existed there is no need
+     * to increment the 'proc epoch' because creation of a new procedure
+     * can never affect existing cached commands. We don't do
+     * negative caching. */
     Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
-    /* There is no need to increment the 'proc epoch' because
-     * creation of a new procedure can never affect existing
-     * cached commands. We don't do negative caching. */
     return JIM_OK;
 
 err:
@@ -11741,7 +11748,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
            "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout,
-            "CVS ID: $Id: jim.c,v 1.169 2006/11/06 20:29:15 antirez Exp $"
+            "CVS ID: $Id: jim.c,v 1.170 2006/11/06 21:48:57 antirez Exp $"
             JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
