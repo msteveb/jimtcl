@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.9 2005/04/12 12:36:57 antirez Exp $
+ * $Id: jim-aio.c,v 1.10 2006/11/06 16:54:48 antirez Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,9 @@
 #include <string.h>
 #include <errno.h>
 
+#ifndef JIM_STATICEXT
 #define JIM_EXTENSION
+#endif
 #include "jim.h"
 
 #define AIO_CMD_LEN 128
@@ -242,7 +244,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         return JIM_OK;
     } else if (option == OPT_PUTS) {
     /* PUTS */
-        unsigned int wlen;
+        int wlen;
         const char *wdata;
 
         if (argc != 3 && (argc != 4 || !Jim_CompareStringImmediate(
@@ -251,7 +253,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         wdata = Jim_GetString(argv[2+(argc==4)], &wlen);
-        if (fwrite(wdata, 1, wlen, af->fp) != wlen ||
+        if (fwrite(wdata, 1, wlen, af->fp) != (unsigned)wlen ||
             (argc == 3 && fwrite("\n", 1, 1, af->fp) != 1)) {
             JimAioSetError(interp);
             return JIM_ERR;
@@ -310,7 +312,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         case OPT_INPUT: fp = stdin; break;
         case OPT_OUTPUT: fp = stdout; break;
         case OPT_ERROR: fp = stderr; break;
-        default: fp = NULL; Jim_Panic("default reached in JimAioOpenCommand()");
+        default: fp = NULL; Jim_Panic(interp,"default reached in JimAioOpenCommand()");
                  break;
         }
     } else {
@@ -338,9 +340,15 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+#ifndef JIM_STATICEXT
 int Jim_OnLoad(Jim_Interp *interp)
+#else
+int Jim_AioInit(Jim_Interp *interp)
+#endif
 {
+    #ifndef JIM_STATICEXT
     Jim_InitExtension(interp);
+    #endif
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);
