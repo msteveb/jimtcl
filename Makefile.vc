@@ -14,7 +14,7 @@
 # Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
 #
 #-------------------------------------------------------------------------
-# $Id: Makefile.vc,v 1.12 2005/04/06 14:16:56 patthoyts Exp $
+# $Id: Makefile.vc,v 1.13 2007/01/31 00:49:05 patthoyts Exp $
 #-------------------------------------------------------------------------
 
 SRCDIR =.
@@ -25,7 +25,30 @@ DEBUG   =0
 !ifndef PROFILE
 PROFILE =0
 !endif
+!ifndef SYMBOLS
+SYMBOLS = 0
+!endif
+!ifndef CC
+CC=cl
+!endif
+!ifndef LINK
+LINK=link
+!endif
 
+# If you have sqlite3 installed and want to build the extension add
+# SQLITE3DIR=c:\path\to\sqlite3
+#
+!ifndef SQLITE3DIR
+SQLITE3    =0
+!else
+SQLITE3    =1
+SQLITE_INC=-I$(SQLITE3DIR)
+SQLITE_LIB=-libpath:$(SQLITE3DIR) libsqlite3.lib
+!endif
+
+#-------------------------------------------------------------------------
+# There should be no need to edit below this point.
+#-------------------------------------------------------------------------
 
 !if $(DEBUG)
 OUTDIR =Debug
@@ -33,8 +56,13 @@ CFLAGS =-Od -Zi -GZ -MDd -D_DEBUG
 LDFLAGS=-debug:full -debugtype:cv
 !else
 OUTDIR =Release
-CFLAGS =-O2 -Op -Gs -MD -DNDEBUG
+!if $(SYMBOLS)
+CFLAGS =-Od -Zi -Op -Gs -MD -DNDEBUG
+LDFLAGS=-debug -opt:ref -opt:icf,3
+!else
+CFLAGS =-O2 -Otip -Gs -MD -DNDEBUG
 LDFLAGS=-release -opt:ref -opt:icf,3
+!endif
 !endif
 
 !if $(PROFILE)
@@ -43,78 +71,114 @@ LDFLAGS=$(LDFLAGS) -profile -map
 !endif
 
 !if "$(OS)" == "Windows_NT"
-RMDIR = rmdir /s /q
+RMDIR = rmdir /s /q >NUL
 !else
 RMDIR = deltree /y
 !endif
+DEL   = del /f /q
 
 TMPDIR =$(OUTDIR)\Objects
 
-CC     =cl -nologo
-LD     =link -nologo
+CC     =$(CC) -nologo
+LD     =$(LINK) -nologo
 
-# -Fd$(TMPDIR)^\
-CFLAGS =$(CFLAGS) -W3 -GX -YX -Fp$(TMPDIR)^\
+CFLAGS =$(CFLAGS) -W3 -YX -Fp$(TMPDIR)^\
 INC    =
 DEFS   =-DWIN32
 LIBS   =
 
-
-all:     jim win32 win32com win32api
-jim:     setup $(OUTDIR)\jim.exe
-jimwish: setup $(OUTDIR)\jimwish.exe
-dll:     setup $(OUTDIR)\jim.dll
-win32:   setup $(OUTDIR)\jim-win32-1.0.dll
+all:      jim aio win32 win32com win32api dll #sqlite3 eventloop
+jim:      setup $(OUTDIR)\jim.exe
+jimwish:  setup $(OUTDIR)\jimwish.exe
+dll:      setup $(OUTDIR)\jim.dll
+aio:      setup $(OUTDIR)\jim-aio-1.0.dll
+sqlite3:  setup $(OUTDIR)\jim-sqlite3-1.0.dll
+eventloop: setup $(OUTDIR)\jim-eventloop-1.0.dll
+win32:    setup $(OUTDIR)\jim-win32-1.0.dll
 win32api: setup $(OUTDIR)\jim-win32api-1.0.dll
 win32com: setup $(OUTDIR)\jim-win32com-1.0.dll
 
 $(OUTDIR)\jim.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimsh.obj
 	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS)
 
-$(OUTDIR)\jim.dll: $(TMPDIR)\jim.obj
+$(OUTDIR)\jim.dll: $(TMPDIR)\jim.dll.obj
 	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
 
 $(OUTDIR)\jim-win32-1.0.dll: $(TMPDIR)\jim-win32.obj
-        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
 
 $(OUTDIR)\jim-win32api-1.0.dll: $(TMPDIR)\jim-win32api.obj
-        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
 
 $(OUTDIR)\jim-win32com-1.0.dll: $(TMPDIR)\jim-win32com.obj
-        @$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS)
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
+
+$(OUTDIR)\jim-aio-1.0.dll: $(TMPDIR)\jim-aio.obj
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
+
+$(OUTDIR)\jim-eventloop-1.0.dll: $(TMPDIR)\jim-eventloop.obj
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
+
+$(OUTDIR)\jim-sqlite3-1.0.dll: $(TMPDIR)\jim-sqlite3.obj
+!if $(SQLITE3)
+	@$(LD) $(LDFLAGS) -dll -out:$@ $** $(LIBS) $(SQLITE_LIB) >NUL
+	@if exist $(@:.dll=.exp) $(DEL) $(@:.dll=.exp)
+!else
+	@echo cannot build sqlite3 extension - SQLITE3DIR not defined
+!endif
 
 $(OUTDIR)\jimwish.exe: $(TMPDIR)\jim.obj $(TMPDIR)\jimwish.obj
-        @$(LD) $(LDFLAGS) -out:$@ $** $(LIBS) user32.lib
+	@$(LD) $(LDFLAGS) -out:$@ $** $(LIBS) user32.lib
 
-.PHONY: all jim dll win32 win32api win32com
+.PHONY: all jim dll win32 win32api win32com jim jimwish aio sqlite3
 
 #-------------------------------------------------------------------------
 setup:
 	@if not exist $(OUTDIR) mkdir $(OUTDIR)
 	@if not exist $(TMPDIR) mkdir $(TMPDIR)
 
-
 test: jim
 	$(OUTDIR)\jim.exe test.tcl
 
 clean:
-        @if exist $(TMPDIR)\NUL $(RMDIR) $(TMPDIR) >NUL
+	@if exist $(TMPDIR)\NUL $(RMDIR) $(TMPDIR) >NUL
 
 realclean: clean
-        @if exist $(OUTDIR)\NUL $(RMDIR) $(OUTDIR) >NUL
+	@if exist $(OUTDIR)\NUL $(RMDIR) $(OUTDIR) >NUL
 
 #-------------------------------------------------------------------------
 
 .SUFFIXES:.c .cpp
 
 {$(SRCDIR)}.c{$(TMPDIR)}.obj::
-        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fa$(TMPDIR)\ -Fo$(TMPDIR)\ -c @<<
+	@$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)\ -c @<<
 $<
 <<
 
 {$(SRCDIR)}.cpp{$(TMPDIR)}.obj::
-        @$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)\ -c @<<
+	@$(CC) $(CFLAGS) $(DEFS) $(INC) -Fo$(TMPDIR)\ -c @<<
 $<
 <<
+
+$(TMPDIR)\jim.obj: $(SRCDIR)\jim.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim-aio.obj: $(SRCDIR)\jim-aio.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim-eventloop.obj: $(SRCDIR)\jim-eventloop.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim-win32.obj: $(SRCDIR)\jim-win32.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim-win32api.obj: $(SRCDIR)\jim-win32api.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim-win32com.obj: $(SRCDIR)\jim-win32com.c $(SRCDIR)\jim.h
+$(TMPDIR)\jim.dll.obj: $(SRCDIR)\jim.c $(SRCDIR)\jim.h
+	@$(CC) -DBUILD_Jim $(CFLAGS) $(DEFS) $(INC) -Fo$@ -c $(SRCDIR)\jim.c
+$(TMPDIR)\jim-sqlite3.obj: $(SRCDIR)\jim-sqlite3.c  $(SRCDIR)\jim.h
+!if $(SQLITE3)
+	@$(CC) $(CFLAGS) $(DEFS) $(INC) $(SQLITE_INC) -Fo$(TMPDIR)\ -c $(SRCDIR)\jim-sqlite3.c
+!else
+	@echo cannot build sqlite3 extension - SQLITE3DIR not defined
+!endif
 
 #-------------------------------------------------------------------------

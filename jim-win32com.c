@@ -2,7 +2,7 @@
  *
  * Windows COM extension.
  *
- * $Id: jim-win32com.c,v 1.17 2005/03/31 12:20:21 antirez Exp $
+ * $Id: jim-win32com.c,v 1.18 2007/01/31 00:49:05 patthoyts Exp $
  *
  * Example:
  *   load jim-win32com
@@ -30,6 +30,10 @@
 #define JIM_EXTENSION
 #include "jim.h"
 
+#ifndef JIM_INTEGER_SPACE
+#define JIM_INTEGER_SPACE 24
+#endif
+
 #if _MSC_VER >= 1000
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "user32")
@@ -38,6 +42,13 @@
 #pragma comment(lib, "oleaut32")
 #pragma comment(lib, "uuid")
 #endif /* _MSC_VER >= 1000 */
+
+static int Ole32_Create(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
+static int Ole32_Foreach(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
+static int Ole32_Finalizer(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
+static int Ole32_GetObject(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
+static int Ole32_GetActiveObject(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
+static int Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[]);
 
 /* ----------------------------------------------------------------------
  * Debugging bits
@@ -158,18 +169,22 @@ UnicodeFreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 	objPtr->typePtr = NULL;
 }
 
-// string rep is copied and internal dep is duplicated.
+/*
+ * string rep is copied and internal rep is duplicated. 
+ */
 void 
 UnicodeDupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     int len = srcPtr->internalRep.binaryValue.len;
-	JIM_TRACE("UnicodeDupInternalRep 0x%08x duped into 0x%08x\n", (DWORD)srcPtr, (DWORD)dupPtr);
+    JIM_TRACE("UnicodeDupInternalRep 0x%08x duped into 0x%08x\n",
+        (DWORD)srcPtr, (DWORD)dupPtr);
     interp = interp;
     dupPtr->internalRep.binaryValue.len = len;
-	if (srcPtr->internalRep.binaryValue.data != NULL) {
-		dupPtr->internalRep.binaryValue.data = Jim_Alloc(sizeof(WCHAR) * (len + 1));
-		wcsncpy((LPWSTR)dupPtr->internalRep.binaryValue.data, 
-			(LPWSTR)srcPtr->internalRep.binaryValue.data, len);
+    if (srcPtr->internalRep.binaryValue.data != NULL) {
+        dupPtr->internalRep.binaryValue.data = 
+            Jim_Alloc(sizeof(WCHAR) * (len + 1));
+        wcsncpy((LPWSTR)dupPtr->internalRep.binaryValue.data, 
+            (LPWSTR)srcPtr->internalRep.binaryValue.data, len);
 	}
 }
 
@@ -224,56 +239,225 @@ Jim_GetUnicode(Jim_Obj *objPtr, int *lenPtr)
     if (objPtr->typePtr != &unicodeObjType) {
         if (UnicodeSetFromAny(NULL, objPtr) != JIM_OK) {
             JIM_ASSERT("Jim_GetUnicode cannot convert item to unicode rep");
-            Jim_Panic("Jim_GetUnicode cannot convert item to unicode rep",
-				objPtr->typePtr->name);
+            Jim_Panic(NULL, "Jim_GetUnicode cannot convert item to unicode rep",
+                objPtr->typePtr->name);
         }
     }
-	if (lenPtr != NULL)
-		*lenPtr = objPtr->internalRep.binaryValue.len;
+    if (lenPtr != NULL)
+        *lenPtr = objPtr->internalRep.binaryValue.len;
     return (LPWSTR)objPtr->internalRep.binaryValue.data;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+ * Package interp associated data
+ */
 
-#define Ole32_DispatchPtr(o) (LPDISPATCH)((o)->internalRep.twoPtrValue.ptr1)
-#define Ole32_TypeInfoPtr(o) (LPTYPEINFO)((o)->internalRep.twoPtrValue.ptr2)
+ typedef struct Ole32PackageData {
+	Jim_HashTable  table;
+	jim_wide       uid;
+} Ole32PackageData;
+
+static void Ole32PackageDataDelete(Jim_Interp *interp, void *data)
+{
+	Ole32PackageData *pkgPtr = (Ole32PackageData *)data;
+	Jim_FreeHashTable(&pkgPtr->table);
+	Jim_Free(data);
+}
+
+/* ----------------------------------------------------------------------
+ * Ole32 object hash table
+ */
+
+typedef struct Ole32ObjectData {
+	DWORD      refcount;
+	LPDISPATCH pdispatch;
+	LPTYPEINFO ptypeinfo;
+} Ole32ObjectData;
+
+static unsigned int Ole32HashTableHash(const void *key)
+{
+    /*return Jim_DjbHashFunction(key, strlen(key));*/
+    unsigned int h = 5381;
+	size_t len = strlen(key);
+    while(len--)
+        h = (h + (h << 5)) ^ *((const char *)key)++;
+    return h;
+}
+
+static const void *Ole32HashTableCopyKey(void *privdata, const void *key)
+{
+	int len = strlen(key);
+    char *copy = Jim_Alloc(len + 1);
+    JIM_NOTUSED(privdata);
+    memcpy(copy, key, len);
+	copy[len] = '\0';
+    return copy;
+}
+
+static int Ole32HashTableCompare(void *privdata, const void *key1, const void *key2)
+{
+    JIM_NOTUSED(privdata);
+    return strcmp(key1, key2) == 0;
+}
+
+static void Ole32HashTableDestroyKey(void *privdata, const void *key)
+{
+    JIM_NOTUSED(privdata);
+    Jim_Free((void*)key); /* ATTENTION: const cast */
+}
+
+static void Ole32HashTableDestroyValue(void *interp, void *val)
+{
+	Ole32ObjectData *entryPtr = (Ole32ObjectData *)val;
+	JIM_NOTUSED(interp);
+	entryPtr->pdispatch->lpVtbl->Release(entryPtr->pdispatch);
+	if (entryPtr->ptypeinfo != NULL)
+		entryPtr->ptypeinfo->lpVtbl->Release(entryPtr->ptypeinfo);
+	Jim_Free((void*)entryPtr);
+}
+
+static Jim_HashTableType Ole32HashTableType = {
+    Ole32HashTableHash,         /* hash function */
+    Ole32HashTableCopyKey,      /* key dup */
+    NULL,                       /* val dup */
+    Ole32HashTableCompare,      /* key compare */
+    Ole32HashTableDestroyKey,   /* key destructor */
+    Ole32HashTableDestroyValue  /* val destructor */
+};
+
+/* ---------------------------------------------------------------------- */
 
 static void Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
+static int  Ole32SetFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 Jim_Obj *Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch);
+
+#define Ole32_DispatchPtr(o) (((Ole32ObjectData *)((o)->internalRep.ptr))->pdispatch)
+#define Ole32_TypeInfoPtr(o) (((Ole32ObjectData *)((o)->internalRep.ptr))->ptypeinfo)
 
 Jim_ObjType ole32ObjType = {
     "ole32",
     Ole32FreeInternalRep,
     Ole32DupInternalRep,
-    NULL, /*UpdateUnicodeStringProc*/
+    NULL,
     JIM_TYPE_REFERENCES,
 };
 
 void 
 Ole32FreeInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    IDispatch *p = Ole32_DispatchPtr(objPtr);
-    ITypeInfo *t = Ole32_TypeInfoPtr(objPtr);
-    JIM_NOTUSED(interp);
-
-    JIM_TRACE("free ole32 object 0x%08x\n", (unsigned long)p);
-    p->lpVtbl->Release(p), p = NULL;
-    if (t != NULL)
-        t->lpVtbl->Release(t), t = NULL;
-	objPtr->typePtr = NULL;
+	Ole32ObjectData *entryPtr;
+	entryPtr = objPtr->internalRep.ptr;
+	--entryPtr->refcount;
+	if (entryPtr->refcount == 0) {
+		//Ole32PackageData *pkgPtr = Jim_GetAssocData(interp, "ole32:package");
+		//Jim_DeleteHashEntry(&pkgPtr->table, objPtr->bytes);
+		JIM_TRACE("free ole32 object 0x%08x\n", entryPtr->pdispatch);
+	}
+	objPtr->internalRep.ptr = NULL;
 }
 
 void 
 Ole32DupInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    IDispatch *p = Ole32_DispatchPtr(srcPtr);
-    JIM_NOTUSED(interp);
+	Ole32ObjectData *entryPtr;
+	JIM_NOTUSED(interp);
 
-    JIM_TRACE("dup ole32 object 0x%08x from 0x%08x to 0x%08x\n", p, srcPtr, dupPtr);
-    Ole32_DispatchPtr(dupPtr) = p;
-    p->lpVtbl->AddRef(p);
+	entryPtr = srcPtr->internalRep.ptr;
+	++entryPtr->refcount;
+	dupPtr->internalRep.ptr = entryPtr;
+    JIM_TRACE("dup ole32 object 0x%08x from 0x%08x to 0x%08x\n", entryPtr->pdispatch, srcPtr, dupPtr);
 }
+
+int
+Ole32SetFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+	Ole32PackageData *pkgPtr;
+	Ole32ObjectData *entryPtr;
+
+	JIM_TRACE("Ole32SetFromAny from 0x%08x\n", objPtr);
+	if (objPtr->typePtr != &ole32ObjType) {
+		pkgPtr = Jim_GetAssocData(interp, "ole32:package");
+
+		Jim_GetString(objPtr, NULL);
+		entryPtr = (Ole32ObjectData *)Jim_FindHashEntry(&pkgPtr->table, objPtr->bytes);
+		if (entryPtr == NULL) {
+			Jim_SetResultString(interp, "not a ole32 object", -1);
+			return JIM_ERR;
+		}
+
+		Jim_FreeIntRep(interp, objPtr);
+		objPtr->internalRep.ptr = entryPtr;
+		++entryPtr->refcount;
+		objPtr->typePtr = &ole32ObjType;
+	}
+	return JIM_OK;
+}
+
+static int
+Ole32_Finalizer(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    //objv[1] == referencesobj.
+    JIM_TRACE("Ole32_Finalizer for %s\n", Jim_GetString(objv[1], NULL));
+    Jim_DeleteCommand(interp, Jim_GetString(objv[1], NULL));
+    return JIM_OK;
+}
+
+/*
+ *  Jim_NewOle32Obj --
+ *
+ *      This is the only way to create Ole32 objects in Jim. These
+ *      hold a reference to the IDispatch interface of the COM
+ *      object. We also attempt to acquire the typelibrary information
+ *      if this is available. Objects with typeinfo know how many
+ *      arguments are required for a method/property call and can
+ *      manage without programmer hints.
+ *
+ *      The string rep never changes and when this object is destroyed
+ *      we release our COM references.  
+ */
+Jim_Obj *
+Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
+{
+    unsigned int n = 0;
+	jim_wide id;
+	char *name;
+    Jim_Obj *objPtr, *refPtr;
+	Ole32PackageData *pkgPtr;
+	Ole32ObjectData *entryPtr;
+
+    pkgPtr = Jim_GetAssocData(interp, "ole32:package");
+	id = pkgPtr->uid++;
+    name = Jim_Alloc(23);
+    sprintf(name, "ole32:%" JIM_WIDE_MODIFIER, id);
+    entryPtr = (Ole32ObjectData *)Jim_Alloc(sizeof(Ole32ObjectData));
+    entryPtr->pdispatch = pdispatch;
+    entryPtr->ptypeinfo = NULL;
+	entryPtr->refcount = 1;
+    pdispatch->lpVtbl->AddRef(pdispatch);
+
+    pdispatch->lpVtbl->GetTypeInfoCount(pdispatch, &n);
+    if (n != 0)
+        pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT,
+            &entryPtr->ptypeinfo);
+
+	//Jim_AddHashEntry(&pkgPtr->table, name, entryPtr);
+	objPtr = Jim_NewStringObj(interp, name, -1);
+	objPtr->internalRep.ptr = entryPtr;
+    objPtr->typePtr = &ole32ObjType;
+
+    refPtr = Jim_NewReference(interp, objPtr, Jim_NewStringObj(interp, "ole32", -1),
+        Jim_NewStringObj(interp, "ole32.finalizer", -1));
+    if (Jim_CreateCommand(interp, Jim_GetString(refPtr, NULL), Ole32_Invoke,
+		objPtr->internalRep.ptr, NULL /*Ole32CmdDeleteProc*/) != JIM_OK) {
+        JIM_ASSERT(FALSE && "Its all going wrong");
+	}
+
+    JIM_TRACE("created ole32 object 0x%08x in Jim obj 0x%08x\n", pdispatch, objPtr);
+    return refPtr;
+}
+
+/* ---------------------------------------------------------------------- */
 
 static DISPPARAMS* 
 Ole32_GetDispParams(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
@@ -408,17 +592,18 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     DISPID dispid;
     LPDISPATCH pdisp;
     Jim_Obj *resultObj = NULL;
+    Ole32ObjectData *ole32Ptr = (Ole32ObjectData*)Jim_CmdPrivData(interp);
 	int optind, argc = 1;
     WORD mode = DISPATCH_PROPERTYGET | DISPATCH_METHOD;
 	static const char *options[] = {"-get", "-put", "-putref", "-call", NULL };
 	enum { OPT_GET, OPT_PUT, OPT_PUTREF, OPT_CALL };
     
-    if (objc < 3) {
-        Jim_WrongNumArgs(interp, 1, objv, "?options? object method|property ?args ...?");
+    if (objc < 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "?options? method|property ?args ...?");
         return JIM_ERR;
     }
  
-	if (Jim_GetIndexFromObj(interp, objv[1], options, "", 0, &optind) == JIM_OK) {
+    if (Jim_GetEnum(interp, objv[1], options, &optind, NULL, 0) == JIM_OK) {
 		argc++;
 		switch (optind) {
 			case OPT_GET:    mode = DISPATCH_PROPERTYGET; break;
@@ -428,13 +613,17 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 		}
 	}
 
-    if (objv[argc]->typePtr != &ole32ObjType) {
-        Jim_SetResultString(interp, "first argument must be a ole32 created object", -1);
-        return JIM_ERR;
+    /*
+      if (objv[argc]->typePtr != &ole32ObjType) {
+		if (Ole32SetFromAny(interp, objv[argc]) != JIM_OK) {
+			Jim_SetResultString(interp, "first argument must be a ole32 created object", -1);
+			return JIM_ERR;
+		}
     }
+    */
 
-    pdisp = Ole32_DispatchPtr(objv[argc]);
-    name = Jim_GetUnicode(objv[argc+1], NULL);
+    pdisp = ole32Ptr->pdispatch; // Ole32_DispatchPtr(objv[argc]);
+    name = Jim_GetUnicode(objv[argc], NULL);
     hr = pdisp->lpVtbl->GetIDsOfNames(pdisp, &IID_NULL, &name, 1, 
                                       LOCALE_SYSTEM_DEFAULT, &dispid);
 
@@ -445,7 +634,7 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
         UINT uierr;
 
         VariantInit(&v);
-        dp = Ole32_GetDispParams(interp, objc-(argc+2), objv+argc+2);
+        dp = Ole32_GetDispParams(interp, objc-(argc+1), objv+argc+1);
 
 		if (mode & DISPATCH_PROPERTYPUT || mode & DISPATCH_PROPERTYPUTREF) {
 			static DISPID putid = DISPID_PROPERTYPUT;
@@ -468,39 +657,14 @@ Ole32_Invoke(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
     return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
 }
 
-/*
- *  Jim_NewOle32Obj --
- *
- *      This is the only way to create Ole32 objects in Jim. These hold a reference to the
- *      IDispatch interface of the COM object. We also attempt to acquire the typelibrary
- *      information if this is available. Objects with typeinfo know how many arguments are
- *      required for a method/property call and can manage without programmer hints.
- *
- *      The string rep never changes and when this object is destroyed we release our COM 
- *      references.
- */
-Jim_Obj *
-Jim_NewOle32Obj(Jim_Interp *interp, LPDISPATCH pdispatch)
+/* ---------------------------------------------------------------------- */
+
+static void
+Ole32CmdDeleteProc(void *privData)
 {
-    unsigned int n = 0;
-    Jim_Obj *objPtr = Jim_NewObj(interp);
-
-    objPtr->bytes = Jim_Alloc(23);
-    sprintf(objPtr->bytes, "ole32:%08lx", (unsigned long)pdispatch);
-    objPtr->length = strlen(objPtr->bytes);
-    Ole32_DispatchPtr(objPtr) = pdispatch;
-    Ole32_TypeInfoPtr(objPtr) = NULL;
-    pdispatch->lpVtbl->AddRef(pdispatch);
-
-    pdispatch->lpVtbl->GetTypeInfoCount(pdispatch, &n);
-    if (n != 0)
-        pdispatch->lpVtbl->GetTypeInfo(pdispatch, 0, LOCALE_SYSTEM_DEFAULT,
-            (LPTYPEINFO*)&objPtr->internalRep.twoPtrValue.ptr2);
-
-    objPtr->typePtr = &ole32ObjType;
-
-    JIM_TRACE("created ole32 object 0x%08x in Jim obj 0x%08x\n", pdispatch, objPtr);
-    return objPtr;
+    Ole32ObjectData *ole32Ptr = (Ole32ObjectData *)privData;
+    ole32Ptr->pdispatch->lpVtbl->Release(ole32Ptr->pdispatch);
+    Jim_Free(privData);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -519,13 +683,66 @@ Ole32_Create(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 
     hr = CLSIDFromProgID(Jim_GetUnicode(objv[1], NULL), &clsid);
 	if (SUCCEEDED(hr))
-        hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&pdisp);
+        hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, 
+                              &IID_IDispatch, (LPVOID*)&pdisp);
     if (SUCCEEDED(hr)) {
         Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
         pdisp->lpVtbl->Release(pdisp);
     } else {
         Jim_SetResult(interp, Win32ErrorObj(interp, "CreateObject", hr));
     }
+    return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
+}
+
+static int
+Ole32_GetActiveObject(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HRESULT hr = S_OK;
+    LPUNKNOWN punk = NULL;
+    CLSID clsid;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "progid");
+        return JIM_ERR;
+    }
+
+    hr = CLSIDFromProgID(Jim_GetUnicode(objv[1], NULL), &clsid);
+	if (SUCCEEDED(hr))
+        hr = GetActiveObject(&clsid, NULL, &punk);
+    if (SUCCEEDED(hr)) {
+        LPDISPATCH pdisp;
+        hr = punk->lpVtbl->QueryInterface(punk, &IID_IDispatch, (LPVOID*)&pdisp);
+        if (SUCCEEDED(hr)) {
+            Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
+            pdisp->lpVtbl->Release(pdisp);
+        }
+        punk->lpVtbl->Release(punk);
+    }
+    if (FAILED(hr))
+        Jim_SetResult(interp, Win32ErrorObj(interp, "GetActiveObject", hr));
+    return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
+}
+
+static int
+Ole32_GetObject(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
+{
+    HRESULT hr = S_OK;
+    LPDISPATCH pdisp = NULL;
+    LPCOLESTR name;
+
+    if (objc != 2) {
+        Jim_WrongNumArgs(interp, 1, objv, "progid");
+        return JIM_ERR;
+    }
+
+    name = Jim_GetUnicode(objv[1], NULL);
+    hr = CoGetObject(name, NULL, &IID_IDispatch, (LPVOID*)&pdisp);
+    if (SUCCEEDED(hr)) {
+        Jim_SetResult(interp, Jim_NewOle32Obj(interp, pdisp));
+        pdisp->lpVtbl->Release(pdisp);
+    }
+    if (FAILED(hr))
+        Jim_SetResult(interp, Win32ErrorObj(interp, "GetObject", hr));
     return SUCCEEDED(hr) ? JIM_OK : JIM_ERR;
 }
 
@@ -590,23 +807,51 @@ break_for:
 }
 
 /* ---------------------------------------------------------------------- */
+static Jim_ObjType origCommandObjType;
+static Jim_ObjType ole32CommandObjType;
 
-__declspec(dllexport) int
+void Ole32CommandFreeIntRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    if (origCommandObjType.freeIntRepProc != NULL)
+        origCommandObjType.freeIntRepProc(interp, objPtr);
+}
+
+
+DLLEXPORT int
 Jim_OnLoad(Jim_Interp *interp)
 {
     HRESULT hr;
+	Ole32PackageData *pkgPtr;
+    //Jim_ObjType *commandObjType;
+
     Jim_InitExtension(interp);
     if (Jim_PackageProvide(interp, "win32com", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
+
     hr = CoInitialize(0);
     if (FAILED(hr)) {
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "CoInitialize", (DWORD)hr));
         return JIM_ERR;
     }
-    Jim_CreateCommand(interp, "ole32.create",  Ole32_Create, NULL, NULL);
-    Jim_CreateCommand(interp, "ole32.invoke",  Ole32_Invoke, NULL, NULL);
-    Jim_CreateCommand(interp, "ole32.foreach", Ole32_Foreach, NULL, NULL);
+
+	pkgPtr = (Ole32PackageData *)Jim_Alloc(sizeof(Ole32PackageData));
+	pkgPtr->uid = 0;
+	Jim_InitHashTable(&pkgPtr->table, &Ole32HashTableType, interp);
+	Jim_SetAssocData(interp, "ole32:package", Ole32PackageDataDelete, pkgPtr);
+
+    /*
+    commandObjType = Jim_GetObjType(interp, "command");
+    memcpy(&origCommandObjType, commandObjType, sizeof(Jim_ObjType));
+    memcpy(&ole32CommandObjType, commandObjType, sizeof(Jim_ObjType));
+    ole32CommandObjType.freeIntRepProc = Ole32CommandFreeIntRep;
+    memcpy(commandObjType, &ole32CommandObjType, sizeof(Jim_ObjType));
+    */
+
+    Jim_CreateCommand(interp, "ole32.create",    Ole32_Create, NULL, NULL);
+    Jim_CreateCommand(interp, "ole32.invoke",    Ole32_Invoke, NULL, NULL);
+    Jim_CreateCommand(interp, "ole32.foreach",   Ole32_Foreach, NULL, NULL);
+    Jim_CreateCommand(interp, "ole32.finalizer", Ole32_Finalizer, NULL, NULL);
     return JIM_OK;
 }
 

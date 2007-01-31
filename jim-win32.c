@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2005 Pat Thoyts <patthoyts@users.sourceforge.net>
  *
- * $Id: jim-win32.c,v 1.30 2005/04/26 13:31:46 patthoyts Exp $
+ * $Id: jim-win32.c,v 1.31 2007/01/31 00:49:05 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,6 @@
 #pragma comment(lib, "advapi32")
 #pragma comment(lib, "psapi")
 #endif /* _MSC_VER >= 1000 */
-
-__declspec(dllexport) int Jim_OnLoad(Jim_Interp *interp);
 
 static HINSTANCE g_hInstance = 0;
 
@@ -558,6 +556,59 @@ Win32_GetSystemTime(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JIM_OK;
 }
 
+static int
+Win32_GetSystemInfo(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+{
+    Jim_Obj *a[20];
+    SYSTEM_INFO si;
+    int n = 0;
+    struct pa_map { int arch; const char *name; };
+    struct pa_map *p, map[] = {
+        { PROCESSOR_ARCHITECTURE_INTEL,  "intel" },
+        { PROCESSOR_ARCHITECTURE_MIPS,   "mips" },
+        { PROCESSOR_ARCHITECTURE_ALPHA,  "alpha" },
+        { PROCESSOR_ARCHITECTURE_PPC,    "ppc" },
+        { PROCESSOR_ARCHITECTURE_SHX,    "shx" },
+        { PROCESSOR_ARCHITECTURE_ARM,    "arm" },
+        { PROCESSOR_ARCHITECTURE_IA64,   "ia64" },
+        { PROCESSOR_ARCHITECTURE_ALPHA64,"alpha64" },
+        { PROCESSOR_ARCHITECTURE_MSIL,   "msil" },
+        { PROCESSOR_ARCHITECTURE_AMD64,  "amd64"},
+        { PROCESSOR_ARCHITECTURE_IA32_ON_WIN64, "ia32onwin64" },
+        { PROCESSOR_ARCHITECTURE_UNKNOWN,"unknown" }
+    };
+    JIM_NOTUSED(objc);
+    JIM_NOTUSED(objv);
+    
+    GetSystemInfo(&si);
+
+    a[n++] = Jim_NewStringObj(interp, "ProcessorArchitecture", -1);
+    for (p = map; p->arch != PROCESSOR_ARCHITECTURE_UNKNOWN; ++p) {
+        if (p->arch == si.wProcessorArchitecture) {
+            break;
+        }
+    }
+    a[n++] = Jim_NewStringObj(interp, p->name, -1);
+
+#define JIMADD(name,element) \
+    a[n++] = Jim_NewStringObj(interp, #name, -1); \
+    a[n++] = Jim_NewIntObj(interp, (jim_wide)si. ## element )
+
+    JIMADD(PageSize, dwPageSize);
+    JIMADD(MinimumApplicationAddress, lpMinimumApplicationAddress);
+    JIMADD(MaximumApplicationAddress, lpMaximumApplicationAddress);
+    JIMADD(ActiveProcessorMask, dwActiveProcessorMask);
+    JIMADD(NumberOfProcessors, dwNumberOfProcessors);
+    JIMADD(ProcessorType, dwProcessorType);
+    JIMADD(AllocationGranularity, dwAllocationGranularity);
+    JIMADD(ProcessorLevel, wProcessorLevel);
+    JIMADD(ProcessorRevision, wProcessorRevision);
+#undef JIMADD
+
+    Jim_SetResult(interp, Jim_NewListObj(interp, a, n));
+    return JIM_OK;
+}
+
 // Declared here because its not available without recent versions of the
 // Platform SDK. mingw32 doesn't declare it all either.
 typedef struct _PERFORMANCE_INFORMATION {
@@ -1022,7 +1073,7 @@ Win32_ReleasePrivLib(Jim_Interp *interp, void *clientData)
  * package load function.
  */
 
-int
+DLLEXPORT int
 Jim_OnLoad(Jim_Interp *interp)
 {
     HMODULE hLib;
@@ -1059,6 +1110,7 @@ Jim_OnLoad(Jim_Interp *interp)
     CMD(GetVersion);
     CMD(GetTickCount);
     CMD(GetSystemTime);
+    CMD(GetSystemInfo);
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
