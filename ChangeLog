@@ -1,3 +1,7 @@
+2008-06-13 oharboe
+	
+	* ChangeLog: Øyvind Harboe's first test as a committer.
+
 2006-11-06 21:29  antirez
 
 	* ChangeLog, jim.c, jim.h: Jim_GetStdin/out/err API removed, now
