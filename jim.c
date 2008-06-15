@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.171 2007/01/31 00:49:05 patthoyts Exp $
+ * $Id: jim.c,v 1.172 2008/06/15 18:49:31 oharboe Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -494,9 +494,12 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 
 void *Jim_Alloc(int size)
 {
+	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
+	if (size==0)
+		size=1;
     void *p = malloc(size);
     if (p == NULL)
-        Jim_Panic(NULL,"Out of memory");
+        Jim_Panic(NULL,"malloc: Out of memory");
     return p;
 }
 
@@ -506,9 +509,12 @@ void Jim_Free(void *ptr) {
 
 void *Jim_Realloc(void *ptr, int size)
 {
+	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
+	if (size==0)
+		size=1;
     void *p = realloc(ptr, size);
     if (p == NULL)
-        Jim_Panic(NULL,"Out of memory");
+        Jim_Panic(NULL,"realloc: Out of memory");
     return p;
 }
 
@@ -11757,7 +11763,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
            "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout_,
-            "CVS ID: $Id: jim.c,v 1.171 2007/01/31 00:49:05 patthoyts Exp $"
+            "CVS ID: $Id: jim.c,v 1.172 2008/06/15 18:49:31 oharboe Exp $"
             JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {

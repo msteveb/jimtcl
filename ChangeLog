@@ -1,3 +1,10 @@
+2008-06-15 oharboe
+	
+	* ChangeLog, jim.c: realloc/malloc(0) fix. Convert
+	realloc/malloc(0) => realloc/malloc(1) which has an
+	identical implementation, whereas realloc/malloc(0) is
+	ambigous. "string map {} {}" used to result in malloc(0)
+
 2008-06-13 oharboe
 	
 	* ChangeLog: Øyvind Harboe's first test as a committer.
