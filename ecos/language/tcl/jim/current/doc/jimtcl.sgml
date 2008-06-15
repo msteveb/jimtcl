@@ -1,0 +1,640 @@
+<!-- DOCTYPE part  PUBLIC "-//OASIS//DTD DocBook V3.1//EN" -->
+<!-- =============================================================== -->
+<!--                                                                 -->
+<!--     jimtcl.sgml                                                -->
+<!--                                                                 -->
+<!--     Jim Tcl for eCos                                         -->
+<!--                                                                 -->
+<!-- =============================================================== -->
+<!-- ####COPYRIGHTBEGIN####                                          -->
+<!--                                                                 -->
+<!-- =============================================================== -->
+<!-- Copyright (C) 2003, 2004, 2007 eCosCentric Ltd.                       -->
+<!-- This material may be distributed only subject to the terms      -->
+<!-- and conditions set forth in the Open Publication License, v1.0  -->
+<!-- or later (the latest version is presently available at          -->
+<!-- http://www.opencontent.org/openpub/)                            -->
+<!-- =============================================================== -->
+<!--                                                                 -->      
+<!-- ####COPYRIGHTEND####                                            -->
+<!-- =============================================================== -->
+<!-- #####DESCRIPTIONBEGIN####                                       -->
+<!--                                                                 -->
+<!-- ####DESCRIPTIONEND####                                          -->
+<!-- =============================================================== -->
+
+<!-- }}} -->
+
+
+<part id="jimtcl">
+<title>Another Tiny HTTP Server for <productname>eCos</productname></title>
+
+<partintro>
+<para>
+This package provides an extensible, small footprint, full featured HTTP
+server for <productname>eCos</productname>. Many of these features can be
+disabled via the configuration tool, thus reducing the footprint of the server.
+The server has been written for the FreeBSD network stack. 
+</para>
+</partintro>
+
+<chapter id="net-jimtcl">
+<title>The ATHTTP Server</title>
+<sect1 id="jimtcl-features">
+<title>Features</title>
+<para>This ATHTTP implementation provides the following features:</para>
+<itemizedlist>
+  <listitem><para>GET, POST and HEAD Methods</para></listitem>
+  <listitem><para>File system Access</para></listitem>
+  <listitem><para>Callbacks to C functions</para></listitem>
+  <listitem><para>MIME type support</para></listitem>
+  <listitem><para>CGI mechanism through the OBJLOADER package or through a
+                  simple tcl interpreter</para></listitem>
+  <listitem><para>Basic and Digest (MD5) Authentication</para></listitem>
+  <listitem><para>Directory Listing</para></listitem>
+  <listitem><para>Extendable Internal Resources</para></listitem>
+</itemizedlist>
+
+<para>
+Ecos tables are used extensively throught the server to provide a high degree
+of customization.</para>
+</sect1>
+
+<sect1 id="jimtcl-using">
+<title>Starting the server</title>
+<para>
+In order to start the web server, the user needs to call the function:</para>
+
+<programlisting width=72>
+cyg_httpd_start();
+</programlisting>
+
+<para>in the application code. The server initialization code spawns a new 
+thread which calls <command>init_all_network_interfaces()</command> to 
+initialize the TCP/IP stack and then starts the deamon. The function is safe
+to call multiple times.
+</para>
+</sect1>
+
+<sect1 id="jimtcl-mime-types">
+<title>MIME types</title>
+<para>
+The server has an internal table with all the recognized mime types. Each time
+a file or an internal resource is sent out by the server, its extension is 
+searched in this table and if a match is found, the associated MIME type is
+then sent out in the header. 
+
+The server already provides entries for the following standard file extensions:
+
+'html', 'htm', 'gif', 'jpg', 'css', 'js', 'png'
+
+and the user is responsible for adding any further entry. The syntax for 
+adding an entry is the following:</para>
+
+<para><programlisting width=72>
+CYG_HTTPD_MIME_TABLE_ENTRY(entry_label, extension_string, mime_tipe_sting);
+
+entry table      : an identifier unique to this entry
+extension string : a string containing the extension for this entry
+type_string      : the mime string. The strings for many more mime types 
+                   is included in a file in the "doc" directory.
+</programlisting></para>
+
+<para>
+The following is an example of how to add the Adobe Portable Document Format
+<command>pdf</command> MIME type to the table:</para>
+
+<para><programlisting width=72>
+CYG_HTTPD_MIME_TABLE_ENTRY(hal_pdf_entry, "pdf", "application/pdf");
+</programlisting></para>
+
+<sect2 id="jimtcl-mime-types-chunked">
+<title>MIME Types for Chunked Frames</title>
+<para>
+For chunked frames, which are generally used inside c language callbacks, there
+is no file name to match an extension to, and thus the extension to be used
+must be passed in the <command>cyg_httpd_start_chunked()</command> call. The
+server will then scan the MIME table to find a MIME type to match the extension.
+
+For example, to start a chunked transfer of an <command>html</command> file, 
+the following call is used:</para>
+
+<para><programlisting width=72>
+cyg_httpd_start_chunked("html");
+</programlisting></para>
+
+<para>
+In any event, it is the responsibility of the user to make sure that a match to
+all used extensions is found in the table search. Failing this, 
+the default MIME type specified in the CYGDAT_NET_JIMTCL_DEFAULT_MIME_TYPE
+string is returned.</para>
+</sect2>
+</sect1>
+
+<sect1 id="jimtcl-callback">
+<title>C language callback functions</title>
+<para>
+The server allows the association of particular URLs to C language callback 
+functions. eCos tables are used to define the association between a URL and its
+corresponding callback. The syntax of the macro to add callback entries to 
+the table is:
+</para>
+
+<para><programlisting width=72>
+CYG_HTTPD_HANDLER_TABLE_ENTRY(entry_label, url_string, callback);
+
+entry table      : an identifier unique to this entry.
+url_string       : a string with the extension url that will be appended to the
+                   default directory.
+callback         : a function with a prototype:
+                   cyg_int32 callback_function(CYG_HTTPD_STATE*); 
+                   Return value is ignored - just return 0.
+</programlisting></para>
+
+<para>
+<command>CYG_HTTPD_STATE*</command> is a pointer to a structure that
+contains, among others, a buffer (outbuffer) that can be used to send data
+out. The definitions of the structure is in http.h.</para>
+
+<para>
+The following is an example of how to add a callback to a function myForm()
+whenever the URL /myform.cgi is requested:
+</para>
+
+<programlisting width=72>
+CYG_HTTPD_HANDLER_TABLE_ENTRY(hal_cb_entry, "/myform.cgi", myForm);
+</programlisting>
+
+<para>
+and somewhere in the source tree there is a function:</para>
+
+<programlisting>
+cyg_int32 myForm(CYG_HTTPD_STATE* p)
+{
+   cyg_httpd_start_chunked("html");
+   strcpy(p->outbuffer, "eCos Web Server");
+   cyg_httpd_write_chunked(p->outbuffer, strlen(p->outbuffer))
+   cyg_httpd_end_chunked();
+}  
+</programlisting>
+
+<para>This function also shows the correct method of using the chunked frames
+API inside a c language callback and also shows the use of outbuffer to
+collect data to send out.</para>
+
+<para>Chunked frames are useful when the size of the frame is not known upfront. 
+In this case it possible to send a response in chunks of various sizes, and
+terminate it with a null chunk (See RFC 2616 for details). To use chunked 
+frames, the <command>cyg_httpd_start_chunked()</command> function is used. 
+The prototype is the following:</para>
+
+<programlisting>
+ssize_t cyg_httpd_start_chunked(char *);
+</programlisting>
+
+<para>The only parameter is the <command>extension</command> to use in the 
+search for the MIME type. For most files this will be "html" or "htm" and
+it will be searched in the MIME table for an approriate MIME type that will
+be sent along in the header. The function returns the number of bytes sent
+out.</para>
+
+<para>The chunked frame must be terminated by a call to 
+<command>cyg_httpd_end_chunked()</command>:</para>
+
+<programlisting>
+void cyg_httpd_end_chunked()(void);
+</programlisting>
+
+<para>In between these two calls, the user can call the function
+<command>cyg_httpd_write_chunked()</command> to send out data any number of
+times. It is important that <command>cyg_httpd_write_chunked()</command> be
+the only function used to send data out for chunked frames. This
+guarantees that proper formatting of the response is respected.
+The prototype for the function is:</para>
+
+<programlisting>
+ssize_t cyg_httpd_write_chunked(char* p, int len);
+</programlisting>
+
+<para>The 'char*' points to the data to send out, the 'int' is the length of the
+data to send.</para>
+
+<para>In the case in which the size of the data is known upfront, the
+callback can instead create the header with a call to
+<command>cyg_httpd_create_std_header()</command> with the following
+prototype:</para>
+
+<programlisting>
+void cyg_httpd_create_std_header(char *ext, int len);
+
+extension   : the extension used in the search of the MIME type
+len         : length of the data to send out
+</programlisting>
+
+<para>and use
+<command>cyg_httpd_write()</command> to send data out to the client. The
+ prototype of <command>cyg_httpd_write()</command> is the same as 
+<command>cyg_httpd_write_chunked()</command></para></sect1>
+
+<sect1 id="jimtcl-cgi">
+<title>CGI</title>
+<para>
+The web server allows writing of pseudo-CGI programs. This is helpful in order
+to modify the functionality of the server without having to recompile it and
+reflash it.</para>
+
+<para>One way to implement CGI is, of course, the C language callback mechanism
+described above: This assumes, of course, that all the callbacks are written
+by compile time and cannot be modified later on. Another way to perform the
+same functionality is the use of a library in the form of an object file. 
+These object files reside in the file system and are loaded, executed and 
+unloaded on demand.</para>
+
+<para>Yet a third way is the use of a scripting language. Since full fledged
+implementation of the most popular scripting languages such as Python or Perl
+are too large for most embedded systems, a slim down implementation of tcl
+was chosen for this server. Most of the tcl functionality is still there,
+and makes writing cgi a lot easier.</para>
+
+<para>In order to limit the footprint of the operating system support for both
+the objloader and the tcl script for dealing with cgi files can be 
+independently selected out. Tcl support in particular increases the memory
+requirements considerably.
+</para>
+
+<sect2 id="jimtcl-cgi-objloader">
+<title>CGI via objloader</title>
+<para>
+In order to use the cgi mechanism the CYGPKG_OBJLOADER must be included
+when building the operating system. This will enable the proper option in the
+configuration tool and if selected, the necessary code will be compiled
+in the eCos kernel. The user will then have to compile the necessary libraries
+and place them in the file system under a directory defined by 
+CYGDAT_NET_JIMTCL_SERVEROPT_CGIDIR.
+When a request is made, the web server checks if the root directory of the 
+requested URL is inside the CYGDAT_NET_JIMTCL_SERVEROPT_CGIDIR directory.
+If so, the server assumes that the user requested a cgi file and looks into the
+directory to see if a library by the same name is present, and if so load it
+and tries to execute a function inside the library with the following prototype:
+</para>
+
+<programlisting width=72>void exec_cgi(CYG_HTTPD_STATE *)
+</programlisting>
+
+<para>
+The pointer <command>CYG_HTTPD_STATE*</command> gives access to the socket 
+data: The user will use this pointer to access the 'outbuffer' and use it to
+copy data to send data out.
+</para>
+
+<para>
+When using the OBJLOADER package within the HTTP server a number of functions 
+are automatically added to the externals table of the OBJLOADER package. These
+functions are likely to be used inside the library and the relocator need to 
+have a pointer to them. In order to add more functions, see the OBJLOADER
+documentation. The complete list of the functions automatically added is:
+</para>
+
+<itemizedlist>
+  <listitem><para>cyg_httpd_start_chunked()</para></listitem>
+  <listitem><para>cyg_httpd_write_chunked()</para></listitem>
+  <listitem><para>cyg_httpd_end_chunked()</para></listitem>
+  <listitem><para>cyg_httpd_write()</para></listitem>
+  <listitem><para>cyg_httpd_find_form_variable()</para></listitem>
+  <listitem><para>cyg_httpd_find_ires()</para></listitem>
+  <listitem><para>cyg_httpd_send_ires()</para></listitem>
+  <listitem><para>diag_printf()</para></listitem>
+  <listitem><para>cyg_httpd_format_header()</para></listitem>
+  <listitem><para>cyg_httpd_find_mime_string()</para></listitem>
+</itemizedlist>
+
+<para>Every time the web client issues a GET or POST request for a file with an 
+extension of '.o'in the /cgi-bin directory (or whatever path the user chooses 
+to hold the libraries) then the library by that name is loaded, run and
+when the execution is over, it is dumped from memory.
+
+The library must be compiled separately, using the same toolchain used to 
+compile the server and then added to the file system.</para>
+
+<para>In order to reduce the footprint of the server, CGI through OBJLOADER
+can be compiled out by unchecking CYGOPT_NET_JIMTCL_USE_CGIBIN_OBJLOADER
+in the configuration tool.</para>
+</sect2>
+
+<sect2 id="jimtcl-cgi-tcl">
+<title>CGI via the simple tcl interpreter</title>
+<para>A small tcl interpreter has been added to the web server, and it can
+be used to write simple cgi scripts. The interpreter is admittedly very
+minimal, and it is only useful for very simple applications, but it is an
+excellent starting point for further development.</para>
+
+<para>In order for the scripting language to be useful, it has to access
+the form variables passed on during the GET or POST request. Because of
+this, all form variables registered with the CYG_HTTPD_FVAR_TABLE_ENTRY()
+macro are accessible via tcl. For example, if we have registered a
+form variable called foo, and during the GET request we are defining foo
+as being "1":</para>
+
+<programlisting width=72>GET /myForm.cgi?foo=1</programlisting>
+
+<para>then tcl will be able to access the variable foo as $foo. The data
+in the body of a POST request is also accessible through the use of the variable
+$post_data. This is useful if the data is not in "multipart/form-data"
+and tcl has to perform any type of processing on the data itself.</para>
+
+<para>In order to send back a response to the client a few functions have been
+added to the interpreter. These functions are:</para>
+
+<sect3 id="jimtcl-start-chunked">
+<title>start_chunked</title>
+<programlisting width=72>start_chunked "extension";</programlisting>
+<para>"extension" is a string used to search the 
+table of the mime types. For example, to send back to the client an HTML file, 
+we can use: start_chunked "html";
+</para>
+</sect3>
+
+<sect3 id="jimtcl-write-chunked">
+<title>write_chunked</title>
+<programlisting width=72>write_chunked content;</programlisting>
+<para>content is a string to send back to the client. 
+</para>
+</sect3>
+
+<sect3 id="jimtcl-end-chunked">
+<title>end_chunked</title>
+<programlisting width=72>end_chunked;</programlisting>
+<para>No parameters. Send back an end of frame to the client.</para>
+</sect3>
+
+<sect3 id="jimtcl-tcl-hello-world">
+<title>tcl hello world example</title>
+<para>
+The following example demonstrates how to send a log file in the file
+<filename>/ram/log</filename> to a web client. It replaces
+newline characters with <literal>&lt;br&gt;</literal> so that it is formatted on the
+browser correctly.
+<programlisting width=72>
+start_chunked "html";
+
+set fp [aio.open "/ram/log" r];
+$fp seek 0 end;
+set fsize [$fp tell];
+$fp seek 0 start;
+set data "abcxxx";
+set data [$fp read $fsize];
+$fp close;
+set data [string map {\n &lt;br&gt;} $data];
+
+set datax "";
+append datax "&lt;html&gt;&lt;body&gt;" $data "&lt;/body&gt;&lt;/html&gt;";
+
+write_chunked $datax;
+end_chunked;
+</programlisting>
+</para>
+<para>
+The above file should exist on a filesystem
+on the embedded target within its <filename class=directory>cgi-bin</filename>
+directory, for example as <filename>/cgi-bin/hello.tcl</filename>. Thereafter
+it may be accessed at the URL
+<literal>http://<replaceable>TARGET_NAME</replaceable>/cgi-bin/hello.tcl</literal>.
+</para>
+</sect3>
+</sect2>
+</sect1>
+
+<sect1 id="jimtcl-authentication">
+<title>Authentication</title>
+<para>
+The server supports both Basic (base64) and Digest (MD5) authentication, 
+although they have not been tested with all clients. In this implementation, 
+the contents of certain directories of the file system can be protected, such
+that the user will be required to issue a username/password to access the
+content of the directory.</para>
+
+<para>To protect a directory with a basic authentication, there is a 
+specific macro:</para>
+
+<programlisting>
+CYG_HTTPD_AUTH_TABLE_ENTRY(entry, path, domain, un, pw, mode)
+
+entry            : an identifier unique to this entry.
+path             : the path to the directory whose content must be
+                    authenticated before it is sent out
+domain           : a domain identifier for this directory.
+un               : username for authentication
+pw               : password for authentication
+mode             : CYG_HTTPD_AUTH_BASIC for base64 encoding or 
+                   CYG_HTTPD_AUTH_DIGEST for MD5 encoding
+</programlisting>
+
+<para>for example, to require basic authentication of the content of directory 
+"/ecos/" with a username of "foo" and password "bar", the following is used:
+</para>
+
+<programlisting>
+CYG_HTTPD_AUTH_TABLE_ENTRY(hal_domain1_entry,          \
+                           "/ecos/",    "ecos_domain", \
+                           "foo",       "bar",         \
+                           CYG_HTTPD_AUTH_BASIC);
+</programlisting>
+
+<para>Any request for a file in the directory /ecos/ will now trigger a
+credential check. These credentials, once provided, are automatically sent by
+the client for every request within the particular domain.</para>
+
+<para>It must be noticed that the path name set in the macro is relative to the
+HTML document directory, CYGDAT_NET_HTTPD_SERVEROPT_HTMLDIR and it is the
+first part of the path provided by the client request (including the leading
+slash).</para>
+
+<para>In order to reduce the footprint of the server, authentication
+is not enabled by default, and so the option CYGOPT_NET_JIMTCL_USE_AUTH must
+be used to enable support for basic and digest authentication.</para>
+
+<para>The MD5 digest authentication support is implemented using the RSA
+Data Security, Inc. MD5 Message-Digest Algorithm. Derivative works with
+MD5 digest authentication included must be identified as "derived from the
+RSA Data Security, Inc. MD5 Message-Digest Algorithm" in all material
+mentioning or referencing the derived work. See the file md5.c within this
+package for license details.</para>
+</sect1>
+
+<sect1 id="jimtcl-dirlist">
+<title>Directory Listing</title>
+
+<para>If the user issues a "GET" request with a URL terminating in a slash, the
+server will try to locate one of the following index files in the directory,
+choosing one in the following order:</para>
+
+<itemizedlist>
+  <listitem><para>index.html</para></listitem>
+  <listitem><para>index.htm</para></listitem>
+  <listitem><para>default.html</para></listitem>
+  <listitem><para>home.html</para></listitem>
+</itemizedlist>
+
+<para>If any of these files is found, its contents are sent back
+to the client. If no such file is found the server uses the user-provided
+index file name (if any is specified with the CYGDAT_NET_JIMTCL_ALTERNATE_HOME
+setting. Failing all this a directory listing is sent.</para>
+
+<para>Trailing slash redirection for directory names is supported.</para>
+
+<para>In order to reduce the footprint of the server, directory listing can
+be disabled by unchecking CYGOPT_NET_JIMTCL_USE_DIRLIST. The savings are
+substantial since directory listing also makes use of a few internal
+resources (gif files) which are also compiled out.</para>
+</sect1>
+
+<sect1 id="jimtcl-formvars">
+<title>Form Variables</title>
+
+<para>The server will automatically try to parse form variables when a form is
+submitted in the following cases:
+
+<itemizedlist>
+  <listitem><para>In a GET request, when the URL is followed by a question
+                  mark sign</para></listitem>
+  <listitem><para>In a POST request, when the the 'Content-Type' header line
+                  is set to 'application/x-www-form-urlencoded'</para></listitem>
+</itemizedlist>
+
+The variable names to look for during the parsing are held in
+an eCos table. In order to take advantage of this feature, the user first
+adds the variable names to the table, which also requires providing a buffer 
+where the parsed value will eventually be stored. The values will then be
+available in the buffers during the processing of the request, presumably in
+the body of a c language callback or CGI script.</para>
+
+<para>For example, if the user wants two form variables, "foo" and "bar", to 
+be parsed automatically, those variable names must be added to the table 
+with the following macro:</para>
+
+<programlisting>
+CYG_HTTPD_FVAR_TABLE_ENTRY(entry, name, buffp, bufflen)
+
+entry            : an identifier unique to this entry.
+name             : name of the form variable
+buffp            : a pointer to a buffer of characters where to store the value
+                   of the form variable.
+bufflen          : The length of the buffer. Must include a trailing string
+                   terminator.
+</programlisting>
+
+<para>or, in the specific instance mentioned above:</para>
+
+<programlisting>
+#define HTML_VAR_LEN   20
+char var_foo[HTML_VAR_LEN];
+char var_bar[HTML_VAR_LEN];
+CYG_HTTPD_FVAR_TABLE_ENTRY(hal_form_entry_foo, "foo", var_foo, HTML_VAR_LEN);
+CYG_HTTPD_FVAR_TABLE_ENTRY(hal_form_entry_bar, "bar", var_bar, HTML_VAR_LEN);
+</programlisting>
+
+<para>and after the GET or POST submissions, the list will contain the value 
+for "foo" and "bar" (if they were found in the form data.) It is the 
+responsability of the user to make sure that the buffer is large enough
+to hold all the data parsed (including the string terminator). The parser will
+write only up to the length of the buffer minus one (the last being the
+terminator) and discard any additional data.</para>
+
+<para>The values parsed are likely going to be used in c language callback, or
+in CGI files. In a c language callback the user can directly access the pointers
+of individual variables for further processing, keeping in mind that the parsing 
+always result in a string of characters to be produced, and any conversion
+(e.g. from strings to integer) must be performed within the callback. In
+a TCL script the user can just access a variable by its name. For example,
+in the case of the variables 'foo' and 'bar' shown above, it is possible
+to do something like 'write_chunked "You wrote $foo". The data that was sent in
+the body of a POST request is accessible in through a variable called
+'post_data'. In CGI functions
+implemented using the objloader the pointers to the
+variables cannot be accessed directly, since the library will likely not
+know their location in memory. The proper way to access them is by using the
+cyg_httpd_find_form_variable() function from within the library:</para>
+
+<programlisting>
+char* cyg_httpd_find_form_variable(char* name)
+
+name             : name of the form variable to look up
+
+returns a pointer to the buffer, or 0 if the variable was not found.
+</programlisting>
+
+<para>When using the OBJLOADER package within the web server, an entry
+for the cyg_httpd_find_form_variable() function is automatically added to the
+externals table the OBJLOADER for relocation. See the OBLOADER paragraph of 
+the ATHTTP user's guide for the full list of the exported functions.</para>
+
+<para>In order to avoid stale data, all the buffers in the table are cleared
+before running the parser and thus any variable in the list that was not
+assigned a new value dureing the request will be an empty string.</para>
+</sect1>
+
+<sect1 id="jimtcl-ires">
+<title>Internal Resources</title>
+
+<para>When the server does not use a file system the user must be responsible
+to provide a C language callback function for each URL that will be
+requested by the client. This means locating the data and sending it out
+using either <command>cyg_httpd_write()</command> or
+<command>cyg_httpd_write_chunked()</command>.</para>
+
+<para>In order to simplify this process the server allows registering
+any number of URLs as internal resources, by providing the URL name, the
+pointer to the resource data and its size. When a URL is requested the
+server will look it up among all internal resources, and if found, it
+will send out the resource.</para>
+
+<para>Internal resource can also be used along with a file system. In this
+case the file system is searched first, and if a file is found, it it
+sent. If a file is not found, the internal resources are searched and
+if a match if found it is sent.</para>
+
+<para>The drawback of this approach is, of course, that all these
+resources are going to add to the size of the operating system image, and thus
+it should be used only when memory is not a major constraint of the 
+design.</para>
+
+<para>As always, to provide this type of customization, ecos tables are used.
+The format for adding a new resource to the internal table is the following:
+</para>
+
+<programlisting>
+CYG_HTTPD_IRES_TABLE_ENTRY(entry, name, buffp, len)
+
+entry            : an identifier unique to this entry.
+name             : name of the URL including leading '/'
+buffp            : a pointer to a buffer of characters where to store the value
+                   of the form variable.
+len              : size of the array                   
+</programlisting>
+
+<para>As an example, if the user wants to provide his own web page by
+hardcoding it in the application code, here is how he would do it:</para>
+
+<programlisting>
+#define MY_OWN_HOME_PAGE "eCos RTOS"
+CYG_HTTPD_IRES_TABLE_ENTRY(cyg_httpd_ires_home,       \
+                           "/index.html",             \
+                           MY_OWN_HOME_PAGE,          \
+                           9);
+</programlisting>
+
+<para>The extension of the file name determines the MIME type to be used for
+internal resources.</para>
+
+<para>When using directory listing you are implicitly making use of internal
+resources. The small icons that appear to the left of file names and
+directories are internal resources. Unchecking CYGOPT_NET_HTTP_USE_DIRLIST
+will prevent the addition of these files.</para>
+
+<para>In order to use internal resources, a generic file must first be
+turned into a c language array, which is then compiled in the application
+code. To create this array you can use the tcl script that comes with the
+ecos distribution at packages/fs/rom/current/support/file2.tcl.</para>
+</sect1>
+</chapter>
+</part>

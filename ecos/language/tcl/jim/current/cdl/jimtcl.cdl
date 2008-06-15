@@ -1,0 +1,101 @@
+# ====================================================================
+#
+#      jimtcl.cdl
+#
+#      HTTP server configuration data
+#
+# ====================================================================
+#####ECOSGPLCOPYRIGHTBEGIN####
+## -------------------------------------------
+## This file is part of eCos, the Embedded Configurable Operating System.
+## Copyright (C) 2005 eCosCentric Ltd.
+##
+## eCos is free software; you can redistribute it and/or modify it under
+## the terms of the GNU General Public License as published by the Free
+## Software Foundation; either version 2 or (at your option) any later version.
+##
+## eCos is distributed in the hope that it will be useful, but WITHOUT ANY
+## WARRANTY; without even the implied warranty of MERCHANTABILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with eCos; if not, write to the Free Software Foundation, Inc.,
+## 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+##
+## As a special exception, if other files instantiate templates or use macros
+## or inline functions from this file, or you compile this file and link it
+## with other works to produce a work based on this file, this file does not
+## by itself cause the resulting work to be covered by the GNU General Public
+## License. However the source code for this file must still be made available
+## in accordance with section (3) of the GNU General Public License.
+##
+## This exception does not invalidate any other reasons why a work based on
+## this file might be covered by the GNU General Public License.
+##
+## -------------------------------------------
+#####ECOSGPLCOPYRIGHTEND####
+# ====================================================================
+######DESCRIPTIONBEGIN####
+#
+# Author(s):      Anthony Tonizzo (atonizzo@gmail.com)
+# Contributors:   Lars Povlsen    (lpovlsen@vitesse.com)
+# Date:           2006-06-09
+#
+#####DESCRIPTIONEND####
+#
+# ====================================================================
+
+cdl_package CYGPKG_JIMTCL {
+    display       "Jim Tcl"
+    description   "Core Tcl implementation upon which commands pretinent to deeply embedded application can be added."
+    include_dir   cyg/jimtcl
+    include_files jim.h
+          compile       jim.c jim-aio.c
+       
+              requires      CYGINT_ISO_STDIO_STREAMS
+    requires      CYGINT_ISO_STDIO_FILEACCESS
+    requires      CYGINT_ISO_STDIO_FORMATTED_IO
+    requires      CYGINT_ISO_STRING_MEMFUNCS
+    requires      CYGINT_ISO_STRING_STRFUNCS
+    requires      CYGINT_ISO_STRING_BSD_FUNCS
+    requires      CYGINT_ISO_C_CLOCK_FUNCS
+    requires      CYGINT_ISO_MALLOC
+    requires      CYGINT_ISO_CTYPE
+       define        JIM_ANSIC
+          define        JIM_STATICEXT
+  
+    cdl_component CYGPKG_JIMTCL_OPTIONS {
+        display "Jim Tcl build options"
+        flavor  none
+        no_define
+        
+  
+  
+        cdl_option CYGPKG_JIMTCL_CFLAGS_ADD {
+            display "Additional compiler flags"
+            flavor  data
+            no_define
+            default_value { "-D__ECOS" }
+            description   "
+                This option modifies the set of compiler flags for
+                building the HTTP server package.
+                These flags are used in addition
+                to the set of global flags."
+        }
+
+        cdl_option CYGPKG_JIMTCL_CFLAGS_REMOVE {
+            display "Suppressed compiler flags"
+            flavor  data
+            no_define
+            default_value { "" }
+            description   "
+                This option modifies the set of compiler flags for
+                building the HTTP server package. These flags are removed from
+                the set of global flags if present."
+        }
+    }
+}
+
+# ====================================================================
+# EOF jimtcl.cdl
