@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.172 2008/06/15 18:49:31 oharboe Exp $
+ * $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@
 #define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
 
+#ifdef __ECOS
+#include <pkgconf/jimtcl.h>
+#endif
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
 #endif /* JIM_ANSIC */
@@ -55,7 +58,11 @@
 #endif /* WIN32 */
 #endif /* JIM_DYNLIB */
 
+#ifdef __ECOS
+#include <cyg/jimtcl/jim.h>
+#else
 #include "jim.h"
+#endif
 
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -11763,7 +11770,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
            "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout_,
-            "CVS ID: $Id: jim.c,v 1.172 2008/06/15 18:49:31 oharboe Exp $"
+            "CVS ID: $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $"
             JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {

@@ -1,5 +1,6 @@
 2008-06-15 oharboe
-	
+
+	* ChangeLog, jim.c, jim.h, jim-aio.c: Support for eCos.	
 	* ChangeLog, jim.c: realloc/malloc(0) fix. Convert
 	realloc/malloc(0) => realloc/malloc(1) which has an
 	identical implementation, whereas realloc/malloc(0) is

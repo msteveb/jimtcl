@@ -1,7 +1,7 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.11 2007/01/31 00:49:05 patthoyts Exp $
+ * $Id: jim-aio.c,v 1.12 2008/06/15 21:03:26 oharboe Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,17 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef __ECOS
+#include <pkgconf/jimtcl.h>
+#endif
 #ifndef JIM_STATICEXT
 #define JIM_EXTENSION
 #endif
+#ifdef __ECOS
+#include <cyg/jimtcl/jim.h>
+#else
 #include "jim.h"
+#endif
 
 #define AIO_CMD_LEN 128
 #define AIO_BUF_LEN 1024
