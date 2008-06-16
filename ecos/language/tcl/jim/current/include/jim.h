@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.h,v 1.76 2006/11/06 20:29:15 antirez Exp $
+ * $Id: jim.h,v 1.77 2007/01/31 00:49:05 patthoyts Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -146,6 +146,14 @@ extern "C" {
 #define JIM_NL "\r\n"
 #else
 #define JIM_NL "\n"
+#endif
+
+#if defined(__WIN32__) || defined(_WIN32)
+#define DLLEXPORT __declspec(dllexport)
+#define DLLIMPORT __declspec(dllimport)
+#else
+#define DLLEXPORT
+#define DLLIMPORT
 #endif
 
 /* -----------------------------------------------------------------------------
@@ -491,9 +499,9 @@ typedef struct Jim_Interp {
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
-    FILE *stdin; /* input file pointer, 'stdin' by default */
-    FILE *stdout; /* output file pointer, 'stdout' by default */
-    FILE *stderr; /* errors file pointer, 'stderr' by default */
+    FILE *stdin_; /* input file pointer, 'stdin' by default */
+    FILE *stdout_; /* output file pointer, 'stdout' by default */
+    FILE *stderr_; /* errors file pointer, 'stderr' by default */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -554,7 +562,11 @@ typedef struct Jim_Reference {
 # endif
 #else
 # define JIM_API(x) x
-# define JIM_STATIC static
+# if defined(BUILD_Jim)
+#   define JIM_STATIC DLLEXPORT
+# else
+#   define JIM_STATIC static
+# endif
 #endif /* __JIM_CORE__ */
 
 /* Memory allocation */

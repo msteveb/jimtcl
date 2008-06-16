@@ -1,3 +1,7 @@
+2008-06-16 Uwe Klein wiederling at googlemail.com 
+
+	* ChangeLog, jim.c: fixed parsing in "expr 0x1234".
+
 2008-06-16 oharboe
 
 	* ChangeLog, ecos/ecos.db: eCos repository smoketested.

@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.170 2006/11/06 21:48:57 antirez Exp $
+ * $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,9 @@
 #define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
 
+#ifdef __ECOS
 #include <pkgconf/jimtcl.h>
-
+#endif
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
 #endif /* JIM_ANSIC */
@@ -57,7 +58,11 @@
 #endif /* WIN32 */
 #endif /* JIM_DYNLIB */
 
+#ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
+#else
+#include "jim.h"
+#endif
 
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -457,7 +462,7 @@ static jim_wide JimPowWide(jim_wide b, jim_wide e)
 void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 {
     va_list ap;
-    FILE *fp = interp ? interp->stderr : stderr;
+    FILE *fp = interp ? interp->stderr_ : stderr;
 
     va_start(ap, fmt);
     fprintf(fp, JIM_NL "JIM INTERPRETER PANIC: ");
@@ -2178,6 +2183,13 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
             }
             c = (char) wideValue;
             Jim_AppendString(interp, resObjPtr, &c, 1);
+            break;
+        case 'd':
+            if (Jim_GetWide(interp, objv[0], &wideValue) == JIM_ERR) {
+                Jim_FreeNewObj(interp, resObjPtr);
+                return NULL;
+            }
+            Jim_AppendObj(interp, resObjPtr, objv[0]);
             break;
         case '%':
             Jim_AppendString(interp, resObjPtr, "%" , 1);
@@ -3900,7 +3912,7 @@ int Jim_Collect(Jim_Interp *interp)
                 Jim_AddHashEntry(&marks,
                     &objPtr->internalRep.refValue.id, NULL);
 #ifdef JIM_DEBUG_GC
-                fprintf(interp->stdout,
+                fprintf(interp->stdout_,
                     "MARK (reference): %d refcount: %d" JIM_NL, 
                     (int) objPtr->internalRep.refValue.id,
                     objPtr->refCount);
@@ -3939,7 +3951,7 @@ int Jim_Collect(Jim_Interp *interp)
                  * was found. Mark it. */
                 Jim_AddHashEntry(&marks, &id, NULL);
 #ifdef JIM_DEBUG_GC
-                fprintf(interp->stdout,"MARK: %d" JIM_NL, (int)id);
+                fprintf(interp->stdout_,"MARK: %d" JIM_NL, (int)id);
 #endif
                 p += JIM_REFERENCE_SPACE;
             }
@@ -3959,7 +3971,7 @@ int Jim_Collect(Jim_Interp *interp)
          * this reference. */
         if (Jim_FindHashEntry(&marks, refId) == NULL) {
 #ifdef JIM_DEBUG_GC
-            fprintf(interp->stdout,"COLLECTING %d" JIM_NL, (int)*refId);
+            fprintf(interp->stdout_,"COLLECTING %d" JIM_NL, (int)*refId);
 #endif
             collected++;
             /* Drop the reference, but call the
@@ -4047,9 +4059,9 @@ Jim_Interp *Jim_CreateInterp(void)
     i->freeFramesList = NULL;
     i->prngState = NULL;
     i->evalRetcodeLevel = -1;
-    i->stdin = stdin;
-    i->stdout = stdout;
-    i->stderr = stderr;
+    i->stdin_ = stdin;
+    i->stdout_ = stdout;
+    i->stderr_ = stderr;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -4118,17 +4130,17 @@ void Jim_FreeInterp(Jim_Interp *i)
     if (i->liveList != NULL) {
         Jim_Obj *objPtr = i->liveList;
     
-        fprintf(i->stdout,JIM_NL "-------------------------------------" JIM_NL);
-        fprintf(i->stdout,"Objects still in the free list:" JIM_NL);
+        fprintf(i->stdout_,JIM_NL "-------------------------------------" JIM_NL);
+        fprintf(i->stdout_,"Objects still in the free list:" JIM_NL);
         while(objPtr) {
             const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
-            fprintf(i->stdout,"%p \"%-10s\": '%.20s' (refCount: %d)" JIM_NL,
+            fprintf(i->stdout_,"%p \"%-10s\": '%.20s' (refCount: %d)" JIM_NL,
                     objPtr, type,
                     objPtr->bytes ? objPtr->bytes
                     : "(null)", objPtr->refCount);
             if (objPtr->typePtr == &sourceObjType) {
-                fprintf(i->stdout, "FILE %s LINE %d" JIM_NL,
+                fprintf(i->stdout_, "FILE %s LINE %d" JIM_NL,
                 objPtr->internalRep.sourceValue.fileName,
                 objPtr->internalRep.sourceValue.lineNumber);
             }
@@ -4322,20 +4334,20 @@ int Jim_GetExitCode(Jim_Interp *interp) {
 
 FILE *Jim_SetStdin(Jim_Interp *interp, FILE *fp)
 {
-    if (fp != NULL) interp->stdin = fp;
-    return interp->stdin;
+    if (fp != NULL) interp->stdin_ = fp;
+    return interp->stdin_;
 }
 
 FILE *Jim_SetStdout(Jim_Interp *interp, FILE *fp)
 {
-    if (fp != NULL) interp->stdout = fp;
-    return interp->stdout;
+    if (fp != NULL) interp->stdout_ = fp;
+    return interp->stdout_;
 }
 
 FILE *Jim_SetStderr(Jim_Interp *interp, FILE *fp)
 {
-    if (fp != NULL) interp->stderr = fp;
-    return interp->stderr;
+    if (fp != NULL) interp->stderr_ = fp;
+    return interp->stderr_;
 }
 
 /* -----------------------------------------------------------------------------
@@ -5977,7 +5989,7 @@ int JimParseExprNumber(struct JimParserCtx *pc)
         if ((*pc->p == 'x') || (*pc->p == 'X')) {
             allowhex = 1;
             allowdot = 0;
-	}
+		}
         if (*pc->p == '.')
             allowdot = 0;
         pc->p++; pc->len--;
@@ -7155,7 +7167,7 @@ JimScanAString(Jim_Interp *interp, const char *sdescr, const char *str)
                 /* Handle range definitions */
                 int i;
                 for (i=sdescr[0]; i <= sdescr[2]; ++i)
-                    JimSetBit(charset, i);
+                    JimSetBit(charset, (char)i);
                 sdescr += 3;
             } else {
                 /* Handle verbatim character definitions */
@@ -7541,11 +7553,13 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 sprintf(buf, "%s%s", prefix, pathName);
             else
                 sprintf(buf, "%s/%s", prefix, pathName);
+            printf("opening '%s'\n", buf);
             fp = fopen(buf, "r");
             if (fp == NULL)
                 continue;
             fclose(fp);
             handle = dlopen(buf, RTLD_LAZY);
+            printf("got handle %p\n", handle);
         }
         if (handle == NULL) {
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
@@ -8466,7 +8480,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_IncrRefCount(objv[1]);
         if (Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
             /* Report the error to stderr. */
-            fprintf(interp->stderr, "Background error:" JIM_NL);
+            fprintf(interp->stderr_, "Background error:" JIM_NL);
             Jim_PrintErrorMessage(interp);
         }
         Jim_DecrRefCount(interp, objv[0]);
@@ -8999,8 +9013,8 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc,
         }
     }
     str = Jim_GetString(argv[1], &len);
-    fwrite(str, 1, len, interp->stdout);
-    if (!nonewline) fprintf(interp->stdout, JIM_NL);
+    fwrite(str, 1, len, interp->stdout_);
+    if (!nonewline) fprintf(interp->stdout_, JIM_NL);
     return JIM_OK;
 }
 
@@ -11732,9 +11746,9 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
 {
     int len, i;
 
-    fprintf(interp->stderr, "Runtime error, file \"%s\", line %d:" JIM_NL,
+    fprintf(interp->stderr_, "Runtime error, file \"%s\", line %d:" JIM_NL,
             interp->errorFileName, interp->errorLine);
-    fprintf(interp->stderr, "    %s" JIM_NL,
+    fprintf(interp->stderr_, "    %s" JIM_NL,
             Jim_GetString(interp->result, NULL));
     Jim_ListLength(interp, interp->stackTrace, &len);
     for (i = 0; i < len; i+= 3) {
@@ -11749,7 +11763,7 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
         Jim_ListIndex(interp, interp->stackTrace, i+2, &objPtr,
                 JIM_NONE);
         line = Jim_GetString(objPtr, NULL);
-        fprintf(interp->stderr,
+        fprintf(interp->stderr_,
                 "In procedure '%s' called at file \"%s\", line %s" JIM_NL,
                 proc, file, line);
     }
@@ -11760,11 +11774,11 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     int retcode = JIM_OK;
     Jim_Obj *scriptObjPtr;
 
-    fprintf(interp->stdout, "Welcome to Jim version %d.%d, "
+    fprintf(interp->stdout_, "Welcome to Jim version %d.%d, "
            "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
-    fprintf(interp->stdout,
-            "CVS ID: $Id: jim.c,v 1.170 2006/11/06 21:48:57 antirez Exp $"
+    fprintf(interp->stdout_,
+            "CVS ID: $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $"
             JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
@@ -11777,12 +11791,12 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 
         if (retcode != 0) {
             if (retcode >= 2 && retcode <= 6)
-                fprintf(interp->stdout, "[%s] . ", retcodestr[retcode]);
+                fprintf(interp->stdout_, "[%s] . ", retcodestr[retcode]);
             else
-                fprintf(interp->stdout, "[%d] . ", retcode);
+                fprintf(interp->stdout_, "[%d] . ", retcode);
         } else
-            fprintf(interp->stdout, ". ");
-        fflush(interp->stdout);
+            fprintf(interp->stdout_, ". ");
+        fflush(interp->stdout_);
         scriptObjPtr = Jim_NewStringObj(interp, "", 0);
         Jim_IncrRefCount(scriptObjPtr);
         while(1) {
@@ -11790,7 +11804,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             char state;
             int len;
 
-            if (fgets(buf, 1024, interp->stdin) == NULL) {
+            if (fgets(buf, 1024, interp->stdin_) == NULL) {
                 Jim_DecrRefCount(interp, scriptObjPtr);
                 goto out;
             }
@@ -11798,7 +11812,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             str = Jim_GetString(scriptObjPtr, &len);
             if (Jim_ScriptIsComplete(str, len, &state))
                 break;
-            fprintf(interp->stdout, "%c> ", state);
+            fprintf(interp->stdout_, "%c> ", state);
             fflush(stdout);
         }
         retcode = Jim_EvalObj(interp, scriptObjPtr);
@@ -11810,8 +11824,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             exit(Jim_GetExitCode(interp));
         } else {
             if (reslen) {
-                fwrite(result, 1, reslen, interp->stdout);
-                fprintf(interp->stdout, JIM_NL);
+                fwrite(result, 1, reslen, interp->stdout_);
+                fprintf(interp->stdout_, JIM_NL);
             }
         }
     }

@@ -2,7 +2,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $
+ * $Id: jim.c,v 1.174 2008/06/16 14:03:10 oharboe Exp $
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5972,16 +5972,24 @@ int JimParseExpression(struct JimParserCtx *pc)
 int JimParseExprNumber(struct JimParserCtx *pc)
 {
     int allowdot = 1;
+    int allowhex = 0;
 
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     if (*pc->p == '-') {
         pc->p++; pc->len--;
     }
-    while (isdigit((int)*pc->p) || (allowdot && *pc->p == '.') ||
-           (pc->p-pc->tstart == 1 && *pc->tstart == '0' &&
-              (*pc->p == 'x' || *pc->p == 'X')))
+    while (  isdigit((int)*pc->p) 
+          || (allowhex && isxdigit((int)*pc->p) )
+          || (allowdot && *pc->p == '.') 
+          || (pc->p-pc->tstart == 1 && *pc->tstart == '0' &&
+              (*pc->p == 'x' || *pc->p == 'X'))
+          )
     {
+        if ((*pc->p == 'x') || (*pc->p == 'X')) {
+            allowhex = 1;
+            allowdot = 0;
+		}
         if (*pc->p == '.')
             allowdot = 0;
         pc->p++; pc->len--;
@@ -11770,7 +11778,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
            "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
     fprintf(interp->stdout_,
-            "CVS ID: $Id: jim.c,v 1.173 2008/06/15 21:03:26 oharboe Exp $"
+            "CVS ID: $Id: jim.c,v 1.174 2008/06/16 14:03:10 oharboe Exp $"
             JIM_NL);
     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
