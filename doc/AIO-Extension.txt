@@ -1,5 +1,4 @@
 ANSI I/O extensiond documentation
-$Id: AIO-Extension.txt,v 1.4 2005/04/02 10:14:23 antirez Exp $
 
 Overview
 ~~~~~~~~

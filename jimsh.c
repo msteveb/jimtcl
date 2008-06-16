@@ -1,8 +1,6 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jimsh.c,v 1.10 2005/04/13 19:50:18 patthoyts Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at

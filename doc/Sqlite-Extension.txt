@@ -1,7 +1,6 @@
 Jim Sqlite extension documentation.
 Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
 
-$Id: Sqlite-Extension.txt,v 1.2 2005/09/19 14:17:38 antirez Exp $
 
 Overview
 ~~~~~~~~

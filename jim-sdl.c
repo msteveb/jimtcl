@@ -1,8 +1,6 @@
 /* Jim - SDL extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-sdl.c,v 1.3 2005/03/31 12:20:21 antirez Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at

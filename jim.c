@@ -2,8 +2,6 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  *
- * $Id: jim.c,v 1.174 2008/06/16 14:03:10 oharboe Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11775,12 +11773,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     Jim_Obj *scriptObjPtr;
 
     fprintf(interp->stdout_, "Welcome to Jim version %d.%d, "
-           "Copyright (c) 2005 Salvatore Sanfilippo" JIM_NL,
+           "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
-    fprintf(interp->stdout_,
-            "CVS ID: $Id: jim.c,v 1.174 2008/06/16 14:03:10 oharboe Exp $"
-            JIM_NL);
-    Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
+     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
     while (1) {
         char buf[1024];
         const char *result;

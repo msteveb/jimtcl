@@ -2,8 +2,6 @@
 #
 # Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
 #
-# $Id: jim-stdlib-1.0.tcl,v 1.3 2005/04/04 11:59:54 antirez Exp $
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

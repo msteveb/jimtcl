@@ -1,8 +1,6 @@
 /* Jim - Event Loop extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-eventloop.c,v 1.2 2005/09/19 15:56:39 antirez Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at

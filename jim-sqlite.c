@@ -1,8 +1,6 @@
 /* Jim - Sqlite bindings
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-sqlite.c,v 1.1 2005/04/02 21:35:33 antirez Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
