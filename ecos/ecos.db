@@ -51,7 +51,7 @@
 
 package CYGPKG_JIMTCL {
 	alias 		{ "Jim Tcl" jimtcl }
-	directory	jim
+	directory	language/tcl/jim
 	script		jimtcl.cdl
     description "Jim Tcl a lightweight Tcl implementation. Lacks all the create comforts libraries of a PC implementation, but otherwise complete."
 }

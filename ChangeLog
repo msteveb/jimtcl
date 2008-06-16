@@ -1,3 +1,7 @@
+2008-06-16 oharboe
+
+	* ChangeLog, ecos/ecos.db: eCos repository smoketested.
+	
 2008-06-15 oharboe
 
 	* ChangeLog, jim.c, jim.h, jim-aio.c: Support for eCos.	
