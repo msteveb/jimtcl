@@ -141,7 +141,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             buf[AIO_BUF_LEN-1] = '_';
             if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
                 break;
-            if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN] == '\n')
+            if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN-2] != '\n')
                 more = 1;
             if (more) {
                 Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN-1);

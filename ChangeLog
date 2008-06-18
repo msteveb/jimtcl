@@ -1,3 +1,9 @@
+2008-06-17 Andrew Lunn <andrew@lunn.ch> / oharboe 
+
+	* ChangeLog, jim-aio.c: Andrew spotted a bug in the 
+	aio.gets implementation for lines that are more than
+	AIO_BUF_LEN long. GCC 4.3.1 pointed out this problem.
+	
 2008-06-16 oharboe
 
 	* retire CVS keyword expansion. Plays havoc with patches.
@@ -930,7 +936,7 @@
 2005-03-04 13:32  antirez
 
 	* ChangeLog, jim-posix.c, jim-win32.c, jim-win32com.c, jim.c,
-	  jim.h, test.tcl: xid: ..x strings added
+	  jim.h, test.tcl: $id: ..$ strings added
 
 2005-03-04 13:15  antirez
 
