@@ -2178,6 +2178,10 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		int spad;
 		int altfm;
 		int forceplus;
+		int prec;
+		int inprec;
+		int haveprec;
+		int accum;
 
         while (*fmt != '%' && fmtLen) {
             fmt++; fmtLen--;
@@ -2192,6 +2196,9 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		ljust = 0;
 		altfm = 0;
 		forceplus = 0;
+		inprec = 0;
+		haveprec = 0;
+		prec = -1; /* not found yet */
     next_fmt:
 		if( fmtLen <= 0 ){
 			break;
@@ -2236,6 +2243,11 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 			*fmt++; fmtLen--;
  			goto next_fmt;
 			
+		case '.':
+			inprec = 1;
+			*fmt++; fmtLen--;
+ 			goto next_fmt;
+			break;
 		case '1':
 		case '2':
 		case '3':
@@ -2245,10 +2257,16 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		case '7':
 		case '8':
 		case '9':
-			width = 0;
+			accum = 0;
 			while( isdigit(*fmt) && (fmtLen > 0) ){
-				width = (width * 10) + (*fmt - '0');
+				accum = (accum * 10) + (*fmt - '0');
 				fmt++;  fmtLen--;
+			}
+			if( inprec ){
+				haveprec = 1;
+				prec = accum;
+			} else {
+				width = accum;
 			}
 			goto next_fmt;
 		case '*':
@@ -2262,10 +2280,20 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 				Jim_FreeNewObj(interp, resObjPtr );
 				return NULL;
 			}
+			if( inprec ){
+				haveprec = 1;
+				prec = wideValue;
+				if( prec < 0 ){
+					/* man 3 printf says */
+					/* if prec is negative, it is zero */
+					prec = 0;
+				}
+			} else {
 			width = wideValue;
 			if( width < 0 ){
 				ljust = 1;
 				width = -width;
+			}
 			}
 			objv++;
 			goto next_fmt;
@@ -2309,6 +2337,16 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		if( width > 0 ){
 			sprintf( cp, "%d", width );
 			/* skip ahead */
+			cp = strchr(cp,0);
+		}
+		/* did we find a period? */
+		if( inprec ){
+			/* then add it */
+			*cp++ = '.';
+			/* did something occur after the period? */
+			if( haveprec ){
+				sprintf( cp, "%d", prec );
+			}
 			cp = strchr(cp,0);
 		}
 		*cp = 0;

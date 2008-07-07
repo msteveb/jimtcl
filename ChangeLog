@@ -1,5 +1,9 @@
 2008-07-07 Duane Ellis <openocd@duaneellis.com>
 
+src/jim.c: This simple patch adds precision support to JIM's format command.
+	
+2008-07-07 Duane Ellis <openocd@duaneellis.com>
+
 src/Jim.c
 	- ** THIS INCLUDES A PREVIOUS PATCH I SENT EARLIER **
 	- that impliments many [format] specifies JIM did not support.
