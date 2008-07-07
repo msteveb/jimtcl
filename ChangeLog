@@ -1,3 +1,52 @@
+2008-07-07 Duane Ellis <openocd@duaneellis.com>
+
+src/Jim.c
+	- ** THIS INCLUDES A PREVIOUS PATCH I SENT EARLIER **
+	- that impliments many [format] specifies JIM did not support.
+	- Jim_FormatString() - **MAJOR** work.
+	- Previously only supported "%s" "%d" and "%c"
+	- And what support existed had bugs.
+	- NEW: *MANY* formating parameters are now supported.
+	- TODO: The "precision" specifier is not supported.
+
+	** NEW ** This patch.
+	
+	- Jim_StringToWide() test if no conversion occured.
+	- Jim_StringToIndex() test if no conversion occured.
+	- Jim_StringToDouble() test if no conversion occured.
+
+	** NEW ** This Patch. Major Work.
+	- Previously output from JIM did not get sent to GDB
+	- Ditto: Output to Telnet session.
+	- Above items are now fixed - By introducing callbacks
+	  new function pointers in the "interp" structure.
+
+	- Helpers that call the callbacks.
+	
+	- New function: Jim_fprintf()
+	- New function: Jim_vfprintf()
+	- New function: Jim_fwrite()
+	- New function: Jim_fread()
+	- New function: Jim_fflush()
+	- New function: Jim_fgets()
+
+	By default: the output is to STDIO as previous.
+	The "openocd.c" - redirects the output as needed.
+	
+	- Jim_Panic() - Send panic to both STDERR and the interps
+	specified STDERR output as a 2nd choice.
+
+	- Now JIM's "stdin/stdout/stderr" paramters are "void *"
+	and are no longer "FILE *".
+
+src/Jim.h
+	- **MAJOR**
+	-  New JIM STDIO callbacks in the "interp" structure.
+	-  change: "stdin/stdout/stderr" are now "void *" cookies.
+	-  New JIM stdio helper functions.
+
+
+
 2008-06-17 Andrew Lunn <andrew@lunn.ch> / oharboe 
 
 	* ChangeLog, jim-aio.c: Andrew spotted a bug in the 

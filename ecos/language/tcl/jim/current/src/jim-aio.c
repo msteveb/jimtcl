@@ -1,8 +1,6 @@
 /* Jim - ANSI I/O extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
- * $Id: jim-aio.c,v 1.12 2008/06/15 21:03:26 oharboe Exp $
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -143,7 +141,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             buf[AIO_BUF_LEN-1] = '_';
             if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
                 break;
-            if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN] == '\n')
+            if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN-2] != '\n')
                 more = 1;
             if (more) {
                 Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN-1);
