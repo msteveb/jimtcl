@@ -1,3 +1,8 @@
+2008-07-07 oharboe
+
+	* src/jim.c: remove bogus return value from if {[expr]} {xx} when
+	{xx} is not run. 
+	
 2008-07-07 Duane Ellis <openocd@duaneellis.com>
 
 src/jim.c: This simple patch adds precision support to JIM's format command.
