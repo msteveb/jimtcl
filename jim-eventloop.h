@@ -31,6 +31,7 @@
 #define __JIM_EVENTLOOP_H__
 
 typedef int Jim_FileProc(Jim_Interp *interp, void *clientData, int mask);
+typedef int Jim_SignalProc(Jim_Interp *interp, void *clientData, void *msg);
 typedef void Jim_TimeProc(Jim_Interp *interp, void *clientData);
 typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 
@@ -38,6 +39,7 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_READABLE 1
 #define JIM_EVENT_WRITABLE 2
 #define JIM_EVENT_EXCEPTION 4
+#define JIM_EVENT_FEOF 8
 
 #ifndef __JIM_EVENTLOOP_CORE__
 # if defined JIM_EXTENSION || defined JIM_EMBEDDED
@@ -62,7 +64,7 @@ JIM_STATIC jim_wide JIM_API(Jim_CreateTimeHandler) (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
-JIM_STATIC int JIM_API(Jim_DeleteTimeHandler) (Jim_Interp *interp, jim_wide id);
+JIM_STATIC jim_wide JIM_API(Jim_DeleteTimeHandler) (Jim_Interp *interp, jim_wide id);
 JIM_STATIC int JIM_API(Jim_ProcessEvents) (Jim_Interp *interp, int flags);
 
 #undef JIM_STATIC
@@ -77,11 +79,11 @@ JIM_STATIC int JIM_API(Jim_ProcessEvents) (Jim_Interp *interp, int flags);
 /* This must be included "inline" inside the extension */
 static void Jim_ImportEventloopAPI(Jim_Interp *interp)
 {
-  JIM_GET_API(Jim_CreateFileHandler);
-  JIM_GET_API(Jim_DeleteFileHandler);
-  JIM_GET_API(Jim_CreateTimeHandler);
-  JIM_GET_API(Jim_DeleteTimeHandler);
-  JIM_GET_API(Jim_ProcessEvents);
+  JIM_GET_API(CreateFileHandler);
+  JIM_GET_API(DeleteFileHandler);
+  JIM_GET_API(CreateTimeHandler);
+  JIM_GET_API(DeleteTimeHandler);
+  JIM_GET_API(ProcessEvents);
 }
 #endif /* defined JIM_EXTENSION || defined JIM_EMBEDDED */
 #undef JIM_GET_API

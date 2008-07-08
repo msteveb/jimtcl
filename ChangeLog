@@ -1,3 +1,12 @@
+2008-07-07 Uwe Klein <uklein@klein-messgeraete.de>
+
+	* changes to jim-eventloop.[ch]
+	* fix negative displacement in timeout computation for select
+	* add basic support for the fileevent stuff [ used from jim-aio ]
+	* add basic support for signal handling / actions 
+	* add basic support for timer [via after] restart, cancel 
+	   and returning the remaining time for cancled events
+
 2008-07-07 oharboe
 
 	* src/jim.c: remove bogus return value from if {[expr]} {xx} when
