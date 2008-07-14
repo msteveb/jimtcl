@@ -1,3 +1,9 @@
+2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
+
+	* jim.c: in Jim_SubstObj in the switch for tokentype 
+	  case: JIM_TT_DICTSUGAR and
+	  accompanying code was missing.
+
 2008-07-07 Uwe Klein <uklein@klein-messgeraete.de>
 
 	* changes to jim-eventloop.[ch]

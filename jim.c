@@ -8946,6 +8946,13 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
             Jim_AppendObj(interp, resObjPtr, objPtr);
             Jim_DecrRefCount(interp, objPtr);
             break;
+        case JIM_TT_DICTSUGAR:
+            objPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
+            if (!objPtr) {
+                retcode = JIM_ERR;
+                goto err;
+            }
+            break;
         case JIM_TT_CMD:
             if (Jim_EvalObj(interp, token[i].objPtr) != JIM_OK)
                 goto err;
