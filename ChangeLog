@@ -1,5 +1,10 @@
 2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
 
+	* This adds open async, fileevents and sockets ( tcp server, client ) 
+	  to jim-aio, using fileevents requires the jim-eventloop package .
+
+2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
+
 	* jim.c: in Jim_SubstObj in the switch for tokentype 
 	  case: JIM_TT_DICTSUGAR and
 	  accompanying code was missing.
