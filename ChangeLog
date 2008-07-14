@@ -1,4 +1,9 @@
 2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
+	
+	* doc/jim_man.txt : an overlook over jim command basics
+	   and the added commands. incomplete, additions welcome.
+
+2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
 
 	* signals ( not complete , no eventscripts yet ) sleep and usleep
 	   [pit] point in time and [jpit] julian point in time.
