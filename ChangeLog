@@ -1,5 +1,10 @@
 2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
 
+	* signals ( not complete , no eventscripts yet ) sleep and usleep
+	   [pit] point in time and [jpit] julian point in time.
+	
+2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
+
 	* This adds open async, fileevents and sockets ( tcp server, client ) 
 	  to jim-aio, using fileevents requires the jim-eventloop package .
 
