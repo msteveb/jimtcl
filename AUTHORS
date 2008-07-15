@@ -28,3 +28,15 @@ Also the following ideas are due to the following authors:
   the [continue] command may be used to skip the accumulation of the
   current-iteartion result, providing in one command the power of
   [map] and [filter] together.
+
+ 
+ChangeLog committers to be identified. Tentative list:  
+ 
+antirez - Salvatore Sanfilippo <antirez@gmail.com>
+ patthoyts - ?? Pat Thoyts <patthoyts@users.sf.net> 
+oharboe - Øyvind Harboe - soyvind.harboe@zylin.com
+chi - ??
+Andrew Lunn <andrew@lunn.ch> 
+Duane Ellis <openocd@duaneellis.com>
+Uwe Klein <uklein@klein-messgeraete.de>
+Clemens Hintze ml-jim@qiao.in-berlin.de 
