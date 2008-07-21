@@ -3,7 +3,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
- * Copyright 2008 oharboe - Øyvind Harboe - soyvind.harboe@zylin.com
+ * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
@@ -8558,6 +8558,11 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         } else {
             /* Call [unknown] */
             retcode = JimUnknown(interp, argc, argv);
+            if (retcode == JIM_ERR) {
+                JimAppendStackTrace(interp,
+                    Jim_GetString(argv[0], NULL), script->fileName,
+                    token[i-argc*2].linenr);
+            }
         }
         if (retcode != JIM_OK) {
             i -= argc*2; /* point to the command name. */
@@ -8747,12 +8752,15 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     int nread, totread, maxlen, buflen;
     int retval;
     Jim_Obj *scriptObjPtr;
+    char cwd[ 2048 ];
     
     if ((fp = fopen(filename, "r")) == NULL) {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+	getcwd( cwd, sizeof(cwd) );
         Jim_AppendStrings(interp, Jim_GetResult(interp),
-            "Error loading script \"", filename, "\": ",
-            strerror(errno), NULL);
+	"Error loading script \"", filename, "\"",
+	    " cwd: ", cwd,
+	    " err: ", strerror(errno), NULL);
         return JIM_ERR;
     }
     buflen = 1024;
@@ -12014,7 +12022,7 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
     Jim_fprintf(interp,interp->cookie_stderr, "    %s" JIM_NL,
             Jim_GetString(interp->result, NULL));
     Jim_ListLength(interp, interp->stackTrace, &len);
-    for (i = 0; i < len; i+= 3) {
+    for (i = len-3; i >= 0; i-= 3) {
         Jim_Obj *objPtr;
         const char *proc, *file, *line;
 

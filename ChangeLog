@@ -1,3 +1,8 @@
+2008-07-21 oharboe
+
+	* src/jim.c: very slightly improved error messages.
+	* FreeBSD license cleanup wip
+
 2008-07-13 Uwe Klein <uklein@klein-messgeraete.de>
 	
 	* doc/jim_man.txt : an overlook over jim command basics
