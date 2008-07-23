@@ -58,10 +58,11 @@
 #endif
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
+#include <cyg/jimtcl/jim-eventloop.h>
 #else
 #include "jim.h"
-#endif
 #include "jim-eventloop.h"
+#endif
 
 #define AIO_CMD_LEN 128
 #define AIO_BUF_LEN 1024
@@ -379,7 +380,8 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp, Jim_NewIntObj(interp, feof(af->fp)));
         return JIM_OK;
     } else if (option  == OPT_NDELAY) {
-	int fmode = af->flags;
+#ifdef O_NDELAY
+    	int fmode = af->flags;
 
         if (argc == 3) {
 		jim_wide wideValue;
@@ -397,6 +399,9 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
 	}
         Jim_SetResult(interp, Jim_NewIntObj(interp, (fmode & O_NONBLOCK)?1:0));
         return JIM_OK;
+#else
+        return JIM_ERR;
+#endif
     } else if   (  (option  == OPT_READABLE) 
 		|| (option  == OPT_WRITABLE) 
 		|| (option  == OPT_EXCEPTION) 
@@ -572,10 +577,8 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
 		SOCK_STREAM_CL, 
 		SOCK_STREAM_SERV 
     };
-    int modeLen;
     int socktype;
     int sock;
-    FILE *fsock;
     const char *hostportarg;
     int hostportlen;
     char a[0x20];
@@ -588,7 +591,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     char* stport;
     unsigned int srcport;
     unsigned int port;
-    int elemcnt;
     struct sockaddr_in sa;
     struct hostent *he;
     int res;
@@ -618,10 +620,12 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     srcport = atol(stsrcport);
     port = atol(stport);
     he = gethostbyname(sthost);
+    /* FIX!!!! this still results in null pointer exception here.  
     if (!he)
-	herror("gethostbyname");
+    	herror("gethostbyname");
     fprintf(stderr,"Official name is: %s\n", he->h_name);
     fprintf(stderr,"IP address: %s\n", inet_ntoa(*(struct in_addr*)he->h_addr));
+     */
 
     sock = socket(PF_INET,SOCK_STREAM,0);
     fprintf(stderr,"srcp: %x port: %x IP: %x sock: %d type: %d\n",srcport,port,he->h_addr,sock,socktype);
@@ -742,10 +746,10 @@ Jim_OnLoad(Jim_Interp *interp)
 Jim_AioInit(Jim_Interp *interp)
 #endif
 {
-    #ifndef JIM_STATICEXT
+#ifndef JIM_STATICEXT
     Jim_InitExtension(interp);
-    #endif
 	Jim_ImportEventloopAPI(interp);
+#endif
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);

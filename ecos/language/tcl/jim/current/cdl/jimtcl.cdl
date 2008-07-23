@@ -51,7 +51,8 @@ cdl_package CYGPKG_JIMTCL {
     description   "Core Tcl implementation upon which commands pretinent to deeply embedded application can be added."
     include_dir   cyg/jimtcl
     include_files jim.h
-          compile       jim.c jim-aio.c
+    include_files jim-eventloop.h
+          compile       jim.c jim-aio.c jim-eventloop.c
        
               requires      CYGINT_ISO_STDIO_STREAMS
     requires      CYGINT_ISO_STDIO_FILEACCESS

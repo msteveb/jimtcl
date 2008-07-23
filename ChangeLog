@@ -1,3 +1,11 @@
+2008-07-23 oharboe
+
+	* jim.c: reduce stack usage. Important for embedded devices without
+	MMU.	
+	* jim.c, jim-aio.c, jim-eventloop.c, jim-eventloop.h: emergency repairs
+	to make code compile with eCos after event loops was added. event loop
+	stuff compiles under eCos at least, but this was not tested for regressions. 
+
 2008-07-21 oharboe
 
 	* src/jim.c: very slightly improved error messages.
