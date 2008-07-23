@@ -22,7 +22,6 @@
 #include <ole2.h>
 #include <tchar.h>
 #include <assert.h>
-#include <stdarg.h>
 #include <ctype.h>
 
 #define JIM_EXTENSION

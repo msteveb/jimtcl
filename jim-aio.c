@@ -631,8 +631,12 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     port = atol(stport);
     he = gethostbyname(sthost);
     /* FIX!!!! this still results in null pointer exception here.  
-    if (!he)
-    	herror("gethostbyname");
+    /* FIXED!!!! debug output but no JIM_ERR done UK.  
+    if (!he) {
+        Jim_SetResultString(interp,hstrerror(h_errno),-1);
+        return JIM_ERR;
+    }
+
     fprintf(stderr,"Official name is: %s\n", he->h_name);
     fprintf(stderr,"IP address: %s\n", inet_ntoa(*(struct in_addr*)he->h_addr));
      */

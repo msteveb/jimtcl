@@ -1,3 +1,9 @@
+2008-07-23 Uwe Klein <uklein@klein-messgeraete.de>
+
+	* fix missing vararg.h in some files ( included in jim.h )
+	* in aio.socket return an error when hosti resolution fails
+	   instead of just carrying on.
+
 2008-07-23 oharboe
 
 	* jim.c: reduce stack usage. Important for embedded devices without

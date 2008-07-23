@@ -50,6 +50,7 @@ extern "C" {
 #include <limits.h>
 #include <stdio.h>  /* for the FILE typedef definition */
 #include <stdlib.h> /* In order to export the Jim_Free() macro */
+#include <stdarg.h> /* for the va_list stuff used in the interp struct ?Why UK? */
 
 /* -----------------------------------------------------------------------------
 * Some /very/ old compiler maybe do not know how to
