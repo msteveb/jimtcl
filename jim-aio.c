@@ -56,6 +56,13 @@
 #ifndef JIM_STATICEXT
 #define JIM_EXTENSION
 #endif
+
+/* FIX!!! add #if's to make JIM_SUPPORT_EVENTLOOP enable/disable
+ * eventloop support compile time! */
+#ifndef JIM_SUPPORT_EVENTLOOP
+#define JIM_SUPPORT_EVENTLOOP 1
+#endif
+
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
 #include <cyg/jimtcl/jim-eventloop.h>
@@ -63,6 +70,9 @@
 #include "jim.h"
 #include "jim-eventloop.h"
 #endif
+
+
+
 
 #define AIO_CMD_LEN 128
 #define AIO_BUF_LEN 1024
