@@ -1,3 +1,7 @@
+2008-08-25 Duane Ellis 
+
+	* jim.c, jim.h: name value pair and formatting fixes
+	
 2008-07-23 Uwe Klein <uklein@klein-messgeraete.de>
 
 	* fix missing vararg.h in some files ( included in jim.h )

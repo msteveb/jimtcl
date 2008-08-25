@@ -56,6 +56,13 @@
 #ifndef JIM_STATICEXT
 #define JIM_EXTENSION
 #endif
+
+/* FIX!!! add #if's to make JIM_SUPPORT_EVENTLOOP enable/disable
+ * eventloop support compile time! */
+#ifndef JIM_SUPPORT_EVENTLOOP
+#define JIM_SUPPORT_EVENTLOOP 1
+#endif
+
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
 #include <cyg/jimtcl/jim-eventloop.h>
@@ -63,6 +70,9 @@
 #include "jim.h"
 #include "jim-eventloop.h"
 #endif
+
+
+
 
 #define AIO_CMD_LEN 128
 #define AIO_BUF_LEN 1024
@@ -621,8 +631,12 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     port = atol(stport);
     he = gethostbyname(sthost);
     /* FIX!!!! this still results in null pointer exception here.  
-    if (!he)
-    	herror("gethostbyname");
+    /* FIXED!!!! debug output but no JIM_ERR done UK.  
+    if (!he) {
+        Jim_SetResultString(interp,hstrerror(h_errno),-1);
+        return JIM_ERR;
+    }
+
     fprintf(stderr,"Official name is: %s\n", he->h_name);
     fprintf(stderr,"IP address: %s\n", inet_ntoa(*(struct in_addr*)he->h_addr));
      */
