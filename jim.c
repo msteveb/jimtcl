@@ -1323,18 +1323,15 @@ int JimParseVar(struct JimParserCtx *pc)
     if (brace) {
         while (!stop) {
             if (*pc->p == '}' || pc->len == 0) {
+                pc->tend = pc->p-1;
                 stop = 1;
                 if (pc->len == 0)
-                    continue;
+                    break;
             }
             else if (*pc->p == '\n')
                 pc->linenr++;
             pc->p++; pc->len--;
         }
-        if (pc->len == 0)
-            pc->tend = pc->p-1;
-        else
-            pc->tend = pc->p-2;
     } else {
         /* Include leading colons */
         while (*pc->p == ':') {
@@ -3175,9 +3172,6 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     he = Jim_FindHashEntry(&interp->commands, cmdName);
     if (he == NULL) { /* New command to create */
         cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
-        cmdPtr->cmdProc = cmdProc;
-        cmdPtr->privData = privData;
-        cmdPtr->delProc = delProc;
         Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
     } else {
         Jim_InterpIncrProcEpoch(interp);
@@ -3195,9 +3189,13 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
             /* If it was a C coded command, call the delProc if any */
             cmdPtr->delProc(interp, cmdPtr->privData);
         }
-        cmdPtr->cmdProc = cmdProc;
-        cmdPtr->privData = privData;
     }
+
+    /* Store the new details for this proc */
+    cmdPtr->delProc = delProc;
+    cmdPtr->cmdProc = cmdProc;
+    cmdPtr->privData = privData;
+
     /* There is no need to increment the 'proc epoch' because
      * creation of a new procedure can never affect existing
      * cached commands. We don't do negative caching. */
@@ -3531,7 +3529,13 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
         Jim_IncrRefCount(valObjPtr);
         var->linkFramePtr = NULL;
         /* Insert the new variable */
-        Jim_AddHashEntry(&interp->framePtr->vars, name, var);
+        if (name[0] == ':' && name[1] == ':') {
+            /* Into to the top evel frame */
+            Jim_AddHashEntry(&interp->topFramePtr->vars, name + 2, var);
+        }
+        else {
+            Jim_AddHashEntry(&interp->framePtr->vars, name, var);
+        }
         /* Make the object int rep a variable */
         Jim_FreeIntRep(interp, nameObjPtr);
         nameObjPtr->typePtr = &variableObjType;
