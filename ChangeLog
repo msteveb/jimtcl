@@ -1,3 +1,15 @@
+2008-11-03 Steve Bennett <steveb@workware.net.au>
+
+	* Allow env with no arguments to retrieve all environment variables
+	as a list of name value ...
+	* Add format support for %o -- octal
+	* Allow direct access to variables in the global scope by
+	prefixing with ::
+	* For compatibility with older versions of Tcl, allow == and != to
+	compare strings if the arguments can't be interpreted as numbers
+	* Ensure that the string representation exists before doing
+	string toupper or tolower
+	 
 2008-08-31 Duane Ellis
 
 	* jim.c, jim.h: more text formatting fixes, improved error messages

@@ -7,6 +7,7 @@
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
+ * Copyright 2008 Steve Bennett <steveb@workware.net.au>
  * 
  * The FreeBSD license
  * 
@@ -77,6 +78,10 @@
 #include <dlfcn.h>
 #endif /* WIN32 */
 #endif /* JIM_DYNLIB */
+
+#ifndef WIN32
+#include <unistd.h>
+#endif
 
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
@@ -1331,6 +1336,11 @@ int JimParseVar(struct JimParserCtx *pc)
         else
             pc->tend = pc->p-2;
     } else {
+        /* Include leading colons */
+        while (*pc->p == ':') {
+            pc->p++;
+            pc->len--;
+        }
         while (!stop) {
             if (!((*pc->p >= 'a' && *pc->p <= 'z') ||
                 (*pc->p >= 'A' && *pc->p <= 'Z') ||
@@ -2190,8 +2200,13 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
 
 static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
-    char *buf = Jim_Alloc(strObjPtr->length+1);
+    char *buf;
     int i;
+    if (strObjPtr->typePtr != &stringObjType) {
+        SetStringFromAny(interp, strObjPtr);
+    }
+
+    buf = Jim_Alloc(strObjPtr->length+1);
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length+1);
     for (i = 0; i < strObjPtr->length; i++)
@@ -2201,8 +2216,13 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
 static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
-    char *buf = Jim_Alloc(strObjPtr->length+1);
+    char *buf;
     int i;
+    if (strObjPtr->typePtr != &stringObjType) {
+        SetStringFromAny(interp, strObjPtr);
+    }
+
+    buf = Jim_Alloc(strObjPtr->length+1);
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length+1);
     for (i = 0; i < strObjPtr->length; i++)
@@ -2448,6 +2468,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 			break;
         case 'b':
         case 'd':
+        case 'o':
 		case 'i':
 		case 'u':
 		case 'x':
@@ -3456,14 +3477,22 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     /* Make sure it's not syntax glue to get/set dict. */
     if (Jim_NameIsDictSugar(varName, len))
             return JIM_DICT_SUGAR;
-    /* Lookup this name into the variables hash table */
-    he = Jim_FindHashEntry(&interp->framePtr->vars, varName);
-    if (he == NULL) {
-        /* Try with static vars. */
-        if (interp->framePtr->staticVars == NULL)
+    if (varName[0] == ':' && varName[1] == ':') {
+        he = Jim_FindHashEntry(&interp->topFramePtr->vars, varName + 2);
+        if (he == NULL) {
             return JIM_ERR;
-        if (!(he = Jim_FindHashEntry(interp->framePtr->staticVars, varName)))
-            return JIM_ERR;
+        }
+    }
+    else {
+        /* Lookup this name into the variables hash table */
+        he = Jim_FindHashEntry(&interp->framePtr->vars, varName);
+        if (he == NULL) {
+            /* Try with static vars. */
+            if (interp->framePtr->staticVars == NULL)
+                return JIM_ERR;
+            if (!(he = Jim_FindHashEntry(interp->framePtr->staticVars, varName)))
+                return JIM_ERR;
+        }
     }
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
@@ -6975,6 +7004,16 @@ trydouble:
             /* --- Double --- */
             if (Jim_GetDouble(interp, A, &dA) != JIM_OK ||
                 Jim_GetDouble(interp, B, &dB) != JIM_OK) {
+
+                /* Hmmm! For compatibility, maybe convert != and == into ne and eq */
+                if (expr->opcode[i] == JIM_EXPROP_NUMNE) {
+                    opcode = JIM_EXPROP_STRNE;
+                    goto retry_as_string;
+                }
+                else if (expr->opcode[i] == JIM_EXPROP_NUMEQ) {
+                    opcode = JIM_EXPROP_STREQ;
+                    goto retry_as_string;
+                }
                 Jim_DecrRefCount(interp, A);
                 Jim_DecrRefCount(interp, B);
                 error = 1;
@@ -7036,9 +7075,10 @@ trydouble:
         } else if (opcode == JIM_EXPROP_STREQ || opcode == JIM_EXPROP_STRNE) {
             B = stack[--stacklen];
             A = stack[--stacklen];
+retry_as_string:
             sA = Jim_GetString(A, &Alen);
             sB = Jim_GetString(B, &Blen);
-            switch(expr->opcode[i]) {
+            switch(opcode) {
             case JIM_EXPROP_STREQ:
                 if (Alen == Blen && memcmp(sA, sB, Alen) ==0)
                     wC = 1;
@@ -7870,21 +7910,21 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             if (Jim_ListIndex(interp, libPathObjPtr, i,
                     &prefixObjPtr, JIM_NONE) != JIM_OK)
                 continue;
-            prefix = Jim_GetString(prefixObjPtr, NULL);
-            prefixlen = strlen(prefix);
+            prefix = Jim_GetString(prefixObjPtr, &prefixlen);
             if (prefixlen+strlen(pathName)+1 >= JIM_PATH_LEN)
                 continue;
-            if (prefixlen && prefix[prefixlen-1] == '/')
+            if (*pathName == '/') {
+                strcpy(buf, pathName);
+            }    
+            else if (prefixlen && prefix[prefixlen-1] == '/')
                 sprintf(buf, "%s%s", prefix, pathName);
             else
                 sprintf(buf, "%s/%s", prefix, pathName);
-            printf("opening '%s'\n", buf);
             fp = fopen(buf, "r");
             if (fp == NULL)
                 continue;
             fclose(fp);
             handle = dlopen(buf, RTLD_LAZY);
-            printf("got handle %p\n", handle);
         }
         if (handle == NULL) {
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
@@ -11846,6 +11886,24 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
 {
     const char *key;
     char *val;
+
+    if (argc == 1) {
+        extern char **environ;
+
+        int i;
+        Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+
+        for (i = 0; environ[i]; i++) {
+            const char *equals = strchr(environ[i], '=');
+            if (equals) {
+                Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, environ[i], equals - environ[i]));
+                Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, equals + 1, -1));
+            }
+        }
+
+        Jim_SetResult(interp, listObjPtr);
+        return JIM_OK;
+    }
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "varName");
