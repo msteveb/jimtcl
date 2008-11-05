@@ -8734,6 +8734,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
 {
     int i, retcode;
     Jim_CallFrame *callFramePtr;
+    int num_args;
 
     /* Check arity */
     if (argc < cmd->arityMin || (cmd->arityMax != -1 &&
@@ -8764,19 +8765,47 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     Jim_IncrRefCount(cmd->bodyObjPtr);
     interp->framePtr = callFramePtr;
     interp->numLevels ++;
-    /* Set arguments */
-    for (i = 0; i < cmd->arityMin-1; i++) {
-        Jim_Obj *objPtr;
 
-        Jim_ListIndex(interp, cmd->argListObjPtr, i, &objPtr, JIM_NONE);
-        Jim_SetVariable(interp, objPtr, argv[i+1]);
+    /* Set arguments */
+    Jim_ListLength(interp, cmd->argListObjPtr, &num_args);
+
+    /* If last argument is 'args', don't set it here */
+    if (cmd->arityMax == -1) {
+        num_args--;
     }
+
+    for (i = 0; i < num_args; i++) {
+        Jim_Obj *argObjPtr;
+        Jim_Obj *nameObjPtr;
+        Jim_Obj *valueObjPtr;
+
+        Jim_ListIndex(interp, cmd->argListObjPtr, i, &argObjPtr, JIM_NONE);
+        if (i + 1 >= cmd->arityMin) {
+            /* The name is the first element of the list */
+            Jim_ListIndex(interp, argObjPtr, 0, &nameObjPtr, JIM_NONE);
+        }
+        else {
+            /* The element arg is the name */
+            nameObjPtr = argObjPtr;
+        }
+
+        if (i + 1 >= argc) {
+            /* No more values, so use default */
+            /* The value is the second element of the list */
+            Jim_ListIndex(interp, argObjPtr, 1, &valueObjPtr, JIM_NONE);
+        }
+        else {
+            valueObjPtr = argv[i+1];
+        }
+        Jim_SetVariable(interp, nameObjPtr, valueObjPtr);
+    }
+    /* Set optional arguments */
     if (cmd->arityMax == -1) {
         Jim_Obj *listObjPtr, *objPtr;
 
-        listObjPtr = Jim_NewListObj(interp, argv+cmd->arityMin,
-                argc-cmd->arityMin);
-        Jim_ListIndex(interp, cmd->argListObjPtr, i, &objPtr, JIM_NONE);
+        i++;
+        listObjPtr = Jim_NewListObj(interp, argv+i, argc-i);
+        Jim_ListIndex(interp, cmd->argListObjPtr, num_args, &objPtr, JIM_NONE);
         Jim_SetVariable(interp, objPtr, listObjPtr);
     }
     /* Eval the body */
@@ -10932,16 +10961,30 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
     }
     Jim_ListLength(interp, argv[2], &argListLen);
     arityMin = arityMax = argListLen+1;
+
     if (argListLen) {
         const char *str;
         int len;
-        Jim_Obj *lastArgPtr;
+        Jim_Obj *argPtr;
         
-        Jim_ListIndex(interp, argv[2], argListLen-1, &lastArgPtr, JIM_NONE);
-        str = Jim_GetString(lastArgPtr, &len);
+        /* Check for 'args' and adjust arityMin and arityMax if necessary */
+        Jim_ListIndex(interp, argv[2], argListLen-1, &argPtr, JIM_NONE);
+        str = Jim_GetString(argPtr, &len);
         if (len == 4 && memcmp(str, "args", 4) == 0) {
             arityMin--;
             arityMax = -1;
+        }
+
+        /* Check for default arguments and reduce arityMin if necessary */
+        while (arityMin > 1) {
+            int len;
+            Jim_ListIndex(interp, argv[2], arityMin - 2, &argPtr, JIM_NONE);
+            Jim_ListLength(interp, argPtr, &len);
+            if (len != 2) {
+                /* No default argument */
+                break;
+            }
+            arityMin--;
         }
     }
     if (argc == 4) {
