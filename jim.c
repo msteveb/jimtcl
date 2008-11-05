@@ -6618,7 +6618,7 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
             case JIM_EXPROP_STRING:
                 break;
             default:
-                op = JimExprOperatorInfoByOpcode(expr->opcode[i]);
+                op = JimExprOperatorInfoByOpcode(expr->opcode[leftindex]);
                 if (op == NULL) {
                     Jim_Panic(interp,"Default reached in ExprMakeLazy()");
                 }
