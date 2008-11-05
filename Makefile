@@ -41,6 +41,7 @@ stopit:
 	@echo "---"
 	@echo "make unix-ext  - to build the AIO, POSIX and SDL extensions"
 	@echo "make posix     - to build only the POSIX extension"
+        @echo "make hwio      - to build only Hardware IO extension" 
 	@echo "make sdl       - to build only the SDL extension"
 	@echo "make readline  - to build only the READLINE extension"
 	@echo "---"
@@ -80,6 +81,9 @@ jim-aio-1.0.so: jim-aio.xo
 jim-posix-1.0.so: jim-posix.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
+jim-hwio-1.0.so: jim-hwio.xo
+        $(LD) -G -z text -o $@ $< $(LIBS) -lc
+
 jim-eventloop-1.0.so: jim-eventloop.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
@@ -104,6 +108,7 @@ jim: $(JIM_OBJECTS)
 
 readline: jim-readline-1.0.so
 posix: jim-posix-1.0.so
+hwio:   jim-hwio-1.0.so
 eventloop: jim-eventloop-1.0.so
 udp: jim-udp-1.0.so
 sqlite: jim-sqlite-1.0.so
@@ -112,7 +117,7 @@ aio-dll: jim-aio-1.0.dll
 sdl: jim-sdl-1.0.so
 win32: jim-win32-1.0.dll
 win32com: jim-win32com-1.0.dll
-unix-extensions: posix aio sdl
+unix-extensions: posix aio sdl hwio
 win32-extensions: win32 win32com
 
 clean:
@@ -128,7 +133,7 @@ bench: jim
 dep:
 	gcc -MM *.[ch] 2> /dev/null
 
-TAGS: jim.h jim.c jim-posix.c jim-win32.c jim-win32com.c
+TAGS: jim.h jim.c jim-posix.c jim-hwio.c jim-win32.c jim-win32com.c
 	etags -o $@ $^
 
 wc:
@@ -154,6 +159,7 @@ bak:
 # Dependences
 jim-aio.o: jim-aio.c jim.h
 jim-posix.o: jim-posix.c jim.h
+jim-hwio.o:   jim-hwio.c jim-hwio.inoutblock.h jim.h
 jim-sdl.o: jim-sdl.c jim.h
 jim-win32com.o: jim-win32com.c jim.h
 jim.o: jim.c jim.h

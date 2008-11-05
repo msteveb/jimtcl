@@ -1,12 +1,7 @@
 2008-11-04 Uwe Klein <uklein@klein-messgeraete.de>
- 
-     * jim-hwio.c: file added
-     * provides memory area and hardware access on linux i386
 
-2008-11-05 Steve Bennett <steveb@workware.net.au>
-
-	* jim.c: add support for proc default arguments to jim
-	* jim.c: fix lazy expression evaluation with unary not
+        * jim-hwio.c: file added
+        * provides memory area and hardware access on linux i386
 
 2008-11-04 Steve Bennett <steveb@workware.net.au>
 
