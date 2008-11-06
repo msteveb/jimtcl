@@ -1,4 +1,4 @@
-# $Id: test.tcl,v 1.30 2005/04/05 12:18:27 antirez Exp $
+# $Id: test.tcl,v 1.31 2008/11/06 13:31:22 oharboe Exp $
 #
 # This are Tcl tests imported into Jim. Tests that will probably not be passed
 # in the long term are usually removed (for example all the tests about
@@ -4042,6 +4042,581 @@ test scan-13.8 {Tcl_ScanObjCmd, inline XPG case lots of arguments} {
     set msg [scan "10 20 30" {%100$d %5$d %200$d}]
     list [llength $msg] [lindex $msg 99] [lindex $msg 4] [lindex $msg 199]
 } {200 10 20 30}
+
+################################################################################
+# REGEXP and REGSUB
+################################################################################
+
+catch {package require regexp}
+
+test regexp-1.1 {basic regexp operation} {
+    regexp ab*c abbbc
+} {1}
+
+test regexp-1.2 {basic regexp operation} {
+    regexp ab*c ac
+} {1}
+
+test regexp-1.3 {basic regexp operation} {
+    regexp ab*c ab
+} {0}
+
+test regexp-1.4 {basic regexp operation} {
+    regexp -- -gorp abc-gorpxxx
+} {1}
+
+test regexp-1.5 {basic regexp operation} {
+    regexp {^([^ ]*)[ ]*([^ ]*)} "" a
+} {1}
+
+test regexp-1.6 {basic regexp operation} {
+    list [catch {regexp {} abc} msg] $msg
+} {0 1}
+
+test regexp-2.1 {getting substrings back from regexp} {
+    set foo {}
+    list [regexp ab*c abbbbc foo] $foo
+} {1 abbbbc}
+
+test regexp-2.2 {getting substrings back from regexp} {
+    set foo {}
+    set f2 {}
+    list [regexp a(b*)c abbbbc foo f2] $foo $f2
+} {1 abbbbc bbbb}
+
+test regexp-2.3 {getting substrings back from regexp} {
+    set foo {}
+    set f2 {}
+    list [regexp a(b*)(c) abbbbc foo f2] $foo $f2
+} {1 abbbbc bbbb}
+
+test regexp-2.4 {getting substrings back from regexp} {
+    set foo {}
+    set f2 {}
+    set f3 {}
+    list [regexp a(b*)(c) abbbbc foo f2 f3] $foo $f2 $f3
+} {1 abbbbc bbbb c}
+
+test regexp-2.5 {getting substrings back from regexp} {
+    set foo {}; set f1 {}; set f2 {}; set f3 {}; set f4 {}; set f5 {};
+    set f6 {}; set f7 {}; set f8 {}; set f9 {}; set fa {}; set fb {};
+    list [regexp (1*)(2*)(3*)(4*)(5*)(6*)(7*)(8*)(9*)(a*)(b*) \
+	      12223345556789999aabbb \
+	    foo f1 f2 f3 f4 f5 f6 f7 f8 f9 fa fb] $foo $f1 $f2 $f3 $f4 $f5 \
+	    $f6 $f7 $f8 $f9 $fa $fb
+} {1 12223345556789999aabbb 1 222 33 4 555 6 7 8 9999 aa bbb}
+
+test regexp-2.6 {getting substrings back from regexp} {
+    set foo 2; set f2 2; set f3 2; set f4 2
+    list [regexp (a)(b)? xay foo f2 f3 f4] $foo $f2 $f3 $f4
+} {1 a a {} {}}
+
+test regexp-2.7 {getting substrings back from regexp} {
+    set foo 1; set f2 1; set f3 1; set f4 1
+    list [regexp (a)(b)?(c) xacy foo f2 f3 f4] $foo $f2 $f3 $f4
+} {1 ac a {} c}
+
+test regexp-2.8 {getting substrings back from regexp} {
+    set match {}
+    list [regexp {^a*b} aaaab match] $match
+} {1 aaaab}
+
+test regexp-3.1 {-indices option to regexp} {
+    set foo {}
+    list [regexp -indices ab*c abbbbc foo] $foo
+} {1 {0 5}}
+
+test regexp-3.2 {-indices option to regexp} {
+    set foo {}
+    set f2 {}
+    list [regexp -indices a(b*)c abbbbc foo f2] $foo $f2
+} {1 {0 5} {1 4}}
+
+test regexp-3.3 {-indices option to regexp} {
+    set foo {}
+    set f2 {}
+    list [regexp -indices a(b*)(c) abbbbc foo f2] $foo $f2
+} {1 {0 5} {1 4}}
+
+test regexp-3.4 {-indices option to regexp} {
+    set foo {}
+    set f2 {}
+    set f3 {}
+    list [regexp -indices a(b*)(c) abbbbc foo f2 f3] $foo $f2 $f3
+} {1 {0 5} {1 4} {5 5}}
+
+test regexp-3.5 {-indices option to regexp} {
+    set foo {}; set f1 {}; set f2 {}; set f3 {}; set f4 {}; set f5 {};
+    set f6 {}; set f7 {}; set f8 {}; set f9 {}
+    list [regexp -indices (1*)(2*)(3*)(4*)(5*)(6*)(7*)(8*)(9*) \
+	    12223345556789999 \
+	    foo f1 f2 f3 f4 f5 f6 f7 f8 f9] $foo $f1 $f2 $f3 $f4 $f5 \
+	    $f6 $f7 $f8 $f9
+} {1 {0 16} {0 0} {1 3} {4 5} {6 6} {7 9} {10 10} {11 11} {12 12} {13 16}}
+
+test regexp-3.6 {getting substrings back from regexp} {
+    set foo 2; set f2 2; set f3 2; set f4 2
+    list [regexp -indices (a)(b)? xay foo f2 f3 f4] $foo $f2 $f3 $f4
+} {1 {1 1} {1 1} {-1 -1} {-1 -1}}
+
+test regexp-3.7 {getting substrings back from regexp} {
+    set foo 1; set f2 1; set f3 1; set f4 1
+    list [regexp -indices (a)(b)?(c) xacy foo f2 f3 f4] $foo $f2 $f3 $f4
+} {1 {1 2} {1 1} {-1 -1} {2 2}}
+
+test regexp-4.1 {-nocase option to regexp} {
+    regexp -nocase foo abcFOo
+} {1}
+
+test regexp-4.2 {-nocase option to regexp} {
+    set f1 22
+    set f2 33
+    set f3 44
+    list [regexp -nocase {a(b*)([xy]*)z} aBbbxYXxxZ22 f1 f2 f3] $f1 $f2 $f3
+} {1 aBbbxYXxxZ Bbb xYXxx}
+
+test regexp-4.3 {-nocase option to regexp} {
+    regexp -nocase FOo abcFOo
+} {1}
+
+test regexp-4.4 {case conversion in regexp} {
+    set x abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890
+    list [regexp -nocase $x $x foo] $foo
+} {1 abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890}
+
+test regexp-5.1 {exercise cache of compiled expressions} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    regexp .*a bbba
+} {1}
+
+test regexp-5.2 {exercise cache of compiled expressions} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    regexp .*b xxxb
+} {1}
+
+test regexp-5.3 {exercise cache of compiled expressions} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    regexp .*c yyyc
+} {1}
+
+test regexp-5.4 {exercise cache of compiled expressions} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    regexp .*d 1d
+} {1}
+
+test regexp-5.5 {exercise cache of compiled expressions} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    regexp .*e xe
+} {1}
+
+test regexp-6.1 {regexp errors} {
+    list [catch {regexp a} msg] $msg
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+
+test regexp-6.2 {regexp errors} {
+    list [catch {regexp -nocase a} msg] $msg
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+
+test regexp-6.3 {regexp errors} {
+    list [catch {regexp -gorp a} msg] $msg
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+
+test regexp-6.4 {regexp errors} {
+    list [catch {regexp a( b} msg] $msg
+} {1 {couldn't compile regular expression pattern: parentheses not balanced}}
+
+test regexp-6.5 {regexp errors} {
+    list [catch {regexp a( b} msg] $msg
+} {1 {couldn't compile regular expression pattern: parentheses not balanced}}
+
+test regexp-6.6 {regexp errors} {
+    list [catch {regexp a a f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1 f1} msg] $msg
+} {0 1}
+
+test regexp-6.7 {regexp errors} {
+    list [catch {regexp (x)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.) xyzzy} msg] $msg
+} {0 0}
+
+test regexp-6.8 {regexp errors} {
+    catch {unset f1}
+    set f1 44
+    list [catch {regexp abc abc f1(f2)} msg] $msg
+} {1 {couldn't set variable "f1(f2)"}}
+
+test regexp-6.9 {regexp errors, -start bad int check} {
+    list [catch {regexp -start bogus {^$} {}} msg] $msg
+} {1 {expected integer but got "bogus"}}
+
+test regexp-7.1 {basic regsub operation} {
+    list [regsub aa+ xaxaaaxaa 111&222 foo] $foo
+} {1 xax111aaa222xaa}
+
+test regexp-7.2 {basic regsub operation} {
+    list [regsub aa+ aaaxaa &111 foo] $foo
+} {1 aaa111xaa}
+
+test regexp-7.3 {basic regsub operation} {
+    list [regsub aa+ xaxaaa 111& foo] $foo
+} {1 xax111aaa}
+
+test regexp-7.4 {basic regsub operation} {
+    list [regsub aa+ aaa 11&2&333 foo] $foo
+} {1 11aaa2aaa333}
+
+test regexp-7.5 {basic regsub operation} {
+    list [regsub aa+ xaxaaaxaa &2&333 foo] $foo
+} {1 xaxaaa2aaa333xaa}
+
+test regexp-7.6 {basic regsub operation} {
+    list [regsub aa+ xaxaaaxaa 1&22& foo] $foo
+} {1 xax1aaa22aaaxaa}
+
+test regexp-7.7 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {1\122\1} foo] $foo
+} {1 xax1aa22aaxaa}
+
+test regexp-7.8 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {1\\\122\1} foo] $foo
+} {1 {xax1\aa22aaxaa}}
+
+test regexp-7.9 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {1\\122\1} foo] $foo
+} {1 {xax1\122aaxaa}}
+
+test regexp-7.10 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {1\\&\1} foo] $foo
+} {1 {xax1\aaaaaxaa}}
+
+test regexp-7.11 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {1\&\1} foo] $foo
+} {1 xax1&aaxaa}
+
+test regexp-7.12 {basic regsub operation} {
+    list [regsub a(a+) xaxaaaxaa {\1\1\1\1&&} foo] $foo
+} {1 xaxaaaaaaaaaaaaaaxaa}
+
+test regexp-7.13 {basic regsub operation} {
+    set foo xxx
+    list [regsub abc xyz 111 foo] $foo
+} {0 xyz}
+
+test regexp-7.14 {basic regsub operation} {
+    set foo xxx
+    list [regsub ^ xyz "111 " foo] $foo
+} {1 {111 xyz}}
+
+test regexp-7.15 {basic regsub operation} {
+    set foo xxx
+    list [regsub -- -foo abc-foodef "111 " foo] $foo
+} {1 {abc111 def}}
+
+test regexp-7.16 {basic regsub operation} {
+    set foo xxx
+    list [regsub x "" y foo] $foo
+} {0 {}}
+
+test regexp-8.1 {case conversion in regsub} {
+    list [regsub -nocase a(a+) xaAAaAAay & foo] $foo
+} {1 xaAAaAAay}
+
+test regexp-8.2 {case conversion in regsub} {
+    list [regsub -nocase a(a+) xaAAaAAay & foo] $foo
+} {1 xaAAaAAay}
+
+test regexp-8.3 {case conversion in regsub} {
+    set foo 123
+    list [regsub a(a+) xaAAaAAay & foo] $foo
+} {0 xaAAaAAay}
+
+test regexp-8.4 {case conversion in regsub} {
+    set foo 123
+    list [regsub -nocase a CaDE b foo] $foo
+} {1 CbDE}
+
+test regexp-8.5 {case conversion in regsub} {
+    set foo 123
+    list [regsub -nocase XYZ CxYzD b foo] $foo
+} {1 CbD}
+
+test regexp-8.6 {case conversion in regsub} {
+    set x abcdefghijklmnopqrstuvwxyz1234567890
+    set x $x$x$x$x$x$x$x$x$x$x$x$x
+    set foo 123
+    list [regsub -nocase $x $x b foo] $foo
+} {1 b}
+
+test regexp-9.1 {-all option to regsub} {
+    set foo 86
+    list [regsub -all x+ axxxbxxcxdx |&| foo] $foo
+} {4 a|xxx|b|xx|c|x|d|x|}
+
+test regexp-9.2 {-all option to regsub} {
+    set foo 86
+    list [regsub -nocase -all x+ aXxXbxxcXdx |&| foo] $foo
+} {4 a|XxX|b|xx|c|X|d|x|}
+
+test regexp-9.3 {-all option to regsub} {
+    set foo 86
+    list [regsub x+ axxxbxxcxdx |&| foo] $foo
+} {1 a|xxx|bxxcxdx}
+
+test regexp-9.4 {-all option to regsub} {
+    set foo 86
+    list [regsub -all bc axxxbxxcxdx |&| foo] $foo
+} {0 axxxbxxcxdx}
+
+test regexp-9.5 {-all option to regsub} {
+    set foo xxx
+    list [regsub -all node "node node more" yy foo] $foo
+} {2 {yy yy more}}
+
+test regexp-9.6 {-all option to regsub} {
+    set foo xxx
+    list [regsub -all ^ xxx 123 foo] $foo
+} {1 123xxx}
+
+test regexp-10.2 {newline sensitivity in regsub} {
+    set foo xxx
+    list [regsub -line {^a.*b$} "dabc\naxyb\n" 123 foo] $foo
+} {1 {dabc
+123
+}}
+
+test regexp-10.3 {newline sensitivity in regsub} {
+    set foo xxx
+    list [regsub -line {^a.*b$} "dabc\naxyb\nxb" 123 foo] $foo
+} {1 {dabc
+123
+xb}}
+
+test regexp-11.1 {regsub errors} {
+    list [catch {regsub a b c} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+
+test regexp-11.2 {regsub errors} {
+    list [catch {regsub -nocase a b c} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+
+test regexp-11.3 {regsub errors} {
+    list [catch {regsub -nocase -all a b c} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+
+test regexp-11.4 {regsub errors} {
+    list [catch {regsub a b c d e f} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+
+test regexp-11.5 {regsub errors} {
+    list [catch {regsub -gorp a b c} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+
+test regexp-11.6 {regsub errors} {
+    list [catch {regsub -nocase a( b c d} msg] $msg
+} {1 {couldn't compile regular expression pattern: parentheses not balanced}}
+
+test regexp-11.7 {regsub errors} {
+    catch {unset f1}
+    set f1 44
+    list [catch {regsub -nocase aaa aaa xxx f1(f2)} msg] $msg
+} {1 {couldn't set variable "f1(f2)"}}
+
+test regexp-11.8 {regsub errors, -start bad int check} {
+    list [catch {regsub -start bogus pattern string rep var} msg] $msg
+} {1 {expected integer but got "bogus"}}
+
+test regexp-12.1 {Tcl_RegExpExec: large number of subexpressions} {
+    list [regexp (.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.) abcdefghijklmnopqrstuvwxyz all a b c d e f g h i j k l m n o p q r s t u v w x y z] $all $a $b $c $d $e $f $g $h $i $j $k $l $m $n $o $p $q $r $s $t $u $v $w $x $y $z
+} {1 abcdefghijklmnopqrstuvwxyz a b c d e f g h i j k l m n o p q r s t u v w x y z}
+
+test regexp-13.1 {regsub of a very large string} {
+    # This test is designed to stress the memory subsystem in order
+    # to catch Bug #933.  It only fails if the Tcl memory allocator
+    # is in use.
+
+    set line {BEGIN_TABLE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; END_TABLE}
+    set filedata [string repeat $line 200]
+    for {set i 1} {$i<10} {incr i} {
+	regsub -all "BEGIN_TABLE " $filedata "" newfiledata
+    }
+    set x done
+} {done}
+
+test regexp-14.1 {CompileRegexp: regexp cache} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    set x .
+    append x *a
+    regexp $x bbba
+} {1}
+
+test regexp-14.2 {CompileRegexp: regexp cache, different flags} {
+    regexp .*a b
+    regexp .*b c
+    regexp .*c d
+    regexp .*d e
+    regexp .*e f
+    set x .
+    append x *a
+    regexp -nocase $x bbba
+} {1}
+
+test regexp-15.1 {regexp -start} {
+    catch {unset x}
+    list [regexp -start -10 {[0-9]} 1abc2de3 x] $x
+} {1 1}
+
+test regexp-15.2 {regexp -start} {
+    catch {unset x}
+    list [regexp -start 2 {[0-9]} 1abc2de3 x] $x
+} {1 2}
+
+test regexp-15.3 {regexp -start} {
+    catch {unset x}
+    list [regexp -start 4 {[0-9]} 1abc2de3 x] $x
+} {1 2}
+
+test regexp-15.4 {regexp -start} {
+    catch {unset x}
+    list [regexp -start 5 {[0-9]} 1abc2de3 x] $x
+} {1 3}
+
+test regexp-15.5 {regexp -start, over end of string} {
+    catch {unset x}
+    list [regexp -start [string length 1abc2de3] {[0-9]} 1abc2de3 x] [info exists x]
+} {0 0}
+
+test regexp-15.6 {regexp -start, loss of ^$ behavior} {
+    list [regexp -start 2 {^$} {}]
+} {1}
+
+test regexp-16.1 {regsub -start} {
+    catch {unset x}
+    list [regsub -all -start 2 {[0-9]} a1b2c3d4e5 {/&} x] $x
+} {4 a1b/2c/3d/4e/5}
+
+test regexp-16.2 {regsub -start} {
+    catch {unset x}
+    list [regsub -all -start -25 {z} hello {/&} x] $x
+} {0 hello}
+
+test regexp-16.3 {regsub -start} {
+    catch {unset x}
+    list [regsub -all -start 3 {z} hello {/&} x] $x
+} {0 hello}
+
+test regexp-17.1 {regexp -inline} {
+    regexp -inline b ababa
+} {b}
+
+test regexp-17.2 {regexp -inline} {
+    regexp -inline (b) ababa
+} {b b}
+
+test regexp-17.3 {regexp -inline -indices} {
+    regexp -inline -indices (b) ababa
+} {{1 1} {1 1}}
+
+test regexp-17.4 {regexp -inline} {
+    regexp -inline {[[:alnum:]_]([0-9]+)[[:alnum:]_]} "   hello 23 there456def "
+} {e456d 456}
+
+test regexp-17.5 {regexp -inline no matches} {
+    regexp -inline {[[:alnum:]_]([0-9]+)[[:alnum:]_]} ""
+} {}
+
+test regexp-17.6 {regexp -inline no matches} {
+    regexp -inline hello goodbye
+} {}
+
+test regexp-17.7 {regexp -inline, no matchvars allowed} {
+    list [catch {regexp -inline b abc match} msg] $msg
+} {1 {regexp match variables not allowed when using -inline}}
+
+test regexp-18.1 {regexp -all} {
+    regexp -all b bbbbb
+} {5}
+
+test regexp-18.2 {regexp -all} {
+    regexp -all b abababbabaaaaaaaaaab
+} {6}
+
+test regexp-18.3 {regexp -all -inline} {
+    regexp -all -inline b abababbabaaaaaaaaaab
+} {b b b b b b}
+
+test regexp-18.4 {regexp -all -inline} {
+    regexp -all -inline {[[:alnum:]_]([[:alnum:]_])} abcdefg
+} {ab b cd d ef f}
+
+test regexp-18.5 {regexp -all -inline} {
+    regexp -all -inline {[[:alnum:]_]([[:alnum:]_])$} abcdefg
+} {fg g}
+
+test regexp-18.6 {regexp -all -inline} {
+    regexp -all -inline {[0-9]+} 10:20:30:40
+} {10 20 30 40}
+
+test regexp-18.7 {regexp -all -inline} {
+    list [catch {regexp -all -inline b abc match} msg] $msg
+} {1 {regexp match variables not allowed when using -inline}}
+
+test regexp-18.8 {regexp -all} {
+    # This should not cause an infinite loop
+    regexp -all -inline {a*} a
+} {a}
+
+test regexp-18.9 {regexp -all} {
+    # Yes, the expected result is {a {}}.  Here's why:
+    # Start at index 0; a* matches the "a" there then stops.
+    # Go to index 1; a* matches the lambda (or {}) there then stops.  Recall
+    #   that a* matches zero or more "a"'s; thus it matches the string "b", as
+    #   there are zero or more "a"'s there.
+    # Go to index 2; this is past the end of the string, so stop.
+    regexp -all -inline {a*} ab
+} {a {}}
+
+test regexp-18.10 {regexp -all} {
+    # Yes, the expected result is {a {} a}.  Here's why:
+    # Start at index 0; a* matches the "a" there then stops.
+    # Go to index 1; a* matches the lambda (or {}) there then stops.   Recall
+    #   that a* matches zero or more "a"'s; thus it matches the string "b", as
+    #   there are zero or more "a"'s there.
+    # Go to index 2; a* matches the "a" there then stops.
+    # Go to index 3; this is past the end of the string, so stop.
+    regexp -all -inline {a*} aba
+} {a {} a}
+
+test regexp-18.11 {regexp -all} {
+    regexp -all -inline {^a} aaaa
+} {a}
+
+test regexp-19.1 {regsub null replacement} {
+    regsub -all {@} {@hel@lo@} "\0a\0" result
+    list $result [string length $result]
+} {hello 5}
+
 
 ################################################################################
 # RANGE
