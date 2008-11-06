@@ -55,7 +55,7 @@ stopit:
 	@echo "speed try: 'make OPT=\"-O3 -fomit-frame-pointer\"' but"
 	@echo "this will result in a much larger binary."
 
-all: $(DEFAULT_BUILD)
+all:	$(DEFAULT_BUILD)
 
 profile:
 	@$(MAKE) clean jim PROFILE=-pg
@@ -66,74 +66,74 @@ profile:
 .c.xo:
 	$(CC) -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
-jim-win32-1.0.dll: jim-win32.o
+jim-win32-1.0.dll:	im-win32.o
 	$(CC) -shared -o $@ $<
 
-jim-aio-1.0.dll: jim-aio.o
+jim-aio-1.0.dll:	jim-aio.o
 	$(CC) -shared -o $@ $<
 
-jim-win32com-1.0.dll: jim-win32com.o
+jim-win32com-1.0.dll:	jim-win32com.o
 	$(CC) -shared -o $@ $< -lole32 -luuid -loleaut32
 
-jim-aio-1.0.so: jim-aio.xo
+jim-aio-1.0.so:	jim-aio.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
-jim-posix-1.0.so: jim-posix.xo
+jim-posix-1.0.so:	jim-posix.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
-jim-hwio-1.0.so: jim-hwio.xo
+jim-hwio-1.0.so:	jim-hwio.xo
         $(LD) -G -z text -o $@ $< $(LIBS) -lc
 
-jim-eventloop-1.0.so: jim-eventloop.xo
+jim-eventloop-1.0.so:	jim-eventloop.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
-jim-udp-1.0.so: jim-udp.xo
+jim-udp-1.0.so:	jim-udp.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
-jim-sqlite-1.0.so: jim-sqlite.xo
+jim-sqlite-1.0.so:	jim-sqlite.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lsqlite
 
-jim-readline-1.0.so: jim-readline.xo
+jim-readline-1.0.so:	jim-readline.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc -lreadline
 
-jim-sdl.xo: jim-sdl.c
+jim-sdl.xo:	jim-sdl.c
 	$(CC)  `sdl-config --cflags` -I. $(CFLAGS) $(DEFS) -fPIC -c $< -o $@
 
-jim-sdl-1.0.so: jim-sdl.xo
+jim-sdl-1.0.so:	jim-sdl.xo
 	rm -f $@
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc -L/usr/local/lib -lSDL -lSDL_gfx -lpthread
 
-jim: $(JIM_OBJECTS)
+jim:	$(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
 
-readline: jim-readline-1.0.so
-posix: jim-posix-1.0.so
-hwio:   jim-hwio-1.0.so
-eventloop: jim-eventloop-1.0.so
-udp: jim-udp-1.0.so
-sqlite: jim-sqlite-1.0.so
-aio: jim-aio-1.0.so
-aio-dll: jim-aio-1.0.dll
-sdl: jim-sdl-1.0.so
-win32: jim-win32-1.0.dll
-win32com: jim-win32com-1.0.dll
-unix-extensions: posix aio sdl hwio
-win32-extensions: win32 win32com
+readline:	jim-readline-1.0.so
+posix:	jim-posix-1.0.so
+hwio:	jim-hwio-1.0.so
+eventloop:	jim-eventloop-1.0.so
+udp:	jim-udp-1.0.so
+sqlite:	jim-sqlite-1.0.so
+aio:	jim-aio-1.0.so
+aio-dll:	jim-aio-1.0.dll
+sdl:	jim-sdl-1.0.so
+win32:	jim-win32-1.0.dll
+win32com:	jim-win32com-1.0.dll
+unix-extensions:	posix aio sdl hwio
+win32-extensions:	win32 win32com
 
 clean:
 	$(RM) *.o *.so *.dll *.xo core .depend .*.swp gmon.out $(PROGRAMS)
 
-test: jim
+test:	jim
 	./jim test.tcl
 	./jim regtest.tcl
 
-bench: jim
+bench:	jim
 	./jim bench.tcl
 
 dep:
 	gcc -MM *.[ch] 2> /dev/null
 
-TAGS: jim.h jim.c jim-posix.c jim-hwio.c jim-win32.c jim-win32com.c
+TAGS:	jim.h jim.c jim-posix.c jim-hwio.c jim-win32.c jim-win32com.c
 	etags -o $@ $^
 
 wc:
@@ -157,10 +157,12 @@ bak:
 	cp -f jim.h jim.h.orig
 
 # Dependences
-jim-aio.o: jim-aio.c jim.h
-jim-posix.o: jim-posix.c jim.h
-jim-hwio.o:   jim-hwio.c jim-hwio.inoutblock.h jim.h
-jim-sdl.o: jim-sdl.c jim.h
-jim-win32com.o: jim-win32com.c jim.h
-jim.o: jim.c jim.h
-jimsh.o: jimsh.c jim.h
+jim-aio.o:	jim-aio.c jim.h
+jim-posix.o:	jim-posix.c jim.h
+jim-hwio.o:	jim-hwio.c jim-hwio.inoutblock.h jim.h
+jim-sdl.o:	jim-sdl.c jim.h
+jim-win32com.o:	jim-win32com.c jim.h
+jim.o:	jim.c jim.h
+jimsh.o:	jimsh.c jim.h
+
+
