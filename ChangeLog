@@ -1,5 +1,9 @@
 2008-11-05 Steve Bennett <steveb@workware.net.au>
 
+	* jim-glob-1.0.tcl, jim-readdir.c: Add readdir extension and glob package for glob command
+
+2008-11-05 Steve Bennett <steveb@workware.net.au>
+
 	* jim-regexp.c: Add regexp extension for regexp and regsub commands
 
 2008-11-04 Uwe Klein <uklein@klein-messgeraete.de>
