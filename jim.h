@@ -164,6 +164,7 @@ extern "C" {
 #define JIM_CONTINUE 4
 #define JIM_EVAL 5
 #define JIM_EXIT 6
+#define JIM_ERR_ADDSTACK 7
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
