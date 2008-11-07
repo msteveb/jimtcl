@@ -41,7 +41,7 @@ stopit:
 	@echo "---"
 	@echo "make unix-ext  - to build the AIO, POSIX and SDL extensions"
 	@echo "make posix     - to build only the POSIX extension"
-        @echo "make hwio      - to build only Hardware IO extension" 
+	@echo "make hwio      - to build only Hardware IO extension" 
 	@echo "make sdl       - to build only the SDL extension"
 	@echo "make readline  - to build only the READLINE extension"
 	@echo "---"
@@ -82,7 +82,7 @@ jim-posix-1.0.so:	jim-posix.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
 jim-hwio-1.0.so:	jim-hwio.xo
-        $(LD) -G -z text -o $@ $< $(LIBS) -lc
+	$(LD) -G -z text -o $@ $< $(LIBS) -lc
 
 jim-eventloop-1.0.so:	jim-eventloop.xo
 	$(LD) -G -z text -o $@ $< $(LIBS) -lc
