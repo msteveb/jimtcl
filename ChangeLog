@@ -1,5 +1,10 @@
 2008-11-06 Steve Bennett <steveb@workware.net.au>
 
+	* jim.c, jim.h: Prevent infinite recursion if an unknown command is
+	called from unknown
+
+2008-11-06 Steve Bennett <steveb@workware.net.au>
+
 	* jim-array-1.0.tcl: Add array command wrapper
 
 2008-11-05 Steve Bennett <steveb@workware.net.au>

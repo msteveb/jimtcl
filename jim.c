@@ -4436,6 +4436,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
+    i->unknown_called = 0;
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
@@ -8325,6 +8326,13 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
     int retCode;
 
+    /* If JimUnknown() is recursively called (e.g. error in the unknown proc,
+     * done here
+     */
+    if (interp->unknown_called) {
+        return JIM_ERR;
+    }
+
     /* If the [unknown] command does not exists returns
      * just now */
     if (Jim_GetCommand(interp, interp->unknown, JIM_NONE) == NULL)
@@ -8345,7 +8353,10 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     memcpy(v+1, argv, sizeof(Jim_Obj*)*argc);
     v[0] = interp->unknown;
     /* Call it */
+    interp->unknown_called++;
     retCode = Jim_EvalObjVector(interp, argc+1, v);
+    interp->unknown_called--;
+
     /* Clean up */
     if (v != sv)
         Jim_Free(v);
