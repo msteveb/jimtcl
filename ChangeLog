@@ -1,3 +1,11 @@
+2008-11-06 Steve Bennett <steveb@workware.net.au>
+
+	* jim-array-1.0.tcl: Add array command wrapper
+
+2008-11-05 Steve Bennett <steveb@workware.net.au>
+
+	* jim-glob-1.0.tcl, jim-readdir.c: Add readdir extension and glob package for glob command
+
 2008-11-05 Steve Bennett <steveb@workware.net.au>
 
 	* jim-glob-1.0.tcl, jim-readdir.c: Add readdir extension and glob package for glob command
