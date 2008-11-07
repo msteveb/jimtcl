@@ -2299,32 +2299,32 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 			/* non-terminals */
 		case '0': /* zero pad */
 			zpad = 1;
-			*fmt++;  fmtLen--;
+			fmt++;  fmtLen--;
 			goto next_fmt;
 			break;
 		case '+':
 			forceplus = 1;
-			*fmt++;  fmtLen--;
+			fmt++;  fmtLen--;
 			goto next_fmt;
 			break;
 		case ' ': /* sign space */
 			spad = 1;
-			*fmt++;  fmtLen--;
+			fmt++;  fmtLen--;
 			goto next_fmt;
 			break;
 		case '-':
 			ljust = 1;
-			*fmt++;  fmtLen--;
+			fmt++;  fmtLen--;
 			goto next_fmt;
 			break;
 		case '#':
 			altfm = 1;
-			*fmt++; fmtLen--;
+			fmt++; fmtLen--;
  			goto next_fmt;
 			
 		case '.':
 			inprec = 1;
-			*fmt++; fmtLen--;
+			fmt++; fmtLen--;
  			goto next_fmt;
 			break;
 		case '1':
@@ -2350,7 +2350,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 			goto next_fmt;
 		case '*':
 			/* suck up the next item as an integer */
-			*fmt++;  fmtLen--;
+			fmt++;  fmtLen--;
 			objc--;
 			if( objc <= 0 ){
 				goto not_enough_args;
@@ -11644,10 +11644,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     int cmd, result = JIM_OK;
     static const char *commands[] = {
         "body", "commands", "exists", "globals", "level", "locals",
-        "vars", "version", "complete", "args", NULL
+        "vars", "version", "complete", "args", "hostname", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_COMPLETE, INFO_ARGS};
+          INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_COMPLETE, INFO_ARGS, INFO_HOSTNAME};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -11743,6 +11743,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         s = Jim_GetString(argv[2], &len);
         Jim_SetResult(interp,
                 Jim_NewIntObj(interp, Jim_ScriptIsComplete(s, len, NULL)));
+    } else if (cmd == INFO_HOSTNAME) {
+        /* Redirect to os.hostname if it exists */
+        Jim_Obj *command = Jim_NewStringObj(interp, "os.gethostname", -1);
+        result = Jim_EvalObjVector(interp, 1, &command);
     }
     return result;
 }

@@ -1,5 +1,10 @@
 2008-11-06 Steve Bennett <steveb@workware.net.au>
 
+	* jim.c: Implement info hostname by calling os.hostname
+	* jim.c: Also fix some compiler warnings
+
+2008-11-06 Steve Bennett <steveb@workware.net.au>
+
 	* jim.c, jim.h: Improve error reporting, especially on package load
 
 2008-11-06 Steve Bennett <steveb@workware.net.au>
