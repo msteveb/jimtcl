@@ -164,6 +164,7 @@ extern "C" {
 #define JIM_CONTINUE 4
 #define JIM_EVAL 5
 #define JIM_EXIT 6
+#define JIM_ERR_ADDSTACK 7
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
@@ -530,6 +531,7 @@ typedef struct Jim_Interp {
     struct Jim_HashTable sharedStrings; /* Shared Strings hash table */
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *unknown; /* Unknown command cache */
+    int unknown_called; /* The unknown command has been invoked */
     int errorFlag; /* Set if an error occurred during execution. */
     int evalRetcodeLevel; /* Level where the last return with code JIM_EVAL
                              happened. */
@@ -560,6 +562,7 @@ typedef struct Jim_Interp {
  * cached can no longer considered valid. */
 #define Jim_InterpIncrProcEpoch(i) (i)->procEpoch++
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
+#define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
