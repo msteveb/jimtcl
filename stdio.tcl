@@ -16,7 +16,6 @@ set stdio::stderr [aio.open standard error]
 set stdio::std_channel_map [list stdin ${stdio::stdin} stdout ${stdio::stdout} stderr ${stdio::stderr}]
 
 proc stdio::std_channel {channel} {
-	global _stdmap
 	return [string map ${::stdio::std_channel_map} $channel]
 }
 
@@ -60,6 +59,10 @@ proc eof {channel} {
 
 proc flush {channel} {
 	[stdio::std_channel $channel] flush
+}
+
+proc read {channel args} {
+	[stdio::std_channel $channel] read {expand}$args
 }
 
 proc seek {channel args} {
