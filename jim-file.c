@@ -447,7 +447,7 @@ static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_lstat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
-    Jim_SetIntResult(interp, sb.st_mode);
+    Jim_SetResultString(interp, GetFileType((int)sb.st_mode), -1);
     return JIM_OK;
 }
 
