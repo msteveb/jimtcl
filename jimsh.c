@@ -119,15 +119,6 @@ static void JimLoadJimRc(Jim_Interp *interp)
     }
 }
 
-
-extern void Jim_AioInit(Jim_Interp *interp);
-extern void Jim_EventloopInit(Jim_Interp *interp);
-extern void Jim_RegexpInit(Jim_Interp *interp);
-extern void Jim_ReaddirInit(Jim_Interp *interp);
-extern void Jim_FileInit(Jim_Interp *interp);
-extern void Jim_ExecInit(Jim_Interp *interp);
-extern void Jim_ClockInit(Jim_Interp *interp);
-
 int main(int argc, char *const argv[])
 {
     int retcode, n;
@@ -139,13 +130,7 @@ int main(int argc, char *const argv[])
     Jim_RegisterCoreCommands(interp);
 
     /* Register static extensions */
-    Jim_AioInit(interp);
-    Jim_EventloopInit(interp);
-    Jim_RegexpInit(interp);
-    Jim_ReaddirInit(interp);
-    Jim_FileInit(interp);
-    Jim_ExecInit(interp);
-    Jim_ClockInit(interp);
+    Jim_InitStaticExtensions(interp);
 
     /* Append the path where the executed Jim binary is contained
      * in the jim_libpath list. */

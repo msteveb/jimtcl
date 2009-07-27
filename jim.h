@@ -817,6 +817,7 @@ JIM_EXPORT void Jim_PrintErrorMessage (Jim_Interp *interp);
 JIM_EXPORT int Jim_InteractivePrompt (Jim_Interp *interp);
 
 /* Misc */
+void Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT void Jim_Panic (Jim_Interp *interp, const char *fmt, ...);
 int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 
