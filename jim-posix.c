@@ -203,6 +203,7 @@ static int Jim_PointInTimeJulianCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+#if 0
 // signal stuff
 // signal <signame>
 
@@ -213,7 +214,11 @@ static int Jim_PointInTimeJulianCommand(Jim_Interp *interp, int argc,
 	"SIGUSR1", 	"SIGUSR2",	
 	"SIGCHLD",	"SIGCONT",	"SIGSTOP", 
 	"SIGTSTP",	"SIGTTIN"	"SIGTTOU",	
-	"SIGBUS",	"SIGPOLL",	"SIGPROF",	"SIGSYS",	
+	"SIGBUS",
+#ifdef SIGPOLL
+        "SIGPOLL",
+#endif
+        "SIGPROF",	"SIGSYS",	
 	"SIGTRAP",	"SIGURG",	"SIGVTALRM",	"SIGXCPU",
 	"SIGXFSZ",	
 	"SIGIOT",	
@@ -240,7 +245,11 @@ static	int signums[] =  {
 	SIGUSR1, 	SIGUSR2,	
 	SIGCHLD,	SIGCONT,	SIGSTOP, 
 	SIGTSTP,	SIGTTIN,	SIGTTOU,	
-	SIGBUS,	SIGPOLL,	SIGPROF,	SIGSYS,	
+	SIGBUS,
+#ifdef SIGPOLL
+        SIGPOLL,
+#endif
+        SIGPROF,	SIGSYS,	
 	SIGTRAP,	SIGURG,	SIGVTALRM,	SIGXCPU,
 	SIGXFSZ,	
 	SIGIOT,	
@@ -262,6 +271,8 @@ static	int signums[] =  {
 #endif
 	0
     } ;
+
+#if 0
 enum {      
 	HUP, 	INT, 	QUIT, 	ILL, 
 	ABRT, 	FPE, 	KILL,	SEGV,
@@ -291,11 +302,17 @@ enum {
 #endif
 	ISEND
     } ;
+#endif
+#endif
+
 static void Jim_Posix_SigHandler(int signal)
 {
+#if 0
     int i;
-    for (i=0; ((i<ISEND) && (signums[i] != signal));i++) ;
-    fprintf(stderr,"signal %d %s\n", signal,signames[i]);
+    for (i=0; i<sizeof(signums)/sizeof(*signums) && (signums[i] != signal);i++) ;
+#endif
+    //fprintf(stderr,"signal %d %s\n", signal,signames[i]);
+    fprintf(stderr,"signal %d\n", signal);
 }
 
 typedef void (*sighandler_t)(int);
@@ -360,9 +377,8 @@ static int Jim_PosixSignalCommand(Jim_Interp *interp, int argc,
 
 	
 // end added 
-int Jim_OnLoad(Jim_Interp *interp)
+int Jim_PosixInit(Jim_Interp *interp)
 {
-    Jim_InitExtension(interp);
     if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);

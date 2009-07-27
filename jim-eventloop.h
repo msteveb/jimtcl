@@ -63,52 +63,17 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_EXCEPTION 4
 #define JIM_EVENT_FEOF 8
 
-#ifndef __JIM_EVENTLOOP_CORE__
-# if defined JIM_EXTENSION || defined JIM_EMBEDDED
-#  define JIM_API(x) (*x)
-#  define JIM_STATIC
-# else
-#  define JIM_API(x) (*x)
-#  define JIM_STATIC extern
-# endif
-#else
-# define JIM_API(x) x
-# define JIM_STATIC static
-#endif /* __JIM_EVENTLOOP_CORE__ */
-
-JIM_STATIC void JIM_API(Jim_CreateFileHandler) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_CreateFileHandler) (Jim_Interp *interp,
         void *handle, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
-JIM_STATIC void JIM_API(Jim_DeleteFileHandler) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_DeleteFileHandler) (Jim_Interp *interp,
         void *handle);
-JIM_STATIC jim_wide JIM_API(Jim_CreateTimeHandler) (Jim_Interp *interp,
+JIM_EXPORT jim_wide JIM_API(Jim_CreateTimeHandler) (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
-JIM_STATIC jim_wide JIM_API(Jim_DeleteTimeHandler) (Jim_Interp *interp, jim_wide id);
-JIM_STATIC int JIM_API(Jim_ProcessEvents) (Jim_Interp *interp, int flags);
-
-#undef JIM_STATIC
-#undef JIM_API
-
-#ifndef __JIM_EVENTLOOP_CORE__
-
-#define JIM_GET_API(name) \
-    Jim_GetApi(interp, "Jim_" #name, ((void *)&Jim_ ## name))
-
-#if defined(JIM_EXTENSION) || defined(JIM_EMBEDDED)
-/* This must be included "inline" inside the extension */
-static void Jim_ImportEventloopAPI(Jim_Interp *interp)
-{
-  JIM_GET_API(CreateFileHandler);
-  JIM_GET_API(DeleteFileHandler);
-  JIM_GET_API(CreateTimeHandler);
-  JIM_GET_API(DeleteTimeHandler);
-  JIM_GET_API(ProcessEvents);
-}
-#endif /* defined JIM_EXTENSION || defined JIM_EMBEDDED */
-#undef JIM_GET_API
-#endif /* __JIM_EVENTLOOP_CORE__ */
+JIM_EXPORT jim_wide JIM_API(Jim_DeleteTimeHandler) (Jim_Interp *interp, jim_wide id);
+JIM_EXPORT int JIM_API(Jim_ProcessEvents) (Jim_Interp *interp, int flags);
 
 #endif /* __JIM_EVENTLOOP_H__ */

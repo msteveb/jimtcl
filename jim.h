@@ -155,7 +155,7 @@ extern "C" {
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 51
+#define JIM_VERSION 60
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -546,14 +546,16 @@ typedef struct Jim_Interp {
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
+#if 0
     void *cookie_stdin; /* input file pointer, 'stdin' by default */
     void *cookie_stdout; /* output file pointer, 'stdout' by default */
     void *cookie_stderr; /* errors file pointer, 'stderr' by default */
+    int (*cb_vfprintf)( void *cookie, const char *fmt, va_list ap);
     size_t (*cb_fwrite  )( const void *ptr, size_t size, size_t n, void *cookie );
 	size_t (*cb_fread   )( void *ptr, size_t size, size_t n, void *cookie );
-	int    (*cb_vfprintf)( void *cookie, const char *fmt, va_list ap );
 	int    (*cb_fflush  )( void *cookie );
 	char  *(*cb_fgets   )( char *s, int size, void *cookie );
+#endif
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -585,47 +587,6 @@ typedef struct Jim_Reference {
     char tag[JIM_REFERENCE_TAGLEN+1];
 } Jim_Reference;
 
-/** Name Value Pairs, aka: NVP
- *   -  Given a string - return the associated int.
- *   -  Given a number - return the associated string.
- *   .
- *
- * Very useful when the number is not a simple index into an array of
- * known string, or there may be multiple strings (aliases) that mean then same
- * thing.
- *
- * An NVP Table is terminated with ".name=NULL".
- *
- * During the 'name2value' operation, if no matching string is found
- * the pointer to the terminal element (with p->name==NULL) is returned.
- *
- * Example:
- * \code
- *      const Jim_Nvp yn[] = {
- *          { "yes", 1 },
- *          { "no" , 0 },
- *          { "yep", 1 },
- *          { "nope", 0 },
- *          { NULL, -1 },
- *      };
- *
- *  Jim_Nvp *result
- *  e = Jim_Nvp_name2value( interp, yn, "y", &result ); 
- *         returns &yn[0];
- *  e = Jim_Nvp_name2value( interp, yn, "n", &result );
- *         returns &yn[1];
- *  e = Jim_Nvp_name2value( interp, yn, "Blah", &result );
- *         returns &yn[4];
- * \endcode
- *
- * During the number2name operation, the first matching value is returned.
- */
-typedef struct {
-	const char *name;
-	int         value;
-} Jim_Nvp;
-    
-
 /* -----------------------------------------------------------------------------
  * Exported API prototypes.
  * ---------------------------------------------------------------------------*/
@@ -646,694 +607,267 @@ typedef struct {
 /* Macros are common for core and extensions */
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
-#ifdef DOXYGEN
-#define JIM_STATIC 
-#define JIM_API( X )  X
-#else
-#ifndef __JIM_CORE__
-# if defined JIM_EXTENSION || defined JIM_EMBEDDED
-#  define JIM_API(x) (*x)
-#  define JIM_STATIC
-# else
-#  define JIM_API(x) (*x)
-#  define JIM_STATIC extern
-# endif
-#else
-# define JIM_API(x) x
-# if defined(BUILD_Jim)
-#   define JIM_STATIC DLLEXPORT
-# else
-#   define JIM_STATIC static
-# endif
-#endif /* __JIM_CORE__ */
-#endif /* DOXYGEN */
-
-/** Set the result - printf() style */
-JIM_STATIC int JIM_API( Jim_SetResult_sprintf )( Jim_Interp *p, const char *fmt, ... );
+#define JIM_EXPORT
+#define JIM_API(X) X
 
 /* Memory allocation */
-JIM_STATIC void * JIM_API(Jim_Alloc) (int size);
-JIM_STATIC void JIM_API(Jim_Free) (void *ptr);
-JIM_STATIC char * JIM_API(Jim_StrDup) (const char *s);
+JIM_EXPORT void * JIM_API(Jim_Alloc) (int size);
+JIM_EXPORT void JIM_API(Jim_Free) (void *ptr);
+JIM_EXPORT char * JIM_API(Jim_StrDup) (const char *s);
 
 /* evaluation */
-JIM_STATIC int JIM_API(Jim_Eval)(Jim_Interp *interp, const char *script);
+JIM_EXPORT int JIM_API(Jim_Eval)(Jim_Interp *interp, const char *script);
 /* in C code, you can do this and get better error messages */
 /*   Jim_Eval_Named( interp, "some tcl commands", __FILE__, __LINE__ ); */
-JIM_STATIC int JIM_API(Jim_Eval_Named)(Jim_Interp *interp, const char *script,const char *filename, int lineno);
-JIM_STATIC int JIM_API(Jim_EvalGlobal)(Jim_Interp *interp, const char *script);
-JIM_STATIC int JIM_API(Jim_EvalFile)(Jim_Interp *interp, const char *filename);
-JIM_STATIC int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
-JIM_STATIC int JIM_API(Jim_EvalObjBackground) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_Eval_Named)(Jim_Interp *interp, const char *script,const char *filename, int lineno);
+JIM_EXPORT int JIM_API(Jim_EvalGlobal)(Jim_Interp *interp, const char *script);
+JIM_EXPORT int JIM_API(Jim_EvalFile)(Jim_Interp *interp, const char *filename);
+JIM_EXPORT int JIM_API(Jim_EvalObj) (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
+JIM_EXPORT int JIM_API(Jim_EvalObjBackground) (Jim_Interp *interp,
         Jim_Obj *scriptObjPtr);
-JIM_STATIC int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
+JIM_EXPORT int JIM_API(Jim_EvalObjVector) (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
-JIM_STATIC int JIM_API(Jim_SubstObj) (Jim_Interp *interp, Jim_Obj *substObjPtr,
+JIM_EXPORT int JIM_API(Jim_SubstObj) (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
 /* stack */
-JIM_STATIC void JIM_API(Jim_InitStack)(Jim_Stack *stack);
-JIM_STATIC void JIM_API(Jim_FreeStack)(Jim_Stack *stack);
-JIM_STATIC int JIM_API(Jim_StackLen)(Jim_Stack *stack);
-JIM_STATIC void JIM_API(Jim_StackPush)(Jim_Stack *stack, void *element);
-JIM_STATIC void * JIM_API(Jim_StackPop)(Jim_Stack *stack);
-JIM_STATIC void * JIM_API(Jim_StackPeek)(Jim_Stack *stack);
-JIM_STATIC void JIM_API(Jim_FreeStackElements)(Jim_Stack *stack, void (*freeFunc)(void *ptr));
+JIM_EXPORT void JIM_API(Jim_InitStack)(Jim_Stack *stack);
+JIM_EXPORT void JIM_API(Jim_FreeStack)(Jim_Stack *stack);
+JIM_EXPORT int JIM_API(Jim_StackLen)(Jim_Stack *stack);
+JIM_EXPORT void JIM_API(Jim_StackPush)(Jim_Stack *stack, void *element);
+JIM_EXPORT void * JIM_API(Jim_StackPop)(Jim_Stack *stack);
+JIM_EXPORT void * JIM_API(Jim_StackPeek)(Jim_Stack *stack);
+JIM_EXPORT void JIM_API(Jim_FreeStackElements)(Jim_Stack *stack, void (*freeFunc)(void *ptr));
 
 /* hash table */
-JIM_STATIC int JIM_API(Jim_InitHashTable) (Jim_HashTable *ht,
+JIM_EXPORT int JIM_API(Jim_InitHashTable) (Jim_HashTable *ht,
         Jim_HashTableType *type, void *privdata);
-JIM_STATIC int JIM_API(Jim_ExpandHashTable) (Jim_HashTable *ht,
+JIM_EXPORT int JIM_API(Jim_ExpandHashTable) (Jim_HashTable *ht,
         unsigned int size);
-JIM_STATIC int JIM_API(Jim_AddHashEntry) (Jim_HashTable *ht, const void *key,
+JIM_EXPORT int JIM_API(Jim_AddHashEntry) (Jim_HashTable *ht, const void *key,
         void *val);
-JIM_STATIC int JIM_API(Jim_ReplaceHashEntry) (Jim_HashTable *ht,
+JIM_EXPORT int JIM_API(Jim_ReplaceHashEntry) (Jim_HashTable *ht,
         const void *key, void *val);
-JIM_STATIC int JIM_API(Jim_DeleteHashEntry) (Jim_HashTable *ht,
+JIM_EXPORT int JIM_API(Jim_DeleteHashEntry) (Jim_HashTable *ht,
         const void *key);
-JIM_STATIC int JIM_API(Jim_FreeHashTable) (Jim_HashTable *ht);
-JIM_STATIC Jim_HashEntry * JIM_API(Jim_FindHashEntry) (Jim_HashTable *ht,
+JIM_EXPORT int JIM_API(Jim_FreeHashTable) (Jim_HashTable *ht);
+JIM_EXPORT Jim_HashEntry * JIM_API(Jim_FindHashEntry) (Jim_HashTable *ht,
         const void *key);
-JIM_STATIC int JIM_API(Jim_ResizeHashTable) (Jim_HashTable *ht);
-JIM_STATIC Jim_HashTableIterator *JIM_API(Jim_GetHashTableIterator)
+JIM_EXPORT int JIM_API(Jim_ResizeHashTable) (Jim_HashTable *ht);
+JIM_EXPORT Jim_HashTableIterator *JIM_API(Jim_GetHashTableIterator)
         (Jim_HashTable *ht);
-JIM_STATIC Jim_HashEntry * JIM_API(Jim_NextHashEntry)
+JIM_EXPORT Jim_HashEntry * JIM_API(Jim_NextHashEntry)
         (Jim_HashTableIterator *iter);
 
 /* objects */
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewObj) (Jim_Interp *interp);
-JIM_STATIC void JIM_API(Jim_FreeObj) (Jim_Interp *interp, Jim_Obj *objPtr);
-JIM_STATIC void JIM_API(Jim_InvalidateStringRep) (Jim_Obj *objPtr);
-JIM_STATIC void JIM_API(Jim_InitStringRep) (Jim_Obj *objPtr, const char *bytes,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewObj) (Jim_Interp *interp);
+JIM_EXPORT void JIM_API(Jim_FreeObj) (Jim_Interp *interp, Jim_Obj *objPtr);
+JIM_EXPORT void JIM_API(Jim_InvalidateStringRep) (Jim_Obj *objPtr);
+JIM_EXPORT void JIM_API(Jim_InitStringRep) (Jim_Obj *objPtr, const char *bytes,
         int length);
-JIM_STATIC Jim_Obj * JIM_API(Jim_DuplicateObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_DuplicateObj) (Jim_Interp *interp,
         Jim_Obj *objPtr);
-JIM_STATIC const char * JIM_API(Jim_GetString)(Jim_Obj *objPtr,
+JIM_EXPORT const char * JIM_API(Jim_GetString)(Jim_Obj *objPtr,
         int *lenPtr);
-JIM_STATIC int JIM_API(Jim_Length)(Jim_Obj *objPtr);
+JIM_EXPORT int JIM_API(Jim_Length)(Jim_Obj *objPtr);
 
 /* string object */
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewStringObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewStringObj) (Jim_Interp *interp,
         const char *s, int len);
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewStringObjNoAlloc) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewStringObjNoAlloc) (Jim_Interp *interp,
         char *s, int len);
-JIM_STATIC void JIM_API(Jim_AppendString) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT void JIM_API(Jim_AppendString) (Jim_Interp *interp, Jim_Obj *objPtr,
         const char *str, int len);
-JIM_STATIC void JIM_API(Jim_AppendString_sprintf) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT void JIM_API(Jim_AppendString_sprintf) (Jim_Interp *interp, Jim_Obj *objPtr,
 												   const char *fmt, ... );
-JIM_STATIC void JIM_API(Jim_AppendObj) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT void JIM_API(Jim_AppendObj) (Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *appendObjPtr);
-JIM_STATIC void JIM_API(Jim_AppendStrings) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_AppendStrings) (Jim_Interp *interp,
         Jim_Obj *objPtr, ...);
-JIM_STATIC int JIM_API(Jim_StringEqObj) (Jim_Obj *aObjPtr,
+JIM_EXPORT int JIM_API(Jim_StringEqObj) (Jim_Obj *aObjPtr,
         Jim_Obj *bObjPtr, int nocase);
-JIM_STATIC int JIM_API(Jim_StringMatchObj) (Jim_Obj *patternObjPtr,
+JIM_EXPORT int JIM_API(Jim_StringMatchObj) (Jim_Obj *patternObjPtr,
         Jim_Obj *objPtr, int nocase);
-JIM_STATIC Jim_Obj * JIM_API(Jim_StringRangeObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_StringRangeObj) (Jim_Interp *interp,
         Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr,
         Jim_Obj *lastObjPtr);
-JIM_STATIC Jim_Obj * JIM_API(Jim_FormatString) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_FormatString) (Jim_Interp *interp,
         Jim_Obj *fmtObjPtr, int objc, Jim_Obj *const *objv);
-JIM_STATIC Jim_Obj * JIM_API(Jim_ScanString) (Jim_Interp *interp, Jim_Obj *strObjPtr,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_ScanString) (Jim_Interp *interp, Jim_Obj *strObjPtr,
         Jim_Obj *fmtObjPtr, int flags);
-JIM_STATIC int JIM_API(Jim_CompareStringImmediate) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_CompareStringImmediate) (Jim_Interp *interp,
         Jim_Obj *objPtr, const char *str);
 
 /* reference object */
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewReference) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewReference) (Jim_Interp *interp,
         Jim_Obj *objPtr, Jim_Obj *tagPtr, Jim_Obj *cmdNamePtr);
-JIM_STATIC Jim_Reference * JIM_API(Jim_GetReference) (Jim_Interp *interp,
+JIM_EXPORT Jim_Reference * JIM_API(Jim_GetReference) (Jim_Interp *interp,
         Jim_Obj *objPtr);
-JIM_STATIC int JIM_API(Jim_SetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *cmdNamePtr);
-JIM_STATIC int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPtr);
+JIM_EXPORT int JIM_API(Jim_SetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *cmdNamePtr);
+JIM_EXPORT int JIM_API(Jim_GetFinalizer) (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPtr);
 
 /* interpreter */
-JIM_STATIC Jim_Interp * JIM_API(Jim_CreateInterp) (void);
-JIM_STATIC void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
-JIM_STATIC int JIM_API(Jim_GetExitCode) (Jim_Interp *interp);
-JIM_STATIC void * JIM_API(Jim_SetStdin) (Jim_Interp *interp, void *fp);
-JIM_STATIC void * JIM_API(Jim_SetStdout) (Jim_Interp *interp, void *fp);
-JIM_STATIC void * JIM_API(Jim_SetStderr) (Jim_Interp *interp, void *fp);
+JIM_EXPORT Jim_Interp * JIM_API(Jim_CreateInterp) (void);
+JIM_EXPORT void JIM_API(Jim_FreeInterp) (Jim_Interp *i);
+JIM_EXPORT int JIM_API(Jim_GetExitCode) (Jim_Interp *interp);
+JIM_EXPORT void * JIM_API(Jim_SetStdin) (Jim_Interp *interp, void *fp);
+JIM_EXPORT void * JIM_API(Jim_SetStdout) (Jim_Interp *interp, void *fp);
+JIM_EXPORT void * JIM_API(Jim_SetStderr) (Jim_Interp *interp, void *fp);
 
 /* commands */
-JIM_STATIC void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
-JIM_STATIC int JIM_API(Jim_CreateCommand) (Jim_Interp *interp, 
+JIM_EXPORT void JIM_API(Jim_RegisterCoreCommands) (Jim_Interp *interp);
+JIM_EXPORT int JIM_API(Jim_CreateCommand) (Jim_Interp *interp, 
         const char *cmdName, Jim_CmdProc cmdProc, void *privData,
          Jim_DelCmdProc delProc);
-JIM_STATIC int JIM_API(Jim_CreateProcedure) (Jim_Interp *interp, 
+JIM_EXPORT int JIM_API(Jim_CreateProcedure) (Jim_Interp *interp, 
         const char *cmdName, Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr,
         Jim_Obj *bodyObjPtr, int arityMin, int arityMax);
-JIM_STATIC int JIM_API(Jim_DeleteCommand) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_DeleteCommand) (Jim_Interp *interp,
         const char *cmdName);
-JIM_STATIC int JIM_API(Jim_RenameCommand) (Jim_Interp *interp, 
+JIM_EXPORT int JIM_API(Jim_RenameCommand) (Jim_Interp *interp, 
         const char *oldName, const char *newName);
-JIM_STATIC Jim_Cmd * JIM_API(Jim_GetCommand) (Jim_Interp *interp,
+JIM_EXPORT Jim_Cmd * JIM_API(Jim_GetCommand) (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
-JIM_STATIC int JIM_API(Jim_SetVariable) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
-JIM_STATIC int JIM_API(Jim_SetVariableStr) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetVariableStr) (Jim_Interp *interp,
         const char *name, Jim_Obj *objPtr);
-JIM_STATIC int JIM_API(Jim_SetGlobalVariableStr) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetGlobalVariableStr) (Jim_Interp *interp,
         const char *name, Jim_Obj *objPtr);
-JIM_STATIC int JIM_API(Jim_SetVariableStrWithStr) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetVariableStrWithStr) (Jim_Interp *interp,
         const char *name, const char *val);
-JIM_STATIC int JIM_API(Jim_SetVariableLink) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetVariableLink) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
-JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariable) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_GetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
-JIM_STATIC Jim_Obj * JIM_API(Jim_GetGlobalVariable) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_GetGlobalVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
-JIM_STATIC Jim_Obj * JIM_API(Jim_GetVariableStr) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_GetVariableStr) (Jim_Interp *interp,
         const char *name, int flags);
-JIM_STATIC Jim_Obj * JIM_API(Jim_GetGlobalVariableStr) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_GetGlobalVariableStr) (Jim_Interp *interp,
         const char *name, int flags);
-JIM_STATIC int JIM_API(Jim_UnsetVariable) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_UnsetVariable) (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 
 /* call frame */
-JIM_STATIC int JIM_API(Jim_GetCallFrameByLevel) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_GetCallFrameByLevel) (Jim_Interp *interp,
         Jim_Obj *levelObjPtr, Jim_CallFrame **framePtrPtr,
         int *newLevelPtr);
 
 /* garbage collection */
-JIM_STATIC int JIM_API(Jim_Collect) (Jim_Interp *interp);
-JIM_STATIC void JIM_API(Jim_CollectIfNeeded) (Jim_Interp *interp);
+JIM_EXPORT int JIM_API(Jim_Collect) (Jim_Interp *interp);
+JIM_EXPORT void JIM_API(Jim_CollectIfNeeded) (Jim_Interp *interp);
 
 /* index object */
-JIM_STATIC int JIM_API(Jim_GetIndex) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetIndex) (Jim_Interp *interp, Jim_Obj *objPtr,
         int *indexPtr);
 
 /* list object */
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewListObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewListObj) (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
-JIM_STATIC void JIM_API(Jim_ListInsertElements) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_ListInsertElements) (Jim_Interp *interp,
         Jim_Obj *listPtr, int index, int objc, Jim_Obj *const *objVec);
-JIM_STATIC void JIM_API(Jim_ListAppendElement) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_ListAppendElement) (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *objPtr);
-JIM_STATIC void JIM_API(Jim_ListAppendList) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_ListAppendList) (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *appendListPtr);
-JIM_STATIC void JIM_API(Jim_ListLength) (Jim_Interp *interp, Jim_Obj *listPtr,
+JIM_EXPORT void JIM_API(Jim_ListLength) (Jim_Interp *interp, Jim_Obj *listPtr,
         int *intPtr);
-JIM_STATIC int JIM_API(Jim_ListIndex) (Jim_Interp *interp, Jim_Obj *listPrt,
+JIM_EXPORT int JIM_API(Jim_ListIndex) (Jim_Interp *interp, Jim_Obj *listPrt,
         int index, Jim_Obj **objPtrPtr, int seterr);
-JIM_STATIC int JIM_API(Jim_SetListIndex) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetListIndex) (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *indexv, int indexc,
         Jim_Obj *newObjPtr);
-JIM_STATIC Jim_Obj * JIM_API(Jim_ConcatObj) (Jim_Interp *interp, int objc,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_ConcatObj) (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
 
 /* dict object */
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewDictObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewDictObj) (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
-JIM_STATIC int JIM_API(Jim_DictKey) (Jim_Interp *interp, Jim_Obj *dictPtr,
+JIM_EXPORT int JIM_API(Jim_DictKey) (Jim_Interp *interp, Jim_Obj *dictPtr,
         Jim_Obj *keyPtr, Jim_Obj **objPtrPtr, int flags);
-JIM_STATIC int JIM_API(Jim_DictKeysVector) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_DictKeysVector) (Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj **objPtrPtr, int flags);
-JIM_STATIC int JIM_API(Jim_SetDictKeysVector) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_SetDictKeysVector) (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr);
 
 /* return code object */
-JIM_STATIC int JIM_API(Jim_GetReturnCode) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetReturnCode) (Jim_Interp *interp, Jim_Obj *objPtr,
         int *intPtr);
 
 /* expression object */
-JIM_STATIC int JIM_API(Jim_EvalExpression) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_EvalExpression) (Jim_Interp *interp,
         Jim_Obj *exprObjPtr, Jim_Obj **exprResultPtrPtr);
-JIM_STATIC int JIM_API(Jim_GetBoolFromExpr) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_GetBoolFromExpr) (Jim_Interp *interp,
         Jim_Obj *exprObjPtr, int *boolPtr);
 
 /* integer object */
-JIM_STATIC int JIM_API(Jim_GetWide) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetWide) (Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide *widePtr);
-JIM_STATIC int JIM_API(Jim_GetLong) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetLong) (Jim_Interp *interp, Jim_Obj *objPtr,
         long *longPtr);
-JIM_STATIC void JIM_API(Jim_SetWide) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT void JIM_API(Jim_SetWide) (Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide wideValue);
 #define Jim_NewWideObj  Jim_NewIntObj
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewIntObj) (Jim_Interp *interp,
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewIntObj) (Jim_Interp *interp,
         jim_wide wideValue);
 
 /* double object */
-JIM_STATIC int JIM_API(Jim_GetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
         double *doublePtr);
-JIM_STATIC void JIM_API(Jim_SetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT void JIM_API(Jim_SetDouble)(Jim_Interp *interp, Jim_Obj *objPtr,
         double doubleValue);
-JIM_STATIC Jim_Obj * JIM_API(Jim_NewDoubleObj)(Jim_Interp *interp, double doubleValue);
+JIM_EXPORT Jim_Obj * JIM_API(Jim_NewDoubleObj)(Jim_Interp *interp, double doubleValue);
 
 /* shared strings */
-JIM_STATIC const char * JIM_API(Jim_GetSharedString) (Jim_Interp *interp, 
+JIM_EXPORT const char * JIM_API(Jim_GetSharedString) (Jim_Interp *interp, 
         const char *str);
-JIM_STATIC void JIM_API(Jim_ReleaseSharedString) (Jim_Interp *interp,
+JIM_EXPORT void JIM_API(Jim_ReleaseSharedString) (Jim_Interp *interp,
         const char *str);
 
 /* commands utilities */
-JIM_STATIC void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
+JIM_EXPORT void JIM_API(Jim_WrongNumArgs) (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
-JIM_STATIC int JIM_API(Jim_GetEnum) (Jim_Interp *interp, Jim_Obj *objPtr,
+JIM_EXPORT int JIM_API(Jim_GetEnum) (Jim_Interp *interp, Jim_Obj *objPtr,
         const char * const *tablePtr, int *indexPtr, const char *name, int flags);
-JIM_STATIC int JIM_API(Jim_GetNvp) (Jim_Interp *interp, 
-									Jim_Obj *objPtr,
-									const Jim_Nvp *nvp_table, 
-									const Jim_Nvp **result);
-JIM_STATIC int JIM_API(Jim_ScriptIsComplete) (const char *s, int len,
+JIM_EXPORT int JIM_API(Jim_ScriptIsComplete) (const char *s, int len,
         char *stateCharPtr);
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);
-JIM_STATIC void * JIM_API(Jim_GetAssocData)(Jim_Interp *interp, const char *key);
-JIM_STATIC int JIM_API(Jim_SetAssocData)(Jim_Interp *interp, const char *key,
+JIM_EXPORT void * JIM_API(Jim_GetAssocData)(Jim_Interp *interp, const char *key);
+JIM_EXPORT int JIM_API(Jim_SetAssocData)(Jim_Interp *interp, const char *key,
         Jim_InterpDeleteProc *delProc, void *data);
-JIM_STATIC int JIM_API(Jim_DeleteAssocData)(Jim_Interp *interp, const char *key);
-
-/* API import/export functions */
-JIM_STATIC int JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname,
-        void *targetPtrPtr);
-JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp, 
-        const char *funcname, void *funcptr);
+JIM_EXPORT int JIM_API(Jim_DeleteAssocData)(Jim_Interp *interp, const char *key);
 
 /* Packages C API */
-JIM_STATIC int JIM_API(Jim_PackageProvide) (Jim_Interp *interp,
+JIM_EXPORT int JIM_API(Jim_PackageProvide) (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
-JIM_STATIC const char * JIM_API(Jim_PackageRequire) (Jim_Interp *interp,
+JIM_EXPORT const char * JIM_API(Jim_PackageRequire) (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
 
 /* error messages */
-JIM_STATIC void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
+JIM_EXPORT void JIM_API(Jim_PrintErrorMessage) (Jim_Interp *interp);
 
 /* interactive mode */
-JIM_STATIC int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
+JIM_EXPORT int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
 
 /* Misc */
-JIM_STATIC void JIM_API(Jim_Panic) (Jim_Interp *interp, const char *fmt, ...);
+JIM_EXPORT void JIM_API(Jim_Panic) (Jim_Interp *interp, const char *fmt, ...);
 
 /* Jim's STDIO */
-JIM_STATIC int     JIM_API( Jim_fprintf  )( Jim_Interp *interp, void *cookie, const char *fmt, ... );
-JIM_STATIC int     JIM_API( Jim_vfprintf )( Jim_Interp *interp, void *cookie, const char *fmt, va_list ap );
-JIM_STATIC size_t  JIM_API( Jim_fwrite   )( Jim_Interp *interp, const void *ptr, size_t size, size_t nmeb, void *cookie );
-JIM_STATIC size_t  JIM_API( Jim_fread    )( Jim_Interp *interp, void *ptr, size_t size, size_t nmeb, void *cookie );
-JIM_STATIC int     JIM_API( Jim_fflush   )( Jim_Interp *interp, void *cookie );
-JIM_STATIC char *  JIM_API( Jim_fgets    )( Jim_Interp *interp, char *s, int size, void *cookie );
+JIM_EXPORT int     JIM_API( Jim_fprintf  )( Jim_Interp *interp, void *cookie, const char *fmt, ... );
+JIM_EXPORT int     JIM_API( Jim_vfprintf )( Jim_Interp *interp, void *cookie, const char *fmt, va_list ap );
 
-/* Name Value Pairs Operations */
-JIM_STATIC Jim_Nvp *JIM_API(Jim_Nvp_name2value_simple)( const Jim_Nvp *nvp_table, const char *name );
-JIM_STATIC Jim_Nvp *JIM_API(Jim_Nvp_name2value_nocase_simple)( const Jim_Nvp *nvp_table, const char *name );
-JIM_STATIC Jim_Nvp *JIM_API(Jim_Nvp_value2name_simple)( const Jim_Nvp *nvp_table, int v );
-
-JIM_STATIC int JIM_API(Jim_Nvp_name2value)( Jim_Interp *interp, const Jim_Nvp *nvp_table, const char *name, Jim_Nvp **result );
-JIM_STATIC int JIM_API(Jim_Nvp_name2value_nocase)( Jim_Interp *interp, const Jim_Nvp *nvp_table, const char *name, Jim_Nvp **result);
-JIM_STATIC int JIM_API(Jim_Nvp_value2name)( Jim_Interp *interp, const Jim_Nvp *nvp_table, int value, Jim_Nvp **result );
-
-JIM_STATIC int JIM_API(Jim_Nvp_name2value_obj)( Jim_Interp *interp, const Jim_Nvp *nvp_table, Jim_Obj *name_obj, Jim_Nvp **result );
-JIM_STATIC int JIM_API(Jim_Nvp_name2value_obj_nocase)( Jim_Interp *interp, const Jim_Nvp *nvp_table, Jim_Obj *name_obj, Jim_Nvp **result );
-JIM_STATIC int JIM_API(Jim_Nvp_value2name_obj)( Jim_Interp *interp, const Jim_Nvp *nvp_table, Jim_Obj *value_obj, Jim_Nvp **result );
-
-/** prints a nice 'unknown' parameter error message to the 'result' */
-JIM_STATIC void JIM_API(Jim_SetResult_NvpUnknown)( Jim_Interp *interp, 
-												   Jim_Obj *param_name,
-												   Jim_Obj *param_value,
-												   const Jim_Nvp *nvp_table );
-
-
-/** Debug: convert argc/argv into a printable string for printf() debug
- * 
- * \param interp - the interpeter
- * \param argc   - arg count
- * \param argv   - the objects
- *
- * \returns string pointer holding the text.
- * 
- * Note, next call to this function will free the old (last) string.
- *
- * For example might want do this:
- * \code
- *     fp = fopen("some.file.log", "a" );
- *     fprintf( fp, "PARAMS are: %s\n", Jim_DebugArgvString( interp, argc, argv ) );
- *     fclose(fp);
- * \endcode
- */
-JIM_STATIC const char *JIM_API( Jim_Debug_ArgvString )( Jim_Interp *interp, int argc, Jim_Obj *const *argv );
-
-
-/** A TCL -ish GetOpt like code. 
- *
- * Some TCL objects have various "configuration" values.
- * For example - in Tcl/Tk the "buttons" have many options.
- * 
- * Usefull when dealing with command options.
- * that may come in any order...
- *
- * Does not support "-foo=123" type options.
- * Only supports tcl type options, like "-foo 123"
- */
-
-typedef struct jim_getopt {
-	Jim_Interp     *interp;
-	int            argc; 
-	Jim_Obj        * const * argv;
-	int            isconfigure; /* non-zero if configure */
-} Jim_GetOptInfo;
-
-/** GetOpt - how to.
- *
- * Example (short and incomplete):
- * \code
- *   Jim_GetOptInfo goi; 
- *
- *   Jim_GetOpt_Setup( &goi, interp, argc, argv );
- *
- *   while( goi.argc ){
- *         e = Jim_GetOpt_Nvp( &goi, nvp_options, &n );
- *         if( e != JIM_OK ){
- *               Jim_GetOpt_NvpUnknown( &goi, nvp_options, 0 );
- *               return e;
- *         }
- *
- *         switch( n->value ){
- *         case ALIVE:
- *             printf("Option ALIVE specified\n");
- *             break;
- *         case FIRST:
- *             if( goi.argc < 1 ){
- *                     .. not enough args error ..
- *             }
- *             Jim_GetOpt_String( &goi, &cp, NULL );
- *             printf("FIRSTNAME: %s\n", cp );
- *         case AGE:
- *             Jim_GetOpt_Wide( &goi, &w );
- *             printf("AGE: %d\n", (int)(w) );
- *             break;
- *         case POLITICS:
- *             e = Jim_GetOpt_Nvp( &goi, nvp_politics, &n );
- *             if( e != JIM_OK ){
- *                 Jim_GetOpt_NvpUnknown( &goi, nvp_politics, 1 );
- *                 return e;
- *             }
- *         }
- *  }
- *
- * \endcode
- *    
- */
-
-/** Setup GETOPT 
- *
- * \param goi    - get opt info to be initialized
- * \param interp - jim interp
- * \param argc   - argc count.
- * \param argv   - argv (will be copied)
- *
- * \code
- *     Jim_GetOptInfo  goi;
- *   
- *     Jim_GetOptSetup( &goi, interp, argc, argv );
- * \endcode
- */
-
-JIM_STATIC int JIM_API( Jim_GetOpt_Setup )( Jim_GetOptInfo *goi, 
-											Jim_Interp *interp, 
-											int argc, 
-											Jim_Obj * const *  argv );
-
-
-/** Debug - Dump parameters to stderr
- * \param goi - current parameters
- */
-JIM_STATIC void JIM_API( Jim_GetOpt_Debug )( Jim_GetOptInfo *goi);
-
-
-
-/** Remove argv[0] from the list.
- *
- * \param goi - get opt info
- * \param puthere - where param is put
- * 
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_Obj)( Jim_GetOptInfo *goi, Jim_Obj **puthere );
-
-/** Remove argv[0] as string.
- *
- * \param goi     - get opt info
- * \param puthere - where param is put
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_String )( Jim_GetOptInfo *goi, char **puthere, int *len );
-
-/** Remove argv[0] as double.
- *
- * \param goi     - get opt info
- * \param puthere - where param is put.
- *
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_Double )( Jim_GetOptInfo *goi, double *puthere );
-
-/** Remove argv[0] as wide.
- *
- * \param goi     - get opt info
- * \param puthere - where param is put.
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_Wide )( Jim_GetOptInfo *goi, jim_wide *puthere );
-
-/** Remove argv[0] as NVP.
- *
- * \param goi     - get opt info
- * \param lookup  - nvp lookup table
- * \param puthere - where param is put.
- *
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_Nvp)( Jim_GetOptInfo *goi, const Jim_Nvp *lookup, Jim_Nvp **puthere );
-
-/** Create an appropriate error message for an NVP.
- *
- * \param goi - options info
- * \param lookup - the NVP table that was used.
- * \param hadprefix - 0 or 1 if the option had a prefix.
- *
- * This function will set the "interp->result" to a human readable
- * error message listing the available options.
- *
- * This function assumes the previous option argv[-1] is the unknown string.
- *
- * If this option had some prefix, then pass "hadprefix=1" else pass "hadprefix=0"
- *
- * Example:
- * \code
- *
- *  while( goi.argc ){
- *     // Get the next option 
- *     e = Jim_GetOpt_Nvp( &goi, cmd_options, &n );
- *     if( e != JIM_OK ){
- *          // option was not recognized
- *          // pass 'hadprefix=0' because there is no prefix
- *          Jim_GetOpt_NvpUnknown( &goi, cmd_options, 0 );
- *          return e;
- *     }
- *
- *     switch( n->value ){
- *     case OPT_SEX:
- *          // handle:  --sex male|female|lots|needmore
- *          e = Jim_GetOpt_Nvp( &goi, &nvp_sex, &n );
- *          if( e != JIM_OK ){
- *               Jim_GetOpt_NvpUnknown( &ogi, nvp_sex, 1 );
- *               return e;
- *          }
- *          printf("Code: (%d) is %s\n", n->value, n->name );
- *          break;
- *     case ...:
- *          [snip]
- *     }
- * }
- * \endcode
- *
- */
-JIM_STATIC void JIM_API( Jim_GetOpt_NvpUnknown)( Jim_GetOptInfo *goi, const Jim_Nvp *lookup, int hadprefix );
-
-
-/** Remove argv[0] as Enum
- *
- * \param goi     - get opt info
- * \param lookup  - lookup table.
- * \param puthere - where param is put.
- *
- */
-JIM_STATIC int JIM_API( Jim_GetOpt_Enum)( Jim_GetOptInfo *goi, const char * const *  lookup, int *puthere );
-
-
-#undef JIM_STATIC
-#undef JIM_API
-
-#ifndef __JIM_CORE__
-
-#define JIM_GET_API(name) \
-    Jim_GetApi(interp, "Jim_" #name, ((void *)&Jim_ ## name))
-
-#if defined JIM_EXTENSION || defined JIM_EMBEDDED
-/* This must be included "inline" inside the extension */
-static void Jim_InitExtension(Jim_Interp *interp)
-{
-  Jim_GetApi = interp->getApiFuncPtr;
-
-  JIM_GET_API(Alloc);
-  JIM_GET_API(Free);
-  JIM_GET_API(Eval);
-  JIM_GET_API(Eval_Named);
-  JIM_GET_API(EvalGlobal);
-  JIM_GET_API(EvalFile);
-  JIM_GET_API(EvalObj);
-  JIM_GET_API(EvalObjBackground);
-  JIM_GET_API(EvalObjVector);
-  JIM_GET_API(InitHashTable);
-  JIM_GET_API(ExpandHashTable);
-  JIM_GET_API(AddHashEntry);
-  JIM_GET_API(ReplaceHashEntry);
-  JIM_GET_API(DeleteHashEntry);
-  JIM_GET_API(FreeHashTable);
-  JIM_GET_API(FindHashEntry);
-  JIM_GET_API(ResizeHashTable);
-  JIM_GET_API(GetHashTableIterator);
-  JIM_GET_API(NextHashEntry);
-  JIM_GET_API(NewObj);
-  JIM_GET_API(FreeObj);
-  JIM_GET_API(InvalidateStringRep);
-  JIM_GET_API(InitStringRep);
-  JIM_GET_API(DuplicateObj);
-  JIM_GET_API(GetString);
-  JIM_GET_API(Length);
-  JIM_GET_API(InvalidateStringRep);
-  JIM_GET_API(NewStringObj);
-  JIM_GET_API(NewStringObjNoAlloc);
-  JIM_GET_API(AppendString);
-  JIM_GET_API(AppendString_sprintf);
-  JIM_GET_API(AppendObj);
-  JIM_GET_API(AppendStrings);
-  JIM_GET_API(StringEqObj);
-  JIM_GET_API(StringMatchObj);
-  JIM_GET_API(StringRangeObj);
-  JIM_GET_API(FormatString);
-  JIM_GET_API(ScanString);
-  JIM_GET_API(CompareStringImmediate);
-  JIM_GET_API(NewReference);
-  JIM_GET_API(GetReference);
-  JIM_GET_API(SetFinalizer);
-  JIM_GET_API(GetFinalizer);
-  JIM_GET_API(CreateInterp);
-  JIM_GET_API(FreeInterp);
-  JIM_GET_API(GetExitCode);
-  JIM_GET_API(SetStdin);
-  JIM_GET_API(SetStdout);
-  JIM_GET_API(SetStderr);
-  JIM_GET_API(CreateCommand);
-  JIM_GET_API(CreateProcedure);
-  JIM_GET_API(DeleteCommand);
-  JIM_GET_API(RenameCommand);
-  JIM_GET_API(GetCommand);
-  JIM_GET_API(SetVariable);
-  JIM_GET_API(SetVariableStr);
-  JIM_GET_API(SetGlobalVariableStr);
-  JIM_GET_API(SetVariableStrWithStr);
-  JIM_GET_API(SetVariableLink);
-  JIM_GET_API(GetVariable);
-  JIM_GET_API(GetCallFrameByLevel);
-  JIM_GET_API(Collect);
-  JIM_GET_API(CollectIfNeeded);
-  JIM_GET_API(GetIndex);
-  JIM_GET_API(NewListObj);
-  JIM_GET_API(ListInsertElements);
-  JIM_GET_API(ListAppendElement);
-  JIM_GET_API(ListAppendList);
-  JIM_GET_API(ListLength);
-  JIM_GET_API(ListIndex);
-  JIM_GET_API(SetListIndex);
-  JIM_GET_API(ConcatObj);
-  JIM_GET_API(NewDictObj);
-  JIM_GET_API(DictKey);
-  JIM_GET_API(DictKeysVector);
-  JIM_GET_API(GetIndex);
-  JIM_GET_API(GetReturnCode);
-  JIM_GET_API(EvalExpression);
-  JIM_GET_API(GetBoolFromExpr);
-  JIM_GET_API(GetWide);
-  JIM_GET_API(GetLong);
-  JIM_GET_API(SetWide);
-  JIM_GET_API(NewIntObj);
-  JIM_GET_API(GetDouble);
-  JIM_GET_API(SetDouble);
-  JIM_GET_API(NewDoubleObj);
-  JIM_GET_API(WrongNumArgs);
-  JIM_GET_API(SetDictKeysVector);
-  JIM_GET_API(SubstObj);
-  JIM_GET_API(RegisterApi);
-  JIM_GET_API(PrintErrorMessage);
-  JIM_GET_API(InteractivePrompt);
-  JIM_GET_API(RegisterCoreCommands);
-  JIM_GET_API(GetSharedString);
-  JIM_GET_API(ReleaseSharedString);
-  JIM_GET_API(Panic);
-  JIM_GET_API(StrDup);
-  JIM_GET_API(UnsetVariable);
-  JIM_GET_API(GetVariableStr);
-  JIM_GET_API(GetGlobalVariable);
-  JIM_GET_API(GetGlobalVariableStr);
-  JIM_GET_API(GetAssocData);
-  JIM_GET_API(SetAssocData);
-  JIM_GET_API(DeleteAssocData);
-  JIM_GET_API(GetEnum);
-  JIM_GET_API(GetNvp);
-  JIM_GET_API(ScriptIsComplete);
-  JIM_GET_API(PackageProvide);
-  JIM_GET_API(PackageRequire);
-  JIM_GET_API(InitStack);
-  JIM_GET_API(FreeStack);
-  JIM_GET_API(StackLen);
-  JIM_GET_API(StackPush);
-  JIM_GET_API(StackPop);
-  JIM_GET_API(StackPeek);
-  JIM_GET_API(FreeStackElements);
-  JIM_GET_API(fprintf  );
-  JIM_GET_API(vfprintf );
-  JIM_GET_API(fwrite   );
-  JIM_GET_API(fread    );
-  JIM_GET_API(fflush   );
-  JIM_GET_API(fgets    );
-  JIM_GET_API(Nvp_name2value);
-  JIM_GET_API(Nvp_name2value_nocase);
-  JIM_GET_API(Nvp_name2value_simple);
-  
-  JIM_GET_API(Nvp_value2name);
-  JIM_GET_API(Nvp_value2name_simple);
-
-
-  JIM_GET_API(Nvp_name2value_obj);
-  JIM_GET_API(Nvp_value2name_obj);
-  JIM_GET_API(Nvp_name2value_obj_nocase);
-
-  JIM_GET_API(GetOpt_Setup);
-  JIM_GET_API(GetOpt_Obj);
-  JIM_GET_API(GetOpt_String);
-  JIM_GET_API(GetOpt_Double);
-  JIM_GET_API(GetOpt_Wide);
-  JIM_GET_API(GetOpt_Nvp);
-  JIM_GET_API(GetOpt_NvpUnknown);
-  JIM_GET_API(GetOpt_Enum);
-  JIM_GET_API(GetOpt_Debug);
-  JIM_GET_API(SetResult_sprintf);
-  JIM_GET_API(SetResult_NvpUnknown);
-  JIM_GET_API(Debug_ArgvString);
-}
-#endif /* defined JIM_EXTENSION || defined JIM_EMBEDDED */
-
-#undef JIM_GET_API
-
-#ifdef JIM_EMBEDDED
-Jim_Interp *ExportedJimCreateInterp(void);
-static __inline__ void Jim_InitEmbedded(void) {
-    Jim_Interp *i = ExportedJimCreateInterp();
-    Jim_InitExtension(i);
-    Jim_FreeInterp(i);
-}
-#endif /* JIM_EMBEDDED */
-#endif /* __JIM_CORE__ */
+#if 0
+JIM_EXPORT size_t  JIM_API( Jim_fwrite   )( Jim_Interp *interp, const void *ptr, size_t size, size_t nmeb, void *cookie );
+JIM_EXPORT size_t  JIM_API( Jim_fread    )( Jim_Interp *interp, void *ptr, size_t size, size_t nmeb, void *cookie );
+JIM_EXPORT int     JIM_API( Jim_fflush   )( Jim_Interp *interp, void *cookie );
+JIM_EXPORT char *  JIM_API( Jim_fgets    )( Jim_Interp *interp, char *s, int size, void *cookie );
+#endif
 
 #ifdef __cplusplus
 }

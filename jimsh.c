@@ -125,11 +125,15 @@ int main(int argc, char *const argv[])
     Jim_Interp *interp;
     Jim_Obj *listObj;
 
-    Jim_InitEmbedded(); /* This is the first function embedders should call. */
-
     /* Create and initialize the interpreter */
     interp = Jim_CreateInterp();
     Jim_RegisterCoreCommands(interp);
+
+    /* Register static extensions */
+    Jim_AioInit(interp);
+    Jim_EventloopInit(interp);
+    Jim_RegexpInit(interp);
+    Jim_ReaddirInit(interp);
 
     /* Append the path where the executed Jim binary is contained
      * in the jim_libpath list. */

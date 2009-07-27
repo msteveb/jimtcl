@@ -28,7 +28,7 @@ INSTALL_DATA= $(INSTALL) -m 644
 DESTDIR = /usr/local/bin/
 
 PROGRAMS    = jim jim.exe
-JIM_OBJECTS = jim.o jimsh.o
+JIM_OBJECTS = jim.o jimsh.o jim-interactive.o
 LIBS        = -ldl
 
 stopit:

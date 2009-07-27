@@ -470,9 +470,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return result;
 }
 
-int Jim_OnLoad(Jim_Interp *interp)
+int Jim_RegexpInit(Jim_Interp *interp)
 {
-        Jim_InitExtension(interp);
         if (Jim_PackageProvide(interp, "regexp", "1.0", JIM_ERRMSG) != JIM_OK) {
                 return JIM_ERR;
         }

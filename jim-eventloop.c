@@ -520,11 +520,10 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-int Jim_OnLoad(Jim_Interp *interp)
+int Jim_EventloopInit(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
 
-    Jim_InitExtension(interp);
     if (Jim_PackageProvide(interp, "eventloop", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
 
@@ -537,11 +536,5 @@ int Jim_OnLoad(Jim_Interp *interp)
     Jim_CreateCommand(interp, "vwait", JimELVwaitCommand, NULL, NULL);
     Jim_CreateCommand(interp, "after", JimELAfterCommand, NULL, NULL);
 
-    /* Export events API */
-    Jim_RegisterApi(interp, "Jim_CreateFileHandler", Jim_CreateFileHandler);
-    Jim_RegisterApi(interp, "Jim_DeleteFileHandler", Jim_DeleteFileHandler);
-    Jim_RegisterApi(interp, "Jim_CreateTimeHandler", Jim_CreateTimeHandler);
-    Jim_RegisterApi(interp, "Jim_DeleteTimeHandler", Jim_DeleteTimeHandler);
-    Jim_RegisterApi(interp, "Jim_ProcessEvents", Jim_ProcessEvents);
     return JIM_OK;
 }

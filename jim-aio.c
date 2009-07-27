@@ -112,7 +112,6 @@ static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask
     } else {
     	Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
     }
-    // fprintf(stderr,"mask:%d\n",mask);
     Jim_EvalObjBackground(interp, scrPtr);
     return 0;
 }
@@ -132,17 +131,14 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     if (!af->OpenFlags == AIO_FDOPEN) // fp = fdopen(fd) !!
         close(af->fd);
     if (af->rEvent) { // remove existing EventHandlers
-	fprintf(stderr,"deleting ReadEvent\n");
 	Jim_DeleteFileHandler(interp,af->fp);
 	Jim_DecrRefCount(interp,af->rEvent);
     }
     if (af->wEvent) {
-	fprintf(stderr,"deleting WriteEvent\n");
 	Jim_DeleteFileHandler(interp,af->fp);
     	Jim_DecrRefCount(interp,af->wEvent);
     }
     if (af->eEvent) {
-	fprintf(stderr,"deleting ExceptionEvent\n");
 	Jim_DeleteFileHandler(interp,af->fp);
     	Jim_DecrRefCount(interp,af->eEvent);
     }
@@ -422,10 +418,6 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
 	const char *dummy = NULL;
 	int scrlen = 0;
 
-	if (!(Jim_CreateFileHandler && Jim_DeleteFileHandler)) {
-		Jim_SetResultString(interp, "Eventloop not present ( or loaded too late ) !", -1);
-        	return JIM_ERR;
-	}
 	switch (option) {
 	case OPT_READABLE:  mask = JIM_EVENT_READABLE;  scrListObjpp = &af->rEvent; 
 		if (argc == 4)  mask |= JIM_EVENT_FEOF ; 			  break;
@@ -445,33 +437,23 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
 		} else {
 			*scrListObjpp = Jim_NewListObj(interp, NULL, 0);
 			Jim_IncrRefCount(*scrListObjpp);
-			// fprintf(stderr,"0 %p \n",*scrListObjpp);
 			listObj = argv[2];
 			if (Jim_IsShared(listObj))
 				listObj = Jim_DuplicateObj(interp, listObj);
 			// Jim_IncrRefCount(listObj);
-			// fprintf(stderr,"script:\"%s\" argp: %p objp1: %p\n", Jim_GetString(argv[2], NULL),argv[2],listObj);
-			// fprintf(stderr,"1");
 			Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-			// fprintf(stderr,"2");
 			if (mask & JIM_EVENT_FEOF) {
 				listObj = argv[3];
 				if (Jim_IsShared(listObj))
 					listObj = Jim_DuplicateObj(interp, listObj);
 				// Jim_IncrRefCount(listObj);
-				// fprintf(stderr,"script:\"%s\" argp: %p objp2: %p\n", Jim_GetString(argv[3], NULL),argv[3],listObj);
-				// fprintf(stderr,"3");
 				Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-				// fprintf(stderr,"4");
 			}
-			// fprintf(stderr,"event readable fd: %d, script:\"%s\" objp3: %p\n",af->fd, Jim_GetString(argv[2], NULL),argv[2]);
 			Jim_IncrRefCount(*scrListObjpp);
-			// fprintf(stderr,"6 %p \n",Jim_CreateFileHandler);
 			Jim_CreateFileHandler(interp, af->fp, mask, 
 				JimAioFileEventHandler,
 				*scrListObjpp,
 				JimAioFileEventFinalizer);
-			// fprintf(stderr,"7");
 		}
 		break;
 	case 2:
@@ -484,9 +466,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         }
     } else if (option  == OPT_ACCEPT) {
 	int ret;
-	fprintf(stderr,"ACCEPT\n");
 	ret = JimAioAcceptHelper(interp,af);
-	fprintf(stderr,"ret %d\n",ret);
 	return (ret);
     }
     return JIM_OK;
@@ -547,7 +527,6 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af->fd = fileno(fp);
     af->flags = fcntl(af->fd,F_GETFL);
     af->OpenFlags = OpenFlags;
-    // fprintf(stderr,"hallo\n");
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
@@ -563,29 +542,28 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     FILE *fp;
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    char *hdlfmt;
-    // const char *mode = "r";
+    char *hdlfmt = "unknown";
     Jim_Obj *objPtr;
     long fileId;
     const char *socktypes[] = {
-		"file",
-		"pipe",
-		"tty",
-		"domain", 
-		"dgram", 
-		"stream", 
-		"stream.server",
-		
-		NULL
+        "file",
+        "pipe",
+        "tty",
+        "domain", 
+        "dgram", 
+        "stream", 
+        "stream.server",
+        
+        NULL
     };
     enum {
-		FILE_FILE,
-		FILE_PIPE,
-		FILE_TTY,
-		SOCK_DOMAIN, 
-		SOCK_DGRAM_CL, 
-		SOCK_STREAM_CL, 
-		SOCK_STREAM_SERV 
+        FILE_FILE,
+        FILE_PIPE,
+        FILE_TTY,
+        SOCK_DOMAIN, 
+        SOCK_DGRAM_CL, 
+        SOCK_STREAM_CL, 
+        SOCK_STREAM_SERV 
     };
     int socktype;
     int sock;
@@ -613,42 +591,33 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socket type",
                     JIM_ERRMSG) != JIM_OK)
             return JIM_ERR;
-    fprintf(stderr,"socktype: %s \n",socktypes[socktype]);
     hostportarg = Jim_GetString(argv[2], &hostportlen);
-    fprintf(stderr,"hostportarg: %s %d \n",hostportarg,hostportlen);
     switch (sscanf(hostportarg,"%[^:]:%[^:]:%[^:]",a,b,c)) {
-	case 3: stsrcport = a; sthost = b; stport = c; break;
-	case 2: stsrcport = np; sthost = a; stport = b; break;
-	case 1: stsrcport = np; sthost = nh; stport = a; break;
-	default:
+        case 3: stsrcport = a; sthost = b; stport = c; break;
+        case 2: stsrcport = np; sthost = a; stport = b; break;
+        case 1: stsrcport = np; sthost = nh; stport = a; break;
+        default:
             return JIM_ERR;
     }
-    fprintf(stderr,"socktype: %d srcport: %s host:%s port %s \n",
-		socktype,stsrcport,sthost,stport);
     if (0 == strncmp(sthost,"ANY",3))
 	sthost = "0.0.0.0";
     srcport = atol(stsrcport);
     port = atol(stport);
     he = gethostbyname(sthost);
     /* FIX!!!! this still results in null pointer exception here.  
-    /* FIXED!!!! debug output but no JIM_ERR done UK.  
+       FIXED!!!! debug output but no JIM_ERR done UK.  
     if (!he) {
         Jim_SetResultString(interp,hstrerror(h_errno),-1);
         return JIM_ERR;
     }
-
-    fprintf(stderr,"Official name is: %s\n", he->h_name);
-    fprintf(stderr,"IP address: %s\n", inet_ntoa(*(struct in_addr*)he->h_addr));
      */
 
     sock = socket(PF_INET,SOCK_STREAM,0);
-    fprintf(stderr,"srcp: %x port: %x IP: %x sock: %d type: %d\n",srcport,port,he->h_addr,sock,socktype);
     switch (socktype) {
     case SOCK_DGRAM_CL:
-		hdlfmt = "aio.sockdgram%ld" ;
+            hdlfmt = "aio.sockdgram%ld" ;
 		break;
     case SOCK_STREAM_CL:	
-    		fprintf(stderr,"setting up client socket\n");
     		sa.sin_family= he->h_addrtype;
 		bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
 		sa.sin_port = htons(port);
@@ -661,7 +630,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
 		hdlfmt = "aio.sockstrm%ld" ;
 		break;
     case SOCK_STREAM_SERV: 
-    		fprintf(stderr,"setting up listening socket\n");
     		sa.sin_family= he->h_addrtype;
 		bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
 		sa.sin_port = htons(port);
@@ -681,7 +649,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
 		break;
     }
     fp = fdopen(sock, "r+" );
-    fprintf(stderr,"fp: %p \n",fp);
     if (fp == NULL) {
 	close(sock);
         JimAioSetError(interp);
@@ -701,12 +668,10 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     af->fd = sock;
     af->OpenFlags = AIO_FDOPEN;
     af->flags = fcntl(af->fd,F_GETFL);
-    fprintf(stderr,"hallo\n");
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
     sprintf(buf, hdlfmt, fileId);
-    fprintf(stderr,"hallo:%s\n",buf);
     Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
@@ -720,21 +685,17 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
     char buf[AIO_CMD_LEN];
     Jim_Obj *objPtr;
     long fileId;
-	fprintf(stderr,"accepting connection for %d \n",serv_af->fd);
     sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
-	fprintf(stderr,"done, got %d \n",sock);
     if (sock < 0)
-	return JIM_ERR;
+        return JIM_ERR;
 
     /* Get the next file id */
-    fprintf(stderr,"getting fileid:");
     if (Jim_EvalGlobal(interp,
                 "if {[catch {incr aio.fileId}]} {set aio.fileId 0}") != JIM_OK)
         return JIM_ERR;
     objPtr = Jim_GetGlobalVariableStr(interp, "aio.fileId", JIM_ERRMSG);
     if (objPtr == NULL) return JIM_ERR;
     if (Jim_GetLong(interp, objPtr, &fileId) != JIM_OK) return JIM_ERR;
-    fprintf(stderr," %ld\n", fileId);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -742,28 +703,18 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
     af->fp = fdopen(sock,"r+");
     af->OpenFlags = AIO_FDOPEN;
     af->flags = fcntl(af->fd,F_GETFL);
-    // fprintf(stderr,"hallo\n");
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
     sprintf(buf, "aio.sockstream%ld", fileId);
     Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
-    fprintf(stderr,"returning\n");
     return JIM_OK;
 }
 
 DLLEXPORT int 
-#ifndef JIM_STATICEXT
-Jim_OnLoad(Jim_Interp *interp)
-#else
 Jim_AioInit(Jim_Interp *interp)
-#endif
 {
-#ifndef JIM_STATICEXT
-    Jim_InitExtension(interp);
-	Jim_ImportEventloopAPI(interp);
-#endif
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);
