@@ -220,9 +220,8 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-int Jim_OnLoad(Jim_Interp *interp)
+int Jim_sdlInit(Jim_Interp *interp)
 {
-    Jim_InitExtension(interp);
     if (Jim_PackageProvide(interp, "sdl", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {

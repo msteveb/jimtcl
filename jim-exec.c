@@ -918,7 +918,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
     return result;
 }
 
-int Jim_ExecInit(Jim_Interp *interp)
+int Jim_execInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;

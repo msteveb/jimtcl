@@ -3,7 +3,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
- * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
+ * Copyright 2008 oharboe - o/yvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
@@ -50,28 +50,14 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#ifdef __ECOS
-#include <pkgconf/jimtcl.h>
-#endif
-#ifndef JIM_STATICEXT
-#define JIM_EXTENSION
-#endif
-
 /* FIX!!! add #if's to make JIM_SUPPORT_EVENTLOOP enable/disable
  * eventloop support compile time! */
 #ifndef JIM_SUPPORT_EVENTLOOP
 #define JIM_SUPPORT_EVENTLOOP 1
 #endif
 
-#ifdef __ECOS
-#include <cyg/jimtcl/jim.h>
-#include <cyg/jimtcl/jim-eventloop.h>
-#else
 #include "jim.h"
 #include "jim-eventloop.h"
-#endif
-
-
 
 
 #define AIO_CMD_LEN 128
@@ -108,9 +94,9 @@ static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask
     Jim_Obj *objPtr = clientData;
     Jim_Obj *scrPtr = NULL ;
     if ( mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
-    	Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
+        Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
     } else {
-    	Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
+        Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
     }
     Jim_EvalObjBackground(interp, scrPtr);
     return 0;
@@ -131,16 +117,16 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     if (!af->OpenFlags == AIO_FDOPEN) // fp = fdopen(fd) !!
         close(af->fd);
     if (af->rEvent) { // remove existing EventHandlers
-	Jim_DeleteFileHandler(interp,af->fp);
-	Jim_DecrRefCount(interp,af->rEvent);
+    Jim_DeleteFileHandler(interp,af->fp);
+    Jim_DecrRefCount(interp,af->rEvent);
     }
     if (af->wEvent) {
-	Jim_DeleteFileHandler(interp,af->fp);
-    	Jim_DecrRefCount(interp,af->wEvent);
+    Jim_DeleteFileHandler(interp,af->fp);
+        Jim_DecrRefCount(interp,af->wEvent);
     }
     if (af->eEvent) {
-	Jim_DeleteFileHandler(interp,af->fp);
-    	Jim_DecrRefCount(interp,af->eEvent);
+    Jim_DeleteFileHandler(interp,af->fp);
+        Jim_DecrRefCount(interp,af->eEvent);
     }
     Jim_Free(af);
 }
@@ -154,21 +140,21 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
     int option;
     const char *options[] = {
         "close", 
-	"seek", "tell", 
-	"gets", "read", "puts", 
-	"flush", "eof", 
-	"ndelay", 
-	"readable", "writable", "onexception",
-	"accept",
-	NULL
+    "seek", "tell", 
+    "gets", "read", "puts", 
+    "flush", "eof", 
+    "ndelay", 
+    "readable", "writable", "onexception",
+    "accept",
+    NULL
     };
     enum {OPT_CLOSE, 
-	  OPT_SEEK, OPT_TELL, 
-	  OPT_GETS, OPT_READ, OPT_PUTS,
+      OPT_SEEK, OPT_TELL, 
+      OPT_GETS, OPT_READ, OPT_PUTS,
           OPT_FLUSH, OPT_EOF, 
-	  OPT_NDELAY,
-	  OPT_READABLE, OPT_WRITABLE, OPT_EXCEPTION,
-	  OPT_ACCEPT
+      OPT_NDELAY,
+      OPT_READABLE, OPT_WRITABLE, OPT_EXCEPTION,
+      OPT_ACCEPT
     };
 
     if (argc < 2) {
@@ -387,87 +373,87 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
         return JIM_OK;
     } else if (option  == OPT_NDELAY) {
 #ifdef O_NDELAY
-    	int fmode = af->flags;
+        int fmode = af->flags;
 
         if (argc == 3) {
-		jim_wide wideValue;
+        jim_wide wideValue;
 
-		if (Jim_GetWide(interp, argv[2], &wideValue) != JIM_OK)
+        if (Jim_GetWide(interp, argv[2], &wideValue) != JIM_OK)
                 return JIM_ERR;
-		switch (wideValue) {
-		case 0:
-			fmode &= ~O_NDELAY; break ;
-		case 1:
-			fmode |=  O_NDELAY; break ;
-		}
-		fcntl(af->fd,F_SETFL,fmode);
-		af->flags = fmode;
-	}
+        switch (wideValue) {
+        case 0:
+            fmode &= ~O_NDELAY; break ;
+        case 1:
+            fmode |=  O_NDELAY; break ;
+        }
+        fcntl(af->fd,F_SETFL,fmode);
+        af->flags = fmode;
+    }
         Jim_SetResult(interp, Jim_NewIntObj(interp, (fmode & O_NONBLOCK)?1:0));
         return JIM_OK;
 #else
         return JIM_ERR;
 #endif
     } else if   (  (option  == OPT_READABLE) 
-		|| (option  == OPT_WRITABLE) 
-		|| (option  == OPT_EXCEPTION) 
+        || (option  == OPT_WRITABLE) 
+        || (option  == OPT_EXCEPTION) 
                 ) {
-	int mask = 0;
-	Jim_Obj **scrListObjpp = NULL;
-	Jim_Obj *listObj;
-	const char *dummy = NULL;
-	int scrlen = 0;
+    int mask = 0;
+    Jim_Obj **scrListObjpp = NULL;
+    Jim_Obj *listObj;
+    const char *dummy = NULL;
+    int scrlen = 0;
 
-	switch (option) {
-	case OPT_READABLE:  mask = JIM_EVENT_READABLE;  scrListObjpp = &af->rEvent; 
-		if (argc == 4)  mask |= JIM_EVENT_FEOF ; 			  break;
-	case OPT_WRITABLE:  mask = JIM_EVENT_WRITABLE;  scrListObjpp = &af->wEvent; break;
-	case OPT_EXCEPTION: mask = JIM_EVENT_EXCEPTION; scrListObjpp = &af->eEvent; break;
-	}
+    switch (option) {
+    case OPT_READABLE:  mask = JIM_EVENT_READABLE;  scrListObjpp = &af->rEvent; 
+        if (argc == 4)  mask |= JIM_EVENT_FEOF ;              break;
+    case OPT_WRITABLE:  mask = JIM_EVENT_WRITABLE;  scrListObjpp = &af->wEvent; break;
+    case OPT_EXCEPTION: mask = JIM_EVENT_EXCEPTION; scrListObjpp = &af->eEvent; break;
+    }
         switch (argc) {
-	case 4:
-	case 3:
-		if (*scrListObjpp) {
-			Jim_DeleteFileHandler(interp, af->fp); //,mask);
-			Jim_DecrRefCount(interp, *scrListObjpp); 
-			*scrListObjpp = NULL;
-		}
-		if ( dummy = Jim_GetString(argv[2],&scrlen),(scrlen == 0)) {
-			break;
-		} else {
-			*scrListObjpp = Jim_NewListObj(interp, NULL, 0);
-			Jim_IncrRefCount(*scrListObjpp);
-			listObj = argv[2];
-			if (Jim_IsShared(listObj))
-				listObj = Jim_DuplicateObj(interp, listObj);
-			// Jim_IncrRefCount(listObj);
-			Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-			if (mask & JIM_EVENT_FEOF) {
-				listObj = argv[3];
-				if (Jim_IsShared(listObj))
-					listObj = Jim_DuplicateObj(interp, listObj);
-				// Jim_IncrRefCount(listObj);
-				Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-			}
-			Jim_IncrRefCount(*scrListObjpp);
-			Jim_CreateFileHandler(interp, af->fp, mask, 
-				JimAioFileEventHandler,
-				*scrListObjpp,
-				JimAioFileEventFinalizer);
-		}
-		break;
-	case 2:
-		if (*scrListObjpp)
-			Jim_SetResult(interp,*scrListObjpp);
-		return JIM_OK;
-	default:
+    case 4:
+    case 3:
+        if (*scrListObjpp) {
+            Jim_DeleteFileHandler(interp, af->fp); //,mask);
+            Jim_DecrRefCount(interp, *scrListObjpp); 
+            *scrListObjpp = NULL;
+        }
+        if ( dummy = Jim_GetString(argv[2],&scrlen),(scrlen == 0)) {
+            break;
+        } else {
+            *scrListObjpp = Jim_NewListObj(interp, NULL, 0);
+            Jim_IncrRefCount(*scrListObjpp);
+            listObj = argv[2];
+            if (Jim_IsShared(listObj))
+                listObj = Jim_DuplicateObj(interp, listObj);
+            // Jim_IncrRefCount(listObj);
+            Jim_ListAppendElement(interp,*scrListObjpp,listObj);
+            if (mask & JIM_EVENT_FEOF) {
+                listObj = argv[3];
+                if (Jim_IsShared(listObj))
+                    listObj = Jim_DuplicateObj(interp, listObj);
+                // Jim_IncrRefCount(listObj);
+                Jim_ListAppendElement(interp,*scrListObjpp,listObj);
+            }
+            Jim_IncrRefCount(*scrListObjpp);
+            Jim_CreateFileHandler(interp, af->fp, mask, 
+                JimAioFileEventHandler,
+                *scrListObjpp,
+                JimAioFileEventFinalizer);
+        }
+        break;
+    case 2:
+        if (*scrListObjpp)
+            Jim_SetResult(interp,*scrListObjpp);
+        return JIM_OK;
+    default:
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
     } else if (option  == OPT_ACCEPT) {
-	int ret;
-	ret = JimAioAcceptHelper(interp,af);
-	return (ret);
+    int ret;
+    ret = JimAioAcceptHelper(interp,af);
+    return (ret);
     }
     return JIM_OK;
 }
@@ -600,7 +586,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
     }
     if (0 == strncmp(sthost,"ANY",3))
-	sthost = "0.0.0.0";
+    sthost = "0.0.0.0";
     srcport = atol(stsrcport);
     port = atol(stport);
     he = gethostbyname(sthost);
@@ -616,41 +602,41 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     switch (socktype) {
     case SOCK_DGRAM_CL:
             hdlfmt = "aio.sockdgram%ld" ;
-		break;
-    case SOCK_STREAM_CL:	
-    		sa.sin_family= he->h_addrtype;
-		bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
-		sa.sin_port = htons(port);
-		res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
-		if (res) {
-			close(sock);
-			JimAioSetError(interp);
-			return JIM_ERR;
-		}
-		hdlfmt = "aio.sockstrm%ld" ;
-		break;
+        break;
+    case SOCK_STREAM_CL:    
+            sa.sin_family= he->h_addrtype;
+        bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
+        sa.sin_port = htons(port);
+        res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
+        if (res) {
+            close(sock);
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        hdlfmt = "aio.sockstrm%ld" ;
+        break;
     case SOCK_STREAM_SERV: 
-    		sa.sin_family= he->h_addrtype;
-		bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
-		sa.sin_port = htons(port);
-		res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));	
-		if (res) {
-			close(sock);
-			JimAioSetError(interp);
-			return JIM_ERR;
-		}
-		res = listen(sock,5);	
-		if (res) {
-			close(sock);
-			JimAioSetError(interp);
-			return JIM_ERR;
-		}
-		hdlfmt = "aio.socksrv%ld" ;
-		break;
+            sa.sin_family= he->h_addrtype;
+        bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
+        sa.sin_port = htons(port);
+        res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));  
+        if (res) {
+            close(sock);
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        res = listen(sock,5);   
+        if (res) {
+            close(sock);
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        hdlfmt = "aio.socksrv%ld" ;
+        break;
     }
     fp = fdopen(sock, "r+" );
     if (fp == NULL) {
-	close(sock);
+    close(sock);
         JimAioSetError(interp);
         return JIM_ERR;
     }
@@ -713,7 +699,7 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
 }
 
 int 
-Jim_AioInit(Jim_Interp *interp)
+Jim_aioInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;

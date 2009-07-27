@@ -520,7 +520,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-int Jim_EventloopInit(Jim_Interp *interp)
+int Jim_eventloopInit(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
 

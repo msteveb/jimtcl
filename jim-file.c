@@ -665,7 +665,7 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-int Jim_FileInit(Jim_Interp *interp)
+int Jim_fileInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "file", "1.0", JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;

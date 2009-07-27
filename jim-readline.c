@@ -48,7 +48,7 @@ static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-int Jim_ReadlineInit(Jim_Interp *interp)
+int Jim_readlineInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "readline", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;

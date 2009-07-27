@@ -377,7 +377,7 @@ static int Jim_PosixSignalCommand(Jim_Interp *interp, int argc,
 
 	
 // end added 
-int Jim_PosixInit(Jim_Interp *interp)
+int Jim_posixInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;

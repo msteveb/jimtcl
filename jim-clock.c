@@ -100,7 +100,7 @@ static const jim_subcmd_type command_table[] = {
     { 0 }
 };
 
-int Jim_ClockInit(Jim_Interp *interp)
+int Jim_clockInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "clock", "1.0", JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;

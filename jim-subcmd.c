@@ -149,7 +149,7 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
     }
 
     if (help) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+        Jim_SetResultString(interp, "Usage: ", -1);
         add_subcmd_usage(interp, ct, argc, argv);
         if (ct->description) {
             Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", ct->description, 0);

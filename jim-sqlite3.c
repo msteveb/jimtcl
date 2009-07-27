@@ -286,8 +286,8 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-DLLEXPORT int
-Jim_Sqlite3Init(Jim_Interp *interp)
+int
+Jim_sqlite3Init(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "sqlite3", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
