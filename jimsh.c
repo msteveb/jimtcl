@@ -126,6 +126,7 @@ extern void Jim_RegexpInit(Jim_Interp *interp);
 extern void Jim_ReaddirInit(Jim_Interp *interp);
 extern void Jim_FileInit(Jim_Interp *interp);
 extern void Jim_ExecInit(Jim_Interp *interp);
+extern void Jim_ClockInit(Jim_Interp *interp);
 
 int main(int argc, char *const argv[])
 {
@@ -144,6 +145,7 @@ int main(int argc, char *const argv[])
     Jim_ReaddirInit(interp);
     Jim_FileInit(interp);
     Jim_ExecInit(interp);
+    Jim_ClockInit(interp);
 
     /* Append the path where the executed Jim binary is contained
      * in the jim_libpath list. */
