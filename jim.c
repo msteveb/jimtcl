@@ -2224,6 +2224,78 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
+static const char *trim_left(const char *str, const char *trimchars)
+{
+    return str + strspn(str, trimchars);
+}
+
+static void trim_right(char *str, const char *trimchars)
+{
+    char *p = str + strlen(str) - 1;
+    char *end = str - 1;
+    int c;
+
+    for (c = *p; p != end; p--, c = *p) {
+        if (strchr(trimchars, c) == 0) {
+            end = p;
+            break;
+        }
+    }
+    p[1] = 0;
+}
+
+static const char default_trim_chars[] = " \t\n\r";
+
+static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
+{
+    char *buf;
+    const char *trimchars = default_trim_chars;
+    if (strObjPtr->typePtr != &stringObjType) {
+        SetStringFromAny(interp, strObjPtr);
+    }
+    if (trimcharsObjPtr) {
+        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
+    }
+
+    buf = Jim_Alloc(strObjPtr->length+1);
+    strcpy(buf, trim_left(strObjPtr->bytes, trimchars));
+    trim_right(buf, trimchars);
+
+    return Jim_NewStringObjNoAlloc(interp, buf, -1);
+}
+
+static Jim_Obj *JimStringTrimLeft(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
+{
+    const char *str = Jim_GetString(strObjPtr, NULL);
+    const char *trimchars = default_trim_chars;
+
+    if (trimcharsObjPtr) {
+        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
+    }
+
+    return Jim_NewStringObj(interp, trim_left(str, trimchars), -1);
+}
+
+static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
+{
+    char *buf;
+    const char *trimchars = default_trim_chars;
+
+    if (trimcharsObjPtr) {
+        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
+    }
+
+
+    if (strObjPtr->typePtr != &stringObjType) {
+        SetStringFromAny(interp, strObjPtr);
+    }
+
+    buf = Jim_StrDup(strObjPtr->bytes);
+    trim_right(buf, trimchars);
+
+    return Jim_NewStringObjNoAlloc(interp, buf, -1);
+}
+
 /* This is the core of the [format] command.
  * TODO: Lots of things work - via a hack
  *       However, no format item can be >= JIM_MAX_FMT 
@@ -3696,6 +3768,9 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
         return retval;
     } else {
         name = Jim_GetString(nameObjPtr, NULL);
+        if (name[0] == ':' && name[1] == ':') {
+            name += 2;
+        }
         if (Jim_DeleteHashEntry(&interp->framePtr->vars, name)
                 != JIM_OK) return JIM_ERR;
         /* Change the callframe id, invalidating var lookup caching */
@@ -5164,32 +5239,66 @@ static void JimListGetElements(Jim_Interp *interp, Jim_Obj *listObj, int *argc,
 }
 
 /* ListSortElements type values */
-enum {JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_ASCII_DECR,
-      JIM_LSORT_NOCASE_DECR};
+enum {JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_INTEGER, JIM_LSORT_COMMAND};
+
+/* Why doesn't qsort allow a user arg!!! */
+static Jim_Obj *sort_command = 0;
+static int sort_result = JIM_OK;
+static Jim_Interp *sort_interp = 0;
+static int sort_order;
 
 /* Sort the internal rep of a list. */
 static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0);
-}
-
-static int ListSortStringDecr(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
-{
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0) * -1;
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0) * sort_order;
 }
 
 static int ListSortStringNoCase(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1);
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1) * sort_order;
 }
 
-static int ListSortStringNoCaseDecr(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1) * -1;
+    jim_wide lhs = 0, rhs = 0;
+
+    /* REVISIT: If these are not valid integers, bogus results ...*/
+    Jim_GetWide(sort_interp, *lhsObj, &lhs);
+    Jim_GetWide(sort_interp, *rhsObj, &rhs);
+
+    return (int)(lhs - rhs) * sort_order;
+}
+
+static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    Jim_Obj *compare_script = Jim_DuplicateObj(sort_interp, sort_command);
+    long ret = 0;
+
+    //fprintf(stderr, "ListSortCommand: lhsObj=%s, rhsObj=%s\n", Jim_GetString(*lhsObj, NULL), Jim_GetString(*rhsObj, NULL));
+    
+    /* We have already had an error, so just compare pointers */
+    if (sort_result != JIM_OK) {
+        return (long)lhsObj - (long)rhsObj;
+    }
+
+    /* This must be a valid list */
+    Jim_ListAppendElement(sort_interp, compare_script, *lhsObj);
+    Jim_ListAppendElement(sort_interp, compare_script, *rhsObj);
+
+    sort_result = Jim_EvalObj(sort_interp, compare_script);
+
+    if (sort_result != JIM_OK) {
+        fprintf(stderr, "Failed to eval '%s'\n", Jim_GetString(compare_script, NULL));
+        /* We have an error, so just compare pointers */
+        return (long)lhsObj - (long)rhsObj;
+    }
+
+    Jim_GetLong(sort_interp, Jim_GetResult(sort_interp), &ret);
+    return sort_order * ret;
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
-static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
+static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, int order, Jim_Obj *command)
 {
     typedef int (qsort_comparator)(const void *, const void *);
     int (*fn)(Jim_Obj**, Jim_Obj**);
@@ -5201,13 +5310,20 @@ static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type)
     if (listObjPtr->typePtr != &listObjType)
         SetListFromAny(interp, listObjPtr);
 
+    sort_order = order;
+    sort_command = command;
+    sort_interp = interp;
+    sort_result = JIM_OK;
+
+    //fprintf(stderr, "Sorting with type=%d, order=%d, command=%s\n", type, order, command ? Jim_GetString(command, NULL) : "<none>");
+
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
     switch (type) {
         case JIM_LSORT_ASCII: fn = ListSortString;  break;
         case JIM_LSORT_NOCASE: fn = ListSortStringNoCase;  break;
-        case JIM_LSORT_ASCII_DECR: fn = ListSortStringDecr;  break;
-        case JIM_LSORT_NOCASE_DECR: fn = ListSortStringNoCaseDecr;  break;
+        case JIM_LSORT_INTEGER: fn = ListSortInteger;  break;
+        case JIM_LSORT_COMMAND: fn = ListSortCommand;  break;
         default:
             fn = NULL; /* avoid warning */
             Jim_Panic(interp,"ListSort called with invalid sort type");
@@ -9856,12 +9972,13 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
     const char *options[] = {
-        "-ascii", "-nocase", "-increasing", "-decreasing", NULL
+        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", NULL
     };
-    enum {OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING};
+    enum {OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER};
     Jim_Obj *resObj;
     int i, lsortType = JIM_LSORT_ASCII; /* default sort type */
-    int decreasing = 0;
+    int lsort_order = 1;
+    Jim_Obj *lsort_command = NULL;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "?options? list");
@@ -9876,18 +9993,14 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
         switch(option) {
         case OPT_ASCII: lsortType = JIM_LSORT_ASCII; break;
         case OPT_NOCASE: lsortType = JIM_LSORT_NOCASE; break;
-        case OPT_INCREASING: decreasing = 0; break;
-        case OPT_DECREASING: decreasing = 1; break;
-        }
-    }
-    if (decreasing) {
-        switch(lsortType) {
-        case JIM_LSORT_ASCII: lsortType = JIM_LSORT_ASCII_DECR; break;
-        case JIM_LSORT_NOCASE: lsortType = JIM_LSORT_NOCASE_DECR; break;
+        case OPT_INTEGER: lsortType = JIM_LSORT_INTEGER; break;
+        case OPT_INCREASING: lsort_order = 1; break;
+        case OPT_DECREASING: lsort_order = -1; break;
+        case OPT_COMMAND: lsortType = JIM_LSORT_COMMAND; lsort_command = argv[i + 1]; i++; break;
         }
     }
     resObj = Jim_DuplicateObj(interp, argv[argc-1]);
-    ListSortElements(interp, resObj, lsortType);
+    ListSortElements(interp, resObj, lsortType, lsort_order, lsort_command);
     Jim_SetResult(interp, resObj);
     return JIM_OK;
 }
@@ -10438,11 +10551,12 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
     int option;
     const char *options[] = {
         "length", "compare", "match", "equal", "range", "map", "repeat",
-        "index", "first", "tolower", "toupper", NULL
+        "index", "first", "trim", "trimleft", "trimright", "tolower", "toupper", NULL
     };
     enum {
         OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE,
-        OPT_MAP, OPT_REPEAT, OPT_INDEX, OPT_FIRST, OPT_TOLOWER, OPT_TOUPPER
+        OPT_MAP, OPT_REPEAT, OPT_INDEX, OPT_FIRST, OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT,
+        OPT_TOLOWER, OPT_TOUPPER
     };
 
     if (argc < 2) {
@@ -10591,6 +10705,24 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp, Jim_NewIntObj(interp,
                     JimStringFirst(s1, l1, s2, l2, index)));
         return JIM_OK;
+    } else if (option == OPT_TRIM) {
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "string ?trimchars?");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, JimStringTrim(interp, argv[2], argc == 4 ? argv[3] : NULL));
+    } else if (option == OPT_TRIMLEFT) {
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "string ?trimchars?");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, JimStringTrimLeft(interp, argv[2], argc == 4 ? argv[3] : NULL));
+    } else if (option == OPT_TRIMRIGHT) {
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "string ?trimchars?");
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, JimStringTrimRight(interp, argv[2], argc == 4 ? argv[3] : NULL));
     } else if (option == OPT_TOLOWER) {
         if (argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "string");
