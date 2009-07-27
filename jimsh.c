@@ -119,6 +119,12 @@ static void JimLoadJimRc(Jim_Interp *interp)
     }
 }
 
+
+extern void Jim_AioInit(Jim_Interp *interp);
+extern void Jim_EventloopInit(Jim_Interp *interp);
+extern void Jim_RegexpInit(Jim_Interp *interp);
+extern void Jim_ReaddirInit(Jim_Interp *interp);
+
 int main(int argc, char *const argv[])
 {
     int retcode, n;

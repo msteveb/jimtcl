@@ -857,6 +857,8 @@ JIM_EXPORT int JIM_API(Jim_InteractivePrompt) (Jim_Interp *interp);
 
 /* Misc */
 JIM_EXPORT void JIM_API(Jim_Panic) (Jim_Interp *interp, const char *fmt, ...);
+int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
+int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
 
 /* Jim's STDIO */
 JIM_EXPORT int     JIM_API( Jim_fprintf  )( Jim_Interp *interp, void *cookie, const char *fmt, ... );
