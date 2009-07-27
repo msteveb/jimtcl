@@ -712,7 +712,7 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
     return JIM_OK;
 }
 
-DLLEXPORT int 
+int 
 Jim_AioInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)

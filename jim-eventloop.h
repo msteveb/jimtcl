@@ -63,17 +63,17 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_EXCEPTION 4
 #define JIM_EVENT_FEOF 8
 
-JIM_EXPORT void JIM_API(Jim_CreateFileHandler) (Jim_Interp *interp,
+JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
         void *handle, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
-JIM_EXPORT void JIM_API(Jim_DeleteFileHandler) (Jim_Interp *interp,
+JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
         void *handle);
-JIM_EXPORT jim_wide JIM_API(Jim_CreateTimeHandler) (Jim_Interp *interp,
+JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
-JIM_EXPORT jim_wide JIM_API(Jim_DeleteTimeHandler) (Jim_Interp *interp, jim_wide id);
-JIM_EXPORT int JIM_API(Jim_ProcessEvents) (Jim_Interp *interp, int flags);
+JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
+JIM_EXPORT int Jim_ProcessEvents (Jim_Interp *interp, int flags);
 
 #endif /* __JIM_EVENTLOOP_H__ */
