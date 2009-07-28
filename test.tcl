@@ -15,17 +15,23 @@ proc test {id descr script expectedResult} {
     global failedTests failedList passedTests
 
     puts -nonewline "$id $descr: "
-    set result [uplevel 1 $script]
-    if {$result eq $expectedResult} {
-	puts "OK"
-	incr passedTests
+    set rc [catch [list uplevel 1 $script] result]
+    if {$rc == 0 && $result eq $expectedResult} {
+		puts "OK"
+		incr passedTests
     } else {
-	puts "ERR"
-	puts "Expected: '$expectedResult'"
-	puts "Got     : '$result'"
-	incr failedTests
+		puts "ERR"
+		puts "Expected: '$expectedResult'"
+		puts "Got     : '$result'"
+		incr failedTests
         lappend failedList $id
     }
+}
+
+catch {package require regexp}
+
+if {[info commands regexp] eq ""} {
+    proc regexp {pat str} {expr {$pat eq "^a*b$" && $str eq "aaaab"}}
 }
 
 ################################################################################
@@ -2444,17 +2450,20 @@ test switch-3.1 {-exact vs. -glob vs. -regexp} {
     }
 } exact
 test switch-3.2 {-exact vs. -glob vs. -regexp (no [regexp] cmd)} {
-    catch {
+	rename regexp regexp.none
+    set rc [catch {
         switch -regexp aaaab {
         ^a*b$	{concat regexp}
         *b	{concat glob}
         aaaab	{concat exact}
         default	{concat none}
         }
-    }
+    }]
+	rename regexp.none regexp
+	set rc
 } 1
+
 test switch-3.3 {-exact vs. -glob vs. -regexp (with [regexp] cmd)} {
-    proc regexp {pat str} {expr {$pat eq "^a*b$" && $str eq "aaaab"}}
     switch -regexp aaaab {
 	^a*b$	{concat regexp}
 	*b	    {concat glob}
@@ -4046,8 +4055,6 @@ test scan-13.8 {Tcl_ScanObjCmd, inline XPG case lots of arguments} {
 ################################################################################
 # REGEXP and REGSUB
 ################################################################################
-
-catch {package require regexp}
 
 test regexp-1.1 {basic regexp operation} {
     regexp ab*c abbbc
