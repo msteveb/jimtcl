@@ -11,11 +11,11 @@ proc bench {title script} {
         if {!$batchmode} {puts "$Title - This test can't run on this interpreter"}
         lappend benchmarks $title F
     } else {
-        set t [lindex $res 0]
+        set t [expr [lindex $res 0] / 1000]
         lappend benchmarks $title $t
         set ts "          $t"
         set ts [string range $ts [expr {[string length $ts]-10}] end]
-        if {!$batchmode} {puts "$Title -$ts microseconds per iteration"}
+        if {!$batchmode} {puts "$Title -$ts ms per iteration"}
     }
 }
 

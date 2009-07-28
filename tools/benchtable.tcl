@@ -32,7 +32,7 @@ proc main {filename} {
             if {$v eq "F"} {
                 puts -nonewline "     F "
             } else {
-                puts -nonewline [format "% 6d " [expr {$v / 1000}]]
+                puts -nonewline [format "% 6d " $v]
             }
         }
         puts ""
