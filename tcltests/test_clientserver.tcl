@@ -3,8 +3,14 @@ proc bgerror {msg} {
 	#exit 0
 }
 
+if {[info commands verbose] == ""} {
+	proc verbose {msg} {
+		puts $msg
+	}
+}
+
 if {[os.fork] == 0} {
-	puts "child: waiting a bit"
+	verbose "child: waiting a bit"
 
 	# This will be our client
 
@@ -16,9 +22,9 @@ if {[os.fork] == 0} {
 
 	proc onread {f} {
 		if {[$f gets buf] > 0} {
-			puts "child: read: $buf"
+			verbose "child: read response '$buf'"
 		} else {
-			puts "child: read got eof"
+			verbose "child: read got eof"
 			close $f
 			set ::done 1
 			$f readable {}
@@ -27,12 +33,12 @@ if {[os.fork] == 0} {
 
 	proc oneof {f} {
 		$f close
-		puts "child: eof so closing"
+		verbose "child: eof so closing"
 		set ::done 1
 	}
 
 	proc onwrite {f} {
-		puts "child: sending request"
+		verbose "child: sending request"
 		$f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
 		$f flush
 		$f writable {}
@@ -43,29 +49,31 @@ if {[os.fork] == 0} {
 
 	alarm 10
 	catch -signal {
-		puts "child: in event loop"
+		verbose "child: in event loop"
 		vwait done
-		puts "child: done event loop"
+		verbose "child: done event loop"
 	}
 	alarm 0
 	exit 0
 }
 
-puts "parent: opening socket"
+verbose "parent: opening socket"
 set done 0
 
 # This will be our server
 set f [aio.socket stream.server 0.0.0.0:9876]
 
 proc server_onread {f} {
-	puts "parent: onread (server) got connection on $f"
+	verbose "parent: onread (server) got connection on $f"
 	set cfd [$f accept]
-	puts "parent: onread accepted $cfd"
+	verbose "parent: onread accepted $cfd"
+
+	verbose "parent: read request '[string trim [$cfd gets]]'"
 
 	$cfd puts "Thanks for the request"
 	$cfd close
 
-	puts "parent: sent response"
+	verbose "parent: sent response"
 
 	incr ::done
 }
@@ -77,3 +85,7 @@ catch -signal {
 	vwait done
 }
 alarm 0
+
+sleep .5
+
+return "ok"

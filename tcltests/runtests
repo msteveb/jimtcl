@@ -26,11 +26,14 @@ foreach i [glob test_*.tcl] {
 		flush stdout
 	}
 	set rc [catch {source $i} result]
+	if {$rc == 7} {
+		exit 0
+	}
 	if {$verbose} {
 		puts -nonewline "$i..."
 	}
 	if {$rc} {
-		puts "failed"
+		puts "failed($rc) $result"
 		if {$verbose} {
 			puts $result
 		}
