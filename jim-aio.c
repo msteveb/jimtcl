@@ -50,12 +50,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-/* FIX!!! add #if's to make JIM_SUPPORT_EVENTLOOP enable/disable
- * eventloop support compile time! */
-#ifndef JIM_SUPPORT_EVENTLOOP
-#define JIM_SUPPORT_EVENTLOOP 1
-#endif
-
 #include "jim.h"
 #include "jim-eventloop.h"
 
@@ -116,6 +110,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
         fclose(af->fp);
     if (!af->OpenFlags == AIO_FDOPEN) // fp = fdopen(fd) !!
         close(af->fd);
+#ifdef with_jim_ext_eventloop
     if (af->rEvent) { // remove existing EventHandlers
         Jim_DeleteFileHandler(interp,af->fp);
         Jim_DecrRefCount(interp,af->rEvent);
@@ -128,6 +123,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
         Jim_DeleteFileHandler(interp,af->fp);
         Jim_DecrRefCount(interp,af->eEvent);
     }
+#endif
     Jim_Free(af);
 }
 
@@ -144,7 +140,9 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
     "gets", "read", "puts", 
     "flush", "eof", 
     "ndelay", 
+#ifdef with_jim_ext_eventloop
     "readable", "writable", "onexception",
+#endif
     "accept",
     NULL
     };
@@ -153,7 +151,9 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
       OPT_GETS, OPT_READ, OPT_PUTS,
           OPT_FLUSH, OPT_EOF, 
       OPT_NDELAY,
+#ifdef with_jim_ext_eventloop
       OPT_READABLE, OPT_WRITABLE, OPT_EXCEPTION,
+#endif
       OPT_ACCEPT,
     };
 
@@ -394,7 +394,9 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
 #else
         return JIM_ERR;
 #endif
-    } else if   (  (option  == OPT_READABLE) 
+    }
+#ifdef with_jim_ext_eventloop
+    else if   (  (option  == OPT_READABLE) 
         || (option  == OPT_WRITABLE) 
         || (option  == OPT_EXCEPTION) 
                 ) {
@@ -450,7 +452,9 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-    } else if (option  == OPT_ACCEPT) {
+    }
+#endif
+    else if (option  == OPT_ACCEPT) {
         return JimAioAcceptHelper(interp,af);
     }
     return JIM_OK;
@@ -653,7 +657,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
 static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
 {
     int sock;
-    int addrlen = sizeof(struct sockaddr_in);
+    socklen_t addrlen = sizeof(struct sockaddr_in);
     AioFile *af;
     char buf[AIO_CMD_LEN];
     long fileId;

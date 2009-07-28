@@ -23,8 +23,11 @@ SDKHDRS := jim.h jim-subcmd.h
 
 EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 
+.PRECIOUS: jim-%.c
+
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
+	echo $@ >>.clean
 	tclsh make-c-ext $*.tcl
 
 # Emulate tinytcl
@@ -56,3 +59,4 @@ install:
 
 clean:
 	rm -f *.o lib*.a $(TARGETS) load_extensions.c
+	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi

@@ -27,7 +27,7 @@ AC_ARG_WITH(jim-ext,
 	[
 		if test "x$withval" != "xno" ; then
 			if test "x$withval" = "xall" ; then
-				jim_extensions="tcl6 glob array aio clock eventloop exec file posix regexp signal"
+				jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 eventloop aio"
 			else
 				jim_extensions="$withval"
 			fi
@@ -35,8 +35,10 @@ AC_ARG_WITH(jim-ext,
 	]
 )
 AC_MSG_RESULT(enabling jim extensions: $jim_extensions)
+AC_SUBST(JIM_EXTENSIONS,$jim_extensions)
 for i in $jim_extensions; do
-	AC_SUBST(JIM_EXTENSIONS,$jim_extensions)
+	dnl AC_DEFINE_UNQUOTED(with_jim_ext_$i)
+	EXTRA_CFLAGS="$EXTRA_CFLAGS -Dwith_jim_ext_$i"
 done
 
 AC_CHECK_FUNCS([ualarm],EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_UALARM")

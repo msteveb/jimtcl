@@ -8468,7 +8468,9 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
         const int cwd_len=2048;
         char *cwd=malloc(cwd_len);
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        getcwd( cwd, cwd_len );
+        if (getcwd( cwd, cwd_len ) != 0) {
+            strcpy(cwd, "?");
+        }
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "Error loading script \"", filename, "\"",
             " cwd: ", cwd,

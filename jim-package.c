@@ -75,7 +75,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_Obj *libPathObjPtr;
     char **prefixes, *path;
-    int prefixc, i, retCode = JIM_OK;
+    int prefixc, i, retCode = JIM_ERR;
 
     libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim_libpath", JIM_NONE);
     if (libPathObjPtr == NULL) {
@@ -105,13 +105,16 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
         /* Try to load/source it */
         if (p && strcmp(p, ".tcl") == 0) {
             retCode = Jim_EvalFile(interp, path);
-        } else {
+        }
+#ifdef with_jim_ext_load
+        else {
             retCode = Jim_LoadLibrary(interp, path);
         }
+#endif
+        Jim_Free(path);
     } else {
         retCode = JIM_ERR;
     }
-    Jim_Free(path);
     for (i = 0; i < prefixc; i++)
         Jim_Free(prefixes[i]);
     Jim_Free(prefixes);

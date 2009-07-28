@@ -736,13 +736,14 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         }
         if (pid == 0) {
             char errSpace[200];
+            int rc;
 
             if ((inputId != -1 && dup2(inputId, 0) == -1)
                 || (outputId != -1 && dup2(outputId, 1) == -1)
                 || (errorId != -1 &&(dup2(errorId, 2) == -1))) {
 
                 static const char err[] = "forked process couldn't set up input/output\n";
-                write(errorId < 0 ? 2 : errorId, err, strlen(err));
+                rc = write(errorId < 0 ? 2 : errorId, err, strlen(err));
                 _exit(1);
             }
             for (i = 3; (i <= outputId) || (i <= inputId) || (i <= errorId); i++) {
@@ -750,7 +751,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             }
             execvp(execName, &arg_array[firstArg]);
             sprintf(errSpace, "couldn't find \"%.150s\" to execute\n", arg_array[firstArg]);
-            write(2, errSpace, strlen(errSpace));
+            rc = write(2, errSpace, strlen(errSpace));
             _exit(1);
         }
         else {
