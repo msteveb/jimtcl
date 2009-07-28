@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# \
+exec ../tclsh $0
+
+#package require tcl6
+
+proc check {test got exp} {
+	if {$got != $exp} {
+		error "Failed: $test\nExp: {$exp}\nGot: {$got}"
+	}
+}
+proc verbose {msg} {
+	if {$::verbose} {
+		puts $msg
+	}
+}
+
+set verbose [string equal [lindex $argv 0] "-v"]
+
+foreach i [glob test_*.tcl] {
+	puts -nonewline "$i..."
+	flush stdout
+	if {[catch {source $i} error]} {
+		puts "failed"
+		if {$verbose} {
+			puts $error
+		}
+	} else {
+		puts "ok"
+	}
+}
