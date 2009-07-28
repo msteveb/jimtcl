@@ -2,15 +2,11 @@
 #include <string.h>
 
 #include <jim.h>
-
-# include <sys/types.h>
-# include <dirent.h>
+#include <jim-subcmd.h>
 
 /* -----------------------------------------------------------------------------
  * Packages handling
  * ---------------------------------------------------------------------------*/
-
-#define JIM_PKG_ANY_VERSION -1
 
 int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
         int flags)
@@ -25,24 +21,6 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
         return JIM_ERR;
     }
     Jim_AddHashEntry(&interp->packages, name, (char*) ver);
-    return JIM_OK;
-}
-
-static int Jim_PackageList(Jim_Interp *interp)
-{
-    Jim_HashTableIterator *htiter;
-    Jim_HashEntry *he;
-    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
-    
-    htiter = Jim_GetHashTableIterator(&interp->packages);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_ListAppendElement(interp, listObjPtr,
-                Jim_NewStringObj(interp, he->key, -1));
-    }
-    Jim_FreeHashTableIterator(htiter);
-
-    Jim_SetResult(interp, listObjPtr);
-
     return JIM_OK;
 }
 
@@ -123,8 +101,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
     return retCode;
 }
 
-const char *Jim_PackageRequire(Jim_Interp *interp, const char *name,
-        const char *ver, int flags)
+const char *Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_HashEntry *he;
 
@@ -139,10 +116,12 @@ const char *Jim_PackageRequire(Jim_Interp *interp, const char *name,
             if (he == NULL) {
                 /* Did not call package provide, so we do it for them */
                 Jim_PackageProvide(interp, name, "1.0", 0);
+
                 return "1.0";
             }
             return he->val;
         }
+
         /* No way... return an error. */
         if (flags & JIM_ERRMSG) {
             int len;
@@ -156,57 +135,111 @@ const char *Jim_PackageRequire(Jim_Interp *interp, const char *name,
     }
 }
 
-/* [package] */
-int Jim_PackageCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+/*
+ *----------------------------------------------------------------------
+ *
+ * package provide name ?version?
+ *
+ *	This procedure is invoked to declare that a particular version
+ *	of a particular package is now present in an interpreter.  There
+ *	must not be any other version of this package already
+ *	provided in the interpreter.
+ *
+ * Results:
+ *	Returns JIM_OK and sets the package version (or 1.0 if not specified).
+ *
+ *----------------------------------------------------------------------
+ */
+static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int option;
-    const char *options[] = {
-        "require", "provide", "list", NULL
-    };
-    enum {OPT_REQUIRE, OPT_PROVIDE, OPT_LIST};
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
-        return JIM_ERR;
+    const char *version = "1.0";
+    
+    if (argc == 2) {
+        version = Jim_GetString(argv[1], NULL);
     }
-    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
-                JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
+    return Jim_PackageProvide(interp, Jim_GetString(argv[0], NULL), version, JIM_ERRMSG);
+}
 
-    if (option == OPT_REQUIRE) {
-        int exact = 0;
-        const char *ver;
+/*
+ *----------------------------------------------------------------------
+ *
+ * package require name ?version?
+ *
+ *	This procedure is load a given package.
+ *	Note that the version is ignored.
+ *
+ * Results:
+ *	Returns JIM_OK and sets the package version.
+ *
+ *----------------------------------------------------------------------
+ */
+static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const char *ver = Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
 
-        if (Jim_CompareStringImmediate(interp, argv[2], "-exact")) {
-            exact = 1;
-            argv++;
-            argc--;
-        }
-        if (argc != 3 && argc != 4) {
-            Jim_WrongNumArgs(interp, 2, argv, "?-exact? package ?version?");
-            return JIM_ERR;
-        }
-        ver = Jim_PackageRequire(interp, Jim_GetString(argv[2], NULL),
-                argc == 4 ? Jim_GetString(argv[3], NULL) : "",
-                JIM_ERRMSG);
-        if (ver == NULL)
-            return JIM_ERR_ADDSTACK;
-        Jim_SetResultString(interp, ver, -1);
-    } else if (option == OPT_PROVIDE) {
-        if (argc != 4) {
-            Jim_WrongNumArgs(interp, 2, argv, "package version");
-            return JIM_ERR;
-        }
-        return Jim_PackageProvide(interp, Jim_GetString(argv[2], NULL),
-                    Jim_GetString(argv[3], NULL), JIM_ERRMSG);
-    } else if (option == OPT_LIST) {
-        return Jim_PackageList(interp);
+    if (ver == NULL) {
+        return JIM_ERR_ADDSTACK;
     }
+    Jim_SetResultString(interp, ver, -1);
     return JIM_OK;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * package list
+ *
+ *	Returns a list of known packages
+ *
+ * Results:
+ *	Returns JIM_OK and sets a list of known packages.
+ *
+ *----------------------------------------------------------------------
+ */
+static int package_cmd_list(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_HashTableIterator *htiter;
+    Jim_HashEntry *he;
+    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    
+    htiter = Jim_GetHashTableIterator(&interp->packages);
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        Jim_ListAppendElement(interp, listObjPtr,
+                Jim_NewStringObj(interp, he->key, -1));
+    }
+    Jim_FreeHashTableIterator(htiter);
+
+    Jim_SetResult(interp, listObjPtr);
+
+    return JIM_OK;
+}
+
+static const jim_subcmd_type command_table[] = {
+    {   .cmd = "provide",
+        .args = "name ?version?",
+        .function = package_cmd_provide,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Indicates that the current script provides the given package"
+    },
+    {   .cmd = "require",
+        .args = "name ?version?",
+        .function = package_cmd_require,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Loads the given package by looking in standard places"
+    },
+    {   .cmd = "list",
+        .function = package_cmd_list,
+        .minargs = 0,
+        .maxargs = 0,
+        .description = "Lists all known packages"
+    },
+    { 0 }
+};
+
 int Jim_packageInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "package", Jim_PackageCoreCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "package", Jim_SubCmdProc, (void *)command_table, NULL);
     return JIM_OK;
 }

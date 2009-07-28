@@ -50,12 +50,10 @@ $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-load_extensions.c:
+load_extensions.c: make-load-extensions.sh
 	sh make-load-extensions.sh $@ $(EXTENSIONS)
 
 install:
-	install -d $(DESTDIR)/lib/tcl6
-	install -m 644 array.tcl glob.tcl stdio.tcl tcl6.tcl $(DESTDIR)/lib/tcl6
 
 clean:
 	rm -f *.o lib*.a $(TARGETS) load_extensions.c

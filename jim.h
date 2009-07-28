@@ -813,7 +813,7 @@ JIM_EXPORT int Jim_DeleteAssocData(Jim_Interp *interp, const char *key);
 JIM_EXPORT int Jim_PackageProvide (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
 JIM_EXPORT const char * Jim_PackageRequire (Jim_Interp *interp,
-        const char *name, const char *ver, int flags);
+        const char *name, int flags);
 
 /* error messages */
 JIM_EXPORT void Jim_PrintErrorMessage (Jim_Interp *interp);
@@ -822,16 +822,15 @@ JIM_EXPORT void Jim_PrintErrorMessage (Jim_Interp *interp);
 JIM_EXPORT int Jim_InteractivePrompt (Jim_Interp *interp);
 
 /* Misc */
-void Jim_InitStaticExtensions(Jim_Interp *interp);
+JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT void Jim_Panic (Jim_Interp *interp, const char *fmt, ...);
-int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
+JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 
 /* jim-load.c */
-int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
-
+JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
 
 /* jim-aio.c */
-FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
+JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 
 #ifdef __cplusplus
 }

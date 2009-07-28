@@ -130,7 +130,9 @@ int main(int argc, char *const argv[])
     Jim_RegisterCoreCommands(interp);
 
     /* Register static extensions */
-    Jim_InitStaticExtensions(interp);
+    if (Jim_InitStaticExtensions(interp) != JIM_OK) {
+        Jim_PrintErrorMessage(interp);
+    }
 
     /* Append the path where the executed Jim binary is contained
      * in the jim_libpath list. */

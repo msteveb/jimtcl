@@ -22,9 +22,6 @@ foreach file $argv {
 	set rootname [file rootname $tmp]
 	set outfile jim-$rootname.c
 	puts "$file -> $outfile"
-	if {[file exists $outfile]} {
-		error "Already exists: $outfile"
-	}
 	set f [open $file]
 	set str [read $f]
 	close $f

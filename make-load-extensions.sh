@@ -7,11 +7,11 @@ shift
 echo '#include "jim.h"'
 for i in "$@"; do
 	name=`echo $i | sed -e 's@.*/\(.*\).c@\1@'`
-	echo "extern void Jim_${name}Init(Jim_Interp *interp);"
+	echo "extern int Jim_${name}Init(Jim_Interp *interp);"
 done
-echo "void Jim_InitStaticExtensions(Jim_Interp *interp) {"
+echo "int Jim_InitStaticExtensions(Jim_Interp *interp) {"
 for i in "$@"; do
 	name=`echo $i | sed -e 's@.*/\(.*\).c@\1@'`
-	echo "Jim_${name}Init(interp);"
+	echo "if (Jim_${name}Init(interp) != JIM_OK) return JIM_ERR;"
 done
 echo "}"

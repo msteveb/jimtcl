@@ -32,8 +32,8 @@
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the Jim Tcl Project.
 
-package provide glob 1.0
-package require readdir 1.0
+package provide glob
+package require readdir
 
 # If $dir is a directory, return a list of all entries
 # it contains which match $pattern
