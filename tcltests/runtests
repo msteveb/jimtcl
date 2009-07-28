@@ -19,14 +19,27 @@ proc verbose {msg} {
 set verbose [string equal [lindex $argv 0] "-v"]
 
 foreach i [glob test_*.tcl] {
-	puts -nonewline "$i..."
-	flush stdout
-	if {[catch {source $i} error]} {
+	if {$verbose} {
+		puts "======= $i ======="
+	} else {
+		puts -nonewline "$i..."
+		flush stdout
+	}
+	set rc [catch {source $i} result]
+	if {$verbose} {
+		puts -nonewline "$i..."
+	}
+	if {$rc} {
 		puts "failed"
 		if {$verbose} {
-			puts $error
+			puts $result
 		}
+	} elseif {$result ne ""} {
+		puts $result
 	} else {
 		puts "ok"
+	}
+	if {$verbose} {
+		puts ""
 	}
 }

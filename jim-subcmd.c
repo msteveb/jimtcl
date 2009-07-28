@@ -175,7 +175,12 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_
     int ret = JIM_ERR;
 
     if (ct) {
-        ret = ct->function(interp, argc - 2, argv + 2);
+        if (ct->flags & JIM_MODFLAG_FULLARGV) {
+            ret = ct->function(interp, argc, argv);
+        }
+        else {
+            ret = ct->function(interp, argc - 2, argv + 2);
+        }
         if (ret < 0) {
             Jim_SetResultString(interp, "wrong # args: should be \"", -1);
             add_subcmd_usage(interp, ct, argc, argv);

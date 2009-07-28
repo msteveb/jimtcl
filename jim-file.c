@@ -658,7 +658,8 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const int cwd_len=2048;
     char *cwd=malloc(cwd_len);
 
-    if (getcwd(cwd, cwd_len) != 0) {
+    if (getcwd(cwd, cwd_len) == NULL) {
+        Jim_SetResultString(interp, "Failed to get pwd", -1);
         return JIM_ERR;
     }
 

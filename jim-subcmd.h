@@ -6,7 +6,8 @@
 
 #include <jim.h>
 
-#define JIM_MODFLAG_HIDDEN 0x0001		/* Don't show the subcommand in usage or commands */
+#define JIM_MODFLAG_HIDDEN   0x0001		/* Don't show the subcommand in usage or commands */
+#define JIM_MODFLAG_FULLARGV 0x0001		/* Subcmd proc gets called with full argv */
 
 /* Custom flags start at 0x0100 */
 

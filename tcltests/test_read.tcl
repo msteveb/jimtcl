@@ -7,7 +7,8 @@ signal handle SIGALRM
 catch -signal {
 	alarm 0.5
 	while {1} {
-		incr count [bio read -hex $f buf 1]
+		incr count [string length [read $f 100]]
+		#incr count [bio read -hex $f buf 1]
 	}
 	alarm 0
 	signal default SIGALRM
@@ -18,3 +19,5 @@ verbose "Read $count bytes in 0.5 seconds: Got $error"
 # Kill it off
 #kill -TERM [pid $f]
 catch {close $f}
+
+return

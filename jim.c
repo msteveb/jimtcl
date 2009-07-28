@@ -1798,8 +1798,8 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     /* Check if the object was already freed, panic. */
     if (objPtr->refCount != 0)  {
-        Jim_Panic(interp,"!!!Object %p freed with bad refcount %d", objPtr,
-                objPtr->refCount);
+        Jim_Panic(interp,"!!!Object %p freed with bad refcount %d, type=%s", objPtr,
+                objPtr->refCount, objPtr->typePtr ? objPtr->typePtr->name : "<none>");
     }
     /* Free the internal representation */
     Jim_FreeIntRep(interp, objPtr);

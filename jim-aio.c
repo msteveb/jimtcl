@@ -52,6 +52,7 @@
 
 #include "jim.h"
 #include "jim-eventloop.h"
+#include "jim-subcmd.h"
 
 
 #define AIO_CMD_LEN 128
@@ -74,7 +75,7 @@ typedef struct AioFile {
     struct hostent *he;
 } AioFile;
 
-static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af );
+static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 {
@@ -87,9 +88,10 @@ static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask
 {
     Jim_Obj *objPtr = clientData;
     Jim_Obj *scrPtr = NULL ;
-    if ( mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
+    if (mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
         Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
-    } else {
+    }
+    else {
         Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
     }
     Jim_EvalObjBackground(interp, scrPtr);
@@ -106,358 +108,457 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     AioFile *af = privData;
     JIM_NOTUSED(interp);
 
-    if (!(af->OpenFlags & AIO_KEEPOPEN))
+    if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
-    if (!af->OpenFlags == AIO_FDOPEN) // fp = fdopen(fd) !!
+    }
+    if (!af->OpenFlags == AIO_FDOPEN) {
         close(af->fd);
+    }
 #ifdef with_jim_ext_eventloop
-    if (af->rEvent) { // remove existing EventHandlers
+    /* remove existing EventHandlers */
+    if (af->rEvent) {
         Jim_DeleteFileHandler(interp,af->fp);
-        Jim_DecrRefCount(interp,af->rEvent);
     }
     if (af->wEvent) {
         Jim_DeleteFileHandler(interp,af->fp);
-        Jim_DecrRefCount(interp,af->wEvent);
     }
     if (af->eEvent) {
         Jim_DeleteFileHandler(interp,af->fp);
-        Jim_DecrRefCount(interp,af->eEvent);
     }
 #endif
     Jim_Free(af);
 }
 
-/* Calls to [aio.file] create commands that are implemented by this
- * C command. */
-static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
-        Jim_Obj *const *argv)
+static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    int option;
-    const char *options[] = {
-        "close", 
-    "seek", "tell", 
-    "gets", "read", "puts", 
-    "flush", "eof", 
-    "ndelay", 
-#ifdef with_jim_ext_eventloop
-    "readable", "writable", "onexception",
-#endif
-    "accept",
-    NULL
-    };
-    enum {OPT_CLOSE, 
-      OPT_SEEK, OPT_TELL, 
-      OPT_GETS, OPT_READ, OPT_PUTS,
-          OPT_FLUSH, OPT_EOF, 
-      OPT_NDELAY,
-#ifdef with_jim_ext_eventloop
-      OPT_READABLE, OPT_WRITABLE, OPT_EXCEPTION,
-#endif
-      OPT_ACCEPT,
-    };
+    char buf[AIO_BUF_LEN];
+    Jim_Obj *objPtr;
+    int nonewline = 0;
+    int neededLen = -1; /* -1 is "read as much as possible" */
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
-        return JIM_ERR;
+    if (argc && Jim_CompareStringImmediate(interp, argv[0], "-nonewline"))
+    {
+        nonewline = 1;
+        argv++;
+        argc--;
     }
-    if (Jim_GetEnum(interp, argv[1], options, &option, "AIO method",
-                JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
-    /* CLOSE */
-    if (option == OPT_CLOSE) {
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
-        }
-        Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
-        return JIM_OK;
-    } else if (option == OPT_SEEK) {
-    /* SEEK */
-        int orig = SEEK_SET;
-        long offset;
-
-        if (argc != 3 && argc != 4) {
-            Jim_WrongNumArgs(interp, 2, argv, "offset ?origin?");
-            return JIM_ERR;
-        }
-        if (argc == 4) {
-            if (Jim_CompareStringImmediate(interp, argv[3], "start"))
-                orig = SEEK_SET;
-            else if (Jim_CompareStringImmediate(interp, argv[3], "current"))
-                orig = SEEK_CUR;
-            else if (Jim_CompareStringImmediate(interp, argv[3], "end"))
-                orig = SEEK_END;
-            else {
-                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-                Jim_AppendStrings(interp, Jim_GetResult(interp),
-                        "bad origin \"", Jim_GetString(argv[3], NULL),
-                        "\" must be: start, current, or end", NULL);
-                return JIM_ERR;
-            }
-        }
-        if (Jim_GetLong(interp, argv[2], &offset) != JIM_OK)
-            return JIM_ERR;
-        if (fseek(af->fp, offset, orig) == -1) {
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        return JIM_OK;
-    } else if (option == OPT_TELL) {
-    /* TELL */
-        long position;
-
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
-        }
-        position = ftell(af->fp);
-        Jim_SetResult(interp, Jim_NewIntObj(interp, position));
-        return JIM_OK;
-    } else if (option == OPT_GETS) {
-    /* GETS */
-        char buf[AIO_BUF_LEN];
-        Jim_Obj *objPtr;
-
-        if (argc != 2 && argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "?varName?");
-            return JIM_ERR;
-        }
-        objPtr = Jim_NewStringObj(interp, NULL, 0);
-        while (1) {
-            int more = 0;
-            buf[AIO_BUF_LEN-1] = '_';
-            if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
-                break;
-            if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN-2] != '\n')
-                more = 1;
-            if (more) {
-                Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN-1);
-            } else {
-                /* strip "\n" */
-                Jim_AppendString(interp, objPtr, buf, strlen(buf)-1);
-            }
-            if (!more)
-                break;
-        }
-        if (ferror(af->fp) && (errno != EAGAIN)) {
-            /* I/O error */
-            Jim_IncrRefCount(objPtr);
-            Jim_DecrRefCount(interp, objPtr);
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        /* On EOF returns -1 if varName was specified, or the empty string. */
-        if (feof(af->fp) && Jim_Length(objPtr) == 0) {
-            Jim_IncrRefCount(objPtr);
-            Jim_DecrRefCount(interp, objPtr);
-            if (argc == 3)
-                Jim_SetResult(interp, Jim_NewIntObj(interp, -1));
-            return JIM_OK;
-        }
-        if (argc == 3) {
-            int totLen;
-
-            Jim_GetString(objPtr, &totLen);
-            if (Jim_SetVariable(interp, argv[2], objPtr) != JIM_OK) {
-                Jim_IncrRefCount(objPtr);
-                Jim_DecrRefCount(interp, objPtr);
-                return JIM_ERR;
-            }
-            Jim_SetResult(interp, Jim_NewIntObj(interp, totLen));
-        } else {
-            Jim_SetResult(interp, objPtr);
-        }
-        return JIM_OK;
-    } else if (option == OPT_READ) {
-    /* READ */
-        char buf[AIO_BUF_LEN];
-        Jim_Obj *objPtr;
-        int nonewline = 0;
-        int neededLen = -1; /* -1 is "read as much as possible" */
-
-        if (argc != 2 && argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "?-nonewline? ?len?");
-            return JIM_ERR;
-        }
-        if (argc == 3 &&
-            Jim_CompareStringImmediate(interp, argv[2], "-nonewline"))
-        {
-            nonewline = 1;
-            argv++;
-            argc--;
-        }
-        if (argc == 3) {
-            jim_wide wideValue;
-            if (Jim_GetWide(interp, argv[2], &wideValue) != JIM_OK)
-                return JIM_ERR;
-            if (wideValue < 0) {
-                Jim_SetResultString(interp, "invalid parameter: negative len",
-                        -1);
-                return JIM_ERR;
-            }
-            neededLen = (int) wideValue;
-        }
-        objPtr = Jim_NewStringObj(interp, NULL, 0);
-        while (neededLen != 0) {
-            int retval;
-            int readlen;
-           
-            if (neededLen == -1) {
-                readlen = AIO_BUF_LEN;
-            } else {
-                readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
-            }
-            retval = fread(buf, 1, readlen, af->fp);
-            if (retval > 0) {
-                Jim_AppendString(interp, objPtr, buf, retval);
-                if (neededLen != -1) {
-                    neededLen -= retval;
-                }
-            }
-            if (retval != readlen) break;
-        }
-        /* Check for error conditions */
-        if (ferror(af->fp)) {
-            /* I/O error */
-            Jim_FreeNewObj(interp, objPtr);
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        if (nonewline) {
-            int len;
-            const char *s = Jim_GetString(objPtr, &len);
-
-            if (len > 0 && s[len-1] == '\n') {
-                objPtr->length--;
-                objPtr->bytes[objPtr->length] = '\0';
-            }
-        }
-        Jim_SetResult(interp, objPtr);
-        return JIM_OK;
-    } else if (option == OPT_PUTS) {
-    /* PUTS */
-        int wlen;
-        const char *wdata;
-
-        if (argc != 3 && (argc != 4 || !Jim_CompareStringImmediate(
-                        interp, argv[2], "-nonewline"))) {
-            Jim_WrongNumArgs(interp, 2, argv, "?-nonewline? string");
-            return JIM_ERR;
-        }
-        wdata = Jim_GetString(argv[2+(argc==4)], &wlen);
-        if (fwrite(wdata, 1, wlen, af->fp) != (unsigned)wlen ||
-            (argc == 3 && fwrite("\n", 1, 1, af->fp) != 1)) {
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        return JIM_OK;
-    } else if (option  == OPT_FLUSH) {
-    /* FLUSH */
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
-        }
-        if (fflush(af->fp) == EOF) {
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        return JIM_OK;
-    } else if (option  == OPT_EOF) {
-    /* EOF */
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
-        }
-        Jim_SetResult(interp, Jim_NewIntObj(interp, feof(af->fp)));
-        return JIM_OK;
-    } else if (option  == OPT_NDELAY) {
-#ifdef O_NDELAY
-        int fmode = af->flags;
-
-        if (argc == 3) {
+    if (argc == 1) {
         jim_wide wideValue;
-
-        if (Jim_GetWide(interp, argv[2], &wideValue) != JIM_OK)
-                return JIM_ERR;
-        switch (wideValue) {
-        case 0:
-            fmode &= ~O_NDELAY; break ;
-        case 1:
-            fmode |=  O_NDELAY; break ;
-        }
-        fcntl(af->fd,F_SETFL,fmode);
-        af->flags = fmode;
-    }
-        Jim_SetResult(interp, Jim_NewIntObj(interp, (fmode & O_NONBLOCK)?1:0));
-        return JIM_OK;
-#else
-        return JIM_ERR;
-#endif
-    }
-#ifdef with_jim_ext_eventloop
-    else if   (  (option  == OPT_READABLE) 
-        || (option  == OPT_WRITABLE) 
-        || (option  == OPT_EXCEPTION) 
-                ) {
-    int mask = 0;
-    Jim_Obj **scrListObjpp = NULL;
-    Jim_Obj *listObj;
-    const char *dummy = NULL;
-    int scrlen = 0;
-
-    switch (option) {
-    case OPT_READABLE:  mask = JIM_EVENT_READABLE;  scrListObjpp = &af->rEvent; 
-        if (argc == 4)  mask |= JIM_EVENT_FEOF ;              break;
-    case OPT_WRITABLE:  mask = JIM_EVENT_WRITABLE;  scrListObjpp = &af->wEvent; break;
-    case OPT_EXCEPTION: mask = JIM_EVENT_EXCEPTION; scrListObjpp = &af->eEvent; break;
-    }
-        switch (argc) {
-    case 4:
-    case 3:
-        if (*scrListObjpp) {
-            Jim_DeleteFileHandler(interp, af->fp); //,mask);
-            Jim_DecrRefCount(interp, *scrListObjpp); 
-            *scrListObjpp = NULL;
-        }
-        if ( dummy = Jim_GetString(argv[2],&scrlen),(scrlen == 0)) {
-            break;
-        } else {
-            *scrListObjpp = Jim_NewListObj(interp, NULL, 0);
-            Jim_IncrRefCount(*scrListObjpp);
-            listObj = argv[2];
-            if (Jim_IsShared(listObj))
-                listObj = Jim_DuplicateObj(interp, listObj);
-            // Jim_IncrRefCount(listObj);
-            Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-            if (mask & JIM_EVENT_FEOF) {
-                listObj = argv[3];
-                if (Jim_IsShared(listObj))
-                    listObj = Jim_DuplicateObj(interp, listObj);
-                // Jim_IncrRefCount(listObj);
-                Jim_ListAppendElement(interp,*scrListObjpp,listObj);
-            }
-            Jim_IncrRefCount(*scrListObjpp);
-            Jim_CreateFileHandler(interp, af->fp, mask, 
-                JimAioFileEventHandler,
-                *scrListObjpp,
-                JimAioFileEventFinalizer);
-        }
-        break;
-    case 2:
-        if (*scrListObjpp)
-            Jim_SetResult(interp,*scrListObjpp);
-        return JIM_OK;
-    default:
-            Jim_WrongNumArgs(interp, 2, argv, "");
+        if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
+            return JIM_ERR;
+        if (wideValue < 0) {
+            Jim_SetResultString(interp, "invalid parameter: negative len",
+                    -1);
             return JIM_ERR;
         }
+        neededLen = (int) wideValue;
     }
-#endif
-    else if (option  == OPT_ACCEPT) {
-        return JimAioAcceptHelper(interp,af);
+    else if (argc) {
+        return -1;
+    }
+    objPtr = Jim_NewStringObj(interp, NULL, 0);
+    while (neededLen != 0) {
+        int retval;
+        int readlen;
+       
+        if (neededLen == -1) {
+            readlen = AIO_BUF_LEN;
+        } else {
+            readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
+        }
+        retval = fread(buf, 1, readlen, af->fp);
+        if (retval > 0) {
+            Jim_AppendString(interp, objPtr, buf, retval);
+            if (neededLen != -1) {
+                neededLen -= retval;
+            }
+        }
+        if (retval != readlen) break;
+    }
+    /* Check for error conditions */
+    if (ferror(af->fp)) {
+        /* I/O error */
+        Jim_FreeNewObj(interp, objPtr);
+        JimAioSetError(interp);
+        return JIM_ERR;
+    }
+    if (nonewline) {
+        int len;
+        const char *s = Jim_GetString(objPtr, &len);
+
+        if (len > 0 && s[len-1] == '\n') {
+            objPtr->length--;
+            objPtr->bytes[objPtr->length] = '\0';
+        }
+    }
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
+static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    char buf[AIO_BUF_LEN];
+    Jim_Obj *objPtr;
+
+    objPtr = Jim_NewStringObj(interp, NULL, 0);
+    while (1) {
+        int more = 0;
+        buf[AIO_BUF_LEN-1] = '_';
+        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
+            break;
+        if (buf[AIO_BUF_LEN-1] == '\0' && buf[AIO_BUF_LEN-2] != '\n')
+            more = 1;
+        if (more) {
+            Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN-1);
+        } else {
+            /* strip "\n" */
+            Jim_AppendString(interp, objPtr, buf, strlen(buf)-1);
+        }
+        if (!more)
+            break;
+    }
+    if (ferror(af->fp) && (errno != EAGAIN)) {
+        /* I/O error */
+        Jim_FreeNewObj(interp, objPtr);
+        JimAioSetError(interp);
+        return JIM_ERR;
+    }
+    /* On EOF returns -1 if varName was specified, or the empty string. */
+    if (feof(af->fp) && Jim_Length(objPtr) == 0) {
+        Jim_FreeNewObj(interp, objPtr);
+        if (argc) {
+            Jim_SetResultInt(interp, -1);
+        }
+        return JIM_OK;
+    }
+    if (argc) {
+        int totLen;
+
+        Jim_GetString(objPtr, &totLen);
+        if (Jim_SetVariable(interp, argv[0], objPtr) != JIM_OK) {
+            Jim_FreeNewObj(interp, objPtr);
+            return JIM_ERR;
+        }
+        Jim_SetResultInt(interp, totLen);
+    }
+    else {
+        Jim_SetResult(interp, objPtr);
     }
     return JIM_OK;
+}
+
+static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int wlen;
+    const char *wdata;
+    Jim_Obj *strObj;
+
+    if (argc == 2) {
+        if (!Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
+            return -1;
+        }
+        strObj = argv[1];
+    }
+    else {
+        strObj = argv[0];
+    }
+
+    wdata = Jim_GetString(strObj, &wlen);
+    if (fwrite(wdata, 1, wlen, af->fp) == (unsigned)wlen) {
+        if (argc == 2 || putc('\n', af->fp) != EOF) {
+            return JIM_OK;
+        }
+    }
+    JimAioSetError(interp);
+    return JIM_ERR;
+}
+
+static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    if (fflush(af->fp) == EOF) {
+        JimAioSetError(interp);
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    Jim_SetResultInt(interp, feof(af->fp));
+    return JIM_OK;
+}
+
+static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
+    return JIM_OK;
+}
+
+static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int orig = SEEK_SET;
+    long offset;
+
+    if (argc == 2) {
+        if (Jim_CompareStringImmediate(interp, argv[1], "start"))
+            orig = SEEK_SET;
+        else if (Jim_CompareStringImmediate(interp, argv[1], "current"))
+            orig = SEEK_CUR;
+        else if (Jim_CompareStringImmediate(interp, argv[1], "end"))
+            orig = SEEK_END;
+        else {
+            return -1;
+        }
+    }
+    if (Jim_GetLong(interp, argv[0], &offset) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if (fseek(af->fp, offset, orig) == -1) {
+        JimAioSetError(interp);
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
+static int aio_cmd_tell(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    Jim_SetResultInt(interp, ftell(af->fp));
+    return JIM_OK;
+}
+
+#ifdef O_NDELAY
+static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    int fmode = af->flags;
+
+    if (argc) {
+        long nb;
+
+        if (Jim_GetLong(interp, argv[2], &nb) != JIM_OK) {
+            return JIM_ERR;
+        }
+        if (nb) {
+            fmode |=  O_NDELAY;
+        }
+        else {
+            fmode &= ~O_NDELAY;
+        }
+        fcntl(af->fd, F_SETFL, fmode);
+        af->flags = fmode;
+    }
+    Jim_SetResultInt(interp, (fmode & O_NONBLOCK) ? 1 : 0);
+    return JIM_OK;
+}
+#endif
+
+static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *serv_af = Jim_CmdPrivData(interp);
+    int sock;
+    socklen_t addrlen = sizeof(struct sockaddr_in);
+    AioFile *af;
+    char buf[AIO_CMD_LEN];
+    long fileId;
+    sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
+    if (sock < 0)
+        return JIM_ERR;
+
+    /* Get the next file id */
+    fileId = Jim_GetId(interp);
+
+    /* Create the file command */
+    af = Jim_Alloc(sizeof(*af));
+    af->fd = sock;
+    af->fp = fdopen(sock,"r+");
+    af->OpenFlags = AIO_FDOPEN;
+    af->flags = fcntl(af->fd,F_GETFL);
+    af->rEvent = NULL;
+    af->wEvent = NULL;
+    af->eEvent = NULL;
+    sprintf(buf, "aio.sockstream%ld", fileId);
+    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
+    Jim_SetResultString(interp, buf, -1);
+    return JIM_OK;
+}
+
+static int aio_eventinfo(Jim_Interp *interp, AioFile *af, unsigned mask, Jim_Obj **scriptListObj, Jim_Obj *script1, Jim_Obj *script2)
+{
+    int scriptlen = 0;
+
+    if (script1 == NULL) {
+        /* Return current script */
+        if (*scriptListObj) {
+            Jim_SetResult(interp, *scriptListObj);
+        }
+        return JIM_OK;
+    }
+
+    if (*scriptListObj) {
+        /* Delete old handler */
+        Jim_DeleteFileHandler(interp, af->fp);
+        *scriptListObj = NULL;
+    }
+
+    /* Now possibly add the new script(s) */
+    Jim_GetString(script1, &scriptlen);
+    if (scriptlen == 0) {
+        /* Empty script, so done */
+        return JIM_OK;
+    }
+
+    /* A new script to add */
+    *scriptListObj = Jim_NewListObj(interp, NULL, 0);
+    Jim_IncrRefCount(*scriptListObj);
+
+    if (Jim_IsShared(script1)) {
+        script1 = Jim_DuplicateObj(interp, script1);
+    }
+    Jim_ListAppendElement(interp, *scriptListObj, script1);
+
+    if (script2) {
+        if (Jim_IsShared(script2)) {
+            script2 = Jim_DuplicateObj(interp, script2);
+        }
+        Jim_ListAppendElement(interp, *scriptListObj, script2);
+    }
+
+    Jim_CreateFileHandler(interp, af->fp, mask, 
+        JimAioFileEventHandler,
+        *scriptListObj,
+        JimAioFileEventFinalizer);
+
+    return JIM_OK;
+}
+
+#ifdef with_jim_ext_eventloop
+static int aio_cmd_readable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    Jim_Obj *eofScript = NULL;
+    int mask = JIM_EVENT_READABLE;
+
+
+    if (argc == 2) {
+        mask |= JIM_EVENT_FEOF;
+        eofScript = argv[1];
+    }
+
+    return aio_eventinfo(interp, af, mask, &af->rEvent, argc ? argv[0] : NULL, eofScript);
+}
+
+static int aio_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int mask = JIM_EVENT_WRITABLE;
+
+    return aio_eventinfo(interp, af, mask, &af->wEvent, argc ? argv[0] : NULL, NULL);
+}
+
+static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int mask = JIM_EVENT_EXCEPTION;
+
+    return aio_eventinfo(interp, af, mask, &af->eEvent, argc ? argv[0] : NULL, NULL);
+}
+#endif
+
+static const jim_subcmd_type command_table[] = {
+    {   .cmd = "read",
+        .args = "?-nonewline? ?len?",
+        .function = aio_cmd_read,
+        .minargs = 0,
+        .maxargs = 2,
+        .description = "Read and return bytes from the stream. To eof if no len."
+    },
+    {   .cmd = "gets",
+        .args = "?var?",
+        .function = aio_cmd_gets,
+        .minargs = 0,
+        .maxargs = 1,
+        .description = "Read one line and return it or store it in the var"
+    },
+    {   .cmd = "puts",
+        .args = "?-nonewline? str",
+        .function = aio_cmd_puts,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Write the string, with newline unless -nonewline"
+    },
+    {   .cmd = "flush",
+        .function = aio_cmd_flush,
+        .description = "Flush the stream"
+    },
+    {   .cmd = "eof",
+        .function = aio_cmd_eof,
+        .description = "Returns 1 if stream is at eof"
+    },
+    {   .cmd = "close",
+        .flags = JIM_MODFLAG_FULLARGV,
+        .function = aio_cmd_close,
+        .description = "Closes the stream"
+    },
+    {   .cmd = "seek",
+        .args = "offset ?start|current|end",
+        .function = aio_cmd_seek,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Seeks in the stream (default 'current')"
+    },
+    {   .cmd = "tell",
+        .function = aio_cmd_tell,
+        .description = "Returns the current seek position"
+    },
+    {   .cmd = "ndelay",
+        .args = "?0|1?",
+        .function = aio_cmd_ndelay,
+        .minargs = 0,
+        .maxargs = 1,
+        .description = "Set O_NDELAY (if arg). Returns current/new setting."
+    },
+    {   .cmd = "accept",
+        .function = aio_cmd_accept,
+        .description = "Server socket only: Accept a connection and return stream"
+    },
+#ifdef with_jim_ext_eventloop
+    {   .cmd = "readable",
+        .args = "?readable-script ?eof-script??",
+        .minargs = 0,
+        .maxargs = 2,
+        .function = aio_cmd_readable,
+        .description = "Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove",
+    },
+    {   .cmd = "writable",
+        .args = "?writable-script?",
+        .minargs = 0,
+        .maxargs = 1,
+        .function = aio_cmd_writable,
+        .description = "Returns script, or invoke writable-script when writable, {} to remove",
+    },
+    {   .cmd = "onexception",
+        .args = "?exception-script?",
+        .minargs = 0,
+        .maxargs = 1,
+        .function = aio_cmd_onexception,
+        .description = "Returns script, or invoke exception-script when oob data, {} to remove",
+    },
+#endif
+    { 0 }
+};
+
+static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, command_table, argc, argv), argc, argv);
 }
 
 static int JimAioOpenCommand(Jim_Interp *interp, int argc, 
@@ -514,7 +615,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
-    Jim_CreateCommand(interp, cmdname, JimAioHandlerCommand, af, JimAioDelProc);
+    Jim_CreateCommand(interp, cmdname, JimAioSubCmdProc, af, JimAioDelProc);
     Jim_SetResultString(interp, cmdname, -1);
     return JIM_OK;
 }
@@ -564,6 +665,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     struct sockaddr_in sa;
     struct hostent *he;
     int res;
+    int on = 1;
 
     if (argc <= 2 ) {
         Jim_WrongNumArgs(interp, 1, argv, "sockspec  ?script?");
@@ -588,11 +690,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     he = gethostbyname(sthost);
     /* FIX!!!! this still results in null pointer exception here.  
        FIXED!!!! debug output but no JIM_ERR done UK.  
+     */
     if (!he) {
         Jim_SetResultString(interp,hstrerror(h_errno),-1);
         return JIM_ERR;
     }
-     */
 
     sock = socket(PF_INET,SOCK_STREAM,0);
     switch (socktype) {
@@ -615,6 +717,10 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             sa.sin_family= he->h_addrtype;
         bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
         sa.sin_port = htons(port);
+
+        /* Enable address reuse */
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
         res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));  
         if (res) {
             close(sock);
@@ -649,36 +755,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     af->wEvent = NULL;
     af->eEvent = NULL;
     sprintf(buf, hdlfmt, fileId);
-    Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
-    Jim_SetResultString(interp, buf, -1);
-    return JIM_OK;
-}
-
-static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
-{
-    int sock;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
-    AioFile *af;
-    char buf[AIO_CMD_LEN];
-    long fileId;
-    sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
-    if (sock < 0)
-        return JIM_ERR;
-
-    /* Get the next file id */
-    fileId = Jim_GetId(interp);
-
-    /* Create the file command */
-    af = Jim_Alloc(sizeof(*af));
-    af->fd = sock;
-    af->fp = fdopen(sock,"r+");
-    af->OpenFlags = AIO_FDOPEN;
-    af->flags = fcntl(af->fd,F_GETFL);
-    af->rEvent = NULL;
-    af->wEvent = NULL;
-    af->eEvent = NULL;
-    sprintf(buf, "aio.sockstream%ld", fileId);
-    Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
+    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
 }
@@ -687,7 +764,7 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
     Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
 
-    if (cmdPtr && cmdPtr->cmdProc == JimAioHandlerCommand) {
+    if (cmdPtr && cmdPtr->cmdProc == JimAioSubCmdProc) {
         return ((AioFile *)cmdPtr->privData)->fp;
     }
     return NULL;
@@ -774,6 +851,3 @@ Jim_aioInit(Jim_Interp *interp)
 
     return JIM_OK;
 }
-
-// end
-

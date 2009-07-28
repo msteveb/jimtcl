@@ -1,3 +1,7 @@
+if {[info commands bio] eq ""} {
+	return "noimpl"
+}
+
 proc copy_binary_file {infile outfile} {
 	set in [open $infile r]
 	set out [open $outfile w]

@@ -277,8 +277,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
     while (fe != NULL) {
         int fd = fileno(fe->handle);
 
-        if (fe->mask & JIM_EVENT_READABLE) 
-		FD_SET(fd, &rfds);
+        if (fe->mask & JIM_EVENT_READABLE) FD_SET(fd, &rfds);
         if (fe->mask & JIM_EVENT_WRITABLE) FD_SET(fd, &wfds);
         if (fe->mask & JIM_EVENT_EXCEPTION) FD_SET(fd, &efds);
         if (maxfd < fd) maxfd = fd;
@@ -336,11 +335,12 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 {
                     int mask = 0;
 
-                    if (fe->mask & JIM_EVENT_READABLE && FD_ISSET(fd, &rfds)) {
+                    if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds)) {
                         mask |= JIM_EVENT_READABLE;
-			if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
-				mask |= JIM_EVENT_FEOF;
-		    }
+                        if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle)) {
+                                mask |= JIM_EVENT_FEOF;
+                        }
+                    }
                     if (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds))
                         mask |= JIM_EVENT_WRITABLE;
                     if (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))
