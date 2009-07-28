@@ -35,9 +35,11 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes,
         if (prefixes[i] == NULL) continue;
 
         snprintf(buf, sizeof(buf), "%s/%s.tcl", prefixes[i], pkgName);
+
         if (access(buf, R_OK) == 0) {
             return Jim_StrDup(buf);
         }
+
         snprintf(buf, sizeof(buf), "%s/%s.so", prefixes[i], pkgName);
         if (access(buf, R_OK) == 0) {
             return Jim_StrDup(buf);
@@ -125,9 +127,14 @@ const char *Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
         /* No way... return an error. */
         if (flags & JIM_ERRMSG) {
             int len;
-            Jim_GetString(Jim_GetResult(interp), &len);
-            Jim_AppendStrings(interp, Jim_GetResult(interp), len ? "\n" : "",
+            Jim_Obj *resultObj = Jim_GetResult(interp);
+            if (Jim_IsShared(resultObj)) {
+                resultObj = Jim_DuplicateObj(interp, resultObj);
+            }
+            Jim_GetString(resultObj, &len);
+            Jim_AppendStrings(interp, resultObj, len ? "\n" : "",
                     "Can't find package '", name, "'", NULL);
+            Jim_SetResult(interp, resultObj);
         }
         return NULL;
     } else {

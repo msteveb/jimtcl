@@ -4379,6 +4379,10 @@ Jim_Interp *Jim_CreateInterp(void)
     i->freeFramesList = NULL;
     i->prngState = NULL;
     i->evalRetcodeLevel = -1;
+    i->id = 0;
+    i->signal = 0;
+    i->signal_level = 0;
+    i->signal_to_name = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -5239,7 +5243,7 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     sort_result = Jim_EvalObj(sort_interp, compare_script);
 
     if (sort_result != JIM_OK) {
-        fprintf(stderr, "Failed to eval '%s'\n", Jim_GetString(compare_script, NULL));
+        //fprintf(stderr, "Failed to eval '%s'\n", Jim_GetString(compare_script, NULL));
         /* We have an error, so just compare pointers */
         return (long)lhsObj - (long)rhsObj;
     }
@@ -5249,7 +5253,7 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
-static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, int order, Jim_Obj *command)
+static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, int order, Jim_Obj *command)
 {
     typedef int (qsort_comparator)(const void *, const void *);
     int (*fn)(Jim_Obj**, Jim_Obj**);
@@ -5281,6 +5285,8 @@ static void ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, 
     }
     qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *)fn);
     Jim_InvalidateStringRep(listObjPtr);
+
+    return sort_result;
 }
 
 /* This is the low-level function to append an element to a list.
@@ -9937,6 +9943,7 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
     int i, lsortType = JIM_LSORT_ASCII; /* default sort type */
     int lsort_order = 1;
     Jim_Obj *lsort_command = NULL;
+    int retCode;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "?options? list");
@@ -9958,9 +9965,11 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
         }
     }
     resObj = Jim_DuplicateObj(interp, argv[argc-1]);
-    ListSortElements(interp, resObj, lsortType, lsort_order, lsort_command);
-    Jim_SetResult(interp, resObj);
-    return JIM_OK;
+    retCode = ListSortElements(interp, resObj, lsortType, lsort_order, lsort_command);
+    if (retCode == JIM_OK) {
+        Jim_SetResult(interp, resObj);
+    }
+    return retCode;
 }
 
 /* [append] */
