@@ -5,19 +5,6 @@
 
 package provide tcl6 1.0
 
-package require stdio
-
-# Extremely simple autoload approach
-set autoload {glob glob array array}
-
-proc unknown {cmd args} {
-	if {[info exists ::autoload($cmd)]} {
-		package require $::autoload($cmd)
-		return [uplevel 1 $cmd $args]
-	}
-	error "invalid command name \"$cmd\""
-}
-
 # Set up the ::env array
 set env [env]
 
