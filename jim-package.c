@@ -28,6 +28,24 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
     return JIM_OK;
 }
 
+static int Jim_PackageList(Jim_Interp *interp)
+{
+    Jim_HashTableIterator *htiter;
+    Jim_HashEntry *he;
+    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    
+    htiter = Jim_GetHashTableIterator(&interp->packages);
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        Jim_ListAppendElement(interp, listObjPtr,
+                Jim_NewStringObj(interp, he->key, -1));
+    }
+    Jim_FreeHashTableIterator(htiter);
+
+    Jim_SetResult(interp, listObjPtr);
+
+    return JIM_OK;
+}
+
 static char *JimFindPackage(Jim_Interp *interp, char **prefixes,
         int prefixc, const char *pkgName)
 {
@@ -135,3 +153,57 @@ const char *Jim_PackageRequire(Jim_Interp *interp, const char *name,
     }
 }
 
+/* [package] */
+int Jim_PackageCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int option;
+    const char *options[] = {
+        "require", "provide", "list", NULL
+    };
+    enum {OPT_REQUIRE, OPT_PROVIDE, OPT_LIST};
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
+        return JIM_ERR;
+    }
+    if (Jim_GetEnum(interp, argv[1], options, &option, "option",
+                JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (option == OPT_REQUIRE) {
+        int exact = 0;
+        const char *ver;
+
+        if (Jim_CompareStringImmediate(interp, argv[2], "-exact")) {
+            exact = 1;
+            argv++;
+            argc--;
+        }
+        if (argc != 3 && argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "?-exact? package ?version?");
+            return JIM_ERR;
+        }
+        ver = Jim_PackageRequire(interp, Jim_GetString(argv[2], NULL),
+                argc == 4 ? Jim_GetString(argv[3], NULL) : "",
+                JIM_ERRMSG);
+        if (ver == NULL)
+            return JIM_ERR_ADDSTACK;
+        Jim_SetResultString(interp, ver, -1);
+    } else if (option == OPT_PROVIDE) {
+        if (argc != 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "package version");
+            return JIM_ERR;
+        }
+        return Jim_PackageProvide(interp, Jim_GetString(argv[2], NULL),
+                    Jim_GetString(argv[3], NULL), JIM_ERRMSG);
+    } else if (option == OPT_LIST) {
+        return Jim_PackageList(interp);
+    }
+    return JIM_OK;
+}
+
+int Jim_packageInit(Jim_Interp *interp)
+{
+    Jim_CreateCommand(interp, "package", Jim_PackageCoreCommand, NULL, NULL);
+    return JIM_OK;
+}

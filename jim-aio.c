@@ -117,15 +117,15 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     if (!af->OpenFlags == AIO_FDOPEN) // fp = fdopen(fd) !!
         close(af->fd);
     if (af->rEvent) { // remove existing EventHandlers
-    Jim_DeleteFileHandler(interp,af->fp);
-    Jim_DecrRefCount(interp,af->rEvent);
+        Jim_DeleteFileHandler(interp,af->fp);
+        Jim_DecrRefCount(interp,af->rEvent);
     }
     if (af->wEvent) {
-    Jim_DeleteFileHandler(interp,af->fp);
+        Jim_DeleteFileHandler(interp,af->fp);
         Jim_DecrRefCount(interp,af->wEvent);
     }
     if (af->eEvent) {
-    Jim_DeleteFileHandler(interp,af->fp);
+        Jim_DeleteFileHandler(interp,af->fp);
         Jim_DecrRefCount(interp,af->eEvent);
     }
     Jim_Free(af);
@@ -154,7 +154,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
           OPT_FLUSH, OPT_EOF, 
       OPT_NDELAY,
       OPT_READABLE, OPT_WRITABLE, OPT_EXCEPTION,
-      OPT_ACCEPT
+      OPT_ACCEPT,
     };
 
     if (argc < 2) {
@@ -451,9 +451,7 @@ static int JimAioHandlerCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
     } else if (option  == OPT_ACCEPT) {
-    int ret;
-    ret = JimAioAcceptHelper(interp,af);
-    return (ret);
+        return JimAioAcceptHelper(interp,af);
     }
     return JIM_OK;
 }
@@ -465,12 +463,12 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     AioFile *af;
     char buf[AIO_CMD_LEN];
     const char *mode = "r";
-    Jim_Obj *objPtr;
     long fileId;
     const char *options[] = {"input", "output", "error", NULL};
     enum {OPT_INPUT, OPT_OUTPUT, OPT_ERROR};
     int OpenFlags = 0;
     int modeLen;
+    const char *cmdname = buf;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
@@ -486,9 +484,9 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         OpenFlags |= AIO_KEEPOPEN;
         switch (option) {
-        case OPT_INPUT: fp = stdin; break;
-        case OPT_OUTPUT: fp = stdout; break;
-        case OPT_ERROR: fp = stderr; break;
+        case OPT_INPUT: fp = stdin; cmdname = "stdin"; break;
+        case OPT_OUTPUT: fp = stdout; cmdname = "stdout"; break;
+        case OPT_ERROR: fp = stderr; cmdname = "stderr"; break;
         default: fp = NULL; Jim_Panic(interp,"default reached in JimAioOpenCommand()");
                  break;
         }
@@ -498,14 +496,10 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
             JimAioSetError(interp);
             return JIM_ERR;
         }
+        /* Get the next file id */
+        fileId = Jim_GetId(interp);
+        sprintf(buf, "aio.handle%ld", fileId);
     }
-    /* Get the next file id */
-    if (Jim_EvalGlobal(interp,
-                "if {[catch {incr aio.fileId}]} {set aio.fileId 0}") != JIM_OK)
-        return JIM_ERR;
-    objPtr = Jim_GetGlobalVariableStr(interp, "aio.fileId", JIM_ERRMSG);
-    if (objPtr == NULL) return JIM_ERR;
-    if (Jim_GetLong(interp, objPtr, &fileId) != JIM_OK) return JIM_ERR;
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -516,9 +510,8 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
-    sprintf(buf, "aio.handle%ld", fileId);
-    Jim_CreateCommand(interp, buf, JimAioHandlerCommand, af, JimAioDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_CreateCommand(interp, cmdname, JimAioHandlerCommand, af, JimAioDelProc);
+    Jim_SetResultString(interp, cmdname, -1);
     return JIM_OK;
 }
 
@@ -528,8 +521,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     FILE *fp;
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    char *hdlfmt = "unknown";
-    Jim_Obj *objPtr;
+    char *hdlfmt = "aio.unknown%ld";
     long fileId;
     const char *socktypes[] = {
         "file",
@@ -641,12 +633,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     /* Get the next file id */
-    if (Jim_EvalGlobal(interp,
-                "if {[catch {incr aio.fileId}]} {set aio.fileId 0}") != JIM_OK)
-        return JIM_ERR;
-    objPtr = Jim_GetGlobalVariableStr(interp, "aio.fileId", JIM_ERRMSG);
-    if (objPtr == NULL) return JIM_ERR;
-    if (Jim_GetLong(interp, objPtr, &fileId) != JIM_OK) return JIM_ERR;
+    fileId = Jim_GetId(interp);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -669,19 +656,13 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
     int addrlen = sizeof(struct sockaddr_in);
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    Jim_Obj *objPtr;
     long fileId;
     sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
     if (sock < 0)
         return JIM_ERR;
 
     /* Get the next file id */
-    if (Jim_EvalGlobal(interp,
-                "if {[catch {incr aio.fileId}]} {set aio.fileId 0}") != JIM_OK)
-        return JIM_ERR;
-    objPtr = Jim_GetGlobalVariableStr(interp, "aio.fileId", JIM_ERRMSG);
-    if (objPtr == NULL) return JIM_ERR;
-    if (Jim_GetLong(interp, objPtr, &fileId) != JIM_OK) return JIM_ERR;
+    fileId = Jim_GetId(interp);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -698,6 +679,79 @@ static int JimAioAcceptHelper(Jim_Interp *interp, AioFile *serv_af )
     return JIM_OK;
 }
 
+FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
+{
+    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
+
+    if (cmdPtr && cmdPtr->cmdProc == JimAioHandlerCommand) {
+        return ((AioFile *)cmdPtr->privData)->fp;
+    }
+    return NULL;
+}
+
+#ifdef JIM_TCL_COMPAT
+static int JimAioTclCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj **newargv = Jim_Alloc(sizeof(Jim_Obj*)*argc);
+    int ret;
+    int i;
+
+    /* cmd channel ?args? */
+    newargv[0] = argv[1];
+    newargv[1] = argv[0];
+
+    for (i = 2; i < argc; i++) {
+        newargv[i] = argv[i];
+    }
+
+    ret = Jim_EvalObjVector(interp, argc, newargv);
+
+    Jim_Free(newargv);
+
+    return ret;
+}
+
+static int JimAioPutsCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *newargv[4];
+
+    int off = 1;
+
+    /* "puts" */
+    newargv[off++] = argv[0];
+
+    /* puts ?-nonewline? ?channel? msg */
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
+        newargv[off++] = argv[1];
+        argv++;
+        argc--;
+    }
+
+    if (argc == 2) {
+        /* Missing channel, so use stdout */
+        newargv[0] = Jim_NewStringObj(interp, "stdout", -1);
+        newargv[off++] = argv[1];
+    }
+    else {
+        newargv[0] = argv[1];
+        newargv[off++] = argv[2];
+    }
+    return Jim_EvalObjVector(interp, off, newargv);
+}
+
+static void JimAioTclCompat(Jim_Interp *interp)
+{
+    static const char *tclcmds[] = { "read", "gets", "flush", "close", "eof", "seek", "tell", 0};
+    int i;
+
+    for (i = 0; tclcmds[i]; i++) {
+        Jim_CreateCommand(interp, tclcmds[i], JimAioTclCmd, NULL, NULL);
+    }
+    Jim_CreateCommand(interp, "puts", JimAioPutsCmd, NULL, NULL);
+    Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
+}
+#endif
+
 int 
 Jim_aioInit(Jim_Interp *interp)
 {
@@ -705,6 +759,15 @@ Jim_aioInit(Jim_Interp *interp)
         return JIM_ERR;
     Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);
     Jim_CreateCommand(interp, "aio.socket", JimAioSockCommand, NULL, NULL);
+
+    /* Takeover stdin, stdout and stderr */
+    Jim_EvalGlobal(interp,
+        "aio.open standard input; aio.open standard output; aio.open standard error");
+
+#ifdef JIM_TCL_COMPAT
+    JimAioTclCompat(interp);
+#endif
+
     return JIM_OK;
 }
 

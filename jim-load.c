@@ -116,3 +116,19 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 }
 #endif/* JIM_DYNLIB */
 
+/* [load] */
+static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "libaryFile");
+        return JIM_ERR;
+    }
+    return Jim_LoadLibrary(interp, Jim_GetString(argv[1], NULL));
+}
+
+int Jim_loadInit(Jim_Interp *interp)
+{
+    Jim_CreateCommand(interp, "load", Jim_LoadCoreCommand, NULL, NULL);
+    return JIM_OK;
+}

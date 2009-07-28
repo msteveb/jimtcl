@@ -141,9 +141,10 @@ extern "C" {
 #define JIM_RETURN 2
 #define JIM_BREAK 3
 #define JIM_CONTINUE 4
-#define JIM_EVAL 5
-#define JIM_EXIT 6
-#define JIM_ERR_ADDSTACK 7
+#define JIM_SIGNAL 5
+#define JIM_EVAL 6
+#define JIM_EXIT 7
+#define JIM_ERR_ADDSTACK 8
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
@@ -477,6 +478,10 @@ typedef struct Jim_Interp {
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */
     int exitCode; /* Code to return to the OS on JIM_EXIT. */
+    int signal; /* A caught signal, or 0 if none */
+    int signal_level; /* A nesting level of catch -signal */
+    long id; /* Hold unique id for various purposes */
+    const char *(*signal_to_name)(int sig); /* Returns a name for the signal number */
     Jim_CallFrame *framePtr; /* Pointer to the current call frame */
     Jim_CallFrame *topFramePtr; /* toplevel/global frame pointer. */
     struct Jim_HashTable commands; /* Commands hash table */
@@ -510,9 +515,6 @@ typedef struct Jim_Interp {
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */
 
-    struct Jim_HashTable stub; /* Stub hash table to export API */
-    /* Jim_GetApi() function pointer, used to bootstrap the STUB table */
-    int (*getApiFuncPtr)(struct Jim_Interp *, const char *, void *);
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
@@ -538,6 +540,9 @@ typedef struct Jim_Interp {
     Jim_DecrRefCount(i,(i)->result);  \
     (i)->result = _resultObjPtr_;     \
 } while(0)
+
+/* Use this for filehandles, etc. which need a unique id */
+#define Jim_GetId(i) (++(i)->id)
 
 /* Reference structure. The interpreter pointer is held within privdata member in HashTable */
 #define JIM_REFERENCE_TAGLEN 7 /* The tag is fixed-length, because the reference
@@ -823,6 +828,10 @@ int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 
 /* jim-load.c */
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
+
+
+/* jim-aio.c */
+FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 
 #ifdef __cplusplus
 }
