@@ -7,21 +7,25 @@ jim_nofork := @JIM_NOFORK@
 # Defines the extensions to include
 EXTENSIONS := @JIM_EXTENSIONS@
 
-ALL_EXTENSIONS := aio clock eventloop exec file posix readdir readline regexp sdl sqlite sqlite3
-
 # Set an initial, default library and auto_path
 CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
+
+CFLAGS += -DJIM_TCL_COMPAT
 
 STATIC_LIBTCL := libtcl6.a
 CFLAGS += -Wall -g -Os -I. @EXTRA_CFLAGS@
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := jim-load.o jim-package.o jim-subcmd.o jim-interactive.o jim.o
+OBJS := jim-subcmd.o jim-interactive.o jim.o
 
 SDKHDRS := jim.h jim-subcmd.h
 
 EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
+
+# Create C extensions from pure Tcl extensions
+jim-%.c: %.tcl
+	tclsh make-c-ext $*.tcl
 
 # Emulate tinytcl
 LIBJIM := libtcl6.a

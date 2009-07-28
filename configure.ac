@@ -23,10 +23,14 @@ AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
 
 jim_extensions=
 AC_ARG_WITH(jim-ext,
-	[  --with-jim-ext      Specify jim extensions to build],
+	[  --with-jim-ext      Specify jim extensions to build (or all)],
 	[
 		if test "x$withval" != "xno" ; then
-			jim_extensions="$withval"
+			if test "x$withval" = "xall" ; then
+				jim_extensions="tcl6 glob array aio clock eventloop exec file posix regexp signal"
+			else
+				jim_extensions="$withval"
+			fi
 		fi
 	]
 )
