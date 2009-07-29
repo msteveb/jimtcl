@@ -14,14 +14,18 @@ proc tcl_to_string {str} {
 	return $result
 }
 
+set outfile [lindex $argv 0]
+set argv [lrange $argv 1 end]
+
 foreach file $argv {
 	if {![string match *.tcl $file]} {
 		error "Not a tcl file: $file"
 	}
 	set tmp [file tail $file]
 	set rootname [file rootname $tmp]
+	if {0} {
 	set outfile jim-$rootname.c
-	puts "$file -> $outfile"
+	}
 	set f [open $file]
 	set str [read $f]
 	close $f

@@ -8461,43 +8461,31 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     return retval;
 }
 
-/* REVISIT: Just load the file with a single malloc/fread then Jim_EvalObj() */
+#include <sys/stat.h>
+
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
-    char *prg = NULL;
     FILE *fp;
-    int nread, totread, maxlen, buflen;
-    int retval;
+    char *buf;
     Jim_Obj *scriptObjPtr;
-    
-    if ((fp = fopen(filename, "r")) == NULL) {
-        const int cwd_len=2048;
-        char *cwd=malloc(cwd_len);
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        if (getcwd( cwd, cwd_len ) != 0) {
-            strcpy(cwd, "?");
-        }
+    struct stat sb;
+    int retval;
+
+    if (stat(filename, &sb) != 0 || (fp = fopen(filename, "r")) == NULL) {
+        Jim_SetResultString(interp, "", 0);
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "Error loading script \"", filename, "\"",
-            " cwd: ", cwd,
             " err: ", strerror(errno), NULL);
-        free(cwd);
         return JIM_ERR;
     }
-    buflen = 1024;
-    maxlen = totread = 0;
-    while (1) {
-        if (maxlen < totread+buflen+1) {
-            maxlen = totread+buflen+1;
-            prg = Jim_Realloc(prg, maxlen);
-        }
-        if ((nread = fread(prg+totread, 1, buflen, fp)) == 0) break;
-        totread += nread;
-    }
-    prg[totread] = '\0';
-    fclose(fp);
 
-    scriptObjPtr = Jim_NewStringObjNoAlloc(interp, prg, totread);
+    buf = Jim_Alloc(sb.st_size + 1);
+    if (buf == 0 || fread(buf, sb.st_size, 1, fp) != 1) {
+        Jim_Free(buf);
+        return JIM_ERR;
+    }
+
+    scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, sb.st_size);
     JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
     Jim_IncrRefCount(scriptObjPtr);
     retval = Jim_EvalObj(interp, scriptObjPtr);

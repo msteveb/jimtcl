@@ -94,11 +94,6 @@ static const char *GetFileType(int mode)
     return "unknown";
 }
 
-static void Jim_SetIntResult(Jim_Interp *interp, jim_wide wide)
-{
-    Jim_SetResult(interp, Jim_NewIntObj(interp, wide));
-}
-
 /*
  *----------------------------------------------------------------------
  *
@@ -360,7 +355,7 @@ static int file_cmd_atime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
-    Jim_SetIntResult(interp, sb.st_atime);
+    Jim_SetResultInt(interp, sb.st_atime);
     return JIM_OK;
 }
 
@@ -371,7 +366,7 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
     return JIM_ERR;
     }
-    Jim_SetIntResult(interp, sb.st_mtime);
+    Jim_SetResultInt(interp, sb.st_mtime);
     return JIM_OK;
 }
 
@@ -382,7 +377,7 @@ static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
     return JIM_ERR;
     }
-    Jim_SetIntResult(interp, sb.st_size);
+    Jim_SetResultInt(interp, sb.st_size);
     return JIM_OK;
 }
 
@@ -394,7 +389,7 @@ static int file_cmd_isdirectory(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
     ret = S_ISDIR(sb.st_mode);
     }
-    Jim_SetIntResult(interp, ret);
+    Jim_SetResultInt(interp, ret);
     return JIM_OK;
 }
 
@@ -406,7 +401,7 @@ static int file_cmd_isfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
     ret = S_ISREG(sb.st_mode);
     }
-    Jim_SetIntResult(interp, ret);
+    Jim_SetResultInt(interp, ret);
     return JIM_OK;
 }
 
@@ -418,7 +413,7 @@ static int file_cmd_owned(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
     ret = (geteuid() == sb.st_uid);
     }
-    Jim_SetIntResult(interp, ret);
+    Jim_SetResultInt(interp, ret);
     return JIM_OK;
 }
 

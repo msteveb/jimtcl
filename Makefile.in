@@ -28,7 +28,7 @@ EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
 	echo $@ >>.clean
-	tclsh make-c-ext $*.tcl
+	tclsh make-c-ext.tcl $@ $*.tcl
 
 # Emulate tinytcl
 LIBJIM := libtcl6.a

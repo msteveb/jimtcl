@@ -1,3 +1,21 @@
+Jim(n)
+======
+
+NAME
+----
+Jim - a better Tcl
+
+SYNOPSIS
+--------
+
+  cc <source> -ltcl6
+
+or
+
+  jimsh <script>
+
+INTRODUCTION
+------------
 # what: jim commands, description, points to ponder
 
 jim 

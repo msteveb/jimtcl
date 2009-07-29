@@ -179,7 +179,7 @@ static int bio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return TCL_ERROR;
     }
 
-    Jim_SetIntResult(interp, count);
+    Jim_SetResultInt(interp, count);
 
     return JIM_OK;
 }

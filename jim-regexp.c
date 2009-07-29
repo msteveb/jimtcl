@@ -53,12 +53,6 @@
 #define JIM_EXTENSION
 #include "jim.h"
 
-/* REVISIT: Would be useful in jim.h */
-static void Jim_SetIntResult(Jim_Interp *interp, jim_wide wide)
-{
-    Jim_SetResult(interp, Jim_NewIntObj(interp, wide));
-}
-
 /**
  * REVISIT: Should cache a number of compiled regexps for performance reasons.
  */
@@ -272,7 +266,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_SetResult(interp, resultListObj);
         }
         else {
-            Jim_SetIntResult(interp, num_matches);
+            Jim_SetResultInt(interp, num_matches);
         }
     }
 
@@ -456,7 +450,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     result = Jim_SetVariable(interp, varname, resultObj);
 
     if (result == JIM_OK) {
-        Jim_SetIntResult(interp, num_matches);
+        Jim_SetResultInt(interp, num_matches);
     }
     else {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
