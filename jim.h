@@ -643,8 +643,6 @@ JIM_EXPORT Jim_Obj * Jim_NewStringObjNoAlloc (Jim_Interp *interp,
         char *s, int len);
 JIM_EXPORT void Jim_AppendString (Jim_Interp *interp, Jim_Obj *objPtr,
         const char *str, int len);
-JIM_EXPORT void Jim_AppendString_sprintf (Jim_Interp *interp, Jim_Obj *objPtr,
-        const char *fmt, ... );
 JIM_EXPORT void Jim_AppendObj (Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *appendObjPtr);
 JIM_EXPORT void Jim_AppendStrings (Jim_Interp *interp,
@@ -675,9 +673,6 @@ JIM_EXPORT int Jim_GetFinalizer (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **
 JIM_EXPORT Jim_Interp * Jim_CreateInterp (void);
 JIM_EXPORT void Jim_FreeInterp (Jim_Interp *i);
 JIM_EXPORT int Jim_GetExitCode (Jim_Interp *interp);
-JIM_EXPORT void * Jim_SetStdin (Jim_Interp *interp, void *fp);
-JIM_EXPORT void * Jim_SetStdout (Jim_Interp *interp, void *fp);
-JIM_EXPORT void * Jim_SetStderr (Jim_Interp *interp, void *fp);
 
 /* commands */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
