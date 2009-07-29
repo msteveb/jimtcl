@@ -1,3 +1,6 @@
+if {[info commands vwait] eq ""} {
+	return "noimpl"
+}
 
 set f [aio.socket stream localhost:80]
 

@@ -1,3 +1,7 @@
+if {[info commands vwait] eq ""} {
+	return "noimpl"
+}
+
 proc bgerror {msg} {
 	#puts "bgerror: $msg"
 	#exit 0
