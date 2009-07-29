@@ -77,27 +77,6 @@ typedef struct AioFile {
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
-static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
-{
-    Jim_Obj *objPtr = clientData;
-
-    Jim_DecrRefCount(interp, objPtr);
-}
-
-static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
-{
-    Jim_Obj *objPtr = clientData;
-    Jim_Obj *scrPtr = NULL ;
-    if (mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
-        Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
-    }
-    else {
-        Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
-    }
-    Jim_EvalObjBackground(interp, scrPtr);
-    return 0;
-}
-
 static void JimAioSetError(Jim_Interp *interp)
 {
     Jim_SetResultString(interp, strerror(errno), -1);
@@ -391,6 +370,28 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef with_jim_ext_eventloop
+static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
+{
+    Jim_Obj *objPtr = clientData;
+
+    Jim_DecrRefCount(interp, objPtr);
+}
+
+static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
+{
+    Jim_Obj *objPtr = clientData;
+    Jim_Obj *scrPtr = NULL ;
+    if (mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
+        Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
+    }
+    else {
+        Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
+    }
+    Jim_EvalObjBackground(interp, scrPtr);
+    return 0;
+}
+
 static int aio_eventinfo(Jim_Interp *interp, AioFile *af, unsigned mask, Jim_Obj **scriptListObj, Jim_Obj *script1, Jim_Obj *script2)
 {
     int scriptlen = 0;
@@ -440,7 +441,6 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile *af, unsigned mask, Jim_Obj
     return JIM_OK;
 }
 
-#ifdef with_jim_ext_eventloop
 static int aio_cmd_readable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
