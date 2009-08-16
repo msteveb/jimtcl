@@ -3012,6 +3012,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     script->commands = 0;
     script->token = NULL;
     script->cmdStruct = NULL;
+    script->substFlags = 0;
     script->inUse = 1;
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
@@ -3116,12 +3117,15 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
+
     return JIM_OK;
 }
 
 ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    if (objPtr->typePtr != &scriptObjType) {
+    struct ScriptObj *script = Jim_GetIntRepPtr(objPtr);
+
+    if (objPtr->typePtr != &scriptObjType || script->substFlags) {
         SetScriptFromAny(interp, objPtr);
     }
     return (ScriptObj*) Jim_GetIntRepPtr(objPtr);
@@ -11617,7 +11621,7 @@ static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    int i, flags = 0;
+    int i, flags = JIM_SUBST_FLAG;
     Jim_Obj *objPtr;
 
     if (argc < 2) {

@@ -3,7 +3,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
- * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
+ * Copyright 2008 oharboe - ï¿½yvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
@@ -176,6 +176,7 @@ extern "C" {
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
+#define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substition object */
 
 /* Unused arguments generate annoying warnings... */
 #define JIM_NOTUSED(V) ((void) V)
