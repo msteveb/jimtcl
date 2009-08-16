@@ -7009,10 +7009,7 @@ trydouble:
                     opcode = JIM_EXPROP_STREQ;
                     goto retry_as_string;
                 }
-                Jim_DecrRefCount(interp, A);
-                Jim_DecrRefCount(interp, B);
-                error = 1;
-                goto err;
+                goto retry_as_string;
             }
             Jim_DecrRefCount(interp, A);
             Jim_DecrRefCount(interp, B);
@@ -7074,6 +7071,14 @@ retry_as_string:
             sA = Jim_GetString(A, &Alen);
             sB = Jim_GetString(B, &Blen);
             switch(opcode) {
+            case JIM_EXPROP_LT:
+                wC = JimStringCompare(sA, Alen, sB, Blen, 0) < 0; break;
+            case JIM_EXPROP_GT:
+                wC = JimStringCompare(sA, Alen, sB, Blen, 0) > 0; break;
+            case JIM_EXPROP_LTE:
+                wC = JimStringCompare(sA, Alen, sB, Blen, 0) <= 0; break;
+            case JIM_EXPROP_GTE:
+                wC = JimStringCompare(sA, Alen, sB, Blen, 0) >= 0; break;
             case JIM_EXPROP_STREQ:
                 if (Alen == Blen && memcmp(sA, sB, Alen) ==0)
                     wC = 1;
@@ -7087,8 +7092,11 @@ retry_as_string:
                     wC = 0;
                 break;
             default:
-                wC = 0; /* avoid gcc warning */
-                break;
+                /* Not a valid string comparison */
+                Jim_DecrRefCount(interp, A);
+                Jim_DecrRefCount(interp, B);
+                error = 1;
+                goto err;
             }
             Jim_DecrRefCount(interp, A);
             Jim_DecrRefCount(interp, B);
