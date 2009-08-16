@@ -1,5 +1,6 @@
 2009-08-16 Steve Bennett <steveb@workware.net.au>
 	
+	* jim.c: Make [format %c 0] work (embedded nulls)
 	* jim-array-1.0.tcl: array unset was broken
 	* jim.c: Some recursion in unknown is OK, just not infinite recursion.
 	* jimsh.c: $argv0 should be the name of the script
