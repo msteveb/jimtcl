@@ -1,5 +1,6 @@
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
+ * Copyright 2009 Steve Bennett <steveb@workware.net.au>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -146,7 +147,6 @@ int main(int argc, char *const argv[])
         Jim_ListAppendElement(interp, listObj, obj);
     }
 
-    Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[0], -1));
     Jim_SetVariableStr(interp, "argv", listObj);
     
     if (argc == 1) {
@@ -154,6 +154,7 @@ int main(int argc, char *const argv[])
         JimLoadJimRc(interp);
         retcode = Jim_InteractivePrompt(interp);
     } else {
+        Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
         Jim_SetVariableStrWithStr(interp, "jim_interactive", "0");
         if ((retcode = Jim_EvalFile(interp, argv[1])) == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
