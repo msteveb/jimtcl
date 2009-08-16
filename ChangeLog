@@ -1,5 +1,6 @@
 2009-08-16 Steve Bennett <steveb@workware.net.au>
 	
+	* jim.c: Some recursion in unknown is OK, just not infinite recursion.
 	* jimsh.c: $argv0 should be the name of the script
 	* jim.c: Should be able to compare strings for order in expr
 	* jim.c:  'unset ::var' to unset a global var.

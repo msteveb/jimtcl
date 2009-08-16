@@ -8348,10 +8348,10 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
     int retCode;
 
-    /* If JimUnknown() is recursively called (e.g. error in the unknown proc,
+    /* If JimUnknown() is recursively called too many times...
      * done here
      */
-    if (interp->unknown_called) {
+    if (interp->unknown_called > 50) {
         return JIM_ERR;
     }
 
