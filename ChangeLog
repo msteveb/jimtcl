@@ -1,5 +1,6 @@
 2009-08-16 Steve Bennett <steveb@workware.net.au>
 
+	* jim.c: Comparison of doubles is a boolean, not a double. expr {0.5 < 1.0}
 	* jim.c: If an error occurs when {expand} is in operation, the line number is wrong.
 	* jim.c/h: If an object is used in subst, then source, a crash will result
 	* jimsh.c: A script exiting with 'exit 0' would not give a return code of 0
