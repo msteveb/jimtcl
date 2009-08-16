@@ -3,7 +3,7 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
- * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
+ * Copyright 2008 oharboe - ï¿½yvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
@@ -3724,10 +3724,13 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
     } else {
         name = Jim_GetString(nameObjPtr, NULL);
         if (name[0] == ':' && name[1] == ':') {
-            name += 2;
+            if (Jim_DeleteHashEntry(&interp->topFramePtr->vars, name + 2) != JIM_OK) {
+                return JIM_ERR;
+            }
         }
-        if (Jim_DeleteHashEntry(&interp->framePtr->vars, name)
-                != JIM_OK) return JIM_ERR;
+        else if (Jim_DeleteHashEntry(&interp->framePtr->vars, name) != JIM_OK) {
+            return JIM_ERR;
+        }
         /* Change the callframe id, invalidating var lookup caching */
         JimChangeCallFrameId(interp, interp->framePtr);
         return JIM_OK;
