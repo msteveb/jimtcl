@@ -6873,6 +6873,8 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
         const char *sA, *sB;
         int Alen, Blen, retcode;
         int opcode = expr->opcode[i];
+        /* Is the result of the double expression an int (wC)? */
+        int intresult;
 
         if (opcode == JIM_EXPROP_NUMBER || opcode == JIM_EXPROP_STRING) {
             stack[stacklen++] = expr->obj[i];
@@ -7035,12 +7037,12 @@ trydouble:
             case JIM_EXPROP_ADD: dC = dA+dB; break;
             case JIM_EXPROP_SUB: dC = dA-dB; break;
             case JIM_EXPROP_MUL: dC = dA*dB; break;
-            case JIM_EXPROP_LT: dC = dA<dB; break;
-            case JIM_EXPROP_GT: dC = dA>dB; break;
-            case JIM_EXPROP_LTE: dC = dA<=dB; break;
-            case JIM_EXPROP_GTE: dC = dA>=dB; break;
-            case JIM_EXPROP_NUMEQ: dC = dA==dB; break;
-            case JIM_EXPROP_NUMNE: dC = dA!=dB; break;
+            case JIM_EXPROP_LT: wC = dA<dB; intresult = 1; break;
+            case JIM_EXPROP_GT: wC = dA>dB; intresult = 1; break;
+            case JIM_EXPROP_LTE: wC = dA<=dB; intresult = 1; break;
+            case JIM_EXPROP_GTE: wC = dA>=dB; intresult = 1; break;
+            case JIM_EXPROP_NUMEQ: wC = dA==dB; intresult = 1; break;
+            case JIM_EXPROP_NUMNE: wC = dA!=dB; intresult = 1; break;
             case JIM_EXPROP_LOGICAND_LEFT:
                 if (dA == 0) {
                     i += (int)dB;
@@ -7065,7 +7067,12 @@ trydouble:
                 dC = 0; /* avoid gcc warning */
                 break;
             }
-            stack[stacklen] = Jim_NewDoubleObj(interp, dC);
+            if (intresult) {
+                stack[stacklen] = Jim_NewIntObj(interp, wC);
+            }
+            else {
+                stack[stacklen] = Jim_NewDoubleObj(interp, dC);
+            }
             Jim_IncrRefCount(stack[stacklen]);
             stacklen++;
         } else if (opcode == JIM_EXPROP_STREQ || opcode == JIM_EXPROP_STRNE) {
@@ -7102,6 +7109,7 @@ retry_as_string:
                 error = 1;
                 goto err;
             }
+            intresult = 0;
             Jim_DecrRefCount(interp, A);
             Jim_DecrRefCount(interp, B);
             stack[stacklen] = Jim_NewIntObj(interp, wC);
