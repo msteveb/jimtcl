@@ -8076,6 +8076,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     int i, j = 0, len;
     ScriptObj *script;
     ScriptToken *token;
+    ScriptToken *cmdtoken = NULL;
     int *cs; /* command structure array */
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
@@ -8135,6 +8136,10 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             argv = sargv;
         else
             argv = Jim_Alloc(sizeof(Jim_Obj*)*argc);
+
+        /* This is the command token. Remember it in the case of error */
+        cmdtoken = &token[i];
+
         /* Populate the arguments objects. */
         for (j = 0; j < argc; j++) {
             int tokens = *cs++;
@@ -8228,7 +8233,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 interp->cmdPrivData = cmd->privData;
                 retcode = cmd->cmdProc(interp, argc, argv);
                 if (retcode == JIM_ERR_ADDSTACK) {
-                    JimAppendStackTrace(interp, "", script->fileName, token[i-argc*2].linenr);
+                    JimAppendStackTrace(interp, "", script->fileName, cmdtoken->linenr);
                     retcode = JIM_ERR;
                 }
             } else {
@@ -8236,7 +8241,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 if (retcode == JIM_ERR) {
                     JimAppendStackTrace(interp,
                         Jim_GetString(argv[0], NULL), script->fileName,
-                        token[i-argc*2].linenr);
+                        cmdtoken->linenr);
                 }
             }
         } else {
@@ -8245,7 +8250,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             if (retcode == JIM_ERR) {
                 JimAppendStackTrace(interp,
                     "", script->fileName,
-                    token[i-argc*2].linenr);
+                    cmdtoken->linenr);
             }
         }
         if (interp->signal_level && interp->signal) {
@@ -8253,7 +8258,6 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             retcode = JIM_SIGNAL;
         }
         if (retcode != JIM_OK) {
-            i -= argc*2; /* point to the command name. */
             goto err;
         }
         /* Decrement the arguments count */
@@ -8276,7 +8280,7 @@ err:
     if (retcode == JIM_ERR && !interp->errorFlag) {
         interp->errorFlag = 1;
         JimSetErrorFileName(interp, script->fileName);
-        JimSetErrorLineNumber(interp, token[i].linenr);
+        JimSetErrorLineNumber(interp, cmdtoken ? cmdtoken->linenr : 0);
         JimResetStackTrace(interp);
     }
     Jim_FreeIntRep(interp, scriptObjPtr);
