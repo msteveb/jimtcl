@@ -2286,6 +2286,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         int inprec;
         int haveprec;
         int accum;
+        int buflen = 0;
 
         while (*fmt != '%' && fmtLen) {
             fmt++; fmtLen--;
@@ -2461,7 +2462,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
             *cp++ = 's';
             *cp   = 0;
             /* BUG: we do not handled embeded NULLs */
-            snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, Jim_GetString( objv[0], NULL ));
+            buflen = snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, Jim_GetString( objv[0], NULL ));
             break;
         case 'c':
             *cp++ = 'c';
@@ -2471,7 +2472,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 return NULL;
             }
             c = (char) wideValue;
-            snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, c );
+            buflen = snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, c );
             break;
         case 'f':
         case 'F':
@@ -2485,8 +2486,8 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 Jim_FreeNewObj( interp, resObjPtr );
                 return NULL;
             }
+            buflen = snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, doubleValue );
             snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, doubleValue );
-            break;
         case 'b':
         case 'd':
         case 'o':
@@ -2507,7 +2508,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 Jim_FreeNewObj(interp, resObjPtr);
                 return NULL;
             }
-            snprintf(sprintf_buf, JIM_MAX_FMT, fmt_str, wideValue );
+            buflen = snprintf(sprintf_buf, JIM_MAX_FMT, fmt_str, wideValue );
             break;
         case '%':
             sprintf_buf[0] = '%';
@@ -2527,9 +2528,8 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         printf("FMT was: %s\n", fmt_str );
         printf("RES was: |%s|\n", sprintf_buf );
 #endif
-        
-        sprintf_buf[ JIM_MAX_FMT - 1] = 0;
-        Jim_AppendString( interp, resObjPtr, sprintf_buf, strlen(sprintf_buf) );
+
+        Jim_AppendString( interp, resObjPtr, sprintf_buf, buflen <= JIM_MAX_FMT ? buflen : JIM_MAX_FMT);
         /* next obj */
         objv++;
         fmt++;
