@@ -1,5 +1,6 @@
 2009-08-16 Steve Bennett <steveb@workware.net.au>
 	
+	* jimsh.c: A script exiting with 'exit 0' would not give a return code of 0
 	* jim.c: Make [format %c 0] work (embedded nulls)
 	* jim-array-1.0.tcl: array unset was broken
 	* jim.c: Some recursion in unknown is OK, just not infinite recursion.

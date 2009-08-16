@@ -160,6 +160,15 @@ int main(int argc, char *const argv[])
             Jim_PrintErrorMessage(interp);
         }
     }
+    if (retcode == JIM_OK) {
+        retcode = 0;
+    }
+    else if (retcode == JIM_EXIT) {
+        retcode = interp->exitCode;
+    }
+    else {
+        retcode = 1;
+    }
     Jim_FreeInterp(interp);
     return retcode;
 }
