@@ -1,3 +1,8 @@
+2009-08-16 Steve Bennett <steveb@workware.net.au>
+
+	* jim.c:  'unset ::var' to unset a global var.
+ 	It was doing nothing.
+
 2008-11-06 Steve Bennett <steveb@workware.net.au>
 
 	* jim.c: Implement info hostname by calling os.hostname
@@ -203,7 +208,7 @@ src/Jim.h
 
 2008-06-13 oharboe
 	
-	* ChangeLog: Øyvind Harboe's first test as a committer.
+	* ChangeLog: ï¿½yvind Harboe's first test as a committer.
 
 2006-11-06 21:29  antirez
 
