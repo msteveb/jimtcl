@@ -1,3 +1,8 @@
+2009-10-08 Øyvind Harboe
+
+	* jim.c/h: bring in changes from OpenOCD. Warnings and
+	some bug fixes. Copyright list updated in jim.c 
+	
 2009-08-16 Steve Bennett <steveb@workware.net.au>
 
 	* jim.c: Comparison of doubles is a boolean, not a double. expr {0.5 < 1.0}
