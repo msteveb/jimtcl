@@ -1,3 +1,7 @@
+2009-10-14 Øyvind Harboe
+
+	* switched to git.
+	
 2009-10-08 Øyvind Harboe
 
 	* jim.c/h: bring in changes from OpenOCD. Warnings and
