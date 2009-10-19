@@ -3,11 +3,14 @@
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
  * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net>
- * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
+ * Copyright 2008,2009 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
  * Copyright 2008 Steve Bennett <steveb@workware.net.au>
+ * Copyright 2009 Nico Coesel <ncoesel@dealogic.nl>
+ * Copyright 2009 Zachary T Welch zw@superlucidity.net
+ * Copyright 2009 David Brownell
  *
  * The FreeBSD license
  *
@@ -48,13 +51,11 @@
 
 #ifdef __ECOS
 #include <pkgconf/jimtcl.h>
-#endif
-#ifndef JIM_ANSIC
-#define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
-#endif /* JIM_ANSIC */
-
 #include <stdio.h>
 #include <stdlib.h>
+
+typedef CYG_ADDRWORD intptr_t;
+
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -62,6 +63,13 @@
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
+#endif
+#ifndef JIM_ANSIC
+#define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
+#endif /* JIM_ANSIC */
+
+#include <stdarg.h>
+#include <limits.h>
 
 /* Include the platform dependent libraries for
  * dynamic loading of libraries. */
@@ -82,10 +90,6 @@
 #include <dlfcn.h>
 #endif /* WIN32 */
 #endif /* JIM_DYNLIB */
-
-#ifndef WIN32
-#include <unistd.h>
-#endif
 
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
@@ -4753,7 +4757,7 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
         Jim_AddHashEntry(&interp->sharedStrings, strCopy, (void*)1);
         return strCopy;
     } else {
-        long refCount = (long) he->val;
+        intptr_t refCount = (intptr_t) he->val;
 
         refCount++;
         he->val = (void*) refCount;
@@ -4763,13 +4767,13 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
 
 void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 {
-    long refCount;
+    intptr_t refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
     if (he == NULL)
         Jim_Panic(interp,"Jim_ReleaseSharedString called with "
               "unknown shared string '%s'", str);
-    refCount = (long) he->val;
+    refCount = (intptr_t) he->val;
     refCount--;
     if (refCount == 0) {
         Jim_DeleteHashEntry(&interp->sharedStrings, str);
