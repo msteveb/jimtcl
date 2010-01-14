@@ -8568,6 +8568,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     int *cs; /* command structure array */
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
+    Jim_Obj *errorProc = NULL;
 
     interp->errorFlag = 0;
 
@@ -8715,26 +8716,16 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             if (cmd->cmdProc) {
                 interp->cmdPrivData = cmd->privData;
                 retcode = cmd->cmdProc(interp, argc, argv);
-                if ((retcode == JIM_ERR)||(retcode == JIM_ERR_ADDSTACK)) {
-                    JimAppendStackTrace(interp, "", script->fileName, token[i-argc*2].linenr);
-                    retcode = JIM_ERR;
-                }
             } else {
                 retcode = JimCallProcedure(interp, cmd, argc, argv);
                 if (retcode == JIM_ERR) {
-                    JimAppendStackTrace(interp,
-                        Jim_GetString(argv[0], NULL), script->fileName,
-                        token[i-argc*2].linenr);
+                    errorProc = argv[0];
+                    Jim_IncrRefCount(errorProc);
                 }
             }
         } else {
             /* Call [unknown] */
             retcode = JimUnknown(interp, argc, argv);
-            if (retcode == JIM_ERR) {
-                JimAppendStackTrace(interp,
-                    "", script->fileName,
-                    token[i-argc*2].linenr);
-            }
         }
         if (retcode != JIM_OK) {
             i -= argc*2; /* point to the command name. */
@@ -8757,11 +8748,22 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
           Jim_DecrRefCount-ed. */
 err:
     /* Handle errors. */
-    if (retcode == JIM_ERR && !interp->errorFlag) {
-        interp->errorFlag = 1;
-        JimSetErrorFileName(interp, script->fileName);
-        JimSetErrorLineNumber(interp, token[i].linenr);
-        JimResetStackTrace(interp);
+    if ((retcode == JIM_ERR)||(retcode == JIM_ERR_ADDSTACK)||
+        (retcode == JIM_RETURN &&
+        (interp->returnCode == JIM_ERR||interp->returnCode == JIM_ERR_ADDSTACK))) {
+        if (!interp->errorFlag) {
+            interp->errorFlag = 1;
+            JimSetErrorFileName(interp, script->fileName);
+            JimSetErrorLineNumber(interp, token[i].linenr);
+            JimResetStackTrace(interp);
+        }
+        JimAppendStackTrace(interp, errorProc ? Jim_GetString(errorProc, NULL) : "", script->fileName, token[i].linenr);
+        if (errorProc) {
+            Jim_DecrRefCount(interp, errorProc);
+        }
+        if (retcode == JIM_ERR_ADDSTACK) {
+            retcode = JIM_ERR;
+        }
     }
     Jim_FreeIntRep(interp, scriptObjPtr);
     scriptObjPtr->typePtr = &scriptObjType;
