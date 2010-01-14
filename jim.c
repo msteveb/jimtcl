@@ -8090,6 +8090,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     int *cs; /* command structure array */
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
+    Jim_Obj *errorProc = NULL;
 
     interp->errorFlag = 0;
 
@@ -8242,26 +8243,16 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             if (cmd->cmdProc) {
                 interp->cmdPrivData = cmd->privData;
                 retcode = cmd->cmdProc(interp, argc, argv);
-                if (retcode == JIM_ERR_ADDSTACK) {
-                    JimAppendStackTrace(interp, "", script->fileName, cmdtoken->linenr);
-                    retcode = JIM_ERR;
-                }
             } else {
                 retcode = JimCallProcedure(interp, cmd, argc, argv);
                 if (retcode == JIM_ERR) {
-                    JimAppendStackTrace(interp,
-                        Jim_GetString(argv[0], NULL), script->fileName,
-                        cmdtoken->linenr);
+                    errorProc = argv[0];
+                    Jim_IncrRefCount(errorProc);
                 }
             }
         } else {
             /* Call [unknown] */
             retcode = JimUnknown(interp, argc, argv);
-            if (retcode == JIM_ERR) {
-                JimAppendStackTrace(interp,
-                    "", script->fileName,
-                    cmdtoken->linenr);
-            }
         }
         if (interp->signal_level && interp->signal) {
             /* Check for a signal after each command */
