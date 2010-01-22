@@ -58,6 +58,19 @@
 #include <errno.h>
 #include <time.h>
 #endif
+
+#ifdef __FreeBSD__
+#include <sys/param.h>
+
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
+#define	NEED_ENVIRON_EXTERN	(1)
+#endif
+
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
 #endif /* JIM_ANSIC */
