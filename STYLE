@@ -54,7 +54,7 @@ GOTO
 Goto is allowed every time it makes the code cleaner, like in complex
 functions that need to handle exceptions, there is often an "err" label
 at the end of the function where allocated resources are freed before to exit
-with an error. Goto is also used in order to excape multiple nexted loops.
+with an error. Goto is also used in order to escape multiple nested loops.
 
 ----------
 C FEATURES
