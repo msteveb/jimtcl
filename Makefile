@@ -27,13 +27,15 @@ INSTALL_PROGRAM= $(INSTALL)
 INSTALL_DATA= $(INSTALL) -m 644
 DESTDIR = /usr/local/bin/
 
-PROGRAMS    = jim jim.exe
+PROGRAMS    = jim jim.exe libjim
 JIM_OBJECTS = jim.o jimsh.o
 LIBS        = -ldl
 
 stopit:
 	@echo "Use:"
 	@echo "make jim       - to build the Jim interpreter"
+	@echo "---"
+	@echo "make libjim    - to build a shared library with Jim's API"
 	@echo "---"
 	@echo "make eventloop - to build only the event loop extension (.SO)"
 	@echo "make aio       - to build only the ANSI I/O extension (.SO)"
@@ -105,6 +107,9 @@ jim-sdl-1.0.so:	jim-sdl.xo
 
 jim:	$(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
+
+libjim:	$(JIM_OBJECTS)
+	$(CC) $(LDFLAGS) -shared -o libjim.so $(JIM_OBJECTS) $(LIBS)
 
 readline:	jim-readline-1.0.so
 posix:	jim-posix-1.0.so
