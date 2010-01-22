@@ -64,6 +64,19 @@ typedef CYG_ADDRWORD intptr_t;
 #include <errno.h>
 #include <time.h>
 #endif
+
+#ifdef __FreeBSD__
+#include <sys/param.h>
+
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
+#define	NEED_ENVIRON_EXTERN	(1)
+#endif
+
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
 #endif /* JIM_ANSIC */
@@ -12507,6 +12520,8 @@ Jim_Nvp_name2value(Jim_Interp *interp,
 {
 	const Jim_Nvp *p;
 
+	(void)interp;
+
 	p = Jim_Nvp_name2value_simple(_p, name);
 
 	/* result */
@@ -12532,6 +12547,8 @@ int
 Jim_Nvp_name2value_nocase(Jim_Interp *interp, const Jim_Nvp *_p, const char *name, Jim_Nvp **puthere)
 {
 	const Jim_Nvp *p;
+
+	(void)interp;
 
 	p = Jim_Nvp_name2value_nocase_simple(_p, name);
 
@@ -12578,6 +12595,8 @@ int
 Jim_Nvp_value2name(Jim_Interp *interp, const Jim_Nvp *_p, int value, Jim_Nvp **result)
 {
 	const Jim_Nvp *p;
+
+	(void)interp;
 
 	p = Jim_Nvp_value2name_simple(_p, value);
 
