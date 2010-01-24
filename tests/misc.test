@@ -237,4 +237,52 @@ test incr-1.4 "incr array element - shimmering" {
 	incr a(2)
 } 2
 
+test catch-1.1 "catch ok" {
+	list [catch {set abc 2} result] $result
+} {0 2}
+
+test catch-1.2 "catch error" {
+	list [catch {error 3} result] $result
+} {1 3}
+
+test catch-1.3 "catch break" {
+	list [catch {break} result] $result
+} {3 {}}
+
+test catch-1.4 "catch -nobreak" {
+	set result {}
+	foreach x {a b c} {
+		lappend result $x
+		# This acts just like break since it won't be caught by catch
+		catch -nobreak {break} tmp
+	}
+	set result
+} {a}
+
+test catch-1.5 "catch -no3" {
+	set result {}
+	foreach x {a b c} {
+		lappend result $x
+		# Same as above, but specify as an integer
+		catch -no3 {break} tmp
+	}
+	set result
+} {a}
+
+test catch-1.6 "catch break" {
+	set result {}
+	foreach x {a b c} {
+		lappend result $x
+		# This does nothing since the break is caught
+		catch {break} tmp
+	}
+	set result
+} {a b c}
+
+
+test catch-1.7 "catch exit" {
+	# Normally exit would not be caught
+	dict get [info returncodes] [catch -exit {exit 5} result]
+} {exit}
+
 testreport

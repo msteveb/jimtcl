@@ -697,6 +697,7 @@ JIM_EXPORT int Jim_GetFinalizer (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **
 JIM_EXPORT Jim_Interp * Jim_CreateInterp (void);
 JIM_EXPORT void Jim_FreeInterp (Jim_Interp *i);
 JIM_EXPORT int Jim_GetExitCode (Jim_Interp *interp);
+JIM_EXPORT const char *Jim_ReturnCode(int code);
 
 /* commands */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
@@ -822,6 +823,14 @@ JIM_EXPORT int Jim_GetEnum (Jim_Interp *interp, Jim_Obj *objPtr,
         const char * const *tablePtr, int *indexPtr, const char *name, int flags);
 JIM_EXPORT int Jim_ScriptIsComplete (const char *s, int len,
         char *stateCharPtr);
+/**
+ * Find a matching name in the array of the given length.
+ * 
+ * NULL entries are ignored.
+ *
+ * Returns the matching index if found, or -1 if not.
+ */
+JIM_EXPORT int Jim_FindByName(const char *name, const char *array[], size_t len);
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);

@@ -13,17 +13,16 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     while (1) {
         char buf[1024];
         const char *result;
-        /* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
-        const char *retcodestr[] = {
-            "ok", "error", "return", "break", "continue", "signal", "exit", "eval"
-        };
         int reslen;
 
         if (retcode != 0) {
-            if (retcode >= 1 && retcode < sizeof(retcodestr) / sizeof(*retcodestr))
-                printf("[%s] . ", retcodestr[retcode]);
-            else
+            const char *retcodestr = Jim_ReturnCode(retcode);
+            if (*retcodestr == '?') {
                 printf("[%d] . ", retcode);
+            }
+            else {
+                printf("[%s] . ", retcodestr);
+            }
         } else
             printf(". ");
         fflush(stdout);

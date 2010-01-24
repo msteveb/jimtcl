@@ -53,24 +53,6 @@ static const char *priorities[] = {
 };
 
 /**
- * Find a matching name in the array of the given length.
- * 
- * NULL entries are ignored.
- *
- * Returns the matching index if found, or -1 if not.
- */
-static int find_by_name(const char *name, const char *array[], size_t len)
-{
-    int i;
-    for (i = 0; i < len; i++) {
-        if (array[i] && strcmp(array[i], name) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-/**
  * Deletes the syslog command.
  */
 static void Jim_SyslogCmdDelete(Jim_Interp *interp, void *privData)
@@ -102,7 +84,7 @@ wrongargs:
     }
     while (i < argc-1) {
         if (Jim_CompareStringImmediate(interp, argv[i], "-facility")) {
-            int entry = find_by_name(Jim_GetString(argv[i + 1], NULL), facilities, sizeof(facilities) / sizeof(*facilities));
+            int entry = Jim_FindByName(Jim_GetString(argv[i + 1], NULL), facilities, sizeof(facilities) / sizeof(*facilities));
             if (entry < 0) {
                Jim_SetResultString(interp, "Unknown facility", -1);
                return JIM_ERR;
@@ -147,7 +129,7 @@ wrongargs:
     }
 
     if (i<argc-1) {
-        priority = find_by_name(Jim_GetString(argv[i], NULL), priorities, sizeof(priorities) / sizeof(*priorities));
+        priority = Jim_FindByName(Jim_GetString(argv[i], NULL), priorities, sizeof(priorities) / sizeof(*priorities));
         if (priority < 0) {
            Jim_SetResultString(interp, "Unknown priority", -1);
            return JIM_ERR;

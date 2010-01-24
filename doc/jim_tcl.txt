@@ -71,6 +71,9 @@ Since v0.61:
 9. Add support for 'unset -nocomplain'
 10. Add support for list commands: 'lassign', 'lrepeat'
 11. Fully-functional 'lsearch' is now implemented
+12. Add 'info nameofexecutable' and 'info returncodes'
+13. Allow 'catch' to determine what return codes are caught
+14. Allow 'incr' to increment an unset variable by first setting to 0
 
 TCL INTRODUCTION
 -----------------
@@ -169,7 +172,7 @@ The first field must be the name of a command, and the
 additional fields, if any, are arguments that will be passed to
 that command.  For example, the command:
 
-  set a 22
+    set a 22
 
 has three fields:  the first, 'set', is the name of a Tcl command, and
 the last two, 'a' and '22', will be passed as arguments to
@@ -499,20 +502,20 @@ specify a position in the string relative to the start or end of the string/list
 The index may be one of the following forms:
 
 `integer`::
-	A simple integer, where '0' refers to the first element of the string
-	or list.
+    A simple integer, where '0' refers to the first element of the string
+    or list.
 
 `integer+integer` or::
 `integer-integer`::
-	The sum or difference of the two integers. e.g. +2+3+ refers to the 5th element.
-	This is useful when used with (e.g.) +$i+1+ rather than the more verbose
-	+[expr {$i+1\}]+
+    The sum or difference of the two integers. e.g. +2+3+ refers to the 5th element.
+    This is useful when used with (e.g.) +$i+1+ rather than the more verbose
+    +[expr {$i+1\}]+
 
 `end`::
-	The last element of the string or list.
+    The last element of the string or list.
 
 `end-integer`::
-	The 'nth-from-last' element of the string or list.
+    The 'nth-from-last' element of the string or list.
 
 COMMAND SUMMARY
 ---------------
@@ -635,14 +638,14 @@ of precedence:
 [[OperatorPrecedence]]
 `int() double() round() abs()`::
     Unary functions.
-	int() converts the numeric argument to an integer by truncating down.
-	double() converts the numeric argument to floating point.
-	round() converts the numeric argument to the closest integer value.
-	abs() takes the absolute value of the numeric argument.
+    int() converts the numeric argument to an integer by truncating down.
+    double() converts the numeric argument to floating point.
+    round() converts the numeric argument to the closest integer value.
+    abs() takes the absolute value of the numeric argument.
 
 `sin() cos() tan() asin() acos() atan() sinh() cosh() tanh() ceil() floor() exp() log() log10() sqrt()`::
     Unary math functions.
-	If Jim is compiled with math support, these functions are available.
+    If Jim is compiled with math support, these functions are available.
 
 `- + ~ !`::
     Unary minus, unary plus, bit-wise NOT, logical NOT.  None of these operands
@@ -651,7 +654,7 @@ of precedence:
 
 `**`::
     Power. e.g. pow(). If Jim is compiled with math support, supports doubles and
-	integers. Otherwise supports integers only.
+    integers. Otherwise supports integers only.
 
 `* / %`::
     Multiply, divide, remainder.  None of these operands may be
@@ -674,7 +677,7 @@ of precedence:
     Boolean equal and not equal.  Each operator produces a zero/one result.
     Valid for all operand types. *Note* that values will be converted to integers
     if possible, then floating point types, and finally strings will be compared.
-	It is recommended that 'eq' and 'ne' should be used for string comparison.
+    It is recommended that 'eq' and 'ne' should be used for string comparison.
 
 `eq ne`::
     String equal and not equal.  Uses the string value directly without
@@ -682,8 +685,8 @@ of precedence:
 
 `in ni`::
     String in list and not in list. For 'in', result is 1 if the left operand (as a string)
-	is contained in the right operand (as a list), or 0 otherwise. The result for
-	'{$a ni $list}' is equivalent to '{!($a in $list)}'.
+    is contained in the right operand (as a list), or 0 otherwise. The result for
+    '{$a ni $list}' is equivalent to '{!($a in $list)}'.
 
 `&`::
     Bit-wise AND.  Valid for integer operands only.
@@ -707,7 +710,7 @@ of precedence:
     evaluates to non-zero, then the result is the value of *y*.
     Otherwise the result is the value of *z*.
     The *x* operand must have a numeric value, while *y* and *z* can
-	be of any type.
+    be of any type.
 
 See the C manual for more details on the results
 produced by each operator.
@@ -858,14 +861,14 @@ arguments. Support for this feature is also available in Jim.
 
 Consider the following attempt to exec a list:
 
-	set cmd {ls -l}
-	exec $cmd
+    set cmd {ls -l}
+    exec $cmd
 
 This will attempt to exec the a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
 it can be solved much more easily with '\{*\}'.
 
-	exec {*}$cmd
+    exec {*}$cmd
 
 This will expand the following argument into individual elements and then evaluate
 the resulting command.
@@ -1116,10 +1119,10 @@ A reference can be thought of as holding a value with one level of indirection,
 where the value may be garbage collected when unreferenced.
 Consider the following example:
 
-	jim> set r [ref "One String" test]
-	<reference.<test___>.00000000000000000000>
-	jim> getref $r
-	One String
+    jim> set r [ref "One String" test]
+    <reference.<test___>.00000000000000000000>
+    jim> getref $r
+    One String
 
 The operation 'ref' creates a references to the value specfied by the
 first argument. (The second argument is a "type" used for documentation purposes).
@@ -1127,10 +1130,10 @@ first argument. (The second argument is a "type" used for documentation purposes
 The operation 'getref' is the dereferencing operation which retrieves the value
 stored in the reference.
 
-	jim> setref $r "New String"
-	New String
-	jim> getref $r
-	New String
+    jim> setref $r "New String"
+    New String
+    jim> getref $r
+    New String
 
 The operation 'setref' replaces the value stored by the reference. If the old value
 is no longer accessible by any reference, it will eventually be automatically be garbage
@@ -1148,15 +1151,15 @@ and discard objects which are no longer accessible by any reference.
 The 'collect' command may be used to force garbage collection.  Consider a reference created
 with a finalizer:
 
-	jim> proc f {ref value} { puts "Finaliser called for $ref,$value" }
-	jim> set r [ref "One String" test f]
-	<reference.<test___>.00000000000
-	jim> collect
-	0
-	jim> set r ""
-	jim> collect
-	Finaliser called for <reference.<test___>.00000000000,One String
-	1
+    jim> proc f {ref value} { puts "Finaliser called for $ref,$value" }
+    jim> set r [ref "One String" test f]
+    <reference.<test___>.00000000000
+    jim> collect
+    0
+    jim> set r ""
+    jim> collect
+    Finaliser called for <reference.<test___>.00000000000,One String
+    1
 
 Note that once the reference, 'r', was modified so that it no longer
 contained a reference to the value, the garbage collector discarded
@@ -1164,22 +1167,22 @@ the value (after calling the finalizer).
 
 The finalizer for a reference may be examined or changed with the 'finalize' command
 
-	jim> finalize $r
-	f
-	jim> finalize $r newf
-	newf
+    jim> finalize $r
+    f
+    jim> finalize $r newf
+    newf
 
 Lambda
 ------
 Jim provides a garbage collected lambda function. This is a procedure
 which is able to create an anonymous procedure.  Consider:
 
-	jim> set f [lambda {a} {{x 0}} { incr x $a }]
-	jim> $f 1
-	1
-	jim> $f 2
-	3
-	jim> set f ""
+    jim> set f [lambda {a} {{x 0}} { incr x $a }]
+    jim> $f 1
+    1
+    jim> $f 2
+    3
+    jim> set f ""
 
 This create an anonymous procedure, 'f', with a static variable
 which is incremented by the supplied value and the result returned.
@@ -1375,7 +1378,7 @@ will return '2'.
 
 catch
 ~~~~~
-+*catch* ?*-signal*? 'command' ?'varName'?+
++*catch* '?-?no?code ...? command ?varName?'+
 
 The 'catch' command may be used to prevent errors from aborting
 command interpretation.  'Catch' evalues *command*, and
@@ -1393,9 +1396,16 @@ If the *varName* argument is given, then it gives the name of a variable;
 'catch' will set the value of the variable to the string returned from
 *command* (either a result or an error message).
 
-Normally 'catch' will *not* catch any signal. However if *-signal* is specified,
-any signals marked as *handle* by 'signal' will be caught and 'catch' will return
-+JIM_SIGNAL+ (5). In this case, the return values is the name of the signal caught.
+Normally 'catch' will *not* catch any of the codes +JIM_EXIT+, +JIM_EVAL+ or +JIM_SIGNAL+.
+The set of codes which will be caught may be modified by specifying the one more codes before
+*command*. (In this case, *varName* must be specified).
+
+e.g. To catch +JIM_EXIT+ but not +JIM_BREAK+ or +JIM_CONTINUE+
+
+    catch -exit -nobreak -nocontinue { ... }
+
+Note that if a signal marked as 'signal handle' is caught with 'catch -signal', the return value
+(stored in *varName*) is name of the signal caught.
 
 cd
 ~~
@@ -1411,16 +1421,16 @@ be removed in some applications.
 clock
 ~~~~~
 +*clock seconds*+::
-	Returns the current time as seconds since the epoch.
+    Returns the current time as seconds since the epoch.
 
 +*clock format* 'seconds' ?*-format* 'format?'+::
-	Format the given time (seconds since the epoch) according to the given
-	format. See strftime(3) for supported formats.
-	If no format is supplied, "%c" is used.
+    Format the given time (seconds since the epoch) according to the given
+    format. See strftime(3) for supported formats.
+    If no format is supplied, "%c" is used.
 
 +*clock scan* 'str' *-format* 'format'+::
-	Scan the given time string using the given format string.
-	See strptime(3) for supported formats.
+    Scan the given time string using the given format string.
+    See strptime(3) for supported formats.
 
 close
 ~~~~~
@@ -1468,45 +1478,45 @@ The *option* argument determines what action is carried out by the
 command.  The legal *options* are:
 
 *dict create* '?key value ...?'+::
-	Create and return a new dictionary value that contains each of
-	the key/value mappings listed as  arguments (keys and values
-	alternating, with each key being followed by its associated
-	value.)
+    Create and return a new dictionary value that contains each of
+    the key/value mappings listed as  arguments (keys and values
+    alternating, with each key being followed by its associated
+    value.)
 
 *dict exists* 'dictionary key ?key ...?'+::
-	Returns a boolean value indicating whether the given key (or path
-	of keys through a set of nested dictionaries) exists in the given
-	dictionary value.  This returns a true value exactly when 'dict get'
-	on that path will succeed.
+    Returns a boolean value indicating whether the given key (or path
+    of keys through a set of nested dictionaries) exists in the given
+    dictionary value.  This returns a true value exactly when 'dict get'
+    on that path will succeed.
 
 *dict get* 'dictionary ?key ...?'+::
-	Given a dictionary value (first argument) and a key (second argument),
-	this will retrieve the value for that key. Where several keys are
-	supplied, the behaviour of the command shall be as if the result
-	of 'dict get $dictVal $key' was passed as the first argument to
-	dict get with the remaining arguments as second (and possibly
-	subsequent) arguments. This facilitates lookups in nested dictionaries.
-	If no keys are provided, dict would return a list containing pairs
-	of elements in a man- ner similar to array get. That is, the first
-	element of each pair would be the key and the second element would
-	be the value for that key.  It is an error to attempt to retrieve
-	a value for a key that is not present in the dictionary.
+    Given a dictionary value (first argument) and a key (second argument),
+    this will retrieve the value for that key. Where several keys are
+    supplied, the behaviour of the command shall be as if the result
+    of 'dict get $dictVal $key' was passed as the first argument to
+    dict get with the remaining arguments as second (and possibly
+    subsequent) arguments. This facilitates lookups in nested dictionaries.
+    If no keys are provided, dict would return a list containing pairs
+    of elements in a man- ner similar to array get. That is, the first
+    element of each pair would be the key and the second element would
+    be the value for that key.  It is an error to attempt to retrieve
+    a value for a key that is not present in the dictionary.
 
 *dict set* 'dictionaryName key ?key ...? value'+::
-	This operation takes the *name* of a variable containing a dictionary
-	value and places an updated dictionary value in that variable
-	containing a mapping from the given key to the given value. When
-	multiple keys are present, this operation creates or updates a chain
-	of nested dictionaries.
+    This operation takes the *name* of a variable containing a dictionary
+    value and places an updated dictionary value in that variable
+    containing a mapping from the given key to the given value. When
+    multiple keys are present, this operation creates or updates a chain
+    of nested dictionaries.
 
 *dict unset* 'dictionaryName key ?key ...? value'+::
-	This operation (the companion to 'dict set') takes the name of a
-	variable containing a dictionary value and places an updated
-	dictionary value in that variable that does not contain a mapping
-	for the given key. Where multiple keys are present, this describes
-	a path through nested dictionaries to the mapping to remove. At
-	least one key must be specified, but the last key on the key-path
-	need not exist. All other components on the path must exist.
+    This operation (the companion to 'dict set') takes the name of a
+    variable containing a dictionary value and places an updated
+    dictionary value in that variable that does not contain a mapping
+    for the given key. Where multiple keys are present, this describes
+    a path through nested dictionaries to the mapping to remove. At
+    least one key must be specified, but the last key on the key-path
+    need not exist. All other components on the path must exist.
 
 env
 ~~~
@@ -1564,10 +1574,10 @@ errorInfo
 Returns a human-readable representation of the given error message and stack trace.
 Typical usage is:
 
-	if {[catch {...} error]} {
-		puts stderr [errorInfo $error [info stacktrace]]
-		exit 1
-	}
+    if {[catch {...} error]} {
+        puts stderr [errorInfo $error [info stacktrace]]
+        exit 1
+    }
 
 See also 'error'.
 
@@ -1642,8 +1652,8 @@ An *arg* may have one of the following special forms:
     redirected to the given (writable) file descriptor.
 
 +>&filename+::
-	Both the standard output and standard error of the last command
-	in the pipeline is redirected to the file.
+    Both the standard output and standard error of the last command
+    in the pipeline is redirected to the file.
 
 +>>&filename+::
     As above, but append to the file.
@@ -1753,8 +1763,8 @@ abbreviation for *option* is acceptable.  The valid options are:
 
 +*file join* 'arg arg ...'+::
     Joins multiple path components. Note that if any components is
-	an absolute path, the preceding components are ignored.
-	Thus 'file join /tmp /root' returns '/root'.
+    an absolute path, the preceding components are ignored.
+    Thus 'file join /tmp /root' returns '/root'.
 
 +*file lstat* 'name varName'+::
     Same as 'stat' option (see below) except uses the *lstat*
@@ -1827,8 +1837,8 @@ abbreviation for *option* is acceptable.  The valid options are:
 
 +*file tempfile* '?template?'+::
     Creates and returns the name of a unique temporary file. If *template* is omitted, a
-	default template will be used to place the file in /tmp. See mkstemp(3) for
-	the format of the template and security concerns.
+    default template will be used to place the file in /tmp. See mkstemp(3) for
+    the format of the template and security concerns.
 
 +*file type* 'name'+::
     Returns a string giving the type of file *name*, which will be
@@ -2037,6 +2047,9 @@ integer) is added to the value of variable *varName*;  otherwise
 The new value is stored as a decimal string in variable *varName*
 and also returned as result.
 
+If the variable does not exist, the variable is implicitly created
+and set to +0+ first.
+
 info
 ~~~~
 
@@ -2084,7 +2097,7 @@ The legal *option*'s (which may be abbreviated) are:
     'string match'.
 
 +*info hostname*+::
-	An alias for 'os.hostname' for compatibility with Tcl 6.x
+    An alias for 'os.gethostname' for compatibility with Tcl 6.x
 
 +*info level* ?'number'?+::
     If *number* is not specified, this command returns a number
@@ -2108,8 +2121,11 @@ The legal *option*'s (which may be abbreviated) are:
     Matching is determined using the same rules as for 'string match'.
 
 +*info nameofexecutable*+::
-    Returns the name of the binary file from which the application was invoked, either
-	as a path relative to the current directory or as a full path.
+    Returns the name of the binary file from which the application
+    was invoked, either
+    as a path relative to the current directory or as a full
+    path. If the path can't be determined, returns the empty
+    string.
 
 +*info procs* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of all the
@@ -2117,6 +2133,10 @@ The legal *option*'s (which may be abbreviated) are:
     If *pattern* is specified, only those names matching *pattern*
     are returned.  Matching is determined using the same rules as for
     'string match'.
+
++*info returncodes*+::
+    Returns a list representing the mapping of standard return codes
+	to names. e.g. +{0 ok 1 error 2 return ...}+
 
 +*info script*+::
     If a Tcl script file is currently being evaluated (i.e. there is a
@@ -2205,9 +2225,9 @@ the variables given by the *varName* arguments in order. If there are more varia
 list elements, the remaining variables are set to the empty string. If there are more list ele-
 ments than variables, a list of unassigned elements is returned.
 
-	jim> lassign {1 2 3} a b; puts a=$a,b=$b
-	3
-	a=1,b=2
+    jim> lassign {1 2 3} a b; puts a=$a,b=$b
+    3
+    a=1,b=2
 
 lindex
 ~~~~~~
@@ -2330,10 +2350,10 @@ lmap
 
 For example:
 
-	jim> lmap i {1 2 3 4 5} {expr $i*$i}
-	1 4 9 16 25
-	jim> lmap a {1 2 3} b {A B C} {list $a $b}
-	{1 A} {2 B} {3 C}
+    jim> lmap i {1 2 3 4 5} {expr $i*$i}
+    1 4 9 16 25
+    jim> lmap a {1 2 3} b {A B C} {list $a $b}
+    {1 A} {2 B} {3 C}
 
 If the body invokes 'continue', no value is added for this iteration.
 If the body invokes 'break', the loop ends and no more values are added.
@@ -2395,8 +2415,8 @@ lrepeat
 Build a list by repeating elements *number* times (which must be
 a positive integer).
 
-	jim> lrepeat 3 a b
-	a b a b a b
+    jim> lrepeat 3 a b
+    a b a b a b
 
 lreverse
 ~~~~~~~~
@@ -2404,8 +2424,8 @@ lreverse
 
 Returns the list in reverse order.
 
-	jim> lreverse {1 2 3}
-	3 2 1
+    jim> lreverse {1 2 3}
+    3 2 1
 
 lsearch
 ~~~~~~~
@@ -2419,42 +2439,42 @@ the list are to be matched against pattern and must have one of the values below
 *Note* that this command is different from Tcl in that default match type is '-exact' rather than '-glob'.
 
 +'-exact'+::
-	*pattern* is a literal string that is compared for exact equality against each list element.
-	This is the default.
+    *pattern* is a literal string that is compared for exact equality against each list element.
+    This is the default.
 
 +'-glob'+::
-	*pattern* is a glob-style pattern which is matched against each list element using the same
-	rules as the string match command.
+    *pattern* is a glob-style pattern which is matched against each list element using the same
+    rules as the string match command.
 
 +'-regexp'+::
-	*pattern* is treated as a regular expression and matched against each list element using
-	the rules described by 'regexp'.
+    *pattern* is treated as a regular expression and matched against each list element using
+    the rules described by 'regexp'.
 
 +'-all'+::
-	Changes the result to be the list of all matching indices (or all matching values if
-	'-inline' is specified as well). If indices are returned, the indices will be in numeric
-	order. If values are returned, the order of the values will be the order of those values
-	within the input list.
+    Changes the result to be the list of all matching indices (or all matching values if
+    '-inline' is specified as well). If indices are returned, the indices will be in numeric
+    order. If values are returned, the order of the values will be the order of those values
+    within the input list.
 
 +'-inline'+::
-	The matching value is returned instead of its index (or an empty string if no value
-	matches). If '-all' is also specified, then the result of the command is the list of all
-	values that matched. The '-inline' and '-bool' options are mutually exclusive.
+    The matching value is returned instead of its index (or an empty string if no value
+    matches). If '-all' is also specified, then the result of the command is the list of all
+    values that matched. The '-inline' and '-bool' options are mutually exclusive.
 
 +'-bool'+::
-	Changes the result to '1' if a match was found, or '0' otherwise. If '-all' is also specified,
-	the result will be a list of '0' and '1' for each element of the list depending upon whether
-	the corresponding element matches. The '-inline' and '-bool' options are mutually exclusive.
+    Changes the result to '1' if a match was found, or '0' otherwise. If '-all' is also specified,
+    the result will be a list of '0' and '1' for each element of the list depending upon whether
+    the corresponding element matches. The '-inline' and '-bool' options are mutually exclusive.
 
 +'-not'+::
-	This negates the sense of the match, returning the index (or value
-	if '-inline' is specified) of the first non-matching value in the
-	list. If '-bool' is also specified, the '0' will be returned if a
-	match is found, or '1' otherwise.  If '-all' is also specified,
-	non-matches will be returned rather than matches.
+    This negates the sense of the match, returning the index (or value
+    if '-inline' is specified) of the first non-matching value in the
+    list. If '-bool' is also specified, the '0' will be returned if a
+    match is found, or '1' otherwise.  If '-all' is also specified,
+    non-matches will be returned rather than matches.
 
 +'-nocase'+::
-	Causes comparisons to be handled in a case-insensitive manner.
+    Causes comparisons to be handled in a case-insensitive manner.
 
 lsort
 ~~~~~
@@ -2592,18 +2612,18 @@ Either from the static variable definition, or from the enclosing scope.
 
 Consider the following example:
 
-	set a 1
-	proc a {} {a {b 2}} {
-		set c 1
-		puts "$a $b $c"
-		incr a
-		incr b
-		incr c
-	}
-	. a
-	1 2 1
-	. a
-	2 3 1
+    set a 1
+    proc a {} {a {b 2}} {
+        set c 1
+        puts "$a $b $c"
+        incr a
+        incr b
+        incr c
+    }
+    . a
+    1 2 1
+    . a
+    2 3 1
 
 The static variable *a* has no initialiser, so it is initialised from
 the enclosing scope with the value 1. (Note that it is an error if there
@@ -2612,7 +2632,7 @@ has an initialiser, so it is initialised to 2.
 
 Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.
-	
+    
 puts
 ~~~~
 +*puts* ?*-nonewline*? '?fileId? string'+
@@ -2656,14 +2676,14 @@ range
 Returns a list of integers starting at *start* (defaults to 0)
 and ranging up to but not including *end* in steps of *step* defaults to 1).
 
-	jim> range 5
-	0 1 2 3 4
-	jim> range 2 5
-	2 3 4
-	jim> range 2 10 4
-	2 6
-	jim> range 7 4 -2
-	7 5
+    jim> range 5
+    0 1 2 3 4
+    jim> range 2 5
+    2 3 4
+    jim> range 2 10 4
+    2 6
+    jim> range 7 4 -2
+    7 5
 
 read
 ~~~~
@@ -2901,28 +2921,28 @@ Commands which return a list of signal names do so using the canonical form:
 "+SIGINT SIGTERM+".
 
 +*signal handle* ?'signals ...'?+::
-	If no signals are given, returns a list of all signals which are currently
-	being handled.
-	If signals are specified, these are added to the list of signals currently
-	being handled.
+    If no signals are given, returns a list of all signals which are currently
+    being handled.
+    If signals are specified, these are added to the list of signals currently
+    being handled.
 
 +*signal ignore* ?'signals ...'?+::
-	If no signals are given, returns a lists all signals which are currently being
-	ignored.
-	If signals are specified, these are added to the list of signals currently
-	being ignored.
+    If no signals are given, returns a lists all signals which are currently being
+    ignored.
+    If signals are specified, these are added to the list of signals currently
+    being ignored.
 
 +*signal default* ?'signals ...'?+::
-	If no signals are given, returns a lists all signals which are currently have
-	the default behaviour.
-	If signals are specified, these are added to the list of signals which have
-	the default behaviour.
+    If no signals are given, returns a lists all signals which are currently have
+    the default behaviour.
+    If signals are specified, these are added to the list of signals which have
+    the default behaviour.
 
 +*signal throw* ?'signal'?+::
-	Raises the given signal, which defaults to +SIGINT+ if not specified.
-	The behaviour is identical to:
+    Raises the given signal, which defaults to +SIGINT+ if not specified.
+    The behaviour is identical to:
 
-		kill signal [pid]
+        kill signal [pid]
 
 sleep
 ~~~~~
@@ -2999,9 +3019,9 @@ The legal options (which may be abbreviated) are:
     the characters in *string1*.  If found, return the index of the
     first character in the first such match within *string2*.  If not
     found, return -1. If *firstIndex* is specified, matching will start
-	from *firstIndex* of *string1*.
+    from *firstIndex* of *string1*.
  ::
-	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *firstIndex*.
+    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *firstIndex*.
 
 +*string index* 'string charIndex'+::
     Returns the *charIndex*'th character of the *string*
@@ -3011,16 +3031,16 @@ The legal options (which may be abbreviated) are:
     or equal to the length of the string then an empty string is
     returned.
  ::
-	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *charIndex*.
+    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *charIndex*.
 
 +*string last* 'string1 string2 ?lastIndex?'+::
     Search *string2* for a sequence of characters that exactly match
     the characters in *string1*.  If found, return the index of the
     first character in the last such match within *string2*.  If there
     is no match, then return -1. If *lastIndex* is specified, only characters
-	up to *lastIndex* of *string2* will be considered in the match.
+    up to *lastIndex* of *string2* will be considered in the match.
  ::
-	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *lastIndex*.
+    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *lastIndex*.
 
 +*string length* 'string'+::
     Returns a decimal string giving the number of characters in *string*.
@@ -3122,8 +3142,8 @@ characters with no special interpretation.
 special treatment to double quotes or curly braces. For example,
 the following script returns 'xyz \{44\}', not 'xyz \{$a\}'.
 
-	set a 44
-	subst {xyz {$a}}
+    set a 44
+    subst {xyz {$a}}
 
 
 switch
@@ -3141,30 +3161,30 @@ no default is given, then the switch command returns an empty string.
 If the initial arguments to switch start with - then they are treated
 as options. The following options are currently supported:
 
-	+-exact+::
-		Use exact matching when comparing string to a
-		pattern. This is the default.
+    +-exact+::
+        Use exact matching when comparing string to a
+        pattern. This is the default.
 
-	+-glob+::
-		When matching string to the patterns, use glob-style
-		matching (i.e. the same as implemented by the string
-		match command).
+    +-glob+::
+        When matching string to the patterns, use glob-style
+        matching (i.e. the same as implemented by the string
+        match command).
 
-	+-regexp+::
-		When matching string to the patterns, use regular
-		expression matching (i.e. the same as implemented
-		by the regexp command).
+    +-regexp+::
+        When matching string to the patterns, use regular
+        expression matching (i.e. the same as implemented
+        by the regexp command).
 
-	+-command 'commandname'+::
-		When matching string to the patterns, use the given command, which
-		must be a single word. The command is invoked as
-		'commandname pattern string', or 'commandname -nocase pattern string'
-		and must return 1 if matched, or 0 if not.
+    +-command 'commandname'+::
+        When matching string to the patterns, use the given command, which
+        must be a single word. The command is invoked as
+        'commandname pattern string', or 'commandname -nocase pattern string'
+        and must return 1 if matched, or 0 if not.
 
-	+--+::
-		Marks the end of options. The argument following
-		this one will be treated as string even if it starts
-		with a -.
+    +--+::
+        Marks the end of options. The argument following
+        this one will be treated as string even if it starts
+        with a -.
 
 Two syntaxes are provided for the pattern and body arguments. The
 first uses a separate argument for each of the patterns and commands;
@@ -3188,25 +3208,25 @@ body among several patterns.
 
 Below are some examples of switch commands:
 
-	switch abc a - b {format 1} abc {format 2} default {format 3}
+    switch abc a - b {format 1} abc {format 2} default {format 3}
 
 will return 2,
 
-	switch -regexp aaab {
+    switch -regexp aaab {
            ^a.*b$ -
            b {format 1}
            a* {format 2}
            default {format 3}
-	}
+    }
 
 will return 1, and
 
-	switch xyz {
+    switch xyz {
            a -
            b {format 1}
            a* {format 2}
            default {format 3}
-	}
+    }
 
 will return 3.
 
@@ -3424,11 +3444,11 @@ descriptors.
 posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +*os.fork*+::
-	Invokes 'fork(2)' and returns the result.
+    Invokes 'fork(2)' and returns the result.
 
 +*os.wait -nohang* 'pid'+::
-	Invokes waitpid(2), with WNOHANG if *-nohang* is specified.
-	Returns a list of 3 elements.
+    Invokes waitpid(2), with WNOHANG if *-nohang* is specified.
+    Returns a list of 3 elements.
 
    {0 none 0} if -nohang is specified, and the process is still alive.
  
@@ -3441,16 +3461,16 @@ posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
    {<pid> other 0} otherwise (core dump, stopped, continued, etc.)
 
 +*os.gethostname*+::
-	Invokes 'gethostname(3)' and returns the result.
+    Invokes 'gethostname(3)' and returns the result.
 
 +*os.getids*+::
-	Returns the various user/group ids for the current process.
+    Returns the various user/group ids for the current process.
 
-	jim> os.getids
-	uid 1000 euid 1000 gid 100 egid 100
+    jim> os.getids
+    uid 1000 euid 1000 gid 100 egid 100
 
 +*os.uptime*+::
-	Returns the number of seconds since system boot. See description of 'uptime' in 'sysinfo(2)'.
+    Returns the number of seconds since system boot. See description of 'uptime' in 'sysinfo(2)'.
 
 ANSI I/O (aio) and EVENTLOOP API
 --------------------------------
@@ -3461,36 +3481,36 @@ See '<<_open,open>>' and '<<_socket,socket>>' for commands which return an I/O h
 aio
 ~~~
 +$handle *read ?-nonewline?* '?len?'+::
-	Read and return bytes from the stream. To eof if no len.
+    Read and return bytes from the stream. To eof if no len.
 
 +$handle *gets* '?var?'+::
-	Read one line and return it or store it in the var
+    Read one line and return it or store it in the var
 
 +$handle *puts ?-nonewline?* 'str'+::
-	Write the string, with newline unless -nonewline
+    Write the string, with newline unless -nonewline
 
 +$handle *flush*+::
-	Flush the stream
+    Flush the stream
 
 +$handle *eof*+::
-	Returns 1 if stream is at eof
+    Returns 1 if stream is at eof
 
 +$handle *close*+::
-	Closes the stream
+    Closes the stream
 
 +$handle *seek* 'offset' *?start|current|end?*+::
-	Seeks in the stream (default 'current')
+    Seeks in the stream (default 'current')
 
 +$handle *tell*+::
-	Returns the current seek position
+    Returns the current seek position
 
 +$handle *ndelay ?0|1?*+::
-	Set O_NDELAY (if arg). Returns current/new setting.
-	Note that in general ANSI I/O interacts badly with non-blocking I/O.
-	Use with care.
+    Set O_NDELAY (if arg). Returns current/new setting.
+    Note that in general ANSI I/O interacts badly with non-blocking I/O.
+    Use with care.
 
 +$handle *accept*+::
-	Server socket only: Accept a connection and return stream
+    Server socket only: Accept a connection and return stream
 
 eventloop: after, vwait
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -3498,49 +3518,49 @@ eventloop: after, vwait
 The following commands allow a script to be invoked when the given condition occurs.
 
 +$handle *readable* '?readable-script ?eof-script??'+::
-	Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
+    Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
 
 +$handle *writable* '?writable-script?'+::
-	Returns script, or invoke writable-script when writable, {} to remove
+    Returns script, or invoke writable-script when writable, {} to remove
 
 +$handle *onexception* '?exception-script?'+::
-	Returns script, or invoke exception-script when oob data, {} to remove
+    Returns script, or invoke exception-script when oob data, {} to remove
 
 Time-based execution is also available via the eventloop API.
 
 +*after* 'time script'+::
-		The script is executed after the given number of milliseconds have elapsed.
-		Returns an event id.
+        The script is executed after the given number of milliseconds have elapsed.
+        Returns an event id.
 
 +*after cancel* 'id'+::
-		Cancels an after event with the given event id.
+        Cancels an after event with the given event id.
 
 +*vwait* 'variable'+::
-		A call to vwait is required to enter the eventloop. 'vwait' processes events until
-		the named variabled changes. The variable need not exist beforehand.
+        A call to vwait is required to enter the eventloop. 'vwait' processes events until
+        the named variabled changes. The variable need not exist beforehand.
 
 socket
 ~~~~~~
 Various socket types may be created.
 
 +*socket unix* 'path'+::
-	A unix domain socket client.
+    A unix domain socket client.
 
 +*socket unix.server* 'path'+::
-	A unix domain socket server.
+    A unix domain socket server.
 
 +*socket stream* 'hostname:port'+::
-	A TCP socket client.
+    A TCP socket client.
 
 +*socket stream.server* '?hostname:?port'+::
-	A TCP socket server (*hostname* defaults to 0.0.0.0).
+    A TCP socket server (*hostname* defaults to 0.0.0.0).
 
 +*socket dgram* 'hostname:port'+::
-	A UDP socket client.
+    A UDP socket client.
 
 +*socket pipe*+::
-	A pipe. Note that unlike all other socket types, this command returns
-	a list of two channels: {read write}
+    A pipe. Note that unlike all other socket types, this command returns
+    a list of two channels: {read write}
 
 This command creates a socket connected (client) or bound (server) to the given
 address.
@@ -3548,35 +3568,35 @@ address.
 The returned value is channel and may generally be used with the various file I/O
 commands (gets, puts, read, etc.), either as object-based syntax or Tcl-compatible syntax.
 
-	set f [socket stream www.google.com:80]
-	aio.sockstream1
-	$f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
-	$f gets
-	HTTP/1.0 302 Found
-	$f close
+    set f [socket stream www.google.com:80]
+    aio.sockstream1
+    $f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+    $f gets
+    HTTP/1.0 302 Found
+    $f close
 
 Server sockets, however support only 'accept', which is most useful in conjunction with
 the EVENTLOOP API.
 
-	set f [socket stream.server 80]
-	$f readable {
-		set client [$f accept]
-		$client gets $buf
-		...
-		$client puts -nonewline "HTTP/1.1 404 Not found\r\n"
-		$client close
-	}
-	vwait done
+    set f [socket stream.server 80]
+    $f readable {
+        set client [$f accept]
+        $client gets $buf
+        ...
+        $client puts -nonewline "HTTP/1.1 404 Not found\r\n"
+        $client close
+    }
+    vwait done
 
 The special type 'pipe' isn't really a socket.
 
-	foreach {r w} [socket pipe] break
+    foreach {r w} [socket pipe] break
 
-	# Must close $w after exec
-	exec ps >@$w &
-	$w close
+    # Must close $w after exec
+    exec ps >@$w &
+    $w close
 
-	$r readable ...
+    $r readable ...
 
 syslog
 ~~~~~~

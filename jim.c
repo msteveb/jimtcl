@@ -116,6 +116,7 @@ static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filen
 static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
+static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype, const char *prefix, const char * const *tablePtr, const char *name);
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -6333,6 +6334,21 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
  * Return Code Object.
  * ---------------------------------------------------------------------------*/
 
+/* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
+static const char *jimReturnCodes[] = {
+    [JIM_OK] = "ok",
+    [JIM_ERR] = "error",
+    [JIM_RETURN] = "return",
+    [JIM_BREAK] = "break",
+    [JIM_CONTINUE] = "continue",
+    [JIM_SIGNAL] = "signal",
+    [JIM_EXIT] = "exit",
+    [JIM_EVAL] = "eval",
+    NULL
+};
+
+#define jimReturnCodesSize (sizeof(jimReturnCodes)/sizeof(*jimReturnCodes))
+
 static int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
 static const Jim_ObjType returnCodeObjType = {
@@ -6343,19 +6359,28 @@ static const Jim_ObjType returnCodeObjType = {
     JIM_TYPE_NONE,
 };
 
+/* Converts a (standard) return code to a string. Returns "?" for
+ * non-standard return codes.
+ */
+const char *Jim_ReturnCode(int code)
+{
+    if (code < 0 || code >= jimReturnCodesSize) {
+        return "?";
+    }
+    else {
+        return jimReturnCodes[code];
+    }
+}
+
 int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int returnCode;
     jim_wide wideValue;
-    /* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
-    static const char *options[] = {
-        "ok", "error", "return", "break", "continue", "signal", "exit", "eval", NULL
-    };
 
     /* Try to convert into an integer */
     if (JimGetWideNoErr(interp, objPtr, &wideValue) != JIM_ERR)
         returnCode = (int) wideValue;
-    else if (Jim_GetEnum(interp, objPtr, options, &returnCode, NULL, JIM_NONE) != JIM_OK) {
+    else if (Jim_GetEnum(interp, objPtr, jimReturnCodes, &returnCode, NULL, JIM_NONE) != JIM_OK) {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
                 "expected return code but got '", Jim_GetString(objPtr, NULL), "'",
@@ -11796,46 +11821,84 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     int exitCode = 0;
+    int i;
     int sig = 0;
 
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-signal")) {
-        sig++;
-    }
+    /* Which return codes are caught? These are the defaults */
+    jim_wide mask = (1 << JIM_OK | 1 << JIM_ERR | 1 << JIM_BREAK | 1 << JIM_CONTINUE | 1 << JIM_RETURN);
 
-    if (argc - sig != 2 && argc - sig != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-signal? script ?varName?");
-        return JIM_ERR;
-    }
-    argc -= sig;
-    argv += sig;
+    for (i = 1; i < argc - 2; i++) {
+        const char *arg = Jim_GetString(argv[i], NULL);
+        jim_wide option;
+        int add;
 
-    interp->signal_level += sig;
-    exitCode = Jim_EvalObj(interp, argv[1]);
-    interp->signal_level -= sig;
+        /* It's a pity we can't use Jim_GetEnum here :-( */
+        if (strncmp(arg, "-no", 3) == 0) {
+            arg += 3;
+            add = 0;
+        }
+        else if (*arg == '-') {
+            arg++;
+            add = 1;
+        }
+        else {
+            goto wrongargs;
+        }
 
+        if (Jim_StringToWide(arg, &option, 10) != JIM_OK) {
+            option = -1;
+        }
+        if (option < 0) {
+            option = Jim_FindByName(arg, jimReturnCodes, jimReturnCodesSize);
+        }
+        if (option < 0) {
+            goto wrongargs;
+        }
 
-    /* If we get TCL_SIGNAL without the -signal parameter,
-     * just pass it through to be caught at a higher level
-     */
-    if (exitCode == JIM_SIGNAL && !sig) {
-        return exitCode;
-    }
-
-    if (sig) {
-        if (exitCode == JIM_SIGNAL && interp->signal_level == 0) {
-            /* Yes, catch the signal at this level */
-            if (interp->signal_to_name) {
-                Jim_SetResultString(interp, interp->signal_to_name(interp->signal), -1);
-            }
-            else {
-                Jim_SetResultInt(interp, interp->signal);
-            }
-            interp->signal = 0;
+        if (add) {
+            mask |= (1 << option);
+        }
+        else {
+            mask &= ~(1 << option);
         }
     }
 
-    if (argc == 3) {
-        if (Jim_SetVariable(interp, argv[2], Jim_GetResult(interp))
+    argc -= i;
+    if (argc != 1 && argc != 2) {
+wrongargs:
+        Jim_WrongNumArgs(interp, 1, argv, "?-?no?code ...? script ?varName?");
+        return JIM_ERR;
+    }
+    argv += i;
+
+    if (mask & (1 << JIM_SIGNAL)) {
+        sig++;
+    }
+
+    interp->signal_level += sig;
+    exitCode = Jim_EvalObj(interp, argv[0]);
+    interp->signal_level -= sig;
+
+
+    /* Catch or pass through? Only the first 64 codes can be passed through */
+    if (exitCode >= 0 && exitCode < sizeof(mask) && ((1 << exitCode) & mask) == 0) {
+        /* Not caught, pass it up */
+        return exitCode;
+    }
+
+    if (sig && exitCode == JIM_SIGNAL && interp->signal_level == 0) {
+        /* Yes, catch the signal at this level */
+        if (interp->signal_to_name) {
+            Jim_SetResultString(interp, interp->signal_to_name(interp->signal), -1);
+        }
+        else {
+            Jim_SetResultInt(interp, interp->signal);
+        }
+        interp->signal = 0;
+    }
+
+    if (argc == 2) {
+        if (Jim_SetVariable(interp, argv[1], Jim_GetResult(interp))
                 != JIM_OK)
             return JIM_ERR;
     }
@@ -12073,11 +12136,12 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     static const char *commands[] = {
         "body", "commands", "procs", "exists", "globals", "level", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
-        "script", "source", "stacktrace", "nameofexecutable", NULL
+        "script", "source", "stacktrace", "nameofexecutable", "returncodes", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
           INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
-          INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE};
+          INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
+          INFO_RETURNCODES };
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
@@ -12210,6 +12274,18 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     } else if (cmd == INFO_NAMEOFEXECUTABLE) {
         /* Redirect to Tcl proc */
         return Jim_Eval(interp, "info_nameofexecutable");
+    }
+    else if (cmd == INFO_RETURNCODES) {
+        Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+        int i;
+
+        for (i = 0; jimReturnCodes[i]; i++) {
+            Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, i));
+            Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, jimReturnCodes[i], -1));
+        }
+
+        Jim_SetResult(interp, listObjPtr);
+        return JIM_OK;
     }
     return result;
 }
@@ -12778,16 +12854,44 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
     }
 }
 
-int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
+static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype, const char *prefix, const char * const *tablePtr, const char *name)
+{
+    int count;
+    char **tablePtrSorted;
+    int i;
+
+    for (count = 0; tablePtr[count]; count++) {
+    }
+
+    if (name == NULL)
+        name = "option";
+    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+    Jim_AppendStrings(interp, Jim_GetResult(interp),
+        badtype, name, " \"", arg, "\": must be ",
+        NULL);
+    tablePtrSorted = Jim_Alloc(sizeof(char*)*count);
+    memcpy(tablePtrSorted, tablePtr, sizeof(char*)*count);
+    qsort(tablePtrSorted, count, sizeof(char*), qsortCompareStringPointers);
+    for (i = 0; i < count; i++) {
+        if (i+1 == count && count > 1)
+            Jim_AppendString(interp, Jim_GetResult(interp), "or ", -1);
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+                prefix, tablePtrSorted[i], NULL);
+        if (i+1 != count)
+            Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
+    }
+    Jim_Free(tablePtrSorted);
+}
+
+int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr, 
         const char * const *tablePtr, int *indexPtr, const char *name, int flags)
 {
     const char *bad = "bad ";
     const char * const *entryPtr = NULL;
-    char **tablePtrSorted;
     int i;
+    int match = -1;
     int arglen;
     const char *arg = Jim_GetString(objPtr, &arglen);
-    int match = -1;
 
     *indexPtr = -1;
 
@@ -12822,30 +12926,20 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
 
 ambiguous:
     if (flags & JIM_ERRMSG) {
-        int count;
-        for (count = 0; tablePtr[count]; count++) {
-        }
-
-        if (name == NULL)
-            name = "option";
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-            bad, name, " \"", Jim_GetString(objPtr, NULL), "\": must be ",
-            NULL);
-        tablePtrSorted = Jim_Alloc(sizeof(char*)*count);
-        memcpy(tablePtrSorted, tablePtr, sizeof(char*)*count);
-        qsort(tablePtrSorted, count, sizeof(char*), qsortCompareStringPointers);
-        for (i = 0; i < count; i++) {
-            if (i+1 == count && count > 1)
-                Jim_AppendString(interp, Jim_GetResult(interp), "or ", -1);
-            Jim_AppendString(interp, Jim_GetResult(interp),
-                    tablePtrSorted[i], -1);
-            if (i+1 != count)
-                Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
-        }
-        Jim_Free(tablePtrSorted);
+        JimSetFailedEnumResult(interp, arg, bad, "", tablePtr, name);
     }
     return JIM_ERR;
+}
+
+int Jim_FindByName(const char *name, const char *array[], size_t len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (array[i] && strcmp(array[i], name) == 0) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 int Jim_IsDict(Jim_Obj *objPtr)
