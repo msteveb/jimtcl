@@ -9,13 +9,10 @@ proc autoopen {filename {mode r}} {
 	return $ref
 }
 
-# And make autoopen the standard open
-rename open open.old
-rename autoopen open
-
 # Hardly needed
 proc filecopy {read write} {
-	bio copy [open $read] [open $write w]
+	bio copy [autoopen $read] [autoopen $write w]
+	collect
 }
 
 proc section {name} {

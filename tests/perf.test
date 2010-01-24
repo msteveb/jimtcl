@@ -2,8 +2,8 @@ set version [info patchlevel]
 
 proc bench {name cmd} {
 	if {[catch {
-		set t [time $cmd]
-		set ms [expr {[lindex $t 0] / 1000}]
+		set t [time $cmd 2]
+		set ms [format %.0f [expr {[lindex $t 0] / 1000}]]
 	}]} {
 		set ms ?
 	}
@@ -13,6 +13,15 @@ proc bench {name cmd} {
 proc set_dict_sugar {} {
 	for {set i 0} {$i < 100000} {incr i} {
 		set a(b) $i
+	}
+}
+
+# Note that this case does not benefit from the dict sugar
+# speedup since a($b) needs to be interpolated and reparsed every time
+proc set_var_dict_sugar {} {
+	set b b
+	for {set i 0} {$i < 100000} {incr i} {
+		set a($b) $i
 	}
 }
 
@@ -35,9 +44,7 @@ proc read_file_split {file} {
 proc read_file_split_assign_foreach {file} {
 	set f [open $file]
 	while {[gets $f buf] >= 0} {
-		set split [split $buf \t]
 		foreach {info(chan) info(datetime) info(duration) info(title) subtitle_genre info(desc) info(rating) dummy} [split $buf \t] {break}
-		#array unset info
 	}
 	close $f
 }
@@ -45,7 +52,6 @@ proc read_file_split_assign_foreach {file} {
 proc read_file_split_assign_foreach_dict {file} {
 	set f [open $file]
 	while {[gets $f buf] >= 0} {
-		set split [split $buf \t]
 		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
 		dict set info chan $chan
 		dict set info duration $duration
@@ -53,7 +59,6 @@ proc read_file_split_assign_foreach_dict {file} {
 		dict set info subtitle_genre $subtitle_genre
 		dict set info desc $desc
 		dict set info rating $rating
-		#array unset info
 	}
 	close $f
 }
@@ -61,7 +66,6 @@ proc read_file_split_assign_foreach_dict {file} {
 proc read_file_split_assign_foreach_dictsugar {file} {
 	set f [open $file]
 	while {[gets $f buf] >= 0} {
-		set split [split $buf \t]
 		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
 		set info(chan) $chan
 		set info(duration) $duration
@@ -69,7 +73,6 @@ proc read_file_split_assign_foreach_dictsugar {file} {
 		set info(subtitle_genre) $subtitle_genre
 		set info(desc) $desc
 		set info(rating) $rating
-		#array unset info
 	}
 	close $f
 }
@@ -77,9 +80,7 @@ proc read_file_split_assign_foreach_dictsugar {file} {
 proc read_file_split_assign_foreach_simple {file} {
 	set f [open $file]
 	while {[gets $f buf] >= 0} {
-		set split [split $buf \t]
 		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
-		#array unset info
 	}
 	close $f
 }
@@ -95,7 +96,6 @@ proc read_file_split_assign_lindex {file} {
 		set info(subtitle_genre) [lindex $split 4]
 		set info(desc) [lindex $split 5]
 		set info(rating) [lindex $split 6]
-		#array unset info
 	}
 	close $f
 }
@@ -108,13 +108,15 @@ for {set i 0} {$i < 50000} {incr i} {
 close $f
 
 bench "set dictsugar" {set_dict_sugar}
-bench "read file #1" {read_file test.in}
-bench "read file #2" {read_file test.in}
+bench "set var dictsugar" {set_var_dict_sugar}
+# Read once before testing perf
+read_file test.in
+bench "read file" {read_file test.in}
 bench "read file split" {read_file_split test.in}
-bench "read file split assign foreach" {read_file_split_assign_foreach test.in}
-bench "read file split assign foreach dict" {read_file_split_assign_foreach_dict test.in}
-bench "read file split assign foreach dictsugar" {read_file_split_assign_foreach_dictsugar test.in}
-bench "read file split assign foreach simple" {read_file_split_assign_foreach_simple test.in}
-bench "read file split assign lindex" {read_file_split_assign_lindex test.in}
+bench "foreach: direct dictsugar" {read_file_split_assign_foreach test.in}
+bench "foreach: dict cmd" {read_file_split_assign_foreach_dict test.in}
+bench "foreach: assign to dictsugar" {read_file_split_assign_foreach_dictsugar test.in}
+bench "foreach: simple" {read_file_split_assign_foreach_simple test.in}
+bench "foreach: assign to dictsugar via lindex" {read_file_split_assign_lindex test.in}
 
 file delete test.in

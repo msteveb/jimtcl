@@ -128,6 +128,8 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj *newObjPtr, int flags);
 static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line);
+static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
+static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -560,58 +562,24 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
  * Memory allocation
  * ---------------------------------------------------------------------------*/
 
-/* Macro used for memory debugging.
- * In order for they to work you have to rename Jim_Alloc into _Jim_Alloc
- * and similary for Jim_Realloc and Jim_Free */
-#if 0
-#define Jim_Alloc(s) (printf("%s %d: Jim_Alloc(%d)\n",__FILE__,__LINE__,s),_Jim_Alloc(s))
-#define Jim_Free(p) (printf("%s %d: Jim_Free(%p)\n",__FILE__,__LINE__,p),_Jim_Free(p))
-#define Jim_Realloc(p,s) (printf("%s %d: Jim_Realloc(%p,%d)\n",__FILE__,__LINE__,p,s),_Jim_Realloc(p,s))
-#endif
-
 void *Jim_Alloc(int size)
 {
     /* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
-    if (size==0) {
-        size = 1;
-    }
-    void *p = malloc(size);
-    if (p == NULL)
-        Jim_Panic(NULL,"malloc: Out of memory");
-    return p;
+    return malloc(size);
 }
 
 void Jim_Free(void *ptr) {
     free(ptr);
 }
 
-#ifdef DEBUG_REALLOC
-#define Jim_Realloc(PTR, SIZE) Jim_Realloc_(PTR, SIZE, __FILE__, __LINE__)
-void *Jim_Realloc_(void *ptr, int size, const char *filename, int line)
-{
-    printf("Realloc: %6d (%s:%d)\n", size, filename, line);
-#else
-//void *Jim_Realloc(void *ptr, int size)
 void *Jim_Realloc(void *ptr, int size)
 {
-#endif
-    /* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
-    if (size==0) {
-        size = 1;
-    }
-    void *p = realloc(ptr, size);
-    if (p == NULL)
-        Jim_Panic(NULL,"realloc: Out of memory");
-    return p;
+    return realloc(ptr, size);
 }
 
 char *Jim_StrDup(const char *s)
 {
-    int l = strlen(s);
-    char *copy = Jim_Alloc(l+1);
-
-    memcpy(copy, s, l+1);
-    return copy;
+    return strdup(s);
 }
 
 char *Jim_StrDupLen(const char *s, int l)
@@ -1965,6 +1933,19 @@ int Jim_Length(Jim_Obj *objPtr)
     Jim_GetString(objPtr, &len);
     return len;
 }
+
+static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
+static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
+        Jim_Obj *dupPtr);
+
+static const Jim_ObjType dictSubstObjType = {
+    "dict-substitution",
+    FreeDictSubstInternalRep,
+    DupDictSubstInternalRep,
+    NULL,
+    JIM_TYPE_NONE,
+};
+
 
 /* -----------------------------------------------------------------------------
  * String Object
@@ -3497,8 +3478,12 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     /* Check if the object is already an uptodate variable */
     if (objPtr->typePtr == &variableObjType &&
-        objPtr->internalRep.varValue.callFrameId == interp->framePtr->id)
+        objPtr->internalRep.varValue.callFrameId == interp->framePtr->id) {
         return JIM_OK; /* nothing to do */
+    }
+    if (objPtr->typePtr == &dictSubstObjType) {
+        return JIM_DICT_SUGAR;
+    }
     /* Get the string representation */
     varName = Jim_GetString(objPtr, &len);
     /* Make sure it's not syntax glue to get/set dict. */
@@ -3822,6 +3807,9 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
 
     str = Jim_GetString(objPtr, &len);
     p = strchr(str, '(');
+    if (p == NULL) {
+        Jim_Panic(interp, "JimDictSugarParseVarKey() called for non-dict-sugar (%s)", str);
+    }
     p++;
     keyLen = len-((p-str)+1);
     nameLen = (p-str)-1;
@@ -3847,14 +3835,13 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
 static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *valObjPtr)
 {
-    Jim_Obj *varObjPtr, *keyObjPtr;
-    int err = JIM_OK;
+    int err;
 
-    JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
-    err = Jim_SetDictKeysVector(interp, varObjPtr, &keyObjPtr, 1,
-            valObjPtr);
-    Jim_DecrRefCount(interp, varObjPtr);
-    Jim_DecrRefCount(interp, keyObjPtr);
+    SetDictSubstFromAny(interp, objPtr);
+
+    err = Jim_SetDictKeysVector(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr,
+        &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr);
+
     /* Don't keep an extra ref to the result */
     if (err == JIM_OK) {
         Jim_SetEmptyResult(interp);
@@ -3885,18 +3872,6 @@ err:
 
 /* --------- $var(INDEX) substitution, using a specialized object ----------- */
 
-static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
-static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
-        Jim_Obj *dupPtr);
-
-static const Jim_ObjType dictSubstObjType = {
-    "dict-substitution",
-    FreeDictSubstInternalRep,
-    DupDictSubstInternalRep,
-    NULL,
-    JIM_TYPE_NONE,
-};
-
 void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr);
@@ -3915,24 +3890,33 @@ void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
     dupPtr->typePtr = &dictSubstObjType;
 }
 
-/* This function is used to expand [dict get] sugar in the form
- * of $var(INDEX). The function is mainly used by Jim_EvalObj()
- * to deal with tokens of type JIM_TT_DICTSUGAR. objPtr points to an
- * object that is *guaranteed* to be in the form VARNAME(INDEX).
- * The 'index' part is [subst]ituted, and is used to lookup a key inside
- * the [dict]ionary contained in variable VARNAME. */
-Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
+/* Note: The object *must* be in dict-sugar format */
+static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr = NULL;
-    Jim_Obj *substKeyObjPtr = NULL;
-
     if (objPtr->typePtr != &dictSubstObjType) {
+        Jim_Obj *varObjPtr, *keyObjPtr;
+
         JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &dictSubstObjType;
         objPtr->internalRep.dictSubstValue.varNameObjPtr = varObjPtr;
         objPtr->internalRep.dictSubstValue.indexObjPtr = keyObjPtr;
     }
+}
+
+/* This function is used to expand [dict get] sugar in the form
+ * of $var(INDEX). The function is mainly used by Jim_EvalObj()
+ * to deal with tokens of type JIM_TT_DICTSUGAR. objPtr points to an
+ * object that is *guaranteed* to be in the form VARNAME(INDEX).
+ * The 'index' part is [subst]ituted, and is used to lookup a key inside
+ * the [dict]ionary contained in variable VARNAME. */
+static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    Jim_Obj *dictObjPtr, *resObjPtr = NULL;
+    Jim_Obj *substKeyObjPtr = NULL;
+
+    SetDictSubstFromAny(interp, objPtr);
+
     if (Jim_SubstObj(interp, objPtr->internalRep.dictSubstValue.indexObjPtr,
                 &substKeyObjPtr, JIM_NONE)
             != JIM_OK) {
@@ -9804,16 +9788,23 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc,
                     if (Jim_ListIndex(interp, argv[lst+1], listsIdx[i], &ele, JIM_ERRMSG)
                         != JIM_OK)
                         goto err;
-                    if (Jim_SetVariable(interp, varName, ele) != JIM_OK) {
-                        Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
-                        goto err;
+                    /* Avoid shimmering */
+                    Jim_IncrRefCount(ele);
+                    result = Jim_SetVariable(interp, varName, ele);
+                    Jim_DecrRefCount(interp, ele);
+                    if (result == JIM_OK) {
+                        ++listsIdx[i];  /* Remember next iterator of current list */ 
+                        ++varIdx;  /* Next variable */
+                        continue;
                     }
-                    ++listsIdx[i];  /* Remember next iterator of current list */ 
-                } else if (Jim_SetVariable(interp, varName, emptyStr) != JIM_OK) {
-                    Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
-                    goto err;
                 }
-                ++varIdx;  /* Next variable */
+                else if (Jim_SetVariable(interp, varName, emptyStr) == JIM_OK) {
+                    ++varIdx;  /* Next variable */
+                    continue;
+                }
+                Jim_SetResultString(interp, "couldn't set loop variable: ", -1);
+                Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(varName, NULL), NULL);
+                goto err;
             }
         }
         switch (result = Jim_EvalObj(interp, script)) {
