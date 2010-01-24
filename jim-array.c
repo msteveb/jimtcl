@@ -66,12 +66,24 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int i;
     int len;
+    int all = 0;
     Jim_Obj *resultObj;
     Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
     Jim_Obj *dictObj;
     Jim_Obj **dictValuesObj;
 
     if (!objPtr) {
+        return JIM_OK;
+    }
+
+    if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
+        all = 1;
+    }
+
+    /* If it is a dictionary or list, nothing else to do */
+    if (all && (Jim_IsDict(objPtr) || Jim_IsList(objPtr))) {
+        /* XXX If it is a odd-length list no error will be returned */
+        Jim_SetResult(interp, objPtr);
         return JIM_OK;
     }
 
@@ -83,7 +95,7 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
+    if (all) {
         /* Return the whole array */
         Jim_SetResult(interp, dictObj);
     }
@@ -188,8 +200,7 @@ static int array_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Not found means zero length */
     objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
     if (objPtr) {
-        Jim_ListLength(interp, objPtr, &len);
-        len /= 2;
+        len = Jim_ListLength(interp, objPtr) / 2;
     }
 
     Jim_SetResultInt(interp, len);
@@ -201,23 +212,29 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int i;
     int len;
+    int rc = JIM_OK;
     Jim_Obj *listObj = argv[1];
 
-    Jim_ListLength(interp, listObj, &len);
+    if (Jim_GetVariable(interp, argv[0], JIM_NONE) == NULL) {
+        /* Doesn't exist, so just set the list directly */
+        return Jim_SetVariable(interp, argv[0], listObj);
+    }
+
+    len = Jim_ListLength(interp, listObj);
     if (len % 2) {
         Jim_SetResultString(interp, "list must have an even number of elements", -1);
         return JIM_ERR;
     }
-    for (i = 0; i < len; i += 2) {
+    for (i = 0; i < len && rc == JIM_OK; i += 2) {
         Jim_Obj *nameObj;
         Jim_Obj *valueObj;
         Jim_ListIndex(interp, listObj, i, &nameObj, JIM_NONE);
         Jim_ListIndex(interp, listObj, i + 1, &valueObj, JIM_NONE);
 
-        Jim_SetDictKeysVector(interp, argv[0], &nameObj, 1, valueObj);
+        rc = Jim_SetDictKeysVector(interp, argv[0], &nameObj, 1, valueObj);
     }
 
-    return JIM_OK;
+    return rc;
 }
 
 static const jim_subcmd_type command_table[] = {

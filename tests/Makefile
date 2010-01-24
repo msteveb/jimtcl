@@ -5,3 +5,6 @@ test: $(JIMSH)
 
 ../jimsh: ../*.c
 	make -C .. all
+
+clean:
+	rm -f gorp.file2 cat gorp.file sleep exit wc sh echo

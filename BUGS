@@ -6,6 +6,3 @@ expr
 
 right-to-left associativity of ?: is not 100% correct.
 1?2:0?3:4 should be 2, not 3.
-
-Math functions like sin(), cos(), are not implemented
-to avoid requiring libm. Could be a configuration option.

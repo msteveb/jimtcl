@@ -68,7 +68,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
         libPathObjPtr = NULL;
     } else {
         Jim_IncrRefCount(libPathObjPtr);
-        Jim_ListLength(interp, libPathObjPtr, &prefixc);
+        prefixc = Jim_ListLength(interp, libPathObjPtr);
     }
 
     prefixes = Jim_Alloc(sizeof(char*)*prefixc);

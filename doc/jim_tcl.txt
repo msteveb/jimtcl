@@ -39,17 +39,17 @@ The major differences are:
 2. I/O: Support for sockets (client and server)
 3. I/O: Support for readable/writable event handlers
 4. Integers are 64bit
-5. Support for references (ref/getref/setref) and garbage collection
-6. Builtin dictionary type (dict)
-7. file mkdir, file rename, file tempfile (Tcl 7.x, 8.x)
-8. env command to access environment variables
-9. List: lmap, lset, lreverse, lassign (Tcl 8.x)
-10. os.fork, os.wait, rand 
-11. \{*\}/\{expand\}
-12. string map (Tcl 7.x)
-13. subst (Tcl 7.x)
-14. switch (Tcl 7.x) (note that case is provided for compatibility)
-15. Must better error reporting. info stacktrace as a replacement for errorInfo, errorCode
+5. Support for references ('ref'/'getref'/'setref') and garbage collection
+6. Builtin dictionary type ('dict')
+7. 'file mkdir', 'file rename', 'file tempfile' (Tcl 7.x, 8.x)
+8. 'env' command to access environment variables
+9. List: 'lmap', 'lset', 'lreverse', 'lassign' (Tcl 8.x)
+10. 'os.fork', 'os.wait', 'rand' 
+11. '\{*\}'/'\{expand\}'
+12. 'string map' (Tcl 7.x)
+13. 'subst' (Tcl 7.x)
+14. 'switch' (Tcl 7.x) (note that 'case' is provided for compatibility)
+15. Must better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
 16. Support for "static" variables in procedures
 17. Significantly faster for many scripts/operations
 18. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
@@ -59,6 +59,7 @@ The major differences are:
 CHANGES
 -------
 Since v0.61:
+
 1. Add support to 'exec' for '>&', '>>&', '|&'
 2. Fix 'exec' error messages when special token (e.g. '>') is the last token
 3. Fix 'subst' handling of backslash escapes.
@@ -489,6 +490,30 @@ most common cases.  To produce particularly complicated arguments
 it is probably easiest to use the 'format' command along with
 command substitution.
 
+STRING AND LIST INDEX SPECIFICATIONS
+------------------------------------
+
+Many string and list commands take one or more 'index' parameters which
+specify a position in the string relative to the start or end of the string/list.
+
+The index may be one of the following forms:
+
+`integer`::
+	A simple integer, where '0' refers to the first element of the string
+	or list.
+
+`integer+integer` or::
+`integer-integer`::
+	The sum or difference of the two integers. e.g. +2+3+ refers to the 5th element.
+	This is useful when used with (e.g.) +$i+1+ rather than the more verbose
+	+[expr {$i+1\}]+
+
+`end`::
+	The last element of the string or list.
+
+`end-integer`::
+	The 'nth-from-last' element of the string or list.
+
 COMMAND SUMMARY
 ---------------
 1. A command is just a string.
@@ -615,13 +640,18 @@ of precedence:
 	round() converts the numeric argument to the closest integer value.
 	abs() takes the absolute value of the numeric argument.
 
+`sin() cos() tan() asin() acos() atan() sinh() cosh() tanh() ceil() floor() exp() log() log10() sqrt()`::
+    Unary math functions.
+	If Jim is compiled with math support, these functions are available.
+
 `- + ~ !`::
     Unary minus, unary plus, bit-wise NOT, logical NOT.  None of these operands
     may be applied to string operands, and bit-wise NOT may be
     applied only to integers.
 
 `**`::
-    Power. e.g. pow(). Integers only.
+    Power. e.g. pow(). If Jim is compiled with math support, supports doubles and
+	integers. Otherwise supports integers only.
 
 `* / %`::
     Multiply, divide, remainder.  None of these operands may be
@@ -651,7 +681,7 @@ of precedence:
     attempting to convert to a number first.
 
 `in ni`::
-    String in list and not in list. For 'in', result is 1 the left operand (as a string)
+    String in list and not in list. For 'in', result is 1 if the left operand (as a string)
 	is contained in the right operand (as a list), or 0 otherwise. The result for
 	'{$a ni $list}' is equivalent to '{!($a in $list)}'.
 
@@ -862,41 +892,41 @@ code indicates whether the command completed successfully or not,
 and the string gives additional information.  The valid codes are
 defined in jim.h, and are:
 
-JIM_OK::
++JIM_OK(0)+::
     This is the normal return code, and indicates that the command completed
     successfully.  The string gives the command's return value.
 
-JIM_ERROR::
++JIM_ERR(1)+::
     Indicates that an error occurred; the string gives a message describing
     the error.
 
-JIM_RETURN::
++JIM_RETURN(2)+::
     Indicates that the 'return' command has been invoked, and that the
     current procedure (or top-level command or 'source' command)
     should return immediately.  The
     string gives the return value for the procedure or command.
 
-JIM_BREAK::
++JIM_BREAK(3)+::
     Indicates that the 'break' command has been invoked, so the
     innermost loop should abort immediately.  The string should always
     be empty.
 
-JIM_CONTINUE::
++JIM_CONTINUE(4)+::
     Indicates that the 'continue' command has been invoked, so the
     innermost loop should go on to the next iteration.  The string
     should always be empty.
 
-JIM_EXIT::
-    Indicates that the command called the 'exit' command.
-    The string contains the exit code.
-
-JIM_SIGNAL::
++JIM_SIGNAL(5)+::
     Indicates that a signal was caught while executing a commands.
     The string contains the name of the signal caught.
     See the 'signal' and 'catch' commands.
 
++JIM_EXIT(6)+::
+    Indicates that the command called the 'exit' command.
+    The string contains the exit code.
+
 Tcl programmers do not normally need to think about return codes,
-since JIM_OK is almost always returned.  If anything else is returned
+since +JIM_OK+ is almost always returned.  If anything else is returned
 by a command, then the Tcl interpreter immediately stops processing
 commands and returns to its caller.  If there are several nested
 invocations of the Tcl interpreter in progress, then each nested
@@ -906,10 +936,10 @@ application will then display the error message for the user.
 
 In a few cases, some commands will handle certain 'error' conditions
 themselves and not return them upwards.  For example, the 'for'
-command checks for the JIM_BREAK code; if it occurs, then 'for'
-stops executing the body of the loop and returns JIM_OK to its
-caller.  The 'for' command also handles JIM_CONTINUE codes and the
-procedure interpreter handles JIM_RETURN codes.  The 'catch'
+command checks for the +JIM_BREAK+ code; if it occurs, then 'for'
+stops executing the body of the loop and returns +JIM_OK+ to its
+caller.  The 'for' command also handles +JIM_CONTINUE+ codes and the
+procedure interpreter handles +JIM_RETURN+ codes.  The 'catch'
 command allows Tcl programs to catch errors and handle them without
 aborting command interpretation any further.
 
@@ -1220,12 +1250,12 @@ as though the array exists but is empty.
 The *option* argument determines what action is carried out by the
 command.  The legal *options* (which may be abbreviated) are:
 
-+array exists arrayName+::
++*array exists* 'arrayName'+::
     Returns 1 if arrayName is an array variable, 0 if there is
     no variable by that name.  This command is essentially
     identical to 'info exists'
 
-+array get arrayName ?pattern?+::
++*array get* 'arrayName ?pattern?'+::
     Returns a list containing pairs of elements. The first
     element in each pair is the name of an element in arrayName
     and the second element of each pair is the value of the
@@ -1237,7 +1267,7 @@ command.  The legal *options* (which may be abbreviated) are:
     isn't the name of an array variable, or if the array contains
     no elements, then an empty list is returned.
 
-+array names arrayName ?pattern?+::
++*array names* 'arrayName ?pattern?'+::
     Returns a list containing the names of all of the elements
     in the array that match pattern. If pattern is omitted then
     the command returns all of the element names in the array.
@@ -1247,7 +1277,7 @@ command.  The legal *options* (which may be abbreviated) are:
     in the array, or if arrayName isn't the name of an array
     variable, then an empty string is returned.
 
-+array set arrayName list+::
++*array set* 'arrayName list'+::
     Sets the values of one or more elements in arrayName. list
     must have a form like that returned by array get, consisting
     of an even number of elements. Each odd-numbered element
@@ -1257,11 +1287,11 @@ command.  The legal *options* (which may be abbreviated) are:
     already exist and list is empty, arrayName is created with
     an empty array value.
 
-+array size arrayName+::
++*array size* 'arrayName'+::
     Returns the number of elements in the array. If arrayName
     isn't the name of an array then 0 is returned.
 
-+array unset arrayName ?pattern?+::
++*array unset* 'arrayName ?pattern?'+::
     Unsets all of the elements in the array that match pattern
     (using the matching rules of string match). If arrayName
     isn't the name of an array variable or there are no matching
@@ -1275,7 +1305,7 @@ break
 +*break*+
 
 This command may be invoked only inside the body of a loop command
-such as 'for' or 'foreach' or 'while'.  It returns a JIM_BREAK code
+such as 'for' or 'foreach' or 'while'.  It returns a +JIM_BREAK+ code
 to signal the innermost containing loop command to return immediately.
 
 case
@@ -1349,13 +1379,13 @@ catch
 
 The 'catch' command may be used to prevent errors from aborting
 command interpretation.  'Catch' evalues *command*, and
-returns a JIM_OK code, regardless of any errors that might occur
-while executing *command* (with the possible exception of JIM_SIGNAL
+returns a +JIM_OK+ code, regardless of any errors that might occur
+while executing *command* (with the possible exception of +JIM_SIGNAL+
 - see below).
 
 The return value from 'catch' is a decimal string giving the code returned
 by the Tcl interpreter after executing *command*.  This will be '0'
-(JIM_OK) if there were no errors in *command*; otherwise it will have
+(+JIM_OK+) if there were no errors in *command*; otherwise it will have
 a non-zero value corresponding to one of the exceptional return codes
 (see jim.h for the definitions of code values).
 
@@ -1365,7 +1395,7 @@ If the *varName* argument is given, then it gives the name of a variable;
 
 Normally 'catch' will *not* catch any signal. However if *-signal* is specified,
 any signals marked as *handle* by 'signal' will be caught and 'catch' will return
-JIM_SIGNAL (5). In this case, the return values is the name of the signal caught.
++JIM_SIGNAL+ (5). In this case, the return values is the name of the signal caught.
 
 cd
 ~~
@@ -1380,21 +1410,17 @@ be removed in some applications.
 
 clock
 ~~~~~
-+*clock seconds*+
++*clock seconds*+::
+	Returns the current time as seconds since the epoch.
 
-Returns the current time as seconds since the epoch.
++*clock format* 'seconds' ?*-format* 'format?'+::
+	Format the given time (seconds since the epoch) according to the given
+	format. See strftime(3) for supported formats.
+	If no format is supplied, "%c" is used.
 
-+*clock format* 'seconds ?-format format?'*+
-
-Format the given time (seconds since the epoch) according to the given
-format. See strftime(3) for supported formats.
-
-If no format is supplied, "%c" is used.
-
-+*clock scan* 'str -format format'+
-
-Scan the given time string using the given format string.
-See strptime(3) for supported formats.
++*clock scan* 'str' *-format* 'format'+::
+	Scan the given time string using the given format string.
+	See strptime(3) for supported formats.
 
 close
 ~~~~~
@@ -1428,7 +1454,7 @@ continue
 +*continue*+
 
 This command may be invoked only inside the body of a loop command such
-as 'for' or 'foreach' or 'while'.  It returns a  JIM_CONTINUE code to
+as 'for' or 'foreach' or 'while'.  It returns a  +JIM_CONTINUE+ code to
 signal the innermost containing loop command to skip the remainder of
 the loop's body but continue with the next iteration of the loop.
 
@@ -1441,19 +1467,19 @@ Performs one of several operations on dictionary values.
 The *option* argument determines what action is carried out by the
 command.  The legal *options* are:
 
-+dict create '?key value ...?'+::
+*dict create* '?key value ...?'+::
 	Create and return a new dictionary value that contains each of
 	the key/value mappings listed as  arguments (keys and values
 	alternating, with each key being followed by its associated
 	value.)
 
-+dict exists 'dictionary key ?key ...?'+::
+*dict exists* 'dictionary key ?key ...?'+::
 	Returns a boolean value indicating whether the given key (or path
 	of keys through a set of nested dictionaries) exists in the given
 	dictionary value.  This returns a true value exactly when 'dict get'
 	on that path will succeed.
 
-+dict get 'dictionary ?key ...?'+::
+*dict get* 'dictionary ?key ...?'+::
 	Given a dictionary value (first argument) and a key (second argument),
 	this will retrieve the value for that key. Where several keys are
 	supplied, the behaviour of the command shall be as if the result
@@ -1466,14 +1492,14 @@ command.  The legal *options* are:
 	be the value for that key.  It is an error to attempt to retrieve
 	a value for a key that is not present in the dictionary.
 
-+dict set 'dictionaryName key ?key ...?' value+::
+*dict set* 'dictionaryName key ?key ...? value'+::
 	This operation takes the *name* of a variable containing a dictionary
 	value and places an updated dictionary value in that variable
 	containing a mapping from the given key to the given value. When
 	multiple keys are present, this operation creates or updates a chain
 	of nested dictionaries.
 
-+dict unset 'dictionaryName key ?key ...?' value+::
+*dict unset* 'dictionaryName key ?key ...? value'+::
 	This operation (the companion to 'dict set') takes the name of a
 	variable containing a dictionary value and places an updated
 	dictionary value in that variable that does not contain a mapping
@@ -1513,7 +1539,7 @@ error
 ~~~~~
 +*error* 'message ?stacktrace?'+
 
-Returns a JIM_ERROR code, which causes command interpretation to be
+Returns a +JIM_ERR+ code, which causes command interpretation to be
 unwound.  *message* is a string that is returned to the application
 to indicate what went wrong.
 
@@ -1543,7 +1569,7 @@ Typical usage is:
 		exit 1
 	}
 
-See 'error' for typical usage.
+See also 'error'.
 
 eval
 ~~~~
@@ -1859,27 +1885,27 @@ statements in C.
 
 foreach
 ~~~~~~~
-+*foreach* 'varname list body'+
++*foreach* 'varName list body'+
 
-+*foreach* 'varlist list ?varlist2 list2 ...? body'+
++*foreach* 'varList list ?varList2 list2 ...? body'+
 
-In this command, *varname* is the name of a variable, *list*
-is a list of values to assign to *varname*, and *body* is a
+In this command, *varName* is the name of a variable, *list*
+is a list of values to assign to *varName*, and *body* is a
 collection of Tcl commands. 
 
 For each field in *list* (in order from left to right),'foreach' assigns
-the contents of the field to *varname* (as if the 'lindex' command
+the contents of the field to *varName* (as if the 'lindex' command
 had been used to extract the field), then calls the Tcl interpreter to
 execute *body*.
 
-If instead of being a simple name, *varlist* is used, multiple assignments
-are made each time through the loop, one for each element of *varlist*.
+If instead of being a simple name, *varList* is used, multiple assignments
+are made each time through the loop, one for each element of *varList*.
 
-For example, if there are two elements in *varlist* and six elements in
+For example, if there are two elements in *varList* and six elements in
 the list, the loop will be executed three times.
 
 If the length of the list doesn't evenly divide by the number of elements
-in *varlist*, the value of the remaining variables in the last iteration
+in *varList*, the value of the remaining variables in the last iteration
 of the loop are undefined.
 
 The 'break' and 'continue' statements may be invoked inside *body*,
@@ -1961,13 +1987,13 @@ exactly: an abbreviation will not be accepted.
 global
 ~~~~~~
 
-+*global* 'varname ?varname ...?'+
++*global* 'varName ?varName ...?'+
 
 This command is ignored unless a Tcl procedure is being interpreted.
-If so, then it declares each given *varname* to be a global variable
+If so, then it declares each given *varName* to be a global variable
 rather than a local one.  For the duration of the current procedure
 (and only while executing in the current procedure), any reference to
-*varname* will be bound to a global variable instead
+*varName* will be bound to a global variable instead
 of a local one.
 
 An alternative to using 'global' is to use the '::' prefix
@@ -1977,20 +2003,20 @@ if
 ~~
 +*if* 'expr1' ?*then*? 'body1' *elseif* 'expr2' ?*then*? 'body2' *elseif* ... ?*else*? ?'bodyN'?+
 
-The *if* command evaluates *expr1* as an expression (in the same way
+The 'if' command evaluates *expr1* as an expression (in the same way
 that 'expr' evaluates its argument).  The value of the expression must
 be numeric; if it is non-zero then *body1* is executed by passing it to
 the Tcl interpreter.
 
 Otherwise *expr2* is evaluated as an expression and if it is non-zero
-then 'body2' is executed, and so on.
+then *body2* is executed, and so on.
 
 If none of the expressions evaluates to non-zero then *bodyN* is executed.
 
 The 'then' and 'else' arguments are optional 'noise words' to make the
 command easier to read.
 
-There may be any number of 'elseif' clauses, including zero.  *BodyN*
+There may be any number of 'elseif' clauses, including zero.  *bodyN*
 may also be omitted as long as 'else' is omitted too.
 
 The return value from the command is the result of the body script that
@@ -1999,7 +2025,7 @@ and there was no *bodyN*.
 
 incr
 ~~~~
-+*incr* 'varName ?increment?'
++*incr* 'varName ?increment?'+
 
 Increment the value stored in the variable whose name is *varName*.
 The value of the variable must be integral.
@@ -2015,8 +2041,9 @@ info
 ~~~~
 
 +*info* 'option ?arg arg ...?'+::
-    Provide information about various internals to the Tcl interpreter.
-    The legal **option**'s (which may be abbreviated) are:
+
+Provide information about various internals to the Tcl interpreter.
+The legal *option*'s (which may be abbreviated) are:
 
 +*info args* 'procname'+::
     Returns a list containing the names of the arguments to procedure
@@ -2094,7 +2121,7 @@ info
     of the innermost file being processed.  Otherwise the command returns an
     empty string.
 
-+*info source 'script'*+::
++*info source* 'script'+::
     Returns the original source location of the given script as a list of
     +{filename linenumber}+. If the source location can't be determined, the
     list +{{} 0}+ is returned.
@@ -2126,7 +2153,7 @@ The *joinString* argument defaults to a space character.
 
 kill
 ~~~~
-+*kill* '?SIG|-0? pid'+
++*kill* ?'SIG'|*-0*? 'pid'+
 
 Sends the given signal to the process identified by *pid*.
 
@@ -2182,10 +2209,9 @@ lindex
 ~~~~~~
 +*lindex* 'list index'+
 
-Treats *list* as a Tcl list and returns element 'index' from it
-(0 refers to the first element of the list).  *Index* may be 'end' or
-'end-<n>' (where '<n>' is an integer) to refer to the last element of
-the list or the 'nth-from-last' element of the list.
+Treats *list* as a Tcl list and returns element *index* from it
+(0 refers to the first element of the list).
+See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *index*.
 
 In extracting the element, *lindex* observes the same rules concerning
 braces and quotes and backslashes as the Tcl command interpreter; however,
@@ -2207,7 +2233,7 @@ beginning of the list.  If *index* is greater than or equal
 to the number of elements in the list, then the new elements are
 appended to the list.
 
-*index* may also be 'end' or 'end-<n>' -- see 'lindex'
+See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *index*.
 
 list
 ~~~~
@@ -2272,9 +2298,7 @@ the 'lset' command.
 If index is negative or greater than or equal to the number of
 elements in $varName, then an error occurs.
 
-If index has the value end, it refers to the last element in the
-list, and end-integer refers to the last element in the list minus
-the specified integer offset.
+See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *index*.
 
 If additional index arguments are supplied, then each argument is
 used in turn to address an element within a sublist designated by
@@ -2294,9 +2318,9 @@ index is outside the permitted range, an error is reported.
 lmap
 ~~~~
 
-+*lmap* 'varname list body'+
++*lmap* 'varName list body'+
 
-+*lmap* 'varlist list ?varlist2 list2 ...? body'+
++*lmap* 'varList list ?varList2 list2 ...? body'+
 
 'lmap' is a "collecting 'foreach'" which returns a list of its results.
 
@@ -2307,6 +2331,9 @@ For example:
 	jim> lmap a {1 2 3} b {A B C} {list $a $b}
 	{1 A} {2 B} {3 C}
 
+If the body invokes 'continue', no value is added for this iteration.
+If the body invokes 'break', the loop ends and no more values are added.
+
 lrange
 ~~~~~~
 +*lrange* 'list first last'+
@@ -2315,7 +2342,7 @@ lrange
 return a new list consisting of elements
 *first* through *last*, inclusive.
 
-*first* or *last* may also be 'end' or 'end-<n>' -- see 'lindex'
+See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *first* and *last*.
 
 If *last* is greater than or equal to the number of elements
 in the list, then it is treated as if it were 'end'.
@@ -2346,7 +2373,7 @@ must exist in the list.
 *Last* gives the index in *list* of the last element
 to be replaced;  it must be greater than or equal to *first*.
 
-*first* or *last* may also be 'end' or 'end-<n>' -- see 'lindex'
+See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *first* and *last*.
 
 The *element* arguments specify zero or more new arguments to
 be added to the list in place of those that were deleted.
@@ -2711,7 +2738,7 @@ The following switches modify the behaviour of *regexp*
 
 regsub
 ~~~~~~
-+*regsub ?-all? ?-nocase?* 'exp string subSpec ?varName?'
++*regsub ?-all? ?-nocase?* 'exp string subSpec ?varName?'+
 
 This command matches the regular expression *exp* against
 *string* using the rules described in REGULAR EXPRESSIONS
@@ -2771,7 +2798,7 @@ returns an empty string as result.
 
 return
 ~~~~~~
-+*return* ?-code *code*? ?'value'?+
++*return* ?*-code* 'code'? ?'value'?+
 
 Return immediately from the current procedure (or top-level command
 or 'source' command), with *value* as the return value.  If *value*
@@ -2779,23 +2806,23 @@ is not specified, an empty string will be returned as result.
 
 If *code* is specified (as either a number or ok, error, break,
 continue, signal, return or exit), this code will be used instead
-of JIM_OK. This is generally useful when implementing flow of control
+of +JIM_OK+. This is generally useful when implementing flow of control
 commands.
 
 scan
 ~~~~
-+*scan* 'string format varname1 ?varname2 ...?'+
++*scan* 'string format varName1 ?varName2 ...?'+
 
 This command parses fields from an input string in the same fashion
 as the C 'sscanf' procedure.  *String* gives the input to be parsed
 and *format* indicates how to parse it, using '%' fields as in
 'sscanf'.  All of the 'sscanf' options are valid; see the 'sscanf'
-man page for details.  Each *varname* gives the name of a variable;
+man page for details.  Each *varName* gives the name of a variable;
 when a field is scanned from *string*, the result is converted back
-into a string and assigned to the corresponding *varname*.  The
+into a string and assigned to the corresponding *varName*.  The
 only unusual conversion is for '%c'.  For '%c' conversions a single
 character value is converted to a decimal string, which is then
-assigned to the corresponding *varname*; no field width may be
+assigned to the corresponding *varName*; no field width may be
 specified for this conversion.
 
 seek
@@ -2835,11 +2862,11 @@ This command returns an empty string.
 
 set
 ~~~
-+*set* 'varname ?value?'+
++*set* 'varName ?value?'+
 
-Returns the value of variable *varname*.
+Returns the value of variable *varName*.
 
-If *value* is specified, then set the value of *varname* to *value*,
+If *value* is specified, then set the value of *varName* to *value*,
 creating a new variable if one doesn't already exist, and return
 its value.
 
@@ -2849,12 +2876,12 @@ before the open parenthesis are the name of the array, and the characters
 between the parentheses are the index within the array.
 Otherwise *varName* refers to a scalar variable.
 
-If no procedure is active, then *varname* refers to a global
+If no procedure is active, then *varName* refers to a global
 variable.
 
-If a procedure is active, then *varname* refers to a parameter
+If a procedure is active, then *varName* refers to a parameter
 or local variable of the procedure, unless the *global* command
-has been invoked to declare *varname* to be global.
+has been invoked to declare *varName* to be global.
 
 The '::' prefix may also be used to explicitly reference a variable
 in the global scope.
@@ -2867,7 +2894,7 @@ Command for signal handling.
 See 'kill' for the different forms which may be used to specify signals.
 
 Commands which return a list of signal names do so using the canonical form:
-"SIGINT SIGTERM".
+"+SIGINT SIGTERM+".
 
 +*signal handle* ?'signals ...'?+::
 	If no signals are given, returns a list of all signals which are currently
@@ -2888,7 +2915,7 @@ Commands which return a list of signal names do so using the canonical form:
 	the default behaviour.
 
 +*signal throw* ?'signal'?+::
-	Raises the given signal, which defaults to SIGINT if not specified.
+	Raises the given signal, which defaults to +SIGINT+ if not specified.
 	The behaviour is identical to:
 
 		kill signal [pid]
@@ -2952,21 +2979,25 @@ string
 Perform one of several string operations, depending on *option*.
 The legal options (which may be abbreviated) are:
 
-+*string compare* 'string1 string2'+::
++*string compare ?-nocase?* 'string1 string2'+::
     Perform a character-by-character comparison of strings *string1* and
     *string2* in the same way as the C 'strcmp' procedure.  Return
     -1, 0, or 1, depending on whether *string1* is lexicographically
     less than, equal to, or greater than *string2*.
+    Performs a case-insensitive comparison if '-nocase' is specified.
 
 +*string equal ?-nocase?* 'string1 string2'+::
     Returns 1 if the strings are equal, or 0 otherwise.
     Performs a case-insensitive comparison if '-nocase' is specified.
 
-+*string first* 'string1 string2'+::
++*string first* 'string1 string2 ?firstIndex?'+::
     Search *string2* for a sequence of characters that exactly match
     the characters in *string1*.  If found, return the index of the
     first character in the first such match within *string2*.  If not
-    found, return -1.
+    found, return -1. If *firstIndex* is specified, matching will start
+	from *firstIndex* of *string1*.
+ ::
+	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *firstIndex*.
 
 +*string index* 'string charIndex'+::
     Returns the *charIndex*'th character of the *string*
@@ -2975,17 +3006,22 @@ The legal options (which may be abbreviated) are:
     If *charIndex* is less than 0 or greater than
     or equal to the length of the string then an empty string is
     returned.
+ ::
+	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *charIndex*.
 
-+*string last* 'string1 string2'+::
++*string last* 'string1 string2 ?lastIndex?'+::
     Search *string2* for a sequence of characters that exactly match
     the characters in *string1*.  If found, return the index of the
     first character in the last such match within *string2*.  If there
-    is no match, then return -1.
+    is no match, then return -1. If *lastIndex* is specified, only characters
+	up to *lastIndex* of *string2* will be considered in the match.
+ ::
+	See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *lastIndex*.
 
 +*string length* 'string'+::
     Returns a decimal string giving the number of characters in *string*.
 
-+*string match* 'pattern string'+::
++*string match ?-nocase?* 'pattern string'+::
     See if *pattern* matches *string*; return 1 if it does, 0
     if it doesn't.  Matching is done in a fashion similar to that
     used by the C-shell.  For the two strings to match, their contents
@@ -3007,16 +3043,19 @@ The legal options (which may be abbreviated) are:
 
     +\x+;;
         Matches the single character *x*.  This provides a way of
-        avoiding the special interpretation of the characters `\*?[]\`
+        avoiding the special interpretation of the characters \`\*?[]\`
         in **pattern**.
+ ::
+    Performs a case-insensitive comparison if '-nocase' is specified.
 
 +*string range* 'string first last'+::
     Returns a range of consecutive characters from *string*, starting
     with the character whose index is *first* and ending with the
     character whose index is *last*.  An index of 0 refers to the
-    first character of the string.  Either *first* or *last* may be 'end'
-    or 'end-<n>' (where '<n>' is an integer) to refer to the last character of
-    the string or the 'nth-from-last' character of the string.
+    first character of the string.
+ ::
+    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *first* and *last*.
+ ::
     If *first* is less than zero then it is treated as if it were zero, and
     if *last* is greater than or equal to the length of the string then
     it is treated as if it were 'end'.  If *first* is greater than
@@ -3024,6 +3063,10 @@ The legal options (which may be abbreviated) are:
 
 +*string repeat* 'string count'+::
     Returns a new string consisting of *string* repeated *count* times.
+
++*string reverse* 'string'+::
+    Returns a string that is the same length as *string* but
+    with its characters in the reverse order.
 
 +*string tolower* 'string'+::
     Returns a value equal to *string* except that all upper case
@@ -3056,7 +3099,7 @@ The legal options (which may be abbreviated) are:
 
 subst
 ~~~~~
-+*subst* '?-nobackslashes? ?-nocommands? ?-novariables? string'+
++*subst ?-nobackslashes? ?-nocommands? ?-novariables?* 'string'+
 
 This command performs variable substitutions, command substitutions,
 and backslash substitutions on its string argument and returns the
@@ -3146,23 +3189,19 @@ Below are some examples of switch commands:
 will return 2,
 
 	switch -regexp aaab {
-		   ^a.*b$ -
-		   b {format 1}
-		   a* {format 2}
-		   default {format 3}
+           ^a.*b$ -
+           b {format 1}
+           a* {format 2}
+           default {format 3}
 	}
 
 will return 1, and
 
 	switch xyz {
-		   a
-				  -
-		   b
-				  {format 1}
-		   a*
-				  {format 2}
-		   default
-				  {format 3}
+           a -
+           b {format 1}
+           a* {format 2}
+           default {format 3}
 	}
 
 will return 3.
@@ -3225,7 +3264,7 @@ the original non-existent command.
 
 unset
 ~~~~~
-+*unset* '?-nocomplain? ?--? ?name name ...?'+
++*unset ?-nocomplain? ?--?* '?name name ...?'+
 
 Remove variables.
 Each *name* is a variable name, specified in any of the
@@ -3362,12 +3401,12 @@ from within Tcl. Note that since Jim supports binary strings, the
 main use of this command is 'bio copy' to easily copy between file
 descriptors.
 
-+*bio read* '?-hex? fd var numbytes'+::
++*bio read ?-hex?* 'fd var numbytes'+::
     Read bytes from a file descriptor. By default the data is not encoded.
     Using *-hex* encodes the data as ascii hex instead. Returns
     the number of bytes actually read.
 
-+*bio write* '?-hex? fd buf'+::
++*bio write ?-hex?* 'fd buf'+::
     Write a string to a file descriptor. If *-hex* is specified, the
     string is expected to be in ascii hexx format. Returns the number
     of bytes actually written.
@@ -3383,7 +3422,7 @@ posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
 +*os.fork*+::
 	Invokes 'fork(2)' and returns the result.
 
-+*os.wait* -nohang 'pid'+::
++*os.wait -nohang* 'pid'+::
 	Invokes waitpid(2), with WNOHANG if *-nohang* is specified.
 	Returns a list of 3 elements.
 
@@ -3417,36 +3456,36 @@ See '<<_open,open>>' and '<<_socket,socket>>' for commands which return an I/O h
 
 aio
 ~~~
-+*$handle read* '?-nonewline? ?len?'+::
++$handle *read ?-nonewline?* '?len?'+::
 	Read and return bytes from the stream. To eof if no len.
 
-+*$handle gets* '?var?'+::
++$handle *gets* '?var?'+::
 	Read one line and return it or store it in the var
 
-+*$handle puts* '?-nonewline? str'+::
++$handle *puts ?-nonewline?* 'str'+::
 	Write the string, with newline unless -nonewline
 
-+*$handle flush*+::
++$handle *flush*+::
 	Flush the stream
 
-+*$handle eof*+::
++$handle *eof*+::
 	Returns 1 if stream is at eof
 
-+*$handle close*+::
++$handle *close*+::
 	Closes the stream
 
-+*$handle seek* 'offset ?start|current|end'+::
++$handle *seek* 'offset' *?start|current|end?*+::
 	Seeks in the stream (default 'current')
 
-+*$handle tell*+::
++$handle *tell*+::
 	Returns the current seek position
 
-+*$handle ndelay* '?0|1?'+::
++$handle *ndelay ?0|1?*+::
 	Set O_NDELAY (if arg). Returns current/new setting.
 	Note that in general ANSI I/O interacts badly with non-blocking I/O.
 	Use with care.
 
-+*$handle accept*+::
++$handle *accept*+::
 	Server socket only: Accept a connection and return stream
 
 eventloop: after, vwait
@@ -3454,13 +3493,13 @@ eventloop: after, vwait
 
 The following commands allow a script to be invoked when the given condition occurs.
 
-+*$handle readable* '?readable-script ?eof-script??'+::
++$handle *readable* '?readable-script ?eof-script??'+::
 	Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
 
-+*$handle writable* '?writable-script?'+::
++$handle *writable* '?writable-script?'+::
 	Returns script, or invoke writable-script when writable, {} to remove
 
-+*$handle onexception* '?exception-script?'+::
++$handle *onexception* '?exception-script?'+::
 	Returns script, or invoke exception-script when oob data, {} to remove
 
 Time-based execution is also available via the eventloop API.
@@ -3469,7 +3508,7 @@ Time-based execution is also available via the eventloop API.
 		The script is executed after the given number of milliseconds have elapsed.
 		Returns an event id.
 
-+*after* cancel 'id'+::
++*after cancel* 'id'+::
 		Cancels an after event with the given event id.
 
 +*vwait* 'variable'+::
@@ -3480,22 +3519,22 @@ socket
 ~~~~~~
 Various socket types may be created.
 
-+*socket* unix 'path'+::
++*socket unix* 'path'+::
 	A unix domain socket client.
 
-+*socket* unix.server 'path'+::
++*socket unix.server* 'path'+::
 	A unix domain socket server.
 
-+*socket* stream 'hostname:port'+::
++*socket stream* 'hostname:port'+::
 	A TCP socket client.
 
-+*socket* stream.server '?hostname:?port'+::
++*socket stream.server* '?hostname:?port'+::
 	A TCP socket server (*hostname* defaults to 0.0.0.0).
 
-+*socket* dgram 'hostname:port'+::
++*socket dgram* 'hostname:port'+::
 	A UDP socket client.
 
-+*socket* pipe+::
++*socket pipe*+::
 	A pipe. Note that unlike all other socket types, this command returns
 	a list of two channels: {read write}
 
@@ -3552,8 +3591,8 @@ argv0 is used as ident string. However, any of the following options
 may be specified before priority to control these parameters:
 
 +*-facility* 'value'+::
-    Use specified facility instead of user. Following
-    facility are recognized:
+    Use specified facility instead of user. The following
+    values for facility are recognized:
 
     authpriv, cron, daemon, kernel, lpr, mail, news, syslog, user,
     uucp, local0-local7
@@ -3574,28 +3613,28 @@ BUILT-IN VARIABLES
 The following global variables are created automatically
 by the Tcl library.
 
-+env+::
++*env*+::
     This variable is set by Jim as an array
     whose elements are the environment variables for the process.
     Reading an element will return the value of the corresponding
     environment variable.
     This array is initialised at startup from the 'env' command.
 
-+auto_path+::
++*auto_path*+::
     This variable contains a list of paths to search for packages.
     It contains {. /lib/jim} by default.
 
 The following global variables are set by jimsh.
 
-+tcl_interactive+::
++*tcl_interactive*+::
     This variable is set to 1 if jimsh is started in interactive mode
     or 0 otherwise.
 
-+argv0+::
++*argv0*+::
     If jimsh is invoked to run a script, this variable contains the name
     of the script.
 
-+argv+::
++*argv*+::
     If jimsh is invoked to run a script, this variable contains a list
     of any arguments supplied to the script.
 

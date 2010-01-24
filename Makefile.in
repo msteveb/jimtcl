@@ -1,4 +1,5 @@
 RANLIB ?= ranlib
+SIZE ?= size
 
 # Configuration
 
@@ -13,7 +14,7 @@ EXTENSIONS := @JIM_EXTENSIONS@
 # Set an initial, default library and auto_path
 CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
-CFLAGS += -DJIM_TCL_COMPAT
+CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
 CFLAGS += -Wall -g -Os $(OPTIM) -I@SRCDIR@ @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
@@ -54,7 +55,8 @@ all: $(TARGETS)
 	if [ -d doc ]; then $(MAKE) -C doc all; fi
 
 jimsh: $(LIBJIM) jimsh.o
-	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) $(LIBDL)
+	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) @LIBDL@ -lm
+	$(SIZE) $@
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)

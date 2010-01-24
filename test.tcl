@@ -392,7 +392,7 @@ test lset-4.2 {lset, not compiled, 3 args, bad index} {
     list [catch {
 	eval [list $lset a [list 2a2] w]
     } msg] $msg
-} {1 {bad index "2a2": must be integer or end?-integer?}}
+} {1 {bad index "2a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lset-4.3 {lset, not compiled, 3 args, index out of range} {
     set a {x y z}
@@ -427,7 +427,7 @@ test lset-4.8 {lset, not compiled, 3 args, bad index} {
     list [catch {
 	eval [list $lset a 2a2 w]
     } msg] $msg
-} {1 {bad index "2a2": must be integer or end?-integer?}}
+} {1 {bad index "2a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lset-4.9 {lset, not compiled, 3 args, index out of range} {
     set a {x y z}
@@ -563,7 +563,7 @@ test lset-7.10 {lset, not compiled, data sharing} {
 test lset-8.3 {lset, not compiled, bad second index} {
     set a {{b c} {d e}}
     list [catch {eval [list $lset a 0 2a2 f]} msg] $msg
-} {1 {bad index "2a2": must be integer or end?-integer?}}
+} {1 {bad index "2a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lset-8.5 {lset, not compiled, second index out of range} {
     set a {{b c} {d e} {f g}}
@@ -833,10 +833,10 @@ test append-2.1 {long appends} {
 test append-3.1 {append errors} {
     list [catch {append} msg] $msg
 } {1 {wrong # args: should be "append varName ?value value ...?"}}
-#test append-3.2 {append errors} {
-#    set x ""
-#    list [catch {append x(0) 44} msg] $msg
-#} {1 {can't set "x(0)": variable isn't array}}
+test append-3.2 {append errors} {
+    set x 1
+    list [catch {append x(0) 44} msg] $msg
+} {1 {can't set "x(0)": variable isn't array}}
 test append-3.3 {append errors} {
     catch {unset x}
     list [catch {append x} msg] $msg
@@ -955,10 +955,10 @@ test append-5.1 {long lappends} {
 test append-6.1 {lappend errors} {
     list [catch {lappend} msg] $msg
 } {1 {wrong # args: should be "lappend varName ?value value ...?"}}
-#test append-6.2 {lappend errors} {
-#    set x ""
-#    list [catch {lappend x(0) 44} msg] $msg
-#} {1 {can't set "x(0)": variable isn't array}}
+test append-6.2 {lappend errors} {
+    set x 1
+    list [catch {lappend x(0) 44} msg] $msg
+} {1 {can't set "x(0)": variable isn't array}}
 
 ################################################################################
 # UPLEVEL
@@ -1100,11 +1100,11 @@ proc unknown args {
     error "unknown failed"
 }
 
-rename unknown {}
+test unknown-4.1 {errors in "unknown" procedure} {
+    list [catch {non-existent a b} msg] $msg
+} {1 {unknown failed}}
 
-#test unknown-4.1 {errors in "unknown" procedure} {
-#    list [catch {non-existent a b} msg] $msg $errorCode
-#} {1 {unknown failed} NONE}
+rename unknown {}
 
 ################################################################################
 # INCR
@@ -1578,7 +1578,7 @@ test lindex-2.2 {singleton index list} {
 test lindex-2.4 {malformed index list} {
     set x \{
     list [catch { eval [list $lindex {a b c} $x] } result] $result
-} {1 bad\ index\ \"\{\":\ must\ be\ integer\ or\ end?-integer?}
+} {1 bad\ index\ \"\{\":\ must\ be\ integer?\[+-\]integer?\ or\ end?-integer?}
 
 # Indices that are integers or convertible to integers
 
@@ -1637,7 +1637,7 @@ test lindex-4.5 {index = end-3} {
 test lindex-4.8 {bad integer, not octal} {
     set x end-0a2
     list [catch { eval [list $lindex {a b c} $x] } result] $result
-} "1 {bad index \"end-0a2\": must be integer or end?-integer?}"
+} {1 {bad index "end-0a2": must be integer?[+-]integer? or end?-integer?}}
 
 #test lindex-4.9 {incomplete end} {
 #    set x en
@@ -1647,11 +1647,11 @@ test lindex-4.8 {bad integer, not octal} {
 test lindex-4.10 {incomplete end-} {
     set x end-
     list [catch { eval [list $lindex {a b c} $x] } result] $result
-} "1 {bad index \"end-\": must be integer or end?-integer?}"
+} {1 {bad index "end-": must be integer?[+-]integer? or end?-integer?}}
 
 test lindex-5.1 {bad second index} {
     list [catch { eval [list $lindex {a b c} 0 0a2] } result] $result
-} "1 {bad index \"0a2\": must be integer or end?-integer?}"
+} {1 {bad index "0a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lindex-5.2 {good second index} {
     eval [list $lindex {{a b c} {d e f} {g h i}} 1 2]
@@ -1701,7 +1701,7 @@ test lindex-10.2 {singleton index list} {
 test lindex-10.4 {malformed index list} {
     set x \{
     list [catch { lindex {a b c} $x } result] $result
-} {1 bad\ index\ \"\{\":\ must\ be\ integer\ or\ end?-integer?}
+} {1 bad\ index\ \"\{\":\ must\ be\ integer?\[+-\]integer?\ or\ end?-integer?}
 
 # Indices that are integers or convertible to integers
 
@@ -1781,16 +1781,16 @@ test lindex-12.5 {index = end-3} {
 test lindex-12.8 {bad integer, not octal} {
     set x end-0a2
     list [catch { lindex {a b c} $x } result] $result
-} "1 {bad index \"end-0a2\": must be integer or end?-integer?}"
+} {1 {bad index "end-0a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lindex-12.10 {incomplete end-} {
     set x end-
     list [catch { lindex {a b c} $x } result] $result
-} "1 {bad index \"end-\": must be integer or end?-integer?}"
+} {1 {bad index "end-": must be integer?[+-]integer? or end?-integer?}}
 
 test lindex-13.1 {bad second index} {
     list [catch { lindex {a b c} 0 0a2 } result] $result
-} "1 {bad index \"0a2\": must be integer or end?-integer?}"
+} {1 {bad index "0a2": must be integer?[+-]integer? or end?-integer?}}
 
 test lindex-13.2 {good second index} {
     catch {
@@ -2038,13 +2038,13 @@ catch {unset x}
 # string last
 test string-7.1 {string last, too few args} {
     list [catch {string last a} msg] $msg
-} {1 {wrong # args: should be "string last subString string ?startIndex?"}}
+} {1 {wrong # args: should be "string last subString string ?index?"}}
 test string-7.2 {string last, bad args} {
     list [catch {string last a b c} msg] $msg
-} {1 {bad index "c": must be integer or end?-integer?}}
+} {1 {bad index "c": must be integer?[+-]integer? or end?-integer?}}
 test string-7.3 {string last, too many args} {
     list [catch {string last a b c d} msg] $msg
-} {1 {wrong # args: should be "string last subString string ?startIndex?"}}
+} {1 {wrong # args: should be "string last subString string ?index?"}}
 test string-7.5 {string last} {
     string last xx xxxx123xx345x678
 } 7
@@ -2179,10 +2179,10 @@ test string-11.31 {string match case} {
     proc foo {} {string match a A}
     foo
 } 0
-#test string-11.32 {string match nocase} {
-#    proc foo {} {string match -n a A}
-#    foo
-#} 1
+test string-11.32 {string match nocase} {
+    proc foo {} {string match -n a A}
+    foo
+} 1
 #test string-11.33 {string match nocase} {
 #    proc foo {} {string match -nocase a\334 A\374}
 #    foo
@@ -3081,9 +3081,9 @@ test info-1.1 {info body option} {
 test info-1.2 {info body option} {
     list [catch {info body set} msg] $msg
 } {1 {command "set" is not a procedure}}
-#~ test info-1.3 {info body option} {
-    #~ list [catch {info args set 1} msg] $msg
-#~ } {1 {wrong # args: should be "info args procname"}}
+test info-1.3 {info body option} {
+    list [catch {info args set 1} msg] $msg
+} {1 {wrong # args: should be "info args procname"}}
 test info-1.5 {info body option, returning bytecompiled bodies} {
     catch {unset args}
     proc foo {args} {
@@ -3095,11 +3095,11 @@ test info-1.5 {info body option, returning bytecompiled bodies} {
     foo a
     list [catch [info body foo] msg] $msg
 } {1 {can't read "args": no such variable}}
-#~ test info-1.6 {info body option, returning list bodies} {
-    #~ proc foo args [list subst bar]
-    #~ list [string bytelength [info body foo]] \
-	    #~ [foo; string bytelength [info body foo]]
-#~ } {9 9}
+test info-1.6 {info body option, returning list bodies} {
+    proc foo args [list subst bar]
+    list [string length [info body foo]] \
+	    [foo; string length [info body foo]]
+} {9 9}
 test info-2.1 {info commands option} {
     proc t1 {} {}
     proc t2 {} {}
@@ -3387,7 +3387,7 @@ test linsert-2.2 {linsert errors} {
 } {1 {wrong # args: should be "linsert list index element ?element ...?"}}
 test linsert-2.3 {linsert errors} {
     list [catch {linsert a 12x 2} msg] $msg
-} {1 {bad index "12x": must be integer or end?-integer?}}
+} {1 {bad index "12x": must be integer?[+-]integer? or end?-integer?}}
 
 test linsert-3.1 {linsert won't modify shared argument objects} {
     proc p {} {
@@ -3498,13 +3498,13 @@ test lreplace-2.2 {lreplace errors} {
 } {1 {wrong # args: should be "lreplace list first last ?element element ...?"}}
 test lreplace-2.3 {lreplace errors} {
     list [catch {lreplace x a 10} msg] $msg
-} {1 {bad index "a": must be integer or end?-integer?}}
+} {1 {bad index "a": must be integer?[+-]integer? or end?-integer?}}
 test lreplace-2.4 {lreplace errors} {
     list [catch {lreplace x 10 x} msg] $msg
-} {1 {bad index "x": must be integer or end?-integer?}}
+} {1 {bad index "x": must be integer?[+-]integer? or end?-integer?}}
 test lreplace-2.5 {lreplace errors} {
     list [catch {lreplace x 10 1x} msg] $msg
-} {1 {bad index "1x": must be integer or end?-integer?}}
+} {1 {bad index "1x": must be integer?[+-]integer? or end?-integer?}}
 test lreplace-2.6 {lreplace errors} {
     list [catch {lreplace x 3 2} msg] $msg
 } {1 {list doesn't contain element 3}}
@@ -3548,9 +3548,9 @@ test lrange-1.7 {range of list elements} {
 test lrange-1.8 {range of list elements} {
     lrange {a b c d e} -2 -1
 } {}
-#test lrange-1.9 {range of list elements} {
-#    lrange {a b c d e} -2 e
-#} {a b c d e}
+test lrange-1.9 {range of list elements} {
+    lrange {a b c d e} -2 end
+} {a b c d e}
 test lrange-1.10 {range of list elements} {
     lrange "a b\{c d" 1 2
 } "b\\{c d"
@@ -3560,9 +3560,9 @@ test lrange-1.11 {range of list elements} {
 test lrange-1.12 {range of list elements} {
     lrange "a b c d" end 100000
 } d
-#test lrange-1.13 {range of list elements} {
-#    lrange "a b c d" e 3
-#} d
+test lrange-1.13 {range of list elements} {
+    lrange "a b c d" end 3
+} d
 test lrange-1.14 {range of list elements} {
     lrange "a b c d" end 2
 } {}
@@ -3581,10 +3581,10 @@ test lrange-2.2 {error conditions} {
 } {1 {wrong # args: should be "lrange list first last"}}
 test lrange-2.3 {error conditions} {
     list [catch {lrange a b 6} msg] $msg
-} {1 {bad index "b": must be integer or end?-integer?}}
+} {1 {bad index "b": must be integer?[+-]integer? or end?-integer?}}
 test lrange-2.4 {error conditions} {
     list [catch {lrange a 0 enigma} msg] $msg
-} {1 {bad index "enigma": must be integer or end?-integer?}}
+} {1 {bad index "enigma": must be integer?[+-]integer? or end?-integer?}}
 #test lrange-2.5 {error conditions} {
 #    list [catch {lrange "a \{b c" 3 4} msg] $msg
 #} {1 {unmatched open brace in list}}

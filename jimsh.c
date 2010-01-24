@@ -18,37 +18,16 @@
  * limitations under the License.
  */
 
-#ifdef WIN32
-#define STRICT
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif /* WIN32 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define JIM_EMBEDDED
 #include "jim.h"
 
 
 /* JimGetExePath try to get the absolute path of the directory
  * of the jim binary, in order to add this path to the library path.
  * Likely shipped libraries are in the same path too. */
-
-/* That's simple on windows: */
-#ifdef WIN32
-static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
-{
-    char path[MAX_PATH+1], *p;
-    JIM_NOTUSED(argv0);
-
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-    if ((p = strrchr(path, '\\')) != NULL)
-        *p = 0;
-    return Jim_NewStringObj(interp, path, -1);
-}
-#else /* WIN32 */
 #ifndef JIM_ANSIC
 /* A bit complex on POSIX */
 #include <unistd.h>
@@ -96,7 +75,6 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
     return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
 }
 #endif /* JIM_ANSIC */
-#endif /* WIN32 */
 
 static void JimLoadJimRc(Jim_Interp *interp)
 {
@@ -125,7 +103,7 @@ static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
     int n;
     Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
 
-    /* Populate argv and argv0 global vars */
+    /* Populate argv global var */
     for (n = 0; n < argc; n++) {
         Jim_Obj *obj = Jim_NewStringObj(interp, argv[n], -1);
         Jim_ListAppendElement(interp, listObj, obj);

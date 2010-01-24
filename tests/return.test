@@ -1,0 +1,16 @@
+source testing.tcl
+
+# return -code
+
+test return-1.1 {return -code} {
+	set script "return -code 4 result"
+	list [catch {eval $script} msg] $msg
+} {2 result}
+
+test return-1.2 {source file with break} {
+	list [catch {source break.tcl} msg] $msg
+} {3 {}}
+
+test return-1.2 {source file with break} {
+	list [catch {source return-break.tcl} msg] $msg
+} {3 result}

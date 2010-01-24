@@ -143,8 +143,9 @@ extern "C" {
 #define JIM_BREAK 3
 #define JIM_CONTINUE 4
 #define JIM_SIGNAL 5
-#define JIM_EVAL 6
-#define JIM_EXIT 7
+#define JIM_EXIT 6
+/* The following are internal codes and should never been seen/used */
+#define JIM_EVAL 7
 #define JIM_ERR_ADDSTACK 8
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
@@ -161,6 +162,9 @@ extern "C" {
 
 /* Unused arguments generate annoying warnings... */
 #define JIM_NOTUSED(V) ((void) V)
+
+/* Flags for Jim_GetEnum() */
+#define JIM_ENUM_ABBREV 2    /* Allow unambiguous abbreviation */
 
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
@@ -748,8 +752,7 @@ JIM_EXPORT void Jim_ListAppendElement (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *objPtr);
 JIM_EXPORT void Jim_ListAppendList (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *appendListPtr);
-JIM_EXPORT void Jim_ListLength (Jim_Interp *interp, Jim_Obj *listPtr,
-        int *intPtr);
+JIM_EXPORT int Jim_ListLength (Jim_Interp *interp, Jim_Obj *objPtr);
 JIM_EXPORT int Jim_ListIndex (Jim_Interp *interp, Jim_Obj *listPrt,
         int index, Jim_Obj **objPtrPtr, int seterr);
 JIM_EXPORT int Jim_SetListIndex (Jim_Interp *interp,
@@ -846,6 +849,10 @@ JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
 
 /* jim-aio.c */
 JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
+
+
+int Jim_IsDict(Jim_Obj *objPtr);
+int Jim_IsList(Jim_Obj *objPtr);
 
 #ifdef __cplusplus
 }

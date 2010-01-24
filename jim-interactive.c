@@ -13,8 +13,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     while (1) {
         char buf[1024];
         const char *result;
+        /* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
         const char *retcodestr[] = {
-            "ok", "error", "return", "break", "continue", "signal", "eval", "exit"
+            "ok", "error", "return", "break", "continue", "signal", "exit", "eval"
         };
         int reslen;
 

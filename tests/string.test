@@ -1,0 +1,651 @@
+# Commands covered:  string
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: string.test,v 1.23.2.1 2001/04/03 22:54:38 hobbs Exp $
+
+source testing.tcl
+
+# Some tests require the testobj command
+
+test string-1.1 {error conditions} {
+    list [catch {string gorp a b} msg]
+} {1}
+test string-1.2 {error conditions} {
+    list [catch {string} msg]
+} {1}
+
+test string-2.1 {string compare, too few args} {
+    list [catch {string compare a} msg]
+} {1}
+test string-2.2 {string compare, bad args} {
+    list [catch {string compare a b c} msg]
+} {1}
+if {0} {
+test string-2.3 {string compare, bad args} {
+    list [catch {string compare -length -nocase str1 str2} msg]
+} {1}
+test string-2.4 {string compare, too many args} {
+    list [catch {string compare -length 10 -nocase str1 str2 str3} msg]
+} {1}
+test string-2.5 {string compare with length unspecified} {
+    list [catch {string compare -length 10 10} msg]
+} {1}
+}
+test string-2.6 {string compare} {
+    string compare abcde abdef
+} -1
+test string-2.7 {string compare, shortest method name} {
+    string c abcde ABCDE
+} 1
+test string-2.8 {string compare} {
+    string compare abcde abcde
+} 0
+if {0} {
+test string-2.9 {string compare with length} {
+    string compare -length 2 abcde abxyz
+} 0
+test string-2.10 {string compare with special index} {
+    list [catch {string compare -length end-3 abcde abxyz} msg]
+} {1}
+}
+test string-2.12 {string compare, high bit} {
+    # This test will fail if the underlying comparaison
+    # is using signed chars instead of unsigned chars.
+    # (like SunOS's default memcmp thus the compat/memcmp.c)
+    string compare "\x80" "@"
+    # Nb this tests works also in utf8 space because \x80 is
+    # translated into a 2 or more bytelength but whose first byte has
+    # the high bit set.
+} 1
+test string-2.13 {string compare -nocase} {
+    string compare -nocase abcde abdef
+} -1
+test string-2.14 {string compare -nocase} {
+    string c -nocase abcde ABCDE
+} 0
+test string-2.15 {string compare -nocase} {
+    string compare -nocase abcde abcde
+} 0
+if {0} {
+test string-2.16 {string compare -nocase with length} {
+    string compare -length 2 -nocase abcde Abxyz
+} 0
+test string-2.17 {string compare -nocase with length} {
+    string compare -nocase -length 3 abcde Abxyz
+} -1
+test string-2.18 {string compare -nocase with length <= 0} {
+    string compare -nocase -length -1 abcde AbCdEf
+} -1
+test string-2.19 {string compare -nocase with excessive length} {
+    string compare -nocase -length 50 AbCdEf abcde
+} 1
+test string-2.20 {string compare -len unicode} {
+    # These are strings that are 6 BYTELENGTH long, but the length
+    # shouldn't make a different because there are actually 3 CHARS long
+    string compare -len 5 \334\334\334 \334\334\374
+} -1
+test string-2.21 {string compare -nocase with special index} {
+    list [catch {string compare -nocase -length end-3 Abcde abxyz} msg]
+} {1}
+}
+test string-2.22 {string compare, null strings} {
+    string compare "" ""
+} 0
+test string-2.23 {string compare, null strings} {
+    string compare "" foo
+} -1
+test string-2.24 {string compare, null strings} {
+    string compare foo ""
+} 1
+test string-2.25 {string compare -nocase, null strings} {
+    string compare -nocase "" ""
+} 0
+test string-2.26 {string compare -nocase, null strings} {
+    string compare -nocase "" foo
+} -1
+test string-2.27 {string compare -nocase, null strings} {
+    string compare -nocase foo ""
+} 1
+if {0} {
+test string-2.28 {string equal with length, unequal strings} {
+    string compare -length 2 abc abde
+} 0
+test string-2.29 {string equal with length, unequal strings} {
+    string compare -length 2 ab abde
+} 0
+}
+# only need a few tests on equal, since it uses the same code as
+# string compare, but just modifies the return output
+test string-3.1 {string equal} {
+    string equal abcde abdef
+} 0
+test string-3.2 {string equal} {
+    string eq abcde ABCDE
+} 0
+test string-3.3 {string equal} {
+    string equal abcde abcde
+} 1
+if {0} {
+test string-3.4 {string equal -nocase} {
+    string equal -nocase \334\334\334\334\374\374\374\374 \334\334\334\334\334\334\334\334
+} 1
+test string-3.5 {string equal -nocase} {
+    string equal -nocase abcde abdef
+} 0
+test string-3.6 {string equal -nocase} {
+    string eq -nocase abcde ABCDE
+} 1
+test string-3.7 {string equal -nocase} {
+    string equal -nocase abcde abcde
+} 1
+test string-3.8 {string equal with length, unequal strings} {
+    string equal -length 2 abc abde
+} 1
+}
+test string-4.1 {string first, too few args} {
+    list [catch {string first a} msg]
+} {1}
+test string-4.2 {string first, bad args} {
+    list [catch {string first a b c} msg]
+} {1}
+test string-4.3 {string first, too many args} {
+    list [catch {string first a b 5 d} msg]
+} {1}
+test string-4.4 {string first} {
+    string first bq abcdefgbcefgbqrs
+} 12
+test string-4.5 {string first} {
+    string fir bcd abcdefgbcefgbqrs
+} 1
+test string-4.6 {string first} {
+    string f b abcdefgbcefgbqrs
+} 1
+test string-4.7 {string first} {
+    string first xxx x123xx345xxx789xxx012
+} 9
+test string-4.8 {string first} {
+    string first "" x123xx345xxx789xxx012
+} -1
+test string-4.14 {string first, start index} {
+    string first a abcabc end-4
+} 3
+
+test string-5.1 {string index} {
+    list [catch {string index} msg]
+} {1}
+test string-5.2 {string index} {
+    list [catch {string index a b c} msg]
+} {1}
+test string-5.3 {string index} {
+    string index abcde 0
+} a
+test string-5.4 {string index} {
+    string in abcde 4
+} e
+test string-5.5 {string index} {
+    string index abcde 5
+} {}
+test string-5.6 {string index} {
+    list [catch {string index abcde -10} msg]
+} {0}
+test string-5.7 {string index} {
+    list [catch {string index a xyz} msg]
+} {1}
+test string-5.8 {string index} {
+    string index abc end
+} c
+test string-5.9 {string index} {
+    string index abc end-1
+} b
+#test string-5.17 {string index, bad integer} {
+#    list [catch {string index "abc" 08} msg]
+#} {1}
+#test string-5.18 {string index, bad integer} {
+#    list [catch {string index "abc" end-00289} msg]
+#} {1}
+
+test string-7.1 {string last, too few args} {
+    list [catch {string last a} msg]
+} {1}
+test string-7.2 {string last, bad args} {
+    list [catch {string last a b c} msg]
+} {1}
+test string-7.3 {string last, too many args} {
+    list [catch {string last a b c d} msg]
+} {1}
+test string-7.4 {string last} {
+    string la xxx xxxx123xx345x678
+} 1
+test string-7.5 {string last} {
+    string last xx xxxx123xx345x678
+} 7
+test string-7.6 {string last} {
+    string las x xxxx123xx345x678
+} 12
+test string-7.13 {string last, start index} {
+    ## Constrain to last 'a' should work
+    string last ba badbad end-1
+} 3
+test string-7.14 {string last, start index} {
+    ## Constrain to last 'b' should skip last 'ba'
+    string last ba badbad end-2
+} 0
+test string-7.15 {string last, start index} {
+    string last \334a \334ad\334ad 0
+} -1
+test string-7.16 {string last, start index} {
+    string last \334a \334ad\334ad end-1
+} 3
+
+test string-9.1 {string length} {
+    list [catch {string length} msg]
+} {1}
+test string-9.2 {string length} {
+    list [catch {string length a b} msg]
+} {1}
+test string-9.3 {string length} {
+    string length "a little string"
+} 15
+test string-9.4 {string length} {
+    string le ""
+} 0
+
+test string-10.1 {string map, too few args} {
+    list [catch {string map} msg]
+} {1}
+test string-10.2 {string map, bad args} {
+    list [catch {string map {a b} abba oops} msg]
+} {1}
+test string-10.3 {string map, too many args} {
+    list [catch {string map -nocase {a b} str1 str2} msg]
+} {1}
+test string-10.4 {string map} {
+    string map {a b} abba
+} {bbbb}
+test string-10.5 {string map} {
+    string map {a b} a
+} {b}
+test string-10.6 {string map -nocase} {
+    string map -nocase {a b} Abba
+} {bbbb}
+test string-10.7 {string map} {
+    string map {abc 321 ab * a A} aabcabaababcab
+} {A321*A*321*}
+test string-10.8 {string map -nocase} {
+    string map -nocase {aBc 321 Ab * a A} aabcabaababcab
+} {A321*A*321*}
+#test string-10.9 {string map -nocase} {
+#    string map -no {abc 321 Ab * a A} aAbCaBaAbAbcAb
+#} {A321*A*321*}
+test string-10.10 {string map} {
+    list [catch {string map {a b c} abba} msg]
+} {1}
+test string-10.11 {string map, nulls} {
+    string map {\x00 NULL blah \x00nix} {qwerty}
+} {qwerty}
+test string-10.12 {string map, unicode} {
+    string map [list \374 ue UE \334] "a\374ueUE\000EU"
+} aueue\334\0EU
+test string-10.13 {string map, -nocase unicode} {
+    string map -nocase [list \374 ue UE \334] "a\374ueUE\000EU"
+} aue\334\334\0EU
+test string-10.14 {string map, -nocase null arguments} {
+    string map -nocase {{} abc} foo
+} foo
+test string-10.15 {string map, one pair case} {
+    string map -nocase {abc 32} aAbCaBaAbAbcAb
+} {a32aBaAb32Ab}
+test string-10.16 {string map, one pair case} {
+    string map -nocase {ab 4321} aAbCaBaAbAbcAb
+} {a4321C4321a43214321c4321}
+test string-10.17 {string map, one pair case} {
+    string map {Ab 4321} aAbCaBaAbAbcAb
+} {a4321CaBa43214321c4321}
+
+test string-11.1 {string match, too few args} {
+    list [catch {string match a} msg]
+} {1}
+test string-11.2 {string match, too many args} {
+    list [catch {string match a b c d} msg]
+} {1}
+test string-11.3 {string match} {
+    string match abc abc
+} 1
+test string-11.4 {string match} {
+    string mat abc abd
+} 0
+test string-11.5 {string match} {
+    string match ab*c abc
+} 1
+test string-11.6 {string match} {
+    string match ab**c abc
+} 1
+test string-11.7 {string match} {
+    string match ab* abcdef
+} 1
+test string-11.8 {string match} {
+    string match *c abc
+} 1
+test string-11.9 {string match} {
+    string match *3*6*9 0123456789
+} 1
+test string-11.10 {string match} {
+    string match *3*6*9 01234567890
+} 0
+test string-11.11 {string match} {
+    string match a?c abc
+} 1
+test string-11.12 {string match} {
+    string match a??c abc
+} 0
+test string-11.13 {string match} {
+    string match ?1??4???8? 0123456789
+} 1
+test string-11.14 {string match} {
+    string match {[abc]bc} abc
+} 1
+test string-11.15 {string match} {
+    string match {a[abc]c} abc
+} 1
+test string-11.16 {string match} {
+    string match {a[xyz]c} abc
+} 0
+test string-11.17 {string match} {
+    string match {12[2-7]45} 12345
+} 1
+test string-11.18 {string match} {
+    string match {12[ab2-4cd]45} 12345
+} 1
+test string-11.19 {string match} {
+    string match {12[ab2-4cd]45} 12b45
+} 1
+test string-11.20 {string match} {
+    string match {12[ab2-4cd]45} 12d45
+} 1
+test string-11.21 {string match} {
+    string match {12[ab2-4cd]45} 12145
+} 0
+test string-11.22 {string match} {
+    string match {12[ab2-4cd]45} 12545
+} 0
+test string-11.23 {string match} {
+    string match {a\*b} a*b
+} 1
+test string-11.24 {string match} {
+    string match {a\*b} ab
+} 0
+test string-11.25 {string match} {
+    string match {a\*\?\[\]\\\x} "a*?\[\]\\x"
+} 1
+test string-11.26 {string match} {
+    string match ** ""
+} 1
+test string-11.27 {string match} {
+    string match *. ""
+} 0
+test string-11.28 {string match} {
+    string match "" ""
+} 1
+test string-11.29 {string match} {
+    string match \[a a
+} 1
+test string-11.30 {string match, bad args} {
+    list [catch {string match - b c} msg]
+} {1}
+test string-11.31 {string match case} {
+    string match a A
+} 0
+test string-11.32 {string match nocase} {
+    string match -nocase a A
+} 1
+test string-11.34 {string match nocase} {
+    string match -nocase a*f ABCDEf
+} 1
+test string-11.35 {string match case, false hope} {
+    # This is true because '_' lies between the A-Z and a-z ranges
+    string match {[A-z]} _
+} 1
+test string-11.36 {string match nocase range} {
+    # This is false because although '_' lies between the A-Z and a-z ranges,
+    # we lower case the end points before checking the ranges.
+    string match -nocase {[A-z]} _
+} 0
+test string-11.37 {string match nocase} {
+    string match -nocase {[A-fh-Z]} g
+} 0
+test string-11.38 {string match case, reverse range} {
+    string match {[A-fh-Z]} g
+} 1
+test string-11.39 {string match, *\ case} {
+    string match {*\abc} abc
+} 1
+test string-11.40 {string match, *special case} {
+    string match {*[ab]} abc
+} 0
+test string-11.41 {string match, *special case} {
+    string match {*[ab]*} abc
+} 1
+# XXX: I don't see why this shouldn't match. Changed result
+test string-11.42 {string match, *special case} {
+    string match "*\\" "\\"
+} 1
+test string-11.43 {string match, *special case} {
+    string match "*\\\\" "\\"
+} 1
+test string-11.44 {string match, *special case} {
+    string match "*???" "12345"
+} 1
+test string-11.45 {string match, *special case} {
+    string match "*???" "12"
+} 0
+test string-11.46 {string match, *special case} {
+    string match "*\\*" "abc*"
+} 1
+test string-11.47 {string match, *special case} {
+    string match "*\\*" "*"
+} 1
+test string-11.48 {string match, *special case} {
+    string match "*\\*" "*abc"
+} 0
+test string-11.49 {string match, *special case} {
+    string match "?\\*" "a*"
+} 1
+# XXX: I don't see why this shouldn't match. Changed result
+test string-11.50 {string match, *special case} {
+    string match "\\" "\\"
+} 1
+
+
+test string-12.1 {string range} {
+    list [catch {string range} msg]
+} {1}
+test string-12.2 {string range} {
+    list [catch {string range a 1} msg]
+} {1}
+test string-12.3 {string range} {
+    list [catch {string range a 1 2 3} msg]
+} {1}
+test string-12.4 {string range} {
+    string range abcdefghijklmnop 2 14
+} {cdefghijklmno}
+test string-12.5 {string range, last > length} {
+    string range abcdefghijklmnop 7 1000
+} {hijklmnop}
+test string-12.6 {string range} {
+    string range abcdefghijklmnop 10 end
+} {klmnop}
+test string-12.7 {string range, last < first} {
+    string range abcdefghijklmnop 10 9
+} {}
+test string-12.8 {string range, first < 0} {
+    string range abcdefghijklmnop -3 2
+} {abc}
+test string-12.9 {string range} {
+    string range abcdefghijklmnop -3 -2
+} {}
+test string-12.10 {string range} {
+    string range abcdefghijklmnop 1000 1010
+} {}
+test string-12.11 {string range} {
+    string range abcdefghijklmnop -100 end
+} {abcdefghijklmnop}
+test string-12.12 {string range} {
+    list [catch {string range abc abc 1} msg]
+} {1}
+test string-12.13 {string range} {
+    list [catch {string range abc 1 eof} msg]
+} {1}
+test string-12.14 {string range} {
+    string range abcdefghijklmnop end-1 end
+} {op}
+test string-12.15 {string range} {
+    string range abcdefghijklmnop end 1000
+} {p}
+test string-12.16 {string range} {
+    string range abcdefghijklmnop end end-1
+} {}
+
+test string-13.1 {string repeat} {
+    list [catch {string repeat} msg]
+} {1}
+test string-13.2 {string repeat} {
+    list [catch {string repeat abc 10 oops} msg]
+} {1}
+test string-13.3 {string repeat} {
+    string repeat {} 100
+} {}
+test string-13.4 {string repeat} {
+    string repeat { } 5
+} {     }
+test string-13.5 {string repeat} {
+    string repeat abc 3
+} {abcabcabc}
+test string-13.6 {string repeat} {
+    string repeat abc -1
+} {}
+test string-13.7 {string repeat} {
+    list [catch {string repeat abc end} msg]
+} {1}
+test string-13.8 {string repeat} {
+    string repeat {} -1000
+} {}
+test string-13.9 {string repeat} {
+    string repeat {} 0
+} {}
+test string-13.10 {string repeat} {
+    string repeat def 0
+} {}
+test string-13.11 {string repeat} {
+    string repeat def 1
+} def
+test string-13.12 {string repeat} {
+    string repeat ab\u7266cd 3
+} ab\u7266cdab\u7266cdab\u7266cd
+test string-13.13 {string repeat} {
+    string repeat \x00 3
+} \x00\x00\x00
+
+
+test string-15.1 {string tolower too few args} {
+    list [catch {string tolower} msg]
+} {1}
+test string-15.2 {string tolower bad args} {
+    list [catch {string tolower a b} msg]
+} {1}
+test string-15.3 {string tolower too many args} {
+    list [catch {string tolower ABC 1 end oops} msg]
+} {1}
+test string-15.4 {string tolower} {
+    string tolower ABCDeF
+} {abcdef}
+test string-15.5 {string tolower} {
+    string tolower "ABC  XyZ"
+} {abc  xyz}
+test string-15.6 {string tolower} {
+    string tolower {123#$&*()}
+} {123#$&*()}
+
+test string-16.1 {string toupper} {
+    list [catch {string toupper} msg]
+} {1}
+test string-16.2 {string toupper} {
+    list [catch {string toupper a b} msg]
+} {1}
+test string-16.4 {string toupper} {
+    string toupper abCDEf
+} {ABCDEF}
+test string-16.5 {string toupper} {
+    string toupper "abc xYz"
+} {ABC XYZ}
+test string-16.6 {string toupper} {
+    string toupper {123#$&*()}
+} {123#$&*()}
+
+test string-18.1 {string trim} {
+    list [catch {string trim} msg]
+} {1}
+test string-18.2 {string trim} {
+    list [catch {string trim a b c} msg]
+} {1}
+test string-18.3 {string trim} {
+    string trim "    XYZ      "
+} {XYZ}
+test string-18.4 {string trim} {
+    string trim "\t\nXYZ\t\n\r\n"
+} {XYZ}
+test string-18.5 {string trim} {
+    string trim "  A XYZ A    "
+} {A XYZ A}
+test string-18.6 {string trim} {
+    string trim "XXYYZZABC XXYYZZ" ZYX
+} {ABC }
+test string-18.7 {string trim} {
+    string trim "    \t\r      "
+} {}
+test string-18.8 {string trim} {
+    string trim {abcdefg} {}
+} {abcdefg}
+test string-18.9 {string trim} {
+    string trim {}
+} {}
+test string-18.10 {string trim} {
+    string trim ABC DEF
+} {ABC}
+test string-18.11 {string trim, unicode} {
+    string trim "\xe7\xe8 AB\xe7C \xe8\xe7" \xe7\xe8
+} " AB\xe7C "
+
+test string-19.1 {string trimleft} {
+    list [catch {string trimleft} msg]
+} {1}
+test string-19.2 {string trimleft} {
+    string trimleft "    XYZ      "
+} {XYZ      }
+
+test string-20.1 {string trimright errors} {
+    list [catch {string trimright} msg]
+} {1}
+test string-20.2 {string trimright errors} {
+    list [catch {string trimg a} msg]
+} {1}
+test string-20.3 {string trimright} {
+    string trimright "    XYZ      "
+} {    XYZ}
+test string-20.4 {string trimright} {
+    string trimright "   "
+} {}
+test string-20.5 {string trimright} {
+    string trimright ""
+} {}
+
+testreport

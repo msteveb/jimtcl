@@ -50,4 +50,4 @@ test error-1.2 "Modify stacktrace" {
 # Package should be able to invoke exit, which should exit if not caught
 test error-2.1 "Exit from package" {
 	list [catch {package require exitpackage} msg] $msg
-} {7 {Can't load package 'exitpackage'}}
+} {6 {Can't load package 'exitpackage'}}

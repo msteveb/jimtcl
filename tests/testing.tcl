@@ -15,11 +15,27 @@ proc filecopy {read write} {
 	collect
 }
 
+proc makeFile {contents name} {
+	set f [open $name w]
+	puts $f $contents
+	close $f
+}
+
+catch {
+	# Tcl-only things
+	info tclversion
+	proc errorInfo {msg} {
+		return $::errorInfo
+	}
+}
+
 proc section {name} {
 	puts "-- $name ----------------"
 }
 
-array set testresults {numfail 0 numpass 0 failed {}}
+set testresults(numfail) 0
+set testresults(numpass) 0
+set testresults(failed) {}
 
 proc test {id descr script expected} {
 	puts -nonewline "$id "

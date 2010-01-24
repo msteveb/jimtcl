@@ -2,8 +2,6 @@ CORE LANGUAGE FEATURES
 
 CORE COMMANDS
 
-- All the missing standard core commands not related to I/O, namespaces, ...
-- More math functions in expr?
 - [onleave] command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
@@ -26,28 +24,33 @@ SPEED OPTIMIZATIONS
 - Find a way to avoid interpolation/reparsing in "foo($bar)" tokens.
   See the "sieve" and "ary" bench performances, result of this problem.
   (to compare with sieve_dict is also useful.)
+
+  * This is difficult considering the way tokens are parsed
+
 - Experiment with better ways to do literal sharing.
+
+  * Currently literal sharing is completely removed. Can it be made
+    efficient? What is the cost vs. benefit?
+
 - Organize the 'script' object so that a single data structure is
   used for a full command, and interpolation is done using an
   'interpolation token type' like JIM_TT_VAR and so on.
   This way there is no need to run the array of integer objects
   with the command structure. Also should help for better cache usage.
-- Generate .c from Jim programs, as calls to the Jim API to avoid
-  the performance penality of Jim_EvalObj() overhead. In the future
-  try to generate the calls like a JIT emitting assembler from
-  Jim directly.
 
 IMPLEMENTATION ISSUES
 
 - Objects lazy free.
+
 - Rewrite all the commands accepting a set of options to use Jim_GetEnum().
+
 - Every time an extension is loaded Jim should put the dlopen() (or win32
   equivalent) handle in a list inside the interpreter structure. When
   the interpreter is freed all this handles should be closed with dlclose().
+
 - *AssocData() function should allow to specify a delProc C function like
-  in the Tcl API. When the interpreter is destroied all the delProc functions
+  in the Tcl API. When the interpreter is destroyed all the delProc functions
   should be called to free the memory before to free the interpreter.
-- Convert dicts from lists directly without to pass from the string repr.
 
 REFERENCES SYSTEM
 

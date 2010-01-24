@@ -621,6 +621,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_fork
+enable_math
 with_jim_ext
 with_jim_shared
 '
@@ -1246,13 +1247,14 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --disable-fork          Do not use fork (no exec, etc.)
+  --disable-fork          do not use fork (no exec, etc.)
+  --enable-math           include support for math functions
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-jim-ext          Specify jim extensions to build (or all, which is the default)
-  --with-jim-shared       Build a shared library instead of a static library
+  --with-jim-ext          specify jim extensions to build (or all, which is the default)
+  --with-jim-shared       build a shared library instead of a static library
 
 Some influential environment variables:
   CC          C compiler command
@@ -2766,8 +2768,18 @@ fi
 
 JIM_NOFORK=$JIM_NOFORK
 
+# Check whether --enable-math was given.
+if test "${enable_math+set}" = set; then :
+  enableval=$enable_math;
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_MATH_FUNCTIONS"
+		fi
 
-jim_extensions="package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+
+fi
+
+
+jim_extensions="load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 
 # Check whether --with-jim-ext was given.
 if test "${with_jim_ext+set}" = set; then :

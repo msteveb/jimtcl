@@ -20,7 +20,7 @@ case $host in
 esac
 
 AC_ARG_ENABLE(fork,
-	[  --disable-fork          Do not use fork (no exec, etc.)],
+	[  --disable-fork          do not use fork (no exec, etc.)],
 	[
 		if test "x$enableval" = "xno" ; then
 			AC_MSG_RESULT(* disabling fork)
@@ -29,10 +29,18 @@ AC_ARG_ENABLE(fork,
 	],
 )
 AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
+AC_ARG_ENABLE(math,
+	[  --enable-math           include support for math functions],
+	[
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_MATH_FUNCTIONS"
+		fi
+	]
+)
 
-jim_extensions="package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+jim_extensions="load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,
-	[  --with-jim-ext          Specify jim extensions to build (or all, which is the default)],
+	[  --with-jim-ext          specify jim extensions to build (or all, which is the default)],
 	[
 		if test "x$withval" != "xno" ; then
 			if test "x$withval" != "xall" ; then
@@ -50,7 +58,7 @@ done
 
 JIM_LIBTYPE=static
 AC_ARG_WITH(jim-shared,
-	[  --with-jim-shared       Build a shared library instead of a static library],
+	[  --with-jim-shared       build a shared library instead of a static library],
 	[
 		if test "x$withval" = "xyes" ; then
 			JIM_LIBTYPE=shared

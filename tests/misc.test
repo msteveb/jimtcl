@@ -123,6 +123,83 @@ test lrepeat-1.8 "Errors" {
 	catch {lrepeat -10 a}
 } {1}
 
-section "unset"
+section "string/list index"
+
+test lindex-1.1 "Integer" {
+	lindex {a b c} 0
+} a
+
+test lindex-1.1 "Integer" {
+	lindex {a b c} 2
+} c
+
+test lindex-1.1 "Integer" {
+	lindex {a b c} -1
+} {}
+
+test lindex-1.1 "Integer" {
+	lindex {a b c} 4
+} {}
+
+test lindex-1.1 "end" {
+	lindex {a b c} end
+} c
+
+test lindex-1.1 "end" {
+	lindex {a b c} end-1
+} b
+
+test lindex-1.1 "end" {
+	lindex {a b c} end-4
+} {}
+
+test lindex-1.1 "end - errors" {
+	catch {lindex {a b c} end-}
+} 1
+
+test lindex-1.1 "end - errors" {
+	catch {lindex {a b c} end-blah}
+} 1
+
+test lindex-1.1 "end - errors" {
+	catch {lindex {a b c} end+1}
+} 1
+
+test lindex-1.1 "int+int, int-int" {
+	lindex {a b c} 0+1
+} b
+
+test lindex-1.1 "int+int, int-int" {
+	lindex {a b c} 0+4
+} {}
+
+test lindex-1.1 "int+int, int-int" {
+	lindex {a b c} 3-1
+} c
+
+test lindex-1.1 "int+int, int-int" {
+	lindex {a b c} 1--1
+} c
+
+test lindex-1.1 "int+int, int-int" {
+	set l {a b c}
+	lindex $l [lsearch $l b]-1
+} a
+
+test lindex-1.1 "int+int - errors" {
+	catch {lindex {a b c} 5+blah}
+} 1
+
+test lindex-1.1 "int+int - errors" {
+	catch {lindex {a b c} 5-blah}
+} 1
+
+test lindex-1.1 "int+int - errors" {
+	catch {lindex {a b c} blah-2}
+} 1
+
+test lindex-1.1 "unary plus" {
+	lindex {a b c} +2
+} c
 
 testreport

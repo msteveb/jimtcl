@@ -20,11 +20,12 @@ cat <<EOF
 #include <jim.h>
 int Jim_${basename}Init(Jim_Interp *interp)
 {
-	return Jim_EvalGlobal(interp, 
+	return Jim_Eval_Named(interp, 
 EOF
 
-sed -e '/^#/d' -e 's@\\@\\\\@g' -e 's@"@\\"@g' -e 's@^\(.*\)$@"\1\\n"@' $source
+# Note: Keep newlines so that line numbers match in error messages
+sed -e 's/^[ 	]*#.*//' -e 's@\\@\\\\@g' -e 's@"@\\"@g' -e 's@^\(.*\)$@"\1\\n"@' $source
 #sed -e 's@^\(.*\)$@"\1\\n"@' $source
 
-echo ");"
+echo ",\"$source\", 1);"
 echo "}"
