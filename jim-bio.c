@@ -150,14 +150,14 @@ static int bio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (ferror(infh)) {
         Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error reading \"", Jim_GetString(argv[0], NULL), "\": ", strerror(errno), 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "error reading \"", Jim_GetString(argv[0], NULL), "\": ", strerror(errno), NULL);
         clearerr(infh);
         return JIM_ERR;
     }
 
     if (ferror(outfh)) {
         Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error writing \"", Jim_GetString(argv[1], NULL), "\": ", strerror(errno), 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "error writing \"", Jim_GetString(argv[1], NULL), "\": ", strerror(errno), NULL);
         clearerr(outfh);
         return JIM_ERR;
     }

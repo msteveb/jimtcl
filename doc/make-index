@@ -1,0 +1,59 @@
+#!/bin/sh
+# \
+PATH=$UWEBDIR/bin:$PATH; exec jimsh $0 "$@"
+
+# vim:se syn=tcl:
+
+while {[stdin gets buf] >= 0} {
+	if {$buf eq "@INSERTINDEX@"} {
+		break
+	}
+	puts $buf
+}
+
+# Collect lines and commands
+set lines {}
+set commands {}
+set c 0
+
+while {[stdin gets buf] >= 0} {
+	if {[string match "~~*" $buf]} {
+		if {[string match "*:*" $prev]} {
+			incr c
+			set target cmd_$c
+			set lines [linsert $lines end-1 "\[\[$target\]\]"]
+		} else {
+			set target _$prev
+		}
+		foreach cmd [split $prev ":,"] {
+			set cmd [string trim $cmd]
+			if {$cmd ne ""} {
+				lappend commands [list $cmd $target]
+			}
+		}
+	}
+	lappend lines $buf
+	set prev $buf
+}
+
+# Output the index
+puts {[frame="none",grid="none"]}
+puts {|=========================}
+set i 0
+foreach command [lsort $commands] {
+	foreach {cmd target} $command break
+
+	puts -nonewline "|<<$target,$cmd>> "
+	incr i
+	if {$i % 8 == 0} {
+		puts ""
+	}
+}
+while {$i % 8 != 0} {
+	incr i
+	puts -nonewline "| "
+}
+puts ""
+puts {|=========================}
+
+puts [join $lines \n]

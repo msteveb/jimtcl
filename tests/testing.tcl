@@ -4,13 +4,13 @@
 # e.g. bio copy [autoopen infile] [autoopen outfile w]; collect
 #
 proc autoopen {filename {mode r}} {
-	set ref [ref [open $filename $mode] aio lambdaFinalizer]
+	set ref [ref [open.old $filename $mode] aio lambdaFinalizer]
 	rename [getref $ref] $ref
 	return $ref
 }
 
 # And make autoopen the standard open
-rename open ""
+rename open open.old
 rename autoopen open
 
 # Hardly needed

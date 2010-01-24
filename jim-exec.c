@@ -277,7 +277,9 @@ JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
                     *statusPtr = *((int *) &waitPtr->status);
                     pid = waitPtr->pid;
                     if (WIFEXITED(waitPtr->status) || WIFSIGNALED(waitPtr->status)) {
-                        *waitPtr = waitTable[waitTableUsed-1];
+                        if (waitPtr != &waitTable[waitTableUsed-1]) {
+                            *waitPtr = waitTable[waitTableUsed-1];
+                        }
                         waitTableUsed--;
                     }
                     else {

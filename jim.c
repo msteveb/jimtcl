@@ -1371,10 +1371,17 @@ int JimParseVar(struct JimParserCtx *pc)
         }
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
-            while (*pc->p != ')' && pc->len) {
+            int count = 1;
+            while (count && pc->len) {
                 pc->p++; pc->len--;
                 if (*pc->p == '\\' && pc->len >= 2) {
                     pc->p += 2; pc->len -= 2;
+                }
+                else if (*pc->p == '(') {
+                    count++;
+                }
+                else if (*pc->p == ')') {
+                    count--;
                 }
             }
             if (*pc->p != '\0') {
@@ -8913,17 +8920,17 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
             Jim_AppendObj(interp, resObjPtr, token[i].objPtr);
             break;
         case JIM_TT_VAR:
-            objPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
+        case JIM_TT_DICTSUGAR:
+            if (token[i].type == JIM_TT_VAR) {
+                objPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
+            }
+            else {
+                objPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
+            }
             if (objPtr == NULL) goto err;
             Jim_IncrRefCount(objPtr);
             Jim_AppendObj(interp, resObjPtr, objPtr);
             Jim_DecrRefCount(interp, objPtr);
-            break;
-        case JIM_TT_DICTSUGAR:
-            objPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
-            if (!objPtr) {
-                goto err;
-            }
             break;
         case JIM_TT_CMD:
             if (Jim_EvalObj(interp, token[i].objPtr) != JIM_OK)

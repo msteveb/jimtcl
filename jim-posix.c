@@ -20,6 +20,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#ifdef HAVE_SYSINFO
+#include <sys/sysinfo.h>
+#endif
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
@@ -177,6 +180,28 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+#ifdef HAVE_SYSINFO
+    struct sysinfo info;
+
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
+
+    if (sysinfo(&info) == -1) {
+        Jim_PosixSetError(interp);
+        return JIM_ERR;
+    }
+
+    Jim_SetResultInt(interp, info.uptime);
+#else
+    Jim_SetResultInt(interp, (long)time(NULL));
+#endif
+    return JIM_OK;
+}
+
 static int Jim_PosixPidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc != 1) {
@@ -196,6 +221,7 @@ int Jim_posixInit(Jim_Interp *interp)
     Jim_CreateCommand(interp, "os.wait", Jim_PosixWaitCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "os.uptime", Jim_PosixUptimeCommand, NULL, NULL);
     Jim_CreateCommand(interp, "pid", Jim_PosixPidCommand, NULL, NULL);
     return JIM_OK;
 }

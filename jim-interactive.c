@@ -1,4 +1,5 @@
 #include <jim.h>
+#include <errno.h>
 
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
@@ -32,7 +33,11 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             char state;
             int len;
 
+            errno = 0;
             if ( fgets(buf, 1024, stdin) == NULL) {
+                if (errno == EINTR) {
+                    continue;
+                }
                 Jim_DecrRefCount(interp, scriptObjPtr);
                 goto out;
             }

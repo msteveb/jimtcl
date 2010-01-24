@@ -1,0 +1,24 @@
+source testing.tcl
+
+section "Regression Testing"
+
+test regr-1.1 "Double dereference arrays" {
+	array set a {one ONE two TWO three THREE}
+	array set b {ONE 1 TWO 2 THREE 3}
+	set chan two
+	set b($a($chan))
+} {2}
+
+section "I/O Testing"
+
+test io-1.1 "Read last line with no newline" {
+	set lines 0
+	set f [open testio.in]
+	while {[gets $f buf] >= 0} {
+		incr lines
+	}
+	close $f
+	list $lines
+} {2}
+
+testreport

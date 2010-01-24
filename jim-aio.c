@@ -203,8 +203,12 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (more) {
             Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN-1);
         } else {
-            /* strip "\n" */
-            Jim_AppendString(interp, objPtr, buf, strlen(buf)-1);
+            int len = strlen(buf);
+            if (len) {
+                int hasnl = (buf[len - 1] == '\n');
+                /* strip "\n" */
+                Jim_AppendString(interp, objPtr, buf, strlen(buf) - hasnl);
+            }
         }
         if (!more)
             break;

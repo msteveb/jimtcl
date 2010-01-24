@@ -27,7 +27,7 @@ static void add_commands(Jim_Interp *interp, const jim_subcmd_type *ct, const ch
 
     for (; ct->cmd; ct++) {
         if (!(ct->flags & JIM_MODFLAG_HIDDEN)) {
-            Jim_AppendStrings(interp, Jim_GetResult(interp), s, ct->cmd, 0);
+            Jim_AppendStrings(interp, Jim_GetResult(interp), s, ct->cmd, NULL);
             s = sep;
         }
     }
@@ -63,9 +63,9 @@ static void show_full_usage(Jim_Interp *interp, const jim_subcmd_type *ct, int a
         if (!(ct->flags & JIM_MODFLAG_HIDDEN)) {
             add_subcmd_usage(interp, ct, argc, argv);
             if (ct->description) {
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n    ", ct->description, 0);
+                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n    ", ct->description, NULL);
             }
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", 0);
+            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", NULL);
         }
     }
 }
@@ -85,8 +85,8 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
 
     if (argc < 2) {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "wrong # args: should be \"", cmdname, " command ...\"\n", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "Use \"", cmdname, " -help\" or \"", cmdname, " -help command\" for help", 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "wrong # args: should be \"", cmdname, " command ...\"\n", NULL);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "Use \"", cmdname, " -help\" or \"", cmdname, " -help command\" for help", NULL);
         return 0;
     }
 
@@ -162,7 +162,7 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
         Jim_SetResultString(interp, "Usage: ", -1);
         add_subcmd_usage(interp, ct, argc, argv);
         if (ct->description) {
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", ct->description, 0);
+            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", ct->description, NULL);
         }
         return &dummy_subcmd;
     }
@@ -226,7 +226,7 @@ Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int 
             Jim_SetResultString(interp, "Usage: ", -1);
             add_cmd_usage(interp, command_table, argc, argv);
             if (command_table->description) {
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", command_table->description, 0);
+                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", command_table->description, NULL);
             }
             return JIM_OK;
         }
@@ -269,7 +269,7 @@ Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int 
         Jim_SetResultString(interp, "wrong # args: should be \"", -1);
         add_cmd_usage(interp, command_table, argc, argv);
         Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "\"\nUse \"", Jim_GetString(argv[0], NULL), " -help\" for help", 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "\"\nUse \"", Jim_GetString(argv[0], NULL), " -help\" for help", NULL);
         return JIM_ERR;
     }
 

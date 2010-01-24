@@ -2816,6 +2816,17 @@ _ACEOF
 fi
 done
 
+for ac_func in sysinfo
+do :
+  ac_fn_c_check_func "$LINENO" "sysinfo" "ac_cv_func_sysinfo"
+if test "x$ac_cv_func_sysinfo" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SYSINFO 1
+_ACEOF
+ EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_SYSINFO"
+fi
+done
+
 
 EXTRA_CFLAGS=$EXTRA_CFLAGS
 

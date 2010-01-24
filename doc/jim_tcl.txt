@@ -14,6 +14,12 @@ or
 
   jimsh <script>
 
+.Quick Index
+* <<CommandIndex,Command Reference>>
+* <<OperatorPrecedence,Operator Precedence>>
+* <<BuiltinVariables, Builtin Variables>>
+* <<BackslashSequences, Backslash Sequences>>
+
 INTRODUCTION
 ------------
 Jim is a reimplementation of Tcl, combining some features from
@@ -376,7 +382,7 @@ into fields without them being interpreted specially as described above.
 The backslash sequences understood by the Tcl interpreter are
 listed below.  In each case, the backslash
 sequence is replaced by the given character:
-
+[[BackslashSequences]]
 +{backslash}b+::
     Backspace (0x8)
 
@@ -586,7 +592,7 @@ on the right side of the line:
 
 The valid operators are listed below, grouped in decreasing order
 of precedence:
-
+[[OperatorPrecedence]]
 `- ~ !`::
     Unary minus, bit-wise NOT, logical NOT.  None of these operands
     may be applied to string operands, and bit-wise NOT may be
@@ -1094,6 +1100,11 @@ in +?question-marks?+.
 Ellipses (+...+) indicate that any number of additional
 arguments or groups of arguments may appear, in the same format
 as the preceding argument(s).
+
+[[CommandIndex]]
+Command Index
+~~~~~~~~~~~~~
+@INSERTINDEX@
 
 alarm
 ~~~~~
@@ -1907,7 +1918,7 @@ info
     are returned.  Matching is determined using the same rules as for
     'string match'.
 
-+*info hostname*::
++*info hostname*+::
 	An alias for 'os.hostname' for compatibility with Tcl 6.x
 
 +*info level* ?'number'?+::
@@ -3162,8 +3173,8 @@ descriptors.
     bytes will be copied. Otherwise copying continues until the end
     of the input file. Returns the number of bytes actually copied.
 
-posix
-~~~~~
+posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +*os.fork*+::
 	Invokes 'fork(2)' and returns the result.
 
@@ -3182,7 +3193,7 @@ posix
    {<pid> other 0} otherwise (core dump, stopped, continued, etc.)
 
 +*os.gethostname*+::
-	Invokes gethostname(3) and returns the result.
+	Invokes 'gethostname(3)' and returns the result.
 
 +*os.getids*+::
 	Returns the various user/group ids for the current process.
@@ -3190,11 +3201,14 @@ posix
 	jim> os.getids
 	uid 1000 euid 1000 gid 100 egid 100
 
++*os.uptime*+::
+	Returns the number of seconds since system boot. See description of 'uptime' in 'sysinfo(2)'.
+
 ANSI I/O (aio) and EVENTLOOP API
 --------------------------------
 Jim provides an alternative object-based API for I/O.
 
-See 'open' and 'socket' for commands which return an I/O handle.
+See '<<_open,open>>' and '<<_socket,socket>>' for commands which return an I/O handle.
 
 aio
 ~~~
@@ -3230,8 +3244,9 @@ aio
 +*$handle accept*+::
 	Server socket only: Accept a connection and return stream
 
-eventloop
-~~~~~~~~~
+eventloop: after, vwait
+~~~~~~~~~~~~~~~~~~~~~~~
+
 The following commands allow a script to be invoked when the given condition occurs.
 
 +*$handle readable* '?readable-script ?eof-script??'+::
@@ -3333,6 +3348,7 @@ may be specified before priority to control these parameters:
     because I haven't got time to implement yet another hash
     table.
 
+[[BuiltinVariables]]
 BUILT-IN VARIABLES
 ------------------
 
