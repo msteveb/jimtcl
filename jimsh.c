@@ -159,7 +159,8 @@ int main(int argc, char *const argv[])
     } else {
         Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");
-        if ((retcode = Jim_EvalFile(interp, argv[1])) == JIM_ERR) {
+        retcode = Jim_EvalFile(interp, argv[1]);
+        if (retcode == JIM_ERR || retcode == JIM_ERR_ADDSTACK) {
             Jim_PrintErrorMessage(interp);
         }
     }

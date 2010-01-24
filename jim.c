@@ -121,6 +121,7 @@ static char *JimEmptyStringRep = (char*) "";
  * ---------------------------------------------------------------------------*/
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
+static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj *newObjPtr, int flags);
 
 static Jim_HashTableType JimVariablesHashTableType;
 
