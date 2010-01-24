@@ -515,6 +515,7 @@ typedef struct Jim_Interp {
     time_t lastCollectTime; /* unix time of the last GC execution */
     struct Jim_HashTable sharedStrings; /* Shared Strings hash table */
     Jim_Obj *stackTrace; /* Stack trace object. */
+    Jim_Obj *errorProc; /* Name of last procedure which returned an error */
     Jim_Obj *unknown; /* Unknown command cache */
     int unknown_called; /* The unknown command has been invoked */
     int errorFlag; /* Set if an error occurred during execution. */

@@ -1,0 +1,34 @@
+package require testing
+
+section "lsort -command"
+
+set list {b d a c z}
+
+proc sorter {a v1 v2} {
+	set ::arg $a
+	return [string compare $v1 $v2]
+}
+
+proc test_lsort_cmd {test cmd list exp} {
+	lsort -command $cmd $list
+	if {$::arg != $exp} {
+		error "$test: Failed"
+	}
+}
+
+test lsortcmd-1.1 "Sort with one arg" {
+	lsort -command "sorter arg1" $list
+	set arg
+} {arg1}
+
+test lsortcmd-1.2 "Sort with one arg containg spaces" {
+	lsort -command {sorter "arg with space"} $list
+	set arg
+} {arg with space}
+
+test lsortcmd-1.3 "Sort with arg as list containg spaces" {
+	lsort -command [list sorter [list arg with list "last with spaces"]] $list
+	set arg
+} {arg with list {last with spaces}}
+
+testreport

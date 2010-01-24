@@ -8364,7 +8364,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     j = 0; /* on normal termination, the argv array is already
           Jim_DecrRefCount-ed. */
 err:
-    retcode = JimAddErrorToStack(interp, retcode, script->fileName, cmdtoken->linenr);
+    retcode = JimAddErrorToStack(interp, retcode, script->fileName, cmdtoken ? cmdtoken->linenr : 0);
     Jim_FreeIntRep(interp, scriptObjPtr);
     scriptObjPtr->typePtr = &scriptObjType;
     Jim_SetIntRepPtr(scriptObjPtr, script);

@@ -64,3 +64,5 @@ Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 
 }
 
 main
+
+testreport
