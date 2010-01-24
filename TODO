@@ -21,12 +21,6 @@ EXTENSIONS
 
 SPEED OPTIMIZATIONS
 
-- Find a way to avoid interpolation/reparsing in "foo($bar)" tokens.
-  See the "sieve" and "ary" bench performances, result of this problem.
-  (to compare with sieve_dict is also useful.)
-
-  * This is difficult considering the way tokens are parsed
-
 - Experiment with better ways to do literal sharing.
 
   * Currently literal sharing is completely removed. Can it be made

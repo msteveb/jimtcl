@@ -66,10 +66,9 @@ test array-1.11 "array unset - all" {
 } {0 0}
 
 test array-1.12 "array set to invalid variable" {
-   unset -nocomplain a b
-   set a 1
-   catch {array set a(1) {b c}}
+	unset -nocomplain a b
+	set a 1
+	catch {array set a(1) {b c}}
 } {1}
-
 
 testreport
