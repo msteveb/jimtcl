@@ -78,10 +78,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             handle = dlopen(buf, RTLD_LAZY);
         }
         if (handle == NULL) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "error loading extension \"", pathName,
-                "\": ", dlerror(), NULL);
+            Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName, dlerror());
             if (i < 0)
                 continue;
             goto err;

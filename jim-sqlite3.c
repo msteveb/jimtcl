@@ -110,10 +110,7 @@ static Jim_Obj *JimSqliteFormatQuery(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         default:
             spec[1] = *fmt; spec[2] = '\0';
             Jim_FreeNewObj(interp, resObjPtr);
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "bad field specifier \"",  spec, "\", ",
-                    "only %%s and %%%% are validd", NULL);
+            Jim_SetResultFormatted(interp, "bad field specifier \"%s\", only %%s and %%%% are valid", spec);
             return NULL;
         }
         fmt++;

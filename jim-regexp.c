@@ -95,8 +95,7 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
     if ((ret = regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
         char buf[100];
         regerror(ret, compre, buf, sizeof(buf));
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't compile regular expression pattern: ", buf, NULL);
+        Jim_SetResultFormatted(interp, "couldn't compile regular expression pattern: %s", buf);
         regfree(compre);
         Jim_Free(compre);
         return NULL;
@@ -216,8 +215,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (match >= REG_BADPAT) {
         char buf[100];
         regerror(match, regex, buf, sizeof(buf));
-        Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error while matching pattern: ", buf, NULL);
+        Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
         result = JIM_ERR;
         goto done;
     }
@@ -272,8 +270,6 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             result = Jim_SetVariable(interp, argv[i], resultObj);
 
             if (result != JIM_OK) {
-                Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't set variable \"", Jim_GetString(argv[i], NULL), "\"", NULL);
                 Jim_FreeObj(interp, resultObj);
                 break;
             }
@@ -409,8 +405,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (match >= REG_BADPAT) {
             char buf[100];
             regerror(match, regex, buf, sizeof(buf));
-            Jim_SetResultString(interp, "", 0);
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "error while matching pattern: ", buf, NULL);
+            Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
             return JIM_ERR;
         }
         if (match == REG_NOMATCH) {
@@ -485,8 +480,6 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_SetResultInt(interp, num_matches);
         }
         else {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't set variable \"", Jim_GetString(varname, NULL), "\"", NULL);
             Jim_FreeObj(interp, resultObj);
         }
     }

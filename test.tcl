@@ -3810,7 +3810,7 @@ test regexp-6.8 {regexp errors} {
     catch {unset f1}
     set f1 44
     list [catch {regexp abc abc f1(f2)} msg] $msg
-} {1 {couldn't set variable "f1(f2)"}}
+} {1 {can't set "f1(f2)": variable isn't array}}
 
 test regexp-6.9 {regexp errors, -start bad int check} {
     list [catch {regexp -start bogus {^$} {}} msg] $msg
@@ -3986,7 +3986,7 @@ test regexp-11.7 {regsub errors} {
     catch {unset f1}
     set f1 44
     list [catch {regsub -nocase aaa aaa xxx f1(f2)} msg] $msg
-} {1 {couldn't set variable "f1(f2)"}}
+} {1 {can't set "f1(f2)": variable isn't array}}
 
 test regexp-11.8 {regsub errors, -start bad int check} {
     list [catch {regsub -start bogus pattern string rep var} msg] $msg

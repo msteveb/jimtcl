@@ -14,9 +14,7 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
     /* If the package was already provided returns an error. */
     if (Jim_FindHashEntry(&interp->packages, name) != NULL) {
         if (flags & JIM_ERRMSG) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "package '", name, "' was already provided", NULL);
+            Jim_SetResultFormatted(interp, "package \"%s\" was already provided", name);
         }
         return JIM_ERR;
     }
@@ -124,14 +122,9 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
         if (retcode != JIM_OK) {
             if (flags & JIM_ERRMSG) {
                 int len;
-                Jim_Obj *resultObj = Jim_GetResult(interp);
-                if (Jim_IsShared(resultObj)) {
-                    resultObj = Jim_DuplicateObj(interp, resultObj);
-                }
-                Jim_GetString(resultObj, &len);
-                Jim_AppendStrings(interp, resultObj, len ? "\n" : "",
-                        "Can't load package '", name, "'", NULL);
-                Jim_SetResult(interp, resultObj);
+                Jim_GetString(Jim_GetResult(interp), &len);
+                Jim_SetResultFormatted(interp, "%#s%sCan't load package %s",
+                    Jim_GetResult(interp), len ? "\n" : "", name);
             }
             return retcode;
         }

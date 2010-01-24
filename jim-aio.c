@@ -81,9 +81,7 @@ static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
     if (name) {
-        const char *filename = Jim_GetString(name, NULL);
-        Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), filename, ": ", strerror(errno), NULL);
+        Jim_SetResultFormatted(interp, "%#s: %s", name, strerror(errno));
     }
     else {
         Jim_SetResultString(interp, strerror(errno), -1);

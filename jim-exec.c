@@ -28,8 +28,7 @@
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
 {
-    Jim_SetResultString(interp, "", 0);
-    Jim_AppendStrings(interp, Jim_GetResult(interp), msg, ": ", strerror(errno), NULL);
+    Jim_SetResultFormatted(interp, "%s: %s", msg, strerror(errno));
 }
 
 static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
@@ -572,8 +571,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         }
 
         if (i >= argc) {
-            Jim_SetResultString(interp, "", 0);
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "can't specify \"", arg, "\" as last word in command", NULL);
+            Jim_SetResultFormatted(interp, "can't specify \"%s\" as last word in command", arg);
             Jim_Free(arg_array);
             return -1;
         }
@@ -632,8 +630,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
              */
             inputId = open(input, O_RDONLY, 0);
             if (inputId < 0) {
-                Jim_SetResultString(interp, "", 0);
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't read file \"", input, "\": ", strerror(errno), NULL);
+                Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", input, strerror(errno));
                 goto error;
             }
         }
@@ -675,8 +672,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
 
             lastOutputId = open(output, mode, 0666);
             if (lastOutputId < 0) {
-                Jim_SetResultString(interp, "", 0);
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't write file \"", output, "\": ", strerror(errno), NULL);
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", output, strerror(errno));
                 goto error;
             }
         }
@@ -718,8 +714,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
 
             errorId = open(error, mode, 0666);
             if (errorId < 0) {
-                Jim_SetResultString(interp, "", 0);
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't write file \"", error, "\": ", strerror(errno), NULL);
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", error, strerror(errno));
             }
         }
     }

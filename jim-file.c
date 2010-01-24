@@ -143,8 +143,7 @@ static int
 StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat *sb)
 {
     if (set_array_int_value(interp, varName, "dev", sb->st_dev) != JIM_OK) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "can't set \"", Jim_GetString(varName, NULL), "(dev)\": variable isn't array", NULL);
+        Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variables isn't array", varName);
         return JIM_ERR;
     }
     set_array_int_value(interp, varName, "ino", sb->st_ino);
@@ -289,7 +288,7 @@ static int file_access(Jim_Interp *interp, Jim_Obj *filename, int mode)
     const char *path = Jim_GetString(filename, NULL);
     int rc = access(path, mode);
 
-    Jim_SetResult(interp, Jim_NewIntObj(interp, rc != -1));
+    Jim_SetResultBool(interp, rc != -1);
 
     return JIM_OK;
 }
@@ -319,8 +318,7 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while (argc--) {
         const char *path = Jim_GetString(argv[0], NULL);
         if (unlink(path) == -1 && errno != ENOENT) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't delete \"", path, "\"", NULL);
+            Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path, strerror(errno));
             return JIM_ERR;
         }
         argv++;
@@ -367,28 +365,29 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *source = Jim_GetString(argv[0], NULL);
+    const char *source;
     const char *dest;
     int force = 0;
 
     if (argc == 3) {
-        if (strcmp(source, "-force") != 0) {
+        if (!Jim_CompareStringImmediate(interp, argv[0], "-force")) {
             return -1;
         }
         force++;
-        source = Jim_GetString(argv[1], NULL);
+        argv++;
+        argc--;
     }
-    dest = Jim_GetString(argv[force + 1], NULL);
+
+    source = Jim_GetString(argv[0], NULL);
+    dest = Jim_GetString(argv[1], NULL);
 
     if (!force && access(dest, F_OK) == 0) {
-        Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error renaming \"", source, "\" to \"", dest, "\": target exists", NULL);
+        Jim_SetResultFormatted(interp, "error renaming \"%#s\" to \"%#s\": target exists", argv[0], argv[1]);
         return JIM_ERR;
     }
 
     if (rename(source, dest) != 0) {
-        Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error renaming \"", source, "\": ", strerror(errno), NULL);
+        Jim_SetResultFormatted(interp, "error renaming \"%#s\" to \"%#s\": %s", argv[0], argv[1], strerror(errno));
         return JIM_ERR;
     }
 
@@ -399,8 +398,7 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
     const char *path = Jim_GetString(filename, NULL);
     if (stat(path, sb) == -1) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "could not read \"", path, "\": ", strerror(errno), NULL);
+        Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
     return JIM_OK;
@@ -410,8 +408,7 @@ static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
     const char *path = Jim_GetString(filename, NULL);
     if (lstat(path, sb) == -1) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "could not read \"", path, "\": ", strerror(errno), NULL);
+        Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
     return JIM_OK;
@@ -495,8 +492,7 @@ static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int linkLength = readlink(path, linkValue, MAXPATHLEN);
     if (linkLength == -1) {
         Jim_Free(linkValue);
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't readlink \"", path, "\"", NULL);
+        Jim_SetResultFormatted(interp, "couldn't readlink \"%s\": %s", argv[0], strerror(errno));
         return JIM_ERR;
     }
     linkValue[linkLength] = 0;
@@ -724,9 +720,7 @@ static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     path = Jim_GetString(argv[1], NULL);
 
     if (chdir(path) != 0) {
-        Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), 
-            "couldn't change working directory to \"", path, "\": ", strerror(errno), NULL);
+        Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", argv[1], strerror(errno));
         return JIM_ERR;
     }
     return JIM_OK;

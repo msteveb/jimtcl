@@ -552,9 +552,9 @@ typedef struct Jim_Interp {
 #define Jim_InterpIncrProcEpoch(i) (i)->procEpoch++
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
 #define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
+/* Note: Using trueObj and falseObj here makes some things slower...*/
+#define Jim_SetResultBool(i,b) Jim_SetResultInt(i, b)
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
-#define Jim_SetTrueResult(i) Jim_SetResult(i, (i)->trueObj)
-#define Jim_SetFalseResult(i) Jim_SetResult(i, (i)->falseObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
 
@@ -700,6 +700,7 @@ JIM_EXPORT Jim_Interp * Jim_CreateInterp (void);
 JIM_EXPORT void Jim_FreeInterp (Jim_Interp *i);
 JIM_EXPORT int Jim_GetExitCode (Jim_Interp *interp);
 JIM_EXPORT const char *Jim_ReturnCode(int code);
+JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...);
 
 /* commands */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);

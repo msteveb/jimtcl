@@ -54,7 +54,7 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc,
         Jim_PosixSetError(interp);
         return JIM_ERR;
     }
-    Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)pid));
+    Jim_SetResultInt(interp, (jim_wide)pid);
     return JIM_OK;
 #endif
 }

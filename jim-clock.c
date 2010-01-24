@@ -64,14 +64,14 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Now convert into a time_t */
-    Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)mktime(&tm)));
+    Jim_SetResultInt(interp, mktime(&tm));
 
     return JIM_OK;
 }
 
 static int clock_cmd_seconds(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)time(NULL)));
+    Jim_SetResultInt(interp, time(NULL));
 
     return JIM_OK;
 }
