@@ -11,7 +11,7 @@ proc bench {name cmd} {
 }
 
 proc set_dict_sugar {} {
-	for {set i 0} {$i < 20000} {incr i} {
+	for {set i 0} {$i < 10000} {incr i} {
 		set a(b) $i
 	}
 }
@@ -20,7 +20,7 @@ proc set_dict_sugar {} {
 # speedup since a($b) needs to be interpolated and reparsed every time
 proc set_var_dict_sugar {} {
 	set b b
-	for {set i 0} {$i < 20000} {incr i} {
+	for {set i 0} {$i < 10000} {incr i} {
 		set a($b) $i
 	}
 }
@@ -102,7 +102,7 @@ proc read_file_split_assign_lindex {file} {
 
 # Create a really big file
 set f [open test.in w]
-for {set i 0} {$i < 50000} {incr i} {
+for {set i 0} {$i < 10000} {incr i} {
 	puts $f "a\tb\tc\te\tf\tg\th\ti\tj\tk"
 }
 close $f

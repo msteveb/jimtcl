@@ -76,15 +76,15 @@ test tree-2.0 "Add more nodes" {
 
 test tree-2.1 "walk dfs" {
 	set result {}
-	puts ""
+	#puts ""
 	pt walk root dfs {action n} {
 		set indent [string repeat "  " [pt depth $n]]
 		if {$action == "enter"} {
 			lappend result [pt get $n name]
-			puts "$indent[pt get $n name]"
+			#puts "$indent[pt get $n name]"
 		}
 	}
-	puts ""
+	#puts ""
 	set result
 } {rootnode childnode1 childnode2 n.c4 n.c5 n.c5.c6 root.c2 root.c3}
 

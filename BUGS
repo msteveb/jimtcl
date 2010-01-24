@@ -1,9 +1,3 @@
 Known bugs:
 
-EXPR: || and && are not lazy. ?: is not implemented. Double math not
-      implemented. Functions like sin(), cos(), not implemented.
-
-[subst] ingores special meaning of JIM_BREAK and alike.
-
-[list #] should generate {#} and not #, this was also broken in Tcl 8.4, fixed in
-8.5.
+EXPR: ?: is not lazy. Functions like sin(), cos(), not implemented.

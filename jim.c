@@ -4977,6 +4977,7 @@ static int ListElementQuotingType(const char *s, int len)
 
     /* Try with the SIMPLE case */
     if (len == 0) return JIM_ELESTR_BRACE;
+    if (s[0] == '#') return JIM_ELESTR_BRACE;
     if (s[0] == '"' || s[0] == '{') {
         trySimple = 0;
         goto testbrace;
@@ -8638,6 +8639,9 @@ static int JimParseSubstStr(struct JimParserCtx *pc)
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     while (*pc->p && *pc->p != '$' && *pc->p != '[') {
+        if (*pc->p == '\\' && pc->len > 1) {
+            pc->p++; pc->len--;
+        }
         pc->p++; pc->len--;
     }
     pc->tend = pc->p-1;
@@ -8765,6 +8769,7 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
     ScriptObj *script;
     ScriptToken *token;
     int i, len, retcode = JIM_OK;
+    int rc;
     Jim_Obj *resObjPtr, *savedResultObjPtr;
 
     script = Jim_GetSubst(interp, substObjPtr, flags);
@@ -8825,9 +8830,20 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
             Jim_DecrRefCount(interp, objPtr);
             break;
         case JIM_TT_CMD:
-            if (Jim_EvalObj(interp, token[i].objPtr) != JIM_OK)
+            rc = Jim_EvalObj(interp, token[i].objPtr);
+            if (rc == JIM_BREAK) {
+                /* Stop substituting */
+                goto ok;
+            }
+            else if (rc == JIM_CONTINUE) {
+                /* just skip this one */
+            }
+            else if (rc == JIM_OK || rc == JIM_RETURN) {
+                Jim_AppendObj(interp, resObjPtr, interp->result);
+            }
+            else {
                 goto err;
-            Jim_AppendObj(interp, resObjPtr, interp->result);
+            }
             break;
         default:
             Jim_Panic(interp,
@@ -11246,15 +11262,11 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc,
     }
     i = argc-2;
     while(i--) {
-        if (Jim_CompareStringImmediate(interp, argv[i+1],
-                    "-nobackslashes"))
-            flags |= JIM_SUBST_NOESC;
-        else if (Jim_CompareStringImmediate(interp, argv[i+1],
-                    "-novariables"))
-            flags |= JIM_SUBST_NOVAR;
-        else if (Jim_CompareStringImmediate(interp, argv[i+1],
-                    "-nocommands"))
-            flags |= JIM_SUBST_NOCMD;
+        const char *option = Jim_GetString(argv[i + 1], NULL);
+
+        if (strncmp(option, "-nob", 4) == 0) flags |= JIM_SUBST_NOESC;
+        else if (strncmp(option, "-nov", 4) == 0) flags |= JIM_SUBST_NOVAR;
+        else if (strncmp(option, "-noc", 4) == 0) flags |= JIM_SUBST_NOCMD;
         else {
             Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
             Jim_AppendStrings(interp, Jim_GetResult(interp),
