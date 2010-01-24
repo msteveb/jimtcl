@@ -31,7 +31,7 @@ proc test {id descr script expected} {
 	} else {
 		puts "ERR $descr"
 		puts "Expected: '$expected'"
-		puts "Got	  : '$result'"
+		puts "Got     : '$result'"
 		incr ::testresults(numfail)
 		lappend ::testresults(failed) [list $id $descr $script $expected $result]
 	}

@@ -47,6 +47,12 @@
 
 #ifdef __ECOS
 #include <pkgconf/jimtcl.h>
+#endif
+
+#ifndef JIM_ANSIC
+#define JIM_DYNLIB      /* Dynamic library support */
+#endif /* JIM_ANSIC */
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -81,33 +87,13 @@
 /* Include the platform dependent libraries for
  * dynamic loading of libraries. */
 #ifdef JIM_DYNLIB
-#if defined(_WIN32) || defined(WIN32)
-#ifndef WIN32
-#define WIN32 1
-#endif
-#ifndef STRICT
-#define STRICT
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#if _MSC_VER >= 1000
-#pragma warning(disable:4146)
-#endif /* _MSC_VER */
-#else
 #include <dlfcn.h>
-#endif /* WIN32 */
 #endif /* JIM_DYNLIB */
 
-#ifndef WIN32
 #include <unistd.h>
 #include <sys/time.h>
-#endif
 
-#ifdef __ECOS
-#include <cyg/jimtcl/jim.h>
-#else
 #include "jim.h"
-#endif
 
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -136,102 +122,6 @@ static const Jim_HashTableType JimVariablesHashTableType;
 /* -----------------------------------------------------------------------------
  * Utility functions
  * ---------------------------------------------------------------------------*/
-
-/*
- * Convert a string to a jim_wide INTEGER.
- * This function originates from BSD.
- *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
- * alphabets and digits are each contiguous.
- */
-#ifdef HAVE_LONG_LONG
-#define JimIsAscii(c) (((c) & ~0x7f) == 0)
-static jim_wide JimStrtoll(const char *nptr, char **endptr, register int base)
-{
-    register const char *s;
-    register unsigned jim_wide acc;
-    register unsigned char c;
-    register unsigned jim_wide qbase, cutoff;
-    register int neg, any, cutlim;
-
-    /*
-     * Skip white space and pick up leading +/- sign if any.
-     * If base is 0, allow 0x for hex and 0 for octal, else
-     * assume decimal; if base is already 16, allow 0x.
-     */
-    s = nptr;
-    do {
-        c = *s++;
-    } while (isspace(c));
-    if (c == '-') {
-        neg = 1;
-        c = *s++;
-    } else {
-        neg = 0;
-        if (c == '+')
-            c = *s++;
-    }
-    if ((base == 0 || base == 16) &&
-        c == '0' && (*s == 'x' || *s == 'X')) {
-        c = s[1];
-        s += 2;
-        base = 16;
-    }
-    if (base == 0)
-        base = c == '0' ? 8 : 10;
-
-    /*
-     * Compute the cutoff value between legal numbers and illegal
-     * numbers.  That is the largest legal value, divided by the
-     * base.  An input number that is greater than this value, if
-     * followed by a legal input character, is too big.  One that
-     * is equal to this value may be valid or not; the limit
-     * between valid and invalid numbers is then based on the last
-     * digit.  For instance, if the range for quads is
-     * [-9223372036854775808..9223372036854775807] and the input base
-     * is 10, cutoff will be set to 922337203685477580 and cutlim to
-     * either 7 (neg==0) or 8 (neg==1), meaning that if we have
-     * accumulated a value > 922337203685477580, or equal but the
-     * next digit is > 7 (or 8), the number is too big, and we will
-     * return a range error.
-     *
-     * Set any if any `digits' consumed; make it negative to indicate
-     * overflow.
-     */
-    qbase = (unsigned)base;
-    cutoff = neg ? (unsigned jim_wide)-(LLONG_MIN + LLONG_MAX) + LLONG_MAX
-        : LLONG_MAX;
-    cutlim = (int)(cutoff % qbase);
-    cutoff /= qbase;
-    for (acc = 0, any = 0;; c = *s++) {
-        if (!JimIsAscii(c))
-            break;
-        if (isdigit(c))
-            c -= '0';
-        else if (isalpha(c))
-            c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-        else
-            break;
-        if (c >= base)
-            break;
-        if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
-            any = -1;
-        else {
-            any = 1;
-            acc *= qbase;
-            acc += c;
-        }
-    }
-    if (any < 0) {
-        acc = neg ? LLONG_MIN : LLONG_MAX;
-        errno = ERANGE;
-    } else if (neg)
-        acc = -acc;
-    if (endptr != 0)
-        *endptr = (char *)(any ? s - 1 : nptr);
-    return (acc);
-}
-#endif
 
 /* Glob-style pattern matching. */
 static int JimStringMatch(const char *pattern, int patternLen,
@@ -428,11 +318,8 @@ int Jim_StringToWide(const char *str, jim_wide *widePtr, int base)
 {
     char *endptr;
 
-#ifdef HAVE_LONG_LONG
-    *widePtr = JimStrtoll(str, &endptr, base);
-#else
-    *widePtr = strtol(str, &endptr, base);
-#endif
+    *widePtr = strtoull(str, &endptr, base);
+
     if ((str[0] == '\0') || (str == endptr) )
         return JIM_ERR;
     if (endptr[0] != '\0') {
@@ -482,13 +369,19 @@ int Jim_DoubleToString(char *buf, double doubleValue)
 {
     char *s;
     int len;
+    int hase = 0;
 
-    len = sprintf(buf, "%.17g", doubleValue);
+    len = sprintf(buf, "%.12g", doubleValue);
     s = buf;
     while(*s) {
         if (*s == '.') return len;
+        if (*s == 'e') hase = 1;
         s++;
     }
+    if (hase) {
+        return len;
+    }
+
     /* Add a final ".0" if it's a number. But not
      * for NaN or InF */
     if (isdigit((int)buf[0])
@@ -597,16 +490,9 @@ char *Jim_StrDupLen(const char *s, int l)
 /* Returns microseconds of CPU used since start. */
 static jim_wide JimClock(void)
 {
-#if (defined WIN32) && !(defined JIM_ANSIC)
-    LARGE_INTEGER t, f;
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&t);
-    return (long)((t.QuadPart * 1000000) / f.QuadPart);
-#else /* !WIN32 */
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (jim_wide)tv.tv_sec*1000000 + tv.tv_usec;
-#endif /* WIN32 */
 }
 
 /* -----------------------------------------------------------------------------
@@ -2236,11 +2122,11 @@ static void trim_right(char *str, const char *trimchars)
     int c;
 
     while (p != end) {
-		c = *p;
+        c = *p;
         if (strchr(trimchars, c) == 0) {
             break;
         }
-		p--;
+        p--;
     }
     p[1] = 0;
 }
@@ -3846,27 +3732,58 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr,
     if (err == JIM_OK) {
         Jim_SetEmptyResult(interp);
     }
+    else {
+        /* Make the error more informative and Tcl-compatible */
+        Jim_SetResultString(interp, "", -1);
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+                "can't set \"", Jim_GetString(objPtr, NULL), "\": variable isn't array", NULL);
+    }
     return err;
+}
+
+static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPtr, Jim_Obj *keyObjPtr)
+{
+    Jim_Obj *dictObjPtr;
+    Jim_Obj *resObjPtr = NULL;
+    int ret;
+
+    dictObjPtr = Jim_GetVariable(interp, varObjPtr, JIM_ERRMSG);
+    if (!dictObjPtr) {
+        return NULL;
+    }
+
+    ret = Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_NONE);
+    if (ret != JIM_OK) {
+        const char *msg;
+
+        resObjPtr = NULL;
+        if (ret < 0) {
+            msg = "variable isn't array";
+        }
+        else {
+            msg = "no such element in array";
+        }
+
+        Jim_SetResultString(interp, "", -1);
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+                "can't read \"", Jim_GetString(varObjPtr, NULL), "(", Jim_GetString(keyObjPtr, NULL), ")\": ", msg, NULL);
+    }
+
+    return resObjPtr;
 }
 
 /* Helper of Jim_GetVariable() to deal with dict-syntax variable names */
 static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr;
+    Jim_Obj *varObjPtr, *keyObjPtr, *resObjPtr;
 
     JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
-    dictObjPtr = Jim_GetVariable(interp, varObjPtr, JIM_ERRMSG);
-    if (!dictObjPtr) {
-        resObjPtr = NULL;
-        goto err;
-    }
-    if (Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_ERRMSG)
-            != JIM_OK) {
-        resObjPtr = NULL;
-    }
-err:
+
+    resObjPtr = JimDictExpandArrayVariable(interp, varObjPtr, keyObjPtr);
+
     Jim_DecrRefCount(interp, varObjPtr);
     Jim_DecrRefCount(interp, keyObjPtr);
+
     return resObjPtr;
 }
 
@@ -3912,7 +3829,7 @@ static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
  * the [dict]ionary contained in variable VARNAME. */
 static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_Obj *dictObjPtr, *resObjPtr = NULL;
+    Jim_Obj *resObjPtr = NULL;
     Jim_Obj *substKeyObjPtr = NULL;
 
     SetDictSubstFromAny(interp, objPtr);
@@ -3920,21 +3837,12 @@ static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     if (Jim_SubstObj(interp, objPtr->internalRep.dictSubstValue.indexObjPtr,
                 &substKeyObjPtr, JIM_NONE)
             != JIM_OK) {
-        substKeyObjPtr = NULL;
-        goto err;
+        return NULL;
     }
     Jim_IncrRefCount(substKeyObjPtr);
-    dictObjPtr = Jim_GetVariable(interp,
-            objPtr->internalRep.dictSubstValue.varNameObjPtr, JIM_ERRMSG);
-    if (!dictObjPtr) {
-        goto err;
-    }
-    if (Jim_DictKey(interp, dictObjPtr, substKeyObjPtr, &resObjPtr, JIM_ERRMSG)
-            != JIM_OK) {
-        goto err;
-    }
-err:
-    if (substKeyObjPtr) Jim_DecrRefCount(interp, substKeyObjPtr);
+    resObjPtr = JimDictExpandArrayVariable(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr, substKeyObjPtr);
+    Jim_DecrRefCount(interp, substKeyObjPtr);
+
     return resObjPtr;
 }
 
@@ -5950,7 +5858,9 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     return objPtr;
 }
 
-/* Return the value associated to the specified dict key */
+/* Return the value associated to the specified dict key
+ * Note: Returns JIM_OK if OK, JIM_ERR if entry not found or -1 if can't create dict value
+ */
 int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
         Jim_Obj **objPtrPtr, int flags)
 {
@@ -5959,7 +5869,7 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
 
     if (dictPtr->typePtr != &dictObjType) {
         if (SetDictFromAny(interp, dictPtr) != JIM_OK)
-            return JIM_ERR;
+            return -1;
     }
     ht = dictPtr->internalRep.ptr;
     if ((he = Jim_FindHashEntry(ht, keyPtr)) == NULL) {
@@ -6733,9 +6643,9 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
                 if (op == NULL) {
                     Jim_Panic(interp,"Default reached in ExprMakeLazy()");
                 }
-				else {
-					arity += op->arity;
-				}
+                else {
+                    arity += op->arity;
+                }
                 break;
             }
             arity--;
@@ -7099,22 +7009,14 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
             case JIM_EXPROP_ROTL: {
                 /* uint32_t would be better. But not everyone has inttypes.h?*/
                 unsigned long uA = (unsigned long)wA;
-#ifdef _MSC_VER
-                wC = _rotl(uA,(unsigned long)wB);
-#else
                 const unsigned int S = sizeof(unsigned long) * 8;
                 wC = (unsigned long)((uA<<wB)|(uA>>(S-wB)));
-#endif
                 break;
             }
             case JIM_EXPROP_ROTR: {
                 unsigned long uA = (unsigned long)wA;
-#ifdef _MSC_VER
-                wC = _rotr(uA,(unsigned long)wB);
-#else
                 const unsigned int S = sizeof(unsigned long) * 8;
                 wC = (unsigned long)((uA>>wB)|(uA<<(S-wB)));
-#endif
                 break;
             }
 
@@ -7633,10 +7535,6 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         curr++;
     }
 done:
-    if (fmtObj->convCount == 0) {
-        fmtObj->error = "variable is not assigned by any conversion specifiers";
-        return JIM_ERR;
-    }
     return JIM_OK;
 }
 
@@ -7745,18 +7643,13 @@ JimScanAString(Jim_Interp *interp, const char *sdescr, const char *str)
 static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
         ScanFmtStringObj *fmtObj, long index, Jim_Obj **valObjPtr)
 {
-#   define MAX_SIZE (sizeof(jim_wide) > sizeof(double) \
-        ? sizeof(jim_wide)                             \
-        : sizeof(double))
-    char buffer[MAX_SIZE];
-    char *value = buffer;
     const char *tok;
     const ScanFmtPartDescr *descr = &fmtObj->descr[index];
     size_t sLen = strlen(&str[pos]), scanned = 0;
     size_t anchor = pos;
     int i;
 
-    /* First pessimiticly assume, we will not scan anything :-) */
+    /* First pessimistically assume, we will not scan anything :-) */
     *valObjPtr = 0;
     if (descr->prefix) {
         /* There was a prefix given before the conversion, skip it and adjust
@@ -7804,38 +7697,28 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
                 break;
             case 'd': case 'o': case 'x': case 'u': case 'i': {
                 char *endp;  /* Position where the number finished */
+                jim_wide w;
+
                 int base = descr->type == 'o' ? 8
                     : descr->type == 'x' ? 16
                     : descr->type == 'i' ? 0
                     : 10;
                     
-                do {
-                    /* Try to scan a number with the given base */
-                    if (descr->modifier == 'l')
-#ifdef HAVE_LONG_LONG
-                      *(jim_wide*)value = JimStrtoll(tok, &endp, base);
-#else
-                      *(jim_wide*)value = strtol(tok, &endp, base);
-#endif
-                    else
-                      if (descr->type == 'u')
-                        *(long*)value = strtoul(tok, &endp, base);
-                      else
-                        *(long*)value = strtol(tok, &endp, base);
+                /* Try to scan a number with the given base */
+                w = strtoull(tok, &endp, base);
+                if (endp == tok && base == 0) {
                     /* If scanning failed, and base was undetermined, simply
                      * put it to 10 and try once more. This should catch the
                      * case where %i begin to parse a number prefix (e.g. 
                      * '0x' but no further digits follows. This will be
                      * handled as a ZERO followed by a char 'x' by Tcl */
-                    if (endp == tok && base == 0) base = 10;
-                    else break;
-                } while (1);
+                    w = strtoull(tok, &endp, 10);
+                }
+
                 if (endp != tok) {
                     /* There was some number sucessfully scanned! */
-                    if (descr->modifier == 'l')
-                        *valObjPtr = Jim_NewIntObj(interp, *(jim_wide*)value);
-                    else
-                        *valObjPtr = Jim_NewIntObj(interp, *(long*)value);
+                    *valObjPtr = Jim_NewIntObj(interp, w);
+
                     /* Adjust the number-of-chars scanned so far */
                     scanned += endp - tok;
                 } else {
@@ -7853,11 +7736,11 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
             }
             case 'e': case 'f': case 'g': {
                 char *endp;
+                double value = strtod(tok, &endp);
 
-                *(double*)value = strtod(tok, &endp);
                 if (endp != tok) {
                     /* There was some number sucessfully scanned! */
-                    *valObjPtr = Jim_NewDoubleObj(interp, *(double*)value);
+                    *valObjPtr = Jim_NewDoubleObj(interp, value);
                     /* Adjust the number-of-chars scanned so far */
                     scanned += endp - tok;
                 } else {
@@ -7894,8 +7777,10 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr,
     ScanFmtStringObj *fmtObj;
 
     /* If format specification is not an object, convert it! */
-    if (fmtObjPtr->typePtr != &scanFmtStringObjType)
-        SetScanFmtFromAny(interp, fmtObjPtr);
+    if (fmtObjPtr->typePtr != &scanFmtStringObjType) {
+        Jim_Panic(interp, "Jim_ScanString() for non-scan format");
+        /*SetScanFmtFromAny(interp, fmtObjPtr);*/
+    }
     fmtObj = (ScanFmtStringObj*)fmtObjPtr->internalRep.ptr;
     /* Check if format specification was valid */
     if (fmtObj->error != 0) {
@@ -11624,38 +11509,48 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
         if (maxPos > argc-3) {
             Jim_SetResultString(interp, "\"%n$\" argument index out of range", -1);
             return JIM_ERR;
-        } else if (count != 0 && count < argc-3) {
-            Jim_SetResultString(interp, "variable is not assigned by any "
-                "conversion specifiers", -1);
-            return JIM_ERR;
         } else if (count > argc-3) {
             Jim_SetResultString(interp, "different numbers of variable names and "
                 "field specifiers", -1);
             return JIM_ERR;
+        } else if (count < argc-3) {
+            Jim_SetResultString(interp, "variable is not assigned by any "
+                "conversion specifiers", -1);
+            return JIM_ERR;
         }
-    } 
+    }
     listPtr = Jim_ScanString(interp, argv[1], argv[2], JIM_ERRMSG);
     if (listPtr == 0)
         return JIM_ERR;
     if (argc > 3) {
-        int len = 0;
-        if (listPtr != 0 && listPtr != (Jim_Obj*)EOF)
+        int rc = JIM_OK;
+
+        count = 0;
+
+        if (listPtr != 0 && listPtr != (Jim_Obj*)EOF) {
+            int len = 0;
             Jim_ListLength(interp, listPtr, &len);
-        if (listPtr == (Jim_Obj*)EOF || len == 0) {
-            /* XXX */
-            Jim_SetResult(interp, Jim_NewIntObj(interp, -1));
-            return JIM_OK;
-        }
-        JimListGetElements(interp, listPtr, &outc, &outVec);
-        for (i = 0; i < outc; ++i) {
-            if (Jim_Length(outVec[i]) > 0) {
-                ++count;
-                if (Jim_SetVariable(interp, argv[3+i], outVec[i]) != JIM_OK)
-                    goto err;
+
+            if (len != 0) {
+                JimListGetElements(interp, listPtr, &outc, &outVec);
+                for (i = 0; i < outc; ++i) {
+                    if (Jim_Length(outVec[i]) > 0) {
+                        ++count;
+                        if (Jim_SetVariable(interp, argv[3+i], outVec[i]) != JIM_OK) {
+                            rc = JIM_ERR;
+                        }
+                    }
+                }
             }
+            Jim_FreeNewObj(interp, listPtr);
         }
-        Jim_FreeNewObj(interp, listPtr);
-        Jim_SetResult(interp, Jim_NewIntObj(interp, count));
+        else {
+            count = -1;
+        }
+        if (rc == JIM_OK) {
+            Jim_SetResultInt(interp, count);
+        }
+        return rc;
     } else {
         if (listPtr == (Jim_Obj*)EOF) {
             Jim_SetResult(interp, Jim_NewListObj(interp, 0, 0));
@@ -11664,9 +11559,6 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp, listPtr);
     }
     return JIM_OK;
-err:
-    Jim_FreeNewObj(interp, listPtr);
-    return JIM_ERR;
 }
 
 /* [error] */

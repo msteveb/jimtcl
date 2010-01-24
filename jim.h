@@ -115,6 +115,7 @@ extern "C" {
 #  define jim_wide long
 #  define JIM_WIDE_MIN LONG_MIN
 #  define JIM_WIDE_MAX LONG_MAX
+#  define strtoull strtoul
 #endif
 
 /* -----------------------------------------------------------------------------
