@@ -1,7 +1,6 @@
 CORE LANGUAGE FEATURES
 
 - lrepeat
-- unset -nocomplain
 - parse foo($bar) into special tokens so that interpolation/parsing
   is not required every time
 

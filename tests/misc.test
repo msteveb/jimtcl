@@ -31,4 +31,98 @@ test io-1.1 "Read last line with no newline" {
 	list $lines
 } {2}
 
+section "unset"
+
+set g1 1
+set g2 2
+array set g3 {4 5 6 7}
+
+proc test_unset {} {
+	test unset-1.1 "Simple var" {
+		set g4 4
+		list [catch {unset g4; info exists g4} msg] $msg
+	} {0 0}
+
+	test unset-1.2 "Simple var" {
+		list [catch {unset g4; info exists g4} msg] $msg
+	} {1 {can't unset "g4": no such variable}}
+
+	test unset-1.3 "Simple var" {
+		list [catch {unset g2; info exists g2} msg] $msg
+	} {1 {can't unset "g2": no such variable}}
+
+	test unset-1.4 "Global via global" {
+		global g1
+		list [catch {unset g1; info exists g1} msg] $msg
+	} {0 0}
+
+	test unset-1.5 "Global error" {
+		list [catch {unset ::g2; info exists ::g2} msg] $msg
+	} {0 0}
+
+	test unset-1.6 "Global array" {
+		list [catch {unset ::g3; info exists ::g3} msg] $msg
+	} {0 0}
+
+	test unset-1.7 "Simple var -nocomplain" {
+		list [catch {unset -nocomplain g2; info exists g2} msg] $msg
+	} {0 0}
+
+	test unset-1.8 "Simple var --" {
+		list [catch {unset -- g2; info exists g2} msg] $msg
+	} {1 {can't unset "g2": no such variable}}
+
+	test unset-1.9 "Simple var -nocomplain --" {
+		set g2 1
+		list [catch {unset -nocomplain -- g2; info exists g2} msg] $msg
+	} {0 0}
+
+	test unset-1.10 "Var named -nocomplain with --" {
+		set -nocomplain 1
+		list [catch {unset -- -nocomplain; info exists -nocomplain} msg] $msg
+	} {0 0}
+
+	test unset-1.11 "Unset no args" {
+		list [catch {unset} msg] $msg
+	} {0 {}}
+}
+
+test_unset
+
+section "lrepeat"
+
+test lrepeat-1.1 "Basic tests" {
+	lrepeat 1 a
+} {a}
+
+test lrepeat-1.2 "Basic tests" {
+	lrepeat 1 a b
+} {a b}
+
+test lrepeat-1.3 "Basic tests" {
+	lrepeat 2 a b
+} {a b a b}
+
+test lrepeat-1.4 "Basic tests" {
+	lrepeat 2 a
+} {a a}
+
+test lrepeat-1.5 "Errors" {
+	catch {lrepeat}
+} {1}
+
+test lrepeat-1.6 "Errors" {
+	catch {lrepeat 1}
+} {1}
+
+test lrepeat-1.7 "Errors" {
+	catch {lrepeat 0 a b}
+} {1}
+
+test lrepeat-1.8 "Errors" {
+	catch {lrepeat -10 a}
+} {1}
+
+section "unset"
+
 testreport

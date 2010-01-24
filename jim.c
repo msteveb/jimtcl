@@ -3536,10 +3536,12 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
         if (err == JIM_DICT_SUGAR)
             if (JimDictSugarSet(interp, nameObjPtr, NULL) == JIM_OK)
                 return JIM_OK;
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-            "can't unset \"", nameObjPtr->bytes,
-            "\": no such variable", NULL);
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                "can't unset \"", nameObjPtr->bytes,
+                "\": no such variable", NULL);
+        }
         return JIM_ERR; /* var not found */
     }
     varPtr = nameObjPtr->internalRep.varValue.varPtr;
@@ -9319,19 +9321,34 @@ static int Jim_SetCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-/* [unset] */
+/* [unset]
+ *
+ * unset ?-nocomplain? ?--? ?varName ...?
+ */
 static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    int i;
+    int i = 1;
+    int complain = 1;
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "varName ?varName ...?");
-        return JIM_ERR;
+    while (i < argc) {
+        if (Jim_CompareStringImmediate(interp, argv[i], "--")) {
+            i++;
+            break;
+        }
+        if (Jim_CompareStringImmediate(interp, argv[i], "-nocomplain")) {
+            complain = 0;
+            i++;
+            continue;
+        }
+        break;
     }
-    for (i = 1; i < argc; i++) {
-        if (Jim_UnsetVariable(interp, argv[i], JIM_ERRMSG) != JIM_OK)
+
+    while (i < argc) {
+        if (Jim_UnsetVariable(interp, argv[i], complain ? JIM_ERRMSG : JIM_NONE) != JIM_OK && complain) {
             return JIM_ERR;
+        }
+        i++;
     }
     return JIM_OK;
 }
@@ -11807,6 +11824,33 @@ static int Jim_LrangeCoreCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+/* [lrepeat] */
+static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr;
+    long count;
+
+    if (argc < 3 || Jim_GetLong(interp, argv[1], &count) != JIM_OK || count <= 0) {
+        Jim_WrongNumArgs(interp, 1, argv, "positiveCount value ?value ...?");
+        return JIM_ERR;
+    }
+
+    argc -= 2;
+    argv += 2;
+
+    objPtr = Jim_NewListObj(interp, argv, argc);
+    while (--count) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            ListAppendElement(objPtr, argv[i]);
+        }
+    }
+
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
 /* [env] */
 static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
@@ -12034,6 +12078,7 @@ static const struct {
     {"scan", Jim_ScanCoreCommand},
     {"error", Jim_ErrorCoreCommand},
     {"lrange", Jim_LrangeCoreCommand},
+    {"lrepeat", Jim_LrepeatCoreCommand},
     {"env", Jim_EnvCoreCommand},
     {"source", Jim_SourceCoreCommand},
     {"lreverse", Jim_LreverseCoreCommand},
@@ -12123,6 +12168,7 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
     int i, count = 0;
 
     *indexPtr = -1;
+
     for (entryPtr = tablePtr, i = 0; *entryPtr != NULL; entryPtr++, i++) {
         if (Jim_CompareStringImmediate(interp, objPtr, *entryPtr)) {
             *indexPtr = i;
