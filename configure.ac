@@ -21,14 +21,12 @@ AC_ARG_ENABLE(fork,
 )
 AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
 
-jim_extensions=
+jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,
-	[  --with-jim-ext      Specify jim extensions to build (or all)],
+	[  --with-jim-ext      Specify jim extensions to build (or all, which is the default)],
 	[
 		if test "x$withval" != "xno" ; then
-			if test "x$withval" = "xall" ; then
-				jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 eventloop aio syslog"
-			else
+			if test "x$withval" != "xall" ; then
 				jim_extensions="$withval"
 			fi
 		fi

@@ -33,7 +33,6 @@
 # official policies, either expressed or implied, of the Jim Tcl Project.
 
 package provide glob
-package require readdir
 
 # If $dir is a directory, return a list of all entries
 # it contains which match $pattern

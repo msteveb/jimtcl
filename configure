@@ -1293,7 +1293,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-jim-ext      Specify jim extensions to build (or all)
+  --with-jim-ext      Specify jim extensions to build (or all, which is the default)
 
 Some influential environment variables:
   CC          C compiler command
@@ -2732,15 +2732,13 @@ fi
 JIM_NOFORK=$JIM_NOFORK
 
 
-jim_extensions=
+jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 aio bio eventloop syslog"
 
 # Check whether --with-jim-ext was given.
 if test "${with_jim_ext+set}" = set; then
   withval=$with_jim_ext;
 		if test "x$withval" != "xno" ; then
-			if test "x$withval" = "xall" ; then
-				jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 eventloop aio syslog"
-			else
+			if test "x$withval" != "xall" ; then
 				jim_extensions="$withval"
 			fi
 		fi
