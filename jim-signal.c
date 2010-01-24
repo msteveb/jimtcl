@@ -385,7 +385,7 @@ static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         ret = Jim_GetDouble(interp, argv[1], &t);
         if (ret == JIM_OK) {
-            if (t < 10) {
+            if (t < 1) {
                 ualarm(t * 1e6, 0);
             }
             else {
@@ -418,7 +418,7 @@ static int Jim_SleepCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         ret = Jim_GetDouble(interp, argv[1], &t);
         if (ret == JIM_OK) {
-            if (t < 10) {
+            if (t < 1) {
                 usleep(t * 1e6);
             }
             else {

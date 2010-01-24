@@ -47,8 +47,9 @@
  * express or implied warranty.
  */
 
-#include <regex.h>
+#include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 
 #define JIM_EXTENSION
 #include "jim.h"

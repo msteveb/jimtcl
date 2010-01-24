@@ -4,11 +4,20 @@
 AC_PREREQ(2.57)
 AC_INIT([jim], [0.60], [steveb@workware.net.au])
 
-AC_SUBST(TARGET_PLATFORM,$ac_cv_host)
-
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_MAKE_SET
+
+# Shared library support. Because we don't believe in automake!
+AC_CANONICAL_HOST
+case $host in
+*-*-darwin*)
+	AC_SUBST(SH_CFLAGS,-dynamic)
+	AC_SUBST(SH_LDFLAGS,"-dynamiclib -undefined suppress -flat_namespace");;
+*)
+	AC_SUBST(SH_CFLAGS,-fPIC)
+	AC_SUBST(SH_LDFLAGS,-shared);;
+esac
 
 AC_ARG_ENABLE(fork,
 	[  --disable-fork          Do not use fork (no exec, etc.)],
@@ -23,7 +32,7 @@ AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
 
 jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,
-	[  --with-jim-ext      Specify jim extensions to build (or all, which is the default)],
+	[  --with-jim-ext          Specify jim extensions to build (or all, which is the default)],
 	[
 		if test "x$withval" != "xno" ; then
 			if test "x$withval" != "xall" ; then
@@ -39,9 +48,19 @@ for i in $jim_extensions; do
 	EXTRA_CFLAGS="$EXTRA_CFLAGS -Dwith_jim_ext_$i"
 done
 
+JIM_LIBTYPE=static
+AC_ARG_WITH(jim-shared,
+	[  --with-jim-shared       Build a shared library instead of a static library],
+	[
+		if test "x$withval" = "xyes" ; then
+			JIM_LIBTYPE=shared
+		fi
+	]
+)
+AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
+
 AC_CHECK_FUNCS([ualarm],EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_UALARM")
 
-AC_SUBST(JIM_EXTENSIONS,$JIM_EXTENSIONS)
 AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
 AC_SUBST(SRCDIR,`dirname $0`)
 

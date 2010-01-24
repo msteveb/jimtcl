@@ -45,7 +45,6 @@ static const char *priorities[] = {
     [LOG_EMERG] = "emerg",
     [LOG_ALERT] = "alert",
     [LOG_CRIT] = "crit",
-    [LOG_ERR] = "err",
     [LOG_ERR] = "error",
     [LOG_WARNING] = "warning",
     [LOG_NOTICE] = "notice",
@@ -126,7 +125,6 @@ wrongargs:
                 closelog();
                 info->logOpened=0;
             }
-            continue;
         }
         else if (Jim_CompareStringImmediate(interp, argv[i], "-ident")) {
             strncpy(info->ident, Jim_GetString(argv[i+1], NULL), sizeof(info->ident));

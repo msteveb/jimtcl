@@ -478,6 +478,7 @@ static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't readlink \"", path, "\"", NULL);
         return JIM_ERR;
     }
+    linkValue[linkLength] = 0;
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, linkValue, linkLength));
     return JIM_OK;
 }

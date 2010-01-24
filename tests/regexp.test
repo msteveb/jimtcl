@@ -28,16 +28,15 @@ test regexp-1.1 {effect of caching} {
 	set t1 [lindex $t1 0]
 	set t2 [lindex $t2 0]
 
-	#puts "t1=$t1, t2=$t2"
+	puts "t1=$t1, t2=$t2"
 
 	# If these two times are within 20% of each other, caching isn't working
-	expr {$t2 / $t1 < 1.2 && $t1 / $t2 < 1.2}
+	expr {$t2 * 1.0 / $t1 < 1.2 && $t1 * 1.0 / $t2 < 1.2}
 } {0}
 
 test regexp-1.2 {Non-ascii} {
 	set nbsp [format %c 0xa0]
 	set string [format "abc%cdef" 0xa0]
 
-	#list [regexp {(.*)$nbsp-$nbsp(.*)} $string dummy f1 f2] $f1 $f2
 	list [regexp "(.*)[set nbsp](.*)" $string dummy f1 f2] $f1 $f2
-} {}
+} {1 abc def}

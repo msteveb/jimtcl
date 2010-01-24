@@ -1600,7 +1600,7 @@ static int JimEscape(char *dest, const char *s, int slen)
         }
     }
     len = p-dest;
-    *p++ = '\0';
+    *p = '\0';
     return len;
 }
 
@@ -2245,7 +2245,6 @@ static void trim_right(char *str, const char *trimchars)
     while (p != end) {
 		c = *p;
         if (strchr(trimchars, c) == 0) {
-            end = p;
             break;
         }
 		p--;
@@ -2313,12 +2312,12 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
 static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         int objc, Jim_Obj *const *objv, char *sprintf_buf)
 {
-    const char *fmt, *_fmt;
+    const char *fmt;
     int fmtLen;
     Jim_Obj *resObjPtr;
     
 
-    _fmt = fmt = Jim_GetString(fmtObjPtr, &fmtLen);
+    fmt = Jim_GetString(fmtObjPtr, &fmtLen);
     resObjPtr = Jim_NewStringObj(interp, "", 0);
     while (fmtLen) {
         const char *p = fmt;
@@ -2790,10 +2789,10 @@ typedef struct ScriptToken {
  * The precomputation of the command structure makes Jim_Eval() faster,
  * and simpler because there aren't dynamic lengths / allocations.
  *
- * -- {expand} handling --
+ * -- {expand}/{*} handling --
  *
  * Expand is handled in a special way. When a command
- * contains at least an argument with the {expand} prefix,
+ * contains at least an argument with the {expand} or {*} prefix,
  * the command structure presents a -1 before the integer
  * describing the number of arguments. This is used in order
  * to send the command exection to a different path in case
@@ -3059,13 +3058,9 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     /* Compute the command structure array
      * (see the ScriptObj struct definition for more info) */
-    start = 0; /* Current command start token index */
     end = -1; /* Current command end token index */
     while (1) {
-        int expand = 0; /* expand flag. set to 1 on {expand} form. */
-        int interpolation = 0; /* set to 1 if there is at least one
-                      argument of the command obtained via
-                      interpolation of more tokens. */
+        int expand = 0; /* expand flag. set to 1 on {expand} or {*} form. */
         /* Search for the end of command, while
          * count the number of args. */
         start = ++end;
@@ -3086,7 +3081,6 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
                 args++;
             end++;
         }
-        interpolation = !((end-start+1) == args*2);
         /* Add the 'number of arguments' info into cmdstruct.
          * Negative value if there is list expansion involved. */
         if (expand)
@@ -3917,7 +3911,7 @@ void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
  * the [dict]ionary contained in variable VARNAME. */
 Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr;
+    Jim_Obj *varObjPtr, *keyObjPtr, *dictObjPtr, *resObjPtr = NULL;
     Jim_Obj *substKeyObjPtr = NULL;
 
     if (objPtr->typePtr != &dictSubstObjType) {
@@ -3937,12 +3931,10 @@ Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     dictObjPtr = Jim_GetVariable(interp,
             objPtr->internalRep.dictSubstValue.varNameObjPtr, JIM_ERRMSG);
     if (!dictObjPtr) {
-        resObjPtr = NULL;
         goto err;
     }
     if (Jim_DictKey(interp, dictObjPtr, substKeyObjPtr, &resObjPtr, JIM_ERRMSG)
             != JIM_OK) {
-        resObjPtr = NULL;
         goto err;
     }
 err:
@@ -4791,15 +4783,18 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
     long refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
-    if (he == NULL)
+    if (he == NULL) {
         Jim_Panic(interp,"Jim_ReleaseSharedString called with "
               "unknown shared string '%s'", str);
-    refCount = (long) he->val;
-    refCount--;
-    if (refCount == 0) {
-        Jim_DeleteHashEntry(&interp->sharedStrings, str);
-    } else {
-        he->val = (void*) refCount;
+    }
+    else {
+        refCount = (long) he->val;
+        refCount--;
+        if (refCount == 0) {
+            Jim_DeleteHashEntry(&interp->sharedStrings, str);
+        } else {
+            he->val = (void*) refCount;
+        }
     }
 }
 
@@ -6018,7 +6013,6 @@ int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, in
 int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
         Jim_Obj *const *keyv, int keyc, Jim_Obj **objPtrPtr, int flags)
 {
-    Jim_Obj *objPtr;
     int i;
 
     if (keyc == 0) {
@@ -6027,12 +6021,13 @@ int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
     }
 
     for (i = 0; i < keyc; i++) {
+        Jim_Obj *objPtr;
         if (Jim_DictKey(interp, dictPtr, keyv[i], &objPtr, flags)
                 != JIM_OK)
             return JIM_ERR;
         dictPtr = objPtr;
     }
-    *objPtrPtr = objPtr;
+    *objPtrPtr = dictPtr;
     return JIM_OK;
 }
 
@@ -6742,7 +6737,9 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
                 if (op == NULL) {
                     Jim_Panic(interp,"Default reached in ExprMakeLazy()");
                 }
-                arity += op->arity;
+				else {
+					arity += op->arity;
+				}
                 break;
             }
             arity--;
@@ -6896,7 +6893,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     while (Jim_StackLen(&stack)) {
         char *opstr = Jim_StackPop(&stack);
         op = JimExprOperatorInfo(opstr);
-        if (op == NULL && !strcmp(opstr, "(")) {
+        if (op == NULL) {
             Jim_Free(opstr);
             Jim_SetResultString(interp, "Missing close parenthesis", -1);
             goto err;
@@ -7573,8 +7570,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
                 for (prev=0; prev < curr; ++prev) {
                     if (fmtObj->descr[prev].pos == -1) continue;
                     if (fmtObj->descr[prev].pos == descr->pos) {
-                        fmtObj->error = "same \"%n$\" conversion specifier "
-                            "used more than once";
+                        fmtObj->error = "variable is assigned by multiple \"%n$\" conversion specifiers";
                         return JIM_ERR;
                     }
                 }
@@ -7642,7 +7638,7 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     }
 done:
     if (fmtObj->convCount == 0) {
-        fmtObj->error = "no any conversion specifier given";
+        fmtObj->error = "variable is not assigned by any conversion specifiers";
         return JIM_ERR;
     }
     return JIM_OK;
@@ -8263,7 +8259,6 @@ static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filen
         if (retcode == JIM_ERR_ADDSTACK) {
             /* Add the stack info for the current level */
             JimAppendStackTrace(interp, Jim_GetString(interp->errorProc, NULL), filename, line);
-            retcode = JIM_ERR;
         }
 
         Jim_DecrRefCount(interp, interp->errorProc);
@@ -8922,7 +8917,6 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr,
         case JIM_TT_DICTSUGAR:
             objPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
             if (!objPtr) {
-                retcode = JIM_ERR;
                 goto err;
             }
             break;
@@ -10525,7 +10519,6 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc,
                 return JIM_ERR;
         }
         if (argc < 2) {
-            argc++;
             argv--;
             Jim_WrongNumArgs(interp, 1, argv,
                     "?level? command ?arg ...?");
@@ -11613,7 +11606,7 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
     int outc, i, count = 0;
 
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "string formatString ?varName ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "string format ?varName varName ...?");
         return JIM_ERR;
     } 
     if (argv[2]->typePtr != &scanFmtStringObjType)

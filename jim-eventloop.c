@@ -335,7 +335,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 {
                     int mask = 0;
 
-                    if (fe->mask & JIM_EVENT_READABLE && FD_ISSET(fd, &rfds)) {
+                    if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds)) {
                         mask |= JIM_EVENT_READABLE;
 			if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
 				mask |= JIM_EVENT_FEOF;
@@ -472,13 +472,13 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
     jim_wide ms, id;
     Jim_Obj *objPtr, *idObjPtr;
     const char *options[] = {
-	"info", "cancel", "restart", "expire", NULL
+        "info", "cancel", NULL
     };
     enum {INFO, CANCEL, RESTART, EXPIRE, CREATE };
     int option = CREATE ;
 
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> script");
+        Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> script|cancel <id>");
         return JIM_ERR;
     }
     if (Jim_GetWide(interp, argv[1], &ms) != JIM_OK)

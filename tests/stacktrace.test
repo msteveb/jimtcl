@@ -87,21 +87,21 @@ set expected {
 	err-5.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
 	err-5.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
 	err-6.1 {1 {from dummyproc
-Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+Can't load package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
 	err-6.2 {1 {from dummyproc
-Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+Can't load package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
 	err-6.3 {1 {from dummyproc
-Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+Can't load package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
 	err-6.4 {1 {from dummyproc
-Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+Can't load package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
 	err-7.1 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
 	err-7.2 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
 	err-7.3 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
 	err-7.4 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
-	err-8.1 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
-	err-8.2 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
-	err-8.3 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
-	err-8.4 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-8.1 {1 {Can't load package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-8.2 {1 {Can't load package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-8.3 {1 {Can't load package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-8.4 {1 {Can't load package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
 }
 
 main

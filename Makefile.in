@@ -3,6 +3,9 @@ RANLIB ?= ranlib
 # Configuration
 
 jim_nofork := @JIM_NOFORK@
+jim_libtype := @JIM_LIBTYPE@
+SH_CFLAGS ?= @SH_CFLAGS@ 
+SH_LDFLAGS ?= @SH_LDFLAGS@ 
 
 # Defines the extensions to include
 EXTENSIONS := @JIM_EXTENSIONS@
@@ -12,11 +15,21 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT
 
-# Emulate tinytcl
-LIBJIM := libtcl6.a
-
 CFLAGS += -Wall -g -Os $(OPTIM) -I@SRCDIR@ @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
+
+ifdef jim_nofork
+	CFLAGS += -DNO_FORK
+endif
+ifeq ($(jim_libtype),static)
+	# Emulate tinytcl
+	LIBJIM := libtcl6.a
+else
+	#LIBJIM := libjim_shared.so
+	LIBJIM := libtcl6.so
+	#CFLAGS += -fPIC
+	CFLAGS += $(SH_CFLAGS)
+endif
 
 .EXPORT_ALL_VARIABLES:
 
@@ -33,23 +46,24 @@ jim-%.c: %.tcl
 	echo $@ >>.clean
 	sh @SRCDIR@/make-c-ext.sh $@ $<
 
-ifdef jim_nofork
-	CFLAGS += -DNO_FORK
-endif
-
 OBJS += load_extensions.o
 
 TARGETS += $(LIBJIM) jimsh
 
 all: $(TARGETS)
-	$(MAKE) -C doc all
+	if [ -d doc ]; then $(MAKE) -C doc all; fi
 
 jimsh: $(LIBJIM) jimsh.o
 	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) $(LIBDL)
 
+ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
+else
+$(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
+	$(CC) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^
+endif
 
 load_extensions.c: @SRCDIR@/make-jim-load-extensions.sh
 	sh @SRCDIR@/make-jim-load-extensions.sh $@ $(EXTENSIONS)
