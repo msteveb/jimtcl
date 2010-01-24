@@ -27,6 +27,12 @@ proc set_var_dict_sugar {} {
 	}
 }
 
+proc set_var_dict {} {
+	set b b
+	for {set i 0} {$i < $::iterations} {incr i} {
+		dict set a $b $i
+	}
+}
 
 proc read_file {file} {
 	set f [open $file]
@@ -111,14 +117,15 @@ close $f
 
 bench "set dictsugar" {set_dict_sugar}
 bench "set var dictsugar" {set_var_dict_sugar}
+bench "set var dict" {set_var_dict}
 # Read once before testing perf
 read_file test.in
 bench "read file" {read_file test.in}
 bench "read file split" {read_file_split test.in}
+bench "foreach: simple" {read_file_split_assign_foreach_simple test.in}
 bench "foreach: direct dictsugar" {read_file_split_assign_foreach test.in}
 bench "foreach: dict cmd" {read_file_split_assign_foreach_dict test.in}
 bench "foreach: assign to dictsugar" {read_file_split_assign_foreach_dictsugar test.in}
-bench "foreach: simple" {read_file_split_assign_foreach_simple test.in}
 bench "foreach: assign to dictsugar via lindex" {read_file_split_assign_lindex test.in}
 
 file delete test.in

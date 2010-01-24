@@ -160,6 +160,16 @@ proc ary n {
     }
 }
 
+proc ary_dict n {
+    for {set i 0} {$i < $n} {incr i} {
+	dict set x $i $i
+    }
+    set last [expr {$n - 1}]
+    for {set j $last} {$j >= 0} {incr j -1} {
+	dict set y $j $x($j)
+    }
+}
+
 ### REPEAT #####################################################################
 
 proc repeat {n body} {
@@ -548,6 +558,7 @@ bench {heapsort} {heapsort_main}
 bench {sieve} {sieve 10}
 bench {sieve [dict]} {sieve_dict 10}
 bench {ary} {ary 100000}
+bench {ary [dict]} {ary_dict 100000}
 bench {repeat} {use_repeat}
 bench {upvar} {upvartest}
 bench {nested loops} {nestedloops}

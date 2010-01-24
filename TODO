@@ -1,9 +1,5 @@
 CORE LANGUAGE FEATURES
 
-- lrepeat
-- parse foo($bar) into special tokens so that interpolation/parsing
-  is not required every time
-
 CORE COMMANDS
 
 - All the missing standard core commands not related to I/O, namespaces, ...
@@ -40,10 +36,6 @@ SPEED OPTIMIZATIONS
   the performance penality of Jim_EvalObj() overhead. In the future
   try to generate the calls like a JIT emitting assembler from
   Jim directly.
-- Jim_GetDouble() should check if the object type is an integer into
-  a range that a double can represent without any loss, and directly
-  return the double value converting the integer one instead to pass
-  for the string repr.
 
 IMPLEMENTATION ISSUES
 
@@ -62,10 +54,6 @@ REFERENCES SYSTEM
 - Unify ref/getref/setref/collect/finalize under an unique [ref] command.
 - Add a 'call' attribute to references in order to call a given procedure
   if the name of a reference is used as command name.
-
-API FUNCTIONS TO EXPORT
-
-- Jim_FormatString()
 
 RANDOM THINGS TO DO ASAP
 

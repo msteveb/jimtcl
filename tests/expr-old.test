@@ -432,8 +432,8 @@ test expr-old-26.9 {error conditions} {
     list [catch {expr 2%0} msg]
 } {1}
 test expr-old-26.10 {error conditions} {
-    list [catch {expr 2.0/0.0} msg]
-} {1}
+    expr 2.0/0.0
+} {Inf}
 test expr-old-26.11 {error conditions} {
     list [catch {expr 2#} msg]
 } {1}
@@ -814,11 +814,12 @@ test expr-old-36.10 {ExprLooksLikeInt procedure} {
 }
 
 # test for [Bug #542588]
-test expr-old-36.11 {ExprLooksLikeInt procedure} {
-    # define a "too large integer"; this one works also for 64bit arith
-    set x 665802003400000000000000
-    list [catch {expr {$x+1}} msg] $msg
-} {1 {can't use integer value too large to represent as operand of "+"}}
+# XXX: Can't rely on overflow checking
+#test expr-old-36.11 {ExprLooksLikeInt procedure} {
+#    # define a "too large integer"; this one works also for 64bit arith
+#    set x 665802003400000000000000
+#    list [catch {expr {$x+1}} msg] $msg
+#} {1 {can't use integer value too large to represent as operand of "+"}}
 
 # Special test for Pentium arithmetic bug of 1994:
 

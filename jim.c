@@ -95,6 +95,10 @@
 #include <execinfo.h>
 #endif
 
+#ifdef JIM_MATH_FUNCTIONS
+#include <math.h>
+#endif
+
 /* -----------------------------------------------------------------------------
  * Global variables
  * ---------------------------------------------------------------------------*/
@@ -371,6 +375,10 @@ int Jim_DoubleToString(char *buf, double doubleValue)
      * for NaN or InF */
     while (*buf) {
         if (*buf == '.' || isalpha(*buf)) {
+            /* inf -> Inf, nan -> Nan */
+            if (*buf == 'i' || *buf == 'n') {
+                *buf = toupper(*buf);
+            }
             return len;
         }
         buf++;
@@ -388,7 +396,7 @@ int Jim_StringToDouble(const char *str, double *doublePtr)
     char *endptr;
 
     *doublePtr = strtod(str, &endptr);
-    if (str[0] == '\0' || endptr[0] != '\0' || (str == endptr) ) {
+    if (str[0] == '\0' || endptr[0] != '\0' || (str == endptr)) {
         return JIM_ERR;
     }
     return JIM_OK;
@@ -4751,17 +4759,35 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     double doubleValue;
     const char *str;
 
-    /* Get the string representation */
+    /* Preserve the string representation.
+     * Needed so we can convert back to int without loss
+     */
     str = Jim_GetString(objPtr, NULL);
-    /* Try to convert into a double */
-    if (Jim_StringToDouble(str, &doubleValue) != JIM_OK) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "expected number but got '", str, "'", NULL);
-        return JIM_ERR;
+
+    /* Assume a 53 bit mantissa */
+#define MIN_INT_IN_DOUBLE -(1LL << 53)
+#define MAX_INT_IN_DOUBLE -(MIN_INT_IN_DOUBLE + 1)
+
+    if (objPtr->typePtr == &intObjType
+        && objPtr->internalRep.wideValue >= MIN_INT_IN_DOUBLE
+        && objPtr->internalRep.wideValue <= MAX_INT_IN_DOUBLE
+        )
+        {
+
+        /* Direct conversion without loss */
+        doubleValue = objPtr->internalRep.wideValue;
     }
-    /* Free the old internal repr and set the new one. */
-    Jim_FreeIntRep(interp, objPtr);
+    else {
+        /* Try to convert into a double */
+        if (Jim_StringToDouble(str, &doubleValue) != JIM_OK) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "expected number but got '", str, "'", NULL);
+            return JIM_ERR;
+        }
+        /* Free the old internal repr and set the new one. */
+        Jim_FreeIntRep(interp, objPtr);
+    }
     objPtr->typePtr = &doubleObjType;
     objPtr->internalRep.doubleValue = doubleValue;
     return JIM_OK;
@@ -6143,6 +6169,25 @@ enum {
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
     JIM_EXPROP_FUNC_ROUND,
+
+#ifdef JIM_MATH_FUNCTIONS
+    /* math functions from libm */
+    JIM_EXPROP_FUNC_SIN,
+    JIM_EXPROP_FUNC_COS,
+    JIM_EXPROP_FUNC_TAN,
+    JIM_EXPROP_FUNC_ASIN,
+    JIM_EXPROP_FUNC_ACOS,
+    JIM_EXPROP_FUNC_ATAN,
+    JIM_EXPROP_FUNC_SINH,
+    JIM_EXPROP_FUNC_COSH,
+    JIM_EXPROP_FUNC_TANH,
+    JIM_EXPROP_FUNC_CEIL,
+    JIM_EXPROP_FUNC_FLOOR,
+    JIM_EXPROP_FUNC_EXP,
+    JIM_EXPROP_FUNC_LOG,
+    JIM_EXPROP_FUNC_LOG10,
+    JIM_EXPROP_FUNC_SQRT,
+#endif
 };
 
 struct expr_state {
@@ -6285,6 +6330,42 @@ static int JimExprOpIntUnary(Jim_Interp *interp, struct expr_state *e)
     return rc;
 }
 
+#ifdef JIM_MATH_FUNCTIONS
+static int JimExprOpDoubleUnary(Jim_Interp *interp, struct expr_state *e)
+{
+    int rc;
+    Jim_Obj *A = expr_pop(e);
+    double dA, dC;
+
+    rc = Jim_GetDouble(interp, A, &dA);
+    if (rc == JIM_OK) {
+        switch (e->opcode) {
+            case JIM_EXPROP_FUNC_SIN: dC = sin(dA); break;
+            case JIM_EXPROP_FUNC_COS: dC = cos(dA); break;
+            case JIM_EXPROP_FUNC_TAN: dC = tan(dA); break;
+            case JIM_EXPROP_FUNC_ASIN: dC=asin(dA); break;
+            case JIM_EXPROP_FUNC_ACOS: dC=acos(dA); break;
+            case JIM_EXPROP_FUNC_ATAN: dC=atan(dA); break;
+            case JIM_EXPROP_FUNC_SINH: dC=sinh(dA); break;
+            case JIM_EXPROP_FUNC_COSH: dC=cosh(dA); break;
+            case JIM_EXPROP_FUNC_TANH: dC=tanh(dA); break;
+            case JIM_EXPROP_FUNC_CEIL: dC=ceil(dA); break;
+            case JIM_EXPROP_FUNC_FLOOR: dC=floor(dA); break;
+            case JIM_EXPROP_FUNC_EXP: dC=exp(dA); break;
+            case JIM_EXPROP_FUNC_LOG: dC=log(dA); break;
+            case JIM_EXPROP_FUNC_LOG10: dC=log10(dA); break;
+            case JIM_EXPROP_FUNC_SQRT: dC=sqrt(dA); break;
+            default: abort();
+        }
+        expr_push(e, Jim_NewDoubleObj(interp, dC));
+    }
+
+    Jim_DecrRefCount(interp, A);
+
+    return rc;
+}
+#endif
+
 /* A binary operation on two ints */
 static int JimExprOpIntBin(Jim_Interp *interp, struct expr_state *e)
 {
@@ -6378,12 +6459,12 @@ static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
         intresult = 1;
 
         switch (e->opcode) {
+            case JIM_EXPROP_POW: wC = JimPowWide(wA,wB); break;
             case JIM_EXPROP_ADD: wC = wA+wB; break;
             case JIM_EXPROP_SUB: wC = wA-wB; break;
             case JIM_EXPROP_MUL: wC = wA*wB; break;
             case JIM_EXPROP_DIV:
                 if (wB == 0) {
-                    wC = 0;
                     Jim_SetResultString(interp, "Division by zero", -1);
                     rc = JIM_ERR;
                 }
@@ -6425,14 +6506,19 @@ static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
         }
 
         switch (e->opcode) {
+            case JIM_EXPROP_POW:
+#ifdef JIM_MATH_FUNCTIONS
+                dC = pow(dA,dB);
+#else
+                rc = JIM_ERR;
+#endif
+                break;
             case JIM_EXPROP_ADD: dC = dA+dB; break;
             case JIM_EXPROP_SUB: dC = dA-dB; break;
             case JIM_EXPROP_MUL: dC = dA*dB; break;
             case JIM_EXPROP_DIV:
                 if (dB == 0) {
-                    dC = 0;
-                    Jim_SetResultString(interp, "Division by zero", -1);
-                    rc = JIM_ERR;
+                    dC = dA < 0 ? -INFINITY : INFINITY;
                 }
                 else {
                     dC = dA/dB;
@@ -6693,12 +6779,30 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_FUNC_ABS] =       {"abs", 400, 1, JimExprOpNumUnary },
     [JIM_EXPROP_FUNC_ROUND] =     {"round", 400, 1, JimExprOpNumUnary },
 
+#ifdef JIM_MATH_FUNCTIONS
+    [JIM_EXPROP_FUNC_SIN] =       {"sin", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_COS] =       {"cos", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_TAN] =       {"tan", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_ASIN] =      {"asin", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_ACOS] =      {"acos", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_ATAN] =      {"atan", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_SINH] =      {"sinh", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_COSH] =      {"cosh", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_TANH] =      {"tanh", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_CEIL] =      {"ceil", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_FLOOR] =     {"floor", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_EXP] =       {"exp", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_LOG] =       {"log", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_LOG10] =     {"log10", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_SQRT] =      {"sqrt", 400, 1, JimExprOpDoubleUnary },
+#endif
+
     [JIM_EXPROP_NOT] =            {"!", 300, 1, JimExprOpNumUnary },
     [JIM_EXPROP_BITNOT] =         {"~", 300, 1, JimExprOpIntUnary },
     [JIM_EXPROP_UNARYMINUS] =     {"unarymin", 300, 1, JimExprOpNumUnary },
     [JIM_EXPROP_UNARYPLUS] =      {"unaryplus", 300, 1, JimExprOpNumUnary }, 
 
-    [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpIntBin },
+    [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpBin },
 
     [JIM_EXPROP_MUL] =            {"*", 200, 2, JimExprOpBin },
     [JIM_EXPROP_DIV] =            {"/", 200, 2, JimExprOpBin },
@@ -6790,13 +6894,6 @@ int JimParseExpression(struct JimParserCtx *pc)
         else
             return JIM_OK;
         break;
-    case '-':
-        if ((pc->tt == JIM_TT_NONE || pc->tt == JIM_TT_EXPR_OPERATOR) &&
-            isdigit(*(pc->p+1)))
-            return JimParseExprNumber(pc);
-        else
-            return JimParseExprOperator(pc);
-        break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9': case '.':
         return JimParseExprNumber(pc);
@@ -6826,9 +6923,6 @@ int JimParseExprNumber(struct JimParserCtx *pc)
 
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    if (*pc->p == '-') {
-        pc->p++; pc->len--;
-    }
     while (  isdigit(*pc->p) 
           || (allowhex && isxdigit(*pc->p) )
           || (allowdot && *pc->p == '.') 
@@ -6911,6 +7005,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
     pc->tend = pc->p + bestLen - 1;
     pc->p += bestLen; pc->len -= bestLen;
     pc->tline = pc->linenr;
+
     pc->tt = JIM_TT_EXPR_OPERATOR;
     return JIM_OK;
 }
@@ -7209,7 +7304,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         int prevtt = parser.tt;
 
         if (JimParseExpression(&parser) != JIM_OK) {
-            Jim_SetResultString(interp, "Syntax error in expression: ", -1);
+            Jim_SetResultString(interp, "syntax error in expression: ", -1);
             Jim_AppendStrings(interp, Jim_GetResult(interp), exprText, NULL);
             goto err;
         }
@@ -7409,10 +7504,16 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 
             case JIM_EXPROP_VARIABLE:
                 objPtr = Jim_GetVariable(interp, expr->obj[i], JIM_ERRMSG);
+                if (!objPtr) {
+                    retcode = JIM_ERR;
+                }
                 break;
 
             case JIM_EXPROP_DICTSUGAR:
                 objPtr = Jim_ExpandDictSugar(interp, expr->obj[i]);
+                if (!objPtr) {
+                    retcode = JIM_ERR;
+                }
                 break;
 
             case JIM_EXPROP_SUBST:
