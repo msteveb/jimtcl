@@ -31,7 +31,7 @@ EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
 	echo $@ >>.clean
-	tclsh make-c-ext.tcl $@ $*.tcl
+	sh @SRCDIR@/make-c-ext.sh $@ $<
 
 ifdef jim_nofork
 	CFLAGS += -DNO_FORK
@@ -39,7 +39,7 @@ endif
 
 OBJS += load_extensions.o
 
-TARGETS += jimsh $(LIBJIM)
+TARGETS += $(LIBJIM) jimsh
 
 all: $(TARGETS)
 	$(MAKE) -C doc all
