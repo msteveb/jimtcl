@@ -98,6 +98,11 @@
 #endif /* WIN32 */
 #endif /* JIM_DYNLIB */
 
+#ifndef WIN32
+#include <unistd.h>
+#include <sys/time.h>
+#endif
+
 #ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
 #else
@@ -630,9 +635,9 @@ static jim_wide JimClock(void)
     QueryPerformanceCounter(&t);
     return (long)((t.QuadPart * 1000000) / f.QuadPart);
 #else /* !WIN32 */
-    clock_t clocks = clock();
-
-    return (long)(clocks*(1000000/CLOCKS_PER_SEC));
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (jim_wide)tv.tv_sec*1000000 + tv.tv_usec;
 #endif /* WIN32 */
 }
 
