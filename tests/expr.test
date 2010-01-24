@@ -130,4 +130,11 @@ test expr-3.2 "if: in, ni operators" {
 	}
 } {1 4 5}
 
+# Don't want a to become 2.0
+test expr-4.1 "Shimmering" {
+	set a 2
+	expr {$a < 3.0}
+	set a
+} {2}
+
 testreport

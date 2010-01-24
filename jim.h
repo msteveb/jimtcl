@@ -515,6 +515,8 @@ typedef struct Jim_Interp {
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
     Jim_Obj *emptyObj; /* Shared empty string object. */
+    Jim_Obj *trueObj; /* Shared true int object. */
+    Jim_Obj *falseObj; /* Shared false int object. */
     unsigned jim_wide referenceNextId; /* Next id for reference. */
     struct Jim_HashTable references; /* References hash table. */
     jim_wide lastCollectId; /* reference max Id of the last GC
@@ -549,6 +551,8 @@ typedef struct Jim_Interp {
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
 #define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
+#define Jim_SetTrueResult(i) Jim_SetResult(i, (i)->trueObj)
+#define Jim_SetFalseResult(i) Jim_SetResult(i, (i)->falseObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
 

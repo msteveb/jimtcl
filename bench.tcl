@@ -24,12 +24,15 @@ proc bench {title script} {
 proc whilebusyloop {} {
     set i 0
     while {$i < 1850000} {
+        set a 2
 	incr i
     }
 }
 
 proc forbusyloop {} {
-    for {set i 0} {$i < 1850000} {incr i} {}
+    for {set i 0} {$i < 1850000} {incr i} {
+        set a 2
+    }
 }
 
 ### FIBONACCI ##################################################################

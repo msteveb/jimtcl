@@ -115,8 +115,11 @@ static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj
 static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line);
 static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
+static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
 static const Jim_HashTableType JimVariablesHashTableType;
+
+const char *tt_name(int type);
 
 /* -----------------------------------------------------------------------------
  * Utility functions
@@ -905,7 +908,7 @@ int Jim_StackLen(Jim_Stack *stack)
 void Jim_StackPush(Jim_Stack *stack, void *element) {
     int neededLen = stack->len+1;
     if (neededLen > stack->maxlen) {
-        stack->maxlen = neededLen*2;
+        stack->maxlen = neededLen < 20 ? 20 : neededLen*2;
         stack->vector = Jim_Realloc(stack->vector, sizeof(void*)*stack->maxlen);
     }
     stack->vector[stack->len] = element;
@@ -948,18 +951,14 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr))
 #define JIM_TT_EOL 7        /* line separator */
 #define JIM_TT_EOF 8        /* end of script */
 
-/* debugging */
-const char *tt_name(int type)
-{
-    static const char *tt_names[] = { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF" };
-    return tt_names[type];
-}
-
 /* Additional token types needed for expressions */
 #define JIM_TT_SUBEXPR_START 10
 #define JIM_TT_SUBEXPR_END 11
-#define JIM_TT_EXPR_NUMBER 12
-#define JIM_TT_EXPR_OPERATOR 13
+#define JIM_TT_EXPR_INT 12
+#define JIM_TT_EXPR_DOUBLE 13
+
+/* Operator token types start here */
+#define JIM_TT_EXPR_OP 15
 
 /* Parser states */
 #define JIM_PS_DEF 0          /* Default state */
@@ -2861,28 +2860,32 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script, Par
             len = JimEscape(str, t->token, len);
         }
 
-        /* Every object is initially a string, but the
-         * internal type may be specialized during execution of the
-         * script. */
-        token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
+        if (t->type == JIM_TT_SEP || t->type == JIM_TT_EOL) {
+            /* No need for a separate object here */
+            token->objPtr = interp->emptyObj;
 
-        /* To add source info to SEP and EOL tokens is useless because
-         * they will never by called as arguments of Jim_EvalObj(). */
-        if (t->type != JIM_TT_SEP && t->type != JIM_TT_EOL && script->fileName) {
-            JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
+            /* Also count the required cmdStruct length while we are here.
+             * 2 for EOL, 1 for SEP.
+             */
+            if (t->type == JIM_TT_EOL) {
+                script->csLen += 2;
+            }
+            else {
+                script->csLen++;
+            }
+        }
+        else {
+            /* Every object is initially a string, but the
+             * internal type may be specialized during execution of the
+             * script. */
+            token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
+
+            if (script->fileName) {
+                JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
+            }
         }
         Jim_IncrRefCount(token->objPtr);
         token++;
-
-        /* Also count the required cmdStruct length while we are here.
-         * 2 for EOL, 1 for SEP.
-         */
-        if (t->type == JIM_TT_EOL) {
-            script->csLen += 2;
-        }
-        else if (t->type == JIM_TT_SEP) {
-            script->csLen++;
-        }
 
         prevtype = t->type;
     }
@@ -4452,6 +4455,8 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_InitHashTable(&i->packages, &JimStringKeyValCopyHashTableType, NULL);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i);
     i->emptyObj = Jim_NewEmptyStringObj(i);
+    i->trueObj = Jim_NewIntObj(i, 1);
+    i->falseObj = Jim_NewIntObj(i, 0);
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
@@ -4464,6 +4469,8 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->unknown);
     Jim_IncrRefCount(i->currentScriptObj);
     Jim_IncrRefCount(i->errorProc);
+    Jim_IncrRefCount(i->trueObj);
+    Jim_IncrRefCount(i->falseObj);
 
     /* Initialize key variables every interpreter should contain */
     Jim_SetVariableStrWithStr(i, JIM_LIBPATH, ". /lib/jim");
@@ -4478,6 +4485,8 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_Obj *objPtr, *nextObjPtr;
 
     Jim_DecrRefCount(i, i->emptyObj);
+    Jim_DecrRefCount(i, i->trueObj);
+    Jim_DecrRefCount(i, i->falseObj);
     Jim_DecrRefCount(i, i->result);
     Jim_DecrRefCount(i, i->stackTrace);
     Jim_DecrRefCount(i, i->errorProc);
@@ -4804,6 +4813,20 @@ static const Jim_ObjType intObjType = {
     JIM_TYPE_NONE,
 };
 
+/* A coerced double is closer to an int than a double.
+ * It is an int value temporarily masquerading as a double value.
+ * i.e. it has the same string value as an int and Jim_GetWide()
+ * succeeds, but also Jim_GetDouble() returns the value directly.
+ */
+static const Jim_ObjType coercedDoubleObjType = {
+    "coerced-double",
+    NULL,
+    NULL,
+    UpdateStringOfInt,
+    JIM_TYPE_NONE,
+};
+
+
 void UpdateStringOfInt(struct Jim_Obj *objPtr)
 {
     int len;
@@ -4818,6 +4841,12 @@ void UpdateStringOfInt(struct Jim_Obj *objPtr)
 int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     jim_wide wideValue;
+
+    if (objPtr->typePtr == &coercedDoubleObjType) {
+        /* Simple switcheroo */
+        objPtr->typePtr = &intObjType;
+        return JIM_OK;
+    }
 
     /* Get the string representation */
     const char *str = Jim_GetString(objPtr, NULL);
@@ -4841,6 +4870,11 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     objPtr->typePtr = &intObjType;
     objPtr->internalRep.wideValue = wideValue;
     return JIM_OK;
+}
+
+static int Jim_IsWide(Jim_Obj *objPtr)
+{
+    return objPtr->typePtr == &intObjType;
 }
 
 int Jim_GetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide *widePtr)
@@ -4929,6 +4963,7 @@ void UpdateStringOfDouble(struct Jim_Obj *objPtr)
 int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     double doubleValue;
+    jim_wide wideValue;
     const char *str;
 
     /* Preserve the string representation.
@@ -4946,8 +4981,16 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         )
         {
 
-        /* Direct conversion without loss */
-        doubleValue = objPtr->internalRep.wideValue;
+        /* Direct conversion to coerced double */
+        objPtr->typePtr = &coercedDoubleObjType;
+        return JIM_OK;
+    }
+    else if (Jim_StringToWide(str, &wideValue, 10) == JIM_OK) {
+        /* Managed to convert to an int, so we can use this as a cooerced double */
+        Jim_FreeIntRep(interp, objPtr);
+        objPtr->typePtr = &coercedDoubleObjType;
+        objPtr->internalRep.wideValue = wideValue;
+        return JIM_OK;
     }
     else {
         /* Try to convert into a double */
@@ -4967,23 +5010,21 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 
 int Jim_GetDouble(Jim_Interp *interp, Jim_Obj *objPtr, double *doublePtr)
 {
+    if (objPtr->typePtr == &coercedDoubleObjType) {
+        *doublePtr = objPtr->internalRep.wideValue;
+        return JIM_OK;
+    }
     if (objPtr->typePtr != &doubleObjType &&
         SetDoubleFromAny(interp, objPtr) == JIM_ERR)
         return JIM_ERR;
-    *doublePtr = objPtr->internalRep.doubleValue;
-    return JIM_OK;
-}
 
-void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr, double doubleValue)
-{
-    if (Jim_IsShared(objPtr))
-        Jim_Panic(interp,"Jim_SetDouble called with shared object");
-    if (objPtr->typePtr != &doubleObjType) {
-        Jim_FreeIntRep(interp, objPtr);
-        objPtr->typePtr = &doubleObjType;
+    if (objPtr->typePtr == &coercedDoubleObjType) {
+        *doublePtr = objPtr->internalRep.wideValue;
     }
-    Jim_InvalidateStringRep(objPtr);
-    objPtr->internalRep.doubleValue = doubleValue;
+    else {
+        *doublePtr = objPtr->internalRep.doubleValue;
+    }
+    return JIM_OK;
 }
 
 Jim_Obj *Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue)
@@ -6348,17 +6389,9 @@ static int JimParseExprIrrational(struct JimParserCtx *pc);
 
 /* Binary operators (numbers) */
 enum {
-    /* Operands */
-    JIM_EXPROP_NUMBER,
-    JIM_EXPROP_COMMAND,
-    JIM_EXPROP_VARIABLE,
-    JIM_EXPROP_DICTSUGAR,
-    JIM_EXPROP_SUBST,
-    JIM_EXPROP_STRING,
-
+    /* Continues on from the JIM_TT_ space */
     /* Operations */
-    JIM_EXPROP_OP_FIRST,
-    JIM_EXPROP_MUL = JIM_EXPROP_OP_FIRST,
+    JIM_EXPROP_MUL = JIM_TT_EXPR_OP, /* 15 */
     JIM_EXPROP_DIV,
     JIM_EXPROP_MOD,
     JIM_EXPROP_SUB,
@@ -6373,32 +6406,32 @@ enum {
     JIM_EXPROP_GTE,
     JIM_EXPROP_NUMEQ,
     JIM_EXPROP_NUMNE,
-    JIM_EXPROP_BITAND,
+    JIM_EXPROP_BITAND, /* 30 */
     JIM_EXPROP_BITXOR,
     JIM_EXPROP_BITOR,
 
     /* Note must keep these together */
-    JIM_EXPROP_LOGICAND,
+    JIM_EXPROP_LOGICAND, /* 33 */
     JIM_EXPROP_LOGICAND_LEFT,
     JIM_EXPROP_LOGICAND_RIGHT,
 
     /* and these */
-    JIM_EXPROP_LOGICOR,
+    JIM_EXPROP_LOGICOR, /* 36 */
     JIM_EXPROP_LOGICOR_LEFT,
     JIM_EXPROP_LOGICOR_RIGHT,
 
     /* and these */
     /* Ternary operators */
-    JIM_EXPROP_TERNARY,
+    JIM_EXPROP_TERNARY, /* 39 */
     JIM_EXPROP_TERNARY_LEFT,
     JIM_EXPROP_TERNARY_RIGHT,
 
     /* and these */
-    JIM_EXPROP_COLON,
+    JIM_EXPROP_COLON, /* 42 */
     JIM_EXPROP_COLON_LEFT,
     JIM_EXPROP_COLON_RIGHT,
 
-    JIM_EXPROP_POW,
+    JIM_EXPROP_POW, /* 45 */
 
 /* Binary operators (strings) */
     JIM_EXPROP_STREQ,
@@ -6452,6 +6485,7 @@ typedef struct Jim_ExprOperator {
     int precedence;
     int arity;
     int (*funcop)(Jim_Interp *interp, struct JimExprState *e);
+    int lazy; 
 } Jim_ExprOperator;
 
 static void ExprPush(struct JimExprState *e, Jim_Obj *obj)
@@ -6462,69 +6496,18 @@ static void ExprPush(struct JimExprState *e, Jim_Obj *obj)
 
 static Jim_Obj *ExprPop(struct JimExprState *e)
 {
-    assert(e->stacklen);
     return e->stack[--e->stacklen];
 }
-
-#define OBJ_IS_INT 0
-#define OBJ_IS_DOUBLE 1
-#define OBJ_NO_NUM -1
-
-static int ExprGetNum(Jim_Interp *interp, struct JimExprState *e, Jim_Obj **resultObjPtr, jim_wide *w, double *d)
-{
-    Jim_Obj *obj = ExprPop(e);
-
-    *resultObjPtr = obj;
-    *w = 0;
-    *d = 0;
-
-    /* If it is already an integer or double, use it */
-    if (obj->typePtr == &intObjType) {
-        *w = obj->internalRep.wideValue;
-        return OBJ_IS_INT;
-    }
-    /* Don't consider a double type with no string rep since it may
-     * have been explicitly converted.
-     */
-    if (obj->typePtr == &doubleObjType && !obj->bytes) {
-        *d = obj->internalRep.doubleValue;
-        return OBJ_IS_DOUBLE;
-    }
-
-    /* Try to convert */
-    if (Jim_GetWide(interp, obj, w) == JIM_OK) {
-        return OBJ_IS_INT;
-    }
-    if (Jim_GetDouble(interp, obj, d) == JIM_OK) {
-        return OBJ_IS_DOUBLE;
-    }
-
-    return OBJ_NO_NUM;
-}
-
 
 static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
 {
     int intresult = 0;
     int rc = JIM_OK;
-    Jim_Obj *A;
-    double dA, dC;
-    jim_wide wA, wC;
-    int type = ExprGetNum(interp, e, &A, &wA, &dA);
+    Jim_Obj *A = ExprPop(e);
+    double dA, dC = 0;
+    jim_wide wA, wC = 0;
     
-    if (type == OBJ_IS_DOUBLE) {
-        switch (e->opcode) {
-            case JIM_EXPROP_FUNC_INT: wC = dA; intresult = 1; break;
-            case JIM_EXPROP_FUNC_ROUND: wC = dA < 0 ? (dA - 0.5) : (dA + 0.5); intresult = 1; break;
-            case JIM_EXPROP_FUNC_DOUBLE: dC = dA; break;
-            case JIM_EXPROP_FUNC_ABS: dC = dA >= 0 ? dA : -dA; break;
-            case JIM_EXPROP_UNARYMINUS: dC = -dA; break;
-            case JIM_EXPROP_UNARYPLUS: dC = dA; break;
-            case JIM_EXPROP_NOT: wC = !dA; intresult = 1; break;
-            default: abort();
-        }
-    }
-    else if (type == OBJ_IS_INT) {
+    if ((A->typePtr != &doubleObjType || A->bytes) && JimGetWideNoErr(interp, A, &wA) == JIM_OK) {
         intresult = 1;
 
         switch (e->opcode) {
@@ -6538,8 +6521,17 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
             default: abort();
         }
     }
-    else {
-        rc = JIM_ERR;
+    else if ((rc = Jim_GetDouble(interp, A, &dA)) == JIM_OK) {
+        switch (e->opcode) {
+            case JIM_EXPROP_FUNC_INT: wC = dA; intresult = 1; break;
+            case JIM_EXPROP_FUNC_ROUND: wC = dA < 0 ? (dA - 0.5) : (dA + 0.5); intresult = 1; break;
+            case JIM_EXPROP_FUNC_DOUBLE: dC = dA; break;
+            case JIM_EXPROP_FUNC_ABS: dC = dA >= 0 ? dA : -dA; break;
+            case JIM_EXPROP_UNARYMINUS: dC = -dA; break;
+            case JIM_EXPROP_UNARYPLUS: dC = dA; break;
+            case JIM_EXPROP_NOT: wC = !dA; intresult = 1; break;
+            default: abort();
+        }
     }
 
     if (rc == JIM_OK) {
@@ -6696,13 +6688,17 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
 {
     int intresult = 0;
     int rc = JIM_OK;
-    Jim_Obj *A, *B;
-    double dA, dB, dC;
-    jim_wide wA, wB, wC;
-    int typeB = ExprGetNum(interp, e, &B, &wB, &dB);
-    int typeA = ExprGetNum(interp, e, &A, &wA, &dA);
+    double dA, dB, dC = 0;
+    jim_wide wA, wB, wC = 0;
+
+    Jim_Obj *B =  ExprPop(e);
+    Jim_Obj *A =  ExprPop(e);
     
-    if (typeA == OBJ_IS_INT && typeB == OBJ_IS_INT) {
+    if ((A->typePtr != &doubleObjType || A->bytes) &&
+        (B->typePtr != &doubleObjType || B->bytes) &&
+        JimGetWideNoErr(interp, A, &wA) == JIM_OK &&
+        JimGetWideNoErr(interp, B, &wB) == JIM_OK) {
+
         /* Both are ints */
 
         intresult = 1;
@@ -6745,15 +6741,7 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
             default: abort();
         }
     }
-    else if (typeA != OBJ_NO_NUM && typeB != OBJ_NO_NUM) {
-        /* At least one is a double */
-        if (typeA == OBJ_IS_INT) {
-            Jim_GetDouble(interp, A, &dA);
-        }
-        else if (typeB == OBJ_IS_INT) {
-            Jim_GetDouble(interp, B, &dB);
-        }
-
+    else if (Jim_GetDouble(interp, A, &dA) == JIM_OK && Jim_GetDouble(interp, B, &dB) == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_POW:
 #ifdef JIM_MATH_FUNCTIONS
@@ -6968,6 +6956,37 @@ static int JimExprOpAndOrRight(Jim_Interp *interp, struct JimExprState *e)
     return rc;
 }
 
+static int JimExprOpColon(Jim_Interp *interp, struct JimExprState *e)
+{
+    int rc = JIM_OK;
+#if 0
+    Jim_Obj *C = ExprPop(e);
+    Jim_Obj *B = ExprPop(e);
+    Jim_Obj *A = ExprPop(e);
+
+    switch (ExprBool(interp, A)) {
+        case 0:
+            ExprPush(e, C);
+            break;
+
+        case 1:
+            ExprPush(e, B);
+            break;
+
+        case -1:
+            /* Invalid */
+            rc = JIM_ERR;
+            break;
+    }
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, B);
+    Jim_DecrRefCount(interp, C);
+
+#endif
+    return rc;
+}
+
+
 static int JimExprOpTernaryLeft(Jim_Interp *interp, struct JimExprState *e)
 {
     Jim_Obj *skip = ExprPop(e);
@@ -7025,6 +7044,12 @@ static int JimExprOpNull(Jim_Interp *interp, struct JimExprState *e)
     return JIM_OK;
 }
 
+enum {
+    LAZY_OP = 1,
+    LAZY_LEFT,
+    LAZY_RIGHT
+};
+
 /* name - precedence - arity - opcode */
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_FUNC_INT] =       {"int", 400, 1, JimExprOpNumUnary },
@@ -7052,8 +7077,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
     [JIM_EXPROP_NOT] =            {"!", 300, 1, JimExprOpNumUnary },
     [JIM_EXPROP_BITNOT] =         {"~", 300, 1, JimExprOpIntUnary },
-    [JIM_EXPROP_UNARYMINUS] =     {"unarymin", 300, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_UNARYPLUS] =      {"unaryplus", 300, 1, JimExprOpNumUnary }, 
+    [JIM_EXPROP_UNARYMINUS] =     {NULL, 300, 1, JimExprOpNumUnary },
+    [JIM_EXPROP_UNARYPLUS] =      {NULL, 300, 1, JimExprOpNumUnary }, 
 
     [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpBin },
 
@@ -7087,21 +7112,21 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_BITXOR] =         {"^", 49, 2, JimExprOpIntBin },
     [JIM_EXPROP_BITOR] =          {"|", 48, 2, JimExprOpIntBin },
 
-    [JIM_EXPROP_LOGICAND] =       {"&&", 10, 2, },
-    [JIM_EXPROP_LOGICOR] =        {"||", 9, 2, },
+    [JIM_EXPROP_LOGICAND] =       {"&&", 10, 2, NULL, LAZY_OP },
+    [JIM_EXPROP_LOGICOR] =        {"||", 9, 2, NULL, LAZY_OP },
 
-    [JIM_EXPROP_TERNARY] =        {"?", 5, 2, },
-    [JIM_EXPROP_COLON] =          {":", 5, 2, },
+    [JIM_EXPROP_TERNARY] =        {"?", 5, 2, JimExprOpNull, LAZY_OP },
+    [JIM_EXPROP_COLON] =          {":", 5, 2, JimExprOpColon, LAZY_OP },
 
     /* private operators */
-    [JIM_EXPROP_TERNARY_LEFT] =   {NULL, 5, 2, JimExprOpTernaryLeft },
-    [JIM_EXPROP_TERNARY_RIGHT] =  {NULL, 5, 0, JimExprOpNull },
-    [JIM_EXPROP_COLON_LEFT] =     {NULL, 5, 3, JimExprOpColonLeft },
-    [JIM_EXPROP_COLON_RIGHT] =    {NULL, 5, 0, JimExprOpNull },
-    [JIM_EXPROP_LOGICAND_LEFT] =  {NULL, 10, 2, JimExprOpAndLeft },
-    [JIM_EXPROP_LOGICAND_RIGHT] = {NULL, 10, 1, JimExprOpAndOrRight },
-    [JIM_EXPROP_LOGICOR_LEFT] =   {NULL, 9, 2, JimExprOpOrLeft },
-    [JIM_EXPROP_LOGICOR_RIGHT] =  {NULL, 9, 1, JimExprOpAndOrRight },
+    [JIM_EXPROP_TERNARY_LEFT] =   {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT },
+    [JIM_EXPROP_TERNARY_RIGHT] =  {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT },
+    [JIM_EXPROP_COLON_LEFT] =     {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT },
+    [JIM_EXPROP_COLON_RIGHT] =    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT },
+    [JIM_EXPROP_LOGICAND_LEFT] =  {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT },
+    [JIM_EXPROP_LOGICAND_RIGHT] = {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT },
+    [JIM_EXPROP_LOGICOR_LEFT] =   {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT },
+    [JIM_EXPROP_LOGICOR_RIGHT] =  {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT },
 };
 
 #define JIM_EXPR_OPERATORS_NUM \
@@ -7110,11 +7135,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 int JimParseExpression(struct JimParserCtx *pc)
 {
     /* Discard spaces and quoted newline */
-    while(*(pc->p) == ' ' ||
-          *(pc->p) == '\t' ||
-          *(pc->p) == '\r' ||
-          *(pc->p) == '\n' ||
-            (*(pc->p) == '\\' && *(pc->p+1) == '\n')) {
+    while (isspace(*pc->p) || (*(pc->p) == '\\' && *(pc->p+1) == '\n')) {
         pc->p++; pc->len--;
     }
 
@@ -7174,6 +7195,8 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     int allowdot = 1;
     int allowhex = 0;
 
+    /* Assume an integer for now */
+    pc->tt = JIM_TT_EXPR_INT;
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     while (  isdigit(*pc->p) 
@@ -7187,15 +7210,17 @@ int JimParseExprNumber(struct JimParserCtx *pc)
             allowhex = 1;
             allowdot = 0;
         }
-        if (*pc->p == '.')
+        if (*pc->p == '.') {
             allowdot = 0;
+            pc->tt = JIM_TT_EXPR_DOUBLE;
+        }
         pc->p++; pc->len--;
         if (!allowhex && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+' || isdigit(pc->p[1]))) {
             pc->p += 2; pc->len -= 2;
+            pc->tt = JIM_TT_EXPR_DOUBLE;
         }
     }
     pc->tend = pc->p-1;
-    pc->tt = JIM_TT_EXPR_NUMBER;
     return JIM_OK;
 }
 
@@ -7210,7 +7235,7 @@ int JimParseExprIrrational(struct JimParserCtx *pc)
             pc->tend = pc->p + len - 1;
             pc->p += len; pc->len -= len;
             pc->tline = pc->linenr;
-            pc->tt = JIM_TT_EXPR_NUMBER;
+            pc->tt = JIM_TT_EXPR_DOUBLE;
             return JIM_OK;
         }
     }
@@ -7223,7 +7248,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
     int bestIdx = -1, bestLen = 0;
 
     /* Try to get the longest match. */
-    for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
+    for (i = JIM_TT_EXPR_OP; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
         const char *opname;
         int oplen;
 
@@ -7259,18 +7284,8 @@ int JimParseExprOperator(struct JimParserCtx *pc)
     pc->p += bestLen; pc->len -= bestLen;
     pc->tline = pc->linenr;
 
-    pc->tt = JIM_TT_EXPR_OPERATOR;
+    pc->tt = bestIdx;
     return JIM_OK;
-}
-
-static const struct Jim_ExprOperator *JimExprOperatorInfo(const char *opname)
-{
-    int i;
-    for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++)
-        if (Jim_ExprOperators[i].name &&
-            strcmp(opname, Jim_ExprOperators[i].name) == 0)
-            return &Jim_ExprOperators[i];
-    return NULL;
 }
 
 static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
@@ -7278,10 +7293,25 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
     return &Jim_ExprOperators[opcode];
 }
 
-static int JimExprOperatorOpcode(const struct Jim_ExprOperator *op)
+/* debugging */
+const char *tt_name(int type)
 {
-    return op - &Jim_ExprOperators[0];
+    static const char *tt_names[] = { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "???", "(((", ")))", "INT", "DBL", "???" };
+    if (type < JIM_TT_EXPR_OP) {
+        return tt_names[type];
+    }
+    else {
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(type);
+        static char buf[20];
+
+        if (op && op->name) {
+            return op->name;
+        }
+        sprintf(buf, "(%d)", type);
+        return buf;
+    }
 }
+
 
 
 /* -----------------------------------------------------------------------------
@@ -7301,61 +7331,42 @@ static Jim_ObjType exprObjType = {
 
 /* Expr bytecode structure */
 typedef struct ExprByteCode {
-    int *opcode;        /* Integer array of opcodes. */
-    Jim_Obj **obj;      /* Array of associated Jim Objects. */
-    int len;            /* Bytecode length */
-    int inUse;          /* Used for sharing. */
+    int len;                /* Length as number of tokens. */
+    ScriptToken *token;     /* Tokens array. */
+    int inUse;              /* Used for sharing. */
 } ExprByteCode;
 
-void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+static void ExprFreeByteCode(Jim_Interp *interp, ExprByteCode *expr)
 {
     int i;
-    ExprByteCode *expr = (void*) objPtr->internalRep.ptr;
 
-    expr->inUse--;
-    if (expr->inUse != 0) return;
-    for (i = 0; i < expr->len; i++)
-        Jim_DecrRefCount(interp, expr->obj[i]);
-    Jim_Free(expr->opcode);
-    Jim_Free(expr->obj);
+    for (i = 0; i < expr->len; i++) {
+        Jim_DecrRefCount(interp, expr->token[i].objPtr);
+    }
+    Jim_Free(expr->token);
     Jim_Free(expr);
 }
 
-void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+static void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    ExprByteCode *expr = (void*) objPtr->internalRep.ptr;
+
+    if (expr) {
+        if (--expr->inUse != 0) {
+            return;
+        }
+
+        ExprFreeByteCode(interp, expr);
+    }
+}
+
+static void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     JIM_NOTUSED(interp);
     JIM_NOTUSED(srcPtr);
 
     /* Just returns an simple string. */
     dupPtr->typePtr = NULL;
-}
-
-/* Add a new instruction to an expression bytecode structure. */
-static void ExprObjAddInstr(Jim_Interp *interp, ExprByteCode *expr,
-        int opcode, char *str, int len)
-{
-    expr->opcode = Jim_Realloc(expr->opcode, sizeof(int)*(expr->len+1));
-    expr->obj = Jim_Realloc(expr->obj, sizeof(Jim_Obj*)*(expr->len+1));
-    expr->opcode[expr->len] = opcode;
-    if (opcode == JIM_EXPROP_NUMBER) {
-        /* Special handling for numbers. Immediately convert */
-        jim_wide w;
-        if (Jim_StringToWide(str, &w, 0) == JIM_OK) {
-            expr->obj[expr->len] = Jim_NewIntObj(interp, w);
-        }
-        else {
-            double d;
-
-            Jim_StringToDouble(str, &d);
-            expr->obj[expr->len] = Jim_NewDoubleObj(interp, d);
-        }
-        Jim_Free(str);
-    }
-    else {
-        expr->obj[expr->len] = Jim_NewStringObjNoAlloc(interp, str, len);
-    }
-    Jim_IncrRefCount(expr->obj[expr->len]);
-    expr->len++;
 }
 
 /* Check if an expr program looks correct. */
@@ -7369,19 +7380,21 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
      * and make sure at the end of the program there is
      * a single result on the stack. */
     for (i = 0; i < expr->len; i++) {
-        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(expr->opcode[i]);
+        ScriptToken *t = &expr->token[i];
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
         if (op) {
             stacklen -= op->arity;
             if (stacklen < 0) {
-                return JIM_ERR;
+                break;
             }
-            if (JimExprOperatorOpcode(op) == JIM_EXPROP_TERNARY) {
+            if (t->type == JIM_EXPROP_TERNARY || t->type == JIM_EXPROP_TERNARY_LEFT) {
                 ternary++;
             }
-            else if (JimExprOperatorOpcode(op) == JIM_EXPROP_COLON) {
+            else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
                 ternary--;
             }
         }
+
         /* All operations and operands add one to the stack */
         stacklen++;
     }
@@ -7416,280 +7429,301 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
  * "&R" checks if 'a' is true:
  *      if it is true pushes 1, otherwise pushes 0.
  */
-static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
+static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode *expr, ParseToken *t)
 {
     int i;
 
-    while (1) {
-        int index = -1, leftindex, arity, offset;
-        const Jim_ExprOperator *op;
+    int leftindex, arity, offset;
 
-        /* Search for || or && */
-        for (i = expr->len - 1; i >= 0; i--) {
-            if (expr->opcode[i] == JIM_EXPROP_LOGICAND
-                || expr->opcode[i] == JIM_EXPROP_LOGICOR
-                || expr->opcode[i] == JIM_EXPROP_TERNARY
-                || expr->opcode[i] == JIM_EXPROP_COLON
-                ) {
-                index = i;
-                break;
+    /* Search for the end of the first operator */
+    leftindex = expr->len-1;
+    arity = 1;
+    while (arity) {
+        ScriptToken *tt = &expr->token[leftindex];
+        //printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+        if (tt->type >= JIM_TT_EXPR_OP) {
+            arity += JimExprOperatorInfoByOpcode(tt->type)->arity;
+        }
+        arity--;
+        leftindex--;
+    }
+    leftindex++;
+
+    /* Move them up */
+    memmove(&expr->token[leftindex+2], &expr->token[leftindex], sizeof(*expr->token)*(expr->len-leftindex));
+    expr->len += 2;
+    offset = (expr->len-leftindex)-1;
+
+    /* Now we rely on the fact the the left and right version have opcodes
+     * 1 and 2 after the main opcode respectively
+     */
+    expr->token[leftindex+1].type = t->type + 1;
+    expr->token[leftindex+1].objPtr = interp->emptyObj;
+
+    expr->token[leftindex].type = JIM_TT_EXPR_INT;
+    expr->token[leftindex].objPtr = Jim_NewIntObj(interp, offset);
+
+    /* Now add the 'R' operator */
+    expr->token[expr->len].objPtr = interp->emptyObj;
+    expr->token[expr->len].type = t->type + 2;
+    expr->len++;
+
+    /* Do we need to adjust the skip count for any &L, |L, ?L or :L in the left operand? */
+    for (i = leftindex - 1; i > 0; i--) {
+        if (JimExprOperatorInfoByOpcode(expr->token[i].type)->lazy == LAZY_LEFT) {
+            if (expr->token[i - 1].objPtr->internalRep.wideValue + i - 1 >= leftindex) {
+                expr->token[i - 1].objPtr->internalRep.wideValue += 2;
             }
         }
-        if (index == -1) {
+    }
+}
+
+static void ExprAddOperator(Jim_Interp *interp, ExprByteCode *expr, ParseToken *t)
+{
+    struct ScriptToken *token = &expr->token[expr->len];
+
+    if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
+        ExprAddLazyOperator(interp, expr, t);
+    }
+    else {
+        token->objPtr = interp->emptyObj;
+        token->type = t->type;
+        expr->len++;
+    }
+}
+
+static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist)
+{
+    Jim_Stack stack;
+    ExprByteCode *expr;
+    int ok = 1;
+    int i;
+    int prevtt = JIM_TT_NONE;
+    /* -1 for EOL */
+    int count = tokenlist->count - 1;
+
+    expr = Jim_Alloc(sizeof(*expr));
+    expr->inUse = 1;
+    expr->len = 0;
+
+    Jim_InitStack(&stack);
+
+    /* Need extra bytecodes for lazy operators */
+    for (i = 0; i < tokenlist->count; i++) {
+        ParseToken *t = &tokenlist->list[i];
+        if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
+            count += 2;
+        }
+    }
+
+    expr->token = Jim_Alloc(sizeof(ScriptToken)*count);
+
+    for (i = 0; i < tokenlist->count && ok; i++) {
+        ParseToken *t = &tokenlist->list[i];
+        /* Next token will be stored here */
+        struct ScriptToken *token = &expr->token[expr->len];
+
+        if (t->type == JIM_TT_EOL) {
             break;
         }
 
-        /* Search for the end of the first operator */
-        leftindex = index-1;
-        arity = 1;
-        while (arity) {
-            switch(expr->opcode[leftindex]) {
-            case JIM_EXPROP_NUMBER:
-            case JIM_EXPROP_COMMAND:
-            case JIM_EXPROP_VARIABLE:
-            case JIM_EXPROP_DICTSUGAR:
-            case JIM_EXPROP_SUBST:
-            case JIM_EXPROP_STRING:
+        switch(t->type) {
+            case JIM_TT_STR:
+            case JIM_TT_ESC:
+            case JIM_TT_VAR:
+            case JIM_TT_DICTSUGAR:
+            case JIM_TT_CMD:
+                token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
+                token->type = t->type;
+                expr->len++;
                 break;
-            default:
-                op = JimExprOperatorInfoByOpcode(expr->opcode[leftindex]);
-                if (op == NULL) {
-                    Jim_Panic(interp,"Default reached in ExprMakeLazy()");
+
+            case JIM_TT_EXPR_INT:
+                token->objPtr = Jim_NewIntObj(interp, strtoull(t->token, NULL, 0));
+                token->type = t->type;
+                expr->len++;
+                break;
+
+            case JIM_TT_EXPR_DOUBLE:
+                token->objPtr = Jim_NewDoubleObj(interp, strtod(t->token, NULL));
+                token->type = t->type;
+                expr->len++;
+                break;
+
+            case JIM_TT_SUBEXPR_START:
+                Jim_StackPush(&stack, t);
+                prevtt = JIM_TT_NONE;
+                continue;
+
+            case JIM_TT_SUBEXPR_END:
+                ok = 0;
+                while (Jim_StackLen(&stack)) {
+                    ParseToken *tt = Jim_StackPop(&stack);
+
+                    if (tt->type == JIM_TT_SUBEXPR_START) {
+                        ok = 1;
+                        break;
+                    }
+
+                    ExprAddOperator(interp, expr, tt);
                 }
-                else {
-                    arity += op->arity;
+                if (!ok) {
+                    Jim_SetResultString(interp, "Unexpected close parenthesis", -1);
+                    goto err;
                 }
+                break;
+
+
+            default: {
+                /* Must be an operator */
+                const struct Jim_ExprOperator *op;
+                ParseToken *tt;
+                
+                /* Convert -/+ to unary minus or unary plus if necessary */ 
+                if (prevtt == JIM_TT_NONE || prevtt >= JIM_TT_EXPR_OP) {
+                    if (t->type == JIM_EXPROP_SUB) {
+                        t->type = JIM_EXPROP_UNARYMINUS;
+                    }
+                    else if (t->type == JIM_EXPROP_ADD) {
+                        t->type = JIM_EXPROP_UNARYPLUS;
+                    }
+                }
+
+                op = JimExprOperatorInfoByOpcode(t->type);
+                
+                /* Now handle precedence */
+                while ((tt = Jim_StackPeek(&stack)) != NULL) {
+                    const struct Jim_ExprOperator *tt_op = JimExprOperatorInfoByOpcode(tt->type);
+
+                    /* XXX: Should handle right-to-left associativity of ?: operator */
+
+                    if (op->arity != 1 && tt_op->precedence >= op->precedence) {
+                        ExprAddOperator(interp, expr, tt);
+                        Jim_StackPop(&stack);
+                    } else {
+                        break;
+                    }
+                }
+                Jim_StackPush(&stack, t);
                 break;
             }
-            arity--;
-            leftindex--;
         }
-        leftindex++;
-
-        expr->opcode = Jim_Realloc(expr->opcode, sizeof(int)*(expr->len+2));
-        expr->obj = Jim_Realloc(expr->obj, sizeof(Jim_Obj*)*(expr->len+2));
-        memmove(&expr->opcode[leftindex+2], &expr->opcode[leftindex],
-                sizeof(int)*(expr->len-leftindex));
-        memmove(&expr->obj[leftindex+2], &expr->obj[leftindex],
-                sizeof(Jim_Obj*)*(expr->len-leftindex));
-        expr->len += 2;
-        index += 2;
-        offset = (index-leftindex)-1;
-        Jim_DecrRefCount(interp, expr->obj[index]);
-
-        /* Now we rely on the fact the the left and right version have opcodes
-         * 1 and 2 after the main opcode respectively
-         */
-        expr->opcode[leftindex+1] = expr->opcode[index] + 1;
-        expr->opcode[index] = expr->opcode[index] + 2;
-        expr->obj[leftindex+1] = Jim_NewStringObj(interp, "lazyL", -1);
-        expr->obj[index] = Jim_NewStringObj(interp, "lazyR", -1);
-
-        expr->opcode[leftindex] = JIM_EXPROP_NUMBER;
-        expr->obj[leftindex] = Jim_NewIntObj(interp, offset);
-        Jim_IncrRefCount(expr->obj[index]);
-        Jim_IncrRefCount(expr->obj[leftindex]);
-        Jim_IncrRefCount(expr->obj[leftindex+1]);
-
-        /* Do we need to adjust the skip count for any &L, |L, ?L or :L in the left operand? */
-        for (i = leftindex - 1; i > 0; i--) {
-            if (expr->opcode[i] == JIM_EXPROP_LOGICOR_LEFT
-                || expr->opcode[i] == JIM_EXPROP_LOGICAND_LEFT
-                || expr->opcode[i] == JIM_EXPROP_TERNARY_LEFT
-                || expr->opcode[i] == JIM_EXPROP_COLON_LEFT
-                ) {
-                long skip = 0;
-
-                Jim_GetLong(interp, expr->obj[i - 1], &skip);
-                if (skip + i - 1 >= leftindex) {
-                    Jim_DecrRefCount(interp, expr->obj[i - 1]);
-                    expr->obj[i - 1] = Jim_NewIntObj(interp, skip + 2);
-                    Jim_IncrRefCount(expr->obj[i - 1]);
-                }
-            }
-        }
-    }
-}
-
-static int expr_reduce_stack(Jim_Interp *interp, ExprByteCode *expr, Jim_Stack *stack, const char *token)
-{
-    while (Jim_StackLen(stack)) {
-        const struct Jim_ExprOperator *op;
-
-        char *opstr = Jim_StackPop(stack);
-        if (token && strcmp(opstr, token) == 0) {
-            Jim_Free(opstr);
-            return 1;
-        }
-        op = JimExprOperatorInfo(opstr);
-        if (op == NULL) {
-            Jim_Free(opstr);
-            return -1;
-        }
-        ExprObjAddInstr(interp, expr, JimExprOperatorOpcode(op), opstr, -1);
+        prevtt = t->type;
     }
 
-    return 0;
+    /* Reduce any remaining subexpr */
+    while (Jim_StackLen(&stack)) {
+        ParseToken *tt = Jim_StackPop(&stack);
+
+        if (tt->type == JIM_TT_SUBEXPR_START) {
+            ok = 0;
+            Jim_SetResultString(interp, "Missing close parenthesis", -1);
+            goto err;
+        }
+        ExprAddOperator(interp, expr, tt);
+    }
+
+err:
+    /* Free the stack used for the compilation. */
+    Jim_FreeStack(&stack);
+
+    for (i = 0; i < expr->len; i++) {
+        Jim_IncrRefCount(expr->token[i].objPtr);
+    }
+
+    if (!ok) {
+        ExprFreeByteCode(interp, expr);
+        return NULL;
+    }
+
+    return expr;
 }
+
 
 /* This method takes the string representation of an expression
  * and generates a program for the Expr's stack-based VM. */
 int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     int exprTextLen;
-    const char *exprText = Jim_GetString(objPtr, &exprTextLen);
+    const char *exprText;
     struct JimParserCtx parser;
-    int i;
-    ExprByteCode *expr = Jim_Alloc(sizeof(*expr));
-    Jim_Stack stack;
-    const Jim_ExprOperator *op;
+    struct ExprByteCode *expr;
+    ParseTokenList tokenlist;
+    int rc = JIM_ERR;
 
-    expr->opcode = NULL;
-    expr->obj = NULL;
-    expr->len = 0;
-    expr->inUse = 1;
+    exprText = Jim_GetString(objPtr, &exprTextLen);
 
-    Jim_InitStack(&stack);
-    JimParserInit(&parser, exprText, exprTextLen, 1);
-    while(!JimParserEof(&parser)) {
-        char *token;
-        int len, type;
-        int prevtt = parser.tt;
+    //printf("EXPR: %s\n", exprText);
 
+    /* Initially tokenise the expression into tokenlist */
+    ScriptTokenListInit(&tokenlist);
+
+    JimParserInit(&parser, exprText, exprTextLen, 0);
+    while (!JimParserEof(&parser)) {
         if (JimParseExpression(&parser) != JIM_OK) {
+            ScriptTokenListFree(&tokenlist);
+invalidexpr:
             Jim_SetResultString(interp, "syntax error in expression: ", -1);
             Jim_AppendStrings(interp, Jim_GetResult(interp), exprText, NULL);
+            expr = NULL;
             goto err;
         }
-        token = JimParserGetToken(&parser, &len, &type, NULL);
-        if (type == JIM_TT_EOL) {
-            Jim_Free(token);
-            break;
-        }
-        switch(type) {
-        case JIM_TT_STR:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_STRING, token, len);
-            break;
-        case JIM_TT_ESC:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_SUBST, token, len);
-            break;
-        case JIM_TT_VAR:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_VARIABLE, token, len);
-            break;
-        case JIM_TT_DICTSUGAR:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_DICTSUGAR, token, len);
-            break;
-        case JIM_TT_CMD:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_COMMAND, token, len);
-            break;
-        case JIM_TT_EXPR_NUMBER:
-            ExprObjAddInstr(interp, expr, JIM_EXPROP_NUMBER, token, len);
-            break;
-        case JIM_TT_EXPR_OPERATOR:
-            /* Convert - to unary minus if necessary */ 
-            if (prevtt == JIM_TT_NONE || prevtt == JIM_TT_EXPR_OPERATOR) {
-                if (*token == '-') {
-                    Jim_Free(token);
-                    token = Jim_StrDup("unarymin");
-                    parser.tt = JIM_TT_NONE;
-                }
-                else if (*token == '+') {
-                    Jim_Free(token);
-                    token = Jim_StrDup("unaryplus");
-                    parser.tt = JIM_TT_NONE;
-                }
-            }
 
-            op = JimExprOperatorInfo(token);
-
-            while(1) {
-                const Jim_ExprOperator *stackTopOp;
-
-                if (Jim_StackPeek(&stack) != NULL) {
-                    stackTopOp = JimExprOperatorInfo(Jim_StackPeek(&stack));
-                } else {
-                    stackTopOp = NULL;
-                }
-
-                /* XXX: Should handle right-to-left associativity of ?: operator */
-                /* XXX: ? without :, : without ? */
-
-                if (Jim_StackLen(&stack) && op->arity != 1 &&
-                    stackTopOp && stackTopOp->precedence >= op->precedence)
-                {
-                    ExprObjAddInstr(interp, expr, JimExprOperatorOpcode(stackTopOp),
-                        Jim_StackPeek(&stack), -1);
-                    Jim_StackPop(&stack);
-                } else {
-                    break;
-                }
-            }
-            Jim_StackPush(&stack, token);
-            break;
-        case JIM_TT_SUBEXPR_START:
-            Jim_StackPush(&stack, Jim_StrDup("("));
-            Jim_Free(token);
-            parser.tt = JIM_TT_NONE;
-            break;
-        case JIM_TT_SUBEXPR_END:
-            Jim_Free(token);
-            if (expr_reduce_stack(interp, expr, &stack, "(") != 1) {
-                Jim_SetResultString(interp,
-                    "Unexpected close parenthesis", -1);
-                goto err;
-            }
-            break;
-        default:
-            Jim_Panic(interp,"Default reached in SetExprFromAny()");
-            break;
-        }
+        ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt, parser.tline);
+        //printf("ExprAddToken type=%s/line=%d/'%.*s'\n", tt_name(parser.tt), parser.tline, (int)(parser.tend - parser.tstart + 1), parser.tstart);
     }
 
-    if (Jim_StackLen(&stack)) {
-        if (expr_reduce_stack(interp, expr, &stack, NULL) != 0) {
-            Jim_SetResultString(interp, "Missing close parenthesis", -1);
-            goto err;
-        }
-    }
+    /* Now create the expression bytecode from the tokenlist */
+    expr = ExprCreateByteCode(interp, &tokenlist);
 
-    /* Check program correctness. */
-    if (ExprCheckCorrectness(expr) != JIM_OK) {
-        Jim_SetResultString(interp, "Invalid expression: ", -1);
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-            Jim_GetString(objPtr, NULL), NULL);
+    /* No longer need the token list */
+    ScriptTokenListFree(&tokenlist);
+
+    if (!expr) {
         goto err;
     }
 
-    /* Free the stack used for the compilation. */
-    Jim_FreeStackElements(&stack, Jim_Free);
-    Jim_FreeStack(&stack);
+#if 0
+    int i;
+    printf("==== Expr ====\n");
+    for (i = 0; i < expr->len; i++) {
+        ScriptToken *t = &expr->token[i];
+        
+        printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+    }
+#endif
 
-    /* Convert || and && operators in unary |L |R and &L &R for lazyness */
-    ExprMakeLazy(interp, expr);
+    /* Check program correctness. */
+    if (ExprCheckCorrectness(expr) != JIM_OK) {
+        ExprFreeByteCode(interp, expr);
+        goto invalidexpr;
+    }
 
+    rc = JIM_OK;
+
+#if 0
+    printf("==== Expr ====\n");
+    for (i = 0; i < expr->len; i++) {
+        ScriptToken *t = &expr->token[i];
+        
+        printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+    }
+#endif
+
+err:
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, expr);
     objPtr->typePtr = &exprObjType;
-    return JIM_OK;
-
-err:    /* we jump here on syntax/compile errors. */
-    Jim_FreeStackElements(&stack, Jim_Free);
-    Jim_FreeStack(&stack);
-    Jim_Free(expr->opcode);
-    for (i = 0; i < expr->len; i++) {
-        Jim_DecrRefCount(interp,expr->obj[i]);
-    }
-    Jim_Free(expr->obj);
-    Jim_Free(expr);
-    return JIM_ERR;
+    return rc;
 }
 
-ExprByteCode *Jim_GetExpression(Jim_Interp *interp, Jim_Obj *objPtr)
+static ExprByteCode *Jim_GetExpression(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     if (objPtr->typePtr != &exprObjType) {
-        if (SetExprFromAny(interp, objPtr) != JIM_OK)
+        if (SetExprFromAny(interp, objPtr) != JIM_OK) {
             return NULL;
+        }
     }
     return (ExprByteCode*) Jim_GetIntRepPtr(objPtr);
 }
@@ -7720,12 +7754,118 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
     int retcode = JIM_OK;
     struct JimExprState e;
 
-    Jim_IncrRefCount(exprObjPtr);
+    //Jim_IncrRefCount(exprObjPtr);
     expr = Jim_GetExpression(interp, exprObjPtr);
     if (!expr) {
-        Jim_DecrRefCount(interp, exprObjPtr);
+        //Jim_DecrRefCount(interp, exprObjPtr);
         return JIM_ERR; /* error in expression. */
     }
+
+    //printf("Expr: %s\n", Jim_GetString(exprObjPtr, NULL));
+
+#ifdef JIM_OPTIMIZATION
+    /* Check for one of the following common expressions used by while/for
+     *
+     *   CONST
+     *   $a
+     *   !$a
+     *   $a < CONST, $a < $b
+     *   $a <= CONST, $a <= $b
+     *   $a > CONST, $a > $b
+     *   $a >= CONST, $a >= $b
+     *   $a != CONST, $a != $b
+     *   $a == CONST, $a == $b
+     */
+    {
+        Jim_Obj *objPtr;
+
+        /* STEP 1 -- Check if there are the conditions to run the specialized
+         * version of while */
+        
+        switch(expr->len) {
+        case 1:
+            if (expr->token[0].type == JIM_TT_EXPR_INT) {
+                *exprResultPtrPtr = expr->token[0].objPtr;
+                Jim_IncrRefCount(*exprResultPtrPtr);
+                return JIM_OK;
+            }
+            if (expr->token[0].type == JIM_TT_VAR) {
+                objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_ERRMSG);
+                if (objPtr) {
+                    *exprResultPtrPtr = objPtr;
+                    Jim_IncrRefCount(*exprResultPtrPtr);
+                    return JIM_OK;
+                }
+            }
+            break;
+
+        case 2:
+            if (expr->token[1].type == JIM_EXPROP_NOT && expr->token[0].type == JIM_TT_VAR) {
+                jim_wide wideValue;
+                objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
+                if (objPtr && Jim_IsWide(objPtr) && Jim_GetWide(interp, objPtr, &wideValue) == JIM_OK) {
+                    *exprResultPtrPtr = wideValue ? interp->falseObj : interp->trueObj;
+                    Jim_IncrRefCount(*exprResultPtrPtr);
+                    return JIM_OK;
+                }
+            }
+            break;
+
+        case 3:
+            if (expr->token[0].type == JIM_TT_VAR && (expr->token[1].type == JIM_TT_EXPR_INT || expr->token[1].type == JIM_TT_VAR)) {
+                switch(expr->token[2].type) {
+                    case JIM_EXPROP_LT:
+                    case JIM_EXPROP_LTE:
+                    case JIM_EXPROP_GT:
+                    case JIM_EXPROP_GTE:
+                    case JIM_EXPROP_NUMEQ:
+                    case JIM_EXPROP_NUMNE: {
+                        /* optimise ok */
+                        jim_wide wideValueA;
+                        jim_wide wideValueB;
+
+                        objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
+                        if (objPtr && Jim_IsWide(objPtr) && Jim_GetWide(interp, objPtr, &wideValueA) == JIM_OK) {
+                            if (expr->token[1].type == JIM_TT_VAR) {
+                                objPtr = Jim_GetVariable(interp, expr->token[1].objPtr, JIM_NONE);
+                            }
+                            else {
+                                objPtr = expr->token[1].objPtr;
+                            }
+                            if (objPtr && Jim_IsWide(objPtr) && Jim_GetWide(interp, objPtr, &wideValueB) == JIM_OK) {
+                                int cmpRes;
+                                switch (expr->token[2].type) {
+                                case JIM_EXPROP_LT:
+                                    cmpRes = wideValueA < wideValueB; break;
+                                case JIM_EXPROP_LTE:
+                                    cmpRes = wideValueA <= wideValueB; break;
+                                case JIM_EXPROP_GT:
+                                    cmpRes = wideValueA > wideValueB; break;
+                                case JIM_EXPROP_GTE:
+                                    cmpRes = wideValueA >= wideValueB; break;
+                                case JIM_EXPROP_NUMEQ:
+                                    cmpRes = wideValueA == wideValueB; break;
+                                case JIM_EXPROP_NUMNE:
+                                    cmpRes = wideValueA != wideValueB; break;
+                                default: /*notreached */
+                                    cmpRes = 0;
+                                }
+                                *exprResultPtrPtr = cmpRes ? interp->trueObj : interp->falseObj;
+                                Jim_IncrRefCount(*exprResultPtrPtr);
+                                //printf("optimised: %s\n", Jim_GetString(exprObjPtr, NULL));
+                                return JIM_OK;
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
+        //printf("no optimisation for: %s\n", Jim_GetString(exprObjPtr, NULL));
+    }
+#endif
+
     /* In order to avoid that the internal repr gets freed due to
      * shimmering of the exprObjPtr's object, we make the internal rep
      * shared. */
@@ -7745,70 +7885,66 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 
     /* Execute every instruction */
     for (i = 0; i < expr->len && retcode == JIM_OK; i++) {
-        Jim_Obj *objPtr = NULL;
+        Jim_Obj *objPtr;
 
-        e.opcode = expr->opcode[i];
-
-        switch (e.opcode) {
-            case JIM_EXPROP_NUMBER:
-            case JIM_EXPROP_STRING:
-                objPtr = expr->obj[i];
+        switch (expr->token[i].type) {
+            case JIM_TT_EXPR_INT:
+            case JIM_TT_EXPR_DOUBLE:
+            case JIM_TT_STR:
+                ExprPush(&e, expr->token[i].objPtr);
                 break;
 
-            case JIM_EXPROP_VARIABLE:
-                objPtr = Jim_GetVariable(interp, expr->obj[i], JIM_ERRMSG);
-                if (!objPtr) {
+            case JIM_TT_VAR:
+                objPtr = Jim_GetVariable(interp, expr->token[i].objPtr, JIM_ERRMSG);
+                if (objPtr) {
+                    ExprPush(&e, objPtr);
+                }
+                else {
                     retcode = JIM_ERR;
                 }
                 break;
 
-            case JIM_EXPROP_DICTSUGAR:
-                objPtr = Jim_ExpandDictSugar(interp, expr->obj[i]);
-                if (!objPtr) {
+            case JIM_TT_DICTSUGAR:
+                objPtr = Jim_ExpandDictSugar(interp, expr->token[i].objPtr);
+                if (objPtr) {
+                    ExprPush(&e, objPtr);
+                }
+                else {
                     retcode = JIM_ERR;
                 }
                 break;
 
-            case JIM_EXPROP_SUBST:
-                retcode = Jim_SubstObj(interp, expr->obj[i], &objPtr, JIM_NONE);
-                break;
-
-            case JIM_EXPROP_COMMAND:
-                retcode = Jim_EvalObj(interp, expr->obj[i]);
+            case JIM_TT_ESC:
+                retcode = Jim_SubstObj(interp, expr->token[i].objPtr, &objPtr, JIM_NONE);
                 if (retcode == JIM_OK) {
-                    objPtr = Jim_GetResult(interp);
+                    ExprPush(&e, objPtr);
+                }
+                break;
+
+            case JIM_TT_CMD:
+                retcode = Jim_EvalObj(interp, expr->token[i].objPtr);
+                if (retcode == JIM_OK) {
+                    ExprPush(&e, Jim_GetResult(interp));
                 }
                 break;
 
             default: {
                 /* Find and execute the operation */
-                const struct Jim_ExprOperator *opinfo = JimExprOperatorInfoByOpcode(e.opcode);
-
-                if (e.stacklen < opinfo->arity) {
-                    Jim_Panic(interp, "Reached end of expr stack prematurely");
-                }
-
                 e.skip = 0;
-                retcode = opinfo->funcop(interp, &e);
+                e.opcode = expr->token[i].type;
+
+                retcode = JimExprOperatorInfoByOpcode(e.opcode)->funcop(interp, &e);
                 /* Skip some opcodes if necessary */
                 i += e.skip;
+                continue;
             }
-            break;
-        }
-
-        if (retcode == JIM_OK && objPtr) {
-            ExprPush(&e, objPtr);
         }
     }
 
-    /* There is no need to decrement the inUse field because
-     * this reference is transfered back into the exprObjPtr. */
-    Jim_FreeIntRep(interp, exprObjPtr);
-    exprObjPtr->typePtr = &exprObjType;
-    Jim_SetIntRepPtr(exprObjPtr, expr);
-    Jim_DecrRefCount(interp, exprObjPtr);
+    expr->inUse--;
+    //Jim_DecrRefCount(interp, exprObjPtr);
+
     if (retcode == JIM_OK) {
-        assert(e.stacklen == 1);
         *exprResultPtrPtr = ExprPop(&e);
     }
     else {
@@ -7833,19 +7969,27 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
     if (retcode != JIM_OK)
         return retcode;
 
-    if (JimGetWideNoErr(interp, exprResultPtr, &wideValue) != JIM_OK) {
-        if (Jim_GetDouble(interp, exprResultPtr, &doubleValue) != JIM_OK)
-        {
-            Jim_DecrRefCount(interp, exprResultPtr);
-            return JIM_ERR;
-        } else {
-            Jim_DecrRefCount(interp, exprResultPtr);
-            *boolPtr = doubleValue != 0;
-            return JIM_OK;
+    if (exprResultPtr == interp->trueObj) {
+        *boolPtr = 1;
+    }
+    else if (exprResultPtr == interp->falseObj) {
+        *boolPtr = 0;
+    }
+    else {
+        if (JimGetWideNoErr(interp, exprResultPtr, &wideValue) != JIM_OK) {
+            if (Jim_GetDouble(interp, exprResultPtr, &doubleValue) != JIM_OK)
+            {
+                Jim_DecrRefCount(interp, exprResultPtr);
+                return JIM_ERR;
+            } else {
+                Jim_DecrRefCount(interp, exprResultPtr);
+                *boolPtr = doubleValue != 0;
+                return JIM_OK;
+            }
         }
+        *boolPtr = wideValue != 0;
     }
     Jim_DecrRefCount(interp, exprResultPtr);
-    *boolPtr = wideValue != 0;
     return JIM_OK;
 }
 
@@ -8734,6 +8878,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     interp->errorFlag = 0;
 
+    //printf("Eval: %s\n", Jim_GetString(scriptObjPtr, NULL));
+
     /* If the object is of type "list" and there is no
      * string representation for this object, we can call
      * a specialized version of Jim_EvalObj() */
@@ -8748,6 +8894,34 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     Jim_IncrRefCount(scriptObjPtr); /* Make sure it's shared. */
     script = Jim_GetScript(interp, scriptObjPtr);
+
+    /* Reset the interpreter result. This is useful to
+     * return the emtpy result in the case of empty program. */
+    Jim_SetEmptyResult(interp);
+
+#ifdef JIM_OPTIMIZATION
+    /* Check for one of the following common scripts used by for, while
+     *
+     *   {}
+     *   incr a
+     */
+     if (script->len == 0) {
+        Jim_DecrRefCount(interp, scriptObjPtr);
+        return JIM_OK;
+     }
+     if (script->len == 4 && script->token[0].type == JIM_TT_ESC && script->token[2].type == JIM_TT_ESC) {
+        Jim_Cmd *cmdPtr = Jim_GetCommand(interp, script->token[0].objPtr, JIM_NONE);
+        if (cmdPtr && cmdPtr->cmdProc == Jim_IncrCoreCommand) {
+            Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
+            if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
+                objPtr->internalRep.wideValue++;
+                Jim_DecrRefCount(interp, scriptObjPtr);
+                Jim_SetResult(interp, objPtr);
+                return JIM_OK;
+            }
+        }
+    }
+#endif
 
     /* Now we have to make sure the internal repr will not be
      * freed on shimmering.
@@ -8764,10 +8938,6 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     len = script->len;
     cs = script->cmdStruct;
     i = 0; /* 'i' is the current token index. */
-
-    /* Reset the interpreter result. This is useful to
-     * return the emtpy result in the case of empty program. */
-    Jim_SetEmptyResult(interp);
 
     /* Execute every command sequentially, returns on
      * error (i.e. if a command does not return JIM_OK) */
@@ -9769,8 +9939,7 @@ static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc,
 }
 
 /* [incr] */
-static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     jim_wide wideValue, increment = 1;
     Jim_Obj *intObjPtr;
@@ -9797,8 +9966,10 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetWide(interp, intObjPtr, wideValue+increment);
         /* The following step is required in order to invalidate the
          * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
-        if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-            return JIM_ERR;
+        if (argv[1]->typePtr == &dictSubstObjType) {
+            if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
+                return JIM_ERR;
+            }
         }
     }
     Jim_SetResult(interp, intObjPtr);
@@ -9813,189 +9984,6 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "condition body");
         return JIM_ERR;
     }
-    /* Try to run a specialized version of while if the expression
-     * is in one of the following forms:
-     *
-     *   $a < CONST, $a < $b
-     *   $a <= CONST, $a <= $b
-     *   $a > CONST, $a > $b
-     *   $a >= CONST, $a >= $b
-     *   $a != CONST, $a != $b
-     *   $a == CONST, $a == $b
-     *   $a
-     *   !$a
-     *   CONST
-     */
-
-#ifdef JIM_OPTIMIZATION
-    {
-        ExprByteCode *expr;
-        Jim_Obj *varAObjPtr = NULL, *varBObjPtr = NULL, *objPtr;
-        int exprLen, retval;
-
-        /* STEP 1 -- Check if there are the conditions to run the specialized
-         * version of while */
-        
-        if ((expr = Jim_GetExpression(interp, argv[1])) == NULL) goto noopt;
-        if (expr->len <= 0 || expr->len > 3) goto noopt;
-        switch(expr->len) {
-        case 1:
-            if (expr->opcode[0] != JIM_EXPROP_VARIABLE &&
-                expr->opcode[0] != JIM_EXPROP_NUMBER)
-                goto noopt;
-            break;
-        case 2:
-            if (expr->opcode[1] != JIM_EXPROP_NOT ||
-                expr->opcode[0] != JIM_EXPROP_VARIABLE)
-                goto noopt;
-            break;
-        case 3:
-            if (expr->opcode[0] != JIM_EXPROP_VARIABLE ||
-                (expr->opcode[1] != JIM_EXPROP_NUMBER &&
-                 expr->opcode[1] != JIM_EXPROP_VARIABLE))
-                goto noopt;
-            switch(expr->opcode[2]) {
-            case JIM_EXPROP_LT:
-            case JIM_EXPROP_LTE:
-            case JIM_EXPROP_GT:
-            case JIM_EXPROP_GTE:
-            case JIM_EXPROP_NUMEQ:
-            case JIM_EXPROP_NUMNE:
-                /* nothing to do */
-                break;
-            default:
-                goto noopt;
-            }
-            break;
-        default:
-            Jim_Panic(interp,
-                "Unexpected default reached in Jim_WhileCoreCommand()");
-            break;
-        }
-
-        /* STEP 2 -- conditions meet. Initialization. Take different
-         * branches for different expression lengths. */
-        exprLen = expr->len;
-
-        if (exprLen == 1) {
-            jim_wide wideValue = 0;
-
-            if (expr->opcode[0] == JIM_EXPROP_VARIABLE) {
-                varAObjPtr = expr->obj[0];
-                Jim_IncrRefCount(varAObjPtr);
-            } else {
-                if (Jim_GetWide(interp, expr->obj[0], &wideValue) != JIM_OK)
-                    goto noopt;
-            }
-            while (1) {
-                if (varAObjPtr) {
-                    if (!(objPtr =
-                               Jim_GetVariable(interp, varAObjPtr, JIM_NONE)) ||
-                        Jim_GetWide(interp, objPtr, &wideValue) != JIM_OK)
-                    {
-                        Jim_DecrRefCount(interp, varAObjPtr);
-                        goto noopt;
-                    }
-                }
-                if (!wideValue) break;
-                if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
-                    switch(retval) {
-                    case JIM_BREAK:
-                        if (varAObjPtr)
-                            Jim_DecrRefCount(interp, varAObjPtr);
-                        goto out;
-                        break;
-                    case JIM_CONTINUE:
-                        continue;
-                        break;
-                    default:
-                        if (varAObjPtr)
-                            Jim_DecrRefCount(interp, varAObjPtr);
-                        return retval;
-                    }
-                }
-            }
-            if (varAObjPtr)
-                Jim_DecrRefCount(interp, varAObjPtr);
-        } else if (exprLen == 3) {
-            jim_wide wideValueA, wideValueB = 0, cmpRes = 0;
-            int cmpType = expr->opcode[2];
-
-            varAObjPtr = expr->obj[0];
-            Jim_IncrRefCount(varAObjPtr);
-            if (expr->opcode[1] == JIM_EXPROP_VARIABLE) {
-                varBObjPtr = expr->obj[1];
-                Jim_IncrRefCount(varBObjPtr);
-            } else {
-                if (Jim_GetWide(interp, expr->obj[1], &wideValueB) != JIM_OK)
-                    goto noopt;
-            }
-            while (1) {
-                if (!(objPtr = Jim_GetVariable(interp, varAObjPtr, JIM_NONE)) ||
-                    Jim_GetWide(interp, objPtr, &wideValueA) != JIM_OK)
-                {
-                    Jim_DecrRefCount(interp, varAObjPtr);
-                    if (varBObjPtr)
-                        Jim_DecrRefCount(interp, varBObjPtr);
-                    goto noopt;
-                }
-                if (varBObjPtr) {
-                    if (!(objPtr =
-                               Jim_GetVariable(interp, varBObjPtr, JIM_NONE)) ||
-                        Jim_GetWide(interp, objPtr, &wideValueB) != JIM_OK)
-                    {
-                        Jim_DecrRefCount(interp, varAObjPtr);
-                        if (varBObjPtr)
-                            Jim_DecrRefCount(interp, varBObjPtr);
-                        goto noopt;
-                    }
-                }
-                switch(cmpType) {
-                case JIM_EXPROP_LT:
-                    cmpRes = wideValueA < wideValueB; break;
-                case JIM_EXPROP_LTE:
-                    cmpRes = wideValueA <= wideValueB; break;
-                case JIM_EXPROP_GT:
-                    cmpRes = wideValueA > wideValueB; break;
-                case JIM_EXPROP_GTE:
-                    cmpRes = wideValueA >= wideValueB; break;
-                case JIM_EXPROP_NUMEQ:
-                    cmpRes = wideValueA == wideValueB; break;
-                case JIM_EXPROP_NUMNE:
-                    cmpRes = wideValueA != wideValueB; break;
-                }
-                if (!cmpRes) break;
-                if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
-                    switch(retval) {
-                    case JIM_BREAK:
-                        Jim_DecrRefCount(interp, varAObjPtr);
-                        if (varBObjPtr)
-                            Jim_DecrRefCount(interp, varBObjPtr);
-                        goto out;
-                        break;
-                    case JIM_CONTINUE:
-                        continue;
-                        break;
-                    default:
-                        Jim_DecrRefCount(interp, varAObjPtr);
-                        if (varBObjPtr)
-                            Jim_DecrRefCount(interp, varBObjPtr);
-                        return retval;
-                    }
-                }
-            }
-            Jim_DecrRefCount(interp, varAObjPtr);
-            if (varBObjPtr)
-                Jim_DecrRefCount(interp, varBObjPtr);
-        } else {
-            /* TODO: case for len == 2 */
-            goto noopt;
-        }
-        Jim_SetEmptyResult(interp);
-        return JIM_OK;
-    }
-noopt:
-#endif
 
     /* The general purpose implementation of while starts here */
     while (1) {
@@ -10067,13 +10055,13 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         if (initScript->token[2].type != JIM_TT_ESC ||
             initScript->token[4].type != JIM_TT_ESC ||
             incrScript->token[2].type != JIM_TT_ESC ||
-            expr->opcode[0] != JIM_EXPROP_VARIABLE ||
-            (expr->opcode[1] != JIM_EXPROP_NUMBER &&
-             expr->opcode[1] != JIM_EXPROP_VARIABLE) ||
-            (expr->opcode[2] != JIM_EXPROP_LT &&
-             expr->opcode[2] != JIM_EXPROP_LTE))
+            expr->token[0].type != JIM_TT_VAR ||
+            (expr->token[1].type != JIM_TT_EXPR_INT &&
+             expr->token[1].type != JIM_TT_VAR) ||
+            (expr->token[2].type != JIM_EXPROP_LT &&
+             expr->token[2].type != JIM_EXPROP_LTE))
             goto evalstart;
-        cmpType = expr->opcode[2];
+        cmpType = expr->token[2].type;
         /* Initialization command must be [set] */
         cmdPtr = Jim_GetCommand(interp, initScript->token[0].objPtr, JIM_NONE);
         if (cmdPtr == NULL || cmdPtr->cmdProc != Jim_SetCoreCommand)
@@ -10087,21 +10075,21 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
                             incrScript->token[2].objPtr, 0))
             goto evalstart;
         if (!Jim_StringEqObj(initScript->token[2].objPtr,
-                            expr->obj[0], 0))
+                            expr->token[0].objPtr, 0))
             goto evalstart;
         /* Check that the initialization and comparison are valid integers */
         if (Jim_GetWide(interp, initScript->token[4].objPtr, &start) == JIM_ERR)
             goto evalstart;
-        if (expr->opcode[1] == JIM_EXPROP_NUMBER &&
-            Jim_GetWide(interp, expr->obj[1], &stop) == JIM_ERR)
+        if (expr->token[1].type == JIM_TT_EXPR_INT &&
+            Jim_GetWide(interp, expr->token[1].objPtr, &stop) == JIM_ERR)
         {
             goto evalstart;
         }
 
         /* Initialization */
-        varNamePtr = expr->obj[0];
-        if (expr->opcode[1] == JIM_EXPROP_VARIABLE) {
-            stopVarNamePtr = expr->obj[1];
+        varNamePtr = expr->token[0].objPtr;
+        if (expr->token[1].type == JIM_TT_VAR) {
+            stopVarNamePtr = expr->token[1].objPtr;
             Jim_IncrRefCount(stopVarNamePtr);
         }
         Jim_IncrRefCount(varNamePtr);
@@ -11111,26 +11099,29 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         for (i = 0; i < expr->len; i++) {
             const char *type;
             const Jim_ExprOperator *op;
+            Jim_Obj *obj = expr->token[i].objPtr;
 
-            switch(expr->opcode[i]) {
-            case JIM_EXPROP_NUMBER: type = "number"; break;
-            case JIM_EXPROP_COMMAND: type = "command"; break;
-            case JIM_EXPROP_VARIABLE: type = "variable"; break;
-            case JIM_EXPROP_DICTSUGAR: type = "dictsugar"; break;
-            case JIM_EXPROP_SUBST: type = "subst"; break;
-            case JIM_EXPROP_STRING: type = "string"; break;
+            switch (expr->token[i].type) {
+            case JIM_TT_EXPR_INT: type = "int"; break;
+            case JIM_TT_EXPR_DOUBLE: type = "double"; break;
+            case JIM_TT_CMD: type = "command"; break;
+            case JIM_TT_VAR: type = "variable"; break;
+            case JIM_TT_DICTSUGAR: type = "dictsugar"; break;
+            case JIM_TT_ESC: type = "subst"; break;
+            case JIM_TT_STR: type = "string"; break;
             default:
-                op = JimExprOperatorInfo(Jim_GetString(expr->obj[i], NULL));
+                op = JimExprOperatorInfoByOpcode(expr->token[i].type);
                 if (op == NULL) {
                     type = "private";
                 } else {
                     type = "operator";
                 }
+                obj = Jim_NewStringObj(interp, op ? op->name : "", -1);
                 break;
             }
             Jim_ListAppendElement(interp, objPtr,
                     Jim_NewStringObj(interp, type, -1));
-            Jim_ListAppendElement(interp, objPtr, expr->obj[i]);
+            Jim_ListAppendElement(interp, objPtr, obj);
         }
         Jim_SetResult(interp, objPtr);
         return JIM_OK;
