@@ -6,7 +6,7 @@ proc error_generator {type} {
 			bogus command called
 		} \
 		badvar {
-			incr bogus
+			set bogus
 		} \
 		error {
 			error bogus

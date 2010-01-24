@@ -1180,7 +1180,7 @@ test incr-1.13 {TclCompileIncrCmd: simple but new (unknown) local name} {
     }
     catch {p} msg
     set msg
-} {can't read "bar": no such variable}
+} {1}
 test incr-1.14 {TclCompileIncrCmd: simple local name, >255 locals} {
     proc 260locals {} {
         # create 260 locals
@@ -1399,7 +1399,7 @@ test incr-2.13 {incr command (not compiled): simple but new (unknown) local name
     }
     catch {p} msg
     set msg
-} {can't read "bar": no such variable}
+} {1}
 test incr-2.14 {incr command (not compiled): simple local name, >255 locals} {
    proc 260locals {} {
         set z incr

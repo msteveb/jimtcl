@@ -216,4 +216,25 @@ test lindex-1.20 "unary plus" {
 	lindex {a b c} +2
 } c
 
+test incr-1.1 "incr unset" {
+	unset -nocomplain a
+	incr a
+	set a
+} 1
+
+test incr-1.2 "incr, incr unset" {
+	incr a
+} 2
+
+test incr-1.3 "incr unset array element" {
+	unset -nocomplain a
+	incr a(2)
+	set a(2)
+} 1
+
+test incr-1.4 "incr array element - shimmering" {
+	set b "$a(2)-test"
+	incr a(2)
+} 2
+
 testreport
