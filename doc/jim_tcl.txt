@@ -43,7 +43,7 @@ The major differences are:
 6. Builtin dictionary type (dict)
 7. file mkdir, file rename, file tempfile (Tcl 7.x, 8.x)
 8. env command to access environment variables
-9. List: lmap, lset, lreverse (Tcl 8.x)
+9. List: lmap, lset, lreverse, lassign (Tcl 8.x)
 10. os.fork, os.wait, rand 
 11. \{*\}/\{expand\}
 12. string map (Tcl 7.x)
@@ -2031,6 +2031,19 @@ For example, 'lappend a $b' is much more efficient than
     set a [concat $a [list $b]]
     
 when '$a' is long.
+
+lassign
+~~~~~~~
++*lassign* 'list varName ?varName? ...'+
+
+This command treats the value *list* as a list and assigns successive elements from that list to
+the variables given by the *varName* arguments in order. If there are more variable names than
+list elements, the remaining variables are set to the empty string. If there are more list ele-
+ments than variables, a list of unassigned elements is returned.
+
+	jim> lassign {1 2 3} a b; puts a=$a,b=$b
+	3
+	a=1,b=2
 
 lindex
 ~~~~~~

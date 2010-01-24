@@ -20,6 +20,12 @@ proc lsearch {list value} {
 	return -1
 }
 
+# Tcl 8.5 lassign
+proc lassign {list args} {
+	uplevel 1 [list foreach $args [concat $list {}] break]
+	lrange $list [llength $args] end
+}
+
 # Internal function to match a value agains a list of patterns
 proc _case_search_patterns {patterns value} {
 	set i 0
@@ -70,19 +76,19 @@ proc case {var args} {
 
 # Optional argument is a glob pattern
 proc parray {arrayname {pattern *}} {
-    upvar $arrayname a
+	upvar $arrayname a
 
 	set max 0
-    foreach name [array names a $pattern]] {
+	foreach name [array names a $pattern]] {
 		if {[string length $name] > $max} {
 			set max [string length $name]
 		}
-    }
-    incr max [string length $arrayname]
-    incr max 2
-    foreach name [lsort [array names a $pattern]] {
+	}
+	incr max [string length $arrayname]
+	incr max 2
+	foreach name [lsort [array names a $pattern]] {
 		puts [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
-    }
+	}
 }
 
 # Sort of replacement for $::errorInfo

@@ -4,7 +4,7 @@
 # e.g. bio copy [autoopen infile] [autoopen outfile w]; collect
 #
 proc autoopen {filename {mode r}} {
-	set ref [ref [open.old $filename $mode] aio lambdaFinalizer]
+	set ref [ref [open $filename $mode] aio lambdaFinalizer]
 	rename [getref $ref] $ref
 	return $ref
 }
@@ -22,19 +22,19 @@ proc section {name} {
 array set testresults {numfail 0 numpass 0 failed {}}
 
 proc test {id descr script expected} {
-    puts -nonewline "$id "
-    set rc [catch {uplevel 1 $script} result]
+	puts -nonewline "$id "
+	set rc [catch {uplevel 1 $script} result]
 	# Note that rc=2 is return
-    if {($rc == 0 || $rc == 2) && $result eq $expected} {
+	if {($rc == 0 || $rc == 2) && $result eq $expected} {
 		puts "OK  $descr"
 		incr ::testresults(numpass)
-    } else {
+	} else {
 		puts "ERR $descr"
 		puts "Expected: '$expected'"
-		puts "Got     : '$result'"
+		puts "Got	  : '$result'"
 		incr ::testresults(numfail)
-        lappend ::testresults(failed) [list $id $descr $script $expected $result]
-    }
+		lappend ::testresults(failed) [list $id $descr $script $expected $result]
+	}
 }
 
 proc testreport {} {
