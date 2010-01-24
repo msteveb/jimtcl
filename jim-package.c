@@ -34,7 +34,12 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes,
 
         if (prefixes[i] == NULL) continue;
 
-        snprintf(buf, sizeof(buf), "%s/%s.tcl", prefixes[i], pkgName);
+        if (strcmp(prefixes[i], ".") == 0) {
+            snprintf(buf, sizeof(buf), "%s.tcl", pkgName);
+        }
+        else {
+            snprintf(buf, sizeof(buf), "%s/%s.tcl", prefixes[i], pkgName);
+        }
 
         if (access(buf, R_OK) == 0) {
             return Jim_StrDup(buf);
@@ -185,6 +190,7 @@ static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     const char *ver = Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
 
     if (ver == NULL) {
+        /* package require failing is important enough to add to the stack */
         return JIM_ERR_ADDSTACK;
     }
     Jim_SetResultString(interp, ver, -1);

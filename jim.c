@@ -122,6 +122,7 @@ static char *JimEmptyStringRep = (char*) "";
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj *newObjPtr, int flags);
+static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line);
 
 static Jim_HashTableType JimVariablesHashTableType;
 
@@ -4440,12 +4441,14 @@ Jim_Interp *Jim_CreateInterp(void)
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
     i->unknown_called = 0;
+    i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
     Jim_IncrRefCount(i->unknown);
     Jim_IncrRefCount(i->currentScriptObj);
+    Jim_IncrRefCount(i->errorProc);
 
     /* Initialize key variables every interpreter should contain */
     pathPtr = Jim_NewStringObj(i, ".", -1);
@@ -4472,6 +4475,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->emptyObj);
     Jim_DecrRefCount(i, i->result);
     Jim_DecrRefCount(i, i->stackTrace);
+    Jim_DecrRefCount(i, i->errorProc);
     Jim_DecrRefCount(i, i->unknown);
     Jim_Free((void*)i->errorFileName);
     Jim_DecrRefCount(i, i->currentScriptObj);
@@ -4632,7 +4636,7 @@ badlevel:
     return JIM_ERR;
 }
 
-static void JimSetErrorFileName(Jim_Interp *interp, char *filename)
+static void JimSetErrorFileName(Jim_Interp *interp, const char *filename)
 {
     Jim_Free((void*)interp->errorFileName);
     interp->errorFileName = Jim_StrDup(filename);
@@ -4657,12 +4661,41 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
     if (strcmp(procname, "unknown") == 0) {
         return;
     }
+    if (!*procname && !*filename) {
+        /* No useful info here */
+        return;
+    }
 
     if (Jim_IsShared(interp->stackTrace)) {
         interp->stackTrace =
             Jim_DuplicateObj(interp, interp->stackTrace);
         Jim_IncrRefCount(interp->stackTrace);
     }
+
+    /* If we have no procname but the previous element did, merge with that frame */
+    if (!*procname && *filename) {
+        /* Just a filename. Check the previous entry */
+        int len;
+        Jim_ListLength(interp, interp->stackTrace, &len);
+
+        if (len >= 3) {
+            Jim_Obj *procnameObj;
+            Jim_Obj *filenameObj;
+            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &procnameObj, JIM_NONE) == JIM_OK && 
+                Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj, JIM_NONE) == JIM_OK) {
+
+                const char *prev_procname = Jim_GetString(procnameObj, NULL);
+                const char *prev_filename = Jim_GetString(filenameObj, NULL);
+
+                if (*prev_procname && !*prev_filename) {
+                    ListSetIndex(interp, interp->stackTrace, len - 2, Jim_NewStringObj(interp, filename, -1), 0);
+                    ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);
+                    return;
+                }
+            }
+        }
+    }
+
     Jim_ListAppendElement(interp, interp->stackTrace,
             Jim_NewStringObj(interp, procname, -1));
     Jim_ListAppendElement(interp, interp->stackTrace,
@@ -5286,7 +5319,6 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     sort_result = Jim_EvalObj(sort_interp, compare_script);
 
     if (sort_result != JIM_OK) {
-        //fprintf(stderr, "Failed to eval '%s'\n", Jim_GetString(compare_script, NULL));
         /* We have an error, so just compare pointers */
         return (long)lhsObj - (long)rhsObj;
     }
@@ -5312,8 +5344,6 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
     sort_command = command;
     sort_interp = interp;
     sort_result = JIM_OK;
-
-    //fprintf(stderr, "Sorting with type=%d, order=%d, command=%s\n", type, order, command ? Jim_GetString(command, NULL) : "<none>");
 
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
@@ -7979,16 +8009,8 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         if (cmdPtr->cmdProc) {
             interp->cmdPrivData = cmdPtr->privData;
             retcode = cmdPtr->cmdProc(interp, objc, objv);
-            if (retcode == JIM_ERR_ADDSTACK) {
-                //JimAppendStackTrace(interp, "", script->fileName, token[i-argc*2].linenr);
-                retcode = JIM_ERR;
-            }
         } else {
             retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
-            if (retcode == JIM_ERR) {
-                JimAppendStackTrace(interp,
-                    Jim_GetString(objv[0], NULL), "", 1);
-            }
         }
     }
     /* Decr refcount of arguments and return the retcode */
@@ -8115,6 +8137,42 @@ void Jim_ExpandArgument(Jim_Interp *interp, Jim_Obj ***argv,
     }
 }
 
+static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
+{
+    if (retcode == JIM_ERR || retcode == JIM_ERR_ADDSTACK) {
+        /*fprintf(stderr, "JimAddErrorToStack(retcode=%d, procname=%s, filename=%s, line=%d, errorFlag=%d\n",
+            retcode, Jim_GetString(interp->errorProc, NULL), filename, line, interp->errorFlag);
+        */
+
+        if (!interp->errorFlag) {
+            /* This is the first error, so save the file/line information and reset the stack */
+            interp->errorFlag = 1;
+            JimSetErrorFileName(interp, filename);
+            JimSetErrorLineNumber(interp, line);
+            JimResetStackTrace(interp);
+
+            /* Always add a stack frame at this level */
+            retcode = JIM_ERR_ADDSTACK;
+        }
+
+        if (retcode == JIM_ERR_ADDSTACK) {
+            //fprintf(stderr, "   JimAddErrorToStack()\n");
+            /* Add the stack info for the current level */
+            JimAppendStackTrace(interp, Jim_GetString(interp->errorProc, NULL), filename, line);
+            retcode = JIM_ERR;
+        }
+        else {
+            //fprintf(stderr, "   JimAddErrorToStack() ignoring error info\n");
+        }
+
+        Jim_DecrRefCount(interp, interp->errorProc);
+        interp->errorProc = interp->emptyObj;
+        Jim_IncrRefCount(interp->errorProc);
+        return JIM_ERR;
+    }
+    return retcode;
+}
+
 int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 {
     int i, j = 0, len;
@@ -8124,7 +8182,6 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     int *cs; /* command structure array */
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
-    Jim_Obj *errorProc = NULL;
 
     interp->errorFlag = 0;
 
@@ -8279,10 +8336,6 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 retcode = cmd->cmdProc(interp, argc, argv);
             } else {
                 retcode = JimCallProcedure(interp, cmd, argc, argv);
-                if (retcode == JIM_ERR) {
-                    errorProc = argv[0];
-                    Jim_IncrRefCount(errorProc);
-                }
             }
         } else {
             /* Call [unknown] */
@@ -8311,13 +8364,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     j = 0; /* on normal termination, the argv array is already
           Jim_DecrRefCount-ed. */
 err:
-    /* Handle errors. */
-    if (retcode == JIM_ERR && !interp->errorFlag) {
-        interp->errorFlag = 1;
-        JimSetErrorFileName(interp, script->fileName);
-        JimSetErrorLineNumber(interp, cmdtoken ? cmdtoken->linenr : 0);
-        JimResetStackTrace(interp);
-    }
+    retcode = JimAddErrorToStack(interp, retcode, script->fileName, cmdtoken->linenr);
     Jim_FreeIntRep(interp, scriptObjPtr);
     scriptObjPtr->typePtr = &scriptObjType;
     Jim_SetIntRepPtr(scriptObjPtr, script);
@@ -8354,13 +8401,13 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
             (cmd->arityMin > 1) ? " " : "",
             Jim_GetString(cmd->argListObjPtr, NULL), "\"", NULL);
         Jim_SetResult(interp, objPtr);
-        return JIM_ERR;
+        goto err;
     }
     /* Check if there are too nested calls */
     if (interp->numLevels == interp->maxNestingDepth) {
         Jim_SetResultString(interp,
             "Too many nested calls. Infinite recursion?", -1);
-        return JIM_ERR;
+        goto err;
     }
     /* Create a new callframe */
     callFramePtr = JimCreateCallFrame(interp);
@@ -8445,6 +8492,13 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     if (retcode == JIM_RETURN) {
         retcode = interp->returnCode;
         interp->returnCode = JIM_OK;
+    }
+    if (retcode == JIM_ERR) {
+err:
+        retcode = JIM_ERR_ADDSTACK;
+        Jim_DecrRefCount(interp, interp->errorProc);
+        interp->errorProc = argv[0];
+        Jim_IncrRefCount(interp->errorProc);
     }
     return retcode;
 }
@@ -8534,20 +8588,20 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     Jim_Obj *scriptObjPtr;
     Jim_Obj *prevScriptObj;
     struct stat sb;
-    int retval;
+    int retcode;
 
     if (stat(filename, &sb) != 0 || (fp = fopen(filename, "r")) == NULL) {
         Jim_SetResultString(interp, "", 0);
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "Error loading script \"", filename, "\"",
             " err: ", strerror(errno), NULL);
-        return JIM_ERR;
+        return JIM_ERR_ADDSTACK;
     }
 
     buf = Jim_Alloc(sb.st_size + 1);
     if (buf == 0 || fread(buf, sb.st_size, 1, fp) != 1) {
         Jim_Free(buf);
-        return JIM_ERR;
+        return JIM_ERR_ADDSTACK;
     }
     buf[sb.st_size] = 0;
 
@@ -8558,13 +8612,18 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     prevScriptObj = interp->currentScriptObj;
     interp->currentScriptObj = scriptObjPtr;
 
-    retval = Jim_EvalObj(interp, scriptObjPtr);
+    retcode = Jim_EvalObj(interp, scriptObjPtr);
 
     interp->currentScriptObj = prevScriptObj;
 
     Jim_DecrRefCount(interp, scriptObjPtr);
 
-    return retval;
+    if (retcode == JIM_ERR) {
+        /* EvalFile changes context, so add a stack frame here */
+        retcode = JIM_ERR_ADDSTACK;
+    }
+
+    return retcode;
 }
 
 /* -----------------------------------------------------------------------------
@@ -10321,6 +10380,9 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc,
         Jim_IncrRefCount(objPtr);
         retcode = Jim_EvalObj(interp, objPtr);
         Jim_DecrRefCount(interp, objPtr);
+        if (retcode == JIM_ERR) {
+            retcode = JIM_ERR_ADDSTACK;
+        }
         return retcode;
     } else {
         Jim_WrongNumArgs(interp, 1, argv, "script ?...?");
@@ -11187,11 +11249,11 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     static const char *commands[] = {
         "body", "commands", "procs", "exists", "globals", "level", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
-        "script", NULL
+        "script", "source", "stacktrace", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
           INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
-          INFO_HOSTNAME, INFO_SCRIPT};
+          INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ?args ...?");
@@ -11224,6 +11286,32 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         }
         script = Jim_GetScript(interp, interp->currentScriptObj);
         Jim_SetResultString(interp, script->fileName, -1);
+    } else if (cmd == INFO_SOURCE) {
+        const char *filename = "";
+        int line = 0;
+        Jim_Obj *resObjPtr;
+
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "source");
+            return JIM_ERR;
+        }
+        if (argv[2]->typePtr == &sourceObjType) {
+            filename = argv[2]->internalRep.sourceValue.fileName;
+            line = argv[2]->internalRep.sourceValue.lineNumber;
+        }
+        else if (argv[2]->typePtr == &scriptObjType) {
+            ScriptObj *script = Jim_GetScript(interp, argv[2]);
+            filename = script->fileName;
+            if (script->token) {
+                line = script->token->linenr;
+            }
+        }
+        resObjPtr = Jim_NewListObj(interp, NULL, 0);
+        Jim_ListAppendElement(interp, resObjPtr, Jim_NewStringObj(interp, filename, -1));
+        Jim_ListAppendElement(interp, resObjPtr, Jim_NewIntObj(interp, line));
+        Jim_SetResult(interp, resObjPtr);
+    } else if (cmd == INFO_STACKTRACE) {
+        Jim_SetResult(interp, interp->stackTrace);
     } else if (cmd == INFO_GLOBALS || cmd == INFO_LOCALS || cmd == INFO_VARS) {
         int mode;
         switch (cmd) {
@@ -11488,7 +11576,7 @@ static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     Jim_SetResult(interp, argv[1]);
-    return JIM_ERR;
+    return JIM_ERR_ADDSTACK;
 }
 
 /* [lrange] */
@@ -11560,9 +11648,6 @@ static int Jim_SourceCoreCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     retval = Jim_EvalFile(interp, Jim_GetString(argv[1], NULL));
-    if (retval == JIM_ERR) {
-        return JIM_ERR_ADDSTACK;
-    }
     if (retval == JIM_RETURN)
         return JIM_OK;
     return retval;
@@ -11780,7 +11865,7 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
     int len, i;
 
     if (*interp->errorFileName) {
-        fprintf(stderr, "Runtime error, file \"%s\", line %d:" JIM_NL "    ",
+        fprintf(stderr, "%s:%d: Runtime Error: ",
                                     interp->errorFileName, interp->errorLine);
     }
     fprintf(stderr, "%s" JIM_NL,
@@ -11801,10 +11886,13 @@ void Jim_PrintErrorMessage(Jim_Interp *interp)
         if (*proc) {
             fprintf(stderr,
                     "in procedure '%s' ", proc);
+            if (*file) {
+                fprintf(stderr, "called ");
+            }
         }
         if (*file) {
             fprintf(stderr,
-                    "called at file \"%s\", line %s",
+                    "at file \"%s\", line %s",
                     file, line);
         }
         if (*file || *proc) {

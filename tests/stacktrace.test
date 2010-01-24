@@ -1,0 +1,66 @@
+package require testing
+package require errors
+
+# Make this a proc so that the line numbers don't have to change
+proc main {} {
+	set id1 0
+	foreach type {badcmd badvar error interpbadvar interpbadcmd package source badpackage} {
+		set id2 0
+		incr id1
+		foreach method {call uplevel eval evalstr} {
+			incr id2
+			set exp ""
+			if {[info exists ::expected(err-$id1.$id2)]} {
+				set exp $::expected(err-$id1.$id2)
+			}
+			test err-$id1.$id2 "Stacktrace on error type $type, method $method" {
+				set rc [catch {error_caller $type $method} msg]
+				#puts stderr "err-$id1.$id2 $type, $method\n[errorInfo $msg]\n"
+				#puts stderr "\terr-$id1.$id2 {[list $rc $msg [info stacktrace]]}"
+
+				list $rc $msg [info stacktrace]
+			} $exp
+		}
+	}
+}
+
+set expected {
+	err-1.1 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-1.2 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-1.3 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-1.4 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-2.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-2.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-2.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-2.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-3.1 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-3.2 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-3.3 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-3.4 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-4.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-4.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-4.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-4.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-5.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-5.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-5.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-5.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-6.1 {1 {from dummyproc
+Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-6.2 {1 {from dummyproc
+Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-6.3 {1 {from dummyproc
+Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-6.4 {1 {from dummyproc
+Can't find package 'dummy'} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-7.1 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-7.2 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-7.3 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-7.4 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-8.1 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 44 error_caller stacktrace.test 17}}
+	err-8.2 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
+	err-8.3 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
+	err-8.4 {1 {Can't find package 'bogus'} {{} errors.tcl 27 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+}
+
+main

@@ -84,4 +84,25 @@ proc parray {arrayname {pattern *}} {
     }
 }
 
+# Sort of replacement for $::errorInfo
+proc errorInfo {error} {
+	set result "Runtime Error: $error"
+	foreach {l f p} [lreverse [info stacktrace]] {
+		append result \n
+		if {$p ne ""} {
+			append result "in procedure '$p' "
+			if {$f ne ""} {
+				append result "called "
+			}
+		}
+		if {$f ne ""} {
+			append result "at file \"$f\", line $l"
+		}
+	}
+	if {[info exists f] && $f ne ""} {
+		return "$f:$l: $result"
+	}
+	return $result
+}
+
 set ::tcl_platform(platform) unix
