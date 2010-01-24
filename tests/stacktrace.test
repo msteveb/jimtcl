@@ -22,6 +22,47 @@ proc main {} {
 			} $exp
 		}
 	}
+	proc unknown {args} {
+		error "from unknown"
+	}
+
+	test err-10.1 "Stacktrace on error from unknown (badcmd, call)" {
+		set rc [catch {error_caller badcmd call} msg]
+		#puts stderr "err-10.1\n[errorInfo $msg]\n"
+		#puts stderr "\terr-10.1 {[list $rc $msg [info stacktrace]]}"
+
+		list $rc $msg [info stacktrace]
+	} {1 {from unknown} {{} stacktrace.test 26 {} errors.tcl 6 error_generator errors.tcl 44 error_caller stacktrace.test 30}}
+
+	rename unknown ""
+
+	set a {one}
+	set b [list 1 \
+		2 \
+		3]
+	set c {two}
+	set d "list 1 
+		2 
+		3"
+	set e {three}
+	set f "list 1  \
+		2  \
+		3"
+	set g {four}
+
+	test source-1.1 "Basic line numbers" {
+		info source $a
+	} {stacktrace.test 39}
+
+	test source-1.2 "Line numbers after command with escaped newlines" {
+		info source $c
+	} {stacktrace.test 43}
+	test source-1.3 "Line numbers after string with newlines" {
+		info source $e
+	} {stacktrace.test 47}
+	test source-1.4 "Line numbers after string with escaped newlines" {
+		info source $g
+	} {stacktrace.test 51}
 }
 
 set expected {

@@ -1,5 +1,5 @@
 test: ../jimsh
 	@for i in *.test; do ../jimsh $$i; done
 
-../jimsh: ../jim.c
+../jimsh: ../*.c
 	make -C .. all

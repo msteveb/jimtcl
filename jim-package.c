@@ -108,9 +108,11 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
     return retCode;
 }
 
-const char *Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
+int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_HashEntry *he;
+    int retcode = 0;
+    const char *version;
 
     /* Start with an empty error string */
     Jim_SetResultString(interp, "", 0);
@@ -118,33 +120,39 @@ const char *Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
     he = Jim_FindHashEntry(&interp->packages, name);
     if (he == NULL) {
         /* Try to load the package. */
-        if (JimLoadPackage(interp, name, flags) == JIM_OK) {
+        retcode = JimLoadPackage(interp, name, flags);
+        if (retcode != JIM_OK) {
+            if (flags & JIM_ERRMSG) {
+                int len;
+                Jim_Obj *resultObj = Jim_GetResult(interp);
+                if (Jim_IsShared(resultObj)) {
+                    resultObj = Jim_DuplicateObj(interp, resultObj);
+                }
+                Jim_GetString(resultObj, &len);
+                Jim_AppendStrings(interp, resultObj, len ? "\n" : "",
+                        "Can't find package '", name, "'", NULL);
+                Jim_SetResult(interp, resultObj);
+            }
+            return retcode;
+        }
+        else {
             he = Jim_FindHashEntry(&interp->packages, name);
             if (he == NULL) {
                 /* Did not call package provide, so we do it for them */
                 Jim_PackageProvide(interp, name, "1.0", 0);
 
-                return "1.0";
+                version = "1.0";
             }
-            return he->val;
-        }
-
-        /* No way... return an error. */
-        if (flags & JIM_ERRMSG) {
-            int len;
-            Jim_Obj *resultObj = Jim_GetResult(interp);
-            if (Jim_IsShared(resultObj)) {
-                resultObj = Jim_DuplicateObj(interp, resultObj);
+            else {
+                version = he->val;
             }
-            Jim_GetString(resultObj, &len);
-            Jim_AppendStrings(interp, resultObj, len ? "\n" : "",
-                    "Can't find package '", name, "'", NULL);
-            Jim_SetResult(interp, resultObj);
         }
-        return NULL;
-    } else {
-        return he->val;
     }
+    else {
+        version = he->val;
+    }
+    Jim_SetResultString(interp, version, -1);
+    return retcode;
 }
 
 /*
@@ -187,14 +195,13 @@ static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  */
 static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *ver = Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
+    int retcode = Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
 
-    if (ver == NULL) {
-        /* package require failing is important enough to add to the stack */
-        return JIM_ERR_ADDSTACK;
+    /* package require failing is important enough to add to the stack */
+    if (retcode == JIM_ERR) {
+        retcode = JIM_ERR_ADDSTACK;
     }
-    Jim_SetResultString(interp, ver, -1);
-    return JIM_OK;
+    return retcode;
 }
 
 /*

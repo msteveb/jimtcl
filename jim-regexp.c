@@ -53,25 +53,59 @@
 #define JIM_EXTENSION
 #include "jim.h"
 
-/**
- * REVISIT: Should cache a number of compiled regexps for performance reasons.
- */
-static regex_t * 
-compile_regexp(Jim_Interp *interp, const char *pattern, int flags)
+void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
+    regfree(objPtr->internalRep.regexpValue.compre);
+    Jim_Free(objPtr->internalRep.regexpValue.compre);
+}
+
+static Jim_ObjType regexpObjType = {
+    "regexp",
+    FreeRegexpInternalRep,
+    NULL,
+    NULL,
+    JIM_TYPE_NONE
+};
+
+static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned flags)
+{
+    regex_t *compre;
+    const char *pattern;
     int ret;
 
-    regex_t *result = (regex_t *)Jim_Alloc(sizeof(*result));
+    /* Check if the object is already an uptodate variable */
+    if (objPtr->typePtr == &regexpObjType &&
+        objPtr->internalRep.regexpValue.compre &&
+        objPtr->internalRep.regexpValue.flags == flags) {
+        /* nothing to do */
+        return objPtr->internalRep.regexpValue.compre;
+    }
 
-    if ((ret = regcomp(result, pattern, REG_EXTENDED | flags)) != 0) {
+    /* Not a regexp or the flags do not match */
+    if (objPtr->typePtr == &regexpObjType) {
+        FreeRegexpInternalRep(interp, objPtr);
+        objPtr->typePtr = NULL;
+    }
+
+    /* Get the string representation */
+    pattern = Jim_GetString(objPtr, NULL);
+    compre = Jim_Alloc(sizeof(regex_t));
+
+    if ((ret = regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
         char buf[100];
-        regerror(ret, result, buf, sizeof(buf));
+        regerror(ret, compre, buf, sizeof(buf));
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't compile regular expression pattern: ", buf, NULL);
-        Jim_Free(result);
+        regfree(compre);
+        Jim_Free(compre);
         return NULL;
     }
-    return result;
+
+    objPtr->typePtr = &regexpObjType;
+    objPtr->internalRep.regexpValue.flags = flags;
+    objPtr->internalRep.regexpValue.compre = compre;
+
+    return compre;
 }
 
 int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -139,12 +173,12 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         goto wrongNumArgs;
     }
 
-    pattern = Jim_GetString(argv[i], NULL);
-    regex = compile_regexp(interp, pattern, regcomp_flags);
-    if (regex == NULL) {
+    regex = SetRegexpFromAny(interp, argv[i], regcomp_flags);
+    if (!regex) {
         return JIM_ERR;
     }
 
+    pattern = Jim_GetString(argv[i], NULL);
     source_str = Jim_GetString(argv[i + 1], &source_len);
 
     num_vars = argc - i - 2;
@@ -271,12 +305,10 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     Jim_Free(pmatch);
-    regfree(regex);
-    Jim_Free(regex);
     return result;
 }
 
-#define MAX_SUB_MATCHES 10
+#define MAX_SUB_MATCHES 50
 
 int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -338,11 +370,11 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         goto wrongNumArgs;
     }
 
-    pattern = Jim_GetString(argv[i], NULL);
-    regex = compile_regexp(interp, pattern, regcomp_flags);
-    if (regex == NULL) {
+    regex = SetRegexpFromAny(interp, argv[i], regcomp_flags);
+    if (!regex) {
         return JIM_ERR;
     }
+    pattern = Jim_GetString(argv[i], NULL);
 
     source_str = Jim_GetString(argv[i + 1], &source_len);
     replace_str = Jim_GetString(argv[i + 2], NULL);
@@ -459,8 +491,6 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     done:
-    regfree(regex);
-    Jim_Free(regex);
     return result;
 }
 

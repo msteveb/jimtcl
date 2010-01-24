@@ -1,0 +1,17 @@
+source testing.tcl
+
+section "String comparison"
+
+test expr-1.1 "Compare strings lt" {
+	expr {"V000500" < "V000405"}
+} {0}
+
+test expr-1.2 "Compare strings with embedded nulls" {
+	set s1 [format abc%cdef 0]
+	set s2 [format abc%cghi 0]
+	expr {$s1 < $s2}
+} {1}
+
+test expr-1.3 "Hex values" {
+	set mask1 [expr 0x4050 & 0x0CCC]
+} {64}

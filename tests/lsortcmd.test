@@ -1,4 +1,4 @@
-package require testing
+source testing.tcl
 
 section "lsort -command"
 

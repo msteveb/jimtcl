@@ -1,0 +1,35 @@
+source testing.tcl
+
+test regexp-1.1 {effect of caching} {
+	
+    set filedata {BEGIN_TABLE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; END_TABLE}
+
+	# Note: use 2 REs because often libc will cache a single regcomp() result
+
+	# t1 should be faster because the compiled re can be cached.
+	set re1 "END_TABLE"
+	set re2 "BEGIN_TABLE"
+
+	set t1 [time {
+		regexp -inline -all $re1 $filedata
+		regexp -inline -all $re2 $filedata
+	} 10000]
+
+	# t2 should be slower since the re's need to be recompiled every time
+	set t2 [time {
+		set re1 END
+		append re1 _TABLE
+		regexp -inline -all $re1 $filedata
+		set re2 BEGIN
+		append re2 _TABLE
+		regexp -inline -all $re2 $filedata
+	} 10000]
+
+	set t1 [lindex $t1 0]
+	set t2 [lindex $t2 0]
+
+	#puts "t1=$t1, t2=$t2"
+
+	# If these two times are within 20% of each other, caching isn't working
+	expr {$t2 / $t1 < 1.2 && $t1 / $t2 < 1.2}
+} {0}

@@ -1300,6 +1300,8 @@ int JimParseCmd(struct JimParserCtx *pc)
             if (!level) break;
         } else if (*pc->p == '\\') {
             pc->p++; pc->len--;
+            if (*pc->p == '\n')
+                pc->linenr++;
         } else if (*pc->p == '{') {
             blevel++;
         } else if (*pc->p == '}') {
@@ -1439,6 +1441,9 @@ int JimParseStr(struct JimParserCtx *pc)
                 return JIM_OK;
             }
             if (pc->len >= 2) {
+                if (*(pc->p+1) == '\n') {
+                    pc->linenr++;
+                }
                 pc->p++; pc->len--;
             }
             break;
@@ -4657,9 +4662,9 @@ static void JimResetStackTrace(Jim_Interp *interp)
 static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
         const char *filename, int linenr)
 {
-    /* No need to add this dummy entry to the stack trace */
+    /* XXX Omit "unknown" for now since it can be confusing (but it may help too!) */
     if (strcmp(procname, "unknown") == 0) {
-        return;
+        procname = "";
     }
     if (!*procname && !*filename) {
         /* No useful info here */
@@ -7946,10 +7951,10 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
     int retCode;
 
-    /* If JimUnknown() is recursively called (e.g. error in the unknown proc,
+    /* If JimUnknown() is recursively called too many times...
      * done here
      */
-    if (interp->unknown_called) {
+    if (interp->unknown_called > 50) {
         return JIM_ERR;
     }
 
@@ -8141,15 +8146,13 @@ void Jim_ExpandArgument(Jim_Interp *interp, Jim_Obj ***argv,
 static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
 {
     if (retcode == JIM_ERR || retcode == JIM_ERR_ADDSTACK) {
-        /*fprintf(stderr, "JimAddErrorToStack(retcode=%d, procname=%s, filename=%s, line=%d, errorFlag=%d\n",
-            retcode, Jim_GetString(interp->errorProc, NULL), filename, line, interp->errorFlag);
-        */
 
         if (!interp->errorFlag) {
             /* This is the first error, so save the file/line information and reset the stack */
             interp->errorFlag = 1;
             JimSetErrorFileName(interp, filename);
             JimSetErrorLineNumber(interp, line);
+
             JimResetStackTrace(interp);
 
             /* Always add a stack frame at this level */
@@ -8157,13 +8160,9 @@ static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filen
         }
 
         if (retcode == JIM_ERR_ADDSTACK) {
-            //fprintf(stderr, "   JimAddErrorToStack()\n");
             /* Add the stack info for the current level */
             JimAppendStackTrace(interp, Jim_GetString(interp->errorProc, NULL), filename, line);
             retcode = JIM_ERR;
-        }
-        else {
-            //fprintf(stderr, "   JimAddErrorToStack() ignoring error info\n");
         }
 
         Jim_DecrRefCount(interp, interp->errorProc);
@@ -8597,6 +8596,10 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
             "Error loading script \"", filename, "\"",
             " err: ", strerror(errno), NULL);
         return JIM_ERR_ADDSTACK;
+    }
+    if (sb.st_size == 0) {
+        fclose(fp);
+        return JIM_OK;
     }
 
     buf = Jim_Alloc(sb.st_size + 1);
@@ -11541,7 +11544,8 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc,
         int len = 0;
         if (listPtr != 0 && listPtr != (Jim_Obj*)EOF)
             Jim_ListLength(interp, listPtr, &len);
-        if (listPtr == (Jim_Obj*)EOF || len == 0) { // XXX
+        if (listPtr == (Jim_Obj*)EOF || len == 0) {
+            /* XXX */
             Jim_SetResult(interp, Jim_NewIntObj(interp, -1));
             return JIM_OK;
         }
@@ -11572,11 +11576,19 @@ err:
 static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "message");
+    if (argc != 2 && argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "message ?stacktrace?");
         return JIM_ERR;
     }
     Jim_SetResult(interp, argv[1]);
+    if (argc == 3) {
+        /* Increment reference first in case these are the same object */
+        Jim_IncrRefCount(argv[2]);
+        Jim_DecrRefCount(interp, interp->stackTrace);
+        interp->stackTrace = argv[2];
+        interp->errorFlag = 1;
+        return JIM_ERR;
+    }
     return JIM_ERR_ADDSTACK;
 }
 

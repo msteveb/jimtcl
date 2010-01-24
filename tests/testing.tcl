@@ -22,7 +22,7 @@ proc section {name} {
 	puts "-- $name ----------------"
 }
 
-set testresults {numfail 0 numpass 0 failed {}}
+array set testresults {numfail 0 numpass 0 failed {}}
 
 proc test {id descr script expected} {
     puts -nonewline "$id "

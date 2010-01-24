@@ -63,7 +63,8 @@ proc case {var args} {
 	}
 
 	if {[info exists do_action]} {
-		return [uplevel 1 $do_action]
+		set rc [catch [list uplevel 1 $do_action] result]
+		return -code $rc $result
 	}
 }
 
@@ -80,14 +81,18 @@ proc parray {arrayname {pattern *}} {
     incr max [string length $arrayname]
     incr max 2
     foreach name [lsort [array names a $pattern]] {
-		puts [format "%-${max}s = $a($name)" $arrayname\($name\)]
+		puts [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
     }
 }
 
 # Sort of replacement for $::errorInfo
-proc errorInfo {error} {
+# Usage: errorInfo error ?stacktrace?
+proc errorInfo {error {stacktrace ""}} {
+	if {$stacktrace eq ""} {
+		set stacktrace [info stacktrace]
+	}
 	set result "Runtime Error: $error"
-	foreach {l f p} [lreverse [info stacktrace]] {
+	foreach {l f p} [lreverse $stacktrace] {
 		append result \n
 		if {$p ne ""} {
 			append result "in procedure '$p' "

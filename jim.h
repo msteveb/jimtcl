@@ -345,6 +345,11 @@ typedef struct Jim_Obj {
             unsigned char *data;
             size_t         len;
         } binaryValue;
+        /* Regular expression pattern */
+        struct {
+            unsigned flags;
+            void *compre;       /* really an allocated (regex_t *) */
+        } regexpValue;
     } internalRep;
     /* This are 8 or 16 bytes more for every object
      * but this is required for efficient garbage collection
@@ -817,7 +822,7 @@ JIM_EXPORT int Jim_DeleteAssocData(Jim_Interp *interp, const char *key);
 /* jim-package.c */
 JIM_EXPORT int Jim_PackageProvide (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
-JIM_EXPORT const char * Jim_PackageRequire (Jim_Interp *interp,
+JIM_EXPORT int Jim_PackageRequire (Jim_Interp *interp,
         const char *name, int flags);
 
 /* error messages */

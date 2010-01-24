@@ -236,6 +236,54 @@ static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     return JIM_OK;
 }
 
+static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int i;
+    char *newname = Jim_Alloc(MAXPATHLEN + 1);
+    char *last = newname;
+
+    *newname = 0;
+
+    /* Simple implementation for now */
+    for (i = 0; i < argc; i++) {
+        int len;
+        const char *part = Jim_GetString(argv[i], &len);
+
+        if (*part == '/') {
+            /* Absolute component, so go back to the start */
+            last = newname;
+        }
+
+        /* Add a slash if needed */
+        if (last != newname) {
+            *last++ = '/';
+        }
+
+        if (len) {
+            if (last + len - newname >= MAXPATHLEN) {
+                Jim_Free(newname);
+                Jim_SetResultString(interp, "Path too long", -1);
+                return JIM_ERR;
+            }
+            memcpy(last, part, len);
+            last += len;
+        }
+
+        /* Remove a slash if needed */
+        if (last != newname && last[-1] == '/') {
+            *--last = 0;
+        }
+    }
+
+    *last = 0;
+
+    /* Probably need to handle some special cases ...*/
+
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, newname, last - newname));
+
+    return JIM_OK;
+}
+
 static int file_access(Jim_Interp *interp, Jim_Obj *filename, int mode)
 {
     const char *path = Jim_GetString(filename, NULL);
@@ -515,6 +563,13 @@ static const jim_subcmd_type command_table[] = {
         .minargs = 1,
         .maxargs = 1,
         .description = "Normalized path of name"
+    },
+    {   .cmd = "join",
+        .args = "name ?name ...?",
+        .function = file_cmd_join,
+        .minargs = 1,
+        .maxargs = -1,
+        .description = "Join multiple path components"
     },
     {   .cmd = "readable",
         .args = "name",

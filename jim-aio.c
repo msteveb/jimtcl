@@ -326,7 +326,7 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (argc) {
         long nb;
 
-        if (Jim_GetLong(interp, argv[2], &nb) != JIM_OK) {
+        if (Jim_GetLong(interp, argv[0], &nb) != JIM_OK) {
             return JIM_ERR;
         }
         if (nb) {
@@ -675,7 +675,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     int on = 1;
 
     if (argc <= 2 ) {
-        Jim_WrongNumArgs(interp, 1, argv, "sockspec  ?script?");
+        Jim_WrongNumArgs(interp, 1, argv, "type address");
         return JIM_ERR;
     }
 
@@ -695,9 +695,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     srcport = atol(stsrcport);
     port = atol(stport);
     he = gethostbyname(sthost);
-    /* FIX!!!! this still results in null pointer exception here.  
-       FIXED!!!! debug output but no JIM_ERR done UK.  
-     */
+
     if (!he) {
         Jim_SetResultString(interp,hstrerror(h_errno),-1);
         return JIM_ERR;
@@ -710,7 +708,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         break;
     case SOCK_STREAM_CL:    
             sa.sin_family= he->h_addrtype;
-        bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
+        memcpy((char *)&sa.sin_addr,he->h_addr,he->h_length); /* set address */
         sa.sin_port = htons(port);
         res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
         if (res) {
@@ -722,7 +720,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         break;
     case SOCK_STREAM_SERV: 
             sa.sin_family= he->h_addrtype;
-        bcopy(he->h_addr,(char *)&sa.sin_addr,he->h_length); /* set address */
+        memcpy((char *)&sa.sin_addr,he->h_addr,he->h_length); /* set address */
         sa.sin_port = htons(port);
 
         /* Enable address reuse */
