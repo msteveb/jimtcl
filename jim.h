@@ -214,7 +214,7 @@ typedef struct Jim_HashTableType {
 
 typedef struct Jim_HashTable {
     Jim_HashEntry **table;
-    Jim_HashTableType *type;
+    const Jim_HashTableType *type;
     unsigned int size;
     unsigned int sizemask;
     unsigned int used;
@@ -285,7 +285,7 @@ typedef struct Jim_Obj {
     int refCount; /* reference count */
     char *bytes; /* string representation buffer. NULL = no string repr. */
     int length; /* number of bytes in 'bytes', not including the numterm. */
-    struct Jim_ObjType *typePtr; /* object type. */
+    const struct Jim_ObjType *typePtr; /* object type. */
     /* Internal representation union */
     union {
         /* integer number type */
@@ -621,7 +621,7 @@ JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *p
 
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
-        Jim_HashTableType *type, void *privdata);
+        const Jim_HashTableType *type, void *privdata);
 JIM_EXPORT int Jim_ExpandHashTable (Jim_HashTable *ht,
         unsigned int size);
 JIM_EXPORT int Jim_AddHashEntry (Jim_HashTable *ht, const void *key,

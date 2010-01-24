@@ -124,7 +124,7 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj *newObjPtr, int flags);
 static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line);
 
-static Jim_HashTableType JimVariablesHashTableType;
+static const Jim_HashTableType JimVariablesHashTableType;
 
 /* -----------------------------------------------------------------------------
  * Utility functions
@@ -580,8 +580,16 @@ void Jim_Free(void *ptr) {
     free(ptr);
 }
 
+#ifdef DEBUG_REALLOC
+#define Jim_Realloc(PTR, SIZE) Jim_Realloc_(PTR, SIZE, __FILE__, __LINE__)
+void *Jim_Realloc_(void *ptr, int size, const char *filename, int line)
+{
+    printf("Realloc: %6d (%s:%d)\n", size, filename, line);
+#else
+//void *Jim_Realloc(void *ptr, int size)
 void *Jim_Realloc(void *ptr, int size)
 {
+#endif
     /* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
     if (size==0) {
         size = 1;
@@ -680,7 +688,7 @@ static void JimResetHashTable(Jim_HashTable *ht)
 }
 
 /* Initialize the hash table */
-int Jim_InitHashTable(Jim_HashTable *ht, Jim_HashTableType *type,
+int Jim_InitHashTable(Jim_HashTable *ht, const Jim_HashTableType *type,
         void *privDataPtr)
 {
     JimResetHashTable(ht);
@@ -1011,7 +1019,7 @@ static Jim_HashTableType JimStringCopyHashTableType = {
 
 /* This is like StringCopy but does not auto-duplicate the key.
  * It's used for intepreter's shared strings. */
-static Jim_HashTableType JimSharedStringsHashTableType = {
+static const Jim_HashTableType JimSharedStringsHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
     NULL,                               /* key dup */
     NULL,                               /* val dup */
@@ -1022,7 +1030,7 @@ static Jim_HashTableType JimSharedStringsHashTableType = {
 
 /* This is like StringCopy but also automatically handle dynamic
  * allocated C strings as values. */
-static Jim_HashTableType JimStringKeyValCopyHashTableType = {
+static const Jim_HashTableType JimStringKeyValCopyHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
     JimStringCopyHTKeyDup,              /* key dup */
     JimStringKeyValCopyHTValDup,        /* val dup */
@@ -1044,7 +1052,7 @@ static void JimAssocDataHashTableValueDestructor(void *privdata, void *data)
     Jim_Free(data);
 }
 
-static Jim_HashTableType JimAssocDataHashTableType = {
+static const Jim_HashTableType JimAssocDataHashTableType = {
     JimStringCopyHTHashFunction,         /* hash function */
     JimStringCopyHTKeyDup,               /* key dup */
     NULL,                                /* val dup */
@@ -1952,7 +1960,7 @@ int Jim_Length(Jim_Obj *objPtr)
 static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetStringFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType stringObjType = {
+static const Jim_ObjType stringObjType = {
     "string",
     NULL,
     DupStringInternalRep,
@@ -2604,7 +2612,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
  * this works pretty well even if comparisons are at different places
  * inside the C code. */
 
-static Jim_ObjType comparedStringObjType = {
+static const Jim_ObjType comparedStringObjType = {
     "compared-string",
     NULL,
     NULL,
@@ -2668,7 +2676,7 @@ int qsortCompareStringPointers(const void *a, const void *b)
 static void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 
-static Jim_ObjType sourceObjType = {
+static const Jim_ObjType sourceObjType = {
     "source",
     FreeSourceInternalRep,
     DupSourceInternalRep,
@@ -2715,7 +2723,7 @@ static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType scriptObjType = {
+static const Jim_ObjType scriptObjType = {
     "script",
     FreeScriptInternalRep,
     DupScriptInternalRep,
@@ -3161,7 +3169,7 @@ static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
     Jim_Free(val);
 }
 
-static Jim_HashTableType JimCommandsHashTableType = {
+static const Jim_HashTableType JimCommandsHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
     JimStringCopyHTKeyDup,        /* key dup */
     NULL,                    /* val dup */
@@ -3364,7 +3372,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
 
 static int SetCommandFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType commandObjType = {
+static const Jim_ObjType commandObjType = {
     "command",
     NULL,
     NULL,
@@ -3428,7 +3436,7 @@ static void JimVariablesHTValDestructor(void *interp, void *val)
     Jim_Free(val);
 }
 
-static Jim_HashTableType JimVariablesHashTableType = {
+static const Jim_HashTableType JimVariablesHashTableType = {
     JimStringCopyHTHashFunction,        /* hash function */
     JimStringCopyHTKeyDup,              /* key dup */
     NULL,                               /* val dup */
@@ -3445,7 +3453,7 @@ static Jim_HashTableType JimVariablesHashTableType = {
 
 static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType variableObjType = {
+static const Jim_ObjType variableObjType = {
     "variable",
     NULL,
     NULL,
@@ -3864,7 +3872,7 @@ static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr,
         Jim_Obj *dupPtr);
 
-static Jim_ObjType dictSubstObjType = {
+static const Jim_ObjType dictSubstObjType = {
     "dict-substitution",
     FreeDictSubstInternalRep,
     DupDictSubstInternalRep,
@@ -4058,7 +4066,7 @@ void JimReferencesHTKeyDestructor(void *privdata, const void *key)
     Jim_Free((void*)key);
 }
 
-static Jim_HashTableType JimReferencesHashTableType = {
+static const Jim_HashTableType JimReferencesHashTableType = {
     JimReferencesHTHashFunction,    /* hash function */
     JimReferencesHTKeyDup,          /* key dup */
     NULL,                           /* val dup */
@@ -4073,7 +4081,7 @@ static Jim_HashTableType JimReferencesHashTableType = {
 
 static void UpdateStringOfReference(struct Jim_Obj *objPtr);
 
-static Jim_ObjType referenceObjType = {
+static const Jim_ObjType referenceObjType = {
     "reference",
     NULL,
     NULL,
@@ -4236,7 +4244,7 @@ int Jim_GetFinalizer(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPt
  * ---------------------------------------------------------------------------*/
 
 /* This the hash table type for the "MARK" phase of the GC */
-static Jim_HashTableType JimRefMarkHashTableType = {
+static const Jim_HashTableType JimRefMarkHashTableType = {
     JimReferencesHTHashFunction,    /* hash function */
     JimReferencesHTKeyDup,          /* key dup */
     NULL,                           /* val dup */
@@ -4794,7 +4802,7 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 static void UpdateStringOfInt(struct Jim_Obj *objPtr);
 static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
 
-static Jim_ObjType intObjType = {
+static const Jim_ObjType intObjType = {
     "int",
     NULL,
     NULL,
@@ -4906,7 +4914,7 @@ Jim_Obj *Jim_NewIntObj(Jim_Interp *interp, jim_wide wideValue)
 static void UpdateStringOfDouble(struct Jim_Obj *objPtr);
 static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
-static Jim_ObjType doubleObjType = {
+static const Jim_ObjType doubleObjType = {
     "double",
     NULL,
     NULL,
@@ -4991,7 +4999,7 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
  * the list object itself can't. This basically means that the
  * list object string representation as a whole can't contain references
  * that are not presents in the single elements. */
-static Jim_ObjType listObjType = {
+static const Jim_ObjType listObjType = {
     "list",
     FreeListInternalRep,
     DupListInternalRep,
@@ -5685,7 +5693,7 @@ static void JimObjectHTKeyValDestructor(void *interp, void *val)
     Jim_DecrRefCount(interp, objPtr);
 }
 
-static Jim_HashTableType JimDictHashTableType = {
+static const Jim_HashTableType JimDictHashTableType = {
     JimObjectHTHashFunction,            /* hash function */
     NULL,                               /* key dup */
     NULL,                               /* val dup */
@@ -5699,7 +5707,7 @@ static Jim_HashTableType JimDictHashTableType = {
  * the list object itself can't. This basically means that the
  * dict object string representation as a whole can't contain references
  * that are not presents in the single elements. */
-static Jim_ObjType dictObjType = {
+static const Jim_ObjType dictObjType = {
     "dict",
     FreeDictInternalRep,
     DupDictInternalRep,
@@ -6065,7 +6073,7 @@ err:
 static void UpdateStringOfIndex(struct Jim_Obj *objPtr);
 static int SetIndexFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType indexObjType = {
+static const Jim_ObjType indexObjType = {
     "index",
     NULL,
     NULL,
@@ -6151,7 +6159,7 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
 
 static int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
-static Jim_ObjType returnCodeObjType = {
+static const Jim_ObjType returnCodeObjType = {
     "return-code",
     NULL,
     NULL,
@@ -6257,14 +6265,15 @@ static int JimParseExprIrrational(struct JimParserCtx *pc);
 
 /* Ternary operators */
 #define JIM_EXPROP_TERNARY 31
+#define JIM_EXPROP_TERNARY_COLON 32
 
 /* Operands */
-#define JIM_EXPROP_NUMBER 32
-#define JIM_EXPROP_COMMAND 33
-#define JIM_EXPROP_VARIABLE 34
-#define JIM_EXPROP_DICTSUGAR 35
-#define JIM_EXPROP_SUBST 36
-#define JIM_EXPROP_STRING 37
+#define JIM_EXPROP_NUMBER 33
+#define JIM_EXPROP_COMMAND 34
+#define JIM_EXPROP_VARIABLE 35
+#define JIM_EXPROP_DICTSUGAR 36
+#define JIM_EXPROP_SUBST 37
+#define JIM_EXPROP_STRING 38
 
 /* Operators table */
 typedef struct Jim_ExprOperator {
@@ -6275,11 +6284,11 @@ typedef struct Jim_ExprOperator {
 } Jim_ExprOperator;
 
 /* name - precedence - arity - opcode */
-static struct Jim_ExprOperator Jim_ExprOperators[] = {
+static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     {"!", 300, 1, JIM_EXPROP_NOT},
     {"~", 300, 1, JIM_EXPROP_BITNOT},
     {"unarymin", 300, 1, JIM_EXPROP_UNARYMINUS},
-    {"unaryplus", 300, 1, JIM_EXPROP_UNARYPLUS},
+/*    {"unaryplus", 300, 1, JIM_EXPROP_UNARYPLUS}, */
 
     {"**", 250, 2, JIM_EXPROP_POW},
 
@@ -6314,6 +6323,8 @@ static struct Jim_ExprOperator Jim_ExprOperators[] = {
     {"||", 10, 2, JIM_EXPROP_LOGICOR},
 
     {"?", 5, 3, JIM_EXPROP_TERNARY},
+    {":", 5, 1, JIM_EXPROP_TERNARY_COLON},
+
     /* private operators */
     {NULL, 10, 2, JIM_EXPROP_LOGICAND_LEFT},
     {NULL, 10, 1, JIM_EXPROP_LOGICAND_RIGHT},
@@ -6472,7 +6483,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-struct Jim_ExprOperator *JimExprOperatorInfo(const char *opname)
+const struct Jim_ExprOperator *JimExprOperatorInfo(const char *opname)
 {
     int i;
     for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++)
@@ -6482,7 +6493,7 @@ struct Jim_ExprOperator *JimExprOperatorInfo(const char *opname)
     return NULL;
 }
 
-struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
+const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 {
     int i;
     for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++)
@@ -6598,10 +6609,13 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
         case JIM_EXPROP_LOGICAND:
         case JIM_EXPROP_LOGICOR:
         case JIM_EXPROP_POW:
+        case JIM_EXPROP_TERNARY_COLON:
+        case JIM_EXPROP_TERNARY:
             /* binary operations */
             if (stacklen < 2) return JIM_ERR;
             stacklen--;
             break;
+
         default:
             Jim_Panic(NULL,"Default opcode reached ExprCheckCorrectness");
             break;
@@ -6660,7 +6674,7 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
 {
     while (1) {
         int index = -1, leftindex, arity, i, offset;
-        Jim_ExprOperator *op;
+        const Jim_ExprOperator *op;
 
         /* Search for || or && */
         for (i = 0; i < expr->len; i++) {
@@ -6734,7 +6748,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     int i, shareLiterals;
     ExprByteCode *expr = Jim_Alloc(sizeof(*expr));
     Jim_Stack stack;
-    Jim_ExprOperator *op;
+    const Jim_ExprOperator *op;
 
     /* Perform literal sharing with the current procedure
      * running only if this expression appears to be not generated
@@ -6751,6 +6765,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     while(!JimParserEof(&parser)) {
         char *token;
         int len, type;
+        int prevtt = parser.tt;
 
         if (JimParseExpression(&parser) != JIM_OK) {
             Jim_SetResultString(interp, "Syntax error in expression", -1);
@@ -6781,9 +6796,15 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             ExprObjAddInstr(interp, expr, JIM_EXPROP_NUMBER, token, len);
             break;
         case JIM_TT_EXPR_OPERATOR:
+            /* Convert - to unary minus if necessary */ 
+            if (*token == '-' && (prevtt == JIM_TT_NONE || prevtt == JIM_TT_EXPR_OPERATOR)) {
+                Jim_Free(token);
+                token = Jim_StrDup("unarymin");
+            }
             op = JimExprOperatorInfo(token);
+
             while(1) {
-                Jim_ExprOperator *stackTopOp;
+                const Jim_ExprOperator *stackTopOp;
 
                 if (Jim_StackPeek(&stack) != NULL) {
                     stackTopOp = JimExprOperatorInfo(Jim_StackPeek(&stack));
@@ -6938,7 +6959,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 
     /* Execute every istruction */
     for (i = 0; i < expr->len; i++) {
-        Jim_Obj *A, *B, *objPtr;
+        Jim_Obj *A, *B, *C, *objPtr;
         jim_wide wA, wB, wC;
         double dA, dB, dC;
         const char *sA, *sB;
@@ -7189,6 +7210,7 @@ retry_as_string:
             stacklen++;
         } else if (opcode == JIM_EXPROP_NOT ||
                    opcode == JIM_EXPROP_BITNOT ||
+                   opcode == JIM_EXPROP_UNARYMINUS ||
                    opcode == JIM_EXPROP_LOGICAND_RIGHT ||
                    opcode == JIM_EXPROP_LOGICOR_RIGHT) {
             /* Note that there isn't to increment the
@@ -7205,6 +7227,7 @@ retry_as_string:
             switch(expr->opcode[i]) {
             case JIM_EXPROP_NOT: wC = !wA; break;
             case JIM_EXPROP_BITNOT: wC = ~wA; break;
+            case JIM_EXPROP_UNARYMINUS: wC = -wA; break;
             case JIM_EXPROP_LOGICAND_RIGHT:
             case JIM_EXPROP_LOGICOR_RIGHT: wC = (wA != 0); break;
             default:
@@ -7225,6 +7248,7 @@ trydouble_unary:
             Jim_DecrRefCount(interp, A);
             switch(expr->opcode[i]) {
             case JIM_EXPROP_NOT: dC = !dA; break;
+            case JIM_EXPROP_UNARYMINUS: dC = -dA; break;
             case JIM_EXPROP_LOGICAND_RIGHT:
             case JIM_EXPROP_LOGICOR_RIGHT: dC = (dA != 0); break;
             case JIM_EXPROP_BITNOT:
@@ -7240,10 +7264,47 @@ trydouble_unary:
             stack[stacklen] = Jim_NewDoubleObj(interp, dC);
             Jim_IncrRefCount(stack[stacklen]);
             stacklen++;
+        } else if (opcode == JIM_EXPROP_TERNARY) {
+            /* ? operator */
+            C = stack[--stacklen]; /* false option */
+            B = stack[--stacklen]; /* true option */
+            A = stack[--stacklen]; /* condition */
+
+            if (JimGetWideNoErr(interp, A, &wA) != JIM_OK) {
+                if (Jim_GetDouble(interp, A, &dA) == JIM_OK) {
+                    wA = (dA != 0);
+                }
+                else {
+                    stacklen += 3;
+                    error = 1;
+                    Jim_SetResultString(interp,
+                        "Wrong type for ternary operator", -1);
+                    goto err;
+                }
+            }
+            if (wA) {
+                stack[stacklen] = B;
+            }
+            else {
+                stack[stacklen] = C;
+            }
+
+            Jim_IncrRefCount(stack[stacklen]);
+            stacklen++;
+
+            /* skip the TERNARY_COLON operator */
+
+            Jim_DecrRefCount(interp, A);
+            Jim_DecrRefCount(interp, B);
+            Jim_DecrRefCount(interp, C);
+            continue;
+        } else if (opcode == JIM_EXPROP_TERNARY_COLON) {
+            /* Nothing to do! */
         } else {
-            Jim_Panic(interp,"Unknown opcode in Jim_EvalExpression");
+            Jim_Panic(interp,"Unknown opcode in Jim_EvalExpression (%d)", opcode);
         }
     }
+
 err:
     /* There is no need to decerement the inUse field because
      * this reference is transfered back into the exprObjPtr. */
@@ -7350,7 +7411,7 @@ static void FreeScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static void UpdateStringOfScanFmt(Jim_Obj *objPtr);
 
-static Jim_ObjType scanFmtStringObjType = {
+static const Jim_ObjType scanFmtStringObjType = {
     "scanformatstring",
     FreeScanFmtInternalRep,
     DupScanFmtInternalRep,
@@ -8702,7 +8763,7 @@ static int JimParseSubst(struct JimParserCtx *pc, int flags)
  * for what is needed for [subst]itution tasks, but the reuse helps to
  * deal with a single data structure at the cost of some more memory
  * usage for substitutions. */
-static Jim_ObjType substObjType = {
+static const Jim_ObjType substObjType = {
     "subst",
     FreeScriptInternalRep,
     DupScriptInternalRep,
@@ -10337,7 +10398,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
         objPtr = Jim_NewListObj(interp, NULL, 0);
         for (i = 0; i < expr->len; i++) {
             const char *type;
-            Jim_ExprOperator *op;
+            const Jim_ExprOperator *op;
 
             switch(expr->opcode[i]) {
             case JIM_EXPROP_NUMBER: type = "number"; break;
@@ -11775,7 +11836,7 @@ static int Jim_RandCoreCommand(Jim_Interp *interp, int argc,
     }
 }
 
-static struct {
+static const struct {
     const char *name;
     Jim_CmdProc cmdProc;
 } Jim_CoreCommandsTable[] = {
