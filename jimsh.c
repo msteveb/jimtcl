@@ -137,11 +137,11 @@ int main(int argc, char *const argv[])
 
     /* Append the path where the executed Jim binary is contained
      * in the jim_libpath list. */
-    listObj = Jim_GetVariableStr(interp, "jim_libpath", JIM_NONE);
+    listObj = Jim_GetVariableStr(interp, JIM_LIBPATH, JIM_NONE);
     if (Jim_IsShared(listObj))
         listObj = Jim_DuplicateObj(interp, listObj);
     Jim_ListAppendElement(interp, listObj, JimGetExePath(interp, argv[0]));
-    Jim_SetVariableStr(interp, "jim_libpath", listObj);
+    Jim_SetVariableStr(interp, JIM_LIBPATH, listObj);
 
     /* Populate argv and argv0 global vars */
     listObj = Jim_NewListObj(interp, NULL, 0);
@@ -153,12 +153,12 @@ int main(int argc, char *const argv[])
     Jim_SetVariableStr(interp, "argv", listObj);
     
     if (argc == 1) {
-        Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
+        Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
         JimLoadJimRc(interp);
         retcode = Jim_InteractivePrompt(interp);
     } else {
         Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
-        Jim_SetVariableStrWithStr(interp, "jim_interactive", "0");
+        Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");
         if ((retcode = Jim_EvalFile(interp, argv[1])) == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
         }

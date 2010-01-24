@@ -9,8 +9,7 @@ proc main {filename} {
     set versions {}
     array set bench {}
     set f [open $filename r]
-    while {![eof $f]} {
-        gets $f data
+    while {[gets $f data] >= 0} {
         lappend versions [lindex $data 0]
         set results [lindex $data 1]
         foreach {title time} $results {
@@ -26,7 +25,7 @@ proc main {filename} {
     }
     puts ""
 
-    foreach test [array names bench] {
+    foreach test [lsort [array names bench]] {
         puts -nonewline "[format {% 20s} $test] "
         foreach v $bench($test) {
             if {$v eq "F"} {

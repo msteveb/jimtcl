@@ -48,7 +48,7 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes,
     return NULL;
 }
 
-/* Search for a suitable package under every dir specified by jim_libpath
+/* Search for a suitable package under every dir specified by JIM_LIBPATH,
  * and load it if possible. If a suitable package was loaded with success
  * JIM_OK is returned, otherwise JIM_ERR is returned. */
 static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
@@ -57,7 +57,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
     char **prefixes, *path;
     int prefixc, i, retCode = JIM_ERR;
 
-    libPathObjPtr = Jim_GetGlobalVariableStr(interp, "jim_libpath", JIM_NONE);
+    libPathObjPtr = Jim_GetGlobalVariableStr(interp, JIM_LIBPATH, JIM_NONE);
     if (libPathObjPtr == NULL) {
         prefixc = 0;
         libPathObjPtr = NULL;

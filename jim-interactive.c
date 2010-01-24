@@ -8,12 +8,12 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     printf("Welcome to Jim version %d.%d, "
            "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL,
            JIM_VERSION / 100, JIM_VERSION % 100);
-     Jim_SetVariableStrWithStr(interp, "jim_interactive", "1");
+     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
     while (1) {
         char buf[1024];
         const char *result;
         const char *retcodestr[] = {
-            "ok", "error", "return", "break", "continue", "eval", "exit"
+            "ok", "error", "return", "break", "continue", "signal", "eval", "exit"
         };
         int reslen;
 

@@ -175,6 +175,14 @@ extern "C" {
 #define JIM_NL "\n"
 #endif
 
+#ifdef JIM_TCL_COMPAT
+#define JIM_LIBPATH "auto_path"
+#define JIM_INTERACTIVE "tcl_interactive"
+#else
+#define JIM_LIBPATH "jim_libpath"
+#define JIM_INTERACTIVE "jim_interactive"
+#endif
+
 /* -----------------------------------------------------------------------------
  * Stack
  * ---------------------------------------------------------------------------*/
@@ -495,7 +503,7 @@ typedef struct Jim_Interp {
                 structure. */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
-    const char *scriptFileName; /* File name of the script currently in execution. */
+    Jim_Obj *currentScriptObj; /* Script currently in execution. */
     Jim_Obj *emptyObj; /* Shared empty string object. */
     unsigned jim_wide referenceNextId; /* Next id for reference. */
     struct Jim_HashTable references; /* References hash table. */

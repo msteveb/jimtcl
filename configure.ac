@@ -27,7 +27,7 @@ AC_ARG_WITH(jim-ext,
 	[
 		if test "x$withval" != "xno" ; then
 			if test "x$withval" = "xall" ; then
-				jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 eventloop aio"
+				jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 eventloop aio syslog"
 			else
 				jim_extensions="$withval"
 			fi
