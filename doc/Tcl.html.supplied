@@ -1,0 +1,4408 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.2.7" />
+<style type="text/css">
+/* Debug borders */
+p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
+/*
+  border: 1px solid red;
+*/
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+  color: navy;
+}
+
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+tt {
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  font-family: sans-serif;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+
+div.sectionbody {
+  font-family: serif;
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+span#email {
+}
+span#revision {
+  font-family: sans-serif;
+}
+
+div#footer {
+  font-family: sans-serif;
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble,
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-right: 10%;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.5em;
+  margin-bottom: 2.5em;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+
+div.listingblock {
+  margin-right: 0%;
+}
+div.listingblock > div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock {
+  padding-left: 2.0em;
+}
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock {
+  padding-left: 2.0em;
+}
+div.verseblock > div.content {
+  white-space: pre;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 2px solid silver;
+}
+
+div.exampleblock > div.content {
+  border-left: 2px solid silver;
+  padding: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+div.imageblock img { border: 1px solid silver; }
+span.image img { border-style: none; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+div.olist > ol {
+  list-style-type: decimal;
+}
+div.olist2 > ol {
+  list-style-type: lower-alpha;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead {
+  font-family: sans-serif;
+  font-weight: bold;
+}
+tfoot {
+  font-weight: bold;
+}
+
+div.hlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hlist td {
+  padding-bottom: 15px;
+}
+td.hlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+}
+td.hlist2 {
+  vertical-align: top;
+}
+
+@media print {
+  div#footer-badges { display: none; }
+}
+
+div#toctitle {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+/* Overrides for manpage documents */
+h1 {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  border-top: 2px solid silver;
+  border-bottom: 2px solid silver;
+}
+h2 {
+  border-style: none;
+}
+div.sectionbody {
+  margin-left: 5%;
+}
+
+@media print {
+  div#toc { display: none; }
+}
+
+/* Workarounds for IE6's broken and incomplete CSS2. */
+
+div.sidebar-content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+div.sidebar-title, div.image-title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  margin-top: 0.0em;
+  margin-bottom: 0.5em;
+}
+
+div.listingblock div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock-attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock-content {
+  white-space: pre;
+}
+div.verseblock-attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+
+div.exampleblock-content {
+  border-left: 2px solid silver;
+  padding-left: 0.5em;
+}
+
+/* IE6 sets dynamically generated links as visited. */
+div#toc a:visited { color: blue; }
+
+/* Because IE6 child selector is broken. */
+div.olist2 ol {
+  list-style-type: lower-alpha;
+}
+div.olist2 div.olist ol {
+  list-style-type: decimal;
+}
+</style>
+<title>Jim Tcl(n)</title>
+</head>
+<body>
+<div id="header">
+<h1>
+Jim Tcl(n) Manual Page
+</h1>
+<h2>NAME</h2>
+<div class="sectionbody">
+<p>Jim Tcl -
+   overview of the Jim tool command language facilities
+</p>
+</div>
+</div>
+<h2>SYNOPSIS</h2>
+<div class="sectionbody">
+<div class="literalblock">
+<div class="content">
+<pre><tt>cc &lt;source&gt; -ljim</tt></pre>
+</div></div>
+<div class="para"><p>or</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jimsh &lt;script&gt;</tt></pre>
+</div></div>
+</div>
+<h2 id="_introduction">INTRODUCTION</h2>
+<div class="sectionbody">
+<div class="para"><p>Jim is a reimplementation of Tcl, combining some features from
+earlier, smaller versions of Tcl (6.x) as well as more modern
+features from later versions of Tcl (7.x, 8.x). It also has some some
+entirely new features not available in any version of Tcl.</p></div>
+<div class="para"><p>This version is approximately the same size as "tinytcl" (6.8) but
+is faster and has more features.</p></div>
+<div class="para"><p>Note that most of this man page is the original 6.8 Tcl man page, with
+changes made for differences with Jim.</p></div>
+<div class="para"><p>The major differences are:</p></div>
+<div class="olist"><ol>
+<li>
+<p>
+Object-based I/O (aio) with backward compatibility wrapper
+</p>
+</li>
+<li>
+<p>
+I/O: Support for sockets (client and server)
+</p>
+</li>
+<li>
+<p>
+I/O: Support for readable/writable event handlers
+</p>
+</li>
+<li>
+<p>
+Integers are 64bit
+</p>
+</li>
+<li>
+<p>
+Support for references (ref/getref/setref) and garbage collection
+</p>
+</li>
+<li>
+<p>
+Builtin dictionary type (dict)
+</p>
+</li>
+<li>
+<p>
+file mkdir, file rename (Tcl 7.x)
+</p>
+</li>
+<li>
+<p>
+env command to access environment variables
+</p>
+</li>
+<li>
+<p>
+List: lmap, lset, lreverse (Tcl 8.x)
+</p>
+</li>
+<li>
+<p>
+os.fork, os.wait, rand
+</p>
+</li>
+<li>
+<p>
+{*}/{expand}
+</p>
+</li>
+<li>
+<p>
+string map (Tcl 7.x)
+</p>
+</li>
+<li>
+<p>
+subst (Tcl 7.x)
+</p>
+</li>
+<li>
+<p>
+switch (Tcl 7.x) (note that case is provided for compatibility)
+</p>
+</li>
+<li>
+<p>
+Must better error reporting. info stacktrace as a replacement for errorInfo, errorCode
+</p>
+</li>
+<li>
+<p>
+Support for "static" variables in procedures
+</p>
+</li>
+<li>
+<p>
+Significantly faster for many scripts/operations
+</p>
+</li>
+<li>
+<p>
+Command pipelines via open "|&#8230;" are not supported
+</p>
+</li>
+<li>
+<p>
+Variable traces are not supported
+</p>
+</li>
+<li>
+<p>
+The history command is not supported
+</p>
+</li>
+</ol></div>
+</div>
+<h2 id="_tcl_introduction">TCL INTRODUCTION</h2>
+<div class="sectionbody">
+<div class="para"><p>Tcl stands for <em>tool command language</em> and is pronounced <em>tickle.</em>
+It is actually two things: a language and a library.</p></div>
+<div class="para"><p>First, Tcl is a simple textual language, intended primarily for
+issuing commands to interactive programs such as text editors,
+debuggers, illustrators, and shells.  It has a simple syntax and is also
+programmable, so Tcl users can write command procedures to provide more
+powerful commands than those in the built-in set.</p></div>
+<div class="para"><p>Second, Tcl is a library package that can be embedded in application
+programs.  The Tcl library consists of a parser for the Tcl language,
+routines to implement the Tcl built-in commands, and procedures that
+allow each application to extend Tcl with additional commands specific
+to that application.  The application program generates Tcl commands and
+passes them to the Tcl parser for execution.  Commands may be generated
+by reading characters from an input source, or by associating command
+strings with elements of the application's user interface, such as menu
+entries, buttons, or keystrokes.</p></div>
+<div class="para"><p>When the Tcl library receives commands it parses them into component
+fields and executes built-in commands directly.  For commands implemented
+by the application, Tcl calls back to the application to execute the
+commands.  In many cases commands will invoke recursive invocations of the
+Tcl interpreter by passing in additional strings to execute (procedures,
+looping commands, and conditional commands all work in this way).</p></div>
+<div class="para"><p>An application program gains three advantages by using Tcl for its command
+language.  First, Tcl provides a standard syntax:  once users know Tcl,
+they will be able to issue commands easily to any Tcl-based application.
+Second, Tcl provides programmability.  All a Tcl application needs
+to do is to implement a few application-specific low-level commands.
+Tcl provides many utility commands plus a general programming interface
+for building up complex command procedures.  By using Tcl, applications
+need not re-implement these features.</p></div>
+<div class="para"><p>Third, Tcl can be used as a common language for communicating between
+applications.  Inter-application communication is not built into the
+Tcl core described here, but various add-on libraries, such as the Tk
+toolkit, allow applications to issue commands to each other.  This makes
+it possible for applications to work together in much more powerful ways
+than was previously possible.</p></div>
+<div class="para"><p>This manual page focuses primarily on the Tcl language.  It describes
+the language syntax and the built-in commands that will be available
+in any application based on Tcl.  The individual library procedures are
+described in more detail in separate manual pages, one per procedure.</p></div>
+</div>
+<h2 id="_interpreters">INTERPRETERS</h2>
+<div class="sectionbody">
+<div class="para"><p>The central data structure in Tcl is an interpreter (C type <em>Jim_Interp</em>).
+An interpreter consists of a set of command bindings, a set of variable
+values, and a few other miscellaneous pieces of state.  Each Tcl command
+is interpreted in the context of a particular interpreter.</p></div>
+<div class="para"><p>Some Tcl-based applications will maintain multiple interpreters
+simultaneously, each associated with a different widget or portion of
+the application.  Interpreters are relatively lightweight structures.
+They can be created and deleted quickly, so application programmers should
+feel free to use multiple interpreters if that simplifies the application.</p></div>
+</div>
+<h2 id="_data_types">DATA TYPES</h2>
+<div class="sectionbody">
+<div class="para"><p>Tcl supports only one type of data:  strings.  All commands, all arguments
+to commands, all command results, and all variable values are strings.</p></div>
+<div class="para"><p>Where commands require numeric arguments or return numeric results,
+the arguments and results are passed as strings.  Many commands expect
+their string arguments to have certain formats, but this interpretation
+is up to the individual commands.  For example, arguments often contain
+Tcl command strings, which may get executed as part of the commands.
+The easiest way to understand the Tcl interpreter is to remember that
+everything is just an operation on a string.  In many cases Tcl constructs
+will look similar to more structured constructs from other languages.
+However, the Tcl constructs are not structured at all; they are just
+strings of characters, and this gives them a different behavior than
+the structures they may look like.</p></div>
+<div class="para"><p>Although the exact interpretation of a Tcl string depends on who is doing
+the interpretation, there are three common forms that strings take:
+commands, expressions, and lists.  The major sections below discuss
+these three forms in more detail.</p></div>
+</div>
+<h2 id="_basic_command_syntax">BASIC COMMAND SYNTAX</h2>
+<div class="sectionbody">
+<div class="para"><p>The Tcl language has syntactic similarities to both the Unix shells
+and Lisp.  However, the interpretation of commands is different
+in Tcl than in either of those other two systems.
+A Tcl command string consists of one or more commands separated
+by newline characters or semi-colons.
+Each command consists of a collection of fields separated by
+white space (spaces or tabs).
+The first field must be the name of a command, and the
+additional fields, if any, are arguments that will be passed to
+that command.  For example, the command:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a 22</tt></pre>
+</div></div>
+<div class="para"><p>has three fields:  the first, <em>set</em>, is the name of a Tcl command, and
+the last two, <em>a</em> and <em>22</em>, will be passed as arguments to
+the <em>set</em> command.  The command name may refer either to a built-in
+Tcl command, an application-specific command bound in with the library
+procedure <em>Jim_CreateCommand</em>, or a command procedure defined with the
+<em>proc</em> built-in command.</p></div>
+<div class="para"><p>Arguments are passed literally as text strings.  Individual commands may
+interpret those strings in any fashion they wish.  The <em>set</em> command,
+for example, will treat its first argument as the name of a variable
+and its second argument as a string value to assign to that variable.
+For other commands arguments may be interpreted as integers, lists,
+file names, or Tcl commands.</p></div>
+<div class="para"><p>Command names should normally be typed completely (e.g. no abbreviations).
+However, if the Tcl interpreter cannot locate a command it invokes a
+special command named <em>unknown</em> which attempts to find or create the
+command.</p></div>
+<div class="para"><p>For example, at many sites <em>unknown</em> will search through library
+directories for the desired command and create it as a Tcl procedure if
+it is found.  The <em>unknown</em> command often provides automatic completion
+of abbreviated commands, but usually only for commands that were typed
+interactively.</p></div>
+<div class="para"><p>It's probably a bad idea to use abbreviations in command scripts and
+other forms that will be re-used over time:  changes to the command set
+may cause abbreviations to become ambiguous, resulting in scripts that
+no longer work.</p></div>
+</div>
+<h2 id="_comments">COMMENTS</h2>
+<div class="sectionbody">
+<div class="para"><p>If the first non-blank character in a command is <em>#</em>, then everything
+from the <em>#</em> up through the next newline character is treated as
+a comment and ignored.  When comments are embedded inside nested
+commands (e.g. fields enclosed in braces) they must have properly-matched
+braces (this is necessary because when Tcl parses the top-level command
+it doesn't yet know that the nested field will be used as a command so
+it cannot process the nested comment character as a comment).</p></div>
+</div>
+<h2 id="_grouping_arguments_with_double_quotes">GROUPING ARGUMENTS WITH DOUBLE-QUOTES</h2>
+<div class="sectionbody">
+<div class="para"><p>Normally each argument field ends at the next white space, but
+double-quotes may be used to create arguments with embedded space.</p></div>
+<div class="para"><p>If an argument field begins with a double-quote, then the argument isn't
+terminated by white space (including newlines) or a semi-colon (see below
+for information on semi-colons); instead it ends at the next double-quote
+character.  The double-quotes are not included in the resulting argument.
+For example, the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a "This is a single argument"</tt></pre>
+</div></div>
+<div class="para"><p>will pass two arguments to <em>set</em>:  <em>a</em> and <em>This is a single argument</em>.</p></div>
+<div class="para"><p>Within double-quotes, command substitutions, variable substitutions,
+and backslash substitutions still occur, as described below.  If the
+first character of a command field is not a quote, then quotes receive
+no special interpretation in the parsing of that field.</p></div>
+</div>
+<h2 id="_grouping_arguments_with_braces">GROUPING ARGUMENTS WITH BRACES</h2>
+<div class="sectionbody">
+<div class="para"><p>Curly braces may also be used for grouping arguments.  They are similar
+to quotes except for two differences.  First, they nest; this makes them
+easier to use for complicated arguments like nested Tcl command strings.
+Second, the substitutions described below for commands, variables, and
+backslashes do <strong>not</strong> occur in arguments enclosed in braces, so braces
+can be used to prevent substitutions where they are undesirable.</p></div>
+<div class="para"><p>If an argument field begins with a left brace, then the argument ends
+at the matching right brace.  Tcl will strip off the outermost layer
+of braces and pass the information between the braces to the command
+without any further modification.  For example, in the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a {xyz a {b c d}}</tt></pre>
+</div></div>
+<div class="para"><p>the <em>set</em> command will receive two arguments: <em>a</em>
+and <em>xyz a {b c d}</em>.</p></div>
+<div class="para"><p>When braces or quotes are in effect, the matching brace or quote need
+not be on the same line as the starting quote or brace; in this case
+the newline will be included in the argument field along with any other
+characters up to the matching brace or quote.  For example, the <em>eval</em>
+command takes one argument, which is a command string; <em>eval</em> invokes
+the Tcl interpreter to execute the command string.  The command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>eval {
+  set a 22
+  set b 33
+}</tt></pre>
+</div></div>
+<div class="para"><p>will assign the value <em>22</em> to <em>a</em> and <em>33</em> to <em>b</em>.</p></div>
+<div class="para"><p>If the first character of a command field is not a left
+brace, then neither left nor right
+braces in the field will be treated specially (except as part of
+variable substitution; see below).</p></div>
+</div>
+<h2 id="_command_substitution_with_brackets">COMMAND SUBSTITUTION WITH BRACKETS</h2>
+<div class="sectionbody">
+<div class="para"><p>If an open bracket occurs in a field of a command, then command
+substitution occurs (except for fields enclosed in braces).  All of the
+text up to the matching close bracket is treated as a Tcl command and
+executed immediately.  Then the result of that command is substituted
+for the bracketed text.  For example, consider the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a [set b]</tt></pre>
+</div></div>
+<div class="para"><p>When the <em>set</em> command has only a single argument, it is the name of a
+variable and <em>set</em> returns the contents of that variable.  In this case,
+if variable <em>b</em> has the value <em>foo</em>, then the command above is equivalent
+to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a foo</tt></pre>
+</div></div>
+<div class="para"><p>Brackets can be used in more complex ways.  For example, if the variable
+<em>b</em> has the value <em>foo</em> and the variable <em>c</em> has the value <em>gorp</em>,
+then the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyz[set b].[set c]</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyzfoo.gorp</tt></pre>
+</div></div>
+<div class="para"><p>A bracketed command may contain multiple commands separated by newlines
+or semi-colons in the usual fashion.  In this case the value of the last
+command is used for substitution.  For example, the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a x[set b 22
+expr $b+2]x</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a x24x</tt></pre>
+</div></div>
+<div class="para"><p>If a field is enclosed in braces then the brackets and the characters
+between them are not interpreted specially; they are passed through to
+the argument verbatim.</p></div>
+</div>
+<h2 id="_variable_substitution_with">VARIABLE SUBSTITUTION WITH $</h2>
+<div class="sectionbody">
+<div class="para"><p>The dollar sign (<em>$</em>) may be used as a special shorthand form for
+substituting variable values.  If <em>$</em> appears in an argument that isn't
+enclosed in braces then variable substitution will occur.  The characters
+after the <em>$</em>, up to the first character that isn't a number, letter,
+or underscore, are taken as a variable name and the string value of that
+variable is substituted for the name.</p></div>
+<div class="para"><p>For example, if variable <em>foo</em> has the value <em>test</em>, then the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a $foo.c</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a test.c</tt></pre>
+</div></div>
+<div class="para"><p>There are two special forms for variable substitution.  If the next
+character after the name of the variable is an open parenthesis, then
+the variable is assumed to be an array name, and all of the characters
+between the open parenthesis and the next close parenthesis are taken as
+an index into the array.  Command substitutions and variable substitutions
+are performed on the information between the parentheses before it is
+used as an index.</p></div>
+<div class="para"><p>For example, if the variable <em>x</em> is an array with one element named
+<em>first</em> and value <em>87</em> and another element named <em>14</em> and value <em>more</em>,
+then the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyz$x(first)zyx</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyz87zyx</tt></pre>
+</div></div>
+<div class="para"><p>If the variable <em>index</em> has the value <em>14</em>, then the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyz$x($index)zyx</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a xyzmorezyx</tt></pre>
+</div></div>
+<div class="para"><p>For more information on arrays, see VARIABLES AND ARRAYS below.</p></div>
+<div class="para"><p>The second special form for variables occurs when the dollar sign is
+followed by an open curly brace.  In this case the variable name consists
+of all the characters up to the next curly brace.</p></div>
+<div class="para"><p>Array references are not possible in this form:  the name between braces
+is assumed to refer to a scalar variable.  For example, if variable
+<em>foo</em> has the value <em>test</em>, then the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a abc${foo}bar</tt></pre>
+</div></div>
+<div class="para"><p>is equivalent to the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a abctestbar</tt></pre>
+</div></div>
+<div class="para"><p>Variable substitution does not occur in arguments that are enclosed in
+braces:  the dollar sign and variable name are passed through to the
+argument verbatim.</p></div>
+<div class="para"><p>The dollar sign abbreviation is simply a shorthand form.  <em>$a</em> is
+completely equivalent to <em>[set a]</em>; it is provided as a convenience
+to reduce typing.</p></div>
+</div>
+<h2 id="_separating_commands_with_semi_colons">SEPARATING COMMANDS WITH SEMI-COLONS</h2>
+<div class="sectionbody">
+<div class="para"><p>Normally, each command occupies one line (the command is terminated by a
+newline character).  However, semi-colon (<em>;</em>) is treated as a command
+separator character; multiple commands may be placed on one line by
+separating them with a semi-colon.  Semi-colons are not treated as
+command separators if they appear within curly braces or double-quotes.</p></div>
+</div>
+<h2 id="_backslash_substitution">BACKSLASH SUBSTITUTION</h2>
+<div class="sectionbody">
+<div class="para"><p>Backslashes may be used to insert non-printing characters into command
+fields and also to insert special characters like braces and brackets
+into fields without them being interpreted specially as described above.</p></div>
+<div class="para"><p>The backslash sequences understood by the Tcl interpreter are
+listed below.  In each case, the backslash
+sequence is replaced by the given character:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>\b</tt>
+</dt>
+<dd>
+<p>
+    Backspace (0x8)
+</p>
+</dd>
+<dt>
+<tt>\f</tt>
+</dt>
+<dd>
+<p>
+    Form feed (0xc)
+</p>
+</dd>
+<dt>
+<tt>\n</tt>
+</dt>
+<dd>
+<p>
+    Newline (0xa)
+</p>
+</dd>
+<dt>
+<tt>\r</tt>
+</dt>
+<dd>
+<p>
+    Carriage-return (0xd).
+</p>
+</dd>
+<dt>
+<tt>\t</tt>
+</dt>
+<dd>
+<p>
+    Tab (0x9).
+</p>
+</dd>
+<dt>
+<tt>\v</tt>
+</dt>
+<dd>
+<p>
+    Vertical tab (0xb).
+</p>
+</dd>
+<dt>
+<tt>\{</tt>
+</dt>
+<dd>
+<p>
+    Left brace ({).
+</p>
+</dd>
+<dt>
+<tt>\}</tt>
+</dt>
+<dd>
+<p>
+    Right brace (}).
+</p>
+</dd>
+<dt>
+<tt>\[</tt>
+</dt>
+<dd>
+<p>
+    Open bracket ([).
+</p>
+</dd>
+<dt>
+<tt>\]</tt>
+</dt>
+<dd>
+<p>
+    Close bracket (]).
+</p>
+</dd>
+<dt>
+<tt>\$</tt>
+</dt>
+<dd>
+<p>
+    Dollar sign ($).
+</p>
+</dd>
+<dt>
+<tt>\&lt;space&gt;</tt>
+</dt>
+<dd>
+<p>
+    Space ( ): doesn't terminate argument.
+</p>
+</dd>
+<dt>
+<tt>\;</tt>
+</dt>
+<dd>
+<p>
+    Semi-colon: doesn't terminate command.
+</p>
+</dd>
+<dt>
+<tt>\"</tt>
+</dt>
+<dd>
+<p>
+    Double-quote.
+</p>
+</dd>
+<dt>
+<tt>\&lt;newline&gt;</tt>
+</dt>
+<dd>
+<p>
+    Nothing:  this joins two lines together
+    into a single line.  This backslash feature is unique in that
+    it will be applied even when the sequence occurs within braces.
+</p>
+</dd>
+<dt>
+<tt>\\</tt>
+</dt>
+<dd>
+<p>
+    Backslash (<em>\</em>).
+</p>
+</dd>
+<dt>
+<tt>\<strong>ddd</strong></tt>
+</dt>
+<dd>
+<p>
+    The digits <strong>ddd</strong> (one, two, or three of them) give the octal value of
+    the character.  Note that Jim supports null characters in strings.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>For example, in the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a \{x\[\ yz\141</tt></pre>
+</div></div>
+<div class="para"><p>the second argument to <em>set</em> will be <em>{x[ yza</em>.</p></div>
+<div class="para"><p>If a backslash is followed by something other than one of the options
+described above, then the backslash is transmitted to the argument
+field without any special processing, and the Tcl scanner continues
+normal processing with the next character.  For example, in the
+command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set \*a \\\{foo</tt></pre>
+</div></div>
+<div class="para"><p>The first argument to <em>set</em> will be <em>\*a</em> and the second
+argument will be <em>\{foo</em>.</p></div>
+<div class="para"><p>If an argument is enclosed in braces, then backslash sequences inside
+the argument are parsed but no substitution occurs (except for
+backslash-newline):  the backslash
+sequence is passed through to the argument as is, without making
+any special interpretation of the characters in the backslash sequence.
+In particular, backslashed braces are not counted in locating the
+matching right brace that terminates the argument.
+For example, in the
+command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a {\{abc}</tt></pre>
+</div></div>
+<div class="para"><p>the second argument to <em>set</em> will be <em>\{abc</em>.</p></div>
+<div class="para"><p>This backslash mechanism is not sufficient to generate absolutely
+any argument structure; it only covers the
+most common cases.  To produce particularly complicated arguments
+it is probably easiest to use the <em>format</em> command along with
+command substitution.</p></div>
+</div>
+<h2 id="_command_summary">COMMAND SUMMARY</h2>
+<div class="sectionbody">
+<div class="olist"><ol>
+<li>
+<p>
+A command is just a string.
+</p>
+</li>
+<li>
+<p>
+Within a string commands are separated by newlines or semi-colons
+   (unless the newline or semi-colon is within braces or brackets
+   or is backslashed).
+</p>
+</li>
+<li>
+<p>
+A command consists of fields.  The first field is the name of the command.
+   The other fields are strings that are passed to that command as arguments.
+</p>
+</li>
+<li>
+<p>
+Fields are normally separated by white space.
+</p>
+</li>
+<li>
+<p>
+Double-quotes allow white space and semi-colons to appear within
+   a single argument.
+   Command substitution, variable substitution, and backslash substitution
+   still occur inside quotes.
+</p>
+</li>
+<li>
+<p>
+Braces defer interpretation of special characters.
+   If a field begins with a left brace, then it consists of everything
+   between the left brace and the matching right brace. The
+   braces themselves are not included in the argument.
+   No further processing is done on the information between the braces
+   except that backslash-newline sequences are eliminated.
+</p>
+</li>
+<li>
+<p>
+If a field doesn't begin with a brace then backslash,
+   variable, and command substitution are done on the field.  Only a
+   single level of processing is done:  the results of one substitution
+   are not scanned again for further substitutions or any other
+   special treatment.  Substitution can
+   occur on any field of a command, including the command name
+   as well as the arguments.
+</p>
+</li>
+<li>
+<p>
+If the first non-blank character of a command is a <em>#</em>, everything
+   from the <em>#</em> up through the next newline is treated as a comment
+   and ignored.
+</p>
+</li>
+</ol></div>
+</div>
+<h2 id="_expressions">EXPRESSIONS</h2>
+<div class="sectionbody">
+<div class="para"><p>The second major interpretation applied to strings in Tcl is
+as expressions.  Several commands, such as <em>expr</em>, <em>for</em>,
+and <em>if</em>, treat one or more of their arguments as expressions
+and call the Tcl expression processors (<em>Jim_ExprLong</em>,
+<em>Jim_ExprBoolean</em>, etc.) to evaluate them.</p></div>
+<div class="para"><p>The operators permitted in Tcl expressions are a subset of
+the operators permitted in C expressions, and they have the
+same meaning and precedence as the corresponding C operators.
+Expressions almost always yield numeric results
+(integer or floating-point values).
+For example, the expression</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>8.2 + 6</tt></pre>
+</div></div>
+<div class="para"><p>evaluates to 14.2.</p></div>
+<div class="para"><p>Tcl expressions differ from C expressions in the way that
+operands are specified, and in that Tcl expressions support
+non-numeric operands and string comparisons.</p></div>
+<div class="para"><p>A Tcl expression consists of a combination of operands, operators,
+and parentheses.</p></div>
+<div class="para"><p>White space may be used between the operands and operators and
+parentheses; it is ignored by the expression processor.
+Where possible, operands are interpreted as integer values.</p></div>
+<div class="para"><p>Integer values may be specified in decimal (the normal case), in octal (if the
+first character of the operand is <em>0</em>), or in hexadecimal (if the first
+two characters of the operand are <em>0x</em>).</p></div>
+<div class="para"><p>If an operand does not have one of the integer formats given
+above, then it is treated as a floating-point number if that is
+possible.  Floating-point numbers may be specified in any of the
+ways accepted by an ANSI-compliant C compiler (except that the
+<em>f</em>, <em>F</em>, <em>l</em>, and <em>L</em> suffixes will not be permitted in
+most installations).  For example, all of the
+following are valid floating-point numbers:  2.1, 3., 6e4, 7.91e+16.</p></div>
+<div class="para"><p>If no numeric interpretation is possible, then an operand is left
+as a string (and only a limited set of operators may be applied to
+it).</p></div>
+<div class="olist"><ol>
+<li>
+<p>
+Operands may be specified in any of the following ways:
+</p>
+</li>
+<li>
+<p>
+As a numeric value, either integer or floating-point.
+</p>
+</li>
+<li>
+<p>
+As a Tcl variable, using standard <em>$</em> notation.
+The variable's value will be used as the operand.
+</p>
+</li>
+<li>
+<p>
+As a string enclosed in double-quotes.
+The expression parser will perform backslash, variable, and
+command substitutions on the information between the quotes,
+and use the resulting value as the operand
+</p>
+</li>
+<li>
+<p>
+As a string enclosed in braces.
+The characters between the open brace and matching close brace
+will be used as the operand without any substitutions.
+</p>
+</li>
+<li>
+<p>
+As a Tcl command enclosed in brackets.
+The command will be executed and its result will be used as
+the operand.
+</p>
+</li>
+</ol></div>
+<div class="para"><p>Where substitutions occur above (e.g. inside quoted strings), they
+are performed by the expression processor.
+However, an additional layer of substitution may already have
+been performed by the command parser before the expression
+processor was called.</p></div>
+<div class="para"><p>As discussed below, it is usually best to enclose expressions
+in braces to prevent the command parser from performing substitutions
+on the contents.</p></div>
+<div class="para"><p>For some examples of simple expressions, suppose the variable <em>a</em> has
+the value 3 and the variable <em>b</em> has the value 6.  Then the expression
+on the left side of each of the lines below will evaluate to the value
+on the right side of the line:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>$a + 3.1                6.1
+2 + "$a.$b"             5.6
+4*[llength "6 2"]       8
+{word one} &lt; "word $a"  0</tt></pre>
+</div></div>
+<div class="para"><p>The valid operators are listed below, grouped in decreasing order
+of precedence:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>- ~ !</tt>
+</dt>
+<dd>
+<p>
+    Unary minus, bit-wise NOT, logical NOT.  None of these operands
+    may be applied to string operands, and bit-wise NOT may be
+    applied only to integers.
+</p>
+</dd>
+<dt>
+<tt>**</tt>
+</dt>
+<dd>
+<p>
+    Power. e.g. pow(). Numbers only.
+</p>
+</dd>
+<dt>
+<tt>* / %</tt>
+</dt>
+<dd>
+<p>
+    Multiply, divide, remainder.  None of these operands may be
+    applied to string operands, and remainder may be applied only
+    to integers.
+</p>
+</dd>
+<dt>
+<tt>+ -</tt>
+</dt>
+<dd>
+<p>
+    Add and subtract.  Valid for any numeric operands.
+</p>
+</dd>
+<dt>
+<tt>&lt;&lt;  &gt;&gt;</tt>
+</dt>
+<dd>
+<p>
+    Left and right shift.  Valid for integer operands only.
+</p>
+</dd>
+<dt>
+<tt>&lt;  &gt;  &lt;=  &gt;=</tt>
+</dt>
+<dd>
+<p>
+    Boolean less, greater, less than or equal, and greater than or equal.
+    Each operator produces 1 if the condition is true, 0 otherwise.
+    These operators may be applied to strings as well as numeric operands,
+    in which case string comparison is used.
+</p>
+</dd>
+<dt>
+<tt>eq ne</tt>
+</dt>
+<dd>
+<p>
+    String equal and not equal.  Uses the string value directly without
+    attempting to convert to a number first.
+</p>
+</dd>
+<dt>
+<tt>==  !=</tt>
+</dt>
+<dd>
+<p>
+    Boolean equal and not equal.  Each operator produces a zero/one result.
+    Valid for all operand types. Note that values will be converted to integers
+    if possible, then floating point types, and finally strings will be compared.
+</p>
+</dd>
+<dt>
+<tt>&amp;</tt>
+</dt>
+<dd>
+<p>
+    Bit-wise AND.  Valid for integer operands only.
+</p>
+</dd>
+<dt>
+<tt>^</tt>
+</dt>
+<dd>
+<p>
+    Bit-wise exclusive OR.  Valid for integer operands only.
+</p>
+</dd>
+<dt>
+<tt>|</tt>
+</dt>
+<dd>
+<p>
+    Bit-wise OR.  Valid for integer operands only.
+</p>
+</dd>
+<dt>
+<tt>&amp;&amp;</tt>
+</dt>
+<dd>
+<p>
+    Logical AND.  Produces a 1 result if both operands are non-zero, 0 otherwise.
+    Valid for numeric operands only (integers or floating-point).
+</p>
+</dd>
+<dt>
+<tt>||</tt>
+</dt>
+<dd>
+<p>
+    Logical OR.  Produces a 0 result if both operands are zero, 1 otherwise.
+    Valid for numeric operands only (integers or floating-point).
+</p>
+</dd>
+<dt>
+<tt>x ? y : z</tt>
+</dt>
+<dd>
+<p>
+    If-then-else, as in C.  If <strong>x</strong>
+    evaluates to non-zero, then the result is the value of <strong>y</strong>.
+    Otherwise the result is the value of <strong>z</strong>.
+    The <strong>x</strong> operand must have a numeric value.
+    Note that Jim currently evaluates <strong>both</strong> sides of the expression regardless
+    of the value of <strong>x</strong>.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>See the C manual for more details on the results
+produced by each operator.
+All of the binary operators group left-to-right within the same
+precedence level.  For example, the expression</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>4*2 &lt; 7</tt></pre>
+</div></div>
+<div class="para"><p>evaluates to 0.</p></div>
+<div class="para"><p>The <em>&amp;&amp;</em>, <em>||</em>, and <em>?:</em> operators have <em>lazy
+evaluation</em>, just as in C,
+which means that operands are not evaluated if they are
+not needed to determine the outcome.  For example, in</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>$v ? [a] : [b]</tt></pre>
+</div></div>
+<div class="para"><p>only one of <em>[a]</em> or <em>[b]</em> will actually be evaluated,
+depending on the value of <em>$v</em>.</p></div>
+<div class="para"><p><strong>NOTE</strong> This is currently not true of the ?: operator for Jim.</p></div>
+<div class="para"><p>All internal computations involving integers are done with the C
+type <em>long long</em> if available, or <em>long</em> otherwise, and all internal
+computations involving floating-point are done with the C type
+<em>double</em>.</p></div>
+<div class="para"><p>When converting a string to floating-point, exponent overflow is
+detected and results in a Tcl error.
+For conversion to integer from string, detection of overflow depends
+on the behavior of some routines in the local C library, so it should
+be regarded as unreliable.
+In any case, overflow and underflow are generally not detected
+reliably for intermediate results.</p></div>
+<div class="para"><p>Conversion among internal representations for integer, floating-point,
+and string operands is done automatically as needed.
+For arithmetic computations, integers are used until some
+floating-point number is introduced, after which floating-point is used.
+For example,</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>5 / 4</tt></pre>
+</div></div>
+<div class="para"><p>yields the result 1, while</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>5 / 4.0
+5 / ( [string length "abcd"] + 0.0 )</tt></pre>
+</div></div>
+<div class="para"><p>both yield the result 1.25.</p></div>
+<div class="para"><p>String values may be used as operands of the comparison operators,
+although the expression evaluator tries to do comparisons as integer
+or floating-point when it can.
+If one of the operands of a comparison is a string and the other
+has a numeric value, the numeric operand is converted back to
+a string using the C <em>sprintf</em> format specifier
+<em>%d</em> for integers and <em>%g</em> for floating-point values.
+For example, the expressions</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>"0x03" &gt; "2"
+"0y" &lt; "0x12"</tt></pre>
+</div></div>
+<div class="para"><p>both evaluate to 1.  The first comparison is done using integer
+comparison, and the second is done using string comparison after
+the second operand is converted to the string <em>18</em>.</p></div>
+<div class="para"><p>In general it is safest to enclose an expression in braces when
+entering it in a command:  otherwise, if the expression contains
+any white space then the Tcl interpreter will split it
+among several arguments.  For example, the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>expr $a + $b</tt></pre>
+</div></div>
+<div class="para"><p>results in three arguments being passed to <em>expr</em>:  <em>$a</em>,
+<em>+</em>, and <em>$b</em>.  In addition, if the expression isn't in braces
+then the Tcl interpreter will perform variable and command substitution
+immediately (it will happen in the command parser rather than in
+the expression parser).  In many cases the expression is being
+passed to a command that will evaluate the expression later (or
+even many times if, for example, the expression is to be used to
+decide when to exit a loop).  Usually the desired goal is to re-do
+the variable or command substitutions each time the expression is
+evaluated, rather than once and for all at the beginning.  For example,
+the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>for {set i 1} $i&lt;=10 {incr i} {...}        *** WRONG ***</tt></pre>
+</div></div>
+<div class="para"><p>is probably intended to iterate over all values of <tt>i</tt> from 1 to 10.
+After each iteration of the body of the loop, <em>for</em> will pass
+its second argument to the expression evaluator to see whether or not
+to continue processing.  Unfortunately, in this case the value of <tt>i</tt>
+in the second argument will be substituted once and for all when the
+<em>for</em> command is parsed.  If <tt>i</tt> was 0 before the <em>for</em>
+command was invoked then for's second argument will be <tt>0&lt;=10</tt>
+which will always evaluate to 1, even though <tt>i</tt> eventually
+becomes greater than 10.  In the above case the loop will never
+terminate.  Instead, the expression should be placed in braces:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>for {set i 1} {$i&lt;=10} {incr i} {...}      *** RIGHT ***</tt></pre>
+</div></div>
+<div class="para"><p>This causes the substitution of <em>i</em>
+to be delayed; it will be re-done each time the expression is
+evaluated, which is the desired result.</p></div>
+</div>
+<h2 id="_lists">LISTS</h2>
+<div class="sectionbody">
+<div class="para"><p>The third major way that strings are interpreted in Tcl is as lists.
+A list is just a string with a list-like structure
+consisting of fields separated by white space.  For example, the
+string</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>Al Sue Anne John</tt></pre>
+</div></div>
+<div class="para"><p>is a list with four elements or fields.
+Lists have the same basic structure as command strings, except
+that a newline character in a list is treated as a field separator
+just like space or tab.  Conventions for braces and quotes
+and backslashes are the same for lists as for commands.  For example,
+the string</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>a b\ c {d e {f g h}}</tt></pre>
+</div></div>
+<div class="para"><p>is a list with three elements:  <em>a</em>, <em>b c</em>, and <em>d e {f g h}</em>.</p></div>
+<div class="para"><p>Whenever an element is extracted from a list, the same rules about
+braces and quotes and backslashes are applied as for commands.  Thus in
+the example above when the third element is extracted from the list,
+the result is</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>d e {f g h}</tt></pre>
+</div></div>
+<div class="para"><p>(when the field was extracted, all that happened was to strip off
+the outermost layer of braces).  Command substitution and
+variable substitution are never
+made on a list (at least, not by the list-processing commands; the
+list can always be passed to the Tcl interpreter for evaluation).</p></div>
+<div class="para"><p>The Tcl commands <em>concat</em>, <em>foreach</em>, <em>lappend</em>, <em>lindex</em>, <em>linsert</em>,
+<em>list</em>, <em>llength</em>, <em>lrange</em>, <em>lreplace</em>, <em>lsearch</em>, and <em>lsort</em> allow
+you to build lists, extract elements from them, search them, and perform
+other list-related functions.</p></div>
+</div>
+<h2 id="_list_expansion">LIST EXPANSION</h2>
+<div class="sectionbody">
+<div class="para"><p>A new addition to Tcl 8.5 is the ability to expand a list into separate
+arguments. Support for this feature is also available in Jim.</p></div>
+<div class="para"><p>Consider the following attempt to exec a list:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set cmd {ls -l}
+exec $cmd</tt></pre>
+</div></div>
+<div class="para"><p>This will attempt to exec the a command named "ls -l", which will clearly not
+work. Typically eval and concat are required to solve this problem, however
+it can be solved much more easily with <em>{*}</em>.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>exec {*}$cmd</tt></pre>
+</div></div>
+<div class="para"><p>This will expand the following argument into individual elements and then evaluate
+the resulting command.</p></div>
+<div class="para"><p>Note that the official Tcl syntax is <em>{*}</em>, however <em>{expand}</em> is retained
+for backward compatibility with experimental versions of this feature.</p></div>
+</div>
+<h2 id="_regular_expressions">REGULAR EXPRESSIONS</h2>
+<div class="sectionbody">
+<div class="para"><p>Tcl provides two commands that support string matching using
+<em>egrep</em>-style regular expressions: <em>regexp</em> and <em>regsub</em>.</p></div>
+<div class="para"><p>Regular expressions are implemented using the system's C library as
+Extended Regular Expressions (EREs) rather than Basic Regular Expressions (BREs).</p></div>
+<div class="para"><p>See regex(3) and regex(7) for full details.</p></div>
+<div class="para"><p><strong>NOTE</strong> Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (AREs).</p></div>
+</div>
+<h2 id="_command_results">COMMAND RESULTS</h2>
+<div class="sectionbody">
+<div class="para"><p>Each command produces two results:  a code and a string.  The
+code indicates whether the command completed successfully or not,
+and the string gives additional information.  The valid codes are
+defined in jim.h, and are:</p></div>
+<div class="vlist"><dl>
+<dt>
+JIM_OK
+</dt>
+<dd>
+<p>
+    This is the normal return code, and indicates that the command completed
+    successfully.  The string gives the command's return value.
+</p>
+</dd>
+<dt>
+JIM_ERROR
+</dt>
+<dd>
+<p>
+    Indicates that an error occurred; the string gives a message describing
+    the error.
+</p>
+</dd>
+<dt>
+JIM_RETURN
+</dt>
+<dd>
+<p>
+    Indicates that the <em>return</em> command has been invoked, and that the
+    current procedure (or top-level command or <em>source</em> command)
+    should return immediately.  The
+    string gives the return value for the procedure or command.
+</p>
+</dd>
+<dt>
+JIM_BREAK
+</dt>
+<dd>
+<p>
+    Indicates that the <em>break</em> command has been invoked, so the
+    innermost loop should abort immediately.  The string should always
+    be empty.
+</p>
+</dd>
+<dt>
+JIM_CONTINUE
+</dt>
+<dd>
+<p>
+    Indicates that the <em>continue</em> command has been invoked, so the
+    innermost loop should go on to the next iteration.  The string
+    should always be empty.
+</p>
+</dd>
+<dt>
+JIM_EXIT
+</dt>
+<dd>
+<p>
+    Indicates that the command called the <em>exit</em> command.
+    The string contains the exit code.
+</p>
+</dd>
+<dt>
+JIM_SIGNAL
+</dt>
+<dd>
+<p>
+    Indicates that a signal was caught while executing a commands.
+    The string contains the name of the signal caught.
+    See the <em>signal</em> and <em>catch</em> commands.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>Tcl programmers do not normally need to think about return codes,
+since JIM_OK is almost always returned.  If anything else is returned
+by a command, then the Tcl interpreter immediately stops processing
+commands and returns to its caller.  If there are several nested
+invocations of the Tcl interpreter in progress, then each nested
+command will usually return the error to its caller, until eventually
+the error is reported to the top-level application code.  The
+application will then display the error message for the user.</p></div>
+<div class="para"><p>In a few cases, some commands will handle certain <em>error</em> conditions
+themselves and not return them upwards.  For example, the <em>for</em>
+command checks for the JIM_BREAK code; if it occurs, then <em>for</em>
+stops executing the body of the loop and returns JIM_OK to its
+caller.  The <em>for</em> command also handles JIM_CONTINUE codes and the
+procedure interpreter handles JIM_RETURN codes.  The <em>catch</em>
+command allows Tcl programs to catch errors and handle them without
+aborting command interpretation any further.</p></div>
+</div>
+<h2 id="_procedures">PROCEDURES</h2>
+<div class="sectionbody">
+<div class="para"><p>Tcl allows you to extend the command interface by defining
+procedures.  A Tcl procedure can be invoked just like any other Tcl
+command (it has a name and it receives one or more arguments).
+The only difference is that its body isn't a piece of C code linked
+into the program; it is a string containing one or more other
+Tcl commands.  See the <em>proc</em> command for information on
+how to define procedures and what happens when they are invoked.</p></div>
+</div>
+<h2 id="_variables_scalars_and_arrays">VARIABLES - SCALARS AND ARRAYS</h2>
+<div class="sectionbody">
+<div class="para"><p>Tcl allows the definition of variables and the use of their values
+either through <em>$</em>-style variable substitution, the <em>set</em>
+command, or a few other mechanisms.</p></div>
+<div class="para"><p>Variables need not be declared:  a new variable will automatically
+be created each time a new variable name is used.</p></div>
+<div class="para"><p>Tcl supports two types of variables:  scalars and arrays.
+A scalar variable has a single value, whereas an array variable
+can have any number of elements, each with a name (called
+its <em>index</em>) and a value.</p></div>
+<div class="para"><p>Array indexes may be arbitrary strings; they need not be numeric.
+Parentheses are used refer to array elements in Tcl commands.
+For example, the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set x(first) 44</tt></pre>
+</div></div>
+<div class="para"><p>will modify the element of <em>x</em> whose index is <em>first</em>
+so that its new value is <em>44</em>.</p></div>
+<div class="para"><p>Two-dimensional arrays can be simulated in Tcl by using indexes
+that contain multiple concatenated values.
+For example, the commands</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a(2,3) 1
+set a(3,6) 2</tt></pre>
+</div></div>
+<div class="para"><p>set the elements of <em>a</em> whose indexes are <em>2,3</em> and <em>3,6</em>.</p></div>
+<div class="para"><p>In general, array elements may be used anywhere in Tcl that scalar
+variables may be used.</p></div>
+<div class="para"><p>If an array is defined with a particular name, then there may
+not be a scalar variable with the same name.</p></div>
+<div class="para"><p>Similarly, if there is a scalar variable with a particular
+name then it is not possible to make array references to the
+variable.</p></div>
+<div class="para"><p>To convert a scalar variable to an array or vice versa, remove
+the existing variable with the <em>unset</em> command.</p></div>
+<div class="para"><p>The <em>array</em> command provides several features for dealing
+with arrays, such as querying the names of all the elements of
+the array and converting between an array and a list.</p></div>
+<div class="para"><p>Variables may be either global or local.  If a variable
+name is used when a procedure isn't being executed, then it
+automatically refers to a global variable.  Variable names used
+within a procedure normally refer to local variables associated with that
+invocation of the procedure.  Local variables are deleted whenever
+a procedure exits.  Either <em>global</em> command may be used to request
+that a name refer to a global variable for the duration of the current
+procedure (this is somewhat analogous to <em>extern</em> in C), or the variable
+may be explicitly scoped with the <em>::</em> prefix. For example</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a 1
+set b 2
+proc p {} {
+    set c 3
+    global a</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>    puts "$a $::b $c"
+}
+p</tt></pre>
+</div></div>
+<div class="para"><p>will output:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>1 2 3</tt></pre>
+</div></div>
+</div>
+<h2 id="_arrays_as_lists_in_jim">ARRAYS AS LISTS IN JIM</h2>
+<div class="sectionbody">
+<div class="para"><p>Unlike Tcl, Jim can automatically convert between a list (with an even
+number of elements) and an array value. This is similar to the way Tcl
+can convert between a string and a list.</p></div>
+<div class="para"><p>For example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a {1 one 2 two}
+puts $a(2)</tt></pre>
+</div></div>
+<div class="para"><p>will output:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>two</tt></pre>
+</div></div>
+<div class="para"><p>Thus <em>array set</em> is equivalent to <em>set</em> when the variable does not
+exist or is empty.</p></div>
+<div class="para"><p>The reverse is also true where an array will be converted into
+a list.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a(1) one; set a(2) two
+puts $a</tt></pre>
+</div></div>
+<div class="para"><p>will output:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>1 one 2 two</tt></pre>
+</div></div>
+</div>
+<h2 id="_garbage_collection_references_lambda">GARBAGE COLLECTION, REFERENCES, LAMBDA</h2>
+<div class="sectionbody">
+<div class="para"><p>Unlike Tcl, Jim has some sophistocated support for functional programming.
+These are described briefly below.</p></div>
+<div class="para"><p>More information may be found at <a href="http://wiki.tcl.tk/13847">http://wiki.tcl.tk/13847</a></p></div>
+<h3 id="_references">References</h3><div style="clear:left"></div>
+<div class="para"><p>A reference can be thought of as holding a value with one level of indirection,
+where the value may be garbage collected when unreferenced.
+Consider the following example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; set r [ref "One String" test]
+&lt;reference.&lt;test___&gt;.00000000000000000000&gt;
+jim&gt; getref $r
+One String</tt></pre>
+</div></div>
+<div class="para"><p>The operation <em>ref</em> creates a references to the value specfied by the
+first argument. (The second argument is a "type" used for documentation purposes).</p></div>
+<div class="para"><p>The operation <em>getref</em> is the dereferencing operation which retrieves the value
+stored in the reference.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; setref $r "New String"
+New String
+jim&gt; getref $r
+New String</tt></pre>
+</div></div>
+<div class="para"><p>The operation <em>setref</em> replaces the value stored by the reference. If the old value
+is no longer accessible by any reference, it will eventually be automatically be garbage
+collected.</p></div>
+<h3 id="_garbage_collection">Garbage Collection</h3><div style="clear:left"></div>
+<div class="para"><p>Normally, all values in Tcl are passed by value. As such values are copied and released
+automatically as necessary.</p></div>
+<div class="para"><p>With the introduction of references, it is possible to create values whose lifetime
+transcend their scope. To support this, case, the Jim system will periodically identify
+and discard objects which are no longer accessible by any reference.</p></div>
+<div class="para"><p>The <em>collect</em> command may be used to force garbage collection.  Consider a reference created
+with a finalizer:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; proc f {ref value} { puts "Finaliser called for $ref,$value" }
+jim&gt; set r [ref "One String" test f]
+&lt;reference.&lt;test___&gt;.00000000000
+jim&gt; collect
+0
+jim&gt; set r ""
+jim&gt; collect
+Finaliser called for &lt;reference.&lt;test___&gt;.00000000000,One String
+1</tt></pre>
+</div></div>
+<div class="para"><p>Note that once the reference, <em>r</em>, was modified so that it no longer
+contained a reference to the value, the garbage collector discarded
+the value (after calling the finalizer).</p></div>
+<div class="para"><p>The finalizer for a reference may be examined or changed with the <em>finalize</em> command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; finalize $r
+f
+jim&gt; finalize $r newf
+newf</tt></pre>
+</div></div>
+</div>
+<h2 id="_lambda">Lambda</h2>
+<div class="sectionbody">
+<div class="para"><p>Jim provides a garbage collected lambda function. This is a procedure
+which is able to create an anonymous procedure.  Consider:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; set f [lambda {a} {{x 0}} { incr x $a }]
+jim&gt; $f 1
+1
+jim&gt; $f 2
+3
+jim&gt; set f ""</tt></pre>
+</div></div>
+<div class="para"><p>This create an anonymous procedure, <em>f</em>, with a static variable
+which is incremented by the supplied value and the result returned.</p></div>
+<div class="para"><p>Once the procedure is renamed to "", the procedure is automatically deleted.</p></div>
+</div>
+<h2 id="_built_in_commands">BUILT-IN COMMANDS</h2>
+<div class="sectionbody">
+<div class="para"><p>The Tcl library provides the following built-in commands, which will
+be available in any application using Tcl.  In addition to these
+built-in commands, there may be additional commands defined by each
+application, plus commands defined as Tcl procedures.</p></div>
+<div class="para"><p>In the command syntax descriptions below, words in <tt><strong>boldface</strong></tt> are
+literals that you type verbatim to Tcl.</p></div>
+<div class="para"><p>Words in <tt><em>italics</em></tt> are meta-symbols; they serve as names for any of
+a range of values that you can type.</p></div>
+<div class="para"><p>Optional arguments or groups of arguments are indicated by enclosing them
+in <tt>?question-marks?</tt>.</p></div>
+<div class="para"><p>Ellipses (<tt>&#8230;</tt>) indicate that any number of additional
+arguments or groups of arguments may appear, in the same format
+as the preceding argument(s).</p></div>
+<h3 id="_alarm">alarm</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>alarm</strong> <em>seconds</em></tt></p></div>
+<div class="para"><p>Delivers the <em>SIGALRM</em> signal to the process after the given
+number of seconds. If the platform supports <em>ularm(3)</em> then
+the argument may be a floating point value. Otherwise it must
+be an integer.</p></div>
+<div class="para"><p>Note that unless a signal handler for <em>SIGALRM</em> has been installed
+(see <em>signal</em>), the process will exit on this signal.</p></div>
+<h3 id="_append">append</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>append</strong> <em>varName value ?value value &#8230;?</em></tt></p></div>
+<div class="para"><p>Append all of the <strong>value</strong> arguments to the current value
+of variable <strong>varName</strong>.  If <strong>varName</strong> doesn't exist,
+it is given a value equal to the concatenation of all the
+<strong>value</strong> arguments.</p></div>
+<div class="para"><p>This command provides an efficient way to build up long
+variables incrementally.
+For example, <em>append a $b</em> is much more efficient than
+<em>set a $a$b</em> if <em>$a</em> is long.</p></div>
+<h3 id="_array">array</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>array</strong> <em>option arrayName ?arg arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command performs one of several operations on the
+variable given by <strong>arrayName</strong>.</p></div>
+<div class="para"><p>Note that in general, if the named array does not exist, the <strong>array</strong> command behaves
+as though the array exists but is empty.</p></div>
+<div class="para"><p>The <strong>option</strong> argument determines what action is carried out by the
+command.  The legal <strong>options</strong> (which may be abbreviated) are:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>array exists arrayName</tt>
+</dt>
+<dd>
+<p>
+    Returns 1 if arrayName is an array variable, 0 if there is
+    no variable by that name.  This command is essentially
+    identical to <em>info exists</em>
+</p>
+</dd>
+<dt>
+<tt>array get arrayName ?pattern?</tt>
+</dt>
+<dd>
+<p>
+    Returns a list containing pairs of elements. The first
+    element in each pair is the name of an element in arrayName
+    and the second element of each pair is the value of the
+    array element. The order of the pairs is undefined. If
+    pattern is not specified, then all of the elements of the
+    array are included in the result. If pattern is specified,
+    then only those elements whose names match pattern (using
+    the matching rules of string match) are included. If arrayName
+    isn't the name of an array variable, or if the array contains
+    no elements, then an empty list is returned.
+</p>
+</dd>
+<dt>
+<tt>array names arrayName ?pattern?</tt>
+</dt>
+<dd>
+<p>
+    Returns a list containing the names of all of the elements
+    in the array that match pattern. If pattern is omitted then
+    the command returns all of the element names in the array.
+    If pattern is specified, then only those elements whose
+    names match pattern (using the matching rules of string
+    match) are included. If there are no (matching) elements
+    in the array, or if arrayName isn't the name of an array
+    variable, then an empty string is returned.
+</p>
+</dd>
+<dt>
+<tt>array set arrayName list</tt>
+</dt>
+<dd>
+<p>
+    Sets the values of one or more elements in arrayName. list
+    must have a form like that returned by array get, consisting
+    of an even number of elements. Each odd-numbered element
+    in list is treated as an element name within arrayName, and
+    the following element in list is used as a new value for
+    that array element. If the variable arrayName does not
+    already exist and list is empty, arrayName is created with
+    an empty array value.
+</p>
+</dd>
+<dt>
+<tt>array size arrayName</tt>
+</dt>
+<dd>
+<p>
+    Returns the number of elements in the array. If arrayName
+    isn't the name of an array then 0 is returned.
+</p>
+</dd>
+<dt>
+<tt>array unset arrayName ?pattern?</tt>
+</dt>
+<dd>
+<p>
+    Unsets all of the elements in the array that match pattern
+    (using the matching rules of string match). If arrayName
+    isn't the name of an array variable or there are no matching
+    elements in the array, no error will be raised. If pattern
+    is omitted and arrayName is an array variable, then the
+    command unsets the entire array. The command always returns
+    an empty string.
+</p>
+</dd>
+</dl></div>
+<h3 id="_break">break</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>break</strong></tt></p></div>
+<div class="para"><p>This command may be invoked only inside the body of a loop command
+such as <em>for</em> or <em>foreach</em> or <em>while</em>.  It returns a JIM_BREAK code
+to signal the innermost containing loop command to return immediately.</p></div>
+<h3 id="_case">case</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>case</strong> <em>string</em> ?<strong>in</strong>? <em>patList body ?patList body &#8230;?</em></tt></p></div>
+<div class="para"><p><tt><strong>case</strong> <em>string</em> ?<strong>in</strong>? {<em>patList body ?patList body &#8230;?</em>}</tt></p></div>
+<div class="para"><p><strong>Note</strong> that the switch command should generally be preferred unless compatibility
+with Tcl 6.x is desired.</p></div>
+<div class="para"><p>Match <strong>string</strong> against each of the <strong>patList</strong> arguments
+in order.  If one matches, then evaluate the following <strong>body</strong> argument
+by passing it recursively to the Tcl interpreter, and return the result
+of that evaluation.  Each <strong>patList</strong> argument consists of a single
+pattern or list of patterns.  Each pattern may contain any of the wild-cards
+described under <em>string match</em>.</p></div>
+<div class="para"><p>If a <strong>patList</strong> argument is <em>default</em>, the corresponding body will be
+evaluated if no <strong>patList</strong> matches <strong>string</strong>.  If no <strong>patList</strong> argument
+matches <strong>string</strong> and no default is given, then the <em>case</em> command returns
+an empty string.</p></div>
+<div class="para"><p>Two syntaxes are provided.</p></div>
+<div class="para"><p>The first uses a separate argument for each of the patterns and commands;
+this form is convenient if substitutions are desired on some of the
+patterns or commands.</p></div>
+<div class="para"><p>The second form places all of the patterns and commands together into
+a single argument; the argument must have proper list structure, with
+the elements of the list being the patterns and commands.</p></div>
+<div class="para"><p>The second form makes it easy to construct multi-line case commands,
+since the braces around the whole list make it unnecessary to include a
+backslash at the end of each line.</p></div>
+<div class="para"><p>Since the <strong>patList</strong> arguments are in braces in the second form,
+no command or variable substitutions are performed on them;  this makes
+the behavior of the second form different than the first form in some
+cases.</p></div>
+<div class="para"><p>Below are some examples of <em>case</em> commands:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>case abc in {a b} {format 1} default {format 2} a* {format 3}</tt></pre>
+</div></div>
+<div class="para"><p>will return <em>3</em>,</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>case a in {
+    {a b} {format 1}
+    default {format 2}
+    a* {format 3}
+}</tt></pre>
+</div></div>
+<div class="para"><p>will return <em>1</em>, and</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>case xyz {
+    {a b}
+        {format 1}
+    default
+        {format 2}
+    a*
+        {format 3}
+}</tt></pre>
+</div></div>
+<div class="para"><p>will return <em>2</em>.</p></div>
+<h3 id="_catch">catch</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>catch</strong> ?<strong>-signal</strong>? <em>command</em> ?<em>varName</em>?</tt></p></div>
+<div class="para"><p>The <em>catch</em> command may be used to prevent errors from aborting
+command interpretation.  <em>Catch</em> evalues <strong>command</strong>, and
+returns a JIM_OK code, regardless of any errors that might occur
+while executing <strong>command</strong> (with the possible exception of JIM_SIGNAL
+- see below).</p></div>
+<div class="para"><p>The return value from <em>catch</em> is a decimal string giving the code returned
+by the Tcl interpreter after executing <strong>command</strong>.  This will be <em>0</em>
+(JIM_OK) if there were no errors in <strong>command</strong>; otherwise it will have
+a non-zero value corresponding to one of the exceptional return codes
+(see jim.h for the definitions of code values).</p></div>
+<div class="para"><p>If the <strong>varName</strong> argument is given, then it gives the name of a variable;
+<em>catch</em> will set the value of the variable to the string returned from
+<strong>command</strong> (either a result or an error message).</p></div>
+<div class="para"><p>Normally <em>catch</em> will <strong>not</strong> catch any signal. However if <strong>-signal</strong> is specified,
+any signals marked as <strong>handle</strong> by <em>signal</em> will be caught and <em>catch</em> will return
+JIM_SIGNAL (5). In this case, the return values is the name of the signal caught.</p></div>
+<h3 id="_cd">cd</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>cd</strong> <em>dirName</em></tt></p></div>
+<div class="para"><p>Change the current working directory to <strong>dirName</strong>.</p></div>
+<div class="para"><p>Returns an empty string.</p></div>
+<div class="para"><p>This command can potentially be disruptive to an application, so it may
+be removed in some applications.</p></div>
+<h3 id="_clock">clock</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>clock seconds</strong></tt></p></div>
+<div class="para"><p>Returns the current time as seconds since the epoch.</p></div>
+<div class="para"><p><tt><strong>clock format</strong> <em>seconds ?-format format?</em>*</tt></p></div>
+<div class="para"><p>Format the given time (seconds since the epoch) according to the given
+format. See strftime(3) for supported formats.</p></div>
+<div class="para"><p>If no format is supplied, "%c" is used.</p></div>
+<div class="para"><p><tt><strong>clock scan</strong> <em>str -format format</em></tt></p></div>
+<div class="para"><p>Scan the given time string using the given format string.
+See strptime(3) for supported formats.</p></div>
+<h3 id="_close">close</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>close</strong> <em>fileId</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>close</strong></tt></p></div>
+<div class="para"><p>Closes the file given by <strong>fileId</strong>.
+<strong>fileId</strong> must be the return value from a previous invocation
+of the <em>open</em> command; after this command, it should not be
+used anymore.</p></div>
+<h3 id="_concat">concat</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>concat</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command treats each argument as a list and concatenates them
+into a single list.  It permits any number of arguments.  For example,
+the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>concat a b {c d e} {f {g h}}</tt></pre>
+</div></div>
+<div class="para"><p>will return</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>a b c d e f {g h}</tt></pre>
+</div></div>
+<div class="para"><p>as its result.</p></div>
+<h3 id="_continue">continue</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>continue</strong></tt></p></div>
+<div class="para"><p>This command may be invoked only inside the body of a loop command such
+as <em>for</em> or <em>foreach</em> or <em>while</em>.  It returns a  JIM_CONTINUE code to
+signal the innermost containing loop command to skip the remainder of
+the loop's body but continue with the next iteration of the loop.</p></div>
+<h3 id="_env">env</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>env</strong> <em>?name?</em></tt></p></div>
+<div class="para"><p>If <strong>name</strong> is supplied, returns the value of <strong>name</strong> from the initial
+environment (see getenv(3)). An error is returned if <strong>name</strong> does not
+exist in the environment.</p></div>
+<div class="para"><p>If no arguments are supplied, returns a list of all environment variables
+and their values as <tt>{name value &#8230;}</tt></p></div>
+<div class="para"><p>See also the global variable <em>::env</em></p></div>
+<h3 id="_eof">eof</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>eof</strong> <em>fileId</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>eof</strong></tt></p></div>
+<div class="para"><p>Returns 1 if an end-of-file condition has occurred on <strong>fileId</strong>,
+0 otherwise.</p></div>
+<div class="para"><p><strong>fileId</strong> must have been the return value from a previous call to <em>open</em>,
+or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one of the
+standard I/O channels.</p></div>
+<h3 id="_error">error</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>error</strong> <em>message ?stacktrace?</em></tt></p></div>
+<div class="para"><p>Returns a JIM_ERROR code, which causes command interpretation to be
+unwound.  <strong>message</strong> is a string that is returned to the application
+to indicate what went wrong.</p></div>
+<div class="para"><p>If the <strong>stacktrace</strong> argument is provided and is non-empty,
+it is used to initialize the stacktrace.</p></div>
+<div class="para"><p>This feature is most useful in conjunction with the <em>catch</em> command:
+if a caught error cannot be handled successfully, <strong>stacktrace</strong> can be used
+to return a stack trace reflecting the original point of occurrence
+of the error:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>catch {...} errMsg
+...
+error $errMsg [info stacktrace]</tt></pre>
+</div></div>
+<div class="para"><p>See also <em>errorInfo</em> and <em>info stacktrace</em></p></div>
+<h3 id="_errorinfo">errorInfo</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>errorInfo</strong> <em>error ?stacktrace?</em></tt></p></div>
+<div class="para"><p>Returns a human-readable representation of the given error message and stack trace.
+Typical usage is:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>if {[catch {...} error]} {
+        puts stderr [errorInfo $error [info stacktrace]]
+        exit 1
+}</tt></pre>
+</div></div>
+<div class="para"><p>See <em>error</em> for typical usage.</p></div>
+<h3 id="_eval">eval</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>eval</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
+<div class="para"><p><em>eval</em> takes one or more arguments, which together comprise a Tcl
+command (or collection of Tcl commands separated by newlines in the
+usual way).  <em>eval</em> concatenates all its arguments in the same
+fashion as the <em>concat</em> command, passes the concatenated string to the
+Tcl interpreter recursively, and returns the result of that
+evaluation (or any error generated by it).</p></div>
+<h3 id="_exec">exec</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>exec</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command treats its arguments as the specification
+of one or more UNIX commands to execute as subprocesses.
+The commands take the form of a standard shell pipeline;
+<em>|</em> arguments separate commands in the
+pipeline and cause standard output of the preceding command
+to be piped into standard input of the next command.</p></div>
+<div class="para"><p>Under normal conditions the result of the <em>exec</em> command
+consists of the standard output produced by the last command
+in the pipeline.</p></div>
+<div class="para"><p>If any of the commands in the pipeline exit abnormally or
+are killed or suspended, then <em>exec</em> will return an error
+and the error message will include the pipeline's output followed by
+error messages describing the abnormal terminations.</p></div>
+<div class="para"><p>If any of the commands writes to its standard error file,
+then <em>exec</em> will return an error, and the error message
+will include the pipeline's output, followed by messages
+about abnormal terminations (if any), followed by the standard error
+output.</p></div>
+<div class="para"><p>If the last character of the result or error message
+is a newline then that character is deleted from the result
+or error message for consistency with normal
+Tcl return values.</p></div>
+<div class="para"><p>An <strong>arg</strong> may have one of the following special forms:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>&gt;filename</tt>
+</dt>
+<dd>
+<p>
+    The standard output of the last command in the pipeline
+    is redirected to the file.  In this situation <em>exec</em>
+    will normally return an empty string.
+</p>
+</dd>
+<dt>
+<tt>&gt;&gt;filename</tt>
+</dt>
+<dd>
+<p>
+    As above, but append to the file.
+</p>
+</dd>
+<dt>
+<tt>&gt;@fileId</tt>
+</dt>
+<dd>
+<p>
+    The standard output of the last command in the pipeline is
+    redirected to the given (writable) file descriptor (e.g. stdout,
+    stderr, or the result of <em>open</em>). In this situation <em>exec</em>
+    will normally return an empty string.
+</p>
+</dd>
+<dt>
+<tt>2&gt;filename</tt>
+</dt>
+<dd>
+<p>
+    The standard error of the last command in the pipeline
+    is redirected to the file.
+</p>
+</dd>
+<dt>
+<tt>2&gt;&gt;filename</tt>
+</dt>
+<dd>
+<p>
+    As above, but append to the file.
+</p>
+</dd>
+<dt>
+<tt>2&gt;@fileId</tt>
+</dt>
+<dd>
+<p>
+    The standard error of the last command in the pipeline is
+    redirected to the given (writable) file descriptor.
+</p>
+</dd>
+<dt>
+<tt>&lt;filename</tt>
+</dt>
+<dd>
+<p>
+    The standard input of the first command in the pipeline
+    is taken from the file.
+</p>
+</dd>
+<dt>
+<tt>&lt;&lt;string</tt>
+</dt>
+<dd>
+<p>
+    The standard input of the first command is taken as the
+    given immediate value.
+</p>
+</dd>
+<dt>
+<tt>&lt;@fileId</tt>
+</dt>
+<dd>
+<p>
+    The standard input of the first command in the pipeline
+    is taken from the given (readable) file descriptor.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>If there is no redirection of standard input, standard error
+or standard output, these are connected to the corresponding
+input or output of the application.</p></div>
+<div class="para"><p>If the last <strong>arg</strong> is <em>&amp;</em> then the command will be
+executed in background.
+In this case the standard output from the last command
+in the pipeline will
+go to the application's standard output unless
+redirected in the command, and error output from all
+the commands in the pipeline will go to the application's
+standard error file. The return value of exec in this case
+is a list of process ids (pids) in the pipeline.</p></div>
+<div class="para"><p>Each <strong>arg</strong> becomes one word for a command, except for
+<em>|</em>, <em>&lt;</em>, <em>&lt;&lt;</em>, <em>&gt;</em>, and <em>&amp;</em> arguments, and the
+arguments that follow <em>&lt;</em>, <em>&lt;&lt;</em>, and <em>&gt;</em>.</p></div>
+<div class="para"><p>The first word in each command is taken as the command name;
+the directories in the PATH environment variable are searched for
+an executable by the given name.</p></div>
+<div class="para"><p>No <em>glob</em> expansion or other shell-like substitutions
+are performed on the arguments to commands.</p></div>
+<h3 id="_exit">exit</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>exit</strong> <em>?returnCode?</em></tt></p></div>
+<div class="para"><p>Terminate the process, returning <strong>returnCode</strong> to the
+parent as the exit status.</p></div>
+<div class="para"><p>If <strong>returnCode</strong> isn't specified then it defaults
+to 0.</p></div>
+<div class="para"><p>Note that exit can be caught with <strong>catch</strong>.</p></div>
+<h3 id="_expr">expr</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>expr</strong> <em>arg</em></tt></p></div>
+<div class="para"><p>Calls the expression processor to evaluate <strong>arg</strong>, and returns
+the result as a string.  See the section EXPRESSIONS above.</p></div>
+<h3 id="_file">file</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>file</strong> <em>option name ?arg arg &#8230;?</em></tt></p></div>
+<div class="para"><p>Operate on a file or a file name.  <strong>name</strong> is the name of a file.</p></div>
+<div class="para"><p><strong>Option</strong> indicates what to do with the file name.  Any unique
+abbreviation for <strong>option</strong> is acceptable.  The valid options are:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>file atime</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return a decimal string giving the time at which file <strong>name</strong>
+    was last accessed.  The time is measured in the standard UNIX
+    fashion as seconds from a fixed starting time (often January 1, 1970).
+    If the file doesn't exist or its access time cannot be queried then an
+    error is generated.
+</p>
+</dd>
+<dt>
+<tt><strong>file delete</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Deletes file <strong>name</strong>. If the file doesn't exist, nothing happens.
+    If the file can't be deleted, an error is generated.
+</p>
+</dd>
+<dt>
+<tt><strong>file dirname</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return all of the characters in <strong>name</strong> up to but not including
+    the last slash character.  If there are no slashes in <strong>name</strong>
+    then return <em>.</em> (a single dot).  If the last slash in <strong>name</strong> is its first
+    character, then return <em>/</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>file executable</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is executable by
+    the current user, <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file exists</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> exists and the current user has
+    search privileges for the directories leading to it, <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file extension</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return all of the characters in <strong>name</strong> after and including the
+    last dot in <strong>name</strong>.  If there is no dot in <strong>name</strong> then return
+    the empty string.
+</p>
+</dd>
+<dt>
+<tt><strong>file isdirectory</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is a directory,
+    <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file isfile</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is a regular file,
+    <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file join</strong> <em>arg arg &#8230;</em></tt>
+</dt>
+<dd>
+<p>
+    Joins multiple path components. Note that if any components is
+        an absolute path, the preceding components are ignored.
+        Thus <em>file join /tmp /root</em> returns <em>/root</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>file lstat</strong> <em>name varName</em></tt>
+</dt>
+<dd>
+<p>
+    Same as <em>stat</em> option (see below) except uses the <strong>lstat</strong>
+    kernel call instead of <strong>stat</strong>.  This means that if <strong>name</strong>
+    refers to a symbolic link the information returned in <strong>varName</strong>
+    is for the link rather than the file it refers to.  On systems that
+    don't support symbolic links this option behaves exactly the same
+    as the <em>stat</em> option.
+</p>
+</dd>
+<dt>
+<tt><strong>file mkdir</strong> <em>dir1 ?dir2? &#8230;</em></tt>
+</dt>
+<dd>
+<p>
+    Creates the given directories. <strong>Note</strong> unlike Tcl 7.x, intermediate
+    directories are <strong>not</strong> created as necessary.
+</p>
+</dd>
+<dt>
+<tt><strong>file mtime</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return a decimal string giving the time at which file <strong>name</strong>
+    was last modified.  The time is measured in the standard UNIX
+    fashion as seconds from a fixed starting time (often January 1, 1970).
+    If the file doesn't exist or its modified time cannot be queried then an
+    error is generated.
+</p>
+</dd>
+<dt>
+<tt><strong>file normalize</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return the normalized path of <strong>name</strong>. See realpath(3).
+</p>
+</dd>
+<dt>
+<tt><strong>file owned</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is owned by the current user,
+    <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file readable</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is readable by
+    the current user, <em>0</em> otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>file readlink</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the value of the symbolic link given by <strong>name</strong> (i.e. the
+    name of the file it points to).  If
+    <strong>name</strong> isn't a symbolic link or its value cannot be read, then
+    an error is returned.  On systems that don't support symbolic links
+    this option is undefined.
+</p>
+</dd>
+<dt>
+<tt><strong>file rename</strong> <em>oldname</em> <em>newname</em></tt>
+</dt>
+<dd>
+<p>
+    Renames the file from the old name to the new name.
+</p>
+</dd>
+<dt>
+<tt><strong>file rootname</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return all of the characters in <strong>name</strong> up to but not including
+    the last <em>.</em> character in the name.  If <strong>name</strong> doesn't contain
+    a dot, then return <strong>name</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>file size</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return a decimal string giving the size of file <strong>name</strong> in bytes.
+    If the file doesn't exist or its size cannot be queried then an
+    error is generated.
+</p>
+</dd>
+<dt>
+<tt><strong>file stat</strong> <em>name varName</em></tt>
+</dt>
+<dd>
+<p>
+    Invoke the <em>stat</em> kernel call on <strong>name</strong>, and use the
+    variable given by <strong>varName</strong> to hold information returned from
+    the kernel call.
+    <strong>VarName</strong> is treated as an array variable,
+    and the following elements of that variable are set: <em>atime</em>,
+    <em>ctime</em>, <em>dev</em>, <em>gid</em>, <em>ino</em>, <em>mode</em>, <em>mtime</em>,
+    <em>nlink</em>, <em>size</em>, <em>type</em>, <em>uid</em>.
+    Each element except <em>type</em> is a decimal string with the value of
+    the corresponding field from the <em>stat</em> return structure; see the
+    manual entry for <em>stat</em> for details on the meanings of the values.
+    The <em>type</em> element gives the type of the file in the same form
+    returned by the command <em>file type</em>.
+    This command returns an empty string.
+</p>
+</dd>
+<dt>
+<tt><strong>file tail</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return all of the characters in <strong>name</strong> after the last slash.
+    If <strong>name</strong> contains no slashes then return <strong>name</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>file type</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a string giving the type of file <strong>name</strong>, which will be
+    one of <em>file</em>, <em>directory</em>, <em>characterSpecial</em>,
+    <em>blockSpecial</em>, <em>fifo</em>, <em>link</em>, or <em>socket</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>file writable</strong> <em>name</em></tt>
+</dt>
+<dd>
+<p>
+    Return <em>1</em> if file <strong>name</strong> is writable by
+    the current user, <em>0</em> otherwise.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>The <em>file</em> commands that return 0/1 results are often used in
+conditional or looping commands, for example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>if {![file exists foo]} then {error {bad file name}} else {...}</tt></pre>
+</div></div>
+<h3 id="_flush">flush</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>flush</strong> <em>fileId</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>flush</strong></tt></p></div>
+<div class="para"><p>Flushes any output that has been buffered for <strong>fileId</strong>.  <strong>fileId</strong> must
+have been the return value from a previous call to <em>open</em>, or it may be
+<em>stdout</em> or <em>stderr</em> to access one of the standard I/O streams; it must
+refer to a file that was opened for writing.  This command returns an
+empty string.</p></div>
+<h3 id="_for">for</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>for</strong> <em>start test next body</em></tt></p></div>
+<div class="para"><p><em>For</em> is a looping command, similar in structure to the C <em>for</em> statement.
+The <strong>start</strong>, <strong>next</strong>, and <strong>body</strong> arguments must be Tcl command strings,
+and <strong>test</strong> is an expression string.</p></div>
+<div class="para"><p>The <em>for</em> command first invokes the Tcl interpreter to execute <strong>start</strong>.
+Then it repeatedly evaluates <strong>test</strong> as an expression; if the result is
+non-zero it invokes the Tcl interpreter on <strong>body</strong>, then invokes the Tcl
+interpreter on <strong>next</strong>, then repeats the loop.  The command terminates
+when <strong>test</strong> evaluates to 0.</p></div>
+<div class="para"><p>If a <em>continue</em> command is invoked within <strong>body</strong> then any remaining
+commands in the current execution of <strong>body</strong> are skipped; processing
+continues by invoking the Tcl interpreter on <strong>next</strong>, then evaluating
+<strong>test</strong>, and so on.</p></div>
+<div class="para"><p>If a <em>break</em> command is invoked within <strong>body</strong> or <strong>next</strong>, then the <em>for</em>
+command will return immediately.</p></div>
+<div class="para"><p>The operation of <em>break</em> and <em>continue</em> are similar to the corresponding
+statements in C.</p></div>
+<div class="para"><p><em>For</em> returns an empty string.</p></div>
+<h3 id="_foreach">foreach</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>foreach</strong> <em>varname list body</em></tt></p></div>
+<div class="para"><p><tt><strong>foreach</strong> <em>varlist list ?varlist2 list2 &#8230;? body</em></tt></p></div>
+<div class="para"><p>In this command, <strong>varname</strong> is the name of a variable, <strong>list</strong>
+is a list of values to assign to <strong>varname</strong>, and <strong>body</strong> is a
+collection of Tcl commands.</p></div>
+<div class="para"><p>For each field in <strong>list</strong> (in order from left to right),<em>foreach</em> assigns
+the contents of the field to <strong>varname</strong> (as if the <em>lindex</em> command
+had been used to extract the field), then calls the Tcl interpreter to
+execute <strong>body</strong>.</p></div>
+<div class="para"><p>If instead of being a simple name, <strong>varlist</strong> is used, multiple assignments
+are made each time through the loop, one for each element of <strong>varlist</strong>.</p></div>
+<div class="para"><p>For example, if there are two elements in <strong>varlist</strong> and six elements in
+the list, the loop will be executed three times.</p></div>
+<div class="para"><p>If the length of the list doesn't evenly divide by the number of elements
+in <strong>varlist</strong>, the value of the remaining variables in the last iteration
+of the loop are undefined.</p></div>
+<div class="para"><p>The <em>break</em> and <em>continue</em> statements may be invoked inside <strong>body</strong>,
+with the same effect as in the <em>for</em> command.</p></div>
+<div class="para"><p><em>foreach</em> returns an empty string.</p></div>
+<h3 id="_format">format</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>format</strong> <em>formatString ?arg arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command generates a formatted string in the same way as the
+C <em>sprintf</em> procedure (it uses <em>sprintf</em> in its
+implementation).  <strong>FormatString</strong> indicates how to format
+the result, using <em>%</em> fields as in <em>sprintf</em>, and the additional
+arguments, if any, provide values to be substituted into the result.</p></div>
+<div class="para"><p>All of the <em>sprintf</em> options are valid; see the <em>sprintf</em>
+man page for details.  Each <strong>arg</strong> must match the expected type
+from the <em>%</em> field in <strong>formatString</strong>; the <em>format</em> command
+converts each argument to the correct type (floating, integer, etc.)
+before passing it to <em>sprintf</em> for formatting.</p></div>
+<div class="para"><p>The only unusual conversion is for <em>%c</em>; in this case the argument
+must be a decimal string, which will then be converted to the corresponding
+ASCII character value.</p></div>
+<div class="para"><p><em>Format</em> does backslash substitution on its <strong>formatString</strong>
+argument, so backslash sequences in <strong>formatString</strong> will be handled
+correctly even if the argument is in braces.</p></div>
+<div class="para"><p>The return value from <em>format</em> is the formatted string.</p></div>
+<h3 id="_gets">gets</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>gets</strong> <em>fileId ?varName?</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>gets</strong> <em>?varName?</em></tt></p></div>
+<div class="para"><p>Reads the next line from the file given by <strong>fileId</strong> and discards
+the terminating newline character.</p></div>
+<div class="para"><p>If <strong>varName</strong> is specified, then the line is placed in the variable
+by that name and the return value is a count of the number of characters
+read (not including the newline).</p></div>
+<div class="para"><p>If the end of the file is reached before reading
+any characters then -1 is returned and <strong>varName</strong> is set to an
+empty string.</p></div>
+<div class="para"><p>If <strong>varName</strong> is not specified then the return value will be
+the line (minus the newline character) or an empty string if
+the end of the file is reached before reading any characters.</p></div>
+<div class="para"><p>An empty string will also be returned if a line contains no characters
+except the newline, so <em>eof</em> may have to be used to determine
+what really happened.</p></div>
+<div class="para"><p>If the last character in the file is not a newline character, then
+<em>gets</em> behaves as if there were an additional newline character
+at the end of the file.</p></div>
+<div class="para"><p><strong>fileId</strong> must be <em>stdin</em> or the return value from a previous
+call to <em>open</em>; it must refer to a file that was opened
+for reading.</p></div>
+<h3 id="_glob">glob</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>glob</strong> ?<strong>-nocomplain</strong>? <em>pattern ?pattern &#8230;?</em></tt></p></div>
+<div class="para"><p>This command performs filename globbing, using csh rules.  The returned
+value from <em>glob</em> is the list of expanded filenames.</p></div>
+<div class="para"><p>If <em>-nocomplain</em> is specified as the first argument then an empty
+list may be returned;  otherwise an error is returned if the expanded
+list is empty.  The <em>-nocomplain</em> argument must be provided
+exactly: an abbreviation will not be accepted.</p></div>
+<h3 id="_global">global</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>global</strong> <em>varname ?varname &#8230;?</em></tt></p></div>
+<div class="para"><p>This command is ignored unless a Tcl procedure is being interpreted.
+If so, then it declares each given <strong>varname</strong> to be a global variable
+rather than a local one.  For the duration of the current procedure
+(and only while executing in the current procedure), any reference to
+<strong>varname</strong> will be bound to a global variable instead
+of a local one.</p></div>
+<div class="para"><p>An alternative to using <em>global</em> is to use the <em>::</em> prefix
+to explicitly name a variable in the global scope.</p></div>
+<h3 id="_if">if</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>if</strong> <em>expr1</em> ?<strong>then</strong>? <em>body1</em> <strong>elseif</strong> <em>expr2</em> ?<strong>then</strong>? <em>body2</em> <strong>elseif</strong> &#8230; ?<strong>else</strong>? ?<em>bodyN</em>?</tt></p></div>
+<div class="para"><p>The <strong>if</strong> command evaluates <strong>expr1</strong> as an expression (in the same way
+that <em>expr</em> evaluates its argument).  The value of the expression must
+be numeric; if it is non-zero then <strong>body1</strong> is executed by passing it to
+the Tcl interpreter.</p></div>
+<div class="para"><p>Otherwise <strong>expr2</strong> is evaluated as an expression and if it is non-zero
+then <em>body2</em> is executed, and so on.</p></div>
+<div class="para"><p>If none of the expressions evaluates to non-zero then <strong>bodyN</strong> is executed.</p></div>
+<div class="para"><p>The <em>then</em> and <em>else</em> arguments are optional <em>noise words</em> to make the
+command easier to read.</p></div>
+<div class="para"><p>There may be any number of <em>elseif</em> clauses, including zero.  <strong>BodyN</strong>
+may also be omitted as long as <em>else</em> is omitted too.</p></div>
+<div class="para"><p>The return value from the command is the result of the body script that
+was executed, or an empty string if none of the expressions was non-zero
+and there was no <strong>bodyN</strong>.</p></div>
+<h3 id="_incr">incr</h3><div style="clear:left"></div>
+<div class="para"><p>+<strong>incr</strong> <em>varName ?increment?</em></p></div>
+<div class="para"><p>Increment the value stored in the variable whose name is <strong>varName</strong>.
+The value of the variable must be integral.</p></div>
+<div class="para"><p>If <strong>increment</strong> is supplied then its value (which must be an
+integer) is added to the value of variable <strong>varName</strong>;  otherwise
+1 is added to <strong>varName</strong>.</p></div>
+<div class="para"><p>The new value is stored as a decimal string in variable <strong>varName</strong>
+and also returned as result.</p></div>
+<h3 id="_info">info</h3><div style="clear:left"></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>info</strong> <em>option ?arg arg &#8230;?</em></tt>
+</dt>
+<dd>
+<p>
+    Provide information about various internals to the Tcl interpreter.
+    The legal <strong>option</strong>'s (which may be abbreviated) are:
+</p>
+</dd>
+<dt>
+<tt><strong>info args</strong> <em>procname</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a list containing the names of the arguments to procedure
+    <strong>procname</strong>, in order.  <strong>Procname</strong> must be the name of a
+    Tcl command procedure.
+</p>
+</dd>
+<dt>
+<tt><strong>info body</strong> <em>procname</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the body of procedure <strong>procname</strong>.  <strong>Procname</strong> must be
+    the name of a Tcl command procedure.
+</p>
+</dd>
+<dt>
+<tt><strong>info commands</strong> ?<em>pattern</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>pattern</strong> isn't specified, returns a list of names of all the
+    Tcl commands, including both the built-in commands written in C and
+    the command procedures defined using the <em>proc</em> command.
+    If <strong>pattern</strong> is specified, only those names matching <strong>pattern</strong>
+    are returned.  Matching is determined using the same rules as for
+    <em>string match</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>info complete</strong> <em>command</em></tt>
+</dt>
+<dd>
+<p>
+    Returns 1 if <strong>command</strong> is a complete Tcl command in the sense of
+    having no unclosed quotes, braces, brackets or array element names,
+    If the command doesn't appear to be complete then 0 is returned.
+    This command is typically used in line-oriented input environments
+    to allow users to type in commands that span multiple lines;  if the
+    command isn't complete, the script can delay evaluating it until additional
+    lines have been typed to complete the command.
+</p>
+</dd>
+<dt>
+<tt><strong>info exists</strong> <em>varName</em></tt>
+</dt>
+<dd>
+<p>
+    Returns <em>1</em> if the variable named <strong>varName</strong> exists in the
+    current context (either as a global or local variable), returns <em>0</em>
+    otherwise.
+</p>
+</dd>
+<dt>
+<tt><strong>info globals</strong> ?<em>pattern</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>pattern</strong> isn't specified, returns a list of all the names
+    of currently-defined global variables.
+    If <strong>pattern</strong> is specified, only those names matching <strong>pattern</strong>
+    are returned.  Matching is determined using the same rules as for
+    <em>string match</em>.
+</p>
+</dd>
+<dt>
++<strong>info hostname</strong>
+</dt>
+<dd>
+<p>
+        An alias for <em>os.hostname</em> for compatibility with Tcl 6.x
+</p>
+</dd>
+<dt>
+<tt><strong>info level</strong> ?<em>number</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>number</strong> is not specified, this command returns a number
+    giving the stack level of the invoking procedure, or 0 if the
+    command is invoked at top-level.  If <strong>number</strong> is specified,
+    then the result is a list consisting of the name and arguments for the
+    procedure call at level <strong>number</strong> on the stack.  If <strong>number</strong>
+    is positive then it selects a particular stack level (1 refers
+    to the top-most active procedure, 2 to the procedure it called, and
+    so on); otherwise it gives a level relative to the current level
+    (0 refers to the current procedure, -1 to its caller, and so on).
+    See the <em>uplevel</em> command for more information on what stack
+    levels mean.
+</p>
+</dd>
+<dt>
+<tt><strong>info locals</strong> ?<em>pattern</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>pattern</strong> isn't specified, returns a list of all the names
+    of currently-defined local variables, including arguments to the
+    current procedure, if any.  Variables defined with the <em>global</em>
+    and <em>upvar</em> commands will not be returned.  If <strong>pattern</strong> is
+    specified, only those names matching <strong>pattern</strong> are returned.
+    Matching is determined using the same rules as for <em>string match</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>info procs</strong> ?<em>pattern</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>pattern</strong> isn't specified, returns a list of all the
+    names of Tcl command procedures.
+    If <strong>pattern</strong> is specified, only those names matching <strong>pattern</strong>
+    are returned.  Matching is determined using the same rules as for
+    <em>string match</em>.
+</p>
+</dd>
+<dt>
+<tt><strong>info script</strong></tt>
+</dt>
+<dd>
+<p>
+    If a Tcl script file is currently being evaluated (i.e. there is a
+    call to <em>Jim_EvalFile</em> active or there is an active invocation
+    of the <em>source</em> command), then this command returns the name
+    of the innermost file being processed.  Otherwise the command returns an
+    empty string.
+</p>
+</dd>
+<dt>
+<tt><strong>info source <em>script</em></strong></tt>
+</dt>
+<dd>
+<p>
+    Returns the original source location of the given script as a list of
+    <tt>{filename linenumber}</tt>. If the source location can't be determined, the
+    list <tt>{{} 0}</tt> is returned.
+</p>
+</dd>
+<dt>
+<tt><strong>info stacktrace</strong></tt>
+</dt>
+<dd>
+<p>
+    After an error is caught with <em>catch</em>, returns the stack trace as a list
+    of <tt>{procedure filename line &#8230;}</tt>.
+</p>
+</dd>
+<dt>
+<tt><strong>info version</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns the version number for this version of Jim in the form <strong>x.yy</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>info vars</strong> ?<em>pattern</em>?</tt>
+</dt>
+<dd>
+<p>
+    If <strong>pattern</strong> isn't specified,
+    returns a list of all the names of currently-visible variables, including
+    both locals and currently-visible globals.
+    If <strong>pattern</strong> is specified, only those names matching <strong>pattern</strong>
+    are returned.  Matching is determined using the same rules as for
+    <em>string match</em>.
+</p>
+</dd>
+</dl></div>
+<h3 id="_join">join</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>join</strong> <em>list ?joinString?</em></tt></p></div>
+<div class="para"><p>The <strong>list</strong> argument must be a valid Tcl list.  This command returns the
+string formed by joining all of the elements of <strong>list</strong> together with
+<strong>joinString</strong> separating each adjacent pair of elements.</p></div>
+<div class="para"><p>The <strong>joinString</strong> argument defaults to a space character.</p></div>
+<h3 id="_kill">kill</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>kill</strong> <em>?SIG|-0? pid</em></tt></p></div>
+<div class="para"><p>Sends the given signal to the process identified by <strong>pid</strong>.</p></div>
+<div class="para"><p>The signal may be specified by name or number in one of the following forms:</p></div>
+<div class="ilist"><ul>
+<li>
+<p>
+<tt>TERM</tt>
+</p>
+</li>
+<li>
+<p>
+<tt>SIGTERM</tt>
+</p>
+</li>
+<li>
+<p>
+<tt>-TERM</tt>
+</p>
+</li>
+<li>
+<p>
+<tt>15</tt>
+</p>
+</li>
+<li>
+<p>
+<tt>-15</tt>
+</p>
+</li>
+</ul></div>
+<div class="para"><p>The signal name may be in either upper or lower case.</p></div>
+<div class="para"><p>The special signal name <em>-0</em> simply checks that a signal <strong>could</strong> be sent.</p></div>
+<div class="para"><p>If no signal is specified, SIGTERM is used.</p></div>
+<div class="para"><p>An error is raised if the signal could not be delivered.</p></div>
+<h3 id="_lappend">lappend</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lappend</strong> <em>varName value ?value value &#8230;?</em></tt></p></div>
+<div class="para"><p>Treat the variable given by <strong>varName</strong> as a list and append each of
+the <strong>value</strong> arguments to that list as a separate element, with spaces
+between elements.</p></div>
+<div class="para"><p>If <strong>varName</strong> doesn't exist, it is created as a list with elements given
+by the <strong>value</strong> arguments.  <em>Lappend</em> is similar to <em>append</em> except that
+each <strong>value</strong> is appended as a list element rather than raw text.</p></div>
+<div class="para"><p>This command provides a relatively efficient way to build up large lists.
+For example, <em>lappend a $b</em> is much more efficient than</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a [concat $a [list $b]]</tt></pre>
+</div></div>
+<div class="para"><p>when <em>$a</em> is long.</p></div>
+<h3 id="_lindex">lindex</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lindex</strong> <em>list index</em></tt></p></div>
+<div class="para"><p>Treats <strong>list</strong> as a Tcl list and returns element <em>index</em> from it
+(0 refers to the first element of the list).  <strong>Index</strong> may be <em>end</em> or
+<em>end-&lt;n&gt;</em> (where <em>&lt;n&gt;</em> is an integer) to refer to the last element of
+the list or the <em>nth-from-last</em> element of the list.</p></div>
+<div class="para"><p>In extracting the element, <strong>lindex</strong> observes the same rules concerning
+braces and quotes and backslashes as the Tcl command interpreter; however,
+variable substitution and command substitution do not occur.</p></div>
+<div class="para"><p>If <strong>index</strong> is negative or greater than or equal to the number of elements
+in <strong>value</strong>, then an empty string is returned.</p></div>
+<h3 id="_linsert">linsert</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>linsert</strong> <em>list index element ?element element &#8230;?</em></tt></p></div>
+<div class="para"><p>This command produces a new list from <strong>list</strong> by inserting all
+of the <strong>element</strong> arguments just before the element <strong>index</strong>
+of <strong>list</strong>.  Each <strong>element</strong> argument will become
+a separate element of the new list.  If <strong>index</strong> is less than
+or equal to zero, then the new elements are inserted at the
+beginning of the list.  If <strong>index</strong> is greater than or equal
+to the number of elements in the list, then the new elements are
+appended to the list.</p></div>
+<div class="para"><p><strong>index</strong> may also be <em>end</em> or <em>end-&lt;n&gt;</em> &#8212; see <em>lindex</em></p></div>
+<h3 id="_list">list</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>list</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command returns a list comprised of all the arguments, <strong>arg</strong>.  Braces
+and backslashes get added as necessary, so that the <em>index</em> command
+may be used on the result to re-extract the original arguments, and also
+so that <em>eval</em> may be used to execute the resulting list, with
+<strong>arg1</strong> comprising the command's name and the other args comprising
+its arguments.  <em>List</em> produces slightly different results than
+<em>concat</em>:  <em>concat</em> removes one level of grouping before forming
+the list, while <em>list</em> works directly from the original arguments.
+For example, the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>list a b {c d e} {f {g h}}</tt></pre>
+</div></div>
+<div class="para"><p>will return</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>a b {c d e} {f {g h}}</tt></pre>
+</div></div>
+<div class="para"><p>while <em>concat</em> with the same arguments will return</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>a b c d e f {g h}</tt></pre>
+</div></div>
+<h3 id="_llength">llength</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>llength</strong> <em>list</em></tt></p></div>
+<div class="para"><p>Treats <strong>list</strong> as a list and returns a decimal string giving
+the number of elements in it.</p></div>
+<h3 id="_lset">lset</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lset</strong> <em>varName ?index ..? newValue</em></tt></p></div>
+<div class="para"><p>Sets an element in a list.</p></div>
+<div class="para"><p>The <em>lset</em> command accepts a parameter, <strong>varName</strong>, which it interprets
+as the name of a variable containing a Tcl list. It also accepts
+zero or more indices into the list.  Finally, it accepts a new value
+for an element of varName.  If no indices are presented, the command
+takes the form:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>lset varName newValue</tt></pre>
+</div></div>
+<div class="para"><p>In this case, newValue replaces the old value of the variable
+varName.</p></div>
+<div class="para"><p>When presented with a single index, the <em>lset</em> command
+treats the content of the varName variable as a Tcl list. It addresses
+the index'th element in it (0 refers to the first element of the
+list). When interpreting the list, <em>lset</em> observes the same rules
+concerning braces and quotes and backslashes as the Tcl command
+interpreter; however, variable substitution and command substitution
+do not occur. The command constructs a new list in which the
+designated element is replaced with newValue. This new list is
+stored in the variable varName, and is also the return value from
+the <em>lset</em> command.</p></div>
+<div class="para"><p>If index is negative or greater than or equal to the number of
+elements in $varName, then an error occurs.</p></div>
+<div class="para"><p>If index has the value end, it refers to the last element in the
+list, and end-integer refers to the last element in the list minus
+the specified integer offset.</p></div>
+<div class="para"><p>If additional index arguments are supplied, then each argument is
+used in turn to address an element within a sublist designated by
+the previous indexing operation, allowing the script to alter
+elements in sublists. The command,</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>lset a 1 2 newValue</tt></pre>
+</div></div>
+<div class="para"><p>replaces element 2 of sublist 1 with <strong>newValue</strong>.</p></div>
+<div class="para"><p>The integer appearing in each index argument must be greater than
+or equal to zero. The integer appearing in each index argument must
+be strictly less than the length of the corresponding list. In other
+words, the <em>lset</em> command cannot change the size of a list. If an
+index is outside the permitted range, an error is reported.</p></div>
+<h3 id="_lmap">lmap</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lmap</strong> <em>varname list body</em></tt></p></div>
+<div class="para"><p><tt><strong>lmap</strong> <em>varlist list ?varlist2 list2 &#8230;? body</em></tt></p></div>
+<div class="para"><p><em>lmap</em> is a "collecting <em>foreach</em>" which returns a list of its results.</p></div>
+<div class="para"><p>For example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; lmap i {1 2 3 4 5} {expr $i*$i}
+1 4 9 16 25
+jim&gt; lmap a {1 2 3} b {A B C} {list $a $b}
+{1 A} {2 B} {3 C}</tt></pre>
+</div></div>
+<h3 id="_lrange">lrange</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lrange</strong> <em>list first last</em></tt></p></div>
+<div class="para"><p><strong>List</strong> must be a valid Tcl list.  This command will
+return a new list consisting of elements
+<strong>first</strong> through <strong>last</strong>, inclusive.</p></div>
+<div class="para"><p><strong>first</strong> or <strong>last</strong> may also be <em>end</em> or <em>end-&lt;n&gt;</em> &#8212; see <em>lindex</em></p></div>
+<div class="para"><p>If <strong>last</strong> is greater than or equal to the number of elements
+in the list, then it is treated as if it were <em>end</em>.</p></div>
+<div class="para"><p>If <strong>first</strong> is greater than <strong>last</strong> then an empty string
+is returned.</p></div>
+<div class="para"><p>Note: <em>lrange <strong>list first first</strong></em> does not always produce the
+same result as <em>lindex <strong>list first</strong></em> (although it often does
+for simple fields that aren't enclosed in braces); it does, however,
+produce exactly the same results as <em>list [lindex <strong>list first</strong>]</em></p></div>
+<h3 id="_lreplace">lreplace</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lreplace</strong> <em>list first last ?element element &#8230;?</em></tt></p></div>
+<div class="para"><p>Returns a new list formed by replacing one or more elements of
+<strong>list</strong> with the <strong>element</strong> arguments.</p></div>
+<div class="para"><p><strong>First</strong> gives the index in <strong>list</strong> of the first element
+to be replaced.</p></div>
+<div class="para"><p>If <strong>first</strong> is less than zero then it refers to the first
+element of <strong>list</strong>;  the element indicated by <strong>first</strong>
+must exist in the list.</p></div>
+<div class="para"><p><strong>Last</strong> gives the index in <strong>list</strong> of the last element
+to be replaced;  it must be greater than or equal to <strong>first</strong>.</p></div>
+<div class="para"><p><strong>first</strong> or <strong>last</strong> may also be <em>end</em> or <em>end-&lt;n&gt;</em> &#8212; see <em>lindex</em></p></div>
+<div class="para"><p>The <strong>element</strong> arguments specify zero or more new arguments to
+be added to the list in place of those that were deleted.</p></div>
+<div class="para"><p>Each <strong>element</strong> argument will become a separate element of
+the list.</p></div>
+<div class="para"><p>If no <strong>element</strong> arguments are specified, then the elements
+between <strong>first</strong> and <strong>last</strong> are simply deleted.</p></div>
+<h3 id="_lreverse">lreverse</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lreverse</strong> <em>list</em></tt></p></div>
+<div class="para"><p>Returns the list in reverse order.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; lreverse {1 2 3}
+3 2 1</tt></pre>
+</div></div>
+<h3 id="_lsearch">lsearch</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lsearch</strong> <em>list value</em></tt></p></div>
+<div class="para"><p>Search the elements of <strong>list</strong> to see if one of them matches
+<strong>value</strong>.</p></div>
+<div class="para"><p>If so, the command returns the index of the first matching
+element.</p></div>
+<div class="para"><p>If not, the command returns <em>-1</em>.</p></div>
+<div class="para"><p><strong>Note</strong> that this command is different from Tcl in that an exact
+match is done rather than a pattern match.</p></div>
+<h3 id="_lsort">lsort</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>lsort</strong> ?<strong>-integer</strong>|<strong>-command</strong> <em>cmdname</em>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></tt></p></div>
+<div class="para"><p>Sort the elements of <strong>list</strong>, returning a new list in sorted order.
+By default, ASCII sorting is used, with the result in increasing order.</p></div>
+<div class="para"><p>If <strong>-integer</strong> is specified, numeric sorting is used.</p></div>
+<div class="para"><p>If <strong>-command cmdname</strong> is specified, <strong>cmdname</strong> is treated as a
+command name. For each comparison, <strong>cmdname $value1 $value2</strong> is called
+which should return <em>-1</em> if <strong>$value1</strong> is less than <strong>$value2</strong>, <em>0</em> if
+they are equal, or <em>1</em> otherwise.</p></div>
+<div class="para"><p>If <strong>-decreasing</strong> is specified, the resulting list is in the opposite
+order to what it would be otherwise. <strong>-increasing</strong> is the default.</p></div>
+<h3 id="_open">open</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>open</strong> <em>fileName ?access?</em></tt></p></div>
+<div class="para"><p>Opens a file and returns an identifier
+that may be used in future invocations
+of commands like <em>read</em>, <em>puts</em>, and <em>close</em>.
+<strong>fileName</strong> gives the name of the file to open.</p></div>
+<div class="para"><p>The <strong>access</strong> argument indicates the way in which the file is to be accessed.
+It may have any of the following values:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>r</tt>
+</dt>
+<dd>
+<p>
+    Open the file for reading only; the file must already exist.
+</p>
+</dd>
+<dt>
+<tt>r</tt>+
+</dt>
+<dd>
+<p>
+    Open the file for both reading and writing; the file must
+    already exist.
+</p>
+</dd>
+<dt>
+<tt>w</tt>
+</dt>
+<dd>
+<p>
+    Open the file for writing only.  Truncate it if it exists.  If it doesn't
+    exist, create a new file.
+</p>
+</dd>
+<dt>
+<tt>w</tt>+
+</dt>
+<dd>
+<p>
+    Open the file for reading and writing.  Truncate it if it exists.
+    If it doesn't exist, create a new file.
+</p>
+</dd>
+<dt>
+<tt>a</tt>
+</dt>
+<dd>
+<p>
+    Open the file for writing only.  The file must already exist, and the file
+    is positioned so that new data is appended to the file.
+</p>
+</dd>
+<dt>
+<tt>a</tt>+
+</dt>
+<dd>
+<p>
+    Open the file for reading and writing.  If the file doesn't
+    exist, create a new empty file. Set the initial access position
+    to the end of the file.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p><strong>Access</strong> defaults to <em>r</em>.</p></div>
+<div class="para"><p>If a file is opened for both reading and writing, then <em>seek</em>
+must be invoked between a read and a write, or vice versa (this
+restriction does not apply to command pipelines opened with <em>open</em>).</p></div>
+<div class="para"><p>See also <em>socket</em></p></div>
+<h3 id="_package">package</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>package provide</strong> <em>name ?version?</em></tt></p></div>
+<div class="para"><p>Indicates that the current script provides the package named <strong>name</strong>.
+If no version is specified, <em>1.0</em> is used.</p></div>
+<div class="para"><p>Any script which provides a package may include this statement
+as the first statement, although it is not required.</p></div>
+<div class="para"><p><tt><strong>package require</strong> <em>name ?version?</em>*</tt></p></div>
+<div class="para"><p>Searches for the package with the given <strong>name</strong> by examining each path
+in <em>$::auto_path</em> and trying to load <em>$path/$name.tcl</em>.</p></div>
+<div class="para"><p>If either file exists, it is loaded with <em>source</em>.</p></div>
+<div class="para"><p>Typically <em>$::auto_path</em> contains the paths <em>.</em> and <em>/lib/jim</em>.</p></div>
+<h3 id="_pid">pid</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>pid</strong></tt></p></div>
+<div class="para"><p>Returns the process identifier of the current process.</p></div>
+<h3 id="_proc">proc</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>proc</strong> <em>name args ?statics? body</em></tt></p></div>
+<div class="para"><p>The <em>proc</em> command creates a new Tcl command procedure, <strong>name</strong>, replacing
+any existing command there may have been by that name.  Whenever the
+new command is invoked, the contents of <strong>body</strong> will be executed by the
+Tcl interpreter.  <strong>args</strong> specifies the formal arguments to the procedure.
+It consists of a list, possibly empty, each of whose elements specifies
+one argument.  Each argument specifier is also a list with either one or
+two fields.  If there is only a single field in the specifier, then it is
+the name of the argument; if there are two fields, then the first is the
+argument name and the second is its default value.  braces and backslashes
+may be used in the usual way to specify complex default values.</p></div>
+<div class="para"><p>When <strong>name</strong> is invoked, a local variable will be created for each of
+the formal arguments to the procedure; its value will be the value
+of corresponding argument in the invoking command or the argument's
+default value.  Arguments with default values need not be specified in
+a procedure invocation.  However, there must be enough actual arguments
+for all the formal arguments that don't have defaults, and there must
+not be any extra actual arguments.  There is one special case to permit
+procedures with variable numbers of arguments.  If the last formal
+argument has the name <em>args</em>, then a call to the procedure may contain
+more actual arguments than the procedure has formals.  In this case,
+all of the actual arguments starting at the one that would be assigned to
+<em>args</em> are combined into a list (as if the <em>list</em> command had been used);
+this combined value is assigned to the local variable <em>args</em>.</p></div>
+<div class="para"><p>When <strong>body</strong> is being executed, variable names normally refer to local
+variables, which are created automatically when referenced and deleted
+when the procedure returns.  One local variable is automatically created
+for each of the procedure's arguments.  Global variables can be
+accessed by invoking the <em>global</em> command or via the <em>::</em> prefix.</p></div>
+<div class="para"><p>The <em>proc</em> command returns the null string.  When a procedure is invoked,
+the procedure's return value is the value specified in a <em>return</em> command.
+If the procedure doesn't execute an explicit <em>return</em>, then its return
+value is the value of the last command executed in the procedure's body.</p></div>
+<div class="para"><p>If an error occurs while executing the procedure body, then the
+procedure-as-a-whole will return that same error.</p></div>
+<div class="para"><p><strong>New in Jim</strong></p></div>
+<div class="para"><p>In addition to procedure arguments, Jim procedures may declare static variables.
+These variables scoped to the procedure and initialised at procedure definition.
+Either from the static variable definition, or from the enclosing scope.</p></div>
+<div class="para"><p>Consider the following example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a 1
+proc a {} {a {b 2}} {
+        set c 1
+        puts "$a $b $c"
+        incr a
+        incr b
+        incr c
+}
+. a
+1 2 1
+. a
+2 3 1</tt></pre>
+</div></div>
+<div class="para"><p>The static variable <strong>a</strong> has no initialiser, so it is initialised from
+the enclosing scope with the value 1. (Note that it is an error if there
+is no variable with the same name in the enclosing scope). However <strong>b</strong>
+has an initialiser, so it is initialised to 2.</p></div>
+<div class="para"><p>Unlike a local variable, the value of a static variable is retained across
+invocations of the procedure.</p></div>
+<h3 id="_puts">puts</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>puts</strong> ?<strong>-nonewline</strong>? <em>?fileId? string</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>puts</strong> ?<strong>-nonewline</strong>? <em>string</em></tt></p></div>
+<div class="para"><p>Writes the characters given by <strong>string</strong> to the file given
+by <strong>fileId</strong>.  <strong>fileId</strong> must have been the return
+value from a previous call to <em>open</em>, or it may be
+<em>stdout</em> or <em>stderr</em> to refer to one of the standard I/O
+channels; it must refer to a file that was opened for
+writing.</p></div>
+<div class="para"><p>In the first form, if no <strong>fileId</strong> is specified then it defaults to <em>stdout</em>.
+<em>puts</em> normally outputs a newline character after <strong>string</strong>,
+but this feature may be suppressed by specifying the <em>-nonewline</em>
+switch.</p></div>
+<div class="para"><p>Output to files is buffered internally by Tcl; the <em>flush</em>
+command may be used to force buffered characters to be output.</p></div>
+<h3 id="_pwd">pwd</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>pwd</strong></tt></p></div>
+<div class="para"><p>Returns the path name of the current working directory.</p></div>
+<h3 id="_rand">rand</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>rand</strong> <em>?min? ?max?</em></tt></p></div>
+<div class="para"><p>Returns a random integer between <strong>min</strong> (defaults to 0) and <strong>max</strong>
+(defaults to the maximum integer).</p></div>
+<div class="para"><p>If only one argument is given, it is interpreted as <strong>max</strong>.</p></div>
+<h3 id="_range">range</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>range</strong> <em>?start? end ?step?</em></tt></p></div>
+<div class="para"><p>Returns a list of integers starting at <strong>start</strong> (defaults to 0)
+and ranging up to but not including <strong>end</strong> in steps of <strong>step</strong> defaults to 1).</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; range 5
+0 1 2 3 4
+jim&gt; range 2 5
+2 3 4
+jim&gt; range 2 10 4
+2 6
+jim&gt; range 7 4 -2
+7 5</tt></pre>
+</div></div>
+<h3 id="_read">read</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>read</strong> ?<strong>-nonewline</strong>? <em>fileId</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>read</strong> ?<strong>-nonewline</strong>?</tt></p></div>
+<div class="para"><p><tt><strong>read</strong> <em>fileId numBytes</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>read</strong> <em>numBytes</em></tt></p></div>
+<div class="para"><p>In the first form, all of the remaining bytes are read from the file
+given by <strong>fileId</strong>; they are returned as the result of the command.
+If the <em>-nonewline</em> switch is specified then the last
+character of the file is discarded if it is a newline.</p></div>
+<div class="para"><p>In the second form, the extra argument specifies how many bytes to read;
+exactly this many bytes will be read and returned, unless there are fewer than
+<strong>numBytes</strong> bytes left in the file; in this case, all the remaining
+bytes are returned.</p></div>
+<div class="para"><p><strong>fileId</strong> must be <em>stdin</em> or the return value from a previous call
+to <em>open</em>; it must refer to a file that was opened for reading.</p></div>
+<h3 id="_regexp">regexp</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>regexp ?-indices? ?-nocase?</strong> ?<strong>-start</strong> <em>offset</em>? <em>exp string ?matchVar? ?subMatchVar subMatchVar &#8230;?</em></tt></p></div>
+<div class="para"><p>Determines whether the regular expression <strong>exp</strong> matches part or
+all of <strong>string</strong> and returns 1 if it does, 0 if it doesn't.</p></div>
+<div class="para"><p>See REGULAR EXPRESSIONS above for complete information on the
+syntax of <strong>exp</strong> and how it is matched against <strong>string</strong>.</p></div>
+<div class="para"><p>If additional arguments are specified after <strong>string</strong> then they
+are treated as the names of variables to use to return
+information about which part(s) of <strong>string</strong> matched <strong>exp</strong>.
+<strong>matchVar</strong> will be set to the range of <strong>string</strong> that
+matched all of <strong>exp</strong>.  The first <strong>subMatchVar</strong> will contain
+the characters in <strong>string</strong> that matched the leftmost parenthesized
+subexpression within <strong>exp</strong>, the next <strong>subMatchVar</strong> will
+contain the characters that matched the next parenthesized
+subexpression to the right in <strong>exp</strong>, and so on.</p></div>
+<div class="para"><p>Normally, <strong>matchVar</strong> and the each <strong>subMatchVar</strong> are set to hold
+the matching characters from <em>string</em>, however see <em>-indices</em> below.</p></div>
+<div class="para"><p>If there are more values for <strong>subMatchVar</strong> than parenthesized subexpressions
+within <strong>exp</strong>, or if a particular subexpression in <strong>exp</strong> doesn't
+match the string (e.g. because it was in a portion of the expression
+that wasn't matched), then the corresponding <strong>subMatchVar</strong> will be
+set to <em>"-1 -1"</em> if <em>-indices</em> has been specified or to an empty
+string otherwise.</p></div>
+<div class="para"><p>The following switches modify the behaviour of <strong>regexp</strong></p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>-nocase</strong></tt>
+</dt>
+<dd>
+<p>
+    Causes upper-case characters in string to be treated as
+    lower case during the
+    matching process.
+</p>
+</dd>
+<dt>
+<tt><strong>-indices</strong></tt>
+</dt>
+<dd>
+<p>
+    Changes what is stored in the subMatchVars. Instead of
+    storing the matching characters from string, each variable
+    will contain a list of two decimal strings giving the indices
+    in string of the first and last characters in the matching
+    range of characters.
+</p>
+</dd>
+<dt>
+<tt><strong>-start</strong> <em>index</em></tt>
+</dt>
+<dd>
+<p>
+    Specifies a character index offset into the string to start
+    matching the regular expression at. If <em>-indices</em> is
+    specified, the indices will be indexed starting from the
+    absolute beginning of the input string. index will be
+    constrained to the bounds of the input string.
+</p>
+</dd>
+</dl></div>
+<h3 id="_regsub">regsub</h3><div style="clear:left"></div>
+<div class="para"><p>+<strong>regsub ?-all? ?-nocase?</strong> <em>exp string subSpec varName</em></p></div>
+<div class="para"><p>This command matches the regular expression <strong>exp</strong> against
+<strong>string</strong> using the rules described in REGULAR EXPRESSIONS
+above.</p></div>
+<div class="para"><p>If there is no match, then the command returns 0 and does nothing else.</p></div>
+<div class="para"><p>If there is a match, then the command returns 1 and also copies
+<strong>string</strong> to the variable whose name is given by <strong>varName</strong>.</p></div>
+<div class="para"><p>When copying <strong>string</strong>, the portion of <strong>string</strong> that
+matched <strong>exp</strong> is replaced with <strong>subSpec</strong>.
+If <strong>subSpec</strong> contains a <em>&amp;</em> or <em>\0</em>, then it is replaced
+in the substitution with the portion of <strong>string</strong> that
+matched <strong>exp</strong>.</p></div>
+<div class="para"><p>If <strong>subSpec</strong> contains a <em>\<strong>n</strong></em>, where <strong>n</strong> is a digit
+between 1 and 9, then it is replaced in the substitution with
+the portion of <strong>string</strong> that matched the <strong>n</strong>-th
+parenthesized subexpression of <strong>exp</strong>.
+Additional backslashes may be used in <strong>subSpec</strong> to prevent special
+interpretation of <em>&amp;</em> or <em>\0</em> or <em>\<strong>n</strong></em> or
+backslash.</p></div>
+<div class="para"><p>The use of backslashes in <strong>subSpec</strong> tends to interact badly
+with the Tcl parser's use of backslashes, so it's generally
+safest to enclose <strong>subSpec</strong> in braces if it includes
+backslashes.</p></div>
+<div class="para"><p>The following switches modify the behaviour of <strong>regsub</strong></p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>-nocase</strong></tt>
+</dt>
+<dd>
+<p>
+    Upper-case characters in <strong>string</strong> are converted to lower-case
+    before matching against <strong>exp</strong>;  however, substitutions
+    specified by <strong>subSpec</strong> use the original unconverted form
+    of <strong>string</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>-all</strong></tt>
+</dt>
+<dd>
+<p>
+    All ranges in
+    <strong>string</strong> that match <strong>exp</strong> are found and substitution is
+    performed for each of these ranges, rather than only the first.
+    The <em>&amp;</em> and <em>\<strong>n</strong></em>
+    sequences are handled for each substitution using the information
+    from the corresponding match.
+</p>
+</dd>
+</dl></div>
+<h3 id="_rename">rename</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>rename</strong> <em>oldName newName</em></tt></p></div>
+<div class="para"><p>Rename the command that used to be called <strong>oldName</strong> so that it
+is now called <strong>newName</strong>.  If <strong>newName</strong> is an empty string
+(e.g. {}) then <strong>oldName</strong> is deleted.  The <em>rename</em> command
+returns an empty string as result.</p></div>
+<h3 id="_return">return</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>return</strong> ?-code <strong>code</strong>? ?<em>value</em>?</tt></p></div>
+<div class="para"><p>Return immediately from the current procedure (or top-level command
+or <em>source</em> command), with <strong>value</strong> as the return value.  If <strong>value</strong>
+is not specified, an empty string will be returned as result.</p></div>
+<div class="para"><p>If <strong>code</strong> is specified (as either a number or ok, error, break,
+continue, signal, return or exit), this code will be used instead
+of JIM_OK. This is generally useful when implementing flow of control
+commands.</p></div>
+<h3 id="_scan">scan</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>scan</strong> <em>string format varname1 ?varname2 &#8230;?</em></tt></p></div>
+<div class="para"><p>This command parses fields from an input string in the same fashion
+as the C <em>sscanf</em> procedure.  <strong>String</strong> gives the input to be parsed
+and <strong>format</strong> indicates how to parse it, using <em>%</em> fields as in
+<em>sscanf</em>.  All of the <em>sscanf</em> options are valid; see the <em>sscanf</em>
+man page for details.  Each <strong>varname</strong> gives the name of a variable;
+when a field is scanned from <strong>string</strong>, the result is converted back
+into a string and assigned to the corresponding <strong>varname</strong>.  The
+only unusual conversion is for <em>%c</em>.  For <em>%c</em> conversions a single
+character value is converted to a decimal string, which is then
+assigned to the corresponding <strong>varname</strong>; no field width may be
+specified for this conversion.</p></div>
+<h3 id="_seek">seek</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>seek</strong> <em>fileId offset ?origin?</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>seek</strong> <em>offset ?origin?</em></tt></p></div>
+<div class="para"><p>Change the current access position for <strong>fileId</strong>.
+The <strong>offset</strong> and <strong>origin</strong> arguments specify the position at
+which the next read or write will occur for <strong>fileId</strong>.
+<strong>offset</strong> must be a number (which may be negative) and <strong>origin</strong>
+must be one of the following:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>start</strong></tt>
+</dt>
+<dd>
+<p>
+    The new access position will be <strong>offset</strong> bytes from the start
+    of the file.
+</p>
+</dd>
+<dt>
+<tt><strong>current</strong></tt>
+</dt>
+<dd>
+<p>
+    The new access position will be <strong>offset</strong> bytes from the current
+    access position; a negative <strong>offset</strong> moves the access position
+    backwards in the file.
+</p>
+</dd>
+<dt>
+<tt><strong>end</strong></tt>
+</dt>
+<dd>
+<p>
+    The new access position will be <strong>offset</strong> bytes from the end of
+    the file.  A negative <strong>offset</strong> places the access position before
+    the end-of-file, and a positive <strong>offset</strong> places the access position
+    after the end-of-file.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>The <strong>origin</strong> argument defaults to <em>start</em>.</p></div>
+<div class="para"><p><strong>fileId</strong> must have been the return value from a previous call to
+<em>open</em>, or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one
+of the standard I/O channels.</p></div>
+<div class="para"><p>This command returns an empty string.</p></div>
+<h3 id="_set">set</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>set</strong> <em>varname ?value?</em></tt></p></div>
+<div class="para"><p>Returns the value of variable <strong>varname</strong>.</p></div>
+<div class="para"><p>If <strong>value</strong> is specified, then set the value of <strong>varname</strong> to <strong>value</strong>,
+creating a new variable if one doesn't already exist, and return
+its value.</p></div>
+<div class="para"><p>If <strong>varName</strong> contains an open parenthesis and ends with a
+close parenthesis, then it refers to an array element:  the characters
+before the open parenthesis are the name of the array, and the characters
+between the parentheses are the index within the array.
+Otherwise <strong>varName</strong> refers to a scalar variable.</p></div>
+<div class="para"><p>If no procedure is active, then <strong>varname</strong> refers to a global
+variable.</p></div>
+<div class="para"><p>If a procedure is active, then <strong>varname</strong> refers to a parameter
+or local variable of the procedure, unless the <strong>global</strong> command
+has been invoked to declare <strong>varname</strong> to be global.</p></div>
+<div class="para"><p>The <em>::</em> prefix may also be used to explicitly reference a variable
+in the global scope.</p></div>
+<h3 id="_signal">signal</h3><div style="clear:left"></div>
+<div class="para"><p>Command for signal handling.</p></div>
+<div class="para"><p>See <em>kill</em> for the different forms which may be used to specify signals.</p></div>
+<div class="para"><p>Commands which return a list of signal names do so using the canonical form:
+"SIGINT SIGTERM".</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>signal handle</strong> ?<em>signals &#8230;</em>?</tt>
+</dt>
+<dd>
+<p>
+        If no signals are given, returns a list of all signals which are currently
+        being handled.
+        If signals are specified, these are added to the list of signals currently
+        being handled.
+</p>
+</dd>
+<dt>
+<tt><strong>signal ignore</strong> ?<em>signals &#8230;</em>?</tt>
+</dt>
+<dd>
+<p>
+        If no signals are given, returns a lists all signals which are currently being
+        ignored.
+        If signals are specified, these are added to the list of signals currently
+        being ignored.
+</p>
+</dd>
+<dt>
+<tt><strong>signal default</strong> ?<em>signals &#8230;</em>?</tt>
+</dt>
+<dd>
+<p>
+        If no signals are given, returns a lists all signals which are currently have
+        the default behaviour.
+        If signals are specified, these are added to the list of signals which have
+        the default behaviour.
+</p>
+</dd>
+<dt>
+<tt><strong>signal throw</strong> ?<em>signal</em>?</tt>
+</dt>
+<dd>
+<p>
+        Raises the given signal, which defaults to SIGINT if not specified.
+        The behaviour is identical to:
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>kill signal [pid]</tt></pre>
+</div></div>
+</dd>
+</dl></div>
+<h3 id="_sleep">sleep</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>sleep</strong> <em>seconds</em></tt></p></div>
+<div class="para"><p>Pauses for the given number of seconds, which may be a floating
+point value less than one to sleep for less than a second, or an
+integer to sleep for one or more seconds.</p></div>
+<h3 id="_source">source</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>source</strong> <em>fileName</em></tt></p></div>
+<div class="para"><p>Read file <strong>fileName</strong> and pass the contents to the Tcl interpreter
+as a sequence of commands to execute in the normal fashion.  The return
+value of <em>source</em> is the return value of the last command executed
+from the file.  If an error occurs in executing the contents of the
+file, then the <em>source</em> command will return that error.</p></div>
+<div class="para"><p>If a <em>return</em> command is invoked from within the file, the remainder of
+the file will be skipped and the <em>source</em> command will return
+normally with the result from the <em>return</em> command.</p></div>
+<h3 id="_split">split</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>split</strong> <em>string ?splitChars?</em></tt></p></div>
+<div class="para"><p>Returns a list created by splitting <strong>string</strong> at each character
+that is in the <strong>splitChars</strong> argument.</p></div>
+<div class="para"><p>Each element of the result list will consist of the
+characters from <strong>string</strong> between instances of the
+characters in <strong>splitChars</strong>.</p></div>
+<div class="para"><p>Empty list elements will be generated if <strong>string</strong> contains
+adjacent characters in <strong>splitChars</strong>, or if the first or last
+character of <strong>string</strong> is in <strong>splitChars</strong>.</p></div>
+<div class="para"><p>If <strong>splitChars</strong> is an empty string then each character of
+<strong>string</strong> becomes a separate element of the result list.</p></div>
+<div class="para"><p><strong>SplitChars</strong> defaults to the standard white-space characters.
+For example,</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>split "comp.unix.misc" .</tt></pre>
+</div></div>
+<div class="para"><p>returns <tt><em>"comp unix misc"</em></tt> and</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>split "Hello world" {}</tt></pre>
+</div></div>
+<div class="para"><p>returns <tt><em>"H e l l o { } w o r l d"</em></tt>.</p></div>
+<h3 id="_string">string</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>string</strong> <em>option arg ?arg &#8230;?</em></tt></p></div>
+<div class="para"><p>Perform one of several string operations, depending on <strong>option</strong>.
+The legal options (which may be abbreviated) are:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>string compare</strong> <em>string1 string2</em></tt>
+</dt>
+<dd>
+<p>
+    Perform a character-by-character comparison of strings <strong>string1</strong> and
+    <strong>string2</strong> in the same way as the C <em>strcmp</em> procedure.  Return
+    -1, 0, or 1, depending on whether <strong>string1</strong> is lexicographically
+    less than, equal to, or greater than <strong>string2</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>string equal ?-nocase?</strong> <em>string1 string2</em></tt>
+</dt>
+<dd>
+<p>
+    Returns 1 if the strings are equal, or 0 otherwise.
+    Performs a case-insensitive comparison if <em>-nocase</em> is specified.
+</p>
+</dd>
+<dt>
+<tt><strong>string first</strong> <em>string1 string2</em></tt>
+</dt>
+<dd>
+<p>
+    Search <strong>string2</strong> for a sequence of characters that exactly match
+    the characters in <strong>string1</strong>.  If found, return the index of the
+    first character in the first such match within <strong>string2</strong>.  If not
+    found, return -1.
+</p>
+</dd>
+<dt>
+<tt><strong>string index</strong> <em>string charIndex</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the <strong>charIndex</strong>'th character of the <strong>string</strong>
+    argument.  A <strong>charIndex</strong> of 0 corresponds to the first
+    character of the string.
+    If <strong>charIndex</strong> is less than 0 or greater than
+    or equal to the length of the string then an empty string is
+    returned.
+</p>
+</dd>
+<dt>
+<tt><strong>string last</strong> <em>string1 string2</em></tt>
+</dt>
+<dd>
+<p>
+    Search <strong>string2</strong> for a sequence of characters that exactly match
+    the characters in <strong>string1</strong>.  If found, return the index of the
+    first character in the last such match within <strong>string2</strong>.  If there
+    is no match, then return -1.
+</p>
+</dd>
+<dt>
+<tt><strong>string length</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a decimal string giving the number of characters in <strong>string</strong>.
+</p>
+</dd>
+<dt>
+<tt><strong>string match</strong> <em>pattern string</em></tt>
+</dt>
+<dd>
+<p>
+    See if <strong>pattern</strong> matches <strong>string</strong>; return 1 if it does, 0
+    if it doesn't.  Matching is done in a fashion similar to that
+    used by the C-shell.  For the two strings to match, their contents
+    must be identical except that the following special sequences
+    may appear in <strong>pattern</strong>:
+</p>
+<div class="vlist"><dl>
+<dt>
+<tt>*</tt>
+</dt>
+<dd>
+<p>
+        Matches any sequence of characters in <strong>string</strong>,
+        including a null string.
+</p>
+</dd>
+<dt>
+<tt>?</tt>
+</dt>
+<dd>
+<p>
+        Matches any single character in <strong>string</strong>.
+</p>
+</dd>
+<dt>
+<tt>[<strong>chars</strong>]</tt>
+</dt>
+<dd>
+<p>
+        Matches any character in the set given by <strong>chars</strong>.
+        If a sequence of the form <strong>x</strong>-<strong>y</strong> appears in <strong>chars</strong>,
+        then any character between <strong>x</strong> and <strong>y</strong>, inclusive,
+        will match.
+</p>
+</dd>
+<dt>
+<tt>\x</tt>
+</dt>
+<dd>
+<p>
+        Matches the single character <strong>x</strong>.  This provides a way of
+        avoiding the special interpretation of the characters <tt>*?[]\</tt>
+        in <strong>pattern</strong>.
+</p>
+</dd>
+</dl></div>
+</dd>
+<dt>
+<tt><strong>string range</strong> <em>string first last</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a range of consecutive characters from <strong>string</strong>, starting
+    with the character whose index is <strong>first</strong> and ending with the
+    character whose index is <strong>last</strong>.  An index of 0 refers to the
+    first character of the string.  Either <strong>first</strong> or <strong>last</strong> may be <em>end</em>
+    or <em>end-&lt;n&gt;</em> (where <em>&lt;n&gt;</em> is an integer) to refer to the last character of
+    the string or the <em>nth-from-last</em> character of the string.
+    If <strong>first</strong> is less than zero then it is treated as if it were zero, and
+    if <strong>last</strong> is greater than or equal to the length of the string then
+    it is treated as if it were <em>end</em>.  If <strong>first</strong> is greater than
+    <strong>last</strong> then an empty string is returned.
+</p>
+</dd>
+<dt>
+<tt><strong>string repeat</strong> <em>string count</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a new string consisting of <strong>string</strong> repeated <strong>count</strong> times.
+</p>
+</dd>
+<dt>
+<tt><strong>string tolower</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <strong>string</strong> except that all upper case
+    letters have been converted to lower case.
+</p>
+</dd>
+<dt>
+<tt><strong>string toupper</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <strong>string</strong> except that all lower case
+    letters have been converted to upper case.
+</p>
+</dd>
+<dt>
+<tt><strong>string trim</strong> <em>string ?chars?</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <strong>string</strong> except that any leading
+    or trailing characters from the set given by <strong>chars</strong> are
+    removed.
+    If <strong>chars</strong> is not specified then white space is removed
+    (spaces, tabs, newlines, and carriage returns).
+</p>
+</dd>
+<dt>
+<tt><strong>string trimleft</strong> <em>string ?chars?</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <strong>string</strong> except that any
+    leading characters from the set given by <strong>chars</strong> are
+    removed.
+    If <strong>chars</strong> is not specified then white space is removed
+    (spaces, tabs, newlines, and carriage returns).
+</p>
+</dd>
+<dt>
+<tt><strong>string trimright</strong> <em>string ?chars?</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <strong>string</strong> except that any
+    trailing characters from the set given by <strong>chars</strong> are
+    removed.
+    If <strong>chars</strong> is not specified then white space is removed
+    (spaces, tabs, newlines, and carriage returns).
+</p>
+</dd>
+</dl></div>
+<h3 id="_subst">subst</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>subst</strong> <em>?-nobackslashes? ?-nocommands? ?-novariables? string</em></tt></p></div>
+<div class="para"><p>This command performs variable substitutions, command substitutions,
+and backslash substitutions on its string argument and returns the
+fully-substituted result. The substitutions are performed in exactly
+the same way as for Tcl commands. As a result, the string argument
+is actually substituted twice, once by the Tcl parser in the usual
+fashion for Tcl commands, and again by the subst command.</p></div>
+<div class="para"><p>If any of the <strong>-nobackslashes</strong>, <strong>-nocommands</strong>, or <strong>-novariables</strong> are
+specified, then the corresponding substitutions are not performed.
+For example, if <strong>-nocommands</strong> is specified, no command substitution
+is performed: open and close brackets are treated as ordinary
+characters with no special interpretation.</p></div>
+<div class="para"><p><strong>Note</strong>: when it performs its substitutions, subst does not give any
+special treatment to double quotes or curly braces. For example,
+the following script returns <em>xyz {44}</em>, not <em>xyz {$a}</em>.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set a 44
+subst {xyz {$a}}</tt></pre>
+</div></div>
+<h3 id="_switch">switch</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>switch</strong> <em>?options? string pattern body ?pattern body &#8230;?</em></tt></p></div>
+<div class="para"><p><tt><strong>switch</strong> <em>?options? string {pattern body ?pattern body &#8230;?}</em></tt></p></div>
+<div class="para"><p>The <em>switch</em> command matches its string argument against each of
+the pattern arguments in order. As soon as it finds a pattern that
+matches string it evaluates the following body and returns the
+result of that evaluation. If the last pattern argument is default
+then it matches anything. If no pattern argument matches string and
+no default is given, then the switch command returns an empty string.
+If the initial arguments to switch start with - then they are treated
+as options. The following options are currently supported:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>-exact</tt>
+</dt>
+<dd>
+<p>
+                Use exact matching when comparing string to a
+                pattern. This is the default.
+</p>
+</dd>
+<dt>
+<tt>-glob</tt>
+</dt>
+<dd>
+<p>
+                When matching string to the patterns, use glob-style
+                matching (i.e. the same as implemented by the string
+                match command).
+</p>
+</dd>
+<dt>
+<tt>-regexp</tt>
+</dt>
+<dd>
+<p>
+                When matching string to the patterns, use regular
+                expression matching (i.e. the same as implemented
+                by the regexp command).
+</p>
+</dd>
+<dt>
+<tt>--</tt>
+</dt>
+<dd>
+<p>
+                Marks the end of options. The argument following
+                this one will be treated as string even if it starts
+                with a -.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>Two syntaxes are provided for the pattern and body arguments. The
+first uses a separate argument for each of the patterns and commands;
+this form is convenient if substitutions are desired on some of the
+patterns or commands. The second form places all of the patterns
+and commands together into a single argument; the argument must
+have proper list structure, with the elements of the list being the
+patterns and commands. The second form makes it easy to construct
+multi-line switch commands, since the braces around the whole list
+make it unnecessary to include a backslash at the end of each line.
+Since the pattern arguments are in braces in the second form, no
+command or variable substitutions are performed on them; this makes
+the behavior of the second form different than the first form in
+some cases.</p></div>
+<div class="para"><p>If a body is specified as <em>-</em> it means that the body for the next
+pattern should also be used as the body for this pattern (if the
+next pattern also has a body of &#8220;-&#8221; then the body after that is
+used, and so on). This feature makes it possible to share a single
+body among several patterns.</p></div>
+<div class="para"><p>Below are some examples of switch commands:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>switch abc a - b {format 1} abc {format 2} default {format 3}</tt></pre>
+</div></div>
+<div class="para"><p>will return 2,</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>switch -regexp aaab {
+           ^a.*b$ -
+           b {format 1}
+           a* {format 2}
+           default {format 3}
+}</tt></pre>
+</div></div>
+<div class="para"><p>will return 1, and</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>switch xyz {
+           a
+                          -
+           b
+                          {format 1}
+           a*
+                          {format 2}
+           default
+                          {format 3}
+}</tt></pre>
+</div></div>
+<div class="para"><p>will return 3.</p></div>
+<h3 id="_tell">tell</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>tell</strong> <em>fileId</em></tt></p></div>
+<div class="para"><p><tt><em>fileId</em> <strong>tell</strong></tt></p></div>
+<div class="para"><p>Returns a decimal string giving the current access position in
+<strong>fileId</strong>.</p></div>
+<div class="para"><p><strong>fileId</strong> must have been the return value from a previous call to
+<em>open</em>, or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one
+of the standard I/O channels.</p></div>
+<h3 id="_time">time</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>time</strong> <em>command ?count?</em></tt></p></div>
+<div class="para"><p>This command will call the Tcl interpreter <strong>count</strong>
+times to execute <strong>command</strong> (or once if <strong>count</strong> isn't
+specified).  It will then return a string of the form</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>503 microseconds per iteration</tt></pre>
+</div></div>
+<div class="para"><p>which indicates the average amount of time required per iteration,
+in microseconds.</p></div>
+<div class="para"><p>Time is measured in elapsed time, not CPU time.</p></div>
+<h3 id="_unknown">unknown</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>unknown</strong> <em>cmdName ?arg arg &#8230;?</em></tt></p></div>
+<div class="para"><p>This command doesn't actually exist as part of Tcl, but Tcl will
+invoke it if it does exist.</p></div>
+<div class="para"><p>If the Tcl interpreter encounters a command name for which there
+is not a defined command, then Tcl checks for the existence of
+a command named <em>unknown</em>.</p></div>
+<div class="para"><p>If there is no such command, then the interpeter returns an
+error.</p></div>
+<div class="para"><p>If the <em>unknown</em> command exists, then it is invoked with
+arguments consisting of the fully-substituted name and arguments
+for the original non-existent command.</p></div>
+<div class="para"><p>The <em>unknown</em> command typically does things like searching
+through library directories for a command procedure with the name
+<strong>cmdName</strong>, or expanding abbreviated command names to full-length,
+or automatically executing unknown commands as UNIX sub-processes.</p></div>
+<div class="para"><p>In some cases (such as expanding abbreviations) <em>unknown</em> will
+change the original command slightly and then (re-)execute it.
+The result of the <em>unknown</em> command is used as the result for
+the original non-existent command.</p></div>
+<h3 id="_unset">unset</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>unset</strong> <em>name ?name name &#8230;?</em></tt></p></div>
+<div class="para"><p>Remove one or more variables.
+Each <strong>name</strong> is a variable name, specified in any of the
+ways acceptable to the <em>set</em> command.</p></div>
+<div class="para"><p>If a <strong>name</strong> refers to an element of an array, then that
+element is removed without affecting the rest of the array.</p></div>
+<div class="para"><p>If a <strong>name</strong> consists of an array name with no parenthesized
+index, then the entire array is deleted.</p></div>
+<div class="para"><p>The <em>unset</em> command returns an empty string as result.</p></div>
+<div class="para"><p>An error occurs if any of the variables doesn't exist.</p></div>
+<h3 id="_uplevel">uplevel</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>uplevel</strong> <em>?level? command ?command &#8230;?</em></tt></p></div>
+<div class="para"><p>All of the <strong>command</strong> arguments are concatenated as if they had
+been passed to <em>concat</em>; the result is then evaluated in the
+variable context indicated by <strong>level</strong>.  <em>Uplevel</em> returns
+the result of that evaluation.  If <strong>level</strong> is an integer, then
+it gives a distance (up the procedure calling stack) to move before
+executing the command.  If <strong>level</strong> consists of <em>#</em> followed by
+a number then the number gives an absolute level number.  If <strong>level</strong>
+is omitted then it defaults to <em>1</em>.  <strong>Level</strong> cannot be
+defaulted if the first <strong>command</strong> argument starts with a digit or <em>#</em>.</p></div>
+<div class="para"><p>For example, suppose that procedure <em>a</em> was invoked
+from top-level, and that it called <em>b</em>, and that <em>b</em> called <em>c</em>.
+Suppose that <em>c</em> invokes the <em>uplevel</em> command.  If <strong>level</strong>
+is <em>1</em> or <em>#2</em>  or omitted, then the command will be executed
+in the variable context of <em>b</em>.  If <strong>level</strong> is <em>2</em> or <em>#1</em>
+then the command will be executed in the variable context of <em>a</em>.</p></div>
+<div class="para"><p>If <strong>level</strong> is <em>3</em> or <em>#0</em> then the command will be executed
+at top-level (only global variables will be visible).
+The <em>uplevel</em> command causes the invoking procedure to disappear
+from the procedure calling stack while the command is being executed.
+In the above example, suppose <em>c</em> invokes the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>uplevel 1 {set x 43; d}</tt></pre>
+</div></div>
+<div class="para"><p>where <em>d</em> is another Tcl procedure.  The <em>set</em> command will
+modify the variable <em>x</em> in <em>b's context, and 'd</em> will execute
+at level 3, as if called from <em>b</em>.  If it in turn executes
+the command</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>uplevel {set x 42}</tt></pre>
+</div></div>
+<div class="para"><p>then the <em>set</em> command will modify the same variable <em>x</em> in <em>b's
+context:  the procedure 'c</em> does not appear to be on the call stack
+when <em>d</em> is executing.  The command <em>info level</em> may
+be used to obtain the level of the current procedure.</p></div>
+<div class="para"><p><em>Uplevel</em> makes it possible to implement new control
+constructs as Tcl procedures (for example, <em>uplevel</em> could
+be used to implement the <em>while</em> construct as a Tcl procedure).</p></div>
+<h3 id="_upvar">upvar</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>upvar</strong> <em>?level? otherVar myVar ?otherVar myVar &#8230;?</em></tt></p></div>
+<div class="para"><p>This command arranges for one or more local variables in the current
+procedure to refer to variables in an enclosing procedure call or
+to global variables.</p></div>
+<div class="para"><p><strong>Level</strong> may have any of the forms permitted for the <em>uplevel</em>
+command, and may be omitted if the first letter of the first <strong>otherVar</strong>
+isn't <em>#</em> or a digit (it defaults to <em>1</em>).</p></div>
+<div class="para"><p>For each <strong>otherVar</strong> argument, <em>upvar</em> makes the variable
+by that name in the procedure frame given by <strong>level</strong> (or at
+global level, if <strong>level</strong> is <em>#0</em>) accessible
+in the current procedure by the name given in the corresponding
+<strong>myVar</strong> argument.</p></div>
+<div class="para"><p>The variable named by <strong>otherVar</strong> need not exist at the time of the
+call;  it will be created the first time <strong>myVar</strong> is referenced, just like
+an ordinary variable.</p></div>
+<div class="para"><p><em>Upvar</em> may only be invoked from within procedures.</p></div>
+<div class="para"><p><em>Upvar</em> returns an empty string.</p></div>
+<div class="para"><p>The <em>upvar</em> command simplifies the implementation of call-by-name
+procedure calling and also makes it easier to build new control constructs
+as Tcl procedures.
+For example, consider the following procedure:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>proc add2 name {
+    upvar $name x
+    set x [expr $x+2]
+}</tt></pre>
+</div></div>
+<div class="para"><p><em>Add2</em> is invoked with an argument giving the name of a variable,
+and it adds two to the value of that variable.
+Although <em>add2</em> could have been implemented using <em>uplevel</em>
+instead of <em>upvar</em>, <em>upvar</em> makes it simpler for <em>add2</em>
+to access the variable in the caller's procedure frame.</p></div>
+<h3 id="_while">while</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>while</strong> <em>test body</em></tt></p></div>
+<div class="para"><p>The <strong>while</strong> command evaluates <strong>test</strong> as an expression
+(in the same way that <em>expr</em> evaluates its argument).
+The value of the expression must be numeric; if it is non-zero
+then <strong>body</strong> is executed by passing it to the Tcl interpreter.</p></div>
+<div class="para"><p>Once <strong>body</strong> has been executed then <strong>test</strong> is evaluated
+again, and the process repeats until eventually <strong>test</strong>
+evaluates to a zero numeric value.  <em>Continue</em>
+commands may be executed inside <strong>body</strong> to terminate the current
+iteration of the loop, and <em>break</em>
+commands may be executed inside <strong>body</strong> to cause immediate
+termination of the <em>while</em> command.</p></div>
+<div class="para"><p>The <em>while</em> command always returns an empty string.</p></div>
+</div>
+<h2 id="_optional_extensions">OPTIONAL-EXTENSIONS</h2>
+<div class="sectionbody">
+<div class="para"><p>The following extensions may or may not be available depending upon
+what options were selected when Jim Tcl was built.</p></div>
+<h3 id="_bio">bio</h3><div style="clear:left"></div>
+<div class="para"><p>The bio command provides a way to read and write binary files
+from within Tcl. Note that since Jim supports binary strings, the
+main use of this command is <em>bio copy</em> to easily copy between file
+descriptors.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>bio read</strong> <em>?-hex? fd var numbytes</em></tt>
+</dt>
+<dd>
+<p>
+    Read bytes from a file descriptor. By default the data is not encoded.
+    Using <strong>-hex</strong> encodes the data as ascii hex instead. Returns
+    the number of bytes actually read.
+</p>
+</dd>
+<dt>
+<tt><strong>bio write</strong> <em>?-hex? fd buf</em></tt>
+</dt>
+<dd>
+<p>
+    Write a string to a file descriptor. If <strong>-hex</strong> is specified, the
+    string is expected to be in ascii hexx format. Returns the number
+    of bytes actually written.
+</p>
+</dd>
+<dt>
+<tt><strong>bio copy</strong> <em>fromfd tofd ?numbytes?</em></tt>
+</dt>
+<dd>
+<p>
+    Copy binary data from the file descriptor <strong>fromfd</strong> to the
+    file descriptor <strong>tofd</strong>. If <strong>numbytes</strong> is specified, at most that many
+    bytes will be copied. Otherwise copying continues until the end
+    of the input file. Returns the number of bytes actually copied.
+</p>
+</dd>
+</dl></div>
+<h3 id="_posix">posix</h3><div style="clear:left"></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>os.fork</strong></tt>
+</dt>
+<dd>
+<p>
+        Invokes <em>fork(2)</em> and returns the result.
+</p>
+</dd>
+<dt>
+<tt><strong>os.wait</strong> -nohang <em>pid</em></tt>
+</dt>
+<dd>
+<p>
+        Invokes waitpid(2), with WNOHANG if <strong>-nohang</strong> is specified.
+        Returns a list of 3 elements.
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>{0 none 0} if -nohang is specified, and the process is still alive.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>{-1 error &lt;error-description&gt;} if the process does not exist or has already been waited for.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>{&lt;pid&gt; exit &lt;exit-status&gt;} if the process exited normally.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>{&lt;pid&gt; signal &lt;signal-number&gt;} if the process terminated on a signal.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>{&lt;pid&gt; other 0} otherwise (core dump, stopped, continued, etc.)</tt></pre>
+</div></div>
+</dd>
+<dt>
+<tt><strong>os.gethostname</strong></tt>
+</dt>
+<dd>
+<p>
+        Invokes gethostname(3) and returns the result.
+</p>
+</dd>
+<dt>
+<tt><strong>os.getids</strong></tt>
+</dt>
+<dd>
+<p>
+        Returns the various user/group ids for the current process.
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jim&gt; os.getids
+uid 1000 euid 1000 gid 100 egid 100</tt></pre>
+</div></div>
+</dd>
+</dl></div>
+</div>
+<h2 id="_ansi_i_o_aio_and_eventloop_api">ANSI I/O (aio) and EVENTLOOP API</h2>
+<div class="sectionbody">
+<div class="para"><p>Jim provides an alternative object-based API for I/O.</p></div>
+<div class="para"><p>See <em>open</em> and <em>socket</em> for commands which return an I/O handle.</p></div>
+<h3 id="_aio">aio</h3><div style="clear:left"></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>$handle read</strong> <em>?-nonewline? ?len?</em></tt>
+</dt>
+<dd>
+<p>
+        Read and return bytes from the stream. To eof if no len.
+</p>
+</dd>
+<dt>
+<tt><strong>$handle gets</strong> <em>?var?</em></tt>
+</dt>
+<dd>
+<p>
+        Read one line and return it or store it in the var
+</p>
+</dd>
+<dt>
+<tt><strong>$handle puts</strong> <em>?-nonewline? str</em></tt>
+</dt>
+<dd>
+<p>
+        Write the string, with newline unless -nonewline
+</p>
+</dd>
+<dt>
+<tt><strong>$handle flush</strong></tt>
+</dt>
+<dd>
+<p>
+        Flush the stream
+</p>
+</dd>
+<dt>
+<tt><strong>$handle eof</strong></tt>
+</dt>
+<dd>
+<p>
+        Returns 1 if stream is at eof
+</p>
+</dd>
+<dt>
+<tt><strong>$handle close</strong></tt>
+</dt>
+<dd>
+<p>
+        Closes the stream
+</p>
+</dd>
+<dt>
+<tt><strong>$handle seek</strong> <em>offset ?start|current|end</em></tt>
+</dt>
+<dd>
+<p>
+        Seeks in the stream (default <em>current</em>)
+</p>
+</dd>
+<dt>
+<tt><strong>$handle tell</strong></tt>
+</dt>
+<dd>
+<p>
+        Returns the current seek position
+</p>
+</dd>
+<dt>
+<tt><strong>$handle ndelay</strong> <em>?0|1?</em></tt>
+</dt>
+<dd>
+<p>
+        Set O_NDELAY (if arg). Returns current/new setting.
+        Note that in general ANSI I/O interacts badly with non-blocking I/O.
+        Use with care.
+</p>
+</dd>
+<dt>
+<tt><strong>$handle accept</strong></tt>
+</dt>
+<dd>
+<p>
+        Server socket only: Accept a connection and return stream
+</p>
+</dd>
+</dl></div>
+<h3 id="_eventloop">eventloop</h3><div style="clear:left"></div>
+<div class="para"><p>The following commands allow a script to be invoked when the given condition occurs.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>$handle readable</strong> <em>?readable-script ?eof-script??</em></tt>
+</dt>
+<dd>
+<p>
+        Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
+</p>
+</dd>
+<dt>
+<tt><strong>$handle writable</strong> <em>?writable-script?</em></tt>
+</dt>
+<dd>
+<p>
+        Returns script, or invoke writable-script when writable, {} to remove
+</p>
+</dd>
+<dt>
+<tt><strong>$handle onexception</strong> <em>?exception-script?</em></tt>
+</dt>
+<dd>
+<p>
+        Returns script, or invoke exception-script when oob data, {} to remove
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>Time-based execution is also available via the eventloop API.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>after</strong> <em>time script</em></tt>
+</dt>
+<dd>
+<p>
+                The script is executed after the given number of milliseconds have elapsed.
+                Returns an event id.
+</p>
+</dd>
+<dt>
+<tt><strong>after</strong> cancel <em>id</em></tt>
+</dt>
+<dd>
+<p>
+                Cancels an after event with the given event id.
+</p>
+</dd>
+<dt>
+<tt><strong>vwait</strong> <em>variable</em></tt>
+</dt>
+<dd>
+<p>
+                A call to vwait is required to enter the eventloop. <em>vwait</em> processes events until
+                the named variabled changes. The variable need not exist beforehand.
+</p>
+</dd>
+</dl></div>
+<h3 id="_socket">socket</h3><div style="clear:left"></div>
+<div class="para"><p>Various socket types may be created.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>socket</strong> unix <em>path</em></tt>
+</dt>
+<dd>
+<p>
+        A unix domain socket client.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p><tt><strong>socket</strong> unix.server <em>path</em></tt>
+        A unix domain socket server.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>socket</strong> stream <em>hostname:port</em></tt>
+</dt>
+<dd>
+<p>
+        A TCP socket client.
+</p>
+</dd>
+<dt>
+<tt><strong>socket</strong> stream.server <em>?hostname:?port</em></tt>
+</dt>
+<dd>
+<p>
+        A TCP socket server (<strong>hostname</strong> defaults to 0.0.0.0).
+</p>
+</dd>
+<dt>
+<tt><strong>socket</strong> dgram <em>hostname:port</em></tt>
+</dt>
+<dd>
+<p>
+        A UDP socket client.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>This command creates a socket connected (client) or bound (server) to the given
+address.</p></div>
+<div class="para"><p>The returned value is channel and may generally be used with the various file I/O
+commands (gets, puts, read, etc.), either as object-based syntax or Tcl-compatible syntax.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set f [socket stream www.google.com:80]
+aio.sockstream1
+$f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+$f gets
+HTTP/1.0 302 Found
+$f close</tt></pre>
+</div></div>
+<div class="para"><p>Server sockets, however support only <em>accept</em>, which is most useful in conjunction with
+the EVENTLOOP API.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set f [socket stream.server 80]
+$f readable {
+        set client [$f accept]
+        $client gets $buf
+        ...
+        $client puts -nonewline "HTTP/1.1 404 Not found\r\n"
+        $client close
+}
+vwait done</tt></pre>
+</div></div>
+<h3 id="_syslog">syslog</h3><div style="clear:left"></div>
+<div class="para"><p><tt><strong>syslog</strong> <em>?options? ?priority? message</em></tt></p></div>
+<div class="para"><p>This  command sends message to system syslog facility with given
+priority. Valid priorities are:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>emerg, alert, crit, err, error, warning, notice, info, debug</tt></pre>
+</div></div>
+<div class="para"><p>If a message is specified, but no priority is specified, then a
+priority of info is used.</p></div>
+<div class="para"><p>By default, facility user is used and the value of global tcl variable
+argv0 is used as ident string. However, any of the following options
+may be specified before priority to control these parameters:</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt><strong>-facility</strong> <em>value</em></tt>
+</dt>
+<dd>
+<p>
+    Use specified facility instead of user. Following
+    facility are recognized:
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>authpriv, cron, daemon, kernel, lpr, mail, news, syslog, user,
+uucp, local0-local7</tt></pre>
+</div></div>
+</dd>
+<dt>
+<tt><strong>-ident</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Use given string instead of argv0 variable for ident string.
+</p>
+</dd>
+<dt>
+<tt><strong>-options</strong> <em>integer</em></tt>
+</dt>
+<dd>
+<p>
+    Set syslog options such as LOG_CONS, LOG_NDELAY You should
+    use numeric values of those from your system syslog.h file,
+    because I haven't got time to implement yet another hash
+    table.
+</p>
+</dd>
+</dl></div>
+</div>
+<h2 id="_built_in_variables">BUILT-IN VARIABLES</h2>
+<div class="sectionbody">
+<div class="para"><p>The following global variables are created automatically
+by the Tcl library.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>env</tt>
+</dt>
+<dd>
+<p>
+    This variable is set by Jim as an array
+    whose elements are the environment variables for the process.
+    Reading an element will return the value of the corresponding
+    environment variable.
+    This array is initialised at startup from the <em>env</em> command.
+</p>
+</dd>
+<dt>
+<tt>auto_path</tt>
+</dt>
+<dd>
+<p>
+    This variable contains a list of paths to search for packages.
+    It contains {. /lib/jim} by default.
+</p>
+</dd>
+</dl></div>
+<div class="para"><p>The following global variables are set by jimsh.</p></div>
+<div class="vlist"><dl>
+<dt>
+<tt>tcl_interactive</tt>
+</dt>
+<dd>
+<p>
+    This variable is set to 1 if jimsh is started in interactive mode
+    or 0 otherwise.
+</p>
+</dd>
+<dt>
+<tt>argv0</tt>
+</dt>
+<dd>
+<p>
+    If jimsh is invoked to run a script, this variable contains the name
+    of the script.
+</p>
+</dd>
+<dt>
+<tt>argv</tt>
+</dt>
+<dd>
+<p>
+    If jimsh is invoked to run a script, this variable contains a list
+    of any arguments supplied to the script.
+</p>
+</dd>
+</dl></div>
+</div>
+<h2 id="_licence">LICENCE</h2>
+<div class="sectionbody">
+<div class="literalblock">
+<div class="content">
+<pre><tt>Copyright 2005 Salvatore Sanfilippo &lt;antirez@invece.org&gt;
+Copyright 2005 Clemens Hintze &lt;c.hintze@gmx.net&gt;
+Copyright 2005 patthoyts - Pat Thoyts &lt;patthoyts@users.sf.net&gt;
+Copyright 2008 oharboe - Oyvind Harboe - oyvind.harboe@zylin.com
+Copyright 2008 Andrew Lunn &lt;andrew@lunn.ch&gt;
+Copyright 2008 Duane Ellis &lt;openocd@duaneellis.com&gt;
+Copyright 2008 Uwe Klein &lt;uklein@klein-messgeraete.de&gt;
+Copyright 2009 Steve Bennett &lt;steveb@workware.net.au&gt;</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>The FreeBSD license</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above
+   copyright notice, this list of conditions and the following
+   disclaimer in the documentation and/or other materials
+   provided with the distribution.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+JIM TCL PROJECT OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>The views and conclusions contained in the software and documentation
+are those of the authors and should not be interpreted as representing
+official policies, either expressed or implied, of the Jim Tcl Project.</tt></pre>
+</div></div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2009-09-09 08:15:07 EST
+</div>
+</div>
+</body>
+</html>

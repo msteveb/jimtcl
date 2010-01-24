@@ -28,6 +28,7 @@ Note that most of this man page is the original 6.8 Tcl man page, with
 changes made for differences with Jim.
 
 The major differences are:
+
 1. Object-based I/O (aio) with backward compatibility wrapper
 2. I/O: Support for sockets (client and server)
 3. I/O: Support for readable/writable event handlers
@@ -37,17 +38,17 @@ The major differences are:
 7. file mkdir, file rename (Tcl 7.x)
 8. env command to access environment variables
 9. List: lmap, lset, lreverse (Tcl 8.x)
-10. os.fork, os.wait
-11. rand 
+10. os.fork, os.wait, rand 
+11. \{*\}/\{expand\}
 12. string map (Tcl 7.x)
 13. subst (Tcl 7.x)
 14. switch (Tcl 7.x) (note that case is provided for compatibility)
 15. Must better error reporting. info stacktrace as a replacement for errorInfo, errorCode
-17. Support for "static" variables in procedures
-16. Significantly faster for many scripts/operations
-17. Command pipelines via open "|..." are not supported
-18. Variable traces are not supported
-19. The history command is not supported
+16. Support for "static" variables in procedures
+17. Significantly faster for many scripts/operations
+18. Command pipelines via open "|..." are not supported
+19. Variable traces are not supported
+20. The history command is not supported
 
 TCL INTRODUCTION
 -----------------
@@ -666,9 +667,11 @@ depending on the value of '$v'.
 
 *NOTE* This is currently not true of the ?: operator for Jim.
 
-All internal computations involving integers are done with the C type
-'long long', and all internal computations involving floating-point are
-done with the C type 'double'.
+All internal computations involving integers are done with the C
+type 'long long' if available, or 'long' otherwise, and all internal
+computations involving floating-point are done with the C type
+'double'.
+
 When converting a string to floating-point, exponent overflow is
 detected and results in a Tcl error.
 For conversion to integer from string, detection of overflow depends
@@ -784,6 +787,29 @@ The Tcl commands 'concat', 'foreach', 'lappend', 'lindex', 'linsert',
 'list', 'llength', 'lrange', 'lreplace', 'lsearch', and 'lsort' allow
 you to build lists, extract elements from them, search them, and perform
 other list-related functions.
+
+LIST EXPANSION
+--------------
+
+A new addition to Tcl 8.5 is the ability to expand a list into separate
+arguments. Support for this feature is also available in Jim.
+
+Consider the following attempt to exec a list:
+
+	set cmd {ls -l}
+	exec $cmd
+
+This will attempt to exec the a command named "ls -l", which will clearly not
+work. Typically eval and concat are required to solve this problem, however
+it can be solved much more easily with '\{*\}'.
+
+	exec {*}$cmd
+
+This will expand the following argument into individual elements and then evaluate
+the resulting command.
+
+Note that the official Tcl syntax is '\{*\}', however '\{expand\}' is retained
+for backward compatibility with experimental versions of this feature.
 
 REGULAR EXPRESSIONS
 -------------------
@@ -953,8 +979,101 @@ will output:
 
   two
 
-Thus 'array set' is equivalent to 'set' when the variable does no
+Thus 'array set' is equivalent to 'set' when the variable does not
 exist or is empty.
+
+The reverse is also true where an array will be converted into
+a list.
+
+  set a(1) one; set a(2) two
+  puts $a
+
+will output:
+
+  1 one 2 two
+
+GARBAGE COLLECTION, REFERENCES, LAMBDA
+--------------------------------------
+Unlike Tcl, Jim has some sophistocated support for functional programming.
+These are described briefly below.
+
+More information may be found at http://wiki.tcl.tk/13847
+
+References
+~~~~~~~~~~
+A reference can be thought of as holding a value with one level of indirection,
+where the value may be garbage collected when unreferenced.
+Consider the following example:
+
+	jim> set r [ref "One String" test]
+	<reference.<test___>.00000000000000000000>
+	jim> getref $r
+	One String
+
+The operation 'ref' creates a references to the value specfied by the
+first argument. (The second argument is a "type" used for documentation purposes).
+
+The operation 'getref' is the dereferencing operation which retrieves the value
+stored in the reference.
+
+	jim> setref $r "New String"
+	New String
+	jim> getref $r
+	New String
+
+The operation 'setref' replaces the value stored by the reference. If the old value
+is no longer accessible by any reference, it will eventually be automatically be garbage
+collected.
+
+Garbage Collection
+~~~~~~~~~~~~~~~~~~
+Normally, all values in Tcl are passed by value. As such values are copied and released
+automatically as necessary.
+
+With the introduction of references, it is possible to create values whose lifetime
+transcend their scope. To support this, case, the Jim system will periodically identify
+and discard objects which are no longer accessible by any reference.
+
+The 'collect' command may be used to force garbage collection.  Consider a reference created
+with a finalizer:
+
+	jim> proc f {ref value} { puts "Finaliser called for $ref,$value" }
+	jim> set r [ref "One String" test f]
+	<reference.<test___>.00000000000
+	jim> collect
+	0
+	jim> set r ""
+	jim> collect
+	Finaliser called for <reference.<test___>.00000000000,One String
+	1
+
+Note that once the reference, 'r', was modified so that it no longer
+contained a reference to the value, the garbage collector discarded
+the value (after calling the finalizer).
+
+The finalizer for a reference may be examined or changed with the 'finalize' command
+
+	jim> finalize $r
+	f
+	jim> finalize $r newf
+	newf
+
+Lambda
+------
+Jim provides a garbage collected lambda function. This is a procedure
+which is able to create an anonymous procedure.  Consider:
+
+	jim> set f [lambda {a} {{x 0}} { incr x $a }]
+	jim> $f 1
+	1
+	jim> $f 2
+	3
+	jim> set f ""
+
+This create an anonymous procedure, 'f', with a static variable
+which is incremented by the supplied value and the result returned.
+
+Once the procedure is renamed to "", the procedure is automatically deleted.
 
 BUILT-IN COMMANDS
 -----------------
@@ -1142,17 +1261,17 @@ catch
 ~~~~~
 +*catch* ?*-signal*? 'command' ?'varName'?+
 
-The 'catch' command may be used to prevent errors from aborting command
-interpretation.  'Catch' calls the Tcl interpreter recursively to execute
-*command*, and always returns a JIM_OK code, regardless of any errors
-that might occur while executing *command* (with the possible exception
-of JIM_SIGNAL - see below).
+The 'catch' command may be used to prevent errors from aborting
+command interpretation.  'Catch' evalues *command*, and
+returns a JIM_OK code, regardless of any errors that might occur
+while executing *command* (with the possible exception of JIM_SIGNAL
+- see below).
 
 The return value from 'catch' is a decimal string giving the code returned
 by the Tcl interpreter after executing *command*.  This will be '0'
 (JIM_OK) if there were no errors in *command*; otherwise it will have
 a non-zero value corresponding to one of the exceptional return codes
-(see tcl.h for the definitions of code values).
+(see jim.h for the definitions of code values).
 
 If the *varName* argument is given, then it gives the name of a variable;
 'catch' will set the value of the variable to the string returned from
@@ -1181,7 +1300,7 @@ Returns the current time as seconds since the epoch.
 
 +*clock format* 'seconds ?-format format?'*+
 
-Format the given time (seconds since the epock) according to the given
+Format the given time (seconds since the epoch) according to the given
 format. See strftime(3) for supported formats.
 
 If no format is supplied, "%c" is used.
@@ -1193,11 +1312,12 @@ See strptime(3) for supported formats.
 
 close
 ~~~~~
-+*close* 'fileId'+ or
++*close* 'fileId'+
+
 +'fileId' *close*+
 
 Closes the file given by *fileId*.
-*FileId* must be the return value from a previous invocation
+*fileId* must be the return value from a previous invocation
 of the 'open' command; after this command, it should not be
 used anymore.
 
@@ -1226,15 +1346,29 @@ as 'for' or 'foreach' or 'while'.  It returns a  JIM_CONTINUE code to
 signal the innermost containing loop command to skip the remainder of
 the loop's body but continue with the next iteration of the loop.
 
+env
+~~~
++*env* '?name?'+
+
+If *name* is supplied, returns the value of *name* from the initial
+environment (see getenv(3)). An error is returned if *name* does not
+exist in the environment.
+
+If no arguments are supplied, returns a list of all environment variables
+and their values as +{name value ...}+
+
+See also the global variable '::env'
+
 eof
 ~~~
-+*eof* 'fileId'+ or
++*eof* 'fileId'+
+
 +'fileId' *eof*+
 
 Returns 1 if an end-of-file condition has occurred on *fileId*,
 0 otherwise.
 
-*FileId* must have been the return value from a previous call to 'open',
+*fileId* must have been the return value from a previous call to 'open',
 or it may be 'stdin', 'stdout', or 'stderr' to refer to one of the
 standard I/O channels.
 
@@ -1243,7 +1377,7 @@ error
 +*error* 'message ?stacktrace?'+
 
 Returns a JIM_ERROR code, which causes command interpretation to be
-unwound.  *Message* is a string that is returned to the application
+unwound.  *message* is a string that is returned to the application
 to indicate what went wrong.
 
 If the *stacktrace* argument is provided and is non-empty,
@@ -1258,14 +1392,29 @@ of the error:
     ...
     error $errMsg [info stacktrace]
 
+See also 'errorInfo' and 'info stacktrace'
+
+errorInfo
+~~~~~~~~~
++*errorInfo* 'error ?stacktrace?'+
+
+Returns a human-readable representation of the given error message and stack trace.
+Typical usage is:
+
+	if {[catch {...} error]} {
+		puts stderr [errorInfo $error [info stacktrace]]
+		exit 1
+	}
+
+See 'error' for typical usage.
 
 eval
 ~~~~
 +*eval* 'arg ?arg ...?'+
 
-'Eval' takes one or more arguments, which together comprise a Tcl
+'eval' takes one or more arguments, which together comprise a Tcl
 command (or collection of Tcl commands separated by newlines in the
-usual way).  'Eval' concatenates all its arguments in the same
+usual way).  'eval' concatenates all its arguments in the same
 fashion as the 'concat' command, passes the concatenated string to the
 Tcl interpreter recursively, and returns the result of that
 evaluation (or any error generated by it).
@@ -1388,10 +1537,7 @@ file
 ~~~~
 +*file* 'option name ?arg arg ...?'+
 
-Operate on a file or a file name.  *Name* is the name of a file;
-if it starts with a tilde, then tilde substitution is done before
-executing the command (see the manual entry for 'Jim_TildeSubst'
-for details).
+Operate on a file or a file name.  *name* is the name of a file.
 
 *Option* indicates what to do with the file name.  Any unique
 abbreviation for *option* is acceptable.  The valid options are:
@@ -1410,7 +1556,7 @@ abbreviation for *option* is acceptable.  The valid options are:
 +*file dirname* 'name'+::
     Return all of the characters in *name* up to but not including
     the last slash character.  If there are no slashes in *name*
-    then return '.'.  If the last slash in *name* is its first
+    then return '.' (a single dot).  If the last slash in *name* is its first
     character, then return '/'.
 
 +*file executable* 'name'+::
@@ -1434,6 +1580,11 @@ abbreviation for *option* is acceptable.  The valid options are:
     Return '1' if file *name* is a regular file,
     '0' otherwise.
 
++*file join* 'arg arg ...'+::
+    Joins multiple path components. Note that if any components is
+	an absolute path, the preceding components are ignored.
+	Thus 'file join /tmp /root' returns '/root'.
+
 +*file lstat* 'name varName'+::
     Same as 'stat' option (see below) except uses the *lstat*
     kernel call instead of *stat*.  This means that if *name*
@@ -1443,8 +1594,8 @@ abbreviation for *option* is acceptable.  The valid options are:
     as the 'stat' option.
 
 +*file mkdir* 'dir1 ?dir2? ...'+::
-    Creates the given directories. Intermediate directories are
-    created as necessary.
+    Creates the given directories. *Note* unlike Tcl 7.x, intermediate
+    directories are *not* created as necessary.
 
 +*file mtime* 'name'+::
     Return a decimal string giving the time at which file *name*
@@ -1454,7 +1605,7 @@ abbreviation for *option* is acceptable.  The valid options are:
     error is generated.
 
 +*file normalize* 'name'+::
-    Return the normalized path of *name*
+    Return the normalized path of *name*. See realpath(3).
 
 +*file owned* 'name'+::
     Return '1' if file *name* is owned by the current user,
@@ -1519,10 +1670,11 @@ conditional or looping commands, for example:
 
 flush
 ~~~~~
-+*flush* 'fileId'+ or
++*flush* 'fileId'+
+
 +'fileId' *flush*+
 
-Flushes any output that has been buffered for *fileId*.  *FileId* must
+Flushes any output that has been buffered for *fileId*.  *fileId* must
 have been the return value from a previous call to 'open', or it may be
 'stdout' or 'stderr' to access one of the standard I/O streams; it must
 refer to a file that was opened for writing.  This command returns an
@@ -1583,7 +1735,7 @@ of the loop are undefined.
 The 'break' and 'continue' statements may be invoked inside *body*,
 with the same effect as in the 'for' command.
 
-'Foreach' returns an empty string.
+'foreach' returns an empty string.
 
 format
 ~~~~~~
@@ -1613,7 +1765,8 @@ The return value from 'format' is the formatted string.
 
 gets
 ~~~~
-+*gets* 'fileId ?varName?'+ or
++*gets* 'fileId ?varName?'+
+
 +'fileId' *gets* '?varName?'+
 
 Reads the next line from the file given by *fileId* and discards
@@ -1639,7 +1792,7 @@ If the last character in the file is not a newline character, then
 'gets' behaves as if there were an additional newline character
 at the end of the file.
 
-*FileId* must be 'stdin' or the return value from a previous
+*fileId* must be 'stdin' or the return value from a previous
 call to 'open'; it must refer to a file that was opened
 for reading.
 
@@ -1753,6 +1906,9 @@ info
     are returned.  Matching is determined using the same rules as for
     'string match'.
 
++*info hostname*::
+	An alias for 'os.hostname' for compatibility with Tcl 6.x
+
 +*info level* ?'number'?+::
     If *number* is not specified, this command returns a number
     giving the stack level of the invoking procedure, or 0 if the
@@ -1790,12 +1946,12 @@ info
 
 +*info source 'script'*+::
     Returns the original source location of the given script as a list of
-    {filename linenumber}. If the source location can't be determined, the
-    list {{} 0} is returned.
+    +{filename linenumber}+. If the source location can't be determined, the
+    list +{{} 0}+ is returned.
 
 +*info stacktrace*+::
     After an error is caught with 'catch', returns the stack trace as a list
-    of {procedure filename line ...}.
+    of +{procedure filename line ...}+.
 
 +*info version*+::
     Returns the version number for this version of Jim in the form *x.yy*.
@@ -1825,11 +1981,12 @@ kill
 Sends the given signal to the process identified by *pid*.
 
 The signal may be specified by name or number in one of the following forms:
+
 * +TERM+
 * +SIGTERM+
 * +-TERM+
-* 15
-* -15
+* +15+
+* +-15+
 
 The signal name may be in either upper or lower case.
 
@@ -1923,23 +2080,69 @@ the number of elements in it.
 
 lset
 ~~~~
++*lset* 'varName ?index ..? newValue'+
 
-REVISIT:
+Sets an element in a list.
+
+The 'lset' command accepts a parameter, *varName*, which it interprets
+as the name of a variable containing a Tcl list. It also accepts
+zero or more indices into the list.  Finally, it accepts a new value
+for an element of varName.  If no indices are presented, the command
+takes the form:
+
+    lset varName newValue
+
+In this case, newValue replaces the old value of the variable
+varName.
+
+When presented with a single index, the 'lset' command
+treats the content of the varName variable as a Tcl list. It addresses
+the index'th element in it (0 refers to the first element of the
+list). When interpreting the list, 'lset' observes the same rules
+concerning braces and quotes and backslashes as the Tcl command
+interpreter; however, variable substitution and command substitution
+do not occur. The command constructs a new list in which the
+designated element is replaced with newValue. This new list is
+stored in the variable varName, and is also the return value from
+the 'lset' command.
+
+If index is negative or greater than or equal to the number of
+elements in $varName, then an error occurs.
+
+If index has the value end, it refers to the last element in the
+list, and end-integer refers to the last element in the list minus
+the specified integer offset.
+
+If additional index arguments are supplied, then each argument is
+used in turn to address an element within a sublist designated by
+the previous indexing operation, allowing the script to alter
+elements in sublists. The command,
+
+    lset a 1 2 newValue
+
+replaces element 2 of sublist 1 with *newValue*.
+
+The integer appearing in each index argument must be greater than
+or equal to zero. The integer appearing in each index argument must
+be strictly less than the length of the corresponding list. In other
+words, the 'lset' command cannot change the size of a list. If an
+index is outside the permitted range, an error is reported.
 
 lmap
 ~~~~
 
-REVISIT:
++*lmap* 'varname list body'+
 
-loop
-~~~~
-+*loop* 'var first limit ?incr? command'+
++*lmap* 'varlist list ?varlist2 list2 ...? body'+
 
-A shorthand form of:
+'lmap' is a "collecting 'foreach'" which returns a list of its results.
 
-    for {set var first} {var < limit} {incr var incr} command
+For example:
 
-If *incr* is not specified, 1 is used.
+	jim> lmap i {1 2 3 4 5} {expr $i*$i}
+	1 4 9 16 25
+	jim> lmap a {1 2 3} b {A B C} {list $a $b}
+	{1 A} {2 B} {3 C}
 
 lrange
 ~~~~~~
@@ -1991,6 +2194,15 @@ the list.
 If no *element* arguments are specified, then the elements
 between *first* and *last* are simply deleted.
 
+lreverse
+~~~~~~~~
++*lreverse* 'list'+
+
+Returns the list in reverse order.
+
+	jim> lreverse {1 2 3}
+	3 2 1
+
 lsearch
 ~~~~~~~
 +*lsearch* 'list value'+
@@ -2025,16 +2237,14 @@ order to what it would be otherwise. *-increasing* is the default.
 
 open
 ~~~~
-+*open* 'fileName ?access?'+ or
-+*aio.open* 'fileName ?access?'+
++*open* 'fileName ?access?'+
 
 Opens a file and returns an identifier
 that may be used in future invocations
 of commands like 'read', 'puts', and 'close'.
-*FileName* gives the name of the file to open.
+*fileName* gives the name of the file to open.
 
-The *access* argument indicates the way in which the file
-(or command pipeline) is to be accessed.
+The *access* argument indicates the way in which the file is to be accessed.
 It may have any of the following values:
 
 +r+::
@@ -2066,6 +2276,8 @@ It may have any of the following values:
 If a file is opened for both reading and writing, then 'seek'
 must be invoked between a read and a write, or vice versa (this
 restriction does not apply to command pipelines opened with 'open').
+
+See also 'socket'
 
 package
 ~~~~~~~
@@ -2099,15 +2311,13 @@ proc
 The 'proc' command creates a new Tcl command procedure, *name*, replacing
 any existing command there may have been by that name.  Whenever the
 new command is invoked, the contents of *body* will be executed by the
-Tcl interpreter.  *Args* specifies the formal arguments to the procedure.
+Tcl interpreter.  *args* specifies the formal arguments to the procedure.
 It consists of a list, possibly empty, each of whose elements specifies
 one argument.  Each argument specifier is also a list with either one or
 two fields.  If there is only a single field in the specifier, then it is
 the name of the argument; if there are two fields, then the first is the
 argument name and the second is its default value.  braces and backslashes
 may be used in the usual way to specify complex default values.
-
-REVISIT: Explain static variables
 
 When *name* is invoked, a local variable will be created for each of
 the formal arguments to the procedure; its value will be the value
@@ -2137,20 +2347,50 @@ value is the value of the last command executed in the procedure's body.
 If an error occurs while executing the procedure body, then the
 procedure-as-a-whole will return that same error.
 
+*New in Jim*
+
+In addition to procedure arguments, Jim procedures may declare static variables.
+These variables scoped to the procedure and initialised at procedure definition.
+Either from the static variable definition, or from the enclosing scope.
+
+Consider the following example:
+
+	set a 1
+	proc a {} {a {b 2}} {
+		set c 1
+		puts "$a $b $c"
+		incr a
+		incr b
+		incr c
+	}
+	. a
+	1 2 1
+	. a
+	2 3 1
+
+The static variable *a* has no initialiser, so it is initialised from
+the enclosing scope with the value 1. (Note that it is an error if there
+is no variable with the same name in the enclosing scope). However *b*
+has an initialiser, so it is initialised to 2.
+
+Unlike a local variable, the value of a static variable is retained across
+invocations of the procedure.
+	
 puts
 ~~~~
-+*puts* ?*-nonewline*? '?fileId? string'+ or
++*puts* ?*-nonewline*? '?fileId? string'+
+
 +'fileId' *puts* ?*-nonewline*? 'string'+
 
 Writes the characters given by *string* to the file given
-by *fileId*.  *FileId* must have been the return
+by *fileId*.  *fileId* must have been the return
 value from a previous call to 'open', or it may be
 'stdout' or 'stderr' to refer to one of the standard I/O
 channels; it must refer to a file that was opened for
 writing.
 
 In the first form, if no *fileId* is specified then it defaults to 'stdout'.
-'Puts' normally outputs a newline character after *string*,
+'puts' normally outputs a newline character after *string*,
 but this feature may be suppressed by specifying the '-nonewline'
 switch.
 
@@ -2163,12 +2403,39 @@ pwd
 
 Returns the path name of the current working directory.
 
+rand
+~~~~
++*rand* '?min? ?max?'+
+
+Returns a random integer between *min* (defaults to 0) and *max*
+(defaults to the maximum integer).
+
+If only one argument is given, it is interpreted as *max*.
+
+range
+~~~~
++*range* '?start? end ?step?'+
+
+Returns a list of integers starting at *start* (defaults to 0)
+and ranging up to but not including *end* in steps of *step* defaults to 1).
+
+	jim> range 5
+	0 1 2 3 4
+	jim> range 2 5
+	2 3 4
+	jim> range 2 10 4
+	2 6
+	jim> range 7 4 -2
+	7 5
+
 read
 ~~~~
-+*read* ?*-nonewline*? 'fileId'+ or
++*read* ?*-nonewline*? 'fileId'+
+
 +'fileId' *read* ?*-nonewline*?+
 
-+*read* 'fileId numBytes'+ or
++*read* 'fileId numBytes'+
+
 +'fileId' *read* 'numBytes'+
 
 
@@ -2182,7 +2449,7 @@ exactly this many bytes will be read and returned, unless there are fewer than
 *numBytes* bytes left in the file; in this case, all the remaining
 bytes are returned.
 
-*FileId* must be 'stdin' or the return value from a previous call
+*fileId* must be 'stdin' or the return value from a previous call
 to 'open'; it must refer to a file that was opened for reading.
 
 regexp
@@ -2198,7 +2465,7 @@ syntax of *exp* and how it is matched against *string*.
 If additional arguments are specified after *string* then they
 are treated as the names of variables to use to return
 information about which part(s) of *string* matched *exp*.
-*MatchVar* will be set to the range of *string* that
+*matchVar* will be set to the range of *string* that
 matched all of *exp*.  The first *subMatchVar* will contain
 the characters in *string* that matched the leftmost parenthesized
 subexpression within *exp*, the next *subMatchVar* will
@@ -2324,13 +2591,14 @@ specified for this conversion.
 
 seek
 ~~~~
-+*seek* 'fileId offset ?origin?'+ or
++*seek* 'fileId offset ?origin?'+
+
 +'fileId' *seek* 'offset ?origin?'+
 
 Change the current access position for *fileId*.
 The *offset* and *origin* arguments specify the position at
 which the next read or write will occur for *fileId*.
-*Offset* must be a number (which may be negative) and *origin*
+*offset* must be a number (which may be negative) and *origin*
 must be one of the following:
 
 +*start*+::
@@ -2350,7 +2618,7 @@ must be one of the following:
 
 The *origin* argument defaults to 'start'.
 
-*FileId* must have been the return value from a previous call to
+*fileId* must have been the return value from a previous call to
 'open', or it may be 'stdin', 'stdout', or 'stderr' to refer to one
 of the standard I/O channels.
 
@@ -2392,37 +2660,29 @@ See 'kill' for the different forms which may be used to specify signals.
 Commands which return a list of signal names do so using the canonical form:
 "SIGINT SIGTERM".
 
-+*signal handle* ?'signals ...'?+
++*signal handle* ?'signals ...'?+::
+	If no signals are given, returns a list of all signals which are currently
+	being handled.
+	If signals are specified, these are added to the list of signals currently
+	being handled.
 
-If no signals are given, returns a list of all signals which are currently
-being handled.
++*signal ignore* ?'signals ...'?+::
+	If no signals are given, returns a lists all signals which are currently being
+	ignored.
+	If signals are specified, these are added to the list of signals currently
+	being ignored.
 
-If signals are specified, these are added to the list of signals currently
-being handled.
++*signal default* ?'signals ...'?+::
+	If no signals are given, returns a lists all signals which are currently have
+	the default behaviour.
+	If signals are specified, these are added to the list of signals which have
+	the default behaviour.
 
-+*signal ignore* ?'signals ...'?+
++*signal throw* ?'signal'?+::
+	Raises the given signal, which defaults to SIGINT if not specified.
+	The behaviour is identical to:
 
-If no signals are given, returns a lists all signals which are currently being
-ignored.
-
-If signals are specified, these are added to the list of signals currently
-being ignored.
-
-+*signal default* ?'signals ...'?+
-
-If no signals are given, returns a lists all signals which are currently have
-the default behaviour.
-
-If signals are specified, these are added to the list of signals which have
-the default behaviour.
-
-+*signal throw* ?'signal'?+
-
-Raises the given signal, which defaults to SIGINT if not specified.
-
-The behaviour is identical to:
-
-    kill signal [pid]
+		kill signal [pid]
 
 sleep
 ~~~~~
@@ -2585,15 +2845,123 @@ The legal options (which may be abbreviated) are:
     If *chars* is not specified then white space is removed
     (spaces, tabs, newlines, and carriage returns).
 
+subst
+~~~~~
++*subst* '?-nobackslashes? ?-nocommands? ?-novariables? string'+
+
+This command performs variable substitutions, command substitutions,
+and backslash substitutions on its string argument and returns the
+fully-substituted result. The substitutions are performed in exactly
+the same way as for Tcl commands. As a result, the string argument
+is actually substituted twice, once by the Tcl parser in the usual
+fashion for Tcl commands, and again by the subst command.
+
+If any of the *-nobackslashes*, *-nocommands*, or *-novariables* are
+specified, then the corresponding substitutions are not performed.
+For example, if *-nocommands* is specified, no command substitution
+is performed: open and close brackets are treated as ordinary
+characters with no special interpretation.
+
+*Note*: when it performs its substitutions, subst does not give any
+special treatment to double quotes or curly braces. For example,
+the following script returns 'xyz \{44\}', not 'xyz \{$a\}'.
+
+	set a 44
+	subst {xyz {$a}}
+
+
+switch
+~~~~~~
++*switch* '?options? string pattern body ?pattern body ...?'+
+
++*switch* '?options? string {pattern body ?pattern body ...?}'+
+
+The 'switch' command matches its string argument against each of
+the pattern arguments in order. As soon as it finds a pattern that
+matches string it evaluates the following body and returns the
+result of that evaluation. If the last pattern argument is default
+then it matches anything. If no pattern argument matches string and
+no default is given, then the switch command returns an empty string.
+If the initial arguments to switch start with - then they are treated
+as options. The following options are currently supported:
+
+	+-exact+::
+		Use exact matching when comparing string to a
+		pattern. This is the default.
+
+	+-glob+::
+		When matching string to the patterns, use glob-style
+		matching (i.e. the same as implemented by the string
+		match command).
+
+	+-regexp+::
+		When matching string to the patterns, use regular
+		expression matching (i.e. the same as implemented
+		by the regexp command).
+
+	+--+::
+		Marks the end of options. The argument following
+		this one will be treated as string even if it starts
+		with a -.
+
+Two syntaxes are provided for the pattern and body arguments. The
+first uses a separate argument for each of the patterns and commands;
+this form is convenient if substitutions are desired on some of the
+patterns or commands. The second form places all of the patterns
+and commands together into a single argument; the argument must
+have proper list structure, with the elements of the list being the
+patterns and commands. The second form makes it easy to construct
+multi-line switch commands, since the braces around the whole list
+make it unnecessary to include a backslash at the end of each line.
+Since the pattern arguments are in braces in the second form, no
+command or variable substitutions are performed on them; this makes
+the behavior of the second form different than the first form in
+some cases.
+
+If a body is specified as '-' it means that the body for the next
+pattern should also be used as the body for this pattern (if the
+next pattern also has a body of ``-'' then the body after that is
+used, and so on). This feature makes it possible to share a single
+body among several patterns.
+
+Below are some examples of switch commands:
+
+	switch abc a - b {format 1} abc {format 2} default {format 3}
+
+will return 2,
+
+	switch -regexp aaab {
+		   ^a.*b$ -
+		   b {format 1}
+		   a* {format 2}
+		   default {format 3}
+	}
+
+will return 1, and
+
+	switch xyz {
+		   a
+				  -
+		   b
+				  {format 1}
+		   a*
+				  {format 2}
+		   default
+				  {format 3}
+	}
+
+will return 3.
+
 tell
 ~~~~
-+*tell* 'fileId'+ or
++*tell* 'fileId'+
+
 +'fileId' *tell*+
 
 Returns a decimal string giving the current access position in
 *fileId*.
 
-*FileId* must have been the return value from a previous call to
+*fileId* must have been the return value from a previous call to
 'open', or it may be 'stdin', 'stdout', or 'stderr' to refer to one
 of the standard I/O channels.
 
@@ -2768,7 +3136,7 @@ OPTIONAL-EXTENSIONS
 -------------------
 
 The following extensions may or may not be available depending upon
-what options were selected when Tcl was built.
+what options were selected when Jim Tcl was built.
 
 bio
 ~~~
@@ -2792,6 +3160,145 @@ descriptors.
     file descriptor *tofd*. If *numbytes* is specified, at most that many
     bytes will be copied. Otherwise copying continues until the end
     of the input file. Returns the number of bytes actually copied.
+
+posix
+~~~~~
++*os.fork*+::
+	Invokes 'fork(2)' and returns the result.
+
++*os.wait* -nohang 'pid'+::
+	Invokes waitpid(2), with WNOHANG if *-nohang* is specified.
+	Returns a list of 3 elements.
+
+   {0 none 0} if -nohang is specified, and the process is still alive.
+ 
+   {-1 error <error-description>} if the process does not exist or has already been waited for.
+ 
+   {<pid> exit <exit-status>} if the process exited normally.
+ 
+   {<pid> signal <signal-number>} if the process terminated on a signal.
+ 
+   {<pid> other 0} otherwise (core dump, stopped, continued, etc.)
+
++*os.gethostname*+::
+	Invokes gethostname(3) and returns the result.
+
++*os.getids*+::
+	Returns the various user/group ids for the current process.
+
+	jim> os.getids
+	uid 1000 euid 1000 gid 100 egid 100
+
+ANSI I/O (aio) and EVENTLOOP API
+--------------------------------
+Jim provides an alternative object-based API for I/O.
+
+See 'open' and 'socket' for commands which return an I/O handle.
+
+aio
+~~~
++*$handle read* '?-nonewline? ?len?'+::
+	Read and return bytes from the stream. To eof if no len.
+
++*$handle gets* '?var?'+::
+	Read one line and return it or store it in the var
+
++*$handle puts* '?-nonewline? str'+::
+	Write the string, with newline unless -nonewline
+
++*$handle flush*+::
+	Flush the stream
+
++*$handle eof*+::
+	Returns 1 if stream is at eof
+
++*$handle close*+::
+	Closes the stream
+
++*$handle seek* 'offset ?start|current|end'+::
+	Seeks in the stream (default 'current')
+
++*$handle tell*+::
+	Returns the current seek position
+
++*$handle ndelay* '?0|1?'+::
+	Set O_NDELAY (if arg). Returns current/new setting.
+	Note that in general ANSI I/O interacts badly with non-blocking I/O.
+	Use with care.
+
++*$handle accept*+::
+	Server socket only: Accept a connection and return stream
+
+eventloop
+~~~~~~~~~
+The following commands allow a script to be invoked when the given condition occurs.
+
++*$handle readable* '?readable-script ?eof-script??'+::
+	Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
+
++*$handle writable* '?writable-script?'+::
+	Returns script, or invoke writable-script when writable, {} to remove
+
++*$handle onexception* '?exception-script?'+::
+	Returns script, or invoke exception-script when oob data, {} to remove
+
+Time-based execution is also available via the eventloop API.
+
++*after* 'time script'+::
+		The script is executed after the given number of milliseconds have elapsed.
+		Returns an event id.
+
++*after* cancel 'id'+::
+		Cancels an after event with the given event id.
+
++*vwait* 'variable'+::
+		A call to vwait is required to enter the eventloop. 'vwait' processes events until
+		the named variabled changes. The variable need not exist beforehand.
+
+socket
+~~~~~~
+Various socket types may be created.
+
++*socket* unix 'path'+::
+	A unix domain socket client.
+
++*socket* unix.server 'path'+
+	A unix domain socket server.
+
++*socket* stream 'hostname:port'+::
+	A TCP socket client.
+
++*socket* stream.server '?hostname:?port'+::
+	A TCP socket server (*hostname* defaults to 0.0.0.0).
+
++*socket* dgram 'hostname:port'+::
+	A UDP socket client.
+
+This command creates a socket connected (client) or bound (server) to the given
+address.
+
+The returned value is channel and may generally be used with the various file I/O
+commands (gets, puts, read, etc.), either as object-based syntax or Tcl-compatible syntax.
+
+	set f [socket stream www.google.com:80]
+	aio.sockstream1
+	$f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+	$f gets
+	HTTP/1.0 302 Found
+	$f close
+
+Server sockets, however support only 'accept', which is most useful in conjunction with
+the EVENTLOOP API.
+
+	set f [socket stream.server 80]
+	$f readable {
+		set client [$f accept]
+		$client gets $buf
+		...
+		$client puts -nonewline "HTTP/1.1 404 Not found\r\n"
+		$client close
+	}
+	vwait done
 
 syslog
 ~~~~~~
@@ -2848,8 +3355,7 @@ The following global variables are set by jimsh.
     This variable is set to 1 if jimsh is started in interactive mode
     or 0 otherwise.
 
-+argexpand: stdin: Illegal byte sequence
-v0+::
++argv0+::
     If jimsh is invoked to run a script, this variable contains the name
     of the script.
 
@@ -2860,7 +3366,41 @@ v0+::
 LICENCE
 -------
 
-Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
-Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
-Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
-Copyright 2008 oharboe - 
+ Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
+ Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
+ Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+ Copyright 2008 oharboe - Oyvind Harboe - oyvind.harboe@zylin.com
+ Copyright 2008 Andrew Lunn <andrew@lunn.ch>
+ Copyright 2008 Duane Ellis <openocd@duaneellis.com>
+ Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
+ Copyright 2009 Steve Bennett <steveb@workware.net.au>
+ 
+ The FreeBSD license
+ 
+[literal] 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following
+    disclaimer in the documentation and/or other materials
+    provided with the distribution.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
+ EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ JIM TCL PROJECT OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ The views and conclusions contained in the software and documentation
+ are those of the authors and should not be interpreted as representing
+ official policies, either expressed or implied, of the Jim Tcl Project.
