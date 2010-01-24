@@ -42,6 +42,7 @@ OBJS += load_extensions.o
 TARGETS += jimsh $(LIBJIM)
 
 all: $(TARGETS)
+	$(MAKE) -C doc all
 
 jimsh: $(LIBJIM) jimsh.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBJIM) $(LDLIBS) $(LIBDL)
