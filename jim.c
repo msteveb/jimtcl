@@ -2242,11 +2242,13 @@ static void trim_right(char *str, const char *trimchars)
     char *end = str - 1;
     int c;
 
-    for (c = *p; p != end; p--, c = *p) {
+    while (p != end) {
+		c = *p;
         if (strchr(trimchars, c) == 0) {
             end = p;
             break;
         }
+		p--;
     }
     p[1] = 0;
 }
@@ -2373,11 +2375,6 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 break;
                 
                 /* non-terminals */
-        case '0': /* zero pad */
-                zpad = 1;
-                fmt++;  fmtLen--;
-                goto next_fmt;
-                break;
         case '+':
                 forceplus = 1;
                 fmt++;  fmtLen--;
@@ -2403,6 +2400,15 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 fmt++; fmtLen--;
                 goto next_fmt;
                 break;
+        case '0':
+                if (!inprec) {
+                    /* zero pad */
+                    zpad = 1;
+                    fmt++;  fmtLen--;
+                    goto next_fmt;
+                    break;
+                }
+                /* fall through */
         case '1':
         case '2':
         case '3':
