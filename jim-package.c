@@ -130,7 +130,7 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
                 }
                 Jim_GetString(resultObj, &len);
                 Jim_AppendStrings(interp, resultObj, len ? "\n" : "",
-                        "Can't find package '", name, "'", NULL);
+                        "Can't load package '", name, "'", NULL);
                 Jim_SetResult(interp, resultObj);
             }
             return retcode;

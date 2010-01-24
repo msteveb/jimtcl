@@ -79,9 +79,16 @@ typedef struct AioFile {
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
-static void JimAioSetError(Jim_Interp *interp)
+static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
-    Jim_SetResultString(interp, strerror(errno), -1);
+    if (name) {
+        const char *filename = Jim_GetString(name, NULL);
+        Jim_SetResultString(interp, "", 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), filename, ": ", strerror(errno), NULL);
+    }
+    else {
+        Jim_SetResultString(interp, strerror(errno), -1);
+    }
 }
 
 static void JimAioDelProc(Jim_Interp *interp, void *privData)
@@ -163,7 +170,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (ferror(af->fp)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
-        JimAioSetError(interp);
+        JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }
     if (nonewline) {
@@ -205,7 +212,7 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (ferror(af->fp) && (errno != EAGAIN)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
-        JimAioSetError(interp);
+        JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }
     /* On EOF returns -1 if varName was specified, or the empty string. */
@@ -255,7 +262,7 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_OK;
         }
     }
-    JimAioSetError(interp);
+    JimAioSetError(interp, af->filename);
     return JIM_ERR;
 }
 
@@ -263,7 +270,7 @@ static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     if (fflush(af->fp) == EOF) {
-        JimAioSetError(interp);
+        JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }
     return JIM_OK;
@@ -303,7 +310,7 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     if (fseek(af->fp, offset, orig) == -1) {
-        JimAioSetError(interp);
+        JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }
     return JIM_OK;
@@ -600,7 +607,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         }
         fp = fopen(Jim_GetString(argv[1], NULL), mode);
         if (fp == NULL) {
-            JimAioSetError(interp);
+            JimAioSetError(interp, argv[1]);
             return JIM_ERR;
         }
         /* Get the next file id */
@@ -712,7 +719,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     case SOCK_DGRAM_CL:
         sock = socket(PF_INET,SOCK_DGRAM,0);
         if (sock < 0) {
-            JimAioSetError(interp);
+            JimAioSetError(interp, NULL);
             return JIM_ERR;
         }
         hdlfmt = "aio.sockdgram%ld" ;
@@ -727,16 +734,16 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             }
             sock = socket(PF_INET,SOCK_STREAM,0);
             if (sock < 0) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 return JIM_ERR;
             }
             res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 close(sock);
                 return JIM_ERR;
             }
-            hdlfmt = "aio.sockstrm%ld" ;
+            hdlfmt = "aio.sockstream%ld" ;
         }
         break;
 
@@ -745,12 +752,12 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             struct sockaddr_in sa;
 
             if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 return JIM_ERR;
             }
             sock = socket(PF_INET,SOCK_STREAM,0);
             if (sock < 0) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 return JIM_ERR;
             }
 
@@ -759,13 +766,13 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
 
             res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));  
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 close(sock);
                 return JIM_ERR;
             }
             res = listen(sock,5);   
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 close(sock);
                 return JIM_ERR;
             }
@@ -779,18 +786,18 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             socklen_t len;
 
             if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 return JIM_ERR;
             }
             sock = socket(PF_UNIX, SOCK_STREAM,0);
             if (sock < 0) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 return JIM_ERR;
             }
             len = strlen(sa.sun_path) + 1 + sizeof(sa.sun_family);
             res = connect(sock,(struct sockaddr*)&sa,len);
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 close(sock);
                 return JIM_ERR;
             }
@@ -804,24 +811,24 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             socklen_t len;
 
             if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 return JIM_ERR;
             }
             sock = socket(PF_UNIX, SOCK_STREAM,0);
             if (sock < 0) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 return JIM_ERR;
             }
             len = strlen(sa.sun_path) + 1 + sizeof(sa.sun_family);
             res = bind(sock,(struct sockaddr*)&sa,len);
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, argv[2]);
                 close(sock);
                 return JIM_ERR;
             }
             res = listen(sock,5);   
             if (res) {
-                JimAioSetError(interp);
+                JimAioSetError(interp, NULL);
                 close(sock);
                 return JIM_ERR;
             }
@@ -835,7 +842,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     fp = fdopen(sock, "r+" );
     if (fp == NULL) {
         close(sock);
-        JimAioSetError(interp);
+        JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
     /* Get the next file id */
@@ -871,21 +878,36 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 #ifdef JIM_TCL_COMPAT
 static int JimAioTclCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj **newargv = Jim_Alloc(sizeof(Jim_Obj*)*argc);
+    Jim_Obj *newargv[4];
     int ret;
     int i;
+    int nonewline = 0;
 
-    /* cmd channel ?args? */
-    newargv[0] = argv[1];
-    newargv[1] = argv[0];
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
+        nonewline = 1;
+    }
+    if (argc < 2 + nonewline || argc > 4) {
+        Jim_WrongNumArgs(interp, 1, argv, "channel");
+        return JIM_ERR;
+    }
 
-    for (i = 2; i < argc; i++) {
+    if (nonewline) {
+        /* read -nonewline $f ... => $f read -nonewline ... */
+        newargv[0] = argv[2];
+        newargv[1] = argv[0];
+        newargv[2] = argv[1];
+    }
+    else {
+        /* cmd $f ... => $f cmd ... */
+        newargv[0] = argv[1];
+        newargv[1] = argv[0];
+    }
+
+    for (i = 2 + nonewline; i < argc; i++) {
         newargv[i] = argv[i];
     }
 
     ret = Jim_EvalObjVector(interp, argc, newargv);
-
-    Jim_Free(newargv);
 
     return ret;
 }
@@ -893,14 +915,23 @@ static int JimAioTclCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimAioPutsCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *newargv[4];
+    int nonewline = 0;
 
     int off = 1;
+
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
+        nonewline = 1;
+    }
+
+    if (argc < 2 + nonewline || argc > 3 + nonewline) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-nonewline? ?channel? string");
+        return JIM_ERR;
+    }
 
     /* "puts" */
     newargv[off++] = argv[0];
 
-    /* puts ?-nonewline? ?channel? msg */
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
+    if (nonewline) {
         newargv[off++] = argv[1];
         argv++;
         argc--;
@@ -915,6 +946,7 @@ static int JimAioPutsCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         newargv[0] = argv[1];
         newargv[off++] = argv[2];
     }
+
     return Jim_EvalObjVector(interp, off, newargv);
 }
 

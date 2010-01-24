@@ -15,7 +15,7 @@ CFLAGS += -DJIM_TCL_COMPAT
 # Emulate tinytcl
 LIBJIM := libtcl6.a
 
-CFLAGS += -Wall -g -Os -I@SRCDIR@ @EXTRA_CFLAGS@
+CFLAGS += -Wall -g -Os $(OPTIM) -I@SRCDIR@ @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
 .EXPORT_ALL_VARIABLES:
@@ -45,7 +45,7 @@ all: $(TARGETS)
 	$(MAKE) -C doc all
 
 jimsh: $(LIBJIM) jimsh.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBJIM) $(LDLIBS) $(LIBDL)
+	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) $(LIBDL)
 
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
