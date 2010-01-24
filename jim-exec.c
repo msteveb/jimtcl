@@ -88,11 +88,20 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * the command, detach it, and return.
      */
     if (argc > 1 && Jim_CompareStringImmediate(interp, argv[argc - 1], "&")) {
+        Jim_Obj *listObj;
+        int i;
+
         argc--;
         numPids = Jim_CreatePipeline(interp, argc-1, argv+1, &pidPtr, NULL, NULL, NULL);
         if (numPids < 0) {
             return JIM_ERR;
         }
+        /* The return value is a list of the pids */
+        listObj = Jim_NewListObj(interp, NULL, 0);
+        for (i = 0; i < numPids; i++) {
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, pidPtr[i]));
+        }
+        Jim_SetResult(interp, listObj);
         JimDetachPids(interp, numPids, pidPtr);
         Jim_Free(pidPtr);
         return JIM_OK;
@@ -915,17 +924,16 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 
     /*
      * Read the standard error file.  If there's anything there,
-     * then return an error and add the file's contents to the result
+     * then add the file's contents to the result
      * string.
      */
 
     if (errorId >= 0) {
-        if (errorId >= 0) {
-            result = Jim_AppendStreamToString(interp, errorId, Jim_GetResult(interp));
-            if (result < 0) {
-                Jim_SetResultErrno(interp, "error reading from stderr output file");
-            }
+        if (Jim_AppendStreamToString(interp, errorId, Jim_GetResult(interp)) != JIM_OK) {
+            Jim_SetResultErrno(interp, "error reading from stderr output file");
+            result = JIM_ERR;
         }
+        close(errorId);
     }
 
     /*

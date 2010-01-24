@@ -37,7 +37,7 @@ The major differences are:
 7. file mkdir, file rename (Tcl 7.x)
 8. env command to access environment variables
 9. List: lmap, lset, lreverse (Tcl 8.x)
-10. os.fork
+10. os.fork, os.wait
 11. rand 
 12. string map (Tcl 7.x)
 13. subst (Tcl 7.x)
@@ -1351,7 +1351,8 @@ in the pipeline will
 go to the application's standard output unless
 redirected in the command, and error output from all
 the commands in the pipeline will go to the application's
-standard error file.
+standard error file. The return value of exec in this case
+is a list of process ids (pids) in the pipeline.
 
 Each *arg* becomes one word for a command, except for
 '|', '<', '<<', '>', and '&' arguments, and the
