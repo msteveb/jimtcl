@@ -1,0 +1,79 @@
+source testing.tcl
+
+proc aproc {} {
+	list
+}
+proc bproc {b} {
+	list b $b
+}
+proc cproc {b c} {
+	list b $b c $c
+}
+proc dproc {b c {d dd}} {
+	list b $b c $c d $d
+}
+proc eproc {b c {d dd} e} {
+	list b $b c $c d $d e $e
+}
+proc fproc {b c {d dd} args} {
+	list b $b c $c d $d args $args
+}
+proc gproc {b c {d dd} args e} {
+	list b $b c $c d $d args $args e $e
+}
+proc hproc {{a aa} args} {
+	list a $a args $args
+}
+
+section "Proc - TIP #288"
+
+set n 1
+foreach {proc params result} {
+	aproc {} {}
+	bproc B {b B}
+	cproc {B C} {b B c C}
+	dproc {B C} {b B c C d dd}
+	dproc {B C D} {b B c C d D}
+	eproc {B C D E} {b B c C d D e E}
+	eproc {B C E} {b B c C d dd e E}
+	fproc {B C} {b B c C d dd args {}}
+	fproc {B C D} {b B c C d D args {}}
+	fproc {B C D E} {b B c C d D args E}
+	fproc {B C D E F} {b B c C d D args {E F}}
+	gproc {B C E} {b B c C d dd args {} e E}
+	gproc {B C D E} {b B c C d D args {} e E}
+	gproc {B C D X E} {b B c C d D args X e E}
+	gproc {B C D X Y Z E} {b B c C d D args {X Y Z} e E}
+	hproc {} {a aa args {}}
+	hproc {A} {a A args {}}
+	hproc {A X Y Z} {a A args {X Y Z}}
+} {
+	test proc-1.$n "Proc args combos" [list $proc {*}$params] $result
+	incr n
+}
+
+proc onearg_search {{nocase ""} value list} {
+	lsearch {*}$nocase $list $value
+}
+
+proc multiarg_search {args value list} {
+	lsearch {*}$args $list $value
+}
+
+test proc-2.1 "Real test of optional switches" {
+	onearg_search c {A a B b C c D d}
+} 5
+
+test proc-2.2 "Real test of optional switches" {
+	onearg_search -nocase c {A a B b C c D d}
+} 4
+
+test proc-2.3 "Real test of optional switches" {
+	multiarg_search -glob c* {A a B b C c D d}
+} 5
+
+test proc-2.4 "Real test of optional switches" {
+	multiarg_search -nocase -glob c* {A a B b C c D d}
+} 4
+
+testreport

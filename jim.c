@@ -3154,7 +3154,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
 
 int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
         Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
-        int arityMin, int arityMax)
+        int leftArity, int optionalArgs, int args, int rightArity)
 {
     Jim_Cmd *cmdPtr;
 
@@ -3164,8 +3164,10 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
     cmdPtr->bodyObjPtr = bodyObjPtr;
     Jim_IncrRefCount(argListObjPtr);
     Jim_IncrRefCount(bodyObjPtr);
-    cmdPtr->arityMin = arityMin;
-    cmdPtr->arityMax = arityMax;
+    cmdPtr->leftArity = leftArity;
+    cmdPtr->optionalArgs = optionalArgs;
+    cmdPtr->args = args;
+    cmdPtr->rightArity = rightArity;
     cmdPtr->staticVars = NULL;
    
     /* Create the statics hash table. */
@@ -9132,27 +9134,30 @@ err:
 int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
         Jim_Obj *const *argv)
 {
-    int i, retcode;
+    int i, d, retcode;
     Jim_CallFrame *callFramePtr;
-    int num_args;
+    Jim_Obj *argObjPtr;
+    Jim_Obj *procname = argv[0];
 
     /* Check arity */
-    if (argc < cmd->arityMin || (cmd->arityMax != -1 &&
-        argc > cmd->arityMax)) {
+    if (argc - 1 < cmd->leftArity + cmd->rightArity ||
+        (!cmd->args && argc - 1 > cmd->leftArity + cmd->rightArity + cmd->optionalArgs)) {
+        const char *argList = Jim_GetString(cmd->argListObjPtr, NULL);
         Jim_Obj *objPtr = Jim_NewEmptyStringObj(interp);
         Jim_AppendStrings(interp, objPtr,
-            "wrong # args: should be \"", Jim_GetString(argv[0], NULL),
-            (cmd->arityMin > 1) ? " " : "",
-            Jim_GetString(cmd->argListObjPtr, NULL), "\"", NULL);
+            "wrong # args: should be \"", Jim_GetString(procname, NULL),
+            (*argList) ? " " : "", argList, "\"", NULL);
         Jim_SetResult(interp, objPtr);
         goto err;
     }
+
     /* Check if there are too nested calls */
     if (interp->numLevels == interp->maxNestingDepth) {
         Jim_SetResultString(interp,
             "Too many nested calls. Infinite recursion?", -1);
         goto err;
     }
+
     /* Create a new callframe */
     callFramePtr = JimCreateCallFrame(interp);
     callFramePtr->parentCallFrame = interp->framePtr;
@@ -9166,48 +9171,67 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     interp->framePtr = callFramePtr;
     interp->numLevels ++;
 
+    /* Simplify arg counting */
+    argv++;
+    argc--;
+
     /* Set arguments */
-    num_args = Jim_ListLength(interp, cmd->argListObjPtr);
 
-    /* If last argument is 'args', don't set it here */
-    if (cmd->arityMax == -1) {
-        num_args--;
-    }
+    /* Assign in this order:
+     * leftArity required args.
+     * rightArity required args
+     * optionalArgs optional args
+     * remaining args into 'args' if 'args'
+     */
 
-    for (i = 0; i < num_args; i++) {
-        Jim_Obj *argObjPtr = 0;
-        Jim_Obj *nameObjPtr = 0;
-        Jim_Obj *valueObjPtr = 0;
-
+    /* leftArity required args */
+    for (i = 0; i < cmd->leftArity; i++) {
         Jim_ListIndex(interp, cmd->argListObjPtr, i, &argObjPtr, JIM_NONE);
-        if (i + 1 >= cmd->arityMin) {
-            /* The name is the first element of the list */
-            Jim_ListIndex(interp, argObjPtr, 0, &nameObjPtr, JIM_NONE);
+        Jim_SetVariable(interp, argObjPtr, *argv++);
+        argc--;
+    }
+    
+    /* Shorten our idea of the number of supplied args */
+    argc -= cmd->rightArity;
+
+    /* optionalArgs optional args */
+    d = i;
+    for (i = 0; i < cmd->optionalArgs; i++) {
+        Jim_Obj *nameObjPtr;
+        Jim_Obj *valueObjPtr;
+
+        Jim_ListIndex(interp, cmd->argListObjPtr, d++, &argObjPtr, JIM_NONE);
+
+        /* The name is the first element of the list */
+        Jim_ListIndex(interp, argObjPtr, 0, &nameObjPtr, JIM_NONE);
+        if (argc) {
+            valueObjPtr = *argv++;
+            argc--;
         }
         else {
-            /* The element arg is the name */
-            nameObjPtr = argObjPtr;
-        }
-
-        if (i + 1 >= argc) {
             /* No more values, so use default */
             /* The value is the second element of the list */
             Jim_ListIndex(interp, argObjPtr, 1, &valueObjPtr, JIM_NONE);
         }
-        else {
-            valueObjPtr = argv[i+1];
-        }
         Jim_SetVariable(interp, nameObjPtr, valueObjPtr);
     }
-    /* Set optional arguments */
-    if (cmd->arityMax == -1) {
-        Jim_Obj *listObjPtr, *objPtr = 0;
 
-        i++;
-        listObjPtr = Jim_NewListObj(interp, argv+i, argc-i);
-        Jim_ListIndex(interp, cmd->argListObjPtr, num_args, &objPtr, JIM_NONE);
-        Jim_SetVariable(interp, objPtr, listObjPtr);
+    /* Any remaining args go to 'args' */
+    if (cmd->args) {
+        Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
+        /* Use the 'args' name from the procedure args */
+        Jim_ListIndex(interp, cmd->argListObjPtr, d, &argObjPtr, JIM_NONE);
+        Jim_SetVariable(interp, argObjPtr, listObjPtr);
+        argv += argc;
+        d++;
     }
+
+    /* rightArity required args */
+    for (i = 0; i < cmd->rightArity; i++) {
+        Jim_ListIndex(interp, cmd->argListObjPtr, d++, &argObjPtr, JIM_NONE);
+        Jim_SetVariable(interp, argObjPtr, *argv++);
+    }
+
     /* Eval the body */
     retcode = Jim_EvalObj(interp, cmd->bodyObjPtr);
 
@@ -9241,7 +9265,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
 err:
         retcode = JIM_ERR_ADDSTACK;
         Jim_DecrRefCount(interp, interp->errorProc);
-        interp->errorProc = argv[0];
+        interp->errorProc = procname;
         Jim_IncrRefCount(interp->errorProc);
     }
     return retcode;
@@ -11333,65 +11357,74 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     int argListLen;
-    int arityMin, arityMax;
+    int leftArity, rightArity;
     int i;
+    int optionalArgs = 0;
+    int args = 0;
 
     if (argc != 4 && argc != 5) {
         Jim_WrongNumArgs(interp, 1, argv, "name arglist ?statics? body");
         return JIM_ERR;
     }
     argListLen = Jim_ListLength(interp, argv[2]);
-    arityMin = arityMax = argListLen+1;
+    leftArity = 0;
+    rightArity = 0;
 
-    if (argListLen) {
-        const char *str;
+    /* Examine the argument list for default parameters and 'args' */
+    for (i = 0; i < argListLen; i++) {
+        Jim_Obj *argPtr;
         int len;
-        Jim_Obj *argPtr = 0;
-        
-        /* Check for 'args' and adjust arityMin and arityMax if necessary */
-        Jim_ListIndex(interp, argv[2], argListLen-1, &argPtr, JIM_NONE);
-        str = Jim_GetString(argPtr, &len);
-        if (len == 4 && memcmp(str, "args", 4) == 0) {
-            arityMin--;
-            arityMax = -1;
+
+        Jim_ListIndex(interp, argv[2], i, &argPtr, JIM_NONE);
+        if (Jim_CompareStringImmediate(interp, argPtr, "args")) {
+            if (args) {
+                Jim_SetResultString(interp, "procedure has 'args' specified more than once", -1);
+                return JIM_ERR;
+            }
+            if (rightArity) {
+                Jim_SetResultString(interp, "procedure has 'args' in invalid position", -1);
+                return JIM_ERR;
+            }
+            args = 1;
+            continue;
         }
 
-        /* Check for default arguments and reduce arityMin if necessary */
-        while (arityMin > 1) {
-            int len;
-            Jim_ListIndex(interp, argv[2], arityMin - 2, &argPtr, JIM_NONE);
-            len = Jim_ListLength(interp, argPtr);
-            if (len != 2) {
-                /* No default argument */
-                break;
-            }
-            arityMin--;
+        /* Does this parameter have a default? */
+        Jim_GetString(argPtr, NULL);
+        len = Jim_ListLength(interp, argPtr);
+        if (len == 0) {
+            Jim_SetResultString(interp, "procedure has argument with no name", -1);
+            return JIM_ERR;
         }
-        for (i = 0; i < argListLen; i++) {
-            int len;
-            Jim_ListIndex(interp, argv[2], i, &argPtr, JIM_NONE);
-            Jim_GetString(argPtr, &len);
-            len = Jim_ListLength(interp, argPtr);
-            if (len == 0) {
-                Jim_SetResultString(interp, "", 0);
-                Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "procedure \"", Jim_GetString(argv[1], NULL), "\" has argument with no name", NULL);
+        if (len > 2) {
+            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
+            return JIM_ERR;
+        }
+        if (len == 1) {
+            /* A required arg. Is it part of leftArity or rightArity? */
+            if (optionalArgs || args) {
+                rightArity++;
+            }
+            else {
+                leftArity++;
+            }
+        }
+        else {
+            /* Optional arg. Can't be after rightArity */
+            if (rightArity || args) {
+                Jim_SetResultString(interp, "procedure has optional arg in invalid position", -1);
                 return JIM_ERR;
             }
-            if (len > 2) {
-                Jim_SetResultString(interp, "", 0);
-                Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "too many fields in argument specifier \"", Jim_GetString(argPtr, NULL), "\"", NULL);
-                return JIM_ERR;
-            }
+            optionalArgs++;
         }
     }
+
     if (argc == 4) {
         return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
-                argv[2], NULL, argv[3], arityMin, arityMax);
+                argv[2], NULL, argv[3], leftArity, optionalArgs, args, rightArity);
     } else {
         return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
-                argv[2], argv[3], argv[4], arityMin, arityMax);
+                argv[2], argv[3], argv[4], leftArity, optionalArgs, args, rightArity);
     }
 }
 

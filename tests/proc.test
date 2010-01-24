@@ -174,14 +174,15 @@ test proc-old-3.7 {arguments and defaults} {
     }
     list [catch {tproc} msg]
 } {1}
+# Note: This requires new TIP #288 support
 test proc-old-3.8 {arguments and defaults} {
     list [catch {
 	proc tproc {x {y y-default} z} {
 	    return [list $x $y $z]
 	}
 	tproc 2 3
-    } msg]
-} {1}
+    } msg] $msg
+} {0 {2 y-default 3}}
 test proc-old-3.9 {arguments and defaults} {
     proc tproc {x {y y-default} args} {
 	return [list $x $y $args]
@@ -246,13 +247,13 @@ test proc-old-5.3 {error conditions} {
 
 test proc-old-5.5 {error conditions} {
     list [catch {proc tproc {{} y} {return foo}} msg] $msg
-} {1 {procedure "tproc" has argument with no name}}
+} {1 {procedure has argument with no name}}
 test proc-old-5.6 {error conditions} {
     list [catch {proc tproc {{} y} {return foo}} msg] $msg
-} {1 {procedure "tproc" has argument with no name}}
+} {1 {procedure has argument with no name}}
 test proc-old-5.7 {error conditions} {
     list [catch {proc tproc {{x 1 2} y} {return foo}} msg] $msg
-} {1 {too many fields in argument specifier "x 1 2"}}
+} {1 {procedure has argument with too many fields}}
 test proc-old-5.8 {error conditions} {
     catch {return}
 } 2

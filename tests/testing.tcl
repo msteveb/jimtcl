@@ -38,13 +38,20 @@ set testresults(numpass) 0
 set testresults(failed) {}
 
 proc test {id descr script expected} {
-	puts -nonewline "$id "
+	if {!$::testquiet} {
+		puts -nonewline "$id "
+	}
 	set rc [catch {uplevel 1 $script} result]
 	# Note that rc=2 is return
 	if {($rc == 0 || $rc == 2) && $result eq $expected} {
-		puts "OK  $descr"
+		if {!$::testquiet} {
+			puts "OK  $descr"
+		}
 		incr ::testresults(numpass)
 	} else {
+		if {$::testquiet} {
+			puts -nonewline "$id "
+		}
 		puts "ERR $descr"
 		puts "Expected: '$expected'"
 		puts "Got     : '$result'"
@@ -71,3 +78,5 @@ proc testerror {} {
 puts [string repeat = 40]
 puts $argv0
 puts [string repeat = 40]
+
+set ::testquiet [info exists ::env(testquiet)]

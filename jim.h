@@ -475,8 +475,10 @@ typedef struct Jim_Cmd {
     Jim_Obj *argListObjPtr;
     Jim_Obj *bodyObjPtr;
     Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
-    int arityMin; /* Min number of arguments. */
-    int arityMax; /* Max number of arguments. */
+    int leftArity;    /* Required args assigned from the left */
+    int optionalArgs; /* Number of optional args (default values) */
+    int rightArity;   /* Required args assigned from the right */
+    int args;         /* True if 'args' specified */
 } Jim_Cmd;
 
 /* Pseudo Random Number Generator State structure */
@@ -704,9 +706,9 @@ JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
 JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp, 
         const char *cmdName, Jim_CmdProc cmdProc, void *privData,
          Jim_DelCmdProc delProc);
-JIM_EXPORT int Jim_CreateProcedure (Jim_Interp *interp, 
-        const char *cmdName, Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr,
-        Jim_Obj *bodyObjPtr, int arityMin, int arityMax);
+JIM_EXPORT int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
+        Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
+        int leftArity, int defaultArgs, int argsPos, int rightArity);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         const char *cmdName);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp, 
