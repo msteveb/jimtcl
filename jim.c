@@ -2880,10 +2880,9 @@ static void ScriptObjAddToken(Jim_Interp *interp, struct ScriptObj *script,
 /* Add an integer into the command structure field of the script object. */
 static void ScriptObjAddInt(struct ScriptObj *script, int val)
 {
-    script->csLen++;
     script->cmdStruct = Jim_Realloc(script->cmdStruct,
-                    sizeof(int)*script->csLen);
-    script->cmdStruct[script->csLen-1] = val;
+                        sizeof(int)*(script->csLen+1));
+    script->cmdStruct[script->csLen++] = val;
 }
 
 /* Search a Jim_Obj contained in 'script' with the same stinrg repr.
@@ -8517,6 +8516,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
         Jim_Free(buf);
         return JIM_ERR;
     }
+    buf[sb.st_size] = 0;
 
     scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, sb.st_size);
     JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
@@ -10751,8 +10751,10 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc,
     while (i-- > 0) {
         int retval;
 
-        if ((retval = Jim_EvalObj(interp, argv[1])) != JIM_OK)
+        retval = Jim_EvalObj(interp, argv[1]);
+        if (retval != JIM_OK) {
             return retval;
+        }
     }
     elapsed = JimClock() - start;
     sprintf(buf, fmt, elapsed/count);
