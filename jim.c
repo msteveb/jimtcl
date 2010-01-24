@@ -11707,7 +11707,7 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     const char *key;
-    char *val;
+    const char *val;
 
     if (argc == 1) {
         extern char **environ;
@@ -11727,18 +11727,21 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc,
         return JIM_OK;
     }
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "varName");
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "varName ?default?");
         return JIM_ERR;
     }
     key = Jim_GetString(argv[1], NULL);
     val = getenv(key);
     if (val == NULL) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp),
-                "environment variable \"",
-                key, "\" does not exist", NULL);
-        return JIM_ERR;
+        if (argc < 3) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "environment variable \"",
+                    key, "\" does not exist", NULL);
+            return JIM_ERR;
+        }
+        val = Jim_GetString(argv[2], NULL);
     }
     Jim_SetResult(interp, Jim_NewStringObj(interp, val, -1));
     return JIM_OK;

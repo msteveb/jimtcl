@@ -361,7 +361,7 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (!force && access(dest, F_OK) == 0) {
         Jim_SetResultString(interp, "", 0);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "error renaming \"", source, "\" to \"", dest, "\": ", strerror(errno), NULL);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "error renaming \"", source, "\" to \"", dest, "\": target exists", NULL);
         return JIM_ERR;
     }
 

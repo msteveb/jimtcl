@@ -1348,11 +1348,12 @@ the loop's body but continue with the next iteration of the loop.
 
 env
 ~~~
-+*env* '?name?'+
++*env* '?name? ?default?'+
 
 If *name* is supplied, returns the value of *name* from the initial
 environment (see getenv(3)). An error is returned if *name* does not
-exist in the environment.
+exist in the environment, unless *default* is supplied - in which case
+that value is returned instead.
 
 If no arguments are supplied, returns a list of all environment variables
 and their values as +{name value ...}+
