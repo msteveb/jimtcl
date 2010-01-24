@@ -4038,10 +4038,10 @@ static const Jim_HashTableType JimReferencesHashTableType = {
 
 /* The string representation of references has two features in order
  * to make the GC faster. The first is that every reference starts
- * with a non common character '~', in order to make the string matching
- * fater. The second is that the reference string rep his 32 characters
+ * with a non common character '<', in order to make the string matching
+ * faster. The second is that the reference string rep is 42 characters
  * in length, this allows to avoid to check every object with a string
- * repr < 32, and usually there are many of this objects. */
+ * repr < 42, and usually there aren't many of these objects. */
 
 #define JIM_REFERENCE_SPACE (35+JIM_REFERENCE_TAGLEN)
 

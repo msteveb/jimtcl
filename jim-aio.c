@@ -98,7 +98,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
-#ifdef with_jim_ext_eventloop
+#ifdef jim_ext_eventloop
     /* remove existing EventHandlers */
     if (af->rEvent) {
         Jim_DeleteFileHandler(interp,af->fp);
@@ -381,7 +381,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#ifdef with_jim_ext_eventloop
+#ifdef jim_ext_eventloop
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 {
     Jim_Obj *objPtr = clientData;
@@ -541,7 +541,7 @@ static const jim_subcmd_type command_table[] = {
         .function = aio_cmd_accept,
         .description = "Server socket only: Accept a connection and return stream"
     },
-#ifdef with_jim_ext_eventloop
+#ifdef jim_ext_eventloop
     {   .cmd = "readable",
         .args = "?readable-script ?eof-script??",
         .minargs = 0,

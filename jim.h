@@ -78,23 +78,11 @@ extern "C" {
 #include <stdarg.h> /* In order to get type va_list */
 
 /* -----------------------------------------------------------------------------
-* Some /very/ old compiler maybe do not know how to
-* handle 'const'. They even do not know, how to ignore
-* it. For those compiler it may be better to compile with
-* define JIM_NO_CONST activated
-* ---------------------------------------------------------------------------*/
-
-#ifdef JIM_NO_CONST
-#  define const
-#endif
-
-/* -----------------------------------------------------------------------------
  * System configuration
- * For most modern systems, you can leave the default.
- * For embedded systems some change may be required.
+ * autoconf (configure) will set these
  * ---------------------------------------------------------------------------*/
 
-#define HAVE_LONG_LONG
+/* #define HAVE_LONG_LONG */
 
 /* -----------------------------------------------------------------------------
  * Compiler specific fixes.

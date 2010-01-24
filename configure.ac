@@ -8,6 +8,9 @@ AC_INIT([jim], [0.62], [steveb@workware.net.au])
 AC_PROG_CC
 AC_PROG_MAKE_SET
 
+# Checks for types
+AC_CHECK_TYPES(long long,EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_LONG_LONG")
+
 # Shared library support. Because we don't believe in automake!
 AC_CANONICAL_HOST
 case $host in
@@ -52,8 +55,8 @@ AC_ARG_WITH(jim-ext,
 AC_MSG_RESULT(enabling jim extensions: $jim_extensions)
 AC_SUBST(JIM_EXTENSIONS,$jim_extensions)
 for i in $jim_extensions; do
-	dnl AC_DEFINE_UNQUOTED(with_jim_ext_$i)
-	EXTRA_CFLAGS="$EXTRA_CFLAGS -Dwith_jim_ext_$i"
+	dnl AC_DEFINE_UNQUOTED(jim_ext_$i)
+	EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
 done
 
 JIM_LIBTYPE=static

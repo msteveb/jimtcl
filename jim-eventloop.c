@@ -51,6 +51,7 @@
 /* POSIX includes */
 #include <sys/time.h>
 #include <sys/types.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -478,7 +479,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
             int tlen ;
             jim_wide remain = 0;
             const char *tok = Jim_GetString(argv[2], &tlen);
-            if ( sscanf(tok,"after#%lld",&id) == 1) {
+            if (strncmp(tok, "after#", 6) == 0 && Jim_StringToWide(tok + 6, &id, 10) == JIM_OK) {
                 remain =  Jim_DeleteTimeHandler(interp, id);
                 if (remain > -2)  {
                     Jim_SetResult(interp, Jim_NewIntObj(interp, remain));

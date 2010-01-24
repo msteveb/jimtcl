@@ -947,6 +947,9 @@ procedure interpreter handles +JIM_RETURN+ codes.  The 'catch'
 command allows Tcl programs to catch errors and handle them without
 aborting command interpretation any further.
 
+The 'info returncodes' command may be used to programmatically map between
+return codes and names.
+
 PROCEDURES
 ----------
 Tcl allows you to extend the command interface by defining
@@ -958,7 +961,7 @@ Tcl commands.
 
 The 'proc' command is used to create a new Tcl command procedure:
 
-   +*proc* 'name args ?statics? body'+
++*proc* 'name args ?statics? body'+
 
 The new command is name *name*, and it replaces any existing command
 there may have been by that name. Whenever the new command is
@@ -1001,6 +1004,7 @@ required arguments, and there must not be any extra actual arguments
 (unless the Variable Argument is specified).
 
 Actual arguments are assigned to formal arguments as follows:
+
 1. Left Required Arguments are assigned from the left
 2. Right Required Arguments are assigned from the right
 3. Default Arguments are assigned from the left, following the Left Required Arguments.
@@ -1022,17 +1026,17 @@ Either from the static variable definition, or from the enclosing scope.
 
 Consider the following example:
 
-    set a 1
-    proc a {} {a {b 2}} {
+    jim> set a 1
+    jim> proc a {} {a {b 2}} {
         set c 1
         puts "$a $b $c"
         incr a
         incr b
         incr c
     }
-    . a
+    jim> a
     1 2 1
-    . a
+    jim> a
     2 3 1
 
 The static variable *a* has no initialiser, so it is initialised from
@@ -1149,12 +1153,13 @@ will output:
 
 DICTIONARY VALUES
 -----------------
-In Tcl 8.5 the dict command has been introduced. This provides
-efficient access to key-value pairs, just like arrays, but dictionaries
-are pure values. This means that you can pass them to a procedure
-just as a list or a string. Tcl dictionaries are therefore much
-more like Tcl lists, except that they represent a mapping from keys
-to values, rather than an ordered sequence.
+Tcl 8.5 introduced the dict command, and Jim Tcl has added a version
+of this command. Dictionaries provide efficient access to key-value
+pairs, just like arrays, but dictionaries are pure values. This
+means that you can pass them to a procedure just as a list or a
+string. Tcl dictionaries are therefore much more like Tcl lists,
+except that they represent a mapping from keys to values, rather
+than an ordered sequence.
 
 You can nest dictionaries, so that the value for a particular key
 consists of another dictionary. That way you can elegantly build
@@ -1263,7 +1268,7 @@ The finalizer for a reference may be examined or changed with the 'finalize' com
     newf
 
 Lambda
-------
+~~~~~~
 Jim provides a garbage collected lambda function. This is a procedure
 which is able to create an anonymous procedure.  Consider:
 
@@ -1274,10 +1279,15 @@ which is able to create an anonymous procedure.  Consider:
     3
     jim> set f ""
 
-This create an anonymous procedure, 'f', with a static variable
+This create an anonymous procedure (with the name stored in 'f'), with a static variable
 which is incremented by the supplied value and the result returned.
 
-Once the procedure is renamed to "", the procedure is automatically deleted.
+Once the procedure name is no longer accessible, it will automatically be deleted
+when the garbage collector runs.
+
+The procedure may also be delete immediately by renaming it "". e.g.
+
+    jim> rename $f ""
 
 BUILT-IN COMMANDS
 -----------------
@@ -1532,6 +1542,15 @@ Closes the file given by *fileId*.
 *fileId* must be the return value from a previous invocation
 of the 'open' command; after this command, it should not be
 used anymore.
+
+collect
+~~~~~~~
++*collect*+
+
+Normally reference garbage collection is automatically performed periodically.
+However it may be run immediately with the 'collect' command.
+
+See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
 concat
 ~~~~~~
@@ -1944,6 +1963,20 @@ conditional or looping commands, for example:
 
     if {![file exists foo]} then {error {bad file name}} else {...}
 
+finalize
+~~~~~~~~
++*finalize* 'reference ?command?'+
+
+If *command* is omitted, returns the finalizer command for the given reference.
+
+Otherwise, sets a new finalizer command for the given reference. *command* may be
+the empty string to remove the current finalizer.
+
+The reference must be a valid reference create with the 'ref'
+command.
+
+See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+
 flush
 ~~~~~
 +*flush* 'fileId'+
@@ -2038,6 +2071,15 @@ argument, so backslash sequences in *formatString* will be handled
 correctly even if the argument is in braces.
 
 The return value from 'format' is the formatted string.
+
+getref
+~~~~~~
++*getref* 'reference'+
+
+Returns the string associated with *reference*. The reference must
+be a valid reference create with the 'ref' command.
+
+See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
 gets
 ~~~~
@@ -2286,6 +2328,16 @@ The special signal name '-0' simply checks that a signal *could* be sent.
 If no signal is specified, SIGTERM is used.
 
 An error is raised if the signal could not be delivered.
+
+lambda
+~~~~~~
++*lambda* 'args ?statics? body'+
+
+The 'lambda' command is identical to 'proc', except rather than
+creating a named procedure, it creates an anonymous procedure and returns
+the name of the procedure.
+
+See 'proc' and GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
 lappend
 ~~~~~~~
@@ -2849,6 +2901,21 @@ The following switches modify the behaviour of *regsub*
     sequences are handled for each substitution using the information
     from the corresponding match.
 
+ref
+~~~
++*ref* 'string tag ?finalizer?'+
+
+Create a new reference containing *string* of type *tag*.
+If *finalizer* is specified, it is a command which will be invoked
+when the a garbage collection cycle runs and this reference is
+no longer accessible.
+
+The finalizer is invoked as:
+
+  +finalizer 'reference string'+
+
+See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+
 rename
 ~~~~~~
 +*rename* 'oldName newName'+
@@ -2947,6 +3014,16 @@ has been invoked to declare *varName* to be global.
 
 The '::' prefix may also be used to explicitly reference a variable
 in the global scope.
+
+setref
+~~~~~~
++*setref* 'reference string'+
+
+Store a new string in *reference*, replacing the existing string.
+The reference must be a valid reference create with the 'ref'
+command.
+
+See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
 signal
 ~~~~~~
