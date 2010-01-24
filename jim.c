@@ -2795,111 +2795,6 @@ static void ScriptObjAddInt(struct ScriptObj *script, int val)
     script->cmdStruct[script->csLen++] = val;
 }
 
-/* Search a Jim_Obj contained in 'script' with the same string repr.
- * of objPtr. Search nested script objects recursively. */
-static Jim_Obj *ScriptSearchLiteral(Jim_Interp *interp, ScriptObj *script,
-        ScriptObj *scriptBarrier, Jim_Obj *objPtr)
-{
-    int i;
-
-    for (i = 0; i < script->len; i++) {
-        if (script->token[i].objPtr != objPtr &&
-            Jim_StringEqObj(script->token[i].objPtr, objPtr, 0)) {
-            return script->token[i].objPtr;
-        }
-        /* Enter recursively on scripts only if the object
-         * is not the same as the one we are searching for
-         * shared occurrences. */
-        if (script->token[i].objPtr->typePtr == &scriptObjType &&
-            script->token[i].objPtr != objPtr) {
-            Jim_Obj *foundObjPtr;
-
-            ScriptObj *subScript =
-                script->token[i].objPtr->internalRep.ptr;
-            /* Don't recursively enter the script we are trying
-             * to make shared to avoid circular references. */
-            if (subScript == scriptBarrier) {
-                continue;
-            }
-            if (subScript == script) {
-                continue;
-            }
-
-            foundObjPtr =
-                ScriptSearchLiteral(interp, subScript,
-                        scriptBarrier, objPtr);
-            if (foundObjPtr != NULL) {
-                return foundObjPtr;
-            }
-        }
-    }
-    return NULL;
-}
-
-/* Share literals of a script recursively sharing sub-scripts literals. */
-static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
-        ScriptObj *topLevelScript)
-{
-    /* XXX: This doesn't work work :-( */
-#if 0
-    int i, j;
-
-    /* Try to share with toplevel object. */
-    if (topLevelScript != NULL) {
-        for (i = 0; i < script->len; i++) {
-            Jim_Obj *foundObjPtr;
-            char *str = script->token[i].objPtr->bytes;
-
-            if (script->token[i].objPtr->refCount != 1) {
-                continue;
-            }
-            if (script->token[i].objPtr->typePtr == &scriptObjType) {
-                continue;
-            }
-            if (strchr(str, ' ') || strchr(str, '\n')) {
-                continue;
-            }
-
-            foundObjPtr = ScriptSearchLiteral(interp,
-                    topLevelScript,
-                    script, /* barrier */
-                    script->token[i].objPtr);
-            if (foundObjPtr != NULL) {
-                Jim_IncrRefCount(foundObjPtr);
-                Jim_DecrRefCount(interp,
-                        script->token[i].objPtr);
-                script->token[i].objPtr = foundObjPtr;
-            }
-        }
-    }
-
-    /* Try to share locally */
-    for (i = 0; i < script->len; i++) {
-        char *str = script->token[i].objPtr->bytes;
-
-        if (script->token[i].objPtr->refCount != 1) {
-            continue;
-        }
-        if (strchr(str, ' ') || strchr(str, '\n')) {
-            continue;
-        }
-        for (j = 0; j < script->len; j++) {
-            if (script->token[i].objPtr !=
-                    script->token[j].objPtr &&
-                Jim_StringEqObj(script->token[i].objPtr,
-                            script->token[j].objPtr, 0))
-            {
-                Jim_IncrRefCount(script->token[j].objPtr);
-                Jim_DecrRefCount(interp,
-                        script->token[i].objPtr);
-                script->token[i].objPtr =
-                    script->token[j].objPtr;
-            }
-        }
-    }
-#endif
-}
-
 /* This method takes the string representation of an object
  * as a Tcl script, and generates the pre-parsed internal representation
  * of the script. */
@@ -2998,21 +2893,6 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             }
             tokens++;
         }
-    }
-
-    /* Perform literal sharing, but only for objects that appear
-     * to be scripts written as literals inside the source code,
-     * and not computed at runtime. Literal sharing is a costly
-     * operation that should be done only against objects that
-     * are likely to require compilation only the first time, and
-     * then are executed multiple times. */
-    if (propagateSourceInfo && interp->framePtr->procBodyObjPtr) {
-        Jim_Obj *bodyObjPtr = interp->framePtr->procBodyObjPtr;
-        if (bodyObjPtr->typePtr == &scriptObjType) {
-            ScriptShareLiterals(interp, script, bodyObjPtr->internalRep.ptr);
-        }
-    } else if (propagateSourceInfo) {
-        ScriptShareLiterals(interp, script, NULL);
     }
 
     /* Free the old internal rep and set the new one. */
@@ -6191,7 +6071,17 @@ static int JimParseExprIrrational(struct JimParserCtx *pc);
 
 /* Binary operators (numbers) */
 enum {
-    JIM_EXPROP_MUL,
+    /* Operands */
+    JIM_EXPROP_NUMBER,
+    JIM_EXPROP_COMMAND,
+    JIM_EXPROP_VARIABLE,
+    JIM_EXPROP_DICTSUGAR,
+    JIM_EXPROP_SUBST,
+    JIM_EXPROP_STRING,
+
+    /* Operations */
+    JIM_EXPROP_OP_FIRST,
+    JIM_EXPROP_MUL = JIM_EXPROP_OP_FIRST,
     JIM_EXPROP_DIV,
     JIM_EXPROP_MOD,
     JIM_EXPROP_SUB,
@@ -6243,16 +6133,9 @@ enum {
     JIM_EXPROP_UNARYMINUS,
     JIM_EXPROP_UNARYPLUS,
 
-    /* Operands */
-    JIM_EXPROP_NUMBER,
-    JIM_EXPROP_COMMAND,
-    JIM_EXPROP_VARIABLE,
-    JIM_EXPROP_DICTSUGAR,
-    JIM_EXPROP_SUBST,
-    JIM_EXPROP_STRING,
-
     /* Functions */
-    JIM_EXPROP_FUNC_INT,
+    JIM_EXPROP_FUNC_FIRST,
+    JIM_EXPROP_FUNC_INT = JIM_EXPROP_FUNC_FIRST,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
     JIM_EXPROP_FUNC_ROUND,
@@ -6983,10 +6866,8 @@ int JimParseExprOperator(struct JimParserCtx *pc)
         return JIM_ERR;
     }
 
-    /* Could validate paretheses around function arguments, or just not bother. Thus 'int 1.5' is OK */
-#if 0
-    if (Jim_ExprOperators[bestIdx].opcode >= JIM_EXPROP_FUNC_FIRST && Jim_ExprOperators[bestIdx].opcode <= JIM_EXPROP_FUNC_LAST) {
-        /* We expect an open parethesis after a function */
+    /* Validate paretheses around function arguments */
+    if (bestIdx >= JIM_EXPROP_FUNC_FIRST) {
         const char *p = pc->p + bestLen;
         int len = pc->len - bestLen;
         while (len && isspace(*p)) {
@@ -6997,7 +6878,6 @@ int JimParseExprOperator(struct JimParserCtx *pc)
             return JIM_ERR;
         }
     }
-#endif
     pc->tstart = pc->p;
     pc->tend = pc->p + bestLen - 1;
     pc->p += bestLen; pc->len -= bestLen;
@@ -7107,62 +6987,31 @@ static int ExprCheckCorrectness(ExprByteCode *expr)
     int i;
     int stacklen = 0;
     int ternary = 0;
-    const struct Jim_ExprOperator *op;
 
     /* Try to check if there are stack underflows,
      * and make sure at the end of the program there is
      * a single result on the stack. */
     for (i = 0; i < expr->len; i++) {
-        switch(expr->opcode[i]) {
-        case JIM_EXPROP_NUMBER:
-        case JIM_EXPROP_STRING:
-        case JIM_EXPROP_SUBST:
-        case JIM_EXPROP_VARIABLE:
-        case JIM_EXPROP_DICTSUGAR:
-        case JIM_EXPROP_COMMAND:
-            stacklen++;
-            break;
-
-        default:
-            op = JimExprOperatorInfoByOpcode(expr->opcode[i]);
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(expr->opcode[i]);
+        if (op) {
             stacklen -= op->arity;
             if (stacklen < 0) {
                 return JIM_ERR;
             }
-            stacklen++;
             if (JimExprOperatorOpcode(op) == JIM_EXPROP_TERNARY) {
                 ternary++;
             }
             else if (JimExprOperatorOpcode(op) == JIM_EXPROP_COLON) {
                 ternary--;
             }
-            break;
         }
+        /* All operations and operands add one to the stack */
+        stacklen++;
     }
     if (stacklen != 1 || ternary != 0) {
         return JIM_ERR;
     }
     return JIM_OK;
-}
-
-static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
-        ScriptObj *topLevelScript)
-{
-    int i;
-
-    return;
-    for (i = 0; i < expr->len; i++) {
-        Jim_Obj *foundObjPtr;
-
-        if (expr->obj[i] == NULL) continue;
-        foundObjPtr = ScriptSearchLiteral(interp, topLevelScript,
-                NULL, expr->obj[i]);
-        if (foundObjPtr != NULL) {
-            Jim_IncrRefCount(foundObjPtr);
-            Jim_DecrRefCount(interp, expr->obj[i]);
-            expr->obj[i] = foundObjPtr;
-        }
-    }
 }
 
 /* This procedure converts every occurrence of || and && opereators
@@ -7313,15 +7162,10 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     int exprTextLen;
     const char *exprText = Jim_GetString(objPtr, &exprTextLen);
     struct JimParserCtx parser;
-    int i, shareLiterals;
+    int i;
     ExprByteCode *expr = Jim_Alloc(sizeof(*expr));
     Jim_Stack stack;
     const Jim_ExprOperator *op;
-
-    /* Perform literal sharing with the current procedure
-     * running only if this expression appears to be not generated
-     * at runtime. */
-    shareLiterals = objPtr->typePtr == &sourceObjType;
 
     expr->opcode = NULL;
     expr->obj = NULL;
@@ -7445,15 +7289,6 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     /* Convert || and && operators in unary |L |R and &L &R for lazyness */
     ExprMakeLazy(interp, expr);
 
-    /* Perform literal sharing */
-    if (shareLiterals && interp->framePtr->procBodyObjPtr) {
-        Jim_Obj *bodyObjPtr = interp->framePtr->procBodyObjPtr;
-        if (bodyObjPtr->typePtr == &scriptObjType) {
-            ScriptObj *bodyScript = bodyObjPtr->internalRep.ptr;
-            ExprShareLiterals(interp, expr, bodyScript);
-        }
-    }
-
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, expr);
@@ -7503,7 +7338,8 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
 {
     ExprByteCode *expr;
     Jim_Obj *staticStack[JIM_EE_STATICSTACK_LEN];
-    int i, error = 0, errRetCode = JIM_ERR;
+    int i;
+    int retcode = JIM_OK;
     struct expr_state e;
 
     Jim_IncrRefCount(exprObjPtr);
@@ -7530,90 +7366,76 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
     e.stacklen = 0;
 
     /* Execute every instruction */
-    for (i = 0; i < expr->len && !error; i++) {
-        Jim_Obj *objPtr;
-        int retcode;
-        int opcode = expr->opcode[i];
-        const struct Jim_ExprOperator *opinfo = JimExprOperatorInfoByOpcode(opcode);
+    for (i = 0; i < expr->len && retcode == JIM_OK; i++) {
+        Jim_Obj *objPtr = NULL;
 
-        e.skip = 0;
-        e.opcode = opcode;
+        e.opcode = expr->opcode[i];
 
-        if (e.stacklen < opinfo->arity) {
-            Jim_Panic(interp, "Reached end of expr stack prematurely");
-        }
-        if (opinfo->funcop) {
-            errRetCode = opinfo->funcop(interp, &e);
-            if (errRetCode != JIM_OK) {
-                error = 1;
-            }
-            else {
+        switch (e.opcode) {
+            case JIM_EXPROP_NUMBER:
+            case JIM_EXPROP_STRING:
+                objPtr = expr->obj[i];
+                break;
+
+            case JIM_EXPROP_VARIABLE:
+                objPtr = Jim_GetVariable(interp, expr->obj[i], JIM_ERRMSG);
+                break;
+
+            case JIM_EXPROP_DICTSUGAR:
+                objPtr = Jim_ExpandDictSugar(interp, expr->obj[i]);
+                break;
+
+            case JIM_EXPROP_SUBST:
+                retcode = Jim_SubstObj(interp, expr->obj[i], &objPtr, JIM_NONE);
+                break;
+
+            case JIM_EXPROP_COMMAND:
+                retcode = Jim_EvalObj(interp, expr->obj[i]);
+                if (retcode == JIM_OK) {
+                    objPtr = Jim_GetResult(interp);
+                }
+                break;
+
+            default: {
+                /* Find and execute the operation */
+                const struct Jim_ExprOperator *opinfo = JimExprOperatorInfoByOpcode(e.opcode);
+
+                if (e.stacklen < opinfo->arity) {
+                    Jim_Panic(interp, "Reached end of expr stack prematurely");
+                }
+
+                e.skip = 0;
+                retcode = opinfo->funcop(interp, &e);
+                /* Skip some opcodes if necessary */
                 i += e.skip;
             }
-            continue;
+            break;
         }
 
-        if (opcode == JIM_EXPROP_NUMBER) {
-            expr_push(&e, expr->obj[i]);
-        }
-        else if (opcode == JIM_EXPROP_STRING) {
-            expr_push(&e, expr->obj[i]);
-        } else if (opcode == JIM_EXPROP_VARIABLE) {
-            objPtr = Jim_GetVariable(interp, expr->obj[i], JIM_ERRMSG);
-            if (objPtr == NULL) {
-                error = 1;
-            }
-            else {
-                expr_push(&e, objPtr);
-            }
-        } else if (opcode == JIM_EXPROP_SUBST) {
-            if ((retcode = Jim_SubstObj(interp, expr->obj[i],
-                        &objPtr, JIM_NONE)) != JIM_OK)
-            {
-                error = 1;
-                errRetCode = retcode;
-            }
-            else {
-                expr_push(&e, objPtr);
-            }
-        } else if (opcode == JIM_EXPROP_DICTSUGAR) {
-            objPtr = Jim_ExpandDictSugar(interp, expr->obj[i]);
-            if (objPtr == NULL) {
-                error = 1;
-            }
-            else {
-                expr_push(&e, objPtr);
-            }
-        } else if (opcode == JIM_EXPROP_COMMAND) {
-            if ((retcode = Jim_EvalObj(interp, expr->obj[i])) != JIM_OK) {
-                error = 1;
-                errRetCode = retcode;
-            }
-            else {
-                expr_push(&e, Jim_GetResult(interp));
-            }
-        } else {
-            Jim_Panic(interp,"Unknown opcode in Jim_EvalExpression (%d)", opcode);
+        if (retcode == JIM_OK && objPtr) {
+            expr_push(&e, objPtr);
         }
     }
 
-    /* There is no need to decerement the inUse field because
+    /* There is no need to decrement the inUse field because
      * this reference is transfered back into the exprObjPtr. */
     Jim_FreeIntRep(interp, exprObjPtr);
     exprObjPtr->typePtr = &exprObjType;
     Jim_SetIntRepPtr(exprObjPtr, expr);
     Jim_DecrRefCount(interp, exprObjPtr);
-    if (!error) {
-        *exprResultPtrPtr = e.stack[0];
-        Jim_IncrRefCount(e.stack[0]);
-        errRetCode = JIM_OK;
+    if (retcode == JIM_OK) {
+        assert(e.stacklen == 1);
+        *exprResultPtrPtr = expr_pop(&e);
     }
-    for (i = 0; i < e.stacklen; i++) {
-        Jim_DecrRefCount(interp, e.stack[i]);
+    else {
+        for (i = 0; i < e.stacklen; i++) {
+            Jim_DecrRefCount(interp, e.stack[i]);
+        }
     }
-    if (e.stack != staticStack)
+    if (e.stack != staticStack) {
         Jim_Free(e.stack);
-    return errRetCode;
+    }
+    return retcode;
 }
 
 int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
@@ -9944,14 +9766,16 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetEmptyResult(interp);
         return JIM_OK;
     }
-#endif
 evalstart:
+#endif
     /* Eval start */
     if ((retval = Jim_EvalObj(interp, argv[1])) != JIM_OK)
         return retval;
     while (1) {
         int boolean;
+#ifdef JIM_OPTIMIZATION
 testcond:
+#endif
         /* Test the condition */
         if ((retval = Jim_GetBoolFromExpr(interp, argv[2], &boolean))
                 != JIM_OK)
@@ -9970,7 +9794,9 @@ testcond:
                 return retval;
             }
         }
+#ifdef JIM_OPTIMIZATION
 evalnext:
+#endif
         /* Eval next */
         if ((retval = Jim_EvalObj(interp, argv[3])) != JIM_OK) {
             switch(retval) {
