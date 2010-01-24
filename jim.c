@@ -3384,8 +3384,6 @@ static const Jim_ObjType variableObjType = {
  * is in the form "varname(key)". */
 static int Jim_NameIsDictSugar(const char *str, int len)
 {
-    if (len == -1)
-        len = strlen(str);
     if (len && str[len-1] == ')' && strchr(str, '(') != NULL)
         return 1;
     return 0;
@@ -3402,20 +3400,25 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     const char *varName;
     int len;
     Jim_CallFrame *framePtr = interp->framePtr;
-
+    
     /* Check if the object is already an uptodate variable */
-    if (objPtr->typePtr == &variableObjType &&
+    if (objPtr->typePtr == &variableObjType && 
         objPtr->internalRep.varValue.callFrameId == framePtr->id) {
-        return JIM_OK; /* nothing to do */
+            return JIM_OK; /* nothing to do */
     }
+
     if (objPtr->typePtr == &dictSubstObjType) {
         return JIM_DICT_SUGAR;
     }
+
     /* Get the string representation */
     varName = Jim_GetString(objPtr, &len);
+
     /* Make sure it's not syntax glue to get/set dict. */
-    if (Jim_NameIsDictSugar(varName, len))
-            return JIM_DICT_SUGAR;
+    if (Jim_NameIsDictSugar(varName, len)) {
+        return JIM_DICT_SUGAR;
+    }
+
     if (varName[0] == ':' && varName[1] == ':') {
         framePtr = interp->topFramePtr;
         he = Jim_FindHashEntry(&framePtr->vars, varName + 2);
@@ -3594,31 +3597,34 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
  * 'SetVariable' function should apply here. */
 Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 {
-    int err;
-    Jim_Obj *objPtr = NULL;
+    switch (SetVariableFromAny(interp, nameObjPtr)) {
+        case JIM_OK: {
+            Jim_Var *varPtr = nameObjPtr->internalRep.varValue.varPtr;
+            if (varPtr->linkFramePtr == NULL) {
+                return varPtr->objPtr;
+            }
+            else {
+                Jim_Obj *objPtr;
 
-    /* All the rest is handled here */
-    if ((err = SetVariableFromAny(interp, nameObjPtr)) != JIM_OK) {
-        /* Check for [dict] syntax sugar. */
-        if (err == JIM_DICT_SUGAR)
+                /* The variable is a link? Resolve it. */
+                Jim_CallFrame *savedCallFrame = interp->framePtr;
+                interp->framePtr = varPtr->linkFramePtr;
+                objPtr = Jim_GetVariable(interp, varPtr->objPtr, flags);
+                interp->framePtr = savedCallFrame;
+                return objPtr;
+            }
+        }
+
+        case JIM_DICT_SUGAR:
+            /* [dict] syntax sugar. */
             return JimDictSugarGet(interp, nameObjPtr);
-    } else {
-        Jim_Var *varPtr;
-        Jim_CallFrame *savedCallFrame;
 
-        varPtr = nameObjPtr->internalRep.varValue.varPtr;
-        if (varPtr->linkFramePtr == NULL)
-            return varPtr->objPtr;
-        /* The variable is a link? Resolve it. */
-        savedCallFrame = interp->framePtr;
-        interp->framePtr = varPtr->linkFramePtr;
-        objPtr = Jim_GetVariable(interp, varPtr->objPtr, JIM_NONE);
-        interp->framePtr = savedCallFrame;
+        default:
+            if (flags & JIM_ERRMSG) {
+                Jim_SetResultFormatted(interp, "can't read \"%#s\": no such variable", nameObjPtr);
+            }
+            return NULL;
     }
-    if (objPtr == NULL && (flags & JIM_ERRMSG)) {
-        Jim_SetResultFormatted(interp, "can't read \"%#s\": no such variable", nameObjPtr);
-    }
-    return objPtr;
 }
 
 Jim_Obj *Jim_GetGlobalVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr,
@@ -11305,30 +11311,26 @@ static int Jim_ConcatCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_UpvarCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    const char *str;
     int i;
     Jim_CallFrame *targetCallFrame;
 
     /* Lookup the target frame pointer */
-    str = Jim_GetString(argv[1], NULL);
-    if (argc > 3 && 
-        ((str[0] >= '0' && str[0] <= '9') || str[0] == '#'))
-    {
-        if (Jim_GetCallFrameByLevel(interp, argv[1],
-                    &targetCallFrame, NULL) != JIM_OK)
+    if (argc > 3 && (argc % 2 == 0)) {
+        if (Jim_GetCallFrameByLevel(interp, argv[1], &targetCallFrame, NULL) != JIM_OK) {
             return JIM_ERR;
+        }
         argc--;
         argv++;
-    } else {
-        if (Jim_GetCallFrameByLevel(interp, NULL,
-                    &targetCallFrame, NULL) != JIM_OK)
-            return JIM_ERR;
+    } else if (Jim_GetCallFrameByLevel(interp, NULL, &targetCallFrame, NULL) != JIM_OK) {
+        return JIM_ERR;
     }
+
     /* Check for arity */
-    if (argc < 3 || ((argc-1)%2) != 0) {
+    if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "?level? otherVar localVar ?otherVar localVar ...?");
         return JIM_ERR;
     }
+
     /* Now... for every other/local couple: */
     for (i = 1; i < argc; i += 2) {
         if (Jim_SetVariableLink(interp, argv[i+1], argv[i],
