@@ -3959,24 +3959,24 @@ test regexp-10.3 {newline sensitivity in regsub} {
 xb}}
 
 test regexp-11.1 {regsub errors} {
-    list [catch {regsub a b c} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+    list [catch {regsub a b} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
 
 test regexp-11.2 {regsub errors} {
-    list [catch {regsub -nocase a b c} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+    list [catch {regsub -nocase a b} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
 
 test regexp-11.3 {regsub errors} {
-    list [catch {regsub -nocase -all a b c} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+    list [catch {regsub -nocase -all a b} msg] $msg
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
 
 test regexp-11.4 {regsub errors} {
     list [catch {regsub a b c d e f} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
 
 test regexp-11.5 {regsub errors} {
     list [catch {regsub -gorp a b c} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec varName"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
 
 test regexp-11.6 {regsub errors} {
     list [catch {regsub -nocase a( b c d} msg] $msg

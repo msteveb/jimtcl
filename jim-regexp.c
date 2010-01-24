@@ -318,7 +318,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     long offset = 0;
     regex_t *regex;
     const char *p;
-    int result = JIM_ERR;
+    int result;
     regmatch_t pmatch[MAX_SUB_MATCHES + 1];
     int num_matches = 0;
 
@@ -330,9 +330,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *replace_str;
     const char *pattern;
 
-    if (argc < 5) {
+    if (argc < 4) {
         wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-all? exp string subSpec varName");
+        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-all? exp string subSpec ?varName?");
         return JIM_ERR;
     }
 
@@ -367,7 +367,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
     }
-    if (argc - i != 4) {
+    if (argc - i != 3 && argc - i != 4) {
         goto wrongNumArgs;
     }
 
@@ -413,7 +413,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             regerror(match, regex, buf, sizeof(buf));
             Jim_SetResultString(interp, "", 0);
             Jim_AppendStrings(interp, Jim_GetResult(interp), "error while matching pattern: ", buf, NULL);
-            goto done;
+            return JIM_ERR;
         }
         if (match == REG_NOMATCH) {
             break;
@@ -479,19 +479,24 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
     Jim_AppendString(interp, resultObj, p, -1);
 
-    /* And now set the result variable */
-    result = Jim_SetVariable(interp, varname, resultObj);
+    /* And now set or return the result variable */
+    if (argc - i == 4) {
+        result = Jim_SetVariable(interp, varname, resultObj);
 
-    if (result == JIM_OK) {
-        Jim_SetResultInt(interp, num_matches);
+        if (result == JIM_OK) {
+            Jim_SetResultInt(interp, num_matches);
+        }
+        else {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't set variable \"", Jim_GetString(varname, NULL), "\"", NULL);
+            Jim_FreeObj(interp, resultObj);
+        }
     }
     else {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "couldn't set variable \"", Jim_GetString(varname, NULL), "\"", NULL);
-        Jim_FreeObj(interp, resultObj);
+        Jim_SetResult(interp, resultObj);
+        result = JIM_OK;
     }
 
-    done:
     return result;
 }
 
