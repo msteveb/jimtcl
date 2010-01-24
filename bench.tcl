@@ -285,7 +285,7 @@ proc pi_digits {} {
 proc expand {} {
     for {set i 0} {$i < 100000} {incr i} {
         set a [list a b c d e f]
-        lappend b {expand}$a
+        lappend b {*}$a
     }
 }
 
@@ -511,17 +511,17 @@ proc commonsub_test {} {
 ### MANDEL #####################################################################
 
 proc mandel {xres yres infx infy supx supy} {
-    set incremx [expr {(0.0+$supx-$infx)/$xres}]
-    set incremy [expr {(0.0+$supy-$infy)/$yres}]
+    set incremx [expr {double($supx-$infx)/$xres}]
+    set incremy [expr {double($supy-$infy)/$yres}]
 
     for {set j 0} {$j < $yres} {incr j} {
-	set cim [expr {$infy+($incremy*$j)}]
+	set cim [expr {$infy+$incremy*$j}]
 	set line {}
 	for {set i 0} {$i < $xres} {incr i} {
 	    set counter 0
 	    set zim 0
 	    set zre 0
-	    set cre [expr {$infx+($incremx*$i)}]
+	    set cre [expr {$infx+$incremx*$i}]
 	    while {$counter < 255} {
 		set dam [expr {$zre*$zre-$zim*$zim+$cre}]
 		set zim [expr {2*$zim*$zre+$cim}]

@@ -6275,151 +6275,141 @@ typedef struct Jim_ExprOperator {
     jim_expr_function_t *funcop;
 } Jim_ExprOperator;
 
-#define GET_INT 1
-#define GET_DOUBLE 2
-#define GET_STRING 4
-
-static Jim_Obj *expr_pop(Jim_Interp *interp, struct expr_state *e, int which)
-{
-    jim_wide wA;
-    double dA;
-
-    if (e->stacklen > 0) {
-        Jim_Obj *obj = e->stack[e->stacklen - 1];
-
-        /* If it is already an integer or double, use it */
-        if ((which & GET_INT) && obj->typePtr == &intObjType) {
-            e->stacklen--;
-            return obj;
-        }
-        /* Don't consider a double type with no string rep since it may
-         * have been explicitly converted.
-         */
-        if ((which & GET_DOUBLE) && obj->typePtr == &doubleObjType && !obj->bytes) {
-            e->stacklen--;
-            return obj;
-        }
-
-        /* Try to convert */
-        if ((which & GET_INT) && Jim_GetWide(interp, obj, &wA) == JIM_OK) {
-            e->stacklen--;
-            return obj;
-        }
-        if ((which & GET_DOUBLE) && Jim_GetDouble(interp, obj, &dA) == JIM_OK) {
-            e->stacklen--;
-            return obj;
-        }
-
-        /* Maybe a string is OK */
-        if (which & GET_STRING) {
-            Jim_GetString(obj, NULL);
-            e->stacklen--;
-            return obj;
-        }
-    }
-
-    /* Failure - leave it on the stack */
-    return NULL;
-}
-
 static void expr_push(struct expr_state *e, Jim_Obj *obj)
 {
         Jim_IncrRefCount(obj);
         e->stack[e->stacklen++] = obj;
 }
 
+static Jim_Obj *expr_pop(struct expr_state *e)
+{
+    assert(e->stacklen);
+    return e->stack[--e->stacklen];
+}
+
+#define OBJ_IS_INT 0
+#define OBJ_IS_DOUBLE 1
+#define OBJ_NO_NUM -1
+
+static int expr_getnum(Jim_Interp *interp, struct expr_state *e, Jim_Obj **resultObjPtr, jim_wide *w, double *d)
+{
+    Jim_Obj *obj = expr_pop(e);
+
+    *resultObjPtr = obj;
+
+    /* If it is already an integer or double, use it */
+    if (obj->typePtr == &intObjType) {
+        *w = obj->internalRep.wideValue;
+        return OBJ_IS_INT;
+    }
+    /* Don't consider a double type with no string rep since it may
+     * have been explicitly converted.
+     */
+    if (obj->typePtr == &doubleObjType && !obj->bytes) {
+        *d = obj->internalRep.doubleValue;
+        return OBJ_IS_DOUBLE;
+    }
+
+    /* Try to convert */
+    if (Jim_GetWide(interp, obj, w) == JIM_OK) {
+        return OBJ_IS_INT;
+    }
+    if (Jim_GetDouble(interp, obj, d) == JIM_OK) {
+        return OBJ_IS_DOUBLE;
+    }
+
+    return OBJ_NO_NUM;
+}
+
 
 static int JimExprOpNumUnary(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    int intresult = 0;
+    int rc = JIM_OK;
+    Jim_Obj *A;
+    double dA, dC;
+    jim_wide wA, wC;
+    int type = expr_getnum(interp, e, &A, &wA, &dA);
     
-    if (A) {
-        jim_wide wC;
-        double dC;
-        int intresult = 0;
-
-        if (A->typePtr == &doubleObjType) {
-            double dA;
-
-            Jim_GetDouble(interp, A, &dA);
-            switch (e->opcode) {
-                case JIM_EXPROP_FUNC_INT: wC = dA; intresult = 1; break;
-                case JIM_EXPROP_FUNC_ROUND: wC = dA < 0 ? (dA - 0.5) : (dA + 0.5); intresult = 1; break;
-                case JIM_EXPROP_FUNC_DOUBLE: dC = dA; break;
-                case JIM_EXPROP_FUNC_ABS: dC = dA >= 0 ? dA : -dA; break;
-                case JIM_EXPROP_UNARYMINUS: dC = -dA; break;
-                case JIM_EXPROP_UNARYPLUS: dC = dA; break;
-                case JIM_EXPROP_NOT: wC = !dA; intresult = 1; break;
-                default: abort();
-            }
+    if (type == OBJ_IS_DOUBLE) {
+        switch (e->opcode) {
+            case JIM_EXPROP_FUNC_INT: wC = dA; intresult = 1; break;
+            case JIM_EXPROP_FUNC_ROUND: wC = dA < 0 ? (dA - 0.5) : (dA + 0.5); intresult = 1; break;
+            case JIM_EXPROP_FUNC_DOUBLE: dC = dA; break;
+            case JIM_EXPROP_FUNC_ABS: dC = dA >= 0 ? dA : -dA; break;
+            case JIM_EXPROP_UNARYMINUS: dC = -dA; break;
+            case JIM_EXPROP_UNARYPLUS: dC = dA; break;
+            case JIM_EXPROP_NOT: wC = !dA; intresult = 1; break;
+            default: abort();
         }
-        else {
-            /* Must be an integer */
-            jim_wide wA;
+    }
+    else if (type == OBJ_IS_INT) {
+        intresult = 1;
 
-            intresult = 1;
-
-            Jim_GetWide(interp, A, &wA);
-
-            switch (e->opcode) {
-                case JIM_EXPROP_FUNC_INT: wC = wA; break;
-                case JIM_EXPROP_FUNC_ROUND: wC = wA; break;
-                case JIM_EXPROP_FUNC_DOUBLE: dC = wA; intresult = 0; break;
-                case JIM_EXPROP_FUNC_ABS: wC = wA >= 0 ? wA : -wA; break;
-                case JIM_EXPROP_UNARYMINUS: wC = -wA; break;
-                case JIM_EXPROP_UNARYPLUS: wC = wA; break;
-                case JIM_EXPROP_NOT: wC = !wA; break;
-                default: abort();
-            }
+        switch (e->opcode) {
+            case JIM_EXPROP_FUNC_INT: wC = wA; break;
+            case JIM_EXPROP_FUNC_ROUND: wC = wA; break;
+            case JIM_EXPROP_FUNC_DOUBLE: dC = wA; intresult = 0; break;
+            case JIM_EXPROP_FUNC_ABS: wC = wA >= 0 ? wA : -wA; break;
+            case JIM_EXPROP_UNARYMINUS: wC = -wA; break;
+            case JIM_EXPROP_UNARYPLUS: wC = wA; break;
+            case JIM_EXPROP_NOT: wC = !wA; break;
+            default: abort();
         }
+    }
+    else {
+        rc = JIM_ERR;
+    }
 
+    if (rc == JIM_OK) {
         if (intresult) {
             expr_push(e, Jim_NewIntObj(interp, wC));
         }
         else {
             expr_push(e, Jim_NewDoubleObj(interp, dC));
         }
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
     }
 
-    return JIM_ERR;
+    Jim_DecrRefCount(interp, A);
+
+    return rc;
 }
 
 static int JimExprOpIntUnary(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *A = expr_pop(interp, e, GET_INT);
-    
-    if (A) {
-        jim_wide wA;
-        jim_wide wC;
+    Jim_Obj *A = expr_pop(e);
+    jim_wide wA;
+    int rc = JIM_ERR;
 
-        Jim_GetWide(interp, A, &wA);
+    
+    if (Jim_GetWide(interp, A, &wA) == JIM_OK) {
+        jim_wide wC;
 
         switch (e->opcode) {
             case JIM_EXPROP_BITNOT: wC = ~wA; break;
             default: abort();
         }
         expr_push(e, Jim_NewIntObj(interp, wC));
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
+        rc = JIM_OK;
     }
 
-    return JIM_ERR;
+    Jim_DecrRefCount(interp, A);
+
+    return rc;
 }
 
 /* A binary operation on two ints */
 static int JimExprOpIntBin(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *B = expr_pop(interp, e, GET_INT);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT);
-    
-    if (A && B) {
-        jim_wide wA, wB, wC;
-        int rc = JIM_OK;
+    Jim_Obj *B = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
+    jim_wide wA, wB;
+    int rc = JIM_ERR;
 
-        Jim_GetWide(interp, A, &wA);
-        Jim_GetWide(interp, B, &wB);
+    if (Jim_GetWide(interp, A, &wA) == JIM_OK && Jim_GetWide(interp, B, &wB) == JIM_OK) {
+        jim_wide wC;
+
+        rc = JIM_OK;
 
         switch (e->opcode) {
             case JIM_EXPROP_LSHIFT: wC = wA<<wB; break;
@@ -6475,152 +6465,60 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct expr_state *e)
         }
         expr_push(e, Jim_NewIntObj(interp, wC));
 
-        Jim_DecrRefCount(interp, A);
-        Jim_DecrRefCount(interp, B);
-
-        return rc;
     }
 
-    if (A) {
-        Jim_DecrRefCount(interp, A);
-    }
-    if (B) {
-        Jim_DecrRefCount(interp, B);
-    }
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, B);
 
-    return JIM_ERR;
+    return rc;
 }
 
 
-/* A binary operation on two ints or two doubles */
-static int JimExprOpNumBin(Jim_Interp *interp, struct expr_state *e)
-{
-    Jim_Obj *B = expr_pop(interp, e, GET_INT | GET_DOUBLE);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
-    
-    if (A && B) {
-        int rc = JIM_OK;
-        jim_wide wC;
-        double dC;
-        int intresult = 0;
-
-        /* If either is a double, the result is a double */
-        if (A->typePtr == &doubleObjType || B->typePtr == &doubleObjType) {
-            double dA, dB;
-
-            Jim_GetDouble(interp, A, &dA);
-            Jim_GetDouble(interp, B, &dB);
-
-            switch (e->opcode) {
-                case JIM_EXPROP_ADD: dC = dA+dB; break;
-                case JIM_EXPROP_SUB: dC = dA-dB; break;
-                case JIM_EXPROP_MUL: dC = dA*dB; break;
-                case JIM_EXPROP_DIV:
-                    if (dB == 0) {
-                        dC = 0;
-                        Jim_SetResultString(interp, "Division by zero", -1);
-                        rc = JIM_ERR;
-                    }
-                    else {
-                        dC = dA/dB;
-                    }
-                    break;
-                default: abort();
-            }
-        }
-        else {
-            /* Must be both integers */
-            jim_wide wA, wB;
-
-            Jim_GetWide(interp, A, &wA);
-            Jim_GetWide(interp, B, &wB);
-
-            intresult = 1;
-
-            switch (e->opcode) {
-                case JIM_EXPROP_ADD: wC = wA+wB; break;
-                case JIM_EXPROP_SUB: wC = wA-wB; break;
-                case JIM_EXPROP_MUL: wC = wA*wB; break;
-                case JIM_EXPROP_DIV:
-                    if (wB == 0) {
-                        wC = 0;
-                        Jim_SetResultString(interp, "Division by zero", -1);
-                        rc = JIM_ERR;
-                    }
-                    else {
-                        /*
-                         * From Tcl 8.x
-                         *
-                         * This code is tricky: C doesn't guarantee much
-                         * about the quotient or remainder, but Tcl does.
-                         * The remainder always has the same sign as the
-                         * divisor and a smaller absolute value.
-                         */
-                        if (wB < 0) {
-                            wB = -wB;
-                            wA = -wA;
-                        }
-                        wC = wA / wB;
-                        if (wA % wB < 0) {
-                            wC--;
-                        }
-                    }
-                    break;
-                default: abort();
-            }
-        }
-
-        if (intresult) {
-            expr_push(e, Jim_NewIntObj(interp, wC));
-        }
-        else {
-            expr_push(e, Jim_NewDoubleObj(interp, dC));
-        }
-
-        Jim_DecrRefCount(interp, A);
-        Jim_DecrRefCount(interp, B);
-
-        return rc;
-    }
-
-    if (A) {
-        Jim_DecrRefCount(interp, A);
-    }
-    if (B) {
-        Jim_DecrRefCount(interp, B);
-    }
-
-    return JIM_ERR;
-}
-
-/* A binary operation on two ints, two doubles or two strings returning a boolean (int) */
+/* A binary operation on two ints or two doubles (or two strings for some ops) */
 static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *B = expr_pop(interp, e, GET_INT | GET_DOUBLE | GET_STRING);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE | GET_STRING);
+    int intresult = 0;
+    int rc = JIM_OK;
+    Jim_Obj *A, *B;
+    double dA, dB, dC;
+    jim_wide wA, wB, wC;
+    int typeB = expr_getnum(interp, e, &B, &wB, &dB);
+    int typeA = expr_getnum(interp, e, &A, &wA, &dA);
     
-    double dA, dB;
-    jim_wide wA, wB;
-    jim_wide wC;
+    if (typeA == OBJ_IS_INT && typeB == OBJ_IS_INT) {
+        /* Both are ints */
 
-    /* If either is a double, cooerce to doubles */
-    if ((A->typePtr == &doubleObjType || B->typePtr == &doubleObjType) &&
-        Jim_GetDouble(interp, A, &dA) == JIM_OK &&  Jim_GetDouble(interp, B, &dB) == JIM_OK) {
+        intresult = 1;
 
         switch (e->opcode) {
-            case JIM_EXPROP_LT: wC = dA<dB; break;
-            case JIM_EXPROP_GT: wC = dA>dB; break;
-            case JIM_EXPROP_LTE: wC = dA<=dB; break;
-            case JIM_EXPROP_GTE: wC = dA>=dB; break;
-            case JIM_EXPROP_NUMEQ: wC = dA==dB; break;
-            case JIM_EXPROP_NUMNE: wC = dA!=dB; break;
-            default: abort();
-        }
-    }
-    /* Try ints */
-    else if (JimGetWideNoErr(interp, A, &wA) == JIM_OK && JimGetWideNoErr(interp, B, &wB) == JIM_OK) {
-
-        switch (e->opcode) {
+            case JIM_EXPROP_ADD: wC = wA+wB; break;
+            case JIM_EXPROP_SUB: wC = wA-wB; break;
+            case JIM_EXPROP_MUL: wC = wA*wB; break;
+            case JIM_EXPROP_DIV:
+                if (wB == 0) {
+                    wC = 0;
+                    Jim_SetResultString(interp, "Division by zero", -1);
+                    rc = JIM_ERR;
+                }
+                else {
+                    /*
+                     * From Tcl 8.x
+                     *
+                     * This code is tricky: C doesn't guarantee much
+                     * about the quotient or remainder, but Tcl does.
+                     * The remainder always has the same sign as the
+                     * divisor and a smaller absolute value.
+                     */
+                    if (wB < 0) {
+                        wB = -wB;
+                        wA = -wA;
+                    }
+                    wC = wA / wB;
+                    if (wA % wB < 0) {
+                        wC--;
+                    }
+                }
+                break;
             case JIM_EXPROP_LT: wC = wA<wB; break;
             case JIM_EXPROP_GT: wC = wA>wB; break;
             case JIM_EXPROP_LTE: wC = wA<=wB; break;
@@ -6630,12 +6528,46 @@ static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
             default: abort();
         }
     }
+    else if (typeA != OBJ_NO_NUM && typeB != OBJ_NO_NUM) {
+        /* At least one is a double */
+        if (typeA == OBJ_IS_INT) {
+            Jim_GetDouble(interp, A, &dA);
+        }
+        else if (typeB == OBJ_IS_INT) {
+            Jim_GetDouble(interp, B, &dB);
+        }
+
+        switch (e->opcode) {
+            case JIM_EXPROP_ADD: dC = dA+dB; break;
+            case JIM_EXPROP_SUB: dC = dA-dB; break;
+            case JIM_EXPROP_MUL: dC = dA*dB; break;
+            case JIM_EXPROP_DIV:
+                if (dB == 0) {
+                    dC = 0;
+                    Jim_SetResultString(interp, "Division by zero", -1);
+                    rc = JIM_ERR;
+                }
+                else {
+                    dC = dA/dB;
+                }
+                break;
+            case JIM_EXPROP_LT: wC = dA<dB; intresult = 1; break;
+            case JIM_EXPROP_GT: wC = dA>dB; intresult = 1; break;
+            case JIM_EXPROP_LTE: wC = dA<=dB; intresult = 1; break;
+            case JIM_EXPROP_GTE: wC = dA>=dB; intresult = 1; break;
+            case JIM_EXPROP_NUMEQ: wC = dA==dB; intresult = 1; break;
+            case JIM_EXPROP_NUMNE: wC = dA!=dB; intresult = 1; break;
+            default: abort();
+        }
+    }
     else {
-        /* Finally compare strings */
+        /* Handle the string case */
         int Alen, Blen;
 
         const char *sA = Jim_GetString(A, &Alen);
         const char *sB = Jim_GetString(B, &Blen);
+
+        intresult = 1;
 
         switch(e->opcode) {
             case JIM_EXPROP_LT:
@@ -6650,21 +6582,30 @@ static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
                 wC = (Alen == Blen && memcmp(sA, sB, Alen) == 0); break;
             case JIM_EXPROP_NUMNE:
                 wC = (Alen != Blen || memcmp(sA, sB, Alen) != 0); break;
-            default: abort();
+            default:
+                rc = JIM_ERR; break;
         }
     }
-    expr_push(e, Jim_NewIntObj(interp, wC));
+
+    if (rc == JIM_OK) {
+        if (intresult) {
+            expr_push(e, Jim_NewIntObj(interp, wC));
+        }
+        else {
+            expr_push(e, Jim_NewDoubleObj(interp, dC));
+        }
+    }
 
     Jim_DecrRefCount(interp, A);
     Jim_DecrRefCount(interp, B);
 
-    return JIM_OK;
+    return rc;
 }
 
 static int JimExprOpStrBin(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *B = expr_pop(interp, e, GET_STRING);
-    Jim_Obj *A = expr_pop(interp, e, GET_STRING);
+    Jim_Obj *B = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
     
     int Alen, Blen;
     jim_wide wC;
@@ -6687,134 +6628,148 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct expr_state *e)
     return JIM_OK;
 }
 
-static int expr_bool(Jim_Obj *obj)
+static int expr_bool(Jim_Interp *interp, Jim_Obj *obj)
 {
-    if (obj->typePtr == &doubleObjType) {
-        return obj->internalRep.doubleValue != 0;
+    long l;
+    double d;
+    if (Jim_GetLong(interp, obj, &l) == JIM_OK) {
+        return l != 0;
     }
-    else if (obj->typePtr == &intObjType) {
-        return obj->internalRep.wideValue != 0;
+    if (Jim_GetDouble(interp, obj, &d) == JIM_OK) {
+        return d != 0;
     }
-    assert(0);
+    return -1;
 }
 
 static int JimExprOpAndLeft(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *skip = expr_pop(interp, e, GET_INT);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    Jim_Obj *skip = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
+    int rc = JIM_OK;
 
-    if (skip && A) {
-        if (!expr_bool(A)) {
-            /* Failed, so skip RHS opcodes with a 0 result */
+    switch (expr_bool(interp, A)) {
+        case 0:
+            /* false, so skip RHS opcodes with a 0 result */
             e->skip = skip->internalRep.wideValue;
             expr_push(e, Jim_NewIntObj(interp, 0));
-        }
-        Jim_DecrRefCount(interp, skip);
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
-    }
+            break;
 
-    if (skip) {
-        Jim_DecrRefCount(interp, skip);
-    }
+        case 1:
+            /* true so continue */
+            break;
 
-    return JIM_ERR;
+        case -1:
+            /* Invalid */
+            rc = JIM_ERR;
+    }
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, skip);
+
+    return rc;
 }
 
 static int JimExprOpOrLeft(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *skip = expr_pop(interp, e, GET_INT);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    Jim_Obj *skip = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
+    int rc = JIM_OK;
 
-    if (skip && A) {
-        if (expr_bool(A)) {
-            /* Succeeded, so skip RHS opcodes with a 1 result */
+    switch (expr_bool(interp, A)) {
+        case 0:
+            /* false, so do nothing */
+            break;
+
+        case 1:
+            /* true so skip RHS opcodes with a 1 result */
             e->skip = skip->internalRep.wideValue;
             expr_push(e, Jim_NewIntObj(interp, 1));
-        }
-        Jim_DecrRefCount(interp, skip);
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
+            break;
+
+        case -1:
+            /* Invalid */
+            rc = JIM_ERR;
+            break;
     }
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, skip);
 
-    if (skip) {
-        Jim_DecrRefCount(interp, skip);
-    }
-
-    assert(A == NULL);
-
-    return JIM_ERR;
+    return rc;
 }
 
 static int JimExprOpAndOrRight(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    Jim_Obj *A = expr_pop(e);
+    int rc = JIM_OK;
 
-    if (A) {
-        expr_push(e, Jim_NewIntObj(interp, expr_bool(A)));
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
+    switch (expr_bool(interp, A)) {
+        case 0:
+            expr_push(e, Jim_NewIntObj(interp, 0));
+            break;
+
+        case 1:
+            expr_push(e, Jim_NewIntObj(interp, 1));
+            break;
+
+        case -1:
+            /* Invalid */
+            rc = JIM_ERR;
+            break;
     }
+    Jim_DecrRefCount(interp, A);
 
-    return JIM_ERR;
+    return rc;
 }
 
 static int JimExprOpTernaryLeft(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *skip = expr_pop(interp, e, GET_INT);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    Jim_Obj *skip = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
+    int rc = JIM_OK;
 
-    if (skip && A) {
-        /* Repush A */
-        expr_push(e, A);
-        if (!expr_bool(A)) {
-            /* Failed, so skip RHS opcodes */
+    /* Repush A */
+    expr_push(e, A);
+
+    switch (expr_bool(interp, A)) {
+        case 0:
+            /* false, skip RHS opcodes */
             e->skip = skip->internalRep.wideValue;
             /* Push a dummy value */
             expr_push(e, Jim_NewIntObj(interp, 0));
-        }
-        Jim_DecrRefCount(interp, skip);
-        Jim_DecrRefCount(interp, A);
-        return JIM_OK;
-    }
+            break;
 
-    if (skip) {
-        Jim_DecrRefCount(interp, skip);
-    }
+        case 1:
+            /* true so do nothing */
+            break;
 
-    return JIM_ERR;
+        case -1:
+            /* Invalid */
+            rc = JIM_ERR;
+            break;
+    }
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, skip);
+
+    return rc;
 }
 
 static int JimExprOpColonLeft(Jim_Interp *interp, struct expr_state *e)
 {
-    Jim_Obj *skip = expr_pop(interp, e, GET_INT);
-    Jim_Obj *B = expr_pop(interp, e, GET_INT | GET_DOUBLE | GET_STRING);
-    Jim_Obj *A = expr_pop(interp, e, GET_INT | GET_DOUBLE);
+    Jim_Obj *skip = expr_pop(e);
+    Jim_Obj *B = expr_pop(e);
+    Jim_Obj *A = expr_pop(e);
 
-    if (skip && A && B) {
-        if (expr_bool(A)) {
-            /* Success, so skip RHS opcodes */
-            e->skip = skip->internalRep.wideValue;
-            /* Repush B as the answer */
-            expr_push(e, B);
-        }
-        Jim_DecrRefCount(interp, skip);
-        Jim_DecrRefCount(interp, A);
-        Jim_DecrRefCount(interp, B);
-        return JIM_OK;
+    /* No need to check for A as non-boolean */
+    if (expr_bool(interp, A)) {
+        /* true, so skip RHS opcodes */
+        e->skip = skip->internalRep.wideValue;
+        /* Repush B as the answer */
+        expr_push(e, B);
     }
 
-    if (skip) {
-        Jim_DecrRefCount(interp, skip);
-    }
-    if (A) {
-        Jim_DecrRefCount(interp, A);
-    }
-    if (B) {
-        Jim_DecrRefCount(interp, B);
-    }
-
-    return JIM_ERR;
+    Jim_DecrRefCount(interp, skip);
+    Jim_DecrRefCount(interp, A);
+    Jim_DecrRefCount(interp, B);
+    return JIM_OK;
 }
 
 static int JimExprOpNull(Jim_Interp *interp, struct expr_state *e)
@@ -6836,12 +6791,12 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
     [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpIntBin },
 
-    [JIM_EXPROP_MUL] =            {"*", 200, 2, JimExprOpNumBin },
-    [JIM_EXPROP_DIV] =            {"/", 200, 2, JimExprOpNumBin },
+    [JIM_EXPROP_MUL] =            {"*", 200, 2, JimExprOpBin },
+    [JIM_EXPROP_DIV] =            {"/", 200, 2, JimExprOpBin },
     [JIM_EXPROP_MOD] =            {"%", 200, 2, JimExprOpIntBin },
 
-    [JIM_EXPROP_SUB] =            {"-", 100, 2, JimExprOpNumBin },
-    [JIM_EXPROP_ADD] =            {"+", 100, 2, JimExprOpNumBin },
+    [JIM_EXPROP_SUB] =            {"-", 100, 2, JimExprOpBin },
+    [JIM_EXPROP_ADD] =            {"+", 100, 2, JimExprOpBin },
 
     [JIM_EXPROP_ROTL] =           {"<<<", 90, 2, JimExprOpIntBin },
     [JIM_EXPROP_ROTR] =           {">>>", 90, 2, JimExprOpIntBin },

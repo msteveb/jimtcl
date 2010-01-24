@@ -1,41 +1,25 @@
 CORE LANGUAGE FEATURES
 
-- Proc default arguments
-- Traces
-- [static] command
+- lrepeat
+- unset -nocomplain
+- parse foo($bar) into special tokens so that interpolation/parsing
+  is not required every time
 
 CORE COMMANDS
 
 - All the missing standard core commands not related to I/O, namespaces, ...
-- The current [expr] needs a lot of work, especially operators && and ||
-  are not lazy. Math functions are not present but probably will never
-  be added as expr functions, but as Tcl commands, like [sin], [cos] and
-  so on.
+- More math functions in expr?
 - [onleave] command, executing something as soon as the current procedure
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
-- [proc] without arguments may return a list of all the procedures
-  (no C commands). While with a single argument (the name of a proc)
-  may return [list $args $statics $body].
 
 OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
 - Set commands: [lunion], [lintersect], and [ldifference]
 
-EXTENSIONS LOADING
-
-- Avoid that the same extension can be loaded multiple times inside the
-  same interpreter. The extension should return its name on initialization
-  together with the version so that Jim_InitExtension will fail if the
-  extension with the same name is already loaded.
-
 EXTENSIONS
 
-- Regexp extension
 - OOP system
-- Event loop
-- Files
-- Sockets
 - Cryptography: hash functions, block ciphers, strim ciphers, PRNGs.
 - Tuplespace extension (http://wiki.tcl.tk/3947) (using sqlite as backend)
 - Zlib
@@ -51,7 +35,7 @@ SPEED OPTIMIZATIONS
 - Organize the 'script' object so that a single data structure is
   used for a full command, and interpolation is done using an
   'interpolation token type' like JIM_TT_VAR and so on.
-  This way there is no need to run the array if integer objects
+  This way there is no need to run the array of integer objects
   with the command structure. Also should help for better cache usage.
 - Generate .c from Jim programs, as calls to the Jim API to avoid
   the performance penality of Jim_EvalObj() overhead. In the future
@@ -70,20 +54,9 @@ IMPLEMENTATION ISSUES
   equivalent) handle in a list inside the interpreter structure. When
   the interpreter is freed all this handles should be closed with dlclose().
 - *AssocData() function should allow to specify a delProc C function like
-  in the Tcl API. When the interpreter is destroyed all the delProc functions
+  in the Tcl API. When the interpreter is destroied all the delProc functions
   should be called to free the memory before to free the interpreter.
 - Convert dicts from lists directly without to pass from the string repr.
-
-ERROR MESSAGES
-
-- Display the procedure relative file number where the error happened.
-  Like:
-
-  In procedure 'check' line 11, called at file "test.tcl", line 1024
-
-  instead of just:
-
-  In procedure 'check' called at file "test.tcl", line 1024
 
 REFERENCES SYSTEM
 

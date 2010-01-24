@@ -55,10 +55,10 @@ proc do_case {var} {
 			return two
 		}
 		3 {
-			return 33
+			continue
 		}
 		4 {
-			continue
+			return 44
 		}
 		5 {
 			break
@@ -76,5 +76,5 @@ test control-2.1 "Return from case" {
 		lappend result [do_case $i]
 	}
 	set result
-} {zero one two 33}
+} {zero one two 44}
 
