@@ -974,7 +974,6 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr))
 #define JIM_TT_CMD 4        /* command substitution */
 #define JIM_TT_SEP 5        /* word separator */
 #define JIM_TT_EOL 6        /* line separator */
-#define JIM_TT_EXPAND 7     /* the {expand} or {*} token */
 
 /* Additional token types needed for expressions */
 #define JIM_TT_SUBEXPR_START 7
@@ -1000,7 +999,6 @@ struct JimParserCtx {
     int eof;             /* Non zero if EOF condition is true. */
     int state;           /* Parser state */
     int comment;         /* Non zero if the next chars may be a comment. */
-    int braced;          /* The token was enclosed in braces */
 };
 
 #define JimParserEof(c) ((c)->eof)
@@ -1041,8 +1039,6 @@ void JimParserInit(struct JimParserCtx *pc, const char *prg,
 
 int JimParseScript(struct JimParserCtx *pc)
 {
-    pc->braced = 0;
-
     while(1) { /* the while is used to reiterate with continue if needed */
         if (!pc->len) {
             pc->tstart = pc->p;
@@ -1256,7 +1252,6 @@ int JimParseBrace(struct JimParserCtx *pc)
 
     pc->tstart = ++pc->p; pc->len--;
     pc->tline = pc->linenr;
-    pc->braced = 1;
     while (1) {
         if (*pc->p == '\\' && pc->len >= 2) {
             pc->p++; pc->len--;
@@ -1294,20 +1289,18 @@ int JimParseStr(struct JimParserCtx *pc)
     }
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    /* By default, the token is a JIM_TT_STR */
-    pc->tt = JIM_TT_STR;
     while (1) {
         if (pc->len == 0) {
             pc->tend = pc->p-1;
+            pc->tt = JIM_TT_ESC;
             return JIM_OK;
         }
         switch(*pc->p) {
         case '\\':
-            /* Token contains backslash so needs escaping */
-            pc->tt = JIM_TT_ESC;
             if (pc->state == JIM_PS_DEF &&
                 *(pc->p+1) == '\n') {
                 pc->tend = pc->p-1;
+                pc->tt = JIM_TT_ESC;
                 return JIM_OK;
             }
             if (pc->len >= 2) {
@@ -1320,6 +1313,7 @@ int JimParseStr(struct JimParserCtx *pc)
         case '$':
         case '[':
             pc->tend = pc->p-1;
+            pc->tt = JIM_TT_ESC;
             return JIM_OK;
         case ' ':
         case '\t':
@@ -1328,6 +1322,7 @@ int JimParseStr(struct JimParserCtx *pc)
         case ';':
             if (pc->state == JIM_PS_DEF) {
                 pc->tend = pc->p-1;
+                pc->tt = JIM_TT_ESC;
                 return JIM_OK;
             } else if (*pc->p == '\n') {
                 pc->linenr++;
@@ -1336,6 +1331,7 @@ int JimParseStr(struct JimParserCtx *pc)
         case '"':
             if (pc->state == JIM_PS_QUOTE) {
                 pc->tend = pc->p-1;
+                pc->tt = JIM_TT_ESC;
                 pc->p++; pc->len--;
                 pc->state = JIM_PS_DEF;
                 return JIM_OK;
@@ -1466,6 +1462,22 @@ static int JimEscape(char *dest, const char *s, int slen)
 /* Returns a dynamically allocated copy of the current token in the
  * parser context. The function perform conversion of escapes if
  * the token is of type JIM_TT_ESC.
+ *
+ * Note that after the conversion, tokens that are grouped with
+ * braces in the source code, are always recognizable from the
+ * identical string obtained in a different way from the type.
+ *
+ * For exmple the string:
+ *
+ * {expand}$a
+ * 
+ * will return as first token "expand", of type JIM_TT_STR
+ *
+ * While the string:
+ *
+ * expand$a
+ *
+ * will return as first token "expand", of type JIM_TT_ESC
  */
 char *JimParserGetToken(struct JimParserCtx *pc,
         int *lenPtr, int *typePtr, int *linePtr)
@@ -2901,7 +2913,6 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     int args, tokens, start, end, i;
     int initialLineNumber;
     int propagateSourceInfo = 0;
-    int expand = 0;
 
     script->len = 0;
     script->csLen = 0;
@@ -2927,21 +2938,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         int len, type, linenr;
 
         JimParseScript(&parser);
-
         token = JimParserGetToken(&parser, &len, &type, &linenr);
-
-        /* Detect {expand}... or {*}... */
-        if (expand) {
-            expand = 0;
-            if (type != JIM_TT_SEP && type != JIM_TT_EOL) {
-                /* Adjust the type of the previous token */
-                script->token[script->len-1].type = JIM_TT_EXPAND;
-            }
-        }
-        else if (parser.braced && (strcmp(token, "expand") == 0 || strcmp(token, "*") == 0)) {
-            expand++;
-        }
-
         ScriptObjAddToken(interp, script, token, len, type,
                 propagateSourceInfo ? script->fileName : NULL,
                 linenr);
@@ -2959,20 +2956,24 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         if (start >= script->len) break;
         args = 1; /* Number of args in current command */
         while (token[end].type != JIM_TT_EOL) {
-            if (token[end].type == JIM_TT_EXPAND) {
-                expand++;
+            if (end == 0 || token[end-1].type == JIM_TT_SEP ||
+                    token[end-1].type == JIM_TT_EOL)
+            {
+                if (token[end].type == JIM_TT_STR &&
+                    token[end+1].type != JIM_TT_SEP &&
+                    token[end+1].type != JIM_TT_EOL &&
+                    (!strcmp(token[end].objPtr->bytes, "expand") ||
+                     !strcmp(token[end].objPtr->bytes, "*")))
+                    expand++;
             }
-            else if (token[end].type == JIM_TT_SEP) {
+            if (token[end].type == JIM_TT_SEP)
                 args++;
-            }
             end++;
         }
-
         /* Add the 'number of arguments' info into cmdstruct.
          * Negative value if there is list expansion involved. */
-        if (expand) {
+        if (expand)
             ScriptObjAddInt(script, -1);
-        }
         ScriptObjAddInt(script, args);
         /* Now add info about the number of tokens. */
         tokens = 0; /* Number of tokens in current argument. */
@@ -2981,16 +2982,18 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             if (token[i].type == JIM_TT_SEP ||
                 token[i].type == JIM_TT_EOL)
             {
-                if (tokens == 1 && expand) {
+                if (tokens == 1 && expand)
                     expand = 0;
-                }
                 ScriptObjAddInt(script,
                         expand ? -tokens : tokens);
 
                 expand = 0;
                 tokens = 0;
                 continue;
-            } else if (tokens == 0 && token[i].type == JIM_TT_EXPAND) {
+            } else if (tokens == 0 && token[i].type == JIM_TT_STR &&
+                   (!strcmp(token[i].objPtr->bytes, "expand") ||
+                    !strcmp(token[i].objPtr->bytes, "*")))
+            {
                 expand++;
             }
             tokens++;
@@ -9852,9 +9855,9 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         if (incrScript->len != 4) goto evalstart;
         if (expr->len != 3) goto evalstart;
         /* Ensure proper token types. */
-        if (initScript->token[2].type != JIM_TT_STR ||
-            initScript->token[4].type != JIM_TT_STR ||
-            incrScript->token[2].type != JIM_TT_STR ||
+        if (initScript->token[2].type != JIM_TT_ESC ||
+            initScript->token[4].type != JIM_TT_ESC ||
+            incrScript->token[2].type != JIM_TT_ESC ||
             expr->opcode[0] != JIM_EXPROP_VARIABLE ||
             (expr->opcode[1] != JIM_EXPROP_NUMBER &&
              expr->opcode[1] != JIM_EXPROP_VARIABLE) ||
