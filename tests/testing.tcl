@@ -4,7 +4,7 @@
 # e.g. bio copy [autoopen infile] [autoopen outfile w]; collect
 #
 proc autoopen {filename {mode r}} {
-	set ref [ref [aio.open $filename $mode] aio lambdaFinalizer]
+	set ref [ref [open $filename $mode] aio lambdaFinalizer]
 	rename [getref $ref] $ref
 	return $ref
 }

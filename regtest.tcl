@@ -59,7 +59,7 @@ puts "TEST 8 PASSED"
 
 # REGTEST 9
 # 04Nov2008 - crash on exit when replacing Tcl proc with C command. Requires the aio extension
-proc aio.open {args} {}
+proc open {args} {}
 catch {package require aio}
 # Note, crash on exit, so don't say we passed!
 

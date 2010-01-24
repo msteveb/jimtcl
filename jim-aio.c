@@ -46,6 +46,7 @@
 #include <fcntl.h>
 
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -572,35 +573,31 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     FILE *fp;
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    const char *mode = "r";
     long fileId;
-    const char *options[] = {"input", "output", "error", NULL};
-    enum {OPT_INPUT, OPT_OUTPUT, OPT_ERROR};
     int OpenFlags = 0;
-    int modeLen;
-    const char *cmdname = buf;
+    const char *cmdname;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
         return JIM_ERR;
     }
-    if (argc == 3)
-        mode = Jim_GetString(argv[2], &modeLen);
-    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "standard") &&
-            modeLen >= 3) {
-            int option;
-        if (Jim_GetEnum(interp, argv[2], options, &option, "standard channel",
-                    JIM_ERRMSG) != JIM_OK)
-            return JIM_ERR;
+    cmdname = Jim_GetString(argv[1], NULL);
+    if (Jim_CompareStringImmediate(interp, argv[1], "stdin")) {
         OpenFlags |= AIO_KEEPOPEN;
-        switch (option) {
-        case OPT_INPUT: fp = stdin; cmdname = "stdin"; break;
-        case OPT_OUTPUT: fp = stdout; cmdname = "stdout"; break;
-        case OPT_ERROR: fp = stderr; cmdname = "stderr"; break;
-        default: fp = NULL; Jim_Panic(interp,"default reached in JimAioOpenCommand()");
-                 break;
-        }
+        fp = stdin;
+    }
+    else if (Jim_CompareStringImmediate(interp, argv[1], "stdout")) {
+        OpenFlags |= AIO_KEEPOPEN;
+        fp = stdout;
+    }
+    else if (Jim_CompareStringImmediate(interp, argv[1], "stderr")) {
+        OpenFlags |= AIO_KEEPOPEN;
+        fp = stderr;
     } else {
+        const char *mode = "r";
+        if (argc == 3) {
+            mode = Jim_GetString(argv[2], NULL);
+        }
         fp = fopen(Jim_GetString(argv[1], NULL), mode);
         if (fp == NULL) {
             JimAioSetError(interp);
@@ -609,6 +606,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         /* Get the next file id */
         fileId = Jim_GetId(interp);
         sprintf(buf, "aio.handle%ld", fileId);
+        cmdname = buf;
     }
 
     /* Create the file command */
@@ -627,6 +625,48 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
+static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa)
+{
+    char nh[] = "0.0.0.0";
+    char a[0x20];
+    char b[0x20];
+    const char* sthost; 
+    const char* stport;
+    unsigned port;
+    struct hostent *he;
+
+    switch (sscanf(hostport,"%[^:]:%[^:]",a,b)) {
+        case 2: sthost = a; stport = b; break;
+        case 1: sthost = nh; stport = a; break;
+        default:
+            return JIM_ERR;
+    }
+    if (0 == strncmp(sthost,"ANY",3)) {
+        sthost = "0.0.0.0";
+    }
+    port = atol(stport);
+    he = gethostbyname(sthost);
+
+    if (!he) {
+        Jim_SetResultString(interp,hstrerror(h_errno),-1);
+        return JIM_ERR;
+    }
+
+    sa->sin_family= he->h_addrtype;
+    memcpy(&sa->sin_addr, he->h_addr, he->h_length); /* set address */
+    sa->sin_port = htons(port);
+
+    return JIM_OK;
+}
+
+static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
+{
+    sa->sun_family = PF_UNIX;
+    strcpy(sa->sun_path, path);
+
+    return JIM_OK;
+}
+
 static int JimAioSockCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
@@ -636,10 +676,8 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     char *hdlfmt = "aio.unknown%ld";
     long fileId;
     const char *socktypes[] = {
-        "file",
-        "pipe",
-        "tty",
-        "domain", 
+        "unix", 
+        "unix.server", 
         "dgram", 
         "stream", 
         "stream.server",
@@ -647,10 +685,8 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         NULL
     };
     enum {
-        FILE_FILE,
-        FILE_PIPE,
-        FILE_TTY,
-        SOCK_DOMAIN, 
+        SOCK_UNIX, 
+        SOCK_UNIX_SERV, 
         SOCK_DGRAM_CL, 
         SOCK_STREAM_CL, 
         SOCK_STREAM_SERV 
@@ -658,19 +694,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     int socktype;
     int sock;
     const char *hostportarg;
-    int hostportlen;
-    char a[0x20];
-    char b[0x20];
-    char c[0x20];
-    char np[] = "0";
-    char nh[] = "0.0.0.0";
-    char* stsrcport; 
-    char* sthost; 
-    char* stport;
-    unsigned int srcport;
-    unsigned int port;
-    struct sockaddr_in sa;
-    struct hostent *he;
     int res;
     int on = 1;
 
@@ -682,68 +705,136 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socket type",
                     JIM_ERRMSG) != JIM_OK)
             return JIM_ERR;
-    hostportarg = Jim_GetString(argv[2], &hostportlen);
-    switch (sscanf(hostportarg,"%[^:]:%[^:]:%[^:]",a,b,c)) {
-        case 3: stsrcport = a; sthost = b; stport = c; break;
-        case 2: stsrcport = np; sthost = a; stport = b; break;
-        case 1: stsrcport = np; sthost = nh; stport = a; break;
-        default:
-            return JIM_ERR;
-    }
-    if (0 == strncmp(sthost,"ANY",3))
-    sthost = "0.0.0.0";
-    srcport = atol(stsrcport);
-    port = atol(stport);
-    he = gethostbyname(sthost);
 
-    if (!he) {
-        Jim_SetResultString(interp,hstrerror(h_errno),-1);
-        return JIM_ERR;
-    }
+    hostportarg = Jim_GetString(argv[2], NULL);
 
-    sock = socket(PF_INET,SOCK_STREAM,0);
     switch (socktype) {
     case SOCK_DGRAM_CL:
-            hdlfmt = "aio.sockdgram%ld" ;
+        sock = socket(PF_INET,SOCK_DGRAM,0);
+        if (sock < 0) {
+            JimAioSetError(interp);
+            return JIM_ERR;
+        }
+        hdlfmt = "aio.sockdgram%ld" ;
         break;
+
     case SOCK_STREAM_CL:    
-            sa.sin_family= he->h_addrtype;
-        memcpy((char *)&sa.sin_addr,he->h_addr,he->h_length); /* set address */
-        sa.sin_port = htons(port);
-        res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
-        if (res) {
-            close(sock);
-            JimAioSetError(interp);
-            return JIM_ERR;
+        {
+            struct sockaddr_in sa;
+
+            if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
+                return JIM_ERR;
+            }
+            sock = socket(PF_INET,SOCK_STREAM,0);
+            if (sock < 0) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            res = connect(sock,(struct sockaddr*)&sa,sizeof(sa));
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            hdlfmt = "aio.sockstrm%ld" ;
         }
-        hdlfmt = "aio.sockstrm%ld" ;
         break;
+
     case SOCK_STREAM_SERV: 
-            sa.sin_family= he->h_addrtype;
-        memcpy((char *)&sa.sin_addr,he->h_addr,he->h_length); /* set address */
-        sa.sin_port = htons(port);
+        {
+            struct sockaddr_in sa;
 
-        /* Enable address reuse */
-        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+            if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            sock = socket(PF_INET,SOCK_STREAM,0);
+            if (sock < 0) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
 
-        res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));  
-        if (res) {
-            close(sock);
-            JimAioSetError(interp);
-            return JIM_ERR;
+            /* Enable address reuse */
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+            res = bind(sock,(struct sockaddr*)&sa,sizeof(sa));  
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            res = listen(sock,5);   
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            hdlfmt = "aio.socksrv%ld" ;
         }
-        res = listen(sock,5);   
-        if (res) {
-            close(sock);
-            JimAioSetError(interp);
-            return JIM_ERR;
-        }
-        hdlfmt = "aio.socksrv%ld" ;
         break;
+
+    case SOCK_UNIX:
+        {
+            struct sockaddr_un sa;
+            socklen_t len;
+
+            if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            sock = socket(PF_UNIX, SOCK_STREAM,0);
+            if (sock < 0) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            len = strlen(sa.sun_path) + 1 + sizeof(sa.sun_family);
+            res = connect(sock,(struct sockaddr*)&sa,len);
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            hdlfmt = "aio.sockunix%ld" ;
+            break;
+        }
+
+    case SOCK_UNIX_SERV:
+        {
+            struct sockaddr_un sa;
+            socklen_t len;
+
+            if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            sock = socket(PF_UNIX, SOCK_STREAM,0);
+            if (sock < 0) {
+                JimAioSetError(interp);
+                return JIM_ERR;
+            }
+            len = strlen(sa.sun_path) + 1 + sizeof(sa.sun_family);
+            res = bind(sock,(struct sockaddr*)&sa,len);
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            res = listen(sock,5);   
+            if (res) {
+                JimAioSetError(interp);
+                close(sock);
+                return JIM_ERR;
+            }
+            hdlfmt = "aio.sockunixsrv%ld" ;
+            break;
+        }
+    default:
+        Jim_SetResultString(interp, "Unsupported socket type", -1);
+        return JIM_ERR;
     }
     fp = fdopen(sock, "r+" );
     if (fp == NULL) {
-    close(sock);
+        close(sock);
         JimAioSetError(interp);
         return JIM_ERR;
     }
@@ -836,7 +927,6 @@ static void JimAioTclCompat(Jim_Interp *interp)
         Jim_CreateCommand(interp, tclcmds[i], JimAioTclCmd, NULL, NULL);
     }
     Jim_CreateCommand(interp, "puts", JimAioPutsCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
 }
 #endif
 
@@ -845,12 +935,11 @@ Jim_aioInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
-    Jim_CreateCommand(interp, "aio.open", JimAioOpenCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "aio.socket", JimAioSockCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);
 
     /* Takeover stdin, stdout and stderr */
-    Jim_EvalGlobal(interp,
-        "aio.open standard input; aio.open standard output; aio.open standard error");
+    Jim_EvalGlobal(interp, "open stdin; open stdout; open stderr");
 
 #ifdef JIM_TCL_COMPAT
     JimAioTclCompat(interp);
