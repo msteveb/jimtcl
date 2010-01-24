@@ -1,0 +1,68 @@
+source testing.tcl
+
+array set a {
+	1 one
+	2 two
+	22 "twenty two"
+	3 three
+}
+
+test array-1.1 "array exists - true" {
+	array exists a
+} {1}
+
+test array-1.2 "array exists - false" {
+	array exists b
+} {0}
+
+test array-1.3 "array size" {
+	array size a
+} {4}
+
+test array-1.4 "array size - nonexistant" {
+	array size b
+} {0}
+
+test array-1.5 "array get" {
+	set result {}
+	foreach {name value} [array get a] {
+		lappend result $name $value
+	}
+	lsort $result
+} {1 2 22 3 one three {twenty two} two}
+
+test array-1.6 "array get - pattern" {
+	set result {}
+	foreach {name value} [array get a 2*] {
+		lappend result $name $value
+	}
+	lsort $result
+} {2 22 {twenty two} two}
+
+test array-1.7 "array names" {
+	lsort [array names a]
+} {1 2 22 3}
+
+test array-1.8 "array get - pattern" {
+	lsort [array names a 2*]
+} {2 22}
+
+#set b $a
+array set b [array get a]
+
+test array-1.9 "array set - replace" {
+	array set b {22 twenty-two}
+	set b(22)
+} {twenty-two}
+
+test array-1.10 "array unset - pattern" {
+	array unset b 2*
+	array names b
+} {1 3}
+
+test array-1.11 "array unset - all" {
+	array unset b
+	list [array size b] [array exists b]
+} {0 0}
+
+testreport

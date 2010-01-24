@@ -3749,7 +3749,8 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
     if ((err = SetVariableFromAny(interp, nameObjPtr)) != JIM_OK) {
         /* Check for [dict] syntax sugar. */
         if (err == JIM_DICT_SUGAR)
-            return JimDictSugarSet(interp, nameObjPtr, NULL);
+            if (JimDictSugarSet(interp, nameObjPtr, NULL) == JIM_OK)
+                return JIM_OK;
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp),
             "can't unset \"", nameObjPtr->bytes,
@@ -3842,6 +3843,10 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr,
             valObjPtr);
     Jim_DecrRefCount(interp, varObjPtr);
     Jim_DecrRefCount(interp, keyObjPtr);
+    /* Don't keep an extra ref to the result */
+    if (err == JIM_OK) {
+        Jim_SetEmptyResult(interp);
+    }
     return err;
 }
 
@@ -5895,14 +5900,13 @@ int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
  * associated is replaced with the new one.
  *
  * if valueObjPtr == NULL, the key is instead removed if it exists. */
-static void DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
+static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr)
 {
     Jim_HashTable *ht = objPtr->internalRep.ptr;
 
     if (valueObjPtr == NULL) { /* unset */
-        Jim_DeleteHashEntry(ht, keyObjPtr);
-        return;
+        return Jim_DeleteHashEntry(ht, keyObjPtr);
     }
     Jim_IncrRefCount(keyObjPtr);
     Jim_IncrRefCount(valueObjPtr);
@@ -5913,6 +5917,7 @@ static void DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_DecrRefCount(interp, (Jim_Obj*)he->val);
         he->val = valueObjPtr;
     }
+    return JIM_OK;
 }
 
 /* Add an element, higher-level interface for DictAddElement().
@@ -5920,15 +5925,16 @@ static void DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
 int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr)
 {
+    int retcode;
     if (Jim_IsShared(objPtr))
         Jim_Panic(interp,"Jim_DictAddElement called with shared object");
     if (objPtr->typePtr != &dictObjType) {
         if (SetDictFromAny(interp, objPtr) != JIM_OK)
             return JIM_ERR;
     }
-    DictAddElement(interp, objPtr, keyObjPtr, valueObjPtr);
+    retcode = DictAddElement(interp, objPtr, keyObjPtr, valueObjPtr);
     Jim_InvalidateStringRep(objPtr);
-    return JIM_OK;
+    return retcode;
 }
 
 Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
@@ -5973,6 +5979,36 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
     *objPtrPtr = he->val;
     return JIM_OK;
 }
+
+/* Return an allocated array of key/value pairs for the dictionary. Stores the length in *len */
+int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len)
+{
+    Jim_HashTable *ht;
+    Jim_HashTableIterator *htiter;
+    Jim_HashEntry *he;
+    Jim_Obj **objv;
+    int i;
+
+    if (dictPtr->typePtr != &dictObjType) {
+        if (SetDictFromAny(interp, dictPtr) != JIM_OK)
+            return JIM_ERR;
+    }
+    ht = dictPtr->internalRep.ptr;
+
+    /* Turn the hash table into a flat vector of Jim_Objects. */
+    objv = Jim_Alloc((ht->used * 2) * sizeof(Jim_Obj*));
+    htiter = Jim_GetHashTableIterator(ht);
+    i = 0;
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        objv[i++] = (Jim_Obj*)he->key;  /* ATTENTION: const cast */
+        objv[i++] = he->val;
+    }
+    *len = i;
+    Jim_FreeHashTableIterator(htiter);
+    *objPtrPtr = objv;
+    return JIM_OK;
+}
+
 
 /* Return the value associated to the specified dict keys */
 int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,

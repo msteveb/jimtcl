@@ -134,7 +134,7 @@ extern "C" {
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 60
+#define JIM_VERSION 61
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -768,6 +768,10 @@ JIM_EXPORT int Jim_DictKeysVector (Jim_Interp *interp,
 JIM_EXPORT int Jim_SetDictKeysVector (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr);
+JIM_EXPORT int Jim_DictPairs(Jim_Interp *interp,
+        Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len);
+JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
+        Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr);
 
 /* return code object */
 JIM_EXPORT int Jim_GetReturnCode (Jim_Interp *interp, Jim_Obj *objPtr,

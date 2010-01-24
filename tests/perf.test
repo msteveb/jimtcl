@@ -1,0 +1,120 @@
+set version [info patchlevel]
+
+proc bench {name cmd} {
+	if {[catch {
+		set t [time $cmd]
+		set ms [expr {[lindex $t 0] / 1000}]
+	}]} {
+		set ms ?
+	}
+	puts "$::version: $name ${ms}ms"
+}
+
+proc set_dict_sugar {} {
+	for {set i 0} {$i < 100000} {incr i} {
+		set a(b) $i
+	}
+}
+
+
+proc read_file {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+	}
+	close $f
+}
+
+proc read_file_split {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		split $buf \t
+	}
+	close $f
+}
+
+proc read_file_split_assign_foreach {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		set split [split $buf \t]
+		foreach {info(chan) info(datetime) info(duration) info(title) subtitle_genre info(desc) info(rating) dummy} [split $buf \t] {break}
+		#array unset info
+	}
+	close $f
+}
+
+proc read_file_split_assign_foreach_dict {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		set split [split $buf \t]
+		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
+		dict set info chan $chan
+		dict set info duration $duration
+		dict set info title $title
+		dict set info subtitle_genre $subtitle_genre
+		dict set info desc $desc
+		dict set info rating $rating
+		#array unset info
+	}
+	close $f
+}
+
+proc read_file_split_assign_foreach_dictsugar {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		set split [split $buf \t]
+		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
+		set info(chan) $chan
+		set info(duration) $duration
+		set info(title) $title
+		set info(subtitle_genre) $subtitle_genre
+		set info(desc) $desc
+		set info(rating) $rating
+		#array unset info
+	}
+	close $f
+}
+
+proc read_file_split_assign_foreach_simple {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		set split [split $buf \t]
+		foreach {chan datetime duration title subtitle_genre desc rating dummy} [split $buf \t] {break}
+		#array unset info
+	}
+	close $f
+}
+
+proc read_file_split_assign_lindex {file} {
+	set f [open $file]
+	while {[gets $f buf] >= 0} {
+		set split [split $buf \t]
+		set info(chan) [lindex $split 0]
+		set info(datetime) [lindex $split 1]
+		set info(duration) [lindex $split 2]
+		set info(title) [lindex $split 3]
+		set info(subtitle_genre) [lindex $split 4]
+		set info(desc) [lindex $split 5]
+		set info(rating) [lindex $split 6]
+		#array unset info
+	}
+	close $f
+}
+
+# Create a really big file
+set f [open test.in w]
+for {set i 0} {$i < 50000} {incr i} {
+	puts $f "a\tb\tc\te\tf\tg\th\ti\tj\tk"
+}
+close $f
+
+bench "set dictsugar" {set_dict_sugar}
+bench "read file #1" {read_file test.in}
+bench "read file #2" {read_file test.in}
+bench "read file split" {read_file_split test.in}
+bench "read file split assign foreach" {read_file_split_assign_foreach test.in}
+bench "read file split assign foreach dict" {read_file_split_assign_foreach_dict test.in}
+bench "read file split assign foreach dictsugar" {read_file_split_assign_foreach_dictsugar test.in}
+bench "read file split assign foreach simple" {read_file_split_assign_foreach_simple test.in}
+bench "read file split assign lindex" {read_file_split_assign_lindex test.in}
+
+file delete test.in
