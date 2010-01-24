@@ -12,7 +12,9 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT
 
-STATIC_LIBTCL := libtcl6.a
+# Emulate tinytcl
+LIBJIM := libtcl6.a
+
 CFLAGS += -Wall -g -Os -I. @EXTRA_CFLAGS@
 
 .EXPORT_ALL_VARIABLES:
@@ -29,9 +31,6 @@ EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 jim-%.c: %.tcl
 	echo $@ >>.clean
 	tclsh make-c-ext.tcl $@ $*.tcl
-
-# Emulate tinytcl
-LIBJIM := libtcl6.a
 
 ifdef jim_nofork
 	CFLAGS += -DNO_FORK
@@ -51,8 +50,8 @@ $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-load_extensions.c: make-load-extensions.sh
-	sh make-load-extensions.sh $@ $(EXTENSIONS)
+load_extensions.c: make-jim-load-extensions.sh
+	sh make-jim-load-extensions.sh $@ $(EXTENSIONS)
 
 install:
 

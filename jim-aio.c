@@ -64,6 +64,7 @@
 
 typedef struct AioFile {
     FILE *fp;
+    Jim_Obj *filename;
     int type;
     int OpenFlags; /* AIO_KEEPOPEN? keep FILE*, AIO_FDOPEN? FILE* created via fdopen */
     int fd;
@@ -86,6 +87,8 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 {
     AioFile *af = privData;
     JIM_NOTUSED(interp);
+
+    Jim_DecrRefCount(interp, af->filename);
 
     if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
@@ -358,6 +361,8 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
     af->fd = sock;
+    af->filename = Jim_NewStringObj(interp, "accept", -1);
+    Jim_IncrRefCount(af->filename);
     af->fp = fdopen(sock,"r+");
     af->OpenFlags = AIO_FDOPEN;
     af->flags = fcntl(af->fd,F_GETFL);
@@ -611,6 +616,8 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af->fp = fp;
     af->fd = fileno(fp);
     af->flags = fcntl(af->fd,F_GETFL);
+    af->filename = argv[1];
+    Jim_IncrRefCount(af->filename);
     af->OpenFlags = OpenFlags;
     af->rEvent = NULL;
     af->wEvent = NULL;
@@ -750,6 +757,8 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
     af->fp = fp;
     af->fd = sock;
     af->OpenFlags = AIO_FDOPEN;
+    af->filename = argv[1];
+    Jim_IncrRefCount(af->filename);
     af->flags = fcntl(af->fd,F_GETFL);
     af->rEvent = NULL;
     af->wEvent = NULL;

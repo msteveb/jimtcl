@@ -25,22 +25,29 @@
 #include "jim.h"
 #include "jim-subcmd.h"
 
-static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
-    int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
-static void Jim_DetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
-static int
-Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId);
-
+/* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
 {
     Jim_SetResultString(interp, "", 0);
     Jim_AppendStrings(interp, Jim_GetResult(interp), msg, ": ", strerror(errno), NULL);
 }
 
+static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
+{
+    int len;
+    const char *s = Jim_GetString(objPtr, &len);
+
+    if (len > 0 && s[len-1] == '\n') {
+        objPtr->length--;
+        objPtr->bytes[objPtr->length] = '\0';
+    }
+}
+
 /**
  * Read from 'fd' and append the data to strObj
+ * Returns JIM_OK if OK, or JIM_ERR on error.
  */
-static int append_fd_to_string(Jim_Interp *interp, int fd, Jim_Obj *strObj)
+static int Jim_AppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
 {
     while (1) {
         char buffer[256];
@@ -49,6 +56,7 @@ static int append_fd_to_string(Jim_Interp *interp, int fd, Jim_Obj *strObj)
         count = read(fd, buffer, sizeof(buffer));
 
         if (count == 0) {
+            Jim_RemoveTrailingNewline(strObj);
             return JIM_OK;
         }
         if (count < 0) {
@@ -57,6 +65,13 @@ static int append_fd_to_string(Jim_Interp *interp, int fd, Jim_Obj *strObj)
         Jim_AppendString(interp, strObj, buffer, count);
     }
 }
+
+#ifndef NO_FORK
+static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
+    int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
+static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
+static int
+Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId);
 
 static int
 Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -78,7 +93,7 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (numPids < 0) {
             return JIM_ERR;
         }
-        Jim_DetachPids(interp, numPids, pidPtr);
+        JimDetachPids(interp, numPids, pidPtr);
         Jim_Free(pidPtr);
         return JIM_OK;
     }
@@ -98,7 +113,7 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     result = JIM_OK;
     if (outputId != -1) {
-        result = append_fd_to_string(interp, outputId, Jim_GetResult(interp));
+        result = Jim_AppendStreamToString(interp, outputId, Jim_GetResult(interp));
         if (result < 0) {
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
@@ -112,8 +127,8 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 /*
- * Data structures of the following type are used by Jim_Fork and
- * Jim_WaitPids to keep track of child processes.
+ * Data structures of the following type are used by JimFork and
+ * JimWaitPids to keep track of child processes.
  */
 
 typedef struct {
@@ -127,7 +142,7 @@ typedef struct {
  *
  * WI_READY -           Non-zero means process has exited or
  *                      suspended since it was forked or last
- *                      returned by Jim_WaitPids.
+ *                      returned by JimWaitPids.
  * WI_DETACHED -        Non-zero means no-one cares about the
  *                      process anymore.  Ignore it until it
  *                      exits, then forget about it.
@@ -136,6 +151,7 @@ typedef struct {
 #define WI_READY    1
 #define WI_DETACHED 2
 
+/* REVISIT: Should be per-interpreter */
 static WaitInfo *waitTable = NULL;
 static int waitTableSize = 0;   /* Total number of entries available in waitTable. */
 static int waitTableUsed = 0;   /* Number of entries in waitTable that
@@ -147,10 +163,10 @@ static int waitTableUsed = 0;   /* Number of entries in waitTable that
 /*
  *----------------------------------------------------------------------
  *
- * Jim_Fork --
+ * JimFork --
  *
  *  Create a new process using the vfork system call, and keep
- *  track of it for "safe" waiting with Jim_WaitPids.
+ *  track of it for "safe" waiting with JimWaitPids.
  *
  * Results:
  *  The return value is the value returned by the vfork system
@@ -163,8 +179,8 @@ static int waitTableUsed = 0;   /* Number of entries in waitTable that
  *
  *----------------------------------------------------------------------
  */
-int
-Jim_Fork(void)
+static int
+JimFork(void)
 {
     WaitInfo *waitPtr;
     pid_t pid;
@@ -207,10 +223,10 @@ Jim_Fork(void)
 /*
  *----------------------------------------------------------------------
  *
- * Jim_WaitPids --
+ * JimWaitPids --
  *
  *  This procedure is used to wait for one or more processes created
- *  by Jim_Fork to exit or suspend.  It records information about
+ *  by JimFork to exit or suspend.  It records information about
  *  all processes that exit or suspend, even those not waited for,
  *  so that later waits for them will be able to get the status
  *  information.
@@ -226,8 +242,8 @@ Jim_Fork(void)
  *
  *----------------------------------------------------------------------
  */
-int
-Jim_WaitPids(int numPids, int *pidPtr, int *statusPtr)
+static int
+JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
 {
     int i, count, pid;
     WaitInfo *waitPtr;
@@ -311,12 +327,12 @@ Jim_WaitPids(int numPids, int *pidPtr, int *statusPtr)
 /*
  *----------------------------------------------------------------------
  *
- * Jim_DetachPids --
+ * JimDetachPids --
  *
  *  This procedure is called to indicate that one or more child
  *  processes have been placed in background and are no longer
  *  cared about.  They should be ignored in future calls to
- *  Jim_WaitPids.
+ *  JimWaitPids.
  *
  * Results:
  *  None.
@@ -327,7 +343,7 @@ Jim_WaitPids(int numPids, int *pidPtr, int *statusPtr)
  *----------------------------------------------------------------------
  */
 
-static void Jim_DetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
+static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
 {
     WaitInfo *waitPtr;
     int i, count, pid;
@@ -575,8 +591,13 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         }
         else if (inputFile == FILE_HANDLE) {
             /* Should be a file descriptor */
-            /* REVISIT: Validate fd */
-            inputId = dup(atoi(input));
+            Jim_Obj *fhObj = Jim_NewStringObj(interp, input, -1);
+            FILE *fh = Jim_AioFilehandle(interp, fhObj);
+            Jim_FreeNewObj(interp, fhObj);
+            if (fh == NULL) {
+                goto error;
+            }
+            inputId = dup(fileno(fh));
         }
         else {
             /*
@@ -606,12 +627,14 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
      */
     if (output != NULL) {
         if (outputFile == FILE_HANDLE) {
-            /* Should be a file descriptor */
-            /* REVISIT: Validate fd */
-            lastOutputId = dup(atoi(output));
-
-            /* REVISIT: ideally should flush output first */
-            /* Will aio.fd do this? */
+            Jim_Obj *fhObj = Jim_NewStringObj(interp, output, -1);
+            FILE *fh = Jim_AioFilehandle(interp, fhObj);
+            Jim_FreeNewObj(interp, fhObj);
+            if (fh == NULL) {
+                goto error;
+            }
+            fflush(fh);
+            lastOutputId = dup(fileno(fh));
         }
         else {
             /*
@@ -647,12 +670,14 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     /* If we are redirecting stderr with 2>filename or 2>@fileId, then we ignore errFilePtr */
     if (error != NULL) {
         if (errorFile == FILE_HANDLE) {
-            /* Should be a file descriptor */
-            /* REVISIT: Validate fd */
-            errorId = dup(atoi(error));
-
-            /* REVISIT: ideally should flush output first */
-            /* Will aio.fd do this? */
+            Jim_Obj *fhObj = Jim_NewStringObj(interp, error, -1);
+            FILE *fh = Jim_AioFilehandle(interp, fhObj);
+            Jim_FreeNewObj(interp, fhObj);
+            if (fh == NULL) {
+                goto error;
+            }
+            fflush(fh);
+            errorId = dup(fileno(fh));
         }
         else {
             /*
@@ -729,7 +754,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             outputId = pipeIds[1];
         }
         execName = arg_array[firstArg];
-        pid = Jim_Fork();
+        pid = JimFork();
         if (pid == -1) {
             Jim_SetResultErrno(interp, "couldn't fork child process");
             goto error;
@@ -820,7 +845,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     if (pidPtr != NULL) {
         for (i = 0; i < numPids; i++) {
             if (pidPtr[i] != -1) {
-                Jim_DetachPids(interp, 1, &pidPtr[i]);
+                JimDetachPids(interp, 1, &pidPtr[i]);
             }
         }
         Jim_Free(pidPtr);
@@ -856,12 +881,12 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 {
     int result = JIM_OK;
     int i, pid;
-    int waitStatus;
     int len;
     const char *p;
 
     for (i = 0; i < numPids; i++) {
-        pid = Jim_WaitPids(1, &pidPtr[i], (int *) &waitStatus);
+        int waitStatus = 0;
+        pid = JimWaitPids(1, &pidPtr[i], &waitStatus);
         if (pid == -1) {
             /* This can happen if the process was already reaped, so just ignore it */
             continue;
@@ -896,7 +921,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 
     if (errorId >= 0) {
         if (errorId >= 0) {
-            result = append_fd_to_string(interp, errorId, Jim_GetResult(interp));
+            result = Jim_AppendStreamToString(interp, errorId, Jim_GetResult(interp));
             if (result < 0) {
                 Jim_SetResultErrno(interp, "error reading from stderr output file");
             }
@@ -918,6 +943,76 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 
     return result;
 }
+#else /* NO_FORK */
+static int
+Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int pid;
+    int tmpfd;
+    int status;
+    int result;
+    char **nargv;
+    int i;
+
+#define TMP_NAME "/tmp/tcl.exec.XXXXXX"
+    char tmpname[sizeof(TMP_NAME) + 1];
+
+    
+    /* Create a temporary file for the output from our exec command */
+    strcpy(tmpname, TMP_NAME);
+    tmpfd = mkstemp(tmpname);
+    if (tmpfd < 0) {
+        Jim_SetResultErrno(interp, "couldn't create temp file file for exec");
+        return JIM_ERR;
+    }
+
+    nargv = Jim_Alloc(sizeof(*nargv) * argc);
+    for (i = 1; i < argc; i++) {
+        nargv[i - 1] = (char *)Jim_GetString(argv[i], NULL);
+    }
+    nargv[i - 1] = NULL;
+
+    /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd);*/
+    unlink(tmpname);
+
+    /* Use vfork and send output to this temporary file */
+    pid = vfork(); 
+    if (pid == 0) {
+        close(0);
+        open("/dev/null", O_RDONLY);
+        close(1);
+        dup(tmpfd);
+        close(2);
+        /*open("/dev/null", O_WRONLY);*/
+        dup(tmpfd);
+        close(tmpfd);
+        execvp(nargv[0], nargv);
+        _exit(127);
+    }
+
+    Jim_Free(nargv);
+
+    /* Wait for the child to exit */
+    do {
+        waitpid(pid, &status, 0);
+    } while (!WIFEXITED(status));
+
+    /*
+     * Read the child's output (if any) and put it into the result.
+     */
+    lseek(tmpfd, 0L, SEEK_SET);
+
+    Jim_SetResultString(interp, "", 0);
+
+    result = Jim_AppendStreamToString(interp, tmpfd, Jim_GetResult(interp));
+    if (result < 0) {
+        Jim_SetResultErrno(interp, "error reading result");
+    }
+    close(tmpfd);
+
+    return result;
+}
+#endif
 
 int Jim_execInit(Jim_Interp *interp)
 {

@@ -16,9 +16,7 @@
  *
  *   Returns the number of chars written (if no error)
  *
- * For the default binary encoding:
- * - 0x00 -> 0x01, 0x30
- * - 0x01 -> 0x01, 0x31
+ * Note that by default no encoding is actually done since Jim supports strings containing nulls!
  *
  * Alternatively, if -hex is specified, the data is read and written as ascii hex
  */
@@ -27,6 +25,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
 
 #include <jim.h>
 #include <jim-subcmd.h>
@@ -81,7 +80,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     Jim_Obj *result = Jim_NewStringObj(interp, "", 0);
 
-    /* Read one char at a time, escaping 0x00 and 0xFF as necessary */
+    /* Read one char at a time */
     while (len > 0) {
         int ch = fgetc(fh);
         if (ch == EOF) {
@@ -94,18 +93,12 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             count += 2;
         }
         else {
-            if (ch == 0 || ch == 1) {
-                buf[count++] = 1;
-                ch = ch + '0';
-            }
             buf[count++] = ch;
         }
 
-        /* Allow space for the null termination, plus escaping of one char */
-        if (count >= sizeof(buf) - 2) {
+        if (count >= sizeof(buf)) {
             /* Buffer is full, so append it */
             Jim_AppendString(interp, result, buf, count);
-
             count = 0;
         }
         len--;
@@ -117,6 +110,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
+    /* Add anything still pending */
     Jim_AppendString(interp, result, buf, count);
 
     if (Jim_SetVariable(interp, argv[1], result) != JIM_OK) {
@@ -128,62 +122,50 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#if 0
 static int bio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    OpenFile *infilePtr;
-    OpenFile *outfilePtr;
-    int count = 0;
-    int maxlen = 0;
+    long count = 0;
+    long maxlen = LONG_MAX;
 
-    if (TclGetOpenFile(interp, argv[0], &infilePtr) != JIM_OK) {
-        return TCL_ERROR;
-    }
-    if (!infilePtr->readable) {
-        Jim_AppendResult(interp, "\"", argv[0],
-                "\" wasn't opened for reading", (char *) NULL);
-        return TCL_ERROR;
-    }
-    if (TclGetOpenFile(interp, argv[1], &outfilePtr) != JIM_OK) {
-        return TCL_ERROR;
-    }
-    if (!outfilePtr->writable) {
-        Jim_AppendResult(interp, "\"", argv[1],
-                "\" wasn't opened for writing", (char *) NULL);
-        return TCL_ERROR;
+    FILE *infh = Jim_AioFilehandle(interp, argv[0]);
+    FILE *outfh = Jim_AioFilehandle(interp, argv[1]);
+    
+    if (infh == NULL || outfh == NULL) {
+        return JIM_ERR;
     }
 
     if (argc == 3) {
-        if (Jim_GetInt(interp, argv[2], &maxlen) != JIM_OK) {
-            return TCL_ERROR;
+        if (Jim_GetLong(interp, argv[2], &maxlen) != JIM_OK) {
+            return JIM_ERR;
         }
     }
 
-    while (maxlen == 0 || count < maxlen) {
-        int ch = fgetc(infilePtr->f);
-        if (ch == EOF || fputc(ch, outfilePtr->f) == EOF) {
+    while (count < maxlen) {
+        int ch = fgetc(infh);
+        if (ch == EOF || fputc(ch, outfh) == EOF) {
             break;
         }
         count++;
     }
 
-    if (ferror(infilePtr->f)) {
-        Jim_AppendResult(interp, "error reading \"", argv[0], "\": ", Jim_UnixError(interp), 0);
-        clearerr(infilePtr->f);
-        return TCL_ERROR;
+    if (ferror(infh)) {
+        Jim_SetResultString(interp, "", 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "error reading \"", Jim_GetString(argv[0], NULL), "\": ", strerror(errno), 0);
+        clearerr(infh);
+        return JIM_ERR;
     }
 
-    if (ferror(outfilePtr->f)) {
-        Jim_AppendResult(interp, "error writing \"", argv[0], "\": ", Jim_UnixError(interp), 0);
-        clearerr(outfilePtr->f);
-        return TCL_ERROR;
+    if (ferror(outfh)) {
+        Jim_SetResultString(interp, "", 0);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "error writing \"", Jim_GetString(argv[1], NULL), "\": ", strerror(errno), 0);
+        clearerr(outfh);
+        return JIM_ERR;
     }
 
     Jim_SetResultInt(interp, count);
 
     return JIM_OK;
 }
-#endif
 
 static int bio_cmd_write(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -191,6 +173,7 @@ static int bio_cmd_write(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *pt;
     int hex = 0;
     long total = 0;
+    int len;
 
 
     if (Jim_CompareStringImmediate(interp, argv[0], "-hex")) {
@@ -203,20 +186,21 @@ static int bio_cmd_write(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     fh = Jim_AioFilehandle(interp, argv[0]);
+    if (fh == NULL) {
+        return JIM_ERR;
+    }
 
-    for (pt = Jim_GetString(argv[1], NULL); *pt; pt++) {
+    pt = Jim_GetString(argv[1], &len);
+    while (len-- > 0) {
         int ch;
 
         if (hex) {
             ch = hex2char(pt);
-            pt++;
+            pt += 2;
+            len--;
         }
         else {
-            ch = *pt;
-            if (ch == 1) {
-                pt++;
-                ch = *pt - '0';
-            }
+            ch = *pt++;
         }
         if (fputc(ch, fh) == EOF) {
             break;
@@ -250,7 +234,6 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 3,
         .description = "Write an encoded string as binary bytes"
     },
-#if 0
     {   .cmd = "copy",
         .function = bio_cmd_copy,
         .args = "fromfd tofd ?bytes?",
@@ -258,7 +241,6 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 3,
         .description = "Read from one fd and write to another"
     },
-#endif
     { 0 }
 };
 

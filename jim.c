@@ -2522,7 +2522,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 return NULL;
             }
             buflen = snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, doubleValue );
-            snprintf( sprintf_buf, JIM_MAX_FMT, fmt_str, doubleValue );
+            break;
         case 'b':
         case 'd':
         case 'o':

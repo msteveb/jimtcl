@@ -35,6 +35,10 @@ static void Jim_PosixSetError(Jim_Interp *interp)
 static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
+#ifdef NO_FORK
+    Jim_SetResultString(interp, "Not supported", -1);
+    return JIM_ERR;
+#else
     pid_t pid;
     JIM_NOTUSED(argv);
     
@@ -48,6 +52,7 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc,
     }
     Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)pid));
     return JIM_OK;
+#endif
 }
 
 static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc,
