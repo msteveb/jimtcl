@@ -2304,8 +2304,7 @@ It may have any of the following values:
 *Access* defaults to 'r'.
 
 If a file is opened for both reading and writing, then 'seek'
-must be invoked between a read and a write, or vice versa (this
-restriction does not apply to command pipelines opened with 'open').
+must be invoked between a read and a write, or vice versa.
 
 See also 'socket'
 
@@ -3296,7 +3295,7 @@ Various socket types may be created.
 +*socket* unix 'path'+::
 	A unix domain socket client.
 
-+*socket* unix.server 'path'+
++*socket* unix.server 'path'+::
 	A unix domain socket server.
 
 +*socket* stream 'hostname:port'+::
@@ -3307,6 +3306,10 @@ Various socket types may be created.
 
 +*socket* dgram 'hostname:port'+::
 	A UDP socket client.
+
++*socket* pipe+::
+	A pipe. Note that unlike all other socket types, this command returns
+	a list of two channels: {read write}
 
 This command creates a socket connected (client) or bound (server) to the given
 address.
@@ -3333,6 +3336,16 @@ the EVENTLOOP API.
 		$client close
 	}
 	vwait done
+
+The special type 'pipe' isn't really a socket.
+
+	foreach {r w} [socket pipe] break
+
+	# Must close $w after exec
+	exec ps >@$w &
+	$w close
+
+	$r readable ...
 
 syslog
 ~~~~~~

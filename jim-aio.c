@@ -638,7 +638,6 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 
 static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa)
 {
-    char nh[] = "0.0.0.0";
     char a[0x20];
     char b[0x20];
     const char* sthost; 
@@ -648,7 +647,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct so
 
     switch (sscanf(hostport,"%[^:]:%[^:]",a,b)) {
         case 2: sthost = a; stport = b; break;
-        case 1: sthost = nh; stport = a; break;
+        case 1: sthost = "0.0.0.0"; stport = a; break;
         default:
             return JIM_ERR;
     }
@@ -678,21 +677,61 @@ static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct so
     return JIM_OK;
 }
 
+/**
+ * Creates a channel for fd.
+ * 
+ * hdlfmt is a sprintf format for the filehandle. Anything with %ld at the end will do.
+ * mode is usual "r+", but may be another fdopen() mode as required.
+ *
+ * Creates the command and lappends the name of the command to the current result.
+ *
+ */
+static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdlfmt, int fd, const char *mode)
+{
+    long fileId;
+    AioFile *af;
+    char buf[AIO_CMD_LEN];
+
+    FILE *fp = fdopen(fd, mode);
+    if (fp == NULL) {
+        close(fd);
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+
+    /* Get the next file id */
+    fileId = Jim_GetId(interp);
+
+    /* Create the file command */
+    af = Jim_Alloc(sizeof(*af));
+    af->fp = fp;
+    af->fd = fd;
+    af->OpenFlags = AIO_FDOPEN;
+    af->filename = filename;
+    Jim_IncrRefCount(af->filename);
+    af->flags = fcntl(af->fd, F_GETFL);
+    af->rEvent = NULL;
+    af->wEvent = NULL;
+    af->eEvent = NULL;
+    sprintf(buf, hdlfmt, fileId);
+    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
+
+    Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp, buf, -1));
+
+    return JIM_OK;
+}
+
 static int JimAioSockCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    FILE *fp;
-    AioFile *af;
-    char buf[AIO_CMD_LEN];
-    char *hdlfmt = "aio.unknown%ld";
-    long fileId;
+    const char *hdlfmt = "aio.unknown%ld";
     const char *socktypes[] = {
         "unix", 
         "unix.server", 
         "dgram", 
         "stream", 
         "stream.server",
-        
+        "pipe",
         NULL
     };
     enum {
@@ -700,16 +739,19 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         SOCK_UNIX_SERV, 
         SOCK_DGRAM_CL, 
         SOCK_STREAM_CL, 
-        SOCK_STREAM_SERV 
+        SOCK_STREAM_SERV,
+        SOCK_STREAM_PIPE,
     };
     int socktype;
     int sock;
-    const char *hostportarg;
+    const char *hostportarg = NULL;
     int res;
     int on = 1;
+    const char *mode = "r+";
 
-    if (argc <= 2 ) {
-        Jim_WrongNumArgs(interp, 1, argv, "type address");
+    if (argc < 2 ) {
+wrongargs:
+        Jim_WrongNumArgs(interp, 1, argv, "type ?address?");
         return JIM_ERR;
     }
 
@@ -717,7 +759,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
                     JIM_ERRMSG) != JIM_OK)
             return JIM_ERR;
 
-    hostportarg = Jim_GetString(argv[2], NULL);
+    if (socktype != SOCK_STREAM_PIPE) {
+        if (argc == 2) {
+            goto wrongargs;
+        }
+        hostportarg = Jim_GetString(argv[2], NULL);
+    }
+
+    Jim_SetResultString(interp, "", 0);
 
     switch (socktype) {
     case SOCK_DGRAM_CL:
@@ -839,34 +888,34 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
             hdlfmt = "aio.sockunixsrv%ld" ;
             break;
         }
+    case SOCK_STREAM_PIPE:
+        {
+            int p[2];
+
+            if (pipe(p) < 0) {
+                JimAioSetError(interp, NULL);
+                return JIM_ERR;
+            }
+
+            hdlfmt = "aio.pipe%ld" ;
+            if (JimMakeChannel(interp, argv[1], hdlfmt, p[0], "r") != JIM_OK) {
+                close(p[0]);
+                close(p[1]);
+                JimAioSetError(interp, NULL);
+                return JIM_ERR;
+            }
+            /* Note, if this fails it will leave p[0] open, but this should never happen */
+            mode = "w";
+            sock = p[1];
+        }
+        break;
+
     default:
         Jim_SetResultString(interp, "Unsupported socket type", -1);
         return JIM_ERR;
     }
-    fp = fdopen(sock, "r+" );
-    if (fp == NULL) {
-        close(sock);
-        JimAioSetError(interp, NULL);
-        return JIM_ERR;
-    }
-    /* Get the next file id */
-    fileId = Jim_GetId(interp);
 
-    /* Create the file command */
-    af = Jim_Alloc(sizeof(*af));
-    af->fp = fp;
-    af->fd = sock;
-    af->OpenFlags = AIO_FDOPEN;
-    af->filename = argv[1];
-    Jim_IncrRefCount(af->filename);
-    af->flags = fcntl(af->fd,F_GETFL);
-    af->rEvent = NULL;
-    af->wEvent = NULL;
-    af->eEvent = NULL;
-    sprintf(buf, hdlfmt, fileId);
-    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
-    Jim_SetResultString(interp, buf, -1);
-    return JIM_OK;
+    return JimMakeChannel(interp, argv[1], hdlfmt, sock, mode);
 }
 
 FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
