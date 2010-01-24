@@ -10062,7 +10062,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc,
         /* Ensure proper lengths to start */
         if (initScript->len != 6) goto evalstart;
         if (incrScript->len != 4) goto evalstart;
-        if (expr->len != 3) goto evalstart;
+        if (!expr || expr->len != 3) goto evalstart;
         /* Ensure proper token types. */
         if (initScript->token[2].type != JIM_TT_ESC ||
             initScript->token[4].type != JIM_TT_ESC ||

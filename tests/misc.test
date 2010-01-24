@@ -19,6 +19,16 @@ test regr-1.2 "Reference count shared literals" {
 	return 1
 } {1}
 
+test regr-1.3 "Invalid for expression" {
+	# Crashes with invalid expression
+	catch {
+		for {set i 0} {$i < n} {incr i} {
+			set a(b) $i
+			set a(c) $i
+		}
+	}
+} 1
+
 section "I/O Testing"
 
 test io-1.1 "Read last line with no newline" {
