@@ -1,0 +1,179 @@
+# Commands covered:  lsearch
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: lsearch.test,v 1.5 2000/04/10 17:19:01 ericm Exp $
+
+source testing.tcl
+
+set x {abcd bbcd 123 234 345}
+test lsearch-1.1 {lsearch command} {
+    lsearch $x 123
+} 2
+test lsearch-1.2 {lsearch command} {
+    lsearch $x 3456
+} -1
+test lsearch-1.3 {lsearch command} {
+    lsearch -glob $x *5
+} 4
+test lsearch-1.4 {lsearch command} {
+    lsearch -glob $x *bc*
+} 0
+
+test lsearch-2.1 {search modes} {
+    lsearch -exact {xyz bbcc *bc*} *bc*
+} 2
+test lsearch-2.2 {search modes} {
+    lsearch -exact {b.x ^bc xy bcx} ^bc
+} 1
+test lsearch-2.3 {search modes} {
+    lsearch -exact {foo bar cat} ba
+} -1
+test lsearch-2.4 {search modes} {
+    lsearch -exact {foo bar cat} bart
+} -1
+test lsearch-2.5 {search modes} {
+    lsearch -exact {foo bar cat} bar
+} 1
+test lsearch-2.6 {search modes} {
+    list [catch {lsearch -regexp {xyz bbcc *bc*} *bc*} msg]
+} {1}
+test lsearch-2.7 {search modes} {
+    lsearch -regexp {b.x ^bc xy bcx} ^bc
+} 3
+test lsearch-2.8 {search modes} {
+    lsearch -glob {xyz bbcc *bc*} *bc*
+} 1
+test lsearch-2.9 {search modes} {
+    lsearch -glob {b.x ^bc xy bcx} ^bc
+} 1
+test lsearch-2.10 {search modes} {
+    list [catch {lsearch -glib {b.x bx xy bcx} b.x} msg]
+} {1}
+test lsearch-2.7 {search modes, -nocase} {
+    lsearch -nocase -regexp {b.x ^bc xy bcx} ^BC
+} 3
+test lsearch-2.8 {search modes, -nocase} {
+    lsearch -nocase -exact {b.x ^bc xy bcx} ^BC
+} 1
+test lsearch-2.9 {search modes, -nocase} {
+    lsearch -nocase -glob {b.x ^bc xy bcx} B*
+} 0
+
+test lsearch-3.1 {lsearch errors} {
+    list [catch lsearch msg]
+} {1}
+test lsearch-3.2 {lsearch errors} {
+    list [catch {lsearch a} msg]
+} {1}
+test lsearch-3.3 {lsearch errors} {
+    list [catch {lsearch a b c} msg]
+} {1}
+test lsearch-3.4 {lsearch errors} {
+    list [catch {lsearch a b c d} msg]
+} {1}
+
+test lsearch-4.1 {binary data} {
+    lsearch -exact [list foo one\000two bar] bar
+} 2
+test lsearch-4.2 {binary data} {
+    set x one
+    append x \x00
+    append x two
+    lsearch -exact [list foo one\000two bar] $x
+} 1
+
+test lsearch-5.1 {lsearch -all} {
+    lsearch -glob -all {a1 a2 b1 b2 a3 b3} a*
+} {0 1 4}
+
+test lsearch-5.2 {lsearch -all no match} {
+    lsearch -glob -all {a1 a2 b1 b2 a3 b3} B*
+} {}
+
+test lsearch-5.3 {lsearch -all -nocase} {
+    lsearch -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
+} {2 3 5}
+
+test lsearch-5.4 {lsearch -all -inline} {
+    lsearch -glob -all -inline -nocase {a1 a2 b1 b2 a3 b3} A*
+} {a1 a2 a3}
+
+test lsearch-5.5 {lsearch -inline} {
+    lsearch -glob -inline {a1 a2 b1 b2 a3 b3} b*
+} {b1}
+
+test lsearch-5.6 {lsearch -not -all} {
+    lsearch -not -glob -all {a1 a2 b1 b2 a3 b3} a*
+} {2 3 5}
+
+test lsearch-5.7 {lsearch -not -all no match} {
+    lsearch -not -glob -all {a1 a2 b1 b2 a3 b3} B*
+} {0 1 2 3 4 5}
+
+test lsearch-5.8 {lsearch -not -all -nocase} {
+    lsearch -not -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
+} {0 1 4}
+
+test lsearch-5.9 {lsearch -not -all -inline} {
+    lsearch -not -glob -all -inline -nocase {a1 a2 b1 b2 a3 b3} A*
+} {b1 b2 b3}
+
+test lsearch-5.10 {lsearch -not -inline} {
+    lsearch -not -glob -inline {a1 a2 b1 b2 a3 b3} b*
+} {a1}
+
+test lsearch-5.11 {lsearch -inline, no match} {
+    lsearch -glob -inline {a1 a2 b1 b2 a3 b3} C*
+} {}
+
+test lsearch-6.1 {lsearch -bool, found} {
+    lsearch -bool {a1 a2 b1 b2 a3 b3} b1
+} {1}
+
+test lsearch-6.2 {lsearch -bool, not found} {
+    lsearch -bool {a1 a2 b1 b2 a3 b3} c1
+} {0}
+
+test lsearch-6.3 {lsearch -not -bool, found} {
+    lsearch -not -bool {a1 a2 b1 b2 a3 b3} b1
+} {0}
+
+test lsearch-6.4 {lsearch -not -bool, not found} {
+    lsearch -not -bool {a1 a2 b1 b2 a3 b3} c1
+} {1}
+
+test lsearch-6.5 {lsearch -bool -all} {
+    lsearch -bool -glob -all {a1 a2 b1 b2 a3 b3} a*
+} {1 1 0 0 1 0}
+
+test lsearch-6.6 {lsearch -bool -all no match} {
+    lsearch -bool -glob -all {a1 a2 b1 b2 a3 b3} B*
+} {0 0 0 0 0 0}
+
+test lsearch-6.7 {lsearch -bool -all -nocase} {
+    lsearch -bool -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
+} {0 0 1 1 0 1}
+
+test lsearch-6.8 {lsearch -not -bool -all} {
+    lsearch -not -bool -glob -all {a1 a2 b1 b2 a3 b3} a*
+} {0 0 1 1 0 1}
+
+test lsearch-6.9 {lsearch -not -bool -all no match} {
+    lsearch -not -bool -glob -all {a1 a2 b1 b2 a3 b3} B*
+} {1 1 1 1 1 1}
+
+test lsearch-6.10 {lsearch -not -bool -all -nocase} {
+    lsearch -not -bool -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
+} {1 1 0 0 1 0}
+
+testreport

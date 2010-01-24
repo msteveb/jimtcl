@@ -86,19 +86,48 @@ test expr-1.17 "Rotate left" {
 
 # This crashes older jim
 test expr-2.1 "bogus unarymin" {
-	expr {unarymin 1}
-} {-1}
+	catch {expr {unarymin 1}}
+	return 1
+} {1}
 
 test expr-2.2 "Ternary operator - missing colon" {
-	list [catch {expr {1 ? 2 3}} msg] $msg
-} {1 {Invalid expression: 1 ? 2 3}}
+	list [catch {expr {1 ? 2 3}} msg]
+} {1}
 
 test expr-2.3 "Ternary operator - missing third term" {
-	list [catch {expr {1 ? 2}} msg] $msg
-} {1 {Invalid expression: 1 ? 2}}
+	list [catch {expr {1 ? 2}} msg]
+} {1}
 
 test expr-2.4 "Ternary operator - missing question" {
-	list [catch {expr {1 : 2}} msg] $msg
-} {1 {Invalid expression: 1 : 2}}
+	list [catch {expr {1 : 2}} msg]
+} {1}
+
+test expr-3.1 "in, ni operators" {
+	set l {a b c d}
+	set c C
+	list [expr {"a" in $l}] [expr {$c in $l}] [expr {"b" ni $l}] [expr {$c ni $l}]
+} {1 0 0 1}
+
+test expr-3.2 "if: in, ni operators" {
+	set l {a b c d}
+	set a a
+	set c C
+	set result {}
+	if {$a in $l} {
+		lappend result 1
+	}
+	if {$c in $l} {
+		lappend result 2
+	}
+	if {$a ni $l} {
+		lappend result 3
+	}
+	if {$c ni $l} {
+		lappend result 4
+	}
+	if {"d" in $l} {
+		lappend result 5
+	}
+} {1 4 5}
 
 testreport

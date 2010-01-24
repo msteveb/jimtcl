@@ -8,18 +8,6 @@ package provide tcl6 1.0
 # Set up the ::env array
 set env [env]
 
-# Very basic lsearch -exact with no options
-proc lsearch {list value} {
-	set i 0
-	foreach elem $list {
-		if {$elem eq $value} {
-			return $i
-		}
-		incr i
-	}
-	return -1
-}
-
 # Tcl 8.5 lassign
 proc lassign {list args} {
 	uplevel 1 [list foreach $args [concat $list {}] break]

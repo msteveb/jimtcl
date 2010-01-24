@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl - overview of the Jim tool command language facilities
+Jim Tcl v0.62 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -55,6 +55,21 @@ The major differences are:
 18. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
 19. Variable traces are not supported
 20. The history command is not supported
+
+CHANGES
+-------
+Since v0.61:
+1. Add support to 'exec' for '>&', '>>&', '|&'
+2. Fix 'exec' error messages when special token (e.g. '>') is the last token
+3. Fix 'subst' handling of backslash escapes.
+4. Allow abbreviated options for 'subst'
+5. Add support for 'return', 'break', 'continue' in subst
+6. Many 'expr' bug fixes
+7. Add support for functions in 'expr' (e.g. int(), abs()), and also 'in', 'ni' list operations
+8. The variable name argument to 'regsub' is now optional
+9. Add support for 'unset -nocomplain'
+10. Add support for list commands: 'lassign', 'lrepeat'
+11. Fully-functional 'lsearch' is now implemented
 
 TCL INTRODUCTION
 -----------------
@@ -593,13 +608,20 @@ on the right side of the line:
 The valid operators are listed below, grouped in decreasing order
 of precedence:
 [[OperatorPrecedence]]
-`- ~ !`::
-    Unary minus, bit-wise NOT, logical NOT.  None of these operands
+`int() double() round() abs()`::
+    Unary functions.
+	int() converts the numeric argument to an integer by truncating down.
+	double() converts the numeric argument to floating point.
+	round() converts the numeric argument to the closest integer value.
+	abs() takes the absolute value of the numeric argument.
+
+`- + ~ !`::
+    Unary minus, unary plus, bit-wise NOT, logical NOT.  None of these operands
     may be applied to string operands, and bit-wise NOT may be
     applied only to integers.
 
 `**`::
-    Power. e.g. pow(). Numbers only.
+    Power. e.g. pow(). Integers only.
 
 `* / %`::
     Multiply, divide, remainder.  None of these operands may be
@@ -609,8 +631,8 @@ of precedence:
 `+ -`::
     Add and subtract.  Valid for any numeric operands.
 
-`<<  >>`::
-    Left and right shift.  Valid for integer operands only.
+`<<  >> <<< >>>`::
+    Left and right shift, left and right rotate.  Valid for integer operands only.
 
 `<  >  \<=  >=`::
     Boolean less, greater, less than or equal, and greater than or equal.
@@ -618,23 +640,29 @@ of precedence:
     These operators may be applied to strings as well as numeric operands,
     in which case string comparison is used.
 
+`==  !=`::
+    Boolean equal and not equal.  Each operator produces a zero/one result.
+    Valid for all operand types. *Note* that values will be converted to integers
+    if possible, then floating point types, and finally strings will be compared.
+	It is recommended that 'eq' and 'ne' should be used for string comparison.
+
 `eq ne`::
     String equal and not equal.  Uses the string value directly without
     attempting to convert to a number first.
 
-`==  !=`::
-    Boolean equal and not equal.  Each operator produces a zero/one result.
-    Valid for all operand types. Note that values will be converted to integers
-    if possible, then floating point types, and finally strings will be compared.
+`in ni`::
+    String in list and not in list. For 'in', result is 1 the left operand (as a string)
+	is contained in the right operand (as a list), or 0 otherwise. The result for
+	'{$a ni $list}' is equivalent to '{!($a in $list)}'.
 
 `&`::
     Bit-wise AND.  Valid for integer operands only.
 
-`^`::
-    Bit-wise exclusive OR.  Valid for integer operands only.
-
 `|`::
     Bit-wise OR.  Valid for integer operands only.
+
+`^`::
+    Bit-wise exclusive OR.  Valid for integer operands only.
 
 `&&`::
     Logical AND.  Produces a 1 result if both operands are non-zero, 0 otherwise.
@@ -648,9 +676,8 @@ of precedence:
     If-then-else, as in C.  If *x*
     evaluates to non-zero, then the result is the value of *y*.
     Otherwise the result is the value of *z*.
-    The *x* operand must have a numeric value.
-    Note that Jim currently evaluates *both* sides of the expression regardless
-    of the value of *x*.
+    The *x* operand must have a numeric value, while *y* and *z* can
+	be of any type.
 
 See the C manual for more details on the results
 produced by each operator.
@@ -670,8 +697,6 @@ not needed to determine the outcome.  For example, in
 
 only one of '[a]' or '[b]' will actually be evaluated,
 depending on the value of '$v'.
-
-*NOTE* This is currently not true of the ?: operator for Jim.
 
 All internal computations involving integers are done with the C
 type 'long long' if available, or 'long' otherwise, and all internal
@@ -716,7 +741,6 @@ For example, the expressions
 both evaluate to 1.  The first comparison is done using integer
 comparison, and the second is done using string comparison after
 the second operand is converted to the string '18'.
-
 
 In general it is safest to enclose an expression in braces when
 entering it in a command:  otherwise, if the expression contains
@@ -793,6 +817,8 @@ The Tcl commands 'concat', 'foreach', 'lappend', 'lindex', 'linsert',
 'list', 'llength', 'lrange', 'lreplace', 'lsearch', and 'lsort' allow
 you to build lists, extract elements from them, search them, and perform
 other list-related functions.
+
+Advanced list commands include 'lrepeat', 'lreverse', 'lmap', 'lassign', 'lset'.
 
 LIST EXPANSION
 --------------
@@ -997,6 +1023,55 @@ a list.
 will output:
 
   1 one 2 two
+
+DICTIONARY VALUES
+-----------------
+In Tcl 8.5 the dict command has been introduced. This provides
+efficient access to key-value pairs, just like arrays, but dictionaries
+are pure values. This means that you can pass them to a procedure
+just as a list or a string. Tcl dictionaries are therefore much
+more like Tcl lists, except that they represent a mapping from keys
+to values, rather than an ordered sequence.
+
+You can nest dictionaries, so that the value for a particular key
+consists of another dictionary. That way you can elegantly build
+complicated data structures, such as hierarchical databases. You
+can also combine dictionaries with other Tcl data structures. For
+instance, you can build a list of dictionaries that themselves
+contain lists.
+
+Dictionaries are values that contain an efficient, order-preserving
+mapping from arbitrary keys to arbitrary values. Each key in the
+dictionary maps to a single value. They have a textual format that
+is exactly that of any list with an even number of elements, with
+each mapping in the dictionary being represented as two items in
+the list. When a command takes a dictionary and produces a new
+dictionary based on it (either returning it or writing it back into
+the variable that the starting dictionary was read from) the new
+dictionary will have the same order of keys, modulo any deleted
+keys and with new keys added on to the end. When a string is
+interpreted as a dictionary and it would otherwise have duplicate
+keys, only the last value for a particular key is used; the others
+are ignored, meaning that, "apple banana" and "apple carrot apple
+banana" are equivalent dictionaries (with different string
+representations).
+
+Note that in Jim, arrays are implemented as dictionaries.
+Thus automatic conversion between lists and dictionaries applies
+as it does for arrays.
+
+  jim> dict set a 1 one
+  1 one
+  jim> dict set a 2 two
+  1 one 2 two
+  jim> puts $a
+  1 one 2 two
+  jim> puts $a(2)
+  two
+  jim> dict set a 3 T three
+  1 one 2 two 3 {T three}
+
+See the 'dict' command for more details.
 
 GARBAGE COLLECTION, REFERENCES, LAMBDA
 --------------------------------------
@@ -1357,6 +1432,56 @@ as 'for' or 'foreach' or 'while'.  It returns a  JIM_CONTINUE code to
 signal the innermost containing loop command to skip the remainder of
 the loop's body but continue with the next iteration of the loop.
 
+dict
+~~~~
++*dict* 'option ?arg arg ...?'+
+
+Performs one of several operations on dictionary values.
+
+The *option* argument determines what action is carried out by the
+command.  The legal *options* are:
+
++dict create '?key value ...?'+::
+	Create and return a new dictionary value that contains each of
+	the key/value mappings listed as  arguments (keys and values
+	alternating, with each key being followed by its associated
+	value.)
+
++dict exists 'dictionary key ?key ...?'+::
+	Returns a boolean value indicating whether the given key (or path
+	of keys through a set of nested dictionaries) exists in the given
+	dictionary value.  This returns a true value exactly when 'dict get'
+	on that path will succeed.
+
++dict get 'dictionary ?key ...?'+::
+	Given a dictionary value (first argument) and a key (second argument),
+	this will retrieve the value for that key. Where several keys are
+	supplied, the behaviour of the command shall be as if the result
+	of 'dict get $dictVal $key' was passed as the first argument to
+	dict get with the remaining arguments as second (and possibly
+	subsequent) arguments. This facilitates lookups in nested dictionaries.
+	If no keys are provided, dict would return a list containing pairs
+	of elements in a man- ner similar to array get. That is, the first
+	element of each pair would be the key and the second element would
+	be the value for that key.  It is an error to attempt to retrieve
+	a value for a key that is not present in the dictionary.
+
++dict set 'dictionaryName key ?key ...?' value+::
+	This operation takes the *name* of a variable containing a dictionary
+	value and places an updated dictionary value in that variable
+	containing a mapping from the given key to the given value. When
+	multiple keys are present, this operation creates or updates a chain
+	of nested dictionaries.
+
++dict unset 'dictionaryName key ?key ...?' value+::
+	This operation (the companion to 'dict set') takes the name of a
+	variable containing a dictionary value and places an updated
+	dictionary value in that variable that does not contain a mapping
+	for the given key. Where multiple keys are present, this describes
+	a path through nested dictionaries to the mapping to remove. At
+	least one key must be specified, but the last key on the key-path
+	need not exist. All other components on the path must exist.
+
 env
 ~~~
 +*env* '?name? ?default?'+
@@ -1440,7 +1565,8 @@ of one or more UNIX commands to execute as subprocesses.
 The commands take the form of a standard shell pipeline;
 '|' arguments separate commands in the
 pipeline and cause standard output of the preceding command
-to be piped into standard input of the next command.
+to be piped into standard input of the next command (or '|&' for
+both standard output and standard error).
 
 Under normal conditions the result of the 'exec' command
 consists of the standard output produced by the last command
@@ -1488,6 +1614,13 @@ An *arg* may have one of the following special forms:
 +2>@fileId+::
     The standard error of the last command in the pipeline is
     redirected to the given (writable) file descriptor.
+
++>&filename+::
+	Both the standard output and standard error of the last command
+	in the pipeline is redirected to the file.
+
++>>&filename+::
+    As above, but append to the file.
 
 +<filename+::
     The standard input of the first command in the pipeline
@@ -2224,6 +2357,16 @@ the list.
 If no *element* arguments are specified, then the elements
 between *first* and *last* are simply deleted.
 
+lrepeat
+~~~~~~~~
++*lrepeat* 'number element1 ?element2 ...?'+
+
+Build a list by repeating elements *number* times (which must be
+a positive integer).
+
+	jim> lrepeat 3 a b
+	a b a b a b
+
 lreverse
 ~~~~~~~~
 +*lreverse* 'list'+
@@ -2235,18 +2378,52 @@ Returns the list in reverse order.
 
 lsearch
 ~~~~~~~
-+*lsearch* 'list value'+
++*lsearch* '?options? list pattern'+
 
-Search the elements of *list* to see if one of them matches
-*value*.
+This command searches the elements *list* to see if one of them matches *pattern*. If so, the
+command returns the index of the first matching element (unless the options -all, -inline or -bool are
+specified.) If not, the command returns -1. The option arguments indicates how the elements of
+the list are to be matched against pattern and must have one of the values below:
 
-If so, the command returns the index of the first matching
-element.
+*Note* that this command is different from Tcl in that default match type is '-exact' rather than '-glob'.
 
-If not, the command returns '-1'.
++'-exact'+::
+	*pattern* is a literal string that is compared for exact equality against each list element.
+	This is the default.
 
-*Note* that this command is different from Tcl in that an exact
-match is done rather than a pattern match.
++'-glob'+::
+	*pattern* is a glob-style pattern which is matched against each list element using the same
+	rules as the string match command.
+
++'-regexp'+::
+	*pattern* is treated as a regular expression and matched against each list element using
+	the rules described by 'regexp'.
+
++'-all'+::
+	Changes the result to be the list of all matching indices (or all matching values if
+	'-inline' is specified as well). If indices are returned, the indices will be in numeric
+	order. If values are returned, the order of the values will be the order of those values
+	within the input list.
+
++'-inline'+::
+	The matching value is returned instead of its index (or an empty string if no value
+	matches). If '-all' is also specified, then the result of the command is the list of all
+	values that matched. The '-inline' and '-bool' options are mutually exclusive.
+
++'-bool'+::
+	Changes the result to '1' if a match was found, or '0' otherwise. If '-all' is also specified,
+	the result will be a list of '0' and '1' for each element of the list depending upon whether
+	the corresponding element matches. The '-inline' and '-bool' options are mutually exclusive.
+
++'-not'+::
+	This negates the sense of the match, returning the index (or value
+	if '-inline' is specified) of the first non-matching value in the
+	list. If '-bool' is also specified, the '0' will be returned if a
+	match is found, or '1' otherwise.  If '-all' is also specified,
+	non-matches will be returned rather than matches.
+
++'-nocase'+::
+	Causes comparisons to be handled in a case-insensitive manner.
 
 lsort
 ~~~~~
@@ -2534,16 +2711,19 @@ The following switches modify the behaviour of *regexp*
 
 regsub
 ~~~~~~
-+*regsub ?-all? ?-nocase?* 'exp string subSpec varName'
++*regsub ?-all? ?-nocase?* 'exp string subSpec ?varName?'
 
 This command matches the regular expression *exp* against
 *string* using the rules described in REGULAR EXPRESSIONS
 above.
 
-If there is no match, then the command returns 0 and does nothing else.
+If *varName* is specified, the commands stores *string* to *varName*
+with the susbstitutions detailed below, and returns the number of
+substitutions made (normally 1 unless '-all' is specified).
+This is 0 if there were no matches.
 
-If there is a match, then the command returns 1 and also copies
-*string* to the variable whose name is given by *varName*.
+If *varName* is not specified, the substituted string will be returned
+instead.
 
 When copying *string*, the portion of *string* that
 matched *exp* is replaced with *subSpec*.
@@ -2928,6 +3108,12 @@ as options. The following options are currently supported:
 		expression matching (i.e. the same as implemented
 		by the regexp command).
 
+	+-command 'commandname'+::
+		When matching string to the patterns, use the given command, which
+		must be a single word. The command is invoked as
+		'commandname pattern string', or 'commandname -nocase pattern string'
+		and must return 1 if matched, or 0 if not.
+
 	+--+::
 		Marks the end of options. The argument following
 		this one will be treated as string even if it starts
@@ -3039,9 +3225,9 @@ the original non-existent command.
 
 unset
 ~~~~~
-+*unset* 'name ?name name ...?'+
++*unset* '?-nocomplain? ?--? ?name name ...?'+
 
-Remove one or more variables.
+Remove variables.
 Each *name* is a variable name, specified in any of the
 ways acceptable to the 'set' command.
 
@@ -3053,7 +3239,9 @@ index, then the entire array is deleted.
 
 The 'unset' command returns an empty string as result.
 
-An error occurs if any of the variables doesn't exist.
+An error occurs if any of the variables doesn't exist, unless '-nocomplain'
+is specified. The '--' argument may be specified to stop option processing
+in case the variable name may be '-nocomplain'.
 
 uplevel
 ~~~~~~~

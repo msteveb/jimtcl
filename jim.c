@@ -6128,6 +6128,8 @@ enum {
 /* Binary operators (strings) */
     JIM_EXPROP_STREQ,
     JIM_EXPROP_STRNE,
+    JIM_EXPROP_STRIN,
+    JIM_EXPROP_STRNI,
 
 /* Unary operators (numbers) */
     JIM_EXPROP_NOT,
@@ -6487,6 +6489,23 @@ static int JimExprOpBin(Jim_Interp *interp, struct expr_state *e)
     return rc;
 }
 
+static int JimSearchList(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *valObj)
+{
+    int listlen;
+    int i;
+
+    Jim_ListLength(interp, listObjPtr, &listlen);
+    for (i = 0; i < listlen; i++) {
+        Jim_Obj *objPtr;
+        Jim_ListIndex(interp, listObjPtr, i, &objPtr, JIM_NONE);
+
+        if (Jim_StringEqObj(objPtr, valObj, 0)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int JimExprOpStrBin(Jim_Interp *interp, struct expr_state *e)
 {
     Jim_Obj *B = expr_pop(e);
@@ -6495,6 +6514,7 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct expr_state *e)
     int Alen, Blen;
     jim_wide wC;
 
+    /* XXX: Not needed for IN, NI */
     const char *sA = Jim_GetString(A, &Alen);
     const char *sB = Jim_GetString(B, &Blen);
 
@@ -6503,6 +6523,10 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct expr_state *e)
             wC = (Alen == Blen && memcmp(sA, sB, Alen) == 0); break;
         case JIM_EXPROP_STRNE:
             wC = (Alen != Blen || memcmp(sA, sB, Alen) != 0); break;
+        case JIM_EXPROP_STRIN:
+            wC = JimSearchList(interp, B, A); break;
+        case JIM_EXPROP_STRNI:
+            wC = !JimSearchList(interp, B, A); break;
         default: abort();
     }
     expr_push(e, Jim_NewIntObj(interp, wC));
@@ -6698,6 +6722,9 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
     [JIM_EXPROP_STREQ] =          {"eq", 60, 2, JimExprOpStrBin },
     [JIM_EXPROP_STRNE] =          {"ne", 60, 2, JimExprOpStrBin },
+
+    [JIM_EXPROP_STRIN] =          {"in", 55, 2, JimExprOpStrBin },
+    [JIM_EXPROP_STRNI] =          {"ni", 55, 2, JimExprOpStrBin },
 
     [JIM_EXPROP_BITAND] =         {"&", 50, 2, JimExprOpIntBin },
     [JIM_EXPROP_BITXOR] =         {"^", 49, 2, JimExprOpIntBin },
@@ -7182,7 +7209,8 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         int prevtt = parser.tt;
 
         if (JimParseExpression(&parser) != JIM_OK) {
-            Jim_SetResultString(interp, "Syntax error in expression", -1);
+            Jim_SetResultString(interp, "Syntax error in expression: ", -1);
+            Jim_AppendStrings(interp, Jim_GetResult(interp), exprText, NULL);
             goto err;
         }
         token = JimParserGetToken(&parser, &len, &type, NULL);
@@ -9996,6 +10024,31 @@ err:
     return JIM_ERR;
 }
 
+            
+/* Returns 1 if match, 0 if no match or -<error> on error (e.g. -JIM_ERR, -JIM_BREAK)*/
+int Jim_CommandMatchObj(Jim_Interp *interp, Jim_Obj *commandObj, Jim_Obj *patternObj, Jim_Obj *stringObj, int nocase)
+{
+    Jim_Obj *parms[4];
+    int argc = 0;
+    long eq;
+    int rc;
+
+    parms[argc++] = commandObj;
+    if (nocase) {
+        parms[argc++] = Jim_NewStringObj(interp, "-nocase", -1);
+    }
+    parms[argc++] = patternObj;
+    parms[argc++] = stringObj;
+
+    rc = Jim_EvalObjVector(interp, argc, parms);
+
+    if (rc != JIM_OK || Jim_GetLong(interp, Jim_GetResult(interp), &eq) != JIM_OK) {
+        eq = -rc;
+    }
+
+    return eq;
+}
+
 enum {SWITCH_EXACT, SWITCH_GLOB, SWITCH_RE, SWITCH_CMD, SWITCH_UNKNOWN};
 
 /* [switch] */
@@ -10051,9 +10104,7 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc,
                     command = Jim_NewStringObj(interp, "regexp", -1);
                     /* Fall thru intentionally */
                 case SWITCH_CMD: {
-                    Jim_Obj *parms[] = {command, patObj, strObj};
-                    int rc = Jim_EvalObjVector(interp, 3, parms);
-                    long matching;
+                    int rc = Jim_CommandMatchObj(interp, command, patObj, strObj, 0);
                     /* After the execution of a command we need to
                      * make sure to reconvert the object into a list
                      * again. Only for the single-list style [switch]. */
@@ -10064,16 +10115,11 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc,
                         caseList = vector;
                     }
                     /* command is here already decref'd */
-                    if (rc != JIM_OK) {
-                        retcode = rc;
+                    if (rc < 0) {
+                        retcode = -rc;
                         goto err;
                     }
-                    rc = Jim_GetLong(interp, Jim_GetResult(interp), &matching);
-                    if (rc != JIM_OK) {
-                        retcode = rc;
-                        goto err;
-                    }
-                    if (matching)
+                    if (rc)
                         script = caseList[i+1];
                     break;
                 }
@@ -10170,6 +10216,136 @@ static int Jim_LlengthCoreCommand(Jim_Interp *interp, int argc,
     Jim_ListLength(interp, argv[1], &len);
     Jim_SetResult(interp, Jim_NewIntObj(interp, len));
     return JIM_OK;
+}
+
+/* [lsearch] */
+static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, 
+        Jim_Obj *const *argv)
+{
+    static const char *options[] = {
+        "-bool", "-not", "-nocase", "-exact", "-glob", "-regexp", "-all", "-inline", NULL
+    };
+    enum {OPT_BOOL, OPT_NOT, OPT_NOCASE, OPT_EXACT, OPT_GLOB, OPT_REGEXP, OPT_ALL, OPT_INLINE, OPT_INTEGER};
+    int i;
+    int opt_bool = 0;
+    int opt_not = 0;
+    int opt_nocase = 0;
+    int opt_all = 0;
+    int opt_inline = 0;
+    int opt_match = OPT_EXACT;
+    int listlen;
+    int rc = JIM_OK;
+    Jim_Obj *listObjPtr = NULL;
+    Jim_Obj *regexpCommandObj = NULL;
+
+    if (argc < 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-exact|-glob|-regexp? ?-bool|-inline? ?-not? ?-nocase? ?-all? list value");
+        return JIM_ERR;
+    }
+
+    for (i = 1; i < argc - 2; i++) {
+        int option;
+
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG) != JIM_OK) {
+            return JIM_ERR;
+        }
+        switch(option) {
+            case OPT_BOOL: opt_bool = 1; opt_inline = 0; break;
+            case OPT_NOT: opt_not = 1; break;
+            case OPT_NOCASE: opt_nocase = 1; break;
+            case OPT_INLINE: opt_inline = 1; opt_bool = 0; break;
+            case OPT_ALL: opt_all = 1; break;
+            case OPT_EXACT:
+            case OPT_GLOB:
+            case OPT_REGEXP:
+                opt_match = option;
+                break;
+        }
+    }
+
+    argv += i;
+
+    if (opt_all) {
+        listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    }
+    if (opt_match == OPT_REGEXP) {
+        regexpCommandObj = Jim_NewStringObj(interp, "regexp", -1);
+        Jim_IncrRefCount(regexpCommandObj);
+    }
+
+    Jim_ListLength(interp, argv[0], &listlen);
+    for (i = 0; i < listlen; i++) {
+        Jim_Obj *objPtr;
+        Jim_ListIndex(interp, argv[0], i, &objPtr, JIM_NONE);
+        int eq = 0;
+        switch (opt_match) {
+            case OPT_EXACT:
+                eq = Jim_StringEqObj(objPtr, argv[1], opt_nocase);
+                break;
+
+            case OPT_GLOB:
+                eq = Jim_StringMatchObj(argv[1], objPtr, opt_nocase);
+                break;
+
+            case OPT_REGEXP:
+                eq = Jim_CommandMatchObj(interp, regexpCommandObj, argv[1], objPtr, opt_nocase);
+                if (eq < 0) {
+                    if (listObjPtr) {
+                        Jim_FreeNewObj(interp, listObjPtr);
+                    }
+                    rc = JIM_ERR;
+                    goto done;
+                }
+                break;
+        }
+
+        /* If we have a non-match with opt_bool, opt_not, !opt_all, can't exit early */
+        if (!eq && opt_bool && opt_not && !opt_all) {
+            continue;
+        }
+
+        if ((!opt_bool && eq == !opt_not) || (opt_bool && (eq || opt_all))) {
+            /* Got a match (or non-match for opt_not), or (opt_bool && opt_all) */
+            Jim_Obj *resultObj;
+
+            if (opt_bool) {
+                resultObj = Jim_NewIntObj(interp, eq ^ opt_not);
+            }
+            else if (!opt_inline) {
+                resultObj = Jim_NewIntObj(interp, i);
+            }
+            else {
+                resultObj = objPtr;
+            }
+
+            if (opt_all) {
+                Jim_ListAppendElement(interp, listObjPtr, resultObj);
+            }
+            else {
+                Jim_SetResult(interp, resultObj);
+                goto done;
+            }
+        }
+    }
+
+    if (opt_all) {
+        Jim_SetResult(interp, listObjPtr);
+    }
+    else {
+        /* No match */
+        if (opt_bool) {
+            Jim_SetResultInt(interp, opt_not);
+        }
+        else if (!opt_inline) {
+            Jim_SetResultInt(interp, -1);
+        }
+    }
+
+done:
+    if (regexpCommandObj) {
+        Jim_DecrRefCount(interp, regexpCommandObj);
+    }
+    return rc;
 }
 
 /* [lappend] */
@@ -12042,6 +12218,7 @@ static const struct {
     {"list", Jim_ListCoreCommand},
     {"lindex", Jim_LindexCoreCommand},
     {"lset", Jim_LsetCoreCommand},
+    {"lsearch", Jim_LsearchCoreCommand},
     {"llength", Jim_LlengthCoreCommand},
     {"lappend", Jim_LappendCoreCommand},
     {"linsert", Jim_LinsertCoreCommand},
