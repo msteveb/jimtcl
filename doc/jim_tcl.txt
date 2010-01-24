@@ -41,7 +41,7 @@ The major differences are:
 4. Integers are 64bit
 5. Support for references (ref/getref/setref) and garbage collection
 6. Builtin dictionary type (dict)
-7. file mkdir, file rename (Tcl 7.x)
+7. file mkdir, file rename, file tempfile (Tcl 7.x, 8.x)
 8. env command to access environment variables
 9. List: lmap, lset, lreverse (Tcl 8.x)
 10. os.fork, os.wait, rand 
@@ -52,7 +52,7 @@ The major differences are:
 15. Must better error reporting. info stacktrace as a replacement for errorInfo, errorCode
 16. Support for "static" variables in procedures
 17. Significantly faster for many scripts/operations
-18. Command pipelines via open "|..." are not supported
+18. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
 19. Variable traces are not supported
 20. The history command is not supported
 
@@ -1665,6 +1665,11 @@ abbreviation for *option* is acceptable.  The valid options are:
 +*file tail* 'name'+::
     Return all of the characters in *name* after the last slash.
     If *name* contains no slashes then return *name*.
+
++*file tempfile* '?template?'+::
+    Creates and returns the name of a unique temporary file. If *template* is omitted, a
+	default template will be used to place the file in /tmp. See mkstemp(3) for
+	the format of the template and security concerns.
 
 +*file type* 'name'+::
     Returns a string giving the type of file *name*, which will be

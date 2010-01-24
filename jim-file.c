@@ -344,6 +344,27 @@ static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int fd;
+    char *filename;
+    const char *template = "/tmp/tcl.tmp.XXXXXX";
+    if (argc >= 1) {
+        template = Jim_GetString(argv[0], NULL);
+    }
+    filename = Jim_StrDup(template);
+
+    fd = mkstemp(filename);
+    if (fd < 0) {
+        Jim_SetResultString(interp, "Failed to create tempfile", -1);
+        return JIM_ERR;
+    }
+    close(fd);
+
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, filename, -1));
+    return JIM_OK;
+}
+
 static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     const char *source = Jim_GetString(argv[0], NULL);
@@ -613,6 +634,13 @@ static const jim_subcmd_type command_table[] = {
         .minargs = 1,
         .maxargs = -1,
         .description = "Creates the directories"
+    },
+    {   .cmd = "tempfile",
+        .args = "?template?",
+        .function = file_cmd_tempfile,
+        .minargs = 0,
+        .maxargs = 1,
+        .description = "Creates a temporary filename"
     },
     {   .cmd = "rename",
         .args = "?-force? source dest",
