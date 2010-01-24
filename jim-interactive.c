@@ -18,7 +18,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         int reslen;
 
         if (retcode != 0) {
-            if (retcode >= 2 && retcode <= 6)
+            if (retcode >= 1 && retcode < sizeof(retcodestr) / sizeof(*retcodestr))
                 printf("[%s] . ", retcodestr[retcode]);
             else
                 printf("[%d] . ", retcode);

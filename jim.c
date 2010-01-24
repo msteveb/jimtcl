@@ -4428,7 +4428,6 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
 Jim_Interp *Jim_CreateInterp(void)
 {
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
-    Jim_Obj *pathPtr;
 
     i->errorLine = 0;
     i->errorFileName = Jim_StrDup("");
@@ -4475,8 +4474,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->errorProc);
 
     /* Initialize key variables every interpreter should contain */
-    pathPtr = Jim_NewStringObj(i, ".", -1);
-    Jim_SetVariableStr(i, JIM_LIBPATH, pathPtr);
+    Jim_SetVariableStrWithStr(i, JIM_LIBPATH, ". /lib/jim");
     Jim_SetVariableStrWithStr(i, JIM_INTERACTIVE, "0");
 
     return i;
