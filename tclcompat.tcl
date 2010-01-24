@@ -94,4 +94,17 @@ proc errorInfo {error {stacktrace ""}} {
 	return $result
 }
 
+proc info_nameofexecutable {} {
+	if {[string first "/" $::jim_argv0] >= 0} {
+		return $::jim_argv0
+	}
+	foreach path [split [env PATH ""] :] {
+		set exec [file join $path $::jim_argv0]
+		if {[file executable $exec]} {
+			return $exec
+		}
+	}
+	return ""
+}
+
 set ::tcl_platform(platform) unix

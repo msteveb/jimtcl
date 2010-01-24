@@ -153,21 +153,21 @@ test lindex-1.7 "end" {
 	lindex {a b c} end-4
 } {}
 
-test lindex-1.8 "end - errors" {
+test lindex-1.8 "end + " {
+	lindex {a b c} end+1
+} {}
+
+test lindex-1.9 "end + " {
+	lindex {a b c} end+-1
+} b
+
+test lindex-1.10 "end - errors" {
 	catch {lindex {a b c} end-}
 } 1
 
-test lindex-1.9 "end - errors" {
+test lindex-1.11 "end - errors" {
 	catch {lindex {a b c} end-blah}
 } 1
-
-test lindex-1.10 "end - errors" {
-	catch {lindex {a b c} end+1}
-} 1
-
-test lindex-1.11 "int+int, int-int" {
-	lindex {a b c} 0+1
-} b
 
 test lindex-1.12 "int+int, int-int" {
 	lindex {a b c} 0+4
@@ -186,9 +186,9 @@ test lindex-1.15 "int+int, int-int" {
 	lindex $l [lsearch $l b]-1
 } a
 
-test lindex-1.16 "int+int - errors" {
-	catch {lindex {a b c} 5+blah}
-} 1
+test lindex-1.16 "int+int, int-int" {
+	lindex {a b c} 0+1
+} b
 
 test lindex-1.17 "int+int - errors" {
 	catch {lindex {a b c} 5-blah}
@@ -198,7 +198,11 @@ test lindex-1.18 "int+int - errors" {
 	catch {lindex {a b c} blah-2}
 } 1
 
-test lindex-1.19 "unary plus" {
+test lindex-1.19 "int+int - errors" {
+	catch {lindex {a b c} 5+blah}
+} 1
+
+test lindex-1.20 "unary plus" {
 	lindex {a b c} +2
 } c
 

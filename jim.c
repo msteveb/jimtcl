@@ -335,27 +335,6 @@ int Jim_StringToWide(const char *str, jim_wide *widePtr, int base)
     return JIM_OK;
 }
 
-int Jim_StringToIndex(const char *str, int *intPtr)
-{
-    char *endptr;
-
-    *intPtr = strtol(str, &endptr, 10);
-    if (endptr != str && (*endptr == '+' || *endptr == '-')) {
-        /* Support num+num and num-num, and even num--num */
-        *intPtr += ((*endptr == '-') ? -1 : 1) * strtol(endptr + 1, &endptr, 10);
-    }
-    if ( (str[0] == '\0') || (str == endptr) )
-        return JIM_ERR;
-    if (endptr[0] != '\0') {
-        while(*endptr) {
-            if (!isspace(*endptr))
-                return JIM_ERR;
-            endptr++;
-        }
-    }
-    return JIM_OK;
-}
-
 int Jim_DoubleToString(char *buf, double doubleValue)
 {
     int len;
@@ -6229,38 +6208,67 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int index, end = 0;
     const char *str;
+    char *endptr;
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, NULL);
+
     /* Try to convert into an index */
-    if (strcmp(str, "end") == 0) {
-        index = 0;
+    if (strncmp(str, "end", 3) == 0) {
         end = 1;
-    } else {
-        if (strncmp(str, "end-", 4) == 0) {
-            str += 4;
-            end = 1;
+        str += 3;
+        index = 0;
+    }
+    else {
+        index = strtol(str, &endptr, 10);
+
+        if (endptr == str) {
+            goto badindex;
         }
-        if (Jim_StringToIndex(str, &index) != JIM_OK) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            Jim_AppendStrings(interp, Jim_GetResult(interp),
-                    "bad index \"", Jim_GetString(objPtr, NULL), "\": "
-                    "must be integer?[+-]integer? or end?-integer?", NULL);
-            return JIM_ERR;
+        str = endptr;
+    }
+
+    /* Now str may include or +<num> or -<num> */
+    if (*str == '+' || *str == '-') {
+        int sign = (*str == '+' ? 1 : -1);
+        index += sign * strtol(++str, &endptr, 10);
+        if (str == endptr || *endptr) {
+            goto badindex;
         }
+        str = endptr;
+    }
+    /* The only thing left should be spaces */
+    while (isspace(*str)) {
+        str++;
+    }
+    if (*str) {
+        goto badindex;
     }
     if (end) {
-        if (index < 0)
+        if (index > 0) {
             index = INT_MAX;
-        else
-            index = -(index+1);
-    } else if (!end && index < 0)
+        }
+        else {
+            /* end-1 is repesented as -2 */
+            index--;
+        }
+    }
+    else if (index < 0) {
         index = -INT_MAX;
+    }
+
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &indexObjType;
     objPtr->internalRep.indexValue = index;
     return JIM_OK;
+
+badindex:
+    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+    Jim_AppendStrings(interp, Jim_GetResult(interp),
+            "bad index \"", Jim_GetString(objPtr, NULL), "\": "
+            "must be integer?[+-]integer? or end?[+-]integer?", NULL);
+    return JIM_ERR;
 }
 
 int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
@@ -12069,11 +12077,11 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
     static const char *commands[] = {
         "body", "commands", "procs", "exists", "globals", "level", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
-        "script", "source", "stacktrace", NULL
+        "script", "source", "stacktrace", "nameofexecutable", NULL
     };
     enum {INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
           INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
-          INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE};
+          INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE};
     
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
@@ -12201,9 +12209,11 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
         Jim_SetResult(interp,
                 Jim_NewIntObj(interp, Jim_ScriptIsComplete(s, len, NULL)));
     } else if (cmd == INFO_HOSTNAME) {
-        /* Redirect to os.hostname if it exists */
-        Jim_Obj *command = Jim_NewStringObj(interp, "os.gethostname", -1);
-        result = Jim_EvalObjVector(interp, 1, &command);
+        /* Redirect to os.gethostname if it exists */
+        return Jim_Eval(interp, "os.gethostname");
+    } else if (cmd == INFO_NAMEOFEXECUTABLE) {
+        /* Redirect to Tcl proc */
+        return Jim_Eval(interp, "info_nameofexecutable");
     }
     return result;
 }

@@ -135,6 +135,8 @@ int main(int argc, char *const argv[])
     Jim_ListAppendElement(interp, listObj, JimGetExePath(interp, argv[0]));
     Jim_SetVariableStr(interp, JIM_LIBPATH, listObj);
 
+    Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
+
     if (argc == 1) {
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
         JimSetArgv(interp, 0, NULL);

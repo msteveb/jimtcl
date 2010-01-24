@@ -2107,6 +2107,10 @@ The legal *option*'s (which may be abbreviated) are:
     specified, only those names matching *pattern* are returned.
     Matching is determined using the same rules as for 'string match'.
 
++*info nameofexecutable*+::
+    Returns the name of the binary file from which the application was invoked, either
+	as a path relative to the current directory or as a full path.
+
 +*info procs* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of all the
     names of Tcl command procedures.
@@ -3637,6 +3641,9 @@ The following global variables are set by jimsh.
 +*argv*+::
     If jimsh is invoked to run a script, this variable contains a list
     of any arguments supplied to the script.
+
++*jim_argv0*+::
+    The value of argv[0] when jimsh was invoked.
 
 LICENCE
 -------
