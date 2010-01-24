@@ -7,7 +7,7 @@
 #include <jim.h>
 
 #define JIM_MODFLAG_HIDDEN   0x0001		/* Don't show the subcommand in usage or commands */
-#define JIM_MODFLAG_FULLARGV 0x0001		/* Subcmd proc gets called with full argv */
+#define JIM_MODFLAG_FULLARGV 0x0002		/* Subcmd proc gets called with full argv */
 
 /* Custom flags start at 0x0100 */
 
@@ -65,5 +65,19 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
  * Otherwise returns the result of ct->function.
  */
 int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_Obj *const *argv);
+
+/**
+ * Standard processing for a command.
+ * 
+ * This does the '-help' and '-usage' check and the number of args checks.
+ * for a top level command against a single 'jim_subcmd_type' structure.
+ *
+ * Additionally, if command_table->function is set, it should point to a sub command table
+ * and '-subhelp ?subcmd?', '-subusage' and '-subcommands' are then also recognised.
+ * 
+ * Returns 0 if user requested usage, -1 on arg error, 1 if OK to process.
+ */
+int
+Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv);
 
 #endif

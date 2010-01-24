@@ -33,10 +33,10 @@ static void add_commands(Jim_Interp *interp, const jim_subcmd_type *ct, const ch
     }
 }
 
-static void bad_subcmd(Jim_Interp *interp, const jim_subcmd_type *command_table, const char *type, int argc, Jim_Obj *const *argv)
+static void bad_subcmd(Jim_Interp *interp, const jim_subcmd_type *command_table, const char *type, Jim_Obj *cmd, Jim_Obj *subcmd)
 {
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(argv[0], NULL), ", ", type, " command \"", Jim_GetString(argv[1], NULL), "\": should be ", NULL);
+    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(cmd, NULL), ", ", type, " command \"", Jim_GetString(subcmd, NULL), "\": should be ", NULL);
     add_commands(interp, command_table, ", ");
 }
 
@@ -103,7 +103,7 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
         if (argc == 2) {
             /* Usage for the command, not the subcommand */
             show_cmd_usage(interp, command_table, argc, argv);
-            return 0;
+            return &dummy_subcmd;
         }
         help = 1;
 
@@ -129,7 +129,12 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
         if (strncmp(cmdstr, ct->cmd, cmdlen) == 0) {
             if (partial) {
                 /* Ambiguous */
-                bad_subcmd(interp, command_table, "ambiguous", argc, argv);
+                if (help) {
+                    /* Just show the top level help here */
+                    show_cmd_usage(interp, command_table, argc, argv);
+                    return &dummy_subcmd;
+                }
+                bad_subcmd(interp, command_table, "ambiguous", argv[0], argv[1 + help]);
                 return 0;
             }
             partial = ct;
@@ -144,7 +149,12 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
 
     if (!ct->cmd) {
         /* No matching command */
-        bad_subcmd(interp, command_table, "unknown", argc, argv);
+        if (help) {
+            /* Just show the top level help here */
+            show_cmd_usage(interp, command_table, argc, argv);
+            return &dummy_subcmd;
+        }
+        bad_subcmd(interp, command_table, "unknown", argv[0], argv[1 + help]);
         return 0;
     }
 
@@ -154,7 +164,7 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
         if (ct->description) {
             Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", ct->description, 0);
         }
-        return 0;
+        return &dummy_subcmd;
     }
 
     /* Check the number of args */
@@ -197,3 +207,73 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return Jim_CallSubCmd(interp, ct, argc, argv);
 }
+
+/* The following two functions are for normal commands */
+static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv)
+{
+    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(argv[0], NULL), NULL);
+    if (command_table->args && *command_table->args) {
+        Jim_AppendStrings(interp, Jim_GetResult(interp), " ", command_table->args, NULL);
+    }
+}
+
+int
+Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv)
+{
+    /* -usage or -help */
+    if (argc == 2) {
+        if (Jim_CompareStringImmediate(interp, argv[1], "-usage") || Jim_CompareStringImmediate(interp, argv[1], "-help")) {
+            Jim_SetResultString(interp, "Usage: ", -1);
+            add_cmd_usage(interp, command_table, argc, argv);
+            if (command_table->description) {
+                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", command_table->description, 0);
+            }
+            return JIM_OK;
+        }
+    }
+    if (argc >= 2 && command_table->function) {
+        /* This is actually a sub command table */
+
+        Jim_Obj *nargv[4];
+        int nargc = 0;
+        const char *subcmd = NULL;
+
+        if (Jim_CompareStringImmediate(interp, argv[1], "-subcommands")) {
+            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
+            add_commands(interp, (jim_subcmd_type *)command_table->function, " ");
+            return JIM_OK;
+        }
+
+        if (Jim_CompareStringImmediate(interp, argv[1], "-subhelp") || Jim_CompareStringImmediate(interp, argv[1], "-help")) {
+            subcmd = "-help";
+        }
+        else if (Jim_CompareStringImmediate(interp, argv[1], "-subusage")) {
+            subcmd = "-usage";
+        }
+
+        if (subcmd) {
+            nargv[nargc++] = Jim_NewStringObj(interp, "$handle", -1);
+            nargv[nargc++] = Jim_NewStringObj(interp, subcmd, -1);
+            if (argc >= 3) {
+                nargv[nargc++] = argv[2];
+            }
+            Jim_ParseSubCmd(interp, (jim_subcmd_type *)command_table->function, nargc, nargv);
+            Jim_FreeNewObj(interp, nargv[0]);
+            Jim_FreeNewObj(interp, nargv[1]);
+            return 0;
+        }
+    }
+
+    /* Check the number of args */
+    if (argc - 1 < command_table->minargs || (command_table->maxargs >= 0 && argc - 1> command_table->maxargs)) {
+        Jim_SetResultString(interp, "wrong # args: should be \"", -1);
+        add_cmd_usage(interp, command_table, argc, argv);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "\"\nUse \"", Jim_GetString(argv[0], NULL), " -help\" for help", 0);
+        return JIM_ERR;
+    }
+
+    /* Not usage, but passed arg checking */
+    return -1;
+}
+
