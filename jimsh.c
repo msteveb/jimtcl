@@ -120,9 +120,23 @@ static void JimLoadJimRc(Jim_Interp *interp)
     }
 }
 
+static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
+{
+    int n;
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+
+    /* Populate argv and argv0 global vars */
+    for (n = 0; n < argc; n++) {
+        Jim_Obj *obj = Jim_NewStringObj(interp, argv[n], -1);
+        Jim_ListAppendElement(interp, listObj, obj);
+    }
+
+    Jim_SetVariableStr(interp, "argv", listObj);
+}
+    
 int main(int argc, char *const argv[])
 {
-    int retcode, n;
+    int retcode;
     Jim_Interp *interp;
     Jim_Obj *listObj;
 
@@ -143,23 +157,22 @@ int main(int argc, char *const argv[])
     Jim_ListAppendElement(interp, listObj, JimGetExePath(interp, argv[0]));
     Jim_SetVariableStr(interp, JIM_LIBPATH, listObj);
 
-    /* Populate argv and argv0 global vars */
-    listObj = Jim_NewListObj(interp, NULL, 0);
-    for (n = 2; n < argc; n++) {
-        Jim_Obj *obj = Jim_NewStringObj(interp, argv[n], -1);
-        Jim_ListAppendElement(interp, listObj, obj);
-    }
-
-    Jim_SetVariableStr(interp, "argv", listObj);
-    
     if (argc == 1) {
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
+        JimSetArgv(interp, 0, NULL);
         JimLoadJimRc(interp);
         retcode = Jim_InteractivePrompt(interp);
     } else {
-        Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");
-        retcode = Jim_EvalFile(interp, argv[1]);
+        if (argc > 2 && strcmp(argv[1], "-e") == 0) {
+            JimSetArgv(interp, argc - 3, argv + 3);
+            retcode = Jim_Eval(interp, argv[2]);
+        }
+        else {
+            Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
+            JimSetArgv(interp, argc - 2, argv + 2);
+            retcode = Jim_EvalFile(interp, argv[1]);
+        }
         if (retcode == JIM_ERR || retcode == JIM_ERR_ADDSTACK) {
             Jim_PrintErrorMessage(interp);
         }

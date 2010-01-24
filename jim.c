@@ -7083,6 +7083,7 @@ trydouble:
                 }
                 goto retry_as_string;
             }
+            intresult = 0;
             Jim_DecrRefCount(interp, A);
             Jim_DecrRefCount(interp, B);
             switch(expr->opcode[i]) {

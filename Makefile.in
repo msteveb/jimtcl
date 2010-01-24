@@ -15,7 +15,8 @@ CFLAGS += -DJIM_TCL_COMPAT
 # Emulate tinytcl
 LIBJIM := libtcl6.a
 
-CFLAGS += -Wall -g -Os -I. @EXTRA_CFLAGS@
+CFLAGS += -Wall -g -Os -I@SRCDIR@ @EXTRA_CFLAGS@
+VPATH := @SRCDIR@
 
 .EXPORT_ALL_VARIABLES:
 
@@ -50,8 +51,8 @@ $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-load_extensions.c: make-jim-load-extensions.sh
-	sh make-jim-load-extensions.sh $@ $(EXTENSIONS)
+load_extensions.c: @SRCDIR@/make-jim-load-extensions.sh
+	sh @SRCDIR@/make-jim-load-extensions.sh $@ $(EXTENSIONS)
 
 install:
 

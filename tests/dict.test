@@ -1,0 +1,45 @@
+package require testing
+
+section "basic dict"
+
+test dict-1.1 "Basic dict" {
+	set d [dict create]
+	dict set d fruit apple
+	dict set d car holden
+	#puts "d=$d"
+	#puts "d(fruit)=$d(fruit)"
+	dict get $d car
+} {holden}
+
+catch {unset d}
+
+test dict-2.1 "Dict via reference" {
+	set d [dict create]
+	dict set d fruit apple
+	dict set d car holden
+
+	# now create a dictionary reference
+	set dref [ref $d dict]
+	dict get [getref $dref] car
+} {holden}
+
+test dict-2.2 "Modify dict via reference" {
+	# Get the value out of the refernence
+	set d [getref $dref]
+	# Modify it
+	dict set d car toyota
+	# And put the new value back
+	setref $dref $d
+	# Finally check it
+	dict get [getref $dref] car
+} {toyota}
+
+test dict-2.3 "Modify dict via reference - one line" {
+	# Get the value out of the refernence
+	set d [getref $dref]
+	setref $dref [dict set d car toyota]
+	# Finally check it
+	dict get [getref $dref] car
+} {toyota}
+
+testreport
