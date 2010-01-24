@@ -498,6 +498,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         const char *arg = Jim_GetString(argv[i], NULL);
 
         if (arg[0] == '<') {
+            inputFile = FILE_NAME;
             input = arg + 1;
             if (*input == '<') {
                 inputFile = FILE_TEXT;
@@ -508,26 +509,41 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
                 input++;
             }
 
-            if (!*input) {
-                input = Jim_GetString(argv[++i], NULL);
+            if (!*input && ++i < argc) {
+                input = Jim_GetString(argv[i], NULL);
             }
         }
         else if (arg[0] == '>') {
+            int dup_error = 0;
+
+            outputFile = FILE_NAME;
+
             output = arg + 1;
+            if (*output == '>') {
+                outputFile = FILE_APPEND;
+                output++;
+            }
+            if (*output == '&') {
+                /* Redirect stderr too */
+                output++;
+                dup_error = 1;
+            }
             if (*output == '@') {
                 outputFile = FILE_HANDLE;
                 output++;
             }
-            else if (*output == '>') {
-                outputFile = FILE_APPEND;
-                output++;
+            if (!*output && ++i < argc) {
+                output = Jim_GetString(argv[i], NULL);
             }
-            if (!*output) {
-                output = Jim_GetString(argv[++i], NULL);
+            if (dup_error) {
+                errorFile = outputFile;
+                error = output;
             }
         }
         else if (arg[0] == '2' && arg[1] == '>') {
             error = arg + 2;
+            errorFile = FILE_NAME;
+
             if (*error == '@') {
                 errorFile = FILE_HANDLE;
                 error++;
@@ -536,26 +552,26 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
                 errorFile = FILE_APPEND;
                 error++;
             }
-            if (!*error) {
-                error = Jim_GetString(argv[++i], NULL);
+            if (!*error && ++i < argc) {
+                error = Jim_GetString(argv[i], NULL);
             }
         }
         else {
-            if (arg[0] == '|' && arg[1] == 0) {
+            if (strcmp(arg, "|") == 0 || strcmp(arg, "|&") == 0) {
                 if (i == lastBar + 1 || i == argc - 1) {
-                    Jim_SetResultString(interp, "illegal use of | in command", -1);
+                    Jim_SetResultString(interp, "illegal use of | or |& in command", -1);
                     Jim_Free(arg_array);
                     return -1;
                 }
                 lastBar = i;
                 cmdCount++;
             }
-            /* Either | or a "normal" arg, so store it in the arg array */
+            /* Either |, |& or a "normal" arg, so store it in the arg array */
             arg_array[arg_count++] = (char *)arg;
             continue;
         }
 
-        if (i > argc) {
+        if (i >= argc) {
             Jim_SetResultString(interp, "", 0);
             Jim_AppendStrings(interp, Jim_GetResult(interp), "can't specify \"", arg, "\" as last word in command", NULL);
             Jim_Free(arg_array);
@@ -747,8 +763,12 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         pidPtr[i] = -1;
     }
     for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg+1) {
+        int pipe_dup_err = 0;
         for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
-            if (strcmp(arg_array[lastArg], "|") == 0) {
+            if (arg_array[lastArg][0] == '|') {
+                if (arg_array[lastArg][1] == '&') {
+                    pipe_dup_err = 1;
+                }
                 break;
             }
         }
@@ -773,6 +793,10 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         if (pid == 0) {
             char errSpace[200];
             int rc;
+
+            if (pipe_dup_err) {
+                errorId = outputId;
+            }
 
             if ((inputId != -1 && dup2(inputId, 0) == -1)
                 || (outputId != -1 && dup2(outputId, 1) == -1)
