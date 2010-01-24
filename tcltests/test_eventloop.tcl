@@ -2,7 +2,7 @@ if {[info commands vwait] eq ""} {
 	return "noimpl"
 }
 
-set f [aio.socket stream localhost:80]
+set f [socket stream localhost:80]
 
 set count 0
 set done 0

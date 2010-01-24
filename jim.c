@@ -45,10 +45,6 @@
 #define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
 
-#ifdef __ECOS
-#include <pkgconf/jimtcl.h>
-#endif
-
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support */
 #endif /* JIM_ANSIC */
@@ -324,7 +320,7 @@ int Jim_StringToWide(const char *str, jim_wide *widePtr, int base)
         return JIM_ERR;
     if (endptr[0] != '\0') {
         while(*endptr) {
-            if (!isspace((int)*endptr))
+            if (!isspace(*endptr))
                 return JIM_ERR;
             endptr++;
         }
@@ -341,7 +337,7 @@ int Jim_StringToIndex(const char *str, int *intPtr)
         return JIM_ERR;
     if (endptr[0] != '\0') {
         while(*endptr) {
-            if (!isspace((int)*endptr))
+            if (!isspace(*endptr))
                 return JIM_ERR;
             endptr++;
         }
@@ -367,32 +363,24 @@ static int JimFormatReference(char *buf, Jim_Reference *refPtr, jim_wide id)
 
 int Jim_DoubleToString(char *buf, double doubleValue)
 {
-    char *s;
     int len;
-    int hase = 0;
 
     len = sprintf(buf, "%.12g", doubleValue);
-    s = buf;
-    while(*s) {
-        if (*s == '.') return len;
-        if (*s == 'e') hase = 1;
-        s++;
-    }
-    if (hase) {
-        return len;
-    }
 
     /* Add a final ".0" if it's a number. But not
      * for NaN or InF */
-    if (isdigit((int)buf[0])
-        || ((buf[0] == '-' || buf[0] == '+')
-            && isdigit((int)buf[1]))) {
-        s[0] = '.';
-        s[1] = '0';
-        s[2] = '\0';
-        return len+2;
+    while (*buf) {
+        if (*buf == '.' || isalpha(*buf)) {
+            return len;
+        }
+        buf++;
     }
-    return len;
+
+    *buf++ = '.';
+    *buf++ = '0';
+    *buf = '\0';
+
+    return len + 2;
 }
 
 int Jim_StringToDouble(const char *str, double *doublePtr)
@@ -442,9 +430,9 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
         size = backtrace(array, 40);
         strings = backtrace_symbols(array, size);
         for (i = 0; i < size; i++)
-            fprintf(fp,"[backtrace] %s" JIM_NL, strings[i]);
-        fprintf(fp,"[backtrace] Include the above lines and the output" JIM_NL);
-        fprintf(fp,"[backtrace] of 'nm <executable>' in the bug report." JIM_NL);
+            fprintf(stderr,"[backtrace] %s" JIM_NL, strings[i]);
+        fprintf(stderr,"[backtrace] Include the above lines and the output" JIM_NL);
+        fprintf(stderr,"[backtrace] of 'nm <executable>' in the bug report." JIM_NL);
     }
 #endif
 
@@ -1717,6 +1705,7 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         Jim_Panic(interp,"!!!Object %p freed with bad refcount %d, type=%s", objPtr,
                 objPtr->refCount, objPtr->typePtr ? objPtr->typePtr->name : "<none>");
     }
+
     /* Free the internal representation */
     Jim_FreeIntRep(interp, objPtr);
     /* Free the string representation */
@@ -2548,13 +2537,13 @@ int qsortCompareStringPointers(const void *a, const void *b)
  *
  * Note that this object uses shared strings for filenames, and the
  * pointer to the filename together with the line number is taken into
- * the space for the "inline" internal represenation of the Jim_Object,
+ * the space for the "inline" internal representation of the Jim_Object,
  * so there is almost memory zero-overhead.
  *
  * Also the object will be converted to something else if the given
  * token it represents in the source file is not something to be
  * evaluated (not a script), and will be specialized in some other way,
- * so the time overhead is alzo null.
+ * so the time overhead is also null.
  * ---------------------------------------------------------------------------*/
 
 static void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -2694,7 +2683,7 @@ typedef struct ScriptToken {
  * and "subst" objects. In the second case, the cmdStruct related
  * fields are not used at all, but there is an additional field used
  * that is 'substFlags': this represents the flags used to turn
- * the string into the intenral representation used to perform the
+ * the string into the internal representation used to perform the
  * substitution. If this flags are not what the application requires
  * the scriptObj is created again. For example the script:
  *
@@ -2725,8 +2714,9 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     script->inUse--;
     if (script->inUse != 0) return;
     for (i = 0; i < script->len; i++) {
-        if (script->token[i].objPtr != NULL)
+        if (script->token[i].objPtr != NULL) {
             Jim_DecrRefCount(interp, script->token[i].objPtr);
+        }
     }
     Jim_Free(script->token);
     Jim_Free(script->cmdStruct);
@@ -2777,14 +2767,14 @@ static void ScriptObjAddToken(Jim_Interp *interp, struct ScriptObj *script,
         Jim_Free(strtoken);
         return;
     }
-    /* Make space for a new istruction */
+    /* Make space for a new instruction */
     script->len++;
     script->token = Jim_Realloc(script->token,
             sizeof(ScriptToken)*script->len);
     /* Initialize the new token */
     token = script->token+(script->len-1);
     token->type = type;
-    /* Every object is intially as a string, but the
+    /* Every object is initially a string, but the
      * internal type may be specialized during execution of the
      * script. */
     token->objPtr = Jim_NewStringObjNoAlloc(interp, strtoken, len);
@@ -2804,7 +2794,7 @@ static void ScriptObjAddInt(struct ScriptObj *script, int val)
     script->cmdStruct[script->csLen++] = val;
 }
 
-/* Search a Jim_Obj contained in 'script' with the same stinrg repr.
+/* Search a Jim_Obj contained in 'script' with the same string repr.
  * of objPtr. Search nested script objects recursively. */
 static Jim_Obj *ScriptSearchLiteral(Jim_Interp *interp, ScriptObj *script,
         ScriptObj *scriptBarrier, Jim_Obj *objPtr)
@@ -2827,13 +2817,18 @@ static Jim_Obj *ScriptSearchLiteral(Jim_Interp *interp, ScriptObj *script,
                 script->token[i].objPtr->internalRep.ptr;
             /* Don't recursively enter the script we are trying
              * to make shared to avoid circular references. */
-            if (subScript == scriptBarrier) continue;
-            if (subScript != script) {
-                foundObjPtr =
-                    ScriptSearchLiteral(interp, subScript,
-                            scriptBarrier, objPtr);
-                if (foundObjPtr != NULL)
-                    return foundObjPtr;
+            if (subScript == scriptBarrier) {
+                continue;
+            }
+            if (subScript == script) {
+                continue;
+            }
+
+            foundObjPtr =
+                ScriptSearchLiteral(interp, subScript,
+                        scriptBarrier, objPtr);
+            if (foundObjPtr != NULL) {
+                return foundObjPtr;
             }
         }
     }
@@ -2844,18 +2839,26 @@ static Jim_Obj *ScriptSearchLiteral(Jim_Interp *interp, ScriptObj *script,
 static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
         ScriptObj *topLevelScript)
 {
+    /* XXX: This doesn't work work :-( */
+#if 0
     int i, j;
 
-    return;
     /* Try to share with toplevel object. */
     if (topLevelScript != NULL) {
         for (i = 0; i < script->len; i++) {
             Jim_Obj *foundObjPtr;
             char *str = script->token[i].objPtr->bytes;
 
-            if (script->token[i].objPtr->refCount != 1) continue;
-            if (script->token[i].objPtr->typePtr == &scriptObjType) continue;
-            if (strchr(str, ' ') || strchr(str, '\n')) continue;
+            if (script->token[i].objPtr->refCount != 1) {
+                continue;
+            }
+            if (script->token[i].objPtr->typePtr == &scriptObjType) {
+                continue;
+            }
+            if (strchr(str, ' ') || strchr(str, '\n')) {
+                continue;
+            }
+
             foundObjPtr = ScriptSearchLiteral(interp,
                     topLevelScript,
                     script, /* barrier */
@@ -2868,12 +2871,17 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
             }
         }
     }
+
     /* Try to share locally */
     for (i = 0; i < script->len; i++) {
         char *str = script->token[i].objPtr->bytes;
 
-        if (script->token[i].objPtr->refCount != 1) continue;
-        if (strchr(str, ' ') || strchr(str, '\n')) continue;
+        if (script->token[i].objPtr->refCount != 1) {
+            continue;
+        }
+        if (strchr(str, ' ') || strchr(str, '\n')) {
+            continue;
+        }
         for (j = 0; j < script->len; j++) {
             if (script->token[i].objPtr !=
                     script->token[j].objPtr &&
@@ -2888,6 +2896,7 @@ static void ScriptShareLiterals(Jim_Interp *interp, ScriptObj *script,
             }
         }
     }
+#endif
 }
 
 /* This method takes the string representation of an object
@@ -2989,6 +2998,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             tokens++;
         }
     }
+
     /* Perform literal sharing, but only for objects that appear
      * to be scripts written as literals inside the source code,
      * and not computed at runtime. Literal sharing is a costly
@@ -2998,13 +3008,12 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     if (propagateSourceInfo && interp->framePtr->procBodyObjPtr) {
         Jim_Obj *bodyObjPtr = interp->framePtr->procBodyObjPtr;
         if (bodyObjPtr->typePtr == &scriptObjType) {
-            ScriptObj *bodyScript =
-                bodyObjPtr->internalRep.ptr;
-            ScriptShareLiterals(interp, script, bodyScript);
+            ScriptShareLiterals(interp, script, bodyObjPtr->internalRep.ptr);
         }
     } else if (propagateSourceInfo) {
         ScriptShareLiterals(interp, script, NULL);
     }
+
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
@@ -3353,7 +3362,7 @@ static int Jim_NameIsDictSugar(const char *str, int len)
 
 /* This method should be called only by the variable API.
  * It returns JIM_OK on success (variable already exists),
- * JIM_ERR if it does not exists, JIM_DICT_GLUE if it's not
+ * JIM_ERR if it does not exists, JIM_DICT_SUGAR if it's not
  * a variable name, but syntax glue for [dict] i.e. the last
  * character is ')' */
 int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
@@ -3361,10 +3370,11 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_HashEntry *he;
     const char *varName;
     int len;
+    Jim_CallFrame *framePtr = interp->framePtr;
 
     /* Check if the object is already an uptodate variable */
     if (objPtr->typePtr == &variableObjType &&
-        objPtr->internalRep.varValue.callFrameId == interp->framePtr->id) {
+        objPtr->internalRep.varValue.callFrameId == framePtr->id) {
         return JIM_OK; /* nothing to do */
     }
     if (objPtr->typePtr == &dictSubstObjType) {
@@ -3376,26 +3386,27 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     if (Jim_NameIsDictSugar(varName, len))
             return JIM_DICT_SUGAR;
     if (varName[0] == ':' && varName[1] == ':') {
-        he = Jim_FindHashEntry(&interp->topFramePtr->vars, varName + 2);
+        framePtr = interp->topFramePtr;
+        he = Jim_FindHashEntry(&framePtr->vars, varName + 2);
         if (he == NULL) {
             return JIM_ERR;
         }
     }
     else {
         /* Lookup this name into the variables hash table */
-        he = Jim_FindHashEntry(&interp->framePtr->vars, varName);
+        he = Jim_FindHashEntry(&framePtr->vars, varName);
         if (he == NULL) {
             /* Try with static vars. */
-            if (interp->framePtr->staticVars == NULL)
+            if (framePtr->staticVars == NULL)
                 return JIM_ERR;
-            if (!(he = Jim_FindHashEntry(interp->framePtr->staticVars, varName)))
+            if (!(he = Jim_FindHashEntry(framePtr->staticVars, varName)))
                 return JIM_ERR;
         }
     }
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &variableObjType;
-    objPtr->internalRep.varValue.callFrameId = interp->framePtr->id;
+    objPtr->internalRep.varValue.callFrameId = framePtr->id;
     objPtr->internalRep.varValue.varPtr = (void*)he->val;
     return JIM_OK;
 }
@@ -3418,6 +3429,8 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
     int err;
 
     if ((err = SetVariableFromAny(interp, nameObjPtr)) != JIM_OK) {
+        Jim_CallFrame *framePtr = interp->framePtr;
+
         /* Check for [dict] syntax sugar. */
         if (err == JIM_DICT_SUGAR)
             return JimDictSugarSet(interp, nameObjPtr, valObjPtr);
@@ -3431,16 +3444,16 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
         /* Insert the new variable */
         if (name[0] == ':' && name[1] == ':') {
             /* Into to the top evel frame */
-            Jim_AddHashEntry(&interp->topFramePtr->vars, name + 2, var);
+            framePtr = interp->topFramePtr;
+            Jim_AddHashEntry(&framePtr->vars, name + 2, var);
         }
         else {
-            Jim_AddHashEntry(&interp->framePtr->vars, name, var);
+            Jim_AddHashEntry(&framePtr->vars, name, var);
         }
         /* Make the object int rep a variable */
         Jim_FreeIntRep(interp, nameObjPtr);
         nameObjPtr->typePtr = &variableObjType;
-        nameObjPtr->internalRep.varValue.callFrameId =
-            interp->framePtr->id;
+        nameObjPtr->internalRep.varValue.callFrameId = framePtr->id;
         nameObjPtr->internalRep.varValue.varPtr = var;
     } else {
         var = nameObjPtr->internalRep.varValue.varPtr;
@@ -3507,6 +3520,15 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     const char *varName;
     int len;
 
+    varName = Jim_GetString(nameObjPtr, &len);
+
+    if (Jim_FindHashEntry(&interp->framePtr->vars, varName)) {
+        Jim_SetResultString(interp, "", -1);
+        Jim_AppendStrings(interp, Jim_GetResult(interp),
+            "variable \"", varName, "\" already exists", NULL);
+        return JIM_ERR;
+    }
+
     /* Check for cycles. */
     if (interp->framePtr == targetCallFrame) {
         Jim_Obj *objPtr = targetNameObjPtr;
@@ -3525,7 +3547,6 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
             objPtr = varPtr->objPtr;
         }
     }
-    varName = Jim_GetString(nameObjPtr, &len);
     if (Jim_NameIsDictSugar(varName, len)) {
         Jim_SetResultString(interp,
             "Dict key syntax invalid as link source", -1);
@@ -3659,17 +3680,21 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
         }
         return retval;
     } else {
+        Jim_CallFrame *framePtr = interp->framePtr;
+
         name = Jim_GetString(nameObjPtr, NULL);
         if (name[0] == ':' && name[1] == ':') {
-            if (Jim_DeleteHashEntry(&interp->topFramePtr->vars, name + 2) != JIM_OK) {
+            framePtr = interp->topFramePtr;
+            if (Jim_DeleteHashEntry(&framePtr->vars, name + 2) != JIM_OK) {
                 return JIM_ERR;
             }
         }
-        else if (Jim_DeleteHashEntry(&interp->framePtr->vars, name) != JIM_OK) {
+        else if (Jim_DeleteHashEntry(&framePtr->vars, name) != JIM_OK) {
             return JIM_ERR;
         }
         /* Change the callframe id, invalidating var lookup caching */
-        JimChangeCallFrameId(interp, interp->framePtr);
+        JimChangeCallFrameId(interp, framePtr);
+
         return JIM_OK;
     }
 }
@@ -4013,9 +4038,7 @@ void UpdateStringOfReference(struct Jim_Obj *objPtr)
  * i.e. inside the range [_a-zA-Z0-9] */
 static int isrefchar(int c)
 {
-    if (c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-        (c >= '0' && c <= '9')) return 1;
-    return 0;
+    return (c == '_' || isalnum(c));
 }
 
 int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -4223,7 +4246,7 @@ int Jim_Collect(Jim_Interp *interp)
                 if (len-(p-str) < JIM_REFERENCE_SPACE) break;
                 if (p[41] != '>' || p[19] != '>' || p[20] != '.') break;
                 for (i = 21; i <= 40; i++)
-                    if (!isdigit((int)p[i]))
+                    if (!isdigit(p[i]))
                         break;
                 /* Get the ID */
                 memcpy(buf, p+21, 20);
@@ -4417,11 +4440,11 @@ void Jim_FreeInterp(Jim_Interp *i)
         printf("Objects still in the free list:" JIM_NL);
         while(objPtr) {
             const char *type = objPtr->typePtr ?
-                objPtr->typePtr->name : "";
-            printf("%p \"%-10s\": '%.20s' (refCount: %d)" JIM_NL,
-                    objPtr, type,
+                objPtr->typePtr->name : "string";
+            printf("%p (%d) %-10s: '%.20s'" JIM_NL,
+                    objPtr, objPtr->refCount, type,
                     objPtr->bytes ? objPtr->bytes
-                    : "(null)", objPtr->refCount);
+                    : "(null)");
             if (objPtr->typePtr == &sourceObjType) {
                 printf( "FILE %s LINE %d" JIM_NL,
                 objPtr->internalRep.sourceValue.fileName,
@@ -6318,7 +6341,7 @@ int JimParseExpression(struct JimParserCtx *pc)
         break;
     case '-':
         if ((pc->tt == JIM_TT_NONE || pc->tt == JIM_TT_EXPR_OPERATOR) &&
-            isdigit((int)*(pc->p+1)))
+            isdigit(*(pc->p+1)))
             return JimParseExprNumber(pc);
         else
             return JimParseExprOperator(pc);
@@ -6355,8 +6378,8 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     if (*pc->p == '-') {
         pc->p++; pc->len--;
     }
-    while (  isdigit((int)*pc->p) 
-          || (allowhex && isxdigit((int)*pc->p) )
+    while (  isdigit(*pc->p) 
+          || (allowhex && isxdigit(*pc->p) )
           || (allowdot && *pc->p == '.') 
           || (pc->p-pc->tstart == 1 && *pc->tstart == '0' &&
               (*pc->p == 'x' || *pc->p == 'X'))
@@ -6598,7 +6621,7 @@ static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
  * a <offset> &L b &R
  *
  * "|L" checks if 'a' is true:
- *   1) if it is true pushes 1 and skips <offset> istructions to reach
+ *   1) if it is true pushes 1 and skips <offset> instructions to reach
  *      the opcode just after |R.
  *   2) if it is false does nothing.
  * "|R" checks if 'b' is true:
@@ -6606,7 +6629,7 @@ static void ExprShareLiterals(Jim_Interp *interp, ExprByteCode *expr,
  *
  * "&L" checks if 'a' is true:
  *   1) if it is true does nothing.
- *   2) If it is false pushes 0 and skips <offset> istructions to reach
+ *   2) If it is false pushes 0 and skips <offset> instructions to reach
  *      the opcode just after &R
  * "&R" checks if 'a' is true:
  *      if it is true pushes 1, otherwise pushes 0.
@@ -6900,7 +6923,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
     else
         stack = staticStack;
 
-    /* Execute every istruction */
+    /* Execute every instruction */
     for (i = 0; i < expr->len; i++) {
         Jim_Obj *A, *B, *C, *objPtr;
         jim_wide wA, wB, wC;
@@ -7623,7 +7646,7 @@ JimScanAString(Jim_Interp *interp, const char *sdescr, const char *str)
     } 
     /* And after all the mess above, the real work begin ... */
     while (str && *str) {
-        if (!sdescr && isspace((int)*str))
+        if (!sdescr && isspace(*str))
             break; /* EOS via WS if unspecified */
         if (JimTestBit(charset, *str)) *buffer++ = *str++;
         else break;             /* EOS via mismatch if specified scanning */
@@ -7656,8 +7679,8 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
          * the string-to-be-parsed accordingly */
         for (i=0; str[pos] && descr->prefix[i]; ++i) {
             /* If prefix require, skip WS */
-            if (isspace((int)descr->prefix[i]))
-                while (str[pos] && isspace((int)str[pos])) ++pos;
+            if (isspace(descr->prefix[i]))
+                while (str[pos] && isspace(str[pos])) ++pos;
             else if (descr->prefix[i] != str[pos]) 
                 break;  /* Prefix do not match here, leave the loop */
             else
@@ -7670,7 +7693,7 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
     }
     /* For all but following conversion, skip leading WS */
     if (descr->type != 'c' && descr->type != '[' && descr->type != 'n')
-        while (isspace((int)str[pos])) ++pos;
+        while (isspace(str[pos])) ++pos;
     /* Determine how much skipped/scanned so far */
     scanned = pos - anchor;
     if (descr->type == 'n') {
@@ -7776,10 +7799,9 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr,
     Jim_Obj *emptyStr = 0;
     ScanFmtStringObj *fmtObj;
 
-    /* If format specification is not an object, convert it! */
+    /* This should never happen. The format object should already be of the correct type */
     if (fmtObjPtr->typePtr != &scanFmtStringObjType) {
         Jim_Panic(interp, "Jim_ScanString() for non-scan format");
-        /*SetScanFmtFromAny(interp, fmtObjPtr);*/
     }
     fmtObj = (ScanFmtStringObj*)fmtObjPtr->internalRep.ptr;
     /* Check if format specification was valid */
@@ -8178,6 +8200,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     Jim_IncrRefCount(scriptObjPtr); /* Make sure it's shared. */
     script = Jim_GetScript(interp, scriptObjPtr);
+
     /* Now we have to make sure the internal repr will not be
      * freed on shimmering.
      *
@@ -8270,8 +8293,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 Jim_IncrRefCount(argv[j]);
                 i += 2;
             } else {
-                /* For interpolation we call an helper
-                 * function doing the work for us. */
+                /* For interpolation we call a helper
+                 * function to do the work for us. */
                 if ((retcode = Jim_InterpolateTokens(interp,
                         token+i, tokens, &tmpObjPtr)) != JIM_OK)
                 {
@@ -9383,6 +9406,7 @@ noopt:
                         &boolean)) != JIM_OK)
             return retval;
         if (!boolean) break;
+
         if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
             switch(retval) {
             case JIM_BREAK:
@@ -10523,6 +10547,7 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
 {
     int argListLen;
     int arityMin, arityMax;
+    int i;
 
     if (argc != 4 && argc != 5) {
         Jim_WrongNumArgs(interp, 1, argv, "name arglist ?statics? body");
@@ -10554,6 +10579,24 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
                 break;
             }
             arityMin--;
+        }
+        for (i = 0; i < argListLen; i++) {
+            int len;
+            Jim_ListIndex(interp, argv[2], i, &argPtr, JIM_NONE);
+            Jim_GetString(argPtr, &len);
+            Jim_ListLength(interp, argPtr, &len);
+            if (len == 0) {
+                Jim_SetResultString(interp, "", 0);
+                Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "procedure \"", Jim_GetString(argv[1], NULL), "\" has argument with no name", NULL);
+                return JIM_ERR;
+            }
+            if (len > 2) {
+                Jim_SetResultString(interp, "", 0);
+                Jim_AppendStrings(interp, Jim_GetResult(interp),
+                    "too many fields in argument specifier \"", Jim_GetString(argPtr, NULL), "\"", NULL);
+                return JIM_ERR;
+            }
         }
     }
     if (argc == 4) {

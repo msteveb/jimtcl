@@ -9,6 +9,16 @@ test regr-1.1 "Double dereference arrays" {
 	set b($a($chan))
 } {2}
 
+# Will assert on exit if the bug exists
+test regr-1.2 "Reference count shared literals" {
+	proc a {} {
+		while {1} {break}
+	}
+	a
+	rename a ""
+	return 1
+} {1}
+
 section "I/O Testing"
 
 test io-1.1 "Read last line with no newline" {

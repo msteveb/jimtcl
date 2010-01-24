@@ -20,7 +20,7 @@ if {[os.fork] == 0} {
 
 	sleep .1
 
-	set f [aio.socket stream localhost:9876]
+	set f [socket stream localhost:9876]
 
 	set done 0
 
@@ -65,7 +65,7 @@ verbose "parent: opening socket"
 set done 0
 
 # This will be our server
-set f [aio.socket stream.server 0.0.0.0:9876]
+set f [socket stream.server 0.0.0.0:9876]
 
 proc server_onread {f} {
 	verbose "parent: onread (server) got connection on $f"
