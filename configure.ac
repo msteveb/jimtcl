@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT([jim], [0.61], [steveb@workware.net.au])
+AC_INIT([jim], [0.62], [steveb@workware.net.au])
 
 # Checks for programs.
 AC_PROG_CC
@@ -30,7 +30,7 @@ AC_ARG_ENABLE(fork,
 )
 AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
 
-jim_extensions="package readdir glob array clock exec file posix regexp signal tcl6 aio bio eventloop syslog"
+jim_extensions="package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,
 	[  --with-jim-ext          Specify jim extensions to build (or all, which is the default)],
 	[

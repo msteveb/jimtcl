@@ -126,8 +126,8 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (result < 0) {
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
+        close(outputId);
     }
-    close(outputId);
 
     if (Jim_CleanupChildren(interp, numPids, pidPtr, errorId) != JIM_OK) {
         result = JIM_ERR;

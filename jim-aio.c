@@ -60,14 +60,13 @@
 #define AIO_BUF_LEN 1024
 
 #define AIO_KEEPOPEN 1
-#define AIO_FDOPEN   2
 
 
 typedef struct AioFile {
     FILE *fp;
     Jim_Obj *filename;
     int type;
-    int OpenFlags; /* AIO_KEEPOPEN? keep FILE*, AIO_FDOPEN? FILE* created via fdopen */
+    int OpenFlags; /* AIO_KEEPOPEN? keep FILE* */
     int fd;
     int flags;
     Jim_Obj *rEvent;
@@ -100,9 +99,6 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
     if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
-    }
-    if (!af->OpenFlags == AIO_FDOPEN) {
-        close(af->fd);
     }
 #ifdef with_jim_ext_eventloop
     /* remove existing EventHandlers */
@@ -376,7 +372,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     af->filename = Jim_NewStringObj(interp, "accept", -1);
     Jim_IncrRefCount(af->filename);
     af->fp = fdopen(sock,"r+");
-    af->OpenFlags = AIO_FDOPEN;
+    af->OpenFlags = 0;
     af->flags = fcntl(af->fd,F_GETFL);
     af->rEvent = NULL;
     af->wEvent = NULL;
@@ -706,7 +702,7 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fd;
-    af->OpenFlags = AIO_FDOPEN;
+    af->OpenFlags = 0;
     af->filename = filename;
     Jim_IncrRefCount(af->filename);
     af->flags = fcntl(af->fd, F_GETFL);

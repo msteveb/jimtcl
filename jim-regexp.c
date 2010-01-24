@@ -238,8 +238,6 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * index information in those variables.
      */
 
-    //fprintf(stderr, "source_str=%s, [0].rm_eo=%d\n", source_str, pmatch[0].rm_eo);
-
     j = 0;
     for (i += 2; opt_inline ? pmatch[j].rm_so != -1 : i < argc; i++, j++) {
         Jim_Obj *resultObj;

@@ -160,13 +160,13 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
  *
  * package provide name ?version?
  *
- *	This procedure is invoked to declare that a particular version
- *	of a particular package is now present in an interpreter.  There
- *	must not be any other version of this package already
- *	provided in the interpreter.
+ *      This procedure is invoked to declare that a particular version
+ *      of a particular package is now present in an interpreter.  There
+ *      must not be any other version of this package already
+ *      provided in the interpreter.
  *
  * Results:
- *	Returns JIM_OK and sets the package version (or 1.0 if not specified).
+ *      Returns JIM_OK and sets the package version (or 1.0 if not specified).
  *
  *----------------------------------------------------------------------
  */
@@ -185,11 +185,11 @@ static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  *
  * package require name ?version?
  *
- *	This procedure is load a given package.
- *	Note that the version is ignored.
+ *      This procedure is load a given package.
+ *      Note that the version is ignored.
  *
  * Results:
- *	Returns JIM_OK and sets the package version.
+ *      Returns JIM_OK and sets the package version.
  *
  *----------------------------------------------------------------------
  */
@@ -209,10 +209,10 @@ static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  *
  * package list
  *
- *	Returns a list of known packages
+ *      Returns a list of known packages
  *
  * Results:
- *	Returns JIM_OK and sets a list of known packages.
+ *      Returns JIM_OK and sets a list of known packages.
  *
  *----------------------------------------------------------------------
  */

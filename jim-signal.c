@@ -37,15 +37,15 @@ static void signal_ignorer(int sig)
  *
  * Tcl_SignalId --
  *
- *	Return a textual identifier for a signal number.
+ *      Return a textual identifier for a signal number.
  *
  * Results:
- *	This procedure returns a machine-readable textual identifier
- *	that corresponds to sig.  The identifier is the same as the
- *	#define name in signal.h.
+ *      This procedure returns a machine-readable textual identifier
+ *      that corresponds to sig.  The identifier is the same as the
+ *      #define name in signal.h.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -54,112 +54,112 @@ const char *Jim_SignalId(int sig)
 {
     switch (sig) {
 #ifdef SIGABRT
-	case SIGABRT: return "SIGABRT";
+        case SIGABRT: return "SIGABRT";
 #endif
 #ifdef SIGALRM
-	case SIGALRM: return "SIGALRM";
+        case SIGALRM: return "SIGALRM";
 #endif
 #ifdef SIGBUS
-	case SIGBUS: return "SIGBUS";
+        case SIGBUS: return "SIGBUS";
 #endif
 #ifdef SIGCHLD
-	case SIGCHLD: return "SIGCHLD";
+        case SIGCHLD: return "SIGCHLD";
 #endif
 #if defined(SIGCLD) && (!defined(SIGCHLD) || (SIGCLD != SIGCHLD))
-	case SIGCLD: return "SIGCLD";
+        case SIGCLD: return "SIGCLD";
 #endif
 #ifdef SIGCONT
-	case SIGCONT: return "SIGCONT";
+        case SIGCONT: return "SIGCONT";
 #endif
 #if defined(SIGEMT) && (!defined(SIGXCPU) || (SIGEMT != SIGXCPU))
-	case SIGEMT: return "SIGEMT";
+        case SIGEMT: return "SIGEMT";
 #endif
 #ifdef SIGFPE
-	case SIGFPE: return "SIGFPE";
+        case SIGFPE: return "SIGFPE";
 #endif
 #ifdef SIGHUP
-	case SIGHUP: return "SIGHUP";
+        case SIGHUP: return "SIGHUP";
 #endif
 #ifdef SIGILL
-	case SIGILL: return "SIGILL";
+        case SIGILL: return "SIGILL";
 #endif
 #ifdef SIGINT
-	case SIGINT: return "SIGINT";
+        case SIGINT: return "SIGINT";
 #endif
 #ifdef SIGIO
-	case SIGIO: return "SIGIO";
+        case SIGIO: return "SIGIO";
 #endif
 #if defined(SIGIOT) && (!defined(SIGABRT) || (SIGIOT != SIGABRT))
-	case SIGIOT: return "SIGIOT";
+        case SIGIOT: return "SIGIOT";
 #endif
 #ifdef SIGKILL
-	case SIGKILL: return "SIGKILL";
+        case SIGKILL: return "SIGKILL";
 #endif
 #if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG))
-	case SIGLOST: return "SIGLOST";
+        case SIGLOST: return "SIGLOST";
 #endif
 #ifdef SIGPIPE
-	case SIGPIPE: return "SIGPIPE";
+        case SIGPIPE: return "SIGPIPE";
 #endif
 #if defined(SIGPOLL) && (!defined(SIGIO) || (SIGPOLL != SIGIO))
-	case SIGPOLL: return "SIGPOLL";
+        case SIGPOLL: return "SIGPOLL";
 #endif
 #ifdef SIGPROF
-	case SIGPROF: return "SIGPROF";
+        case SIGPROF: return "SIGPROF";
 #endif
 #if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ))
-	case SIGPWR: return "SIGPWR";
+        case SIGPWR: return "SIGPWR";
 #endif
 #ifdef SIGQUIT
-	case SIGQUIT: return "SIGQUIT";
+        case SIGQUIT: return "SIGQUIT";
 #endif
 #ifdef SIGSEGV
-	case SIGSEGV: return "SIGSEGV";
+        case SIGSEGV: return "SIGSEGV";
 #endif
 #ifdef SIGSTOP
-	case SIGSTOP: return "SIGSTOP";
+        case SIGSTOP: return "SIGSTOP";
 #endif
 #ifdef SIGSYS
-	case SIGSYS: return "SIGSYS";
+        case SIGSYS: return "SIGSYS";
 #endif
 #ifdef SIGTERM
-	case SIGTERM: return "SIGTERM";
+        case SIGTERM: return "SIGTERM";
 #endif
 #ifdef SIGTRAP
-	case SIGTRAP: return "SIGTRAP";
+        case SIGTRAP: return "SIGTRAP";
 #endif
 #ifdef SIGTSTP
-	case SIGTSTP: return "SIGTSTP";
+        case SIGTSTP: return "SIGTSTP";
 #endif
 #ifdef SIGTTIN
-	case SIGTTIN: return "SIGTTIN";
+        case SIGTTIN: return "SIGTTIN";
 #endif
 #ifdef SIGTTOU
-	case SIGTTOU: return "SIGTTOU";
+        case SIGTTOU: return "SIGTTOU";
 #endif
 #if defined(SIGURG) && (!defined(SIGIO) || (SIGURG != SIGIO))
-	case SIGURG: return "SIGURG";
+        case SIGURG: return "SIGURG";
 #endif
 #ifdef SIGUSR1
-	case SIGUSR1: return "SIGUSR1";
+        case SIGUSR1: return "SIGUSR1";
 #endif
 #ifdef SIGUSR2
-	case SIGUSR2: return "SIGUSR2";
+        case SIGUSR2: return "SIGUSR2";
 #endif
 #ifdef SIGVTALRM
-	case SIGVTALRM: return "SIGVTALRM";
+        case SIGVTALRM: return "SIGVTALRM";
 #endif
 #ifdef SIGWINCH
-	case SIGWINCH: return "SIGWINCH";
+        case SIGWINCH: return "SIGWINCH";
 #endif
 #ifdef SIGXCPU
-	case SIGXCPU: return "SIGXCPU";
+        case SIGXCPU: return "SIGXCPU";
 #endif
 #ifdef SIGXFSZ
-	case SIGXFSZ: return "SIGXFSZ";
+        case SIGXFSZ: return "SIGXFSZ";
 #endif
 #ifdef SIGINFO
-	case SIGINFO: return "SIGINFO";
+        case SIGINFO: return "SIGINFO";
 #endif
     }
     return "unknown signal";

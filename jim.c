@@ -515,12 +515,6 @@ unsigned int Jim_IntHashFunction(unsigned int key)
     return key;
 }
 
-/* Identity hash function for integer keys */
-unsigned int Jim_IdentityHashFunction(unsigned int key)
-{
-    return key;
-}
-
 /* Generic hash function (we are using to multiply by 9 and add the byte
  * as Tcl) */
 unsigned int Jim_GenHashFunction(const unsigned char *buf, int len)
@@ -1925,16 +1919,6 @@ void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
     memcpy(objPtr->bytes + objPtr->length, str, len);
     objPtr->bytes[objPtr->length+len] = '\0';
     objPtr->length += len;
-}
-
-/* Low-level wrapper to append an object. */
-void StringAppendObj(Jim_Obj *objPtr, Jim_Obj *appendObjPtr)
-{
-    int len;
-    const char *str;
-
-    str = Jim_GetString(appendObjPtr, &len);
-    StringAppendString(objPtr, str, len);
 }
 
 /* Higher level API to append strings to objects. */
@@ -3857,14 +3841,6 @@ unsigned int JimReferencesHTHashFunction(const void *key)
     return Jim_IntHashFunction(intValue);
 }
 
-unsigned int JimReferencesHTDoubleHashFunction(const void *key)
-{
-    /* Only the least significant bits are used. */
-    const jim_wide *widePtr = key;
-    unsigned int intValue = (unsigned int) *widePtr;
-    return intValue; /* identity function. */
-}
-
 const void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
     void *copy = Jim_Alloc(sizeof(jim_wide));
@@ -4288,15 +4264,6 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, JIM_INTERACTIVE, "0");
 
     return i;
-}
-
-/* This is the only function Jim exports directly without
- * to use the STUB system. It is only used by embedders
- * in order to get an interpreter with the Jim API pointers
- * registered. */
-Jim_Interp *ExportedJimCreateInterp(void)
-{
-    return Jim_CreateInterp();
 }
 
 void Jim_FreeInterp(Jim_Interp *i)
@@ -5349,6 +5316,7 @@ int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index,
             Jim_SetResultString(interp,
                 "list index out of range", -1);
         }
+        *objPtrPtr = NULL;
         return JIM_ERR;
     }
     if (index < 0)
@@ -6228,6 +6196,8 @@ static int expr_getnum(Jim_Interp *interp, struct expr_state *e, Jim_Obj **resul
     Jim_Obj *obj = expr_pop(e);
 
     *resultObjPtr = obj;
+    *w = 0;
+    *d = 0;
 
     /* If it is already an integer or double, use it */
     if (obj->typePtr == &intObjType) {
@@ -7245,7 +7215,7 @@ static void ExprMakeLazy(Jim_Interp *interp, ExprByteCode *expr)
                 || expr->opcode[i] == JIM_EXPROP_TERNARY_LEFT
                 || expr->opcode[i] == JIM_EXPROP_COLON_LEFT
                 ) {
-                long skip;
+                long skip = 0;
 
                 Jim_GetLong(interp, expr->obj[i - 1], &skip);
                 if (skip + i - 1 >= leftindex) {
@@ -10324,9 +10294,9 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     static const char *options[] = {
-        "-bool", "-not", "-nocase", "-exact", "-glob", "-regexp", "-all", "-inline", NULL
+        "-bool", "-not", "-nocase", "-exact", "-glob", "-regexp", "-all", "-inline", "-command", NULL
     };
-    enum {OPT_BOOL, OPT_NOT, OPT_NOCASE, OPT_EXACT, OPT_GLOB, OPT_REGEXP, OPT_ALL, OPT_INLINE, OPT_INTEGER};
+    enum {OPT_BOOL, OPT_NOT, OPT_NOCASE, OPT_EXACT, OPT_GLOB, OPT_REGEXP, OPT_ALL, OPT_INLINE, OPT_COMMAND };
     int i;
     int opt_bool = 0;
     int opt_not = 0;
@@ -10337,10 +10307,11 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
     int listlen;
     int rc = JIM_OK;
     Jim_Obj *listObjPtr = NULL;
-    Jim_Obj *regexpCommandObj = NULL;
+    Jim_Obj *commandObj = NULL;
 
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-exact|-glob|-regexp? ?-bool|-inline? ?-not? ?-nocase? ?-all? list value");
+wrongargs:
+        Jim_WrongNumArgs(interp, 1, argv, "?-exact|-glob|-regexp|-command 'command'? ?-bool|-inline? ?-not? ?-nocase? ?-all? list value");
         return JIM_ERR;
     }
 
@@ -10356,6 +10327,12 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
             case OPT_NOCASE: opt_nocase = 1; break;
             case OPT_INLINE: opt_inline = 1; opt_bool = 0; break;
             case OPT_ALL: opt_all = 1; break;
+            case OPT_COMMAND:
+                if (i >= argc - 2) {
+                    goto wrongargs;
+                }
+                commandObj = argv[++i];
+                /* fallthru */
             case OPT_EXACT:
             case OPT_GLOB:
             case OPT_REGEXP:
@@ -10370,8 +10347,10 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
     }
     if (opt_match == OPT_REGEXP) {
-        regexpCommandObj = Jim_NewStringObj(interp, "regexp", -1);
-        Jim_IncrRefCount(regexpCommandObj);
+        commandObj = Jim_NewStringObj(interp, "regexp", -1);
+    }
+    if (commandObj) {
+        Jim_IncrRefCount(commandObj);
     }
 
     Jim_ListLength(interp, argv[0], &listlen);
@@ -10389,7 +10368,8 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
                 break;
 
             case OPT_REGEXP:
-                eq = Jim_CommandMatchObj(interp, regexpCommandObj, argv[1], objPtr, opt_nocase);
+            case OPT_COMMAND:
+                eq = Jim_CommandMatchObj(interp, commandObj, argv[1], objPtr, opt_nocase);
                 if (eq < 0) {
                     if (listObjPtr) {
                         Jim_FreeNewObj(interp, listObjPtr);
@@ -10443,8 +10423,8 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc,
     }
 
 done:
-    if (regexpCommandObj) {
-        Jim_DecrRefCount(interp, regexpCommandObj);
+    if (commandObj) {
+        Jim_DecrRefCount(interp, commandObj);
     }
     return rc;
 }
