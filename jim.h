@@ -135,7 +135,7 @@ extern "C" {
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 61
+#define JIM_VERSION 62
 
 #define JIM_OK 0
 #define JIM_ERR 1

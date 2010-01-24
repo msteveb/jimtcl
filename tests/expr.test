@@ -50,6 +50,40 @@ test expr-1.10 "Subtraction" {
 	expr {$b-$a}
 } {9}
 
+test expr-1.11 "Short circuit evaluation" {
+	set a 100
+	set c [expr {0 || [incr a]}]
+	list $a $c
+} {101 1}
+
+test expr-1.12 "Short circuit evaluation" {
+	set a 100
+	set c [expr {1 || [incr a]}]
+	list $a $c
+} {100 1}
+
+test expr-1.13 "Short circuit evaluation" {
+	set a 100
+	set c [expr {1 || [incr a] && [incr a]}]
+	list $a $c
+} {100 1}
+
+test expr-1.14 "Rotate left" {
+	expr {1 <<< 5}
+} {32}
+
+test expr-1.15 "Rotate left" {
+	expr {1 <<< 65}
+} {2}
+
+test expr-1.16 "Rotate right" {
+	expr {1 >>> 48}
+} {65536}
+
+test expr-1.17 "Rotate left" {
+	expr {1 >>> 63}
+} {2}
+
 # This crashes older jim
 test expr-2.1 "bogus unarymin" {
 	expr {unarymin 1}
@@ -57,6 +91,14 @@ test expr-2.1 "bogus unarymin" {
 
 test expr-2.2 "Ternary operator - missing colon" {
 	list [catch {expr {1 ? 2 3}} msg] $msg
-} {1 {Invalid expression}}
+} {1 {Invalid expression: 1 ? 2 3}}
+
+test expr-2.3 "Ternary operator - missing third term" {
+	list [catch {expr {1 ? 2}} msg] $msg
+} {1 {Invalid expression: 1 ? 2}}
+
+test expr-2.4 "Ternary operator - missing question" {
+	list [catch {expr {1 : 2}} msg] $msg
+} {1 {Invalid expression: 1 : 2}}
 
 testreport
