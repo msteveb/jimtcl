@@ -6,8 +6,11 @@ proc control {cond code} {
 	set iscond [uplevel 1 expr $cond]
 	#puts "$cond -> $iscond"
 	if {$iscond} {
-		set rc [catch [list uplevel 1 $code] error]
-		#puts "$code -> rc=$rc, error=$error"
+		set rc [catch [list uplevel 1 $code] error opts]
+		#puts "$code -> rc=$rc, error=$error, opts=$opts"
+		if {$rc == 2 && $opts(-code) != 0} {
+			set rc $opts(-code)
+		}
 		return -code $rc $error
 	}
 }
@@ -52,19 +55,19 @@ proc do_case {var} {
 			return one
 		}
 		2 {
-			return two
+			return -code ok two
 		}
 		3 {
-			continue
+			return -code continue three
 		}
 		4 {
 			return 44
 		}
 		5 {
-			break
+			return -code break five
 		}
 		6 {
-			return six
+			return eight
 		}
 	}
 	return zero

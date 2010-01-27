@@ -11749,22 +11749,27 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc,
     /* Which return codes are caught? These are the defaults */
     jim_wide mask = (1 << JIM_OK | 1 << JIM_ERR | 1 << JIM_BREAK | 1 << JIM_CONTINUE | 1 << JIM_RETURN);
 
-    for (i = 1; i < argc - 2; i++) {
+    for (i = 1; i < argc - 1; i++) {
         const char *arg = Jim_GetString(argv[i], NULL);
         jim_wide option;
         int add;
 
         /* It's a pity we can't use Jim_GetEnum here :-( */
+        if (strcmp(arg, "--") == 0) {
+            i++;
+            break;
+        }
+        if (*arg != '-') {
+            break;
+        }
+
         if (strncmp(arg, "-no", 3) == 0) {
             arg += 3;
             add = 0;
         }
-        else if (*arg == '-') {
+        else {
             arg++;
             add = 1;
-        }
-        else {
-            goto wrongargs;
         }
 
         if (Jim_StringToWide(arg, &option, 10) != JIM_OK) {
@@ -11786,9 +11791,10 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc,
     }
 
     argc -= i;
-    if (argc != 1 && argc != 2) {
+    if (argc < 1 || argc > 3) {
+        printf("argc=%d\n", argc);
 wrongargs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-?no?code ...? script ?varName?");
+        Jim_WrongNumArgs(interp, 1, argv, "?-?no?code ... --? script ?resultVarName? ?optionVarName?");
         return JIM_ERR;
     }
     argv += i;
@@ -11800,7 +11806,6 @@ wrongargs:
     interp->signal_level += sig;
     exitCode = Jim_EvalObj(interp, argv[0]);
     interp->signal_level -= sig;
-
 
     /* Catch or pass through? Only the first 64 codes can be passed through */
     if (exitCode >= 0 && exitCode < sizeof(mask) && ((1 << exitCode) & mask) == 0) {
@@ -11819,10 +11824,20 @@ wrongargs:
         interp->signal = 0;
     }
 
-    if (argc == 2) {
-        if (Jim_SetVariable(interp, argv[1], Jim_GetResult(interp))
-                != JIM_OK)
+    if (argc >= 2) {
+        if (Jim_SetVariable(interp, argv[1], Jim_GetResult(interp)) != JIM_OK) {
             return JIM_ERR;
+        }
+        if (argc == 3) {
+            Jim_Obj *optListObj = Jim_NewListObj(interp, NULL, 0);
+            Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-code", -1));
+            Jim_ListAppendElement(interp, optListObj,
+                Jim_NewIntObj(interp, exitCode == JIM_RETURN ? interp->returnCode : exitCode));
+
+            if (Jim_SetVariable(interp, argv[2], optListObj) != JIM_OK) {
+                return JIM_ERR;
+            }
+        }
     }
     Jim_SetResultInt(interp, exitCode);
     return JIM_OK;
@@ -12202,18 +12217,37 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc,
             /* Redirect to Tcl proc */
             return Jim_Eval(interp, "{info nameofexecutable}");
 
-        case INFO_RETURNCODES: {
-            int i;
-            Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+        case INFO_RETURNCODES:
+            if (argc == 2) {
+                int i;
+                Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
-            for (i = 0; jimReturnCodes[i]; i++) {
-                Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, i));
-                Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, jimReturnCodes[i], -1));
+                for (i = 0; jimReturnCodes[i]; i++) {
+                    Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, i));
+                    Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, jimReturnCodes[i], -1));
+                }
+
+                Jim_SetResult(interp, listObjPtr);
             }
-
-            Jim_SetResult(interp, listObjPtr);
+            else if (argc == 3) {
+                long code;
+                const char *name;
+                if (Jim_GetLong(interp, argv[2], &code) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                name = Jim_ReturnCode(code);
+                if (*name == '?') {
+                    Jim_SetResultInt(interp, code);
+                }
+                else {
+                    Jim_SetResultString(interp, name, -1);
+                }
+            }
+            else {
+                Jim_WrongNumArgs(interp, 2, argv, "?code?");
+                return JIM_ERR;
+            }
             break;
-        }
     }
     return JIM_OK;
 }

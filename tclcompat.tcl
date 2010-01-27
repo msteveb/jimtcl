@@ -47,7 +47,14 @@ proc case {var args} {
 	rename $checker ""
 
 	if {[info exists do_action]} {
-		set rc [catch [list uplevel 1 $do_action] result]
+		set rc [catch [list uplevel 1 $do_action] result opts]
+		set rcname [info returncode $rc]
+		if {$rcname in {break continue}} {
+			return -code error "invoked \"$rcname\" outside of a loop"
+		} elseif {$rcname eq "return" && $opts(-code)} {
+			# 'return -code' in the action
+			set rc $opts(-code)
+		}
 		return -code $rc $result
 	}
 }

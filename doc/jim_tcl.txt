@@ -1480,7 +1480,7 @@ will return '2'.
 
 catch
 ~~~~~
-+*catch* '?-?no?code ...? command ?varName?'+
++*catch* '?-?no?code ...?' *?--?* 'command ?resultVarName? ?optionsVarName?'+
 
 The 'catch' command may be used to prevent errors from aborting
 command interpretation.  'Catch' evalues *command*, and
@@ -1492,22 +1492,29 @@ The return value from 'catch' is a decimal string giving the code returned
 by the Tcl interpreter after executing *command*.  This will be '0'
 (+JIM_OK+) if there were no errors in *command*; otherwise it will have
 a non-zero value corresponding to one of the exceptional return codes
-(see jim.h for the definitions of code values).
+(see jim.h for the definitions of code values, or the 'info returncodes' command).
 
-If the *varName* argument is given, then it gives the name of a variable;
+If the *resultVarName* argument is given, then it gives the name of a variable;
 'catch' will set the value of the variable to the string returned from
 *command* (either a result or an error message).
 
+If the *optionsVarName* argument is given, then it gives the name of a variable;
+'catch' will set the value of the variable to a dictionary. For any return code other
+than +JIM_RETURN+, the value for the key +-code+ will be set to the return code. For +JIM_RETURN+
+it will be set to the code given in 'return -code'.
+
 Normally 'catch' will *not* catch any of the codes +JIM_EXIT+, +JIM_EVAL+ or +JIM_SIGNAL+.
 The set of codes which will be caught may be modified by specifying the one more codes before
-*command*. (In this case, *varName* must be specified).
+*command*.
 
 e.g. To catch +JIM_EXIT+ but not +JIM_BREAK+ or +JIM_CONTINUE+
 
-    catch -exit -nobreak -nocontinue { ... }
+    catch -exit -nobreak -nocontinue -- { ... }
+
+The use of +--+ is optional. It signifies that no more return code options follow.
 
 Note that if a signal marked as 'signal handle' is caught with 'catch -signal', the return value
-(stored in *varName*) is name of the signal caught.
+(stored in *resultVarName*) is name of the signal caught.
 
 cd
 ~~
@@ -2276,9 +2283,10 @@ The legal *option*'s (which may be abbreviated) are:
     are returned.  Matching is determined using the same rules as for
     'string match'.
 
-+*info returncodes*+::
++*info returncodes* ?'code'?+::
     Returns a list representing the mapping of standard return codes
-	to names. e.g. +{0 ok 1 error 2 return ...}+
+	to names. e.g. +{0 ok 1 error 2 return ...}+. If a code is given,
+	instead returns the name for the given code.
 
 +*info script*+::
     If a Tcl script file is currently being evaluated (i.e. there is a
