@@ -436,6 +436,20 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *new_argv[4];
+    int i;
+
+    new_argv[0] = Jim_NewStringObj(interp, "_file_copy", -1);
+    for (i = 0; i < argc; i++) {
+        new_argv[i + 1] = argv[i];
+    }
+
+    /* Note that Jim_EvalObjVector() will incr then decr ref count of new_argv[0] */
+    return Jim_EvalObjVector(interp, argc + 1, new_argv);
+}
+
 static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct stat sb;
@@ -546,6 +560,13 @@ static const jim_subcmd_type command_table[] = {
         .minargs = 1,
         .maxargs = 1,
         .description = "Last modification time"
+    },
+    {   .cmd = "copy",
+        .args = "?-force? source dest",
+        .function = file_cmd_copy,
+        .minargs = 2,
+        .maxargs = 3,
+        .description = "Copy source file to destination file"
     },
     {   .cmd = "dirname",
         .args = "name",

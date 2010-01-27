@@ -109,4 +109,27 @@ proc info_nameofexecutable {} {
 	return ""
 }
 
+# Implements 'file copy' - single file mode only
+proc _file_copy {{force {}} source target} {
+	switch -- $force \
+		-force {} \
+		{} {
+			if {[file exists $target]} {
+				error "error copying \"$source\" to \"$target\": file already exists"
+			}
+		} \
+		default {
+			error "bad option \"$force\": should be -force"
+		}
+	set in [open $source]
+	set rc [catch {
+		set out [open $target w]
+		bio copy $in $out
+		$out close
+	} result]
+	$in close
+
+	return -code $rc $result
+}
+
 set ::tcl_platform(platform) unix

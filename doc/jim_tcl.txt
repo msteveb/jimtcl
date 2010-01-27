@@ -75,6 +75,7 @@ Since v0.61:
 13. Allow 'catch' to determine what return codes are caught
 14. Allow 'incr' to increment an unset variable by first setting to 0
 15. Allow 'args' and optional arguments to the left or required arguments in 'proc'
+15. Add 'file copy'
 
 TCL INTRODUCTION
 -----------------
@@ -1842,6 +1843,10 @@ abbreviation for *option* is acceptable.  The valid options are:
     fashion as seconds from a fixed starting time (often January 1, 1970).
     If the file doesn't exist or its access time cannot be queried then an
     error is generated.
+
++*file copy ?-force?* 'source target'+::
+	Copies file *source* to file *target*. The source file must exist.
+	The target file must not exist, unless *-force* is specified.
 
 +*file delete* 'name'+::
     Deletes file *name*. If the file doesn't exist, nothing happens.
