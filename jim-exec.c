@@ -693,14 +693,26 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     /* If we are redirecting stderr with 2>filename or 2>@fileId, then we ignore errFilePtr */
     if (error != NULL) {
         if (errorFile == FILE_HANDLE) {
-            Jim_Obj *fhObj = Jim_NewStringObj(interp, error, -1);
-            FILE *fh = Jim_AioFilehandle(interp, fhObj);
-            Jim_FreeNewObj(interp, fhObj);
-            if (fh == NULL) {
-                goto error;
+            if (strcmp(error, "1") == 0) {
+                /* Special 2>@1 */
+                if (lastOutputId >= 0) {
+                    errorId = dup(lastOutputId);
+                }
+                else {
+                    /* No redirection stdout, so just use 2>@stdout */
+                    error = "stdout";
+                }
             }
-            fflush(fh);
-            errorId = dup(fileno(fh));
+            if (errorId < 0) {
+                Jim_Obj *fhObj = Jim_NewStringObj(interp, error, -1);
+                FILE *fh = Jim_AioFilehandle(interp, fhObj);
+                Jim_FreeNewObj(interp, fhObj);
+                if (fh == NULL) {
+                    goto error;
+                }
+                fflush(fh);
+                errorId = dup(fileno(fh));
+            }
         }
         else {
             /*

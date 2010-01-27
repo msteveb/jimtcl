@@ -454,6 +454,10 @@ test exec-15.6 {standard error redirection} {
 	    >& gorp.file 2> gorp.file2 | echo biz baz
     list [exec cat gorp.file] [exec cat gorp.file2]
 } {{biz baz} {foo bar}}
+test exec-15.7 {combine standard output/standard error} {
+    exec sh -c "echo foo bar 1>&2" > gorp.file 2>@1 
+    exec cat gorp.file
+} {foo bar}
 
 test exec-16.1 {flush output before exec} {
     set f [open gorp.file w]

@@ -60,7 +60,7 @@ CHANGES
 -------
 Since v0.61:
 
-1. Add support to 'exec' for '>&', '>>&', '|&'
+1. Add support to 'exec' for '>&', '>>&', '|&', '2>@1'
 2. Fix 'exec' error messages when special token (e.g. '>') is the last token
 3. Fix 'subst' handling of backslash escapes.
 4. Allow abbreviated options for 'subst'
@@ -1759,6 +1759,10 @@ An *arg* may have one of the following special forms:
 +2>@fileId+::
     The standard error of the last command in the pipeline is
     redirected to the given (writable) file descriptor.
+
++2>@1+::
+    The standard error of the last command in the pipeline is
+    redirected to the same file descriptor as the standard output.
 
 +>&filename+::
     Both the standard output and standard error of the last command
