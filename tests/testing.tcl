@@ -1,24 +1,11 @@
-# Uses references to automatically close files when the handle
-# can no longer be accessed.
-#
-# e.g. bio copy [autoopen infile] [autoopen outfile w]; collect
-#
-proc autoopen {filename {mode r}} {
-	set ref [ref [open $filename $mode] aio lambdaFinalizer]
-	rename [getref $ref] $ref
-	return $ref
-}
-
-# Hardly needed
-proc filecopy {read write} {
-	bio copy [autoopen $read] [autoopen $write w]
-	collect
-}
-
 proc makeFile {contents name} {
 	set f [open $name w]
 	puts $f $contents
 	close $f
+}
+
+proc info_source {script} {
+	join [info source $script] :
 }
 
 catch {
@@ -26,6 +13,9 @@ catch {
 	info tclversion
 	proc errorInfo {msg} {
 		return $::errorInfo
+	}
+	proc info_source {script} {
+		return ""
 	}
 }
 
@@ -53,6 +43,7 @@ proc test {id descr script expected} {
 			puts -nonewline "$id "
 		}
 		puts "ERR $descr"
+		puts "At      : [info_source $script]"
 		puts "Expected: '$expected'"
 		puts "Got     : '$result'"
 		incr ::testresults(numfail)
@@ -65,7 +56,7 @@ proc testreport {} {
 	puts "FAILED: $::testresults(numfail)"
 	foreach failed $::testresults(failed) {
 		foreach {id descr script expected result} $failed {}
-		puts "\t$id"
+		puts "\t[info_source $script]\t$id"
 	}
 	puts "PASSED: $::testresults(numpass)"
 	puts "----------------------------------------------------------------------\n"

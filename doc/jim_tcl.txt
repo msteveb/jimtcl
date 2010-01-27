@@ -75,7 +75,7 @@ Since v0.61:
 13. Allow 'catch' to determine what return codes are caught
 14. Allow 'incr' to increment an unset variable by first setting to 0
 15. Allow 'args' and optional arguments to the left or required arguments in 'proc'
-15. Add 'file copy'
+16. Add 'file copy'
 
 TCL INTRODUCTION
 -----------------

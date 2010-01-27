@@ -4,7 +4,7 @@ package require errors
 # Make this a proc so that the line numbers don't have to change
 proc main {} {
 	set id1 0
-	foreach type {badcmd badvar error interpbadvar interpbadcmd package source badpackage} {
+	foreach type {badcmd badvar error interpbadvar interpbadcmd package source badpackage returncode} {
 		set id2 0
 		incr id1
 		foreach method {call uplevel eval evalstr} {
@@ -16,7 +16,7 @@ proc main {} {
 			test err-$id1.$id2 "Stacktrace on error type $type, method $method" {
 				set rc [catch {error_caller $type $method} msg]
 				#puts stderr "err-$id1.$id2 $type, $method\n[errorInfo $msg]\n"
-				#puts stderr "\terr-$id1.$id2 {[list $rc $msg [info stacktrace]]}"
+				if {$::SHOW_EXPECTED} { puts stderr "\terr-$id1.$id2 {[list $rc $msg [info stacktrace]]}" }
 
 				list $rc $msg [info stacktrace]
 			} $exp
@@ -102,7 +102,15 @@ Can't load package dummy} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21
 	err-8.2 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 47 error_caller stacktrace.test 17}}
 	err-8.3 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 50 error_caller stacktrace.test 17}}
 	err-8.4 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 53 error_caller stacktrace.test 17}}
+	err-9.1 {1 failure {{} errors.tcl 44 error_caller stacktrace.test 17}}
+	err-9.2 {1 failure {{} errors.tcl 47 error_caller stacktrace.test 17}}
+	err-9.3 {1 failure {{} errors.tcl 50 error_caller stacktrace.test 17}}
+	err-9.4 {1 failure {{} errors.tcl 53 error_caller stacktrace.test 17}}
 }
+
+# Set this to output expected results to stderr
+# in a form which can be pasted into 'expected' below
+set SHOW_EXPECTED 0
 
 main
 

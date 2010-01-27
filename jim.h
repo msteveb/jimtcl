@@ -134,7 +134,7 @@ extern "C" {
 #define JIM_EXIT 6
 /* The following are internal codes and should never been seen/used */
 #define JIM_EVAL 7
-#define JIM_ERR_ADDSTACK 8
+
 #define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
@@ -483,6 +483,7 @@ typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
     int errorLine; /* Error line where an error occurred. */
     char *errorFileName; /* Error file where an error occurred. */
+    int addStackTrace; /* > 0 If a level should be added to the stack trace */
     int numLevels; /* Number of current nested calls. */
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */

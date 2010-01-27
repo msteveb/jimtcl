@@ -153,7 +153,7 @@ int main(int argc, char *const argv[])
             JimSetArgv(interp, argc - 2, argv + 2);
             retcode = Jim_EvalFile(interp, argv[1]);
         }
-        if (retcode == JIM_ERR || retcode == JIM_ERR_ADDSTACK) {
+        if (retcode == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
         }
     }

@@ -94,7 +94,7 @@ proc errorInfo {error {stacktrace ""}} {
 	return $result
 }
 
-proc info_nameofexecutable {} {
+proc {info nameofexecutable} {} {
 	if {[info exists ::jim_argv0]} {
 		if {[string first "/" $::jim_argv0] >= 0} {
 			return $::jim_argv0
@@ -110,18 +110,17 @@ proc info_nameofexecutable {} {
 }
 
 # Implements 'file copy' - single file mode only
-proc _file_copy {{force {}} source target} {
-	switch -- $force \
-		-force {} \
-		{} {
-			if {[file exists $target]} {
-				error "error copying \"$source\" to \"$target\": file already exists"
-			}
-		} \
-		default {
-			error "bad option \"$force\": should be -force"
-		}
-	set in [open $source]
+proc {file copy} {{force {}} source target} {
+	if {$force ni {{} -force}} {
+		return -code error "bad option \"$force\": should be -force"
+	}
+	if {[catch {open $source} in]} {
+		return -code error $in
+	}
+	if {$force eq "" && [file exists $target]} {
+		$in close
+		return -code error "error copying \"$source\" to \"$target\": file already exists"
+	}
 	set rc [catch {
 		set out [open $target w]
 		bio copy $in $out

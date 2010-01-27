@@ -117,7 +117,7 @@ proc glob {args} {
 	}
 
 	if {$nocomplain == 0 && [llength $result] == 0} {
-		error "no files matched glob patterns"
+		return -code error "no files matched glob patterns"
 	}
 
 	return $result

@@ -26,13 +26,13 @@ proc error_generator {type} {
 		badpackage {
 			package require bogus
 		} \
+		returncode {
+			return -code error failure
+		} \
 		default {
 			puts "Unknown type=$type"
 		}
 }
-
-
-
 
 
 

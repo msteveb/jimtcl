@@ -441,7 +441,7 @@ static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *new_argv[4];
     int i;
 
-    new_argv[0] = Jim_NewStringObj(interp, "_file_copy", -1);
+    new_argv[0] = Jim_NewStringObj(interp, "file copy", -1);
     for (i = 0; i < argc; i++) {
         new_argv[i + 1] = argv[i];
     }

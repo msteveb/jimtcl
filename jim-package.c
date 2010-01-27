@@ -188,13 +188,10 @@ static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  */
 static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int retcode = Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
-
     /* package require failing is important enough to add to the stack */
-    if (retcode == JIM_ERR) {
-        retcode = JIM_ERR_ADDSTACK;
-    }
-    return retcode;
+    interp->addStackTrace++;
+
+    return Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
 }
 
 /*
