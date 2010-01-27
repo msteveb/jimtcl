@@ -9075,8 +9075,31 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     /* Check arity */
     if (argc - 1 < cmd->leftArity + cmd->rightArity ||
         (!cmd->args && argc - 1 > cmd->leftArity + cmd->rightArity + cmd->optionalArgs)) {
-        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s%s%#s\"", procname, 
-            Jim_ListLength(interp, cmd->argListObjPtr) ? " " : "", cmd->argListObjPtr);
+        /* Create a nice error message, consistent with Tcl 8.5 */
+        Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
+        int arglen = Jim_ListLength(interp, cmd->argListObjPtr);
+        for (i = 0; i < arglen; i++) {
+            Jim_Obj *argObjPtr;
+            Jim_ListIndex(interp, cmd->argListObjPtr, i, &argObjPtr, JIM_NONE);
+
+            Jim_AppendString(interp, argmsg, " ", 1);
+
+            if (i < cmd->leftArity || i >= arglen - cmd->rightArity) {
+                Jim_AppendObj(interp, argmsg, argObjPtr);
+            }
+            else if (i == arglen - cmd->rightArity - cmd->args) {
+                Jim_AppendString(interp, argmsg, "?argument ...?", -1);
+            }
+            else {
+                Jim_Obj *objPtr;
+                Jim_AppendString(interp, argmsg, "?", 1);
+                Jim_ListIndex(interp, argObjPtr, 0, &objPtr, JIM_NONE);
+                Jim_AppendObj(interp, argmsg, objPtr);
+                Jim_AppendString(interp, argmsg, "?", 1);
+            }
+        }
+        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s%#s\"", procname, argmsg);
+        Jim_FreeNewObj(interp, argmsg);
         return JIM_ERR;
     }
 
