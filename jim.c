@@ -1790,7 +1790,7 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
         if (objPtr->typePtr->updateStringProc == NULL) {
-            Jim_Panic(NULL,"UpdataStringProc called against '%s' type.",
+            Jim_Panic(NULL,"UpdateStringProc called against '%s' type.",
                 objPtr->typePtr->name);
         }
         objPtr->typePtr->updateStringProc(objPtr);
@@ -2226,10 +2226,10 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         haveprec = 0;
         prec = -1; /* not found yet */
     next_fmt:
-        if( fmtLen <= 0 ){
+        if (fmtLen <= 0) {
                 break;
         }
-        switch( *fmt ){
+        switch (*fmt) {
             /* terminals */
         case 'b': /* binary - not all printfs() do this */
         case 's': /* string */
@@ -2288,11 +2288,11 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         case '8':
         case '9':
                 accum = 0;
-                while( isdigit(*fmt) && (fmtLen > 0) ){
+                while (isdigit(*fmt) && (fmtLen > 0)) {
                         accum = (accum * 10) + (*fmt - '0');
                         fmt++;  fmtLen--;
                 }
-                if( inprec ){
+                if (inprec) {
                         haveprec = 1;
                         prec = accum;
                 } else {
@@ -2303,24 +2303,24 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 /* suck up the next item as an integer */
                 fmt++;  fmtLen--;
                 objc--;
-                if( objc <= 0 ){
+                if (objc <= 0) {
                         goto not_enough_args;
                 }
-                if( Jim_GetWide(interp,objv[0],&wideValue )== JIM_ERR ){
+                if (Jim_GetWide(interp,objv[0],&wideValue )== JIM_ERR) {
                         Jim_FreeNewObj(interp, resObjPtr );
                         return NULL;
                 }
-                if( inprec ){
+                if (inprec) {
                         haveprec = 1;
                         prec = wideValue;
-                        if( prec < 0 ){
+                        if (prec < 0) {
                                 /* man 3 printf says */
                                 /* if prec is negative, it is zero */
                                 prec = 0;
                         }
                 } else {
                 width = wideValue;
-                if( width < 0 ){
+                if (width < 0) {
                         ljust = 1;
                         width = -width;
                 }
@@ -2348,32 +2348,32 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
          */
         cp = fmt_str;
         *cp++ = '%';
-        if( altfm ){
+        if (altfm) {
             *cp++ = '#';
         }
-        if( forceplus ){
+        if (forceplus) {
             *cp++ = '+';
-        } else if( spad ){
+        } else if (spad) {
             /* PLUS overrides */
             *cp++ = ' ';
         }
-        if( ljust ){
+        if (ljust) {
             *cp++ = '-';
         }
-        if( zpad  ){
+        if (zpad ) {
             *cp++ = '0';
         }
-        if( width > 0 ){
+        if (width > 0) {
             sprintf( cp, "%d", width );
             /* skip ahead */
             cp = strchr(cp,0);
         }
         /* did we find a period? */
-        if( inprec ){
+        if (inprec) {
             /* then add it */
             *cp++ = '.';
             /* did something occur after the period? */
-            if( haveprec ){
+            if (haveprec) {
                 sprintf( cp, "%d", prec );
             }
             cp = strchr(cp,0);
@@ -2407,7 +2407,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         case 'E':
             *cp++ = *fmt;
             *cp   = 0;
-            if( Jim_GetDouble( interp, objv[0], &doubleValue ) == JIM_ERR ){
+            if (Jim_GetDouble( interp, objv[0], &doubleValue ) == JIM_ERR) {
                 Jim_FreeNewObj( interp, resObjPtr );
                 return NULL;
             }
@@ -2421,7 +2421,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         case 'x':
         case 'X':
             /* jim widevaluse are 64bit */
-            if( sizeof(jim_wide) == sizeof(long long) ){
+            if (sizeof(jim_wide) == sizeof(long long)) {
                 *cp++ = 'l'; 
                 *cp++ = 'l';
             } else {
@@ -2808,7 +2808,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script, Par
 {
     int i;
     struct ScriptToken *token;
-    int prevtype = JIM_TT_NONE;
+    int prevtype = JIM_TT_EOL;
 
     /* Be pessimistic. This will definitely be big enough since at least the EOF token
      * will be discarded
@@ -2817,70 +2817,60 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script, Par
     script->csLen = 0;
 
     for (i = 0; i < tokenlist->count; i++) {
-        ParseToken *t = &tokenlist->list[i];
-        int len;
-        char *str;
+        const ParseToken *t = &tokenlist->list[i];
 
         if (t->type == JIM_TT_EOF) {
             break;
         }
 
-        /* Make it easy to do something based on the previous type and the current type */
-        #define TT_PAIR(prev, current) (prev * 16 + current)
+        switch (t->type) {
+            case JIM_TT_EOL:
+                /* Combine multiple EOLs to one */
+                if (prevtype == JIM_TT_EOL) {
+                    continue;
+                }
+                token->objPtr = interp->emptyObj;
+                script->csLen += 2;
+                break;
 
-        switch (TT_PAIR(prevtype, t->type))  {
-            case TT_PAIR(JIM_TT_NONE,JIM_TT_EOL):
-            case TT_PAIR(JIM_TT_NONE,JIM_TT_SEP):
-            case TT_PAIR(JIM_TT_EOL,JIM_TT_EOL):
-            case TT_PAIR(JIM_TT_EOL,JIM_TT_SEP):
-                continue;
+            case JIM_TT_SEP:
+                /* Skip SEP before or after EOL */
+                if (prevtype == JIM_TT_EOL || t[1].type == JIM_TT_EOL) {
+                    continue;
+                }
+                token->objPtr = interp->emptyObj;
+                script->csLen++;
+                break;
+
+            default: {
+                char *str;
+                int len = t->len;
+
+                if (t->type == JIM_TT_ESC) {
+                    /* Convert the escape chars. */
+                    str = Jim_Alloc(len+1);
+                    len = JimEscape(str, t->token, len);
+                }
+                else {
+                    /* No escape conversion needed, so just copy it. */
+                    str = Jim_StrDupLen(t->token, len);
+                }
+
+                /* Every object is initially a string, but the
+                 * internal type may be specialized during execution of the
+                 * script. */
+                token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
+
+                if (script->fileName) {
+                    JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
+                }
+                break;
+            }
         }
 
-        /* Also look ahead. For SEP, EOL skip SEP */
-        if (t->type == JIM_TT_SEP && t[1].type == JIM_TT_EOL) {
-            continue;
-        }
-
-        /* Finally, we need to create a token for 't' */
         token->type = t->type;
         token->linenr = t->line;
 
-        len = t->len;
-
-        if (t->type == JIM_TT_SEP || t->type == JIM_TT_EOL) {
-            /* No need for a separate object here */
-            token->objPtr = interp->emptyObj;
-
-            /* Also count the required cmdStruct length while we are here.
-             * 2 for EOL, 1 for SEP.
-             */
-            if (t->type == JIM_TT_EOL) {
-                script->csLen += 2;
-            }
-            else {
-                script->csLen++;
-            }
-        }
-        else {
-            if (t->type != JIM_TT_ESC) {
-                /* No escape conversion needed, so just copy it. */
-                str = Jim_StrDupLen(t->token, len);
-            }
-            else {
-                /* Else convert the escape chars. */
-                str = Jim_Alloc(len+1);
-                len = JimEscape(str, t->token, len);
-            }
-
-            /* Every object is initially a string, but the
-             * internal type may be specialized during execution of the
-             * script. */
-            token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
-
-            if (script->fileName) {
-                JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
-            }
-        }
         Jim_IncrRefCount(token->objPtr);
         token++;
 
@@ -9208,10 +9198,10 @@ int Jim_Eval_Named(Jim_Interp *interp, const char *script, const char *filename,
     Jim_IncrRefCount(scriptObjPtr);
 
 
-    if( filename ){
+    if (filename) {
         Jim_Obj *prevScriptObj;
 
-        JimSetSourceInfo( interp, scriptObjPtr, filename, lineno );
+        JimSetSourceInfo(interp, scriptObjPtr, filename, lineno);
 
         prevScriptObj = interp->currentScriptObj;
         interp->currentScriptObj = scriptObjPtr;

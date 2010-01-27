@@ -482,7 +482,7 @@ typedef struct Jim_PrngState {
 typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
     int errorLine; /* Error line where an error occurred. */
-    const char *errorFileName; /* Error file where an error occurred. */
+    char *errorFileName; /* Error file where an error occurred. */
     int numLevels; /* Number of current nested calls. */
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */
