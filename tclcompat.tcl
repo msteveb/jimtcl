@@ -28,7 +28,7 @@ proc case {var args} {
 
 	# Check for odd number of args
 	if {[llength $args] % 2 != 0} {
-		error "extra case pattern with no body"
+		return -code error "extra case pattern with no body"
 	}
 
 	# Internal function to match a value agains a list of patterns
@@ -111,24 +111,41 @@ proc {info nameofexecutable} {} {
 
 # Implements 'file copy' - single file mode only
 proc {file copy} {{force {}} source target} {
-	if {$force ni {{} -force}} {
-		return -code error "bad option \"$force\": should be -force"
-	}
-	if {[catch {open $source} in]} {
-		return -code error $in
-	}
-	if {$force eq "" && [file exists $target]} {
-		$in close
-		return -code error "error copying \"$source\" to \"$target\": file already exists"
-	}
 	set rc [catch {
-		set out [open $target w]
-		bio copy $in $out
-		$out close
+		if {$force ni {{} -force}} {
+			error "bad option \"$force\": should be -force"
+		}
+		set in [open $source]
+
+		try {
+			if {$force eq "" && [file exists $target]} {
+				$in close
+				error "error copying \"$source\" to \"$target\": file already exists"
+			}
+			set out [open $target w]
+			bio copy $in $out
+			$out close
+		} finally {
+			catch {$in close}
+		}
 	} result]
-	$in close
 
 	return -code $rc $result
 }
+
+# Poor mans try/catch/finally
+# Note that in this version 'finally' is required
+proc try {script finally finalscript} {
+	if {$finally ne "finally"} {
+		return -code error {mis-spelt "finally" keyword}
+	}
+	set bodycode [catch [list uplevel 1 $script] bodymsg]
+	set finalcode [catch [list uplevel 1 $finalscript] finalmsg]
+	if {$bodycode || !$finalcode} {
+		return -code $bodycode $bodymsg
+	}
+	return -code $finalcode $finalmsg
+}
+
 
 set ::tcl_platform(platform) unix

@@ -76,6 +76,7 @@ Since v0.61:
 14. Allow 'incr' to increment an unset variable by first setting to 0
 15. Allow 'args' and optional arguments to the left or required arguments in 'proc'
 16. Add 'file copy'
+17. Add 'try ... finally' command
 
 TCL INTRODUCTION
 -----------------
@@ -3381,6 +3382,30 @@ which indicates the average amount of time required per iteration,
 in microseconds.
 
 Time is measured in elapsed time, not CPU time.
+
+try
+~~~
++*try* 'script' *finally* 'finalscript'+
+
+The 'try' command is provided as a convenience for exception handling.
+This interpeter evaluates *script* and then, regardless of any error
+generated, evaluates *finalscript*.
+
+The result of this command is the result of *script*, except in the
+case where *script* did not generate an error and *finalscript*
+did. In this case, the result is the result of *finalscript*.
+
+For example:
+
+	set f [open input]
+    try {
+		process $f
+	} finally {
+		$f close
+	}
+
+Will close the file even if an error occurs during 'process'. The result will
+be the result of 'process'
 
 unknown
 ~~~~~~~
