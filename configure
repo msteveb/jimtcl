@@ -597,7 +597,6 @@ SRCDIR
 EXTRA_CFLAGS
 JIM_LIBTYPE
 JIM_EXTENSIONS
-JIM_NOFORK
 SH_LDFLAGS
 SH_CFLAGS
 host_os
@@ -611,6 +610,7 @@ build
 EGREP
 GREP
 CPP
+HAVE_LONG_LONG
 SET_MAKE
 OBJEXT
 EXEEXT
@@ -3260,7 +3260,8 @@ cat >>confdefs.h <<_ACEOF
 #define HAVE_LONG_LONG 1
 _ACEOF
 
-EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_LONG_LONG"
+HAVE_LONG_LONG="#define HAVE_LONG_LONG"
+
 fi
 
 
@@ -3378,12 +3379,10 @@ if test "${enable_fork+set}" = set; then :
 		if test "x$enableval" = "xno" ; then
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: * disabling fork" >&5
 $as_echo "* disabling fork" >&6; }
-			JIM_NOFORK=1
+			EXTRA_CFLAGS="-DJIM_NOFORK"
 		fi
 
 fi
-
-JIM_NOFORK=$JIM_NOFORK
 
 # Check whether --enable-math was given.
 if test "${enable_math+set}" = set; then :
@@ -3504,6 +3503,8 @@ fi
 
 
 ac_config_files="$ac_config_files Makefile"
+
+ac_config_files="$ac_config_files jim.h"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4200,6 +4201,7 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "jim.h") CONFIG_FILES="$CONFIG_FILES jim.h" ;;
 
   *) as_fn_error "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

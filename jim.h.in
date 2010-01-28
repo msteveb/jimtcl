@@ -82,7 +82,9 @@ extern "C" {
  * autoconf (configure) will set these
  * ---------------------------------------------------------------------------*/
 
-/* #define HAVE_LONG_LONG */
+#ifdef HAVE_CONFIGURE
+@HAVE_LONG_LONG@
+#endif
 
 /* -----------------------------------------------------------------------------
  * Compiler specific fixes.

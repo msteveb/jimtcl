@@ -9,7 +9,7 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 
 # Checks for types
-AC_CHECK_TYPES(long long,EXTRA_CFLAGS="$EXTRA_CFLAGS -DHAVE_LONG_LONG")
+AC_CHECK_TYPES(long long,AC_SUBST(HAVE_LONG_LONG,["#define HAVE_LONG_LONG"]))
 
 # Shared library support. Because we don't believe in automake!
 AC_CANONICAL_HOST
@@ -27,11 +27,10 @@ AC_ARG_ENABLE(fork,
 	[
 		if test "x$enableval" = "xno" ; then
 			AC_MSG_RESULT(* disabling fork)
-			JIM_NOFORK=1
+			EXTRA_CFLAGS="-DJIM_NOFORK"
 		fi
 	],
 )
-AC_SUBST(JIM_NOFORK,$JIM_NOFORK)
 AC_ARG_ENABLE(math,
 	[  --enable-math           include support for math functions],
 	[
@@ -79,4 +78,5 @@ AC_SUBST(SRCDIR,`dirname $0`)
 AC_CHECK_LIB(dl, dlopen,AC_SUBST(LIBDL,-ldl))
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([jim.h])
 AC_OUTPUT

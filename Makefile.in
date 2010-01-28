@@ -3,7 +3,6 @@ SIZE ?= size
 
 # Configuration
 
-jim_nofork := @JIM_NOFORK@
 jim_libtype := @JIM_LIBTYPE@
 SH_CFLAGS ?= @SH_CFLAGS@ 
 SH_LDFLAGS ?= @SH_LDFLAGS@ 
@@ -16,12 +15,9 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
-CFLAGS += -Wall -g -Os $(OPTIM) -I@SRCDIR@ @EXTRA_CFLAGS@
+CFLAGS += -DHAVE_CONFIGURE -Wall -g $(OPTIM) -I@SRCDIR@ @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
-ifdef jim_nofork
-	CFLAGS += -DNO_FORK
-endif
 ifeq ($(jim_libtype),static)
 	# Emulate tinytcl
 	LIBJIM := libtcl6.a
