@@ -10289,7 +10289,7 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (argc == 3) {
         if (!Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
             Jim_SetResultString(interp, "The second argument must " "be -nonewline", -1);
-            return JIM_OK;
+            return JIM_ERR;
         }
         else {
             fputs(Jim_GetString(argv[2], NULL), stdout);
