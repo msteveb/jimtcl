@@ -55,6 +55,7 @@
 #include <stdlib.h>
 
 typedef CYG_ADDRWORD intptr_t;
+typedef CYG_ADDRWORD uintptr_t;
 
 #include <string.h>
 #include <stdarg.h>
@@ -584,10 +585,11 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 
 void *Jim_Alloc(int size)
 {
+    void *p;
 	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
 	if (size == 0)
 		size = 1;
-    void *p = malloc(size);
+    p = malloc(size);
     if (p == NULL)
         Jim_Panic(NULL,"malloc: Out of memory");
     return p;
@@ -599,10 +601,11 @@ void Jim_Free(void *ptr) {
 
 void *Jim_Realloc(void *ptr, int size)
 {
+    void *p;
 	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
 	if (size == 0)
 		size = 1;
-    void *p = realloc(ptr, size);
+    p = realloc(ptr, size);
     if (p == NULL)
         Jim_Panic(NULL,"realloc: Out of memory");
     return p;
@@ -3358,7 +3361,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
     /* In order to avoid that a procedure will get arglist/body/statics
      * freed by the hash table methods, fake a C-coded command
      * setting cmdPtr->cmdProc as not NULL */
-    cmdPtr->cmdProc = (void*)1;
+    cmdPtr->cmdProc = (Jim_CmdProc)1;
     /* Also make sure delProc is NULL. */
     cmdPtr->delProc = NULL;
     /* Destroy the old command, and make sure the new is freed
@@ -7983,7 +7986,8 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 continue;
             goto err;
         }
-        if ((onload = dlsym(handle, "Jim_OnLoad")) == NULL) {
+        onload = (int(*)(Jim_Interp *))(uintptr_t)dlsym(handle, "Jim_OnLoad");
+        if (onload == NULL) {
             Jim_SetResultString(interp,
                     "No Jim_OnLoad symbol found on extension", -1);
             goto err;
@@ -9257,13 +9261,13 @@ int Jim_GetApi(Jim_Interp *interp, const char *funcname, void *targetPtrPtr)
     return JIM_OK;
 }
 
-int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, void *funcptr)
+int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, JimApiFunc *funcptr)
 {
-    return Jim_AddHashEntry(&interp->stub, funcname, funcptr);
+    return Jim_AddHashEntry(&interp->stub, funcname, (void *)(uintptr_t)funcptr);
 }
 
 #define JIM_REGISTER_API(name) \
-    Jim_RegisterApi(interp, "Jim_" #name, (void *)Jim_ ## name)
+    Jim_RegisterApi(interp, "Jim_" #name, (JimApiFunc *)(Jim_ ## name))
 
 void JimRegisterCoreApi(Jim_Interp *interp)
 {
@@ -10760,7 +10764,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
             const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
             subListObjPtr = Jim_NewListObj(interp, NULL, 0);
-            sprintf(buf, "%p", objPtr);
+            sprintf(buf, "%p", (void *)objPtr);
             Jim_ListAppendElement(interp, subListObjPtr,
                 Jim_NewStringObj(interp, buf, -1));
             Jim_ListAppendElement(interp, subListObjPtr,
