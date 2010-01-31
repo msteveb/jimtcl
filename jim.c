@@ -64,12 +64,13 @@ typedef CYG_ADDRWORD uintptr_t;
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
-#else
+#else /* __ECOS */
 #include <sys/param.h>
 
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
