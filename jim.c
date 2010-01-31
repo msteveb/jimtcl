@@ -63,9 +63,7 @@ typedef CYG_ADDRWORD intptr_t;
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
-#endif
-
-#ifdef __FreeBSD__
+#else
 #include <sys/param.h>
 
 #include <assert.h>
@@ -2230,7 +2228,7 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = tolower(buf[i]);
+        buf[i] = tolower((int)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2246,7 +2244,7 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = toupper(buf[i]);
+        buf[i] = toupper((int)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2360,7 +2358,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		case '8':
 		case '9':
 			accum = 0;
-			while (isdigit(*fmt) && (fmtLen > 0)) {
+			while (isdigit((int)*fmt) && (fmtLen > 0)) {
 				accum = (accum * 10) + (*fmt - '0');
 				fmt++;  fmtLen--;
 			}
