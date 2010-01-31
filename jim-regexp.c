@@ -1,5 +1,5 @@
 /* 
- * (c) 2008 Steve Bennett <steveb@workware.net.au>
+ * Copyright (c) 2008 Steve Bennett <steveb@workware.net.au>
  *
  * Implements the regexp and regsub commands for Jim
  *

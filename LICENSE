@@ -1,3 +1,6 @@
+Unless explicitly stated, all files within Jim repository are released
+under following license:
+
 /* Jim - A small embeddable Tcl interpreter
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
@@ -7,8 +10,6 @@
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
- * 
- * The FreeBSD license
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,4 +38,4 @@
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
- **/
+ */
