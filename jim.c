@@ -72,6 +72,7 @@ typedef CYG_ADDRWORD uintptr_t;
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #define	NEED_ENVIRON_EXTERN	(1)
