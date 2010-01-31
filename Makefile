@@ -112,7 +112,7 @@ jim:	$(JIM_OBJECTS)
 libjim:	libjim.so
 
 libjim.so:	$(JIM_SRCS)
-	$(CC) $(LDFLAGS) -fpic -fPIC -shared -o libjim.so $> $(LIBS)
+	$(CC) $(LDFLAGS) -fpic -fPIC -shared -o libjim.so $(JIM_SRCS) $(LIBS)
 
 readline:	jim-readline-1.0.so
 posix:	jim-posix-1.0.so
