@@ -9539,7 +9539,7 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc,
         {
             Jim_SetResultString(interp, "The second argument must "
                     "be -nonewline", -1);
-            return JIM_OK;
+            return JIM_ERR;
         } else {
             nonewline = 1;
             argv++;
