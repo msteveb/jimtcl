@@ -1,0 +1,93 @@
+Working on Jim
+==============
+
+Jim's sources are kept in Git Version Control System. Global repository of
+Jim project is placed on this Web site:
+
+        http://repo.or.cz/w/jimtcl.git
+
+There are two ways of contributing to Jim project. First is suited for
+one-time fixes and small corrections. The second is more appropriate
+for long-term contributors interested in Jim internals.
+
+Small changes
+=============
+
+For small modifications, procedure of preparing a traditional 'patch'
+is enough. In order to prepare a patch, you first have to obtain the
+most recent copy of Jim Tcl. This can be done with following command:
+
+        git clone http://repo.or.cz/r/jimtcl.git
+
+After entering newly created directory you can easily correct/fix/modify
+files. Once finished, patch can be easily generated:
+
+	git diff > my_patch_fixing_x_y.patch
+
+If working without Git system, you'll have to backup files first, modify
+the original files and obtain a patch manually:
+
+	cp jim.c jim.c.ORIGINAL
+
+	[...] <- modifications go here
+
+	diff -u jim.c.ORIGINAL jim.c > my_patch_fixing_z.patch
+
+Bigger changes
+==============
+
+In order to help extending and correcting Jim in a long term basis, one
+needs to create separate fork of Jim project and maintain his changes in a
+separate copy of a repository.
+
+By visiting this site, you'll have a chance to fork a project. This can
+be easily done with "fork" link. Form that will show up next refers to
+the project that is about to be started. The only thing that has to be
+taken care of is the project mode -- it should be "push mode".
+
+Once the project is created one must add a user that will actually
+start commiting new files to the repo. It can also be done throught
+WWW interface, so nothing more is necessary.
+
+Once finished with setting up a project on the WWW panel, one can
+start playing with actual import of the files. In order to obtain copy
+of Jim sources, we have to clone the repository:
+
+        git clone http://repo.or.cz/r/jimtcl.git
+
+Now, we must push fresh copy of Jim to your project URL:
+
+        git push <URL> master
+
+So for example for me it was:
+
+        git push ssh://repo.or.cz/srv/git/jimtcl/wkoszek.git master
+
+In order to add file we type "git add <file>".  For remove, we do "git rm
+<file>".  To remove all local changes that aren't in a repository you do "git
+reset --hard HEAD".  Once inserted, files have to be commited with "git commit
+-a".  Once done with commits for today, "git push" can be used to propagate
+changes from your local disk to the remote repository.
+
+Right now you can verify whether this works by trying to clone your
+project's repository somewhere else, this time using anonymount HTTP
+access:
+
+        git clone http://repo.or.cz/r/jimtcl/wkoszek.git
+
+Review, testing and publishing
+==============================
+
+Notification of work that can be considered finished is more than welcome on
+Jim-devel mailing list:
+
+        https://lists.berlios.de/mailman/listinfo/jim-devel
+
+Patches prepared with the procedures presented abore are welcome. Before
+submitting patches, you can verify that your changes didn't bring any
+regressions to the Jim. In order to do so, sample regression tests have
+been implemented. You can execute them by typing:
+
+	./jim test.tcl
+
+All tests should succeed.
