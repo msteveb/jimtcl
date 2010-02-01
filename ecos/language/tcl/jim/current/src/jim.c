@@ -55,6 +55,7 @@
 #include <stdlib.h>
 
 typedef CYG_ADDRWORD intptr_t;
+typedef CYG_ADDRWORD uintptr_t;
 
 #include <string.h>
 #include <stdarg.h>
@@ -63,7 +64,20 @@ typedef CYG_ADDRWORD intptr_t;
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
+#else /* __ECOS */
+#include <sys/param.h>
+
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdint.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+
+#define	NEED_ENVIRON_EXTERN	(1)
 #endif
+
 #ifndef JIM_ANSIC
 #define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
 #endif /* JIM_ANSIC */
@@ -573,10 +587,11 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 
 void *Jim_Alloc(int size)
 {
+    void *p;
 	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
 	if (size == 0)
 		size = 1;
-    void *p = malloc(size);
+    p = malloc(size);
     if (p == NULL)
         Jim_Panic(NULL,"malloc: Out of memory");
     return p;
@@ -588,10 +603,11 @@ void Jim_Free(void *ptr) {
 
 void *Jim_Realloc(void *ptr, int size)
 {
+    void *p;
 	/* We allocate zero length arrayes, etc. to use a single orthogonal codepath */
 	if (size == 0)
 		size = 1;
-    void *p = realloc(ptr, size);
+    p = realloc(ptr, size);
     if (p == NULL)
         Jim_Panic(NULL,"realloc: Out of memory");
     return p;
@@ -2217,7 +2233,7 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = tolower(buf[i]);
+        buf[i] = tolower((int)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2233,7 +2249,7 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = toupper(buf[i]);
+        buf[i] = toupper((int)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2347,7 +2363,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		case '8':
 		case '9':
 			accum = 0;
-			while (isdigit(*fmt) && (fmtLen > 0)) {
+			while (isdigit((int)*fmt) && (fmtLen > 0)) {
 				accum = (accum * 10) + (*fmt - '0');
 				fmt++;  fmtLen--;
 			}
@@ -3347,7 +3363,7 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName,
     /* In order to avoid that a procedure will get arglist/body/statics
      * freed by the hash table methods, fake a C-coded command
      * setting cmdPtr->cmdProc as not NULL */
-    cmdPtr->cmdProc = (void*)1;
+    cmdPtr->cmdProc = (Jim_CmdProc)1;
     /* Also make sure delProc is NULL. */
     cmdPtr->delProc = NULL;
     /* Destroy the old command, and make sure the new is freed
@@ -7972,7 +7988,8 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 continue;
             goto err;
         }
-        if ((onload = dlsym(handle, "Jim_OnLoad")) == NULL) {
+        onload = (int(*)(Jim_Interp *))(uintptr_t)dlsym(handle, "Jim_OnLoad");
+        if (onload == NULL) {
             Jim_SetResultString(interp,
                     "No Jim_OnLoad symbol found on extension", -1);
             goto err;
@@ -9246,13 +9263,13 @@ int Jim_GetApi(Jim_Interp *interp, const char *funcname, void *targetPtrPtr)
     return JIM_OK;
 }
 
-int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, void *funcptr)
+int Jim_RegisterApi(Jim_Interp *interp, const char *funcname, JimApiFunc *funcptr)
 {
-    return Jim_AddHashEntry(&interp->stub, funcname, funcptr);
+    return Jim_AddHashEntry(&interp->stub, funcname, (void *)(uintptr_t)funcptr);
 }
 
 #define JIM_REGISTER_API(name) \
-    Jim_RegisterApi(interp, "Jim_" #name, (void *)Jim_ ## name)
+    Jim_RegisterApi(interp, "Jim_" #name, (JimApiFunc *)(Jim_ ## name))
 
 void JimRegisterCoreApi(Jim_Interp *interp)
 {
@@ -9526,7 +9543,7 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc,
         {
             Jim_SetResultString(interp, "The second argument must "
                     "be -nonewline", -1);
-            return JIM_OK;
+            return JIM_ERR;
         } else {
             nonewline = 1;
             argv++;
@@ -10749,7 +10766,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc,
             const char *type = objPtr->typePtr ?
                 objPtr->typePtr->name : "";
             subListObjPtr = Jim_NewListObj(interp, NULL, 0);
-            sprintf(buf, "%p", objPtr);
+            sprintf(buf, "%p", (void *)objPtr);
             Jim_ListAppendElement(interp, subListObjPtr,
                 Jim_NewStringObj(interp, buf, -1));
             Jim_ListAppendElement(interp, subListObjPtr,
@@ -12507,6 +12524,8 @@ Jim_Nvp_name2value(Jim_Interp *interp,
 {
 	const Jim_Nvp *p;
 
+	(void)interp;
+
 	p = Jim_Nvp_name2value_simple(_p, name);
 
 	/* result */
@@ -12532,6 +12551,8 @@ int
 Jim_Nvp_name2value_nocase(Jim_Interp *interp, const Jim_Nvp *_p, const char *name, Jim_Nvp **puthere)
 {
 	const Jim_Nvp *p;
+
+	(void)interp;
 
 	p = Jim_Nvp_name2value_nocase_simple(_p, name);
 
@@ -12578,6 +12599,8 @@ int
 Jim_Nvp_value2name(Jim_Interp *interp, const Jim_Nvp *_p, int value, Jim_Nvp **result)
 {
 	const Jim_Nvp *p;
+
+	(void)interp;
 
 	p = Jim_Nvp_value2name_simple(_p, value);
 

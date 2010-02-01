@@ -892,8 +892,10 @@ JIM_STATIC int JIM_API(Jim_DeleteAssocData)(Jim_Interp *interp, const char *key)
 /* API import/export functions */
 JIM_STATIC int JIM_API(Jim_GetApi) (Jim_Interp *interp, const char *funcname,
         void *targetPtrPtr);
+
+typedef void JimApiFunc(void);
 JIM_STATIC int JIM_API(Jim_RegisterApi) (Jim_Interp *interp,
-        const char *funcname, void *funcptr);
+        const char *funcname, JimApiFunc *funcptr);
 
 /* Packages C API */
 JIM_STATIC int JIM_API(Jim_PackageProvide) (Jim_Interp *interp,
