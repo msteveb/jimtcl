@@ -464,6 +464,7 @@ typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
  * it's a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyoObjPtr. */
 typedef struct Jim_Cmd {
+    int inUse;           /* Reference count */
     Jim_CmdProc cmdProc; /* Not-NULL for a C command. */
     void *privData; /* Only used for C commands. */
     Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */

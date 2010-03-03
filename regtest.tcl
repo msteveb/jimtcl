@@ -68,6 +68,12 @@ catch {package require aio}
 expr {1 || !0}
 puts "TEST 10 PASSED"
 
+# REGTEST 11
+# 14 Feb 2010 - access static variable in deleted proc
+proc a {} {{x 1}} { rename a ""; incr x }
+a
+puts "TEST 11 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

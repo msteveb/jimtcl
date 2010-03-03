@@ -3070,26 +3070,35 @@ ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 /* -----------------------------------------------------------------------------
  * Commands
  * ---------------------------------------------------------------------------*/
+static void JimIncrCmdRefCount(Jim_Cmd *cmdPtr)
+{
+    cmdPtr->inUse++;
+}
+
+static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
+{
+    if (--cmdPtr->inUse == 0) {
+        if (cmdPtr->cmdProc == NULL) {
+            Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
+            Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
+            if (cmdPtr->staticVars) {
+                Jim_FreeHashTable(cmdPtr->staticVars);
+                Jim_Free(cmdPtr->staticVars);
+            }
+        } else if (cmdPtr->delProc != NULL) {
+                /* If it was a C coded command, call the delProc if any */
+                cmdPtr->delProc(interp, cmdPtr->privData);
+        }
+        Jim_Free(cmdPtr);
+    }
+}
 
 /* Commands HashTable Type.
  *
  * Keys are dynamic allocated strings, Values are Jim_Cmd structures. */
 static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
 {
-    Jim_Cmd *cmdPtr = (void*) val;
-
-    if (cmdPtr->cmdProc == NULL) {
-        Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
-        Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
-        if (cmdPtr->staticVars) {
-            Jim_FreeHashTable(cmdPtr->staticVars);
-            Jim_Free(cmdPtr->staticVars);
-        }
-    } else if (cmdPtr->delProc != NULL) {
-            /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(interp, cmdPtr->privData);
-    }
-    Jim_Free(val);
+    JimDecrCmdRefCount(interp, val);
 }
 
 static const Jim_HashTableType JimCommandsHashTableType = {
@@ -3106,35 +3115,22 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
         Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
 {
-    Jim_HashEntry *he;
     Jim_Cmd *cmdPtr;
 
-    he = Jim_FindHashEntry(&interp->commands, cmdName);
-    if (he == NULL) { /* New command to create */
-        cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
-        Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
-    } else {
+    if (Jim_DeleteHashEntry(&interp->commands, cmdName) != JIM_ERR) {
+        /* Command existed so incr proc epoch */
         Jim_InterpIncrProcEpoch(interp);
-        /* Free the arglist/body objects if it was a Tcl procedure */
-        cmdPtr = he->val;
-        if (cmdPtr->cmdProc == NULL) {
-            Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
-            Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
-            if (cmdPtr->staticVars) {
-                Jim_FreeHashTable(cmdPtr->staticVars);
-                Jim_Free(cmdPtr->staticVars);
-            }
-            cmdPtr->staticVars = NULL;
-        } else if (cmdPtr->delProc != NULL) {
-            /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(interp, cmdPtr->privData);
-        }
     }
+
+    cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 
     /* Store the new details for this proc */
     cmdPtr->delProc = delProc;
     cmdPtr->cmdProc = cmdProc;
     cmdPtr->privData = privData;
+    cmdPtr->inUse = 1;
+
+    Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
 
     /* There is no need to increment the 'proc epoch' because
      * creation of a new procedure can never affect existing
@@ -3159,6 +3155,7 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
     cmdPtr->args = args;
     cmdPtr->rightArity = rightArity;
     cmdPtr->staticVars = NULL;
+    cmdPtr->inUse = 1;
    
     /* Create the statics hash table. */
     if (staticsListObjPtr) {
@@ -3218,7 +3215,10 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
 
     /* Add the new command */
 
-    /* it may already exist, so we try to delete the old one */
+    /* It may already exist, so we try to delete the old one.
+     * Note that reference count means that it won't be deleted yet if
+     * it exists in the call stack
+     */
     if (Jim_DeleteHashEntry(&interp->commands, cmdName) != JIM_ERR) {
         /* There was an old procedure with the same name, this requires
          * a 'proc epoch' update. */
@@ -8683,6 +8683,7 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         retcode = JimUnknown(interp, objc, objv);
     } else {
         /* Call it -- Make sure result is an empty object. */
+        JimIncrCmdRefCount(cmdPtr);
         Jim_SetEmptyResult(interp);
         if (cmdPtr->cmdProc) {
             interp->cmdPrivData = cmdPtr->privData;
@@ -8690,6 +8691,7 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         } else {
             retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
         }
+        JimDecrCmdRefCount(interp, cmdPtr);
     }
     /* Decr refcount of arguments and return the retcode */
     for (i = 0; i < objc; i++)
@@ -9059,6 +9061,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         cmd = Jim_GetCommand(interp, argv[0], JIM_ERRMSG);
         if (cmd != NULL) {
             /* Call it -- Make sure result is an empty object. */
+            JimIncrCmdRefCount(cmd);
             Jim_SetEmptyResult(interp);
             if (cmd->cmdProc) {
                 interp->cmdPrivData = cmd->privData;
@@ -9066,6 +9069,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             } else {
                 retcode = JimCallProcedure(interp, cmd, argc, argv);
             }
+            JimDecrCmdRefCount(interp, cmd);
         } else {
             /* Call [unknown] */
             retcode = JimUnknown(interp, argc, argv);
