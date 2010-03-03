@@ -5904,9 +5904,14 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     const char *str;
     int i, strLen;
 
+    /* Get the string representation. Do this first so we don't
+     * change order in case of fast conversion to dict
+     */
+    str = Jim_GetString(objPtr, &strLen);
+
 #ifdef JIM_OPTIMIZATION
-    /* If the object is of type "list" we can use
-     * a specialized version
+    /* If the object is of type "list" with a string rep, we can use
+     * a specialized version.
      */
     if (Jim_IsList(objPtr)) {
         if (SetDictFromList(interp, objPtr) != JIM_OK) {
@@ -5915,9 +5920,6 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 #endif
-
-    /* Get the string representation */
-    str = Jim_GetString(objPtr, &strLen);
 
     /* Free the old internal repr just now and initialize the
      * new one just now. The string->list conversion can't fail. */
