@@ -5284,6 +5284,18 @@ static void JimListGetElements(Jim_Interp *interp, Jim_Obj *listObj, int *listLe
     *listVec = listObj->internalRep.listValue.ele;
 }
 
+/* Sorting uses ints, but commands may return wide */
+static int JimSign(jim_wide w)
+{
+    if (w == 0) {
+        return 0;
+    }
+    else if (w < 0) {
+        return -1;
+    }
+    return 1;
+}
+
 /* ListSortElements type values */
 enum {JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_INTEGER, JIM_LSORT_COMMAND};
 
@@ -5312,18 +5324,18 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     Jim_GetWide(sort_interp, *lhsObj, &lhs);
     Jim_GetWide(sort_interp, *rhsObj, &rhs);
 
-    return (int)(lhs - rhs) * sort_order;
+    return JimSign(lhs - rhs) * sort_order;
 }
 
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     Jim_Obj *compare_script;
     
-    long ret = 0;
+    jim_wide ret = 0;
 
     /* We have already had an error, so just compare pointers */
     if (sort_result != JIM_OK) {
-        return (long)lhsObj - (long)rhsObj;
+        return JimSign(lhsObj - rhsObj);
     }
 
     /* This must be a valid list */
@@ -5335,11 +5347,11 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 
     if (sort_result != JIM_OK) {
         /* We have an error, so just compare pointers */
-        return (long)lhsObj - (long)rhsObj;
+        return JimSign(lhsObj - rhsObj);
     }
 
-    Jim_GetLong(sort_interp, Jim_GetResult(sort_interp), &ret);
-    return sort_order * ret;
+    Jim_GetWide(sort_interp, Jim_GetResult(sort_interp), &ret);
+    return JimSign(ret) * sort_order;
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
