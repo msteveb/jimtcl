@@ -52,9 +52,10 @@ The major differences are:
 15. Must better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
 16. Support for "static" variables in procedures
 17. Significantly faster for many scripts/operations
-18. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
-19. Variable traces are not supported
-20. The history command is not supported
+18. Support for tail-call optimisation, 'tailcall'
+19. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
+20. Variable traces are not supported
+21. The history command is not supported
 
 CHANGES
 -------
@@ -3460,6 +3461,27 @@ will return 1, and
     }
 
 will return 3.
+
+tailcall
+~~~~~~~~
++*tailcall* 'cmd ?arg...?'+
+
+The 'tailcall' command provides an optimised way of invoking a command whilst replacing
+the current call frame. This is similar to 'exec' in Bourne Shell.
+
+The following are identical except the first immediately replaces the current call frame.
+
+  tailcall a b c
+
+  return [uplevel 1 a b c]
+
+'tailcall' is useful for a dispatch mechanism:
+
+  proc a {cmd args} {
+	tailcall sub_$cmd {*}$args
+  }
+  proc sub_cmd1 ...
+  proc sub_cmd2 ...
 
 tell
 ~~~~

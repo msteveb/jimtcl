@@ -4398,7 +4398,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->lastCollectTime = time(NULL);
     i->freeFramesList = NULL;
     i->prngState = NULL;
-    i->evalRetcodeLevel = -1;
     i->id = 0;
     i->sigmask = 0;
     i->signal_level = 0;
@@ -9284,17 +9283,11 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
     }
     /* Handle the JIM_EVAL return code */
-    if (retcode == JIM_EVAL && interp->evalRetcodeLevel != interp->numLevels) {
-        int savedLevel = interp->evalRetcodeLevel;
-
-        interp->evalRetcodeLevel = interp->numLevels;
-        while (retcode == JIM_EVAL) {
-            Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
-            Jim_IncrRefCount(resultScriptObjPtr);
-            retcode = Jim_EvalObj(interp, resultScriptObjPtr);
-            Jim_DecrRefCount(interp, resultScriptObjPtr);
-        }
-        interp->evalRetcodeLevel = savedLevel;
+    while (retcode == JIM_EVAL) {
+        Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
+        Jim_IncrRefCount(resultScriptObjPtr);
+        retcode = Jim_EvalObj(interp, resultScriptObjPtr);
+        Jim_DecrRefCount(interp, resultScriptObjPtr);
     }
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {

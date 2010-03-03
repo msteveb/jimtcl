@@ -164,7 +164,7 @@ proc try {args} {
 		return -code error {wrong # args: should be "try ?options? script ?argument ...?"}
 	}
 	set args [lassign $args script]
-	set code [catch {*}$catchopts [list uplevel 1 $script] msg opts]
+	set code [catch -eval {*}$catchopts [list uplevel 1 $script] msg opts]
 
 	set handled 0
 

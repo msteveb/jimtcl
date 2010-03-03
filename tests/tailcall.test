@@ -1,0 +1,50 @@
+source testing.tcl
+
+test tailcall-1.1 {Basic tailcall} {
+	# Demo -- a tail-recursive factorial function
+	proc fac {x {val 1}} {
+		if {$x <= 2} {
+			expr {$x * $val}
+		} else {
+			tailcall fac [expr {$x -1}] [expr {$x * $val}]
+		}
+	}
+	fac 10
+} {3628800}
+
+test tailcall-1.2 {Tailcall in try} {
+	set x 0
+	proc a {} { upvar x x; incr x }
+	proc b {} { upvar x x; incr x 4; try { tailcall a } finally { incr x 8 }}
+	b
+	set x
+} {13}
+
+test tailcall-1.3 {Tailcall does return} {
+	set x 0
+	proc a {} { upvar x x; incr x }
+	proc b {} { upvar x x; incr x 4; tailcall a; incr x 8}
+	b
+	set x
+} {5}
+
+test tailcall-1.4 {uplevel tailcall} {
+	proc a {} { set ::y [info level] }
+	proc b {} { set ::x [info level]; uplevel 1 tailcall a}
+	b
+	list $x $y
+} {1 1}
+
+test tailcall-1.5 {interaction of uplevel and tailcall} {
+	proc a {cmd} {
+		tailcall $cmd
+	}
+	proc b {} {
+		lappend result [uplevel 1 a c]
+		lappend result [uplevel 1 a c]
+	}
+	proc c {} {
+		return c
+	}
+	a b
+} {c c}

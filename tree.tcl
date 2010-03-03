@@ -70,12 +70,12 @@ proc tree {action handle} {
 	# and other nodes are automatically named "node1", "node2", etc.
 
 	if {$action eq "destroy"} {
-		$handle destroy
+		$handle _destroy
 		rename $handle ""
 		return
 	} elseif {$action eq "create"} {
 		# Create the root node
-		foreach {dummy rootref} [_tree_makenode ""] {}
+		lassign [_tree_makenode ""] dummy rootref
 
 		# Create the tree containing one node
 		set tree [dict create root $rootref]
@@ -85,24 +85,11 @@ proc tree {action handle} {
 
 		proc $handle {command args} {treeref} {
 			#puts "You invoked [list treehandle $command $args]"
-			uplevel 1 [list tree_$command $treeref {expand}$args]
+			tailcall tree_$command $treeref {*}$args
 		}
 	} else {
 		error "Usage: tree destroy|create handle"
 	}
-}
-
-# treehandle destroy
-#
-# Discards all the nodes
-#
-proc tree_destroy {treeref} {
-	set tree [getref $treeref]
-	foreach {nodename noderef} $tree {
-		set node [getref $noderef]
-		unset node
-	}
-	unset tree
 }
 
 # treehandle insert node ?index?
@@ -112,7 +99,7 @@ proc tree_insert {treeref node {index end}} {
 	set parentref [_tree_getnoderef $treeref $node]
 
 	# Make a new node
-	foreach {childname childref} [_tree_makenode $parentref] {}
+	lassign [_tree_makenode $parentref] childname childref
 
 	# Add it to the list of children in the parent node
 	_tree_update_node $treeref $node parent {
@@ -210,7 +197,7 @@ proc tree_walk {treeref node type vars code} {
 	set n [_tree_getnode $treeref $node]
 
 	# set up vars
-	foreach {actionvar namevar} $vars {}
+	lassign $vars actionvar namevar
 
 	if {$type ne "child"} {
 		upvar $namevar name
@@ -255,6 +242,17 @@ proc tree_walk {treeref node type vars code} {
 #
 # INTERNAL procedures below this point
 #
+
+# Discards all the nodes
+#
+proc tree__destroy {treeref} {
+	set tree [getref $treeref]
+	foreach {nodename noderef} $tree {
+		setref $noderef {}
+	}
+	setref $treeref {}
+}
+
 
 # Make a new child node of the parent
 #
