@@ -10,8 +10,10 @@ set env [env]
 
 # Tcl 8.5 lassign
 proc lassign {list args} {
-	uplevel 1 [list foreach $args [concat $list {}] break]
-	lrange $list [llength $args] end
+	# in case the list is empty...
+	lappend list {}
+	uplevel 1 [list foreach $args $list break]
+	lrange $list [llength $args] end-1
 }
 
 # case var ?in? pattern action ?pattern action ...?

@@ -34,6 +34,12 @@ test regr-1.4 "format double percent" {
 	format (%d%%) 12
 } {(12%)}
 
+test regr-1.5 "lassign with empty list" {
+	unset -nocomplain a b c
+	lassign {} a b c
+	info exists c
+} {1}
+
 section "I/O Testing"
 
 test io-1.1 "Read last line with no newline" {
