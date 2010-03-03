@@ -3902,7 +3902,7 @@ the EVENTLOOP API.
 
 The special type 'pipe' isn't really a socket.
 
-    foreach {r w} [socket pipe] break
+    lassign [socket pipe] r w
 
     # Must close $w after exec
     exec ps >@$w &

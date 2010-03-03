@@ -80,23 +80,12 @@ proc errorInfo {error {stacktrace ""}} {
 	if {$stacktrace eq ""} {
 		set stacktrace [info stacktrace]
 	}
-	set result "Runtime Error: $error"
-	foreach {l f p} [lreverse $stacktrace] {
-		append result \n
-		if {$p ne ""} {
-			append result "in procedure '$p' "
-			if {$f ne ""} {
-				append result "called "
-			}
-		}
-		if {$f ne ""} {
-			append result "at file \"$f\", line $l"
-		}
+	lassign $stacktrace p f l
+	if {$f ne ""} {
+		set result "$f:$l "
 	}
-	if {[info exists f] && $f ne ""} {
-		return "$f:$l: $result"
-	}
-	return $result
+	append result "Runtime Error: $error\n"
+	append result [stackdump $stacktrace]
 }
 
 proc {info nameofexecutable} {} {

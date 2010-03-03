@@ -441,6 +441,8 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procArgsObjPtr; /* arglist object of the running procedure */
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *nextFramePtr;
+    const char *filename;       /* file and line of caller of this proc (if available) */
+    int line;
 } Jim_CallFrame;
 
 /* The var structure. It just holds the pointer of the referenced

@@ -4,15 +4,14 @@
 proc alias {name args} {
 	set prefix $args
 	proc $name args prefix {
-		uplevel 1 $prefix $args
+		tailcall {*}$prefix {*}$args
 	}
 }
 
 # Creates an anonymous procedure
 proc lambda {arglist args} {
 	set name [ref {} function lambda.finalizer]
-	uplevel 1 [list proc $name $arglist {*}$args]
-	return $name
+	tailcall proc $name $arglist {*}$args
 }
 
 proc lambda.finalizer {name val} {
@@ -23,7 +22,7 @@ proc lambda.finalizer {name val} {
 proc curry {args} {
 	set prefix $args
 	lambda args prefix {
-		uplevel 1 $prefix $args
+		tailcall {*}$prefix {*}$args
 	}
 }
 
@@ -37,4 +36,38 @@ proc curry {args} {
 #
 proc function {value} {
 	return $value
+}
+
+# Returns a list of proc filename line ...
+# with 3 entries for each stack frame (proc),
+# (deepest level first)
+proc stacktrace {} {
+	set trace {}
+	foreach level [range 1 [info level]] {
+		lassign [info frame -$level] p f l
+		lappend trace $p $f $l
+	}
+	return $trace
+}
+
+# Returns a human-readable version of a stack trace
+proc stackdump {stacktrace} {
+	set result {}
+	set count 0
+	foreach {l f p} [lreverse $stacktrace] {
+		if {$count} {
+			append result \n
+		}
+		incr count
+		if {$p ne ""} {
+			append result "in procedure '$p' "
+			if {$f ne ""} {
+				append result "called "
+			}
+		}
+		if {$f ne ""} {
+			append result "at file \"$f\", line $l"
+		}
+	}
+	return $result
 }
