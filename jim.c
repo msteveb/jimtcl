@@ -981,6 +981,7 @@ struct JimParserCtx {
     int eof;             /* Non zero if EOF condition is true. */
     int state;           /* Parser state */
     int comment;         /* Non zero if the next chars may be a comment. */
+    char missing;        /* At end of parse, ' ' if complete, '{' if braces incomplete, '"' if quotes incomplete */
 };
 
 #define JimParserEof(c) ((c)->eof)
@@ -1017,6 +1018,7 @@ static void JimParserInit(struct JimParserCtx *pc, const char *prg,
     pc->state = JIM_PS_DEF;
     pc->linenr = linenr;
     pc->comment = 1;
+    pc->missing = ' ';
 }
 
 static int JimParseScript(struct JimParserCtx *pc)
@@ -1242,6 +1244,9 @@ static int JimParseBrace(struct JimParserCtx *pc)
         } else if (*pc->p == '{') {
             level++;
         } else if (pc->len == 0 || *pc->p == '}') {
+            if (pc->len == 0) {
+                pc->missing = '{';
+            }
             level--;
             if (pc->len == 0 || level == 0) {
                 pc->tend = pc->p-1;
@@ -1273,6 +1278,9 @@ static int JimParseStr(struct JimParserCtx *pc)
     pc->tline = pc->linenr;
     while (1) {
         if (pc->len == 0) {
+            if (pc->state == JIM_PS_QUOTE) {
+                pc->missing = '"';
+            }
             pc->tend = pc->p-1;
             pc->tt = JIM_TT_ESC;
             return JIM_OK;
@@ -1526,44 +1534,15 @@ char *JimParserGetToken(struct JimParserCtx *pc,
  * If the script is complete, 1 is returned, otherwise 0. */
 int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
 {
-    int level = 0;
-    int state = ' ';
-
-    while(len) {
-        switch (*s) {
-            case '\\':
-                if (len > 1)
-                    s++;
-                break;
-            case '"':
-                if (state == ' ') {
-                    state = '"';
-                } else if (state == '"') {
-                    state = ' ';
-                }
-                break;
-            case '{':
-                if (state == '{') {
-                    level++;
-                } else if (state == ' ') {
-                    state = '{';
-                    level++;
-                }
-                break;
-            case '}':
-                if (state == '{') {
-                    level--;
-                    if (level == 0)
-                        state = ' ';
-                }
-                break;
-        }
-        s++;
-        len--;
+    struct JimParserCtx parser;
+    JimParserInit(&parser, s, len, 1);
+    while(!JimParserEof(&parser)) {
+        JimParseScript(&parser);
     }
-    if (stateCharPtr)
-        *stateCharPtr = state;
-    return state == ' ';
+    if (stateCharPtr) {
+        *stateCharPtr = parser.missing;
+    }
+    return parser.missing == ' ';
 }
 
 /* -----------------------------------------------------------------------------
@@ -9415,6 +9394,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     struct stat sb;
     int retcode;
     int readlen;
+    char missing;
 
     if (stat(filename, &sb) != 0 || (fp = fopen(filename, "r")) == NULL) {
         Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
@@ -9433,6 +9413,13 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
         return JIM_ERR;
     }
     buf[sb.st_size] = 0;
+
+    if (!Jim_ScriptIsComplete(buf, sb.st_size, &missing)) {
+        Jim_SetResultFormatted(interp, "missing %s in \"%s\"",
+            missing == '{' ? "close-brace" : "\"", filename);
+        Jim_Free(buf);
+        return JIM_ERR;
+    }
 
     scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, sb.st_size);
     JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
