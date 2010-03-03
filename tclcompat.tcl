@@ -34,19 +34,19 @@ proc case {var args} {
 	}
 
 	# Internal function to match a value agains a list of patterns
-	set checker [lambda {value pattern} {string match $pattern $value}]
+	local proc case.checker {value pattern} {
+		string match $pattern $value
+	}
 
 	foreach {value action} $args {
 		if {$value eq "default"} {
 			set do_action $action
 			continue
-		} elseif {[lsearch -bool -command $checker $value $var]} {
+		} elseif {[lsearch -bool -command case.checker $value $var]} {
 			set do_action $action
 			break
 		}
 	}
-
-	rename $checker ""
 
 	if {[info exists do_action]} {
 		set rc [catch [list uplevel 1 $do_action] result opts]
@@ -213,6 +213,5 @@ proc try {args} {
 proc throw {code {msg ""}} {
 	return -code $code $msg
 }
-
 
 set ::tcl_platform(platform) unix

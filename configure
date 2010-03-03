@@ -3395,7 +3395,7 @@ if test "${enable_math+set}" = set; then :
 fi
 
 
-jim_extensions="load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 
 # Check whether --with-jim-ext was given.
 if test "${with_jim_ext+set}" = set; then :

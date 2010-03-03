@@ -40,7 +40,7 @@ AC_ARG_ENABLE(math,
 	]
 )
 
-jim_extensions="load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,
 	[  --with-jim-ext          specify jim extensions to build (or all, which is the default)],
 	[

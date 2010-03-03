@@ -115,6 +115,7 @@ static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj
 static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype, const char *prefix, const char * const *tablePtr, const char *name);
+static void JimDeleteLocalProcs(Jim_Interp *interp);
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -3229,6 +3230,9 @@ int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
      * can never affect existing cached commands. We don't do
      * negative caching. */
     Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
+
+    /* Unlike Tcl, set the name of the proc as the result */
+    Jim_SetResultString(interp, cmdName, -1);
     return JIM_OK;
 
 err:
@@ -4399,6 +4403,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->sigmask = 0;
     i->signal_level = 0;
     i->signal_set_result = NULL;
+    i->localProcs = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -4456,6 +4461,8 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->assocData);
     Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
+    JimDeleteLocalProcs(i);
+
     /* Free the call frames list */
     while(cf) {
         prevcf = cf->parentCallFrame;
@@ -8881,6 +8888,22 @@ static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *file
     }
 }
 
+/* And delete any local procs */
+static void JimDeleteLocalProcs(Jim_Interp *interp)
+{
+    if (interp->localProcs) {
+        char *procname;
+
+        while ((procname = Jim_StackPop(interp->localProcs)) != NULL) {
+            Jim_DeleteCommand(interp, procname);
+            Jim_Free(procname);
+        }
+        Jim_FreeStack(interp->localProcs);
+        Jim_Free(interp->localProcs);
+        interp->localProcs = NULL;
+    }
+}
+
 int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 {
     int i, j = 0, len;
@@ -9107,6 +9130,7 @@ err:
     }
     if (argv != sargv)
         Jim_Free(argv);
+
     return retcode;
 }
 
@@ -9125,6 +9149,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     Jim_CallFrame *callFramePtr;
     Jim_Obj *argObjPtr;
     Jim_Obj *procname = argv[0];
+    Jim_Stack *prevLocalProcs;
 
     /* Check arity */
     if (argc - 1 < cmd->leftArity + cmd->rightArity ||
@@ -9239,8 +9264,16 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
         Jim_SetVariable(interp, argObjPtr, *argv++);
     }
 
+    /* Install a new stack for local procs */
+    prevLocalProcs = interp->localProcs;
+    interp->localProcs = NULL;
+
     /* Eval the body */
     retcode = Jim_EvalObj(interp, cmd->bodyObjPtr);
+
+    /* Delete any local procs */
+    JimDeleteLocalProcs(interp);
+    interp->localProcs = prevLocalProcs;
 
     /* Destroy the callframe */
     interp->numLevels --;
@@ -9362,6 +9395,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     char *buf;
     Jim_Obj *scriptObjPtr;
     Jim_Obj *prevScriptObj;
+    Jim_Stack *prevLocalProcs;
     struct stat sb;
     int retcode;
     int readlen;
@@ -9391,7 +9425,15 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     prevScriptObj = interp->currentScriptObj;
     interp->currentScriptObj = scriptObjPtr;
 
+    /* Install a new stack for local procs */
+    prevLocalProcs = interp->localProcs;
+    interp->localProcs = NULL;
+
     retcode = Jim_EvalObj(interp, scriptObjPtr);
+
+    /* Delete any local procs */
+    JimDeleteLocalProcs(interp);
+    interp->localProcs = prevLocalProcs;
 
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
@@ -11147,17 +11189,28 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     int rc;
+    Jim_Stack *prevLocalProcs;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?...?");
         return JIM_ERR;
     }
+
+    /* Install a new stack for local procs */
+    prevLocalProcs = interp->localProcs;
+    interp->localProcs = NULL;
+
     if (argc == 2) {
         rc = Jim_EvalObj(interp, argv[1]);
     }
     else {
         rc = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc-1, argv+1));
     }
+
+    /* Delete any local procs */
+    JimDeleteLocalProcs(interp);
+    interp->localProcs = prevLocalProcs;
+
     if (rc == JIM_ERR) {
         /* eval is "interesting", so add a stack frame here */
         interp->addStackTrace++;
@@ -11401,6 +11454,31 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc,
                 argv[2], argv[3], argv[4], leftArity, optionalArgs, args, rightArity);
     }
 }
+
+/* [local] */
+static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc,
+        Jim_Obj *const *argv)
+{
+    /* Evaluate the arguments */
+    int retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
+
+    /* If OK, and the result is a proc, add it to the list of local procs */
+    if (retcode == 0) {
+        const char *procname = Jim_GetString(Jim_GetResult(interp), NULL);
+        if (Jim_FindHashEntry(&interp->commands, procname) == NULL) {
+            Jim_SetResultFormatted(interp, "not a proc: \"%s\"", procname);
+            return JIM_ERR;
+        }
+        if (interp->localProcs == NULL) {
+            interp->localProcs = Jim_Alloc(sizeof(*interp->localProcs));
+            Jim_InitStack(interp->localProcs);
+        }
+        Jim_StackPush(interp->localProcs, Jim_StrDup(procname));
+    }
+
+    return retcode;
+}
+
 
 /* [concat] */
 static int Jim_ConcatCoreCommand(Jim_Interp *interp, int argc, 
@@ -12823,25 +12901,9 @@ static const struct {
     {"range", Jim_RangeCoreCommand},
     {"rand", Jim_RandCoreCommand},
     {"tailcall", Jim_TailcallCoreCommand},
+    {"local", Jim_LocalCoreCommand},
     {NULL, NULL},
 };
-
-/* Some Jim core command is actually a procedure written in Jim itself. */
-static void Jim_RegisterCoreProcedures(Jim_Interp *interp)
-{
-#ifdef JIM_REFERENCES
-    Jim_Eval(interp, 
-"proc lambda {arglist args} {\n"
-"    set name [ref {} function lambdaFinalizer]\n"
-"    uplevel 1 [list proc $name $arglist {expand}$args]\n"
-"    return $name\n"
-"}\n"
-"proc lambdaFinalizer {name val} {\n"
-"    rename $name {}\n"
-"}\n"
-    );
-#endif
-}
 
 void Jim_RegisterCoreCommands(Jim_Interp *interp)
 {
@@ -12854,7 +12916,6 @@ void Jim_RegisterCoreCommands(Jim_Interp *interp)
                 NULL, NULL);
         i++;
     }
-    Jim_RegisterCoreProcedures(interp);
 }
 
 /* -----------------------------------------------------------------------------

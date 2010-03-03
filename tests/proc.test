@@ -30,7 +30,7 @@ proc tproc x {
 test proc-old-1.2 {simple procedure call and return} {tproc 2} 3
 test proc-old-1.3 {simple procedure call and return} {
     proc tproc {} {return foo}
-} {}
+} {tproc}
 test proc-old-1.4 {simple procedure call and return} {
     proc tproc {} {return}
     tproc

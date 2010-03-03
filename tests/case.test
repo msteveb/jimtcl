@@ -1,5 +1,25 @@
 source testing.tcl
 
+test case-1.1 "Simple case" {
+	foreach c {abc xyz def sdfbc basdf a aba} {
+		case $c in {
+			b* {
+				lappend result 1
+			}
+			{ab a} {
+				lappend result 2
+			}
+			{def *bc} {
+				lappend result 3
+			}
+			default {
+				lappend result 4
+			}
+		}
+	}
+	set result 
+} {3 4 3 3 1 2 4}
+
 # case is a proc, but it should be able
 # to cause a return in do_case
 proc do_case {var} {
