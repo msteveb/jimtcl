@@ -318,25 +318,74 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while (argc--) {
         const char *path = Jim_GetString(argv[0], NULL);
         if (unlink(path) == -1 && errno != ENOENT) {
-            Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path, strerror(errno));
-            return JIM_ERR;
+            if (rmdir(path) == -1) {
+                Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path, strerror(errno));
+                return JIM_ERR;
+            }
         }
         argv++;
     }
     return JIM_OK;
 }
 
-static int mkdir_all(const char *path)
+/**
+ * Create directory, creating all intermediate paths if necessary.
+ *
+ * Returns 0 if OK or -1 on failure (and sets errno)
+ *
+ * Note: The path may be modified.
+ */
+static int mkdir_all(char *path)
 {
-    /* REVISIT: create intermediate dirs if necessary */
-    mkdir(path, 0755);
-    return 0;
+    int ok = 1;
+
+    /* First time just try to make the dir */
+    goto first;
+
+    while (ok--) {
+        /* Must have failed the first time, so recursively make the parent and try again */
+        char *slash = strrchr(path, '/');
+        if (slash && slash != path) {
+            *slash = 0;
+            if (mkdir_all(path) != 0) {
+                return -1;
+            }
+            *slash = '/';
+        }
+first:
+        if (mkdir(path, 0755) == 0) {
+            return 0;
+        }
+        if (errno == ENOENT) {
+            /* Create the parent and try again */
+            continue;
+        }
+        /* Maybe it already exists as a directory */
+        if (errno == EEXIST) {
+            struct stat sb;
+
+            if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+                return 0;
+            }
+            /* Restore errno */
+            errno = EEXIST;
+        }
+        /* Failed */
+        break;
+    }
+    return -1;
 }
 
 static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     while (argc--) {
-        mkdir_all(Jim_GetString(argv[0], NULL));
+        char *path = Jim_StrDup(Jim_GetString(argv[0], NULL));
+        int rc = mkdir_all(path);
+        Jim_Free(path);
+        if (rc != 0) {
+            Jim_SetResultFormatted(interp, "can't create directory \"%#s\": %s", argv[0], strerror(errno));
+            return JIM_ERR;
+        }
         argv++;
     }
     return JIM_OK;
@@ -455,7 +504,7 @@ static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     struct stat sb;
 
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
-    return JIM_ERR;
+        return JIM_ERR;
     }
     Jim_SetResultInt(interp, sb.st_size);
     return JIM_OK;
@@ -467,7 +516,7 @@ static int file_cmd_isdirectory(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
-    ret = S_ISDIR(sb.st_mode);
+        ret = S_ISDIR(sb.st_mode);
     }
     Jim_SetResultInt(interp, ret);
     return JIM_OK;
@@ -643,7 +692,7 @@ static const jim_subcmd_type command_table[] = {
         .function = file_cmd_delete,
         .minargs = 1,
         .maxargs = -1,
-        .description = "Deletes the file(s)"
+        .description = "Deletes the files or empty directories"
     },
     {   .cmd = "mkdir",
         .args = "dir ...",

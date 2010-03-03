@@ -1866,9 +1866,9 @@ abbreviation for *option* is acceptable.  The valid options are:
     Copies file *source* to file *target*. The source file must exist.
     The target file must not exist, unless *-force* is specified.
 
-+*file delete* 'name'+::
-    Deletes file *name*. If the file doesn't exist, nothing happens.
-    If the file can't be deleted, an error is generated.
++*file delete* 'name ...'+::
+    Deletes file or directory *name*. If the file or directory doesn't exist, nothing happens.
+    If it can't be deleted, an error is generated. Non-empty directories will not be deleted.
 
 +*file dirname* 'name'+::
     Return all of the characters in *name* up to but not including
@@ -1911,8 +1911,13 @@ abbreviation for *option* is acceptable.  The valid options are:
     as the 'stat' option.
 
 +*file mkdir* 'dir1 ?dir2? ...'+::
-    Creates the given directories. *Note* unlike Tcl 7.x, intermediate
-    directories are *not* created as necessary.
+	Creates each directory specified. For each pathname *dir* specified,
+	this command will create all non-existing parent directories
+	as well as *dir* itself. If an existing directory is specified,
+	then no action is taken and no error is returned. Trying to
+	overwrite an existing file with a directory will result in an
+	error.  Arguments are processed in the order specified, halting
+	at the first error, if any.
 
 +*file mtime* 'name'+::
     Return a decimal string giving the time at which file *name*
