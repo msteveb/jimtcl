@@ -2381,7 +2381,7 @@ the *value* arguments to that list as a separate element, with spaces
 between elements.
 
 If *varName* doesn't exist, it is created as a list with elements given
-by the *value* arguments.  'Lappend' is similar to 'append' except that
+by the *value* arguments. 'lappend' is similar to 'append' except that
 each *value* is appended as a list element rather than raw text.
 
 This command provides a relatively efficient way to build up large lists.
@@ -2425,10 +2425,10 @@ linsert
 
 This command produces a new list from *list* by inserting all
 of the *element* arguments just before the element *index*
-of *list*.  Each *element* argument will become
-a separate element of the new list.  If *index* is less than
+of *list*. Each *element* argument will become
+a separate element of the new list. If *index* is less than
 or equal to zero, then the new elements are inserted at the
-beginning of the list.  If *index* is greater than or equal
+beginning of the list. If *index* is greater than or equal
 to the number of elements in the list, then the new elements are
 appended to the list.
 
@@ -2439,12 +2439,12 @@ list
 
 +*list* 'arg ?arg ...?'+
 
-This command returns a list comprised of all the arguments, *arg*.  Braces
+This command returns a list comprised of all the arguments, *arg*. Braces
 and backslashes get added as necessary, so that the 'index' command
 may be used on the result to re-extract the original arguments, and also
 so that 'eval' may be used to execute the resulting list, with
 *arg1* comprising the command's name and the other args comprising
-its arguments.  'List' produces slightly different results than
+its arguments. 'List' produces slightly different results than
 'concat':  'concat' removes one level of grouping before forming
 the list, while 'list' works directly from the original arguments.
 For example, the command
@@ -2474,8 +2474,8 @@ Sets an element in a list.
 
 The 'lset' command accepts a parameter, *varName*, which it interprets
 as the name of a variable containing a Tcl list. It also accepts
-zero or more indices into the list.  Finally, it accepts a new value
-for an element of varName.  If no indices are presented, the command
+zero or more indices into the list. Finally, it accepts a new value
+for an element of varName. If no indices are presented, the command
 takes the form:
 
     lset varName newValue
@@ -2537,9 +2537,8 @@ lrange
 ~~~~~~
 +*lrange* 'list first last'+
 
-*List* must be a valid Tcl list.  This command will
-return a new list consisting of elements
-*first* through *last*, inclusive.
+*List* must be a valid Tcl list. This command will return a new
+list consisting of elements *first* through *last*, inclusive.
 
 See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *first* and *last*.
 
@@ -2645,7 +2644,7 @@ the list are to be matched against pattern and must have one of the values below
     This negates the sense of the match, returning the index (or value
     if '-inline' is specified) of the first non-matching value in the
     list. If '-bool' is also specified, the '0' will be returned if a
-    match is found, or '1' otherwise.  If '-all' is also specified,
+    match is found, or '1' otherwise. If '-all' is also specified,
     non-matches will be returned rather than matches.
 
 +'-nocase'+::
@@ -2688,19 +2687,19 @@ It may have any of the following values:
     already exist.
 
 +w+::
-    Open the file for writing only.  Truncate it if it exists.  If it doesn't
+    Open the file for writing only. Truncate it if it exists. If it doesn't
     exist, create a new file.
 
 +w++::
-    Open the file for reading and writing.  Truncate it if it exists.
+    Open the file for reading and writing. Truncate it if it exists.
     If it doesn't exist, create a new file.
 
 +a+::
-    Open the file for writing only.  The file must already exist, and the file
+    Open the file for writing only. The file must already exist, and the file
     is positioned so that new data is appended to the file.
 
 +a++::
-    Open the file for reading and writing.  If the file doesn't
+    Open the file for reading and writing. If the file doesn't
     exist, create a new empty file. Set the initial access position
     to the end of the file.
 
@@ -2742,13 +2741,13 @@ proc
 
 The 'proc' command creates a new Tcl command procedure, *name*.
 When the new command is invoked, the contents of *body* will be executed.
-Tcl interpreter.  *args* specifies the formal arguments to the procedure.
+Tcl interpreter. *args* specifies the formal arguments to the procedure.
 If specified, *static*, declares static variables which are bound to the
 procedure.
 
 See PROCEDURES for detailed information about Tcl procedures.
 
-The 'proc' command returns the null string.  When a procedure is invoked,
+The 'proc' command returns the null string. When a procedure is invoked,
 the procedure's return value is the value specified in a 'return' command.
 If the procedure doesn't execute an explicit 'return', then its return
 value is the value of the last command executed in the procedure's body.
@@ -2763,7 +2762,7 @@ puts
 +'fileId' *puts* ?*-nonewline*? 'string'+
 
 Writes the characters given by *string* to the file given
-by *fileId*.  *fileId* must have been the return
+by *fileId*. *fileId* must have been the return
 value from a previous call to 'open', or it may be
 'stdout' or 'stderr' to refer to one of the standard I/O
 channels; it must refer to a file that was opened for
@@ -2834,7 +2833,7 @@ to 'open'; it must refer to a file that was opened for reading.
 
 regexp
 ~~~~~~
-+*regexp ?-indices? ?-nocase?* ?*-start* 'offset'? 'exp string ?matchVar? ?subMatchVar subMatchVar ...?'+
++*regexp ?-nocase? ?-line? ?-indices? ?-start* 'offset'? *?-all? ?-inline? ?--?* 'exp string ?matchVar? ?subMatchVar subMatchVar ...?'+
 
 Determines whether the regular expression *exp* matches part or
 all of *string* and returns 1 if it does, 0 if it doesn't.
@@ -2846,14 +2845,15 @@ If additional arguments are specified after *string* then they
 are treated as the names of variables to use to return
 information about which part(s) of *string* matched *exp*.
 *matchVar* will be set to the range of *string* that
-matched all of *exp*.  The first *subMatchVar* will contain
+matched all of *exp*. The first *subMatchVar* will contain
 the characters in *string* that matched the leftmost parenthesized
 subexpression within *exp*, the next *subMatchVar* will
 contain the characters that matched the next parenthesized
 subexpression to the right in *exp*, and so on.
 
-Normally, *matchVar* and the each *subMatchVar* are set to hold
-the matching characters from 'string', however see '-indices' below.
+Normally, *matchVar* and the each *subMatchVar* are set to hold the
+matching characters from 'string', however see '-indices' and
+'-inline' below.
 
 If there are more values for *subMatchVar* than parenthesized subexpressions
 within *exp*, or if a particular subexpression in *exp* doesn't
@@ -2865,9 +2865,17 @@ string otherwise.
 The following switches modify the behaviour of *regexp*
 
 +*-nocase*+::
-    Causes upper-case characters in string to be treated as
-    lower case during the
-    matching process.
+    Causes upper-case and lower-case characters to be treated as
+    identical during the matching process.
+
++*-line*+::
+    Use newline-sensitive matching. By default, newline
+    is a completely ordinary character with no special meaning in
+    either REs or strings. With this flag, '[^' bracket expressions
+    and '.' never match newline, a '^' anchor matches the null
+    string after any newline in the string in addition to its normal
+    function, and the '$' anchor matches the null string before any
+    newline in the string in addition to its normal function.
 
 +*-indices*+::
     Changes what is stored in the subMatchVars. Instead of
@@ -2876,16 +2884,35 @@ The following switches modify the behaviour of *regexp*
     in string of the first and last characters in the matching
     range of characters.
 
-+*-start* 'index'+::
-    Specifies a character index offset into the string to start
-    matching the regular expression at. If '-indices' is
++*-start* 'offset'+::
+    Specifies a character index offset into the string at which to start
+    matching the regular expression. If '-indices' is
     specified, the indices will be indexed starting from the
-    absolute beginning of the input string. index will be
+    absolute beginning of the input string. *offset* will be
     constrained to the bounds of the input string.
+
++*-all*+::
+    Causes the regular expression to be matched as many times as possible
+    in the string, returning the total number of matches found. If this
+    is specified with match variables, they will contain information
+    for the last match only.
+
++*-inline*+::
+    Causes the command to return, as a list, the data that would otherwise
+    be placed in match variables. When using '-inline', match variables
+    may not be specified. If used with '-all', the list will be concatenated
+    at each iteration, such that a flat list is always returned. For
+    each match iteration, the command will append the overall match
+    data, plus one element for each subexpression in the regular
+    expression.
+
++*--*+::
+    Marks the end of switches. The argument following this one will be
+    treated as *exp* even if it starts with a +-+.
 
 regsub
 ~~~~~~
-+*regsub ?-all? ?-nocase?* 'exp string subSpec ?varName?'+
++*regsub ?-nocase? ?-all? ?-line? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
 
 This command matches the regular expression *exp* against
 *string* using the rules described in REGULAR EXPRESSIONS
@@ -2927,12 +2954,29 @@ The following switches modify the behaviour of *regsub*
     of *string*. 
 
 +*-all*+::
-    All ranges in
-    *string* that match *exp* are found and substitution is
-    performed for each of these ranges, rather than only the first.
-    The '&' and '{backslash}*n*'
-    sequences are handled for each substitution using the information
-    from the corresponding match.
+    All ranges in *string* that match *exp* are found and substitution
+    is performed for each of these ranges, rather than only the
+    first. The '&' and '{backslash}*n*' sequences are handled for
+    each substitution using the information from the corresponding
+    match.
+
++*-line*+::
+    Use newline-sensitive matching. By default, newline
+    is a completely ordinary character with no special meaning in
+    either REs or strings.  With this flag, '[^' bracket expressions
+    and '.' never match newline, a '^' anchor matches the null
+    string after any newline in the string in addition to its normal
+    function, and the '$' anchor matches the null string before any
+    newline in the string in addition to its normal function.
+
++*-start* 'offset'+::
+    Specifies a character index offset into the string at which to
+    start matching the regular expression. *offset* will be
+    constrained to the bounds of the input string.
+
++*--*+::
+    Marks the end of switches. The argument following this one will be
+    treated as *exp* even if it starts with a +-+.
 
 ref
 ~~~

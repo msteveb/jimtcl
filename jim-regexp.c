@@ -128,7 +128,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc < 3) {
         wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?");
         return JIM_ERR;
     }
 
@@ -326,7 +326,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc < 4) {
         wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-all? exp string subSpec ?varName?");
+        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?");
         return JIM_ERR;
     }
 

@@ -2969,7 +2969,6 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     while(!JimParserEof(&parser)) {
         JimParseScript(&parser);
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt, parser.tline);
-        //printf("ScriptAddToken type=%s/line=%d/'%.*s'\n", tt_name(parser.tt), parser.tline, (int)(parser.tend - parser.tstart + 1), parser.tstart);
     }
     /* Add a final EOF token */
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
@@ -3853,8 +3852,6 @@ static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
             /* An interpolated object in dict-sugar form */
 
             const ScriptToken *token = objPtr->internalRep.twoPtrValue.ptr1;
-
-            //printf("Fast interpolation of dict sugar: %s\n", objPtr->bytes);
 
             varObjPtr = token[0].objPtr;
             keyObjPtr = objPtr->internalRep.twoPtrValue.ptr2;
@@ -5639,12 +5636,11 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int i;
 
-    /* If all the objects in objv are lists without string rep.
+    /* If all the objects in objv are lists,
      * it's possible to return a list as result, that's the
      * concatenation of all the lists. */
     for (i = 0; i < objc; i++) {
         if (!Jim_IsList(objv[i]))
-        //if (objv[i]->typePtr != &listObjType || objv[i]->bytes)
             break;
     }
     if (i == objc) {
@@ -7456,7 +7452,6 @@ static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode *expr, ParseTok
     arity = 1;
     while (arity) {
         ScriptToken *tt = &expr->token[leftindex];
-        //printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
         if (tt->type >= JIM_TT_EXPR_OP) {
             arity += JimExprOperatorInfoByOpcode(tt->type)->arity;
         }
@@ -7669,8 +7664,6 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     exprText = Jim_GetString(objPtr, &exprTextLen);
 
-    //printf("EXPR: %s\n", exprText);
-
     /* Initially tokenise the expression into tokenlist */
     ScriptTokenListInit(&tokenlist);
 
@@ -7768,14 +7761,10 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
     int retcode = JIM_OK;
     struct JimExprState e;
 
-    //Jim_IncrRefCount(exprObjPtr);
     expr = Jim_GetExpression(interp, exprObjPtr);
     if (!expr) {
-        //Jim_DecrRefCount(interp, exprObjPtr);
         return JIM_ERR; /* error in expression. */
     }
-
-    //printf("Expr: %s\n", Jim_GetString(exprObjPtr, NULL));
 
 #ifdef JIM_OPTIMIZATION
     /* Check for one of the following common expressions used by while/for
@@ -7953,7 +7942,6 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr,
     }
 
     expr->inUse--;
-    //Jim_DecrRefCount(interp, exprObjPtr);
 
     if (retcode == JIM_OK) {
         *exprResultPtrPtr = ExprPop(&e);
@@ -8902,8 +8890,6 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
 
     interp->errorFlag = 0;
-
-    //printf("Eval: %s\n", Jim_GetString(scriptObjPtr, NULL));
 
     /* If the object is of type "list" and there is no
      * string representation for this object, we can call
