@@ -3780,15 +3780,15 @@ test regexp-5.5 {exercise cache of compiled expressions} {
 
 test regexp-6.1 {regexp errors} {
     list [catch {regexp a} msg] $msg
-} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?"}}
 
 test regexp-6.2 {regexp errors} {
     list [catch {regexp -nocase a} msg] $msg
-} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?"}}
 
 test regexp-6.3 {regexp errors} {
     list [catch {regexp -gorp a} msg] $msg
-} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? exp string ?matchVar? ?subMatchVar ...?"}}
+} {1 {wrong # args: should be "regexp ?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?"}}
 
 test regexp-6.4 {regexp errors} {
     list [catch {regexp a( b} msg] $msg
@@ -3960,23 +3960,23 @@ xb}}
 
 test regexp-11.1 {regsub errors} {
     list [catch {regsub a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?"}}
 
 test regexp-11.2 {regsub errors} {
     list [catch {regsub -nocase a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?"}}
 
 test regexp-11.3 {regsub errors} {
     list [catch {regsub -nocase -all a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?"}}
 
 test regexp-11.4 {regsub errors} {
     list [catch {regsub a b c d e f} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?"}}
 
 test regexp-11.5 {regsub errors} {
     list [catch {regsub -gorp a b c} msg] $msg
-} {1 {wrong # args: should be "regsub ?-nocase? ?-all? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?"}}
 
 test regexp-11.6 {regsub errors} {
     list [catch {regsub -nocase a( b c d} msg] $msg
