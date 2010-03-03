@@ -4387,6 +4387,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->numLevels = 0;
     i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
     i->returnCode = JIM_OK;
+    i->returnLevel = 0;
     i->exitCode = 0;
     i->procEpoch = 0;
     i->callFrameEpoch = 0;
@@ -4398,9 +4399,9 @@ Jim_Interp *Jim_CreateInterp(void)
     i->prngState = NULL;
     i->evalRetcodeLevel = -1;
     i->id = 0;
-    i->signal = 0;
+    i->sigmask = 0;
     i->signal_level = 0;
-    i->signal_to_name = NULL;
+    i->signal_set_result = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -4624,10 +4625,40 @@ static void JimResetStackTrace(Jim_Interp *interp)
     Jim_IncrRefCount(interp->stackTrace);
 }
 
+static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
+{
+    int len;
+
+    /* Increment reference first in case these are the same object */
+    Jim_IncrRefCount(stackTraceObj);
+    Jim_DecrRefCount(interp, interp->stackTrace);
+    interp->stackTrace = stackTraceObj;
+    interp->errorFlag = 1;
+
+    /* This is a bit ugly.
+     * If the filename of the last entry of the stack trace is empty,
+     * the next stack level should be added.
+     */
+    len = Jim_ListLength(interp, interp->stackTrace);
+    if (len >= 3) {
+        Jim_Obj *filenameObj;
+        Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj, JIM_NONE);
+
+        Jim_GetString(filenameObj, &len);
+
+        if (len == 0) {
+            interp->addStackTrace = 1;
+        }
+    }
+}
+
+/* Returns 1 if the stack trace information was used or 0 if not */
 static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
         const char *filename, int linenr)
 {
-    /*printf("AppendStackTrace: %s:%d (%s)\n", filename, linenr, procname);*/
+#if 0
+    printf("JimAppendStackTrace: %s:%d (%s)\n", filename, linenr, procname);
+#endif
 
     /* XXX Omit "unknown" for now since it can be confusing (but it may help too!) */
     if (strcmp(procname, "unknown") == 0) {
@@ -8806,7 +8837,7 @@ void Jim_ExpandArgument(Jim_Interp *interp, Jim_Obj ***argv,
     }
 }
 
-static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
+static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
 {
     int rc = retcode;
 
@@ -8817,7 +8848,8 @@ static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filen
     if (retcode == JIM_RETURN) {
         rc = interp->returnCode;
     }
-
+#endif
+#if 0
     printf("JimAddErrorToStack: retcode=%s, %s:%d, ast=%d, errorFlag=%d\n",
         Jim_ReturnCode(retcode), filename, line, interp->addStackTrace, interp->errorFlag);
 #endif
@@ -8836,16 +8868,27 @@ static int JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filen
     /* Now if this is an "interesting" level, add it to the stack trace */
     if (rc == JIM_ERR && interp->addStackTrace > 0) {
         /* Add the stack info for the current level */
+
         JimAppendStackTrace(interp, Jim_GetString(interp->errorProc, NULL), filename, line);
+
+        /* Note: if we didn't have a filename for this level,
+         * don't clear the addStackTrace flag
+         * so we can pick it up at the next level
+         */
+        if (*filename) {
+            interp->addStackTrace = 0;
+        }
 
         Jim_DecrRefCount(interp, interp->errorProc);
         interp->errorProc = interp->emptyObj;
         Jim_IncrRefCount(interp->errorProc);
     }
-
-    interp->addStackTrace = 0;
-
-    return JIM_OK;
+    else if (rc == JIM_RETURN && interp->returnCode == JIM_ERR) {
+        /* Propagate the addStackTrace value through 'return -code error' */
+    }
+    else {
+        interp->addStackTrace = 0;
+    }
 }
 
 int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
@@ -9041,7 +9084,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             /* Call [unknown] */
             retcode = JimUnknown(interp, argc, argv);
         }
-        if (interp->signal_level && interp->signal) {
+        if (interp->signal_level && interp->sigmask) {
             /* Check for a signal after each command */
             retcode = JIM_SIGNAL;
         }
@@ -9232,8 +9275,11 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc,
     }
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
-        retcode = interp->returnCode;
-        interp->returnCode = JIM_OK;
+        if (--interp->returnLevel <= 0) {
+            retcode = interp->returnCode;
+            interp->returnCode = JIM_OK;
+            interp->returnLevel = 0;
+        }
     }
     else if (retcode == JIM_ERR) {
         interp->addStackTrace++;
@@ -9359,8 +9405,11 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
-        retcode = interp->returnCode;
-        interp->returnCode = JIM_OK;
+        if (--interp->returnLevel <= 0) {
+            retcode = interp->returnCode;
+            interp->returnCode = JIM_OK;
+            interp->returnLevel = 0;
+        }
     }
     if (retcode == JIM_ERR) {
         /* EvalFile changes context, so add a stack frame here */
@@ -11234,25 +11283,46 @@ static int Jim_ContinueCoreCommand(Jim_Interp *interp, int argc,
 static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-    if (argc == 1) {
-        return JIM_RETURN;
-    } else if (argc == 2) {
-        Jim_SetResult(interp, argv[1]);
-        interp->returnCode = JIM_OK;
-        return JIM_RETURN;
-    } else if ((argc == 3 || argc == 4) && Jim_CompareStringImmediate(interp, argv[1], "-code")) {
-        int returnCode;
-        if (Jim_GetReturnCode(interp, argv[2], &returnCode) == JIM_ERR)
-            return JIM_ERR;
-        interp->returnCode = returnCode;
-        if (argc == 4)
-            Jim_SetResult(interp, argv[3]);
-        return JIM_RETURN;
-    } else {
-        Jim_WrongNumArgs(interp, 1, argv, "?-code code? ?result?");
-        return JIM_ERR;
+    int i;
+    Jim_Obj *stackTraceObj = NULL;
+    int returnCode = JIM_OK;
+    long level = 1;
+
+    for (i = 1; i < argc - 1; i += 2) {
+        if (Jim_CompareStringImmediate(interp, argv[i], "-code")) {
+            if (Jim_GetReturnCode(interp, argv[i + 1], &returnCode) == JIM_ERR) {
+                return JIM_ERR;
+            }
+        }
+        else if (Jim_CompareStringImmediate(interp, argv[i], "-errorinfo")) {
+            stackTraceObj = argv[i + 1];
+        }
+        else if (Jim_CompareStringImmediate(interp, argv[i], "-level")) {
+            if (Jim_GetLong(interp, argv[i + 1], &level) != JIM_OK || level < 0) {
+                Jim_SetResultFormatted(interp, "bad level \"%#s\"", argv[i + 1]);
+                return JIM_ERR;
+            }
+        }
+        else {
+            break;
+        }
     }
-    return JIM_RETURN; /* unreached */
+
+    if (i != argc - 1 && i != argc) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-code code? ?-errorinfo stacktrace? ?-level level? ?result?");
+    }
+
+    /* If a stack trace is supplied and code is error, set the stack trace */
+    if (stackTraceObj && returnCode == JIM_ERR) {
+        JimSetStackTrace(interp, stackTraceObj);
+    }
+    interp->returnCode = returnCode;
+    interp->returnLevel = level;
+
+    if (i == argc - 1) {
+        Jim_SetResult(interp, argv[i]);
+    }
+    return JIM_RETURN;
 }
 
 /* [tailcall] */
@@ -11813,7 +11883,6 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc,
 
     argc -= i;
     if (argc < 1 || argc > 3) {
-        printf("argc=%d\n", argc);
 wrongargs:
         Jim_WrongNumArgs(interp, 1, argv, "?-?no?code ... --? script ?resultVarName? ?optionVarName?");
         return JIM_ERR;
@@ -11825,7 +11894,13 @@ wrongargs:
     }
 
     interp->signal_level += sig;
-    exitCode = Jim_EvalObj(interp, argv[0]);
+    if (interp->signal_level && interp->sigmask) {
+        /* If a signal is set, don't even try to execute the body */
+        exitCode = JIM_SIGNAL;
+    }
+    else {
+        exitCode = Jim_EvalObj(interp, argv[0]);
+    }
     interp->signal_level -= sig;
 
     /* Catch or pass through? Only the first 64 codes can be passed through */
@@ -11834,15 +11909,15 @@ wrongargs:
         return exitCode;
     }
 
-    if (sig && exitCode == JIM_SIGNAL && interp->signal_level == 0) {
-        /* Yes, catch the signal at this level */
-        if (interp->signal_to_name) {
-            Jim_SetResultString(interp, interp->signal_to_name(interp->signal), -1);
+    if (sig && exitCode == JIM_SIGNAL) {
+        /* Catch the signal at this level */
+        if (interp->signal_set_result) {
+            interp->signal_set_result(interp, interp->sigmask);
         }
         else {
-            Jim_SetResultInt(interp, interp->signal);
+            Jim_SetResultInt(interp, interp->sigmask);
         }
-        interp->signal = 0;
+        interp->sigmask = 0;
     }
 
     if (argc >= 2) {
@@ -11854,7 +11929,12 @@ wrongargs:
             Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-code", -1));
             Jim_ListAppendElement(interp, optListObj,
                 Jim_NewIntObj(interp, exitCode == JIM_RETURN ? interp->returnCode : exitCode));
-
+            Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-level", -1));
+            Jim_ListAppendElement(interp, optListObj, Jim_NewIntObj(interp, interp->returnLevel));
+            if (exitCode == JIM_ERR) {
+                Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorinfo", -1));
+                Jim_ListAppendElement(interp, optListObj, interp->stackTrace);
+            }
             if (Jim_SetVariable(interp, argv[2], optListObj) != JIM_OK) {
                 return JIM_ERR;
             }
@@ -12469,11 +12549,7 @@ static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc,
     }
     Jim_SetResult(interp, argv[1]);
     if (argc == 3) {
-        /* Increment reference first in case these are the same object */
-        Jim_IncrRefCount(argv[2]);
-        Jim_DecrRefCount(interp, interp->stackTrace);
-        interp->stackTrace = argv[2];
-        interp->errorFlag = 1;
+        JimSetStackTrace(interp, argv[2]);
         return JIM_ERR;
     }
     interp->addStackTrace++;

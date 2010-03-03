@@ -11,6 +11,38 @@ test return-1.2 {source file with break} {
 	list [catch {source break.tcl} msg] $msg
 } {3 {}}
 
-test return-1.2 {source file with break} {
+test return-1.3 {source file with break} {
 	list [catch {source return-break.tcl} msg] $msg
 } {3 result}
+
+proc a {level code msg} {
+	return -level $level -code $code $msg
+}
+
+proc b {level code msg} {
+	a $level $code $msg
+}
+
+test return-2.1 {return -level 0} {
+	list [catch {a 0 20 text} msg] $msg
+} {20 text}
+
+test return-2.2 {return -level 1} {
+	list [catch {a 1 20 text} msg] $msg
+} {20 text}
+
+test return-2.3 {return -level 2} {
+	list [catch {a 2 20 text} msg] $msg
+} {2 text}
+
+test return-2.4 {return -level 0} {
+	list [catch {b 0 20 text} msg] $msg
+} {20 text}
+
+test return-2.5 {return -level 1} {
+	list [catch {b 1 20 text} msg] $msg
+} {20 text}
+
+test return-2.6 {return -level 2} {
+	list [catch {b 2 20 text} msg] $msg
+} {20 text}

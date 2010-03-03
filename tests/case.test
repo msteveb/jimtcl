@@ -1,56 +1,12 @@
 source testing.tcl
 
-# Test that control structures can be implemented in a proc
-
-proc control {cond code} {
-	set iscond [uplevel 1 expr $cond]
-	#puts "$cond -> $iscond"
-	if {$iscond} {
-		set rc [catch [list uplevel 1 $code] error opts]
-		#puts "$code -> rc=$rc, error=$error, opts=$opts"
-		if {$rc == 2 && $opts(-code) != 0} {
-			set rc $opts(-code)
-		}
-		return -code $rc $error
-	}
-}
-
-test control-1.1 "False case" {
-	control 0 bogus
-} {}
-
-test control-1.2 "Simple case" {
-	control 1 {return result}
-} {result}
-
-test control-1.3 "Break from proc" {
-	set result {}
-	foreach i {1 2 3 4 5} {
-		control {$i == 4} {break}
-		lappend result $i
-	}
-	set result
-} {1 2 3}
-
-test control-1.4 "Return from proc" {
-	foreach i {1 2 3 4 5} {
-		control {$i == 3} {return $i}
-	}
-} {3}
-
-test control-1.5 "Continue from proc" {
-	set result {}
-	foreach i {1 2 3 4 5} {
-		control {$i == 2} {continue}
-		lappend result $i
-	}
-	set result
-} {1 3 4 5}
-
 # case is a proc, but it should be able
 # to cause a return in do_case
 proc do_case {var} {
 	case $var in {
+		0 {
+			return
+		}
 		1 {
 			return one
 		}
@@ -61,23 +17,45 @@ proc do_case {var} {
 			return -code continue three
 		}
 		4 {
-			return 44
+			return -code break four
 		}
 		5 {
-			return -code break five
+			continue
 		}
 		6 {
-			return eight
+			break
 		}
 	}
 	return zero
 }
 
-test control-2.1 "Return from case" {
-	set result {}
-	foreach i {0 1 2 3 4 5 6} {
-		lappend result [do_case $i]
-	}
-	set result
-} {zero one two 44}
+test case-2.0 "Plain from case" {
+	do_case 0
+} {}
 
+test case-2.1 "Return from case with value" {
+	do_case 1
+} {one}
+
+test case-2.2 "Return -code ok from case" {
+	do_case 2
+	list [catch {do_case 2} msg] $msg
+} {0 two}
+
+test case-2.3 "Return -code continue from case" {
+	list [catch {do_case 3} msg] $msg
+} {4 three}
+
+test case-2.4 "Return -code break from case" {
+	list [catch {do_case 4} msg] $msg
+} {3 four}
+
+if {0} {
+test case-2.5 "continue from case" {
+	list [catch {do_case 5} msg] $msg
+} {1 {invoked "continue" outside of a loop}}
+
+test case-2.6 "break from case" {
+	list [catch {do_case 6} msg] $msg
+} {1 {invoked "break" outside of a loop}}
+}

@@ -15,7 +15,7 @@ proc main {} {
 			}
 			test err-$id1.$id2 "Stacktrace on error type $type, method $method" {
 				set rc [catch {error_caller $type $method} msg]
-				#puts stderr "err-$id1.$id2 $type, $method\n[errorInfo $msg]\n"
+				#puts "\n-----------------\n$type, $method\n[errorInfo $msg]\n\n"
 				if {$::SHOW_EXPECTED} { puts stderr "\terr-$id1.$id2 {[list $rc $msg [info stacktrace]]}" }
 
 				list $rc $msg [info stacktrace]

@@ -10,26 +10,30 @@
 
 #include "jim.h"
 #include "jim-subcmd.h"
+#include "jim-signal.h"
 
-#define MAX_SIGNALS 32
+#define MAX_SIGNALS (sizeof(jim_wide) * 8)
 
-static int *sigloc;
-static unsigned long sigsblocked; 
+static jim_wide *sigloc;
+static jim_wide sigsblocked; 
 static struct sigaction *sa_old;
 static int signal_handling[MAX_SIGNALS];
 
+/* Make sure to do this as a wide, not int */
+#define sig_to_bit(SIG) ((jim_wide)1 << (SIG))
+
 static void signal_handler(int sig)
 {
-    /* We just remember which signal occurred. Jim_Eval() will
+    /* We just remember which signals occurred. Jim_Eval() will
      * notice this as soon as it can and throw an error
      */
-    *sigloc = sig;
+    *sigloc |= sig_to_bit(sig);
 }
 
 static void signal_ignorer(int sig)
 {
     /* We just remember which signals occurred */
-    sigsblocked |= (1 << sig);
+    sigsblocked |= sig_to_bit(sig);
 }
 
 /*
@@ -227,11 +231,6 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
         return JIM_OK;
     }
 
-    /* Make sure we know where to store the signals which occur */
-    if (!sigloc) {
-        sigloc = &interp->signal;
-    }
-
     /* Catch all the signals we care about */
     if (action != SIGNAL_ACTION_DEFAULT) {
         sa.sa_flags = 0;
@@ -295,6 +294,59 @@ static int signal_cmd_default(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     return do_signal_cmd(interp, SIGNAL_ACTION_DEFAULT, argc, argv);
 }
 
+static int signal_set_sigmask_result(Jim_Interp *interp, jim_wide sigmask)
+{
+    int i;
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+    for (i = 0; i < MAX_SIGNALS; i++) {
+        if (sigmask & sig_to_bit(i)) {
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, Jim_SignalId(i), -1));
+        }
+    }
+    Jim_SetResult(interp, listObj);
+    return JIM_OK;
+}
+
+static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int clear = 0;
+    jim_wide mask = 0;
+    jim_wide blocked; 
+    
+    if (argc > 0 && Jim_CompareStringImmediate(interp, argv[0], "-clear")) {
+        clear++;
+    }
+    if (argc > clear) {
+        int i;
+
+        /* Signals specified */
+        for (i = clear; i < argc; i++) {
+            int sig = find_signal_by_name(interp, Jim_GetString(argv[i], NULL));
+            if (sig < 0 || sig >= MAX_SIGNALS) {
+                return -1;
+            }
+            mask |= sig_to_bit(sig);
+        }
+    }
+    else {
+        /* No signals specified, so check/clear all */
+        mask = ~mask;
+    }
+
+    if ((sigsblocked & mask) == 0) {
+        /* No matching signals, so empty result and nothing to do */
+        return JIM_OK;
+    }
+    /* Be careful we don't have a race condition where signals are cleared but not returned */
+    blocked = sigsblocked & mask;
+    if (clear) {
+        sigsblocked &= ~blocked;
+    }
+    /* Set the result */
+    signal_set_sigmask_result(interp, blocked);
+    return JIM_OK;
+}
+
 static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int sig = SIGINT;
@@ -304,13 +356,17 @@ static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    /* Just set the signal */
-    interp->signal = sig;
+    /* If the signal is ignored (blocked) ... */
+    if (signal_handling[sig] == SIGNAL_ACTION_IGNORE) {
+        sigsblocked |= sig_to_bit(sig);
+        return JIM_OK;
+    }
 
-#if 1
+    /* Just set the signal */
+    interp->sigmask |= sig_to_bit(sig);
+
     /* Set the canonical name of the signal as the result */
     Jim_SetResultString(interp, Jim_SignalId(sig), -1);
-#endif
 
     /* And simply say we caught the signal */
     return JIM_SIGNAL;
@@ -360,6 +416,13 @@ static const jim_subcmd_type signal_command_table[] = {
         .minargs = 0,
         .maxargs = -1,
         .description = "Lists defaulted signals, or adds to defaulted signals"
+    },
+    {   .cmd = "check",
+        .args = "?-clear? ?signals ...?",
+        .function = signal_cmd_check,
+        .minargs = 0,
+        .maxargs = -1,
+        .description = "Returns ignored signals which have occurred, and optionally clearing them"
     },
     {   .cmd = "throw",
         .args = "?signal?",
@@ -479,8 +542,11 @@ int Jim_signalInit(Jim_Interp *interp)
     if (Jim_PackageProvide(interp, "signal", "1.0", JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
     }
-    /* Teach the jim core how to convert signal values to names */
-    interp->signal_to_name = Jim_SignalId;
+    /* Teach the jim core how to set a result from a sigmask */
+    interp->signal_set_result = signal_set_sigmask_result;
+
+    /* Make sure we know where to store the signals which occur */
+    sigloc = &interp->sigmask;
 
     Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, NULL);
     Jim_CreateCommand(interp, "alarm", Jim_AlarmCmd, 0, 0);

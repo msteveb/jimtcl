@@ -50,14 +50,10 @@ proc case {var args} {
 
 	if {[info exists do_action]} {
 		set rc [catch [list uplevel 1 $do_action] result opts]
-		set rcname [info returncode $rc]
-		if {$rcname in {break continue}} {
-			return -code error "invoked \"$rcname\" outside of a loop"
-		} elseif {$rcname eq "return" && $opts(-code)} {
-			# 'return -code' in the action
-			set rc $opts(-code)
+		if {$rc} {
+			incr opts(-level)
 		}
-		return -code $rc $result
+		return {*}$opts $result
 	}
 }
 
@@ -120,40 +116,102 @@ proc {info nameofexecutable} {} {
 
 # Implements 'file copy' - single file mode only
 proc {file copy} {{force {}} source target} {
-	set rc [catch {
+	try {
 		if {$force ni {{} -force}} {
 			error "bad option \"$force\": should be -force"
 		}
+
 		set in [open $source]
 
-		try {
-			if {$force eq "" && [file exists $target]} {
-				$in close
-				error "error copying \"$source\" to \"$target\": file already exists"
-			}
-			set out [open $target w]
-			bio copy $in $out
-			$out close
-		} finally {
-			catch {$in close}
+		if {$force eq "" && [file exists $target]} {
+			$in close
+			error "error copying \"$source\" to \"$target\": file already exists"
 		}
-	} result]
-
-	return -code $rc $result
+		set out [open $target w]
+		bio copy $in $out
+		$out close
+	} on error {msg opts} {
+		incr opts(-level)
+		return {*}$opts $msg
+	} finally {
+		catch {$in close}
+	}
 }
 
-# Poor mans try/catch/finally
-# Note that in this version 'finally' is required
-proc try {script finally finalscript} {
-	if {$finally ne "finally"} {
-		return -code error {mis-spelt "finally" keyword}
+# try/on/finally conceptually similar to Tcl 8.6
+#
+# Usage: try ?catchopts? script ?onclause ...? ?finallyclause?
+#
+# Where:
+#   onclause is:       on codes {?resultvar? ?optsvar?} script
+#
+#   codes is: a list of return codes (ok, error, etc. or integers), or * for any
+#
+#   finallyclause is:  finally script
+#
+#
+# Where onclause is: on codes {?resultvar? ?optsvar?}
+proc try {args} {
+	set catchopts {}
+	while {[string match -* [lindex $args 0]]} {
+		set args [lassign $args opt]
+		if {$opt eq "--"} {
+			break
+		}
+		lappend catchopts $opt
 	}
-	set bodycode [catch [list uplevel 1 $script] bodymsg]
-	set finalcode [catch [list uplevel 1 $finalscript] finalmsg]
-	if {$bodycode || !$finalcode} {
-		return -code $bodycode $bodymsg
+	if {[llength $args] == 0} {
+		return -code error {wrong # args: should be "try ?options? script ?argument ...?"}
 	}
-	return -code $finalcode $finalmsg
+	set args [lassign $args script]
+	set code [catch {*}$catchopts [list uplevel 1 $script] msg opts]
+
+	set handled 0
+
+	foreach {on codes vars script} $args {
+		switch -- $on \
+			on {
+				if {!$handled && ($codes eq "*" || [info returncode $code] in $codes)} {
+					lassign $vars msgvar optsvar
+					if {$msgvar ne ""} {
+						upvar $msgvar hmsg
+						set hmsg $msg
+					}
+					if {$optsvar ne ""} {
+						upvar $optsvar hopts
+						set hopts $opts
+					}
+					# Override any body result
+					set code [catch [list uplevel 1 $script] msg opts]
+					incr handled
+				}
+			} \
+			finally {
+				set finalcode [catch [list uplevel 1 $codes] finalmsg finalopts]
+				if {$finalcode} {
+					# Override any body or handler result
+					set code $finalcode
+					set msg $finalmsg
+					set opts $finalopts
+				}
+				break
+			} \
+			default {
+				return -code error "try: expected 'on' or 'finally', got '$on'"
+			}
+	}
+
+	if {$code} {
+		incr opts(-level)
+		return {*}$opts $msg
+	}
+	return $msg
+}
+
+# Generates an exception with the given code (ok, error, etc. or an integer)
+# and the given message
+proc throw {code {msg ""}} {
+	return -code $code $msg
 }
 
 

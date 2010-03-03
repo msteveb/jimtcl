@@ -985,7 +985,7 @@ argument specifiers:
 +*args*+::
     Variable Argument - The special name 'args', which is
     assigned all remaining arguments (including none). The
-	variable argument may only be specified once.
+    variable argument may only be specified once.
 
 Arguments must be provided in the following order, any of which
 may be omitted:
@@ -1483,25 +1483,35 @@ catch
 +*catch* '?-?no?code ...?' *?--?* 'command ?resultVarName? ?optionsVarName?'+
 
 The 'catch' command may be used to prevent errors from aborting
-command interpretation.  'Catch' evalues *command*, and
-returns a +JIM_OK+ code, regardless of any errors that might occur
-while executing *command* (with the possible exception of +JIM_SIGNAL+
-- see below).
+command interpretation.  'Catch' evalues *command*, and returns a
++JIM_OK+ code, regardless of any errors that might occur while
+executing *command* (with the possible exception of +JIM_SIGNAL+ -
+see below).
 
-The return value from 'catch' is a decimal string giving the code returned
-by the Tcl interpreter after executing *command*.  This will be '0'
-(+JIM_OK+) if there were no errors in *command*; otherwise it will have
-a non-zero value corresponding to one of the exceptional return codes
-(see jim.h for the definitions of code values, or the 'info returncodes' command).
+The return value from 'catch' is a decimal string giving the code
+returned by the Tcl interpreter after executing *command*.  This
+will be '0' (+JIM_OK+) if there were no errors in *command*; otherwise
+it will have a non-zero value corresponding to one of the exceptional
+return codes (see jim.h for the definitions of code values, or the
+'info returncodes' command).
 
-If the *resultVarName* argument is given, then it gives the name of a variable;
-'catch' will set the value of the variable to the string returned from
-*command* (either a result or an error message).
+If the *resultVarName* argument is given, then it gives the name
+of a variable; 'catch' will set the value of the variable to the
+string returned from *command* (either a result or an error message).
 
-If the *optionsVarName* argument is given, then it gives the name of a variable;
-'catch' will set the value of the variable to a dictionary. For any return code other
-than +JIM_RETURN+, the value for the key +-code+ will be set to the return code. For +JIM_RETURN+
-it will be set to the code given in 'return -code'.
+If the *optionsVarName* argument is given, then it gives the name
+of a variable; 'catch' will set the value of the variable to a
+dictionary. For any return code other than +JIM_RETURN+, the value
+for the key +-code+ will be set to the return code. For +JIM_RETURN+
+it will be set to the code given in 'return -code'. Additionally,
+for the return code +JIM_ERR+, the value of the key +-errorinfo+
+will contain the current stack trace (the same result as 'info
+stacktrace').  This can be useful to rethrow an error:
+
+    if {[catch {...} msg opts]} {
+        ...maybe do something with the error...
+        return {*}$opts $msg
+    }
 
 Normally 'catch' will *not* catch any of the codes +JIM_EXIT+, +JIM_EVAL+ or +JIM_SIGNAL+.
 The set of codes which will be caught may be modified by specifying the one more codes before
@@ -1683,7 +1693,7 @@ of the error:
     ...
     error $errMsg [info stacktrace]
 
-See also 'errorInfo' and 'info stacktrace'
+See also 'errorInfo', 'info stacktrace', 'catch' and 'return'
 
 errorInfo
 ~~~~~~~~~
@@ -1853,8 +1863,8 @@ abbreviation for *option* is acceptable.  The valid options are:
     error is generated.
 
 +*file copy ?-force?* 'source target'+::
-	Copies file *source* to file *target*. The source file must exist.
-	The target file must not exist, unless *-force* is specified.
+    Copies file *source* to file *target*. The source file must exist.
+    The target file must not exist, unless *-force* is specified.
 
 +*file delete* 'name'+::
     Deletes file *name*. If the file doesn't exist, nothing happens.
@@ -2285,8 +2295,8 @@ The legal *option*'s (which may be abbreviated) are:
 
 +*info returncodes* ?'code'?+::
     Returns a list representing the mapping of standard return codes
-	to names. e.g. +{0 ok 1 error 2 return ...}+. If a code is given,
-	instead returns the name for the given code.
+    to names. e.g. +{0 ok 1 error 2 return ...}+. If a code is given,
+    instead returns the name for the given code.
 
 +*info script*+::
     If a Tcl script file is currently being evaluated (i.e. there is a
@@ -2945,16 +2955,19 @@ returns an empty string as result.
 
 return
 ~~~~~~
-+*return* ?*-code* 'code'? ?'value'?+
++*return* ?*-code* 'code'? ?*-errorinfo* 'stacktrace'? ?'value'?+
 
 Return immediately from the current procedure (or top-level command
 or 'source' command), with *value* as the return value.  If *value*
 is not specified, an empty string will be returned as result.
 
-If *code* is specified (as either a number or ok, error, break,
+If *-code* is specified (as either a number or ok, error, break,
 continue, signal, return or exit), this code will be used instead
 of +JIM_OK+. This is generally useful when implementing flow of control
 commands.
+
+If *-errorinfo* is specified (as returned from 'info stacktrace')
+it is used to initialize the stacktrace.
 
 scan
 ~~~~
@@ -3045,7 +3058,6 @@ See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
 signal
 ~~~~~~
-
 Command for signal handling.
 
 See 'kill' for the different forms which may be used to specify signals.
@@ -3063,7 +3075,9 @@ Commands which return a list of signal names do so using the canonical form:
     If no signals are given, returns a lists all signals which are currently being
     ignored.
     If signals are specified, these are added to the list of signals currently
-    being ignored.
+    being ignored. These signals are still delivered, but are not considered by
+	'catch -signal' or 'try -signal'. Use 'signal check' to signals which have
+	occurred but been ignored.
 
 +*signal default* ?'signals ...'?+::
     If no signals are given, returns a lists all signals which are currently have
@@ -3071,11 +3085,46 @@ Commands which return a list of signal names do so using the canonical form:
     If signals are specified, these are added to the list of signals which have
     the default behaviour.
 
++*signal check ?-clear?* ?'signals ...'?+::
+    Returns a list of signals which have been delivered to the process
+	but are 'ignored'. If signals are specified, only that set of signals will
+	be checked, otherwise all signals will be checked.
+	If '-clear' is specified, any signals returned are removed and will not be
+	returned by subsequent calls to 'signal check' unless delivered again.
+
 +*signal throw* ?'signal'?+::
     Raises the given signal, which defaults to +SIGINT+ if not specified.
     The behaviour is identical to:
 
         kill signal [pid]
+
+Note that 'signal handle' and 'signal ignore' represent two forms of signal
+handling. 'signal handle' is used in conjunction with 'catch -signal' or 'try -signal'
+to immediately abort execution when the signal is delivered. Alternatively, 'signal ignore'
+is used in conjunction with 'signal check' to handle signal synchronously. Consider the
+two examples below.
+
+Prevent a processing from taking too long
+
+    signal handle SIGALRM
+	alarm 20
+	try -signal {
+		.. possibly long running process ..
+		alarm 0
+	} on signal {sig} {
+		puts stderr "Process took too long"
+	}
+
+Handle SIGHUP to reconfigure:
+
+	signal ignore SIGHUP
+    while {1} {
+		... handle configuration/reconfiguration ...
+		while {[signal check -clear SIGHUP] eq ""} {
+			... do processing ..
+		}
+		# Received SIGHUP, so reconfigure
+	}
 
 sleep
 ~~~~~
@@ -3376,6 +3425,16 @@ Returns a decimal string giving the current access position in
 'open', or it may be 'stdin', 'stdout', or 'stderr' to refer to one
 of the standard I/O channels.
 
+throw
+~~~~~
++*throw* 'code ?msg?'+
+
+This command throws an exception (return) code along with an optional message.
+This command is mostly for convenient usage with 'try'.
+
+The command +throw break+ is equivalent to +break+.
+The command +throw 20 message+ can be caught with an +on 20 ...+ clause to 'try'.
+
 time
 ~~~~
 +*time* 'command ?count?'+
@@ -3393,27 +3452,52 @@ Time is measured in elapsed time, not CPU time.
 
 try
 ~~~
-+*try* 'script' *finally* 'finalscript'+
++*try* '?catchopts? tryscript' ?*on* 'returncodes {?resultvar? ?optsvar?} handlerscript ...'? ?*finally* 'finalscript'?+
 
 The 'try' command is provided as a convenience for exception handling.
-This interpeter evaluates *script* and then, regardless of any error
-generated, evaluates *finalscript*.
 
-The result of this command is the result of *script*, except in the
-case where *script* did not generate an error and *finalscript*
-did. In this case, the result is the result of *finalscript*.
+This interpeter first evaluates *tryscript* under the effect of the catch
+options *catchopts* (e.g. +-signal -noexit --+, see 'catch').
+
+It then evaluates the script for the first matching 'on' handler
+(there many be zero or more) based on the return code from the 'try'
+section. For example a normal +JIM_ERR+ error will be matched by
+an 'on error' handler.
+
+Finally, any *finalscript* is evaluated.
+
+The result of this command is the result of *tryscript*, except in the
+case where an exception occurs in a matching 'on' handler script or the 'finally' script,
+in which case the result is this new exception.
+
+The specified *returncodes* is a list of return codes either as names ('ok', 'error', 'break', etc.)
+or as integers.
+
+If *resultvar* and *optsvar* are specified, they are set as for 'catch' before evaluating
+the matching handler.
 
 For example:
 
-	set f [open input]
-    try {
-		process $f
-	} finally {
-		$f close
-	}
+    set f [open input]
+    try -signal {
+        process $f
+    } on {continue break} {} {
+        error "Unexpected break/continue"
+    } on error {msg opts} {
+        puts "Dealing with error"
+        return {*}$opts $msg
+    } on signal sig {
+        puts "Got signal: $sig"
+    } finally {
+        $f close
+    }
 
-Will close the file even if an error occurs during 'process'. The result will
-be the result of 'process'
+If break, continue or error are raised, they are dealt with by the matching
+handler.
+
+In any case, the file will be closed via the 'finally' clause.
+
+See also 'throw', 'catch', 'return', 'error'.
 
 unknown
 ~~~~~~~

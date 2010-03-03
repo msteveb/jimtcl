@@ -24,6 +24,7 @@
 
 #include "jim.h"
 #include "jim-subcmd.h"
+#include "jim-signal.h"
 
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
@@ -947,7 +948,11 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
                 /* Nothing */
             } else if (WIFSIGNALED(waitStatus)) {
                 /* REVISIT: Name the signal */
-                Jim_SetResultString(interp, "child killed by signal", -1);
+#ifdef jim_ext_signal
+                Jim_SetResultFormatted(interp, "child killed by signal %s", Jim_SignalId(WTERMSIG(waitStatus)));
+#else
+                Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
+#endif
             } else if (WIFSTOPPED(waitStatus)) {
                 Jim_SetResultString(interp, "child suspended", -1);
             }

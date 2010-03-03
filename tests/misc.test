@@ -296,4 +296,37 @@ test catch-1.7 "catch exit" {
 	dict get [info returncodes] [catch -exit {exit 5} result]
 } {exit}
 
+test catch-1.8 "catch error has -errorinfo" {
+	set rc [catch {set undefined} msg opts]
+	list $rc [info exists opts(-errorinfo)]
+} {1 1}
+
+test catch-1.9 "catch no error has no -errorinfo" {
+	set rc [catch {set x 1} msg opts]
+	list $rc [info exists opts(-errorinfo)]
+} {0 0}
+
+test return-1.1 "return can rethrow an error" {
+	proc a {} { error "from a" }
+	proc b {} { catch {a} msg opts; return {*}$opts $msg }
+	set rc [catch {b} msg opts]
+	list $rc $msg [llength $opts(-errorinfo)]
+} {1 {from a} 6}
+
+test return-1.2 "error can rethrow an error" {
+	proc a {} { error "from a" }
+	proc b {} { catch {a} msg; error $msg [info stacktrace] }
+	set rc [catch {b} msg opts]
+	list $rc $msg [llength $opts(-errorinfo)]
+} {1 {from a} 9}
+
+test return-1.3 "return can rethrow no error" {
+	proc a {} { return "from a" }
+	proc b {} { catch {a} msg opts; return {*}$opts $msg }
+	set rc [catch {b} msg opts]
+	#list $rc $msg [llength $opts(-errorinfo)]
+	list $rc $msg [info exists opts(-errorinfo)]
+} {0 {from a} 0}
+
+
 testreport

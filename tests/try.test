@@ -40,7 +40,7 @@ test try-1.4 "Error in both" {
 			error finally
 		}
 	} msg] $msg $x
-} {1 message 1}
+} {1 finally 1}
 
 test try-1.5 "break in body" {
 	list [catch {
@@ -63,3 +63,48 @@ test try-1.6 "break in finally" {
 		}
 	} msg] $msg $x
 } {3 {} 1}
+
+test try-1.7 "return value from try, not finally" {
+	list [catch {
+		try {
+			set x 0
+		} finally {
+			incr x
+		}
+	} msg] $msg $x
+} {0 0 1}
+
+test try-1.8 "return from within try" {
+	proc a {} {
+		try {
+			return 1
+		}
+		# notreached
+		return 2
+	}
+	a
+} {1}
+
+test try-1.9 "return -code from within try" {
+	proc a {} {
+		try {
+			return -code break text
+		}
+		# notreached
+		return 2
+	}
+	list [catch a msg] $msg
+} {3 text}
+
+proc c {} {
+	try {
+		error here
+	} on error {msg opts} {
+		incr opts(-level)
+		return {*}$opts $msg
+	}
+}
+
+test try-3.1 "rethrow error in try/on handler" {
+	list [catch c msg] $msg
+} {1 here}
