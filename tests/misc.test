@@ -25,9 +25,14 @@ test regr-1.3 "Invalid for expression" {
 		for {set i 0} {$i < n} {incr i} {
 			set a(b) $i
 			set a(c) $i
+			break
 		}
 	}
 } 1
+
+test regr-1.4 "format double percent" {
+	format (%d%%) 12
+} {(12%)}
 
 section "I/O Testing"
 

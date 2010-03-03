@@ -2215,6 +2215,12 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         if (fmtLen == 0)
             break;
         fmt++; fmtLen--; /* skip '%' */
+        if (*fmt == '%') {
+            /* %% -> % */
+            Jim_AppendString(interp, resObjPtr, "%", 1);
+            fmt++; fmtLen--;
+            continue;
+        }
         zpad = 0;
         spad = 0;
         width = -1;
