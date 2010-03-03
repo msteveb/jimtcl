@@ -6,6 +6,9 @@ CORE COMMANDS
   returns. With no arguments it returns the script set, with one appends
   the onleave script. There should be a way to reset.
 
+  Currently we have [local] which can be used to delete procs on proc exit.
+  Also try/on/finally. Is [onleave] really needed?
+
 OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
 - Set commands: [lunion], [lintersect], and [ldifference]
@@ -38,19 +41,15 @@ IMPLEMENTATION ISSUES
 
 - Rewrite all the commands accepting a set of options to use Jim_GetEnum().
 
+  - Many have been done.
+
 - Every time an extension is loaded Jim should put the dlopen() (or win32
   equivalent) handle in a list inside the interpreter structure. When
   the interpreter is freed all this handles should be closed with dlclose().
 
-- *AssocData() function should allow to specify a delProc C function like
-  in the Tcl API. When the interpreter is destroyed all the delProc functions
-  should be called to free the memory before to free the interpreter.
-
 REFERENCES SYSTEM
 
 - Unify ref/getref/setref/collect/finalize under an unique [ref] command.
-- Add a 'call' attribute to references in order to call a given procedure
-  if the name of a reference is used as command name.
 
 RANDOM THINGS TO DO ASAP
 

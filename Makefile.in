@@ -15,7 +15,7 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
-CFLAGS += -DHAVE_CONFIGURE -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
+CFLAGS += -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
 ifeq ($(jim_libtype),static)
@@ -69,5 +69,9 @@ load_extensions.c: @SRCDIR@/make-jim-load-extensions.sh
 install:
 
 clean:
-	rm -f *.o lib*.a $(TARGETS) load_extensions.c
+	rm -f *.o lib*.a $(TARGETS) load_extensions.c doc/Tcl.html
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
+
+distclean: clean
+	rm -f jim.h Makefile config.status config.log
+	rm -rf autom4te.cache

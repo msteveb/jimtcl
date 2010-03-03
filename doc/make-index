@@ -1,10 +1,6 @@
-#!/bin/sh
-# \
-PATH=$UWEBDIR/bin:$PATH; exec jimsh $0 "$@"
-
 # vim:se syn=tcl:
 
-while {[stdin gets buf] >= 0} {
+while {[gets stdin buf] >= 0} {
 	if {$buf eq "@INSERTINDEX@"} {
 		break
 	}
@@ -16,7 +12,7 @@ set lines {}
 set commands {}
 set c 0
 
-while {[stdin gets buf] >= 0} {
+while {[gets stdin buf] >= 0} {
 	if {[string match "~~*" $buf]} {
 		if {[string match "*:*" $prev]} {
 			incr c

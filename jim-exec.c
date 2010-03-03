@@ -65,7 +65,7 @@ static int Jim_AppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
     }
 }
 
-#ifndef NO_FORK
+#ifndef JIM_NOFORK
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
@@ -984,7 +984,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 
     return result;
 }
-#else /* NO_FORK */
+#else /* JIM_NOFORK */
 static int
 Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {

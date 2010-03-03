@@ -81,8 +81,11 @@ extern "C" {
  * System configuration
  * autoconf (configure) will set these
  * ---------------------------------------------------------------------------*/
+#if defined(_WIN32) || defined(WIN32)
+#include <jim-win32compat.h>
+#else
 
-#ifdef HAVE_CONFIGURE
+#ifndef JIM_NO_CONFIGURE
 @HAVE_LONG_LONG@
 #endif
 
@@ -116,6 +119,8 @@ extern "C" {
 #  define JIM_WIDE_MODIFIER "lld"
 #else
 #  define JIM_WIDE_MODIFIER "ld"
+#endif
+
 #endif
 
 /* -----------------------------------------------------------------------------

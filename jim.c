@@ -45,7 +45,7 @@
 #define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(NOMMU)
 #define JIM_DYNLIB      /* Dynamic library support */
 #endif /* JIM_ANSIC */
 
@@ -6318,7 +6318,7 @@ static const Jim_ObjType returnCodeObjType = {
  */
 const char *Jim_ReturnCode(int code)
 {
-    if (code < 0 || code >= jimReturnCodesSize) {
+    if (code < 0 || code >= (int)jimReturnCodesSize) {
         return "?";
     }
     else {
@@ -7021,72 +7021,73 @@ static int JimExprOpNull(Jim_Interp *interp, struct JimExprState *e)
 }
 
 enum {
-    LAZY_OP = 1,
+    LAZY_NONE,
+    LAZY_OP,
     LAZY_LEFT,
     LAZY_RIGHT
 };
 
 /* name - precedence - arity - opcode */
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
-    [JIM_EXPROP_FUNC_INT] =       {"int", 400, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_FUNC_DOUBLE] =    {"double", 400, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_FUNC_ABS] =       {"abs", 400, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_FUNC_ROUND] =     {"round", 400, 1, JimExprOpNumUnary },
+    [JIM_EXPROP_FUNC_INT] =       {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_DOUBLE] =    {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_ABS] =       {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_ROUND] =     {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE },
 
 #ifdef JIM_MATH_FUNCTIONS
-    [JIM_EXPROP_FUNC_SIN] =       {"sin", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_COS] =       {"cos", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_TAN] =       {"tan", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_ASIN] =      {"asin", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_ACOS] =      {"acos", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_ATAN] =      {"atan", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_SINH] =      {"sinh", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_COSH] =      {"cosh", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_TANH] =      {"tanh", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_CEIL] =      {"ceil", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_FLOOR] =     {"floor", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_EXP] =       {"exp", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_LOG] =       {"log", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_LOG10] =     {"log10", 400, 1, JimExprOpDoubleUnary },
-    [JIM_EXPROP_FUNC_SQRT] =      {"sqrt", 400, 1, JimExprOpDoubleUnary },
+    [JIM_EXPROP_FUNC_SIN] =       {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_COS] =       {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_TAN] =       {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_ASIN] =      {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_ACOS] =      {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_ATAN] =      {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_SINH] =      {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_COSH] =      {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_TANH] =      {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_CEIL] =      {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_FLOOR] =     {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_EXP] =       {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_LOG] =       {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_LOG10] =     {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
+    [JIM_EXPROP_FUNC_SQRT] =      {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE },
 #endif
 
-    [JIM_EXPROP_NOT] =            {"!", 300, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_BITNOT] =         {"~", 300, 1, JimExprOpIntUnary },
-    [JIM_EXPROP_UNARYMINUS] =     {NULL, 300, 1, JimExprOpNumUnary },
-    [JIM_EXPROP_UNARYPLUS] =      {NULL, 300, 1, JimExprOpNumUnary }, 
+    [JIM_EXPROP_NOT] =            {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE },
+    [JIM_EXPROP_BITNOT] =         {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE },
+    [JIM_EXPROP_UNARYMINUS] =     {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE },
+    [JIM_EXPROP_UNARYPLUS] =      {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE }, 
 
-    [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpBin },
+    [JIM_EXPROP_POW] =            {"**", 250, 2, JimExprOpBin, LAZY_NONE },
 
-    [JIM_EXPROP_MUL] =            {"*", 200, 2, JimExprOpBin },
-    [JIM_EXPROP_DIV] =            {"/", 200, 2, JimExprOpBin },
-    [JIM_EXPROP_MOD] =            {"%", 200, 2, JimExprOpIntBin },
+    [JIM_EXPROP_MUL] =            {"*", 200, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_DIV] =            {"/", 200, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_MOD] =            {"%", 200, 2, JimExprOpIntBin, LAZY_NONE },
 
-    [JIM_EXPROP_SUB] =            {"-", 100, 2, JimExprOpBin },
-    [JIM_EXPROP_ADD] =            {"+", 100, 2, JimExprOpBin },
+    [JIM_EXPROP_SUB] =            {"-", 100, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_ADD] =            {"+", 100, 2, JimExprOpBin, LAZY_NONE },
 
-    [JIM_EXPROP_ROTL] =           {"<<<", 90, 2, JimExprOpIntBin },
-    [JIM_EXPROP_ROTR] =           {">>>", 90, 2, JimExprOpIntBin },
-    [JIM_EXPROP_LSHIFT] =         {"<<", 90, 2, JimExprOpIntBin },
-    [JIM_EXPROP_RSHIFT] =         {">>", 90, 2, JimExprOpIntBin },
+    [JIM_EXPROP_ROTL] =           {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE },
+    [JIM_EXPROP_ROTR] =           {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE },
+    [JIM_EXPROP_LSHIFT] =         {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE },
+    [JIM_EXPROP_RSHIFT] =         {">>", 90, 2, JimExprOpIntBin, LAZY_NONE },
 
-    [JIM_EXPROP_LT] =             {"<",  80, 2, JimExprOpBin },
-    [JIM_EXPROP_GT] =             {">",  80, 2, JimExprOpBin },
-    [JIM_EXPROP_LTE] =            {"<=", 80, 2, JimExprOpBin },
-    [JIM_EXPROP_GTE] =            {">=", 80, 2, JimExprOpBin },
+    [JIM_EXPROP_LT] =             {"<",  80, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_GT] =             {">",  80, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_LTE] =            {"<=", 80, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_GTE] =            {">=", 80, 2, JimExprOpBin, LAZY_NONE },
 
-    [JIM_EXPROP_NUMEQ] =          {"==", 70, 2, JimExprOpBin },
-    [JIM_EXPROP_NUMNE] =          {"!=", 70, 2, JimExprOpBin },
+    [JIM_EXPROP_NUMEQ] =          {"==", 70, 2, JimExprOpBin, LAZY_NONE },
+    [JIM_EXPROP_NUMNE] =          {"!=", 70, 2, JimExprOpBin, LAZY_NONE },
 
-    [JIM_EXPROP_STREQ] =          {"eq", 60, 2, JimExprOpStrBin },
-    [JIM_EXPROP_STRNE] =          {"ne", 60, 2, JimExprOpStrBin },
+    [JIM_EXPROP_STREQ] =          {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE },
+    [JIM_EXPROP_STRNE] =          {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE },
 
-    [JIM_EXPROP_STRIN] =          {"in", 55, 2, JimExprOpStrBin },
-    [JIM_EXPROP_STRNI] =          {"ni", 55, 2, JimExprOpStrBin },
+    [JIM_EXPROP_STRIN] =          {"in", 55, 2, JimExprOpStrBin, LAZY_NONE },
+    [JIM_EXPROP_STRNI] =          {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE },
 
-    [JIM_EXPROP_BITAND] =         {"&", 50, 2, JimExprOpIntBin },
-    [JIM_EXPROP_BITXOR] =         {"^", 49, 2, JimExprOpIntBin },
-    [JIM_EXPROP_BITOR] =          {"|", 48, 2, JimExprOpIntBin },
+    [JIM_EXPROP_BITAND] =         {"&", 50, 2, JimExprOpIntBin, LAZY_NONE },
+    [JIM_EXPROP_BITXOR] =         {"^", 49, 2, JimExprOpIntBin, LAZY_NONE },
+    [JIM_EXPROP_BITOR] =          {"|", 48, 2, JimExprOpIntBin, LAZY_NONE },
 
     [JIM_EXPROP_LOGICAND] =       {"&&", 10, 2, NULL, LAZY_OP },
     [JIM_EXPROP_LOGICOR] =        {"||", 9, 2, NULL, LAZY_OP },
@@ -11820,7 +11821,7 @@ wrongargs:
     interp->signal_level -= sig;
 
     /* Catch or pass through? Only the first 64 codes can be passed through */
-    if (exitCode >= 0 && exitCode < sizeof(mask) && ((1 << exitCode) & mask) == 0) {
+    if (exitCode >= 0 && exitCode < (int)sizeof(mask) && ((1 << exitCode) & mask) == 0) {
         /* Not caught, pass it up */
         return exitCode;
     }
@@ -12906,7 +12907,7 @@ ambiguous:
 int Jim_FindByName(const char *name, const char *array[], size_t len)
 {
     int i;
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < (int)len; i++) {
         if (array[i] && strcmp(array[i], name) == 0) {
             return i;
         }

@@ -52,6 +52,8 @@
 #ifndef __JIM_EVENTLOOP_H__
 #define __JIM_EVENTLOOP_H__
 
+#include <stdio.h>
+
 typedef int Jim_FileProc(Jim_Interp *interp, void *clientData, int mask);
 typedef int Jim_SignalProc(Jim_Interp *interp, void *clientData, void *msg);
 typedef void Jim_TimeProc(Jim_Interp *interp, void *clientData);
@@ -64,16 +66,24 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_FEOF 8
 
 JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
-        void *handle, int mask,
+        FILE *handle, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
-        void *handle);
+        FILE *handle);
 JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
+
+#define JIM_FILE_EVENTS 1
+#define JIM_TIME_EVENTS 2
+#define JIM_ALL_EVENTS (JIM_FILE_EVENTS|JIM_TIME_EVENTS)
+#define JIM_DONT_WAIT 4
+
 JIM_EXPORT int Jim_ProcessEvents (Jim_Interp *interp, int flags);
+
+int Jim_eventloopInit(Jim_Interp *interp);
 
 #endif /* __JIM_EVENTLOOP_H__ */

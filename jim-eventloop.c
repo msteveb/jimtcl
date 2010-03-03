@@ -59,7 +59,7 @@
 
 /* File event structure */
 typedef struct Jim_FileEvent {
-    void *handle;
+    FILE *handle;
     int mask; /* one of JIM_EVENT_(READABLE|WRITABLE|EXCEPTION) */
     Jim_FileProc *fileProc;
     Jim_EventFinalizerProc *finalizerProc;
@@ -87,7 +87,7 @@ typedef struct Jim_EventLoop {
     Jim_TimeEvent *timeEventHead;
 } Jim_EventLoop;
 
-void Jim_CreateFileHandler(Jim_Interp *interp, void *handle, int mask,
+void Jim_CreateFileHandler(Jim_Interp *interp, FILE *handle, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc)
 {
@@ -104,7 +104,7 @@ void Jim_CreateFileHandler(Jim_Interp *interp, void *handle, int mask,
     eventLoop->fileEventHead = fe;
 }
 
-void Jim_DeleteFileHandler(Jim_Interp *interp, void *handle)
+void Jim_DeleteFileHandler(Jim_Interp *interp, FILE *handle)
 {
     Jim_FileEvent *fe, *prev = NULL;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
@@ -220,10 +220,6 @@ static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop *eventLoop)
 }
 
 /* --- POSIX version of Jim_ProcessEvents, for now the only available --- */
-#define JIM_FILE_EVENTS 1
-#define JIM_TIME_EVENTS 2
-#define JIM_ALL_EVENTS (JIM_FILE_EVENTS|JIM_TIME_EVENTS)
-#define JIM_DONT_WAIT 4
 
 /* Process every pending time event, then every pending file event
  * (that may be registered by time event callbacks just processed).
