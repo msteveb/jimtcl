@@ -53,119 +53,57 @@ static void signal_ignorer(int sig)
  *
  *----------------------------------------------------------------------
  */
+#define CHECK_SIG(NAME) if (sig == NAME) return #NAME
 
 const char *Jim_SignalId(int sig)
 {
-    switch (sig) {
-#ifdef SIGABRT
-        case SIGABRT: return "SIGABRT";
+    CHECK_SIG(SIGABRT);
+    CHECK_SIG(SIGALRM);
+    CHECK_SIG(SIGBUS);
+    CHECK_SIG(SIGCHLD);
+    CHECK_SIG(SIGCONT);
+    CHECK_SIG(SIGFPE);
+    CHECK_SIG(SIGHUP);
+    CHECK_SIG(SIGILL);
+    CHECK_SIG(SIGINT);
+    CHECK_SIG(SIGIO);
+    CHECK_SIG(SIGKILL);
+    CHECK_SIG(SIGPIPE);
+    CHECK_SIG(SIGPROF);
+    CHECK_SIG(SIGQUIT);
+    CHECK_SIG(SIGSEGV);
+    CHECK_SIG(SIGSTOP);
+    CHECK_SIG(SIGSYS);
+    CHECK_SIG(SIGTERM);
+    CHECK_SIG(SIGTRAP);
+    CHECK_SIG(SIGTSTP);
+    CHECK_SIG(SIGTTIN);
+    CHECK_SIG(SIGTTOU);
+    CHECK_SIG(SIGURG);
+    CHECK_SIG(SIGUSR1);
+    CHECK_SIG(SIGUSR2);
+    CHECK_SIG(SIGVTALRM);
+    CHECK_SIG(SIGWINCH);
+    CHECK_SIG(SIGXCPU);
+    CHECK_SIG(SIGXFSZ);
+#ifdef SIGPWR
+    CHECK_SIG(SIGPWR);
 #endif
-#ifdef SIGALRM
-        case SIGALRM: return "SIGALRM";
+#ifdef SIGCLD
+    CHECK_SIG(SIGCLD);
 #endif
-#ifdef SIGBUS
-        case SIGBUS: return "SIGBUS";
+#ifdef SIGEMT
+    CHECK_SIG(SIGEMT);
 #endif
-#ifdef SIGCHLD
-        case SIGCHLD: return "SIGCHLD";
+#ifdef SIGLOST
+    CHECK_SIG(SIGLOST);
 #endif
-#if defined(SIGCLD) && (!defined(SIGCHLD) || (SIGCLD != SIGCHLD))
-        case SIGCLD: return "SIGCLD";
-#endif
-#ifdef SIGCONT
-        case SIGCONT: return "SIGCONT";
-#endif
-#if defined(SIGEMT) && (!defined(SIGXCPU) || (SIGEMT != SIGXCPU))
-        case SIGEMT: return "SIGEMT";
-#endif
-#ifdef SIGFPE
-        case SIGFPE: return "SIGFPE";
-#endif
-#ifdef SIGHUP
-        case SIGHUP: return "SIGHUP";
-#endif
-#ifdef SIGILL
-        case SIGILL: return "SIGILL";
-#endif
-#ifdef SIGINT
-        case SIGINT: return "SIGINT";
-#endif
-#ifdef SIGIO
-        case SIGIO: return "SIGIO";
-#endif
-#if defined(SIGIOT) && (!defined(SIGABRT) || (SIGIOT != SIGABRT))
-        case SIGIOT: return "SIGIOT";
-#endif
-#ifdef SIGKILL
-        case SIGKILL: return "SIGKILL";
-#endif
-#if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG))
-        case SIGLOST: return "SIGLOST";
-#endif
-#ifdef SIGPIPE
-        case SIGPIPE: return "SIGPIPE";
-#endif
-#if defined(SIGPOLL) && (!defined(SIGIO) || (SIGPOLL != SIGIO))
-        case SIGPOLL: return "SIGPOLL";
-#endif
-#ifdef SIGPROF
-        case SIGPROF: return "SIGPROF";
-#endif
-#if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ))
-        case SIGPWR: return "SIGPWR";
-#endif
-#ifdef SIGQUIT
-        case SIGQUIT: return "SIGQUIT";
-#endif
-#ifdef SIGSEGV
-        case SIGSEGV: return "SIGSEGV";
-#endif
-#ifdef SIGSTOP
-        case SIGSTOP: return "SIGSTOP";
-#endif
-#ifdef SIGSYS
-        case SIGSYS: return "SIGSYS";
-#endif
-#ifdef SIGTERM
-        case SIGTERM: return "SIGTERM";
-#endif
-#ifdef SIGTRAP
-        case SIGTRAP: return "SIGTRAP";
-#endif
-#ifdef SIGTSTP
-        case SIGTSTP: return "SIGTSTP";
-#endif
-#ifdef SIGTTIN
-        case SIGTTIN: return "SIGTTIN";
-#endif
-#ifdef SIGTTOU
-        case SIGTTOU: return "SIGTTOU";
-#endif
-#if defined(SIGURG) && (!defined(SIGIO) || (SIGURG != SIGIO))
-        case SIGURG: return "SIGURG";
-#endif
-#ifdef SIGUSR1
-        case SIGUSR1: return "SIGUSR1";
-#endif
-#ifdef SIGUSR2
-        case SIGUSR2: return "SIGUSR2";
-#endif
-#ifdef SIGVTALRM
-        case SIGVTALRM: return "SIGVTALRM";
-#endif
-#ifdef SIGWINCH
-        case SIGWINCH: return "SIGWINCH";
-#endif
-#ifdef SIGXCPU
-        case SIGXCPU: return "SIGXCPU";
-#endif
-#ifdef SIGXFSZ
-        case SIGXFSZ: return "SIGXFSZ";
+#ifdef SIGPOLL
+    CHECK_SIG(SIGPOLL);
 #endif
 #ifdef SIGINFO
-        case SIGINFO: return "SIGINFO";
+    CHECK_SIG(SIGINFO);
 #endif
-    }
     return "unknown signal";
 }
 
