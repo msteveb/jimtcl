@@ -2407,13 +2407,13 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
 		case 'u':
 		case 'x':
 		case 'X':
+			*cp++ = 'l';
+#ifdef HAVE_LONG_LONG
 			/* jim widevaluse are 64bit */
 			if (sizeof(jim_wide) == sizeof(long long)) {
 				*cp++ = 'l';
-				*cp++ = 'l';
-			} else {
-				*cp++ = 'l';
 			}
+#endif
 			*cp++ = *fmt;
 			*cp   = 0;
             if (Jim_GetWide(interp, objv[0], &wideValue) == JIM_ERR) {
@@ -2430,6 +2430,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
         default:
             spec[0] = *fmt; spec[1] = '\0';
             Jim_SetResultFormatted(interp, "bad field specifier \"%s\"", spec);
+            Jim_FreeNewObj(interp, resObjPtr);
             return NULL;
         }
 		/* force terminate */
@@ -4814,6 +4815,7 @@ void UpdateStringOfInt(struct Jim_Obj *objPtr)
 int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     jim_wide wideValue;
+    const char *str;
 
     if (objPtr->typePtr == &coercedDoubleObjType) {
         /* Simple switcheroo */
@@ -4822,7 +4824,7 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     }
 
     /* Get the string representation */
-    const char *str = Jim_GetString(objPtr, NULL);
+    str = Jim_GetString(objPtr, NULL);
     /* Try to convert into a jim_wide */
     if (Jim_StringToWide(str, &wideValue, 0) != JIM_OK) {
         if (flags & JIM_ERRMSG) {
@@ -4942,6 +4944,7 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
      */
     str = Jim_GetString(objPtr, NULL);
 
+#ifdef HAVE_LONG_LONG
     /* Assume a 53 bit mantissa */
 #define MIN_INT_IN_DOUBLE -(1LL << 53)
 #define MAX_INT_IN_DOUBLE -(MIN_INT_IN_DOUBLE + 1)
@@ -4956,7 +4959,9 @@ int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         objPtr->typePtr = &coercedDoubleObjType;
         return JIM_OK;
     }
-    else if (Jim_StringToWide(str, &wideValue, 10) == JIM_OK) {
+    else
+#endif
+    if (Jim_StringToWide(str, &wideValue, 10) == JIM_OK) {
         /* Managed to convert to an int, so we can use this as a cooerced double */
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &coercedDoubleObjType;
@@ -10719,8 +10724,8 @@ wrongargs:
     listlen = Jim_ListLength(interp, argv[0]);
     for (i = 0; i < listlen; i++) {
         Jim_Obj *objPtr;
-        Jim_ListIndex(interp, argv[0], i, &objPtr, JIM_NONE);
         int eq = 0;
+        Jim_ListIndex(interp, argv[0], i, &objPtr, JIM_NONE);
         switch (opt_match) {
             case OPT_EXACT:
                 eq = Jim_StringEqObj(objPtr, argv[1], opt_nocase);

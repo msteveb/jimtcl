@@ -58,6 +58,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int hex = 0;
     int total = 0;
     FILE *fh;
+    Jim_Obj *result;
 
     if (Jim_CompareStringImmediate(interp, argv[0], "-hex")) {
         hex++;
@@ -78,7 +79,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    Jim_Obj *result = Jim_NewStringObj(interp, "", 0);
+    result = Jim_NewStringObj(interp, "", 0);
 
     /* Read one char at a time */
     while (len > 0) {
