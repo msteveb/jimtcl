@@ -61,10 +61,37 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 continue;
             goto err;
         }
-        if ((onload = dlsym(handle, "Jim_OnLoad")) == NULL) {
-            Jim_SetResultString(interp,
-                    "No Jim_OnLoad symbol found on extension", -1);
-            goto err;
+
+        /* Now, we use a unique init symbol depending on the extension name.
+         * This is done for compatibility between static and dynamic extensions.
+         * For extension readline.so, the init symbol is "Jim_readlineInit"
+         */
+        {
+            const char *pt;
+            const char *pkgname;
+            int pkgnamelen;
+            char initsym[50];
+
+            pt = strrchr(pathName, '/');
+            if (pt) {
+                pkgname = pt + 1;
+            } else {
+                pkgname = pathName;
+            }
+            pt = strchr(pkgname, '.');
+            if (pt) {
+                pkgnamelen = pt - pkgname;
+            }
+            else {
+                pkgnamelen = strlen(pkgname);
+            }
+            snprintf(initsym, sizeof(initsym), "Jim_%.*sInit", pkgnamelen, pkgname);
+
+            if ((onload = dlsym(handle, initsym)) == NULL) {
+                Jim_SetResultFormatted(interp,
+                        "No %s symbol found in extension %s", initsym, pathName);
+                goto err;
+            }
         }
         if (onload(interp) == JIM_ERR) {
             dlclose(handle);
