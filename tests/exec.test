@@ -313,10 +313,11 @@ test exec-9.6 {commands returning errors} {
     list [catch {exec sh -c "echo error msg 1>&2"} msg] $msg
 } {0 {error msg}}
 test exec-9.7 {commands returning errors} {
-    list [catch {exec sh -c "echo error msg 1>&2" \
-		     | sh -c "echo error msg 1>&2"} msg] $msg
-} {0 {error msg
-error msg}}
+    # Note: Use sleep here to ensure the order
+    list [catch {exec sh -c "echo error msg 1 1>&2" \
+		     | sh -c "sleep 1; echo error msg 2 1>&2"} msg] $msg
+} {0 {error msg 1
+error msg 2}}
 
 # Errors in executing the Tcl command, as opposed to errors in the
 # processes that are invoked.

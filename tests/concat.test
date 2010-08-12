@@ -13,11 +13,11 @@ test concat-1.4 {special characters} {
     concat a\{ {b \{c d} \{d
 } "a{ b \\{c d {d"
 
-test concat-2.1 {error: one empty argument} {
+test concat-2.1 {error check: one empty argument} {
     concat {}
 } {}
 
-test concat-3.1 {error: no arguments} {
+test concat-3.1 {error check: no arguments} {
     list [catch concat msg] $msg
 } {0 {}}
 

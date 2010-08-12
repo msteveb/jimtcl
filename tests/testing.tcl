@@ -20,7 +20,9 @@ catch {
 }
 
 proc section {name} {
-	puts "-- $name ----------------"
+	if {!$::testquiet} {
+		puts "-- $name ----------------"
+	}
 }
 
 set testresults(numfail) 0
@@ -52,22 +54,32 @@ proc test {id descr script expected} {
 }
 
 proc testreport {} {
-	puts "----------------------------------------------------------------------"
-	puts "FAILED: $::testresults(numfail)"
-	foreach failed $::testresults(failed) {
-		foreach {id descr script expected result} $failed {}
-		puts "\t[info_source $script]\t$id"
+	if {!$::testquiet || $::testresults(numfail)} {
+		puts "----------------------------------------------------------------------"
+		puts "FAILED: $::testresults(numfail)"
+		foreach failed $::testresults(failed) {
+			foreach {id descr script expected result} $failed {}
+			puts "\t[info_source $script]\t$id"
+		}
+		puts "PASSED: $::testresults(numpass)"
+		puts "----------------------------------------------------------------------\n"
 	}
-	puts "PASSED: $::testresults(numpass)"
-	puts "----------------------------------------------------------------------\n"
+	if {$::testresults(numfail)} {
+		exit 1
+	}
 }
 
 proc testerror {} {
 	error "deliberate error"
 }
 
-puts [string repeat = 40]
-puts $argv0
-puts [string repeat = 40]
+incr testquiet [info exists ::env(testquiet)]
+if {[lindex $argv 0] eq "-quiet"} {
+	incr testquiet
+}
 
-set ::testquiet [info exists ::env(testquiet)]
+if {!$testquiet} {
+	puts [string repeat = 40]
+	puts $argv0
+	puts [string repeat = 40]
+}

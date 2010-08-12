@@ -82,17 +82,17 @@ test uplevel-3.4 {uplevel to same level} {
     a1
 } 55
 
-test uplevel-4.1 {error: non-existent level} {
+test uplevel-4.1 {error check: non-existent level} {
     list [catch c1 msg] $msg
 } {1 {bad level "#2"}}
-test uplevel-4.2 {error: non-existent level} {
+test uplevel-4.2 {error check: non-existent level} {
     proc c2 {} {uplevel 3 {set a b}}
     list [catch c2 msg] $msg
 } {1 {bad level "3"}}
-test uplevel-4.3 {error: not enough args} {
+test uplevel-4.3 {error check: not enough args} {
     list [catch uplevel msg] $msg
 } {1 {wrong # args: should be "uplevel ?level? command ?arg ...?"}}
-test uplevel-4.4 {error: not enough args} {
+test uplevel-4.4 {error check: not enough args} {
     proc upBug {} {uplevel 1}
     list [catch upBug msg] $msg
 } {1 {wrong # args: should be "uplevel ?level? command ?arg ...?"}}
