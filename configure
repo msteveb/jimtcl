@@ -3448,7 +3448,7 @@ if test "${enable_fork+set}" = set; then :
 		if test "x$enableval" = "xno" ; then
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: * disabling fork" >&5
 $as_echo "* disabling fork" >&6; }
-			EXTRA_CFLAGS="-UHAVE_FORK"
+			EXTRA_CFLAGS="-DHAVE_NO_FORK"
 		fi
 
 fi

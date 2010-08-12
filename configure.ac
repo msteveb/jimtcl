@@ -29,7 +29,7 @@ AC_ARG_ENABLE(fork,
 	[
 		if test "x$enableval" = "xno" ; then
 			AC_MSG_RESULT(* disabling fork)
-			EXTRA_CFLAGS="-UHAVE_FORK"
+			EXTRA_CFLAGS="-DHAVE_NO_FORK"
 		fi
 	],
 )

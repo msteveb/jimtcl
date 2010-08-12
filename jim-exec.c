@@ -48,7 +48,7 @@ static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
  * Read from 'fd' and append the data to strObj
  * Returns JIM_OK if OK, or JIM_ERR on error.
  */
-static int Jim_AppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
+static int JimAppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
 {
     while (1) {
         char buffer[256];
@@ -67,7 +67,48 @@ static int Jim_AppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
     }
 }
 
-#if defined(HAVE_FORK)
+/*
+ * If the last character of the result is a newline, then remove
+ * the newline character (the newline would just confuse things).
+ *
+ * Note: Ideally we could do this by just reducing the length of stringrep
+ *       by 1, but there is no API for this :-(
+ */
+static void JimTrimTrailingNewline(Jim_Interp *interp)
+{
+    int len;
+    const char *p = Jim_GetString(Jim_GetResult(interp), &len);
+    if (len > 0 && p[len - 1] == '\n') {
+        Jim_SetResultString(interp, p, len - 1);
+    }
+}
+
+/*
+ * Create error messages for unusual process exits.  An
+ * extra newline gets appended to each error message, but
+ * it gets removed below (in the same fashion that an
+ * extra newline in the command's output is removed).
+ */
+static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
+{
+    /* REVISIT: Child exit status is lost here */
+    if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
+        return JIM_OK;
+    }
+    else if (WIFSIGNALED(waitStatus)) {
+#ifdef jim_ext_signal
+            Jim_SetResultFormatted(interp, "child killed by signal %s", Jim_SignalId(WTERMSIG(waitStatus)));
+#else
+            Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
+#endif
+    }
+    else if (WIFSTOPPED(waitStatus)) {
+        Jim_SetResultString(interp, "child suspended", -1);
+    }
+    return JIM_ERR;
+}
+
+#if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
@@ -123,7 +164,7 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     result = JIM_OK;
     if (outputId != -1) {
-        result = Jim_AppendStreamToString(interp, outputId, Jim_GetResult(interp));
+        result = JimAppendStreamToString(interp, outputId, Jim_GetResult(interp));
         if (result < 0) {
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
@@ -924,39 +965,13 @@ static int
 Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 {
     int result = JIM_OK;
-    int i, pid;
-    int len;
-    const char *p;
+    int i;
 
     for (i = 0; i < numPids; i++) {
         int waitStatus = 0;
-        pid = JimWaitPids(1, &pidPtr[i], &waitStatus);
-        if (pid == -1) {
-            /* This can happen if the process was already reaped, so just ignore it */
-            continue;
-        }
-
-        /*
-         * Create error messages for unusual process exits.  An
-         * extra newline gets appended to each error message, but
-         * it gets removed below (in the same fashion that an
-         * extra newline in the command's output is removed).
-         */
-
-        if (!WIFEXITED(waitStatus) || (WEXITSTATUS(waitStatus) != 0)) {
+        int pid = JimWaitPids(1, &pidPtr[i], &waitStatus);
+        if (pid >= 0 && JimCheckWaitStatus(interp, pid, waitStatus) != JIM_OK) {
             result = JIM_ERR;
-            if (WIFEXITED(waitStatus)) {
-                /* Nothing */
-            } else if (WIFSIGNALED(waitStatus)) {
-                /* REVISIT: Name the signal */
-#ifdef jim_ext_signal
-                Jim_SetResultFormatted(interp, "child killed by signal %s", Jim_SignalId(WTERMSIG(waitStatus)));
-#else
-                Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
-#endif
-            } else if (WIFSTOPPED(waitStatus)) {
-                Jim_SetResultString(interp, "child suspended", -1);
-            }
         }
     }
     Jim_Free(pidPtr);
@@ -966,27 +981,15 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
      * then add the file's contents to the result
      * string.
      */
-
     if (errorId >= 0) {
-        if (Jim_AppendStreamToString(interp, errorId, Jim_GetResult(interp)) != JIM_OK) {
+        if (JimAppendStreamToString(interp, errorId, Jim_GetResult(interp)) != JIM_OK) {
             Jim_SetResultErrno(interp, "error reading from stderr output file");
             result = JIM_ERR;
         }
         close(errorId);
     }
 
-    /*
-     * If the last character of interp->result is a newline, then remove
-     * the newline character (the newline would just confuse things).
-     *
-     * Note: Ideally we could do this by just reducing the length of stringrep
-     *       by 1, but there is not API for this :-(
-     */
-
-    p = Jim_GetString(Jim_GetResult(interp), &len);
-    if (len > 0 && p[len - 1] == '\n') {
-        Jim_SetResultString(interp, p, len - 1);
-    }
+    JimTrimTrailingNewline(interp);
 
     return result;
 }
@@ -1024,25 +1027,27 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Use vfork and send output to this temporary file */
     pid = vfork(); 
+    //pid = 0;
     if (pid == 0) {
         close(0);
         open("/dev/null", O_RDONLY);
         close(1);
-        dup(tmpfd);
-        close(2);
-        /*open("/dev/null", O_WRONLY);*/
-        dup(tmpfd);
-        close(tmpfd);
-        execvp(nargv[0], nargv);
+        if (dup(tmpfd) != -1) {
+            close(2);
+            if (dup(tmpfd) != -1) {
+                close(tmpfd);
+                execvp(nargv[0], nargv);
+            }
+        }
         _exit(127);
     }
 
+    /* Wait for the child to exit */
+    waitpid(pid, &status, 0);
+
     Jim_Free(nargv);
 
-    /* Wait for the child to exit */
-    do {
-        waitpid(pid, &status, 0);
-    } while (!WIFEXITED(status));
+    result = JimCheckWaitStatus(interp, pid, status);
 
     /*
      * Read the child's output (if any) and put it into the result.
@@ -1051,11 +1056,13 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     Jim_SetResultString(interp, "", 0);
 
-    result = Jim_AppendStreamToString(interp, tmpfd, Jim_GetResult(interp));
-    if (result < 0) {
-        Jim_SetResultErrno(interp, "error reading result");
+    if (JimAppendStreamToString(interp, tmpfd, Jim_GetResult(interp)) != JIM_OK) {
+        Jim_SetResultErrno(interp, "error reading from stderr output file");
+        result = JIM_ERR;
     }
     close(tmpfd);
+
+    JimTrimTrailingNewline(interp);
 
     return result;
 }
