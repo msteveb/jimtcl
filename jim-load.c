@@ -1,35 +1,13 @@
 #include <jim.h>
+#include <string.h>
 
 /* -----------------------------------------------------------------------------
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
 #ifdef JIM_DYNLIB
-#ifdef WIN32
-#define RTLD_LAZY 0
-void * dlopen(const char *path, int mode) 
-{
-    JIM_NOTUSED(mode);
 
-    return (void *)LoadLibraryA(path);
-}
-int dlclose(void *handle)
-{
-    FreeLibrary((HANDLE)handle);
-    return 0;
-}
-void *dlsym(void *handle, const char *symbol)
-{
-    return GetProcAddress((HMODULE)handle, symbol);
-}
-static char win32_dlerror_string[121];
-const char *dlerror(void)
-{
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
-                   LANG_NEUTRAL, win32_dlerror_string, 120, NULL);
-    return win32_dlerror_string;
-}
-#endif /* WIN32 */
+#include <dlfcn.h>
 
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {
@@ -44,7 +22,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         libPathObjPtr = NULL;
     } else {
         Jim_IncrRefCount(libPathObjPtr);
-        Jim_ListLength(interp, libPathObjPtr, &prefixc);
+        prefixc = Jim_ListLength(interp, libPathObjPtr);
     }
 
     for (i = -1; i < prefixc; i++) {

@@ -20,29 +20,26 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#ifdef HAVE_SYSINFO
-#include <sys/sysinfo.h>
-#endif
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
+
+#ifdef HAVE_SYSINFO
+#include <sys/sysinfo.h>
+#endif
 
 static void Jim_PosixSetError(Jim_Interp *interp)
 {
     Jim_SetResultString(interp, strerror(errno), -1);
 }
 
+#ifdef HAVE_FORK
 static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
-#ifdef JIM_NOFORK
-    Jim_SetResultString(interp, "Not supported", -1);
-    return JIM_ERR;
-#else
     pid_t pid;
     JIM_NOTUSED(argv);
     
@@ -56,8 +53,8 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc,
     }
     Jim_SetResultInt(interp, (jim_wide)pid);
     return JIM_OK;
-#endif
 }
+#endif
 
 /*
  * os.wait ?-nohang? pid
@@ -217,7 +214,9 @@ int Jim_posixInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
+#ifdef HAVE_FORK
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
+#endif
     Jim_CreateCommand(interp, "os.wait", Jim_PosixWaitCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);

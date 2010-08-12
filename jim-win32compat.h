@@ -15,8 +15,6 @@
 	#pragma warning(disable:4146)
 #endif
 
-#undef JIM_DYNLIB
-
 #define strcasecmp _stricmp
 
 #define jim_wide _int64

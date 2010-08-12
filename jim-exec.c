@@ -17,14 +17,15 @@
 
 #include <string.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 #include "jim.h"
 #include "jim-subcmd.h"
 #include "jim-signal.h"
+
 
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
@@ -66,7 +67,7 @@ static int Jim_AppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
     }
 }
 
-#ifndef JIM_NOFORK
+#if defined(HAVE_FORK)
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
@@ -989,7 +990,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 
     return result;
 }
-#else /* JIM_NOFORK */
+#else
 static int
 Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {

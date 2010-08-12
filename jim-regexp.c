@@ -51,7 +51,6 @@
 #include <string.h>
 #include <regex.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
 
 void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)

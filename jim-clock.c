@@ -44,6 +44,7 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef HAVE_STRPTIME
 static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char *pt;
@@ -68,6 +69,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return JIM_OK;
 }
+#endif
 
 static int clock_cmd_seconds(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -90,6 +92,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 3,
         .description = "Format the given time"
     },
+#ifdef HAVE_STRPTIME
     {   .cmd = "scan",
         .args = "str -format format",
         .function = clock_cmd_scan,
@@ -97,6 +100,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 3,
         .description = "Determine the time according to the given format"
     },
+#endif
     { 0 }
 };
 

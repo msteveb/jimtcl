@@ -42,12 +42,7 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
-#define __JIM_CORE__
 #define JIM_OPTIMIZATION /* comment to avoid optimizations and reduce size */
-
-#if !defined(JIM_ANSIC) && !defined(NOMMU)
-#define JIM_DYNLIB      /* Dynamic library support */
-#endif /* JIM_ANSIC */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,18 +68,8 @@
 #define	NEED_ENVIRON_EXTERN	(1)
 #endif
 
-#ifndef JIM_ANSIC
-#define JIM_DYNLIB      /* Dynamic library support for UNIX and WIN32 */
-#endif /* JIM_ANSIC */
-
 #include <stdarg.h>
 #include <limits.h>
-
-/* Include the platform dependent libraries for
- * dynamic loading of libraries. */
-#ifdef JIM_DYNLIB
-#include <dlfcn.h>
-#endif /* JIM_DYNLIB */
 
 #include <unistd.h>
 #include <sys/time.h>

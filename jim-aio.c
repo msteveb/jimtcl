@@ -45,13 +45,16 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "jim.h"
+
+#ifndef JIM_ANSIC
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#endif
 
-#include "jim.h"
 #include "jim-eventloop.h"
 #include "jim-subcmd.h"
 
@@ -68,16 +71,62 @@ typedef struct AioFile {
     int type;
     int OpenFlags; /* AIO_KEEPOPEN? keep FILE* */
     int fd;
+#ifdef O_NDELAY
     int flags;
+#endif
     Jim_Obj *rEvent;
     Jim_Obj *wEvent;
     Jim_Obj *eEvent;
+#ifndef JIM_ANSIC
     struct sockaddr sa;
     struct hostent *he;
+#endif
 } AioFile;
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
-static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa);
+
+#ifndef JIM_ANSIC
+static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa)
+{
+    char a[0x20];
+    char b[0x20];
+    const char* sthost; 
+    const char* stport;
+    unsigned port;
+    struct hostent *he;
+
+    switch (sscanf(hostport,"%[^:]:%[^:]",a,b)) {
+        case 2: sthost = a; stport = b; break;
+        case 1: sthost = "0.0.0.0"; stport = a; break;
+        default:
+            return JIM_ERR;
+    }
+    if (0 == strncmp(sthost,"ANY",3)) {
+        sthost = "0.0.0.0";
+    }
+    port = atol(stport);
+    he = gethostbyname(sthost);
+
+    if (!he) {
+        Jim_SetResultString(interp,hstrerror(h_errno),-1);
+        return JIM_ERR;
+    }
+
+    sa->sin_family= he->h_addrtype;
+    memcpy(&sa->sin_addr, he->h_addr, he->h_length); /* set address */
+    sa->sin_port = htons(port);
+
+    return JIM_OK;
+}
+
+static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
+{
+    sa->sun_family = PF_UNIX;
+    strcpy(sa->sun_path, path);
+
+    return JIM_OK;
+}
+#endif
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
@@ -181,44 +230,6 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *af = Jim_CmdPrivData(interp);
-    char *buf;
-    struct sockaddr_in sa;
-    long len;
-    socklen_t salen = sizeof(sa);
-    int rlen;
-
-    if (Jim_GetLong(interp, argv[0], &len) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    buf = Jim_Alloc(len + 1);
-
-    rlen = recvfrom(fileno(af->fp), buf, len, 0, (struct sockaddr *)&sa, &salen);
-    if (rlen < 0) {
-        Jim_Free(buf);
-        JimAioSetError(interp, NULL);
-        return JIM_ERR;
-    }
-    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
-
-    if (argc > 1) {
-        char buf[50];
-
-        inet_ntop(sa.sin_family, &sa.sin_addr, buf, sizeof(buf) - 7);
-        snprintf(buf + strlen(buf), 7, ":%d", ntohs(sa.sin_port));
-
-        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
-            return JIM_ERR;
-        }
-    }
-
-    return JIM_OK;
-}
-
-
 static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -303,6 +314,45 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_ERR;
 }
 
+#ifndef JIM_ANSIC
+static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    char *buf;
+    struct sockaddr_in sa;
+    long len;
+    socklen_t salen = sizeof(sa);
+    int rlen;
+
+    if (Jim_GetLong(interp, argv[0], &len) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    buf = Jim_Alloc(len + 1);
+
+    rlen = recvfrom(fileno(af->fp), buf, len, 0, (struct sockaddr *)&sa, &salen);
+    if (rlen < 0) {
+        Jim_Free(buf);
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
+
+    if (argc > 1) {
+        char buf[50];
+
+        inet_ntop(sa.sin_family, &sa.sin_addr, buf, sizeof(buf) - 7);
+        snprintf(buf + strlen(buf), 7, ":%d", ntohs(sa.sin_port));
+
+        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
+    return JIM_OK;
+}
+
+
 static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -325,6 +375,42 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResultInt(interp, len);
     return JIM_OK;
 }
+
+static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *serv_af = Jim_CmdPrivData(interp);
+    int sock;
+    socklen_t addrlen = sizeof(struct sockaddr_in);
+    AioFile *af;
+    char buf[AIO_CMD_LEN];
+    long fileId;
+    sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
+    if (sock < 0)
+        return JIM_ERR;
+
+    /* Get the next file id */
+    fileId = Jim_GetId(interp);
+
+    /* Create the file command */
+    af = Jim_Alloc(sizeof(*af));
+    af->fd = sock;
+    af->filename = Jim_NewStringObj(interp, "accept", -1);
+    Jim_IncrRefCount(af->filename);
+    af->fp = fdopen(sock,"r+");
+    af->OpenFlags = 0;
+#ifdef O_NDELAY
+    af->flags = fcntl(af->fd,F_GETFL);
+#endif
+    af->rEvent = NULL;
+    af->wEvent = NULL;
+    af->eEvent = NULL;
+    sprintf(buf, "aio.sockstream%ld", fileId);
+    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
+    Jim_SetResultString(interp, buf, -1);
+    return JIM_OK;
+}
+
+#endif
 
 static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -410,38 +496,6 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 #endif
-
-static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *serv_af = Jim_CmdPrivData(interp);
-    int sock;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
-    AioFile *af;
-    char buf[AIO_CMD_LEN];
-    long fileId;
-    sock = accept(serv_af->fd,(struct sockaddr*)&serv_af->sa,&addrlen);
-    if (sock < 0)
-        return JIM_ERR;
-
-    /* Get the next file id */
-    fileId = Jim_GetId(interp);
-
-    /* Create the file command */
-    af = Jim_Alloc(sizeof(*af));
-    af->fd = sock;
-    af->filename = Jim_NewStringObj(interp, "accept", -1);
-    Jim_IncrRefCount(af->filename);
-    af->fp = fdopen(sock,"r+");
-    af->OpenFlags = 0;
-    af->flags = fcntl(af->fd,F_GETFL);
-    af->rEvent = NULL;
-    af->wEvent = NULL;
-    af->eEvent = NULL;
-    sprintf(buf, "aio.sockstream%ld", fileId);
-    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
-    Jim_SetResultString(interp, buf, -1);
-    return JIM_OK;
-}
 
 #ifdef jim_ext_eventloop
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
@@ -554,13 +608,6 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 2,
         .description = "Read and return bytes from the stream. To eof if no len."
     },
-    {   .cmd = "recvfrom",
-        .args = "len ?addrvar?",
-        .function = aio_cmd_recvfrom,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Receive up to 'len' bytes on the socket. Sets 'addrvar' with receive address, if set"
-    },
     {   .cmd = "gets",
         .args = "?var?",
         .function = aio_cmd_gets,
@@ -575,6 +622,14 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 2,
         .description = "Write the string, with newline unless -nonewline"
     },
+#ifndef JIM_ANSIC
+    {   .cmd = "recvfrom",
+        .args = "len ?addrvar?",
+        .function = aio_cmd_recvfrom,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Receive up to 'len' bytes on the socket. Sets 'addrvar' with receive address, if set"
+    },
     {   .cmd = "sendto",
         .args = "str address",
         .function = aio_cmd_sendto,
@@ -582,6 +637,11 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 2,
         .description = "Send 'str' to the given address (dgram only)"
     },
+    {   .cmd = "accept",
+        .function = aio_cmd_accept,
+        .description = "Server socket only: Accept a connection and return stream"
+    },
+#endif
     {   .cmd = "flush",
         .function = aio_cmd_flush,
         .description = "Flush the stream"
@@ -606,6 +666,7 @@ static const jim_subcmd_type command_table[] = {
         .function = aio_cmd_tell,
         .description = "Returns the current seek position"
     },
+#ifdef O_NDELAY
     {   .cmd = "ndelay",
         .args = "?0|1?",
         .function = aio_cmd_ndelay,
@@ -613,10 +674,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 1,
         .description = "Set O_NDELAY (if arg). Returns current/new setting."
     },
-    {   .cmd = "accept",
-        .function = aio_cmd_accept,
-        .description = "Server socket only: Accept a connection and return stream"
-    },
+#endif
 #ifdef jim_ext_eventloop
     {   .cmd = "readable",
         .args = "?readable-script ?eof-script??",
@@ -694,7 +752,9 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fileno(fp);
+#ifdef O_NDELAY
     af->flags = fcntl(af->fd,F_GETFL);
+#endif
     af->filename = argv[1];
     Jim_IncrRefCount(af->filename);
     af->OpenFlags = OpenFlags;
@@ -706,47 +766,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa)
-{
-    char a[0x20];
-    char b[0x20];
-    const char* sthost; 
-    const char* stport;
-    unsigned port;
-    struct hostent *he;
-
-    switch (sscanf(hostport,"%[^:]:%[^:]",a,b)) {
-        case 2: sthost = a; stport = b; break;
-        case 1: sthost = "0.0.0.0"; stport = a; break;
-        default:
-            return JIM_ERR;
-    }
-    if (0 == strncmp(sthost,"ANY",3)) {
-        sthost = "0.0.0.0";
-    }
-    port = atol(stport);
-    he = gethostbyname(sthost);
-
-    if (!he) {
-        Jim_SetResultString(interp,hstrerror(h_errno),-1);
-        return JIM_ERR;
-    }
-
-    sa->sin_family= he->h_addrtype;
-    memcpy(&sa->sin_addr, he->h_addr, he->h_length); /* set address */
-    sa->sin_port = htons(port);
-
-    return JIM_OK;
-}
-
-static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
-{
-    sa->sun_family = PF_UNIX;
-    strcpy(sa->sun_path, path);
-
-    return JIM_OK;
-}
-
+#ifndef JIM_ANSIC
 /**
  * Creates a channel for fd.
  * 
@@ -779,7 +799,9 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
     af->OpenFlags = 0;
     af->filename = filename;
     Jim_IncrRefCount(af->filename);
+#ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
+#endif
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
@@ -995,6 +1017,7 @@ wrongargs:
 
     return JimMakeChannel(interp, argv[1], hdlfmt, sock, mode);
 }
+#endif
 
 FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
@@ -1099,7 +1122,9 @@ Jim_aioInit(Jim_Interp *interp)
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
+#ifndef JIM_ANSIC
     Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);
+#endif
 
     /* Takeover stdin, stdout and stderr */
     Jim_EvalGlobal(interp, "open stdin; open stdout; open stderr");

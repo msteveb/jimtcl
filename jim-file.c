@@ -86,10 +86,14 @@ static const char *GetFileType(int mode)
         return "blockSpecial";
     } else if (S_ISFIFO(mode)) {
         return "fifo";
+#ifdef S_ISLNK
     } else if (S_ISLNK(mode)) {
         return "link";
+#endif
+#ifdef S_ISSOCK
     } else if (S_ISSOCK(mode)) {
         return "socket";
+#endif
     }
     return "unknown";
 }
@@ -222,6 +226,7 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#ifdef HAVE_REALPATH
     const char *path = Jim_GetString(argv[0], NULL);
     char *newname = Jim_Alloc(MAXPATHLEN + 1);
 
@@ -233,6 +238,9 @@ static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         Jim_SetResult(interp, argv[0]);
     }
     return JIM_OK;
+#else
+    return JIM_ERR;
+#endif
 }
 
 static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -328,6 +336,12 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef MKDIR_ONE_ARG
+#define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME)
+#else
+#define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME, 0755)
+#endif
+
 /**
  * Create directory, creating all intermediate paths if necessary.
  *
@@ -353,30 +367,30 @@ static int mkdir_all(char *path)
             *slash = '/';
         }
 first:
-        if (mkdir(path, 0755) == 0) {
-            return 0;
-        }
-        if (errno == ENOENT) {
-            /* Create the parent and try again */
-            continue;
-        }
-        /* Maybe it already exists as a directory */
-        if (errno == EEXIST) {
-            struct stat sb;
-
-            if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+            if (MKDIR_DEFAULT(path) == 0) {
                 return 0;
             }
-            /* Restore errno */
-            errno = EEXIST;
-        }
-        /* Failed */
-        break;
-    }
-    return -1;
-}
+            if (errno == ENOENT) {
+                /* Create the parent and try again */
+                continue;
+            }
+            /* Maybe it already exists as a directory */
+            if (errno == EEXIST) {
+                struct stat sb;
 
-static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+                if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+                    return 0;
+                }
+                /* Restore errno */
+                errno = EEXIST;
+            }
+            /* Failed */
+            break;
+        }
+        return -1;
+    }
+
+    static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     while (argc--) {
         char *path = Jim_StrDup(Jim_GetString(argv[0], NULL));
@@ -391,6 +405,7 @@ static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef HAVE_MKSTEMP
 static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int fd;
@@ -411,6 +426,7 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, filename, -1));
     return JIM_OK;
 }
+#endif
 
 static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -452,6 +468,10 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
     }
     return JIM_OK;
 }
+
+#ifndef HAVE_LSTAT
+#define lstat stat
+#endif
 
 static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
@@ -528,23 +548,25 @@ static int file_cmd_isfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
-    ret = S_ISREG(sb.st_mode);
+        ret = S_ISREG(sb.st_mode);
     }
     Jim_SetResultInt(interp, ret);
     return JIM_OK;
 }
 
+#ifdef HAVE_GETEUID
 static int file_cmd_owned(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct stat sb;
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
-    ret = (geteuid() == sb.st_uid);
+        ret = (geteuid() == sb.st_uid);
     }
     Jim_SetResultInt(interp, ret);
     return JIM_OK;
 }
+#endif
 
 #ifdef S_IFLNK
 static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -701,6 +723,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = -1,
         .description = "Creates the directories"
     },
+#ifdef HAVE_MKSTEMP
     {   .cmd = "tempfile",
         .args = "?template?",
         .function = file_cmd_tempfile,
@@ -708,6 +731,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 1,
         .description = "Creates a temporary filename"
     },
+#endif
     {   .cmd = "rename",
         .args = "?-force? source dest",
         .function = file_cmd_rename,
@@ -752,6 +776,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 1,
         .description = "Returns type of the file"
     },
+#ifdef HAVE_GETEUID
     {   .cmd = "owned",
         .args = "name",
         .function = file_cmd_owned,
@@ -759,6 +784,7 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 1,
         .description = "Returns 1 if owned by the current owner"
     },
+#endif
     {   .cmd = "isdirectory",
         .args = "name",
         .function = file_cmd_isdirectory,

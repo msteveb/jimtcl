@@ -81,11 +81,21 @@ extern "C" {
  * System configuration
  * autoconf (configure) will set these
  * ---------------------------------------------------------------------------*/
-#if defined(_WIN32) || defined(WIN32)
+#if (defined(_WIN32) || defined(WIN32)) && !defined(__MINGW32__)
 #include <jim-win32compat.h>
 #else
 
-#ifndef JIM_NO_CONFIGURE
+#if defined(__MINGW32__)
+#define JIM_ANSIC
+#endif
+
+#if !defined(JIM_ANSIC) && !defined(NOMMU)
+#define JIM_DYNLIB      /* Dynamic library support */
+#endif
+
+#if defined(HAVE_CONFIG_H)
+#include <config.h>
+#elif !defined(JIM_NO_CONFIGURE)
 @HAVE_LONG_LONG@
 #endif
 

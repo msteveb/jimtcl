@@ -15,7 +15,7 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
-CFLAGS += -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
+CFLAGS += -DHAVE_CONFIG_H -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
 ifeq ($(jim_libtype),static)
