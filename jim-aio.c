@@ -77,6 +77,7 @@ typedef struct AioFile {
 } AioFile;
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
+static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa);
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
@@ -180,6 +181,44 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    char *buf;
+    struct sockaddr_in sa;
+    long len;
+    socklen_t salen = sizeof(sa);
+    int rlen;
+
+    if (Jim_GetLong(interp, argv[0], &len) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    buf = Jim_Alloc(len + 1);
+
+    rlen = recvfrom(fileno(af->fp), buf, len, 0, (struct sockaddr *)&sa, &salen);
+    if (rlen < 0) {
+        Jim_Free(buf);
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
+
+    if (argc > 1) {
+        char buf[50];
+
+        inet_ntop(sa.sin_family, &sa.sin_addr, buf, sizeof(buf) - 7);
+        snprintf(buf + strlen(buf), 7, ":%d", ntohs(sa.sin_port));
+
+        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
+    return JIM_OK;
+}
+
+
 static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -262,6 +301,29 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     JimAioSetError(interp, af->filename);
     return JIM_ERR;
+}
+
+static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int wlen;
+    int len;
+    const char *wdata;
+    struct sockaddr_in sa;
+
+    if (JimParseIpAddress(interp, Jim_GetString(argv[1], NULL), &sa) != JIM_OK) {
+        return JIM_ERR;
+    }
+    wdata = Jim_GetString(argv[0], &wlen);
+
+    /* Note that we don't validate the socket type. Rely on sendto() failing if appropriate */
+    len = sendto(fileno(af->fp), wdata, wlen, 0, (struct sockaddr*)&sa, sizeof(sa));
+    if (len < 0) {
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+    Jim_SetResultInt(interp, len);
+    return JIM_OK;
 }
 
 static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -492,6 +554,13 @@ static const jim_subcmd_type command_table[] = {
         .maxargs = 2,
         .description = "Read and return bytes from the stream. To eof if no len."
     },
+    {   .cmd = "recvfrom",
+        .args = "len ?addrvar?",
+        .function = aio_cmd_recvfrom,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Receive up to 'len' bytes on the socket. Sets 'addrvar' with receive address, if set"
+    },
     {   .cmd = "gets",
         .args = "?var?",
         .function = aio_cmd_gets,
@@ -505,6 +574,13 @@ static const jim_subcmd_type command_table[] = {
         .minargs = 1,
         .maxargs = 2,
         .description = "Write the string, with newline unless -nonewline"
+    },
+    {   .cmd = "sendto",
+        .args = "str address",
+        .function = aio_cmd_sendto,
+        .minargs = 2,
+        .maxargs = 2,
+        .description = "Send 'str' to the given address (dgram only)"
     },
     {   .cmd = "flush",
         .function = aio_cmd_flush,
@@ -723,6 +799,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         "unix", 
         "unix.server", 
         "dgram", 
+        "dgram.server", 
         "stream", 
         "stream.server",
         "pipe",
@@ -732,6 +809,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc,
         SOCK_UNIX, 
         SOCK_UNIX_SERV, 
         SOCK_DGRAM_CL, 
+        SOCK_DGRAM_SERV, 
         SOCK_STREAM_CL, 
         SOCK_STREAM_SERV,
         SOCK_STREAM_PIPE,
@@ -753,25 +831,29 @@ wrongargs:
                     JIM_ERRMSG) != JIM_OK)
             return JIM_ERR;
 
-    if (socktype != SOCK_STREAM_PIPE) {
-        if (argc == 2) {
-            goto wrongargs;
-        }
+    if (argc == 3) {
         hostportarg = Jim_GetString(argv[2], NULL);
+    }
+    else if (argc != 2 || (socktype != SOCK_STREAM_PIPE && socktype != SOCK_DGRAM_CL)) {
+        goto wrongargs;
     }
 
     Jim_SetResultString(interp, "", 0);
 
+    hdlfmt = "aio.sock%ld" ;
+
     switch (socktype) {
     case SOCK_DGRAM_CL:
-        sock = socket(PF_INET,SOCK_DGRAM,0);
-        if (sock < 0) {
-            JimAioSetError(interp, NULL);
-            return JIM_ERR;
+        if (argc == 2) {
+            /* No address, so an unconnected dgram socket */
+            sock = socket(PF_INET,SOCK_DGRAM,0);
+            if (sock < 0) {
+                JimAioSetError(interp, NULL);
+                return JIM_ERR;
+            }
+            break;
         }
-        hdlfmt = "aio.sockdgram%ld" ;
-        break;
-
+        /* fall through */
     case SOCK_STREAM_CL:    
         {
             struct sockaddr_in sa;
@@ -779,7 +861,7 @@ wrongargs:
             if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
                 return JIM_ERR;
             }
-            sock = socket(PF_INET,SOCK_STREAM,0);
+            sock = socket(PF_INET,socktype == SOCK_DGRAM_CL ? SOCK_DGRAM : SOCK_STREAM,0);
             if (sock < 0) {
                 JimAioSetError(interp, NULL);
                 return JIM_ERR;
@@ -790,11 +872,11 @@ wrongargs:
                 close(sock);
                 return JIM_ERR;
             }
-            hdlfmt = "aio.sockstream%ld" ;
         }
         break;
 
     case SOCK_STREAM_SERV: 
+    case SOCK_DGRAM_SERV: 
         {
             struct sockaddr_in sa;
 
@@ -802,7 +884,7 @@ wrongargs:
                 JimAioSetError(interp, argv[2]);
                 return JIM_ERR;
             }
-            sock = socket(PF_INET,SOCK_STREAM,0);
+            sock = socket(PF_INET,socktype == SOCK_DGRAM_SERV ? SOCK_DGRAM : SOCK_STREAM,0);
             if (sock < 0) {
                 JimAioSetError(interp, NULL);
                 return JIM_ERR;
@@ -817,11 +899,13 @@ wrongargs:
                 close(sock);
                 return JIM_ERR;
             }
-            res = listen(sock,5);   
-            if (res) {
-                JimAioSetError(interp, NULL);
-                close(sock);
-                return JIM_ERR;
+            if (socktype != SOCK_DGRAM_SERV) {
+                res = listen(sock,5);   
+                if (res) {
+                    JimAioSetError(interp, NULL);
+                    close(sock);
+                    return JIM_ERR;
+                }
             }
             hdlfmt = "aio.socksrv%ld" ;
         }

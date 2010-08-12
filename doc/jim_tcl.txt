@@ -3824,6 +3824,18 @@ aio
 +$handle *accept*+::
     Server socket only: Accept a connection and return stream
 
++$handle *sendto* 'str ?hostname:?port'+::
+    Sends the string, *str*, to the given address via the socket using sendto(2).
+    This is intended for udp sockets and may give an error or behave in unintended
+    ways for other handle types.
+    Returns the number of bytes written.
+
++$handle *recvfrom* 'maxlen ?addrvar?'+::
+    Receives a message from the handle via recvfrom(2) and returns it.
+    At most *maxlen* bytes are read.
+    If *addrvar* is specified, the sending address of the message is stored in
+    the named variable in the form 'hostname:port'.
+
 eventloop: after, vwait
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -3867,8 +3879,13 @@ Various socket types may be created.
 +*socket stream.server* '?hostname:?port'+::
     A TCP socket server (*hostname* defaults to 0.0.0.0).
 
-+*socket dgram* 'hostname:port'+::
-    A UDP socket client.
++*socket dgram* ?'hostname:port'?+::
+    A UDP socket client. If the address is not specified,
+    the client socket will be unbound and 'sendto' must be used
+    to indicated the destination.
+
++*socket dgram.server* 'hostname:port'+::
+    A UDP socket server.
 
 +*socket pipe*+::
     A pipe. Note that unlike all other socket types, this command returns

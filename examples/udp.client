@@ -1,0 +1,11 @@
+# Example of sending from an unconnected socket
+
+set s [socket dgram]
+
+foreach i [range 1 20] {
+	# Specify the address and port with sendto
+	$s sendto "$i + $i + 10" 127.0.0.1:20000
+
+	# Receive the response - max length of 100
+	puts [$s recvfrom 100]
+}
