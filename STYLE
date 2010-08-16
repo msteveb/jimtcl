@@ -62,4 +62,3 @@ C FEATURES
 
 Only C89 ANSI C is allowed. C99 features can't be used currently.
 GCC extensions are not allowed.
-

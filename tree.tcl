@@ -15,9 +15,9 @@ package provide tree
 #
 #   Set the value for the given key
 #
-# $pt lappend <nodename> <key> <value>
+# $pt lappend <nodename> <key> <value> ...
 #
-#   Append to the (list) value for the given key, or set if not yet set
+#   Append to the (list) value(s) for the given key, or set if not yet set
 #
 # $pt keyexists <nodename> <key>
 #
@@ -125,9 +125,9 @@ proc tree_set {treeref node key value} {
 
 # treehandle lappend node key value
 #
-proc tree_lappend {treeref node key value} {
+proc tree_lappend {treeref node key args} {
 	_tree_update_node $treeref $node n {
-		lappend n($key) $value
+		lappend n($key) {expand}$args
 		set result $n($key)
 	}
 	return $result

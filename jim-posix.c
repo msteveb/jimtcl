@@ -1,3 +1,4 @@
+
 /* Jim - POSIX extension
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
@@ -37,12 +38,12 @@ static void Jim_PosixSetError(Jim_Interp *interp)
 }
 
 #ifdef HAVE_FORK
-static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     pid_t pid;
+
     JIM_NOTUSED(argv);
-    
+
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
         return JIM_ERR;
@@ -51,7 +52,7 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc,
         Jim_PosixSetError(interp);
         return JIM_ERR;
     }
-    Jim_SetResultInt(interp, (jim_wide)pid);
+    Jim_SetResultInt(interp, (jim_wide) pid);
     return JIM_OK;
 }
 #endif
@@ -83,8 +84,7 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc,
  *
  *   {<pid> other 0}
  */
-static int Jim_PosixWaitCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int Jim_PosixWaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int nohang = 0;
     long pid;
@@ -139,10 +139,10 @@ static int Jim_PosixWaitCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc,
-        Jim_Obj *const *argv)
+static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objv[8];
+
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
         return JIM_ERR;
@@ -160,8 +160,7 @@ static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc,
 }
 
 #define JIM_HOST_NAME_MAX 1024
-static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc,
-        Jim_Obj *const *argv)
+static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char buf[JIM_HOST_NAME_MAX];
 
@@ -212,8 +211,6 @@ static int Jim_PosixPidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
 int Jim_posixInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
 #ifdef HAVE_FORK
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
 #endif

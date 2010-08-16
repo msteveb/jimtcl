@@ -10,22 +10,39 @@
 #    }
 # }
 
-package require readline
-package provide rlprompt 1.0
-
 proc rlprompt.shell {} {
     puts "Readline shell loaded"
     puts "Welcome to Jim [info version]!"
     set prompt ". "
+    set buf ""
     while 1 {
-        set line [readline.readline $prompt]
+        try -exit {
+            set line [readline.readline $prompt]
+        } on exit dummy {
+            break
+        }
+
         if {[string length $line] == 0} {
             continue
         }
-        readline.addhistory $line
-        set errCode [catch {uplevel #0 $line} err]
-        if {$err ne {}} {
-            puts $err
+        if {$buf eq ""} {
+            set buf $line
+        } else {
+            append buf \n $line
         }
+        if {![info complete $buf]} {
+            set prompt "> "
+            continue
+        }
+        readline.addhistory $buf
+
+        catch {
+            uplevel #0 $buf
+        } error
+        if {$error ne ""} {
+            puts $error
+        }
+        set buf ""
+        set prompt ". "
     }
 }

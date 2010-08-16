@@ -1,3 +1,4 @@
+
 /*
  * tcl_clock.c
  *
@@ -50,7 +51,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char *pt;
     struct tm tm;
     time_t now = time(0);
-    
+
     if (!Jim_CompareStringImmediate(interp, argv[1], "-format")) {
         return -1;
     }
@@ -78,7 +79,7 @@ static int clock_cmd_seconds(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static const jim_subcmd_type command_table[] = {
+static const jim_subcmd_type clock_command_table[] = {
     {   .cmd = "seconds",
         .function = clock_cmd_seconds,
         .minargs = 0,
@@ -106,9 +107,6 @@ static const jim_subcmd_type command_table[] = {
 
 int Jim_clockInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "clock", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-    Jim_CreateCommand(interp, "clock", Jim_SubCmdProc, (void *)command_table, NULL);
+    Jim_CreateCommand(interp, "clock", Jim_SubCmdProc, (void *)clock_command_table, NULL);
     return JIM_OK;
 }

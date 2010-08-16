@@ -1,5 +1,4 @@
 RANLIB ?= ranlib
-SIZE ?= size
 
 # Configuration
 
@@ -15,16 +14,14 @@ CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
 
 CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
-CFLAGS += -DHAVE_CONFIG_H -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
+CFLAGS += -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
 ifeq ($(jim_libtype),static)
 	# Emulate tinytcl
 	LIBJIM := libtcl6.a
 else
-	#LIBJIM := libjim_shared.so
 	LIBJIM := libtcl6.so
-	#CFLAGS += -fPIC
 	CFLAGS += $(SH_CFLAGS)
 endif
 
@@ -41,18 +38,16 @@ EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
 	echo $@ >>.clean
-	sh @SRCDIR@/make-c-ext.sh $@ $<
+	sh @SRCDIR@/make-c-ext.sh $< >$@
 
-OBJS += load_extensions.o
+OBJS += jim-load-static-exts.o
 
-TARGETS += $(LIBJIM) jimsh
+all: jimsh
 
-all: $(TARGETS)
-	if [ -d doc ]; then $(MAKE) -C doc all; fi
+docs: Tcl.html
 
 jimsh: $(LIBJIM) jimsh.o
 	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) @LIBDL@ -lm
-	$(SIZE) $@
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
@@ -63,15 +58,13 @@ $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(CC) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^
 endif
 
-load_extensions.c: @SRCDIR@/make-jim-load-extensions.sh
-	sh @SRCDIR@/make-jim-load-extensions.sh $@ $(EXTENSIONS)
-
-install:
+Tcl.html: jim_tcl.txt
+	asciidoc -o $@ -d manpage $^
 
 clean:
-	rm -f *.o lib*.a $(TARGETS) load_extensions.c doc/Tcl.html
+	rm -f *.o lib*.a jimsh Tcl.html
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
 
 distclean: clean
-	rm -f jim.h Makefile config.status config.log
+	rm -f autoconf.h Makefile config.status config.log
 	rm -rf autom4te.cache

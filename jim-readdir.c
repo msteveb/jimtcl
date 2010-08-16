@@ -1,3 +1,4 @@
+
 /*
  * (c) 2008 Steve Bennett <steveb@worware.net.au>
  *
@@ -65,11 +66,10 @@
  *      Standard TCL result.
  *-----------------------------------------------------------------------------
  */
-int
-Jim_ReaddirCmd (Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char          *dirPath;
-    DIR           *dirPtr;
+    const char *dirPath;
+    DIR *dirPtr;
     struct dirent *entryPtr;
     int nocomplain = 0;
 
@@ -83,8 +83,8 @@ Jim_ReaddirCmd (Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     dirPath = Jim_GetString(argv[1 + nocomplain], NULL);
 
-    dirPtr = opendir (dirPath);
-    if (dirPtr == NULL)  {
+    dirPtr = opendir(dirPath);
+    if (dirPtr == NULL) {
         if (nocomplain) {
             return JIM_OK;
         }
@@ -95,27 +95,24 @@ Jim_ReaddirCmd (Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     Jim_SetResult(interp, Jim_NewListObj(interp, NULL, 0));
 
-    while ((entryPtr = readdir (dirPtr)) != NULL) {
-        if (entryPtr->d_name [0] == '.') {
-            if (entryPtr->d_name [1] == '\0') {
+    while ((entryPtr = readdir(dirPtr)) != NULL) {
+        if (entryPtr->d_name[0] == '.') {
+            if (entryPtr->d_name[1] == '\0') {
                 continue;
             }
-            if ((entryPtr->d_name [1] == '.') &&
-                (entryPtr->d_name [2] == '\0'))
+            if ((entryPtr->d_name[1] == '.') && (entryPtr->d_name[2] == '\0'))
                 continue;
         }
-        Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp, entryPtr->d_name, -1));
+        Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp,
+                entryPtr->d_name, -1));
     }
-    closedir (dirPtr);
+    closedir(dirPtr);
 
     return JIM_OK;
 }
 
 int Jim_readdirInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "readdir", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
     Jim_CreateCommand(interp, "readdir", Jim_ReaddirCmd, NULL, NULL);
     return JIM_OK;
 }

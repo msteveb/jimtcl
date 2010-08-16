@@ -1,3 +1,4 @@
+
 /* Syslog interface for tcl
  * Copyright Victor Wagner <vitus@ice.ru> at
  * http://www.ice.ru/~vitus/works/tcl.html#syslog
@@ -9,7 +10,8 @@
 #include <syslog.h>
 #include <string.h>
 
-typedef struct {
+typedef struct
+{
     int logOpened;
     int facility;
     int options;
@@ -57,7 +59,8 @@ static const char *priorities[] = {
  */
 static void Jim_SyslogCmdDelete(Jim_Interp *interp, void *privData)
 {
-    SyslogInfo *info=(SyslogInfo *)privData;
+    SyslogInfo *info = (SyslogInfo *) privData;
+
     if (info->logOpened) {
         closelog();
     }
@@ -70,54 +73,57 @@ static void Jim_SyslogCmdDelete(Jim_Interp *interp, void *privData)
  * 
  * syslog ?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? text
  */
-int
-Jim_SyslogCmd (Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int priority = LOG_INFO;
-    int i=1;
+    int i = 1;
     SyslogInfo *info = Jim_CmdPrivData(interp);
 
     if (argc <= 1) {
-wrongargs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? message");
+      wrongargs:
+        Jim_WrongNumArgs(interp, 1, argv,
+            "?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? message");
         return JIM_ERR;
     }
-    while (i < argc-1) {
+    while (i < argc - 1) {
         if (Jim_CompareStringImmediate(interp, argv[i], "-facility")) {
-            int entry = Jim_FindByName(Jim_GetString(argv[i + 1], NULL), facilities, sizeof(facilities) / sizeof(*facilities));
+            int entry =
+                Jim_FindByName(Jim_GetString(argv[i + 1], NULL), facilities,
+                sizeof(facilities) / sizeof(*facilities));
             if (entry < 0) {
-               Jim_SetResultString(interp, "Unknown facility", -1);
-               return JIM_ERR;
+                Jim_SetResultString(interp, "Unknown facility", -1);
+                return JIM_ERR;
             }
             if (info->facility != entry) {
                 info->facility = entry;
                 if (info->logOpened) {
                     closelog();
-                    info->logOpened=0;
+                    info->logOpened = 0;
                 }
             }
         }
         else if (Jim_CompareStringImmediate(interp, argv[i], "-options")) {
             long tmp;
-            if (Jim_GetLong(interp, argv[i+1], &tmp) == JIM_ERR) {
-                 return JIM_ERR;
+
+            if (Jim_GetLong(interp, argv[i + 1], &tmp) == JIM_ERR) {
+                return JIM_ERR;
             }
             info->options = tmp;
             if (info->logOpened) {
                 closelog();
-                info->logOpened=0;
+                info->logOpened = 0;
             }
         }
         else if (Jim_CompareStringImmediate(interp, argv[i], "-ident")) {
-            strncpy(info->ident, Jim_GetString(argv[i+1], NULL), sizeof(info->ident));
+            strncpy(info->ident, Jim_GetString(argv[i + 1], NULL), sizeof(info->ident));
             info->ident[sizeof(info->ident) - 1] = 0;
             if (info->logOpened) {
                 closelog();
-                info->logOpened=0;
+                info->logOpened = 0;
             }
         }
         else {
-           break;
+            break;
         }
         i += 2;
     }
@@ -128,11 +134,13 @@ wrongargs:
         return JIM_OK;
     }
 
-    if (i<argc-1) {
-        priority = Jim_FindByName(Jim_GetString(argv[i], NULL), priorities, sizeof(priorities) / sizeof(*priorities));
+    if (i < argc - 1) {
+        priority =
+            Jim_FindByName(Jim_GetString(argv[i], NULL), priorities,
+            sizeof(priorities) / sizeof(*priorities));
         if (priority < 0) {
-           Jim_SetResultString(interp, "Unknown priority", -1);
-           return JIM_ERR;
+            Jim_SetResultString(interp, "Unknown priority", -1);
+            return JIM_ERR;
         }
         i++;
     }
@@ -143,15 +151,17 @@ wrongargs:
     if (!info->logOpened) {
         if (!info->ident[0]) {
             Jim_Obj *argv0 = Jim_GetGlobalVariableStr(interp, "argv0", JIM_NONE);
+
             if (argv0) {
-               strncpy(info->ident, Jim_GetString(argv0, NULL), sizeof(info->ident));
-            } else {
-               strcpy(info->ident,"Tcl script");
+                strncpy(info->ident, Jim_GetString(argv0, NULL), sizeof(info->ident));
+            }
+            else {
+                strcpy(info->ident, "Tcl script");
             }
             info->ident[sizeof(info->ident) - 1] = 0;
         }
         openlog(info->ident, info->options, info->facility);
-        info->logOpened=1;
+        info->logOpened = 1;
     }
     syslog(priority, "%s", Jim_GetString(argv[i], NULL));
 
@@ -160,17 +170,11 @@ wrongargs:
 
 int Jim_syslogInit(Jim_Interp *interp)
 {
-    SyslogInfo *info;
+    SyslogInfo *info = Jim_Alloc(sizeof(*info));
 
-    if (Jim_PackageProvide(interp, "syslog", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    info = Jim_Alloc(sizeof(*info));
-
-    info->logOpened=0;
-    info->options=0;
-    info->facility=LOG_USER;
+    info->logOpened = 0;
+    info->options = 0;
+    info->facility = LOG_USER;
     info->ident[0] = 0;
 
     Jim_CreateCommand(interp, "syslog", Jim_SyslogCmd, info, Jim_SyslogCmdDelete);

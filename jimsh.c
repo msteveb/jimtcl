@@ -1,3 +1,4 @@
+
 /* Jimsh - An interactive shell for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2009 Steve Bennett <steveb@workware.net.au>
@@ -29,11 +30,12 @@
  * of the jim binary, in order to add this path to the library path.
  * Likely shipped libraries are in the same path too. */
 #ifndef JIM_ANSIC
+
 /* A bit complex on POSIX */
 #include <unistd.h>
 static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 {
-    char path[JIM_PATH_LEN+1];
+    char path[JIM_PATH_LEN + 1];
 
     /* Check if the executable was called with an absolute pathname */
     if (argv0[0] == '/') {
@@ -41,11 +43,12 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 
         strncpy(path, argv0, JIM_PATH_LEN);
         p = strrchr(path, '/');
-            *(p+1) = '\0';
+        *(p + 1) = '\0';
         return Jim_NewStringObj(interp, path, -1);
-    } else {
-        char cwd[JIM_PATH_LEN+1];
-        char base[JIM_PATH_LEN+1], *p;
+    }
+    else {
+        char cwd[JIM_PATH_LEN + 1];
+        char base[JIM_PATH_LEN + 1], *p;
         int l;
 
         strncpy(base, argv0, JIM_PATH_LEN);
@@ -53,8 +56,8 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
             return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
         }
         l = strlen(cwd);
-        if (l > 0 && cwd[l-1] == '/')
-            cwd[l-1] = '\0';
+        if (l > 0 && cwd[l - 1] == '/')
+            cwd[l - 1] = '\0';
         p = strrchr(base, '/');
         if (p == NULL)
             base[0] = '\0';
@@ -62,12 +65,13 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
             *p = '\0';
         sprintf(path, "%s/%s", cwd, base);
         l = strlen(path);
-        if (l > 2 && path[l-2] == '/' && path[l-1] == '.')
-            path[l-1] = '\0';
+        if (l > 2 && path[l - 2] == '/' && path[l - 1] == '.')
+            path[l - 1] = '\0';
         return Jim_NewStringObj(interp, path, -1);
     }
 }
 #else /* JIM_ANSIC */
+
 /* ... and impossible with just ANSI C */
 static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 {
@@ -79,14 +83,16 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 static void JimLoadJimRc(Jim_Interp *interp)
 {
     const char *home;
-    char buf [JIM_PATH_LEN+1];
-    const char *names[] = {".jimrc", "jimrc.tcl", NULL};
+    char buf[JIM_PATH_LEN + 1];
+    const char *names[] = { ".jimrc", "jimrc.tcl", NULL };
     int i;
     FILE *fp;
 
-    if ((home = getenv("HOME")) == NULL) return;
+    if ((home = getenv("HOME")) == NULL)
+        return;
     for (i = 0; names[i] != NULL; i++) {
-        if (strlen(home)+strlen(names[i])+1 > JIM_PATH_LEN) continue;
+        if (strlen(home) + strlen(names[i]) + 1 > JIM_PATH_LEN)
+            continue;
         sprintf(buf, "%s/%s", home, names[i]);
         if ((fp = fopen(buf, "r")) != NULL) {
             fclose(fp);
@@ -106,12 +112,13 @@ static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
     /* Populate argv global var */
     for (n = 0; n < argc; n++) {
         Jim_Obj *obj = Jim_NewStringObj(interp, argv[n], -1);
+
         Jim_ListAppendElement(interp, listObj, obj);
     }
 
     Jim_SetVariableStr(interp, "argv", listObj);
 }
-    
+
 int main(int argc, char *const argv[])
 {
     int retcode;
@@ -142,7 +149,8 @@ int main(int argc, char *const argv[])
         JimSetArgv(interp, 0, NULL);
         JimLoadJimRc(interp);
         retcode = Jim_InteractivePrompt(interp);
-    } else {
+    }
+    else {
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");
         if (argc > 2 && strcmp(argv[1], "-e") == 0) {
             JimSetArgv(interp, argc - 3, argv + 3);

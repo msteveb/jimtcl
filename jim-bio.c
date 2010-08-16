@@ -1,3 +1,4 @@
+
 /*
  * jim-bio.c
  *
@@ -33,6 +34,7 @@
 static int hex2char(const char *hex)
 {
     int value;
+
     value = (hex[0] >= 'A' ? ((hex[0] & 0xdf) - 'A') + 10 : (hex[0] - '0'));
     value *= 16;
     value += (hex[1] >= 'A' ? ((hex[1] & 0xdf) - 'A') + 10 : (hex[1] - '0'));
@@ -70,7 +72,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     fh = Jim_AioFilehandle(interp, argv[0]);
-    
+
     if (!fh) {
         return JIM_ERR;
     }
@@ -84,6 +86,7 @@ static int bio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Read one char at a time */
     while (len > 0) {
         int ch = fgetc(fh);
+
         if (ch == EOF) {
             break;
         }
@@ -130,7 +133,7 @@ static int bio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     FILE *infh = Jim_AioFilehandle(interp, argv[0]);
     FILE *outfh = Jim_AioFilehandle(interp, argv[1]);
-    
+
     if (infh == NULL || outfh == NULL) {
         return JIM_ERR;
     }
@@ -143,6 +146,7 @@ static int bio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     while (count < maxlen) {
         int ch = fgetc(infh);
+
         if (ch == EOF || fputc(ch, outfh) == EOF) {
             break;
         }
@@ -218,7 +222,7 @@ static int bio_cmd_write(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static const jim_subcmd_type command_table[] = {
+static const jim_subcmd_type bio_command_table[] = {
     {   .cmd = "read",
         .function = bio_cmd_read,
         .args = "?-hex? fd var numbytes",
@@ -246,9 +250,6 @@ static const jim_subcmd_type command_table[] = {
 int
 Jim_bioInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "bio", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-    Jim_CreateCommand(interp, "bio", Jim_SubCmdProc, (void *)command_table, NULL);
+    Jim_CreateCommand(interp, "bio", Jim_SubCmdProc, (void *)bio_command_table, NULL);
     return JIM_OK;
 }

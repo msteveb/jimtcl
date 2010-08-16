@@ -1,3 +1,4 @@
+
 /* 
  * (c) 2008 Steve Bennett <steveb@workware.net.au>
  *
@@ -75,8 +76,7 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
 
     /* Check if the object is already an uptodate variable */
     if (objPtr->typePtr == &regexpObjType &&
-        objPtr->internalRep.regexpValue.compre &&
-        objPtr->internalRep.regexpValue.flags == flags) {
+        objPtr->internalRep.regexpValue.compre && objPtr->internalRep.regexpValue.flags == flags) {
         /* nothing to do */
         return objPtr->internalRep.regexpValue.compre;
     }
@@ -93,6 +93,7 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
 
     if ((ret = regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
         char buf[100];
+
         regerror(ret, compre, buf, sizeof(buf));
         Jim_SetResultFormatted(interp, "couldn't compile regular expression pattern: %s", buf);
         regfree(compre);
@@ -126,8 +127,9 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int regcomp_flags = 0;
 
     if (argc < 3) {
-        wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?");
+      wrongNumArgs:
+        Jim_WrongNumArgs(interp, 1, argv,
+            "?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?");
         return JIM_ERR;
     }
 
@@ -161,6 +163,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
         else {
             const char *opt = Jim_GetString(argv[i], NULL);
+
             if (*opt == '-') {
                 /* Bad option */
                 goto wrongNumArgs;
@@ -184,7 +187,8 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (opt_inline) {
         if (num_vars) {
-            Jim_SetResultString(interp, "regexp match variables not allowed when using -inline", -1);
+            Jim_SetResultString(interp, "regexp match variables not allowed when using -inline",
+                -1);
             result = JIM_ERR;
             goto done;
         }
@@ -200,7 +204,8 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (offset) {
         if (offset > source_len) {
             source_str += source_len;
-        } else if (offset > 0) {
+        }
+        else if (offset > 0) {
             source_str += offset;
         }
     }
@@ -209,10 +214,11 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         resultListObj = Jim_NewListObj(interp, NULL, 0);
     }
 
-    next_match:
+  next_match:
     match = regexec(regex, source_str, num_vars + 1, pmatch, 0);
     if (match >= REG_BADPAT) {
         char buf[100];
+
         regerror(match, regex, buf, sizeof(buf));
         Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
         result = JIM_ERR;
@@ -226,7 +232,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     num_matches++;
 
     if (opt_all && !opt_inline) {
-        /* Just count the number of matches, so skip the substitution h*/
+        /* Just count the number of matches, so skip the substitution h */
         goto try_next_match;
     }
 
@@ -251,12 +257,17 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, -1));
                 Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, -1));
             }
-        } else {
+        }
+        else {
             int len = pmatch[j].rm_eo - pmatch[j].rm_so;
+
             if (opt_indices) {
-                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + pmatch[j].rm_so));
-                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + pmatch[j].rm_so + len - 1));
-            } else {
+                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp,
+                        offset + pmatch[j].rm_so));
+                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp,
+                        offset + pmatch[j].rm_so + len - 1));
+            }
+            else {
                 Jim_AppendString(interp, resultObj, source_str + pmatch[j].rm_so, len);
             }
         }
@@ -275,7 +286,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    try_next_match:
+  try_next_match:
     if (opt_all && pattern[0] != '^' && *source_str) {
         if (pmatch[0].rm_eo) {
             source_str += pmatch[0].rm_eo;
@@ -288,7 +299,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    done:
+  done:
     if (result == JIM_OK) {
         if (opt_inline) {
             Jim_SetResult(interp, resultListObj);
@@ -324,8 +335,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *pattern;
 
     if (argc < 4) {
-        wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?");
+      wrongNumArgs:
+        Jim_WrongNumArgs(interp, 1, argv,
+            "?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?");
         return JIM_ERR;
     }
 
@@ -353,6 +365,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
         else {
             const char *opt = Jim_GetString(argv[i], NULL);
+
             if (*opt == '-') {
                 /* Bad option */
                 goto wrongNumArgs;
@@ -383,7 +396,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (offset) {
         if (offset > source_len) {
             offset = source_len;
-        } else if (offset < 0) {
+        }
+        else if (offset < 0) {
             offset = 0;
         }
     }
@@ -398,11 +412,13 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * then the loop body only gets executed once.
      */
 
-    for (p = source_str + offset; *p != 0; ) {
+    for (p = source_str + offset; *p != 0;) {
         const char *src;
         int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, 0);
+
         if (match >= REG_BADPAT) {
             char buf[100];
+
             regerror(match, regex, buf, sizeof(buf));
             Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
             return JIM_ERR;
@@ -425,7 +441,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          * conventions and because the code saves up ranges of characters in
          * subSpec to reduce the number of calls to Jim_SetVar.
          */
-    
+
         for (src = replace_str; *src; src++) {
             int index;
             int c = *src;
@@ -452,7 +468,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 continue;
             }
             if ((index < MAX_SUB_MATCHES) && pmatch[index].rm_so != -1 && pmatch[index].rm_eo != -1) {
-                Jim_AppendString(interp, resultObj, p + pmatch[index].rm_so, pmatch[index].rm_eo - pmatch[index].rm_so);
+                Jim_AppendString(interp, resultObj, p + pmatch[index].rm_so,
+                    pmatch[index].rm_eo - pmatch[index].rm_so);
             }
         }
 
@@ -492,10 +509,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_regexpInit(Jim_Interp *interp)
 {
-        if (Jim_PackageProvide(interp, "regexp", "1.0", JIM_ERRMSG) != JIM_OK) {
-                return JIM_ERR;
-        }
-        Jim_CreateCommand(interp, "regexp", Jim_RegexpCmd, NULL, NULL);
-        Jim_CreateCommand(interp, "regsub", Jim_RegsubCmd, NULL, NULL);
-        return JIM_OK;
+    Jim_CreateCommand(interp, "regexp", Jim_RegexpCmd, NULL, NULL);
+    Jim_CreateCommand(interp, "regsub", Jim_RegsubCmd, NULL, NULL);
+    return JIM_OK;
 }

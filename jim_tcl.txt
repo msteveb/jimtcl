@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.62 - overview of the Jim tool command language facilities
+Jim Tcl v0.63 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -59,6 +59,22 @@ The major differences are:
 
 CHANGES
 -------
+Since v0.62:
+
+1. 'source' now checks that a script is complete (.i.e. not missing a brace)
+2. 'info complete' now uses the real parser and so is 100% accurate
+3. Better access to live stack frames with 'info frame', 'stacktrace' and 'stackdump'
+4. 'tailcall' no longer loses stack trace information
+5. Add 'alias' and 'curry'
+6. 'lambda', 'alias' and 'curry' are implemented via 'tailcall' for efficiency
+7. 'local' allows procedures to be deleted automatically at the end of the current procedure
+8. udp sockets are now supported for both clients and servers.
+9. vfork-based exec is now working correctly
+10. Add 'file tempfile'
+11. Add 'socket pipe'
+12. Enhance 'try ... on ... finally' to be more Tcl 8.6 compatible
+13. It is now possible to 'return' from within 'try'
+
 Since v0.61:
 
 1. Add support to 'exec' for '>&', '>>&', '|&', '2>@1'
@@ -1315,7 +1331,7 @@ as the preceding argument(s).
 [[CommandIndex]]
 Command Index
 ~~~~~~~~~~~~~
-@INSERTINDEX@
+// @INSERTINDEX@
 
 alarm
 ~~~~~
@@ -1328,6 +1344,22 @@ be an integer.
 
 Note that unless a signal handler for 'SIGALRM' has been installed
 (see 'signal'), the process will exit on this signal.
+
+alias
+~~~~~
++*alias* 'name args...'+
+
+Creates a single word alias (proc) for one or more words. For example,
+the following creates an alias for the command 'info exists'.
+
+    alias e info exists
+    if {[e var]} {
+      ...
+    }
+
+'alias' returns *name*, allowing it to be used with 'local.
+
+See also 'proc', 'curry', 'lambda', 'local'.
 
 append
 ~~~~~~
@@ -1507,10 +1539,12 @@ for the key +-code+ will be set to the return code. For +JIM_RETURN+
 it will be set to the code given in 'return -code'. Additionally,
 for the return code +JIM_ERR+, the value of the key +-errorinfo+
 will contain the current stack trace (the same result as 'info
-stacktrace').  This can be useful to rethrow an error:
+stacktrace') and the value of the key +-level+ will be the current
+return level (see 'return -level').  This can be useful to rethrow an error:
 
     if {[catch {...} msg opts]} {
         ...maybe do something with the error...
+		incr opts(-level)
         return {*}$opts $msg
     }
 
@@ -1596,6 +1630,24 @@ This command may be invoked only inside the body of a loop command such
 as 'for' or 'foreach' or 'while'.  It returns a  +JIM_CONTINUE+ code to
 signal the innermost containing loop command to skip the remainder of
 the loop's body but continue with the next iteration of the loop.
+
+curry
+~~~~~
++*alias* 'args...'+
+
+Similar to 'alias' except it creates an anonymous procedure (lambda) instead of
+a named procedure.
+
+the following creates a local, unnamed alias for the command 'info exists'.
+
+    set e [local curry info exists]
+    if {[$e var]} {
+      ...
+    }
+
+'curry' returns the name of the procedure.
+
+See also 'proc', 'alias', 'lambda', 'local'.
 
 dict
 ~~~~
@@ -1912,13 +1964,13 @@ abbreviation for *option* is acceptable.  The valid options are:
     as the 'stat' option.
 
 +*file mkdir* 'dir1 ?dir2? ...'+::
-	Creates each directory specified. For each pathname *dir* specified,
-	this command will create all non-existing parent directories
-	as well as *dir* itself. If an existing directory is specified,
-	then no action is taken and no error is returned. Trying to
-	overwrite an existing file with a directory will result in an
-	error.  Arguments are processed in the order specified, halting
-	at the first error, if any.
+    Creates each directory specified. For each pathname *dir* specified,
+    this command will create all non-existing parent directories
+    as well as *dir* itself. If an existing directory is specified,
+    then no action is taken and no error is returned. Trying to
+    overwrite an existing file with a directory will result in an
+    error.  Arguments are processed in the order specified, halting
+    at the first error, if any.
 
 +*file mtime* 'name'+::
     Return a decimal string giving the time at which file *name*
@@ -2254,6 +2306,17 @@ The legal *option*'s (which may be abbreviated) are:
     current context (either as a global or local variable), returns '0'
     otherwise.
 
++*info frame* ?'number'?+::
+    If *number* is not specified, this command returns a number
+    which is the same result as 'info level' - the current stack frame level.
+    If *number* is specified, then the result is a list consisting of the procedure,
+    filename and line number for the procedure call at level *number* on the stack.
+    If *number* is positive then it selects a particular stack level (1 refers
+    to the top-most active procedure, 2 to the procedure it called, and
+    so on); otherwise it gives a level relative to the current level
+    (0 refers to the current procedure, -1 to its caller, and so on).
+    The level has an identical meaning to 'info level'.
+
 +*info globals* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of all the names
     of currently-defined global variables.
@@ -2404,6 +2467,43 @@ ments than variables, a list of unassigned elements is returned.
     jim> lassign {1 2 3} a b; puts a=$a,b=$b
     3
     a=1,b=2
+
+local
+~~~~~
++*local* 'args'+
+
+Executes it's arguments as a command (per 'eval') and considers the return
+value to be a procedure name, which is marked as having local scope.
+This means that when the current procedure exits, the specified
+procedure is deleted. This can be useful with 'lambda' or simply
+local procedures.
+
+In this example, a local procedure is created. Note that the procedure
+continues to have global scope while it is active.
+
+    proc outer {} {
+	  # proc ... returns "inner" which is marked local
+      local proc inner {} {
+		# will be deleted when 'outer' exits
+	  }
+
+	  inner
+	  ...
+	}
+
+In this example, the lambda is deleted at the end of the procedure rather
+than waiting until garbage collection.
+
+    proc outer {} {
+      set x [lambda inner {args} {
+		# will be deleted when 'outer' exits
+	  }]
+	  # Use 'function' here which simply returns $x
+	  local function $x
+
+	  $x ...
+	  ...
+	}
 
 lindex
 ~~~~~~
@@ -2748,10 +2848,12 @@ procedure.
 
 See PROCEDURES for detailed information about Tcl procedures.
 
-The 'proc' command returns the null string. When a procedure is invoked,
-the procedure's return value is the value specified in a 'return' command.
-If the procedure doesn't execute an explicit 'return', then its return
-value is the value of the last command executed in the procedure's body.
+The 'proc' command returns *name* (which is useful with 'local').
+
+When a procedure is invoked, the procedure's return value is the
+value specified in a 'return' command.  If the procedure doesn't
+execute an explicit 'return', then its return value is the value
+of the last command executed in the procedure's body.
 
 If an error occurs while executing the procedure body, then the
 procedure-as-a-whole will return that same error.
@@ -3005,7 +3107,7 @@ returns an empty string as result.
 
 return
 ~~~~~~
-+*return* ?*-code* 'code'? ?*-errorinfo* 'stacktrace'? ?'value'?+
++*return* ?*-code* 'code'? ?*-errorinfo* 'stacktrace'? ?*-level* 'n'? ?'value'?+
 
 Return immediately from the current procedure (or top-level command
 or 'source' command), with *value* as the return value.  If *value*
@@ -3016,9 +3118,13 @@ continue, signal, return or exit), this code will be used instead
 of +JIM_OK+. This is generally useful when implementing flow of control
 commands.
 
+If *-level* is specified and greater than 1, it has the effect of delaying
+the new return code from *-code*. This is useful when rethrowing an error
+from 'catch'. See the implementation of try/catch in tclcompat.tcl for
+an example of how this is done.
+
 If *-errorinfo* is specified (as returned from 'info stacktrace')
 it is used to initialize the stacktrace.
-
 scan
 ~~~~
 +*scan* 'string format varName1 ?varName2 ...?'+
@@ -3122,12 +3228,13 @@ Commands which return a list of signal names do so using the canonical form:
     being handled.
 
 +*signal ignore* ?'signals ...'?+::
-    If no signals are given, returns a lists all signals which are currently being
-    ignored.
-    If signals are specified, these are added to the list of signals currently
-    being ignored. These signals are still delivered, but are not considered by
-	'catch -signal' or 'try -signal'. Use 'signal check' to signals which have
-	occurred but been ignored.
+    If no signals are given, returns a lists all signals which are currently
+    being ignored.
+    If signals are specified, these are added to the list of signals
+    currently being ignored. These signals are still delivered, but
+    are not considered by 'catch -signal' or 'try -signal'. Use
+    'signal check' to determine which signals have occurred but
+    been ignored.
 
 +*signal default* ?'signals ...'?+::
     If no signals are given, returns a lists all signals which are currently have
@@ -3137,10 +3244,10 @@ Commands which return a list of signal names do so using the canonical form:
 
 +*signal check ?-clear?* ?'signals ...'?+::
     Returns a list of signals which have been delivered to the process
-	but are 'ignored'. If signals are specified, only that set of signals will
-	be checked, otherwise all signals will be checked.
-	If '-clear' is specified, any signals returned are removed and will not be
-	returned by subsequent calls to 'signal check' unless delivered again.
+    but are 'ignored'. If signals are specified, only that set of signals will
+    be checked, otherwise all signals will be checked.
+    If '-clear' is specified, any signals returned are removed and will not be
+    returned by subsequent calls to 'signal check' unless delivered again.
 
 +*signal throw* ?'signal'?+::
     Raises the given signal, which defaults to +SIGINT+ if not specified.
@@ -3157,24 +3264,24 @@ two examples below.
 Prevent a processing from taking too long
 
     signal handle SIGALRM
-	alarm 20
-	try -signal {
-		.. possibly long running process ..
-		alarm 0
-	} on signal {sig} {
-		puts stderr "Process took too long"
-	}
+    alarm 20
+    try -signal {
+        .. possibly long running process ..
+        alarm 0
+    } on signal {sig} {
+        puts stderr "Process took too long"
+    }
 
 Handle SIGHUP to reconfigure:
 
-	signal ignore SIGHUP
+    signal ignore SIGHUP
     while {1} {
-		... handle configuration/reconfiguration ...
-		while {[signal check -clear SIGHUP] eq ""} {
-			... do processing ..
-		}
-		# Received SIGHUP, so reconfigure
-	}
+        ... handle configuration/reconfiguration ...
+        while {[signal check -clear SIGHUP] eq ""} {
+            ... do processing ..
+        }
+        # Received SIGHUP, so reconfigure
+    }
 
 sleep
 ~~~~~
@@ -3226,6 +3333,24 @@ returns +'"comp unix misc"'+ and
     split "Hello world" {}
 
 returns +'"H e l l o { } w o r l d"'+.
+
+stackdump
+~~~~~~~~~
+
++*stackdump* 'stacktrace'+
+
+Creates a human readable representation of a stack trace.
+
+stacktrace
+~~~~~~~~~~
+
++*stacktrace*+
+
+Returns a live stack trace as a list of +proc file line proc file line ...+.
+Iteratively uses 'info frame' to create the stack trace. This stack trace is in the
+same form as produced by 'catch' and 'info stacktrace'
+
+See also 'stackdump'.
 
 string
 ~~~~~~
@@ -3478,7 +3603,7 @@ The following are identical except the first immediately replaces the current ca
 'tailcall' is useful for a dispatch mechanism:
 
   proc a {cmd args} {
-	tailcall sub_$cmd {*}$args
+    tailcall sub_$cmd {*}$args
   }
   proc sub_cmd1 ...
   proc sub_cmd2 ...

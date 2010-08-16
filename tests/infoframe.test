@@ -1,0 +1,37 @@
+source testing.tcl
+
+proc a {n} {
+	if {$n eq "trace"} {
+		stacktrace
+	} else {
+		info frame $n
+	}
+}
+
+proc b {n} {
+	a $n
+}
+
+proc c {n} {
+	b $n
+}
+
+# --- Don't change line numbers above
+
+test info-frame-1.1 "Current proc" {
+	c 0
+} {a infoframe.test 12}
+
+test info-frame-1.2 "Caller" {
+	c -1
+} {b infoframe.test 16}
+
+test info-frame-1.3 "Caller of Caller" {
+	c -2
+} {c infoframe.test 30}
+
+test stacktrace-1.1 "Full stack trace" {
+	c trace
+} {a infoframe.test 12 b infoframe.test 16 c infoframe.test 34}
+
+testreport

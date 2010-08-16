@@ -1,3 +1,4 @@
+
 /* 
  * (c) 2008 Steve Bennett <steveb@workware.net.au>
  *
@@ -38,7 +39,7 @@ static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
     int len;
     const char *s = Jim_GetString(objPtr, &len);
 
-    if (len > 0 && s[len-1] == '\n') {
+    if (len > 0 && s[len - 1] == '\n') {
         objPtr->length--;
         objPtr->bytes[objPtr->length] = '\0';
     }
@@ -78,6 +79,7 @@ static void JimTrimTrailingNewline(Jim_Interp *interp)
 {
     int len;
     const char *p = Jim_GetString(Jim_GetResult(interp), &len);
+
     if (len > 0 && p[len - 1] == '\n') {
         Jim_SetResultString(interp, p, len - 1);
     }
@@ -97,9 +99,10 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
     }
     else if (WIFSIGNALED(waitStatus)) {
 #ifdef jim_ext_signal
-            Jim_SetResultFormatted(interp, "child killed by signal %s", Jim_SignalId(WTERMSIG(waitStatus)));
+        Jim_SetResultFormatted(interp, "child killed by signal %s",
+            Jim_SignalId(WTERMSIG(waitStatus)));
 #else
-            Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
+        Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
 #endif
     }
     else if (WIFSTOPPED(waitStatus)) {
@@ -112,16 +115,14 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
-static int
-Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId);
+static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId);
 
-static int
-Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int outputId;           /* File id for output pipe.  -1
-                     * means command overrode. */
-    int errorId;            /* File id for temporary file
-                     * containing error output. */
+    int outputId;               /* File id for output pipe.  -1
+                                 * means command overrode. */
+    int errorId;                /* File id for temporary file
+                                 * containing error output. */
     int *pidPtr;
     int numPids, result;
 
@@ -134,7 +135,7 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int i;
 
         argc--;
-        numPids = Jim_CreatePipeline(interp, argc-1, argv+1, &pidPtr, NULL, NULL, NULL);
+        numPids = Jim_CreatePipeline(interp, argc - 1, argv + 1, &pidPtr, NULL, NULL, NULL);
         if (numPids < 0) {
             return JIM_ERR;
         }
@@ -152,7 +153,8 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /*
      * Create the command's pipeline.
      */
-    numPids = Jim_CreatePipeline(interp, argc-1, argv+1, &pidPtr, (int *) NULL, &outputId, &errorId);
+    numPids =
+        Jim_CreatePipeline(interp, argc - 1, argv + 1, &pidPtr, (int *)NULL, &outputId, &errorId);
     if (numPids < 0) {
         return JIM_ERR;
     }
@@ -182,10 +184,11 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
  * JimWaitPids to keep track of child processes.
  */
 
-typedef struct {
-    int pid;    /* Process id of child. */
-    int status; /* Status returned when child exited or suspended. */
-    int flags;  /* Various flag bits;  see below for definitions. */
+typedef struct
+{
+    int pid;                    /* Process id of child. */
+    int status;                 /* Status returned when child exited or suspended. */
+    int flags;                  /* Various flag bits;  see below for definitions. */
 } WaitInfo;
 
 /*
@@ -230,8 +233,7 @@ static int waitTableUsed = 0;   /* Number of entries in waitTable that
  *
  *----------------------------------------------------------------------
  */
-static int
-JimFork(void)
+static int JimFork(void)
 {
     WaitInfo *waitPtr;
     pid_t pid;
@@ -244,7 +246,7 @@ JimFork(void)
      * arbiter for signals to allow them to be "shared".
      */
     if (waitTable == NULL) {
-        (void) signal(SIGPIPE, SIG_IGN);
+        (void)signal(SIGPIPE, SIG_IGN);
     }
 
     /*
@@ -253,7 +255,7 @@ JimFork(void)
      */
     if (waitTableUsed == waitTableSize) {
         waitTableSize += WAIT_TABLE_GROW_BY;
-        waitTable = (WaitInfo *)realloc(waitTable, waitTableSize * sizeof(WaitInfo));
+        waitTable = (WaitInfo *) realloc(waitTable, waitTableSize * sizeof(WaitInfo));
     }
 
     /*
@@ -293,8 +295,7 @@ JimFork(void)
  *
  *----------------------------------------------------------------------
  */
-static int
-JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
+static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
 {
     int i, count, pid;
     WaitInfo *waitPtr;
@@ -316,11 +317,11 @@ JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
                 }
                 anyProcesses = 1;
                 if (waitPtr->flags & WI_READY) {
-                    *statusPtr = *((int *) &waitPtr->status);
+                    *statusPtr = *((int *)&waitPtr->status);
                     pid = waitPtr->pid;
                     if (WIFEXITED(waitPtr->status) || WIFSIGNALED(waitPtr->status)) {
-                        if (waitPtr != &waitTable[waitTableUsed-1]) {
-                            *waitPtr = waitTable[waitTableUsed-1];
+                        if (waitPtr != &waitTable[waitTableUsed - 1]) {
+                            *waitPtr = waitTable[waitTableUsed - 1];
                         }
                         waitTableUsed--;
                     }
@@ -351,7 +352,7 @@ JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
         if (pid < 0) {
             return pid;
         }
-        for (waitPtr = waitTable, count = waitTableUsed; ; waitPtr++, count--) {
+        for (waitPtr = waitTable, count = waitTableUsed;; waitPtr++, count--) {
             if (count == 0) {
                 break;          /* Ignore unknown processes. */
             }
@@ -365,10 +366,11 @@ JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
              */
             if (waitPtr->flags & WI_DETACHED) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    *waitPtr = waitTable[waitTableUsed-1];
+                    *waitPtr = waitTable[waitTableUsed - 1];
                     waitTableUsed--;
                 }
-            } else {
+            }
+            else {
                 waitPtr->status = status;
                 waitPtr->flags |= WI_READY;
             }
@@ -413,17 +415,19 @@ static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
              * table entry now.
              */
 
-            if ((waitPtr->flags & WI_READY) && (WIFEXITED(waitPtr->status) || WIFSIGNALED(waitPtr->status))) {
-                *waitPtr = waitTable[waitTableUsed-1];
+            if ((waitPtr->flags & WI_READY) && (WIFEXITED(waitPtr->status)
+                    || WIFSIGNALED(waitPtr->status))) {
+                *waitPtr = waitTable[waitTableUsed - 1];
                 waitTableUsed--;
-            } else {
+            }
+            else {
                 waitPtr->flags |= WI_DETACHED;
             }
             goto nextPid;
         }
         Jim_Panic(interp, "Jim_Detach couldn't find process");
 
-        nextPid:
+      nextPid:
         continue;
     }
 }
@@ -457,57 +461,58 @@ static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
  *----------------------------------------------------------------------
  */
 static int
-Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr)
+Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pidArrayPtr,
+    int *inPipePtr, int *outPipePtr, int *errFilePtr)
 {
-    int *pidPtr = NULL;     /* Points to malloc-ed array holding all
-                 * the pids of child processes. */
-    int numPids = 0;        /* Actual number of processes that exist
-                 * at *pidPtr right now. */
-    int cmdCount;       /* Count of number of distinct commands
-                 * found in argc/argv. */
-    const char *input = NULL;       /* Describes input for pipeline, depending
-                 * on "inputFile".  NULL means take input
-                 * from stdin/pipe. */
+    int *pidPtr = NULL;         /* Points to malloc-ed array holding all
+                                 * the pids of child processes. */
+    int numPids = 0;            /* Actual number of processes that exist
+                                 * at *pidPtr right now. */
+    int cmdCount;               /* Count of number of distinct commands
+                                 * found in argc/argv. */
+    const char *input = NULL;   /* Describes input for pipeline, depending
+                                 * on "inputFile".  NULL means take input
+                                 * from stdin/pipe. */
 
-#define FILE_NAME   0   /* input/output: filename */
-#define FILE_APPEND 1   /* output only:  filename, append */
-#define FILE_HANDLE 2   /* input/output: filehandle */
-#define FILE_TEXT   3   /* input only:   input is actual text */
+#define FILE_NAME   0           /* input/output: filename */
+#define FILE_APPEND 1           /* output only:  filename, append */
+#define FILE_HANDLE 2           /* input/output: filehandle */
+#define FILE_TEXT   3           /* input only:   input is actual text */
 
-    int inputFile = FILE_NAME;      /* 1 means input is name of input file.
-                 * 2 means input is filehandle name.
-                 * 0 means input holds actual
-                 * text to be input to command. */
+    int inputFile = FILE_NAME;  /* 1 means input is name of input file.
+                                 * 2 means input is filehandle name.
+                                 * 0 means input holds actual
+                                 * text to be input to command. */
 
-    int outputFile = FILE_NAME;     /* 0 means output is the name of output file.
-                 * 1 means output is the name of output file, and append.
-                 * 2 means output is filehandle name.
-                 * All this is ignored if output is NULL
-                 */
-    int errorFile = FILE_NAME;      /* 0 means error is the name of error file.
-                 * 1 means error is the name of error file, and append.
-                 * 2 means error is filehandle name.
-                 * All this is ignored if error is NULL
-                 */
+    int outputFile = FILE_NAME; /* 0 means output is the name of output file.
+                                 * 1 means output is the name of output file, and append.
+                                 * 2 means output is filehandle name.
+                                 * All this is ignored if output is NULL
+                                 */
+    int errorFile = FILE_NAME;  /* 0 means error is the name of error file.
+                                 * 1 means error is the name of error file, and append.
+                                 * 2 means error is filehandle name.
+                                 * All this is ignored if error is NULL
+                                 */
     const char *output = NULL;  /* Holds name of output file to pipe to,
-                 * or NULL if output goes to stdout/pipe. */
-    const char *error = NULL;       /* Holds name of stderr file to pipe to,
-                 * or NULL if stderr goes to stderr/pipe. */
-    int inputId = -1;       /* Readable file id input to current command in
-                 * pipeline (could be file or pipe).  -1
-                 * means use stdin. */
-    int outputId = -1;      /* Writable file id for output from current
-                 * command in pipeline (could be file or pipe).
-                 * -1 means use stdout. */
-    int errorId = -1;       /* Writable file id for all standard error
-                 * output from all commands in pipeline.  -1
-                 * means use stderr. */
-    int lastOutputId = -1;  /* Write file id for output from last command
-                 * in pipeline (could be file or pipe).
-                 * -1 means use stdout. */
-    int pipeIds[2];     /* File ids for pipe that's being created. */
-    int firstArg, lastArg;  /* Indexes of first and last arguments in
-                 * current command. */
+                                 * or NULL if output goes to stdout/pipe. */
+    const char *error = NULL;   /* Holds name of stderr file to pipe to,
+                                 * or NULL if stderr goes to stderr/pipe. */
+    int inputId = -1;           /* Readable file id input to current command in
+                                 * pipeline (could be file or pipe).  -1
+                                 * means use stdin. */
+    int outputId = -1;          /* Writable file id for output from current
+                                 * command in pipeline (could be file or pipe).
+                                 * -1 means use stdout. */
+    int errorId = -1;           /* Writable file id for all standard error
+                                 * output from all commands in pipeline.  -1
+                                 * means use stderr. */
+    int lastOutputId = -1;      /* Write file id for output from last command
+                                 * in pipeline (could be file or pipe).
+                                 * -1 means use stdout. */
+    int pipeIds[2];             /* File ids for pipe that's being created. */
+    int firstArg, lastArg;      /* Indexes of first and last arguments in
+                                 * current command. */
     int lastBar;
     char *execName;
     int i, pid;
@@ -661,6 +666,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             /* Should be a file descriptor */
             Jim_Obj *fhObj = Jim_NewStringObj(interp, input, -1);
             FILE *fh = Jim_AioFilehandle(interp, fhObj);
+
             Jim_FreeNewObj(interp, fhObj);
             if (fh == NULL) {
                 goto error;
@@ -673,7 +679,8 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
              */
             inputId = open(input, O_RDONLY, 0);
             if (inputId < 0) {
-                Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", input, strerror(errno));
+                Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", input,
+                    strerror(errno));
                 goto error;
             }
         }
@@ -696,6 +703,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         if (outputFile == FILE_HANDLE) {
             Jim_Obj *fhObj = Jim_NewStringObj(interp, output, -1);
             FILE *fh = Jim_AioFilehandle(interp, fhObj);
+
             Jim_FreeNewObj(interp, fhObj);
             if (fh == NULL) {
                 goto error;
@@ -707,15 +715,16 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             /*
              * Output is to go to a file.
              */
-            int mode = O_WRONLY|O_CREAT|O_TRUNC;
+            int mode = O_WRONLY | O_CREAT | O_TRUNC;
 
             if (outputFile == FILE_APPEND) {
-                mode = O_WRONLY|O_CREAT|O_APPEND;
+                mode = O_WRONLY | O_CREAT | O_APPEND;
             }
 
             lastOutputId = open(output, mode, 0666);
             if (lastOutputId < 0) {
-                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", output, strerror(errno));
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", output,
+                    strerror(errno));
                 goto error;
             }
         }
@@ -749,6 +758,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             if (errorId < 0) {
                 Jim_Obj *fhObj = Jim_NewStringObj(interp, error, -1);
                 FILE *fh = Jim_AioFilehandle(interp, fhObj);
+
                 Jim_FreeNewObj(interp, fhObj);
                 if (fh == NULL) {
                     goto error;
@@ -761,15 +771,16 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             /*
              * Output is to go to a file.
              */
-            int mode = O_WRONLY|O_CREAT|O_TRUNC;
+            int mode = O_WRONLY | O_CREAT | O_TRUNC;
 
             if (errorFile == FILE_APPEND) {
-                mode = O_WRONLY|O_CREAT|O_APPEND;
+                mode = O_WRONLY | O_CREAT | O_APPEND;
             }
 
             errorId = open(error, mode, 0666);
             if (errorId < 0) {
-                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", error, strerror(errno));
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", error,
+                    strerror(errno));
             }
         }
     }
@@ -783,13 +794,13 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
          * because stderr was backed up.
          */
 
-        #define TMP_STDERR_NAME "/tmp/tcl.err.XXXXXX"
+#define TMP_STDERR_NAME "/tmp/tcl.err.XXXXXX"
         char errName[sizeof(TMP_STDERR_NAME) + 1];
 
         strcpy(errName, TMP_STDERR_NAME);
         errorId = mkstemp(errName);
         if (errorId < 0) {
-            errFileError:
+          errFileError:
             Jim_SetResultErrno(interp, "couldn't create error file for command");
             goto error;
         }
@@ -812,8 +823,9 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     for (i = 0; i < numPids; i++) {
         pidPtr[i] = -1;
     }
-    for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg+1) {
+    for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg + 1) {
         int pipe_dup_err = 0;
+
         for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
             if (arg_array[lastArg][0] == '|') {
                 if (arg_array[lastArg][1] == '&') {
@@ -850,9 +862,10 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
 
             if ((inputId != -1 && dup2(inputId, 0) == -1)
                 || (outputId != -1 && dup2(outputId, 1) == -1)
-                || (errorId != -1 &&(dup2(errorId, 2) == -1))) {
+                || (errorId != -1 && (dup2(errorId, 2) == -1))) {
 
                 static const char err[] = "forked process couldn't set up input/output\n";
+
                 rc = write(errorId < 0 ? 2 : errorId, err, strlen(err));
                 _exit(1);
             }
@@ -888,7 +901,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
      * All done.  Cleanup open files lying around and then return.
      */
 
-    cleanup:
+  cleanup:
     if (inputId != -1) {
         close(inputId);
     }
@@ -908,7 +921,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
      * processes that have been created.
      */
 
-    error:
+  error:
     if ((inPipePtr != NULL) && (*inPipePtr != -1)) {
         close(*inPipePtr);
         *inPipePtr = -1;
@@ -961,8 +974,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
  *----------------------------------------------------------------------
  */
 
-static int
-Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
+static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 {
     int result = JIM_OK;
     int i;
@@ -970,6 +982,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
     for (i = 0; i < numPids; i++) {
         int waitStatus = 0;
         int pid = JimWaitPids(1, &pidPtr[i], &waitStatus);
+
         if (pid >= 0 && JimCheckWaitStatus(interp, pid, waitStatus) != JIM_OK) {
             result = JIM_ERR;
         }
@@ -994,8 +1007,7 @@ Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
     return result;
 }
 #else
-static int
-Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int pid;
     int tmpfd;
@@ -1007,7 +1019,7 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #define TMP_NAME "/tmp/tcl.exec.XXXXXX"
     char tmpname[sizeof(TMP_NAME) + 1];
 
-    
+
     /* Create a temporary file for the output from our exec command */
     strcpy(tmpname, TMP_NAME);
     tmpfd = mkstemp(tmpname);
@@ -1022,11 +1034,11 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     nargv[i - 1] = NULL;
 
-    /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd);*/
+    /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd); */
     unlink(tmpname);
 
     /* Use vfork and send output to this temporary file */
-    pid = vfork(); 
+    pid = vfork();
     //pid = 0;
     if (pid == 0) {
         close(0);
@@ -1070,9 +1082,6 @@ Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_execInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
     return JIM_OK;
 }

@@ -1,3 +1,4 @@
+
 /* Jim - A small embeddable Tcl interpreter
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
@@ -38,6 +39,7 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
+
 /* TODO:
  *
  *  - to really use flags in Jim_ProcessEvents()
@@ -55,12 +57,14 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <errno.h>
+
 /* --- */
 
 /* File event structure */
-typedef struct Jim_FileEvent {
+typedef struct Jim_FileEvent
+{
     FILE *handle;
-    int mask; /* one of JIM_EVENT_(READABLE|WRITABLE|EXCEPTION) */
+    int mask;                   /* one of JIM_EVENT_(READABLE|WRITABLE|EXCEPTION) */
     Jim_FileProc *fileProc;
     Jim_EventFinalizerProc *finalizerProc;
     void *clientData;
@@ -68,12 +72,13 @@ typedef struct Jim_FileEvent {
 } Jim_FileEvent;
 
 /* Time event structure */
-typedef struct Jim_TimeEvent {
-    jim_wide id; /* time event identifier. */
-    int mode;   /* restart, repetitive .. UK */
-    long initialms; /* initial relativ timer value UK */
-    long when_sec; /* seconds */
-    long when_ms; /* milliseconds */
+typedef struct Jim_TimeEvent
+{
+    jim_wide id;                /* time event identifier. */
+    int mode;                   /* restart, repetitive .. UK */
+    long initialms;             /* initial relativ timer value UK */
+    long when_sec;              /* seconds */
+    long when_ms;               /* milliseconds */
     Jim_TimeProc *timeProc;
     Jim_EventFinalizerProc *finalizerProc;
     void *clientData;
@@ -81,15 +86,15 @@ typedef struct Jim_TimeEvent {
 } Jim_TimeEvent;
 
 /* Per-interp stucture containing the state of the event loop */
-typedef struct Jim_EventLoop {
+typedef struct Jim_EventLoop
+{
     jim_wide timeEventNextId;
     Jim_FileEvent *fileEventHead;
     Jim_TimeEvent *timeEventHead;
 } Jim_EventLoop;
 
-void Jim_CreateFileHandler(Jim_Interp *interp, FILE *handle, int mask,
-        Jim_FileProc *proc, void *clientData,
-        Jim_EventFinalizerProc *finalizerProc)
+void Jim_CreateFileHandler(Jim_Interp *interp, FILE * handle, int mask,
+    Jim_FileProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
     Jim_FileEvent *fe;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
@@ -104,13 +109,13 @@ void Jim_CreateFileHandler(Jim_Interp *interp, FILE *handle, int mask,
     eventLoop->fileEventHead = fe;
 }
 
-void Jim_DeleteFileHandler(Jim_Interp *interp, FILE *handle)
+void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle)
 {
     Jim_FileEvent *fe, *prev = NULL;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
     fe = eventLoop->fileEventHead;
-    while(fe) {
+    while (fe) {
         if (fe->handle == handle) {
             if (prev == NULL)
                 eventLoop->fileEventHead = fe->next;
@@ -134,12 +139,11 @@ static void JimGetTime(long *seconds, long *milliseconds)
 
     gettimeofday(&tv, NULL);
     *seconds = tv.tv_sec;
-    *milliseconds = tv.tv_usec/1000;
+    *milliseconds = tv.tv_usec / 1000;
 }
 
 jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
-        Jim_TimeProc *proc, void *clientData,
-        Jim_EventFinalizerProc *finalizerProc)
+    Jim_TimeProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
     jim_wide id = eventLoop->timeEventNextId++;
@@ -152,10 +156,10 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
     te->id = id;
     te->mode = 0;
     te->initialms = milliseconds;
-    te->when_sec = cur_sec + milliseconds/1000;
-    te->when_ms = cur_ms + milliseconds%1000;
+    te->when_sec = cur_sec + milliseconds / 1000;
+    te->when_ms = cur_ms + milliseconds % 1000;
     if (te->when_ms >= 1000) {
-        te->when_sec ++;
+        te->when_sec++;
         te->when_ms -= 1000;
     }
     te->timeProc = proc;
@@ -171,19 +175,19 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
     Jim_TimeEvent *te, *prev = NULL;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
     long cur_sec, cur_ms;
-    jim_wide remain ;
+    jim_wide remain;
 
     JimGetTime(&cur_sec, &cur_ms);
 
     te = eventLoop->timeEventHead;
     if (id >= eventLoop->timeEventNextId) {
-        return -2; /* wrong event ID */
+        return -2;              /* wrong event ID */
     }
-    while(te) {
+    while (te) {
         if (te->id == id) {
-            remain  = (te->when_sec - cur_sec) * 1000;
-            remain += (te->when_ms  - cur_ms) ;
-        remain = (remain < 0) ? 0 : remain ;
+            remain = (te->when_sec - cur_sec) * 1000;
+            remain += (te->when_ms - cur_ms);
+            remain = (remain < 0) ? 0 : remain;
 
             if (prev == NULL)
                 eventLoop->timeEventHead = te->next;
@@ -197,22 +201,21 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
         prev = te;
         te = te->next;
     }
-    return -1; /* NO event with the specified ID found */
+    return -1;                  /* NO event with the specified ID found */
 }
 
 /* Search the first timer to fire.
  * This operation is useful to know how many time the select can be
  * put in sleep without to delay any event.
  * If there are no timers NULL is returned. */
-static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop *eventLoop)
+static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop * eventLoop)
 {
     Jim_TimeEvent *te = eventLoop->timeEventHead;
     Jim_TimeEvent *nearest = NULL;
 
     while (te) {
         if (!nearest || te->when_sec < nearest->when_sec ||
-                (te->when_sec == nearest->when_sec &&
-                 te->when_ms < nearest->when_ms))
+            (te->when_sec == nearest->when_sec && te->when_ms < nearest->when_ms))
             nearest = te;
         te = te->next;
     }
@@ -242,6 +245,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
     Jim_FileEvent *fe = eventLoop->fileEventHead;
     Jim_TimeEvent *te;
     jim_wide maxId;
+
     JIM_NOTUSED(flags);
 
     FD_ZERO(&rfds);
@@ -252,11 +256,14 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
     while (fe != NULL) {
         int fd = fileno(fe->handle);
 
-        if (fe->mask & JIM_EVENT_READABLE) 
-		FD_SET(fd, &rfds);
-        if (fe->mask & JIM_EVENT_WRITABLE) FD_SET(fd, &wfds);
-        if (fe->mask & JIM_EVENT_EXCEPTION) FD_SET(fd, &efds);
-        if (maxfd < fd) maxfd = fd;
+        if (fe->mask & JIM_EVENT_READABLE)
+            FD_SET(fd, &rfds);
+        if (fe->mask & JIM_EVENT_WRITABLE)
+            FD_SET(fd, &wfds);
+        if (fe->mask & JIM_EVENT_EXCEPTION)
+            FD_SET(fd, &efds);
+        if (maxfd < fd)
+            maxfd = fd;
         numfd++;
         fe = fe->next;
     }
@@ -280,35 +287,36 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             JimGetTime(&now_sec, &now_ms);
             tvp = &tv;
             dt = 1000 * (shortest->when_sec - now_sec);
-            dt += ( shortest->when_ms  - now_ms);
+            dt += (shortest->when_ms - now_ms);
             if (dt < 0) {
                 dt = 1;
             }
-            tvp->tv_sec  = dt / 1000;
+            tvp->tv_sec = dt / 1000;
             tvp->tv_usec = dt % 1000;
-        } else {
-            tvp = NULL; /* wait forever */
+        }
+        else {
+            tvp = NULL;         /* wait forever */
         }
 
-        retval = select(maxfd+1, &rfds, &wfds, &efds, tvp);
+        retval = select(maxfd + 1, &rfds, &wfds, &efds, tvp);
         if (retval < 0) {
             /* XXX: Consider errno? EINTR? */
-        } else if (retval > 0) {
+        }
+        else if (retval > 0) {
             fe = eventLoop->fileEventHead;
-            while(fe != NULL) {
+            while (fe != NULL) {
                 int fd = fileno(fe->handle);
 
                 if ((fe->mask & JIM_EVENT_READABLE && FD_ISSET(fd, &rfds)) ||
                     (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds)) ||
-                    (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds)))
-                {
+                    (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))) {
                     int mask = 0;
 
                     if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds)) {
                         mask |= JIM_EVENT_READABLE;
-			if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
-				mask |= JIM_EVENT_FEOF;
-		    }
+                        if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
+                            mask |= JIM_EVENT_FEOF;
+                    }
                     if (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds))
                         mask |= JIM_EVENT_WRITABLE;
                     if (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))
@@ -326,7 +334,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                     FD_CLR(fd, &rfds);
                     FD_CLR(fd, &wfds);
                     FD_CLR(fd, &efds);
-                } else {
+                }
+                else {
                     fe = fe->next;
                 }
             }
@@ -335,8 +344,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
     /* Check time events */
     te = eventLoop->timeEventHead;
-    maxId = eventLoop->timeEventNextId-1;
-    while(te) {
+    maxId = eventLoop->timeEventNextId - 1;
+    while (te) {
         long now_sec, now_ms;
         jim_wide id;
 
@@ -345,9 +354,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             continue;
         }
         JimGetTime(&now_sec, &now_ms);
-        if (now_sec > te->when_sec ||
-            (now_sec == te->when_sec && now_ms >= te->when_ms))
-        {
+        if (now_sec > te->when_sec || (now_sec == te->when_sec && now_ms >= te->when_ms)) {
             id = te->id;
             te->timeProc(interp, te->clientData);
             /* After an event is processed our time event list may
@@ -358,7 +365,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
              * itself. To do so we saved the max ID we want to handle. */
             Jim_DeleteTimeHandler(interp, id);
             te = eventLoop->timeEventHead;
-        } else {
+        }
+        else {
             te = te->next;
         }
     }
@@ -376,7 +384,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     Jim_EventLoop *eventLoop = data;
 
     fe = eventLoop->fileEventHead;
-    while(fe) {
+    while (fe) {
         next = fe->next;
         if (fe->finalizerProc)
             fe->finalizerProc(interp, fe->clientData);
@@ -385,7 +393,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     }
 
     te = eventLoop->timeEventHead;
-    while(te) {
+    while (te) {
         next = te->next;
         if (te->finalizerProc)
             te->finalizerProc(interp, te->clientData);
@@ -395,8 +403,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     Jim_Free(data);
 }
 
-static int JimELVwaitCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *oldValue;
 
@@ -405,7 +412,8 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     oldValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
-    if (oldValue) Jim_IncrRefCount(oldValue);
+    if (oldValue)
+        Jim_IncrRefCount(oldValue);
     while (1) {
         Jim_Obj *currValue;
 
@@ -415,11 +423,11 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc,
          * or if was unset and now is set (or the contrary). */
         if ((oldValue && !currValue) ||
             (!oldValue && currValue) ||
-            (oldValue && currValue &&
-             !Jim_StringEqObj(oldValue, currValue, JIM_CASESENS)))
+            (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue, JIM_CASESENS)))
             break;
     }
-    if (oldValue) Jim_DecrRefCount(interp, oldValue);
+    if (oldValue)
+        Jim_DecrRefCount(interp, oldValue);
     return JIM_OK;
 }
 
@@ -437,24 +445,23 @@ void JimAfterTimeEventFinalizer(Jim_Interp *interp, void *clientData)
     Jim_DecrRefCount(interp, objPtr);
 }
 
-static int JimELAfterCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     jim_wide ms, id;
     Jim_Obj *objPtr, *idObjPtr;
     const char *options[] = {
         "info", "cancel", NULL
     };
-    enum {INFO, CANCEL, RESTART, EXPIRE, CREATE };
-    int option = CREATE ;
+    enum
+    { INFO, CANCEL, RESTART, EXPIRE, CREATE };
+    int option = CREATE;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> script|cancel <id>");
         return JIM_ERR;
     }
     if (Jim_GetWide(interp, argv[1], &ms) != JIM_OK) {
-        if (Jim_GetEnum(interp, argv[1], options, &option, "after options",
-                    JIM_ERRMSG) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[1], options, &option, "after options", JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
         }
     }
@@ -462,7 +469,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
         case CREATE:
             Jim_IncrRefCount(argv[2]);
             id = Jim_CreateTimeHandler(interp, ms, JimAfterTimeHandler, argv[2],
-                    JimAfterTimeEventFinalizer);
+                JimAfterTimeEventFinalizer);
             objPtr = Jim_NewStringObj(interp, NULL, 0);
             Jim_AppendString(interp, objPtr, "after#", -1);
             idObjPtr = Jim_NewIntObj(interp, id);
@@ -471,22 +478,23 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
             Jim_DecrRefCount(interp, idObjPtr);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
-        case CANCEL: {
-            int tlen ;
-            jim_wide remain = 0;
-            const char *tok = Jim_GetString(argv[2], &tlen);
-            if (strncmp(tok, "after#", 6) == 0 && Jim_StringToWide(tok + 6, &id, 10) == JIM_OK) {
-                remain =  Jim_DeleteTimeHandler(interp, id);
-                if (remain > -2)  {
-                    Jim_SetResult(interp, Jim_NewIntObj(interp, remain));
-                    return JIM_OK;
+        case CANCEL:{
+                int tlen;
+                jim_wide remain = 0;
+                const char *tok = Jim_GetString(argv[2], &tlen);
+
+                if (strncmp(tok, "after#", 6) == 0 && Jim_StringToWide(tok + 6, &id, 10) == JIM_OK) {
+                    remain = Jim_DeleteTimeHandler(interp, id);
+                    if (remain > -2) {
+                        Jim_SetResult(interp, Jim_NewIntObj(interp, remain));
+                        return JIM_OK;
+                    }
                 }
+                Jim_SetResultString(interp, "invalid event", -1);
+                return JIM_ERR;
             }
-            Jim_SetResultString(interp, "invalid event" , -1);
-            return JIM_ERR;
-        }
         default:
-            fprintf(stderr,"unserviced option to after %d\n",option);
+            fprintf(stderr, "unserviced option to after %d\n", option);
     }
     return JIM_OK;
 }
@@ -494,9 +502,6 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
 int Jim_eventloopInit(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
-
-    if (Jim_PackageProvide(interp, "eventloop", "1.0", JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
 
     eventLoop = Jim_Alloc(sizeof(*eventLoop));
     eventLoop->fileEventHead = NULL;

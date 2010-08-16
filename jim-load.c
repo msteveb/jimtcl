@@ -14,13 +14,14 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     Jim_Obj *libPathObjPtr;
     int prefixc, i;
     void *handle;
-    int (*onload)(Jim_Interp *interp);
+    int (*onload) (Jim_Interp *interp);
 
     libPathObjPtr = Jim_GetGlobalVariableStr(interp, JIM_LIBPATH, JIM_NONE);
     if (libPathObjPtr == NULL) {
         prefixc = 0;
         libPathObjPtr = NULL;
-    } else {
+    }
+    else {
         Jim_IncrRefCount(libPathObjPtr);
         prefixc = Jim_ListLength(interp, libPathObjPtr);
     }
@@ -28,24 +29,24 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     for (i = -1; i < prefixc; i++) {
         if (i < 0) {
             handle = dlopen(pathName, RTLD_LAZY);
-        } else {
+        }
+        else {
             FILE *fp;
             char buf[JIM_PATH_LEN];
             const char *prefix;
             int prefixlen;
             Jim_Obj *prefixObjPtr;
-            
+
             buf[0] = '\0';
-            if (Jim_ListIndex(interp, libPathObjPtr, i,
-                    &prefixObjPtr, JIM_NONE) != JIM_OK)
+            if (Jim_ListIndex(interp, libPathObjPtr, i, &prefixObjPtr, JIM_NONE) != JIM_OK)
                 continue;
             prefix = Jim_GetString(prefixObjPtr, &prefixlen);
-            if (prefixlen+strlen(pathName)+1 >= JIM_PATH_LEN)
+            if (prefixlen + strlen(pathName) + 1 >= JIM_PATH_LEN)
                 continue;
             if (*pathName == '/') {
                 strcpy(buf, pathName);
-            }    
-            else if (prefixlen && prefix[prefixlen-1] == '/')
+            }
+            else if (prefixlen && prefix[prefixlen - 1] == '/')
                 sprintf(buf, "%s%s", prefix, pathName);
             else
                 sprintf(buf, "%s/%s", prefix, pathName);
@@ -56,7 +57,8 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             handle = dlopen(buf, RTLD_LAZY);
         }
         if (handle == NULL) {
-            Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName, dlerror());
+            Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName,
+                dlerror());
             if (i < 0)
                 continue;
             goto err;
@@ -75,7 +77,8 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             pt = strrchr(pathName, '/');
             if (pt) {
                 pkgname = pt + 1;
-            } else {
+            }
+            else {
                 pkgname = pathName;
             }
             pt = strchr(pkgname, '.');
@@ -89,7 +92,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 
             if ((onload = dlsym(handle, initsym)) == NULL) {
                 Jim_SetResultFormatted(interp,
-                        "No %s symbol found in extension %s", initsym, pathName);
+                    "No %s symbol found in extension %s", initsym, pathName);
                 goto err;
             }
         }
@@ -102,7 +105,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             Jim_DecrRefCount(interp, libPathObjPtr);
         return JIM_OK;
     }
-err:
+  err:
     if (libPathObjPtr != NULL)
         Jim_DecrRefCount(interp, libPathObjPtr);
     return JIM_ERR;
@@ -116,11 +119,10 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     Jim_SetResultString(interp, "the Jim binary has no support for [load]", -1);
     return JIM_ERR;
 }
-#endif/* JIM_DYNLIB */
+#endif /* JIM_DYNLIB */
 
 /* [load] */
-static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "libaryFile");

@@ -1,3 +1,4 @@
+
 /* Jim - Readline bindings for Jim
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  *
@@ -23,8 +24,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-static int JimRlReadlineCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int JimRlReadlineCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char *line;
 
@@ -33,12 +33,14 @@ static int JimRlReadlineCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
     line = readline(Jim_GetString(argv[1], NULL));
+    if (!line) {
+        return JIM_EXIT;
+    }
     Jim_SetResult(interp, Jim_NewStringObj(interp, line, -1));
     return JIM_OK;
 }
 
-static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, 
-        Jim_Obj *const *argv)
+static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "string");
@@ -50,11 +52,7 @@ static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc,
 
 int Jim_readlineInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "readline", "1.0", JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
-    Jim_CreateCommand(interp, "readline.readline", JimRlReadlineCommand, NULL,
-            NULL);
-    Jim_CreateCommand(interp, "readline.addhistory", JimRlAddHistoryCommand,
-            NULL, NULL);
+    Jim_CreateCommand(interp, "readline.readline", JimRlReadlineCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "readline.addhistory", JimRlAddHistoryCommand, NULL, NULL);
     return JIM_OK;
 }

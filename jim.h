@@ -93,10 +93,8 @@ extern "C" {
 #define JIM_DYNLIB      /* Dynamic library support */
 #endif
 
-#if defined(HAVE_CONFIG_H)
-#include <config.h>
-#elif !defined(JIM_NO_CONFIGURE)
-@HAVE_LONG_LONG@
+#ifndef HAVE_NO_AUTOCONF
+#include <autoconf.h>
 #endif
 
 /* -----------------------------------------------------------------------------
@@ -140,7 +138,7 @@ extern "C" {
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 62
+#define JIM_VERSION 63
 
 #define JIM_OK 0
 #define JIM_ERR 1

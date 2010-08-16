@@ -1,3 +1,4 @@
+
 /* 
  * jim-signal.c
  *
@@ -15,7 +16,7 @@
 #define MAX_SIGNALS (sizeof(jim_wide) * 8)
 
 static jim_wide *sigloc;
-static jim_wide sigsblocked; 
+static jim_wide sigsblocked;
 static struct sigaction *sa_old;
 static int signal_handling[MAX_SIGNALS];
 
@@ -113,8 +114,7 @@ const char *Jim_SignalId(int sig)
  * We accept -SIGINT, SIGINT, INT or any lowercase version or a number,
  * either positive or negative.
  */
-static int
-find_signal_by_name(Jim_Interp *interp, const char *name)
+static int find_signal_by_name(Jim_Interp *interp, const char *name)
 {
     int i;
     const char *pt = name;
@@ -184,6 +184,7 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
     /* Iterate through the provided signals */
     for (i = 0; i < argc; i++) {
         int sig = find_signal_by_name(interp, Jim_GetString(argv[i], NULL));
+
         if (sig < 0) {
             return JIM_ERR;
         }
@@ -236,6 +237,7 @@ static int signal_set_sigmask_result(Jim_Interp *interp, jim_wide sigmask)
 {
     int i;
     Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+
     for (i = 0; i < MAX_SIGNALS; i++) {
         if (sigmask & sig_to_bit(i)) {
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, Jim_SignalId(i), -1));
@@ -249,8 +251,8 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int clear = 0;
     jim_wide mask = 0;
-    jim_wide blocked; 
-    
+    jim_wide blocked;
+
     if (argc > 0 && Jim_CompareStringImmediate(interp, argv[0], "-clear")) {
         clear++;
     }
@@ -260,6 +262,7 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         /* Signals specified */
         for (i = clear; i < argc; i++) {
             int sig = find_signal_by_name(interp, Jim_GetString(argv[i], NULL));
+
             if (sig < 0 || sig >= MAX_SIGNALS) {
                 return -1;
             }
@@ -288,6 +291,7 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int sig = SIGINT;
+
     if (argc == 1) {
         if ((sig = find_signal_by_name(interp, Jim_GetString(argv[0], NULL))) < 0) {
             return JIM_ERR;
@@ -396,7 +400,7 @@ static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #else
         long t;
 
-        ret = Jim_GetLong (interp, argv[1], &t);
+        ret = Jim_GetLong(interp, argv[1], &t);
         if (ret == JIM_OK) {
             alarm(t);
         }
@@ -477,9 +481,6 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_signalInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "signal", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
     /* Teach the jim core how to set a result from a sigmask */
     interp->signal_set_result = signal_set_sigmask_result;
 

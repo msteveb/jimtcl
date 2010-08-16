@@ -1,3 +1,4 @@
+
 /* 
  * (c) 2008 Steve Bennett <steveb@workware.net.au>
  *
@@ -100,7 +101,7 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResult(interp, dictObj);
     }
     else {
-        /* REVISIT: We could create a dictionary rather than a list ...*/
+        /* REVISIT: We could create a dictionary rather than a list ... */
         /* Only return the matching values */
         resultObj = Jim_NewListObj(interp, NULL, 0);
 
@@ -228,6 +229,7 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     for (i = 0; i < len && rc == JIM_OK; i += 2) {
         Jim_Obj *nameObj;
         Jim_Obj *valueObj;
+
         Jim_ListIndex(interp, listObj, i, &nameObj, JIM_NONE);
         Jim_ListIndex(interp, listObj, i + 1, &valueObj, JIM_NONE);
 
@@ -237,7 +239,7 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return rc;
 }
 
-static const jim_subcmd_type command_table[] = {
+static const jim_subcmd_type array_command_table[] = {
         {       .cmd = "exists",
                 .args = "arrayName",
                 .function = array_cmd_exists,
@@ -286,9 +288,6 @@ static const jim_subcmd_type command_table[] = {
 
 int Jim_arrayInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "array", "1.0", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-    Jim_CreateCommand(interp, "array", Jim_SubCmdProc, (void *)command_table, NULL);
+    Jim_CreateCommand(interp, "array", Jim_SubCmdProc, (void *)array_command_table, NULL);
     return JIM_OK;
 }

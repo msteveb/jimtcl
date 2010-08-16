@@ -8,8 +8,7 @@
  * Packages handling
  * ---------------------------------------------------------------------------*/
 
-int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
-        int flags)
+int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, int flags)
 {
     /* If the package was already provided returns an error. */
     if (Jim_FindHashEntry(&interp->packages, name) != NULL) {
@@ -18,19 +17,19 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver,
         }
         return JIM_ERR;
     }
-    Jim_AddHashEntry(&interp->packages, name, (char*) ver);
+    Jim_AddHashEntry(&interp->packages, name, (char *)ver);
     return JIM_OK;
 }
 
-static char *JimFindPackage(Jim_Interp *interp, char **prefixes,
-        int prefixc, const char *pkgName)
+static char *JimFindPackage(Jim_Interp *interp, char **prefixes, int prefixc, const char *pkgName)
 {
     int i;
 
     for (i = 0; i < prefixc; i++) {
         char buf[JIM_PATH_LEN];
 
-        if (prefixes[i] == NULL) continue;
+        if (prefixes[i] == NULL)
+            continue;
 
         if (strcmp(prefixes[i], ".") == 0) {
             snprintf(buf, sizeof(buf), "%s.tcl", pkgName);
@@ -64,27 +63,28 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
     if (libPathObjPtr == NULL) {
         prefixc = 0;
         libPathObjPtr = NULL;
-    } else {
+    }
+    else {
         Jim_IncrRefCount(libPathObjPtr);
         prefixc = Jim_ListLength(interp, libPathObjPtr);
     }
 
-    prefixes = Jim_Alloc(sizeof(char*)*prefixc);
+    prefixes = Jim_Alloc(sizeof(char *) * prefixc);
     for (i = 0; i < prefixc; i++) {
-            Jim_Obj *prefixObjPtr;
-            if (Jim_ListIndex(interp, libPathObjPtr, i,
-                    &prefixObjPtr, JIM_NONE) != JIM_OK)
-            {
-                prefixes[i] = NULL;
-                continue;
-            }
-            prefixes[i] = Jim_StrDup(Jim_GetString(prefixObjPtr, NULL));
+        Jim_Obj *prefixObjPtr;
+
+        if (Jim_ListIndex(interp, libPathObjPtr, i, &prefixObjPtr, JIM_NONE) != JIM_OK) {
+            prefixes[i] = NULL;
+            continue;
+        }
+        prefixes[i] = Jim_StrDup(Jim_GetString(prefixObjPtr, NULL));
     }
 
     /* Scan every directory for the the first match */
     path = JimFindPackage(interp, prefixes, prefixc, name);
     if (path != NULL) {
         char *p = strrchr(path, '.');
+
         /* Try to load/source it */
         if (p && strcmp(p, ".tcl") == 0) {
             retCode = Jim_EvalFile(interp, path);
@@ -95,7 +95,8 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
         }
 #endif
         Jim_Free(path);
-    } else {
+    }
+    else {
         retCode = JIM_ERR;
     }
     for (i = 0; i < prefixc; i++)
@@ -122,6 +123,7 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
         if (retcode != JIM_OK) {
             if (flags & JIM_ERRMSG) {
                 int len;
+
                 Jim_GetString(Jim_GetResult(interp), &len);
                 Jim_SetResultFormatted(interp, "%#s%sCan't load package %s",
                     Jim_GetResult(interp), len ? "\n" : "", name);
@@ -166,7 +168,7 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
 static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     const char *version = "1.0";
-    
+
     if (argc == 2) {
         version = Jim_GetString(argv[1], NULL);
     }
@@ -211,11 +213,10 @@ static int package_cmd_list(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
-    
+
     htiter = Jim_GetHashTableIterator(&interp->packages);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_ListAppendElement(interp, listObjPtr,
-                Jim_NewStringObj(interp, he->key, -1));
+        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, he->key, -1));
     }
     Jim_FreeHashTableIterator(htiter);
 
@@ -224,32 +225,29 @@ static int package_cmd_list(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static const jim_subcmd_type command_table[] = {
-    {   .cmd = "provide",
-        .args = "name ?version?",
-        .function = package_cmd_provide,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Indicates that the current script provides the given package"
-    },
-    {   .cmd = "require",
-        .args = "name ?version?",
-        .function = package_cmd_require,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Loads the given package by looking in standard places"
-    },
-    {   .cmd = "list",
-        .function = package_cmd_list,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Lists all known packages"
-    },
-    { 0 }
+static const jim_subcmd_type package_command_table[] = {
+    {.cmd = "provide",
+            .args = "name ?version?",
+            .function = package_cmd_provide,
+            .minargs = 1,
+            .maxargs = 2,
+        .description = "Indicates that the current script provides the given package"},
+    {.cmd = "require",
+            .args = "name ?version?",
+            .function = package_cmd_require,
+            .minargs = 1,
+            .maxargs = 2,
+        .description = "Loads the given package by looking in standard places"},
+    {.cmd = "list",
+            .function = package_cmd_list,
+            .minargs = 0,
+            .maxargs = 0,
+        .description = "Lists all known packages"},
+    {0}
 };
 
 int Jim_packageInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "package", Jim_SubCmdProc, (void *)command_table, NULL);
+    Jim_CreateCommand(interp, "package", Jim_SubCmdProc, (void *)package_command_table, NULL);
     return JIM_OK;
 }

@@ -1,4 +1,4 @@
-#include <jim.h>
+#include "jim.h"
 #include <errno.h>
 
 int Jim_InteractivePrompt(Jim_Interp *interp)
@@ -7,9 +7,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     Jim_Obj *scriptObjPtr;
 
     printf("Welcome to Jim version %d.%d, "
-           "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL,
-           JIM_VERSION / 100, JIM_VERSION % 100);
-     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
+        "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL, JIM_VERSION / 100, JIM_VERSION % 100);
+    Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
     while (1) {
         char buf[1024];
         const char *result;
@@ -17,24 +16,26 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 
         if (retcode != 0) {
             const char *retcodestr = Jim_ReturnCode(retcode);
+
             if (*retcodestr == '?') {
                 printf("[%d] . ", retcode);
             }
             else {
                 printf("[%s] . ", retcodestr);
             }
-        } else
+        }
+        else
             printf(". ");
         fflush(stdout);
         scriptObjPtr = Jim_NewStringObj(interp, "", 0);
         Jim_IncrRefCount(scriptObjPtr);
-        while(1) {
+        while (1) {
             const char *str;
             char state;
             int len;
 
             errno = 0;
-            if ( fgets(buf, 1024, stdin) == NULL) {
+            if (fgets(buf, 1024, stdin) == NULL) {
                 if (errno == EINTR) {
                     continue;
                 }
@@ -53,15 +54,16 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         result = Jim_GetString(Jim_GetResult(interp), &reslen);
         if (retcode == JIM_ERR) {
             Jim_PrintErrorMessage(interp);
-        } else if (retcode == JIM_EXIT) {
+        }
+        else if (retcode == JIM_EXIT) {
             exit(Jim_GetExitCode(interp));
-        } else {
+        }
+        else {
             if (reslen) {
                 printf("%s\n", result);
             }
         }
     }
-out:
+  out:
     return 0;
 }
-

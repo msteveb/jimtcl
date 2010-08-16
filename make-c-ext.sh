@@ -1,20 +1,11 @@
-#!/usr/bin/env tclsh
+source="$1"
 
-target="$1"
-source="$2"
-
-case "$target" in
-*.c) ;;
-*) echo 1>&2 "Target $target is not a .c file"; exit 1;;
-esac
 case "$source" in
 *.tcl) ;;
 *) echo 1>&2 "Source $source is not a .tcl file"; exit 1;;
 esac
 
 basename=`basename $source .tcl`
-
-exec >$target
 
 cat <<EOF
 #include <jim.h>
