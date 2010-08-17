@@ -50,8 +50,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef CYG_ADDRWORD intptr_t;
-
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -4691,7 +4689,7 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
         Jim_AddHashEntry(&interp->sharedStrings, strCopy, (void*)1);
         return strCopy;
     } else {
-        intptr_t refCount = (intptr_t) he->val;
+        long refCount = (long) he->val;
 
         refCount++;
         he->val = (void*) refCount;
@@ -4701,13 +4699,13 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
 
 void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 {
-    intptr_t refCount;
+    long refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
     if (he == NULL)
         Jim_Panic(interp,"Jim_ReleaseSharedString called with "
               "unknown shared string '%s'", str);
-    refCount = (intptr_t) he->val;
+    refCount = (long) he->val;
     refCount--;
     if (refCount == 0) {
         Jim_DeleteHashEntry(&interp->sharedStrings, str);
