@@ -442,6 +442,7 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
+    buf[rlen] = 0;
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
 
     if (argc > 1) {
