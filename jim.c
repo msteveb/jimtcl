@@ -92,6 +92,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filena
     int argc, Jim_Obj *const *argv);
 static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
     const char *filename, int linenr);
+static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -312,14 +313,19 @@ int Jim_WideToString(char *buf, jim_wide wideValue)
     return sprintf(buf, fmt, wideValue);
 }
 
-int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
+/**
+ * After an strtol()/strtod()-like conversion,
+ * check whether something was converted and that
+ * the only thing left is white space.
+ * 
+ * Returns JIM_OK or JIM_ERR.
+ */
+static int JimCheckConversion(const char *str, const char *endptr)
 {
-    char *endptr;
-
-    *widePtr = strtoull(str, &endptr, base);
-
-    if ((str[0] == '\0') || (str == endptr))
+    if (str[0] == '\0' || str == endptr) {
         return JIM_ERR;
+    }
+
     if (endptr[0] != '\0') {
         while (*endptr) {
             if (!isspace(*endptr)) {
@@ -329,6 +335,15 @@ int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
         }
     }
     return JIM_OK;
+}
+
+int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
+{
+    char *endptr;
+
+    *widePtr = strtoull(str, &endptr, base);
+
+    return JimCheckConversion(str, endptr);
 }
 
 int Jim_DoubleToString(char *buf, double doubleValue)
@@ -361,11 +376,12 @@ int Jim_StringToDouble(const char *str, double *doublePtr)
 {
     char *endptr;
 
+    /* Callers can check for underflow via ERANGE */
+    errno = 0;
+
     *doublePtr = strtod(str, &endptr);
-    if (str[0] == '\0' || endptr[0] != '\0' || (str == endptr)) {
-        return JIM_ERR;
-    }
-    return JIM_OK;
+
+    return JimCheckConversion(str, endptr);
 }
 
 static jim_wide JimPowWide(jim_wide b, jim_wide e)
@@ -2253,6 +2269,75 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
     trim_right(buf, trimchars);
 
     return Jim_NewStringObjNoAlloc(interp, buf, -1);
+}
+
+
+static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass, int strict)
+{
+    static const char *strclassnames[] = {
+        "integer", "alpha", "alnum", "ascii", "digit",
+        "double", "lower", "upper", "space", "xdigit",
+        "control", "print", "graph", "punct",
+        NULL
+    };
+    enum {
+        STR_IS_INTEGER, STR_IS_ALPHA, STR_IS_ALNUM, STR_IS_ASCII, STR_IS_DIGIT,
+        STR_IS_DOUBLE, STR_IS_LOWER, STR_IS_UPPER, STR_IS_SPACE, STR_IS_XDIGIT,
+        STR_IS_CONTROL, STR_IS_PRINT, STR_IS_GRAPH, STR_IS_PUNCT
+    };
+    int strclass;
+    int len;
+    int i;
+    const char *str;
+    int (*isclassfunc)(int c) = NULL;
+
+    if (Jim_GetEnum(interp, strClass, strclassnames, &strclass, "class", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    str = Jim_GetString(strObjPtr, &len);
+    if (len == 0) {
+        Jim_SetResultInt(interp, !strict);
+        return JIM_OK;
+    }
+
+    switch (strclass) {
+        case STR_IS_INTEGER:
+            {
+                jim_wide w;
+                Jim_SetResultInt(interp, JimGetWideNoErr(interp, strObjPtr, &w) == JIM_OK);
+                return JIM_OK;
+            }
+
+        case STR_IS_DOUBLE:
+            {
+                double d;
+                Jim_SetResultInt(interp, Jim_GetDouble(interp, strObjPtr, &d) == JIM_OK && errno != ERANGE);
+                return JIM_OK;
+            }
+
+        case STR_IS_ALPHA: isclassfunc = isalpha; break;
+        case STR_IS_ALNUM: isclassfunc = isalnum; break;
+        case STR_IS_ASCII: isclassfunc = isascii; break;
+        case STR_IS_DIGIT: isclassfunc = isdigit; break;
+        case STR_IS_LOWER: isclassfunc = islower; break;
+        case STR_IS_UPPER: isclassfunc = isupper; break;
+        case STR_IS_SPACE: isclassfunc = isspace; break;
+        case STR_IS_XDIGIT: isclassfunc = isxdigit; break;
+        case STR_IS_CONTROL: isclassfunc = iscntrl; break;
+        case STR_IS_PRINT: isclassfunc = isprint; break;
+        case STR_IS_GRAPH: isclassfunc = isgraph; break;
+        case STR_IS_PUNCT: isclassfunc = ispunct; break;
+    }
+
+    for (i = 0; i < len; i++) {
+        if (!isclassfunc(str[i])) {
+            Jim_SetResultInt(interp, 0);
+            return JIM_OK;
+        }
+    }
+    Jim_SetResultInt(interp, 1);
+    return JIM_OK;
 }
 
 /* This is the core of the [format] command.
@@ -12118,13 +12203,13 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int opt_case = 1;
     int option;
     static const char *options[] = {
-        "length", "compare", "match", "equal", "range", "map",
+        "length", "compare", "match", "equal", "is", "range", "map",
         "repeat", "reverse", "index", "first", "last",
         "trim", "trimleft", "trimright", "tolower", "toupper", NULL
     };
     enum
     {
-        OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_RANGE, OPT_MAP,
+        OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_RANGE, OPT_MAP,
         OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
         OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER
     };
@@ -12349,6 +12434,13 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 Jim_SetResult(interp, JimStringToUpper(interp, argv[2]));
             }
             return JIM_OK;
+
+        case OPT_IS:
+            if (argc == 4 || (argc == 5 && Jim_CompareStringImmediate(interp, argv[3], "-strict"))) {
+                return JimStringIs(interp, argv[argc - 1], argv[2], argc == 5);
+            }
+            Jim_WrongNumArgs(interp, 2, argv, "class ?-strict? str");
+            return JIM_ERR;
     }
     return JIM_OK;
 }

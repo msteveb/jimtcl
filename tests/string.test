@@ -214,6 +214,169 @@ test string-5.9 {string index} {
 #    list [catch {string index "abc" end-00289} msg]
 #} {1}
 
+test string-6.1 {string is, too few args} {
+    list [catch {string is} msg] $msg
+} {1 {wrong # args: should be "string is class ?-strict? str"}}
+test string-6.2 {string is, too few args} {
+    list [catch {string is alpha} msg] $msg
+} {1 {wrong # args: should be "string is class ?-strict? str"}}
+test string-6.3 {string is, bad args} {
+    list [catch {string is alpha -failin str} msg] $msg
+} {1 {wrong # args: should be "string is class ?-strict? str"}}
+test string-6.4 {string is, too many args} {
+    list [catch {string is alpha -failin var -strict str more} msg] $msg
+} {1 {wrong # args: should be "string is class ?-strict? str"}}
+test string-6.5 {string is, class check} {
+    list [catch {string is bogus str} msg] $msg
+} {1 {bad class "bogus": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
+test string-6.6 {string is, ambiguous class} {
+    list [catch {string is al str} msg] $msg
+} {1 {ambiguous class "al": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
+test string-6.10 {string is, ok on empty} {
+    string is alpha {}
+} 1
+test string-6.11 {string is, -strict check against empty} {
+    string is alpha -strict {}
+} 0
+test string-6.12 {string is alnum, true} {
+    string is alnum abc123
+} 1
+test string-6.15 {string is alpha, true} {
+    string is alpha abc
+} 1
+test string-6.24 {string is digit, true} {
+    string is digit 0123456789
+} 1
+test string-6.25 {string is digit, false} {
+    list [string is digit 0123Ü567]
+} {0}
+test string-6.26 {string is digit, false} {
+    list [string is digit +123567]
+} {0}
+test string-6.27 {string is double, true} {
+    string is double 1
+} 1
+test string-6.28 {string is double, true} {
+    string is double [expr double(1)]
+} 1
+test string-6.29 {string is double, true} {
+    string is double 1.0
+} 1
+test string-6.30 {string is double, true} {
+    string is double [string compare a a]
+} 1
+test string-6.31 {string is double, true} {
+    string is double "   +1.0e-1  "
+} 1
+test string-6.32 {string is double, true} {
+    string is double "\n1.0\v"
+} 1
+test string-6.33 {string is double, false} {
+    list [string is double  1abc]
+} {0}
+test string-6.34 {string is double, false} {
+    list [string is double  abc]
+} {0}
+test string-6.35 {string is double, false} {
+    list [string is double  "   1.0e4e4  "]
+} {0}
+test string-6.36 {string is double, false} {
+    list [string is double  "\n"]
+} {0}
+test string-6.38 {string is double, false on underflow} {
+    list [string is double  123e-9999]
+} {0}
+test string-6.39 {string is double, false} {
+    # This test is non-portable because IRIX thinks 
+    # that .e1 is a valid double - this is really a bug
+    # on IRIX as .e1 should NOT be a valid double
+
+    list [string is double  .e1]
+} {0}
+test string-6.48 {string is integer, true} {
+    string is integer +1234567890
+} 1
+test string-6.49 {string is integer, true on type} {
+    string is integer [expr int(50.0)]
+} 1
+test string-6.50 {string is integer, true} {
+    string is integer [list -10]
+} 1
+test string-6.51 {string is integer, true as hex} {
+    string is integer 0xabcdef
+} 1
+test string-6.52 {string is integer, true as octal} {
+    string is integer 012345
+} 1
+test string-6.53 {string is integer, true with whitespace} {
+    string is integer "  \n1234\v"
+} 1
+test string-6.54 {string is integer, false} {
+    list [string is integer  123abc]
+} 0
+test string-6.56 {string is integer, false} {
+    list [string is integer  [expr double(1)]]
+} 0
+test string-6.57 {string is integer, false} {
+    list [string is integer  "    "]
+} 0
+test string-6.58 {string is integer, false on bad octal} {
+    list [string is integer  036963]
+} 0
+test string-6.59 {string is integer, false on bad hex} {
+    list [string is integer  0X345XYZ]
+} 0
+test string-6.60 {string is lower, true} {
+    string is lower abc
+} 1
+test string-6.62 {string is lower, false} {
+    list [string is lower  aBc]
+} 0
+test string-6.63 {string is lower, false} {
+    list [string is lower  abc1]
+} 0
+test string-6.64 {string is lower, unicode false} {
+    list [string is lower  abÜUE]
+} 0
+test string-6.65 {string is space, true} {
+    string is space " \t\n\v\f"
+} 1
+test string-6.66 {string is space, false} {
+    list [string is space  " \t\n\v1\f"]
+} 0
+test string-6.75 {string is upper, true} {
+    string is upper ABC
+} 1
+test string-6.77 {string is upper, false} {
+    list [string is upper  AbC]
+} 0
+test string-6.78 {string is upper, false} {
+    list [string is upper  AB2C]
+} 0
+test string-6.84 {string is control} {
+    ## Control chars are in the ranges
+    ## 00..1F && 7F..9F
+    list [string is control  \x00\x01\x10\x1F\x7F\x80\x9F\x60]
+} 0
+test string-6.85 {string is control} {
+    string is control \u0100
+} 0
+test string-6.86 {string is graph} {
+    ## graph is any print char, except space
+    list [string is gra  "0123abc!@#\$ "]
+} 0
+test string-6.87 {string is print} {
+    ## basically any printable char
+    list [string is print  "0123abc!@#\$ \010"]
+} 0
+test string-6.88 {string is punct} {
+    ## any graph char that isn't alnum
+    list [string is punct  "_!@#\000beq0"]
+} 0
+test string-6.89 {string is xdigit} {
+    list [string is xdigit  0123456789\u0061bcdefABCDEFg]
+} 0
+
 test string-7.1 {string last, too few args} {
     list [catch {string last a} msg]
 } {1}

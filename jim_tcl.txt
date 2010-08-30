@@ -75,6 +75,7 @@ Since v0.62:
 12. Enhance 'try ... on ... finally' to be more Tcl 8.6 compatible
 13. It is now possible to 'return' from within 'try'
 14. IPv6 support is now included
+15. Add 'string is'
 
 Since v0.61:
 
@@ -3390,6 +3391,28 @@ The legal options (which may be abbreviated) are:
     returned.
  ::
     See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for *charIndex*.
+
++*string is* 'class' ?*-strict*? 'string'+::
+ Returns 1 if *string* is a valid member of the specified character
+ class, otherwise returns 0. If '-strict' is specified, then an
+ empty string returns 0, otherwise an empty string will return 1
+ on any class. The following character classes are recognized
+ (the class name can be abbreviated):
+  +alnum+;;  Any alphabet or digit character.
+  +alpha+;;  Any alphabet character.
+  +ascii+;;  Any character with a value less than 128 (those that are in the 7-bit ascii range).
+  +control+;; Any control character.
+  +digit+;;  Any digit character.
+  +double+;; Any of the valid forms for a double in Tcl, with optional surrounding whitespace.
+             In case of under/overflow in the value, 0 is returned.
+  +graph+;;  Any printing character, except space.
+  +integer+;; Any of the valid string formats for an integer value in Tcl, with optional surrounding whitespace.
+  +lower+;;  Any lower case alphabet character.
+  +print+;;  Any printing character, including space.
+  +punct+;;  Any punctuation character.
+  +space+;;  Any space character.
+  +upper+;;  Any upper case alphabet character.
+  +xdigit+;; Any hexadecimal digit character ([0-9A-Fa-f]).
 
 +*string last* 'string1 string2 ?lastIndex?'+::
     Search *string2* for a sequence of characters that exactly match
