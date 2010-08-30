@@ -40,6 +40,14 @@ AC_ARG_ENABLE(math,
 		fi
 	]
 )
+AC_ARG_ENABLE(ipv6,
+	[  --enable-ipv6           include ipv6 support in the aio extension],
+	[
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_IPV6"
+		fi
+	]
+)
 
 jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 AC_ARG_WITH(jim-ext,

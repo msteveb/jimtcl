@@ -612,6 +612,7 @@ typedef struct Jim_Reference {
 JIM_EXPORT void * Jim_Alloc (int size);
 JIM_EXPORT void Jim_Free (void *ptr);
 JIM_EXPORT char * Jim_StrDup (const char *s);
+JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 
 /* evaluation */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);

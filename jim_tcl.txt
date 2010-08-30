@@ -74,6 +74,7 @@ Since v0.62:
 11. Add 'socket pipe'
 12. Enhance 'try ... on ... finally' to be more Tcl 8.6 compatible
 13. It is now possible to 'return' from within 'try'
+14. IPv6 support is now included
 
 Since v0.61:
 
@@ -3959,7 +3960,7 @@ aio
     Receives a message from the handle via recvfrom(2) and returns it.
     At most *maxlen* bytes are read.
     If *addrvar* is specified, the sending address of the message is stored in
-    the named variable in the form 'hostname:port'.
+    the named variable in the form 'addr:port'. See 'socket' for details.
 
 eventloop: after, vwait
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -3978,15 +3979,27 @@ The following commands allow a script to be invoked when the given condition occ
 Time-based execution is also available via the eventloop API.
 
 +*after* 'time script'+::
-        The script is executed after the given number of milliseconds have elapsed.
-        Returns an event id.
+	The script is executed after the given number of milliseconds have elapsed.
+	Returns an event id.
 
 +*after cancel* 'id'+::
-        Cancels an after event with the given event id.
+	Cancels an after event with the given event id.
 
 +*vwait* 'variable'+::
-        A call to vwait is required to enter the eventloop. 'vwait' processes events until
-        the named variabled changes. The variable need not exist beforehand.
+	A call to vwait is required to enter the eventloop. 'vwait' processes events until
+	the named (global) variable changes. The variable need not exist beforehand.
+	If there are no event handlers defined, 'vwait' returns immediately.
+
+Scripts are executed at the global scope. If an error occurs during a handler script,
+an attempt is made to call (the user-defined command) 'bgerror' with the details of the error.
+If the 'bgerror' commands does not exist, it is printed to stderr instead.
+
+If a file event handler script generates an error, the handler is automatically removed
+to prevent infinite errors. (A time event handler is always removed after execution).
+
++*bgerror* 'error'+::
+	Called when an event handler script generates an error.
+	
 
 socket
 ~~~~~~
@@ -3998,18 +4011,18 @@ Various socket types may be created.
 +*socket unix.server* 'path'+::
     A unix domain socket server.
 
-+*socket stream* 'hostname:port'+::
++*socket ?-ipv6? stream* 'addr:port'+::
     A TCP socket client.
 
-+*socket stream.server* '?hostname:?port'+::
-    A TCP socket server (*hostname* defaults to 0.0.0.0).
++*socket ?-ipv6? stream.server '?addr:?port'+::
+    A TCP socket server (*addr* defaults to 0.0.0.0 for IPv4 or [::] for IPv6).
 
-+*socket dgram* ?'hostname:port'?+::
++*socket ?-ipv6? dgram* ?'addr:port'?+::
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and 'sendto' must be used
     to indicated the destination.
 
-+*socket dgram.server* 'hostname:port'+::
++*socket ?-ipv6? dgram.server* 'addr:port'+::
     A UDP socket server.
 
 +*socket pipe*+::
@@ -4041,6 +4054,18 @@ the EVENTLOOP API.
         $client close
     }
     vwait done
+
+The address, *addr*, can be given in one of the following forms:
+
+1. For IPv4 socket types, an IPv4 address such as 192.168.1.1
+2. For IPv6 socket types, an IPv6 address such as [fe80::1234] or [::]
+3. A hostname
+
+Note that on many systems, listening on an IPv6 address such as [::] will
+also accept requests via IPv4.
+
+Where a hostname is specified, the *first* returned address is used
+which matches the socket type is used.
 
 The special type 'pipe' isn't really a socket.
 

@@ -1,10 +1,10 @@
-# Example of sending from an unconnected socket
+# Example of sending from an unconnected ipv6 socket
 
-set s [socket dgram]
+set s [socket -ipv6 dgram]
 
 foreach i [range 1 5] {
 	# Specify the address and port with sendto
-	$s sendto "$i + $i + 10" 127.0.0.1:20000
+	$s sendto "$i + $i + 10" {[::1]:20000}
 
 	# Receive the response - max length of 100
 	puts [$s recvfrom 100]
@@ -14,7 +14,7 @@ $s close
 
 # Now sending via a connected udp socket
 
-set s [socket dgram 127.0.0.1:20000]
+set s [socket -ipv6 dgram {[::1]:20000}]
 
 foreach i [range 5 10] {
 	# Socket is connected, so can just use puts here

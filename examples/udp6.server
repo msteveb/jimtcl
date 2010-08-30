@@ -1,7 +1,8 @@
-# Example of a udp server which sends a response
+# Example of a udp server listening on ipv6 which sends a response
+# Note that on many hosts, this will also respond to ipv4 requests too
 
-# Listen on port 20000. No host specified means 0.0.0.0
-set s [socket dgram.server 20000]
+# Listen on port 20000.
+set s [socket -ipv6 dgram.server {[::]:20000}]
 
 # For each request...
 $s readable {
@@ -16,7 +17,7 @@ $s readable {
 		set result "Error: $buf => $msg"
 	}
 
-	puts ", sending '$result' to $addr"
+	puts ", sending '$result'"
 
 	# Send the result back to where it came from
 	$s sendto $result $addr

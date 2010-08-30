@@ -65,6 +65,24 @@
 
 #define AIO_KEEPOPEN 1
 
+#if defined(JIM_IPV6)
+#define IPV6 1
+#else
+#define IPV6 0
+#ifndef AF_INET6
+#define AF_INET6 0
+#endif
+#endif
+
+#ifndef JIM_ANSIC
+union sockaddr_any {
+    struct sockaddr sa;
+    struct sockaddr_in sin;
+#if IPV6
+    struct sockaddr_in6 sin6;
+#endif
+};
+#endif
 
 typedef struct AioFile
 {
@@ -80,51 +98,124 @@ typedef struct AioFile
     Jim_Obj *wEvent;
     Jim_Obj *eEvent;
 #ifndef JIM_ANSIC
-    struct sockaddr sa;
-    struct hostent *he;
+    int addr_family;
 #endif
 } AioFile;
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
 #ifndef JIM_ANSIC
-static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, struct sockaddr_in *sa)
+static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
 {
-    char a[0x20];
-    char b[0x20];
-    const char *sthost;
-    const char *stport;
-    unsigned port;
-    struct hostent *he;
+#if IPV6
+    /*
+     * An IPv6 addr/port looks like:
+     *   [::1]
+     *   [::1]:2000
+     *   [fe80::223:6cff:fe95:bdc0%en1]:2000
+     *   [::]:2000
+     *   2000
+     *
+     *   Note that the "any" address is ::, which is the same as when no address is specified.
+     */
+     char *sthost = NULL;
+     const char *stport;
+     int ret = JIM_OK;
+     struct addrinfo req;
+     struct addrinfo *ai;
 
-    switch (sscanf(hostport, "%[^:]:%[^:]", a, b)) {
-        case 2:
-            sthost = a;
-            stport = b;
-            break;
-        case 1:
-            sthost = "0.0.0.0";
-            stport = a;
-            break;
-        default:
-            return JIM_ERR;
+    stport = strrchr(hostport, ':');
+    if (!stport) {
+        /* No : so, the whole thing is the port */
+        stport = hostport;
+        hostport = "::";
+        sthost = Jim_StrDup(hostport);
     }
-    if (0 == strncmp(sthost, "ANY", 3)) {
-        sthost = "0.0.0.0";
-    }
-    port = atol(stport);
-    he = gethostbyname(sthost);
-
-    if (!he) {
-        Jim_SetResultString(interp, hstrerror(h_errno), -1);
-        return JIM_ERR;
+    else {
+        stport++;
     }
 
-    sa->sin_family = he->h_addrtype;
-    memcpy(&sa->sin_addr, he->h_addr, he->h_length);    /* set address */
-    sa->sin_port = htons(port);
+    if (*hostport == '[') {
+        /* This is a numeric ipv6 address */
+        char *pt = strchr(++hostport, ']');
+        if (pt) {
+            sthost = Jim_StrDupLen(hostport, pt - hostport);
+        }
+    }
 
-    return JIM_OK;
+    if (!sthost) {
+        sthost = Jim_StrDupLen(hostport, stport - hostport - 1);
+    }
+
+    memset(&req, '\0', sizeof(req));
+    req.ai_family = PF_INET6;
+    
+    if (getaddrinfo(sthost, NULL, &req, &ai)) {
+        Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
+        ret = JIM_ERR;
+    }
+    else {
+        memcpy(&sa->sin, ai->ai_addr, ai->ai_addrlen);
+        *salen = ai->ai_addrlen;
+
+        sa->sin.sin_port = htons(atoi(stport));
+
+        freeaddrinfo(ai);
+    }
+    Jim_Free(sthost);
+
+    return ret;
+#else
+    Jim_SetResultString(interp, "ipv6 not supported", -1);
+    return JIM_ERR;
+#endif
+}
+
+static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
+{
+    /* An IPv4 addr/port looks like:
+     *   192.168.1.5
+     *   192.168.1.5:2000
+     *   2000
+     *
+     * If the address is missing, INADDR_ANY is used.
+     * If the port is missing, 0 is used (only useful for server sockets).
+     */
+     char *sthost = NULL;
+     const char *stport;
+     int ret = JIM_OK;
+     struct addrinfo req;
+     struct addrinfo *ai;
+
+    stport = strrchr(hostport, ':');
+    if (!stport) {
+        /* No : so, the whole thing is the port */
+        stport = hostport;
+        sthost = Jim_StrDup("0.0.0.0");
+    }
+    else {
+        sthost = Jim_StrDupLen(hostport, stport - hostport);
+        stport++;
+    }
+
+    memset(&req, '\0', sizeof(req));
+    req.ai_family = PF_INET;
+    
+    if (getaddrinfo(sthost, NULL, &req, &ai)) {
+        Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
+        ret = JIM_ERR;
+    }
+    else {
+        memcpy(&sa->sin, ai->ai_addr, ai->ai_addrlen);
+        *salen = ai->ai_addrlen;
+
+        sa->sin.sin_port = htons(atoi(stport));
+
+        freeaddrinfo(ai);
+    }
+    Jim_Free(sthost);
+
+    return ret;
 }
 
 static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
@@ -333,7 +424,7 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     char *buf;
-    struct sockaddr_in sa;
+    union sockaddr_any sa;
     long len;
     socklen_t salen = sizeof(sa);
     int rlen;
@@ -344,8 +435,9 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     buf = Jim_Alloc(len + 1);
 
-    rlen = recvfrom(fileno(af->fp), buf, len, 0, (struct sockaddr *)&sa, &salen);
+    rlen = recvfrom(fileno(af->fp), buf, len, 0, &sa.sa, &salen);
     if (rlen < 0) {
+        perror("recvfrom");
         Jim_Free(buf);
         JimAioSetError(interp, NULL);
         return JIM_ERR;
@@ -353,12 +445,24 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
 
     if (argc > 1) {
-        char buf[50];
+        char addrbuf[100];
 
-        inet_ntop(sa.sin_family, &sa.sin_addr, buf, sizeof(buf) - 7);
-        snprintf(buf + strlen(buf), 7, ":%d", ntohs(sa.sin_port));
+#if IPV6
+        if (sa.sa.sa_family == AF_INET6) {
+            addrbuf[0] = '[';
+            /* Allow 9 for []:65535\0 */
+            inet_ntop(sa.sa.sa_family, &sa.sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
+            snprintf(addrbuf + strlen(addrbuf), 8, "]:%d", ntohs(sa.sin.sin_port));
+        }
+        else
+#endif
+        {
+            /* Allow 7 for :65535\0 */
+            inet_ntop(sa.sa.sa_family, &sa.sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
+            snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa.sin.sin_port));
+        }
 
-        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, addrbuf, -1)) != JIM_OK) {
             return JIM_ERR;
         }
     }
@@ -373,16 +477,24 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int wlen;
     int len;
     const char *wdata;
-    struct sockaddr_in sa;
+    union sockaddr_any sa;
+    const char *addr = Jim_GetString(argv[1], NULL);
+    int salen;
 
-    if (JimParseIpAddress(interp, Jim_GetString(argv[1], NULL), &sa) != JIM_OK) {
+    if (IPV6 && af->addr_family == AF_INET6) {
+        if (JimParseIPv6Address(interp, addr, &sa, &salen) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+    else if (JimParseIpAddress(interp, addr, &sa, &salen) != JIM_OK) {
         return JIM_ERR;
     }
     wdata = Jim_GetString(argv[0], &wlen);
 
     /* Note that we don't validate the socket type. Rely on sendto() failing if appropriate */
-    len = sendto(fileno(af->fp), wdata, wlen, 0, (struct sockaddr *)&sa, sizeof(sa));
+    len = sendto(fileno(af->fp), wdata, wlen, 0, &sa.sa, salen);
     if (len < 0) {
+        perror("sendto");
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
@@ -394,12 +506,13 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *serv_af = Jim_CmdPrivData(interp);
     int sock;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
+    union sockaddr_any sa;
+    socklen_t addrlen = sizeof(sa);
     AioFile *af;
     char buf[AIO_CMD_LEN];
     long fileId;
 
-    sock = accept(serv_af->fd, (struct sockaddr *)&serv_af->sa, &addrlen);
+    sock = accept(serv_af->fd, &sa.sa, &addrlen);
     if (sock < 0)
         return JIM_ERR;
 
@@ -419,6 +532,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
+    af->addr_family = serv_af->addr_family;
     sprintf(buf, "aio.sockstream%ld", fileId);
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
@@ -796,7 +910,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
  * Creates the command and lappends the name of the command to the current result.
  *
  */
-static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdlfmt, int fd,
+static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdlfmt, int fd, int family,
     const char *mode)
 {
     long fileId;
@@ -827,6 +941,7 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
     af->rEvent = NULL;
     af->wEvent = NULL;
     af->eEvent = NULL;
+    af->addr_family = family;
     sprintf(buf, hdlfmt, fileId);
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
@@ -851,12 +966,16 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     enum
     {
         SOCK_UNIX,
-        SOCK_UNIX_SERV,
-        SOCK_DGRAM_CL,
-        SOCK_DGRAM_SERV,
-        SOCK_STREAM_CL,
-        SOCK_STREAM_SERV,
+        SOCK_UNIX_SERVER,
+        SOCK_DGRAM_CLIENT,
+        SOCK_DGRAM_SERVER,
+        SOCK_STREAM_CLIENT,
+        SOCK_STREAM_SERVER,
         SOCK_STREAM_PIPE,
+        SOCK_DGRAM6_CLIENT,
+        SOCK_DGRAM6_SERVER,
+        SOCK_STREAM6_CLIENT,
+        SOCK_STREAM6_SERVER,
     };
     int socktype;
     int sock;
@@ -864,32 +983,39 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int res;
     int on = 1;
     const char *mode = "r+";
+    int family = AF_INET;
+    Jim_Obj *argv0 = argv[0];
+    int ipv6 = 0;
+
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-ipv6")) {
+        if (!IPV6) {
+            Jim_SetResultString(interp, "ipv6 not supported", -1);
+            return JIM_ERR;
+        }
+        ipv6 = 1;
+        family = AF_INET6;
+    }
+    argc -= ipv6;
+    argv += ipv6;
 
     if (argc < 2) {
       wrongargs:
-        Jim_WrongNumArgs(interp, 1, argv, "type ?address?");
+        Jim_WrongNumArgs(interp, 1, &argv0, "?-ipv6? type ?address?");
         return JIM_ERR;
     }
 
     if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socket type", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
 
-    if (argc == 3) {
-        hostportarg = Jim_GetString(argv[2], NULL);
-    }
-    else if (argc != 2 || (socktype != SOCK_STREAM_PIPE && socktype != SOCK_DGRAM_CL)) {
-        goto wrongargs;
-    }
-
     Jim_SetResultString(interp, "", 0);
 
     hdlfmt = "aio.sock%ld";
 
     switch (socktype) {
-        case SOCK_DGRAM_CL:
+        case SOCK_DGRAM_CLIENT:
             if (argc == 2) {
                 /* No address, so an unconnected dgram socket */
-                sock = socket(PF_INET, SOCK_DGRAM, 0);
+                sock = socket(family, SOCK_DGRAM, 0);
                 if (sock < 0) {
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
@@ -897,20 +1023,33 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 break;
             }
             /* fall through */
-        case SOCK_STREAM_CL:
+        case SOCK_STREAM_CLIENT:
             {
-                struct sockaddr_in sa;
+                union sockaddr_any sa;
+                int salen;
 
-                if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
+                if (argc != 3) {
+                    goto wrongargs;
+                }
+
+                hostportarg = Jim_GetString(argv[2], NULL);
+
+                if (ipv6) {
+                    if (JimParseIPv6Address(interp, hostportarg, &sa, &salen) != JIM_OK) {
+                        return JIM_ERR;
+                    }
+                }
+                else if (JimParseIpAddress(interp, hostportarg, &sa, &salen) != JIM_OK) {
                     return JIM_ERR;
                 }
-                sock = socket(PF_INET, socktype == SOCK_DGRAM_CL ? SOCK_DGRAM : SOCK_STREAM, 0);
+                sock = socket(family, (socktype == SOCK_DGRAM_CLIENT) ? SOCK_DGRAM : SOCK_STREAM, 0);
                 if (sock < 0) {
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
-                res = connect(sock, (struct sockaddr *)&sa, sizeof(sa));
+                res = connect(sock, &sa.sa, salen);
                 if (res) {
+                    perror("connect");
                     JimAioSetError(interp, argv[2]);
                     close(sock);
                     return JIM_ERR;
@@ -918,16 +1057,27 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
             break;
 
-        case SOCK_STREAM_SERV:
-        case SOCK_DGRAM_SERV:
+        case SOCK_STREAM_SERVER:
+        case SOCK_DGRAM_SERVER:
             {
-                struct sockaddr_in sa;
+                union sockaddr_any sa;
+                int salen;
 
-                if (JimParseIpAddress(interp, hostportarg, &sa) != JIM_OK) {
-                    JimAioSetError(interp, argv[2]);
+                if (argc != 3) {
+                    goto wrongargs;
+                }
+
+                hostportarg = Jim_GetString(argv[2], NULL);
+
+                if (ipv6) {
+                    if (JimParseIPv6Address(interp, hostportarg, &sa, &salen) != JIM_OK) {
+                        return JIM_ERR;
+                    }
+                }
+                else if (JimParseIpAddress(interp, hostportarg, &sa, &salen) != JIM_OK) {
                     return JIM_ERR;
                 }
-                sock = socket(PF_INET, socktype == SOCK_DGRAM_SERV ? SOCK_DGRAM : SOCK_STREAM, 0);
+                sock = socket(family, (socktype == SOCK_DGRAM_SERVER) ? SOCK_DGRAM : SOCK_STREAM, 0);
                 if (sock < 0) {
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
@@ -936,13 +1086,13 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 /* Enable address reuse */
                 setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-                res = bind(sock, (struct sockaddr *)&sa, sizeof(sa));
+                res = bind(sock, &sa.sa, salen);
                 if (res) {
                     JimAioSetError(interp, argv[2]);
                     close(sock);
                     return JIM_ERR;
                 }
-                if (socktype != SOCK_DGRAM_SERV) {
+                if (socktype == SOCK_STREAM_SERVER) {
                     res = listen(sock, 5);
                     if (res) {
                         JimAioSetError(interp, NULL);
@@ -959,10 +1109,15 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 struct sockaddr_un sa;
                 socklen_t len;
 
+                if (argc != 3 || ipv6) {
+                    goto wrongargs;
+                }
+
                 if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
                     JimAioSetError(interp, argv[2]);
                     return JIM_ERR;
                 }
+                family = PF_UNIX;
                 sock = socket(PF_UNIX, SOCK_STREAM, 0);
                 if (sock < 0) {
                     JimAioSetError(interp, NULL);
@@ -979,15 +1134,20 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 break;
             }
 
-        case SOCK_UNIX_SERV:
+        case SOCK_UNIX_SERVER:
             {
                 struct sockaddr_un sa;
                 socklen_t len;
+
+                if (argc != 3 || ipv6) {
+                    goto wrongargs;
+                }
 
                 if (JimParseDomainAddress(interp, hostportarg, &sa) != JIM_OK) {
                     JimAioSetError(interp, argv[2]);
                     return JIM_ERR;
                 }
+                family = PF_UNIX;
                 sock = socket(PF_UNIX, SOCK_STREAM, 0);
                 if (sock < 0) {
                     JimAioSetError(interp, NULL);
@@ -1009,9 +1169,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 hdlfmt = "aio.sockunixsrv%ld";
                 break;
             }
+
         case SOCK_STREAM_PIPE:
             {
                 int p[2];
+
+                if (argc != 2 || ipv6) {
+                    goto wrongargs;
+                }
 
                 if (pipe(p) < 0) {
                     JimAioSetError(interp, NULL);
@@ -1019,7 +1184,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 }
 
                 hdlfmt = "aio.pipe%ld";
-                if (JimMakeChannel(interp, argv[1], hdlfmt, p[0], "r") != JIM_OK) {
+                if (JimMakeChannel(interp, argv[1], hdlfmt, p[0], family, "r") != JIM_OK) {
                     close(p[0]);
                     close(p[1]);
                     JimAioSetError(interp, NULL);
@@ -1036,7 +1201,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
     }
 
-    return JimMakeChannel(interp, argv[1], hdlfmt, sock, mode);
+    return JimMakeChannel(interp, argv[1], hdlfmt, sock, family, mode);
 }
 #endif
 
