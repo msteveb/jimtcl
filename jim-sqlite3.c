@@ -22,10 +22,7 @@
 #include <string.h>
 #include <sqlite3.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
-
-#define SQLITE_CMD_LEN 128
 
 typedef struct JimSqliteHandle
 {
@@ -257,9 +254,7 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     sqlite3 *db;
     JimSqliteHandle *sh;
-    char buf[SQLITE_CMD_LEN];
-    Jim_Obj *objPtr;
-    long dbId;
+    char buf[128];
     int r;
 
     if (argc != 2) {
@@ -272,19 +267,10 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         sqlite3_close(db);
         return JIM_ERR;
     }
-    /* Get the next file id */
-    if (Jim_EvalGlobal(interp, "if {[catch {incr sqlite.dbId}]} {set sqlite.dbId 0}") != JIM_OK)
-        return JIM_ERR;
-    objPtr = Jim_GetVariableStr(interp, "sqlite.dbId", JIM_ERRMSG);
-    if (objPtr == NULL)
-        return JIM_ERR;
-    if (Jim_GetLong(interp, objPtr, &dbId) != JIM_OK)
-        return JIM_ERR;
-
     /* Create the file command */
     sh = Jim_Alloc(sizeof(*sh));
     sh->db = db;
-    sprintf(buf, "sqlite.handle%ld", dbId);
+    snprintf(buf, sizeof(buf), "sqlite.handle%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimSqliteHandlerCommand, sh, JimSqliteDelProc);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
