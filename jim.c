@@ -55,6 +55,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
+#include <setjmp.h>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -5588,8 +5589,8 @@ enum
 { JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_INTEGER, JIM_LSORT_COMMAND };
 
 /* Why doesn't qsort allow a user arg!!! */
+static jmp_buf sort_jmpbuf;
 static Jim_Obj *sort_command = 0;
-static int sort_result = JIM_OK;
 static Jim_Interp *sort_interp = 0;
 static int sort_order;
 
@@ -5609,8 +5610,10 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     jim_wide lhs = 0, rhs = 0;
 
     /* REVISIT: If these are not valid integers, bogus results ... */
-    Jim_GetWide(sort_interp, *lhsObj, &lhs);
-    Jim_GetWide(sort_interp, *rhsObj, &rhs);
+    if (Jim_GetWide(sort_interp, *lhsObj, &lhs) != JIM_OK ||
+        Jim_GetWide(sort_interp, *rhsObj, &rhs) != JIM_OK) {
+        longjmp(sort_jmpbuf, JIM_ERR);
+    }
 
     return JimSign(lhs - rhs) * sort_order;
 }
@@ -5618,24 +5621,19 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     Jim_Obj *compare_script;
+    int rc;
 
     jim_wide ret = 0;
-
-    /* We have already had an error, so just compare pointers */
-    if (sort_result != JIM_OK) {
-        return JimSign(lhsObj - rhsObj);
-    }
 
     /* This must be a valid list */
     compare_script = Jim_DuplicateObj(sort_interp, sort_command);
     Jim_ListAppendElement(sort_interp, compare_script, *lhsObj);
     Jim_ListAppendElement(sort_interp, compare_script, *rhsObj);
 
-    sort_result = Jim_EvalObj(sort_interp, compare_script);
+    rc = Jim_EvalObj(sort_interp, compare_script);
 
-    if (sort_result != JIM_OK) {
-        /* We have an error, so just compare pointers */
-        return JimSign(lhsObj - rhsObj);
+    if (rc != JIM_OK) {
+        longjmp(sort_jmpbuf, rc);
     }
 
     Jim_GetWide(sort_interp, Jim_GetResult(sort_interp), &ret);
@@ -5650,6 +5648,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
     int (*fn) (Jim_Obj **, Jim_Obj **);
     Jim_Obj **vector;
     int len;
+    int rc;
 
     if (Jim_IsShared(listObjPtr))
         Jim_Panic(interp, "Jim_ListSortElements called with shared object");
@@ -5659,7 +5658,6 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
     sort_order = order;
     sort_command = command;
     sort_interp = interp;
-    sort_result = JIM_OK;
 
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
@@ -5680,10 +5678,12 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
             fn = NULL;          /* avoid warning */
             Jim_Panic(interp, "ListSort called with invalid sort type");
     }
-    qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
+    if ((rc = setjmp(sort_jmpbuf)) == 0) {
+        qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
+    }
     Jim_InvalidateStringRep(listObjPtr);
 
-    return sort_result;
+    return rc;
 }
 
 /* This is the low-level function to append an element to a list.
