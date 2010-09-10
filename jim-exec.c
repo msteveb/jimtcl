@@ -93,22 +93,49 @@ static void JimTrimTrailingNewline(Jim_Interp *interp)
  */
 static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
 {
-    /* REVISIT: Child exit status is lost here */
-    if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
-        return JIM_OK;
+    Jim_Obj *errorCode = Jim_NewListObj(interp, NULL, 0);
+    int rc = JIM_ERR;
+
+    if (WIFEXITED(waitStatus)) {
+        if (WEXITSTATUS(waitStatus) == 0) {
+            Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "NONE", -1));
+            rc = JIM_OK;
+        }
+        else {
+            Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
+            Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, pid));
+            Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WEXITSTATUS(waitStatus)));
+        }
     }
-    else if (WIFSIGNALED(waitStatus)) {
+    else {
+        const char *type;
+        const char *action;
+
+        if (WIFSIGNALED(waitStatus)) {
+            type = "CHILDKILLED";
+            action = "killed";
+        }
+        else {
+            type = "CHILDSUSP";
+            action = "suspended";
+        }
+            
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, type, -1));
+
 #ifdef jim_ext_signal
-        Jim_SetResultFormatted(interp, "child killed by signal %s",
-            Jim_SignalId(WTERMSIG(waitStatus)));
+        Jim_SetResultFormatted(interp, "child %s by signal %s", action, Jim_SignalId(WTERMSIG(waitStatus)));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalName(WTERMSIG(waitStatus)), -1));
 #else
-        Jim_SetResultFormatted(interp, "child killed by signal %d", WTERMSIG(waitStatus));
+        Jim_SetResultFormatted(interp, "child %s by signal %d", action, WTERMSIG(waitStatus));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WTERMSIG(waitStatus)));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WTERMSIG(waitStatus)));
 #endif
     }
-    else if (WIFSTOPPED(waitStatus)) {
-        Jim_SetResultString(interp, "child suspended", -1);
-    }
-    return JIM_ERR;
+    Jim_SetGlobalVariableStr(interp, "errorCode", errorCode);
+    return rc;
 }
 
 #if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)

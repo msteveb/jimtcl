@@ -11922,6 +11922,7 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 {
     int i;
     Jim_Obj *stackTraceObj = NULL;
+    Jim_Obj *errorCodeObj = NULL;
     int returnCode = JIM_OK;
     long level = 1;
 
@@ -11933,6 +11934,9 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         }
         else if (Jim_CompareStringImmediate(interp, argv[i], "-errorinfo")) {
             stackTraceObj = argv[i + 1];
+        }
+        else if (Jim_CompareStringImmediate(interp, argv[i], "-errorcode")) {
+            errorCodeObj = argv[i + 1];
         }
         else if (Jim_CompareStringImmediate(interp, argv[i], "-level")) {
             if (Jim_GetLong(interp, argv[i + 1], &level) != JIM_OK || level < 0) {
@@ -11953,6 +11957,10 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     /* If a stack trace is supplied and code is error, set the stack trace */
     if (stackTraceObj && returnCode == JIM_ERR) {
         JimSetStackTrace(interp, stackTraceObj);
+    }
+    /* If an error code list is supplied, set the global $errorCode */
+    if (errorCodeObj && returnCode == JIM_ERR) {
+        Jim_SetGlobalVariableStr(interp, "errorCode", errorCodeObj);
     }
     interp->returnCode = returnCode;
     interp->returnLevel = level;
@@ -12507,6 +12515,11 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     jim_wide mask =
         (1 << JIM_OK | 1 << JIM_ERR | 1 << JIM_BREAK | 1 << JIM_CONTINUE | 1 << JIM_RETURN);
 
+    /* Reset the error code before catch.
+     * Note that this is not strictly correct.
+     */
+    Jim_SetGlobalVariableStr(interp, "errorCode", Jim_NewStringObj(interp, "NONE", -1));
+
     for (i = 1; i < argc - 1; i++) {
         const char *arg = Jim_GetString(argv[i], NULL);
         jim_wide option;
@@ -12601,9 +12614,16 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-level", -1));
             Jim_ListAppendElement(interp, optListObj, Jim_NewIntObj(interp, interp->returnLevel));
             if (exitCode == JIM_ERR) {
+                Jim_Obj *errorCode;
                 Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorinfo",
-                        -1));
+                    -1));
                 Jim_ListAppendElement(interp, optListObj, interp->stackTrace);
+
+                errorCode = Jim_GetGlobalVariableStr(interp, "errorCode", JIM_NONE);
+                if (errorCode) {
+                    Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorcode", -1));
+                    Jim_ListAppendElement(interp, optListObj, errorCode);
+                }
             }
             if (Jim_SetVariable(interp, argv[2], optListObj) != JIM_OK) {
                 return JIM_ERR;

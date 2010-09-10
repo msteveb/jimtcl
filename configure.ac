@@ -79,6 +79,7 @@ AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 
 AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
 AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
+AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
 
 AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
 AC_SUBST(SRCDIR,`dirname $0`)

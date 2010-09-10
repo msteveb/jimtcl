@@ -108,6 +108,16 @@ const char *Jim_SignalId(int sig)
     return "unknown signal";
 }
 
+const char *Jim_SignalName(int sig)
+{
+#ifdef HAVE_SYS_SIGLIST
+    if (sig >= 0 && sig < NSIG) {
+        return sys_siglist[sig];
+    }
+#endif
+    return Jim_SignalId(sig);
+}
+
 /**
  * Given the name of a signal, returns the signal value if found,
  * or returns -1 (and sets an error) if not found.

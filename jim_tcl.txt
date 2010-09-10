@@ -77,6 +77,7 @@ Since v0.62:
 14. IPv6 support is now included
 15. Add 'string is'
 16. Event handlers works better if an error occurs. eof handler has been removed.
+17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
 
 Since v0.61:
 
@@ -1542,8 +1543,10 @@ for the key +-code+ will be set to the return code. For +JIM_RETURN+
 it will be set to the code given in 'return -code'. Additionally,
 for the return code +JIM_ERR+, the value of the key +-errorinfo+
 will contain the current stack trace (the same result as 'info
-stacktrace') and the value of the key +-level+ will be the current
-return level (see 'return -level').  This can be useful to rethrow an error:
+stacktrace'), the value of the key +-errorcode+ will contain the
+same value as the global variable $::errorCode, and the value of
+the key +-level+ will be the current return level (see 'return
+-level').  This can be useful to rethrow an error:
 
     if {[catch {...} msg opts]} {
         ...maybe do something with the error...
@@ -1882,6 +1885,35 @@ an executable by the given name.
 
 No 'glob' expansion or other shell-like substitutions
 are performed on the arguments to commands.
+
+If the command fails, the global $::errorCode (and the -errorcode
+option in 'catch') will be set to a list, as follows:
+
++*CHILDKILLED* 'pid sigName msg'+::
+		This format is used when a child process has been killed
+		because of a signal. The pid element will be the process's
+		identifier (in decimal). The sigName element will be the
+		symbolic name of the signal that caused the process to
+		terminate; it will be one of the names from the include
+		file signal.h, such as SIGPIPE. The msg element will be a
+		short human-readable message describing the signal, such
+		as "write on pipe with no readers" for SIGPIPE.
+
++*CHILDSUSP* 'pid sigName msg'+::
+		This format is used when a child process has been suspended
+		because of a signal. The pid element will be the process's
+		identifier, in decimal. The sigName element will be the
+		symbolic name of the signal that caused the process to
+		suspend; this will be one of the names from the include
+		file signal.h, such as SIGTTIN. The msg element will be a
+		short human-readable message describing the signal, such
+		as "background tty read" for SIGTTIN.
+
++*CHILDSTATUS* 'pid code'+::
+		This format is used when a child process has exited with a
+		non-zero exit status. The pid element will be the process's
+		identifier (in decimal) and the code element will be the
+		exit code returned by the process (also in decimal).
 
 exit
 ~~~~
@@ -3110,7 +3142,7 @@ returns an empty string as result.
 
 return
 ~~~~~~
-+*return* ?*-code* 'code'? ?*-errorinfo* 'stacktrace'? ?*-level* 'n'? ?'value'?+
++*return* ?*-code* 'code'? ?*-errorinfo* 'stacktrace'? ?*-errorcode* 'errorcode'? ?*-level* 'n'? ?'value'?+
 
 Return immediately from the current procedure (or top-level command
 or 'source' command), with *value* as the return value.  If *value*
@@ -3126,8 +3158,13 @@ the new return code from *-code*. This is useful when rethrowing an error
 from 'catch'. See the implementation of try/catch in tclcompat.tcl for
 an example of how this is done.
 
+Note: The following options are only used when *-code* is JIM_ERR.
+
 If *-errorinfo* is specified (as returned from 'info stacktrace')
 it is used to initialize the stacktrace.
+
+If *-errorcode* is specified, it is used to set the global variable $::errorCode.
+
 scan
 ~~~~
 +*scan* 'string format varName1 ?varName2 ...?'+
@@ -4153,6 +4190,18 @@ by the Tcl library.
     This variable contains a list of paths to search for packages.
     It contains {. /lib/jim} by default.
 
++*errorCode*+::
+	This variable holds the value of the -errorcode return
+	option set by the most recent error that occurred in this
+	interpreter. This list value represents additional information
+	about the error in a form that is easy to process with
+	programs. The first element of the list identifies a general
+	class of errors, and determines the format of the rest of
+	the list. The following formats for -errorcode return options
+	are used by the Tcl core; individual applications may define
+	additional formats. Currently only 'exec' sets this variable.
+	Otherwise it will be *NONE*.
+
 The following global variables are set by jimsh.
 
 +*tcl_interactive*+::
@@ -4169,6 +4218,7 @@ The following global variables are set by jimsh.
 
 +*jim_argv0*+::
     The value of argv[0] when jimsh was invoked.
+
 
 LICENCE
 -------

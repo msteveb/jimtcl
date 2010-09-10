@@ -19,5 +19,6 @@
  *----------------------------------------------------------------------
  */
 const char *Jim_SignalId(int sig);
+const char *Jim_SignalName(int sig);
 
 #endif
