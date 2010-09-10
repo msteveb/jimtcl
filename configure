@@ -613,7 +613,6 @@ build
 EGREP
 GREP
 CPP
-HAVE_LONG_LONG
 SET_MAKE
 OBJEXT
 EXEEXT
@@ -665,6 +664,7 @@ ac_user_opts='
 enable_option_checking
 enable_fork
 enable_math
+enable_ipv6
 with_jim_ext
 with_jim_shared
 '
@@ -1293,6 +1293,7 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-fork          do not use fork (no exec, etc.)
   --enable-math           include support for math functions
+  --enable-ipv6           include ipv6 support in the aio extension
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3289,7 +3290,6 @@ cat >>confdefs.h <<_ACEOF
 #define HAVE_LONG_LONG 1
 _ACEOF
 
-HAVE_LONG_LONG="#define HAVE_LONG_LONG"
 
 fi
 
@@ -3423,6 +3423,16 @@ if test "${enable_math+set}" = set; then :
 
 fi
 
+# Check whether --enable-ipv6 was given.
+if test "${enable_ipv6+set}" = set; then :
+  enableval=$enable_ipv6;
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_IPV6"
+		fi
+
+
+fi
+
 
 jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
 
@@ -3487,19 +3497,31 @@ _ACEOF
 fi
 done
 
+for ac_func in regcomp waitpid sigaction sys_signame sys_siglist
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+eval as_val=\$$as_ac_var
+   if test "x$as_val" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
 
 EXTRA_CFLAGS=$EXTRA_CFLAGS
 
 SRCDIR=`dirname $0`
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
-$as_echo_n "checking for dlopen in -ldl... " >&6; }
-if test "${ac_cv_lib_dl_dlopen+set}" = set; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
+$as_echo_n "checking for library containing dlopen... " >&6; }
+if test "${ac_cv_search_dlopen+set}" = set; then :
   $as_echo_n "(cached) " >&6
 else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-ldl  $LIBS"
+  ac_func_search_save_LIBS=$LIBS
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -3518,19 +3540,40 @@ return dlopen ();
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_dl_dlopen=yes
-else
-  ac_cv_lib_dl_dlopen=no
+for ac_lib in '' dl; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_dlopen=$ac_res
 fi
 rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
+    conftest$ac_exeext
+  if test "${ac_cv_search_dlopen+set}" = set; then :
+  break
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
-$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
-if test "x$ac_cv_lib_dl_dlopen" = x""yes; then :
-  LIBDL=-ldl
+done
+if test "${ac_cv_search_dlopen+set}" = set; then :
+
+else
+  ac_cv_search_dlopen=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_dlopen" >&5
+$as_echo "$ac_cv_search_dlopen" >&6; }
+ac_res=$ac_cv_search_dlopen
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+  LIBDL=${ac_cv_search_dlopen%none required}
+
+
+$as_echo "#define HAVE_DLOPEN 1" >>confdefs.h
+
 
 fi
 

@@ -3,6 +3,9 @@
 /* Define to 1 if you have the `backtrace' function. */
 #undef HAVE_BACKTRACE
 
+/* Have the dlopen function */
+#undef HAVE_DLOPEN
+
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -27,6 +30,12 @@
 /* Define to 1 if you have the `realpath' function. */
 #undef HAVE_REALPATH
 
+/* Define to 1 if you have the `regcomp' function. */
+#undef HAVE_REGCOMP
+
+/* Define to 1 if you have the `sigaction' function. */
+#undef HAVE_SIGACTION
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -45,6 +54,12 @@
 /* Define to 1 if you have the `sysinfo' function. */
 #undef HAVE_SYSINFO
 
+/* Define to 1 if you have the `sys_siglist' function. */
+#undef HAVE_SYS_SIGLIST
+
+/* Define to 1 if you have the `sys_signame' function. */
+#undef HAVE_SYS_SIGNAME
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -59,6 +74,9 @@
 
 /* Define to 1 if you have the `vfork' function. */
 #undef HAVE_VFORK
+
+/* Define to 1 if you have the `waitpid' function. */
+#undef HAVE_WAITPID
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

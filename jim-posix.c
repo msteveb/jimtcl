@@ -37,7 +37,7 @@ static void Jim_PosixSetError(Jim_Interp *interp)
     Jim_SetResultString(interp, strerror(errno), -1);
 }
 
-#ifdef HAVE_FORK
+#if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)
 static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     pid_t pid;

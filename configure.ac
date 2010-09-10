@@ -10,7 +10,7 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 
 # Checks for types
-AC_CHECK_TYPES(long long,AC_SUBST(HAVE_LONG_LONG,["#define HAVE_LONG_LONG"]))
+AC_CHECK_TYPES(long long)
 
 # Shared library support. Because we don't believe in automake!
 AC_CANONICAL_HOST
@@ -84,7 +84,10 @@ AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
 AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
 AC_SUBST(SRCDIR,`dirname $0`)
 
-AC_CHECK_LIB(dl, dlopen,AC_SUBST(LIBDL,-ldl))
+AC_SEARCH_LIBS(dlopen, dl,
+	AC_SUBST(LIBDL,${ac_cv_search_dlopen%none required})
+	AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function])
+)
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

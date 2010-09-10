@@ -89,12 +89,12 @@ extern "C" {
 #define JIM_ANSIC
 #endif
 
-#if !defined(JIM_ANSIC) && !defined(NOMMU)
-#define JIM_DYNLIB      /* Dynamic library support */
-#endif
-
 #ifndef HAVE_NO_AUTOCONF
 #include <autoconf.h>
+#endif
+
+#if defined(HAVE_DLOPEN)
+#define JIM_DYNLIB      /* Dynamic library support */
 #endif
 
 /* -----------------------------------------------------------------------------
