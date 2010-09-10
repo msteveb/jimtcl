@@ -76,6 +76,7 @@ Since v0.62:
 13. It is now possible to 'return' from within 'try'
 14. IPv6 support is now included
 15. Add 'string is'
+16. Event handlers works better if an error occurs. eof handler has been removed.
 
 Since v0.61:
 
@@ -3989,15 +3990,17 @@ eventloop: after, vwait
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 The following commands allow a script to be invoked when the given condition occurs.
+If no script is given, returns the current script. If the given script is the empty, the
+handler is removed.
 
-+$handle *readable* '?readable-script ?eof-script??'+::
-    Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove
++$handle *readable* '?readable-script?'+::
+    Sets or returns the script for when the socket is readable.
 
 +$handle *writable* '?writable-script?'+::
-    Returns script, or invoke writable-script when writable, {} to remove
+    Sets or returns the script for when the socket is writable.
 
 +$handle *onexception* '?exception-script?'+::
-    Returns script, or invoke exception-script when oob data, {} to remove
+    Sets or returns the script for when when oob data received.
 
 Time-based execution is also available via the eventloop API.
 

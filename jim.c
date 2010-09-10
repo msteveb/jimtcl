@@ -9900,7 +9900,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         objv[1] = Jim_GetResult(interp);
         Jim_IncrRefCount(objv[0]);
         Jim_IncrRefCount(objv[1]);
-        if (Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
+        if (Jim_GetCommand(interp, objv[0], JIM_NONE) == NULL || Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
             /* Report the error to stderr. */
             fprintf(stderr, "Background error:" JIM_NL);
             Jim_PrintErrorMessage(interp);

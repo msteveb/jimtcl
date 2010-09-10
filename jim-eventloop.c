@@ -236,7 +236,9 @@ static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop * eventLoop)
  * if flags has JIM_DONT_WAIT set the function returns ASAP until all
  * the events that's possible to process without to wait are processed.
  *
- * The function returns the number of events processed. */
+ * The function returns the number of events processed or -1 if
+ * there are no matching handlers
+ */
 int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 {
     int maxfd = 0, numfd = 0, processed = 0;
@@ -246,7 +248,13 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
     Jim_TimeEvent *te;
     jim_wide maxId;
 
-    JIM_NOTUSED(flags);
+    if ((flags & JIM_FILE_EVENTS) == 0 || fe == NULL) {
+        /* No file events */
+        if ((flags & JIM_TIME_EVENTS) == 0 || eventLoop->timeEventHead == NULL) {
+            /* No time events */
+            return -1;
+        }
+    }
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -321,7 +329,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                         mask |= JIM_EVENT_WRITABLE;
                     if (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))
                         mask |= JIM_EVENT_EXCEPTION;
-                    if (fe->fileProc(interp, fe->clientData, mask) == JIM_ERR) {
+                    if (fe->fileProc(interp, fe->clientData, mask) != JIM_OK) {
                         /* Remove the element on handler error */
                         Jim_DeleteFileHandler(interp, fe->handle);
                     }
@@ -417,7 +425,10 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while (1) {
         Jim_Obj *currValue;
 
-        Jim_ProcessEvents(interp, JIM_ALL_EVENTS);
+        if (Jim_ProcessEvents(interp, JIM_ALL_EVENTS) < 0) {
+            /* Nothing level to process */
+            break;
+        }
         currValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,
          * or if was unset and now is set (or the contrary). */

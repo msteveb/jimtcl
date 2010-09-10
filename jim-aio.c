@@ -642,62 +642,42 @@ static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
 {
     Jim_Obj *objPtr = clientData;
-    Jim_Obj *scrPtr = NULL;
 
-    if (mask == (JIM_EVENT_READABLE | JIM_EVENT_FEOF)) {
-        Jim_ListIndex(interp, objPtr, 1, &scrPtr, 0);
-    }
-    else {
-        Jim_ListIndex(interp, objPtr, 0, &scrPtr, 0);
-    }
-    Jim_EvalObjBackground(interp, scrPtr);
-    return 0;
+    return Jim_EvalObjBackground(interp, objPtr);
 }
 
-static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Obj **scriptListObj,
-    Jim_Obj *script1, Jim_Obj *script2)
+static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Obj **scriptHandlerObj,
+    int argc, Jim_Obj * const *argv)
 {
     int scriptlen = 0;
 
-    if (script1 == NULL) {
+    if (argc == 0) {
         /* Return current script */
-        if (*scriptListObj) {
-            Jim_SetResult(interp, *scriptListObj);
+        if (*scriptHandlerObj) {
+            Jim_SetResult(interp, *scriptHandlerObj);
         }
         return JIM_OK;
     }
 
-    if (*scriptListObj) {
+    if (*scriptHandlerObj) {
         /* Delete old handler */
         Jim_DeleteFileHandler(interp, af->fp);
-        *scriptListObj = NULL;
+        *scriptHandlerObj = NULL;
     }
 
     /* Now possibly add the new script(s) */
-    Jim_GetString(script1, &scriptlen);
+    Jim_GetString(argv[0], &scriptlen);
     if (scriptlen == 0) {
         /* Empty script, so done */
         return JIM_OK;
     }
 
     /* A new script to add */
-    *scriptListObj = Jim_NewListObj(interp, NULL, 0);
-    Jim_IncrRefCount(*scriptListObj);
-
-    if (Jim_IsShared(script1)) {
-        script1 = Jim_DuplicateObj(interp, script1);
-    }
-    Jim_ListAppendElement(interp, *scriptListObj, script1);
-
-    if (script2) {
-        if (Jim_IsShared(script2)) {
-            script2 = Jim_DuplicateObj(interp, script2);
-        }
-        Jim_ListAppendElement(interp, *scriptListObj, script2);
-    }
+    Jim_IncrRefCount(argv[0]);
+    *scriptHandlerObj = argv[0];
 
     Jim_CreateFileHandler(interp, af->fp, mask,
-        JimAioFileEventHandler, *scriptListObj, JimAioFileEventFinalizer);
+        JimAioFileEventHandler, *scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
 }
@@ -705,32 +685,22 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
 static int aio_cmd_readable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    Jim_Obj *eofScript = NULL;
-    int mask = JIM_EVENT_READABLE;
 
-
-    if (argc == 2) {
-        mask |= JIM_EVENT_FEOF;
-        eofScript = argv[1];
-    }
-
-    return aio_eventinfo(interp, af, mask, &af->rEvent, argc ? argv[0] : NULL, eofScript);
+    return aio_eventinfo(interp, af, JIM_EVENT_READABLE, &af->rEvent, argc, argv);
 }
 
 static int aio_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    int mask = JIM_EVENT_WRITABLE;
 
-    return aio_eventinfo(interp, af, mask, &af->wEvent, argc ? argv[0] : NULL, NULL);
+    return aio_eventinfo(interp, af, JIM_EVENT_WRITABLE, &af->wEvent, argc, argv);
 }
 
 static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    int mask = JIM_EVENT_EXCEPTION;
 
-    return aio_eventinfo(interp, af, mask, &af->eEvent, argc ? argv[0] : NULL, NULL);
+    return aio_eventinfo(interp, af, JIM_EVENT_EXCEPTION, &af->wEvent, argc, argv);
 }
 #endif
 
@@ -811,11 +781,11 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #ifdef jim_ext_eventloop
     {   .cmd = "readable",
-        .args = "?readable-script ?eof-script??",
+        .args = "?readable-script?",
         .minargs = 0,
-        .maxargs = 2,
+        .maxargs = 1,
         .function = aio_cmd_readable,
-        .description = "Returns script, or invoke readable-script when readable, eof-script on eof, {} to remove",
+        .description = "Returns script, or invoke readable-script when readable, {} to remove",
     },
     {   .cmd = "writable",
         .args = "?writable-script?",
