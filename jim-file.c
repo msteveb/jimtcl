@@ -61,7 +61,7 @@
 /*
  *----------------------------------------------------------------------
  *
- * GetFileType --
+ * JimGetFileType --
  *
  *  Given a mode word, returns a string identifying the type of a
  *  file.
@@ -75,7 +75,7 @@
  *----------------------------------------------------------------------
  */
 
-static const char *GetFileType(int mode)
+static const char *JimGetFileType(int mode)
 {
     if (S_ISREG(mode)) {
         return "file";
@@ -167,7 +167,7 @@ static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat
     set_array_int_value(interp, varName, "atime", sb->st_atime);
     set_array_int_value(interp, varName, "mtime", sb->st_mtime);
     set_array_int_value(interp, varName, "ctime", sb->st_ctime);
-    set_array_string_value(interp, varName, "type", GetFileType((int)sb->st_mode));
+    set_array_string_value(interp, varName, "type", JimGetFileType((int)sb->st_mode));
 
     /* And also return the value */
     Jim_SetResult(interp, Jim_GetVariable(interp, varName, 0));
@@ -614,7 +614,7 @@ static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_lstat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
-    Jim_SetResultString(interp, GetFileType((int)sb.st_mode), -1);
+    Jim_SetResultString(interp, JimGetFileType((int)sb.st_mode), -1);
     return JIM_OK;
 }
 
