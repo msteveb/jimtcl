@@ -312,10 +312,11 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
     }
     /* Check for error conditions */
-    if (ferror(af->fp)) {
+    if (ferror(af->fp) && errno != EAGAIN) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
         JimAioSetError(interp, af->filename);
+        clearerr(af->fp);
         return JIM_ERR;
     }
     if (nonewline) {
@@ -336,6 +337,8 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     AioFile *af = Jim_CmdPrivData(interp);
     char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr;
+
+    errno = 0;
 
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (1) {
@@ -362,10 +365,11 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (!more)
             break;
     }
-    if (ferror(af->fp) && (errno != EAGAIN)) {
+    if (ferror(af->fp) && errno != EAGAIN && errno != EINTR) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
         JimAioSetError(interp, af->filename);
+        clearerr(af->fp);
         return JIM_ERR;
     }
     /* On EOF returns -1 if varName was specified, or the empty string. */
@@ -437,7 +441,6 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     rlen = recvfrom(fileno(af->fp), buf, len, 0, &sa.sa, &salen);
     if (rlen < 0) {
-        perror("recvfrom");
         Jim_Free(buf);
         JimAioSetError(interp, NULL);
         return JIM_ERR;
@@ -495,7 +498,6 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Note that we don't validate the socket type. Rely on sendto() failing if appropriate */
     len = sendto(fileno(af->fp), wdata, wlen, 0, &sa.sa, salen);
     if (len < 0) {
-        perror("sendto");
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
@@ -1050,7 +1052,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 }
                 res = connect(sock, &sa.sa, salen);
                 if (res) {
-                    perror("connect");
                     JimAioSetError(interp, argv[2]);
                     close(sock);
                     return JIM_ERR;
