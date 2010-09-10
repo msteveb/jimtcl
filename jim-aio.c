@@ -60,8 +60,8 @@
 #include "jim-subcmd.h"
 
 
-#define AIO_CMD_LEN 128
-#define AIO_BUF_LEN 1024
+#define AIO_CMD_LEN 32      /* e.g. aio.handleXXXXXX */
+#define AIO_BUF_LEN 256     /* Can keep this small and rely on stdio buffering */
 
 #define AIO_KEEPOPEN 1
 
@@ -449,7 +449,8 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
 
     if (argc > 1) {
-        char addrbuf[100];
+        /* INET6_ADDRSTRLEN is 46. Add some for [] and port */
+        char addrbuf[60];
 
 #if IPV6
         if (sa.sa.sa_family == AF_INET6) {

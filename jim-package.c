@@ -26,6 +26,7 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes, int prefixc, co
     int i;
 
     for (i = 0; i < prefixc; i++) {
+        /* REVISIT: Move off stack */
         char buf[JIM_PATH_LEN];
 
         if (prefixes[i] == NULL)
@@ -42,10 +43,12 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes, int prefixc, co
             return Jim_StrDup(buf);
         }
 
+#ifdef jim_ext_load
         snprintf(buf, sizeof(buf), "%s/%s.so", prefixes[i], pkgName);
         if (access(buf, R_OK) == 0) {
             return Jim_StrDup(buf);
         }
+#endif
     }
     return NULL;
 }

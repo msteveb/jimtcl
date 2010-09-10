@@ -254,7 +254,7 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     sqlite3 *db;
     JimSqliteHandle *sh;
-    char buf[128];
+    char buf[60];
     int r;
 
     if (argc != 2) {

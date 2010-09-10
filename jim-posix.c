@@ -162,18 +162,22 @@ static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 #define JIM_HOST_NAME_MAX 1024
 static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    char buf[JIM_HOST_NAME_MAX];
+    char *buf;
+    int rc = JIM_OK;
 
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
         return JIM_ERR;
     }
+    buf = Jim_Alloc(JIM_HOST_NAME_MAX);
     if (gethostname(buf, JIM_HOST_NAME_MAX) == -1) {
         Jim_PosixSetError(interp);
-        return JIM_ERR;
+        rc = JIM_ERR;
     }
-    Jim_SetResultString(interp, buf, -1);
-    return JIM_OK;
+    else {
+        Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, -1));
+    }
+    return rc;
 }
 
 static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

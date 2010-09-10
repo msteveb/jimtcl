@@ -238,7 +238,7 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     sqlite *db;
     JimSqliteHandle *sh;
-    char buf[128], *errMsg;
+    char buf[60], *errMsg;
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "dbname");

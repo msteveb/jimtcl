@@ -27,7 +27,6 @@
 #include "jim-subcmd.h"
 #include "jim-signal.h"
 
-
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
 {

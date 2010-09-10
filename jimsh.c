@@ -25,7 +25,6 @@
 
 #include "jim.h"
 
-
 /* JimGetExePath try to get the absolute path of the directory
  * of the jim binary, in order to add this path to the library path.
  * Likely shipped libraries are in the same path too. */
@@ -35,39 +34,52 @@
 #include <unistd.h>
 static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 {
-    char path[JIM_PATH_LEN + 1];
+    char *p;
 
     /* Check if the executable was called with an absolute pathname */
     if (argv0[0] == '/') {
-        char *p;
-
-        strncpy(path, argv0, JIM_PATH_LEN);
-        p = strrchr(path, '/');
-        *(p + 1) = '\0';
-        return Jim_NewStringObj(interp, path, -1);
+        p = strrchr(argv0, '/');
+        return Jim_NewStringObj(interp, argv0, (p == argv0) ? 1 : p - argv0);
     }
     else {
-        char cwd[JIM_PATH_LEN + 1];
-        char base[JIM_PATH_LEN + 1], *p;
         int l;
+        char *path = Jim_Alloc(JIM_PATH_LEN + 1);
 
-        strncpy(base, argv0, JIM_PATH_LEN);
-        if (getcwd(cwd, JIM_PATH_LEN) == NULL) {
+        if (getcwd(path, JIM_PATH_LEN) == NULL) {
+default_path:
+            Jim_Free(path);
             return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
         }
-        l = strlen(cwd);
-        if (l > 0 && cwd[l - 1] == '/')
-            cwd[l - 1] = '\0';
-        p = strrchr(base, '/');
-        if (p == NULL)
-            base[0] = '\0';
-        else if (p != base)
-            *p = '\0';
-        sprintf(path, "%s/%s", cwd, base);
+
+        /* Need to add the directory component of argv0 to pwd (path) */
+
+        /* Strip any leading "./" off argv0 for cleanliness */
+        while (argv0[0] == '.' && argv0[1] == '/') {
+            argv0 += 2;
+        }
+
         l = strlen(path);
-        if (l > 2 && path[l - 2] == '/' && path[l - 1] == '.')
-            path[l - 1] = '\0';
-        return Jim_NewStringObj(interp, path, -1);
+
+        /* Strip the last component from argv0 */
+        p = strrchr(argv0, '/');
+        if (p) {
+            int argv0len = p - argv0;
+
+            /* Need a trailing / on pwd */
+            if (l > 0 && path[l - 1] != '/')
+                path[l++] = '/';
+
+            /* And append it to 'path' */
+            if (l + argv0len > JIM_PATH_LEN) {
+                /* It won't fit. Don't both trying to realloc. */
+                goto default_path;
+            }
+            memcpy(path + l, argv0, argv0len);
+            l += argv0len;
+            path[l] = '\0';
+        }
+
+        return Jim_NewStringObjNoAlloc(interp, path, l);
     }
 }
 #else /* JIM_ANSIC */
@@ -83,6 +95,7 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 static void JimLoadJimRc(Jim_Interp *interp)
 {
     const char *home;
+    /* REVISIT: Move off stack */
     char buf[JIM_PATH_LEN + 1];
     const char *names[] = { ".jimrc", "jimrc.tcl", NULL };
     int i;

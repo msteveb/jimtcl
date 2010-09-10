@@ -1,16 +1,18 @@
 #include "jim.h"
 #include <errno.h>
 
+#define MAX_LINE_LEN 512
+
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
     int retcode = JIM_OK;
     Jim_Obj *scriptObjPtr;
+    char *buf = Jim_Alloc(MAX_LINE_LEN);
 
     printf("Welcome to Jim version %d.%d, "
         "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL, JIM_VERSION / 100, JIM_VERSION % 100);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
     while (1) {
-        char buf[1024];
         const char *result;
         int reslen;
 
@@ -35,7 +37,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             int len;
 
             errno = 0;
-            if (fgets(buf, 1024, stdin) == NULL) {
+            if (fgets(buf, MAX_LINE_LEN, stdin) == NULL) {
                 if (errno == EINTR) {
                     continue;
                 }
@@ -56,6 +58,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             Jim_PrintErrorMessage(interp);
         }
         else if (retcode == JIM_EXIT) {
+            Jim_Free(buf);
             exit(Jim_GetExitCode(interp));
         }
         else {
@@ -65,5 +68,6 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         }
     }
   out:
+    Jim_Free(buf);
     return 0;
 }

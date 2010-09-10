@@ -101,7 +101,6 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResult(interp, dictObj);
     }
     else {
-        /* REVISIT: We could create a dictionary rather than a list ... */
         /* Only return the matching values */
         resultObj = Jim_NewListObj(interp, NULL, 0);
 

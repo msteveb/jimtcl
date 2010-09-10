@@ -9057,6 +9057,7 @@ static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedL
 static void JimPrngInit(Jim_Interp *interp)
 {
     int i;
+    /* REVISIT: Move off stack */
     unsigned int seed[256];
 
     interp->prngState = Jim_Alloc(sizeof(Jim_PrngState));
@@ -9092,6 +9093,7 @@ static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len)
 static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedLen)
 {
     int i;
+    /* REVISIT: Move off stack */
     unsigned char buf[256];
     Jim_PrngState *prng;
 
@@ -11636,6 +11638,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     else if (option == OPT_OBJCOUNT) {
         int freeobj = 0, liveobj = 0;
+        /* REVISIT: Move off stack */
         char buf[256];
         Jim_Obj *objPtr;
 
@@ -11667,6 +11670,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         objPtr = interp->liveList;
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
         while (objPtr) {
+            /* REVISIT: Move off stack */
             char buf[128];
             const char *type = objPtr->typePtr ? objPtr->typePtr->name : "";
 
@@ -12458,7 +12462,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 {
     long i, count = 1;
     jim_wide start, elapsed;
-    char buf[256];
+    char buf[60];
     const char *fmt = "%" JIM_WIDE_MODIFIER " microseconds per iteration";
 
     if (argc < 2) {
