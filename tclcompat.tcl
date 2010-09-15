@@ -57,8 +57,10 @@ proc case {var args} {
 	}
 }
 
-# Optional argument is a glob pattern
-proc parray {arrayname {pattern *}} {
+# Second, option argument is a glob pattern
+# Third, optional argument is a "putter" function
+# 
+proc parray {arrayname {pattern *} {puts puts}} {
 	upvar $arrayname a
 
 	set max 0
@@ -70,7 +72,7 @@ proc parray {arrayname {pattern *}} {
 	incr max [string length $arrayname]
 	incr max 2
 	foreach name [lsort [array names a $pattern]] {
-		puts [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
+		$puts [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
 	}
 }
 
