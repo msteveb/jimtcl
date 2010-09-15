@@ -2329,6 +2329,8 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
         case STR_IS_PRINT: isclassfunc = isprint; break;
         case STR_IS_GRAPH: isclassfunc = isgraph; break;
         case STR_IS_PUNCT: isclassfunc = ispunct; break;
+        default:
+            return JIM_ERR;
     }
 
     for (i = 0; i < len; i++) {
@@ -9261,7 +9263,7 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken * token, int tokens, J
                 break;
             default:
                 Jim_Panic(interp, "default token type reached " "in Jim_InterpolateTokens().");
-                break;
+                exit(1);
         }
         Jim_IncrRefCount(intv[i]);
         /* Make sure there is a valid
@@ -9564,7 +9566,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                         break;
                     default:
                         Jim_Panic(interp, "default token type reached " "in Jim_EvalObj().");
-                        break;
+                        exit(1);
                 }
                 Jim_IncrRefCount(argv[j]);
                 i += 2;
@@ -12486,7 +12488,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         }
     }
     elapsed = JimClock() - start;
-    sprintf(buf, fmt, elapsed / count);
+    sprintf(buf, fmt, count == 0 ? 0 : elapsed / count);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
 }
