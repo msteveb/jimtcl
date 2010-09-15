@@ -66,6 +66,9 @@
 #include <execinfo.h>
 #endif
 
+/*#define DEBUG_SHOW_SCRIPT*/
+/*#define DEBUG_SHOW_TOKENS*/
+
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
 
@@ -969,24 +972,30 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
  * ---------------------------------------------------------------------------*/
 
 /* Token types */
-#define JIM_TT_NONE 0           /* No token returned */
-#define JIM_TT_STR 1            /* simple string */
-#define JIM_TT_ESC 2            /* string that needs escape chars conversion */
-#define JIM_TT_VAR 3            /* var substitution */
-#define JIM_TT_DICTSUGAR 4      /* Syntax sugar for [dict get], $foo(bar) */
-#define JIM_TT_CMD 5            /* command substitution */
-#define JIM_TT_SEP 6            /* word separator */
-#define JIM_TT_EOL 7            /* line separator */
-#define JIM_TT_EOF 8            /* end of script */
+#define JIM_TT_NONE    0           /* No token returned */
+#define JIM_TT_STR     1          /* simple string */
+#define JIM_TT_ESC     2          /* string that needs escape chars conversion */
+#define JIM_TT_VAR     3          /* var substitution */
+#define JIM_TT_DICTSUGAR   4      /* Syntax sugar for [dict get], $foo(bar) */
+#define JIM_TT_CMD     5          /* command substitution */
+/* Note: Keep these three together for TOKEN_IS_SEP() */
+#define JIM_TT_SEP     6          /* word separator. arg is # of tokens. -ve if {*} */
+#define JIM_TT_EOL     7          /* line separator */
+#define JIM_TT_EOF     8          /* end of script */
+
+#define JIM_TT_LINE    9          /* special 'start-of-line' token. arg is # of arguments to the command. -ve if {*} */
+#define JIM_TT_WORD   10          /* special 'start-of-word' token. arg is # of tokens to combine. -ve if {*} */
 
 /* Additional token types needed for expressions */
-#define JIM_TT_SUBEXPR_START 10
-#define JIM_TT_SUBEXPR_END 11
-#define JIM_TT_EXPR_INT 12
-#define JIM_TT_EXPR_DOUBLE 13
+#define JIM_TT_SUBEXPR_START  11
+#define JIM_TT_SUBEXPR_END    12
+#define JIM_TT_EXPR_INT       13
+#define JIM_TT_EXPR_DOUBLE    14
 
 /* Operator token types start here */
-#define JIM_TT_EXPR_OP 15
+#define JIM_TT_EXPR_OP        15
+
+#define TOKEN_IS_SEP(type) (type >= JIM_TT_SEP && type <= JIM_TT_EOF)
 
 /* Parser states */
 #define JIM_PS_DEF 0            /* Default state */
@@ -1202,7 +1211,8 @@ static int JimParseCmd(struct JimParserCtx *pc)
 
 static int JimParseVar(struct JimParserCtx *pc)
 {
-    int brace = 0, stop = 0, ttype = JIM_TT_VAR;
+    int brace = 0, stop = 0;
+    int ttype = JIM_TT_VAR;
 
     pc->tstart = ++pc->p;
     pc->len--;                  /* skip the $ */
@@ -2810,10 +2820,8 @@ typedef struct ScriptToken
 } ScriptToken;
 
 /* This is the script object internal representation. An array of
- * ScriptToken structures, with an associated command structure array.
- * The command structure is a pre-computed representation of the
- * command length and arguments structure as a simple liner array
- * of integers.
+ * ScriptToken structures, including a pre-computed representation of the
+ * command length and arguments.
  *
  * For example the script:
  *
@@ -2822,63 +2830,51 @@ typedef struct ScriptToken
  *
  * will produce a ScriptObj with the following Tokens:
  *
+ * LIN 2
  * ESC puts
- * SEP
  * ESC hello
- * EOL
+ * LIN 4
  * ESC set
- * EOL
  * VAR i
- * SEP
+ * WRD 2
  * VAR x
  * VAR y
- * SEP
+ * WRD 2
  * CMD foo
  * ESC BAR
- * EOL
  *
- * This is a description of the tokens, separators, and of lines.
- * The command structure instead represents the number of arguments
- * of every command, followed by the tokens of which every argument
- * is composed. So for the example script, the cmdstruct array will
- * contain:
- *
- * 2 1 1 4 1 1 2 2
- *
- * Because "puts hello" has two args (2), composed of single tokens (1 1)
- * While "set $i $x$y [foo]BAR" has four (4) args, the first two
- * composed of single tokens (1 1) and the last two of double tokens
- * (2 2).
+ * "puts hello" has two args (LIN 2), composed of single tokens.
+ * (Note that the WRD token is omitted for the common case of a single token.)
+ * 
+ * "set $i $x$y [foo]BAR" has four (LIN 4) args, the first word
+ * has 1 token (ESC SET), and the last has two tokens (WRD 2 CMD foo ESC BAR)
  *
  * The precomputation of the command structure makes Jim_Eval() faster,
  * and simpler because there aren't dynamic lengths / allocations.
  *
  * -- {expand}/{*} handling --
  *
- * Expand is handled in a special way. When a command
- * contains at least an argument with the {expand} or {*} prefix,
- * the command structure presents a -1 before the integer
- * describing the number of arguments. This is used in order
- * to send the command exection to a different path in case
- * of {expand} and guarantee a fast path for the more common
- * case. Also, the integers describing the number of tokens
- * are expressed with negative sign, to allow for fast check
- * of what's an {expand}-prefixed argument and what not.
+ * Expand is handled in a special way.
+ *
+ *   If a "word" begins with {*}, the word token count is -ve.
  *
  * For example the command:
  *
- * list {expand}{1 2}
+ * list {*}{a b}
  *
  * Will produce the following cmdstruct array:
  *
- * -1 2 1 -2
+ * LIN 2
+ * ESC list
+ * WRD -1
+ * STR a b
  *
  * -- the substFlags field of the structure --
  *
  * The scriptObj structure is used to represent both "script" objects
- * and "subst" objects. In the second case, the cmdStruct related
- * fields are not used at all, but there is an additional field used
- * that is 'substFlags': this represents the flags used to turn
+ * and "subst" objects. In the second case, the there are no LIN and WRD
+ * tokens. Instead SEP and EOL tokens are added as-is.
+ * In addition, the field 'substFlags' is used to represent the flags used to turn
  * the string into the internal representation used to perform the
  * substitution. If this flags are not what the application requires
  * the scriptObj is created again. For example the script:
@@ -2893,8 +2889,6 @@ typedef struct ScriptObj
 {
     int len;                    /* Length as number of tokens. */
     ScriptToken *token;         /* Tokens array. */
-    int *cmdStruct;             /* commands structure */
-    int csLen;                  /* length of the cmdStruct array. */
     int substFlags;             /* flags used for the compilation of "subst" objects */
     int inUse;                  /* Used to share a ScriptObj. Currently
                                    only used by Jim_EvalObj() as protection against
@@ -2916,7 +2910,6 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
         }
     }
     Jim_Free(script->token);
-    Jim_Free(script->cmdStruct);
     Jim_Free(script->fileName);
     Jim_Free(script);
 }
@@ -2999,6 +2992,35 @@ static void ScriptAddToken(ParseTokenList *tokenlist, const char *token, int len
     t->line = line;
 }
 
+/* Counts the number of adjoining non-separator.
+ * 
+ * Returns -ve if the first token is the expansion
+ * operator (in which case the count doesn't include
+ * that token).
+ */
+static int JimCountWordTokens(ParseToken *t)
+{
+    int expand = 1;
+    int count = 0;
+
+    /* Is the first word {*} or {expand}? */
+    if (t->type == JIM_TT_STR && !TOKEN_IS_SEP(t[1].type)) {
+        if ((t->len == 1 && *t->token == '*') || (t->len == 6 && strncmp(t->token, "expand", 6) == 0)) {
+            /* Create an expand token */
+            expand = -1;
+            t++;
+        }
+    }
+
+    /* Now count non-separator words */
+    while (!TOKEN_IS_SEP(t->type)) {
+        t++;
+        count++;
+    }
+
+    return count * expand;
+}
+
 /**
  * Takes a tokenlist and creates the allocated list of script tokens
  * in script->token, of length script->len.
@@ -3013,82 +3035,135 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 {
     int i;
     struct ScriptToken *token;
-    int prevtype = JIM_TT_EOL;
+    /* Number of tokens so far for the current command */
+    int lineargs = 0;
+    /* This is the first token for the current command */
+    ScriptToken *linefirst;
+    int count;
 
-    /* Be pessimistic. This will definitely be big enough since at least the EOF token
-     * will be discarded
-     */
-    token = script->token = Jim_Alloc(sizeof(ScriptToken) * tokenlist->count);
-    script->csLen = 0;
-
+#ifdef DEBUG_SHOW_TOKENS
+    printf("==== Tokens ====\n");
     for (i = 0; i < tokenlist->count; i++) {
-        const ParseToken *t = &tokenlist->list[i];
+        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist->list[i].line, tt_name(tokenlist->list[i].type),
+            tokenlist->list[i].len, tokenlist->list[i].token);
+    }
+#endif
 
-        if (t->type == JIM_TT_EOF) {
-            break;
+    /* May need up to one extra script token for each EOL in the worst case */
+    count = tokenlist->count;
+    for (i = 0; i < tokenlist->count; i++) {
+        if (tokenlist->list[i].type == JIM_TT_EOL) {
+            count++;
+        }
+    }
+        
+    token = script->token = Jim_Alloc(sizeof(ScriptToken) * count);
+
+    /* This is the first token for the current command */
+    linefirst = token++;
+    linefirst->linenr = 0;
+    linefirst->type = JIM_TT_NONE;
+    
+    for (i = 0; i < tokenlist->count; ) {
+        /* Look ahead to find out how many tokens make up the next word */
+        int wordtokens;
+
+        /* Skip any leading separators */
+        while (tokenlist->list[i].type == JIM_TT_SEP) {
+            i++;
+        }
+        
+        wordtokens = JimCountWordTokens(tokenlist->list + i);
+
+        if (wordtokens == 0) {
+            /* None, so at end of line */
+            if (lineargs) {
+                linefirst->type = JIM_TT_LINE;
+                linefirst->objPtr = Jim_NewIntObj(interp, lineargs);
+                /* Cheat and store the value in the unused 'linenr' for quick access */
+                linefirst->linenr = lineargs;
+                Jim_IncrRefCount(linefirst->objPtr);
+
+                /* Reset for new line */
+                lineargs = 0;
+                linefirst = token++;
+            }
+            i++;
+            continue;
+        }
+        else if (wordtokens != 1) {
+            /* More than 1, or {expand}, so insert a WORD token */
+            token->type = JIM_TT_WORD;
+            token->objPtr = Jim_NewIntObj(interp, wordtokens);
+            /* Cheat and store the value in the unused 'linenr' for quick access */
+            token->linenr = wordtokens;
+            Jim_IncrRefCount(token->objPtr);
+            token++;
+            if (wordtokens < 0) {
+                /* Skip the expand token */
+                i++;
+                wordtokens = -wordtokens - 1;
+                lineargs--;
+            }
         }
 
-        switch (t->type) {
-            case JIM_TT_EOL:
-                /* Combine multiple EOLs to one */
-                if (prevtype == JIM_TT_EOL) {
-                    continue;
-                }
-                token->objPtr = interp->emptyObj;
-                script->csLen += 2;
-                break;
+        lineargs++;
 
-            case JIM_TT_SEP:
-                /* Skip SEP before or after EOL */
-                if (prevtype == JIM_TT_EOL || t[1].type == JIM_TT_EOL) {
-                    continue;
-                }
-                token->objPtr = interp->emptyObj;
-                script->csLen++;
-                break;
+        /* Add each non-separator word token to the line */
+        while (wordtokens--) {
+            const ParseToken *t = &tokenlist->list[i++];
+            int len = t->len;
+            char *str;
 
-            default:{
-                    char *str;
-                    int len = t->len;
+            if (t->type == JIM_TT_SEP) {
+                continue;
+            }
 
-                    if (t->type == JIM_TT_ESC) {
-                        /* Convert the escape chars. */
-                        str = Jim_Alloc(len + 1);
-                        len = JimEscape(str, t->token, len);
-                    }
-                    else {
-                        /* No escape conversion needed, so just copy it. */
-                        str = Jim_StrDupLen(t->token, len);
-                    }
+            if (t->type == JIM_TT_ESC) {
+                /* Convert the escape chars. */
+                str = Jim_Alloc(len + 1);
+                len = JimEscape(str, t->token, len);
+            }
+            else {
+                /* No escape conversion needed, so just copy it. */
+                str = Jim_StrDupLen(t->token, len);
+            }
 
-                    /* Every object is initially a string, but the
-                     * internal type may be specialized during execution of the
-                     * script. */
-                    token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
+            /* Every object is initially a string, but the
+             * internal type may be specialized during execution of the
+             * script. */
+            token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
+            Jim_IncrRefCount(token->objPtr);
+            token->type = t->type;
+            token->linenr = t->line;
 
-                    if (script->fileName) {
-                        JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
-                    }
-                    break;
-                }
+            if (script->fileName) {
+                JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
+            }
+            token++;
         }
+    }
 
-        token->type = t->type;
-        token->linenr = t->line;
-
-        Jim_IncrRefCount(token->objPtr);
-        token++;
-
-        prevtype = t->type;
+    if (lineargs == 0) {
+        token--;
     }
 
     script->len = token - script->token;
+
+    assert(script->len < count);
+
+#ifdef DEBUG_SHOW_SCRIPT
+    printf("==== Script ====\n");
+    for (i = 0; i < script->len; i++) {
+        printf("[%2d]@%d %s %s\n", i, script->token[i].linenr, tt_name(script->token[i].type),
+            Jim_GetString(script->token[i].objPtr, NULL));
+    }
+#endif
+
 }
 
-#ifdef JIM_OPTIMIZATION
-
 /**
- * An optimised version of ScriptObjAddTokens() for subst objects.
+ * Similar to ScriptObjAddTokens(), but for subst objects.
  */
 static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     ParseTokenList *tokenlist)
@@ -3123,16 +3198,12 @@ static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
          * internal type may be specialized during execution of the
          * script. */
         token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
-
-        /* To add source info to SEP and EOL tokens is useless because
-         * they will never by called as arguments of Jim_EvalObj(). */
         Jim_IncrRefCount(token->objPtr);
         token++;
     }
 
     script->len = i;
 }
-#endif
 
 /* This method takes the string representation of an object
  * as a Tcl script, and generates the pre-parsed internal representation
@@ -3143,16 +3214,8 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
     struct JimParserCtx parser;
     struct ScriptObj *script = Jim_Alloc(sizeof(*script));
-    ScriptToken *token;
-    int *cs;
-    int i;
     int initialLineNumber;
     ParseTokenList tokenlist;
-    int line_expand;
-    int arg_expand;
-    int *csp;
-    int args;
-    int tokens;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
@@ -3188,77 +3251,33 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         script->fileName = Jim_StrDup("");
     }
 
-#if 0
-    printf("==== Script ====\n");
-    for (i = 0; i < script->len; i++) {
-        printf("[%2d] %s (%d)'%s'\n", i, tt_name(script->token[i].type),
-            script->token[i].objPtr->length, script->token[i].objPtr->bytes);
-    }
-#endif
-
-    /* Compute the command structure array
-     * (see the ScriptObj struct definition for more info).
-     * Note that the required size has already been calculated in script->csLen.
-     */
-
-    cs = script->cmdStruct = Jim_Alloc(sizeof(int) * (script->csLen));
-
-    token = script->token;
-
-    line_expand = 0;            /* expand is used on this line */
-    arg_expand = 0;             /* expand is used on this argument */
-    csp = cs++;                 /* points to argument count */
-    args = 1;                   /* Number of args on this line */
-    tokens = 0;                 /* Number of tokens in current argument. */
-
-    for (i = 0; i < script->len; i++) {
-        ScriptToken *t = &token[i];
-
-        if (tokens == 0 && t[0].type == JIM_TT_STR &&
-            t[1].type != JIM_TT_SEP && t[1].type != JIM_TT_EOL &&
-            (!strcmp(t->objPtr->bytes, "expand") || !strcmp(t->objPtr->bytes, "*"))) {
-
-            arg_expand = line_expand = 1;
-        }
-
-        if (t->type == JIM_TT_SEP || t->type == JIM_TT_EOL) {
-            /* Now add info about the number of tokens. -ve is list expansion is involved */
-            *cs++ = arg_expand ? -tokens : tokens;
-            arg_expand = 0;
-            tokens = 0;
-
-            if (t->type == JIM_TT_EOL) {
-                /* End of line. Back patch the arg count */
-                /* Negative value if there is list expansion involved. */
-                if (line_expand) {
-                    line_expand = 0;
-                    *csp = -args;
-                }
-                else {
-                    *csp = args;
-                }
-                /* And reset */
-                csp = cs++;
-                args = 0;
-            }
-            args++;
-        }
-        else {
-            tokens++;
-        }
-    }
-#if 0
-    for (i = 0; i < script->csLen; i++) {
-        printf("cs[%d]=%d\n", i, script->cmdStruct[i]);
-    }
-#endif
-
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
 
     return JIM_OK;
+}
+
+/**
+ * Returns the filename and line number of the first token in the script.
+ *
+ */
+const char *Jim_ScriptSource(ScriptObj *script, int *line)
+{
+    int i;
+
+    *line = 0;
+
+    /* Skip JIM_TT_LINE and JIM_TT_WORD tokens to find the first line number */
+    for (i = 0; i < script->len; i++) {
+        if (script->token[i].type != JIM_TT_LINE && script->token[i].type != JIM_TT_WORD) {
+            *line = script->token[i].linenr;
+            break;
+        }
+    }
+
+    return script->fileName;
 }
 
 ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -5088,10 +5107,12 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     return JIM_OK;
 }
 
+#ifdef JIM_OPTIMIZATION
 static int Jim_IsWide(Jim_Obj *objPtr)
 {
     return objPtr->typePtr == &intObjType;
 }
+#endif
 
 int Jim_GetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
 {
@@ -6328,7 +6349,7 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     int i;
 
     if (len % 2)
-        Jim_Panic(interp, "Jim_NewDicObj() 'len' argument must be even");
+        Jim_Panic(interp, "Jim_NewDictObj() 'len' argument must be even");
 
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &dictObjType;
@@ -7759,9 +7780,9 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 /* debugging */
 const char *tt_name(int type)
 {
-    static const char *tt_names[] =
-        { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "???", "(((", ")))", "INT",
-            "DBL", "???" };
+    static const char *tt_names[JIM_TT_EXPR_OP] =
+        { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
+            "DBL" };
     if (type < JIM_TT_EXPR_OP) {
         return tt_names[type];
     }
@@ -8987,6 +9008,7 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
     /* This should never happen. The format object should already be of the correct type */
     if (fmtObjPtr->typePtr != &scanFmtStringObjType) {
         Jim_Panic(interp, "Jim_ScanString() for non-scan format");
+        exit(1);
     }
     fmtObj = (ScanFmtStringObj *) fmtObjPtr->internalRep.ptr;
     /* Check if format specification was valid */
@@ -9313,56 +9335,9 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken * token, int tokens, J
     return retcode;
 }
 
-/* Helper of Jim_EvalObj() to perform argument expansion.
- * Basically this function append an argument to 'argv'
- * (and increments argc by reference accordingly), performing
- * expansion of the list object if 'expand' is non-zero, or
- * just adding objPtr to argv if 'expand' is zero. */
-void Jim_ExpandArgument(Jim_Interp *interp, Jim_Obj ***argv,
-    int *argcPtr, int expand, Jim_Obj *objPtr)
-{
-    if (!expand) {
-        (*argv) = Jim_Realloc(*argv, sizeof(Jim_Obj *) * ((*argcPtr) + 1));
-        /* refcount of objPtr not incremented because
-         * we are actually transfering a reference from
-         * the old 'argv' to the expanded one. */
-        (*argv)[*argcPtr] = objPtr;
-        (*argcPtr)++;
-    }
-    else {
-        int len, i;
-
-        len = Jim_ListLength(interp, objPtr);
-        (*argv) = Jim_Realloc(*argv, sizeof(Jim_Obj *) * ((*argcPtr) + len));
-        for (i = 0; i < len; i++) {
-            (*argv)[*argcPtr] = objPtr->internalRep.listValue.ele[i];
-            Jim_IncrRefCount(objPtr->internalRep.listValue.ele[i]);
-            (*argcPtr)++;
-        }
-        /* The original object reference is no longer needed,
-         * after the expansion it is no longer present on
-         * the argument vector, but the single elements are
-         * in its place. */
-        Jim_DecrRefCount(interp, objPtr);
-    }
-}
-
 static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
 {
     int rc = retcode;
-
-#if 0
-    /* XXX: Don't create a stack frame for 'return -code error' */
-
-    /* Pick up 'return -code error' too */
-    if (retcode == JIM_RETURN) {
-        rc = interp->returnCode;
-    }
-#endif
-#if 0
-    printf("JimAddErrorToStack: retcode=%s, %s:%d, ast=%d, errorFlag=%d\n",
-        Jim_ReturnCode(retcode), filename, line, interp->addStackTrace, interp->errorFlag);
-#endif
 
     if (rc == JIM_ERR && !interp->errorFlag) {
         /* This is the first error, so save the file/line information and reset the stack */
@@ -9445,9 +9420,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     ScriptObj *script;
     ScriptToken *token;
     ScriptToken *cmdtoken = NULL;
-    int *cs;                    /* command structure array */
     int retcode = JIM_OK;
-    Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL, *tmpObjPtr;
+    Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL;
 
     interp->errorFlag = 0;
 
@@ -9474,10 +9448,10 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_OK;
     }
-    if (script->len == 4 && script->token[0].type == JIM_TT_ESC
+    if (script->len == 3 && script->token[1].type == JIM_TT_ESC
         && script->token[2].type == JIM_TT_ESC
         && script->token[2].objPtr->typePtr == &variableObjType) {
-        if (Jim_CompareStringImmediate(interp, script->token[0].objPtr, "incr")) {
+        if (Jim_CompareStringImmediate(interp, script->token[1].objPtr, "incr")) {
             Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
 
             if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
@@ -9504,104 +9478,125 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     token = script->token;
     len = script->len;
-    cs = script->cmdStruct;
     i = 0;                      /* 'i' is the current token index. */
 
     /* Execute every command sequentially, returns on
      * error (i.e. if a command does not return JIM_OK) */
     while (i < len) {
-        int expand = 0;
-        int argc = *cs++;       /* Get the number of arguments */
+        int argc;
         Jim_Cmd *cmd;
 
-        /* Set the expand flag if needed. */
-        if (argc < 0) {
-            expand++;
-            argc = -argc;
-        }
+        /* First token of the line is always JIM_TT_LINE */
+        argc = token[i].linenr;
+        
         /* Allocate the arguments vector */
         if (argc <= JIM_EVAL_SARGV_LEN)
             argv = sargv;
         else
             argv = Jim_Alloc(sizeof(Jim_Obj *) * argc);
 
-        /* This is the command token. Remember it in the case of error */
-        cmdtoken = &token[i];
+        /* Skip the JIM_TT_LINE token and remember the next token in case of error.
+         * If that is a JIM_TT_WORD token, look at the token after that.
+         */
+        cmdtoken = &token[++i];
+        if (cmdtoken->type == JIM_TT_WORD) {
+            cmdtoken++;
+        }
 
         /* Populate the arguments objects. */
         for (j = 0; j < argc; j++) {
-            int tokens = *cs++;
+            long wordtokens = 1;
+            int expand = 0;
+            Jim_Obj *wordObjPtr = NULL;
 
-            /* tokens is negative if expansion is needed.
-             * for this argument. */
-            if (tokens < 0) {
-                tokens = (-tokens) - 1;
-                i++;
+            if (token[i].type == JIM_TT_WORD) {
+                wordtokens = token[i++].linenr;
+                if (wordtokens < 0) {
+                    expand = 1;
+                    wordtokens = -wordtokens;
+                }
             }
-            if (tokens == 1) {
+
+            if (wordtokens == 1) {
                 /* Fast path if the token does not
                  * need interpolation */
+
                 switch (token[i].type) {
                     case JIM_TT_ESC:
                     case JIM_TT_STR:
-                        argv[j] = token[i].objPtr;
+                        wordObjPtr = token[i].objPtr;
                         break;
                     case JIM_TT_VAR:
-                        tmpObjPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
-                        if (!tmpObjPtr) {
-                            retcode = JIM_ERR;
-                            goto err;
-                        }
-                        argv[j] = tmpObjPtr;
+                        wordObjPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
                         break;
                     case JIM_TT_DICTSUGAR:
-                        tmpObjPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
-                        if (!tmpObjPtr) {
-                            retcode = JIM_ERR;
-                            goto err;
-                        }
-                        argv[j] = tmpObjPtr;
+                        wordObjPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
                         break;
                     case JIM_TT_CMD:
                         retcode = Jim_EvalObj(interp, token[i].objPtr);
-                        if (retcode != JIM_OK) {
-                            goto err;
+                        if (retcode == JIM_OK) {
+                            wordObjPtr = Jim_GetResult(interp);
                         }
-                        argv[j] = Jim_GetResult(interp);
                         break;
                     default:
                         Jim_Panic(interp, "default token type reached " "in Jim_EvalObj().");
                         exit(1);
                 }
-                Jim_IncrRefCount(argv[j]);
-                i += 2;
             }
             else {
                 /* For interpolation we call a helper
                  * function to do the work for us. */
-                if ((retcode = Jim_InterpolateTokens(interp,
-                            token + i, tokens, &tmpObjPtr)) != JIM_OK) {
-                    goto err;
-                }
-                argv[j] = tmpObjPtr;
-                Jim_IncrRefCount(argv[j]);
-                i += tokens + 1;
+                retcode = Jim_InterpolateTokens(interp, token + i, wordtokens, &wordObjPtr);
             }
-        }
-        /* Handle {expand} expansion */
-        if (expand) {
-            int *ecs = cs - argc;
-            int eargc = 0;
-            Jim_Obj **eargv = NULL;
 
-            for (j = 0; j < argc; j++) {
-                Jim_ExpandArgument(interp, &eargv, &eargc, ecs[j] < 0, argv[j]);
+            if (!wordObjPtr) {
+                if (retcode == JIM_OK) {
+                    retcode = JIM_ERR;
+                }
+                goto err;
             }
-            if (argv != sargv)
-                Jim_Free(argv);
-            argc = eargc;
-            argv = eargv;
-            j = argc;
+
+            Jim_IncrRefCount(wordObjPtr);
+            i += wordtokens;
+
+            if (!expand) {
+                argv[j] = wordObjPtr;
+            }
+            else {
+                /* Need to expand wordObjPtr into multiple args from argv[j] ... */
+                int len = Jim_ListLength(interp, wordObjPtr);
+                int newargc = argc + len - 1;
+                int k;
+
+                if (len > 1) {
+                    if (argv == sargv) {
+                        if (newargc > JIM_EVAL_SARGV_LEN) {
+                            argv = Jim_Alloc(sizeof(*argv) * newargc);
+                            memcpy(argv, sargv, sizeof(*argv) * j);
+                        }
+                    }
+                    else {
+                        /* Need to realloc to make room for (len - 1) more entries */
+                        argv = Jim_Realloc(argv, sizeof(*argv) * newargc);
+                    }
+                }
+
+                /* Now copy in the expanded version */
+                for (k = 0; k < len; k++) {
+                    argv[j++] = wordObjPtr->internalRep.listValue.ele[k];
+                    Jim_IncrRefCount(wordObjPtr->internalRep.listValue.ele[k]);
+                }
+
+                /* The original object reference is no longer needed,
+                 * after the expansion it is no longer present on
+                 * the argument vector, but the single elements are
+                 * in its place. */
+                Jim_DecrRefCount(interp, wordObjPtr);
+
+                /* And update the indexes */
+                j--;
+                argc += len - 1;
+            }
         }
 
         if (argc == 0) {
@@ -9639,12 +9634,14 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         for (j = 0; j < argc; j++) {
             Jim_DecrRefCount(interp, argv[j]);
         }
+
   empty_expansion:
         if (argv != sargv) {
             Jim_Free(argv);
             argv = NULL;
         }
     }
+
     /* Note that we don't have to decrement inUse, because the
      * following code transfers our use of the reference again to
      * the script object. */
@@ -10108,16 +10105,10 @@ int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags)
     }
 
     /* Create the "real" subst/script tokens from the initial token list */
-    script->cmdStruct = NULL;
-    script->csLen = 0;
     script->inUse = 1;
     script->substFlags = flags;
     script->fileName = NULL;
-#ifdef JIM_OPTIMIZATION
     SubstObjAddTokens(interp, script, &tokenlist);
-#else
-    ScriptObjAddTokens(interp, script, &tokenlist);
-#endif
 
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
@@ -10712,11 +10703,11 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         incrScript = Jim_GetScript(interp, argv[3]);
 
         /* Ensure proper lengths to start */
-        if (incrScript->len != 4 || !expr || expr->len != 3) {
+        if (incrScript->len != 3 || !expr || expr->len != 3) {
             goto evalstart;
         }
         /* Ensure proper token types. */
-        if (incrScript->token[2].type != JIM_TT_ESC ||
+        if (incrScript->token[1].type != JIM_TT_ESC ||
             expr->token[0].type != JIM_TT_VAR ||
             (expr->token[1].type != JIM_TT_EXPR_INT && expr->token[1].type != JIM_TT_VAR)) {
             goto evalstart;
@@ -10733,7 +10724,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         }
 
         /* Update command must be incr */
-        if (!Jim_CompareStringImmediate(interp, incrScript->token[0].objPtr, "incr")) {
+        if (!Jim_CompareStringImmediate(interp, incrScript->token[1].objPtr, "incr")) {
             goto evalstart;
         }
 
@@ -12964,12 +12955,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     line = argv[2]->internalRep.sourceValue.lineNumber;
                 }
                 else if (argv[2]->typePtr == &scriptObjType) {
-                    ScriptObj *script = Jim_GetScript(interp, argv[2]);
-
-                    filename = script->fileName;
-                    if (script->token) {
-                        line = script->token->linenr;
-                    }
+                    filename = Jim_ScriptSource(Jim_GetScript(interp, argv[2]), &line);
                 }
                 resObjPtr = Jim_NewListObj(interp, NULL, 0);
                 Jim_ListAppendElement(interp, resObjPtr, Jim_NewStringObj(interp, filename, -1));

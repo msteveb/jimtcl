@@ -29,12 +29,6 @@ SPEED OPTIMIZATIONS
   * Currently literal sharing is completely removed. Can it be made
     efficient? What is the cost vs. benefit?
 
-- Organize the 'script' object so that a single data structure is
-  used for a full command, and interpolation is done using an
-  'interpolation token type' like JIM_TT_VAR and so on.
-  This way there is no need to run the array of integer objects
-  with the command structure. Also should help for better cache usage.
-
 IMPLEMENTATION ISSUES
 
 - Objects lazy free.
@@ -50,7 +44,3 @@ IMPLEMENTATION ISSUES
 REFERENCES SYSTEM
 
 - Unify ref/getref/setref/collect/finalize under an unique [ref] command.
-
-RANDOM THINGS TO DO ASAP
-
-- .jimrc loading, using the ENV variable
