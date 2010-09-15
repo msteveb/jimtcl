@@ -1694,6 +1694,9 @@ int JimParseListSep(struct JimParserCtx *pc)
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
     while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' || *pc->p == '\n') {
+        if (*pc->p == '\n') {
+            pc->linenr++;
+        }
         pc->p++;
         pc->len--;
     }
@@ -5541,6 +5544,14 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct JimParserCtx parser;
     const char *str;
     int strLen;
+    char *filename = NULL;
+    int linenr = 1;
+
+    /* Try to preserve information about filename / line number */
+    if (objPtr->typePtr == &sourceObjType) {
+        filename = Jim_StrDup(objPtr->internalRep.sourceValue.fileName);
+        linenr = objPtr->internalRep.sourceValue.lineNumber;
+    }
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &strLen);
@@ -5554,19 +5565,24 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->internalRep.listValue.ele = NULL;
 
     /* Convert into a list */
-    JimParserInit(&parser, str, strLen, 1);
+    JimParserInit(&parser, str, strLen, linenr);
     while (!JimParserEof(&parser)) {
         char *token;
         int tokenLen, type;
         Jim_Obj *elementPtr;
+        int line;
 
         JimParseList(&parser);
         if (JimParserTtype(&parser) != JIM_TT_STR && JimParserTtype(&parser) != JIM_TT_ESC)
             continue;
-        token = JimParserGetToken(&parser, &tokenLen, &type, NULL);
+        token = JimParserGetToken(&parser, &tokenLen, &type, &line);
         elementPtr = Jim_NewStringObjNoAlloc(interp, token, tokenLen);
+        if (filename) {
+            JimSetSourceInfo(interp, elementPtr, filename, line);
+        }
         ListAppendElement(objPtr, elementPtr);
     }
+    free(filename);
     return JIM_OK;
 }
 
