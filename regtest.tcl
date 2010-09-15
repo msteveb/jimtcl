@@ -80,6 +80,12 @@ set a b[ref value "tag name"]
 getref [string range $a 1 end]
 puts "TEST 12 PASSED"
 
+# REGTEST 13
+# 14 Sep 2010 - parse list with trailing backslash
+set x "switch -0 \$on \\"
+lindex $x 1
+puts "TEST 13 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -1714,8 +1714,13 @@ int JimParseListStr(struct JimParserCtx *pc)
         }
         switch (*pc->p) {
             case '\\':
+                if (--pc->len == 0) {
+                    /* Trailing newline */
+                    pc->tt = JIM_TT_ESC;
+                    pc->tend = pc->p;
+                    return JIM_OK;
+                }
                 pc->p++;
-                pc->len--;
                 break;
             case ' ':
             case '\t':
