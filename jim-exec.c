@@ -231,7 +231,7 @@ typedef struct
 #define WI_READY    1
 #define WI_DETACHED 2
 
-/* REVISIT: Should be per-interpreter */
+/* XXX: Should be per-interpreter */
 static WaitInfo *waitTable = NULL;
 static int waitTableSize = 0;   /* Total number of entries available in waitTable. */
 static int waitTableUsed = 0;   /* Number of entries in waitTable that

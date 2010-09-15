@@ -95,7 +95,7 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 static void JimLoadJimRc(Jim_Interp *interp)
 {
     const char *home;
-    /* REVISIT: Move off stack */
+    /* XXX: Move off stack */
     char buf[JIM_PATH_LEN + 1];
     const char *names[] = { ".jimrc", "jimrc.tcl", NULL };
     int i;

@@ -32,7 +32,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         }
         else {
             FILE *fp;
-            /* REVISIT: Move off stack */
+            /* XXX: Move off stack */
             char buf[JIM_PATH_LEN];
             const char *prefix;
             int prefixlen;

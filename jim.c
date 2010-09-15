@@ -66,11 +66,19 @@
 #include <execinfo.h>
 #endif
 
-/*#define DEBUG_SHOW_SCRIPT*/
-/*#define DEBUG_SHOW_TOKENS*/
-
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
+
+/*#define DEBUG_SHOW_SCRIPT*/
+/*#define DEBUG_SHOW_SCRIPT_TOKENS*/
+/*#define DEBUG_SHOW_SUBST*/
+/*#define DEBUG_SHOW_EXPR*/
+/*#define JIM_DEBUG_GC*/
+/*#define JIM_DEBUG_COMMAND*/
+
+#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(DEBUG_SHOW_EXPR) || defined(DEBUG_SHOW_SUBST)
+static const char *tt_name(int type);
+#endif
 
 /* -----------------------------------------------------------------------------
  * Global variables
@@ -99,8 +107,6 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 
 static const Jim_HashTableType JimVariablesHashTableType;
-
-const char *tt_name(int type);
 
 /* -----------------------------------------------------------------------------
  * Utility functions
@@ -3044,7 +3050,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     ScriptToken *linefirst;
     int count;
 
-#ifdef DEBUG_SHOW_TOKENS
+#ifdef DEBUG_SHOW_SCRIPT_TOKENS
     printf("==== Tokens ====\n");
     for (i = 0; i < tokenlist->count; i++) {
         printf("[%2d]@%d %s '%.*s'\n", i, tokenlist->list[i].line, tt_name(tokenlist->list[i].type),
@@ -3082,7 +3088,11 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             /* None, so at end of line */
             if (lineargs) {
                 linefirst->type = JIM_TT_LINE;
+#ifdef DEBUG_SHOW_SCRIPT
                 linefirst->objPtr = Jim_NewIntObj(interp, lineargs);
+#else
+                linefirst->objPtr = interp->emptyObj;
+#endif
                 /* Cheat and store the value in the unused 'linenr' for quick access */
                 linefirst->linenr = lineargs;
                 Jim_IncrRefCount(linefirst->objPtr);
@@ -3097,7 +3107,11 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
         else if (wordtokens != 1) {
             /* More than 1, or {expand}, so insert a WORD token */
             token->type = JIM_TT_WORD;
+#ifdef DEBUG_SHOW_SCRIPT
             token->objPtr = Jim_NewIntObj(interp, wordtokens);
+#else
+            token->objPtr = interp->emptyObj;
+#endif
             /* Cheat and store the value in the unused 'linenr' for quick access */
             token->linenr = wordtokens;
             Jim_IncrRefCount(token->objPtr);
@@ -4454,8 +4468,6 @@ static const Jim_HashTableType JimRefMarkHashTableType = {
     NULL                        /* val destructor */
 };
 
-/* #define JIM_DEBUG_GC 1 */
-
 /* Performs the garbage collection. */
 int Jim_Collect(Jim_Interp *interp)
 {
@@ -5653,7 +5665,6 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     jim_wide lhs = 0, rhs = 0;
 
-    /* REVISIT: If these are not valid integers, bogus results ... */
     if (Jim_GetWide(sort_interp, *lhsObj, &lhs) != JIM_OK ||
         Jim_GetWide(sort_interp, *rhsObj, &rhs) != JIM_OK) {
         longjmp(sort_jmpbuf, JIM_ERR);
@@ -7433,38 +7444,6 @@ static int JimExprOpAndOrRight(Jim_Interp *interp, struct JimExprState *e)
     return rc;
 }
 
-static int JimExprOpColon(Jim_Interp *interp, struct JimExprState *e)
-{
-    int rc = JIM_OK;
-
-#if 0
-    Jim_Obj *C = ExprPop(e);
-    Jim_Obj *B = ExprPop(e);
-    Jim_Obj *A = ExprPop(e);
-
-    switch (ExprBool(interp, A)) {
-        case 0:
-            ExprPush(e, C);
-            break;
-
-        case 1:
-            ExprPush(e, B);
-            break;
-
-        case -1:
-            /* Invalid */
-            rc = JIM_ERR;
-            break;
-    }
-    Jim_DecrRefCount(interp, A);
-    Jim_DecrRefCount(interp, B);
-    Jim_DecrRefCount(interp, C);
-
-#endif
-    return rc;
-}
-
-
 static int JimExprOpTernaryLeft(Jim_Interp *interp, struct JimExprState *e)
 {
     Jim_Obj *skip = ExprPop(e);
@@ -7596,7 +7575,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_LOGICOR] = {"||", 9, 2, NULL, LAZY_OP},
 
     [JIM_EXPROP_TERNARY] = {"?", 5, 2, JimExprOpNull, LAZY_OP},
-    [JIM_EXPROP_COLON] = {":", 5, 2, JimExprOpColon, LAZY_OP},
+    [JIM_EXPROP_COLON] = {":", 5, 2, JimExprOpNull, LAZY_OP},
 
     /* private operators */
     [JIM_EXPROP_TERNARY_LEFT] = {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
@@ -7793,8 +7772,8 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
     return &Jim_ExprOperators[opcode];
 }
 
-/* debugging */
-const char *tt_name(int type)
+#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(DEBUG_SHOW_EXPR) || defined(DEBUG_SHOW_SUBST)
+static const char *tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
@@ -7813,6 +7792,7 @@ const char *tt_name(int type)
         return buf;
     }
 }
+#endif
 
 /* -----------------------------------------------------------------------------
  * Expression Object
@@ -8188,14 +8168,16 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         goto err;
     }
 
-#if 0
-    int i;
+#ifdef DEBUG_SHOW_EXPR
+    {
+        int i;
 
-    printf("==== Expr ====\n");
-    for (i = 0; i < expr->len; i++) {
-        ScriptToken *t = &expr->token[i];
+        printf("==== Expr ====\n");
+        for (i = 0; i < expr->len; i++) {
+            ScriptToken *t = &expr->token[i];
 
-        printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+            printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+        }
     }
 #endif
 
@@ -8206,15 +8188,6 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     }
 
     rc = JIM_OK;
-
-#if 0
-    printf("==== Expr ====\n");
-    for (i = 0; i < expr->len; i++) {
-        ScriptToken *t = &expr->token[i];
-
-        printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
-    }
-#endif
 
   err:
     /* Free the old internal rep and set the new one. */
@@ -9100,7 +9073,7 @@ static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedL
 static void JimPrngInit(Jim_Interp *interp)
 {
     int i;
-    /* REVISIT: Move off stack */
+    /* XXX: Move off stack */
     unsigned int seed[256];
 
     interp->prngState = Jim_Alloc(sizeof(Jim_PrngState));
@@ -9136,7 +9109,7 @@ static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len)
 static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedLen)
 {
     int i;
-    /* REVISIT: Move off stack */
+    /* XXX: Move off stack */
     unsigned char buf[256];
     Jim_PrngState *prng;
 
@@ -10127,13 +10100,15 @@ int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags)
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
 
-#if 0
-    int i;
+#ifdef DEBUG_SHOW_SUBST
+    {
+        int i;
 
-    printf("==== Subst ====\n");
-    for (i = 0; i < script->len; i++) {
-        printf("[%2d] %s (%d)'%s'\n", i, tt_name(script->token[i].type),
-            script->token[i].objPtr->length, script->token[i].objPtr->bytes);
+        printf("==== Subst ====\n");
+        for (i = 0; i < script->len; i++) {
+            printf("[%2d] %s '%s'\n", i, tt_name(script->token[i].type),
+                Jim_GetString(script->token[i].objPtr, NULL));
+        }
     }
 #endif
 
@@ -11622,6 +11597,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 /* [debug] */
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#ifdef JIM_DEBUG_COMMAND
     const char *options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc",
@@ -11650,7 +11626,6 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     else if (option == OPT_OBJCOUNT) {
         int freeobj = 0, liveobj = 0;
-        /* REVISIT: Move off stack */
         char buf[256];
         Jim_Obj *objPtr;
 
@@ -11682,7 +11657,6 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         objPtr = interp->liveList;
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
         while (objPtr) {
-            /* REVISIT: Move off stack */
             char buf[128];
             const char *type = objPtr->typePtr ? objPtr->typePtr->name : "";
 
@@ -11797,7 +11771,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             "bad option. Valid options are refcount, " "objcount, objects, invstr", -1);
         return JIM_ERR;
     }
-    return JIM_OK;              /* unreached */
+    /* unreached */
+#else
+    Jim_SetResultString(interp, "unsupported", -1);
+    return JIM_ERR;
+#endif
 }
 
 /* [eval] */

@@ -192,7 +192,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             result = JIM_ERR;
             goto done;
         }
-        /* REVISIT: Ugly! */
+        /* XXX: Ugly! */
         num_vars = 100;
     }
 

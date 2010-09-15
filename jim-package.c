@@ -26,7 +26,7 @@ static char *JimFindPackage(Jim_Interp *interp, char **prefixes, int prefixc, co
     int i;
 
     for (i = 0; i < prefixc; i++) {
-        /* REVISIT: Move off stack */
+        /* XXX: Move off stack */
         char buf[JIM_PATH_LEN];
 
         if (prefixes[i] == NULL)
