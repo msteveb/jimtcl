@@ -78,6 +78,7 @@ Since v0.62:
 16. Event handlers works better if an error occurs. eof handler has been removed.
 17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
 18. Command pipelines via open "|..." are now supported
+19. Add 'info references'
 
 Since v0.61:
 
@@ -2396,6 +2397,10 @@ The legal *option*'s (which may be abbreviated) are:
     If *pattern* is specified, only those names matching *pattern*
     are returned.  Matching is determined using the same rules as for
     'string match'.
+
++*info references*+::
+	Returns a list of all references which have not yet been garbage
+	collected.
 
 +*info returncodes* ?'code'?+::
     Returns a list representing the mapping of standard return codes

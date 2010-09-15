@@ -4321,7 +4321,7 @@ int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         if (!isrefchar(start[12 + i]))
             goto badformat;
     }
-    /* Extract info from the refernece. */
+    /* Extract info from the reference. */
     memcpy(refId, start + 14 + JIM_REFERENCE_TAGLEN, 20);
     refId[20] = '\0';
     /* Try to convert the ID into a jim_wide */
@@ -12730,9 +12730,28 @@ static int Jim_FinalizeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     return JIM_OK;
 }
 
-/* TODO */
+/* [info references] */
+static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *listObjPtr;
+    Jim_HashTableIterator *htiter;
+    Jim_HashEntry *he;
 
-/* [info references] (list of all the references/finalizers) */
+    listObjPtr = Jim_NewListObj(interp, NULL, 0);
+
+    htiter = Jim_GetHashTableIterator(&interp->references);
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        char buf[JIM_REFERENCE_SPACE];
+        Jim_Reference *refPtr = he->val;
+        const jim_wide *refId = he->key;
+
+        JimFormatReference(buf, refPtr, *refId);
+        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, buf, -1));
+    }
+    Jim_FreeHashTableIterator(htiter);
+    Jim_SetResult(interp, listObjPtr);
+    return JIM_OK;
+}
 #endif
 
 /* [rename] */
@@ -12869,13 +12888,14 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     static const char *commands[] = {
         "body", "commands", "procs", "exists", "globals", "level", "frame", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
-        "script", "source", "stacktrace", "nameofexecutable", "returncodes", NULL
+        "script", "source", "stacktrace", "nameofexecutable", "returncodes",
+        "references", NULL
     };
     enum
     { INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL, INFO_FRAME,
         INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
         INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
-        INFO_RETURNCODES
+        INFO_RETURNCODES, INFO_REFERENCES,
     };
 
     if (argc < 2) {
@@ -13065,6 +13085,13 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             break;
+        case INFO_REFERENCES:
+#ifdef JIM_REFERENCES
+            return JimInfoReferences(interp, argc, argv);
+#else
+            Jim_SetResultString(interp, "not supported", -1);
+            return JIM_ERR;
+#endif
     }
     return JIM_OK;
 }
