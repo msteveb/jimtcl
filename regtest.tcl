@@ -74,6 +74,12 @@ proc a {} {{x 1}} { rename a ""; incr x }
 a
 puts "TEST 11 PASSED"
 
+# REGTEST 12
+# 13 Sep 2010 - reference with invalid tag
+set a b[ref value "tag name"]
+getref [string range $a 1 end]
+puts "TEST 12 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

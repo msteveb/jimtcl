@@ -4368,13 +4368,13 @@ Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *tagPtr, 
     refObjPtr->internalRep.refValue.id = interp->referenceNextId;
     refObjPtr->internalRep.refValue.refPtr = refPtr;
     interp->referenceNextId++;
-    /* Set the tag. Trimmered at JIM_REFERENCE_TAGLEN. Everything
+    /* Set the tag. Trimmed at JIM_REFERENCE_TAGLEN. Everything
      * that does not pass the 'isrefchar' test is replaced with '_' */
     tag = Jim_GetString(tagPtr, &tagLen);
     if (tagLen > JIM_REFERENCE_TAGLEN)
         tagLen = JIM_REFERENCE_TAGLEN;
     for (i = 0; i < JIM_REFERENCE_TAGLEN; i++) {
-        if (i < tagLen)
+        if (i < tagLen && isrefchar(tag[i]))
             refPtr->tag[i] = tag[i];
         else
             refPtr->tag[i] = '_';
