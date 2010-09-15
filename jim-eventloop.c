@@ -467,14 +467,20 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     { INFO, CANCEL, RESTART, EXPIRE, CREATE };
     int option = CREATE;
 
-    if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> script|cancel <id>");
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> ?script|cancel <id>?");
         return JIM_ERR;
     }
     if (Jim_GetWide(interp, argv[1], &ms) != JIM_OK) {
         if (Jim_GetEnum(interp, argv[1], options, &option, "after options", JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
         }
+    }
+    else if (argc == 2) {
+        /* Simply a sleep */
+        sleep(ms / 1000);
+        usleep((ms % 1000) * 1000);
+        return JIM_OK;
     }
     switch (option) {
         case CREATE:

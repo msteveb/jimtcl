@@ -79,6 +79,7 @@ Since v0.62:
 17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
 18. Command pipelines via open "|..." are now supported
 19. Add 'info references'
+20. Add support for 'after *ms*'
 
 Since v0.61:
 
@@ -4058,15 +4059,18 @@ handler is removed.
 
 Time-based execution is also available via the eventloop API.
 
++*after* 'time'+::
+	Sleeps for the given number of milliseconds. No events are processed during this time.
+
 +*after* 'time script'+::
 	The script is executed after the given number of milliseconds have elapsed.
 	Returns an event id.
 
 +*after cancel* 'id'+::
-	Cancels an after event with the given event id.
+	Cancels an 'after' event with the given event id.
 
 +*vwait* 'variable'+::
-	A call to vwait is required to enter the eventloop. 'vwait' processes events until
+	A call to 'vwait' is required to enter the eventloop. 'vwait' processes events until
 	the named (global) variable changes. The variable need not exist beforehand.
 	If there are no event handlers defined, 'vwait' returns immediately.
 
