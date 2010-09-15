@@ -1265,7 +1265,7 @@ static int JimAioPutsCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static void JimAioTclCompat(Jim_Interp *interp)
 {
-    static const char *tclcmds[] = { "read", "gets", "flush", "close", "eof", "seek", "tell", 0 };
+    static const char * const tclcmds[] = { "read", "gets", "flush", "close", "eof", "seek", "tell", 0 };
     int i;
 
     for (i = 0; tclcmds[i]; i++) {

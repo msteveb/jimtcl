@@ -77,8 +77,8 @@
  * ---------------------------------------------------------------------------*/
 
 /* A shared empty string for the objects string representation.
- * Jim_InvalidateStringRep knows about it and don't try to free. */
-static char *JimEmptyStringRep = (char *)"";
+ * Jim_InvalidateStringRep knows about it and doesn't try to free it. */
+static const char JimEmptyStringRep[] = "";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -1852,7 +1852,7 @@ void Jim_InvalidateStringRep(Jim_Obj *objPtr)
 void Jim_InitStringRep(Jim_Obj *objPtr, const char *bytes, int length)
 {
     if (length == 0) {
-        objPtr->bytes = JimEmptyStringRep;
+        objPtr->bytes = (char *)JimEmptyStringRep;
         objPtr->length = 0;
     }
     else {
@@ -1987,7 +1987,7 @@ Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
         len = strlen(s);
     /* Alloc/Set the string rep. */
     if (len == 0) {
-        objPtr->bytes = JimEmptyStringRep;
+        objPtr->bytes = (char *)JimEmptyStringRep;
         objPtr->length = 0;
     }
     else {
@@ -2290,7 +2290,7 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
 
 static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass, int strict)
 {
-    static const char *strclassnames[] = {
+    static const char * const strclassnames[] = {
         "integer", "alpha", "alnum", "ascii", "digit",
         "double", "lower", "upper", "space", "xdigit",
         "control", "print", "graph", "punct",
@@ -6629,7 +6629,7 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
  * ---------------------------------------------------------------------------*/
 
 /* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
-static const char *jimReturnCodes[] = {
+static const char * const jimReturnCodes[] = {
     [JIM_OK] = "ok",
     [JIM_ERR] = "error",
     [JIM_RETURN] = "return",
@@ -7780,7 +7780,7 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 /* debugging */
 const char *tt_name(int type)
 {
-    static const char *tt_names[JIM_TT_EXPR_OP] =
+    static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
             "DBL" };
     if (type < JIM_TT_EXPR_OP) {
@@ -7798,8 +7798,6 @@ const char *tt_name(int type)
     }
 }
 
-
-
 /* -----------------------------------------------------------------------------
  * Expression Object
  * ---------------------------------------------------------------------------*/
@@ -7807,7 +7805,7 @@ static void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-static Jim_ObjType exprObjType = {
+static const Jim_ObjType exprObjType = {
     "expression",
     FreeExprInternalRep,
     DupExprInternalRep,
@@ -11196,7 +11194,7 @@ static int Jim_LlengthCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 /* [lsearch] */
 static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    static const char *options[] = {
+    static const char * const options[] = {
         "-bool", "-not", "-nocase", "-exact", "-glob", "-regexp", "-all", "-inline", "-command",
             NULL
     };
@@ -12212,7 +12210,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int len;
     int opt_case = 1;
     int option;
-    static const char *options[] = {
+    static const char * const options[] = {
         "length", "compare", "match", "equal", "is", "range", "map",
         "repeat", "reverse", "index", "first", "last",
         "trim", "trimleft", "trimright", "tolower", "toupper", NULL
@@ -12223,7 +12221,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
         OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER
     };
-    static const char *nocase_options[] = {
+    static const char * const nocase_options[] = {
         "-nocase", NULL
     };
 
@@ -12876,7 +12874,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     Jim_Obj *objPtr;
     int mode = 0;
 
-    static const char *commands[] = {
+    static const char * const commands[] = {
         "body", "commands", "procs", "exists", "globals", "level", "frame", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
         "script", "source", "stacktrace", "nameofexecutable", "returncodes",
@@ -13699,7 +13697,7 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
     return JIM_ERR;
 }
 
-int Jim_FindByName(const char *name, const char *array[], size_t len)
+int Jim_FindByName(const char *name, const char * const array[], size_t len)
 {
     int i;
 

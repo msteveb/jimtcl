@@ -841,7 +841,7 @@ JIM_EXPORT int Jim_ScriptIsComplete (const char *s, int len,
  *
  * Returns the matching index if found, or -1 if not.
  */
-JIM_EXPORT int Jim_FindByName(const char *name, const char *array[], size_t len);
+JIM_EXPORT int Jim_FindByName(const char *name, const char * const array[], size_t len);
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);

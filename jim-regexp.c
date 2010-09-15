@@ -60,7 +60,7 @@ void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_Free(objPtr->internalRep.regexpValue.compre);
 }
 
-static Jim_ObjType regexpObjType = {
+static const Jim_ObjType regexpObjType = {
     "regexp",
     FreeRegexpInternalRep,
     NULL,
