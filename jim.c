@@ -9602,12 +9602,12 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             argc = eargc;
             argv = eargv;
             j = argc;
-            if (argc == 0) {
-                /* Nothing to do with zero args. */
-                Jim_Free(eargv);
-                continue;
-            }
         }
+
+        if (argc == 0) {
+            goto empty_expansion;
+        }
+
         /* Lookup the command to call */
         cmd = Jim_GetCommand(interp, argv[0], JIM_ERRMSG);
         if (cmd != NULL) {
@@ -9639,7 +9639,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         for (j = 0; j < argc; j++) {
             Jim_DecrRefCount(interp, argv[j]);
         }
-
+  empty_expansion:
         if (argv != sargv) {
             Jim_Free(argv);
             argv = NULL;

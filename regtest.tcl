@@ -86,6 +86,12 @@ set x "switch -0 \$on \\"
 lindex $x 1
 puts "TEST 13 PASSED"
 
+# REGTEST 14
+# 14 Sep 2010 - command expands to nothing
+eval "{*}{}"
+puts "TEST 14 PASSED"
+
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
