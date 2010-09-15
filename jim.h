@@ -541,6 +541,7 @@ typedef struct Jim_Interp {
     Jim_Obj *unknown; /* Unknown command cache */
     int unknown_called; /* The unknown command has been invoked */
     int errorFlag; /* Set if an error occurred during execution. */
+    int suppress_bgerror; /* bgerror returned break, so don't call it again */
     void *cmdPrivData; /* Used to pass the private data pointer to
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */

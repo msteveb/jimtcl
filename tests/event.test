@@ -1,0 +1,150 @@
+source testing.tcl
+
+test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
+    catch {rename bgerror {}}
+    proc bgerror msg {
+		lappend ::x $msg
+    }
+    after 100 {error "a simple error"}
+    after 200 {open non_existent}
+    set x {}
+	vwait dummy
+    rename bgerror {}
+    set x
+} {{a simple error} {non_existent: No such file or directory}}
+
+test event-5.2 {Tcl_BackgroundError, HandleBgErrors procedures} {
+    proc bgerror msg {
+		lappend ::x $msg
+		return -code break
+    }
+    after 100 {error "a simple error"}
+    after 200 {open non_existent}
+    set x {}
+    vwait dummy
+    rename bgerror {}
+    set x
+} {{a simple error}}
+
+test event-7.1 {bgerror / regular} {
+    set errRes {}
+    proc bgerror {err} {
+		set ::errRes $err;
+    }
+    after 0 {error err1}
+    vwait errRes;
+    set errRes;
+} err1
+
+test event-7.2 {bgerror / accumulation} {
+    set errRes {}
+    proc bgerror {err} {
+		lappend ::errRes $err;
+    }
+    after 0 {error err1}
+    after 1 {error err2}
+    after 2 {error err3}
+    vwait dummy
+    set errRes;
+} {err1 err2 err3}
+
+test event-7.3 {bgerror / accumulation / break} {
+    set errRes {}
+    proc bgerror {err} {
+		lappend ::errRes $err;
+		return -code break "skip!";
+    }
+    after 0 {error err1}
+    after 1 {error err2}
+    after 2 {error err3}
+    vwait dummy
+    set errRes
+} err1
+
+# end of bgerror tests
+catch {rename bgerror {}}
+
+test event-11.1 {Tcl_VwaitCmd procedure} {
+    list [catch {vwait} msg] $msg
+} {1 {wrong # args: should be "vwait name"}}
+test event-11.2 {Tcl_VwaitCmd procedure} {
+    list [catch {vwait a b} msg] $msg
+} {1 {wrong # args: should be "vwait name"}}
+test event-11.3 {Tcl_VwaitCmd procedure} {
+    catch {unset x}
+    set x 1
+    list [catch {vwait x(1)} msg] $msg
+} {1 {can't read "x(1)": variable isn't array}}
+
+test event-11.4 {Tcl_VwaitCmd procedure} {
+	vwait dummy
+    lappend ids [after 100 {set x x-done}]
+    lappend ids [after 200 {set y y-done}]
+    lappend ids [after 300 {set z z-done}]
+    set x before
+    set y before
+    set z before
+    set q before
+    list [vwait y] $x $y $z $q
+} {{} x-done y-done before before}
+
+foreach i $ids {
+    after cancel $i
+}
+
+test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
+    set f1 [open test1 w]
+    proc accept {s args} {
+	puts $s foobar
+	close $s
+    }
+    catch {set s1 [socket stream.server 5001]}
+    after 1000
+    catch {set s2 [socket stream 5001]}
+    close $s1
+    set x 0
+    set y 0
+    set z 0
+    $s2 readable { incr z }
+    vwait z
+    $f1 writable { incr x; if { $y == 3 } { set z done } }
+    $s2 readable { incr y; if { $x == 3 } { set z done } }
+    vwait z
+    close $f1
+    close $s2
+    file delete test1 test2
+    list $x $y $z
+} {3 3 done}
+
+test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
+    file delete test1 test2
+    set f1 [open test1 w]
+    set f2 [open test2 w]
+    set x 0
+    set y 0
+    set z 0
+    vwait dummy
+    $f1 writable { incr x; if { $y == 3 } { set z done } }
+    $f2 writable { incr y; if { $x == 3 } { set z done } }
+    vwait z
+    close $f1
+    close $f2
+    file delete test1 test2
+    list $x $y $z
+} {3 3 done}
+
+
+test event-12.3 {Tcl_UpdateCmd procedure} {
+    after 500 {set x after}
+    after 1 {set y after}
+    after 2 {set z "after, y = $y"}
+    set x before
+    set y before
+    set z before
+    vwait z
+    list $x $y $z
+} {before after {after, y = after}}
+
+vwait dummy
+
+testreport

@@ -4670,6 +4670,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
     i->unknown_called = 0;
     i->errorProc = i->emptyObj;
+    i->suppress_bgerror = 0;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->result);
@@ -9886,17 +9887,24 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     retval = Jim_EvalObj(interp, scriptObjPtr);
     interp->framePtr = savedFramePtr;
     /* Try to report the error (if any) via the bgerror proc */
-    if (retval != JIM_OK) {
+    if (retval != JIM_OK && !interp->suppress_bgerror) {
         Jim_Obj *objv[2];
+        int rc = JIM_ERR;
 
         objv[0] = Jim_NewStringObj(interp, "bgerror", -1);
         objv[1] = Jim_GetResult(interp);
         Jim_IncrRefCount(objv[0]);
         Jim_IncrRefCount(objv[1]);
-        if (Jim_GetCommand(interp, objv[0], JIM_NONE) == NULL || Jim_EvalObjVector(interp, 2, objv) != JIM_OK) {
-            /* Report the error to stderr. */
-            fprintf(stderr, "Background error:" JIM_NL);
-            Jim_PrintErrorMessage(interp);
+        if (Jim_GetCommand(interp, objv[0], JIM_NONE) == NULL || (rc = Jim_EvalObjVector(interp, 2, objv)) != JIM_OK) {
+            if (rc == JIM_BREAK) {
+                /* No more bgerror calls */
+                interp->suppress_bgerror++;
+            }
+            else {
+                /* Report the error to stderr. */
+                fprintf(stderr, "Background error:" JIM_NL);
+                Jim_PrintErrorMessage(interp);
+            }
         }
         Jim_DecrRefCount(interp, objv[0]);
         Jim_DecrRefCount(interp, objv[1]);

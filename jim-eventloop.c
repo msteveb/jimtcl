@@ -419,9 +419,21 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_WrongNumArgs(interp, 1, argv, "name");
         return JIM_ERR;
     }
+
+    interp->suppress_bgerror = 0;
+
     oldValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
-    if (oldValue)
+    if (oldValue) {
         Jim_IncrRefCount(oldValue);
+    }
+    else {
+        /* If a result was left, it is an error */
+        int len;
+        Jim_GetString(interp->result, &len);
+        if (len) {
+            return JIM_ERR;
+        }
+    }
     while (1) {
         Jim_Obj *currValue;
 
@@ -439,6 +451,8 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     if (oldValue)
         Jim_DecrRefCount(interp, oldValue);
+
+    Jim_SetEmptyResult(interp);
     return JIM_OK;
 }
 
@@ -461,18 +475,18 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     jim_wide ms, id;
     Jim_Obj *objPtr, *idObjPtr;
     const char *options[] = {
-        "info", "cancel", NULL
+        "cancel", NULL
     };
     enum
-    { INFO, CANCEL, RESTART, EXPIRE, CREATE };
-    int option = CREATE;
+    { AFTER_CANCEL, AFTER_INFO, AFTER_RESTART, AFTER_EXPIRE, AFTER_CREATE };
+    int option = AFTER_CREATE;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "<after milliseconds> ?script|cancel <id>?");
         return JIM_ERR;
     }
     if (Jim_GetWide(interp, argv[1], &ms) != JIM_OK) {
-        if (Jim_GetEnum(interp, argv[1], options, &option, "after options", JIM_ERRMSG) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
         }
     }
@@ -483,7 +497,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_OK;
     }
     switch (option) {
-        case CREATE:
+        case AFTER_CREATE:
             Jim_IncrRefCount(argv[2]);
             id = Jim_CreateTimeHandler(interp, ms, JimAfterTimeHandler, argv[2],
                 JimAfterTimeEventFinalizer);
@@ -495,7 +509,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_DecrRefCount(interp, idObjPtr);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
-        case CANCEL:{
+        case AFTER_CANCEL:{
                 int tlen;
                 jim_wide remain = 0;
                 const char *tok = Jim_GetString(argv[2], &tlen);
@@ -510,8 +524,6 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 Jim_SetResultString(interp, "invalid event", -1);
                 return JIM_ERR;
             }
-        default:
-            fprintf(stderr, "unserviced option to after %d\n", option);
     }
     return JIM_OK;
 }
