@@ -49,11 +49,10 @@ The major differences are:
 12. 'string map' (Tcl 7.x)
 13. 'subst' (Tcl 7.x)
 14. 'switch' (Tcl 7.x) (note that 'case' is provided for compatibility)
-15. Must better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
+15. Much better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
 16. Support for "static" variables in procedures
 17. Significantly faster for many scripts/operations
 18. Support for tail-call optimisation, 'tailcall'
-19. Command pipelines via open "|..." are not supported (but see 'exec' and 'socket pipe')
 20. Variable traces are not supported
 21. The history command is not supported
 
@@ -78,6 +77,7 @@ Since v0.62:
 15. Add 'string is'
 16. Event handlers works better if an error occurs. eof handler has been removed.
 17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
+18. Command pipelines via open "|..." are now supported
 
 Since v0.61:
 
@@ -2843,6 +2843,18 @@ It may have any of the following values:
 
 If a file is opened for both reading and writing, then 'seek'
 must be invoked between a read and a write, or vice versa.
+
+If the first character of *fileName* is "|" then the remaining
+characters of *fileName* are treated as a list of arguments that
+describe a command pipeline to invoke, in the same style as the
+arguments for exec. In this case, the channel identifier returned
+by open may be used to write to the command's input pipe or read
+from its output pipe, depending on the value of *access*. If write-only
+access is used (e.g. *access* is 'w'), then standard output for the
+pipeline is directed to the current standard output unless overridden
+by the command. If read-only access is used (e.g. *access* is r),
+standard input for the pipeline is taken from the current standard
+input unless overridden by the command.
 
 See also 'socket'
 

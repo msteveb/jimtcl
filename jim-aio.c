@@ -514,14 +514,10 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     socklen_t addrlen = sizeof(sa);
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    long fileId;
 
     sock = accept(serv_af->fd, &sa.sa, &addrlen);
     if (sock < 0)
         return JIM_ERR;
-
-    /* Get the next file id */
-    fileId = Jim_GetId(interp);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -537,7 +533,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     af->wEvent = NULL;
     af->eEvent = NULL;
     af->addr_family = serv_af->addr_family;
-    sprintf(buf, "aio.sockstream%ld", fileId);
+    sprintf(buf, "aio.sockstream%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
@@ -817,7 +813,6 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     FILE *fp;
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    long fileId;
     int OpenFlags = 0;
     const char *cmdname;
 
@@ -839,19 +834,28 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         fp = stderr;
     }
     else {
-        const char *mode = "r";
+        const char *mode = (argc == 3) ? Jim_GetString(argv[2], NULL) : "r";
+        const char *filename = Jim_GetString(argv[1], NULL);
 
-        if (argc == 3) {
-            mode = Jim_GetString(argv[2], NULL);
+#ifdef jim_ext_tclcompat
+        /* If the filename starts with '|', use popen instead */
+        if (*filename == '|') {
+            Jim_Obj *evalObj[3];
+
+            evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
+            evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
+            evalObj[2] = Jim_NewStringObj(interp, mode, -1);
+
+            return Jim_EvalObjVector(interp, 3, evalObj);
         }
-        fp = fopen(Jim_GetString(argv[1], NULL), mode);
+#endif
+        fp = fopen(filename, mode);
         if (fp == NULL) {
             JimAioSetError(interp, argv[1]);
             return JIM_ERR;
         }
         /* Get the next file id */
-        fileId = Jim_GetId(interp);
-        sprintf(buf, "aio.handle%ld", fileId);
+        sprintf(buf, "aio.handle%ld", Jim_GetId(interp));
         cmdname = buf;
     }
 
@@ -887,7 +891,6 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdlfmt, int fd, int family,
     const char *mode)
 {
-    long fileId;
     AioFile *af;
     char buf[AIO_CMD_LEN];
 
@@ -898,9 +901,6 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
-
-    /* Get the next file id */
-    fileId = Jim_GetId(interp);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -916,7 +916,7 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
     af->wEvent = NULL;
     af->eEvent = NULL;
     af->addr_family = family;
-    sprintf(buf, hdlfmt, fileId);
+    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp, buf, -1));

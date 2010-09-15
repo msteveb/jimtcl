@@ -127,6 +127,28 @@ proc {file copy} {{force {}} source target} {
 	}
 }
 
+# 'open "|..." ?mode?" will invoke this wrapper around exec/pipe
+proc popen {cmd {mode r}} {
+	lassign [socket pipe] r w
+	try {
+		if {[string match "w*" $mode]} {
+			lappend cmd <@$r &
+			exec {*}$cmd
+			$r close
+			return $w
+		} else {
+			lappend cmd >@$w &
+			exec {*}$cmd
+			$w close
+			return $r
+		}
+	} on error {error opts} {
+		$r close
+		$w close
+		error $error
+	}
+}
+
 # try/on/finally conceptually similar to Tcl 8.6
 #
 # Usage: try ?catchopts? script ?onclause ...? ?finallyclause?
