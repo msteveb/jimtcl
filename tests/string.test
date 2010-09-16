@@ -447,9 +447,9 @@ test string-10.7 {string map} {
 test string-10.8 {string map -nocase} {
     string map -nocase {aBc 321 Ab * a A} aabcabaababcab
 } {A321*A*321*}
-#test string-10.9 {string map -nocase} {
-#    string map -no {abc 321 Ab * a A} aAbCaBaAbAbcAb
-#} {A321*A*321*}
+test string-10.9 {string map -nocase} {
+    string map -no {abc 321 Ab * a A} aAbCaBaAbAbcAb
+} {A321*A*321*}
 test string-10.10 {string map} {
     list [catch {string map {a b c} abba} msg]
 } {1}

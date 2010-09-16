@@ -8,6 +8,7 @@ proc error_source {} {
 	lassign [info stacktrace] p f l
 	if {$f ne ""} {
 		puts "At      : $f:$l"
+		return \t$f:$l
 	}
 }
 
@@ -22,52 +23,53 @@ catch {
 }
 
 proc section {name} {
-	if {!$::testquiet} {
+	if {!$::test(quiet)} {
 		puts "-- $name ----------------"
 	}
 }
 
-set testresults(numfail) 0
-set testresults(numpass) 0
-set testresults(failed) {}
+set test(numfail) 0
+set test(numpass) 0
+set test(failed) {}
 
 proc test {id descr script expected} {
-	if {!$::testquiet} {
+	if {!$::test(quiet)} {
 		puts -nonewline "$id "
 	}
-	set rc [catch {uplevel 1 $script} result opts]
+
+	set rc [catch {uplevel 1 $script} result]
 
 	# Note that rc=2 is return
 	if {($rc == 0 || $rc == 2) && $result eq $expected} {
-		if {!$::testquiet} {
+		if {!$::test(quiet)} {
 			puts "OK  $descr"
 		}
-		incr ::testresults(numpass)
+		incr ::test(numpass)
 	} else {
-		if {$::testquiet} {
+		if {$::test(quiet)} {
 			puts -nonewline "$id "
 		}
 		puts "ERR $descr"
-		error_source
+		set source [error_source]
 		puts "Expected: '$expected'"
 		puts "Got     : '$result'"
-		incr ::testresults(numfail)
-		lappend ::testresults(failed) [list $id $descr $script $expected $result]
+		incr ::test(numfail)
+		lappend ::test(failed) [list $id $descr $source $expected $result]
 	}
 }
 
 proc testreport {} {
-	if {!$::testquiet || $::testresults(numfail)} {
+	if {!$::test(quiet) || $::test(numfail)} {
 		puts "----------------------------------------------------------------------"
-		puts "FAILED: $::testresults(numfail)"
-		foreach failed $::testresults(failed) {
-			foreach {id descr script expected result} $failed {}
-			puts "\t[info_source $script]\t$id"
+		puts "FAILED: $::test(numfail)"
+		foreach failed $::test(failed) {
+			foreach {id descr source expected result} $failed {}
+			puts "$source\t$id"
 		}
-		puts "PASSED: $::testresults(numpass)"
+		puts "PASSED: $::test(numpass)"
 		puts "----------------------------------------------------------------------\n"
 	}
-	if {$::testresults(numfail)} {
+	if {$::test(numfail)} {
 		exit 1
 	}
 }
@@ -76,12 +78,12 @@ proc testerror {} {
 	error "deliberate error"
 }
 
-incr testquiet [info exists ::env(testquiet)]
+set test(quiet) [info exists ::env(testquiet)]
 if {[lindex $argv 0] eq "-quiet"} {
-	incr testquiet
+	incr test(quiet)
 }
 
-if {!$testquiet} {
+if {!$test(quiet)} {
 	puts [string repeat = 40]
 	puts $argv0
 	puts [string repeat = 40]
