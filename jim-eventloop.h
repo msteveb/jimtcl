@@ -83,6 +83,7 @@ JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
 #define JIM_DONT_WAIT 4
 
 JIM_EXPORT int Jim_ProcessEvents (Jim_Interp *interp, int flags);
+JIM_EXPORT int Jim_EvalObjBackground (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 
 int Jim_eventloopInit(Jim_Interp *interp);
 

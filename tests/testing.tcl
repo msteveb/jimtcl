@@ -4,8 +4,11 @@ proc makeFile {contents name} {
 	close $f
 }
 
-proc info_source {script} {
-	join [info source $script] :
+proc error_source {} {
+	lassign [info stacktrace] p f l
+	if {$f ne ""} {
+		puts "At      : $f:$l"
+	}
 }
 
 catch {
@@ -14,8 +17,7 @@ catch {
 	proc errorInfo {msg} {
 		return $::errorInfo
 	}
-	proc info_source {script} {
-		return ""
+	proc error_source {} {
 	}
 }
 
@@ -33,7 +35,8 @@ proc test {id descr script expected} {
 	if {!$::testquiet} {
 		puts -nonewline "$id "
 	}
-	set rc [catch {uplevel 1 $script} result]
+	set rc [catch {uplevel 1 $script} result opts]
+
 	# Note that rc=2 is return
 	if {($rc == 0 || $rc == 2) && $result eq $expected} {
 		if {!$::testquiet} {
@@ -45,7 +48,7 @@ proc test {id descr script expected} {
 			puts -nonewline "$id "
 		}
 		puts "ERR $descr"
-		puts "At      : [info_source $script]"
+		error_source
 		puts "Expected: '$expected'"
 		puts "Got     : '$result'"
 		incr ::testresults(numfail)

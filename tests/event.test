@@ -1,35 +1,35 @@
+# This file contains a collection of tests for the procedures in the file
+# tclEvent.c, which includes the "update", and "vwait" Tcl
+# commands.  Sourcing this file into Tcl runs the tests and generates
+# output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1997 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
 source testing.tcl
 
 test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
     catch {rename bgerror {}}
     proc bgerror msg {
-		lappend ::x $msg
+	lappend ::x $msg
     }
-    after 100 {error "a simple error"}
-    after 200 {open non_existent}
+    after idle {error "a simple error"}
+    after idle {open non_existent}
+    after idle {set errorInfo foobar; set errorCode xyzzy}
     set x {}
-	vwait dummy
+    update idletasks
     rename bgerror {}
     set x
 } {{a simple error} {non_existent: No such file or directory}}
 
-test event-5.2 {Tcl_BackgroundError, HandleBgErrors procedures} {
-    proc bgerror msg {
-		lappend ::x $msg
-		return -code break
-    }
-    after 100 {error "a simple error"}
-    after 200 {open non_existent}
-    set x {}
-    vwait dummy
-    rename bgerror {}
-    set x
-} {{a simple error}}
-
 test event-7.1 {bgerror / regular} {
     set errRes {}
     proc bgerror {err} {
-		set ::errRes $err;
+	global errRes;
+	set errRes $err;
     }
     after 0 {error err1}
     vwait errRes;
@@ -39,30 +39,39 @@ test event-7.1 {bgerror / regular} {
 test event-7.2 {bgerror / accumulation} {
     set errRes {}
     proc bgerror {err} {
-		lappend ::errRes $err;
+	global errRes;
+	lappend errRes $err;
     }
     after 0 {error err1}
-    after 1 {error err2}
-    after 2 {error err3}
-    vwait dummy
+    after 0 {error err2}
+    after 0 {error err3}
+    update
     set errRes;
 } {err1 err2 err3}
 
 test event-7.3 {bgerror / accumulation / break} {
     set errRes {}
     proc bgerror {err} {
-		lappend ::errRes $err;
-		return -code break "skip!";
+	global errRes;
+	lappend errRes $err;
+	return -code break "skip!";
     }
     after 0 {error err1}
-    after 1 {error err2}
-    after 2 {error err3}
-    vwait dummy
-    set errRes
+    after 0 {error err2}
+    after 0 {error err3}
+    update
+    set errRes;
 } err1
 
 # end of bgerror tests
 catch {rename bgerror {}}
+
+
+test event-10.1 {Tcl_Exit procedure} {
+    set cmd [list exec [info nameofexecutable] "<<exit 3"]
+    list [catch $cmd msg] [lindex $errorCode 0] \
+        [lindex $errorCode 2]
+} {1 CHILDSTATUS 3}
 
 test event-11.1 {Tcl_VwaitCmd procedure} {
     list [catch {vwait} msg] $msg
@@ -75,20 +84,23 @@ test event-11.3 {Tcl_VwaitCmd procedure} {
     set x 1
     list [catch {vwait x(1)} msg] $msg
 } {1 {can't read "x(1)": variable isn't array}}
-
 test event-11.4 {Tcl_VwaitCmd procedure} {
-	vwait dummy
-    lappend ids [after 100 {set x x-done}]
-    lappend ids [after 200 {set y y-done}]
-    lappend ids [after 300 {set z z-done}]
+    foreach i [after info] {
+	after cancel $i
+    }
+    after 10; update; # On Mac make sure update won't take long
+    after 100 {set x x-done}
+    after 200 {set y y-done}
+    after 300 {set z z-done}
+    after idle {set q q-done}
     set x before
     set y before
     set z before
     set q before
     list [vwait y] $x $y $z $q
-} {{} x-done y-done before before}
+} {{} x-done y-done before q-done}
 
-foreach i $ids {
+foreach i [after info] {
     after cancel $i
 }
 
@@ -115,7 +127,6 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
     file delete test1 test2
     list $x $y $z
 } {3 3 done}
-
 test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
     file delete test1 test2
     set f1 [open test1 w]
@@ -123,7 +134,7 @@ test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
     set x 0
     set y 0
     set z 0
-    vwait dummy
+    update
     $f1 writable { incr x; if { $y == 3 } { set z done } }
     $f2 writable { incr y; if { $x == 3 } { set z done } }
     vwait z
@@ -134,17 +145,41 @@ test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
 } {3 3 done}
 
 
+test event-12.1 {Tcl_UpdateCmd procedure} {
+    list [catch {update a b} msg] $msg
+} {1 {wrong # args: should be "update ?idletasks?"}}
 test event-12.3 {Tcl_UpdateCmd procedure} {
+    foreach i [after info] {
+	after cancel $i
+    }
     after 500 {set x after}
-    after 1 {set y after}
-    after 2 {set z "after, y = $y"}
+    after idle {set y after}
+    after idle {set z "after, y = $y"}
     set x before
     set y before
     set z before
-    vwait z
+    update idletasks
     list $x $y $z
 } {before after {after, y = after}}
+test event-12.4 {Tcl_UpdateCmd procedure} {
+    foreach i [after info] {
+	after cancel $i
+    }
+    after 10; update; # On Mac make sure update won't take long
+    after 200 {set x x-done}
+    after 600 {set y y-done}
+    after idle {set z z-done}
+    set x before
+    set y before
+    set z before
+    after 300
+    update
+    list $x $y $z
+} {x-done before z-done}
 
-vwait dummy
+# cleanup
+foreach i [after info] {
+    after cancel $i
+}
 
 testreport

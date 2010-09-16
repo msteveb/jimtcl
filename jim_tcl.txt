@@ -53,8 +53,8 @@ The major differences are:
 16. Support for "static" variables in procedures
 17. Significantly faster for many scripts/operations
 18. Support for tail-call optimisation, 'tailcall'
-20. Variable traces are not supported
-21. The history command is not supported
+19. Variable traces are not supported
+20. The history command is not supported
 
 CHANGES
 -------
@@ -79,7 +79,7 @@ Since v0.62:
 17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
 18. Command pipelines via open "|..." are now supported
 19. Add 'info references'
-20. Add support for 'after *ms*'
+20. Add support for 'after *ms*', 'after idle', 'after info', 'update'
 
 Since v0.61:
 
@@ -1552,7 +1552,7 @@ the key +-level+ will be the current return level (see 'return
 
     if {[catch {...} msg opts]} {
         ...maybe do something with the error...
-		incr opts(-level)
+        incr opts(-level)
         return {*}$opts $msg
     }
 
@@ -1892,30 +1892,30 @@ If the command fails, the global $::errorCode (and the -errorcode
 option in 'catch') will be set to a list, as follows:
 
 +*CHILDKILLED* 'pid sigName msg'+::
-		This format is used when a child process has been killed
-		because of a signal. The pid element will be the process's
-		identifier (in decimal). The sigName element will be the
-		symbolic name of the signal that caused the process to
-		terminate; it will be one of the names from the include
-		file signal.h, such as SIGPIPE. The msg element will be a
-		short human-readable message describing the signal, such
-		as "write on pipe with no readers" for SIGPIPE.
+        This format is used when a child process has been killed
+        because of a signal. The pid element will be the process's
+        identifier (in decimal). The sigName element will be the
+        symbolic name of the signal that caused the process to
+        terminate; it will be one of the names from the include
+        file signal.h, such as SIGPIPE. The msg element will be a
+        short human-readable message describing the signal, such
+        as "write on pipe with no readers" for SIGPIPE.
 
 +*CHILDSUSP* 'pid sigName msg'+::
-		This format is used when a child process has been suspended
-		because of a signal. The pid element will be the process's
-		identifier, in decimal. The sigName element will be the
-		symbolic name of the signal that caused the process to
-		suspend; this will be one of the names from the include
-		file signal.h, such as SIGTTIN. The msg element will be a
-		short human-readable message describing the signal, such
-		as "background tty read" for SIGTTIN.
+        This format is used when a child process has been suspended
+        because of a signal. The pid element will be the process's
+        identifier, in decimal. The sigName element will be the
+        symbolic name of the signal that caused the process to
+        suspend; this will be one of the names from the include
+        file signal.h, such as SIGTTIN. The msg element will be a
+        short human-readable message describing the signal, such
+        as "background tty read" for SIGTTIN.
 
 +*CHILDSTATUS* 'pid code'+::
-		This format is used when a child process has exited with a
-		non-zero exit status. The pid element will be the process's
-		identifier (in decimal) and the code element will be the
-		exit code returned by the process (also in decimal).
+        This format is used when a child process has exited with a
+        non-zero exit status. The pid element will be the process's
+        identifier (in decimal) and the code element will be the
+        exit code returned by the process (also in decimal).
 
 exit
 ~~~~
@@ -2400,8 +2400,8 @@ The legal *option*'s (which may be abbreviated) are:
     'string match'.
 
 +*info references*+::
-	Returns a list of all references which have not yet been garbage
-	collected.
+    Returns a list of all references which have not yet been garbage
+    collected.
 
 +*info returncodes* ?'code'?+::
     Returns a list representing the mapping of standard return codes
@@ -2523,28 +2523,28 @@ In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.
 
     proc outer {} {
-	  # proc ... returns "inner" which is marked local
+      # proc ... returns "inner" which is marked local
       local proc inner {} {
-		# will be deleted when 'outer' exits
-	  }
+        # will be deleted when 'outer' exits
+      }
 
-	  inner
-	  ...
-	}
+      inner
+      ...
+    }
 
 In this example, the lambda is deleted at the end of the procedure rather
 than waiting until garbage collection.
 
     proc outer {} {
       set x [lambda inner {args} {
-		# will be deleted when 'outer' exits
-	  }]
-	  # Use 'function' here which simply returns $x
-	  local function $x
+        # will be deleted when 'outer' exits
+      }]
+      # Use 'function' here which simply returns $x
+      local function $x
 
-	  $x ...
-	  ...
-	}
+      $x ...
+      ...
+    }
 
 lindex
 ~~~~~~
@@ -4041,8 +4041,8 @@ aio
     If *addrvar* is specified, the sending address of the message is stored in
     the named variable in the form 'addr:port'. See 'socket' for details.
 
-eventloop: after, vwait
-~~~~~~~~~~~~~~~~~~~~~~~
+eventloop: after, vwait, update
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following commands allow a script to be invoked when the given condition occurs.
 If no script is given, returns the current script. If the given script is the empty, the
@@ -4057,22 +4057,49 @@ handler is removed.
 +$handle *onexception* '?exception-script?'+::
     Sets or returns the script for when when oob data received.
 
+For compatibility with 'Tcl', these may be prefixed with 'fileevent'.  e.g.
+
+ ::
+    +fileevent $handle *readable* '...'+
+
 Time-based execution is also available via the eventloop API.
 
-+*after* 'time'+::
-	Sleeps for the given number of milliseconds. No events are processed during this time.
++*after* 'ms'+::
+    Sleeps for the given number of milliseconds. No events are
+    processed during this time.
 
-+*after* 'time script'+::
-	The script is executed after the given number of milliseconds have elapsed.
-	Returns an event id.
++*after* 'ms|*idle* script ?script ...?'+::
+    The scripts are concatenated and executed after the given
+    number of milliseconds have elapsed.  If 'idle' is specified,
+    the script will run the next time the event loop is processed
+    with 'vwait' or 'update'. The script is only run once and
+    then removed.  Returns an event id.
 
-+*after cancel* 'id'+::
-	Cancels an 'after' event with the given event id.
++*after cancel* 'id|command'+::
+    Cancels an 'after' event with the given event id or matching
+    command (script).  Returns the number of milliseconds
+    remaining until the event would have fired.  Returns the
+    empty string if no matching event is found.
+
++*after info* '?id?'+::
+    If *id* is not given, returns a list of current 'after'
+    events.  If *id* is given, returns a list containing the
+    associated script and either 'timer' or 'idle' to indicated
+    the type of the event. An error occurs if *id* does not
+    match an event.
 
 +*vwait* 'variable'+::
-	A call to 'vwait' is required to enter the eventloop. 'vwait' processes events until
-	the named (global) variable changes. The variable need not exist beforehand.
-	If there are no event handlers defined, 'vwait' returns immediately.
+    A call to 'vwait' is enters the eventloop. 'vwait' processes
+    events until the named (global) variable changes or all
+    event handlers are removed. The variable need not exist
+    beforehand.  If there are no event handlers defined, 'vwait'
+    returns immediately.
+
++*update ?idletasks?*+::
+    A call to 'update' enters the eventloop to process expired events, but
+	no new events. If 'idletasks' is specified, only expired time events are handled,
+	not file events.
+    Returns once handlers have been run for all expired events.
 
 Scripts are executed at the global scope. If an error occurs during a handler script,
 an attempt is made to call (the user-defined command) 'bgerror' with the details of the error.
@@ -4082,8 +4109,7 @@ If a file event handler script generates an error, the handler is automatically 
 to prevent infinite errors. (A time event handler is always removed after execution).
 
 +*bgerror* 'error'+::
-	Called when an event handler script generates an error.
-	
+    Called when an event handler script generates an error.
 
 socket
 ~~~~~~
@@ -4188,7 +4214,7 @@ may be specified before priority to control these parameters:
     Use given string instead of argv0 variable for ident string.
 
 +*-options* 'integer'+::
-    Set syslog options such as LOG_CONS, LOG_NDELAY You should
+    Set syslog options such as +LOG_CONS+, +LOG_NDELAY+. You should
     use numeric values of those from your system syslog.h file,
     because I haven't got time to implement yet another hash
     table.
@@ -4212,16 +4238,16 @@ by the Tcl library.
     It contains {. /lib/jim} by default.
 
 +*errorCode*+::
-	This variable holds the value of the -errorcode return
-	option set by the most recent error that occurred in this
-	interpreter. This list value represents additional information
-	about the error in a form that is easy to process with
-	programs. The first element of the list identifies a general
-	class of errors, and determines the format of the rest of
-	the list. The following formats for -errorcode return options
-	are used by the Tcl core; individual applications may define
-	additional formats. Currently only 'exec' sets this variable.
-	Otherwise it will be *NONE*.
+    This variable holds the value of the -errorcode return
+    option set by the most recent error that occurred in this
+    interpreter. This list value represents additional information
+    about the error in a form that is easy to process with
+    programs. The first element of the list identifies a general
+    class of errors, and determines the format of the rest of
+    the list. The following formats for -errorcode return options
+    are used by the Tcl core; individual applications may define
+    additional formats. Currently only 'exec' sets this variable.
+    Otherwise it will be *NONE*.
 
 The following global variables are set by jimsh.
 
