@@ -117,10 +117,10 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
     set x 0
     set y 0
     set z 0
-    $s2 readable { incr z }
+    fileevent $s2 readable { incr z }
     vwait z
-    $f1 writable { incr x; if { $y == 3 } { set z done } }
-    $s2 readable { incr y; if { $x == 3 } { set z done } }
+    fileevent $f1 writable { incr x; if { $y == 3 } { set z done } }
+    fileevent $s2 readable { incr y; if { $x == 3 } { set z done } }
     vwait z
     close $f1
     close $s2
@@ -135,8 +135,8 @@ test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
     set y 0
     set z 0
     update
-    $f1 writable { incr x; if { $y == 3 } { set z done } }
-    $f2 writable { incr y; if { $x == 3 } { set z done } }
+    fileevent $f1 writable { incr x; if { $y == 3 } { set z done } }
+    fileevent $f2 writable { incr y; if { $x == 3 } { set z done } }
     vwait z
     close $f1
     close $f2

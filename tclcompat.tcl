@@ -57,6 +57,11 @@ proc case {var args} {
 	}
 }
 
+# fileevent isn't needed in Jim, but provide it for compatibility
+proc fileevent {args} {
+	tailcall {*}$args
+}
+
 # Second, option argument is a glob pattern
 # Third, optional argument is a "putter" function
 # 
