@@ -4,6 +4,14 @@ proc makeFile {contents name} {
 	close $f
 }
 
+proc script_source {script} {
+	lassign [info source $script] f l
+	if {$f ne ""} {
+		puts "At      : $f:$l"
+		return \t$f:$l
+	}
+}
+
 proc error_source {} {
 	lassign [info stacktrace] p f l
 	if {$f ne ""} {
@@ -19,6 +27,8 @@ catch {
 		return $::errorInfo
 	}
 	proc error_source {} {
+	}
+	proc script_source {script} {
 	}
 }
 
@@ -50,7 +60,11 @@ proc test {id descr script expected} {
 			puts -nonewline "$id "
 		}
 		puts "ERR $descr"
-		set source [error_source]
+		if {$rc == 0} {
+			set source [script_source $script]
+		} else {
+			set source [error_source]
+		}
 		puts "Expected: '$expected'"
 		puts "Got     : '$result'"
 		incr ::test(numfail)
