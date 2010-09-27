@@ -6168,124 +6168,57 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
     Jim_Free(objv);
 }
 
-#ifdef JIM_OPTIMIZATION
-static int SetDictFromList(Jim_Interp *interp, struct Jim_Obj *objPtr)
-{
-    Jim_HashTable *ht;
-    int i;
-    int listlen;
-
-    listlen = Jim_ListLength(interp, objPtr);
-    if (listlen % 2) {
-        return JIM_ERR;
-    }
-
-    /* Now we can't fail */
-    ht = Jim_Alloc(sizeof(*ht));
-    Jim_InitHashTable(ht, &JimDictHashTableType, interp);
-
-    for (i = 0; i < listlen; i += 2) {
-        Jim_Obj *keyObjPtr;
-        Jim_Obj *valObjPtr;
-
-        Jim_ListIndex(interp, objPtr, i, &keyObjPtr, JIM_NONE);
-        Jim_ListIndex(interp, objPtr, i + 1, &valObjPtr, JIM_NONE);
-
-        Jim_IncrRefCount(keyObjPtr);
-        Jim_IncrRefCount(valObjPtr);
-
-        if (Jim_AddHashEntry(ht, keyObjPtr, valObjPtr) != JIM_OK) {
-            Jim_HashEntry *he;
-
-            he = Jim_FindHashEntry(ht, keyObjPtr);
-            Jim_DecrRefCount(interp, keyObjPtr);
-            /* ATTENTION: const cast */
-            Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-            he->val = valObjPtr;
-        }
-    }
-
-    Jim_FreeIntRep(interp, objPtr);
-    objPtr->typePtr = &dictObjType;
-    objPtr->internalRep.ptr = ht;
-
-    return JIM_OK;
-}
-#endif
-
 static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
-    struct JimParserCtx parser;
-    Jim_HashTable *ht;
-    Jim_Obj *objv[2];
-    const char *str;
-    int i, strLen;
+    int listlen;
 
     /* Get the string representation. Do this first so we don't
-     * change order in case of fast conversion to dict
+     * change order in case of fast conversion to dict.
      */
-    str = Jim_GetString(objPtr, &strLen);
+    Jim_GetString(objPtr, NULL);
 
-#ifdef JIM_OPTIMIZATION
-    /* If the object is of type "list" with a string rep, we can use
-     * a specialized version.
-     */
-    if (Jim_IsList(objPtr)) {
-        if (SetDictFromList(interp, objPtr) != JIM_OK) {
-            goto badlist;
-        }
-        return JIM_OK;
-    }
-#endif
-
-    /* Free the old internal repr just now and initialize the
-     * new one just now. The string->list conversion can't fail. */
-    Jim_FreeIntRep(interp, objPtr);
-    ht = Jim_Alloc(sizeof(*ht));
-    Jim_InitHashTable(ht, &JimDictHashTableType, interp);
-    objPtr->typePtr = &dictObjType;
-    objPtr->internalRep.ptr = ht;
-
-    /* Convert into a dict */
-    JimParserInit(&parser, str, strLen, 1);
-    i = 0;
-    while (!JimParserEof(&parser)) {
-        char *token;
-        int tokenLen, type;
-
-        JimParseList(&parser);
-        if (JimParserTtype(&parser) != JIM_TT_STR && JimParserTtype(&parser) != JIM_TT_ESC)
-            continue;
-        token = JimParserGetToken(&parser, &tokenLen, &type, NULL);
-        objv[i++] = Jim_NewStringObjNoAlloc(interp, token, tokenLen);
-        if (i == 2) {
-            i = 0;
-            Jim_IncrRefCount(objv[0]);
-            Jim_IncrRefCount(objv[1]);
-            if (Jim_AddHashEntry(ht, objv[0], objv[1]) != JIM_OK) {
-                Jim_HashEntry *he;
-
-                he = Jim_FindHashEntry(ht, objv[0]);
-                Jim_DecrRefCount(interp, objv[0]);
-                /* ATTENTION: const cast */
-                Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-                he->val = objv[1];
-            }
-        }
-    }
-    if (i) {
-        Jim_FreeNewObj(interp, objv[0]);
-        objPtr->typePtr = NULL;
-        Jim_FreeHashTable(ht);
-        Jim_Free(ht);
-#ifdef JIM_OPTIMIZATION
-      badlist:
-#endif
+    /* For simplicity, convert a non-list object to a list and then to a dict */
+    listlen = Jim_ListLength(interp, objPtr);
+    if (listlen % 2) {
         Jim_SetResultString(interp,
             "invalid dictionary value: must be a list with an even number of elements", -1);
         return JIM_ERR;
     }
-    return JIM_OK;
+    else {
+        /* Now it is easy to convert to a dict from a list, and it can't fail */
+        Jim_HashTable *ht;
+        int i;
+
+        ht = Jim_Alloc(sizeof(*ht));
+        Jim_InitHashTable(ht, &JimDictHashTableType, interp);
+
+        for (i = 0; i < listlen; i += 2) {
+            Jim_Obj *keyObjPtr;
+            Jim_Obj *valObjPtr;
+
+            Jim_ListIndex(interp, objPtr, i, &keyObjPtr, JIM_NONE);
+            Jim_ListIndex(interp, objPtr, i + 1, &valObjPtr, JIM_NONE);
+
+            Jim_IncrRefCount(keyObjPtr);
+            Jim_IncrRefCount(valObjPtr);
+
+            if (Jim_AddHashEntry(ht, keyObjPtr, valObjPtr) != JIM_OK) {
+                Jim_HashEntry *he;
+
+                he = Jim_FindHashEntry(ht, keyObjPtr);
+                Jim_DecrRefCount(interp, keyObjPtr);
+                /* ATTENTION: const cast */
+                Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
+                he->val = valObjPtr;
+            }
+        }
+
+        Jim_FreeIntRep(interp, objPtr);
+        objPtr->typePtr = &dictObjType;
+        objPtr->internalRep.ptr = ht;
+
+        return JIM_OK;
+    }
 }
 
 /* Dict object API */
