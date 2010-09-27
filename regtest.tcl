@@ -91,6 +91,14 @@ puts "TEST 13 PASSED"
 eval "{*}{}"
 puts "TEST 14 PASSED"
 
+# REGTEST 15
+# 24 Feb 2010 - bad reference counting of the stack trace in 'error'
+proc a {msg stack} {
+    tailcall error $msg $stack
+}
+catch {fail} msg opts
+catch {a $msg $opts(-errorinfo)}
+
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 

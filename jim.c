@@ -4911,6 +4911,7 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
     }
 
     if (Jim_IsShared(interp->stackTrace)) {
+        Jim_DecrRefCount(interp, interp->stackTrace);
         interp->stackTrace = Jim_DuplicateObj(interp, interp->stackTrace);
         Jim_IncrRefCount(interp->stackTrace);
     }
