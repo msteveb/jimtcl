@@ -27,6 +27,8 @@
 #include "jim-subcmd.h"
 #include "jim-signal.h"
 
+extern char **environ;
+
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
 {
@@ -82,6 +84,60 @@ static void JimTrimTrailingNewline(Jim_Interp *interp)
     if (len > 0 && p[len - 1] == '\n') {
         Jim_SetResultString(interp, p, len - 1);
     }
+}
+
+/**
+ * Builds the environment array from $::env
+ *
+ * If $::env is not set, simply returns environ.
+ *
+ * Otherwise allocates the environ array from the contents of $::env
+ *
+ * If the exec fails, memory can be freed via JimFreeEnv()
+ */
+static char **JimBuildEnv(Jim_Interp *interp)
+{
+#ifdef jim_ext_tclcompat
+    int i;
+    int len;
+    int n;
+    char **env;
+
+    Jim_Obj *objPtr = Jim_GetGlobalVariableStr(interp, "env", JIM_NONE);
+
+    if (!objPtr) {
+        return environ;
+    }
+
+    /* Calculate the required size */
+    len = Jim_ListLength(interp, objPtr);
+    if (len % 2) {
+        len--;
+    }
+
+    env = Jim_Alloc(sizeof(*env) * (len / 2 + 1));
+
+    n = 0;
+    for (i = 0; i < len; i += 2) {
+        int l1, l2;
+        const char *s1, *s2;
+        Jim_Obj *elemObj;
+
+        Jim_ListIndex(interp, objPtr, i, &elemObj, JIM_NONE);
+        s1 = Jim_GetString(elemObj, &l1);
+        Jim_ListIndex(interp, objPtr, i + 1, &elemObj, JIM_NONE);
+        s2 = Jim_GetString(elemObj, &l2);
+
+        env[n] = Jim_Alloc(l1 + l2 + 2);
+        sprintf(env[n], "%s=%s", s1, s2);
+        n++;
+    }
+    env[n] = NULL;
+
+    return env;
+#else
+    return environ;
+#endif
 }
 
 /*
@@ -898,10 +954,13 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             for (i = 3; (i <= outputId) || (i <= inputId) || (i <= errorId); i++) {
                 close(i);
             }
+            /* Build new environ from the current ::env dict */
+            environ = JimBuildEnv(interp);
             execvp(execName, &arg_array[firstArg]);
-            sprintf(errSpace, "couldn't find \"%.150s\" to execute\n", arg_array[firstArg]);
+
+            snprintf(errSpace, sizeof(errSpace), "couldn't find \"%.150s\" to execute\n", arg_array[firstArg]);
             rc = write(2, errSpace, strlen(errSpace));
-            _exit(1);
+            _exit(127);
         }
         else {
             pidPtr[numPids] = pid;
@@ -1033,18 +1092,74 @@ static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int
     return result;
 }
 #else
+/**
+ * Frees the environment allocated by JimBuildEnv()
+ *
+ * Must pass original_environ.
+ */
+static void JimFreeEnv(Jim_Interp *interp, char **env, char **original_environ)
+{
+#ifdef jim_ext_tclcompat
+    if (env != original_environ) {
+        int i;
+        for (i = 0; env[i]; i++) {
+            Jim_Free(env[i]);
+        }
+        Jim_Free(env);
+    }
+#endif
+}
+
+/**
+ * Joins the given args into a single quoted, space-separate string.
+ */
+static Jim_Obj *JimQuoteArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *cmdlineObj = Jim_NewEmptyStringObj(interp);
+    int i, j;
+
+    /* Create an escape command lines */
+    for (i = 0; i < argc; i++) {
+        int len;
+        const char *arg = Jim_GetString(argv[i], &len);
+
+        if (i) {
+            Jim_AppendString(interp, cmdlineObj, " ", 1);
+        }
+        for (j = 0; j < len; j++) {
+            if (arg[j] == '\\') {
+                /* Need to double escape backslash */
+                Jim_AppendString(interp, cmdlineObj, "\\\\\\\\", 4);
+                continue;
+            }
+            if (arg[j] == '"' || arg[j] == '`' || arg[j] == '\'' || arg[j] == '\n') {
+                /* Escape these */
+                Jim_AppendString(interp, cmdlineObj, "\\", 1);
+            }
+            Jim_AppendString(interp, cmdlineObj, &arg[j], 1);
+        }
+    }
+
+    return cmdlineObj;
+}
+
 static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int pid;
     int tmpfd;
     int status;
     int result;
-    char **nargv;
-    int i;
+    char *nargv[4];
+    char **new_environ;
+    Jim_Obj *cmdlineObj;
 
 #define TMP_NAME "/tmp/tcl.exec.XXXXXX"
     char tmpname[sizeof(TMP_NAME) + 1];
 
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[argc - 1], "&")) {
+        Jim_SetResultString(interp, "unsupported: background exec", -1);
+        return JIM_ERR;
+    }
 
     /* Create a temporary file for the output from our exec command */
     strcpy(tmpname, TMP_NAME);
@@ -1054,18 +1169,26 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    nargv = Jim_Alloc(sizeof(*nargv) * argc);
-    for (i = 1; i < argc; i++) {
-        nargv[i - 1] = (char *)Jim_GetString(argv[i], NULL);
-    }
-    nargv[i - 1] = NULL;
+
+    /* Execute: sh -c "arguments..."
+     * 
+     * Note we do it this way in order to get command line redirection, etc.
+     */
+    cmdlineObj = JimQuoteArgs(interp, argc - 1, argv + 1);
+
+    nargv[0] = "sh";
+    nargv[1] = "-c";
+    nargv[2] = (char *)Jim_GetString(cmdlineObj, NULL);
+    nargv[3] = NULL;
 
     /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd); */
     unlink(tmpname);
 
+    /* Must do this before vfork() */
+    new_environ = JimBuildEnv(interp);
+
     /* Use vfork and send output to this temporary file */
     pid = vfork();
-    //pid = 0;
     if (pid == 0) {
         close(0);
         open("/dev/null", O_RDONLY);
@@ -1074,7 +1197,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             close(2);
             if (dup(tmpfd) != -1) {
                 close(tmpfd);
-                execvp(nargv[0], nargv);
+                execve("/bin/sh", nargv, new_environ);
             }
         }
         _exit(127);
@@ -1083,7 +1206,9 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Wait for the child to exit */
     waitpid(pid, &status, 0);
 
-    Jim_Free(nargv);
+    JimFreeEnv(interp, new_environ, environ);
+
+    Jim_FreeNewObj(interp, cmdlineObj);
 
     result = JimCheckWaitStatus(interp, pid, status);
 

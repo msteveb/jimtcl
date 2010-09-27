@@ -80,6 +80,7 @@ Since v0.62:
 18. Command pipelines via open "|..." are now supported
 19. Add 'info references'
 20. Add support for 'after *ms*', 'after idle', 'after info', 'update'
+21. 'exec' now sets environment based on $::env
 
 Since v0.61:
 
@@ -1916,6 +1917,9 @@ option in 'catch') will be set to a list, as follows:
         non-zero exit status. The pid element will be the process's
         identifier (in decimal) and the code element will be the
         exit code returned by the process (also in decimal).
+
+The environment for the executed command is set from $::env (unless
+this variable is unset, in which case the original environment is used).
 
 exit
 ~~~~
