@@ -40,13 +40,6 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 
-/* TODO:
- *
- *  - to really use flags in Jim_ProcessEvents()
- *  - more complete [after] command with [after info] and other subcommands.
- *  - Win32 port
- */
-
 #include "jim.h"
 #include "jim-eventloop.h"
 
@@ -172,8 +165,6 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle)
     }
 }
 
-/* That's another part of this extension that needs to be ported
- * to WIN32. */
 static void JimGetTime(long *seconds, long *milliseconds)
 {
     struct timeval tv;

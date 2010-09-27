@@ -81,11 +81,12 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         all = 1;
     }
 
-    /* If it is a dictionary or list, nothing else to do */
-    if (all && (Jim_IsDict(objPtr) || Jim_IsList(objPtr))) {
-        /* XXX If it is a odd-length list no error will be returned */
-        Jim_SetResult(interp, objPtr);
-        return JIM_OK;
+    /* If it is a dictionary or list with an even number of elements, nothing else to do */
+    if (all) {
+        if (Jim_IsDict(objPtr) || (Jim_IsList(objPtr) && Jim_ListLength(interp, objPtr) % 2 == 0)) {
+            Jim_SetResult(interp, objPtr);
+            return JIM_OK;
+        }
     }
 
     if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {

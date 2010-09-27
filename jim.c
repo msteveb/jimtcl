@@ -4903,11 +4903,6 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
     const char *filename, int linenr)
 {
-#if 0
-    printf("JimAppendStackTrace: %s:%d (%s)\n", filename, linenr, procname);
-#endif
-
-    /* XXX Omit "unknown" for now since it can be confusing (but it may help too!) */
     if (strcmp(procname, "unknown") == 0) {
         procname = "";
     }
@@ -7309,20 +7304,23 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprState *e)
     Jim_Obj *B = ExprPop(e);
     Jim_Obj *A = ExprPop(e);
 
-    int Alen, Blen;
     jim_wide wC;
-
-    /* XXX: Not needed for IN, NI */
-    const char *sA = Jim_GetString(A, &Alen);
-    const char *sB = Jim_GetString(B, &Blen);
 
     switch (e->opcode) {
         case JIM_EXPROP_STREQ:
-            wC = (Alen == Blen && memcmp(sA, sB, Alen) == 0);
+        case JIM_EXPROP_STRNE: {
+            int Alen, Blen;
+            const char *sA = Jim_GetString(A, &Alen);
+            const char *sB = Jim_GetString(B, &Blen);
+
+            if (e->opcode == JIM_EXPROP_STREQ) {
+                wC = (Alen == Blen && memcmp(sA, sB, Alen) == 0);
+            }
+            else {
+                wC = (Alen != Blen || memcmp(sA, sB, Alen) != 0);
+            }
             break;
-        case JIM_EXPROP_STRNE:
-            wC = (Alen != Blen || memcmp(sA, sB, Alen) != 0);
-            break;
+        }
         case JIM_EXPROP_STRIN:
             wC = JimSearchList(interp, B, A);
             break;
