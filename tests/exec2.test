@@ -3,6 +3,7 @@
 # in quoting arguments to exec.
 
 source testing.tcl
+package-or-skip exec
 
 set d \"
 set s '

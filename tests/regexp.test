@@ -1,4 +1,5 @@
 source testing.tcl
+package-or-skip regexp
 
 test regexp-1.1 {effect of caching} {
 	

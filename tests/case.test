@@ -1,5 +1,6 @@
 source testing.tcl
 
+catch {unset result}
 test case-1.1 "Simple case" {
 	foreach c {abc xyz def sdfbc basdf a aba} {
 		case $c in {

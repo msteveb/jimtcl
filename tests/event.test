@@ -10,6 +10,7 @@
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 source testing.tcl
+package-or-skip eventloop
 
 test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
     catch {rename bgerror {}}

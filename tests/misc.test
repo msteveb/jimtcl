@@ -2,6 +2,7 @@ source testing.tcl
 
 section "Regression Testing"
 
+catch {unset a b}
 test regr-1.1 "Double dereference arrays" {
 	array set a {one ONE two TWO three THREE}
 	array set b {ONE 1 TWO 2 THREE 3}

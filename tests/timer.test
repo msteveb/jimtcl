@@ -16,6 +16,7 @@
 # RCS: @(#) $Id: timer.test,v 1.7.2.1 2001/10/13 01:14:19 hobbs Exp $
 
 source testing.tcl
+package-or-skip eventloop
 
 test timer-1.1 {Tcl_CreateTimerHandler procedure} {
     foreach i [after info] {

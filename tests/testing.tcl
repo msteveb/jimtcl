@@ -20,6 +20,15 @@ proc error_source {} {
 	}
 }
 
+proc package-or-skip {name} {
+	if {[catch {
+		package require $name
+	}]} {
+		puts "   --- skipped"
+		exit 0
+	}
+}
+
 catch {
 	# Tcl-only things
 	info tclversion

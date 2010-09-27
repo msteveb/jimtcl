@@ -3095,17 +3095,17 @@ test info-2.2 {info commands option} {
     string match {* t1 *} $x
 } 0
 test info-2.3 {info commands option} {
-    proc _t1_ {} {}
-    proc _t2_ {} {}
-    info commands _t1_
-} _t1_
+    proc _test1_ {} {}
+    proc _test2_ {} {}
+    info commands _test1_
+} _test1_
 test info-2.4 {info commands option} {
-    proc _t1_ {} {}
-    proc _t2_ {} {}
-    lsort [info commands _t*]
-} {_t1_ _t2_}
-catch {rename _t1_ {}}
-catch {rename _t2_ {}}
+    proc _test1_ {} {}
+    proc _test2_ {} {}
+    lsort [info commands _test*]
+} {_test1_ _test2_}
+catch {rename _test1_ {}}
+catch {rename _test2_ {}}
 test info-2.5 {info commands option} {
     list [catch {info commands a b} msg] $msg
 } {1 {wrong # args: should be "info commands ?pattern?"}}

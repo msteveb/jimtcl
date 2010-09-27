@@ -1,4 +1,6 @@
 source testing.tcl
+package-or-skip file
+package-or-skip bio
 
 file mkdir tempdir
 

@@ -1,4 +1,5 @@
 source testing.tcl
+package-or-skip file
 
 test join-1.1 "One name" {
 	file join abc
