@@ -573,13 +573,11 @@ bench {expand} {expand}
 bench {wiki.tcl.tk/8566} {commonsub_test}
 bench {mandel} {mandel 60 60 -2 -1.5 1 1.5}
 
-proc istcl {} {
-    return [expr {![catch {info tclversion}]}]
-}
-
 if {$batchmode} {
-    if {[catch {info patchlevel} ver]} {
-        set ver Jim[info version]
+    if {![info exists ver]} {
+        if {[catch {info patchlevel} ver]} {
+            set ver Jim[info version]
+        }
     }
     puts [list $ver $benchmarks]
 }
