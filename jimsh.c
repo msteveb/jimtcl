@@ -92,7 +92,7 @@ static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
 }
 #endif /* JIM_ANSIC */
 
-static void JimLoadJimRc(Jim_Interp *interp)
+static int JimLoadJimRc(Jim_Interp *interp)
 {
     const char *home;
     /* XXX: Move off stack */
@@ -100,21 +100,24 @@ static void JimLoadJimRc(Jim_Interp *interp)
     const char *names[] = { ".jimrc", "jimrc.tcl", NULL };
     int i;
     FILE *fp;
+    int retcode;
 
     if ((home = getenv("HOME")) == NULL)
-        return;
+        return JIM_OK;
     for (i = 0; names[i] != NULL; i++) {
         if (strlen(home) + strlen(names[i]) + 1 > JIM_PATH_LEN)
             continue;
         sprintf(buf, "%s/%s", home, names[i]);
         if ((fp = fopen(buf, "r")) != NULL) {
             fclose(fp);
-            if (Jim_EvalFile(interp, buf) != JIM_OK) {
+            retcode = Jim_EvalFile(interp, buf);
+            if (retcode == JIM_ERR) {
                 Jim_PrintErrorMessage(interp);
             }
-            return;
+            return retcode;
         }
     }
+    return JIM_OK;
 }
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
@@ -160,8 +163,10 @@ int main(int argc, char *const argv[])
     if (argc == 1) {
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
         JimSetArgv(interp, 0, NULL);
-        JimLoadJimRc(interp);
-        retcode = Jim_InteractivePrompt(interp);
+        retcode = JimLoadJimRc(interp);
+        if (retcode != JIM_EXIT) {
+            retcode = Jim_InteractivePrompt(interp);
+        }
     }
     else {
         Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");

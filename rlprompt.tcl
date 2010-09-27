@@ -9,6 +9,7 @@
 #       rlprompt.shell
 #    }
 # }
+package require readline
 
 proc rlprompt.shell {} {
     puts "Readline shell loaded"
@@ -16,11 +17,7 @@ proc rlprompt.shell {} {
     set prompt ". "
     set buf ""
     while 1 {
-        try -exit {
-            set line [readline.readline $prompt]
-        } on exit dummy {
-            break
-        }
+        set line [readline.readline $prompt]
 
         if {[string length $line] == 0} {
             continue
