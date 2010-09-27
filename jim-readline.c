@@ -52,6 +52,9 @@ static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
 int Jim_readlineInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "readline", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "readline.readline", JimRlReadlineCommand, NULL, NULL);
     Jim_CreateCommand(interp, "readline.addhistory", JimRlAddHistoryCommand, NULL, NULL);
     return JIM_OK;

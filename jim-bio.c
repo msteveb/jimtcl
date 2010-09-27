@@ -250,6 +250,9 @@ static const jim_subcmd_type bio_command_table[] = {
 int
 Jim_bioInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "bio", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "bio", Jim_SubCmdProc, (void *)bio_command_table, NULL);
     return JIM_OK;
 }

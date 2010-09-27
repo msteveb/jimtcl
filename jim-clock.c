@@ -107,6 +107,9 @@ static const jim_subcmd_type clock_command_table[] = {
 
 int Jim_clockInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "clock", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "clock", Jim_SubCmdProc, (void *)clock_command_table, NULL);
     return JIM_OK;
 }

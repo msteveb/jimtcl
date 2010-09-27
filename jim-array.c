@@ -288,6 +288,9 @@ static const jim_subcmd_type array_command_table[] = {
 
 int Jim_arrayInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "array", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "array", Jim_SubCmdProc, (void *)array_command_table, NULL);
     return JIM_OK;
 }

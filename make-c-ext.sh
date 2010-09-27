@@ -11,6 +11,9 @@ cat <<EOF
 #include <jim.h>
 int Jim_${basename}Init(Jim_Interp *interp)
 {
+	if (Jim_PackageProvide(interp, "$basename", "1.0", JIM_ERRMSG))
+		return JIM_ERR;
+
 	return Jim_Eval_Named(interp, 
 EOF
 

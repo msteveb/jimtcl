@@ -215,6 +215,9 @@ static int Jim_PosixPidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
 int Jim_posixInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
 #ifdef HAVE_FORK
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
 #endif

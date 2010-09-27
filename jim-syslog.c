@@ -170,7 +170,12 @@ int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_syslogInit(Jim_Interp *interp)
 {
-    SyslogInfo *info = Jim_Alloc(sizeof(*info));
+    SyslogInfo *info;
+    
+    if (Jim_PackageProvide(interp, "syslog", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
+    info = Jim_Alloc(sizeof(*info));
 
     info->logOpened = 0;
     info->options = 0;

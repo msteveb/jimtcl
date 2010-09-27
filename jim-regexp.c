@@ -509,6 +509,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_regexpInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "regexp", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "regexp", Jim_RegexpCmd, NULL, NULL);
     Jim_CreateCommand(interp, "regsub", Jim_RegsubCmd, NULL, NULL);
     return JIM_OK;

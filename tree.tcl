@@ -1,5 +1,3 @@
-package provide tree
-
 # Conceptually compatible with tcllib ::struct::tree
 # but uses an object based interface.
 # To mimic tcllib, do:

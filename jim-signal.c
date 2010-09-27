@@ -491,6 +491,9 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_signalInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "signal", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     /* Teach the jim core how to set a result from a sigmask */
     interp->signal_set_result = signal_set_sigmask_result;
 

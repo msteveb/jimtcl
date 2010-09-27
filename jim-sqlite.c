@@ -261,6 +261,9 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 int Jim_sqliteInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "sqlite", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "sqlite.open", JimSqliteOpenCommand, NULL, NULL);
     return JIM_OK;
 }

@@ -713,6 +713,9 @@ int Jim_eventloopInit(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
 
+    if (Jim_PackageProvide(interp, "eventloop", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     eventLoop = Jim_Alloc(sizeof(*eventLoop));
     eventLoop->fileEventHead = NULL;
     eventLoop->timeEventHead = NULL;

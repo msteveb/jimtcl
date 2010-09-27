@@ -113,6 +113,9 @@ int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_readdirInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "readdir", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "readdir", Jim_ReaddirCmd, NULL, NULL);
     return JIM_OK;
 }

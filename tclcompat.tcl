@@ -3,8 +3,6 @@
 # Loads some Tcl-compatible features.
 # case, lassign, parray, errorInfo, ::tcl_platform, ::env
 
-package provide tclcompat 1.0
-
 # Set up the ::env array
 set env [env]
 

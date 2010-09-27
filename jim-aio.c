@@ -1277,6 +1277,9 @@ static void JimAioTclCompat(Jim_Interp *interp)
 
 int Jim_aioInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
 #ifndef JIM_ANSIC
     Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);

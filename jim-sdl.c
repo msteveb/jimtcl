@@ -221,6 +221,9 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 int Jim_sdlInit(Jim_Interp *interp)
 {
+    if (Jim_PackageProvide(interp, "sdl", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         JimSdlSetError(interp);
         return JIM_ERR;
