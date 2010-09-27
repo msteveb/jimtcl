@@ -3561,6 +3561,7 @@ The legal options (which may be abbreviated) are:
     removed.
     If *chars* is not specified then white space is removed
     (spaces, tabs, newlines, and carriage returns).
+	Null characters are always removed.
 
 subst
 ~~~~~

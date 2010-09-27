@@ -2227,15 +2227,14 @@ static const char *trim_left(const char *str, const char *trimchars)
     return str + strspn(str, trimchars);
 }
 
+/* Note that trim_right() always trims null characters */
 static void trim_right(char *str, const char *trimchars)
 {
     char *p = str + strlen(str) - 1;
     char *end = str - 1;
-    int c;
 
     while (p != end) {
-        c = *p;
-        if (strchr(trimchars, c) == 0) {
+        if (*p && strchr(trimchars, *p) == NULL) {
             break;
         }
         p--;
