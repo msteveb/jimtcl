@@ -150,7 +150,7 @@ extern "C" {
 /* The following are internal codes and should never been seen/used */
 #define JIM_EVAL 7
 
-#define JIM_MAX_NESTING_DEPTH 10000 /* default max nesting depth */
+#define JIM_MAX_NESTING_DEPTH 1000 /* default max nesting depth */
 
 /* Some function get an integer argument with flags to change
  * the behaviour. */
