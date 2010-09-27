@@ -194,6 +194,57 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
 }
 
 #if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)
+/*
+ * Data structures of the following type are used by JimFork and
+ * JimWaitPids to keep track of child processes.
+ */
+
+struct WaitInfo
+{
+    int pid;                    /* Process id of child. */
+    int status;                 /* Status returned when child exited or suspended. */
+    int flags;                  /* Various flag bits;  see below for definitions. */
+};
+
+struct WaitInfoTable {
+    struct WaitInfo *info;
+    int size;
+    int used;
+};
+
+/*
+ * Flag bits in WaitInfo structures:
+ *
+ * WI_READY -           Non-zero means process has exited or
+ *                      suspended since it was forked or last
+ *                      returned by JimWaitPids.
+ * WI_DETACHED -        Non-zero means no-one cares about the
+ *                      process anymore.  Ignore it until it
+ *                      exits, then forget about it.
+ */
+
+#define WI_READY    1
+#define WI_DETACHED 2
+
+#define WAIT_TABLE_GROW_BY 4
+
+static void JimFreeWaitInfoTable(struct Jim_Interp *interp, void *privData)
+{
+    struct WaitInfoTable *table = privData;
+
+    Jim_Free(table->info);
+    Jim_Free(table);
+}
+
+static struct WaitInfoTable *JimAllocWaitInfoTable(void)
+{
+    struct WaitInfoTable *table = Jim_Alloc(sizeof(*table));
+    table->info = NULL;
+    table->size = table->used = 0;
+
+    return table;
+}
+
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
@@ -262,41 +313,6 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 /*
- * Data structures of the following type are used by JimFork and
- * JimWaitPids to keep track of child processes.
- */
-
-typedef struct
-{
-    int pid;                    /* Process id of child. */
-    int status;                 /* Status returned when child exited or suspended. */
-    int flags;                  /* Various flag bits;  see below for definitions. */
-} WaitInfo;
-
-/*
- * Flag bits in WaitInfo structures:
- *
- * WI_READY -           Non-zero means process has exited or
- *                      suspended since it was forked or last
- *                      returned by JimWaitPids.
- * WI_DETACHED -        Non-zero means no-one cares about the
- *                      process anymore.  Ignore it until it
- *                      exits, then forget about it.
- */
-
-#define WI_READY    1
-#define WI_DETACHED 2
-
-/* XXX: Should be per-interpreter */
-static WaitInfo *waitTable = NULL;
-static int waitTableSize = 0;   /* Total number of entries available in waitTable. */
-static int waitTableUsed = 0;   /* Number of entries in waitTable that
-                                 * are actually in use right now.  Active
-                                 * entries are always at the beginning
-                                 * of the table. */
-#define WAIT_TABLE_GROW_BY 4
-
-/*
  *----------------------------------------------------------------------
  *
  * JimFork --
@@ -315,10 +331,10 @@ static int waitTableUsed = 0;   /* Number of entries in waitTable that
  *
  *----------------------------------------------------------------------
  */
-static int JimFork(void)
+static int JimFork(Jim_Interp *interp)
 {
-    WaitInfo *waitPtr;
     pid_t pid;
+    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
     /*
      * Disable SIGPIPE signals:  if they were allowed, this process
@@ -327,7 +343,7 @@ static int JimFork(void)
      * expects to handle SIGPIPEs;  what's really needed is an
      * arbiter for signals to allow them to be "shared".
      */
-    if (waitTable == NULL) {
+    if (table->info == NULL) {
         (void)signal(SIGPIPE, SIG_IGN);
     }
 
@@ -335,9 +351,9 @@ static int JimFork(void)
      * Enlarge the wait table if there isn't enough space for a new
      * entry.
      */
-    if (waitTableUsed == waitTableSize) {
-        waitTableSize += WAIT_TABLE_GROW_BY;
-        waitTable = (WaitInfo *) realloc(waitTable, waitTableSize * sizeof(WaitInfo));
+    if (table->used == table->size) {
+        table->size += WAIT_TABLE_GROW_BY;
+        table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
     }
 
     /*
@@ -345,12 +361,11 @@ static int JimFork(void)
      * is successful.
      */
 
-    waitPtr = &waitTable[waitTableUsed];
     pid = fork();
     if (pid > 0) {
-        waitPtr->pid = pid;
-        waitPtr->flags = 0;
-        waitTableUsed++;
+        table->info[table->used].pid = pid;
+        table->info[table->used].flags = 0;
+        table->used++;
     }
     return pid;
 }
@@ -377,10 +392,10 @@ static int JimFork(void)
  *
  *----------------------------------------------------------------------
  */
-static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
+static int JimWaitPids(struct WaitInfoTable *table, int numPids, int *pidPtr, int *statusPtr)
 {
     int i, count, pid;
-    WaitInfo *waitPtr;
+    struct WaitInfo *waitPtr;
     int anyProcesses;
     int status;
 
@@ -392,7 +407,7 @@ static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
          */
 
         anyProcesses = 0;
-        for (waitPtr = waitTable, count = waitTableUsed; count > 0; waitPtr++, count--) {
+        for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
             for (i = 0; i < numPids; i++) {
                 if (pidPtr[i] != waitPtr->pid) {
                     continue;
@@ -402,10 +417,10 @@ static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
                     *statusPtr = *((int *)&waitPtr->status);
                     pid = waitPtr->pid;
                     if (WIFEXITED(waitPtr->status) || WIFSIGNALED(waitPtr->status)) {
-                        if (waitPtr != &waitTable[waitTableUsed - 1]) {
-                            *waitPtr = waitTable[waitTableUsed - 1];
+                        if (waitPtr != &table->info[table->used - 1]) {
+                            *waitPtr = table->info[table->used - 1];
                         }
-                        waitTableUsed--;
+                        table->used--;
                     }
                     else {
                         waitPtr->flags &= ~WI_READY;
@@ -434,7 +449,7 @@ static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
         if (pid < 0) {
             return pid;
         }
-        for (waitPtr = waitTable, count = waitTableUsed;; waitPtr++, count--) {
+        for (waitPtr = table->info, count = table->used;; waitPtr++, count--) {
             if (count == 0) {
                 break;          /* Ignore unknown processes. */
             }
@@ -448,8 +463,8 @@ static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
              */
             if (waitPtr->flags & WI_DETACHED) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    *waitPtr = waitTable[waitTableUsed - 1];
-                    waitTableUsed--;
+                    *waitPtr = table->info[table->used - 1];
+                    table->used--;
                 }
             }
             else {
@@ -482,12 +497,13 @@ static int JimWaitPids(int numPids, int *pidPtr, int *statusPtr)
 
 static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
 {
-    WaitInfo *waitPtr;
     int i, count, pid;
+    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
+    struct WaitInfo *waitPtr;
 
     for (i = 0; i < numPids; i++) {
         pid = pidPtr[i];
-        for (waitPtr = waitTable, count = waitTableUsed; count > 0; waitPtr++, count--) {
+        for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
             if (pid != waitPtr->pid) {
                 continue;
             }
@@ -499,8 +515,8 @@ static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
 
             if ((waitPtr->flags & WI_READY) && (WIFEXITED(waitPtr->status)
                     || WIFSIGNALED(waitPtr->status))) {
-                *waitPtr = waitTable[waitTableUsed - 1];
-                waitTableUsed--;
+                *waitPtr = table->info[table->used - 1];
+                table->used--;
             }
             else {
                 waitPtr->flags |= WI_DETACHED;
@@ -929,7 +945,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             outputId = pipeIds[1];
         }
         execName = arg_array[firstArg];
-        pid = JimFork();
+        pid = JimFork(interp);
         if (pid == -1) {
             Jim_SetResultErrno(interp, "couldn't fork child process");
             goto error;
@@ -1061,12 +1077,13 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
 
 static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId)
 {
+    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
     int result = JIM_OK;
     int i;
 
     for (i = 0; i < numPids; i++) {
         int waitStatus = 0;
-        int pid = JimWaitPids(1, &pidPtr[i], &waitStatus);
+        int pid = JimWaitPids(table, 1, &pidPtr[i], &waitStatus);
 
         if (pid >= 0 && JimCheckWaitStatus(interp, pid, waitStatus) != JIM_OK) {
             result = JIM_ERR;
@@ -1108,6 +1125,15 @@ static void JimFreeEnv(Jim_Interp *interp, char **env, char **original_environ)
         Jim_Free(env);
     }
 #endif
+}
+
+static void JimFreeWaitInfoTable(struct Jim_Interp *interp, void *privData)
+{
+}
+
+static struct WaitInfoTable *JimAllocWaitInfoTable(void)
+{
+    return NULL;
 }
 
 /**
@@ -1236,6 +1262,6 @@ int Jim_execInit(Jim_Interp *interp)
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
-    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
+    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, JimAllocWaitInfoTable(), JimFreeWaitInfoTable);
     return JIM_OK;
 }

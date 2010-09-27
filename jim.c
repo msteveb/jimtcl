@@ -9061,10 +9061,11 @@ static void JimPrngInit(Jim_Interp *interp)
     int i;
     /* XXX: Move off stack */
     unsigned int seed[256];
+    unsigned rseed; /* uninitialized! */
 
     interp->prngState = Jim_Alloc(sizeof(Jim_PrngState));
     for (i = 0; i < 256; i++)
-        seed[i] = (rand() ^ time(NULL) ^ clock());
+        seed[i] = (rand_r(&rseed) ^ time(NULL) ^ clock());
     JimPrngSeed(interp, (unsigned char *)seed, sizeof(int) * 256);
 }
 

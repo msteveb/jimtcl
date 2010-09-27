@@ -559,7 +559,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
-    static const char *options[] = {
+    static const char * const options[] = {
         "idletasks", NULL
     };
     enum { UPDATE_IDLE, UPDATE_NONE };
@@ -601,7 +601,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
     jim_wide ms = 0, id;
     Jim_Obj *objPtr, *idObjPtr;
-    const char *options[] = {
+    static const char * const options[] = {
         "cancel", "info", "idle", NULL
     };
     enum

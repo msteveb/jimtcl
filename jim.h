@@ -613,7 +613,8 @@ typedef struct Jim_Reference {
 #define JIM_EXPORT
 
 /* Memory allocation */
-JIM_EXPORT void * Jim_Alloc (int size);
+JIM_EXPORT void *Jim_Alloc (int size);
+JIM_EXPORT void *Jim_Realloc(void *ptr, int size);
 JIM_EXPORT void Jim_Free (void *ptr);
 JIM_EXPORT char * Jim_StrDup (const char *s);
 JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
