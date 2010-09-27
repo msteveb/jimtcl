@@ -3480,32 +3480,28 @@ int Jim_DeleteCommand(Jim_Interp *interp, const char *cmdName)
 
 int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newName)
 {
-    Jim_Cmd *cmdPtr;
     Jim_HashEntry *he;
-    Jim_Cmd *copyCmdPtr;
 
     if (newName[0] == '\0')     /* Delete! */
         return Jim_DeleteCommand(interp, oldName);
     /* Rename */
     he = Jim_FindHashEntry(&interp->commands, oldName);
-    if (he == NULL)
-        return JIM_ERR;         /* Invalid command name */
-    cmdPtr = he->val;
-    copyCmdPtr = Jim_Alloc(sizeof(Jim_Cmd));
-    *copyCmdPtr = *cmdPtr;
-    /* In order to avoid that a procedure will get arglist/body/statics
-     * freed by the hash table methods, fake a C-coded command
-     * setting cmdPtr->cmdProc as not NULL */
-    cmdPtr->cmdProc = (void *)1;
-    /* Also make sure delProc is NULL. */
-    cmdPtr->delProc = NULL;
-    /* Destroy the old command, and make sure the new is freed
-     * as well. */
+    if (he == NULL) {
+        Jim_SetResultFormatted(interp, "can't rename \"%s\": command doesn't exist", oldName);
+        return JIM_ERR;
+    }
+    if (Jim_FindHashEntry(&interp->commands, newName)) {
+        Jim_SetResultFormatted(interp, "can't rename to \"%s\": command already exists", newName);
+        return JIM_ERR;
+    }
+
+    /* Add the new name first */
+    JimIncrCmdRefCount(he->val);
+    Jim_AddHashEntry(&interp->commands, newName, he->val);
+
+    /* Now remove the old name */
     Jim_DeleteHashEntry(&interp->commands, oldName);
-    Jim_DeleteHashEntry(&interp->commands, newName);
-    /* Now the new command. We are sure it can't fail because
-     * the target name was already freed. */
-    Jim_AddHashEntry(&interp->commands, newName, copyCmdPtr);
+
     /* Increment the epoch */
     Jim_InterpIncrProcEpoch(interp);
     return JIM_OK;
@@ -12704,11 +12700,7 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     }
     oldName = Jim_GetString(argv[1], NULL);
     newName = Jim_GetString(argv[2], NULL);
-    if (Jim_RenameCommand(interp, oldName, newName) != JIM_OK) {
-        Jim_SetResultFormatted(interp, "can't rename \"%#s\": command doesn't exist", argv[1]);
-        return JIM_ERR;
-    }
-    return JIM_OK;
+    return Jim_RenameCommand(interp, oldName, newName);
 }
 
 /* [dict] */

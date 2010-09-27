@@ -99,6 +99,11 @@ proc a {msg stack} {
 catch {fail} msg opts
 catch {a $msg $opts(-errorinfo)}
 
+# REGTEST 16
+# 24 Feb 2010 - rename the current proc
+# Leaves unfreed objects on the stack
+proc a {} { rename a newa}
+a
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 
