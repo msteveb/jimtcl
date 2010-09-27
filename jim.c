@@ -86,7 +86,7 @@ static const char *tt_name(int type);
 
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and doesn't try to free it. */
-static const char JimEmptyStringRep[] = "";
+static char JimEmptyStringRep[] = "";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -1861,7 +1861,7 @@ void Jim_InvalidateStringRep(Jim_Obj *objPtr)
 void Jim_InitStringRep(Jim_Obj *objPtr, const char *bytes, int length)
 {
     if (length == 0) {
-        objPtr->bytes = (char *)JimEmptyStringRep;
+        objPtr->bytes = JimEmptyStringRep;
         objPtr->length = 0;
     }
     else {
@@ -1996,7 +1996,7 @@ Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
         len = strlen(s);
     /* Alloc/Set the string rep. */
     if (len == 0) {
-        objPtr->bytes = (char *)JimEmptyStringRep;
+        objPtr->bytes = JimEmptyStringRep;
         objPtr->length = 0;
     }
     else {
@@ -2804,6 +2804,27 @@ static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
  * Script Object
  * ---------------------------------------------------------------------------*/
 
+static const Jim_ObjType scriptLineObjType = {
+    "scriptline",
+    NULL,
+    NULL,
+    NULL,
+    0,
+};
+
+static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
+{
+    Jim_Obj *objPtr;
+
+    objPtr = Jim_NewObj(interp);
+    objPtr->typePtr = &scriptLineObjType;
+    objPtr->bytes = JimEmptyStringRep;
+    objPtr->internalRep.scriptLineValue.argc = argc;
+    objPtr->internalRep.scriptLineValue.line = line;
+
+    return objPtr;
+}
+
 #define JIM_CMDSTRUCT_EXPAND -1
 
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -2825,7 +2846,6 @@ typedef struct ScriptToken
 {
     int type;
     Jim_Obj *objPtr;
-    int linenr;
 } ScriptToken;
 
 /* This is the script object internal representation. An array of
@@ -2878,6 +2898,9 @@ typedef struct ScriptToken
  * WRD -1
  * STR a b
  *
+ * Note that the 'LIN' token also contains the source information for the
+ * first word of the line for error reporting purposes
+ *
  * -- the substFlags field of the structure --
  *
  * The scriptObj structure is used to represent both "script" objects
@@ -2903,6 +2926,7 @@ typedef struct ScriptObj
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
     char *fileName;
+    int line;                   /* Line number of the first line */
 } ScriptObj;
 
 void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -3034,10 +3058,10 @@ static int JimCountWordTokens(ParseToken *t)
  * Takes a tokenlist and creates the allocated list of script tokens
  * in script->token, of length script->len.
  *
- * Unnecessary tokens are discarded, and some tokens may be consolidated into
- * a single token.
+ * Unnecessary tokens are discarded, and LINE and WORD tokens are inserted
+ * as required.
  *
- * Also counts the required cmdStruct length in script->csLen.
+ * Also sets script->line to the line number of the first token
  */
 static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     ParseTokenList *tokenlist)
@@ -3049,6 +3073,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     /* This is the first token for the current command */
     ScriptToken *linefirst;
     int count;
+    int linenr;
 
 #ifdef DEBUG_SHOW_SCRIPT_TOKENS
     printf("==== Tokens ====\n");
@@ -3065,13 +3090,12 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             count++;
         }
     }
+    linenr = script->line = tokenlist->list[0].line;
         
     token = script->token = Jim_Alloc(sizeof(ScriptToken) * count);
 
     /* This is the first token for the current command */
     linefirst = token++;
-    linefirst->linenr = 0;
-    linefirst->type = JIM_TT_NONE;
     
     for (i = 0; i < tokenlist->count; ) {
         /* Look ahead to find out how many tokens make up the next word */
@@ -3088,13 +3112,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             /* None, so at end of line */
             if (lineargs) {
                 linefirst->type = JIM_TT_LINE;
-#ifdef DEBUG_SHOW_SCRIPT
-                linefirst->objPtr = Jim_NewIntObj(interp, lineargs);
-#else
-                linefirst->objPtr = interp->emptyObj;
-#endif
-                /* Cheat and store the value in the unused 'linenr' for quick access */
-                linefirst->linenr = lineargs;
+                linefirst->objPtr = JimNewScriptLineObj(interp, lineargs, linenr);
                 Jim_IncrRefCount(linefirst->objPtr);
 
                 /* Reset for new line */
@@ -3107,13 +3125,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
         else if (wordtokens != 1) {
             /* More than 1, or {expand}, so insert a WORD token */
             token->type = JIM_TT_WORD;
-#ifdef DEBUG_SHOW_SCRIPT
             token->objPtr = Jim_NewIntObj(interp, wordtokens);
-#else
-            token->objPtr = interp->emptyObj;
-#endif
-            /* Cheat and store the value in the unused 'linenr' for quick access */
-            token->linenr = wordtokens;
             Jim_IncrRefCount(token->objPtr);
             token++;
             if (wordtokens < 0) {
@@ -3125,6 +3137,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
         }
 
         lineargs++;
+        linenr = tokenlist->list[i].line;
 
         /* Add each non-separator word token to the line */
         while (wordtokens--) {
@@ -3152,7 +3165,6 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             token->objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
             Jim_IncrRefCount(token->objPtr);
             token->type = t->type;
-            token->linenr = t->line;
 
             if (script->fileName) {
                 JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
@@ -3172,8 +3184,8 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 #ifdef DEBUG_SHOW_SCRIPT
     printf("==== Script ====\n");
     for (i = 0; i < script->len; i++) {
-        printf("[%2d]@%d %s %s\n", i, script->token[i].linenr, tt_name(script->token[i].type),
-            Jim_GetString(script->token[i].objPtr, NULL));
+        const ScriptToken *t = &script->token[i];
+        printf("[%2d] %s %s\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
     }
 #endif
 
@@ -3197,7 +3209,6 @@ static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 
         /* Create a token for 't' */
         token->type = t->type;
-        token->linenr = t->line;
 
         len = t->len;
 
@@ -3231,23 +3242,22 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
     struct JimParserCtx parser;
     struct ScriptObj *script = Jim_Alloc(sizeof(*script));
-    int initialLineNumber;
     ParseTokenList tokenlist;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
         script->fileName = Jim_StrDup(objPtr->internalRep.sourceValue.fileName);
-        initialLineNumber = objPtr->internalRep.sourceValue.lineNumber;
+        script->line = objPtr->internalRep.sourceValue.lineNumber;
     }
     else {
         script->fileName = NULL;
-        initialLineNumber = 1;
+        script->line = 1;
     }
 
     /* Initially parse the script into tokens (in tokenlist) */
     ScriptTokenListInit(&tokenlist);
 
-    JimParserInit(&parser, scriptText, scriptTextLen, initialLineNumber);
+    JimParserInit(&parser, scriptText, scriptTextLen, script->line);
     while (!JimParserEof(&parser)) {
         JimParseScript(&parser);
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
@@ -3274,27 +3284,6 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->typePtr = &scriptObjType;
 
     return JIM_OK;
-}
-
-/**
- * Returns the filename and line number of the first token in the script.
- *
- */
-const char *Jim_ScriptSource(ScriptObj *script, int *line)
-{
-    int i;
-
-    *line = 0;
-
-    /* Skip JIM_TT_LINE and JIM_TT_WORD tokens to find the first line number */
-    for (i = 0; i < script->len; i++) {
-        if (script->token[i].type != JIM_TT_LINE && script->token[i].type != JIM_TT_WORD) {
-            *line = script->token[i].linenr;
-            break;
-        }
-    }
-
-    return script->fileName;
 }
 
 ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -9406,9 +9395,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     int i, j = 0, len;
     ScriptObj *script;
     ScriptToken *token;
-    ScriptToken *cmdtoken = NULL;
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL;
+    int linenr = 0;
 
     interp->errorFlag = 0;
 
@@ -9474,7 +9463,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_Cmd *cmd;
 
         /* First token of the line is always JIM_TT_LINE */
-        argc = token[i].linenr;
+        argc = token[i].objPtr->internalRep.scriptLineValue.argc;
+        linenr = token[i].objPtr->internalRep.scriptLineValue.line;
         
         /* Allocate the arguments vector */
         if (argc <= JIM_EVAL_SARGV_LEN)
@@ -9482,13 +9472,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         else
             argv = Jim_Alloc(sizeof(Jim_Obj *) * argc);
 
-        /* Skip the JIM_TT_LINE token and remember the next token in case of error.
-         * If that is a JIM_TT_WORD token, look at the token after that.
-         */
-        cmdtoken = &token[++i];
-        if (cmdtoken->type == JIM_TT_WORD) {
-            cmdtoken++;
-        }
+        /* Skip the JIM_TT_LINE token */
+        i++;
 
         /* Populate the arguments objects. */
         for (j = 0; j < argc; j++) {
@@ -9497,7 +9482,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             Jim_Obj *wordObjPtr = NULL;
 
             if (token[i].type == JIM_TT_WORD) {
-                wordtokens = token[i++].linenr;
+                Jim_GetLong(interp, token[i++].objPtr, &wordtokens);
                 if (wordtokens < 0) {
                     expand = 1;
                     wordtokens = -wordtokens;
@@ -9602,13 +9587,13 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             }
             else {
                 retcode =
-                    JimCallProcedure(interp, cmd, script->fileName, cmdtoken->linenr, argc, argv);
+                    JimCallProcedure(interp, cmd, script->fileName, linenr, argc, argv);
             }
             JimDecrCmdRefCount(interp, cmd);
         }
         else {
             /* Call [unknown] */
-            retcode = JimUnknown(interp, argc, argv, script->fileName, cmdtoken->linenr);
+            retcode = JimUnknown(interp, argc, argv, script->fileName, linenr);
         }
         if (interp->signal_level && interp->sigmask) {
             /* Check for a signal after each command */
@@ -9635,7 +9620,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     j = 0;                      /* on normal termination, the argv array is already
                                    Jim_DecrRefCount-ed. */
   err:
-    JimAddErrorToStack(interp, retcode, script->fileName, cmdtoken ? cmdtoken->linenr : 0);
+    JimAddErrorToStack(interp, retcode, script->fileName, linenr);
     Jim_FreeIntRep(interp, scriptObjPtr);
     scriptObjPtr->typePtr = &scriptObjType;
     Jim_SetIntRepPtr(scriptObjPtr, script);
@@ -12919,7 +12904,9 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     line = argv[2]->internalRep.sourceValue.lineNumber;
                 }
                 else if (argv[2]->typePtr == &scriptObjType) {
-                    filename = Jim_ScriptSource(Jim_GetScript(interp, argv[2]), &line);
+                    ScriptObj *script = Jim_GetScript(interp, argv[2]);
+                    filename = script->fileName;
+                    line = script->line;
                 }
                 resObjPtr = Jim_NewListObj(interp, NULL, 0);
                 Jim_ListAppendElement(interp, resObjPtr, Jim_NewStringObj(interp, filename, -1));

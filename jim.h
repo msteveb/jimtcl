@@ -358,6 +358,10 @@ typedef struct Jim_Obj {
             unsigned flags;
             void *compre;       /* really an allocated (regex_t *) */
         } regexpValue;
+        struct {
+            int line;
+            int argc;
+        } scriptLineValue;
     } internalRep;
     /* This are 8 or 16 bytes more for every object
      * but this is required for efficient garbage collection
