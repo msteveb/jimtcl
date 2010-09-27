@@ -1,10 +1,40 @@
 # (c) 2008 Steve Bennett <steveb@workware.net.au>
 #
 # Loads some Tcl-compatible features.
-# case, lassign, parray, errorInfo, ::tcl_platform, ::env
+# I/O commands, case, lassign, parray, errorInfo, ::tcl_platform, ::env
+# try, throw, file copy, info nameofexecutable
 
 # Set up the ::env array
 set env [env]
+
+# Tcl-compatible I/O commands
+foreach p {gets flush close eof seek tell} {
+	proc $p {chan args} {p} {
+		tailcall $chan $p {*}$args
+	}
+}
+unset p
+
+# puts is complicated by -nonewline
+#
+proc puts {{-nonewline {}} {chan stdout} msg} {
+	if {${-nonewline} ni {-nonewline {}}} {
+		tailcall ${-nonewline} puts $msg
+	}
+	tailcall $chan puts {*}${-nonewline} $msg
+}
+
+# read is complicated by -nonewline
+#
+# read chan ?maxchars?
+# read -nonewline chan
+proc read {{-nonewline {}} chan} {
+	if {${-nonewline} ni {-nonewline {}}} {
+		tailcall ${-nonewline} read {*}${chan}
+	}
+	tailcall $chan read {*}${-nonewline}
+}
+
 
 # Tcl 8.5 lassign
 proc lassign {list args} {

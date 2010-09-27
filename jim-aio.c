@@ -271,24 +271,21 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int nonewline = 0;
     int neededLen = -1;         /* -1 is "read as much as possible" */
 
-    if (argc && Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
-        nonewline = 1;
-        argv++;
-        argc--;
-    }
-    if (argc == 1) {
-        jim_wide wideValue;
-
-        if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
-            return JIM_ERR;
-        if (wideValue < 0) {
-            Jim_SetResultString(interp, "invalid parameter: negative len", -1);
-            return JIM_ERR;
+    if (argc) {
+        if (Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
+            nonewline = 1;
         }
-        neededLen = (int)wideValue;
-    }
-    else if (argc) {
-        return -1;
+        else {
+            jim_wide wideValue;
+
+            if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
+                return JIM_ERR;
+            if (wideValue < 0) {
+                Jim_SetResultString(interp, "invalid parameter: negative len", -1);
+                return JIM_ERR;
+            }
+            neededLen = (int)wideValue;
+        }
     }
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (neededLen != 0) {
@@ -580,7 +577,8 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else if (Jim_CompareStringImmediate(interp, argv[1], "end"))
             orig = SEEK_END;
         else {
-            return -1;
+            Jim_SetResultFormatted(interp, "bad origin \"%#s\": must be start, current, or end", argv[1]);
+            return JIM_ERR;
         }
     }
     if (Jim_GetLong(interp, argv[0], &offset) != JIM_OK) {
@@ -703,10 +701,10 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
 static const jim_subcmd_type aio_command_table[] = {
     {   .cmd = "read",
-        .args = "?-nonewline? ?len?",
+        .args = "?-nonewline|len?",
         .function = aio_cmd_read,
         .minargs = 0,
-        .maxargs = 2,
+        .maxargs = 1,
         .description = "Read and return bytes from the stream. To eof if no len."
     },
     {   .cmd = "gets",
@@ -1188,93 +1186,6 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
     return NULL;
 }
 
-#ifdef JIM_TCL_COMPAT
-static int JimAioTclCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    Jim_Obj *newargv[4];
-    int ret;
-    int i;
-    int nonewline = 0;
-
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
-        nonewline = 1;
-    }
-    if (argc < 2 + nonewline || argc > 4) {
-        Jim_WrongNumArgs(interp, 1, argv, "channel");
-        return JIM_ERR;
-    }
-
-    if (nonewline) {
-        /* read -nonewline $f ... => $f read -nonewline ... */
-        newargv[0] = argv[2];
-        newargv[1] = argv[0];
-        newargv[2] = argv[1];
-    }
-    else {
-        /* cmd $f ... => $f cmd ... */
-        newargv[0] = argv[1];
-        newargv[1] = argv[0];
-    }
-
-    for (i = 2 + nonewline; i < argc; i++) {
-        newargv[i] = argv[i];
-    }
-
-    ret = Jim_EvalObjVector(interp, argc, newargv);
-
-    return ret;
-}
-
-static int JimAioPutsCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    Jim_Obj *newargv[4];
-    int nonewline = 0;
-
-    int off = 1;
-
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nonewline")) {
-        nonewline = 1;
-    }
-
-    if (argc < 2 + nonewline || argc > 3 + nonewline) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-nonewline? ?channel? string");
-        return JIM_ERR;
-    }
-
-    /* "puts" */
-    newargv[off++] = argv[0];
-
-    if (nonewline) {
-        newargv[off++] = argv[1];
-        argv++;
-        argc--;
-    }
-
-    if (argc == 2) {
-        /* Missing channel, so use stdout */
-        newargv[0] = Jim_NewStringObj(interp, "stdout", -1);
-        newargv[off++] = argv[1];
-    }
-    else {
-        newargv[0] = argv[1];
-        newargv[off++] = argv[2];
-    }
-
-    return Jim_EvalObjVector(interp, off, newargv);
-}
-
-static void JimAioTclCompat(Jim_Interp *interp)
-{
-    static const char * const tclcmds[] = { "read", "gets", "flush", "close", "eof", "seek", "tell", 0 };
-    int i;
-
-    for (i = 0; tclcmds[i]; i++) {
-        Jim_CreateCommand(interp, tclcmds[i], JimAioTclCmd, NULL, NULL);
-    }
-    Jim_CreateCommand(interp, "puts", JimAioPutsCmd, NULL, NULL);
-}
-#endif
-
 int Jim_aioInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
@@ -1287,10 +1198,6 @@ int Jim_aioInit(Jim_Interp *interp)
 
     /* Takeover stdin, stdout and stderr */
     Jim_EvalGlobal(interp, "open stdin; open stdout; open stderr");
-
-#ifdef JIM_TCL_COMPAT
-    JimAioTclCompat(interp);
-#endif
 
     return JIM_OK;
 }
