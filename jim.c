@@ -9036,6 +9036,50 @@ static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedL
     JimRandomBytes(interp, buf, 256);
 }
 
+/* [incr] */
+static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    jim_wide wideValue, increment = 1;
+    Jim_Obj *intObjPtr;
+
+    if (argc != 2 && argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "varName ?increment?");
+        return JIM_ERR;
+    }
+    if (argc == 3) {
+        if (Jim_GetWide(interp, argv[2], &increment) != JIM_OK)
+            return JIM_ERR;
+    }
+    intObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
+    if (!intObjPtr) {
+        /* Set missing variable to 0 */
+        wideValue = 0;
+    }
+    else if (Jim_GetWide(interp, intObjPtr, &wideValue) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if (!intObjPtr || Jim_IsShared(intObjPtr)) {
+        intObjPtr = Jim_NewIntObj(interp, wideValue + increment);
+        if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
+            Jim_FreeNewObj(interp, intObjPtr);
+            return JIM_ERR;
+        }
+    }
+    else {
+        Jim_SetWide(interp, intObjPtr, wideValue + increment);
+        /* The following step is required in order to invalidate the
+         * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
+        if (argv[1]->typePtr != &variableObjType) {
+            if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
+                return JIM_ERR;
+            }
+        }
+    }
+    Jim_SetResult(interp, intObjPtr);
+    return JIM_OK;
+}
+
+
 /* -----------------------------------------------------------------------------
  * Eval
  * ---------------------------------------------------------------------------*/
@@ -9337,19 +9381,19 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_OK;
     }
-    if (script->len == 3 && script->token[1].type == JIM_TT_ESC
-        && script->token[2].type == JIM_TT_ESC
+    if (script->len == 3
+        && script->token[1].objPtr->typePtr == &commandObjType
+        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->cmdProc == Jim_IncrCoreCommand
         && script->token[2].objPtr->typePtr == &variableObjType) {
-        if (Jim_CompareStringImmediate(interp, script->token[1].objPtr, "incr")) {
-            Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
 
-            if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
-                objPtr->internalRep.wideValue++;
-                Jim_InvalidateStringRep(objPtr);
-                Jim_DecrRefCount(interp, scriptObjPtr);
-                Jim_SetResult(interp, objPtr);
-                return JIM_OK;
-            }
+        Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
+
+        if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
+            objPtr->internalRep.wideValue++;
+            Jim_InvalidateStringRep(objPtr);
+            Jim_DecrRefCount(interp, scriptObjPtr);
+            Jim_SetResult(interp, objPtr);
+            return JIM_OK;
         }
     }
 #endif
@@ -10421,49 +10465,6 @@ static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
         i++;
     }
-    return JIM_OK;
-}
-
-/* [incr] */
-static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    jim_wide wideValue, increment = 1;
-    Jim_Obj *intObjPtr;
-
-    if (argc != 2 && argc != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "varName ?increment?");
-        return JIM_ERR;
-    }
-    if (argc == 3) {
-        if (Jim_GetWide(interp, argv[2], &increment) != JIM_OK)
-            return JIM_ERR;
-    }
-    intObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
-    if (!intObjPtr) {
-        /* Set missing variable to 0 */
-        wideValue = 0;
-    }
-    else if (Jim_GetWide(interp, intObjPtr, &wideValue) != JIM_OK) {
-        return JIM_ERR;
-    }
-    if (!intObjPtr || Jim_IsShared(intObjPtr)) {
-        intObjPtr = Jim_NewIntObj(interp, wideValue + increment);
-        if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, intObjPtr);
-            return JIM_ERR;
-        }
-    }
-    else {
-        Jim_SetWide(interp, intObjPtr, wideValue + increment);
-        /* The following step is required in order to invalidate the
-         * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
-        if (argv[1]->typePtr != &variableObjType) {
-            if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-                return JIM_ERR;
-            }
-        }
-    }
-    Jim_SetResult(interp, intObjPtr);
     return JIM_OK;
 }
 
