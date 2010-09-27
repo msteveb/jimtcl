@@ -1,13 +1,16 @@
 package provide tree
 
-# Broadly compatible with tcllib ::struct::tree
+# Conceptually compatible with tcllib ::struct::tree
+# but uses an object based interface.
+# To mimic tcllib, do:
+#   rename [tree] mytree
 
-# tree create procname
+# set pt [tree]
 #
-#   Create a tree named $procname
+#   Create a tree
 #   This automatically creates a node named "root"
 #
-# tree destroy procname
+# $pt destroy
 #
 #   Destroy the tree and all it's nodes
 #
@@ -61,53 +64,43 @@ package provide tree
 #   The name of each node is stored in $nodevar.
 #   The script $code is evaluated twice for each node, on entry and exit.
 
-# tree create handle
-# tree destroy handle
-#
-proc tree {action handle} {
+# Create a new tree
+proc tree {} {
 	# A tree is a dictionary of (name, noderef)
 	# The name for the root node is always "root",
 	# and other nodes are automatically named "node1", "node2", etc.
 
-	if {$action eq "destroy"} {
-		$handle _destroy
-		rename $handle ""
-		return
-	} elseif {$action eq "create"} {
-		# Create the root node
-		lassign [_tree_makenode ""] dummy rootref
+	# Create the root node
+	lassign [_tree.makenode ""] dummy rootref
 
-		# Create the tree containing one node
-		set tree [dict create root $rootref]
+	# Create the tree containing one node
+	set tree [dict create root $rootref]
 
-		# And create a reference to a tree dictionary
-		set treeref [ref $tree tree]
+	# And create a reference to a tree dictionary
+	set treeref [ref $tree tree]
 
-		proc $handle {command args} {treeref} {
-			#puts "You invoked [list treehandle $command $args]"
-			tailcall tree_$command $treeref {*}$args
-		}
-	} else {
-		error "Usage: tree destroy|create handle"
+	lambda {command args} {treeref} {
+		#puts "You invoked [list treehandle $command $args]"
+		uplevel 1 [list tree.$command $treeref {*}$args]
 	}
 }
 
 # treehandle insert node ?index?
 #
-proc tree_insert {treeref node {index end}} {
+proc tree.insert {treeref node {index end}} {
 	# Get the parent node
-	set parentref [_tree_getnoderef $treeref $node]
+	set parentref [_tree.getnoderef $treeref $node]
 
 	# Make a new node
-	lassign [_tree_makenode $parentref] childname childref
+	lassign [_tree.makenode $parentref] childname childref
 
 	# Add it to the list of children in the parent node
-	_tree_update_node $treeref $node parent {
+	_tree.update_node $treeref $node parent {
 		lappend parent(.children) $childref
 	}
 
 	# Add it to the tree
-	_tree_update_tree $treeref tree {
+	_tree.update_tree $treeref tree {
 		set tree($childname) $childref
 	}
 
@@ -116,8 +109,8 @@ proc tree_insert {treeref node {index end}} {
 
 # treehandle set node key value
 #
-proc tree_set {treeref node key value} {
-	_tree_update_node $treeref $node n {
+proc tree.set {treeref node key value} {
+	_tree.update_node $treeref $node n {
 		set n($key) $value
 	}
 	return $value
@@ -125,8 +118,8 @@ proc tree_set {treeref node key value} {
 
 # treehandle lappend node key value
 #
-proc tree_lappend {treeref node key args} {
-	_tree_update_node $treeref $node n {
+proc tree.lappend {treeref node key args} {
+	_tree.update_node $treeref $node n {
 		lappend n($key) {expand}$args
 		set result $n($key)
 	}
@@ -135,44 +128,44 @@ proc tree_lappend {treeref node key args} {
 
 # treehandle get node key
 #
-proc tree_get {treeref node key} {
-	set n [_tree_getnode $treeref $node]
+proc tree.get {treeref node key} {
+	set n [_tree.getnode $treeref $node]
 
 	return $n($key)
 }
 
 # treehandle keyexists node key
 #
-proc tree_keyexists {treeref node key} {
-	set n [_tree_getnode $treeref $node]
+proc tree.keyexists {treeref node key} {
+	set n [_tree.getnode $treeref $node]
 	info exists n($key)
 }
 
 # treehandle depth node
 #
-proc tree_depth {treeref node} {
-	set n [_tree_getnode $treeref $node]
+proc tree.depth {treeref node} {
+	set n [_tree.getnode $treeref $node]
 	return $n(.depth)
 }
 
 # treehandle parent node
 #
-proc tree_parent {treeref node} {
-	set n [_tree_getnode $treeref $node]
+proc tree.parent {treeref node} {
+	set n [_tree.getnode $treeref $node]
 	return $n(.parent)
 }
 
 # treehandle numchildren node
 #
-proc tree_numchildren {treeref node} {
-	set n [_tree_getnode $treeref $node]
+proc tree.numchildren {treeref node} {
+	set n [_tree.getnode $treeref $node]
 	llength $n(.children)
 }
 
 # treehandle children node
 #
-proc tree_children {treeref node} {
-	set n [_tree_getnode $treeref $node]
+proc tree.children {treeref node} {
+	set n [_tree.getnode $treeref $node]
 	set result {}
 	foreach child $n(.children) {
 		set c [getref $child]
@@ -183,9 +176,9 @@ proc tree_children {treeref node} {
 
 # treehandle next node
 #
-proc tree_next {treeref node} {
-	set parent [tree_parent $treeref $node]
-	set siblings [tree_children $treeref $parent] 
+proc tree.next {treeref node} {
+	set parent [tree.parent $treeref $node]
+	set siblings [tree.children $treeref $parent] 
 	set i [lsearch $siblings $node]
 	incr i
 	return [lindex $siblings $i]
@@ -193,8 +186,8 @@ proc tree_next {treeref node} {
 
 # treehandle walk node bfs|dfs {action loopvar} <code>
 #
-proc tree_walk {treeref node type vars code} {
-	set n [_tree_getnode $treeref $node]
+proc tree.walk {treeref node type vars code} {
+	set n [_tree.getnode $treeref $node]
 
 	# set up vars
 	lassign $vars actionvar namevar
@@ -214,19 +207,19 @@ proc tree_walk {treeref node type vars code} {
 		# Depth-first so do the children
 		foreach childref $n(.children) {
 			set child [getref $childref]
-			uplevel 1 [list tree_walk $treeref $child(.name) $type $vars $code]
+			uplevel 1 [list tree.walk $treeref $child(.name) $type $vars $code]
 		}
 	} elseif {$type ne "none"} {
 		# Breadth-first so do the children to one level only
 		foreach childref $n(.children) {
 			set child [getref $childref]
-			uplevel 1 [list tree_walk $treeref $child(.name) none $vars $code]
+			uplevel 1 [list tree.walk $treeref $child(.name) none $vars $code]
 		}
 
 		# Now our grandchildren
 		foreach childref $n(.children) {
 			set child [getref $childref]
-			uplevel 1 [list tree_walk $treeref $child(.name) child $vars $code]
+			uplevel 1 [list tree.walk $treeref $child(.name) child $vars $code]
 		}
 	}
 
@@ -239,19 +232,23 @@ proc tree_walk {treeref node type vars code} {
 	}
 }
 
+# Destroys the tree
 #
-# INTERNAL procedures below this point
-#
-
-# Discards all the nodes
-#
-proc tree__destroy {treeref} {
+proc tree.destroy {treeref} {
 	set tree [getref $treeref]
 	foreach {nodename noderef} $tree {
 		setref $noderef {}
 	}
 	setref $treeref {}
+
+	# Extract the name of the handle
+	set t [lindex [info level 1] 0]
+	rename $t ""
 }
+
+#
+# INTERNAL procedures below this point
+#
 
 
 # Make a new child node of the parent
@@ -261,7 +258,7 @@ proc tree__destroy {treeref} {
 #
 # Returns a list of {nodename noderef}
 #
-proc _tree_makenode {parent} {{nodeid 1}} {
+proc _tree.makenode {parent} {{nodeid 1}} {
 	if {$parent eq ""} {
 		# The root node
 		set name root
@@ -283,13 +280,13 @@ proc _tree_makenode {parent} {{nodeid 1}} {
 
 # Return the node (dictionary value) with the given name
 #
-proc _tree_getnode {treeref node} {
+proc _tree.getnode {treeref node} {
 	getref [dict get [getref $treeref] $node]
 }
 
 # Return the noderef with the given name
 #
-proc _tree_getnoderef {treeref node} {
+proc _tree.getnoderef {treeref node} {
 	dict get [getref $treeref] $node
 }
 
@@ -297,11 +294,11 @@ proc _tree_getnoderef {treeref node} {
 # evaluate $code, and then store any changes to
 # the node (via $varname) back to the node
 #
-proc _tree_update_node {treeref node varname code} {
+proc _tree.update_node {treeref node varname code} {
 	upvar $varname n
 
 	# Get a reference to the node
-	set ref [_tree_getnoderef $treeref $node]
+	set ref [_tree.getnoderef $treeref $node]
 
 	# Get the node itself
 	set n [getref $ref]
@@ -316,7 +313,7 @@ proc _tree_update_node {treeref node varname code} {
 # evaluate $code, and then store any changes to
 # the tree (via $varname) back to the tree
 #
-proc _tree_update_tree {treeref varname code} {
+proc _tree.update_tree {treeref varname code} {
 	upvar $varname t
 
 	# Get the tree value
