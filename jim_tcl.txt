@@ -78,9 +78,10 @@ Since v0.62:
 16. Event handlers works better if an error occurs. eof handler has been removed.
 17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
 18. Command pipelines via open "|..." are now supported
-19. Add 'info references'
-20. Add support for 'after *ms*', 'after idle', 'after info', 'update'
-21. 'exec' now sets environment based on $::env
+19. 'pid' can now return pids of a command pipeline
+20. Add 'info references'
+21. Add support for 'after *ms*', 'after idle', 'after info', 'update'
+22. 'exec' now sets environment based on $::env
 
 Since v0.61:
 
@@ -2817,6 +2818,8 @@ open
 ~~~~
 +*open* 'fileName ?access?'+
 
++*open* '|command-pipeline ?access?'+
+
 Opens a file and returns an identifier
 that may be used in future invocations
 of commands like 'read', 'puts', and 'close'.
@@ -2866,7 +2869,10 @@ by the command. If read-only access is used (e.g. *access* is r),
 standard input for the pipeline is taken from the current standard
 input unless overridden by the command.
 
-See also 'socket'
+The 'pid' command may be used to return the process ids of the commands
+forming the command pipeline.
+
+See also 'socket', 'pid', 'exec'
 
 package
 ~~~~~~~
@@ -2891,7 +2897,16 @@ pid
 ~~~
 +*pid*+
 
-Returns the process identifier of the current process.
++*pid* 'fileId'+
+
+The first form returns the process identifier of the current process.
+
+The second form accepts a handle returned by 'open' and returns a list
+of the process ids forming the pipeline in the same form as 'exec ... &'.
+If 'fileId' represents a regular file handle rather than a command pipeline, 
+the empty string is returned instead.
+
+See also 'open', 'exec'
 
 proc
 ~~~~
@@ -4237,6 +4252,8 @@ by the Tcl library.
     Reading an element will return the value of the corresponding
     environment variable.
     This array is initialised at startup from the 'env' command.
+	It may be modified and will affect the environment passed to
+	commands invoked with 'exec'.
 
 +*auto_path*+::
     This variable contains a list of paths to search for packages.

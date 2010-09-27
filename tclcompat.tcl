@@ -163,25 +163,47 @@ proc {file copy} {{force {}} source target} {
 }
 
 # 'open "|..." ?mode?" will invoke this wrapper around exec/pipe
+# Note that we return a lambda which also provides the 'pid' command
 proc popen {cmd {mode r}} {
 	lassign [socket pipe] r w
 	try {
 		if {[string match "w*" $mode]} {
 			lappend cmd <@$r &
-			exec {*}$cmd
+			set pids [exec {*}$cmd]
 			$r close
-			return $w
+			set f $w
 		} else {
 			lappend cmd >@$w &
-			exec {*}$cmd
+			set pids [exec {*}$cmd]
 			$w close
-			return $r
+			set f $r
+		}
+		lambda {cmd args} {f pids} {
+			if {$cmd eq "pid"} {
+				return $pids
+			}
+			tailcall $f $cmd {*}$args
 		}
 	} on error {error opts} {
 		$r close
 		$w close
 		error $error
 	}
+}
+
+# A wrapper around 'pid' which can return the pids for 'popen'
+rename pid .pid
+proc pid {{chan {}}} {
+	if {$chan eq ""} {
+		tailcall .pid
+	}
+	if {[catch {$chan tell}} {
+		return -code error "can not find channel named \"$chan\""
+	}
+	if {[catch {$chan pid} pids} {
+		return ""
+	}
+	return $pids
 }
 
 # try/on/finally conceptually similar to Tcl 8.6
@@ -260,4 +282,4 @@ proc throw {code {msg ""}} {
 	return -code $code $msg
 }
 
-set ::tcl_platform(platform) unix
+set tcl_platform(platform) unix
