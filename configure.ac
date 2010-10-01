@@ -75,14 +75,28 @@ AC_ARG_ENABLE(ipv6,
     ]
 )
 AC_ARG_ENABLE(utf8,
-	[  --enable-utf8           include support for utf8-encoded strings],
-	[
-		if test "x$enableval" = "xyes" ; then
-			dnl Note that utf-8 support requires the built-in regexp
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
-		fi
-	]
+    [  --enable-utf8           include support for utf8-encoded strings],
+    [
+        if test "x$enableval" = "xyes" ; then
+            dnl Note that utf-8 support requires the built-in regexp
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
+        fi
+    ]
 )
+
+lineedit=1
+AC_ARG_ENABLE(lineedit,
+    [  --disable-lineedit      disable line editing],
+    [
+        if test "x$enableval" = "xno" ; then
+            lineedit=0
+        fi
+    ]
+)
+if test $lineedit -eq 1; then
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
+    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
+fi
 
 # Is $1 in list $2?
 in_list()
@@ -192,12 +206,12 @@ AC_ARG_ENABLE(static,
 AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 
 AC_ARG_WITH(jim-regexp,
-	[  --with-jim-regexp       use the built-in (Tcl-compatible) regexp, even if POSIX regex is available],
-	[
-		if test "x$withval" = "xyes" ; then
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
-		fi
-	]
+    [  --with-jim-regexp       use the built-in (Tcl-compatible) regexp, even if POSIX regex is available],
+    [
+        if test "x$withval" = "xyes" ; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
+        fi
+    ]
 )
 
 AC_CHECK_HEADERS([sys/un.h dlfcn.h])

@@ -684,6 +684,7 @@ enable_fork
 enable_math
 enable_ipv6
 enable_utf8
+enable_lineedit
 with_jim_ext
 with_out_jim_ext
 with_jim_extmod
@@ -1321,6 +1322,7 @@ Optional Features:
   --enable-math           include support for math functions
   --enable-ipv6           include ipv6 support in the aio extension
   --enable-utf8           include support for utf8-encoded strings
+  --disable-lineedit      disable line editing
   --enable-shared         build a shared library instead of a static library
   --enable-static         build a static library instead of a shared library
 
@@ -3644,13 +3646,29 @@ fi
 # Check whether --enable-utf8 was given.
 if test "${enable_utf8+set}" = set; then :
   enableval=$enable_utf8;
-		if test "x$enableval" = "xyes" ; then
-						EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
-		fi
+        if test "x$enableval" = "xyes" ; then
+                        EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
+        fi
 
 
 fi
 
+
+lineedit=1
+# Check whether --enable-lineedit was given.
+if test "${enable_lineedit+set}" = set; then :
+  enableval=$enable_lineedit;
+        if test "x$enableval" = "xno" ; then
+            lineedit=0
+        fi
+
+
+fi
+
+if test $lineedit -eq 1; then
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
+    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
+fi
 
 # Is $1 in list $2?
 in_list()
@@ -3743,9 +3761,9 @@ JIM_LIBTYPE=$JIM_LIBTYPE
 # Check whether --with-jim-regexp was given.
 if test "${with_jim_regexp+set}" = set; then :
   withval=$with_jim_regexp;
-		if test "x$withval" = "xyes" ; then
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
-		fi
+        if test "x$withval" = "xyes" ; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
+        fi
 
 
 fi
