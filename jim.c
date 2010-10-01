@@ -5618,36 +5618,57 @@ static int JimSign(jim_wide w)
 }
 
 /* ListSortElements type values */
-enum
-{ JIM_LSORT_ASCII, JIM_LSORT_NOCASE, JIM_LSORT_INTEGER, JIM_LSORT_COMMAND };
+struct lsort_info {
+    jmp_buf jmpbuf;
+    Jim_Obj *command;
+    Jim_Interp *interp;
+    enum {
+        JIM_LSORT_ASCII,
+        JIM_LSORT_NOCASE,
+        JIM_LSORT_INTEGER,
+        JIM_LSORT_COMMAND
+    } type;
+    int order;
+    int index;
+    int indexed;
+    int (*subfn)(Jim_Obj **, Jim_Obj **);
+};
 
-/* Why doesn't qsort allow a user arg!!! */
-static jmp_buf sort_jmpbuf;
-static Jim_Obj *sort_command = 0;
-static Jim_Interp *sort_interp = 0;
-static int sort_order;
+static struct lsort_info *sort_info;
+
+static int ListSortIndexHelper(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    Jim_Obj *lObj, *rObj;
+
+    if (Jim_ListIndex(sort_info->interp, *lhsObj, sort_info->index, &lObj, JIM_ERRMSG) != JIM_OK || 
+        Jim_ListIndex(sort_info->interp, *rhsObj, sort_info->index, &rObj, JIM_ERRMSG) != JIM_OK) {
+        longjmp(sort_info->jmpbuf, JIM_ERR);
+    }
+    //printf("sort_info->index=%d, lObj=%s, rObj=%s\n", sort_info->index, Jim_GetString(lObj, NULL), Jim_GetString(rObj, NULL));
+    return sort_info->subfn(&lObj, &rObj);
+}
 
 /* Sort the internal rep of a list. */
 static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0) * sort_order;
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 0) * sort_info->order;
 }
 
 static int ListSortStringNoCase(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
-    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1) * sort_order;
+    return Jim_StringCompareObj(*lhsObj, *rhsObj, 1) * sort_info->order;
 }
 
 static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     jim_wide lhs = 0, rhs = 0;
 
-    if (Jim_GetWide(sort_interp, *lhsObj, &lhs) != JIM_OK ||
-        Jim_GetWide(sort_interp, *rhsObj, &rhs) != JIM_OK) {
-        longjmp(sort_jmpbuf, JIM_ERR);
+    if (Jim_GetWide(sort_info->interp, *lhsObj, &lhs) != JIM_OK ||
+        Jim_GetWide(sort_info->interp, *rhsObj, &rhs) != JIM_OK) {
+        longjmp(sort_info->jmpbuf, JIM_ERR);
     }
 
-    return JimSign(lhs - rhs) * sort_order;
+    return JimSign(lhs - rhs) * sort_info->order;
 }
 
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
@@ -5658,24 +5679,24 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     jim_wide ret = 0;
 
     /* This must be a valid list */
-    compare_script = Jim_DuplicateObj(sort_interp, sort_command);
-    Jim_ListAppendElement(sort_interp, compare_script, *lhsObj);
-    Jim_ListAppendElement(sort_interp, compare_script, *rhsObj);
+    compare_script = Jim_DuplicateObj(sort_info->interp, sort_info->command);
+    Jim_ListAppendElement(sort_info->interp, compare_script, *lhsObj);
+    Jim_ListAppendElement(sort_info->interp, compare_script, *rhsObj);
 
-    rc = Jim_EvalObj(sort_interp, compare_script);
+    rc = Jim_EvalObj(sort_info->interp, compare_script);
 
-    if (rc != JIM_OK) {
-        longjmp(sort_jmpbuf, rc);
+    if (rc != JIM_OK || Jim_GetWide(sort_info->interp, Jim_GetResult(sort_info->interp), &ret) != JIM_OK) {
+        longjmp(sort_info->jmpbuf, rc);
     }
 
-    Jim_GetWide(sort_interp, Jim_GetResult(sort_interp), &ret);
-    return JimSign(ret) * sort_order;
+    return JimSign(ret) * sort_info->order;
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
-static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, int order,
-    Jim_Obj *command)
+static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsort_info *info)
 {
+    struct lsort_info *prev_info;
+
     typedef int (qsort_comparator) (const void *, const void *);
     int (*fn) (Jim_Obj **, Jim_Obj **);
     Jim_Obj **vector;
@@ -5687,13 +5708,13 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
     if (!Jim_IsList(listObjPtr))
         SetListFromAny(interp, listObjPtr);
 
-    sort_order = order;
-    sort_command = command;
-    sort_interp = interp;
+    /* Allow lsort to be called reentrantly */
+    prev_info = sort_info;
+    sort_info = info;
 
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
-    switch (type) {
+    switch (info->type) {
         case JIM_LSORT_ASCII:
             fn = ListSortString;
             break;
@@ -5710,10 +5731,18 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, int type, i
             fn = NULL;          /* avoid warning */
             Jim_Panic(interp, "ListSort called with invalid sort type");
     }
-    if ((rc = setjmp(sort_jmpbuf)) == 0) {
+
+    if (info->indexed) {
+        /* Need to interpose a "list index" function */
+        info->subfn = fn;
+        fn = ListSortIndexHelper;
+    }
+
+    if ((rc = setjmp(info->jmpbuf)) == 0) {
         qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
     }
     Jim_InvalidateStringRep(listObjPtr);
+    sort_info = prev_info;
 
     return rc;
 }
@@ -11369,21 +11398,27 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
     const char *options[] = {
-        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", NULL
+        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-index", NULL
     };
     enum
-    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER };
+    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_INDEX };
     Jim_Obj *resObj;
-    int i, lsortType = JIM_LSORT_ASCII; /* default sort type */
-    int lsort_order = 1;
-    Jim_Obj *lsort_command = NULL;
+    int i;
     int retCode;
 
+    struct lsort_info info;
+
     if (argc < 2) {
-      wrongargs:
         Jim_WrongNumArgs(interp, 1, argv, "?options? list");
         return JIM_ERR;
     }
+
+    info.type = JIM_LSORT_ASCII;
+    info.order = 1;
+    info.indexed = 0;
+    info.command = NULL;
+    info.interp = interp;
+
     for (i = 1; i < (argc - 1); i++) {
         int option;
 
@@ -11392,32 +11427,44 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
             return JIM_ERR;
         switch (option) {
             case OPT_ASCII:
-                lsortType = JIM_LSORT_ASCII;
+                info.type = JIM_LSORT_ASCII;
                 break;
             case OPT_NOCASE:
-                lsortType = JIM_LSORT_NOCASE;
+                info.type = JIM_LSORT_NOCASE;
                 break;
             case OPT_INTEGER:
-                lsortType = JIM_LSORT_INTEGER;
+                info.type = JIM_LSORT_INTEGER;
                 break;
             case OPT_INCREASING:
-                lsort_order = 1;
+                info.order = 1;
                 break;
             case OPT_DECREASING:
-                lsort_order = -1;
+                info.order = -1;
                 break;
             case OPT_COMMAND:
                 if (i >= (argc - 2)) {
-                    goto wrongargs;
+                    Jim_SetResultString(interp, "\"-command\" option must be followed by comparison command", -1);
+                    return JIM_ERR;
                 }
-                lsortType = JIM_LSORT_COMMAND;
-                lsort_command = argv[i + 1];
+                info.type = JIM_LSORT_COMMAND;
+                info.command = argv[i + 1];
+                i++;
+                break;
+            case OPT_INDEX:
+                if (i >= (argc - 2)) {
+                    Jim_SetResultString(interp, "\"-index\" option must be followed by list index", -1);
+                    return JIM_ERR;
+                }
+                if (Jim_GetIndex(interp, argv[i + 1], &info.index) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                info.indexed = 1;
                 i++;
                 break;
         }
     }
     resObj = Jim_DuplicateObj(interp, argv[argc - 1]);
-    retCode = ListSortElements(interp, resObj, lsortType, lsort_order, lsort_command);
+    retCode = ListSortElements(interp, resObj, &info);
     if (retCode == JIM_OK) {
         Jim_SetResult(interp, resObj);
     }

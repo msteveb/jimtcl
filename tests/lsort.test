@@ -1,0 +1,193 @@
+# This file contains a collection of tests for the procedures in the
+# file tclCmdIL.c.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1997 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: lsort.test,v 1.12.2.2 2001/10/08 15:50:24 dkf Exp $
+
+source testing.tcl
+
+test lsort-1.1 {Tcl_LsortObjCmd procedure} {
+    list [catch {lsort} msg] $msg
+} {1 {wrong # args: should be "lsort ?options? list"}}
+test lsort-1.2 {Tcl_LsortObjCmd procedure} {
+    list [catch {lsort -foo {1 3 2 5}} msg] $msg
+} {1 {bad option "-foo": must be -ascii, -command, -decreasing, -increasing, -index, -integer, or -nocase}}
+test lsort-1.3 {Tcl_LsortObjCmd procedure, default options} {
+    lsort {d e c b a \{ d35 d300}
+} {a b c d d300 d35 e \{}
+test lsort-1.4 {Tcl_LsortObjCmd procedure, -ascii option} {
+    lsort -integer -ascii {d e c b a d35 d300}
+} {a b c d d300 d35 e}
+test lsort-1.5 {Tcl_LsortObjCmd procedure, -command option} {
+    list [catch {lsort -command {1 3 2 5}} msg] $msg
+} {1 {"-command" option must be followed by comparison command}}
+test lsort-1.6 {Tcl_LsortObjCmd procedure, -command option} {
+    proc cmp {a b} {
+	expr {[string match x* $b] - [string match x* $a]}
+    }
+    lsort -command cmp {x1 abc x2 def x3 x4}
+} {x1 x2 x3 x4 abc def}
+test lsort-1.7 {Tcl_LsortObjCmd procedure, -decreasing option} {
+    lsort -decreasing {d e c b a d35 d300}
+} {e d35 d300 d c b a}
+test lsort-1.10 {Tcl_LsortObjCmd procedure, -increasing option} {
+    lsort -decreasing -increasing {d e c b a d35 d300}
+} {a b c d d300 d35 e}
+test lsort-1.11 {Tcl_LsortObjCmd procedure, -index option} {
+    list [catch {lsort -index {1 3 2 5}} msg] $msg
+} {1 {"-index" option must be followed by list index}}
+test lsort-1.12 {Tcl_LsortObjCmd procedure, -index option} {
+    list [catch {lsort -index foo {1 3 2 5}} msg] $msg
+} {1 {bad index "foo": must be integer?[+-]integer? or end?[+-]integer?}}
+test lsort-1.13 {Tcl_LsortObjCmd procedure, -index option} {
+    lsort -index end -integer {{2 25} {10 20 50 100} {3 16 42} 1}
+} {1 {2 25} {3 16 42} {10 20 50 100}}
+test lsort-1.14 {Tcl_LsortObjCmd procedure, -index option} {
+    lsort -index 1 -integer {{1 25 100} {3 16 42} {10 20 50}}
+} {{3 16 42} {10 20 50} {1 25 100}}
+test lsort-1.15 {Tcl_LsortObjCmd procedure, -integer option} {
+    lsort -integer {24 6 300 18}
+} {6 18 24 300}
+test lsort-1.16 {Tcl_LsortObjCmd procedure, -integer option} {
+    list [catch {lsort -integer {1 3 2.4}} msg] $msg
+} {1 {expected integer but got "2.4"}}
+test lsort-1.19 {Tcl_LsortObjCmd procedure, empty list} {
+    lsort {}
+} {}
+test lsort-1.24 {Tcl_LsortObjCmd procedure, order of -index and -command} {
+    catch {rename 1 ""}
+    proc testcmp {a b} {return [string compare $a $b]}
+    set l [list [list a b] [list c d]]
+    set result [list [catch {lsort -command testcmp -index 1 $l} msg] $msg]
+    rename testcmp ""
+    set result
+} [list 0 [list [list a b] [list c d]]]
+test lsort-1.25 {Tcl_LsortObjCmd procedure, order of -index and -command} {
+    catch {rename 1 ""}
+    proc testcmp {a b} {return [string compare $a $b]}
+    set l [list [list a b] [list c d]]
+    set result [list [catch {lsort -index 1 -command testcmp $l} msg] $msg]
+    rename testcmp ""
+    set result
+} [list 0 [list [list a b] [list c d]]]
+# Note that the required order only exists in the end-1'th element;
+# indexing using the end element or any fixed offset from the start
+# will not work...
+test lsort-1.26 {Tcl_LsortObjCmd procedure, offset indexing from end} {
+    lsort -index end-1 {{a 1 e i} {b 2 3 f g} {c 4 5 6 d h}}
+} {{c 4 5 6 d h} {a 1 e i} {b 2 3 f g}}
+
+# Can't think of any good tests for the MergeSort and MergeLists
+# procedures, except a bunch of random lists to sort.
+
+test lsort-2.1 {MergeSort and MergeLists procedures} {
+    set result {}
+    set r 1435753299
+    proc rand {} {
+	global r
+	set r [expr {(16807 * $r) % (0x7fffffff)}]
+    }
+    for {set i 0} {$i < 150} {incr i} {
+	set x {}
+	for {set j 0} {$j < $i} {incr j} {
+	    lappend x [expr {[rand] & 0xfff}]
+	}
+	set y [lsort -integer $x]
+	set old -1
+	foreach el $y {
+	    if {$el < $old} {
+		append result "list {$x} sorted to {$y}, element $el out of order\n"
+		break
+	    }
+	    set old $el
+	}
+    }
+    set result
+} {}
+
+test lsort-3.1 {SortCompare procedure, skip comparisons after error} {
+    set x 0
+    proc cmp {a b} {
+	global x
+	incr x
+	error "error #$x"
+    }
+    list [catch {lsort -integer -command cmp {48 6 28 190 16 2 3 6 1}} msg] \
+	    $msg $x
+} {1 {error #1} 1}
+test lsort-3.3 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 {{20 10} {15 30 40}}} msg] $msg
+} {1 {list index out of range}}
+test lsort-3.5 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 {{20 10 13} {15}}} msg] $msg
+} {1 {list index out of range}}
+test lsort-3.6 {SortCompare procedure, -index option} {
+    lsort -integer -index 2 {{1 15 30} {2 5 25} {3 25 20}}
+} {{3 25 20} {2 5 25} {1 15 30}}
+test lsort-3.7 {SortCompare procedure, -ascii option} {
+    lsort -ascii {d e c b a d35 d300 100 20}
+} {100 20 a b c d d300 d35 e}
+test lsort-3.9 {SortCompare procedure, -integer option} {
+    list [catch {lsort -integer {x 3}} msg] $msg
+} {1 {expected integer but got "x"}}
+test lsort-3.10 {SortCompare procedure, -integer option} {
+    list [catch {lsort -integer {3 q}} msg] $msg
+} {1 {expected integer but got "q"}}
+test lsort-3.11 {SortCompare procedure, -integer option} {
+    lsort -integer {35 21 0x20 30 023 100 8}
+} {8 023 21 30 0x20 35 100}
+test lsort-3.15 {SortCompare procedure, -command option} {
+    proc cmp {a b} {
+	error "comparison error"
+    }
+    list [catch {lsort -command cmp {48 6}} msg] $msg
+} {1 {comparison error}}
+test lsort-3.16 {SortCompare procedure, -command option, long command} {
+    proc cmp {dummy a b} {
+	string compare $a $b
+    }
+    lsort -command {cmp {this argument is very very long in order to make the dstring overflow its statically allocated space}} {{this first element is also long in order to help expand the dstring} {the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring}}
+} {{the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring} {this first element is also long in order to help expand the dstring}}
+test lsort-3.17 {SortCompare procedure, -command option, non-integer result} {
+    proc cmp {a b} {
+	return foow
+    }
+    list [catch {lsort -command cmp {48 6}} msg] $msg
+} {1 {expected integer but got "foow"}}
+test lsort-3.18 {SortCompare procedure, -command option} {
+    proc cmp {a b} {
+	expr {$b - $a}
+    }
+    lsort -command cmp {48 6 18 22 21 35 36}
+} {48 36 35 22 21 18 6}
+test lsort-3.19 {SortCompare procedure, -decreasing option} {
+    lsort -decreasing -integer {35 21 0x20 30 023 100 8}
+} {100 35 0x20 30 21 023 8}
+
+test lsort-4.26 {DefaultCompare procedure, signed characters} {
+    set l [lsort [list "abc\200" "abc"]]
+    set viewlist {}
+    foreach s $l {
+	set viewelem ""
+	set len [string length $s]
+	for {set i 0} {$i < $len} {incr i} {
+	    set c [string index $s $i]
+	    scan $c %c d
+	    if {$d > 0 && $d < 128} {
+		append viewelem $c
+	    } else {
+		append viewelem "\\[format %03o [expr {$d & 0xff}]]"
+	    }
+	}
+	lappend viewlist $viewelem
+    }
+    set viewlist
+} [list "abc" "abc\\200"]
+
+testreport
