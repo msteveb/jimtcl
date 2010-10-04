@@ -12,8 +12,6 @@
  * Copyright 2009 Zachary T Welch zw@superlucidity.net
  * Copyright 2009 David Brownell
  *
- * The FreeBSD license
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,6 +40,7 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -9338,6 +9337,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(CollectIfNeeded);
   JIM_REGISTER_API(GetIndex);
   JIM_REGISTER_API(NewListObj);
+  JIM_REGISTER_API(ListInsertElements);
   JIM_REGISTER_API(ListAppendElement);
   JIM_REGISTER_API(ListAppendList);
   JIM_REGISTER_API(ListLength);

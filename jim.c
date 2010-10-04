@@ -9337,6 +9337,7 @@ void JimRegisterCoreApi(Jim_Interp *interp)
   JIM_REGISTER_API(CollectIfNeeded);
   JIM_REGISTER_API(GetIndex);
   JIM_REGISTER_API(NewListObj);
+  JIM_REGISTER_API(ListInsertElements);
   JIM_REGISTER_API(ListAppendElement);
   JIM_REGISTER_API(ListAppendList);
   JIM_REGISTER_API(ListLength);
