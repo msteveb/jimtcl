@@ -30,3 +30,35 @@ test concat-4.2 {pruning off extra white space} {
 test concat-4.3 {pruning off extra white space sets length correctly} {
     llength [concat { {{a}} }]
 } 1
+
+test concat-5.1 {Tcl_ScanCountedElement procedure - don't leave unmatched braces} {
+    # This test checks for a very tricky feature.  Any list element
+    # generated with Tcl_ScanCountedElement and Tcl_ConvertElement must
+    # have the property that it can be enclosing in curly braces to make
+    # an embedded sub-list.  If this property doesn't hold, then
+    # Tcl_DStringStartSublist doesn't work.
+
+    set x {}
+    lappend x " \\\{ \\"
+    concat $x [llength "{$x}"]
+} {\ \\\{\ \\ 1}
+
+test concat-6.1 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\ } c
+} {a b\  c}
+test concat-6.2 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\   } c
+} {a b\  c}
+test concat-6.3 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\\   } c
+} {a b\\  c}
+test concat-6.4 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b } c
+} {a b c}
+test concat-6.5 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a { } c
+} {a c}
+test concat-6.6 {Tcl_ConcatObj - utf-8 sequence with "whitespace" char} {
+    # Check for Bug #227512.  If this violates C isspace, then it returns \xc3.
+    concat \xe0
+} \xe0

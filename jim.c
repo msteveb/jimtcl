@@ -5954,18 +5954,24 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         }
         if (objc)
             len += objc - 1;
-        /* Create the string rep, and a stinrg object holding it. */
+        /* Create the string rep, and a string object holding it. */
         p = bytes = Jim_Alloc(len + 1);
         for (i = 0; i < objc; i++) {
             const char *s = Jim_GetString(objv[i], &objLen);
 
+            /* Remove leading space */
             while (objLen && (*s == ' ' || *s == '\t' || *s == '\n')) {
                 s++;
                 objLen--;
                 len--;
             }
+            /* And trailing space */
             while (objLen && (s[objLen - 1] == ' ' ||
                     s[objLen - 1] == '\n' || s[objLen - 1] == '\t')) {
+                /* Handle trailing backslash-space case */
+                if (objLen > 1 && s[objLen - 2] == '\\') {
+                    break;
+                }
                 objLen--;
                 len--;
             }
