@@ -798,6 +798,7 @@ JIM_EXPORT int Jim_DictPairs(Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len);
 JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr);
+JIM_EXPORT int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj);
 
 /* return code object */
 JIM_EXPORT int Jim_GetReturnCode (Jim_Interp *interp, Jim_Obj *objPtr,

@@ -12672,17 +12672,47 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     return Jim_RenameCommand(interp, oldName, newName);
 }
 
+int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj)
+{
+    int i;
+    int len;
+    Jim_Obj *resultObj;
+    Jim_Obj *dictObj;
+    Jim_Obj **dictValuesObj;
+
+    if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    /* Only return the matching values */
+    resultObj = Jim_NewListObj(interp, NULL, 0);
+
+    for (i = 0; i < len; i += 2) {
+        if (patternObj == NULL || Jim_StringMatchObj(patternObj, dictValuesObj[i], 0)) {
+            Jim_ListAppendElement(interp, resultObj, dictValuesObj[i]);
+        }
+    }
+    Jim_Free(dictValuesObj);
+
+    Jim_SetResult(interp, resultObj);
+    return JIM_OK;
+}
+
 /* [dict] */
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
     int option;
     const char *options[] = {
-        "create", "get", "set", "unset", "exists", NULL
+        "create", "get", "set", "unset", "exists", "keys", NULL
     };
     enum
     {
-        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST
+        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST, OPT_KEYS
     };
 
     if (argc < 2) {
@@ -12721,6 +12751,13 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL);
+
+        case OPT_KEYS:
+            if (argc != 3 && argc != 4) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?pattern?");
+                return JIM_ERR;
+            }
+            return Jim_DictKeys(interp, argv[2], argc == 4 ? argv[3] : NULL);
 
         case OPT_CREATE:
             if (argc % 2) {

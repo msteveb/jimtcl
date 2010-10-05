@@ -119,37 +119,13 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int i;
-    int len;
-    Jim_Obj *resultObj;
     Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
-    Jim_Obj *dictObj;
-    Jim_Obj **dictValuesObj;
 
     if (!objPtr) {
         return JIM_OK;
     }
 
-    if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    /* Only return the matching values */
-    resultObj = Jim_NewListObj(interp, NULL, 0);
-
-    for (i = 0; i < len; i += 2) {
-        if (argc == 1 || Jim_StringMatchObj(argv[1], dictValuesObj[i], 0)) {
-            Jim_ListAppendElement(interp, resultObj, dictValuesObj[i]);
-        }
-    }
-    Jim_Free(dictValuesObj);
-
-    Jim_SetResult(interp, resultObj);
-    return JIM_OK;
+    return Jim_DictKeys(interp, objPtr, argc == 1 ? NULL : argv[1]);
 }
 
 static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
