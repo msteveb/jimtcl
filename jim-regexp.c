@@ -1,8 +1,7 @@
-
 /* 
- * (c) 2008 Steve Bennett <steveb@workware.net.au>
- *
  * Implements the regexp and regsub commands for Jim
+ *
+ * (c) 2008 Steve Bennett <steveb@workware.net.au>
  *
  * Uses C library regcomp()/regexec() for the matching.
  *
@@ -54,7 +53,7 @@
 
 #include "jim.h"
 
-void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     regfree(objPtr->internalRep.regexpValue.compre);
     Jim_Free(objPtr->internalRep.regexpValue.compre);
@@ -326,12 +325,13 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     regmatch_t pmatch[MAX_SUB_MATCHES + 1];
     int num_matches = 0;
 
-    int i;
+    int i, j, n;
     Jim_Obj *varname;
     Jim_Obj *resultObj;
     const char *source_str;
     int source_len;
     const char *replace_str;
+    int replace_len;
     const char *pattern;
 
     if (argc < 4) {
@@ -384,7 +384,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     pattern = Jim_GetString(argv[i], NULL);
 
     source_str = Jim_GetString(argv[i + 1], &source_len);
-    replace_str = Jim_GetString(argv[i + 2], NULL);
+    replace_str = Jim_GetString(argv[i + 2], &replace_len);
     varname = argv[i + 3];
 
     /* Create the result string */
@@ -412,8 +412,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * then the loop body only gets executed once.
      */
 
-    for (p = source_str + offset; *p != 0;) {
-        const char *src;
+    n = source_len - offset;
+    for (p = source_str + offset; n;) {
         int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, 0);
 
         if (match >= REG_BADPAT) {
@@ -442,29 +442,29 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          * subSpec to reduce the number of calls to Jim_SetVar.
          */
 
-        for (src = replace_str; *src; src++) {
+        for (j = 0; j < replace_len; j++) {
             int idx;
-            int c = *src;
+            int c = replace_str[j];
 
             if (c == '&') {
                 idx = 0;
             }
-            else if (c == '\\') {
-                c = *++src;
+            else if (c == '\\' && j < replace_len) {
+                c = replace_str[++j];
                 if ((c >= '0') && (c <= '9')) {
                     idx = c - '0';
                 }
                 else if ((c == '\\') || (c == '&')) {
-                    Jim_AppendString(interp, resultObj, src, 1);
+                    Jim_AppendString(interp, resultObj, replace_str + j, 1);
                     continue;
                 }
                 else {
-                    Jim_AppendString(interp, resultObj, src - 1, 2);
+                    Jim_AppendString(interp, resultObj, replace_str + j - 1, 2);
                     continue;
                 }
             }
             else {
-                Jim_AppendString(interp, resultObj, src, 1);
+                Jim_AppendString(interp, resultObj, replace_str + j, 1);
                 continue;
             }
             if ((idx < MAX_SUB_MATCHES) && pmatch[idx].rm_so != -1 && pmatch[idx].rm_eo != -1) {
@@ -474,6 +474,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
 
         p += pmatch[0].rm_eo;
+        n -= pmatch[0].rm_eo;
 
         if (!opt_all || pmatch[0].rm_eo == 0 || pattern[0] == '^') {
             /* If we are doing a single match, or we haven't moved with this match
