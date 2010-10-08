@@ -3,3 +3,16 @@ config.log
 config.status
 config.h
 tags
+.clean
+Makefile
+Tcl.html
+jimautoconf.h
+jimautoconfext.h
+jim-glob.c
+jim-stdlib.c
+jim-tclcompat.c
+jim-tree.c
+jimsh
+libjim.a
+libjim.so
+*.o

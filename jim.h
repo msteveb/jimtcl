@@ -90,7 +90,7 @@ extern "C" {
 #endif
 
 #ifndef HAVE_NO_AUTOCONF
-#include <autoconf.h>
+#include <jimautoconf.h>
 #endif
 
 #if defined(HAVE_DLOPEN)

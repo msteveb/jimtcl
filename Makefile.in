@@ -1,35 +1,39 @@
-RANLIB ?= ranlib
+# Tools
+CC = @CC@
+CROSS ?= @CROSS@
+RANLIB ?= $(CROSS)ranlib
+AR ?= $(CROSS)ar
 
 # Configuration
 
 jim_libtype := @JIM_LIBTYPE@
 SH_CFLAGS ?= @SH_CFLAGS@ 
 SH_LDFLAGS ?= @SH_LDFLAGS@ 
+CFLAGS = @CFLAGS@
+LDFLAGS = @LDFLAGS@
+DESTDIR ?= @prefix@
 
 # Defines the extensions to include
 EXTENSIONS := @JIM_EXTENSIONS@
 
 # Set an initial, default library and auto_path
-CFLAGS += -DTCL_LIBRARY=\"/lib/tcl6\"
+CPPFLAGS += -DTCL_LIBRARY=\"/lib/jim\"
 
-CFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
+CPPFLAGS += -DJIM_TCL_COMPAT -DJIM_REFERENCES
 
-CFLAGS += -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
+CPPFLAGS += -Wall -g $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
 VPATH := @SRCDIR@
 
 ifeq ($(jim_libtype),static)
-	# Emulate tinytcl
-	LIBJIM := libtcl6.a
+	LIBJIM := libjim.a
 else
-	LIBJIM := libtcl6.so
-	CFLAGS += $(SH_CFLAGS)
+	LIBJIM := libjim.so
+	CPPFLAGS += $(SH_CFLAGS)
 endif
 
 .EXPORT_ALL_VARIABLES:
 
 OBJS := jim-subcmd.o jim-interactive.o jim.o
-
-SDKHDRS := jim.h jim-subcmd.h
 
 EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
 
@@ -47,7 +51,21 @@ all: jimsh
 docs: Tcl.html
 
 jimsh: $(LIBJIM) jimsh.o
-	$(CC) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) @LIBDL@ -lm
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) @LIBSOCK@ @LIBDL@ -lm
+
+install: all docs
+	install -d $(DESTDIR)/bin
+	install jimsh $(DESTDIR)/bin
+	install -d $(DESTDIR)/lib
+	install $(LIBJIM) $(DESTDIR)/lib
+	install -d $(DESTDIR)/include
+	install @SRCDIR@/jim-*.h $(DESTDIR)/include
+	install jimautoconfext.h $(DESTDIR)/include/jimautoconf.h
+	install -d $(DESTDIR)/doc/jim
+	install Tcl.html $(DESTDIR)/doc/jim
+
+test:
+	$(MAKE) -C tests
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
@@ -55,16 +73,20 @@ $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(RANLIB) $@
 else
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
-	$(CC) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^
 endif
 
 Tcl.html: jim_tcl.txt
-	asciidoc -o $@ -d manpage $^
+	asciidoc -o $@ -d manpage $^ || cp @SRCDIR@/Tcl.html_shipped Tcl.html
 
 clean:
 	rm -f *.o lib*.a jimsh Tcl.html
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
 
 distclean: clean
-	rm -f autoconf.h Makefile config.status config.log
+	rm -f jimautoconf.h jimautoconfext.h Makefile config.status config.log
 	rm -rf autom4te.cache
+
+ship:
+	cp Tcl.html Tcl.html_shipped
+	autoconf && autoheader

@@ -3,14 +3,14 @@
 
 AC_PREREQ(2.57)
 AC_INIT([jim], [0.63], [steveb@workware.net.au])
-AC_CONFIG_HEADER(autoconf.h)
+AC_CONFIG_HEADER(jimautoconf.h)
 
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_MAKE_SET
 
 # Checks for types
-AC_CHECK_TYPES(long long)
+AC_CHECK_TYPES(long long, AC_SUBST(DEFINE_HAVE_LONG_LONG,["#define HAVE_LONG_LONG 1"]),AC_SUBST(DEFINE_HAVE_LONG_LONG,["#undef HAVE_LONG_LONG"]))
 
 # Shared library support. Because we don't believe in automake!
 AC_CANONICAL_HOST
@@ -22,6 +22,10 @@ case $host in
 	AC_SUBST(SH_CFLAGS,-fPIC)
 	AC_SUBST(SH_LDFLAGS,-shared);;
 esac
+
+if test -n "$host_alias"; then
+	AC_SUBST(CROSS,$host_alias-)
+fi
 
 AC_ARG_ENABLE(fork,
 	[  --disable-fork          do not use fork (no exec, etc.)],
@@ -89,5 +93,72 @@ AC_SEARCH_LIBS(dlopen, dl,
 	AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function])
 )
 
-AC_CONFIG_FILES([Makefile])
+# Now that we know what the platform supports:
+
+# For all known extensions:
+# - If it is disabled, remove it
+# - Otherwise, check to see if it's pre-requisites are met
+# -   If yes, add it if it is enabled or is a default
+# -   If no, error if it is enabled, or do nothing otherwise
+
+needs_regexp="ac_cv_func_regcomp"
+needs_syslog="ac_cv_func_syslog"
+needs_exec="ac_cv_func_vfork"
+needs_posix="ac_cv_func_waitpid"
+needs_load="ac_cv_search_dlopen"
+needs_signal="ac_cv_func_sigaction"
+needs_readdir="ac_cv_func_opendir"
+
+ext_add=$(echo $with_jim_ext | tr ' ' '\n')
+ext_del=$(echo $with_out_jim_ext | tr ' ' '\n')
+for i in $ext_all; do
+	AC_MSG_CHECKING(extension $i)
+	echo "$ext_del" | grep "^$i\$" >/dev/null
+	if test $? -eq 0; then
+		AC_MSG_RESULT(disabled)
+		continue
+	fi
+	# Check dependencies
+	eval "dep=\$needs_$i"
+	met=1
+	for d in $dep; do
+		eval "check=\$$d"
+		if test "$check" == "no" -o -z "$check" ; then
+			met=0
+			break
+		fi
+	done
+	echo "$ext_add" | grep "^$i\$" >/dev/null
+	if test $? -eq 0; then
+		if test $met -eq 0; then
+			AC_MSG_ERROR(dependencies not met)
+		fi
+		AC_MSG_RESULT(enabled)
+		ext="$ext $i"
+		continue
+	fi
+	echo "$ext_default" | grep "^$i\$" >/dev/null
+	if test $? -eq 0; then
+		if test $met -eq 0; then
+			AC_MSG_RESULT(disabled (dependencies))
+			continue
+		fi
+		AC_MSG_RESULT(enabled (default))
+		ext="$ext $i"
+		continue
+	fi
+	AC_MSG_RESULT(not enabled)
+done
+	
+ext=$(echo $ext | tr '\n' ' ')
+AC_MSG_RESULT(Jim extensions: $ext)
+AC_SUBST(JIM_EXTENSIONS,$ext)
+for i in $ext; do
+	EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
+done
+
+AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
+AC_SUBST(SRCDIR,`dirname $0`)
+
+AC_CONFIG_FILES([Makefile jimautoconfext.h])
 AC_OUTPUT
