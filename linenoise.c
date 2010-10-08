@@ -40,8 +40,8 @@
  * - http://www.3waylabs.com/nw/WWW/products/wizcon/vt220.html
  *
  * Todo list:
- * - Switch to gets() if $TERM is something we can't support.
  * - Win32 support
+ * - Save and load history containing newlines
  *
  * Bloat:
  * - Completion?
@@ -85,9 +85,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/poll.h>
 #include <unistd.h>
 
 #include "linenoise.h"
+#include "utf8.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
@@ -148,7 +150,7 @@ static int enableRawMode(int fd) {
     raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0; /* 1 byte, no timer */
 
     /* put terminal in raw mode after flushing */
-    if (tcsetattr(fd,TCSAFLUSH,&raw) < 0) goto fatal;
+    if (tcsetattr(fd,TCSADRAIN,&raw) < 0) goto fatal;
     rawmode = 1;
     return 0;
 
@@ -159,7 +161,7 @@ fatal:
 
 static void disableRawMode(int fd) {
     /* Don't even check the return value as it's too late. */
-    if (rawmode && tcsetattr(fd,TCSAFLUSH,&orig_termios) != -1)
+    if (rawmode && tcsetattr(fd,TCSADRAIN,&orig_termios) != -1)
         rawmode = 0;
 }
 
@@ -182,6 +184,7 @@ struct current {
     char *buf;  /* Current buffer. Always null terminated */
     int bufmax; /* Size of the buffer, including space for the null termination */
     int len;    /* Number of bytes in 'buf' */
+    int chars;  /* Number of chars in 'buf' (utf-8 chars) */
     int pos;    /* Cursor position, measured in chars */
     int cols;   /* Size of the window, in chars */
 };
@@ -201,47 +204,124 @@ static void fd_printf(int fd, const char *format, ...)
     write(fd, buf, n);
 }
 
-static void refreshLine(const char *prompt, struct current *c) {
-    size_t plen = strlen(prompt);
-    int extra = 0;
-    size_t i, p;
-    const char *buf = c->buf;
-    int len = c->len;
-    int pos = c->pos;
 
-    //fprintf(stderr, "\nrefreshLine: prompt=<<%s>>, buf=<<%s>>\n", prompt, c->buf);
-    //fprintf(stderr, "pos=%d, len=%d, cols=%d\n", pos, len, c->cols);
-    
-    while((plen+pos) >= c->cols) {
-        buf++;
-        len--;
-        pos--;
+static int utf8_getchars(char *buf, int c)
+{
+#ifdef JIM_UTF8
+    return utf8_fromunicode(buf, c);
+#else
+    *buf = c;
+    return 1;
+#endif
+}
+
+/**
+ * Returns the unicode character at the given offset,
+ * or -1 if none.
+ */
+static int get_char(struct current *current, int pos)
+{
+    if (pos >= 0 && pos < current->chars) {
+        int c;
+        int i = utf8_index(current->buf, pos);
+        utf8_tounicode(current->buf + i, &c);
+        return c;
     }
-    while (plen+len > c->cols) {
-        len--;
+    return -1;
+}
+                
+static void refreshLine(const char *prompt, struct current *current) {
+    size_t plen;
+    int pchars;
+    int backup = 0;
+    int i;
+    const char *buf = current->buf;
+    int chars = current->chars;
+    int pos = current->pos;
+    int b;
+    int ch;
+    int n;
+
+    /* Should intercept SIGWINCH. For now, just get the size every time */
+    current->cols = getColumns();
+
+    plen = strlen(prompt);
+    pchars = utf8_strlen(prompt, plen);
+
+    /* Account for a line which is too long to fit in the window.
+     * Note that control chars require an extra column
+     */
+
+    /* How many cols are required to the left of 'pos'?
+     * The prompt, plus one extra for each control char
+     */
+    n = pchars + utf8_strlen(buf, current->len);
+    b = 0;
+    for (i = 0; i < pos; i++) {
+        b += utf8_tounicode(buf + b, &ch);
+        if (ch < ' ') {
+            n++;
+        }
+    }
+
+    /* If too many are need, strip chars off the front of 'buf'
+     * until it fits. Note that if the current char is a control character,
+     * we need one extra col.
+     */
+    if (current->pos < current->chars && get_char(current, current->pos) < ' ') {
+        n++;
+    }
+
+    while (n >= current->cols) {
+        b = utf8_tounicode(buf, &ch);
+        if (ch < ' ') {
+            n--;
+        }
+        n--;
+        buf += b;
+        pos--;
+        chars--;
     }
 
     /* Cursor to left edge, then the prompt */
-    fd_printf(c->fd, "\x1b[0G");
-    write(c->fd, prompt, strlen(prompt));
+    fd_printf(current->fd, "\x1b[0G");
+    write(current->fd, prompt, plen);
 
     /* Now the current buffer content */
-    /* Need special handling for control characters */
-    p = 0;
-    for (i = 0; i < len; i++) {
-        if (buf[i] >= 0 && buf[i] < ' ') {
-            write(c->fd, buf + p, i - p);
-            p = i + 1;
-            fd_printf(c->fd, "\033[7m^%c\033[0m", buf[i] + '@');
+
+    /* Need special handling for control characters.
+     * If we hit 'cols', stop.
+     */
+    b = 0; /* unwritted bytes */
+    n = 0; /* How many control chars were written */
+    for (i = 0; i < chars; i++) {
+        int ch;
+        int w = utf8_tounicode(buf + b, &ch);
+        if (ch < ' ') {
+            n++;
+        }
+        if (pchars + i + n >= current->cols) {
+            break;
+        }
+        if (ch < ' ') {
+            /* A control character, so write the buffer so far */
+            write(current->fd, buf, b);
+            buf += b + w;
+            b = 0;
+            fd_printf(current->fd, "\033[7m^%c\033[0m", ch + '@');
             if (i < pos) {
-                extra++;
+                backup++;
             }
+            w++;
+        }
+        else {
+            b += w;
         }
     }
-    write(c->fd, buf + p, i - p);
+    write(current->fd, buf, b);
 
     /* Erase to right, move cursor to original position */
-    fd_printf(c->fd, "\x1b[0K" "\x1b[0G\x1b[%dC", (int)(pos+plen+extra));
+    fd_printf(current->fd, "\x1b[0K" "\x1b[0G\x1b[%dC", pos + pchars + backup);
 }
 
 static void set_current(struct current *current, const char *str)
@@ -249,24 +329,27 @@ static void set_current(struct current *current, const char *str)
     strncpy(current->buf, str, current->bufmax);
     current->buf[current->bufmax - 1] = 0;
     current->len = strlen(current->buf);
-    current->pos = current->len;
+    current->pos = current->chars = utf8_strlen(current->buf, current->len);
 }
-                
-static int has_room(struct current *current, int chars)
+
+static int has_room(struct current *current, int bytes)
 {
-    return current->len + chars < current->bufmax - 1;
+    return current->len + bytes < current->bufmax - 1;
 }
                 
 static int remove_char(struct current *current, int pos)
 {
-    //fprintf(stderr, "Trying to remove char at %d (pos=%d, len=%d)\n", pos, current->pos, current->len);
-    if (pos >= 0 && pos < current->len) {
+    if (pos >= 0 && pos < current->chars) {
+        int p1, p2;
+        p1 = utf8_index(current->buf, pos);
+        p2 = p1 + utf8_index(current->buf + p1, 1);
+        /* Move the null char too */
+        memmove(current->buf + p1, current->buf + p2, current->len - p2 + 1);
+        current->len -= (p2 - p1);
+        current->chars--;
         if (current->pos > pos) {
             current->pos--;
         }
-        /* Move the null char too */
-        memmove(current->buf + pos, current->buf + pos + 1, current->len - pos);
-        current->len--;
         return 1;
     }
     return 0;
@@ -274,10 +357,17 @@ static int remove_char(struct current *current, int pos)
 
 static int insert_char(struct current *current, int pos, int ch)
 {
-    if (has_room(current, 1) && pos >= 0 && pos <= current->len) {
-        memmove(current->buf+pos+1, current->buf + pos, current->len - pos);
-        current->buf[pos] = ch;
-        current->len++;
+    char buf[3];
+    int n = utf8_getchars(buf, ch);
+
+    if (has_room(current, n) && pos >= 0 && pos <= current->chars) {
+        int p1, p2;
+        p1 = utf8_index(current->buf, pos);
+        p2 = p1 + n;
+        memmove(current->buf + p2, current->buf + p1, current->len - p1);
+        memcpy(current->buf + p1, buf, n);
+        current->len += n;
+        current->chars++;
         if (current->pos >= pos) {
             current->pos++;
         }
@@ -296,21 +386,128 @@ static int remove_chars(struct current *current, int pos, int n)
     return removed;
 }
 
-static int fd_read(int fd)
+/**
+ * Reads a char from 'fd', waiting at most 'timeout' milliseconds.
+ * 
+ * A timeout of -1 means to wait forever.
+ *
+ * Returns -1 if no char is received within the time or an error occurs.
+ */
+static int fd_read_char(int fd, int timeout)
 {
+    struct pollfd p;
     unsigned char c;
+
+    p.fd = fd;
+    p.events = POLLIN;
+
+    if (poll(&p, 1, timeout) == 0) {
+        /* timeout */
+        return -1;
+    }
     if (read(fd, &c, 1) != 1) {
         return -1;
     }
     return c;
 }
 
-#ifndef ctrl
-#define ctrl(C) ((C) - '@')
+/**
+ * Reads a complete utf-8 character
+ * and returns the unicode value, or -1 on error.
+ */
+static int fd_read(int fd)
+{
+#ifdef JIM_UTF8
+    char buf[4];
+    int n;
+    int i;
+    int c;
+
+    if (read(fd, &buf[0], 1) != 1) {
+        return -1;
+    }
+    n = utf8_charlen(buf[0]);
+    if (n < 1 || n > 3) {
+        return -1;
+    }
+    for (i = 1; i < n; i++) {
+        if (read(fd, &buf[i], 1) != 1) {
+            return -1;
+        }
+    }
+    buf[n] = 0;
+    /* decode and return the character */
+    utf8_tounicode(buf, &c);
+    return c;
+#else
+    return fd_read_char(fd, -1);
 #endif
+}
+
+/* Use -ve numbers here to co-exist with normal unicode chars */
+enum {
+    SPECIAL_NONE,
+    SPECIAL_UP = -20,
+    SPECIAL_DOWN = -21,
+    SPECIAL_LEFT = -22,
+    SPECIAL_RIGHT = -23,
+    SPECIAL_DELETE = -24,
+};
+
+/**
+ * If escape (27) was received, reads subsequent
+ * chars to determine if this is a known special key.
+ * 
+ * Returns SPECIAL_NONE if unrecognised, or -1 if EOF.
+ *
+ * If no additional char is received within a short time,
+ * 27 is returned.
+ */
+static int check_special(int fd)
+{
+    int c = fd_read_char(fd, 50);
+    int c2;
+
+    if (c < 0) {
+        return 27;
+    }
+
+    c2 = fd_read_char(fd, 50);
+    if (c2 < 0) {
+        return c2;
+    }
+    if (c == '[' || c == 'O') {
+        /* Potential arrow key */
+        switch (c2) {
+            case 'A':
+                return SPECIAL_UP;
+            case 'B':
+                return SPECIAL_DOWN;
+            case 'C':
+                return SPECIAL_RIGHT;
+            case 'D':
+                return SPECIAL_LEFT;
+        }
+    }
+    if (c == '[' && c2 >= '1' && c2 <= '6') {
+        /* extended escape */
+        int c3 = fd_read_char(fd, 50);
+        if (c2 == '3' && c3 == '~') {
+            /* delete char under cursor */
+            return SPECIAL_DELETE;
+        }
+        while (c3 != -1 && c3 != '~') {
+            /* .e.g \e[12~ or '\e[11;2~   discard the complete sequence */
+            c3 = fd_read_char(fd, 50);
+        }
+    }
+
+    return SPECIAL_NONE;
+}
+
+#define ctrl(C) ((C) - '@')
 
 static int linenoisePrompt(const char *prompt, struct current *current) {
-    size_t plen = strlen(prompt);
     int history_index = 0;
 
     /* The latest history entry is always our current buffer, that
@@ -321,13 +518,9 @@ static int linenoisePrompt(const char *prompt, struct current *current) {
     refreshLine(prompt, current);
     
     while(1) {
-        int ext;
-        int c;
-        int c2;
-
-        c = fd_read(current->fd);
+        int c = fd_read(current->fd);
 process_char:
-        if (c < 0) return current->len;
+        if (c == -1) return current->len;
         switch(c) {
         case ctrl('D'):     /* ctrl-d */
         case '\r':    /* enter */
@@ -351,12 +544,12 @@ process_char:
             /* eat any spaces on the left */
             {
                 int pos = current->pos;
-                while (pos > 0 && current->buf[pos - 1] == ' ') {
+                while (pos > 0 && get_char(current, pos - 1) == ' ') {
                     pos--;
                 }
 
                 /* now eat any non-spaces on the left */
-                while (pos > 0 && current->buf[pos - 1] != ' ') {
+                while (pos > 0 && get_char(current, pos - 1) != ' ') {
                     pos--;
                 }
 
@@ -370,44 +563,87 @@ process_char:
                 /* Display the reverse-i-search prompt and process chars */
                 char rbuf[50];
                 char rprompt[80];
-                int i = 0;
+                int rchars = 0;
+                int rlen = 0;
+                int searchpos = history_len - 1;
+
                 rbuf[0] = 0;
                 while (1) {
+                    int n = 0;
+                    const char *p = NULL;
+                    int skipsame = 0;
+                    int searchdir = -1;
+
                     snprintf(rprompt, sizeof(rprompt), "(reverse-i-search)'%s': ", rbuf);
                     refreshLine(rprompt, current);
                     c = fd_read(current->fd);
                     if (c == ctrl('H') || c == 127) {
-                        if (i > 0) {
-                            rbuf[--i] = 0;
+                        if (rchars) {
+                            int p = utf8_index(rbuf, --rchars);
+                            rbuf[p] = 0;
+                            rlen = strlen(rbuf);
                         }
                         continue;
                     }
-                    if (c >= ' ' && c <= '~') {
-                        if (i < (int)sizeof(rbuf)) {
-                            int j;
-                            const char *p = NULL;
-                            rbuf[i++] = c;
-                            rbuf[i] = 0;
-                            /* Now search back through the history for a match */
-                            for (j = history_len - 1; j > 0; j--) {
-                                p = strstr(history[j], rbuf);
-                                if (p) {
-                                    /* Found a match. Copy it */
-                                    set_current(current,history[j]);
-                                    current->pos = p - history[j];
-                                    break;
-                                }
-                            }
-                            if (!p) {
-                                /* No match, so don't add it */
-                                rbuf[--i] = 0;
-                            }
-                        }
-                        continue;
+                    if (c == 27) {
+                        c = check_special(current->fd);
                     }
-                    break;
+                    if (c == ctrl('P') || c == SPECIAL_UP) {
+                        /* Search for the previous (earlier) match */
+                        if (searchpos > 0) {
+                            searchpos--;
+                        }
+                        skipsame = 1;
+                    }
+                    else if (c == CTRL('N') || c == SPECIAL_DOWN) {
+                        /* Search for the next (later) match */
+                        if (searchpos < history_len) {
+                            searchpos++;
+                        }
+                        searchdir = 1;
+                        skipsame = 1;
+                    }
+                    else if (c >= ' ') {
+                        if (rlen >= sizeof(rbuf) + 3) {
+                            continue;
+                        }
+
+                        n = utf8_getchars(rbuf + rlen, c);
+                        rlen += n;
+                        rchars++;
+                        rbuf[rlen] = 0;
+
+                        /* Adding a new char resets the search location */
+                        searchpos = history_len - 1;
+                    }
+                    else {
+                        /* Exit from incremental search mode */
+                        break;
+                    }
+
+                    /* Now search through the history for a match */
+                    for (; searchpos >= 0 && searchpos < history_len; searchpos += searchdir) {
+                        p = strstr(history[searchpos], rbuf);
+                        if (p) {
+                            /* Found a match */
+                            if (skipsame && strcmp(history[searchpos], current->buf) == 0) {
+                                /* But it is identical, so skip it */
+                                continue;
+                            }
+                            /* Copy the matching line and set the cursor position */
+                            set_current(current,history[searchpos]);
+                            current->pos = utf8_strlen(history[searchpos], p - history[searchpos]);
+                            break;
+                        }
+                    }
+                    if (!p && n) {
+                        /* No match, so don't add it */
+                        rchars--;
+                        rlen -= n;
+                        rbuf[rlen] = 0;
+                    }
                 }
-                if (c == ctrl('G')) {
+                if (c == ctrl('G') || c == ctrl('C')) {
                     /* ctrl-g terminates the search with no effect */
                     set_current(current, "");
                     c = 0;
@@ -422,113 +658,92 @@ process_char:
             }
             break;
         case ctrl('T'):    /* ctrl-t */
-            if (current->pos > 0 && current->pos < current->len) {
-                int aux = current->buf[current->pos-1];
-                current->buf[current->pos-1] = current->buf[current->pos];
-                current->buf[current->pos] = aux;
-                if (current->pos != current->len-1) current->pos++;
+            if (current->pos > 0 && current->pos < current->chars) {
+                c = get_char(current, current->pos);
+                remove_char(current, current->pos);
+                insert_char(current, current->pos - 1, c);
                 refreshLine(prompt, current);
             }
             break;
         case ctrl('V'):    /* ctrl-v */
-            if (has_room(current, 1)) {
-            /* Insert the ^V first */
-            if (insert_char(current, current->pos, c)) {
-                refreshLine(prompt, current);
-                /* Now wait for the next char. Can insert anything except \0 */
-                c = fd_read(current->fd);
-                if (c > 0) {
-                    /* Replace the ^V with the actual char */
-                    current->buf[current->pos - 1] = c;
+            if (has_room(current, 3)) {
+                /* Insert the ^V first */
+                if (insert_char(current, current->pos, c)) {
+                    refreshLine(prompt, current);
+                    /* Now wait for the next char. Can insert anything except \0 */
+                    c = fd_read(current->fd);
+
+                    /* Remove the ^V first */
+                    remove_char(current, current->pos - 1);
+                    if (c != -1) {
+                        /* Insert the actual char */
+                        insert_char(current, current->pos, c);
+                    }
+                    refreshLine(prompt, current);
                 }
-                else {
-                    remove_char(current, current->pos);
-                }
-                refreshLine(prompt, current);
             }
             break;
         case ctrl('B'):     /* ctrl-b */
-            goto left_arrow;
         case ctrl('F'):     /* ctrl-f */
-            goto right_arrow;
         case ctrl('P'):    /* ctrl-p */
-            c2 = 65;
-            goto up_down_arrow;
         case ctrl('N'):    /* ctrl-n */
-            c2 = 66;
-            goto up_down_arrow;
-            break;
-        case 27:    /* escape sequence */
-            c = fd_read(current->fd);
-            if (c <= 0) {
-                break;
+        case 27: {   /* escape sequence */
+            int dir = -1;
+            if (c == 27) {
+                c = check_special(current->fd);
             }
-            c2 = fd_read(current->fd);
-            if (c <= 0) {
-                break;
-            }
-            ext = (c == 91 || c == 79);
-            if (ext && c2 == 68) {
-left_arrow:
-                /* left arrow */
-                if (current->pos > 0) {
-                    current->pos--;
-                    refreshLine(prompt, current);
-                }
-            } else if (ext && c2 == 67) {
-right_arrow:
-                /* right arrow */
-                if (current->pos < current->len) {
-                    current->pos++;
-                    refreshLine(prompt, current);
-                }
-            } else if (ext && (c2 == 65 || c2 == 66)) {
-up_down_arrow:
-                /* up and down arrow: history */
-                if (history_len > 1) {
-                    /* Update the current history entry before to
-                     * overwrite it with tne next one. */
-                    free(history[history_len-1-history_index]);
-                    history[history_len-1-history_index] = strdup(current->buf);
-                    /* Show the new entry */
-                    history_index += (c2 == 65) ? 1 : -1;
-                    if (history_index < 0) {
-                        history_index = 0;
-                        break;
-                    } else if (history_index >= history_len) {
-                        history_index = history_len-1;
-                        break;
+            switch (c) {
+                case ctrl('B'):
+                case SPECIAL_LEFT:
+                    if (current->pos > 0) {
+                        current->pos--;
+                        refreshLine(prompt, current);
                     }
-                    set_current(current, history[history_len-1-history_index]);
-                    refreshLine(prompt, current);
-                }
-            } else if (c == 91 && c2 > 48 && c2 < 55) {
-                /* extended escape */
-                c = fd_read(current->fd);
-                if (c <= 0) {
                     break;
-                }
-                fd_read(current->fd);
-                if (c2 == 51 && c == 126) {
-                    /* delete char under cursor */
+                case ctrl('F'):
+                case SPECIAL_RIGHT:
+                    if (current->pos < current->chars) {
+                        current->pos++;
+                        refreshLine(prompt, current);
+                    }
+                    break;
+                case ctrl('P'):
+                case SPECIAL_UP:
+                    dir = 1;
+                case ctrl('N'):
+                case SPECIAL_DOWN:
+                    if (history_len > 1) {
+                        /* Update the current history entry before to
+                         * overwrite it with tne next one. */
+                        free(history[history_len-1-history_index]);
+                        history[history_len-1-history_index] = strdup(current->buf);
+                        /* Show the new entry */
+                        history_index += dir;
+                        if (history_index < 0) {
+                            history_index = 0;
+                            break;
+                        } else if (history_index >= history_len) {
+                            history_index = history_len-1;
+                            break;
+                        }
+                        set_current(current, history[history_len-1-history_index]);
+                        refreshLine(prompt, current);
+                    }
+                    break;
+
+                case SPECIAL_DELETE:
                     if (remove_char(current, current->pos)) {
                         refreshLine(prompt, current);
                     }
-                }
+                    break;
+            }
             }
             break;
         default:
-            /* Note that the only control character currently permitted is tab */
-            if (c == '\t' || c < 0 || c >= ' ') {
+            /* Only tab is allowed without ^V */
+            if (c == '\t' || c >= ' ') {
                 if (insert_char(current, current->pos, c)) {
-                    /* Avoid a full update of the line in the trivial case. */
-                    if (current->pos == current->len && c >= ' ' && plen + current->len < current->cols) {
-                        char ch = c;
-                        write(current->fd, &ch, 1);
-                    }
-                    else {
-                        refreshLine(prompt, current);
-                    }
+                    refreshLine(prompt, current);
                 }
             }
             break;
@@ -538,7 +753,7 @@ up_down_arrow:
             }
             break;
         case ctrl('K'): /* Ctrl+k, delete from current to end of line. */
-            if (remove_chars(current, current->pos, current->len - current->pos)) {
+            if (remove_chars(current, current->pos, current->chars - current->pos)) {
                 refreshLine(prompt, current);
             }
             break;
@@ -547,10 +762,9 @@ up_down_arrow:
             refreshLine(prompt, current);
             break;
         case ctrl('E'): /* ctrl+e, go to the end of the line */
-            current->pos = current->len;
+            current->pos = current->chars;
             refreshLine(prompt, current);
             break;
-        }
         }
     }
     return current->len;
@@ -580,11 +794,13 @@ static int linenoiseRaw(char *buf, size_t buflen, const char *prompt) {
         current.buf = buf;
         current.bufmax = buflen;
         current.len = 0;
+        current.chars = 0;
         current.pos = 0;
-        current.cols = getColumns();
+        current.cols = 0;
 
         count = linenoisePrompt(prompt, &current);
         disableRawMode(fd);
+
         printf("\n");
     }
     return count;
