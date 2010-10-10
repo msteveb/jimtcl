@@ -495,7 +495,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
 /* ---------------------------------------------------------------------- */
 
-void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
+static void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
 {
     void *next;
     Jim_FileEvent *fe;
