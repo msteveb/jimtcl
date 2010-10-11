@@ -4668,6 +4668,9 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, JIM_LIBPATH, ". /lib/jim");
     Jim_SetVariableStrWithStr(i, JIM_INTERACTIVE, "0");
 
+    Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
+    Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
+
     return i;
 }
 

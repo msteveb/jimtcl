@@ -261,5 +261,3 @@ proc try {args} {
 proc throw {code {msg ""}} {
 	return -code $code $msg
 }
-
-set tcl_platform(platform) unix

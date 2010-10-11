@@ -192,6 +192,14 @@ extern "C" {
 #define JIM_INTERACTIVE "jim_interactive"
 #endif
 
+#ifndef TCL_PLATFORM_OS
+#define TCL_PLATFORM_OS "unknown"
+#endif
+#ifndef TCL_PLATFORM_PLATFORM
+#define TCL_PLATFORM_PLATFORM "unknown"
+#endif
+
+
 /* -----------------------------------------------------------------------------
  * Stack
  * ---------------------------------------------------------------------------*/

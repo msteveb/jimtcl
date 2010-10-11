@@ -603,6 +603,8 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+PLATFORM_PLATFORM
+PLATFORM_OS
 SRCDIR
 EXTRA_CFLAGS
 JIM_EXTENSIONS
@@ -3957,6 +3959,10 @@ done
 EXTRA_CFLAGS=$EXTRA_CFLAGS
 
 SRCDIR=`dirname $0`
+
+PLATFORM_OS=`uname -s`
+
+PLATFORM_PLATFORM=unix
 
 
 ac_config_files="$ac_config_files Makefile jimautoconfext.h"
