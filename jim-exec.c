@@ -194,6 +194,15 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
 }
 
 #if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)
+
+#ifndef jim_ext_aio
+FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *fhObj)
+{
+    Jim_SetResultString(interp, "aio not enabled", -1);
+    return NULL;
+}
+#endif
+
 /*
  * Data structures of the following type are used by JimFork and
  * JimWaitPids to keep track of child processes.

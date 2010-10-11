@@ -10260,11 +10260,8 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 /* fake [puts] -- not the real puts, just for debugging. */
 static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *str;
-    int nonewline = 0;
-
     if (argc != 2 && argc != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "-nonewline string");
+        Jim_WrongNumArgs(interp, 1, argv, "?-nonewline? string");
         return JIM_ERR;
     }
     if (argc == 3) {
@@ -10273,12 +10270,12 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return JIM_OK;
         }
         else {
-            nonewline = 1;
-            argv++;
+            fputs(Jim_GetString(argv[2], NULL), stdout);
         }
     }
-    str = Jim_GetString(argv[1], 0);
-    printf("%s%s", str, nonewline ? "" : "\n");
+    else {
+        puts(Jim_GetString(argv[1], NULL));
+    }
     return JIM_OK;
 }
 
@@ -13603,6 +13600,14 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
 
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, len));
 }
+
+/* stub */
+#ifndef jim_ext_package
+int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, int flags)
+{
+    return JIM_OK;
+}
+#endif
 
 /*
  * Local Variables: ***
