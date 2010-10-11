@@ -10206,7 +10206,8 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
     Jim_SetResult(interp, objPtr);
 }
 
-static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int procs_only)
+/* type is: 0=commands, 1=procs, 2=channels */
+static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
 {
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
@@ -10218,14 +10219,25 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
     htiter = Jim_GetHashTableIterator(&interp->commands);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         Jim_Cmd *cmdPtr = he->val;
+        Jim_Obj *cmdNameObj;
 
-        if (procs_only && cmdPtr->cmdProc != NULL) {
+        if (type == 1 && cmdPtr->cmdProc) {
+            /* not a proc */
             continue;
         }
         if (pattern && !JimStringMatch(pattern, patternLen, he->key,
                 strlen((const char *)he->key), 0))
             continue;
-        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, he->key, -1));
+
+        cmdNameObj = Jim_NewStringObj(interp, he->key, -1);
+
+        /* Is it a channel? */
+        if (type == 2 && !Jim_AioFilehandle(interp, cmdNameObj)) {
+            Jim_FreeNewObj(interp, cmdNameObj);
+            continue;
+        }
+
+        Jim_ListAppendElement(interp, listObjPtr, cmdNameObj);
     }
     Jim_FreeHashTableIterator(htiter);
     return listObjPtr;
@@ -12823,14 +12835,14 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     int mode = 0;
 
     static const char * const commands[] = {
-        "body", "commands", "procs", "exists", "globals", "level", "frame", "locals",
+        "body", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
         "script", "source", "stacktrace", "nameofexecutable", "returncodes",
         "references", NULL
     };
     enum
-    { INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL, INFO_FRAME,
-        INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
+    { INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
+        INFO_FRAME, INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
         INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
         INFO_RETURNCODES, INFO_REFERENCES,
     };
@@ -12855,6 +12867,11 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 break;
             }
 
+        case INFO_CHANNELS:
+#ifndef jim_ext_aio
+            Jim_SetResultString(interp, "aio not enabled", -1);
+            return JIM_ERR;
+#endif
         case INFO_COMMANDS:
         case INFO_PROCS:
             if (argc != 2 && argc != 3) {
@@ -12862,7 +12879,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL,
-                    (cmd == INFO_PROCS)));
+                    (cmd - INFO_COMMANDS)));
             break;
 
         case INFO_VARS:
@@ -13703,13 +13720,21 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, len));
 }
 
-/* stub */
+/* stubs */
 #ifndef jim_ext_package
 int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, int flags)
 {
     return JIM_OK;
 }
 #endif
+#ifndef jim_ext_aio
+FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *fhObj)
+{
+    Jim_SetResultString(interp, "aio not enabled", -1);
+    return NULL;
+}
+#endif
+
 
 /*
  * Local Variables: ***
