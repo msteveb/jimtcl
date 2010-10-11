@@ -38,6 +38,14 @@ proc function {value} {
 	return $value
 }
 
+# Tcl 8.5 lassign
+proc lassign {list args} {
+	# in case the list is empty...
+	lappend list {}
+	uplevel 1 [list foreach $args $list break]
+	lrange $list [llength $args] end-1
+}
+
 # Returns a list of proc filename line ...
 # with 3 entries for each stack frame (proc),
 # (deepest level first)
@@ -70,4 +78,21 @@ proc stackdump {stacktrace} {
 		}
 	}
 	return $result
+}
+
+# Sort of replacement for $::errorInfo
+# Usage: errorInfo error ?stacktrace?
+proc errorInfo {msg {stacktrace ""}} {
+	if {$stacktrace eq ""} {
+		set stacktrace [info stacktrace]
+	}
+	lassign $stacktrace p f l
+	if {$f ne ""} {
+		set result "$f:$l "
+	}
+	append result "Runtime Error: $msg\n"
+	append result [stackdump $stacktrace]
+
+	# Remove the trailing newline
+	string trim $result
 }

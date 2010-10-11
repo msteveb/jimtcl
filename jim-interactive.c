@@ -53,18 +53,16 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         }
         retcode = Jim_EvalObj(interp, scriptObjPtr);
         Jim_DecrRefCount(interp, scriptObjPtr);
-        result = Jim_GetString(Jim_GetResult(interp), &reslen);
-        if (retcode == JIM_ERR) {
-            Jim_PrintErrorMessage(interp);
-        }
-        else if (retcode == JIM_EXIT) {
+        if (retcode == JIM_EXIT) {
             Jim_Free(buf);
             exit(Jim_GetExitCode(interp));
         }
-        else {
-            if (reslen) {
-                printf("%s\n", result);
-            }
+        if (retcode == JIM_ERR) {
+            Jim_MakeErrorMessage(interp);
+        }
+        result = Jim_GetString(Jim_GetResult(interp), &reslen);
+        if (reslen) {
+            printf("%s\n", result);
         }
     }
   out:

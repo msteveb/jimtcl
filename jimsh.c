@@ -112,7 +112,8 @@ static int JimLoadJimRc(Jim_Interp *interp)
             fclose(fp);
             retcode = Jim_EvalFile(interp, buf);
             if (retcode == JIM_ERR) {
-                Jim_PrintErrorMessage(interp);
+                Jim_MakeErrorMessage(interp);
+                fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
             }
             return retcode;
         }
@@ -147,7 +148,8 @@ int main(int argc, char *const argv[])
 
     /* Register static extensions */
     if (Jim_InitStaticExtensions(interp) != JIM_OK) {
-        Jim_PrintErrorMessage(interp);
+        Jim_MakeErrorMessage(interp);
+        fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
     }
 
     /* Append the path where the executed Jim binary is contained
@@ -180,7 +182,8 @@ int main(int argc, char *const argv[])
             retcode = Jim_EvalFile(interp, argv[1]);
         }
         if (retcode == JIM_ERR) {
-            Jim_PrintErrorMessage(interp);
+            Jim_MakeErrorMessage(interp);
+            fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
         }
     }
     if (retcode == JIM_OK) {

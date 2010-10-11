@@ -13437,38 +13437,14 @@ void Jim_RegisterCoreCommands(Jim_Interp *interp)
 /* -----------------------------------------------------------------------------
  * Interactive prompt
  * ---------------------------------------------------------------------------*/
-void Jim_PrintErrorMessage(Jim_Interp *interp)
+void Jim_MakeErrorMessage(Jim_Interp *interp)
 {
-    int len, i;
+    Jim_Obj *argv[2];
 
-    if (*interp->errorFileName) {
-        fprintf(stderr, "%s:%d: Runtime Error: ", interp->errorFileName, interp->errorLine);
-    }
-    fprintf(stderr, "%s" JIM_NL, Jim_GetString(interp->result, NULL));
-    len = Jim_ListLength(interp, interp->stackTrace);
-    for (i = len - 3; i >= 0; i -= 3) {
-        Jim_Obj *objPtr = 0;
-        const char *proc, *file, *line;
+    argv[0] = Jim_NewStringObj(interp, "errorInfo", -1);
+    argv[1] = interp->result;
 
-        Jim_ListIndex(interp, interp->stackTrace, i, &objPtr, JIM_NONE);
-        proc = Jim_GetString(objPtr, NULL);
-        Jim_ListIndex(interp, interp->stackTrace, i + 1, &objPtr, JIM_NONE);
-        file = Jim_GetString(objPtr, NULL);
-        Jim_ListIndex(interp, interp->stackTrace, i + 2, &objPtr, JIM_NONE);
-        line = Jim_GetString(objPtr, NULL);
-        if (*proc) {
-            fprintf(stderr, "in procedure '%s' ", proc);
-            if (*file) {
-                fprintf(stderr, "called ");
-            }
-        }
-        if (*file) {
-            fprintf(stderr, "at file \"%s\", line %s", file, line);
-        }
-        if (*file || *proc) {
-            fprintf(stderr, JIM_NL);
-        }
-    }
+    Jim_EvalObjVector(interp, 2, argv);
 }
 
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,

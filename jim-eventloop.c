@@ -116,8 +116,10 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             }
             else {
                 /* Report the error to stderr. */
-                fprintf(stderr, "Background error:" JIM_NL);
-                Jim_PrintErrorMessage(interp);
+                Jim_MakeErrorMessage(interp);
+                fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+                /* And reset the result */
+                Jim_SetResultString(interp, "", -1);
             }
         }
         Jim_DecrRefCount(interp, objv[0]);
