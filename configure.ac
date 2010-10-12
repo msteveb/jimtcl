@@ -53,21 +53,57 @@ AC_ARG_ENABLE(ipv6,
 	]
 )
 
-jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+# All extensions
+ext_all=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog nvp tree | tr ' ' '\n' | sort)
+
+# Default extensions
+ext_default=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio eventloop syslog | tr ' ' '\n' | sort)
+
 AC_ARG_WITH(jim-ext,
-	[  --with-jim-ext          specify jim extensions to build (or all, which is the default)],
-	[
-		if test "x$withval" != "xno" ; then
-			if test "x$withval" != "xall" ; then
-				jim_extensions="$withval"
-			fi
-		fi
-	]
-)
-AC_MSG_RESULT(enabling jim extensions: $jim_extensions)
-AC_SUBST(JIM_EXTENSIONS,$jim_extensions)
-for i in $jim_extensions; do
-	EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
+[  --with-jim-ext="ext1 ext2 ..."
+
+       Specify additional jim extensions to include.
+       These are enabled by default:
+
+       aio       - ANSI I/O, including open and socket
+       eventloop - after, vwait, update
+       array     - Tcl-compatible array command
+       clock     - Tcl-compatible clock command
+       exec      - Tcl-compatible exec command
+       file      - Tcl-compatible file command
+       glob      - Tcl-compatible glob command
+       readdir   - Required for glob
+       package   - Package management with the package command
+       load      - Load binary extensions at runtime with load or package
+       posix     - Posix APIs including os.fork, os.wait, pid
+       regexp    - Tcl-compatible regexp, regsub commands
+       signal    - Signal handling
+       stdlib    - Built-in commands including lassign, lambda, alias
+       syslog    - System logging with syslog
+       tclcompat - Tcl compatible read, gets, puts, parray, case, ...
+
+       These are disabled by default:
+
+       bio       - Binary I/O, mostly for bio copy/file copy
+       nvp       - Name-value pairs C-only API
+       tree      - Similar to tcllib ::struct::tree using references
+])
+AC_ARG_WITH(out-jim-ext,
+[  --with-out-jim-ext="default|ext1 ext2 ..."
+
+       Specify jim extensions to exclude.
+       If 'default' is given, the default extensions will not be added.
+])
+
+if test "$with_out_jim_ext" == "default"; then
+	# but we always include stdlib
+	ext_default=stdlib
+	with_out_jim_ext=
+fi
+
+# Check valid extension names
+for i in $with_jim_ext $with_out_jim_ext; do
+	echo "$ext_all" | grep "^$i\$" >/dev/null || AC_MSG_ERROR([Unknown extension: $i])
 done
 
 JIM_LIBTYPE=static
@@ -84,9 +120,7 @@ AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
 AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
 AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
-
-AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
-AC_SUBST(SRCDIR,`dirname $0`)
+AC_CHECK_FUNCS([syslog opendir])
 
 AC_SEARCH_LIBS(dlopen, dl,
 	AC_SUBST(LIBDL,${ac_cv_search_dlopen%none required})

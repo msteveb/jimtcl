@@ -603,11 +603,11 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-LIBDL
 SRCDIR
 EXTRA_CFLAGS
-JIM_LIBTYPE
 JIM_EXTENSIONS
+LIBDL
+JIM_LIBTYPE
 CROSS
 SH_LDFLAGS
 SH_CFLAGS
@@ -676,6 +676,7 @@ enable_fork
 enable_math
 enable_ipv6
 with_jim_ext
+with_out_jim_ext
 with_jim_shared
 '
       ac_precious_vars='build_alias
@@ -1310,7 +1311,39 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-jim-ext          specify jim extensions to build (or all, which is the default)
+  --with-jim-ext="ext1 ext2 ..."
+
+       Specify additional jim extensions to include.
+       These are enabled by default:
+
+       aio       - ANSI I/O, including open and socket
+       eventloop - after, vwait, update
+       array     - Tcl-compatible array command
+       clock     - Tcl-compatible clock command
+       exec      - Tcl-compatible exec command
+       file      - Tcl-compatible file command
+       glob      - Tcl-compatible glob command
+       readdir   - Required for glob
+       package   - Package management with the package command
+       load      - Load binary extensions at runtime with load or package
+       posix     - Posix APIs including os.fork, os.wait, pid
+       regexp    - Tcl-compatible regexp, regsub commands
+       signal    - Signal handling
+       stdlib    - Built-in commands including lassign, lambda, alias
+       syslog    - System logging with syslog
+       tclcompat - Tcl compatible read, gets, puts, parray, case, ...
+
+       These are disabled by default:
+
+       bio       - Binary I/O, mostly for bio copy/file copy
+       nvp       - Name-value pairs C-only API
+       tree      - Similar to tcllib ::struct::tree using references
+
+  --with-out-jim-ext="default|ext1 ext2 ..."
+
+       Specify jim extensions to exclude.
+       If 'default' is given, the default extensions will not be added.
+
   --with-jim-shared       build a shared library instead of a static library
 
 Some influential environment variables:
@@ -3460,26 +3493,34 @@ if test "${enable_ipv6+set}" = set; then :
 fi
 
 
-jim_extensions="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog"
+# All extensions
+ext_all=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog nvp tree | tr ' ' '\n' | sort)
+
+# Default extensions
+ext_default=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio eventloop syslog | tr ' ' '\n' | sort)
+
 
 # Check whether --with-jim-ext was given.
 if test "${with_jim_ext+set}" = set; then :
   withval=$with_jim_ext;
-		if test "x$withval" != "xno" ; then
-			if test "x$withval" != "xall" ; then
-				jim_extensions="$withval"
-			fi
-		fi
-
-
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: enabling jim extensions: $jim_extensions" >&5
-$as_echo "enabling jim extensions: $jim_extensions" >&6; }
-JIM_EXTENSIONS=$jim_extensions
 
-for i in $jim_extensions; do
-	EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
+# Check whether --with-out-jim-ext was given.
+if test "${with_out_jim_ext+set}" = set; then :
+  withval=$with_out_jim_ext;
+fi
+
+
+if test "$with_out_jim_ext" == "default"; then
+	# but we always include stdlib
+	ext_default=stdlib
+	with_out_jim_ext=
+fi
+
+# Check valid extension names
+for i in $with_jim_ext $with_out_jim_ext; do
+	echo "$ext_all" | grep "^$i\$" >/dev/null || as_fn_error $? "Unknown extension: $i" "$LINENO" 5
 done
 
 JIM_LIBTYPE=static
@@ -3533,10 +3574,17 @@ _ACEOF
 fi
 done
 
+for ac_func in syslog opendir
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
 
-EXTRA_CFLAGS=$EXTRA_CFLAGS
-
-SRCDIR=`dirname $0`
+fi
+done
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
