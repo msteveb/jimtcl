@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "jim.h"
 #include "jim-subcmd.h"
@@ -80,12 +81,52 @@ static int clock_cmd_seconds(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int clock_cmd_micros(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    Jim_SetResultInt(interp, (jim_wide) tv.tv_sec * 1000000 + tv.tv_usec);
+
+    return JIM_OK;
+}
+
+static int clock_cmd_millis(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    Jim_SetResultInt(interp, (jim_wide) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+
+    return JIM_OK;
+}
+
 static const jim_subcmd_type clock_command_table[] = {
     {   .cmd = "seconds",
         .function = clock_cmd_seconds,
         .minargs = 0,
         .maxargs = 0,
         .description = "Returns the current time as seconds since the epoch"
+    },
+    {   .cmd = "clicks",
+        .function = clock_cmd_micros,
+        .minargs = 0,
+        .maxargs = 0,
+        .description = "Returns the current time in 'clicks'"
+    },
+    {   .cmd = "microseconds",
+        .function = clock_cmd_micros,
+        .minargs = 0,
+        .maxargs = 0,
+        .description = "Returns the current time in microseconds"
+    },
+    {   .cmd = "milliseconds",
+        .function = clock_cmd_millis,
+        .minargs = 0,
+        .maxargs = 0,
+        .description = "Returns the current time in milliseconds"
     },
     {   .cmd = "format",
         .args = "seconds ?-format format?",
