@@ -58,6 +58,10 @@
 #include "jim.h"
 #include "jim-subcmd.h"
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN JIM_PATH_LEN
+#endif
+
 /*
  *----------------------------------------------------------------------
  *
@@ -588,7 +592,7 @@ static int file_cmd_owned(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
-#ifdef S_IFLNK
+#if defined(HAVE_READLINK)
 static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     const char *path = Jim_GetString(argv[0], NULL);
@@ -760,7 +764,7 @@ static const jim_subcmd_type file_command_table[] = {
         .maxargs = 3,
         .description = "Renames a file"
     },
-#ifdef S_IFLNK
+#if defined(HAVE_READLINK)
     {   .cmd = "readlink",
         .args = "name",
         .function = file_cmd_readlink,

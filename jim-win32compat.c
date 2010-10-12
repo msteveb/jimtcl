@@ -88,3 +88,29 @@ struct dirent *readdir(DIR * dir)
     }
     return result;
 }
+
+void *dlopen(const char *path, int mode)
+{
+    JIM_NOTUSED(mode);
+
+    return (void *)LoadLibraryA(path);
+}
+
+int dlclose(void *handle)
+{
+    FreeLibrary((HANDLE)handle);
+    return 0;
+}
+
+void *dlsym(void *handle, const char *symbol)
+{
+    return GetProcAddress((HMODULE)handle, symbol);
+}
+
+const char *dlerror(void)
+{
+    static char msg[121];
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
+                   LANG_NEUTRAL, msg, sizeof(msg) - 1, NULL);
+    return msg;
+}

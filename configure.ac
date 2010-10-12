@@ -117,15 +117,56 @@ AC_ARG_WITH(jim-shared,
 )
 AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 
+AC_CHECK_HEADERS([sys/un.h])
+
 AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
 AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
 AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
-AC_CHECK_FUNCS([syslog opendir])
+AC_CHECK_FUNCS([syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo])
 
 AC_SEARCH_LIBS(dlopen, dl,
 	AC_SUBST(LIBDL,${ac_cv_search_dlopen%none required})
 	AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function])
 )
+
+dnl AC_SEARCH_LIBS doesn't work for mingw, so check for winsock.h instead
+AC_CHECK_HEADER(winsock.h,[AC_SUBST(LIBSOCK,-lwsock32)],
+	AC_SEARCH_LIBS(socket, socket,
+		AC_SUBST(LIBSOCK,${ac_cv_search_socket%none required})
+	)
+)
+
+dnl Look for environ alternatives.  Possibility #1: is environ in unistd.h?
+AC_MSG_CHECKING([for environ in unistd.h])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#define _GNU_SOURCE
+#include <unistd.h>
+int main(int argc, char **argv) { char **ep = environ; }
+  ]])], [
+    AC_MSG_RESULT([yes])
+    has_environ=yes
+  ], [
+    AC_MSG_RESULT([no])
+
+    # Possibility #2: can environ be found in an available library?
+    AC_MSG_CHECKING([for extern environ])
+    AC_LINK_IFELSE([
+		AC_LANG_SOURCE([[
+extern char **environ;
+int main(int argc, char **argv) { char **ep = environ; }
+		]])
+      ], [
+        AC_DEFINE(NEED_ENVIRON_EXTERN, [1], [Must declare 'environ' to use it.])
+        has_environ=yes
+      ], [
+        has_environ=no
+      ])
+    AC_MSG_RESULT([${has_environ}])
+])
+
+if test "${has_environ}" != "yes" ; then
+     AC_MSG_FAILURE([Could find 'environ' in unistd.h or available libraries.]) 
+fi
 
 # Now that we know what the platform supports:
 
@@ -140,7 +181,7 @@ needs_syslog="ac_cv_func_syslog"
 needs_exec="ac_cv_func_vfork"
 needs_posix="ac_cv_func_waitpid"
 needs_load="ac_cv_search_dlopen"
-needs_signal="ac_cv_func_sigaction"
+needs_signal="ac_cv_func_sigaction ac_cv_func_vfork"
 needs_readdir="ac_cv_func_opendir"
 
 ext_add=$(echo $with_jim_ext | tr ' ' '\n')

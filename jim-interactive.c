@@ -36,7 +36,6 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             char state;
             int len;
 
-            errno = 0;
             if (fgets(buf, MAX_LINE_LEN, stdin) == NULL) {
                 if (errno == EINTR) {
                     continue;

@@ -48,8 +48,21 @@
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/select.h>
 #include <errno.h>
+
+#if defined(__MINGW32__)
+#include <windows.h>
+#include <winsock.h>
+#define msleep Sleep
+#else
+#include <sys/select.h>
+
+#ifndef HAVE_USLEEP
+/* XXX: Implement this in terms of select() or nanosleep() */
+#define usleep(US)
+#endif
+#define msleep(MS) sleep((MS) / 1000); usleep(((MS) % 1000) * 1000);
+#endif
 
 /* --- */
 
@@ -622,8 +635,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     else if (argc == 2) {
         /* Simply a sleep */
-        sleep(ms / 1000);
-        usleep((ms % 1000) * 1000);
+        msleep(ms);
         return JIM_OK;
     }
 
@@ -679,9 +691,10 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 Jim_TimeEvent *te = eventLoop->timeEventHead;
                 Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
                 char buf[30];
+                const char *fmt = "after#%" JIM_WIDE_MODIFIER;
 
                 while (te) {
-                    snprintf(buf, sizeof(buf), "after#%" JIM_WIDE_MODIFIER, te->id);
+                    snprintf(buf, sizeof(buf), fmt, te->id);
                     Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, buf, -1));
                     te = te->next;
                 }

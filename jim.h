@@ -87,6 +87,9 @@ extern "C" {
 
 #if defined(__MINGW32__)
 #define JIM_ANSIC
+#define MKDIR_ONE_ARG
+#define rand_r(S) ((void)(S), rand())
+#define localtime_r(T,TM) ((void)(TM), localtime(T))
 #endif
 
 #ifndef HAVE_NO_AUTOCONF

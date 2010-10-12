@@ -170,6 +170,7 @@ proc popen {cmd {mode r}} {
 }
 
 # A wrapper around 'pid' which can return the pids for 'popen'
+if {[info commands pid] ne ""} {
 rename pid .pid
 proc pid {{chan {}}} {
 	if {$chan eq ""} {
@@ -182,6 +183,7 @@ proc pid {{chan {}}} {
 		return ""
 	}
 	return $pids
+}
 }
 
 # try/on/finally conceptually similar to Tcl 8.6

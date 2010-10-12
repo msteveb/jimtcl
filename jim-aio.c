@@ -48,17 +48,18 @@
 
 #include "jim.h"
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC)
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 #endif
 
 #include "jim-eventloop.h"
 #include "jim-subcmd.h"
-
 
 #define AIO_CMD_LEN 32      /* e.g. aio.handleXXXXXX */
 #define AIO_BUF_LEN 256     /* Can keep this small and rely on stdio buffering */
@@ -69,8 +70,8 @@
 #define IPV6 1
 #else
 #define IPV6 0
-#ifndef AF_INET6
-#define AF_INET6 0
+#ifndef PF_INET6
+#define PF_INET6 0
 #endif
 #endif
 
@@ -82,6 +83,17 @@ union sockaddr_any {
     struct sockaddr_in6 sin6;
 #endif
 };
+
+#ifndef HAVE_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, int size)
+{
+    if (af != PF_INET) {
+        return NULL;
+    }
+    snprintf(dst, size, "%s", inet_ntoa(((struct sockaddr_in *)src)->sin_addr));
+    return dst;
+}
+#endif
 #endif
 
 typedef struct AioFile
@@ -181,11 +193,9 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
      * If the address is missing, INADDR_ANY is used.
      * If the port is missing, 0 is used (only useful for server sockets).
      */
-     char *sthost = NULL;
-     const char *stport;
-     int ret = JIM_OK;
-     struct addrinfo req;
-     struct addrinfo *ai;
+    char *sthost = NULL;
+    const char *stport;
+    int ret = JIM_OK;
 
     stport = strrchr(hostport, ':');
     if (!stport) {
@@ -198,26 +208,48 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
         stport++;
     }
 
-    memset(&req, '\0', sizeof(req));
-    req.ai_family = PF_INET;
-    
-    if (getaddrinfo(sthost, NULL, &req, &ai)) {
-        Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
+    {
+#ifdef HAVE_GETADDRINFO
+        struct addrinfo req;
+        struct addrinfo *ai;
+        memset(&req, '\0', sizeof(req));
+        req.ai_family = PF_INET;
+        
+        if (getaddrinfo(sthost, NULL, &req, &ai)) {
+            ret = JIM_ERR;
+        }
+        else {
+            memcpy(&sa->sin, ai->ai_addr, ai->ai_addrlen);
+            *salen = ai->ai_addrlen;
+            freeaddrinfo(ai);
+        }
+#else
+        struct hostent *he;
+
         ret = JIM_ERR;
-    }
-    else {
-        memcpy(&sa->sin, ai->ai_addr, ai->ai_addrlen);
-        *salen = ai->ai_addrlen;
+
+        if ((he = gethostbyname(sthost)) != NULL) {
+            if (he->h_length == sizeof(sa->sin.sin_addr)) {
+                *salen = sizeof(sa->sin);
+                sa->sin.sin_family= he->h_addrtype;
+                memcpy(&sa->sin.sin_addr, he->h_addr, he->h_length); /* set address */
+                ret = JIM_OK;
+            }
+        }
+#endif
 
         sa->sin.sin_port = htons(atoi(stport));
-
-        freeaddrinfo(ai);
     }
     Jim_Free(sthost);
+
+    if (ret != JIM_OK) {
+        Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
+    }
 
     return ret;
 }
 
+#ifdef HAVE_SYS_UN_H
 static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
 {
     sa->sun_family = PF_UNIX;
@@ -225,6 +257,7 @@ static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct so
 
     return JIM_OK;
 }
+#endif
 #endif
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
@@ -271,21 +304,24 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int nonewline = 0;
     int neededLen = -1;         /* -1 is "read as much as possible" */
 
-    if (argc) {
-        if (Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
-            nonewline = 1;
-        }
-        else {
-            jim_wide wideValue;
+    if (argc && Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
+        nonewline = 1;
+        argv++;
+        argc--;
+    }
+    if (argc == 1) {
+        jim_wide wideValue;
 
-            if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
-                return JIM_ERR;
-            if (wideValue < 0) {
-                Jim_SetResultString(interp, "invalid parameter: negative len", -1);
-                return JIM_ERR;
-            }
-            neededLen = (int)wideValue;
+        if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
+            return JIM_ERR;
+        if (wideValue < 0) {
+            Jim_SetResultString(interp, "invalid parameter: negative len", -1);
+            return JIM_ERR;
         }
+        neededLen = (int)wideValue;
+    }
+    else if (argc) {
+        return -1;
     }
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (neededLen != 0) {
@@ -450,7 +486,7 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         char addrbuf[60];
 
 #if IPV6
-        if (sa.sa.sa_family == AF_INET6) {
+        if (sa.sa.sa_family == PF_INET6) {
             addrbuf[0] = '[';
             /* Allow 9 for []:65535\0 */
             inet_ntop(sa.sa.sa_family, &sa.sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
@@ -483,7 +519,7 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *addr = Jim_GetString(argv[1], NULL);
     int salen;
 
-    if (IPV6 && af->addr_family == AF_INET6) {
+    if (IPV6 && af->addr_family == PF_INET6) {
         if (JimParseIPv6Address(interp, addr, &sa, &salen) != JIM_OK) {
             return JIM_ERR;
         }
@@ -577,8 +613,7 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else if (Jim_CompareStringImmediate(interp, argv[1], "end"))
             orig = SEEK_END;
         else {
-            Jim_SetResultFormatted(interp, "bad origin \"%#s\": must be start, current, or end", argv[1]);
-            return JIM_ERR;
+            return -1;
         }
     }
     if (Jim_GetLong(interp, argv[0], &offset) != JIM_OK) {
@@ -701,10 +736,10 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
 static const jim_subcmd_type aio_command_table[] = {
     {   .cmd = "read",
-        .args = "?-nonewline|len?",
+        .args = "?-nonewline? ?len?",
         .function = aio_cmd_read,
         .minargs = 0,
-        .maxargs = 1,
+        .maxargs = 2,
         .description = "Read and return bytes from the stream. To eof if no len."
     },
     {   .cmd = "gets",
@@ -955,7 +990,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int res;
     int on = 1;
     const char *mode = "r+";
-    int family = AF_INET;
+    int family = PF_INET;
     Jim_Obj *argv0 = argv[0];
     int ipv6 = 0;
 
@@ -965,7 +1000,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
         ipv6 = 1;
-        family = AF_INET6;
+        family = PF_INET6;
     }
     argc -= ipv6;
     argv += ipv6;
@@ -1055,7 +1090,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 }
 
                 /* Enable address reuse */
-                setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+                setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
 
                 res = bind(sock, &sa.sa, salen);
                 if (res) {
@@ -1075,6 +1110,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
             break;
 
+#ifdef HAVE_SYS_UN_H
         case SOCK_UNIX:
             {
                 struct sockaddr_un sa;
@@ -1140,7 +1176,9 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 hdlfmt = "aio.sockunixsrv%ld";
                 break;
             }
+#endif
 
+#ifdef HAVE_PIPE
         case SOCK_STREAM_PIPE:
             {
                 int p[2];
@@ -1166,7 +1204,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 sock = p[1];
             }
             break;
-
+#endif
         default:
             Jim_SetResultString(interp, "Unsupported socket type", -1);
             return JIM_ERR;

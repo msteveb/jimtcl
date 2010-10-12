@@ -105,15 +105,16 @@ foreach i [after info] {
     after cancel $i
 }
 
+if {[info commands socket] ne ""} {
 test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
     set f1 [open test1 w]
     proc accept {s args} {
 	puts $s foobar
 	close $s
     }
-    catch {set s1 [socket stream.server 5001]}
+    set s1 [socket stream.server 5001]
     after 1000
-    catch {set s2 [socket stream 5001]}
+    set s2 [socket stream 127.0.0.1:5001]
     close $s1
     set x 0
     set y 0
@@ -128,6 +129,7 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
     file delete test1 test2
     list $x $y $z
 } {3 3 done}
+}
 test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
     file delete test1 test2
     set f1 [open test1 w]
