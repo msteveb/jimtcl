@@ -341,7 +341,7 @@ static int JimCheckConversion(const char *str, const char *endptr)
 
     if (endptr[0] != '\0') {
         while (*endptr) {
-            if (!isspace(*endptr)) {
+            if (!isspace((unsigned)*endptr)) {
                 return JIM_ERR;
             }
             endptr++;
@@ -368,10 +368,10 @@ int Jim_DoubleToString(char *buf, double doubleValue)
     /* Add a final ".0" if it's a number. But not
      * for NaN or InF */
     while (*buf) {
-        if (*buf == '.' || isalpha(*buf)) {
+        if (*buf == '.' || isalpha((unsigned)*buf)) {
             /* inf -> Inf, nan -> Nan */
             if (*buf == 'i' || *buf == 'n') {
-                *buf = toupper(*buf);
+                *buf = toupper((unsigned)*buf);
             }
             return len;
         }
@@ -2199,7 +2199,7 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = tolower(buf[i]);
+        buf[i] = tolower((unsigned)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2216,7 +2216,7 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     memcpy(buf, strObjPtr->bytes, strObjPtr->length + 1);
     for (i = 0; i < strObjPtr->length; i++)
-        buf[i] = toupper(buf[i]);
+        buf[i] = toupper((unsigned)buf[i]);
     return Jim_NewStringObjNoAlloc(interp, buf, strObjPtr->length);
 }
 
@@ -2494,7 +2494,7 @@ static Jim_Obj *Jim_FormatString_Inner(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
             case '8':
             case '9':
                 accum = 0;
-                while (isdigit(*fmt) && (fmtLen > 0)) {
+                while (isdigit((unsigned)*fmt) && (fmtLen > 0)) {
                     accum = (accum * 10) + (*fmt - '0');
                     fmt++;
                     fmtLen--;
@@ -4500,7 +4500,7 @@ int Jim_Collect(Jim_Interp *interp)
                 if (p[41] != '>' || p[19] != '>' || p[20] != '.')
                     break;
                 for (i = 21; i <= 40; i++)
-                    if (!isdigit(p[i]))
+                    if (!isdigit((unsigned)p[i]))
                         break;
                 /* Get the ID */
                 memcpy(buf, p + 21, 20);
@@ -6501,7 +6501,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         str = endptr;
     }
     /* The only thing left should be spaces */
-    while (isspace(*str)) {
+    while (isspace((unsigned)*str)) {
         str++;
     }
     if (*str) {
@@ -7495,7 +7495,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 int JimParseExpression(struct JimParserCtx *pc)
 {
     /* Discard spaces and quoted newline */
-    while (isspace(*pc->p) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
+    while (isspace((unsigned)*pc->p) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
         pc->p++;
         pc->len--;
     }
@@ -7573,8 +7573,8 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     pc->tt = JIM_TT_EXPR_INT;
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (isdigit(*pc->p)
-        || (allowhex && isxdigit(*pc->p))
+    while (isdigit((unsigned)*pc->p)
+        || (allowhex && isxdigit((unsigned)*pc->p))
         || (allowdot && *pc->p == '.')
         || (pc->p - pc->tstart == 1 && *pc->tstart == '0' && (*pc->p == 'x' || *pc->p == 'X'))
         ) {
@@ -7589,7 +7589,7 @@ int JimParseExprNumber(struct JimParserCtx *pc)
         pc->p++;
         pc->len--;
         if (!allowhex && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+'
-                || isdigit(pc->p[1]))) {
+                || isdigit((unsigned)pc->p[1]))) {
             pc->p += 2;
             pc->len -= 2;
             pc->tt = JIM_TT_EXPR_DOUBLE;
@@ -7650,7 +7650,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
         const char *p = pc->p + bestLen;
         int len = pc->len - bestLen;
 
-        while (len && isspace(*p)) {
+        while (len && isspace((unsigned)*p)) {
             len--;
             p++;
         }
@@ -8726,7 +8726,7 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
     }
     /* And after all the mess above, the real work begin ... */
     while (str && *str) {
-        if (!sdescr && isspace(*str))
+        if (!sdescr && isspace((unsigned)*str))
             break;              /* EOS via WS if unspecified */
         if (JimTestBit(charset, *str))
             *buffer++ = *str++;
@@ -8761,8 +8761,8 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
          * the string-to-be-parsed accordingly */
         for (i = 0; str[pos] && descr->prefix[i]; ++i) {
             /* If prefix require, skip WS */
-            if (isspace(descr->prefix[i]))
-                while (str[pos] && isspace(str[pos]))
+            if (isspace((unsigned)descr->prefix[i]))
+                while (str[pos] && isspace((unsigned)str[pos]))
                     ++pos;
             else if (descr->prefix[i] != str[pos])
                 break;          /* Prefix do not match here, leave the loop */
@@ -8776,7 +8776,7 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
     }
     /* For all but following conversion, skip leading WS */
     if (descr->type != 'c' && descr->type != '[' && descr->type != 'n')
-        while (isspace(str[pos]))
+        while (isspace((unsigned)str[pos]))
             ++pos;
     /* Determine how much skipped/scanned so far */
     scanned = pos - anchor;
