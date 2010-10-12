@@ -14,7 +14,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     Jim_Obj *libPathObjPtr;
     int prefixc, i;
     void *handle;
-    int (*onload) (Jim_Interp *interp);
+    int (*onload) (Jim_Interp *);
 
     libPathObjPtr = Jim_GetGlobalVariableStr(interp, JIM_LIBPATH, JIM_NONE);
     if (libPathObjPtr == NULL) {

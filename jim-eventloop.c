@@ -701,7 +701,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 Jim_SetResult(interp, listObj);
             }
             else if (argc == 3) {
-                jim_wide id = JimParseAfterId(argv[2]);
+                id = JimParseAfterId(argv[2]);
                 if (id >= 0) {
                     Jim_TimeEvent *e = JimFindTimeHandlerById(eventLoop, id);
                     if (e && e->timeProc == JimAfterTimeHandler) {

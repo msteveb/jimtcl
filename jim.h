@@ -771,14 +771,14 @@ JIM_EXPORT int Jim_GetIndex (Jim_Interp *interp, Jim_Obj *objPtr,
 JIM_EXPORT Jim_Obj * Jim_NewListObj (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
 JIM_EXPORT void Jim_ListInsertElements (Jim_Interp *interp,
-        Jim_Obj *listPtr, int index, int objc, Jim_Obj *const *objVec);
+        Jim_Obj *listPtr, int listindex, int objc, Jim_Obj *const *objVec);
 JIM_EXPORT void Jim_ListAppendElement (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *objPtr);
 JIM_EXPORT void Jim_ListAppendList (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *appendListPtr);
 JIM_EXPORT int Jim_ListLength (Jim_Interp *interp, Jim_Obj *objPtr);
 JIM_EXPORT int Jim_ListIndex (Jim_Interp *interp, Jim_Obj *listPrt,
-        int index, Jim_Obj **objPtrPtr, int seterr);
+        int listindex, Jim_Obj **objPtrPtr, int seterr);
 JIM_EXPORT int Jim_SetListIndex (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *indexv, int indexc,
         Jim_Obj *newObjPtr);

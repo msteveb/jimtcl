@@ -443,16 +443,16 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          */
 
         for (src = replace_str; *src; src++) {
-            int index;
+            int idx;
             int c = *src;
 
             if (c == '&') {
-                index = 0;
+                idx = 0;
             }
             else if (c == '\\') {
                 c = *++src;
                 if ((c >= '0') && (c <= '9')) {
-                    index = c - '0';
+                    idx = c - '0';
                 }
                 else if ((c == '\\') || (c == '&')) {
                     Jim_AppendString(interp, resultObj, src, 1);
@@ -467,9 +467,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 Jim_AppendString(interp, resultObj, src, 1);
                 continue;
             }
-            if ((index < MAX_SUB_MATCHES) && pmatch[index].rm_so != -1 && pmatch[index].rm_eo != -1) {
-                Jim_AppendString(interp, resultObj, p + pmatch[index].rm_so,
-                    pmatch[index].rm_eo - pmatch[index].rm_so);
+            if ((idx < MAX_SUB_MATCHES) && pmatch[idx].rm_so != -1 && pmatch[idx].rm_eo != -1) {
+                Jim_AppendString(interp, resultObj, p + pmatch[idx].rm_so,
+                    pmatch[idx].rm_eo - pmatch[idx].rm_so);
             }
         }
 

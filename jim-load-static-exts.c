@@ -1,7 +1,7 @@
 #include "jim.h"
 
 #define LOAD_EXT(n) \
-    extern int Jim_ ## n ## Init(Jim_Interp *interp); \
+    extern int Jim_ ## n ## Init(Jim_Interp *); \
     Jim_ ## n ## Init(interp); \
 
 int Jim_InitStaticExtensions(Jim_Interp *interp)

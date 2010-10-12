@@ -93,7 +93,7 @@ static char JimEmptyStringRep[] = "";
  * ---------------------------------------------------------------------------*/
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
-static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj *newObjPtr,
+static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim_Obj *newObjPtr,
     int flags);
 static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -286,16 +286,16 @@ int JimStringCompare(const char *s1, int l1, const char *s2, int l2, int nocase)
 /* Search 's1' inside 's2', starting to search from char 'index' of 's2'.
  * The index of the first occurrence of s1 in s2 is returned.
  * If s1 is not found inside s2, -1 is returned. */
-int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int index)
+int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int idx)
 {
     int i;
 
     if (!l1 || !l2 || l1 > l2)
         return -1;
-    if (index < 0)
-        index = 0;
-    s2 += index;
-    for (i = index; i <= l2 - l1; i++) {
+    if (idx < 0)
+        idx = 0;
+    s2 += idx;
+    for (i = idx; i <= l2 - l1; i++) {
         if (memcmp(s2, s1, l1) == 0)
             return i;
         s2++;
@@ -615,18 +615,18 @@ int Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
 /* Add an element to the target hash table */
 int Jim_AddHashEntry(Jim_HashTable *ht, const void *key, void *val)
 {
-    int index;
+    int idx;
     Jim_HashEntry *entry;
 
     /* Get the index of the new element, or -1 if
      * the element already exists. */
-    if ((index = JimInsertHashEntry(ht, key)) == -1)
+    if ((idx = JimInsertHashEntry(ht, key)) == -1)
         return JIM_ERR;
 
     /* Allocates the memory and stores key */
     entry = Jim_Alloc(sizeof(*entry));
-    entry->next = ht->table[index];
-    ht->table[index] = entry;
+    entry->next = ht->table[idx];
+    ht->table[idx] = entry;
 
     /* Set the hash entry fields. */
     Jim_SetHashKey(ht, entry, key);
@@ -2127,11 +2127,11 @@ int Jim_StringCompareObj(Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase
  * This function may return negative values, or values
  * bigger or equal to the length of the list if the index
  * is out of range. */
-static int JimRelToAbsIndex(int len, int index)
+static int JimRelToAbsIndex(int len, int idx)
 {
-    if (index < 0)
-        return len + index;
-    return index;
+    if (idx < 0)
+        return len + idx;
+    return idx;
 }
 
 /* Convert a pair of index as normalize by JimRelToAbsIndex(),
@@ -4690,7 +4690,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     /* Check that the live object list is empty, otherwise
      * there is a memory leak. */
     if (i->liveList != NULL) {
-        Jim_Obj *objPtr = i->liveList;
+        objPtr = i->liveList;
 
         printf(JIM_NL "-------------------------------------" JIM_NL);
         printf("Objects still in the free list:" JIM_NL);
@@ -5485,8 +5485,9 @@ void UpdateStringOfList(struct Jim_Obj *objPtr)
     realLength = 0;
     for (i = 0; i < objPtr->internalRep.listValue.len; i++) {
         int len, qlen;
-        const char *strRep = Jim_GetString(ele[i], &len);
         char *q;
+
+        strRep = Jim_GetString(ele[i], &len);
 
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
@@ -5736,7 +5737,7 @@ void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
  *
  * NOTE: this function can be called only against objects
  * with internal type of List. */
-void ListInsertElements(Jim_Obj *listPtr, int index, int elemc, Jim_Obj *const *elemVec)
+void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *const *elemVec)
 {
     int currentLen = listPtr->internalRep.listValue.len;
     int requiredLen = currentLen + elemc;
@@ -5750,8 +5751,8 @@ void ListInsertElements(Jim_Obj *listPtr, int index, int elemc, Jim_Obj *const *
             Jim_Realloc(listPtr->internalRep.listValue.ele, sizeof(Jim_Obj *) * maxLen);
         listPtr->internalRep.listValue.maxLen = maxLen;
     }
-    point = listPtr->internalRep.listValue.ele + index;
-    memmove(point + elemc, point, (currentLen - index) * sizeof(Jim_Obj *));
+    point = listPtr->internalRep.listValue.ele + idx;
+    memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
     for (i = 0; i < elemc; ++i) {
         point[i] = elemVec[i];
         Jim_IncrRefCount(point[i]);
@@ -5810,55 +5811,55 @@ int Jim_ListLength(Jim_Interp *interp, Jim_Obj *objPtr)
     return objPtr->internalRep.listValue.len;
 }
 
-void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int index,
+void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     int objc, Jim_Obj *const *objVec)
 {
     if (Jim_IsShared(listPtr))
         Jim_Panic(interp, "Jim_ListInsertElement called with shared object");
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
-    if (index >= 0 && index > listPtr->internalRep.listValue.len)
-        index = listPtr->internalRep.listValue.len;
-    else if (index < 0)
-        index = 0;
+    if (idx >= 0 && idx > listPtr->internalRep.listValue.len)
+        idx = listPtr->internalRep.listValue.len;
+    else if (idx < 0)
+        idx = 0;
     Jim_InvalidateStringRep(listPtr);
-    ListInsertElements(listPtr, index, objc, objVec);
+    ListInsertElements(listPtr, idx, objc, objVec);
 }
 
-int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index, Jim_Obj **objPtrPtr, int flags)
+int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPtrPtr, int flags)
 {
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
-    if ((index >= 0 && index >= listPtr->internalRep.listValue.len) ||
-        (index < 0 && (-index - 1) >= listPtr->internalRep.listValue.len)) {
+    if ((idx >= 0 && idx >= listPtr->internalRep.listValue.len) ||
+        (idx < 0 && (-idx - 1) >= listPtr->internalRep.listValue.len)) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultString(interp, "list index out of range", -1);
         }
         *objPtrPtr = NULL;
         return JIM_ERR;
     }
-    if (index < 0)
-        index = listPtr->internalRep.listValue.len + index;
-    *objPtrPtr = listPtr->internalRep.listValue.ele[index];
+    if (idx < 0)
+        idx = listPtr->internalRep.listValue.len + idx;
+    *objPtrPtr = listPtr->internalRep.listValue.ele[idx];
     return JIM_OK;
 }
 
-static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int index,
+static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     Jim_Obj *newObjPtr, int flags)
 {
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
-    if ((index >= 0 && index >= listPtr->internalRep.listValue.len) ||
-        (index < 0 && (-index - 1) >= listPtr->internalRep.listValue.len)) {
+    if ((idx >= 0 && idx >= listPtr->internalRep.listValue.len) ||
+        (idx < 0 && (-idx - 1) >= listPtr->internalRep.listValue.len)) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultString(interp, "list index out of range", -1);
         }
         return JIM_ERR;
     }
-    if (index < 0)
-        index = listPtr->internalRep.listValue.len + index;
-    Jim_DecrRefCount(interp, listPtr->internalRep.listValue.ele[index]);
-    listPtr->internalRep.listValue.ele[index] = newObjPtr;
+    if (idx < 0)
+        idx = listPtr->internalRep.listValue.len + idx;
+    Jim_DecrRefCount(interp, listPtr->internalRep.listValue.ele[idx]);
+    listPtr->internalRep.listValue.ele[idx] = newObjPtr;
     Jim_IncrRefCount(newObjPtr);
     return JIM_OK;
 }
@@ -5870,7 +5871,7 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
     Jim_Obj *const *indexv, int indexc, Jim_Obj *newObjPtr)
 {
     Jim_Obj *varObjPtr, *objPtr, *listObjPtr;
-    int shared, i, index;
+    int shared, i, idx;
 
     varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
     if (objPtr == NULL)
@@ -5879,20 +5880,20 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
         varObjPtr = objPtr = Jim_DuplicateObj(interp, objPtr);
     for (i = 0; i < indexc - 1; i++) {
         listObjPtr = objPtr;
-        if (Jim_GetIndex(interp, indexv[i], &index) != JIM_OK)
+        if (Jim_GetIndex(interp, indexv[i], &idx) != JIM_OK)
             goto err;
-        if (Jim_ListIndex(interp, listObjPtr, index, &objPtr, JIM_ERRMSG) != JIM_OK) {
+        if (Jim_ListIndex(interp, listObjPtr, idx, &objPtr, JIM_ERRMSG) != JIM_OK) {
             goto err;
         }
         if (Jim_IsShared(objPtr)) {
             objPtr = Jim_DuplicateObj(interp, objPtr);
-            ListSetIndex(interp, listObjPtr, index, objPtr, JIM_NONE);
+            ListSetIndex(interp, listObjPtr, idx, objPtr, JIM_NONE);
         }
         Jim_InvalidateStringRep(listObjPtr);
     }
-    if (Jim_GetIndex(interp, indexv[indexc - 1], &index) != JIM_OK)
+    if (Jim_GetIndex(interp, indexv[indexc - 1], &idx) != JIM_OK)
         goto err;
-    if (ListSetIndex(interp, objPtr, index, newObjPtr, JIM_ERRMSG) == JIM_ERR)
+    if (ListSetIndex(interp, objPtr, idx, newObjPtr, JIM_ERRMSG) == JIM_ERR)
         goto err;
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
@@ -6132,8 +6133,9 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
     realLength = 0;
     for (i = 0; i < objc; i++) {
         int len, qlen;
-        const char *strRep = Jim_GetString(objv[i], &len);
         char *q;
+
+        strRep = Jim_GetString(objv[i], &len);
 
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
@@ -6468,7 +6470,7 @@ void UpdateStringOfIndex(struct Jim_Obj *objPtr)
 
 int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    int index, end = 0;
+    int idx, end = 0;
     const char *str;
     char *endptr;
 
@@ -6479,10 +6481,10 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     if (strncmp(str, "end", 3) == 0) {
         end = 1;
         str += 3;
-        index = 0;
+        idx = 0;
     }
     else {
-        index = strtol(str, &endptr, 10);
+        idx = strtol(str, &endptr, 10);
 
         if (endptr == str) {
             goto badindex;
@@ -6494,7 +6496,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     if (*str == '+' || *str == '-') {
         int sign = (*str == '+' ? 1 : -1);
 
-        index += sign * strtol(++str, &endptr, 10);
+        idx += sign * strtol(++str, &endptr, 10);
         if (str == endptr || *endptr) {
             goto badindex;
         }
@@ -6508,22 +6510,22 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         goto badindex;
     }
     if (end) {
-        if (index > 0) {
-            index = INT_MAX;
+        if (idx > 0) {
+            idx = INT_MAX;
         }
         else {
             /* end-1 is repesented as -2 */
-            index--;
+            idx--;
         }
     }
-    else if (index < 0) {
-        index = -INT_MAX;
+    else if (idx < 0) {
+        idx = -INT_MAX;
     }
 
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &indexObjType;
-    objPtr->internalRep.indexValue = index;
+    objPtr->internalRep.indexValue = idx;
     return JIM_OK;
 
   badindex:
@@ -8709,8 +8711,6 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
         while (*sdescr) {
             if (sdescr[1] == '-' && sdescr[2] != 0) {
                 /* Handle range definitions */
-                int i;
-
                 for (i = sdescr[0]; i <= sdescr[2]; ++i)
                     JimSetBit(charset, (char)i);
                 sdescr += 3;
@@ -8746,10 +8746,10 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
  * already scanned thru */
 
 static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
-    ScanFmtStringObj * fmtObj, long index, Jim_Obj **valObjPtr)
+    ScanFmtStringObj * fmtObj, long idx, Jim_Obj **valObjPtr)
 {
     const char *tok;
-    const ScanFmtPartDescr *descr = &fmtObj->descr[index];
+    const ScanFmtPartDescr *descr = &fmtObj->descr[idx];
     size_t sLen = strlen(&str[pos]), scanned = 0;
     size_t anchor = pos;
     int i;
@@ -10999,7 +10999,7 @@ static int Jim_LindexCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 {
     Jim_Obj *objPtr, *listObjPtr;
     int i;
-    int index;
+    int idx;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "list index ?...?");
@@ -11009,11 +11009,11 @@ static int Jim_LindexCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     Jim_IncrRefCount(objPtr);
     for (i = 2; i < argc; i++) {
         listObjPtr = objPtr;
-        if (Jim_GetIndex(interp, argv[i], &index) != JIM_OK) {
+        if (Jim_GetIndex(interp, argv[i], &idx) != JIM_OK) {
             Jim_DecrRefCount(interp, listObjPtr);
             return JIM_ERR;
         }
-        if (Jim_ListIndex(interp, listObjPtr, index, &objPtr, JIM_NONE) != JIM_OK) {
+        if (Jim_ListIndex(interp, listObjPtr, idx, &objPtr, JIM_NONE) != JIM_OK) {
             /* Returns an empty object if the index
              * is out of range. */
             Jim_DecrRefCount(interp, listObjPtr);
@@ -11231,7 +11231,7 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 /* [linsert] */
 static int Jim_LinsertCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int index, len;
+    int idx, len;
     Jim_Obj *listPtr;
 
     if (argc < 4) {
@@ -11241,14 +11241,14 @@ static int Jim_LinsertCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     listPtr = argv[1];
     if (Jim_IsShared(listPtr))
         listPtr = Jim_DuplicateObj(interp, listPtr);
-    if (Jim_GetIndex(interp, argv[2], &index) != JIM_OK)
+    if (Jim_GetIndex(interp, argv[2], &idx) != JIM_OK)
         goto err;
     len = Jim_ListLength(interp, listPtr);
-    if (index >= len)
-        index = len;
-    else if (index < 0)
-        index = len + index + 1;
-    Jim_ListInsertElements(interp, listPtr, index, argc - 3, &argv[3]);
+    if (idx >= len)
+        idx = len;
+    else if (idx < 0)
+        idx = len + idx + 1;
+    Jim_ListInsertElements(interp, listPtr, idx, argc - 3, &argv[3]);
     Jim_SetResult(interp, listPtr);
     return JIM_OK;
   err:
@@ -12206,32 +12206,32 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             }
 
         case OPT_INDEX:{
-                int index, len;
+                int idx;
                 const char *str;
 
                 if (argc != 4) {
                     Jim_WrongNumArgs(interp, 2, argv, "string index");
                     return JIM_ERR;
                 }
-                if (Jim_GetIndex(interp, argv[3], &index) != JIM_OK) {
+                if (Jim_GetIndex(interp, argv[3], &idx) != JIM_OK) {
                     return JIM_ERR;
                 }
                 str = Jim_GetString(argv[2], &len);
-                if (index != INT_MIN && index != INT_MAX) {
-                    index = JimRelToAbsIndex(len, index);
+                if (idx != INT_MIN && idx != INT_MAX) {
+                    idx = JimRelToAbsIndex(len, idx);
                 }
-                if (index < 0 || index >= len) {
+                if (idx < 0 || idx >= len) {
                     Jim_SetResultString(interp, "", 0);
                 }
                 else {
-                    Jim_SetResultString(interp, str + index, 1);
+                    Jim_SetResultString(interp, str + idx, 1);
                 }
                 return JIM_OK;
             }
 
         case OPT_FIRST:
         case OPT_LAST:{
-                int index = 0, l1, l2;
+                int idx = 0, l1, l2;
                 const char *s1, *s2;
 
                 if (argc != 4 && argc != 5) {
@@ -12241,19 +12241,19 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 s1 = Jim_GetString(argv[2], &l1);
                 s2 = Jim_GetString(argv[3], &l2);
                 if (argc == 5) {
-                    if (Jim_GetIndex(interp, argv[4], &index) != JIM_OK) {
+                    if (Jim_GetIndex(interp, argv[4], &idx) != JIM_OK) {
                         return JIM_ERR;
                     }
-                    index = JimRelToAbsIndex(l2, index);
+                    idx = JimRelToAbsIndex(l2, idx);
                 }
                 else if (option == OPT_LAST) {
-                    index = l2;
+                    idx = l2;
                 }
                 if (option == OPT_FIRST) {
-                    Jim_SetResultInt(interp, JimStringFirst(s1, l1, s2, l2, index));
+                    Jim_SetResultInt(interp, JimStringFirst(s1, l1, s2, l2, idx));
                 }
                 else {
-                    Jim_SetResultInt(interp, JimStringLast(s1, l1, s2, index));
+                    Jim_SetResultInt(interp, JimStringLast(s1, l1, s2, idx));
                 }
                 return JIM_OK;
             }
@@ -13046,7 +13046,7 @@ static int Jim_FormatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *listPtr, **outVec;
-    int outc, i, count = 0;
+    int outc, i;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "string format ?varName varName ...?");
@@ -13082,8 +13082,7 @@ static int Jim_ScanCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     if (argc > 3) {
         int rc = JIM_OK;
-
-        count = 0;
+        int count = 0;
 
         if (listPtr != 0 && listPtr != (Jim_Obj *)EOF) {
             int len = Jim_ListLength(interp, listPtr);
