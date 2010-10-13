@@ -3765,9 +3765,22 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
 
     varName = Jim_GetString(nameObjPtr, &len);
 
-    if (Jim_FindHashEntry(&interp->framePtr->vars, varName)) {
-        Jim_SetResultFormatted(interp, "variable \"%#s\" already exists", nameObjPtr);
+    if (Jim_NameIsDictSugar(varName, len)) {
+        Jim_SetResultString(interp, "Dict key syntax invalid as link source", -1);
         return JIM_ERR;
+    }
+
+    /* Check for an existing variable or link */
+    if (SetVariableFromAny(interp, nameObjPtr) == JIM_OK) {
+        Jim_Var *varPtr = nameObjPtr->internalRep.varValue.varPtr;
+
+        if (varPtr->linkFramePtr == NULL) {
+            Jim_SetResultFormatted(interp, "variable \"%#s\" already exists", nameObjPtr);
+            return JIM_ERR;
+        }
+
+        /* It exists, but is a link, so delete the link */
+        varPtr->linkFramePtr = NULL;
     }
 
     /* Check for cycles. */
@@ -3789,10 +3802,7 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
             objPtr = varPtr->objPtr;
         }
     }
-    if (Jim_NameIsDictSugar(varName, len)) {
-        Jim_SetResultString(interp, "Dict key syntax invalid as link source", -1);
-        return JIM_ERR;
-    }
+
     /* Perform the binding */
     Jim_SetVariable(interp, nameObjPtr, targetNameObjPtr);
     /* We are now sure 'nameObjPtr' type is variableObjType */
@@ -3822,20 +3832,22 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
                     interp->framePtr = varPtr->linkFramePtr;
                     objPtr = Jim_GetVariable(interp, varPtr->objPtr, flags);
                     interp->framePtr = savedCallFrame;
-                    return objPtr;
+                    if (objPtr) {
+                        return objPtr;
+                    }
+                    /* Error, so fall through to the error message */
                 }
             }
+            break;
 
         case JIM_DICT_SUGAR:
             /* [dict] syntax sugar. */
             return JimDictSugarGet(interp, nameObjPtr);
-
-        default:
-            if (flags & JIM_ERRMSG) {
-                Jim_SetResultFormatted(interp, "can't read \"%#s\": no such variable", nameObjPtr);
-            }
-            return NULL;
     }
+    if (flags & JIM_ERRMSG) {
+        Jim_SetResultFormatted(interp, "can't read \"%#s\": no such variable", nameObjPtr);
+    }
+    return NULL;
 }
 
 Jim_Obj *Jim_GetGlobalVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
