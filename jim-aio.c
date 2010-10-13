@@ -632,6 +632,14 @@ static int aio_cmd_tell(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int aio_cmd_filename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    Jim_SetResult(interp, af->filename);
+    return JIM_OK;
+}
+
 #ifdef O_NDELAY
 static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -797,6 +805,10 @@ static const jim_subcmd_type aio_command_table[] = {
     {   .cmd = "tell",
         .function = aio_cmd_tell,
         .description = "Returns the current seek position"
+    },
+    {   .cmd = "filename",
+        .function = aio_cmd_filename,
+        .description = "Returns the original filename"
     },
 #ifdef O_NDELAY
     {   .cmd = "ndelay",
