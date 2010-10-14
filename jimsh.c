@@ -134,6 +134,7 @@ static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
     }
 
     Jim_SetVariableStr(interp, "argv", listObj);
+    Jim_SetVariableStr(interp, "argc", Jim_NewIntObj(interp, argc));
 }
 
 int main(int argc, char *const argv[])

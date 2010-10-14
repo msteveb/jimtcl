@@ -4285,6 +4285,10 @@ The following global variables are set by jimsh.
     If jimsh is invoked to run a script, this variable contains a list
     of any arguments supplied to the script.
 
++*argc*+::
+    If jimsh is invoked to run a script, this variable contains the number
+    of arguments supplied to the script.
+
 +*jim_argv0*+::
     The value of argv[0] when jimsh was invoked.
 
