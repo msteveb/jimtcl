@@ -2,23 +2,25 @@
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
- * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net>
- * Copyright 2008 oharboe - Ã˜yvind Harboe - oyvind.harboe@zylin.com
+ * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+ * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
- *
+ * 
+ * The FreeBSD license
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above
  *    copyright notice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials
  *    provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -31,7 +33,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * 
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
@@ -42,15 +44,13 @@
  *  - more complete [after] command with [after info] and other subcommands.
  *  - Win32 port
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
 #define JIM_EXTENSION
 #define __JIM_EVENTLOOP_CORE__
 #ifdef __ECOS
 #include <pkgconf/jimtcl.h>
-#include <sys/time.h>
+#endif
+#ifdef __ECOS
 #include <cyg/jimtcl/jim.h>
 #include <cyg/jimtcl/jim-eventloop.h>
 #else
@@ -58,10 +58,19 @@
 #include "jim-eventloop.h"
 #endif
 
+/* POSIX includes */
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <errno.h>
+	extern int errno;
+/* --- */
+
 /* File event structure */
 typedef struct Jim_FileEvent {
     void *handle;
-    int mask; /* one of JIM_EVENT_(READABLE | WRITABLE | EXCEPTION) */
+    int mask; /* one of JIM_EVENT_(READABLE|WRITABLE|EXCEPTION) */
     Jim_FileProc *fileProc;
     Jim_EventFinalizerProc *finalizerProc;
     void *clientData;
@@ -113,7 +122,7 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, void *handle)
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
     fe = eventLoop->fileEventHead;
-    while (fe) {
+    while(fe) {
         if (fe->handle == handle) {
             if (prev == NULL)
                 eventLoop->fileEventHead = fe->next;
@@ -130,12 +139,12 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, void *handle)
 }
 
 // The same for signals.
-void Jim_CreateSignalHandler(Jim_Interp *interp, int signum,
+void Jim_CreateSignalHandler(Jim_Interp *interp, int signum, 
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc)
 {
 }
-void Jim_DeleteSignalHandler(Jim_Interp *interp, int signum)
+void Jim_DeleteSignalHandler(Jim_Interp *interp, int signum) 
 {
 }
 
@@ -189,9 +198,9 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
     JimGetTime(&cur_sec, &cur_ms);
 
     te = eventLoop->timeEventHead;
-    if (id >= eventLoop->timeEventNextId)
+    if (id >= eventLoop->timeEventNextId) 
     	return -2; /* wrong event ID */
-    while (te) {
+    while(te) {
         if (te->id == id) {
             remain  = (te->when_sec - cur_sec) * 1000;
             remain += (te->when_ms  - cur_ms) ;
@@ -221,7 +230,7 @@ static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop *eventLoop)
     Jim_TimeEvent *te = eventLoop->timeEventHead;
     Jim_TimeEvent *nearest = NULL;
 
-    while (te) {
+    while(te) {
         if (!nearest || te->when_sec < nearest->when_sec ||
                 (te->when_sec == nearest->when_sec &&
                  te->when_ms < nearest->when_ms))
@@ -234,7 +243,7 @@ static Jim_TimeEvent *JimSearchNearestTimer(Jim_EventLoop *eventLoop)
 /* --- POSIX version of Jim_ProcessEvents, for now the only available --- */
 #define JIM_FILE_EVENTS 1
 #define JIM_TIME_EVENTS 2
-#define JIM_ALL_EVENTS (JIM_FILE_EVENTS | JIM_TIME_EVENTS)
+#define JIM_ALL_EVENTS (JIM_FILE_EVENTS|JIM_TIME_EVENTS)
 #define JIM_DONT_WAIT 4
 
 /* Process every pending time event, then every pending file event
@@ -266,9 +275,9 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
     /* Check file events */
     while (fe != NULL) {
-        int fd = fileno((FILE*)fe->handle);
+        int fd = fileno(fe->handle);
 
-        if (fe->mask & JIM_EVENT_READABLE)
+        if (fe->mask & JIM_EVENT_READABLE) 
 		FD_SET(fd, &rfds);
         if (fe->mask & JIM_EVENT_WRITABLE) FD_SET(fd, &wfds);
         if (fe->mask & JIM_EVENT_EXCEPTION) FD_SET(fd, &efds);
@@ -295,7 +304,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             JimGetTime(&now_sec, &now_ms);
             tvp = &tv;
 	    dt   = 1000 * (shortest->when_sec - now_sec);
-	    dt  += (shortest->when_ms  - now_ms);
+	    dt  += ( shortest->when_ms  - now_ms);
             if (dt < 0) {
 		dt = 1;
 	    }
@@ -307,7 +316,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 		// fprintf(stderr,"No Event\n");
         }
 
-        retval = select(maxfd + 1, &rfds, &wfds, &efds, tvp);
+        retval = select(maxfd+1, &rfds, &wfds, &efds, tvp);
         if (retval < 0) {
 	   switch (errno) {
 	       case EINTR:   fprintf(stderr,"select EINTR\n"); break;
@@ -316,8 +325,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 	   }
 	} else if (retval > 0) {
             fe = eventLoop->fileEventHead;
-            while (fe != NULL) {
-                int fd = fileno((FILE*)fe->handle);
+            while(fe != NULL) {
+                int fd = fileno(fe->handle);
 
 		// fprintf(stderr,"fd: %d mask: %02x \n",fd,fe->mask);
 
@@ -329,7 +338,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
                     if (fe->mask & JIM_EVENT_READABLE && FD_ISSET(fd, &rfds)) {
                         mask |= JIM_EVENT_READABLE;
-			if ((fe->mask & JIM_EVENT_FEOF) && feof((FILE *)fe->handle))
+			if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
 				mask |= JIM_EVENT_FEOF;
 		    }
                     if (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds))
@@ -358,7 +367,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
     /* Check time events */
     te = eventLoop->timeEventHead;
     maxId = eventLoop->timeEventNextId-1;
-    while (te) {
+    while(te) {
         long now_sec, now_ms;
         jim_wide id;
 
@@ -397,7 +406,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     Jim_EventLoop *eventLoop = data;
 
     fe = eventLoop->fileEventHead;
-    while (fe) {
+    while(fe) {
         next = fe->next;
         if (fe->finalizerProc)
             fe->finalizerProc(interp, fe->clientData);
@@ -406,7 +415,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     }
 
     te = eventLoop->timeEventHead;
-    while (te) {
+    while(te) {
         next = te->next;
         if (te->finalizerProc)
             te->finalizerProc(interp, te->clientData);
@@ -416,7 +425,7 @@ void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
     Jim_Free(data);
 }
 
-static int JimELVwaitCommand(Jim_Interp *interp, int argc,
+static int JimELVwaitCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
     Jim_Obj *oldValue;
@@ -458,7 +467,7 @@ void JimAfterTimeEventFinalizer(Jim_Interp *interp, void *clientData)
     Jim_DecrRefCount(interp, objPtr);
 }
 
-static int JimELAfterCommand(Jim_Interp *interp, int argc,
+static int JimELAfterCommand(Jim_Interp *interp, int argc, 
         Jim_Obj *const *argv)
 {
     jim_wide ms, id;
@@ -495,7 +504,7 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
 	int tlen ;
 	jim_wide remain = 0;
 	const char *tok = Jim_GetString(argv[2], &tlen);
-	if (sscanf(tok,"after#%" JIM_WIDE_MODIFIER, &id) == 1) {
+	if ( sscanf(tok,"after#%lld",&id) == 1) {
 		remain =  Jim_DeleteTimeHandler(interp, id);
 		if (remain > -2)  {
 			Jim_SetResult(interp, Jim_NewIntObj(interp, remain));
@@ -507,13 +516,11 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc,
 	}
     default:
 	fprintf(stderr,"unserviced option to after %d\n",option);
-    }
+    } 
     return JIM_OK;
 }
 
-/* This extension is not dynamically loaded, instead it's linked statically,
-   which is why we shouldn't use the unspecific 'Jim_OnLoad' name */
-int Jim_EventLoopOnLoad(Jim_Interp *interp)
+int Jim_OnLoad(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
 

@@ -18,7 +18,7 @@ SHELL   = /bin/sh
 RM      = rm -f
 OPT     = -Os
 LDFLAGS = $(PROFILE)
-CFLAGS  = -Wall -pedantic -std=c99 -Wwrite-strings -W $(OPT) -g $(PROFILE)
+CFLAGS  = -Wall -Wwrite-strings -W $(OPT) -g $(PROFILE)
 AR      = /usr/bin/ar
 RANLIB  = /usr/bin/ranlib
 LIBPATH =-L.
@@ -28,15 +28,12 @@ INSTALL_DATA= $(INSTALL) -m 644
 DESTDIR = /usr/local/bin/
 
 PROGRAMS    = jim jim.exe
-JIM_SRCS    = jim.c
 JIM_OBJECTS = jim.o jimsh.o
 LIBS        = -ldl
 
 stopit:
 	@echo "Use:"
 	@echo "make jim       - to build the Jim interpreter"
-	@echo "---"
-	@echo "make libjim    - to build a shared library with Jim's API"
 	@echo "---"
 	@echo "make eventloop - to build only the event loop extension (.SO)"
 	@echo "make aio       - to build only the ANSI I/O extension (.SO)"
@@ -108,11 +105,6 @@ jim-sdl-1.0.so:	jim-sdl.xo
 
 jim:	$(JIM_OBJECTS)
 	$(CC) $(LDFLAGS) -o jim $(JIM_OBJECTS) $(LIBS)
-
-libjim:	libjim.so
-
-libjim.so:	$(JIM_SRCS)
-	$(CC) $(LDFLAGS) -fpic -fPIC -shared -o libjim.so $(JIM_SRCS) $(LIBS)
 
 readline:	jim-readline-1.0.so
 posix:	jim-posix-1.0.so

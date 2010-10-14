@@ -7,7 +7,7 @@ CORE LANGUAGE FEATURES
 CORE COMMANDS
 
 - All the missing standard core commands not related to I/O, namespaces, ...
-- The current [expr] needs a lot of work, especially operators && and ||
+- The current [expr] needs a lot of work, expecially operators && and ||
   are not lazy. Math functions are not present but probably will never
   be added as expr functions, but as Tcl commands, like [sin], [cos] and
   so on.
@@ -70,7 +70,7 @@ IMPLEMENTATION ISSUES
   equivalent) handle in a list inside the interpreter structure. When
   the interpreter is freed all this handles should be closed with dlclose().
 - *AssocData() function should allow to specify a delProc C function like
-  in the Tcl API. When the interpreter is destroyed all the delProc functions
+  in the Tcl API. When the interpreter is destroied all the delProc functions
   should be called to free the memory before to free the interpreter.
 - Convert dicts from lists directly without to pass from the string repr.
 

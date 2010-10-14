@@ -118,8 +118,8 @@ To compile jim itself try:
 
   make jim
 
-On systems other than GNU/Linux, you may have to compile without "-ldl"
-because it's not needed, but will cause a compilation error (no configure for
+In non-linux systems you may have to complile without "-ldl" because
+it's not needed but will cause a compilation error (no configure for
 now... applications embedding Jim will probably have one already).
 
 In order to avoid to link against 'dl' just use:
@@ -165,14 +165,14 @@ You should see a notepad application running.
 ANSI-I/O, SQLITE
 ================
 
-There is documentation under the "doc" directory about the "ANSI I/O"
+There is documentation under the "doc" dictory about the "ANSI I/O"
 and "SQLITE" extensions.
 
 SDL
 ===
 
 The SDL extension is currently undocumented (work in progress), but
-there is enough to start to play. That's an example script:
+there is enought to start to play. That's an example script:
 
     package require sdl
 

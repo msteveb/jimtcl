@@ -90,7 +90,7 @@ proc array {subcmd arrayname args} {
 			return $list
 		}
 		unset {
-			foreach {key value} $name {
+			foreach {key value} $args {
 				if {[string match $pattern $key]} {
 					dict unset name $key
 				}
