@@ -88,6 +88,7 @@ submitting patches, you can verify that your changes didn't bring any
 regressions to the Jim. In order to do so, sample regression tests have
 been implemented. You can execute them by typing:
 
-	./jim test.tcl
+	cd tests
+	make
 
 All tests should succeed.
