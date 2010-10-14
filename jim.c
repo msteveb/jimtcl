@@ -3471,14 +3471,18 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newNa
 {
     Jim_HashEntry *he;
 
-    if (newName[0] == '\0')     /* Delete! */
-        return Jim_DeleteCommand(interp, oldName);
-    /* Rename */
+    /* Does it exist? */
     he = Jim_FindHashEntry(&interp->commands, oldName);
     if (he == NULL) {
-        Jim_SetResultFormatted(interp, "can't rename \"%s\": command doesn't exist", oldName);
+        Jim_SetResultFormatted(interp, "can't %s \"%s\": command doesn't exist",
+            newName[0] ? "rename" : "delete", oldName);
         return JIM_ERR;
     }
+
+    if (newName[0] == '\0')     /* Delete! */
+        return Jim_DeleteCommand(interp, oldName);
+
+    /* rename */
     if (Jim_FindHashEntry(&interp->commands, newName)) {
         Jim_SetResultFormatted(interp, "can't rename to \"%s\": command already exists", newName);
         return JIM_ERR;
