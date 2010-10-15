@@ -5,8 +5,6 @@
  *
  * Uses C library regcomp()/regexec() for the matching.
  *
- * The FreeBSD license
- * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

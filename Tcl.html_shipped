@@ -6328,10 +6328,6 @@ Copyright 2009 Steve Bennett &lt;steveb@workware.net.au&gt;</tt></pre>
 </div></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>The FreeBSD license</tt></pre>
-</div></div>
-<div class="literalblock">
-<div class="content">
 <pre><tt>Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
 are met:
@@ -6369,7 +6365,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-10-09 08:25:40 EST
+Last updated 2010-10-15 11:11:55 EST
 </div>
 </div>
 </body>

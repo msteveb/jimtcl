@@ -4301,8 +4301,6 @@ LICENCE
  Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
  Copyright 2009 Steve Bennett <steveb@workware.net.au>
  
- The FreeBSD license
- 
 [literal] 
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions

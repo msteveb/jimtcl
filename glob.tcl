@@ -1,9 +1,8 @@
-# (c) 2008 Steve Bennett <steveb@workware.net.au>
-#
 # Implements a Tcl-compatible glob command based on readdir
 #
-# This file is licenced under the FreeBSD license
-# See LICENCE in this directory for full details.
+# (c) 2008 Steve Bennett <steveb@workware.net.au>
+#
+# See LICENCE in this directory for licensing.
 
 
 # Implements the Tcl glob command

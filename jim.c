@@ -13,8 +13,6 @@
  * Copyright 2009 Zachary T Welch zw@superlucidity.net
  * Copyright 2009 David Brownell
  *
- * The FreeBSD license
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

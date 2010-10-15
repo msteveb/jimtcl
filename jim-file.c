@@ -1,10 +1,7 @@
-
 /* 
- * (c) 2008 Steve Bennett <steveb@workware.net.au>
- *
  * Implements the file command for jim
  *
- * The FreeBSD license
+ * (c) 2008 Steve Bennett <steveb@workware.net.au>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

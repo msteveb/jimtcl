@@ -9,8 +9,6 @@
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
  * 
- * The FreeBSD license
- * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
