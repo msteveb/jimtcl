@@ -551,7 +551,9 @@ proc mandel {xres yres infx infy supx supy} {
 
 if {[string compare [lindex $argv 0] "-batch"] == 0} {
     set batchmode 1
+    set argv [lrange $argv 1 end]
 }
+set ver [lindex $argv 0]
 
 bench {[while] busy loop} {whilebusyloop}
 bench {[for] busy loop} {forbusyloop}
@@ -574,7 +576,7 @@ bench {wiki.tcl.tk/8566} {commonsub_test}
 bench {mandel} {mandel 60 60 -2 -1.5 1 1.5}
 
 if {$batchmode} {
-    if {![info exists ver]} {
+    if {$ver == ""} {
         if {[catch {info patchlevel} ver]} {
             set ver Jim[info version]
         }
