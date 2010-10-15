@@ -59,7 +59,7 @@ install: all docs
 	install -d $(DESTDIR)/lib
 	install $(LIBJIM) $(DESTDIR)/lib
 	install -d $(DESTDIR)/include
-	install @SRCDIR@/jim-*.h $(DESTDIR)/include
+	install @SRCDIR@/jim.h @SRCDIR@/jim-*.h $(DESTDIR)/include
 	install jimautoconfext.h $(DESTDIR)/include/jimautoconf.h
 	install -d $(DESTDIR)/doc/jim
 	install Tcl.html $(DESTDIR)/doc/jim
