@@ -88,9 +88,9 @@ proc errorInfo {msg {stacktrace ""}} {
 	}
 	lassign $stacktrace p f l
 	if {$f ne ""} {
-		set result "$f:$l "
+		set result "Runtime Error: $f:$l: "
 	}
-	append result "Runtime Error: $msg\n"
+	append result "$msg\n"
 	append result [stackdump $stacktrace]
 
 	# Remove the trailing newline
