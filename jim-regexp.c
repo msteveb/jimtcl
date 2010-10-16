@@ -112,7 +112,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int opt_inline = 0;
     regex_t *regex;
     int match, i, j;
-    long offset = 0;
+    int offset = 0;
     regmatch_t *pmatch = NULL;
     int source_len;
     int result = JIM_OK;
@@ -151,7 +151,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (++i == argc) {
                 goto wrongNumArgs;
             }
-            if (Jim_GetLong(interp, argv[i], &offset) != JIM_OK) {
+            if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
                 return JIM_ERR;
             }
         }
@@ -200,6 +200,9 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * If it points past the end of the string, point to the terminating null
      */
     if (offset) {
+        if (offset < 0) {
+            offset += source_len + 1;
+        }
         if (offset > source_len) {
             source_str += source_len;
         }
@@ -318,7 +321,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int regcomp_flags = 0;
     int opt_all = 0;
-    long offset = 0;
+    int offset = 0;
     regex_t *regex;
     const char *p;
     int result;
@@ -355,7 +358,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (++i == argc) {
                 goto wrongNumArgs;
             }
-            if (Jim_GetLong(interp, argv[i], &offset) != JIM_OK) {
+            if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
+                printf("Failed getindex\n");
                 return JIM_ERR;
             }
         }
@@ -394,6 +398,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * If it points past the end of the string, point to the terminating null
      */
     if (offset) {
+        if (offset < 0) {
+            offset += source_len + 1;
+        }
         if (offset > source_len) {
             offset = source_len;
         }
