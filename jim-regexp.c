@@ -127,7 +127,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (argc < 3) {
       wrongNumArgs:
         Jim_WrongNumArgs(interp, 1, argv,
-            "?-nocase? ?-line? ?-indices? ?-start offset? ?-all? ?-inline? ?--? exp string ?matchVar? ?subMatchVar ...?");
+            "?switches? exp string ?matchVar? ?subMatchVar subMatchVar ...?");
         return JIM_ERR;
     }
 
@@ -190,8 +190,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             result = JIM_ERR;
             goto done;
         }
-        /* XXX: Ugly! */
-        num_vars = 100;
+        num_vars = regex->re_nsub + 1;
     }
 
     pmatch = Jim_Alloc((num_vars + 1) * sizeof(*pmatch));
@@ -209,6 +208,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else if (offset > 0) {
             source_str += offset;
         }
+        eflags |= REG_NOTBOL;
     }
 
     if (opt_inline) {
@@ -243,7 +243,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
 
     j = 0;
-    for (i += 2; opt_inline ? pmatch[j].rm_so != -1 : i < argc; i++, j++) {
+    for (i += 2; opt_inline ? j < num_vars : i < argc; i++, j++) {
         Jim_Obj *resultObj;
 
         if (opt_indices) {
@@ -290,10 +290,12 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
   try_next_match:
     if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
         if (pmatch[0].rm_eo) {
+            offset += pmatch[0].rm_eo;
             source_str += pmatch[0].rm_eo;
         }
         else {
             source_str++;
+            offset++;
         }
         if (*source_str) {
             eflags = REG_NOTBOL;
@@ -320,6 +322,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int regcomp_flags = 0;
+    int regexec_flags = 0;
     int opt_all = 0;
     int offset = 0;
     regex_t *regex;
@@ -340,7 +343,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (argc < 4) {
       wrongNumArgs:
         Jim_WrongNumArgs(interp, 1, argv,
-            "?-nocase? ?-all? ?-line? ?-start offset? ?--? exp string subSpec ?varName?");
+            "?switches? exp string subSpec ?varName?");
         return JIM_ERR;
     }
 
@@ -359,7 +362,6 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 goto wrongNumArgs;
             }
             if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
-                printf("Failed getindex\n");
                 return JIM_ERR;
             }
         }
@@ -420,8 +422,9 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
 
     n = source_len - offset;
-    for (p = source_str + offset; n;) {
-        int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, p == source_str ? 0 : REG_NOTBOL);
+    p = source_str + offset;
+    do {
+        int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, regexec_flags);
 
         if (match >= REG_BADPAT) {
             char buf[100];
@@ -483,12 +486,26 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         p += pmatch[0].rm_eo;
         n -= pmatch[0].rm_eo;
 
-        if (!opt_all || pmatch[0].rm_eo == 0 || pattern[0] == '^') {
-            /* If we are doing a single match, or we haven't moved with this match
-             * or this is an anchored match, we stop */
+        /* If -all is not specified, or there is no source left, we are done */
+        if (!opt_all || n == 0) {
             break;
         }
-    }
+
+        /* An anchored pattern without -line must be done */
+        if ((regcomp_flags & REG_NEWLINE) == 0 && pattern[0] == '^') {
+            break;
+        }
+
+        /* If the pattern is empty, need to step forwards */
+        if (pattern[0] == '\0' && n) {
+            /* Need to copy the char we are moving over */
+            Jim_AppendString(interp, resultObj, p, 1);
+            p++;
+            n--;
+        }
+        
+        regexec_flags |= REG_NOTBOL;
+    } while (n);
 
     /*
      * Copy the portion of the string after the last match to the
