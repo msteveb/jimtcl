@@ -123,6 +123,13 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *resultListObj = NULL;
     int regcomp_flags = 0;
     int eflags = 0;
+    int option;
+    enum {
+        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_END
+    };
+    static const char const *options[] = {
+        "-indices", "-nocase", "-line", "-all", "-inline", "-start", "--", NULL
+    };
 
     if (argc < 3) {
       wrongNumArgs:
@@ -132,41 +139,47 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     for (i = 1; i < argc; i++) {
-        if (Jim_CompareStringImmediate(interp, argv[i], "-indices")) {
-            opt_indices = 1;
+        const char *opt = Jim_GetString(argv[i], NULL);
+
+        if (*opt != '-') {
+            break;
         }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-nocase")) {
-            regcomp_flags |= REG_ICASE;
+        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+            return JIM_ERR;
         }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-line")) {
-            regcomp_flags |= REG_NEWLINE;
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-all")) {
-            opt_all = 1;
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-inline")) {
-            opt_inline = 1;
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-start")) {
-            if (++i == argc) {
-                goto wrongNumArgs;
-            }
-            if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
-                return JIM_ERR;
-            }
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "--")) {
+        if (option == OPT_END) {
             i++;
             break;
         }
-        else {
-            const char *opt = Jim_GetString(argv[i], NULL);
+        switch (option) {
+            case OPT_INDICES:
+                opt_indices = 1;
+                break;
 
-            if (*opt == '-') {
-                /* Bad option */
-                goto wrongNumArgs;
-            }
-            break;
+            case OPT_NOCASE:
+                regcomp_flags |= REG_ICASE;
+                break;
+
+            case OPT_LINE:
+                regcomp_flags |= REG_NEWLINE;
+                break;
+
+            case OPT_ALL:
+                opt_all = 1;
+                break;
+
+            case OPT_INLINE:
+                opt_inline = 1;
+                break;
+
+            case OPT_START:
+                if (++i == argc) {
+                    goto wrongNumArgs;
+                }
+                if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                break;
         }
     }
     if (argc - i < 2) {
@@ -339,6 +352,13 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *replace_str;
     int replace_len;
     const char *pattern;
+    int option;
+    enum {
+        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_END
+    };
+    static const char const *options[] = {
+        "-nocase", "-line", "-all", "-start", "--", NULL
+    };
 
     if (argc < 4) {
       wrongNumArgs:
@@ -348,35 +368,39 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     for (i = 1; i < argc; i++) {
-        if (Jim_CompareStringImmediate(interp, argv[i], "-nocase")) {
-            regcomp_flags |= REG_ICASE;
+        const char *opt = Jim_GetString(argv[i], NULL);
+
+        if (*opt != '-') {
+            break;
         }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-line")) {
-            regcomp_flags |= REG_NEWLINE;
+        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+            return JIM_ERR;
         }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-all")) {
-            opt_all = 1;
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "-start")) {
-            if (++i == argc) {
-                goto wrongNumArgs;
-            }
-            if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
-                return JIM_ERR;
-            }
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[i], "--")) {
+        if (option == OPT_END) {
             i++;
             break;
         }
-        else {
-            const char *opt = Jim_GetString(argv[i], NULL);
+        switch (option) {
+            case OPT_NOCASE:
+                regcomp_flags |= REG_ICASE;
+                break;
 
-            if (*opt == '-') {
-                /* Bad option */
-                goto wrongNumArgs;
-            }
-            break;
+            case OPT_LINE:
+                regcomp_flags |= REG_NEWLINE;
+                break;
+
+            case OPT_ALL:
+                opt_all = 1;
+                break;
+
+            case OPT_START:
+                if (++i == argc) {
+                    goto wrongNumArgs;
+                }
+                if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                break;
         }
     }
     if (argc - i != 3 && argc - i != 4) {
