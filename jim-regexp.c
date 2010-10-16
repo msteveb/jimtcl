@@ -122,6 +122,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int num_vars;
     Jim_Obj *resultListObj = NULL;
     int regcomp_flags = 0;
+    int eflags = 0;
 
     if (argc < 3) {
       wrongNumArgs:
@@ -212,7 +213,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
   next_match:
-    match = regexec(regex, source_str, num_vars + 1, pmatch, 0);
+    match = regexec(regex, source_str, num_vars + 1, pmatch, eflags);
     if (match >= REG_BADPAT) {
         char buf[100];
 
@@ -284,7 +285,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
   try_next_match:
-    if (opt_all && pattern[0] != '^' && *source_str) {
+    if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
         if (pmatch[0].rm_eo) {
             source_str += pmatch[0].rm_eo;
         }
@@ -292,6 +293,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             source_str++;
         }
         if (*source_str) {
+            eflags = REG_NOTBOL;
             goto next_match;
         }
     }
@@ -412,7 +414,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     n = source_len - offset;
     for (p = source_str + offset; n;) {
-        int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, 0);
+        int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, p == source_str ? 0 : REG_NOTBOL);
 
         if (match >= REG_BADPAT) {
             char buf[100];
