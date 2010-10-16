@@ -37,7 +37,7 @@ endif
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o @EXTRA_OBJS@
+OBJS := jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o @EXTRA_OBJS@
 
 JIMSH := jimsh@EXEEXT@
 

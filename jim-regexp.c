@@ -47,9 +47,9 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <regex.h>
 
 #include "jim.h"
+#include "jimregexp.h"
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {

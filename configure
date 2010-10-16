@@ -690,6 +690,7 @@ with_jim_extmod
 with_jim_shared
 enable_shared
 enable_static
+with_jim_regexp
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1370,6 +1371,7 @@ Optional Packages:
        Note that not all extensions can be built as loadable modules.
 
   --with-jim-shared       build a shared library instead of a static library
+  --with-jim-regexp       use the built-in (Tcl-compatible) regexp, even if POSIX regex is available
 
 Some influential environment variables:
   CC          C compiler command
@@ -3735,6 +3737,18 @@ if test "${enable_static+set}" = set; then :
 fi
 
 JIM_LIBTYPE=$JIM_LIBTYPE
+
+
+
+# Check whether --with-jim-regexp was given.
+if test "${with_jim_regexp+set}" = set; then :
+  withval=$with_jim_regexp;
+		if test "x$withval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
+		fi
+
+
+fi
 
 
 for ac_header in sys/un.h dlfcn.h

@@ -190,6 +190,15 @@ AC_ARG_ENABLE(static,
 )
 AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 
+AC_ARG_WITH(jim-regexp,
+	[  --with-jim-regexp       use the built-in (Tcl-compatible) regexp, even if POSIX regex is available],
+	[
+		if test "x$withval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_REGEXP"
+		fi
+	]
+)
+
 AC_CHECK_HEADERS([sys/un.h dlfcn.h])
 
 AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
