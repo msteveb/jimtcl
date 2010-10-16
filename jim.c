@@ -1177,11 +1177,8 @@ static int JimParseCmd(struct JimParserCtx *pc)
     pc->tstart = ++pc->p;
     pc->len--;
     pc->tline = pc->linenr;
-    while (1) {
-        if (pc->len == 0) {
-            break;
-        }
-        else if (*pc->p == '[' && blevel == 0) {
+    while (pc->len) {
+        if (*pc->p == '[' && blevel == 0) {
             level++;
         }
         else if (*pc->p == ']' && blevel == 0) {
@@ -1189,7 +1186,7 @@ static int JimParseCmd(struct JimParserCtx *pc)
             if (!level)
                 break;
         }
-        else if (*pc->p == '\\') {
+        else if (*pc->p == '\\' && pc->len > 1) {
             pc->p++;
             pc->len--;
             if (*pc->p == '\n')
