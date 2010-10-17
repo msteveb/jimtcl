@@ -94,6 +94,9 @@ int main(int argc, char *const argv[])
         if (argc > 2 && strcmp(argv[1], "-e") == 0) {
             JimSetArgv(interp, argc - 3, argv + 3);
             retcode = Jim_Eval(interp, argv[2]);
+            if (retcode != JIM_ERR) {
+                printf("%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+            }
         }
         else {
             Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));

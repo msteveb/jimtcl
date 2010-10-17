@@ -1,0 +1,35 @@
+source testing.tcl
+
+# Test regexp counted repetitions
+
+set n 0
+foreach {pat str exp} {
+	a+ bac 1
+	a{1,} bac 1
+	a* bac 1
+	a{0,} bac 1
+	aa+ bac 0
+	a{2,} bac 0
+	a{2,} bacaad 1
+	a{3,} bacaad 0
+	a{2,}$ bacaad 0
+	a{2,}$ bacaa 1
+	a{2,}$ ba 0
+	a{2,}$ aa 1
+	a{0,0}b$ b 1
+	a{1,1}b$ b 0
+	a{1,1}b$ cab 1
+	a{2,2}b$ cab 0
+	a{2,2}b$ cabaabx 0
+	a{2,2}b$ cacaab 1
+	ca{2,4}b cacaab 1
+	ca{2,3}b cacaab 1
+	ca{2,3}b cacaaab 1
+	c(a|b){2,3}d xcbad 1
+	c(a|b){2,3}d xcabbd 1
+	c(a|b){2,3}d xcbaaad 0
+} {
+	test regcount-1.[incr n] "Test: regexp $pat" [list regexp -- $pat $str] $exp
+}
+
+testreport

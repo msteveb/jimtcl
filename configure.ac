@@ -78,7 +78,8 @@ AC_ARG_ENABLE(utf8,
 	[  --enable-utf8           include support for utf8-encoded strings],
 	[
 		if test "x$enableval" = "xyes" ; then
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8"
+			dnl Note that utf-8 support requires the built-in regexp
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
 		fi
 	]
 )

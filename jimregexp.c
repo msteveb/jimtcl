@@ -40,6 +40,9 @@
  *** seiwald@perforce.com, on 05 November 2002, to const string literals.
  *** THIS IS AN ALTERED VERSION.  It was altered by Steve Bennett <steveb@workware.net.au>
  *** on 16 October 2010, to remove static state and add better Tcl ARE compatibility.
+ *** This includes counted repetitions, UTF-8 support, character classes,
+ *** shorthand character classes, increased number of parentheses to 100,
+ *** backslash escape sequences.
  *
  * Beware that some of this code is subtly aware of the way operator
  * precedence is structured in regular expressions.  Serious changes in
@@ -52,6 +55,7 @@
 
 #include "jim.h"
 #include "jimregexp.h"
+#include "utf8.h"
 
 #if !defined(HAVE_REGCOMP) || defined(JIM_REGEXP)
 
@@ -98,7 +102,7 @@
  * The first byte of the regexp internal "program" is actually this magic
  * number; the start node begins in the second byte.
  */
-#define	REG_MAGIC	0234
+#define	REG_MAGIC	0xFADED00D
 
 /*
  * Opcode notes:
@@ -132,9 +136,9 @@
  * Using two bytes for the "next" pointer is vast overkill for most things,
  * but allows patterns to get big without disasters.
  */
-#define	OP(p)	((unsigned char)*(p))
-#define	NEXT(p)	(((*((p)+1)&0377)<<8) + (*((p)+2)&0377))
-#define	OPERAND(p)	((p) + 3)
+#define	OP(p)	((p)[0])
+#define	NEXT(p)	((p)[1])
+#define	OPERAND(p)	((p) + 2)
 
 /*
  * See regmagic.h for one further detail of program structure.
@@ -144,14 +148,11 @@
 /*
  * Utility definitions.
  */
-#ifndef CHARBITS
-#define	UCHARAT(p)	((int)*(unsigned char *)(p))
-#else
-#define	UCHARAT(p)	((int)*(p)&CHARBITS)
-#endif
+//#define	UCHARAT(p)	(*(p))
 
 #define	FAIL(R,M)	{ (R)->err = (M); return (M); }
-#define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?')
+#define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?' || (c) == '{')
+#define	META	"^$.[()|?{+*"
 
 /*
  * Flags to be passed up and down.
@@ -164,28 +165,42 @@
 /*
  * Forward declarations for regcomp()'s friends.
  */
-static char *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp );
-static char *regpiece(regex_t *preg, int *flagp );
-static char *regbranch(regex_t *preg, int *flagp );
-static char *regatom(regex_t *preg, int *flagp );
-static char *regnode(regex_t *preg, int op );
-static const char *regnext(regex_t *preg, const char *p );
+static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp );
+static int *regpiece(regex_t *preg, int *flagp );
+static int *regbranch(regex_t *preg, int *flagp );
+static int *regatom(regex_t *preg, int *flagp );
+static int *regnode(regex_t *preg, int op );
+static const int *regnext(regex_t *preg, const int *p );
 static void regc(regex_t *preg, int b );
-static void reginsert(regex_t *preg, char op, char *opnd );
-static void regtail(regex_t *preg, char *p, const char *val );
-static void regoptail(regex_t *preg, char *p, const char *val );
+static int *reginsert(regex_t *preg, int op, int *opnd );
+static void regtail(regex_t *preg, int *p, const int *val );
+static void regoptail(regex_t *preg, int *p, const int *val );
 
-static const char *str_find(const char *string, char c, int nocase);
+static int reg_range_find(const int *string, int c, int nocase);
+static const char *str_find(const char *string, int c, int nocase);
+static int prefix_cmp(const int *prog, int proglen, const char *string, int nocase);
 
 /*#define DEBUG*/
 #ifdef DEBUG
 int regnarrate = 0;
 static void regdump(regex_t *preg);
-static const char *regprop( const char *op );
+static const char *regprop( const int *op );
 #endif
 
 
-static char regdummy;
+static int regdummy;
+
+/**
+ * Returns the length of the null-terminated integer sequence.
+ */
+static int str_int_len(const int *seq)
+{
+	int n = 0;
+	while (*seq++) {
+		n++;
+	}
+	return n;
+}
 
 /*
  - regcomp - compile a regular expression into internal code
@@ -204,8 +219,8 @@ static char regdummy;
  */
 int regcomp(regex_t *preg, const char *exp, int cflags)
 {
-	const char *scan;
-	const char *longest;
+	const int *scan;
+	const int *longest;
 	unsigned len;
 	int flags;
 
@@ -215,12 +230,9 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 		FAIL(preg, REG_ERR_NULL_ARGUMENT);
 
 	/* First pass: determine size, legality. */
-#ifdef notdef
-	if (exp[0] == '.' && exp[1] == '*') exp += 2;  /* aid grep */
-#endif
 	preg->cflags = cflags;
-	preg->regparse = (char *)exp;
-	preg->re_nsub = 1;
+	preg->regparse = exp;
+	preg->re_nsub = 0;
 	preg->regsize = 0L;
 	preg->regcode = &regdummy;
 	regc(preg, REG_MAGIC);
@@ -232,20 +244,21 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 		FAIL(preg,REG_ERR_TOO_BIG);
 
 	/* Allocate space. */
-	preg->program = malloc(preg->regsize);
+	preg->program = malloc(preg->regsize * sizeof(*preg->program));
 	if (preg->program == NULL)
 		FAIL(preg, REG_ERR_NOMEM);
 
 	/* Second pass: emit code. */
-	preg->regparse = (char *)exp;
-	preg->re_nsub = 1;
+	preg->regparse = exp;
+	preg->re_nsub = 0;
+	preg->regsize = 0L;
 	preg->regcode = preg->program;
 	regc(preg, REG_MAGIC);
 	if (reg(preg, 0, &flags) == NULL)
 		return preg->err;
 
 	/* Dig out information for optimizations. */
-	preg->regstart = '\0';	/* Worst-case defaults. */
+	preg->regstart = 0;	/* Worst-case defaults. */
 	preg->reganch = 0;
 	preg->regmust = NULL;
 	preg->regmlen = 0;
@@ -270,18 +283,22 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 		if (flags&SPSTART) {
 			longest = NULL;
 			len = 0;
-			for (; scan != NULL; scan = regnext(preg, scan))
-				if (OP(scan) == EXACTLY && strlen(OPERAND(scan)) >= len) {
-					longest = OPERAND(scan);
-					len = strlen(OPERAND(scan));
+			for (; scan != NULL; scan = regnext(preg, scan)) {
+				if (OP(scan) == EXACTLY) {
+					int plen = str_int_len(OPERAND(scan));
+					if (plen >= len) {
+						longest = OPERAND(scan);
+						len = plen;
+					}
 				}
+			}
 			preg->regmust = longest;
 			preg->regmlen = len;
 		}
 	}
 
 #ifdef DEBUG
-	/*regdump(preg);*/
+	regdump(preg);
 #endif
 
 	return 0;
@@ -296,11 +313,11 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
  * is a trifle forced, but the need to tie the tails of the branches to what
  * follows makes it hard to avoid.
  */
-static char *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
+static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 {
-	char *ret;
-	char *br;
-	const char *ender;
+	int *ret;
+	int *br;
+	const int *ender;
 	int parno = 0;
 	int flags;
 
@@ -308,7 +325,7 @@ static char *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 
 	/* Make an OPEN node, if parenthesized. */
 	if (paren) {
-		parno = preg->re_nsub++;
+		parno = ++preg->re_nsub;
 		ret = regnode(preg, OPEN+parno);
 	} else
 		ret = NULL;
@@ -340,7 +357,7 @@ static char *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 	regtail(preg, ret, ender);
 
 	/* Hook the tails of the branches to the closing node. */
-	for (br = ret; br != NULL; br = (char *)regnext(preg, br))
+	for (br = ret; br != NULL; br = (int *)regnext(preg, br))
 		regoptail(preg, br, ender);
 
 	/* Check for proper termination. */
@@ -365,11 +382,11 @@ static char *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
  *
  * Implements the concatenation operator.
  */
-static char *regbranch(regex_t *preg, int *flagp )
+static int *regbranch(regex_t *preg, int *flagp )
 {
-	char *ret;
-	char *chain;
-	char *latest;
+	int *ret;
+	int *chain;
+	int *latest;
 	int flags;
 
 	*flagp = WORST;		/* Tentatively. */
@@ -382,16 +399,43 @@ static char *regbranch(regex_t *preg, int *flagp )
 		if (latest == NULL)
 			return(NULL);
 		*flagp |= flags&HASWIDTH;
-		if (chain == NULL)	/* First piece. */
+		if (chain == NULL) {/* First piece. */
 			*flagp |= flags&SPSTART;
-		else
+		}
+		else {
 			regtail(preg, chain, latest);
+		}
 		chain = latest;
 	}
 	if (chain == NULL)	/* Loop ran zero times. */
 		(void) regnode(preg, NOTHING);
 
 	return(ret);
+}
+
+/**
+ * Duplicates the program at 'pos' of length 'len' at the end of the program.
+ * 
+ * If 'maketail' is set, the next point for 'pos' is set to skip to the next
+ * part of the program after 'pos'.
+ */
+static int *regdup(regex_t *preg, int *pos, int len, int maketail)
+{
+	int i;
+
+	preg->regsize += len;
+
+	if (preg->regcode == &regdummy) {
+		return pos;
+	}
+
+	for (i = 0; i < len; i++) {
+		regc(preg, pos[i]);
+	}
+	if (maketail) {
+		regtail(preg, pos, pos + len);
+	}
+	return preg->regcode - len;
 }
 
 /*
@@ -403,16 +447,20 @@ static char *regbranch(regex_t *preg, int *flagp )
  * It might seem that this node could be dispensed with entirely, but the
  * endmarker role is not redundant.
  */
-static char *regpiece(regex_t *preg, int *flagp )
+static int *regpiece(regex_t *preg, int *flagp)
 {
-	char *ret;
+	int *ret;
 	char op;
-	char *next;
+	int *next;
 	int flags;
+	int size = preg->regsize;
+	int *chain = NULL;
 
 	ret = regatom(preg, &flags);
 	if (ret == NULL)
 		return(NULL);
+
+	size = preg->regsize - size;
 
 	op = *preg->regparse;
 	if (!ISMULT(op)) {
@@ -425,6 +473,103 @@ static char *regpiece(regex_t *preg, int *flagp )
 		return NULL;
 	}
 	*flagp = (op != '+') ? (WORST|SPSTART) : (WORST|HASWIDTH);
+
+	/* Handle braces (counted repetition) by expansion */
+	if (op == '{') {
+		int min = 0;
+		int max = 0;
+		char *end;
+
+		min = strtoul(preg->regparse + 1, &end, 10);
+		if (end == preg->regparse + 1) {
+			if (*end == ',') {
+				min = 0;
+			}
+			else {
+				preg->err = REG_ERR_BAD_COUNT;
+				return NULL;
+			}
+		}
+		preg->regparse = end;
+		max = strtoul(preg->regparse + 1, &end, 10);
+		if (*end != '}') {
+			preg->err = REG_ERR_UNMATCHED_BRACES;
+			return NULL;
+		}
+		if (end == preg->regparse + 1) {
+			max = -1;
+		}
+		else if (max < min || max >= 100) {
+			preg->err = REG_ERR_BAD_COUNT;
+			return NULL;
+		}
+		if (min >= 100) {
+			preg->err = REG_ERR_BAD_COUNT;
+			return NULL;
+		}
+
+		preg->regparse = strchr(preg->regparse, '}');
+
+		/* By default, chain to the start of the sequence */
+		chain = ret;
+
+		if (max < 0 || max == min) {
+			/* Simple case */
+			if (max == min) {
+				if (min == 0) {
+					/* {0,0} so do nothing at all */
+					reginsert(preg, NOTHING, ret);
+					preg->regparse++;
+					return ret;
+				}
+				/* Output 'min - 1' instances of 'x' */
+				min--;
+				op = 0;
+			}
+			else {
+				/* {n,} is just xxxx* */
+				op = '*';
+				/* No - chain to the tail of the sequence */
+				chain = NULL;
+			}
+
+			/* We need to duplicate the arg 'min' times */
+			while (min--) {
+				ret = regdup(preg, ret, size, 1);
+			}
+		}
+		else {
+			/* Complex case */
+			int i;
+
+			/* Chaining is needed */
+
+			/* Need to emit some min args first */
+			for (i = 0; i < min; i++) {
+				ret = regdup(preg, ret, size, 1);
+			}
+
+			for (i = min; i < max; i++) {
+				/* Emit x */
+				/* There is already one instance of 'reg' at the end */
+				/* Add another 'reg' at the end */
+				int *prog;
+
+				/* Convert to (x|), just like ? */
+				prog = reginsert(preg, BRANCH, ret);			/* Either x */
+				regtail(preg, ret, regnode(preg, BRANCH));		/* or */
+				next = regnode(preg, NOTHING);		/* null. */
+				regtail(preg, ret, next);
+				regoptail(preg, ret, next);
+
+				/* Now grab a copy ready for the next iteration */
+				if (i != max - 1) {
+					ret = regdup(preg, prog, size, 0);
+				}
+			}
+			op = 0;
+		}
+	}
 
 	if (op == '*' && (flags&SIMPLE))
 		reginsert(preg, STAR, ret);
@@ -458,24 +603,127 @@ static char *regpiece(regex_t *preg, int *flagp )
 		return NULL;
 	}
 
-	return(ret);
+	return chain ? chain : ret;
 }
 
+/**
+ * Add all characters in the inclusive range between lower and upper.
+ * 
+ * Handles a swapped range (upper < lower).
+ */
 static void reg_addrange(regex_t *preg, int lower, int upper)
 {
 	if (lower > upper) {
 		reg_addrange(preg, upper, lower);
 	}
-	while (lower <= upper) {
-		regc(preg, lower++);
+	/* Add a range as length, start */
+	regc(preg, upper - lower + 1);
+	regc(preg, lower);
+}
+
+/**
+ * Add a null-terminated literal string as a set of ranges.
+ */
+static void reg_addrange_str(regex_t *preg, const char *str)
+{
+	while (*str) {
+		reg_addrange(preg, *str, *str);
+		str++;
 	}
 }
 
-static void reg_addstr(regex_t *preg, const char *str)
+/**
+ * Extracts the next unicode char from utf8.
+ * 
+ * If 'upper' is set, converts the char to uppercase.
+ */
+static int utf8_tounicode_case(const char *s, int *uc, int upper)
 {
-	while (*str) {
-		regc(preg, *str++);
+	int l = utf8_tounicode(s, uc);
+	if (upper) {
+		*uc = utf8_upper(*uc);
 	}
+	return l;
+}
+
+/**
+ * Converts a hex digit to decimal.
+ * 
+ * Returns -1 for an invalid hex digit.
+ */
+static int xdigitval(int c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	return -1;
+}
+
+/**
+ * Parses up to 'n' hex digits at 's' and stores the result in *uc.
+ *
+ * Returns the number of hex digits parsed.
+ * If there are no hex digits, returns 0 and stores nothing.
+ */
+static int parse_hex(const char *s, int n, int *uc)
+{
+	int val = 0;
+	int k;
+
+	for (k = 0; k < n; k++) {
+		int c = xdigitval(*s++);
+		if (c == -1) {
+			break;
+		}
+		val = (val << 4) | c;
+	}
+	if (k) {
+		*uc = val;
+	}
+	return k;
+}
+
+/**
+ * Call for chars after a backlash to decode the escape sequence.
+ * 
+ * Stores the result in *ch.
+ *
+ * Returns the number of bytes consumed.
+ */
+static int reg_decode_escape(const char *s, int *ch)
+{
+	int n;
+	const char *s0 = s;
+
+	*ch = *s++;
+
+	switch (*ch) {
+		case 'b': *ch = '\b'; break;
+		case 'e': *ch = 27; break;
+		case 'f': *ch = '\f'; break;
+		case 'n': *ch = '\n'; break;
+		case 'r': *ch = '\r'; break;
+		case 't': *ch = '\t'; break;
+		case 'v': *ch = '\v'; break;
+		case 'u':
+			if ((n = parse_hex(s, 4, ch)) > 0) {
+				s += n;
+			}
+			break;
+		case 'x':
+			if ((n = parse_hex(s, 2, ch)) > 0) {
+				s += n;
+			}
+			break;
+		case '\0':
+			s--;
+			*ch = '\\';
+			break;
+	}
+	return s - s0;
 }
 
 /*
@@ -486,14 +734,19 @@ static void reg_addstr(regex_t *preg, const char *str)
  * faster to run.  Backslashed characters are exceptions, each becoming a
  * separate node; the code is simpler that way and it's not worth fixing.
  */
-static char *regatom(regex_t *preg, int *flagp )
+static int *regatom(regex_t *preg, int *flagp)
 {
-	char *ret;
+	int *ret;
 	int flags;
+	int nocase = (preg->cflags & REG_ICASE);
+
+	int ch;
+	int n = utf8_tounicode_case(preg->regparse, &ch, nocase);
 
 	*flagp = WORST;		/* Tentatively. */
 
-	switch (*preg->regparse++) {
+	preg->regparse += n;
+	switch (ch) {
 	/* FIXME: these chars only have meaning at beg/end of pat? */
 	case '^':
 		ret = regnode(preg, BOL);
@@ -506,41 +759,82 @@ static char *regatom(regex_t *preg, int *flagp )
 		*flagp |= HASWIDTH|SIMPLE;
 		break;
 	case '[': {
-			if (*preg->regparse == '^') {	/* Complement of range. */
+			const char *pattern = preg->regparse;
+
+			if (*pattern == '^') {	/* Complement of range. */
 				ret = regnode(preg, ANYBUT);
-				preg->regparse++;
+				pattern++;
 			} else
 				ret = regnode(preg, ANYOF);
-			if (*preg->regparse == ']' || *preg->regparse == '-')
-				regc(preg, *preg->regparse++);
-			while (*preg->regparse != '\0' && *preg->regparse != ']') {
-				if (*preg->regparse == '-') {
-					preg->regparse++;
-					if (*preg->regparse == ']' || *preg->regparse == '\0')
-						regc(preg, '-');
-					else {
-						reg_addrange(preg, UCHARAT(preg->regparse-2), UCHARAT(preg->regparse));
-						preg->regparse++;
+
+			/* Special case. If the first char is ']' or '-', it is part of the set */
+			if (*pattern == ']' || *pattern == '-') {
+				reg_addrange(preg, *pattern, *pattern);
+				pattern++;
+			}
+
+			while (*pattern && *pattern != ']') {
+				/* Is this a range? a-z */
+				int start;
+				int end;
+
+				pattern += utf8_tounicode_case(pattern, &start, nocase);
+				if (start == '\\') {
+					pattern += reg_decode_escape(pattern, &start);
+					if (start == 0) {
+						preg->err = REG_ERR_NULL_CHAR;
+						return NULL;
 					}
-				} else if (strncmp(preg->regparse, "[:alpha:]", 9) == 0) {
-					reg_addrange(preg,'a','z');
-					reg_addrange(preg,'A','Z');
-					preg->regparse += 9;
-				} else if (strncmp(preg->regparse, "[:alnum:]", 9) == 0) {
-					reg_addrange(preg,'a','z');
-					reg_addrange(preg,'A','Z');
-					reg_addrange(preg,'0','9');
-					preg->regparse += 9;
-				} else if (strncmp(preg->regparse, "[:space:]", 9) == 0) {
-					reg_addstr(preg," \t\r\n\f\v");
-					preg->regparse += 9;
-				} else
-					regc(preg, *preg->regparse++);
+				}
+				if (pattern[0] == '-' && pattern[1]) {
+					/* skip '-' */
+					pattern += utf8_tounicode(pattern, &end);
+					pattern += utf8_tounicode_case(pattern, &end, nocase);
+					if (end == '\\') {
+						pattern += reg_decode_escape(pattern, &end);
+						if (end == 0) {
+							preg->err = REG_ERR_NULL_CHAR;
+							return NULL;
+						}
+					}
+
+					reg_addrange(preg, start, end);
+					continue;
+				}
+				if (start == '[') {
+					if (strncmp(pattern, ":alpha:]", 8) == 0) {
+						if ((preg->cflags & REG_ICASE) == 0) {
+							reg_addrange(preg, 'a', 'z');
+						}
+						reg_addrange(preg, 'A', 'Z');
+						pattern += 8;
+						continue;
+					}
+					if (strncmp(pattern, ":alnum:]", 8) == 0) {
+						if ((preg->cflags & REG_ICASE) == 0) {
+							reg_addrange(preg, 'a', 'z');
+						}
+						reg_addrange(preg, 'A', 'Z');
+						reg_addrange(preg, '0', '9');
+						pattern += 8;
+						continue;
+					}
+					if (strncmp(pattern, ":space:]", 8) == 0) {
+						reg_addrange_str(preg, " \t\r\n\f\v");
+						pattern += 8;
+						continue;
+					}
+				}
+				/* Not a range, so just add the char */
+				reg_addrange(preg, start, start);
 			}
 			regc(preg, '\0');
-			if (*preg->regparse == ']') {
-				preg->regparse++;
+
+			if (*pattern) {
+				pattern++;
 			}
+			preg->regparse = pattern;
+
 			*flagp |= HASWIDTH|SIMPLE;
 		}
 		break;
@@ -559,10 +853,8 @@ static char *regatom(regex_t *preg, int *flagp )
 	case '?':
 	case '+':
 	case '*':
-		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
-		return NULL;
 	case '{':
-		preg->err = REG_ERR_COUNT_UNSUPPORTED;
+		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
 		return NULL;
 	case '\\':
 		switch (*preg->regparse++) {
@@ -571,9 +863,11 @@ static char *regatom(regex_t *preg, int *flagp )
 			return NULL;
 			break;
 		case '<':
+		case 'm':
 			ret = regnode(preg, WORDA);
 			break;
 		case '>':
+		case 'M':
 			ret = regnode(preg, WORDZ);
 			break;
 		case 'd':
@@ -584,103 +878,97 @@ static char *regatom(regex_t *preg, int *flagp )
 			break;
 		case 'w':
 			ret = regnode(preg, ANYOF);
-			reg_addrange(preg, 'a', 'z');
+			if ((preg->cflags & REG_ICASE) == 0) {
+				reg_addrange(preg, 'a', 'z');
+			}
 			reg_addrange(preg, 'A', 'Z');
 			reg_addrange(preg, '0', '9');
-			regc(preg, '_');
+			reg_addrange(preg, '_', '_');
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		case 's':
 			ret = regnode(preg, ANYOF);
-			reg_addstr(preg," \t\r\n\f\v");
+			reg_addrange_str(preg," \t\r\n\f\v");
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		/* FIXME: Someday handle \1, \2, ... */
 		default:
 			/* Handle general quoted chars in exact-match routine */
+			/* Back up to include the backslash */
+			preg->regparse--;
 			goto de_fault;
 		}
 		break;
 	de_fault:
-	default:
-		/*
-		 * Encode a string of characters to be matched exactly.
-		 *
-		 * This is a bit tricky due to quoted chars and due to
-		 * '*', '+', and '?' taking the SINGLE char previous
-		 * as their operand.
-		 *
-		 * On entry, the char at regparse[-1] is going to go
-		 * into the string, no matter what it is.  (It could be
-		 * following a \ if we are entered from the '\' case.)
-		 * 
-		 * Basic idea is to pick up a good char in  ch  and
-		 * examine the next char.  If it's *+? then we twiddle.
-		 * If it's \ then we frozzle.  If it's other magic char
-		 * we push  ch  and terminate the string.  If none of the
-		 * above, we push  ch  on the string and go around again.
-		 *
-		 *  regprev  is used to remember where "the current char"
-		 * starts in the string, if due to a *+? we need to back
-		 * up and put the current char in a separate, 1-char, string.
-		 * When  regprev  is NULL,  ch  is the only char in the
-		 * string; this is used in *+? handling, and in setting
-		 * flags |= SIMPLE at the end.
-		 */
-		{
-			const char *regprev;
-			char ch;
+	default: {
+			/*
+			 * Encode a string of characters to be matched exactly.
+			 */
+			int added = 0;
 
-			preg->regparse--;			/* Look at cur char */
+			/* Back up to pick up the first char of interest */
+			preg->regparse -= n;
+
 			ret = regnode(preg, EXACTLY);
-			for ( regprev = 0 ; ; ) {
-				ch = *preg->regparse++;	/* Get current char */
-				switch (*preg->regparse) {	/* look at next one */
 
-				default:
-					regc(preg, ch);	/* Add cur to string */
-					break;
+			/* Note that a META operator such as ? or * consumes the
+			 * preceding char.
+			 * Thus we must be careful to look ahead by 2 and add the
+			 * last char as it's own EXACTLY if necessary
+			 */
 
-				case '.': case '[': case '(':
-				case ')': case '|': case '\n':
-				case '$': case '^':
-				case '\0':
-				/* FIXME, $ and ^ should not always be magic */
-				magic:
-					regc(preg, ch);	/* dump cur char */
-					goto done;	/* and we are done */
-
-				case '?': case '+': case '*':
-					if (!regprev) 	/* If just ch in str, */
-						goto magic;	/* use it */
-					/* End mult-char string one early */
-					preg->regparse = regprev; /* Back up parse */
-					goto done;
-
-				case '\\':
-					regc(preg, ch);	/* Cur char OK */
-					switch (preg->regparse[1]){ /* Look after \ */
-					case '\0':
-					case '<':
-					case '>':
-					/* FIXME: Someday handle \1, \2, ... */
-						goto done; /* Not quoted */
-					default:
-						/* Backup point is \, scan							 * point is after it. */
-						regprev = preg->regparse;
-						preg->regparse++; 
-						continue;	/* NOT break; */
+			/* Until end of string or a META char is reached */
+			while (*preg->regparse && strchr(META, *preg->regparse) == NULL) {
+				n = utf8_tounicode_case(preg->regparse, &ch, (preg->cflags & REG_ICASE));
+				if (ch == '\\' && preg->regparse[n]) {
+					/* Non-trailing backslash.
+					 * Is this a special escape, or a regular escape?
+					 */
+					if (strchr("<>mMwds", preg->regparse[n])) {
+						/* A special escape. All done with EXACTLY */
+						break;
+					}
+					/* Decode it. Note that we add the length for the escape
+					 * sequence to the length for the backlash so we can skip
+					 * the entire sequence, or not as required.
+					 */
+					n += reg_decode_escape(preg->regparse + n, &ch);
+					if (ch == 0) {
+						preg->err = REG_ERR_NULL_CHAR;
+						return NULL;
 					}
 				}
-				regprev = preg->regparse;	/* Set backup point */
+
+				/* Now we have one char 'ch' of length 'n'.
+				 * Check to see if the following char is a MULT
+				 */
+
+				if (ISMULT(preg->regparse[n])) {
+					/* Yes. But do we already have some EXACTLY chars? */
+					if (added) {
+						/* Yes, so return what we have and pick up the current char next time around */
+						break;
+					}
+					/* No, so add this single char and finish */
+					regc(preg, ch);
+					added++;
+					preg->regparse += n;
+					break;
+				}
+
+				/* No, so just add this char normally */
+				regc(preg, ch);
+				added++;
+				preg->regparse += n;
 			}
-		done:
 			regc(preg, '\0');
+
 			*flagp |= HASWIDTH;
-			if (!regprev)		/* One char? */
+			if (added == 1)
 				*flagp |= SIMPLE;
+			break;
 		}
 		break;
 	}
@@ -692,21 +980,20 @@ static char *regatom(regex_t *preg, int *flagp )
  - regnode - emit a node
  */
 /* Location. */
-static char *regnode(regex_t *preg, int op)
+static int *regnode(regex_t *preg, int op)
 {
-	char *ret;
-	char *ptr;
+	int *ret;
+	int *ptr;
 
+	preg->regsize += 2;
 	ret = preg->regcode;
 	if (ret == &regdummy) {
-		preg->regsize += 3;
 		return(ret);
 	}
 
 	ptr = ret;
 	*ptr++ = op;
-	*ptr++ = '\0';		/* Null "next" pointer. */
-	*ptr++ = '\0';
+	*ptr++ = 0;		/* Null "next" pointer. */
 	preg->regcode = ptr;
 
 	return(ret);
@@ -717,47 +1004,49 @@ static char *regnode(regex_t *preg, int op)
  */
 static void regc(regex_t *preg, int b )
 {
+	preg->regsize++;
 	if (preg->regcode != &regdummy)
 		*preg->regcode++ = b;
-	else
-		preg->regsize++;
 }
 
 /*
  - reginsert - insert an operator in front of already-emitted operand
  *
  * Means relocating the operand.
+ * Returns the new location of the original operand.
  */
-static void reginsert(regex_t *preg, char op, char *opnd )
+static int *reginsert(regex_t *preg, int op, int *opnd )
 {
-	char *src;
-	char *dst;
-	char *place;
+	int *src;
+	int *dst;
+	int *place;
+
+	preg->regsize += 2;
 
 	if (preg->regcode == &regdummy) {
-		preg->regsize += 3;
-		return;
+		return opnd;
 	}
 
 	src = preg->regcode;
-	preg->regcode += 3;
+	preg->regcode += 2;
 	dst = preg->regcode;
 	while (src > opnd)
 		*--dst = *--src;
 
 	place = opnd;		/* Op node, where operand used to be. */
 	*place++ = op;
-	*place++ = '\0';
-	*place = '\0';
+	*place++ = 0;
+
+	return place;
 }
 
 /*
  - regtail - set the next-pointer at the end of a node chain
  */
-static void regtail(regex_t *preg, char *p, const char *val )
+static void regtail(regex_t *preg, int *p, const int *val )
 {
-	char *scan;
-	char *temp;
+	int *scan;
+	int *temp;
 	int offset;
 
 	if (p == &regdummy)
@@ -766,7 +1055,7 @@ static void regtail(regex_t *preg, char *p, const char *val )
 	/* Find last node. */
 	scan = p;
 	for (;;) {
-		temp = (char *)regnext(preg, scan);
+		temp = (int *)regnext(preg, scan);
 		if (temp == NULL)
 			break;
 		scan = temp;
@@ -776,15 +1065,15 @@ static void regtail(regex_t *preg, char *p, const char *val )
 		offset = scan - val;
 	else
 		offset = val - scan;
-	*(scan+1) = (offset>>8)&0377;
-	*(scan+2) = offset&0377;
+
+	scan[1] = offset;
 }
 
 /*
  - regoptail - regtail on operand of first argument; nop if operandless
  */
 
-static void regoptail(regex_t *preg, char *p, const char *val )
+static void regoptail(regex_t *preg, int *p, const int *val )
 {
 	/* "Operandless" and "op != BRANCH" are synonymous in practice. */
 	if (p == NULL || p == &regdummy || OP(p) != BRANCH)
@@ -800,8 +1089,8 @@ static void regoptail(regex_t *preg, char *p, const char *val )
  * Forwards.
  */
 static int regtry(regex_t *preg, const char *string );
-static int regmatch(regex_t *preg, const char *prog);
-static int regrepeat(regex_t *preg, const char *p );
+static int regmatch(regex_t *preg, const int *prog);
+static int regrepeat(regex_t *preg, const int *p );
 
 /*
  - regexec - match a regexp against a string
@@ -816,7 +1105,7 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 	}
 
 	/* Check validity of program. */
-	if (UCHARAT(preg->program) != REG_MAGIC) {
+	if (*preg->program != REG_MAGIC) {
 		return REG_ERR_CORRUPTED;
 	}
 
@@ -833,8 +1122,9 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 	if (preg->regmust != NULL) {
 		s = string;
 		while ((s = str_find(s, preg->regmust[0], preg->cflags & REG_ICASE)) != NULL) {
-			if (strncmp(s, preg->regmust, preg->regmlen) == 0)
-				break;	/* Found it. */
+			if (prefix_cmp(preg->regmust, preg->regmlen, s, preg->cflags & REG_ICASE) >= 0) {
+				break;
+			}
 			s++;
 		}
 		if (s == NULL)	/* Not present. */
@@ -914,48 +1204,86 @@ static int regtry( regex_t *preg, const char *string )
 }
 
 /**
- * Returns 1 if 'pattern' is a prefix of 'string'.
+ * Returns bytes matched if 'pattern' is a prefix of 'string'.
  *
  * If 'nocase' is non-zero, does a case-insensitive match.
+ *
+ * Returns -1 on not found.
  */
-static int prefix_cmp(const char *pattern, const char *string, int nocase)
+static int prefix_cmp(const int *prog, int proglen, const char *string, int nocase)
 {
-	if (nocase) {
-		while (*pattern && *string) {
-			if (toupper(*pattern) != toupper(*string)) {
-				break;
-			}
-			pattern++;
-			string++;
+	const char *s = string;
+	while (proglen && *s) {
+		int ch;
+		int n = utf8_tounicode_case(s, &ch, nocase);
+		if (ch != *prog) {
+			return -1;
 		}
-		return *pattern == 0;
+		prog++;
+		s += n;
+		proglen--;
 	}
-	else {
-		if (*pattern == *string) {
-			int len = strlen(pattern);
-			return strncmp(pattern, string, len) == 0;
-		}
-		return 0;
+	if (proglen == 0) {
+		return s - string;
 	}
+	return -1;
 }
 
-static const char *str_find(const char *string, char c, int nocase)
+/**
+ * Searchs for 'c' in the range 'range'.
+ * 
+ * If 'nocase' is set, the range is assumed to be uppercase
+ * and 'c' is converted to uppercase before matching.
+ *
+ * Returns 1 if found, or 0 if not.
+ */
+static int reg_range_find(const int *range, int c, int nocase)
 {
 	if (nocase) {
-		c = toupper(c);
-		while (*string) {
-			if (toupper(*string) == c) {
-				return string;
-			}
-			string++;
+		/* The "string" should already be converted to uppercase */
+		c = utf8_upper(c);
+	}
+	while (*range) {
+		if (c >= range[1] && c <= (range[0] + range[1] - 1)) {
+			return 1;
 		}
-		return NULL;
+		range += 2;
 	}
-	else {
-		return strchr(string, c);
-	}
+	return 0;
 }
 
+/**
+ * Search for the character 'c' in the utf-8 string 'string'.
+ * 
+ * If 'nocase' is set, the 'string' is assumed to be uppercase
+ * and 'c' is converted to uppercase before matching.
+ *
+ * Returns the byte position in the string where the 'c' was found, or
+ * NULL if not found.
+ */
+static const char *str_find(const char *string, int c, int nocase)
+{
+	if (nocase) {
+		/* The "string" should already be converted to uppercase */
+		c = utf8_upper(c);
+	}
+	while (*string) {
+		int ch;
+		int n = utf8_tounicode_case(string, &ch, nocase);
+		if (c == ch) {
+			return string;
+		}
+		string += n;
+	}
+	return NULL;
+}
+
+/**
+ * Returns true if 'ch' is an end-of-line char.
+ * 
+ * In REG_NEWLINE mode, \n is considered EOL in
+ * addition to \0
+ */
 static int reg_iseol(regex_t *preg, int ch)
 {
 	if (preg->cflags & REG_NEWLINE) {
@@ -977,10 +1305,10 @@ static int reg_iseol(regex_t *preg, int ch)
  * by recursion.
  */
 /* 0 failure, 1 success */
-static int regmatch(regex_t *preg, const char *prog)
+static int regmatch(regex_t *preg, const int *prog)
 {
-	const char *scan;	/* Current node. */
-	const char *next;		/* Next node. */
+	const int *scan;	/* Current node. */
+	const int *next;		/* Next node. */
 
 	scan = prog;
 #ifdef DEBUG
@@ -1025,27 +1353,31 @@ static int regmatch(regex_t *preg, const char *prog)
 			preg->reginput++;
 			break;
 		case EXACTLY: {
-				const char *opnd;
+				const int *opnd;
+				int len;
+				int slen;
 
 				opnd = OPERAND(scan);
+				len = str_int_len(opnd);
 
-				if (prefix_cmp(opnd, preg->reginput, preg->cflags & REG_ICASE) == 0) {
+				slen = prefix_cmp(opnd, len, preg->reginput, preg->cflags & REG_ICASE);
+				if (slen < 0) {
 					return(0);
 				}
-				preg->reginput += strlen(opnd);
+				preg->reginput += slen;
 			}
 			break;
 		case ANYOF:
 			if (reg_iseol(preg, *preg->reginput))
 				return 0;
- 			if (str_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) == NULL)
+			if (reg_range_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) == 0)
 				return(0);
 			preg->reginput++;
 			break;
 		case ANYBUT:
 			if (reg_iseol(preg, *preg->reginput))
 				return 0;
- 			if (str_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) != NULL)
+			if (reg_range_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) != 0)
 				return(0);
 			preg->reginput++;
 			break;
@@ -1089,8 +1421,10 @@ static int regmatch(regex_t *preg, const char *prog)
 				save = preg->reginput;
 				no = regrepeat(preg, OPERAND(scan));
 				while (no >= min) {
+					int ch;
+					utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
 					/* If it could work, try it. */
-					if (reg_iseol(preg, nextch) || *preg->reginput == nextch)
+					if (reg_iseol(preg, nextch) || ch == nextch)
 						if (regmatch(preg, next))
 							return(1);
 					/* Couldn't or didn't -- back up. */
@@ -1148,11 +1482,11 @@ static int regmatch(regex_t *preg, const char *prog)
 /*
  - regrepeat - repeatedly match something simple, report how many
  */
-static int regrepeat(regex_t *preg, const char *p )
+static int regrepeat(regex_t *preg, const int *p )
 {
 	int count = 0;
 	const char *scan;
-	const char *opnd;
+	const int *opnd;
 
 	scan = preg->reginput;
 	opnd = OPERAND(p);
@@ -1165,9 +1499,14 @@ static int regrepeat(regex_t *preg, const char *p )
 		break;
 	case EXACTLY:
 		if (preg->cflags & REG_ICASE) {
-			while (toupper(*opnd) == toupper(*scan)) {
+			while (1) {
+				int ch;
+				int n = utf8_tounicode_case(scan, &ch, 1);
+				if (*opnd != ch) {
+					break;
+				}
 				count++;
-				scan++;
+				scan += n;
 			}
 		}
 		else {
@@ -1178,13 +1517,13 @@ static int regrepeat(regex_t *preg, const char *p )
 		}
 		break;
 	case ANYOF:
-		while (!reg_iseol(preg, *scan) && str_find(opnd, *scan, preg->cflags & REG_ICASE) != NULL) {
+		while (!reg_iseol(preg, *scan) && reg_range_find(opnd, *scan, preg->cflags & REG_ICASE) != 0) {
 			count++;
 			scan++;
 		}
 		break;
 	case ANYBUT:
-		while (!reg_iseol(preg, *scan) && str_find(opnd, *scan, preg->cflags & REG_ICASE) == NULL) {
+		while (!reg_iseol(preg, *scan) && reg_range_find(opnd, *scan, preg->cflags & REG_ICASE) == 0) {
 			count++;
 			scan++;
 		}
@@ -1202,7 +1541,7 @@ static int regrepeat(regex_t *preg, const char *p )
 /*
  - regnext - dig the "next" pointer out of a node
  */
-static const char *regnext(regex_t *preg, const char *p )
+static const int *regnext(regex_t *preg, const int *p )
 {
 	int offset;
 
@@ -1226,25 +1565,45 @@ static const char *regnext(regex_t *preg, const char *p )
  */
 static void regdump(regex_t *preg)
 {
-	const char *s;
+	const int *s;
 	char op = EXACTLY;	/* Arbitrary non-END op. */
-	const char *next;
+	const int *next;
+	char buf[4];
 
+	if (preg->regcode == &regdummy)
+		return;
 
 	s = preg->program + 1;
-	while (op != END) {	/* While that wasn't END last time... */
+	while (op != END && s < preg->regcode) {	/* While that wasn't END last time... */
 		op = OP(s);
-		printf("%2d%s", (int)(s-preg->program), regprop(s));	/* Where, what. */
+		printf("%2d{%02x}%s", (int)(s-preg->program), op, regprop(s));	/* Where, what. */
 		next = regnext(preg, s);
 		if (next == NULL)		/* Next ptr. */
 			printf("(0)");
 		else 
 			printf("(%d)", (int)((s-preg->program)+(next-s)));
-		s += 3;
-		if (op == ANYOF || op == ANYBUT || op == EXACTLY) {
+		s += 2;
+		if (op == ANYOF || op == ANYBUT) {
+			/* set of ranges */
+
+			while (*s) {
+				int len = *s++;
+				int first = *s++;
+				buf[utf8_fromunicode(buf, first)] = 0;
+				printf("%s", buf);
+				if (len > 1) {
+					buf[utf8_fromunicode(buf, first + len - 1)] = 0;
+					printf("-%s", buf);
+				}
+			}
+			s++;
+		}
+		else if (op == EXACTLY) {
 			/* Literal string, where present. */
-			while (*s != '\0') {
-				putchar(*s);
+
+			while (*s) {
+				buf[utf8_fromunicode(buf, *s)] = 0;
+				printf("%s", buf);
 				s++;
 			}
 			s++;
@@ -1252,20 +1611,29 @@ static void regdump(regex_t *preg)
 		putchar('\n');
 	}
 
-	/* Header fields of interest. */
-	if (preg->regstart != '\0')
-		printf("start `%c' ", preg->regstart);
-	if (preg->reganch)
-		printf("anchored ");
-	if (preg->regmust != NULL)
-		printf("must have \"%s\"", preg->regmust);
+	if (op == END) {
+		/* Header fields of interest. */
+		if (preg->regstart != '\0')
+			buf[utf8_fromunicode(buf, preg->regstart)] = 0;
+			printf("start '%s' ", buf);
+		if (preg->reganch)
+			printf("anchored ");
+		if (preg->regmust != NULL) {
+			int i;
+			printf("must have:");
+			for (i = 0; i < preg->regmlen; i++) {
+				putchar(preg->regmust[i]);
+			}
+			putchar('\n');
+		}
+	}
 	printf("\n");
 }
 
 /*
  - regprop - printable representation of opcode
  */
-static const char *regprop( const char *op )
+static const char *regprop( const int *op )
 {
 	char *p;
 	static char buf[50];
@@ -1346,6 +1714,8 @@ size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_s
 		"out of memory",
 		"too many ()",
 		"parentheses () not balanced",
+		"braces {} not balanced",
+		"invalid repetition count(s)",
 		"extra characters",
 		"*+ of empty atom",
 		"nested count",
@@ -1353,7 +1723,7 @@ size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_s
 		"count follows nothing",
 		"trailing backslash",
 		"corrupted program",
-		"braces {} not supported"
+		"contains null char",
 	};
 	const char *err;
 

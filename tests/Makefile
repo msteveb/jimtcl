@@ -9,4 +9,4 @@ test:
 	make -C .. all
 
 clean:
-	rm -f gorp.file2 cat gorp.file sleep exit wc sh echo
+	rm -f gorp.file2 cat gorp.file sleep exit wc sh echo test1

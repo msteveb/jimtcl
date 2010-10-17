@@ -50,15 +50,15 @@ typedef struct regexp {
 	/* -- private -- */
 	int cflags;			/* Flags used when compiling */
 	int err;			/* Any error which occurred during compile */
-	char regstart;		/* Internal use only. */
-	char reganch;		/* Internal use only. */
-	const char *regmust;		/* Internal use only. */
+	int regstart;		/* Internal use only. */
+	int reganch;		/* Internal use only. */
+	const int *regmust;		/* Internal use only. */
 	int regmlen;		/* Internal use only. */
-	char *program;		/* Allocated */
+	int *program;		/* Allocated */
 
 	/* working state - compile */
 	const char *regparse;		/* Input-scan pointer. */
-	char *regcode;		/* Code-emit pointer; &regdummy = don't. */
+	int *regcode;		/* Code-emit pointer; &regdummy = don't. */
 	long regsize;		/* Code size. */
 
 	/* working state - exec */
@@ -90,6 +90,8 @@ enum {
 	REG_ERR_NOMEM,
 	REG_ERR_TOO_MANY_PAREN,
 	REG_ERR_UNMATCHED_PAREN,
+	REG_ERR_UNMATCHED_BRACES,
+	REG_ERR_BAD_COUNT,
 	REG_ERR_JUNK_ON_END,
 	REG_ERR_OPERAND_COULD_BE_EMPTY,
 	REG_ERR_NESTED_COUNT,
@@ -97,7 +99,7 @@ enum {
 	REG_ERR_COUNT_FOLLOWS_NOTHING,
 	REG_ERR_TRAILING_BACKSLASH,
 	REG_ERR_CORRUPTED,
-	REG_ERR_COUNT_UNSUPPORTED,
+	REG_ERR_NULL_CHAR,
 	REG_ERR_NUM
 };
 
