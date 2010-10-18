@@ -22,7 +22,7 @@ typedef struct
 # define LOG_AUTHPRIV LOG_AUTH
 #endif
 
-static const char *facilities[] = {
+static const char * const facilities[] = {
     [LOG_AUTHPRIV] = "authpriv",
     [LOG_CRON] = "cron",
     [LOG_DAEMON] = "daemon",
@@ -43,7 +43,7 @@ static const char *facilities[] = {
     [LOG_LOCAL7] = "local7",
 };
 
-static const char *priorities[] = {
+static const char * const priorities[] = {
     [LOG_EMERG] = "emerg",
     [LOG_ALERT] = "alert",
     [LOG_CRIT] = "crit",

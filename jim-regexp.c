@@ -127,7 +127,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     enum {
         OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_END
     };
-    static const char const *options[] = {
+    static const char * const options[] = {
         "-indices", "-nocase", "-line", "-all", "-inline", "-start", "--", NULL
     };
 
@@ -356,7 +356,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     enum {
         OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_END
     };
-    static const char const *options[] = {
+    static const char * const options[] = {
         "-nocase", "-line", "-all", "-start", "--", NULL
     };
 
