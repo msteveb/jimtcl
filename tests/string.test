@@ -404,11 +404,13 @@ test string-7.14 {string last, start index} {
     string last ba badbad end-2
 } 0
 test string-7.15 {string last, start index} {
-    string last \334a \334ad\334ad 0
+    string last \u00dca \u00dcad\u00dcad 0
 } -1
-test string-7.16 {string last, start index} {
-    string last \334a \334ad\334ad end-1
-} 3
+ifutf8 {
+    test string-7.16 {string last, start index} {
+        string last \u00dca \u00dcad\u00dcad end-1
+    } 3
+}
 
 test string-9.1 {string length} {
     list [catch {string length} msg]
@@ -457,11 +459,11 @@ test string-10.11 {string map, nulls} {
     string map {\x00 NULL blah \x00nix} {qwerty}
 } {qwerty}
 test string-10.12 {string map, unicode} {
-    string map [list \374 ue UE \334] "a\374ueUE\000EU"
-} aueue\334\0EU
+    string map [list \u00fc ue UE \u00dc] "a\u00fcueUE\000EU"
+} aueue\u00dc\0EU
 test string-10.13 {string map, -nocase unicode} {
-    string map -nocase [list \374 ue UE \334] "a\374ueUE\000EU"
-} aue\334\334\0EU
+    string map -nocase [list \u00fc ue UE \u00dc] "a\u00fcueUE\000EU"
+} aue\u00dc\u00dc\0EU
 test string-10.14 {string map, -nocase null arguments} {
     string map -nocase {{} abc} foo
 } foo

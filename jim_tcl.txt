@@ -492,6 +492,10 @@ sequence is replaced by the given character:
     The digits *ddd* (one, two, or three of them) give the octal value of
     the character.  Note that Jim supports null characters in strings.
 
++{backslash}u*nnnn*+::
+    The hex digits *nnnn* (between one and four of them) give a unicode codepoint.
+	The UTF-8 encoding of the codepoint is inserted.
+
 For example, in the command
 
     set a \{x\[\ yz\141
@@ -1324,6 +1328,89 @@ The procedure may also be delete immediately by renaming it "". e.g.
 
     jim> rename $f ""
 
+UTF-8 AND UNICODE
+-----------------
+If Jim is built with UTF-8 support enabled (configure --enable-utf),
+then most string-related commands become UTF-8 aware.  These include,
+but are not limited to, 'string match', 'split', 'glob', 'scan' and
+'format'.
+
+UTF-8 encoding has many advantages, but one of the complications is that
+characters can take a variable number of bytes. Thus the addition of
+'string bytelength' which returns the number of bytes in a string, 
+while 'string length' returns the number of characters.
+
+If UTF-8 support is not enabled, all commands treat bytes as characters
+and 'string bytelength' returns the same value as 'string length'.
+
+Note that even if UTF-8 support is not enabled, the {backslash}uNNNN syntax
+is still available to embed UTF-8 sequences.
+
+String Matching
+~~~~~~~~~~~~~~~
+Commands such as 'string match', 'lsearch -glob', 'array names' and others use string
+pattern matching rules. These commands support UTF-8. For example:
+
+  string match a{backslash}[{backslash}ua0-{backslash}ubf{backslash}]b "a{backslash}a3b"
+
+format and scan
+~~~~~~~~~~~~~~~
+'format %c' allows a unicode codepoint to be be encoded. For example, the following will return
+a string with two bytes and one character. The same as {backslash}ub5
+
+  format %c 0xb5
+
+'format' respects widths as character widths, not byte widths. For example, the following will
+return a string with three characters, not three bytes.
+
+  format %.3s {backslash}ub5{backslash}ub6{backslash}ub7{backslash}ub8
+
+Similarly, 'scan ... %c' allows a UTF-8 to be decoded to a unicode codepoint. The following will set
+*a* to 181 (0xb5) and *b* to '181' and 'b' to 65.
+
+  scan {backslash}00b5A %c%c a b
+
+'scan %s' will also accept a character class, including unicode ranges.
+
+String Classes
+~~~~~~~~~~~~~~
+'string is' has *not* been extended to classify UTF-8 characters. Therefore, the following
+will return 0, even though the string may be considered to be alphabetic.
+
+  string is {backslash}b5Test
+
+This does not affect the string classes 'ascii', 'control', 'digit', 'double', 'integer' or 'xdigit'.
+
+Case Mapping and Conversion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Jim provides a simplified unicode case mapping. This means that case conversion
+and comparison will not increase or decrease the number of characters in a string.
+
+'string toupper' will convert any lowercase letters to their uppercase equivalent.
+Any character which is not a letter or has no uppercase equivalent is left unchanged.
+Similarly for 'string tolower'.
+
+Commands which perform case insensitive matches, such as 'string compare -nocase'
+and 'lsearch -nocase' fold both strings to uppercase before comparison.
+
+Invalid UTF-8 Sequences
+~~~~~~~~~~~~~~~~~~~~~~~
+Some UTF-8 character sequences are invalid, such as those beginning with '0xff',
+those which represent character sequences longer than 3 bytes (greater than U+FFFF),
+and those which end prematurely, such as a lone '0xc2'.
+
+In these situations, the offending bytes are treated as single characters. For example,
+the following returns 2.
+
+  string bytelength \xff\xff
+
+Regular Expressions
+~~~~~~~~~~~~~~~~~~~
+At this time, regular expressions do *not* support UTF-8 strings. This included
+'regexp', 'regsub', 'switch -regexp' and 'lsearch -regexp'.
+
+This means that regular expresion operations operate on bytes, not characters.
+
 BUILT-IN COMMANDS
 -----------------
 The Tcl library provides the following built-in commands, which will
@@ -1700,6 +1787,12 @@ command.  The legal *options* are:
     element of each pair would be the key and the second element would
     be the value for that key.  It is an error to attempt to retrieve
     a value for a key that is not present in the dictionary.
+
+*dict keys* 'dictionary ?pattern?'+::
+    Returns a list of the keys in the dictionary.
+    If pattern is specified, then only those keys whose
+    names match *pattern* (using the matching rules of string
+    match) are included.
 
 *dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
@@ -2343,6 +2436,9 @@ The legal *option*'s (which may be abbreviated) are:
 +*info channels*+::
     Returns a list of all open 'aio' channels.
 
++*info channels*+::
+    Returns a list of all open file handles from 'open' or 'socket'
+
 +*info commands* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
@@ -2840,6 +2936,10 @@ they are equal, or '1' otherwise.
 
 If *-decreasing* is specified, the resulting list is in the opposite
 order to what it would be otherwise. *-increasing* is the default.
+
+If *-index listindex* is specified, each element of the list is treated as a list and
+the given index is extracted from the list for comparison. The list index may
+be any valid list index, such as '1', 'end' or 'end-2'.
 
 If *-index listindex* is specified, each element of the list is treated as a list and
 the given index is extracted from the list for comparison. The list index may
@@ -3474,6 +3574,12 @@ string
 Perform one of several string operations, depending on *option*.
 The legal options (which may be abbreviated) are:
 
++*string bytelength 'string'+::
+    Returns the length of the string in bytes. This will return
+	the same value as 'string length' if UTF-8 support is not enabled,
+	or if the string is composed entirely of ASCII characters.
+	See UTF-8 AND UNICODE.
+
 +*string compare ?-nocase?* 'string1 string2'+::
     Perform a character-by-character comparison of strings *string1* and
     *string2* in the same way as the C 'strcmp' procedure.  Return
@@ -3525,6 +3631,8 @@ The legal options (which may be abbreviated) are:
   +space+;;  Any space character.
   +upper+;;  Any upper case alphabet character.
   +xdigit+;; Any hexadecimal digit character ([0-9A-Fa-f]).
+ ::
+    Note that string classification does *not* respect UTF-8. See UTF-8 AND UNICODE
 
 +*string last* 'string1 string2 ?lastIndex?'+::
     Search *string2* for a sequence of characters that exactly match
@@ -3537,6 +3645,8 @@ The legal options (which may be abbreviated) are:
 
 +*string length* 'string'+::
     Returns a decimal string giving the number of characters in *string*.
+	If UTF-8 support is enabled, this may be different than the number of bytes.
+	See UTF-8 AND UNICODE
 
 +*string match ?-nocase?* 'pattern string'+::
     See if *pattern* matches *string*; return 1 if it does, 0
@@ -4082,6 +4192,11 @@ aio
 +$handle *tell*+::
     Returns the current seek position
 
++$handle *filename*+::
+    Returns the original filename used when opening the file.
+	If the handle was returned from 'socket', the type of the
+	handle is returned instead.
+
 +$handle *ndelay ?0|1?*+::
     Set O_NDELAY (if arg). Returns current/new setting.
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
@@ -4326,6 +4441,10 @@ The following global variables are set by jimsh.
 +*tcl_interactive*+::
     This variable is set to 1 if jimsh is started in interactive mode
     or 0 otherwise.
+
++*tcl_platform*+::
+    This variable is set by Jim as an array containing information
+	about the platform upon which Jim was built.
 
 +*argv0*+::
     If jimsh is invoked to run a script, this variable contains the name

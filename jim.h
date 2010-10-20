@@ -323,6 +323,7 @@ typedef struct Jim_Obj {
         /* String type */
         struct {
             int maxLength;
+            int charLength;     /* utf-8 char length. -1 if unknown */
         } strValue;
         /* Reference type */
         struct {
@@ -667,6 +668,8 @@ JIM_EXPORT int Jim_Length(Jim_Obj *objPtr);
 /* string object */
 JIM_EXPORT Jim_Obj * Jim_NewStringObj (Jim_Interp *interp,
         const char *s, int len);
+JIM_EXPORT Jim_Obj *Jim_NewStringObjUtf8(Jim_Interp *interp,
+        const char *s, int charlen);
 JIM_EXPORT Jim_Obj * Jim_NewStringObjNoAlloc (Jim_Interp *interp,
         char *s, int len);
 JIM_EXPORT void Jim_AppendString (Jim_Interp *interp, Jim_Obj *objPtr,
@@ -675,9 +678,8 @@ JIM_EXPORT void Jim_AppendObj (Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *appendObjPtr);
 JIM_EXPORT void Jim_AppendStrings (Jim_Interp *interp,
         Jim_Obj *objPtr, ...);
-JIM_EXPORT int Jim_StringEqObj (Jim_Obj *aObjPtr,
-        Jim_Obj *bObjPtr, int nocase);
-JIM_EXPORT int Jim_StringMatchObj (Jim_Obj *patternObjPtr,
+JIM_EXPORT int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr);
+JIM_EXPORT int Jim_StringMatchObj (Jim_Interp *interp, Jim_Obj *patternObjPtr,
         Jim_Obj *objPtr, int nocase);
 JIM_EXPORT Jim_Obj * Jim_StringRangeObj (Jim_Interp *interp,
         Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr,
@@ -688,8 +690,9 @@ JIM_EXPORT Jim_Obj * Jim_ScanString (Jim_Interp *interp, Jim_Obj *strObjPtr,
         Jim_Obj *fmtObjPtr, int flags);
 JIM_EXPORT int Jim_CompareStringImmediate (Jim_Interp *interp,
         Jim_Obj *objPtr, const char *str);
-JIM_EXPORT int Jim_StringCompareObj(Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr,
-        int nocase);
+JIM_EXPORT int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr,
+        Jim_Obj *secondObjPtr, int nocase);
+JIM_EXPORT int Jim_Utf8Length(Jim_Interp *interp, Jim_Obj *objPtr);
 
 /* reference object */
 JIM_EXPORT Jim_Obj * Jim_NewReference (Jim_Interp *interp,
@@ -711,9 +714,6 @@ JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
 JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp, 
         const char *cmdName, Jim_CmdProc cmdProc, void *privData,
          Jim_DelCmdProc delProc);
-JIM_EXPORT int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
-        Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
-        int leftArity, int defaultArgs, int argsPos, int rightArity);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         const char *cmdName);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp, 

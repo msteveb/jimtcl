@@ -37,7 +37,7 @@ endif
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := jim-subcmd.o jim-interactive.o jim.o @EXTRA_OBJS@
+OBJS := jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o @EXTRA_OBJS@
 
 JIMSH := jimsh@EXEEXT@
 
@@ -77,7 +77,14 @@ install: all docs $(EXTENSION_TCL)
 test:
 	$(MAKE) -C tests
 
+
 $(OBJS) $(EXTENSION_OBJS): Makefile
+
+# Generate the unicode case mapping
+utf8.o: unicode_mapping.c
+
+unicode_mapping.c: @SRCDIR@/UnicodeData.txt @SRCDIR@/parse-unidata.tcl
+	tclsh @SRCDIR@/parse-unidata.tcl @SRCDIR@/UnicodeData.txt >$@
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
@@ -96,7 +103,7 @@ Tcl.html: jim_tcl.txt
 	tclsh @SRCDIR@/make-index $^ | asciidoc -o $@ -d manpage - || cp @SRCDIR@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
 
 distclean: clean

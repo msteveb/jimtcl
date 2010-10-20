@@ -104,7 +104,7 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         resultObj = Jim_NewListObj(interp, NULL, 0);
 
         for (i = 0; i < len; i += 2) {
-            if (Jim_StringMatchObj(argv[1], dictValuesObj[i], 0)) {
+            if (Jim_StringMatchObj(interp, argv[1], dictValuesObj[i], 0)) {
                 Jim_ListAppendElement(interp, resultObj, dictValuesObj[i]);
                 Jim_ListAppendElement(interp, resultObj, dictValuesObj[i + 1]);
             }
@@ -157,7 +157,7 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     resultObj = Jim_NewDictObj(interp, NULL, 0);
 
     for (i = 0; i < len; i += 2) {
-        if (!Jim_StringMatchObj(argv[1], dictValuesObj[i], 0)) {
+        if (!Jim_StringMatchObj(interp, argv[1], dictValuesObj[i], 0)) {
             Jim_DictAddElement(interp, resultObj, dictValuesObj[i], dictValuesObj[i + 1]);
         }
     }

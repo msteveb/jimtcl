@@ -43,6 +43,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
                 Jim_DecrRefCount(interp, scriptObjPtr);
                 goto out;
             }
+            if (Jim_Length(scriptObjPtr) != 0) {
+                Jim_AppendString(interp, scriptObjPtr, "\n", 1);
+            }
             Jim_AppendString(interp, scriptObjPtr, buf, -1);
             str = Jim_GetString(scriptObjPtr, &len);
             if (Jim_ScriptIsComplete(str, len, &state))

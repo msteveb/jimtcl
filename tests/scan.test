@@ -467,18 +467,20 @@ test scan-7.5 {string and character scanning} {
     set a {}; set b {}; set c {}
     list [scan "aaaaaabc aaabcdefg  + +  XYZQR" {%*4[a] %s %*4[a]%s%*4[ +]%c} a b c] $a $b $c
 } {3 aabc bcdefg 43}
-
-# Unicode tests
-
-
-
-
-
-
-
-
-
-
+ifutf8 {
+    test scan-7.6 {string and character scanning, unicode} {
+	set a {}; set b {}; set c {}; set d {}
+	list [scan "abc d\u00c7fghijk dum " "%s %3s %20s %s" a b c d] $a $b $c $d
+    } "4 abc d\u00c7f ghijk dum"
+    test scan-7.7 {string and character scanning, unicode} {
+	set a {}; set b {}
+	list [scan "ab\u00c7cdef" "ab%c%c" a b] $a $b
+    } "2 199 99"
+    test scan-7.8 {string and character scanning, unicode} {
+	set a {}; set b {}
+	list [scan "ab\ufeffdef" "%\[ab\ufeff\]" a] $a
+    } "1 ab\ufeff"
+}
 
 test scan-8.1 {error conditions} {
     catch {scan a}

@@ -2279,11 +2279,11 @@ test string-10.11 {string map, nulls} {
     string map {\x00 NULL blah \x00nix} {qwerty}
 } {qwerty}
 test string-10.12 {string map, unicode} {
-    string map [list \374 ue UE \334] "a\374ueUE\000EU"
-} aueue\334\0EU
+    string map [list \u00fc ue UE \u00dc] "a\u00fcueUE\000EU"
+} aueue\u00dc\0EU
 test string-10.13 {string map, -nocase unicode} {
-    string map -nocase [list \374 ue UE \334] "a\374ueUE\000EU"
-} aue\334\334\0EU
+    string map -nocase [list \u00fc ue UE \u00dc] "a\u00fcueUE\000EU"
+} aue\u00dc\u00dc\0EU
 test string-10.14 {string map, -nocase null arguments} {
     string map -nocase {{} abc} foo
 } foo
@@ -2352,9 +2352,9 @@ test split-1.10 {basic split commands} {
 test split-1.11 {basic split commands} {
     split "12,3,45" {,}
 } {12 3 45}
-#test split-1.12 {basic split commands} {
-#    split "\u0001ab\u0001cd\u0001\u0001ef\u0001" \1
-#} {{} ab cd {} ef {}}
+test split-1.12 {basic split commands} {
+    split "\u0001ab\u0001cd\u0001\u0001ef\u0001" \1
+} {{} ab cd {} ef {}}
 test split-1.13 {basic split commands} {
     split "12,34,56," {,}
 } {12 34 56 {}}

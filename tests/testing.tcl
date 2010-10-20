@@ -29,6 +29,14 @@ proc package-or-skip {name} {
 	}
 }
 
+set test(utf8) 0
+if {[string length "\xc2\xb5"] == 1} {
+	set test(utf8) 1
+}
+proc bytestring {x} {
+	return $x
+}
+
 catch {
 	# Tcl-only things
 	info tclversion
@@ -38,6 +46,16 @@ catch {
 	proc error_source {} {
 	}
 	proc script_source {script} {
+	}
+	set test(utf8) 1
+	rename bytestring ""
+	package require tcltest
+	interp alias {} bytestring {} ::tcltest::bytestring
+}
+
+proc ifutf8 {code} {
+	if {$::test(utf8)} {
+		uplevel 1 $code
 	}
 }
 

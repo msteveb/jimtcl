@@ -2,8 +2,8 @@
     "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.1" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.4.5" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Debug borders */
@@ -118,14 +118,12 @@ div#preamble {
 div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
 div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
 div.admonitionblock {
-  margin-top: 1.0em;
+  margin-top: 1.5em;
   margin-bottom: 1.5em;
 }
 div.admonitionblock {
-  margin-top: 2.0em;
-  margin-bottom: 2.0em;
-  margin-right: 10%;
-  color: #606060;
+  margin-top: 2.5em;
+  margin-bottom: 2.5em;
 }
 
 div.content { /* Block element content. */
@@ -167,21 +165,21 @@ div.listingblock > div.content {
   padding: 0.5em;
 }
 
-div.quoteblock, div.verseblock {
-  padding-left: 1.0em;
-  margin-left: 1.0em;
+div.quoteblock {
+  padding-left: 2.0em;
   margin-right: 10%;
-  border-left: 5px solid #dddddd;
-  color: #777777;
 }
-
 div.quoteblock > div.attribution {
   padding-top: 0.5em;
   text-align: right;
 }
 
-div.verseblock > pre.content {
-  font-family: inherit;
+div.verseblock {
+  padding-left: 2.0em;
+  margin-right: 10%;
+}
+div.verseblock > div.content {
+  white-space: pre;
 }
 div.verseblock > div.attribution {
   padding-top: 0.75em;
@@ -202,12 +200,12 @@ div.admonitionblock .icon {
 }
 div.admonitionblock td.content {
   padding-left: 0.5em;
-  border-left: 3px solid #dddddd;
+  border-left: 2px solid silver;
 }
 
 div.exampleblock > div.content {
-  border-left: 3px solid #dddddd;
-  padding-left: 0.5em;
+  border-left: 2px solid silver;
+  padding: 0.5em;
 }
 
 div.imageblock div.content { padding-left: 0; }
@@ -257,10 +255,9 @@ div.compact div, div.compact div {
 div.tableblock > table {
   border: 3px solid #527bbd;
 }
-thead, p.table.header {
+thead {
   font-family: sans-serif;
   font-weight: bold;
-  color: #527bbd;
 }
 tfoot {
   font-weight: bold;
@@ -313,48 +310,8 @@ div.hdlist.compact tr {
   background: yellow;
 }
 
-.footnote, .footnoteref {
-  font-size: 0.8em;
-}
-
-span.footnote, span.footnoteref {
-  vertical-align: super;
-}
-
-#footnotes {
-  margin: 20px 0 20px 0;
-  padding: 7px 0 0 0;
-}
-
-#footnotes div.footnote {
-  margin: 0 0 5px 0;
-}
-
-#footnotes hr {
-  border: none;
-  border-top: 1px solid silver;
-  height: 1px;
-  text-align: left;
-  margin-left: 0;
-  width: 20%;
-  min-width: 100px;
-}
-
-div.colist td {
-  padding-right: 0.5em;
-  padding-bottom: 0.3em;
-  vertical-align: top;
-}
-div.colist td img {
-  margin-top: 0.3em;
-}
-
 @media print {
   div#footer-badges { display: none; }
-}
-
-div#toc {
-  margin-bottom: 2.5em;
 }
 
 div#toctitle {
@@ -382,7 +339,6 @@ div.toclevel4 {
   margin-left: 6em;
   font-size: 0.9em;
 }
-
 /* Overrides for manpage documents */
 h1 {
   padding-top: 0.5em;
@@ -401,142 +357,50 @@ div.sectionbody {
   div#toc { display: none; }
 }
 
+/* Workarounds for IE6's broken and incomplete CSS2. */
+
+div.sidebar-content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+div.sidebar-title, div.image-title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  margin-top: 0.0em;
+  margin-bottom: 0.5em;
+}
+
+div.listingblock div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock-attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock-content {
+  white-space: pre;
+}
+div.verseblock-attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+
+div.exampleblock-content {
+  border-left: 2px solid silver;
+  padding-left: 0.5em;
+}
+
+/* IE6 sets dynamically generated links as visited. */
+div#toc a:visited { color: blue; }
 </style>
-<script type="text/javascript">
-/*<![CDATA[*/
-window.onload = function(){asciidoc.footnotes();}
-var asciidoc = {  // Namespace.
-
-/////////////////////////////////////////////////////////////////////
-// Table Of Contents generator
-/////////////////////////////////////////////////////////////////////
-
-/* Author: Mihai Bazon, September 2002
- * http://students.infoiasi.ro/~mishoo
- *
- * Table Of Content generator
- * Version: 0.4
- *
- * Feel free to use this script under the terms of the GNU General Public
- * License, as long as you do not remove or alter this notice.
- */
-
- /* modified by Troy D. Hanson, September 2006. License: GPL */
- /* modified by Stuart Rackham, 2006, 2009. License: GPL */
-
-// toclevels = 1..4.
-toc: function (toclevels) {
-
-  function getText(el) {
-    var text = "";
-    for (var i = el.firstChild; i != null; i = i.nextSibling) {
-      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
-        text += i.data;
-      else if (i.firstChild != null)
-        text += getText(i);
-    }
-    return text;
-  }
-
-  function TocEntry(el, text, toclevel) {
-    this.element = el;
-    this.text = text;
-    this.toclevel = toclevel;
-  }
-
-  function tocEntries(el, toclevels) {
-    var result = new Array;
-    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
-    // Function that scans the DOM tree for header elements (the DOM2
-    // nodeIterator API would be a better technique but not supported by all
-    // browsers).
-    var iterate = function (el) {
-      for (var i = el.firstChild; i != null; i = i.nextSibling) {
-        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
-          var mo = re.exec(i.tagName);
-          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
-            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
-          }
-          iterate(i);
-        }
-      }
-    }
-    iterate(el);
-    return result;
-  }
-
-  var toc = document.getElementById("toc");
-  var entries = tocEntries(document.getElementById("content"), toclevels);
-  for (var i = 0; i < entries.length; ++i) {
-    var entry = entries[i];
-    if (entry.element.id == "")
-      entry.element.id = "_toc_" + i;
-    var a = document.createElement("a");
-    a.href = "#" + entry.element.id;
-    a.appendChild(document.createTextNode(entry.text));
-    var div = document.createElement("div");
-    div.appendChild(a);
-    div.className = "toclevel" + entry.toclevel;
-    toc.appendChild(div);
-  }
-  if (entries.length == 0)
-    toc.parentNode.removeChild(toc);
-},
-
-
-/////////////////////////////////////////////////////////////////////
-// Footnotes generator
-/////////////////////////////////////////////////////////////////////
-
-/* Based on footnote generation code from:
- * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
- */
-
-footnotes: function () {
-  var cont = document.getElementById("content");
-  var noteholder = document.getElementById("footnotes");
-  var spans = cont.getElementsByTagName("span");
-  var refs = {};
-  var n = 0;
-  for (i=0; i<spans.length; i++) {
-    if (spans[i].className == "footnote") {
-      n++;
-      // Use [\s\S] in place of . so multi-line matches work.
-      // Because JavaScript has no s (dotall) regex flag.
-      note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
-      noteholder.innerHTML +=
-        "<div class='footnote' id='_footnote_" + n + "'>" +
-        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
-        n + "</a>. " + note + "</div>";
-      spans[i].innerHTML =
-        "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
-        "' title='View footnote' class='footnote'>" + n + "</a>]";
-      var id =spans[i].getAttribute("id");
-      if (id != null) refs["#"+id] = n;
-    }
-  }
-  if (n == 0)
-    noteholder.parentNode.removeChild(noteholder);
-  else {
-    // Process footnoterefs.
-    for (i=0; i<spans.length; i++) {
-      if (spans[i].className == "footnoteref") {
-        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
-        href = href.match(/#.*/)[0];  // Because IE return full URL.
-        n = refs[href];
-        spans[i].innerHTML =
-          "[<a href='#_footnote_" + n +
-          "' title='View footnote' class='footnote'>" + n + "</a>]";
-      }
-    }
-  }
-}
-
-}
-/*]]>*/
-</script>
 </head>
-<body class="manpage">
+<body>
 <div id="header">
 <h1>
 Jim Tcl(n) Manual Page
@@ -548,8 +412,6 @@ Jim Tcl(n) Manual Page
 </p>
 </div>
 </div>
-<div id="content">
-<div class="sect1">
 <h2 id="_synopsis">SYNOPSIS</h2>
 <div class="sectionbody">
 <div class="literalblock">
@@ -584,8 +446,6 @@ Jim Tcl(n) Manual Page
 </li>
 </ul></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_introduction">INTRODUCTION</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Jim is a reimplementation of Tcl, combining some features from
@@ -700,8 +560,6 @@ The history command is not supported
 </li>
 </ol></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_changes">CHANGES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Since v0.63:</p></div>
@@ -934,8 +792,6 @@ Add <em>try &#8230; finally</em> command
 </li>
 </ol></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_tcl_introduction">TCL INTRODUCTION</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl stands for <em>tool command language</em> and is pronounced <em>tickle.</em>
@@ -979,8 +835,6 @@ the language syntax and the built-in commands that will be available
 in any application based on Tcl.  The individual library procedures are
 described in more detail in separate manual pages, one per procedure.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_interpreters">INTERPRETERS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The central data structure in Tcl is an interpreter (C type <em>Jim_Interp</em>).
@@ -993,8 +847,6 @@ the application.  Interpreters are relatively lightweight structures.
 They can be created and deleted quickly, so application programmers should
 feel free to use multiple interpreters if that simplifies the application.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_data_types">DATA TYPES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl supports only one type of data:  strings.  All commands, all arguments
@@ -1015,8 +867,6 @@ the interpretation, there are three common forms that strings take:
 commands, expressions, and lists.  The major sections below discuss
 these three forms in more detail.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_basic_command_syntax">BASIC COMMAND SYNTAX</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The Tcl language has syntactic similarities to both the Unix shells
@@ -1059,8 +909,6 @@ other forms that will be re-used over time:  changes to the command set
 may cause abbreviations to become ambiguous, resulting in scripts that
 no longer work.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_comments">COMMENTS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>If the first non-blank character in a command is <em>#</em>, then everything
@@ -1071,8 +919,6 @@ braces (this is necessary because when Tcl parses the top-level command
 it doesn&#8217;t yet know that the nested field will be used as a command so
 it cannot process the nested comment character as a comment).</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_grouping_arguments_with_double_quotes">GROUPING ARGUMENTS WITH DOUBLE-QUOTES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Normally each argument field ends at the next white space, but
@@ -1092,8 +938,6 @@ and backslash substitutions still occur, as described below.  If the
 first character of a command field is not a quote, then quotes receive
 no special interpretation in the parsing of that field.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_grouping_arguments_with_braces">GROUPING ARGUMENTS WITH BRACES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Curly braces may also be used for grouping arguments.  They are similar
@@ -1131,8 +975,6 @@ brace, then neither left nor right
 braces in the field will be treated specially (except as part of
 variable substitution; see below).</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_command_substitution_with_brackets">COMMAND SUBSTITUTION WITH BRACKETS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>If an open bracket occurs in a field of a command, then command
@@ -1181,8 +1023,6 @@ expr $b+2]x</tt></pre>
 between them are not interpreted specially; they are passed through to
 the argument verbatim.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_variable_substitution_with">VARIABLE SUBSTITUTION WITH $</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The dollar sign (<em>$</em>) may be used as a special shorthand form for
@@ -1253,8 +1093,6 @@ argument verbatim.</p></div>
 completely equivalent to <em>[set a]</em>; it is provided as a convenience
 to reduce typing.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_separating_commands_with_semi_colons">SEPARATING COMMANDS WITH SEMI-COLONS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Normally, each command occupies one line (the command is terminated by a
@@ -1263,8 +1101,6 @@ separator character; multiple commands may be placed on one line by
 separating them with a semi-colon.  Semi-colons are not treated as
 command separators if they appear within curly braces or double-quotes.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_backslash_substitution">BACKSLASH SUBSTITUTION</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Backslashes may be used to insert non-printing characters into command
@@ -1413,6 +1249,15 @@ sequence is replaced by the given character:</p></div>
     the character.  Note that Jim supports null characters in strings.
 </p>
 </dd>
+<dt class="hdlist1">
+<tt>\u*nnnn*</tt>
+</dt>
+<dd>
+<p>
+    The hex digits <strong>nnnn</strong> (between one and four of them) give a unicode codepoint.
+        The UTF-8 encoding of the codepoint is inserted.
+</p>
+</dd>
 </dl></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="literalblock">
@@ -1451,8 +1296,6 @@ most common cases.  To produce particularly complicated arguments
 it is probably easiest to use the <em>format</em> command along with
 command substitution.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_string_and_list_index_specifications">STRING AND LIST INDEX SPECIFICATIONS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Many string and list commands take one or more <em>index</em> parameters which
@@ -1499,8 +1342,6 @@ specify a position in the string relative to the start or end of the string/list
 </dd>
 </dl></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_command_summary">COMMAND SUMMARY</h2>
 <div class="sectionbody">
 <div class="olist arabic"><ol class="arabic">
@@ -1565,8 +1406,6 @@ If the first non-blank character of a command is a <em>#</em>, everything
 </li>
 </ol></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_expressions">EXPRESSIONS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The second major interpretation applied to strings in Tcl is
@@ -1933,8 +1772,6 @@ terminate.  Instead, the expression should be placed in braces:</p></div>
 to be delayed; it will be re-done each time the expression is
 evaluated, which is the desired result.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_lists">LISTS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The third major way that strings are interpreted in Tcl is as lists.
@@ -1975,8 +1812,6 @@ you to build lists, extract elements from them, search them, and perform
 other list-related functions.</p></div>
 <div class="paragraph"><p>Advanced list commands include <em>lrepeat</em>, <em>lreverse</em>, <em>lmap</em>, <em>lassign</em>, <em>lset</em>.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_list_expansion">LIST EXPANSION</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>A new addition to Tcl 8.5 is the ability to expand a list into separate
@@ -1999,8 +1834,6 @@ the resulting command.</p></div>
 <div class="paragraph"><p>Note that the official Tcl syntax is <em>{*}</em>, however <em>{expand}</em> is retained
 for backward compatibility with experimental versions of this feature.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_regular_expressions">REGULAR EXPRESSIONS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl provides two commands that support string matching using
@@ -2010,8 +1843,6 @@ Extended Regular Expressions (EREs) rather than Basic Regular Expressions (BREs)
 <div class="paragraph"><p>See regex(3) and regex(7) for full details.</p></div>
 <div class="paragraph"><p><strong>NOTE</strong> Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (AREs).</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_command_results">COMMAND RESULTS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Each command produces two results:  a code and a string.  The
@@ -2107,8 +1938,6 @@ aborting command interpretation any further.</p></div>
 <div class="paragraph"><p>The <em>info returncodes</em> command may be used to programmatically map between
 return codes and names.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_procedures">PROCEDURES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl allows you to extend the command interface by defining
@@ -2247,8 +2076,6 @@ invocations of the procedure.</p></div>
 <div class="paragraph"><p>See the <em>proc</em> command for information on
 how to define procedures and what happens when they are invoked.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_variables_scalars_and_arrays">VARIABLES - SCALARS AND ARRAYS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl allows the definition of variables and the use of their values
@@ -2319,8 +2146,6 @@ p</tt></pre>
 <pre><tt>1 2 3</tt></pre>
 </div></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_arrays_as_lists_in_jim">ARRAYS AS LISTS IN JIM</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Unlike Tcl, Jim can automatically convert between a list (with an even
@@ -2352,8 +2177,6 @@ puts $a</tt></pre>
 <pre><tt>1 one 2 two</tt></pre>
 </div></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_dictionary_values">DICTIONARY VALUES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Tcl 8.5 introduced the dict command, and Jim Tcl has added a version
@@ -2402,15 +2225,12 @@ jim&gt; dict set a 3 T three
 </div></div>
 <div class="paragraph"><p>See the <em>dict</em> command for more details.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_garbage_collection_references_lambda">GARBAGE COLLECTION, REFERENCES, LAMBDA</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Unlike Tcl, Jim has some sophistocated support for functional programming.
 These are described briefly below.</p></div>
 <div class="paragraph"><p>More information may be found at <a href="http://wiki.tcl.tk/13847">http://wiki.tcl.tk/13847</a></p></div>
-<div class="sect2">
-<h3 id="_references">References</h3>
+<h3 id="_references">References</h3><div style="clear:left"></div>
 <div class="paragraph"><p>A reference can be thought of as holding a value with one level of indirection,
 where the value may be garbage collected when unreferenced.
 Consider the following example:</p></div>
@@ -2435,9 +2255,7 @@ New String</tt></pre>
 <div class="paragraph"><p>The operation <em>setref</em> replaces the value stored by the reference. If the old value
 is no longer accessible by any reference, it will eventually be automatically be garbage
 collected.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_garbage_collection">Garbage Collection</h3>
+<h3 id="_garbage_collection">Garbage Collection</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Normally, all values in Tcl are passed by value. As such values are copied and released
 automatically as necessary.</p></div>
 <div class="paragraph"><p>With the introduction of references, it is possible to create values whose lifetime
@@ -2468,9 +2286,7 @@ f
 jim&gt; finalize $r newf
 newf</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_lambda">Lambda</h3>
+<h3 id="_lambda">Lambda</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Jim provides a garbage collected lambda function. This is a procedure
 which is able to create an anonymous procedure.  Consider:</p></div>
 <div class="literalblock">
@@ -2492,9 +2308,78 @@ when the garbage collector runs.</p></div>
 <pre><tt>jim&gt; rename $f ""</tt></pre>
 </div></div>
 </div>
+<h2 id="_utf_8_and_unicode">UTF-8 AND UNICODE</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>If Jim is built with UTF-8 support enabled (configure --enable-utf),
+then most string-related commands become UTF-8 aware.  These include,
+but are not limited to, <em>string match</em>, <em>split</em>, <em>glob</em>, <em>scan</em> and
+<em>format</em>.</p></div>
+<div class="paragraph"><p>UTF-8 encoding has many advantages, but one of the complications is that
+characters can take a variable number of bytes. Thus the addition of
+<em>string bytelength</em> which returns the number of bytes in a string,
+while <em>string length</em> returns the number of characters.</p></div>
+<div class="paragraph"><p>If UTF-8 support is not enabled, all commands treat bytes as characters
+and <em>string bytelength</em> returns the same value as <em>string length</em>.</p></div>
+<div class="paragraph"><p>Note that even if UTF-8 support is not enabled, the \uNNNN syntax
+is still available to embed UTF-8 sequences.</p></div>
+<h3 id="_string_matching">String Matching</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Commands such as <em>string match</em>, <em>lsearch -glob</em>, <em>array names</em> and others use string
+pattern matching rules. These commands support UTF-8. For example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>string match a{backslash}[{backslash}ua0-{backslash}ubf{backslash}]b "a{backslash}a3b"</tt></pre>
+</div></div>
+<h3 id="_format_and_scan">format and scan</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>format %c</em> allows a unicode codepoint to be be encoded. For example, the following will return
+a string with two bytes and one character. The same as \ub5</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>format %c 0xb5</tt></pre>
+</div></div>
+<div class="paragraph"><p><em>format</em> respects widths as character widths, not byte widths. For example, the following will
+return a string with three characters, not three bytes.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>format %.3s {backslash}ub5{backslash}ub6{backslash}ub7{backslash}ub8</tt></pre>
+</div></div>
+<div class="paragraph"><p>Similarly, <em>scan &#8230; %c</em> allows a UTF-8 to be decoded to a unicode codepoint. The following will set
+<strong>a</strong> to 181 (0xb5) and <strong>b</strong> to <em>181</em> and <em>b</em> to 65.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>scan {backslash}00b5A %c%c a b</tt></pre>
+</div></div>
+<div class="paragraph"><p><em>scan %s</em> will also accept a character class, including unicode ranges.</p></div>
+<h3 id="_string_classes">String Classes</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>string is</em> has <strong>not</strong> been extended to classify UTF-8 characters. Therefore, the following
+will return 0, even though the string may be considered to be alphabetic.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>string is {backslash}b5Test</tt></pre>
+</div></div>
+<div class="paragraph"><p>This does not affect the string classes <em>ascii</em>, <em>control</em>, <em>digit</em>, <em>double</em>, <em>integer</em> or <em>xdigit</em>.</p></div>
+<h3 id="_case_mapping_and_conversion">Case Mapping and Conversion</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Jim provides a simplified unicode case mapping. This means that case conversion
+and comparison will not increase or decrease the number of characters in a string.</p></div>
+<div class="paragraph"><p><em>string toupper</em> will convert any lowercase letters to their uppercase equivalent.
+Any character which is not a letter or has no uppercase equivalent is left unchanged.
+Similarly for <em>string tolower</em>.</p></div>
+<div class="paragraph"><p>Commands which perform case insensitive matches, such as <em>string compare -nocase</em>
+and <em>lsearch -nocase</em> fold both strings to uppercase before comparison.</p></div>
+<h3 id="_invalid_utf_8_sequences">Invalid UTF-8 Sequences</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Some UTF-8 character sequences are invalid, such as those beginning with <em>0xff</em>,
+those which represent character sequences longer than 3 bytes (greater than U+FFFF),
+and those which end prematurely, such as a lone <em>0xc2</em>.</p></div>
+<div class="paragraph"><p>In these situations, the offending bytes are treated as single characters. For example,
+the following returns 2.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>string bytelength \xff\xff</tt></pre>
+</div></div>
+<h3 id="_regular_expressions_2">Regular Expressions</h3><div style="clear:left"></div>
+<div class="paragraph"><p>At this time, regular expressions do <strong>not</strong> support UTF-8 strings. This included
+<em>regexp</em>, <em>regsub</em>, <em>switch -regexp</em> and <em>lsearch -regexp</em>.</p></div>
+<div class="paragraph"><p>This means that regular expresion operations operate on bytes, not characters.</p></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_built_in_commands">BUILT-IN COMMANDS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The Tcl library provides the following built-in commands, which will
@@ -2510,8 +2395,7 @@ in <tt>?question-marks?</tt>.</p></div>
 <div class="paragraph"><p>Ellipses (<tt>&#8230;</tt>) indicate that any number of additional
 arguments or groups of arguments may appear, in the same format
 as the preceding argument(s).</p></div>
-<div class="sect2">
-<h3 id="CommandIndex">Command Index</h3>
+<h3 id="CommandIndex">Command Index</h3><div style="clear:left"></div>
 <div class="tableblock">
 <table rules="none"
 width="100%"
@@ -2669,9 +2553,7 @@ cellspacing="0" cellpadding="4">
 </tbody>
 </table>
 </div>
-</div>
-<div class="sect2">
-<h3 id="_alarm">alarm</h3>
+<h3 id="_alarm">alarm</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>alarm</strong> <em>seconds</em></tt></p></div>
 <div class="paragraph"><p>Delivers the <em>SIGALRM</em> signal to the process after the given
 number of seconds. If the platform supports <em>ularm(3)</em> then
@@ -2679,9 +2561,7 @@ the argument may be a floating point value. Otherwise it must
 be an integer.</p></div>
 <div class="paragraph"><p>Note that unless a signal handler for <em>SIGALRM</em> has been installed
 (see <em>signal</em>), the process will exit on this signal.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_alias">alias</h3>
+<h3 id="_alias">alias</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>alias</strong> <em>name args&#8230;</em></tt></p></div>
 <div class="paragraph"><p>Creates a single word alias (proc) for one or more words. For example,
 the following creates an alias for the command <em>info exists</em>.</p></div>
@@ -2694,9 +2574,7 @@ if {[e var]} {
 </div></div>
 <div class="paragraph"><p><em>alias</em> returns <strong>name</strong>, allowing it to be used with 'local.</p></div>
 <div class="paragraph"><p>See also <em>proc</em>, <em>curry</em>, <em>lambda</em>, <em>local</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_append">append</h3>
+<h3 id="_append">append</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>append</strong> <em>varName value ?value value &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Append all of the <strong>value</strong> arguments to the current value
 of variable <strong>varName</strong>.  If <strong>varName</strong> doesn&#8217;t exist,
@@ -2706,9 +2584,7 @@ it is given a value equal to the concatenation of all the
 variables incrementally.
 For example, <em>append a $b</em> is much more efficient than
 <em>set a $a$b</em> if <em>$a</em> is long.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_array">array</h3>
+<h3 id="_array">array</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>array</strong> <em>option arrayName ?arg arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command performs one of several operations on the
 variable given by <strong>arrayName</strong>.</p></div>
@@ -2798,16 +2674,12 @@ command.  The legal <strong>options</strong> (which may be abbreviated) are:</p>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_break">break</h3>
+<h3 id="_break">break</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>break</strong></tt></p></div>
 <div class="paragraph"><p>This command may be invoked only inside the body of a loop command
 such as <em>for</em> or <em>foreach</em> or <em>while</em>.  It returns a <tt>JIM_BREAK</tt> code
 to signal the innermost containing loop command to return immediately.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_case">case</h3>
+<h3 id="_case">case</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>case</strong> <em>string</em> ?<strong>in</strong>? <em>patList body ?patList body &#8230;?</em></tt></p></div>
 <div class="paragraph"><p><tt><strong>case</strong> <em>string</em> ?<strong>in</strong>? {<em>patList body ?patList body &#8230;?</em>}</tt></p></div>
 <div class="paragraph"><p><strong>Note</strong> that the switch command should generally be preferred unless compatibility
@@ -2863,9 +2735,7 @@ cases.</p></div>
 }</tt></pre>
 </div></div>
 <div class="paragraph"><p>will return <em>2</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_catch">catch</h3>
+<h3 id="_catch">catch</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>catch</strong> <em>?-?no?code &#8230;?</em> <strong>?--?</strong> <em>command ?resultVarName? ?optionsVarName?</em></tt></p></div>
 <div class="paragraph"><p>The <em>catch</em> command may be used to prevent errors from aborting
 command interpretation.  <em>Catch</em> evalues <strong>command</strong>, and returns a
@@ -2911,17 +2781,13 @@ The set of codes which will be caught may be modified by specifying the one more
 <div class="paragraph"><p>The use of <tt>--</tt> is optional. It signifies that no more return code options follow.</p></div>
 <div class="paragraph"><p>Note that if a signal marked as <em>signal handle</em> is caught with <em>catch -signal</em>, the return value
 (stored in <strong>resultVarName</strong>) is name of the signal caught.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_cd">cd</h3>
+<h3 id="_cd">cd</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>cd</strong> <em>dirName</em></tt></p></div>
 <div class="paragraph"><p>Change the current working directory to <strong>dirName</strong>.</p></div>
 <div class="paragraph"><p>Returns an empty string.</p></div>
 <div class="paragraph"><p>This command can potentially be disruptive to an application, so it may
 be removed in some applications.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_clock">clock</h3>
+<h3 id="_clock">clock</h3><div style="clear:left"></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <tt><strong>clock seconds</strong></tt>
@@ -2951,25 +2817,19 @@ be removed in some applications.</p></div>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_close">close</h3>
+<h3 id="_close">close</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>close</strong> <em>fileId</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>close</strong></tt></p></div>
 <div class="paragraph"><p>Closes the file given by <strong>fileId</strong>.
 <strong>fileId</strong> must be the return value from a previous invocation
 of the <em>open</em> command; after this command, it should not be
 used anymore.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_collect">collect</h3>
+<h3 id="_collect">collect</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>collect</strong></tt></p></div>
 <div class="paragraph"><p>Normally reference garbage collection is automatically performed periodically.
 However it may be run immediately with the <em>collect</em> command.</p></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_concat">concat</h3>
+<h3 id="_concat">concat</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>concat</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command treats each argument as a list and concatenates them
 into a single list.  It permits any number of arguments.  For example,
@@ -2984,17 +2844,13 @@ the command</p></div>
 <pre><tt>a b c d e f {g h}</tt></pre>
 </div></div>
 <div class="paragraph"><p>as its result.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_continue">continue</h3>
+<h3 id="_continue">continue</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>continue</strong></tt></p></div>
 <div class="paragraph"><p>This command may be invoked only inside the body of a loop command such
 as <em>for</em> or <em>foreach</em> or <em>while</em>.  It returns a  <tt>JIM_CONTINUE</tt> code to
 signal the innermost containing loop command to skip the remainder of
 the loop&#8217;s body but continue with the next iteration of the loop.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_curry">curry</h3>
+<h3 id="_curry">curry</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>alias</strong> <em>args&#8230;</em></tt></p></div>
 <div class="paragraph"><p>Similar to <em>alias</em> except it creates an anonymous procedure (lambda) instead of
 a named procedure.</p></div>
@@ -3008,9 +2864,7 @@ if {[$e var]} {
 </div></div>
 <div class="paragraph"><p><em>curry</em> returns the name of the procedure.</p></div>
 <div class="paragraph"><p>See also <em>proc</em>, <em>alias</em>, <em>lambda</em>, <em>local</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_dict">dict</h3>
+<h3 id="_dict">dict</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>dict</strong> <em>option ?arg arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Performs one of several operations on dictionary values.</p></div>
 <div class="paragraph"><p>The <strong>option</strong> argument determines what action is carried out by the
@@ -3068,6 +2922,17 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<strong>dict keys</strong> <em>dictionary ?pattern?</em>+
+</dt>
+<dd>
+<p>
+    Returns a list of the keys in the dictionary.
+    If pattern is specified, then only those keys whose
+    names match <strong>pattern</strong> (using the matching rules of string
+    match) are included.
+</p>
+</dd>
+<dt class="hdlist1">
 <strong>dict set</strong> <em>dictionaryName key ?key &#8230;? value</em>+
 </dt>
 <dd>
@@ -3094,9 +2959,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_env">env</h3>
+<h3 id="_env">env</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>env</strong> <em>?name? ?default?</em></tt></p></div>
 <div class="paragraph"><p>If <strong>name</strong> is supplied, returns the value of <strong>name</strong> from the initial
 environment (see getenv(3)). An error is returned if <strong>name</strong> does not
@@ -3105,9 +2968,7 @@ that value is returned instead.</p></div>
 <div class="paragraph"><p>If no arguments are supplied, returns a list of all environment variables
 and their values as <tt>{name value &#8230;}</tt></p></div>
 <div class="paragraph"><p>See also the global variable <em>::env</em></p></div>
-</div>
-<div class="sect2">
-<h3 id="_eof">eof</h3>
+<h3 id="_eof">eof</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>eof</strong> <em>fileId</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>eof</strong></tt></p></div>
 <div class="paragraph"><p>Returns 1 if an end-of-file condition has occurred on <strong>fileId</strong>,
@@ -3115,9 +2976,7 @@ and their values as <tt>{name value &#8230;}</tt></p></div>
 <div class="paragraph"><p><strong>fileId</strong> must have been the return value from a previous call to <em>open</em>,
 or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one of the
 standard I/O channels.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_error">error</h3>
+<h3 id="_error">error</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>error</strong> <em>message ?stacktrace?</em></tt></p></div>
 <div class="paragraph"><p>Returns a <tt>JIM_ERR</tt> code, which causes command interpretation to be
 unwound.  <strong>message</strong> is a string that is returned to the application
@@ -3135,9 +2994,7 @@ of the error:</p></div>
 error $errMsg [info stacktrace]</tt></pre>
 </div></div>
 <div class="paragraph"><p>See also <em>errorInfo</em>, <em>info stacktrace</em>, <em>catch</em> and <em>return</em></p></div>
-</div>
-<div class="sect2">
-<h3 id="_errorinfo">errorInfo</h3>
+<h3 id="_errorinfo">errorInfo</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>errorInfo</strong> <em>error ?stacktrace?</em></tt></p></div>
 <div class="paragraph"><p>Returns a human-readable representation of the given error message and stack trace.
 Typical usage is:</p></div>
@@ -3149,9 +3006,7 @@ Typical usage is:</p></div>
 }</tt></pre>
 </div></div>
 <div class="paragraph"><p>See also <em>error</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_eval">eval</h3>
+<h3 id="_eval">eval</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>eval</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p><em>eval</em> takes one or more arguments, which together comprise a Tcl
 command (or collection of Tcl commands separated by newlines in the
@@ -3159,9 +3014,7 @@ usual way).  <em>eval</em> concatenates all its arguments in the same
 fashion as the <em>concat</em> command, passes the concatenated string to the
 Tcl interpreter recursively, and returns the result of that
 evaluation (or any error generated by it).</p></div>
-</div>
-<div class="sect2">
-<h3 id="_exec">exec</h3>
+<h3 id="_exec">exec</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>exec</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command treats its arguments as the specification
 of one or more UNIX commands to execute as subprocesses.
@@ -3364,24 +3217,18 @@ option in <em>catch</em>) will be set to a list, as follows:</p></div>
 </dl></div>
 <div class="paragraph"><p>The environment for the executed command is set from $::env (unless
 this variable is unset, in which case the original environment is used).</p></div>
-</div>
-<div class="sect2">
-<h3 id="_exit">exit</h3>
+<h3 id="_exit">exit</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>exit</strong> <em>?returnCode?</em></tt></p></div>
 <div class="paragraph"><p>Terminate the process, returning <strong>returnCode</strong> to the
 parent as the exit status.</p></div>
 <div class="paragraph"><p>If <strong>returnCode</strong> isn&#8217;t specified then it defaults
 to 0.</p></div>
 <div class="paragraph"><p>Note that exit can be caught with <strong>catch</strong>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_expr">expr</h3>
+<h3 id="_expr">expr</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>expr</strong> <em>arg</em></tt></p></div>
 <div class="paragraph"><p>Calls the expression processor to evaluate <strong>arg</strong>, and returns
 the result as a string.  See the section EXPRESSIONS above.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_file">file</h3>
+<h3 id="_file">file</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>file</strong> <em>option name ?arg arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Operate on a file or a file name.  <strong>name</strong> is the name of a file.</p></div>
 <div class="paragraph"><p><strong>Option</strong> indicates what to do with the file name.  Any unique
@@ -3654,9 +3501,7 @@ conditional or looping commands, for example:</p></div>
 <div class="content">
 <pre><tt>if {![file exists foo]} then {error {bad file name}} else {...}</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_finalize">finalize</h3>
+<h3 id="_finalize">finalize</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>finalize</strong> <em>reference ?command?</em></tt></p></div>
 <div class="paragraph"><p>If <strong>command</strong> is omitted, returns the finalizer command for the given reference.</p></div>
 <div class="paragraph"><p>Otherwise, sets a new finalizer command for the given reference. <strong>command</strong> may be
@@ -3664,9 +3509,7 @@ the empty string to remove the current finalizer.</p></div>
 <div class="paragraph"><p>The reference must be a valid reference create with the <em>ref</em>
 command.</p></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_flush">flush</h3>
+<h3 id="_flush">flush</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>flush</strong> <em>fileId</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>flush</strong></tt></p></div>
 <div class="paragraph"><p>Flushes any output that has been buffered for <strong>fileId</strong>.  <strong>fileId</strong> must
@@ -3674,9 +3517,7 @@ have been the return value from a previous call to <em>open</em>, or it may be
 <em>stdout</em> or <em>stderr</em> to access one of the standard I/O streams; it must
 refer to a file that was opened for writing.  This command returns an
 empty string.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_for">for</h3>
+<h3 id="_for">for</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>for</strong> <em>start test next body</em></tt></p></div>
 <div class="paragraph"><p><em>For</em> is a looping command, similar in structure to the C <em>for</em> statement.
 The <strong>start</strong>, <strong>next</strong>, and <strong>body</strong> arguments must be Tcl command strings,
@@ -3695,9 +3536,7 @@ command will return immediately.</p></div>
 <div class="paragraph"><p>The operation of <em>break</em> and <em>continue</em> are similar to the corresponding
 statements in C.</p></div>
 <div class="paragraph"><p><em>For</em> returns an empty string.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_foreach">foreach</h3>
+<h3 id="_foreach">foreach</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>foreach</strong> <em>varName list body</em></tt></p></div>
 <div class="paragraph"><p><tt><strong>foreach</strong> <em>varList list ?varList2 list2 &#8230;? body</em></tt></p></div>
 <div class="paragraph"><p>In this command, <strong>varName</strong> is the name of a variable, <strong>list</strong>
@@ -3717,9 +3556,7 @@ of the loop are undefined.</p></div>
 <div class="paragraph"><p>The <em>break</em> and <em>continue</em> statements may be invoked inside <strong>body</strong>,
 with the same effect as in the <em>for</em> command.</p></div>
 <div class="paragraph"><p><em>foreach</em> returns an empty string.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_format">format</h3>
+<h3 id="_format">format</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>format</strong> <em>formatString ?arg arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command generates a formatted string in the same way as the
 C <em>sprintf</em> procedure (it uses <em>sprintf</em> in its
@@ -3738,16 +3575,12 @@ ASCII character value.</p></div>
 argument, so backslash sequences in <strong>formatString</strong> will be handled
 correctly even if the argument is in braces.</p></div>
 <div class="paragraph"><p>The return value from <em>format</em> is the formatted string.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_getref">getref</h3>
+<h3 id="_getref">getref</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>getref</strong> <em>reference</em></tt></p></div>
 <div class="paragraph"><p>Returns the string associated with <strong>reference</strong>. The reference must
 be a valid reference create with the <em>ref</em> command.</p></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_gets">gets</h3>
+<h3 id="_gets">gets</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>gets</strong> <em>fileId ?varName?</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>gets</strong> <em>?varName?</em></tt></p></div>
 <div class="paragraph"><p>Reads the next line from the file given by <strong>fileId</strong> and discards
@@ -3770,9 +3603,7 @@ at the end of the file.</p></div>
 <div class="paragraph"><p><strong>fileId</strong> must be <em>stdin</em> or the return value from a previous
 call to <em>open</em>; it must refer to a file that was opened
 for reading.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_glob">glob</h3>
+<h3 id="_glob">glob</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>glob</strong> ?<strong>-nocomplain</strong>? <em>pattern ?pattern &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command performs filename globbing, using csh rules.  The returned
 value from <em>glob</em> is the list of expanded filenames.</p></div>
@@ -3780,9 +3611,7 @@ value from <em>glob</em> is the list of expanded filenames.</p></div>
 list may be returned;  otherwise an error is returned if the expanded
 list is empty.  The <em>-nocomplain</em> argument must be provided
 exactly: an abbreviation will not be accepted.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_global">global</h3>
+<h3 id="_global">global</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>global</strong> <em>varName ?varName &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command is ignored unless a Tcl procedure is being interpreted.
 If so, then it declares each given <strong>varName</strong> to be a global variable
@@ -3792,9 +3621,7 @@ rather than a local one.  For the duration of the current procedure
 of a local one.</p></div>
 <div class="paragraph"><p>An alternative to using <em>global</em> is to use the <em>::</em> prefix
 to explicitly name a variable in the global scope.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_if">if</h3>
+<h3 id="_if">if</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>if</strong> <em>expr1</em> ?<strong>then</strong>? <em>body1</em> <strong>elseif</strong> <em>expr2</em> ?<strong>then</strong>? <em>body2</em> <strong>elseif</strong> &#8230; ?<strong>else</strong>? ?<em>bodyN</em>?</tt></p></div>
 <div class="paragraph"><p>The <em>if</em> command evaluates <strong>expr1</strong> as an expression (in the same way
 that <em>expr</em> evaluates its argument).  The value of the expression must
@@ -3810,9 +3637,7 @@ may also be omitted as long as <em>else</em> is omitted too.</p></div>
 <div class="paragraph"><p>The return value from the command is the result of the body script that
 was executed, or an empty string if none of the expressions was non-zero
 and there was no <strong>bodyN</strong>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_incr">incr</h3>
+<h3 id="_incr">incr</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>incr</strong> <em>varName ?increment?</em></tt></p></div>
 <div class="paragraph"><p>Increment the value stored in the variable whose name is <strong>varName</strong>.
 The value of the variable must be integral.</p></div>
@@ -3823,9 +3648,7 @@ integer) is added to the value of variable <strong>varName</strong>;  otherwise
 and also returned as result.</p></div>
 <div class="paragraph"><p>If the variable does not exist, the variable is implicitly created
 and set to <tt>0</tt> first.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_info">info</h3>
+<h3 id="_info">info</h3><div style="clear:left"></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <tt><strong>info</strong> <em>option ?arg arg &#8230;?</em></tt>
@@ -3861,6 +3684,14 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 <dd>
 <p>
     Returns a list of all open <em>aio</em> channels.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>info channels</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns a list of all open file handles from <em>open</em> or <em>socket</em>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4063,17 +3894,13 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_join">join</h3>
+<h3 id="_join">join</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>join</strong> <em>list ?joinString?</em></tt></p></div>
 <div class="paragraph"><p>The <strong>list</strong> argument must be a valid Tcl list.  This command returns the
 string formed by joining all of the elements of <strong>list</strong> together with
 <strong>joinString</strong> separating each adjacent pair of elements.</p></div>
 <div class="paragraph"><p>The <strong>joinString</strong> argument defaults to a space character.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_kill">kill</h3>
+<h3 id="_kill">kill</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>kill</strong> ?<em>SIG</em>|<strong>-0</strong>? <em>pid</em></tt></p></div>
 <div class="paragraph"><p>Sends the given signal to the process identified by <strong>pid</strong>.</p></div>
 <div class="paragraph"><p>The signal may be specified by name or number in one of the following forms:</p></div>
@@ -4108,17 +3935,13 @@ string formed by joining all of the elements of <strong>list</strong> together w
 <div class="paragraph"><p>The special signal name <em>-0</em> simply checks that a signal <strong>could</strong> be sent.</p></div>
 <div class="paragraph"><p>If no signal is specified, SIGTERM is used.</p></div>
 <div class="paragraph"><p>An error is raised if the signal could not be delivered.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lambda_2">lambda</h3>
+<h3 id="_lambda_2">lambda</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lambda</strong> <em>args ?statics? body</em></tt></p></div>
 <div class="paragraph"><p>The <em>lambda</em> command is identical to <em>proc</em>, except rather than
 creating a named procedure, it creates an anonymous procedure and returns
 the name of the procedure.</p></div>
 <div class="paragraph"><p>See <em>proc</em> and GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lappend">lappend</h3>
+<h3 id="_lappend">lappend</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lappend</strong> <em>varName value ?value value &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Treat the variable given by <strong>varName</strong> as a list and append each of
 the <strong>value</strong> arguments to that list as a separate element, with spaces
@@ -4133,9 +3956,7 @@ For example, <em>lappend a $b</em> is much more efficient than</p></div>
 <pre><tt>set a [concat $a [list $b]]</tt></pre>
 </div></div>
 <div class="paragraph"><p>when <em>$a</em> is long.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lassign">lassign</h3>
+<h3 id="_lassign">lassign</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lassign</strong> <em>list varName ?varName? &#8230;</em></tt></p></div>
 <div class="paragraph"><p>This command treats the value <strong>list</strong> as a list and assigns successive elements from that list to
 the variables given by the <strong>varName</strong> arguments in order. If there are more variable names than
@@ -4147,9 +3968,7 @@ ments than variables, a list of unassigned elements is returned.</p></div>
 3
 a=1,b=2</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_local">local</h3>
+<h3 id="_local">local</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>local</strong> <em>args</em></tt></p></div>
 <div class="paragraph"><p>Executes it&#8217;s arguments as a command (per <em>eval</em>) and considers the return
 value to be a procedure name, which is marked as having local scope.
@@ -4189,9 +4008,7 @@ than waiting until garbage collection.</p></div>
   ...
 }</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_lindex">lindex</h3>
+<h3 id="_lindex">lindex</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lindex</strong> <em>list index</em></tt></p></div>
 <div class="paragraph"><p>Treats <strong>list</strong> as a Tcl list and returns element <strong>index</strong> from it
 (0 refers to the first element of the list).
@@ -4201,9 +4018,7 @@ braces and quotes and backslashes as the Tcl command interpreter; however,
 variable substitution and command substitution do not occur.</p></div>
 <div class="paragraph"><p>If <strong>index</strong> is negative or greater than or equal to the number of elements
 in <strong>value</strong>, then an empty string is returned.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_linsert">linsert</h3>
+<h3 id="_linsert">linsert</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>linsert</strong> <em>list index element ?element element &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command produces a new list from <strong>list</strong> by inserting all
 of the <strong>element</strong> arguments just before the element <strong>index</strong>
@@ -4214,9 +4029,7 @@ beginning of the list. If <strong>index</strong> is greater than or equal
 to the number of elements in the list, then the new elements are
 appended to the list.</p></div>
 <div class="paragraph"><p>See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for <strong>index</strong>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_list">list</h3>
+<h3 id="_list">list</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>list</strong> <em>arg ?arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command returns a list comprised of all the arguments, <strong>arg</strong>. Braces
 and backslashes get added as necessary, so that the <em>index</em> command
@@ -4241,15 +4054,11 @@ For example, the command</p></div>
 <div class="content">
 <pre><tt>a b c d e f {g h}</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_llength">llength</h3>
+<h3 id="_llength">llength</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>llength</strong> <em>list</em></tt></p></div>
 <div class="paragraph"><p>Treats <strong>list</strong> as a list and returns a decimal string giving
 the number of elements in it.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lset">lset</h3>
+<h3 id="_lset">lset</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lset</strong> <em>varName ?index ..? newValue</em></tt></p></div>
 <div class="paragraph"><p>Sets an element in a list.</p></div>
 <div class="paragraph"><p>The <em>lset</em> command accepts a parameter, <strong>varName</strong>, which it interprets
@@ -4290,9 +4099,7 @@ or equal to zero. The integer appearing in each index argument must
 be strictly less than the length of the corresponding list. In other
 words, the <em>lset</em> command cannot change the size of a list. If an
 index is outside the permitted range, an error is reported.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lmap">lmap</h3>
+<h3 id="_lmap">lmap</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lmap</strong> <em>varName list body</em></tt></p></div>
 <div class="paragraph"><p><tt><strong>lmap</strong> <em>varList list ?varList2 list2 &#8230;? body</em></tt></p></div>
 <div class="paragraph"><p><em>lmap</em> is a "collecting <em>foreach</em>" which returns a list of its results.</p></div>
@@ -4306,18 +4113,14 @@ jim&gt; lmap a {1 2 3} b {A B C} {list $a $b}
 </div></div>
 <div class="paragraph"><p>If the body invokes <em>continue</em>, no value is added for this iteration.
 If the body invokes <em>break</em>, the loop ends and no more values are added.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_load">load</h3>
+<h3 id="_load">load</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>load</strong> <em>filename</em></tt></p></div>
 <div class="paragraph"><p>Loads the dynamic extension, <strong>filename</strong>. Generally the filename should have
 the extension <em>.so</em>. The initialisation function for the module must be based
 on the name of the file. For example loading <tt>dir/hwaccess.so</tt> will invoke
 the initialisation function, <tt>Jim_hwaccessInit</tt>. Normally the <em>load</em> command
 should not be used directly. Instead it is invoked automatically by <em>package require</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lrange">lrange</h3>
+<h3 id="_lrange">lrange</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lrange</strong> <em>list first last</em></tt></p></div>
 <div class="paragraph"><p><strong>List</strong> must be a valid Tcl list. This command will return a new
 list consisting of elements <strong>first</strong> through <strong>last</strong>, inclusive.</p></div>
@@ -4330,9 +4133,7 @@ is returned.</p></div>
 same result as <em>lindex <strong>list first</strong></em> (although it often does
 for simple fields that aren&#8217;t enclosed in braces); it does, however,
 produce exactly the same results as <em>list [lindex <strong>list first</strong>]</em></p></div>
-</div>
-<div class="sect2">
-<h3 id="_lreplace">lreplace</h3>
+<h3 id="_lreplace">lreplace</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lreplace</strong> <em>list first last ?element element &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Returns a new list formed by replacing one or more elements of
 <strong>list</strong> with the <strong>element</strong> arguments.</p></div>
@@ -4350,9 +4151,7 @@ be added to the list in place of those that were deleted.</p></div>
 the list.</p></div>
 <div class="paragraph"><p>If no <strong>element</strong> arguments are specified, then the elements
 between <strong>first</strong> and <strong>last</strong> are simply deleted.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_lrepeat">lrepeat</h3>
+<h3 id="_lrepeat">lrepeat</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lrepeat</strong> <em>number element1 ?element2 &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Build a list by repeating elements <strong>number</strong> times (which must be
 a positive integer).</p></div>
@@ -4361,9 +4160,7 @@ a positive integer).</p></div>
 <pre><tt>jim&gt; lrepeat 3 a b
 a b a b a b</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_lreverse">lreverse</h3>
+<h3 id="_lreverse">lreverse</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lreverse</strong> <em>list</em></tt></p></div>
 <div class="paragraph"><p>Returns the list in reverse order.</p></div>
 <div class="literalblock">
@@ -4371,9 +4168,7 @@ a b a b a b</tt></pre>
 <pre><tt>jim&gt; lreverse {1 2 3}
 3 2 1</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_lsearch">lsearch</h3>
+<h3 id="_lsearch">lsearch</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lsearch</strong> <em>?options? list pattern</em></tt></p></div>
 <div class="paragraph"><p>This command searches the elements <strong>list</strong> to see if one of them matches <strong>pattern</strong>. If so, the
 command returns the index of the first matching element (unless the options -all, -inline or -bool are
@@ -4460,9 +4255,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_lsort">lsort</h3>
+<h3 id="_lsort">lsort</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>lsort</strong> ?<strong>-index</strong> <em>listindex</em>? ?<strong>-integer</strong>|<strong>-command</strong> <em>cmdname</em>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></tt></p></div>
 <div class="paragraph"><p>Sort the elements of <strong>list</strong>, returning a new list in sorted order.
 By default, ASCII sorting is used, with the result in increasing order.</p></div>
@@ -4476,9 +4269,10 @@ order to what it would be otherwise. <strong>-increasing</strong> is the default
 <div class="paragraph"><p>If <strong>-index listindex</strong> is specified, each element of the list is treated as a list and
 the given index is extracted from the list for comparison. The list index may
 be any valid list index, such as <em>1</em>, <em>end</em> or <em>end-2</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_open">open</h3>
+<div class="paragraph"><p>If <strong>-index listindex</strong> is specified, each element of the list is treated as a list and
+the given index is extracted from the list for comparison. The list index may
+be any valid list index, such as <em>1</em>, <em>end</em> or <em>end-2</em>.</p></div>
+<h3 id="_open">open</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>open</strong> <em>fileName ?access?</em></tt></p></div>
 <div class="paragraph"><p><tt><strong>open</strong> <em>|command-pipeline ?access?</em></tt></p></div>
 <div class="paragraph"><p>Opens a file and returns an identifier
@@ -4560,9 +4354,7 @@ input unless overridden by the command.</p></div>
 <div class="paragraph"><p>The <em>pid</em> command may be used to return the process ids of the commands
 forming the command pipeline.</p></div>
 <div class="paragraph"><p>See also <em>socket</em>, <em>pid</em>, <em>exec</em></p></div>
-</div>
-<div class="sect2">
-<h3 id="_package">package</h3>
+<h3 id="_package">package</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>package provide</strong> <em>name ?version?</em></tt></p></div>
 <div class="paragraph"><p>Indicates that the current script provides the package named <strong>name</strong>.
 If no version is specified, <em>1.0</em> is used.</p></div>
@@ -4578,10 +4370,7 @@ or <em>$path/$name.tcl</em> as a script package.</p></div>
 otherwise if <em>$name.tcl</em> exists it is loaded with the <em>source</em> command.</p></div>
 <div class="paragraph"><p>If <em>load</em> or <em>source</em> fails, <em>package require</em> will fail immediately.
 No further attempt will be made to locate the file.</p></div>
-<div class="paragraph"><p>Typically <em>$::auto_path</em> contains the paths <em>.</em> and <em>/lib/jim</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_pid">pid</h3>
+<h3 id="_pid">pid</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>pid</strong></tt></p></div>
 <div class="paragraph"><p><tt><strong>pid</strong> <em>fileId</em></tt></p></div>
 <div class="paragraph"><p>The first form returns the process identifier of the current process.</p></div>
@@ -4590,9 +4379,7 @@ of the process ids forming the pipeline in the same form as <em>exec &#8230; &am
 If <em>fileId</em> represents a regular file handle rather than a command pipeline,
 the empty string is returned instead.</p></div>
 <div class="paragraph"><p>See also <em>open</em>, <em>exec</em></p></div>
-</div>
-<div class="sect2">
-<h3 id="_proc">proc</h3>
+<h3 id="_proc">proc</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>proc</strong> <em>name args ?statics? body</em></tt></p></div>
 <div class="paragraph"><p>The <em>proc</em> command creates a new Tcl command procedure, <strong>name</strong>.
 When the new command is invoked, the contents of <strong>body</strong> will be executed.
@@ -4607,9 +4394,7 @@ execute an explicit <em>return</em>, then its return value is the value
 of the last command executed in the procedure&#8217;s body.</p></div>
 <div class="paragraph"><p>If an error occurs while executing the procedure body, then the
 procedure-as-a-whole will return that same error.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_puts">puts</h3>
+<h3 id="_puts">puts</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>puts</strong> ?<strong>-nonewline</strong>? <em>?fileId? string</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>puts</strong> ?<strong>-nonewline</strong>? <em>string</em></tt></p></div>
 <div class="paragraph"><p>Writes the characters given by <strong>string</strong> to the file given
@@ -4624,21 +4409,15 @@ but this feature may be suppressed by specifying the <em>-nonewline</em>
 switch.</p></div>
 <div class="paragraph"><p>Output to files is buffered internally by Tcl; the <em>flush</em>
 command may be used to force buffered characters to be output.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_pwd">pwd</h3>
+<h3 id="_pwd">pwd</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>pwd</strong></tt></p></div>
 <div class="paragraph"><p>Returns the path name of the current working directory.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_rand">rand</h3>
+<h3 id="_rand">rand</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>rand</strong> <em>?min? ?max?</em></tt></p></div>
 <div class="paragraph"><p>Returns a random integer between <strong>min</strong> (defaults to 0) and <strong>max</strong>
 (defaults to the maximum integer).</p></div>
 <div class="paragraph"><p>If only one argument is given, it is interpreted as <strong>max</strong>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_range">range</h3>
+<h3 id="_range">range</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>range</strong> <em>?start? end ?step?</em></tt></p></div>
 <div class="paragraph"><p>Returns a list of integers starting at <strong>start</strong> (defaults to 0)
 and ranging up to but not including <strong>end</strong> in steps of <strong>step</strong> defaults to 1).</p></div>
@@ -4653,9 +4432,7 @@ jim&gt; range 2 10 4
 jim&gt; range 7 4 -2
 7 5</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_read">read</h3>
+<h3 id="_read">read</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>read</strong> ?<strong>-nonewline</strong>? <em>fileId</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>read</strong> ?<strong>-nonewline</strong>?</tt></p></div>
 <div class="paragraph"><p><tt><strong>read</strong> <em>fileId numBytes</em></tt></p></div>
@@ -4670,9 +4447,7 @@ exactly this many bytes will be read and returned, unless there are fewer than
 bytes are returned.</p></div>
 <div class="paragraph"><p><strong>fileId</strong> must be <em>stdin</em> or the return value from a previous call
 to <em>open</em>; it must refer to a file that was opened for reading.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_regexp">regexp</h3>
+<h3 id="_regexp">regexp</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>regexp ?-nocase? ?-line? ?-indices? ?-start</strong> <em>offset</em>? <strong>?-all? ?-inline? ?--?</strong> <em>exp string ?matchVar? ?subMatchVar subMatchVar &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Determines whether the regular expression <strong>exp</strong> matches part or
 all of <strong>string</strong> and returns 1 if it does, 0 if it doesn&#8217;t.</p></div>
@@ -4780,9 +4555,7 @@ string otherwise.</p></div>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_regsub">regsub</h3>
+<h3 id="_regsub">regsub</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>regsub ?-nocase? ?-all? ?-line? ?-start</strong> <em>offset</em>? ?<strong>--</strong>? <em>exp string subSpec ?varName?</em></tt></p></div>
 <div class="paragraph"><p>This command matches the regular expression <strong>exp</strong> against
 <strong>string</strong> using the rules described in REGULAR EXPRESSIONS
@@ -4868,9 +4641,7 @@ backslashes.</p></div>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_ref">ref</h3>
+<h3 id="_ref">ref</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>ref</strong> <em>string tag ?finalizer?</em></tt></p></div>
 <div class="paragraph"><p>Create a new reference containing <strong>string</strong> of type <strong>tag</strong>.
 If <strong>finalizer</strong> is specified, it is a command which will be invoked
@@ -4882,17 +4653,13 @@ no longer accessible.</p></div>
 <pre><tt>+finalizer 'reference string'+</tt></pre>
 </div></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_rename">rename</h3>
+<h3 id="_rename">rename</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>rename</strong> <em>oldName newName</em></tt></p></div>
 <div class="paragraph"><p>Rename the command that used to be called <strong>oldName</strong> so that it
 is now called <strong>newName</strong>.  If <strong>newName</strong> is an empty string
 (e.g. {}) then <strong>oldName</strong> is deleted.  The <em>rename</em> command
 returns an empty string as result.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_return">return</h3>
+<h3 id="_return">return</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>return</strong> ?<strong>-code</strong> <em>code</em>? ?<strong>-errorinfo</strong> <em>stacktrace</em>? ?<strong>-errorcode</strong> <em>errorcode</em>? ?<strong>-level</strong> <em>n</em>? ?<em>value</em>?</tt></p></div>
 <div class="paragraph"><p>Return immediately from the current procedure (or top-level command
 or <em>source</em> command), with <strong>value</strong> as the return value.  If <strong>value</strong>
@@ -4909,9 +4676,7 @@ an example of how this is done.</p></div>
 <div class="paragraph"><p>If <strong>-errorinfo</strong> is specified (as returned from <em>info stacktrace</em>)
 it is used to initialize the stacktrace.</p></div>
 <div class="paragraph"><p>If <strong>-errorcode</strong> is specified, it is used to set the global variable $::errorCode.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_scan">scan</h3>
+<h3 id="_scan">scan</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>scan</strong> <em>string format varName1 ?varName2 &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command parses fields from an input string in the same fashion
 as the C <em>sscanf</em> procedure.  <strong>String</strong> gives the input to be parsed
@@ -4924,9 +4689,7 @@ only unusual conversion is for <em>%c</em>.  For <em>%c</em> conversions a singl
 character value is converted to a decimal string, which is then
 assigned to the corresponding <strong>varName</strong>; no field width may be
 specified for this conversion.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_seek">seek</h3>
+<h3 id="_seek">seek</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>seek</strong> <em>fileId offset ?origin?</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>seek</strong> <em>offset ?origin?</em></tt></p></div>
 <div class="paragraph"><p>Change the current access position for <strong>fileId</strong>.
@@ -4971,9 +4734,7 @@ must be one of the following:</p></div>
 <em>open</em>, or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one
 of the standard I/O channels.</p></div>
 <div class="paragraph"><p>This command returns an empty string.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_set">set</h3>
+<h3 id="_set">set</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>set</strong> <em>varName ?value?</em></tt></p></div>
 <div class="paragraph"><p>Returns the value of variable <strong>varName</strong>.</p></div>
 <div class="paragraph"><p>If <strong>value</strong> is specified, then set the value of <strong>varName</strong> to <strong>value</strong>,
@@ -4991,17 +4752,13 @@ or local variable of the procedure, unless the <strong>global</strong> command
 has been invoked to declare <strong>varName</strong> to be global.</p></div>
 <div class="paragraph"><p>The <em>::</em> prefix may also be used to explicitly reference a variable
 in the global scope.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_setref">setref</h3>
+<h3 id="_setref">setref</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>setref</strong> <em>reference string</em></tt></p></div>
 <div class="paragraph"><p>Store a new string in <strong>reference</strong>, replacing the existing string.
 The reference must be a valid reference create with the <em>ref</em>
 command.</p></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_signal">signal</h3>
+<h3 id="_signal">signal</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Command for signal handling.</p></div>
 <div class="paragraph"><p>See <em>kill</em> for the different forms which may be used to specify signals.</p></div>
 <div class="paragraph"><p>Commands which return a list of signal names do so using the canonical form:
@@ -5098,16 +4855,12 @@ while {1} {
     # Received SIGHUP, so reconfigure
 }</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_sleep">sleep</h3>
+<h3 id="_sleep">sleep</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>sleep</strong> <em>seconds</em></tt></p></div>
 <div class="paragraph"><p>Pauses for the given number of seconds, which may be a floating
 point value less than one to sleep for less than a second, or an
 integer to sleep for one or more seconds.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_source">source</h3>
+<h3 id="_source">source</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>source</strong> <em>fileName</em></tt></p></div>
 <div class="paragraph"><p>Read file <strong>fileName</strong> and pass the contents to the Tcl interpreter
 as a sequence of commands to execute in the normal fashion.  The return
@@ -5117,9 +4870,7 @@ file, then the <em>source</em> command will return that error.</p></div>
 <div class="paragraph"><p>If a <em>return</em> command is invoked from within the file, the remainder of
 the file will be skipped and the <em>source</em> command will return
 normally with the result from the <em>return</em> command.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_split">split</h3>
+<h3 id="_split">split</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>split</strong> <em>string ?splitChars?</em></tt></p></div>
 <div class="paragraph"><p>Returns a list created by splitting <strong>string</strong> at each character
 that is in the <strong>splitChars</strong> argument.</p></div>
@@ -5143,26 +4894,31 @@ For example,</p></div>
 <pre><tt>split "Hello world" {}</tt></pre>
 </div></div>
 <div class="paragraph"><p>returns <tt><em>"H e l l o { } w o r l d"</em></tt>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_stackdump">stackdump</h3>
+<h3 id="_stackdump">stackdump</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>stackdump</strong> <em>stacktrace</em></tt></p></div>
 <div class="paragraph"><p>Creates a human readable representation of a stack trace.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_stacktrace">stacktrace</h3>
+<h3 id="_stacktrace">stacktrace</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>stacktrace</strong></tt></p></div>
 <div class="paragraph"><p>Returns a live stack trace as a list of <tt>proc file line proc file line &#8230;</tt>.
 Iteratively uses <em>info frame</em> to create the stack trace. This stack trace is in the
 same form as produced by <em>catch</em> and <em>info stacktrace</em></p></div>
 <div class="paragraph"><p>See also <em>stackdump</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_string">string</h3>
+<h3 id="_string">string</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>string</strong> <em>option arg ?arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Perform one of several string operations, depending on <strong>option</strong>.
 The legal options (which may be abbreviated) are:</p></div>
 <div class="dlist"><dl>
+<dt class="hdlist1">
+<tt>*string bytelength <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the length of the string in bytes. This will return
+        the same value as <em>string length</em> if UTF-8 support is not enabled,
+        or if the string is composed entirely of ASCII characters.
+        See UTF-8 AND UNICODE.
+</p>
+</dd>
 <dt class="hdlist1">
 <tt><strong>string compare ?-nocase?</strong> <em>string1 string2</em></tt>
 </dt>
@@ -5353,6 +5109,14 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </dl></div>
 </dd>
 <dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    Note that string classification does <strong>not</strong> respect UTF-8. See UTF-8 AND UNICODE
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string last</strong> <em>string1 string2 ?lastIndex?</em></tt>
 </dt>
 <dd>
@@ -5378,6 +5142,8 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 <dd>
 <p>
     Returns a decimal string giving the number of characters in <strong>string</strong>.
+        If UTF-8 support is enabled, this may be different than the number of bytes.
+        See UTF-8 AND UNICODE
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5543,9 +5309,7 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_subst">subst</h3>
+<h3 id="_subst">subst</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>subst ?-nobackslashes? ?-nocommands? ?-novariables?</strong> <em>string</em></tt></p></div>
 <div class="paragraph"><p>This command performs variable substitutions, command substitutions,
 and backslash substitutions on its string argument and returns the
@@ -5566,9 +5330,7 @@ the following script returns <em>xyz {44}</em>, not <em>xyz {$a}</em>.</p></div>
 <pre><tt>set a 44
 subst {xyz {$a}}</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_switch">switch</h3>
+<h3 id="_switch">switch</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>switch</strong> <em>?options? string pattern body ?pattern body &#8230;?</em></tt></p></div>
 <div class="paragraph"><p><tt><strong>switch</strong> <em>?options? string {pattern body ?pattern body &#8230;?}</em></tt></p></div>
 <div class="paragraph"><p>The <em>switch</em> command matches its string argument against each of
@@ -5675,9 +5437,7 @@ body among several patterns.</p></div>
 }</tt></pre>
 </div></div>
 <div class="paragraph"><p>will return 3.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_tailcall">tailcall</h3>
+<h3 id="_tailcall">tailcall</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>tailcall</strong> <em>cmd ?arg&#8230;?</em></tt></p></div>
 <div class="paragraph"><p>The <em>tailcall</em> command provides an optimised way of invoking a command whilst replacing
 the current call frame. This is similar to <em>exec</em> in Bourne Shell.</p></div>
@@ -5699,9 +5459,7 @@ the current call frame. This is similar to <em>exec</em> in Bourne Shell.</p></d
 proc sub_cmd1 ...
 proc sub_cmd2 ...</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_tell">tell</h3>
+<h3 id="_tell">tell</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>tell</strong> <em>fileId</em></tt></p></div>
 <div class="paragraph"><p><tt><em>fileId</em> <strong>tell</strong></tt></p></div>
 <div class="paragraph"><p>Returns a decimal string giving the current access position in
@@ -5709,17 +5467,13 @@ proc sub_cmd2 ...</tt></pre>
 <div class="paragraph"><p><strong>fileId</strong> must have been the return value from a previous call to
 <em>open</em>, or it may be <em>stdin</em>, <em>stdout</em>, or <em>stderr</em> to refer to one
 of the standard I/O channels.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_throw">throw</h3>
+<h3 id="_throw">throw</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>throw</strong> <em>code ?msg?</em></tt></p></div>
 <div class="paragraph"><p>This command throws an exception (return) code along with an optional message.
 This command is mostly for convenient usage with <em>try</em>.</p></div>
 <div class="paragraph"><p>The command <tt>throw break</tt> is equivalent to <tt>break</tt>.
 The command <tt>throw 20 message</tt> can be caught with an <tt>on 20 &#8230;</tt> clause to <em>try</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_time">time</h3>
+<h3 id="_time">time</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>time</strong> <em>command ?count?</em></tt></p></div>
 <div class="paragraph"><p>This command will call the Tcl interpreter <strong>count</strong>
 times to execute <strong>command</strong> (or once if <strong>count</strong> isn&#8217;t
@@ -5731,9 +5485,7 @@ specified).  It will then return a string of the form</p></div>
 <div class="paragraph"><p>which indicates the average amount of time required per iteration,
 in microseconds.</p></div>
 <div class="paragraph"><p>Time is measured in elapsed time, not CPU time.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_try">try</h3>
+<h3 id="_try">try</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>try</strong> <em>?catchopts? tryscript</em> ?<strong>on</strong> <em>returncodes {?resultvar? ?optsvar?} handlerscript &#8230;</em>? ?<strong>finally</strong> <em>finalscript</em>?</tt></p></div>
 <div class="paragraph"><p>The <em>try</em> command is provided as a convenience for exception handling.</p></div>
 <div class="paragraph"><p>This interpeter first evaluates <strong>tryscript</strong> under the effect of the catch
@@ -5771,9 +5523,7 @@ try -signal {
 handler.</p></div>
 <div class="paragraph"><p>In any case, the file will be closed via the <em>finally</em> clause.</p></div>
 <div class="paragraph"><p>See also <em>throw</em>, <em>catch</em>, <em>return</em>, <em>error</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_unknown">unknown</h3>
+<h3 id="_unknown">unknown</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>unknown</strong> <em>cmdName ?arg arg &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command doesn&#8217;t actually exist as part of Tcl, but Tcl will
 invoke it if it does exist.</p></div>
@@ -5793,9 +5543,7 @@ or automatically executing unknown commands as UNIX sub-processes.</p></div>
 change the original command slightly and then (re-)execute it.
 The result of the <em>unknown</em> command is used as the result for
 the original non-existent command.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_unset">unset</h3>
+<h3 id="_unset">unset</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>unset ?-nocomplain? ?--?</strong> <em>?name name &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Remove variables.
 Each <strong>name</strong> is a variable name, specified in any of the
@@ -5808,9 +5556,7 @@ index, then the entire array is deleted.</p></div>
 <div class="paragraph"><p>An error occurs if any of the variables doesn&#8217;t exist, unless <em>-nocomplain</em>
 is specified. The <em>--</em> argument may be specified to stop option processing
 in case the variable name may be <em>-nocomplain</em>.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_uplevel">uplevel</h3>
+<h3 id="_uplevel">uplevel</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>uplevel</strong> <em>?level? command ?command &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>All of the <strong>command</strong> arguments are concatenated as if they had
 been passed to <em>concat</em>; the result is then evaluated in the
@@ -5851,9 +5597,7 @@ be used to obtain the level of the current procedure.</p></div>
 <div class="paragraph"><p><em>Uplevel</em> makes it possible to implement new control
 constructs as Tcl procedures (for example, <em>uplevel</em> could
 be used to implement the <em>while</em> construct as a Tcl procedure).</p></div>
-</div>
-<div class="sect2">
-<h3 id="_upvar">upvar</h3>
+<h3 id="_upvar">upvar</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>upvar</strong> <em>?level? otherVar myVar ?otherVar myVar &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>This command arranges for one or more local variables in the current
 procedure to refer to variables in an enclosing procedure call or
@@ -5887,9 +5631,7 @@ and it adds two to the value of that variable.
 Although <em>add2</em> could have been implemented using <em>uplevel</em>
 instead of <em>upvar</em>, <em>upvar</em> makes it simpler for <em>add2</em>
 to access the variable in the caller&#8217;s procedure frame.</p></div>
-</div>
-<div class="sect2">
-<h3 id="_while">while</h3>
+<h3 id="_while">while</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>while</strong> <em>test body</em></tt></p></div>
 <div class="paragraph"><p>The <strong>while</strong> command evaluates <strong>test</strong> as an expression
 (in the same way that <em>expr</em> evaluates its argument).
@@ -5904,15 +5646,11 @@ commands may be executed inside <strong>body</strong> to cause immediate
 termination of the <em>while</em> command.</p></div>
 <div class="paragraph"><p>The <em>while</em> command always returns an empty string.</p></div>
 </div>
-</div>
-</div>
-<div class="sect1">
 <h2 id="_optional_extensions">OPTIONAL-EXTENSIONS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The following extensions may or may not be available depending upon
 what options were selected when Jim Tcl was built.</p></div>
-<div class="sect2">
-<h3 id="_bio">bio</h3>
+<h3 id="_bio">bio</h3><div style="clear:left"></div>
 <div class="paragraph"><p>The bio command provides a way to read and write binary files
 from within Tcl. Note that since Jim supports binary strings, the
 main use of this command is <em>bio copy</em> to easily copy between file
@@ -5950,9 +5688,7 @@ descriptors.</p></div>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="cmd_1">posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime</h3>
+<h3 id="cmd_1">posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime</h3><div style="clear:left"></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <tt><strong>os.fork</strong></tt>
@@ -6022,15 +5758,11 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </dd>
 </dl></div>
 </div>
-</div>
-</div>
-<div class="sect1">
 <h2 id="_ansi_i_o_aio_and_eventloop_api">ANSI I/O (aio) and EVENTLOOP API</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Jim provides an alternative object-based API for I/O.</p></div>
 <div class="paragraph"><p>See <em><a href="#_open">open</a></em> and <em><a href="#_socket">socket</a></em> for commands which return an I/O handle.</p></div>
-<div class="sect2">
-<h3 id="_aio">aio</h3>
+<h3 id="_aio">aio</h3><div style="clear:left"></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <tt>$handle <strong>read ?-nonewline?</strong> <em>?len?</em></tt>
@@ -6106,6 +5838,16 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt>$handle <strong>filename</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns the original filename used when opening the file.
+        If the handle was returned from <em>socket</em>, the type of the
+        handle is returned instead.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt>$handle <strong>ndelay ?0|1?</strong></tt>
 </dt>
 <dd>
@@ -6146,9 +5888,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="cmd_2">eventloop: after, vwait, update</h3>
+<h3 id="cmd_2">eventloop: after, vwait, update</h3><div style="clear:left"></div>
 <div class="paragraph"><p>The following commands allow a script to be invoked when the given condition occurs.
 If no script is given, returns the current script. If the given script is the empty, the
 handler is removed.</p></div>
@@ -6274,9 +6014,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 </p>
 </dd>
 </dl></div>
-</div>
-<div class="sect2">
-<h3 id="_socket">socket</h3>
+<h3 id="_socket">socket</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Various socket types may be created.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
@@ -6403,9 +6141,7 @@ $w close</tt></pre>
 <div class="content">
 <pre><tt>$r readable ...</tt></pre>
 </div></div>
-</div>
-<div class="sect2">
-<h3 id="_syslog">syslog</h3>
+<h3 id="_syslog">syslog</h3><div style="clear:left"></div>
 <div class="paragraph"><p><tt><strong>syslog</strong> <em>?options? ?priority? message</em></tt></p></div>
 <div class="paragraph"><p>This  command sends message to system syslog facility with given
 priority. Valid priorities are:</p></div>
@@ -6454,9 +6190,6 @@ uucp, local0-local7</tt></pre>
 </dd>
 </dl></div>
 </div>
-</div>
-</div>
-<div class="sect1">
 <h2 id="BuiltinVariables">BUILT-IN VARIABLES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The following global variables are created automatically
@@ -6492,7 +6225,11 @@ by the Tcl library.</p></div>
 <dd>
 <p>
     This variable contains a list of paths to search for packages.
-    It contains {. /lib/jim} by default.
+    It defaults to a location based on where jim is installed
+    (e.g. <tt>/usr/local/lib/jim</tt>), but may be changed by <tt>jimsh</tt>
+    or the embedding application. Note that <tt>jimsh</tt> will consider
+    the environment variable <tt>$JIMLIB</tt> to be a list of colon-separated
+    list of paths to add to <strong>auto_path</strong>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6522,6 +6259,15 @@ by the Tcl library.</p></div>
 <p>
     This variable is set to 1 if jimsh is started in interactive mode
     or 0 otherwise.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>tcl_platform</strong></tt>
+</dt>
+<dd>
+<p>
+    This variable is set by Jim as an array containing information
+        about the platform upon which Jim was built.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6561,8 +6307,6 @@ by the Tcl library.</p></div>
 </dd>
 </dl></div>
 </div>
-</div>
-<div class="sect1">
 <h2 id="_licence">LICENCE</h2>
 <div class="sectionbody">
 <div class="literalblock">
@@ -6610,12 +6354,9 @@ are those of the authors and should not be interpreted as representing
 official policies, either expressed or implied, of the Jim Tcl Project.</tt></pre>
 </div></div>
 </div>
-</div>
-</div>
-<div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-11-03 16:26:31 EST
+Last updated 2010-11-11 10:56:50 EST
 </div>
 </div>
 </body>

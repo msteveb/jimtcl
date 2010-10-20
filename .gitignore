@@ -4,7 +4,7 @@ config.status
 config.h
 tags
 .clean
-Makefile
+/Makefile
 Tcl.html
 jimautoconf.h
 jimautoconfext.h
@@ -17,3 +17,4 @@ jimsh
 libjim.a
 libjim.so
 *.o
+unicode_mapping.c

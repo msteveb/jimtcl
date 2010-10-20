@@ -683,6 +683,7 @@ enable_option_checking
 enable_fork
 enable_math
 enable_ipv6
+enable_utf8
 with_jim_ext
 with_out_jim_ext
 with_jim_extmod
@@ -1318,6 +1319,7 @@ Optional Features:
   --disable-fork          do not use fork (no exec, etc.)
   --enable-math           include support for math functions
   --enable-ipv6           include ipv6 support in the aio extension
+  --enable-utf8           include support for utf8-encoded strings
   --enable-shared         build a shared library instead of a static library
   --enable-static         build a static library instead of a shared library
 
@@ -3633,6 +3635,16 @@ if test "${enable_ipv6+set}" = set; then :
         if test "x$enableval" = "xyes" ; then
             EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_IPV6"
         fi
+
+
+fi
+
+# Check whether --enable-utf8 was given.
+if test "${enable_utf8+set}" = set; then :
+  enableval=$enable_utf8;
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8"
+		fi
 
 
 fi

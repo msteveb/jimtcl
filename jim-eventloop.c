@@ -254,7 +254,7 @@ static jim_wide JimFindAfterByScript(Jim_EventLoop *eventLoop, Jim_Obj *scriptOb
     for (te = eventLoop->timeEventHead; te; te = te->next) {
         /* Is this an 'after' event? */
         if (te->timeProc == JimAfterTimeHandler) {
-            if (Jim_StringCompareObj(scriptObj, te->clientData, 0) == 0) {
+            if (Jim_StringEqObj(scriptObj, te->clientData)) {
                 return te->id;
             }
         }
@@ -560,7 +560,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          * or if was unset and now is set (or the contrary). */
         if ((oldValue && !currValue) ||
             (!oldValue && currValue) ||
-            (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue, JIM_CASESENS)))
+            (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue)))
             break;
     }
     if (oldValue)

@@ -170,8 +170,9 @@ test lsort-3.19 {SortCompare procedure, -decreasing option} {
     lsort -decreasing -integer {35 21 0x20 30 023 100 8}
 } {100 35 0x20 30 21 023 8}
 
+ifutf8 {
 test lsort-4.26 {DefaultCompare procedure, signed characters} {
-    set l [lsort [list "abc\200" "abc"]]
+    set l [lsort [list "abc\u80" "abc"]]
     set viewlist {}
     foreach s $l {
 	set viewelem ""
@@ -189,5 +190,6 @@ test lsort-4.26 {DefaultCompare procedure, signed characters} {
     }
     set viewlist
 } [list "abc" "abc\\200"]
+}
 
 testreport

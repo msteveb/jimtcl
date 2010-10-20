@@ -74,6 +74,14 @@ AC_ARG_ENABLE(ipv6,
         fi
     ]
 )
+AC_ARG_ENABLE(utf8,
+	[  --enable-utf8           include support for utf8-encoded strings],
+	[
+		if test "x$enableval" = "xyes" ; then
+			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8"
+		fi
+	]
+)
 
 # Is $1 in list $2?
 in_list()
