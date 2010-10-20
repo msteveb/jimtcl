@@ -816,6 +816,16 @@ Add support for <em>after <strong>ms</strong></em>, <em>after idle</em>, <em>aft
 <em>exec</em> now sets environment based on $::env
 </p>
 </li>
+<li>
+<p>
+Add <em>dict keys</em>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>lsort -index</em>
+</p>
+</li>
 </ol></div>
 <div class="paragraph"><p>Since v0.61:</p></div>
 <div class="olist arabic"><ol class="arabic">
@@ -2872,6 +2882,17 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<strong>dict keys</strong> <em>dictionary ?pattern?</em>+
+</dt>
+<dd>
+<p>
+    Returns a list of the keys in the dictionary.
+    If pattern is specified, then only those keys whose
+    names match <strong>pattern</strong> (using the matching rules of string
+    match) are included.
+</p>
+</dd>
+<dt class="hdlist1">
 <strong>dict set</strong> <em>dictionaryName key ?key &#8230;? value</em>+
 </dt>
 <dd>
@@ -4250,7 +4271,7 @@ the list are to be matched against pattern and must have one of the values below
 </div>
 <div class="sect2">
 <h3 id="_lsort">lsort</h3>
-<div class="paragraph"><p><tt><strong>lsort</strong> ?<strong>-integer</strong>|<strong>-command</strong> <em>cmdname</em>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></tt></p></div>
+<div class="paragraph"><p><tt><strong>lsort</strong> ?<strong>-index</strong> <em>listindex</em>? ?<strong>-integer</strong>|<strong>-command</strong> <em>cmdname</em>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></tt></p></div>
 <div class="paragraph"><p>Sort the elements of <strong>list</strong>, returning a new list in sorted order.
 By default, ASCII sorting is used, with the result in increasing order.</p></div>
 <div class="paragraph"><p>If <strong>-integer</strong> is specified, numeric sorting is used.</p></div>
@@ -4260,6 +4281,9 @@ which should return <em>-1</em> if <strong>$value1</strong> is less than <strong
 they are equal, or <em>1</em> otherwise.</p></div>
 <div class="paragraph"><p>If <strong>-decreasing</strong> is specified, the resulting list is in the opposite
 order to what it would be otherwise. <strong>-increasing</strong> is the default.</p></div>
+<div class="paragraph"><p>If <strong>-index listindex</strong> is specified, each element of the list is treated as a list and
+the given index is extracted from the list for comparison. The list index may
+be any valid list index, such as <em>1</em>, <em>end</em> or <em>end-2</em>.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_open">open</h3>
@@ -6374,7 +6398,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-10-20 10:12:09 EST
+Last updated 2010-10-20 10:19:44 EST
 </div>
 </div>
 </body>

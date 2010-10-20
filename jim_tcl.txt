@@ -82,6 +82,8 @@ Since v0.62:
 20. Add 'info references'
 21. Add support for 'after *ms*', 'after idle', 'after info', 'update'
 22. 'exec' now sets environment based on $::env
+23. Add 'dict keys'
+24. Add support for 'lsort -index'
 
 Since v0.61:
 
@@ -1693,6 +1695,12 @@ command.  The legal *options* are:
     be the value for that key.  It is an error to attempt to retrieve
     a value for a key that is not present in the dictionary.
 
+*dict keys* 'dictionary ?pattern?'+::
+    Returns a list of the keys in the dictionary.
+    If pattern is specified, then only those keys whose
+    names match *pattern* (using the matching rules of string
+    match) are included.
+
 *dict set* 'dictionaryName key ?key ...? value'+::
     This operation takes the *name* of a variable containing a dictionary
     value and places an updated dictionary value in that variable
@@ -2799,7 +2807,7 @@ the list are to be matched against pattern and must have one of the values below
 
 lsort
 ~~~~~
-+*lsort* ?*-integer*|*-command* 'cmdname'? ?*-decreasing*|*-increasing*? 'list'+
++*lsort* ?*-index* 'listindex'? ?*-integer*|*-command* 'cmdname'? ?*-decreasing*|*-increasing*? 'list'+
 
 Sort the elements of *list*, returning a new list in sorted order.
 By default, ASCII sorting is used, with the result in increasing order.
@@ -2813,6 +2821,10 @@ they are equal, or '1' otherwise.
 
 If *-decreasing* is specified, the resulting list is in the opposite
 order to what it would be otherwise. *-increasing* is the default.
+
+If *-index listindex* is specified, each element of the list is treated as a list and
+the given index is extracted from the list for comparison. The list index may
+be any valid list index, such as '1', 'end' or 'end-2'.
 
 open
 ~~~~
