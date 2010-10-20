@@ -5,9 +5,11 @@
  * Dynamic libraries support (WIN32 not supported)
  * ---------------------------------------------------------------------------*/
 
-#ifdef JIM_DYNLIB
+#if defined(HAVE_DLOPEN) || defined(HAVE_DLOPEN_COMPAT)
 
+#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
+#endif
 
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {

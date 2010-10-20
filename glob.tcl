@@ -4,6 +4,7 @@
 #
 # See LICENCE in this directory for licensing.
 
+package require readdir
 
 # Implements the Tcl glob command
 #

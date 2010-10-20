@@ -606,12 +606,16 @@ LIBOBJS
 PLATFORM_PLATFORM
 PLATFORM_OS
 SRCDIR
+EXTRA_OBJS
 EXTRA_CFLAGS
+JIM_TCL_EXTENSIONS
+JIM_MOD_EXTENSIONS
 JIM_EXTENSIONS
-LIBSOCK
-LIBDL
 JIM_LIBTYPE
 CROSS
+LINKFLAGS
+SHOBJ_LDFLAGS
+SHOBJ_CFLAGS
 SH_LDFLAGS
 SH_CFLAGS
 host_os
@@ -680,6 +684,7 @@ enable_math
 enable_ipv6
 with_jim_ext
 with_out_jim_ext
+with_jim_extmod
 with_jim_shared
 '
       ac_precious_vars='build_alias
@@ -1341,11 +1346,21 @@ Optional Packages:
        bio       - Binary I/O, mostly for bio copy/file copy
        nvp       - Name-value pairs C-only API
        tree      - Similar to tcllib ::struct::tree using references
+       readline  - Interface to libreadline
+       rlprompt  - Tcl wrapper around the readline extension
+       sqlite    - Interface to sqlite
+       sqlite3   - Interface to sqlite3
+       win32     - Interface to win32
 
   --with-out-jim-ext="default|ext1 ext2 ..."
 
        Specify jim extensions to exclude.
        If 'default' is given, the default extensions will not be added.
+
+  --with-jim-extmod="ext1 ext2 ..."
+
+       Specify jim extensions to build as separate modules (either C or Tcl).
+       Note that not all extensions can be built as loadable modules.
 
   --with-jim-shared       build a shared library instead of a static library
 
@@ -3436,7 +3451,6 @@ else
 fi
 
 
-# Shared library support. Because we don't believe in automake!
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
   if test -f "$ac_dir/install-sh"; then
@@ -3537,41 +3551,73 @@ IFS=$ac_save_IFS
 case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
+
+iswin=no
+# Shared library support. Because we don't believe in automake!
 case $host in
 *-*-darwin*)
-	SH_CFLAGS=-dynamic
+    SH_CFLAGS=-dynamic
 
-	SH_LDFLAGS="-dynamiclib -undefined suppress -flat_namespace"
-;;
+    SH_LDFLAGS="-dynamiclib -undefined suppress -flat_namespace"
+
+    SHOBJ_CFLAGS="-dynamic -fno-common"
+
+    SHOBJ_LDFLAGS="-bundle -undefined dynamic_lookup -flat_namespace"
+
+    ;;
+*-*-ming*)
+    # Use the built-in dlopen wrapper
+    have_dlopen=yes
+    iswin=yes
+    SHOBJ_LDFLAGS=-shared
+
+    SH_LDFLAGS=-shared
+
+    ;;
+*-*-cygwin)
+    iswin=yes
+    SHOBJ_LDFLAGS=-shared
+
+    SH_LDFLAGS=-shared
+
+    ;;
 *)
-	SH_CFLAGS=-fPIC
+    # Generic Unix settings
+    LINKFLAGS=-rdynamic
 
-	SH_LDFLAGS=-shared
-;;
+    SH_CFLAGS=-fPIC
+
+    SH_LDFLAGS=-shared
+
+    SHOBJ_CFLAGS=-fPIC
+
+    SHOBJ_LDFLAGS="-shared -nostartfiles"
+
+    ;;
 esac
 
 if test -n "$host_alias"; then
-	CROSS=$host_alias-
+    CROSS=$host_alias-
 
 fi
 
 # Check whether --enable-fork was given.
 if test "${enable_fork+set}" = set; then :
   enableval=$enable_fork;
-		if test "x$enableval" = "xno" ; then
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: * disabling fork" >&5
+        if test "x$enableval" = "xno" ; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: * disabling fork" >&5
 $as_echo "* disabling fork" >&6; }
-			EXTRA_CFLAGS="-DJIM_NOFORK"
-		fi
+            EXTRA_CFLAGS="-DJIM_NOFORK"
+        fi
 
 fi
 
 # Check whether --enable-math was given.
 if test "${enable_math+set}" = set; then :
   enableval=$enable_math;
-		if test "x$enableval" = "xyes" ; then
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_MATH_FUNCTIONS"
-		fi
+        if test "x$enableval" = "xyes" ; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_MATH_FUNCTIONS"
+        fi
 
 
 fi
@@ -3579,19 +3625,35 @@ fi
 # Check whether --enable-ipv6 was given.
 if test "${enable_ipv6+set}" = set; then :
   enableval=$enable_ipv6;
-		if test "x$enableval" = "xyes" ; then
-			EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_IPV6"
-		fi
+        if test "x$enableval" = "xyes" ; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_IPV6"
+        fi
 
 
 fi
 
 
-# All extensions
-ext_all=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio bio eventloop syslog nvp tree | tr ' ' '\n' | sort)
+# Is $1 in list $2?
+in_list()
+{
+    echo "$2" | tr ' ' '\n' | grep "^$1\$" >/dev/null
+}
 
-# Default extensions
-ext_default=$(echo stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio eventloop syslog | tr ' ' '\n' | sort)
+# Tcl extensions
+ext_tcl="stdlib glob tclcompat tree rlprompt"
+# C extensions
+ext_c="load package readdir array clock exec file posix regexp signal aio bio eventloop syslog nvp readline sqlite sqlite3 win32"
+
+# Tcl extensions which can be modules
+ext_tcl_mod="glob tree rlprompt"
+# C extensions which can be modules
+ext_c_mod="readdir array clock file posix regexp bio syslog readline sqlite sqlite3 win32"
+
+# All extensions
+ext_all="$ext_c $ext_tcl"
+
+# Default static extensions
+ext_default="stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio eventloop syslog"
 
 
 # Check whether --with-jim-ext was given.
@@ -3606,15 +3668,21 @@ if test "${with_out_jim_ext+set}" = set; then :
 fi
 
 
+# Check whether --with-jim-extmod was given.
+if test "${with_jim_extmod+set}" = set; then :
+  withval=$with_jim_extmod;
+fi
+
+
 if test "$with_out_jim_ext" = "default"; then
-	# but we always include stdlib
-	ext_default=stdlib
-	with_out_jim_ext=
+    # but we always include stdlib
+    ext_default=stdlib
+    with_out_jim_ext=
 fi
 
 # Check valid extension names
-for i in $with_jim_ext $with_out_jim_ext; do
-	echo "$ext_all" | grep "^$i\$" >/dev/null || as_fn_error $? "Unknown extension: $i" "$LINENO" 5
+for i in $with_jim_ext $with_out_jim_ext $with_jim_extmod; do
+    in_list "$i" "$ext_all" || as_fn_error $? "Unknown extension: $i" "$LINENO" 5
 done
 
 JIM_LIBTYPE=static
@@ -3622,9 +3690,9 @@ JIM_LIBTYPE=static
 # Check whether --with-jim-shared was given.
 if test "${with_jim_shared+set}" = set; then :
   withval=$with_jim_shared;
-		if test "x$withval" = "xyes" ; then
-			JIM_LIBTYPE=shared
-		fi
+        if test "x$withval" = "xyes" ; then
+            JIM_LIBTYPE=shared
+        fi
 
 
 fi
@@ -3632,12 +3700,13 @@ fi
 JIM_LIBTYPE=$JIM_LIBTYPE
 
 
-for ac_header in sys/un.h
+for ac_header in sys/un.h dlfcn.h
 do :
-  ac_fn_c_check_header_mongrel "$LINENO" "sys/un.h" "ac_cv_header_sys_un_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_un_h" = xyes; then :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_SYS_UN_H 1
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
 _ACEOF
 
 fi
@@ -3747,21 +3816,187 @@ $as_echo "$ac_cv_search_dlopen" >&6; }
 ac_res=$ac_cv_search_dlopen
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  LIBDL=${ac_cv_search_dlopen%none required}
-
-
+  have_dlopen=yes;
 $as_echo "#define HAVE_DLOPEN 1" >>confdefs.h
 
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing readline" >&5
+$as_echo_n "checking for library containing readline... " >&6; }
+if ${ac_cv_search_readline+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char readline ();
+int
+main ()
+{
+return readline ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' readline; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_readline=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_readline+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_readline+:} false; then :
+
+else
+  ac_cv_search_readline=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_readline" >&5
+$as_echo "$ac_cv_search_readline" >&6; }
+ac_res=$ac_cv_search_readline
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+$as_echo "#define HAVE_READLINE 1" >>confdefs.h
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite_open" >&5
+$as_echo_n "checking for library containing sqlite_open... " >&6; }
+if ${ac_cv_search_sqlite_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char sqlite_open ();
+int
+main ()
+{
+return sqlite_open ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' sqlite; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_sqlite_open=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_sqlite_open+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_sqlite_open+:} false; then :
+
+else
+  ac_cv_search_sqlite_open=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_sqlite_open" >&5
+$as_echo "$ac_cv_search_sqlite_open" >&6; }
+ac_res=$ac_cv_search_sqlite_open
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+$as_echo "#define HAVE_SQLITE 1" >>confdefs.h
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite3_open" >&5
+$as_echo_n "checking for library containing sqlite3_open... " >&6; }
+if ${ac_cv_search_sqlite3_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char sqlite3_open ();
+int
+main ()
+{
+return sqlite3_open ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' sqlite3; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_sqlite3_open=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_sqlite3_open+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_sqlite3_open+:} false; then :
+
+else
+  ac_cv_search_sqlite3_open=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_sqlite3_open" >&5
+$as_echo "$ac_cv_search_sqlite3_open" >&6; }
+ac_res=$ac_cv_search_sqlite3_open
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+$as_echo "#define HAVE_SQLITE3 1" >>confdefs.h
 
 fi
 
 
-ac_fn_c_check_header_mongrel "$LINENO" "winsock.h" "ac_cv_header_winsock_h" "$ac_includes_default"
-if test "x$ac_cv_header_winsock_h" = xyes; then :
-  LIBSOCK=-lwsock32
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing socket" >&5
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing socket" >&5
 $as_echo_n "checking for library containing socket... " >&6; }
 if ${ac_cv_search_socket+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -3814,18 +4049,12 @@ $as_echo "$ac_cv_search_socket" >&6; }
 ac_res=$ac_cv_search_socket
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  LIBSOCK=${ac_cv_search_socket%none required}
-
 
 fi
 
 
-fi
-
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for environ in unistd.h" >&5
-$as_echo_n "checking for environ in unistd.h... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking environ declared in unistd.h?" >&5
+$as_echo_n "checking environ declared in unistd.h?... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -3838,51 +4067,16 @@ if ac_fn_c_try_compile "$LINENO"; then :
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-    has_environ=yes
+
+$as_echo "#define NO_ENVIRON_EXTERN 1" >>confdefs.h
+
 
 else
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-
-    # Possibility #2: can environ be found in an available library?
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for extern environ" >&5
-$as_echo_n "checking for extern environ... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-
-extern char **environ;
-int main(int argc, char **argv) { char **ep = environ; }
-
-
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-
-$as_echo "#define NEED_ENVIRON_EXTERN 1" >>confdefs.h
-
-        has_environ=yes
-
-else
-
-        has_environ=no
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: ${has_environ}" >&5
-$as_echo "${has_environ}" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-if test "${has_environ}" != "yes" ; then
-     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could find 'environ' in unistd.h or available libraries.
-See \`config.log' for more details" "$LINENO" 5; }
-fi
 
 # Now that we know what the platform supports:
 
@@ -3891,72 +4085,143 @@ fi
 # - Otherwise, check to see if it's pre-requisites are met
 # -   If yes, add it if it is enabled or is a default
 # -   If no, error if it is enabled, or do nothing otherwise
+# - Modules may be either C or Tcl
 
 needs_regexp="ac_cv_func_regcomp"
 needs_syslog="ac_cv_func_syslog"
 needs_exec="ac_cv_func_vfork"
-needs_posix="ac_cv_func_waitpid"
-needs_load="ac_cv_search_dlopen"
-needs_signal="ac_cv_func_sigaction ac_cv_func_vfork"
 needs_readdir="ac_cv_func_opendir"
+dep_glob="readdir"
+needs_posix="ac_cv_func_waitpid"
+needs_load="have_dlopen"
+needs_signal="ac_cv_func_sigaction ac_cv_func_vfork"
+needs_readline="ac_cv_search_readline"
+dep_rlprompt="readline"
+needs_sqlite="ac_cv_search_sqlite_open"
+needs_sqlite3="ac_cv_search_sqlite3_open"
+needs_win32="iswin"
 
-ext_add=$(echo $with_jim_ext | tr ' ' '\n')
-ext_del=$(echo $with_out_jim_ext | tr ' ' '\n')
+# First handle dependencies. If an extension is enabled, also enable its dependency
+for i in $ext_default $with_jim_ext; do
+    in_list "$i" "$with_out_jim_ext" && continue
+    eval "dep=\$dep_$i"
+    test -z "$dep" && continue
+    with_jim_ext="$with_jim_ext $dep"
+done
+for i in $with_jim_extmod; do
+    eval "dep=\$dep_$i"
+        test -z "$dep" && continue
+        for d in $dep; do
+        in_list "$d" "$with_jim_ext" || with_jim_extmod="$with_jim_extmod $d"
+    done
+done
+
 for i in $ext_all; do
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking extension $i" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking extension $i" >&5
 $as_echo_n "checking extension $i... " >&6; }
-	echo "$ext_del" | grep "^$i\$" >/dev/null
-	if test $? -eq 0; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled" >&5
+    # Disabled?
+    in_list "$i" "$with_out_jim_ext"
+    if test $? -eq 0; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled" >&5
 $as_echo "disabled" >&6; }
-		continue
-	fi
-	# Check dependencies
-	eval "dep=\$needs_$i"
-	met=1
-	for d in $dep; do
-		eval "check=\$$d"
-		if test "$check" = "no" -o -z "$check" ; then
-			met=0
-			break
-		fi
-	done
-	echo "$ext_add" | grep "^$i\$" >/dev/null
-	if test $? -eq 0; then
-		if test $met -eq 0; then
-			as_fn_error $? "dependencies not met" "$LINENO" 5
-		fi
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: enabled" >&5
+        continue
+    fi
+    # Check dependencies
+    eval "dep=\$needs_$i"
+    met=1
+    for d in $dep; do
+        eval "check=\$$d"
+        if test "$check" == "no" -o -z "$check" ; then
+            met=0
+            break
+        fi
+    done
+    # Selected as a module?
+    in_list "$i" "$with_jim_extmod"
+    if test $? -eq 0; then
+        in_list "$i" "$ext_tcl_mod"
+        if test $? -eq 0; then
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: result: tcl" >&5
+$as_echo "tcl" >&6; }
+            extmodtcl="$exmodtcl $i"
+            continue
+        fi
+        in_list "$i" "$ext_c_mod"
+        if test $? -ne 0; then
+            as_fn_error $? "not a module" "$LINENO" 5
+        fi
+        if test $met -eq 0; then
+            as_fn_error $? "dependencies not met" "$LINENO" 5
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: module" >&5
+$as_echo "module" >&6; }
+        extmod="$extmod $i"
+        continue
+    fi
+    # Selected as a static extension?
+    in_list "$i" "$with_jim_ext"
+    if test $? -eq 0; then
+        if test $met -eq 0; then
+            as_fn_error $? "dependencies not met" "$LINENO" 5
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: enabled" >&5
 $as_echo "enabled" >&6; }
-		ext="$ext $i"
-		continue
-	fi
-	echo "$ext_default" | grep "^$i\$" >/dev/null
-	if test $? -eq 0; then
-		if test $met -eq 0; then
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled (dependencies)" >&5
+        ext="$ext $i"
+        continue
+    fi
+    # Enabled by default?
+    in_list "$i" "$ext_default"
+    if test $? -eq 0; then
+        if test $met -eq 0; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled (dependencies)" >&5
 $as_echo "disabled (dependencies)" >&6; }
-			continue
-		fi
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: enabled (default)" >&5
+            continue
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: enabled (default)" >&5
 $as_echo "enabled (default)" >&6; }
-		ext="$ext $i"
-		continue
-	fi
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: not enabled" >&5
+        ext="$ext $i"
+        continue
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: not enabled" >&5
 $as_echo "not enabled" >&6; }
 done
 
-ext=$(echo $ext | tr '\n' ' ')
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Jim extensions: $ext" >&5
-$as_echo "Jim extensions: $ext" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Jim static extensions:$ext" >&5
+$as_echo "Jim static extensions:$ext" >&6; }
 JIM_EXTENSIONS=$ext
 
+if test -n "$extmod"; then
+case "$iswin,$JIM_LIBTYPE" in
+yes,static)
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cygwin/mingw require --with-jim-shared for dynamic modules
+See \`config.log' for more details" "$LINENO" 5; }
+    ;;
+esac
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: Jim dynamic extensions:$extmod" >&5
+$as_echo "Jim dynamic extensions:$extmod" >&6; }
+    JIM_MOD_EXTENSIONS=$extmod
+
+fi
+if test -n "$extmodtcl"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: Jim Tcl extensions:$extmodtcl" >&5
+$as_echo "Jim Tcl extensions:$extmodtcl" >&6; }
+    JIM_TCL_EXTENSIONS=$extmodtcl
+
+fi
 for i in $ext; do
-	EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -Djim_ext_$i"
 done
 
+if test $iswin = yes; then
+    in_list "aio" "$ext $extmod" && LIBS="$LIBS -lwsock32"
+    EXTRA_OBJS="$EXTRA_OBJS jim-win32compat.o"
+fi
+
 EXTRA_CFLAGS=$EXTRA_CFLAGS
+
+EXTRA_OBJS=$EXTRA_OBJS
 
 SRCDIR=`dirname $0`
 

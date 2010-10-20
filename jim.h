@@ -79,23 +79,10 @@ extern "C" {
  * System configuration
  * autoconf (configure) will set these
  * ---------------------------------------------------------------------------*/
-#if (defined(_WIN32) || defined(WIN32)) && !defined(__MINGW32__)
 #include <jim-win32compat.h>
-#else
-
-#if defined(__MINGW32__)
-#define JIM_ANSIC
-#define MKDIR_ONE_ARG
-#define rand_r(S) ((void)(S), rand())
-#define localtime_r(T,TM) ((void)(TM), localtime(T))
-#endif
 
 #ifndef HAVE_NO_AUTOCONF
 #include <jimautoconf.h>
-#endif
-
-#if defined(HAVE_DLOPEN)
-#define JIM_DYNLIB      /* Dynamic library support */
 #endif
 
 /* -----------------------------------------------------------------------------
@@ -103,33 +90,33 @@ extern "C" {
  * ---------------------------------------------------------------------------*/
 
 /* Long Long type and related issues */
-#ifdef HAVE_LONG_LONG
-#  define jim_wide long long
-#  ifndef LLONG_MAX
-#    define LLONG_MAX    9223372036854775807LL
+#ifndef jim_wide
+#  ifdef HAVE_LONG_LONG
+#    define jim_wide long long
+#    ifndef LLONG_MAX
+#      define LLONG_MAX    9223372036854775807LL
+#    endif
+#    ifndef LLONG_MIN
+#      define LLONG_MIN    (-LLONG_MAX - 1LL)
+#    endif
+#    define JIM_WIDE_MIN LLONG_MIN
+#    define JIM_WIDE_MAX LLONG_MAX
+#  else
+#    define jim_wide long
+#    define JIM_WIDE_MIN LONG_MIN
+#    define JIM_WIDE_MAX LONG_MAX
+#    define strtoull strtoul
 #  endif
-#  ifndef LLONG_MIN
-#    define LLONG_MIN    (-LLONG_MAX - 1LL)
-#  endif
-#  define JIM_WIDE_MIN LLONG_MIN
-#  define JIM_WIDE_MAX LLONG_MAX
-#else
-#  define jim_wide long
-#  define JIM_WIDE_MIN LONG_MIN
-#  define JIM_WIDE_MAX LONG_MAX
-#  define strtoull strtoul
-#endif
 
 /* -----------------------------------------------------------------------------
  * LIBC specific fixes
  * ---------------------------------------------------------------------------*/
 
-#ifdef HAVE_LONG_LONG
-#  define JIM_WIDE_MODIFIER "lld"
-#else
-#  define JIM_WIDE_MODIFIER "ld"
-#endif
-
+#  ifdef HAVE_LONG_LONG
+#    define JIM_WIDE_MODIFIER "lld"
+#  else
+#    define JIM_WIDE_MODIFIER "ld"
+#  endif
 #endif
 
 /* -----------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 JIMSH ?= ../jimsh
+LD_LIBRARY_PATH := ..:$(LD_LIBRARY_PATH)
 
 test: $(JIMSH)
 	@set -e; for i in *.test; do $(JIMSH) $$i; done

@@ -7,14 +7,14 @@ AR ?= $(CROSS)ar
 # Configuration
 
 jim_libtype := @JIM_LIBTYPE@
-SH_CFLAGS ?= @SH_CFLAGS@ 
-SH_LDFLAGS ?= @SH_LDFLAGS@ 
+SH_CFLAGS ?= @SH_CFLAGS@
+SH_LDFLAGS ?= @SH_LDFLAGS@
+SHOBJ_CFLAGS ?= @SHOBJ_CFLAGS@
+SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
 CFLAGS = @CFLAGS@
 LDFLAGS = @LDFLAGS@
+LDLIBS += @LIBS@
 DESTDIR ?= @prefix@
-
-# Defines the extensions to include
-EXTENSIONS := @JIM_EXTENSIONS@
 
 # Set an initial, default library and auto_path
 CPPFLAGS += -DTCL_LIBRARY=\"/lib/jim\"
@@ -29,14 +29,19 @@ ifeq ($(jim_libtype),static)
 	LIBJIM := libjim.a
 else
 	LIBJIM := libjim.so
+	SH_LIBJIM := $(LIBJIM)
 	CPPFLAGS += $(SH_CFLAGS)
 endif
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := jim-subcmd.o jim-interactive.o jim.o
+OBJS := jim-subcmd.o jim-interactive.o jim.o @EXTRA_OBJS@
 
-EXTENSIONS_OBJS := $(patsubst %,jim-%.o,$(EXTENSIONS))
+JIMSH := jimsh@EXEEXT@
+
+EXTENSION_OBJS := $(patsubst %,jim-%.o,@JIM_EXTENSIONS@)
+EXTENSION_MODS := $(patsubst %,%.so,@JIM_MOD_EXTENSIONS@)
+EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 .PRECIOUS: jim-%.c
 
@@ -47,18 +52,19 @@ jim-%.c: %.tcl
 
 OBJS += jim-load-static-exts.o
 
-all: jimsh
+all: $(JIMSH) $(EXTENSION_MODS)
 
 docs: Tcl.html
 
-jimsh: $(LIBJIM) jimsh.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) @LIBSOCK@ @LIBDL@ -lm
+$(JIMSH): $(LIBJIM) jimsh.o
+	$(CC) $(CFLAGS) @LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) -lm
 
-install: all docs
+install: all docs $(EXTENSION_TCL)
 	install -d $(DESTDIR)/bin
-	install jimsh $(DESTDIR)/bin
-	install -d $(DESTDIR)/lib
+	install $(JIMSH) $(DESTDIR)/bin
+	install -d $(DESTDIR)/lib/jim
 	install $(LIBJIM) $(DESTDIR)/lib
+	install $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
 	install -d $(DESTDIR)/include
 	install @SRCDIR@/jim.h @SRCDIR@/jim-*.h $(DESTDIR)/include
 	install jimautoconfext.h $(DESTDIR)/include/jimautoconf.h
@@ -71,25 +77,29 @@ test:
 $(OBJS) $(EXTENSION_OBJS): Makefile
 
 ifeq ($(jim_libtype),static)
-$(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
+$(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 else
-$(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^
+$(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^ $(LDLIBS)
 endif
+
+%.so: jim-%.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt
 	asciidoc -o $@ -d manpage $^ || cp @SRCDIR@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o lib*.a jimsh Tcl.html
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
 
 distclean: clean
 	rm -f jimautoconf.h jimautoconfext.h Makefile config.status config.log
 	rm -rf autom4te.cache
 
-ship:
+ship: Tcl.html
 	cp Tcl.html Tcl_shipped.html
 	autoconf && autoheader

@@ -13304,7 +13304,7 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     const char *val;
 
     if (argc == 1) {
-#ifdef NEED_ENVIRON_EXTERN
+#ifndef NO_ENVIRON_EXTERN
         extern char **environ;
 #endif
 

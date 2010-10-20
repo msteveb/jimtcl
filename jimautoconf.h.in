@@ -3,6 +3,9 @@
 /* Define to 1 if you have the `backtrace' function. */
 #undef HAVE_BACKTRACE
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Have the dlopen function */
 #undef HAVE_DLOPEN
 
@@ -39,6 +42,9 @@
 /* Define to 1 if you have the `pipe' function. */
 #undef HAVE_PIPE
 
+/* Have libreadline */
+#undef HAVE_READLINE
+
 /* Define to 1 if you have the `readlink' function. */
 #undef HAVE_READLINK
 
@@ -53,6 +59,12 @@
 
 /* Define to 1 if you have the `sleep' function. */
 #undef HAVE_SLEEP
+
+/* Have libsqlite */
+#undef HAVE_SQLITE
+
+/* Have libsqlite3 */
+#undef HAVE_SQLITE3
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -105,8 +117,8 @@
 /* Define to 1 if you have the `waitpid' function. */
 #undef HAVE_WAITPID
 
-/* Must declare 'environ' to use it. */
-#undef NEED_ENVIRON_EXTERN
+/* No need to declare extern 'environ'. */
+#undef NO_ENVIRON_EXTERN
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

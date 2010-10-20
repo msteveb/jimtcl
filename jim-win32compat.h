@@ -1,15 +1,32 @@
 #ifndef JIM_WIN32COMPAT_H
 #define JIM_WIN32COMPAT_H
 
-#ifndef WIN32
-	#define WIN32 1
-#endif
+#if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__)
 #ifndef STRICT
 	#define STRICT
 #endif
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+/* None of these is needed for cygwin */
+#if !defined(__CYGWIN__)
+
+#define JIM_ANSIC
+#define MKDIR_ONE_ARG
+#define rand_r(S) ((void)(S), rand())
+#define localtime_r(T,TM) ((void)(TM), localtime(T))
+
+#define HAVE_DLOPEN_COMPAT
+
+#define RTLD_LAZY 0
+void *dlopen(const char *path, int mode);
+int dlclose(void *handle);
+void *dlsym(void *handle, const char *symbol);
+const char *dlerror(void);
+
+#if !defined(__MINGW32__)
+/* Most of these are really gcc vs msvc */
 
 #if _MSC_VER >= 1000
 	#pragma warning(disable:4146)
@@ -51,5 +68,10 @@ typedef struct DIR {
 DIR *opendir(const char *name);
 int closedir(DIR *dir);
 struct dirent *readdir(DIR *dir);
+#endif /* MSC */
+
+#endif /* __MINGW32__ */
+
+#endif /* __CYGWIN__ */
 
 #endif
