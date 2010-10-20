@@ -95,7 +95,7 @@ AC_ARG_WITH(out-jim-ext,
        If 'default' is given, the default extensions will not be added.
 ])
 
-if test "$with_out_jim_ext" == "default"; then
+if test "$with_out_jim_ext" = "default"; then
 	# but we always include stdlib
 	ext_default=stdlib
 	with_out_jim_ext=
@@ -198,7 +198,7 @@ for i in $ext_all; do
 	met=1
 	for d in $dep; do
 		eval "check=\$$d"
-		if test "$check" == "no" -o -z "$check" ; then
+		if test "$check" = "no" -o -z "$check" ; then
 			met=0
 			break
 		fi
