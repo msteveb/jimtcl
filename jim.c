@@ -407,7 +407,7 @@ static int JimCheckConversion(const char *str, const char *endptr)
 
     if (endptr[0] != '\0') {
         while (*endptr) {
-            if (!isspace((unsigned)*endptr)) {
+            if (!isspace(UCHAR(*endptr))) {
                 return JIM_ERR;
             }
             endptr++;
@@ -434,10 +434,10 @@ int Jim_DoubleToString(char *buf, double doubleValue)
     /* Add a final ".0" if it's a number. But not
      * for NaN or InF */
     while (*buf) {
-        if (*buf == '.' || isalpha((unsigned)*buf)) {
+        if (*buf == '.' || isalpha(UCHAR(*buf))) {
             /* inf -> Inf, nan -> Nan */
             if (*buf == 'i' || *buf == 'n') {
-                *buf = toupper((unsigned)*buf);
+                *buf = toupper(UCHAR(*buf));
             }
             return len;
         }
@@ -4377,7 +4377,7 @@ int Jim_Collect(Jim_Interp *interp)
                 if (p[41] != '>' || p[19] != '>' || p[20] != '.')
                     break;
                 for (i = 21; i <= 40; i++)
-                    if (!isdigit((unsigned)p[i]))
+                    if (!isdigit(UCHAR(p[i])))
                         break;
                 /* Get the ID */
                 memcpy(buf, p + 21, 20);
@@ -6417,7 +6417,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         str = endptr;
     }
     /* The only thing left should be spaces */
-    while (isspace((unsigned)*str)) {
+    while (isspace(UCHAR(*str))) {
         str++;
     }
     if (*str) {
@@ -7410,7 +7410,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 static int JimParseExpression(struct JimParserCtx *pc)
 {
     /* Discard spaces and quoted newline */
-    while (isspace((unsigned)*pc->p) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
+    while (isspace(UCHAR(*pc->p)) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
         pc->p++;
         pc->len--;
     }
@@ -7488,8 +7488,8 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     pc->tt = JIM_TT_EXPR_INT;
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (isdigit((unsigned)*pc->p)
-        || (allowhex && isxdigit((unsigned)*pc->p))
+    while (isdigit(UCHAR(*pc->p))
+        || (allowhex && isxdigit(UCHAR(*pc->p)))
         || (allowdot && *pc->p == '.')
         || (pc->p - pc->tstart == 1 && *pc->tstart == '0' && (*pc->p == 'x' || *pc->p == 'X'))
         ) {
@@ -7504,7 +7504,7 @@ int JimParseExprNumber(struct JimParserCtx *pc)
         pc->p++;
         pc->len--;
         if (!allowhex && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+'
-                || isdigit((unsigned)pc->p[1]))) {
+                || isdigit(UCHAR(pc->p[1])))) {
             pc->p += 2;
             pc->len -= 2;
             pc->tt = JIM_TT_EXPR_DOUBLE;
@@ -7565,7 +7565,7 @@ int JimParseExprOperator(struct JimParserCtx *pc)
         const char *p = pc->p + bestLen;
         int len = pc->len - bestLen;
 
-        while (len && isspace((unsigned)*p)) {
+        while (len && isspace(UCHAR(*p))) {
             len--;
             p++;
         }
@@ -8573,7 +8573,7 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
         int c;
         int n;
 
-        if (!sdescr && isspace(*str))
+        if (!sdescr && isspace(UCHAR(*str)))
             break;              /* EOS via WS if unspecified */
 
         n = utf8_tounicode(str, &c);
@@ -8609,8 +8609,8 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
          * the string-to-be-parsed accordingly */
         for (i = 0; str[pos] && descr->prefix[i]; ++i) {
             /* If prefix require, skip WS */
-            if (isspace((unsigned)descr->prefix[i]))
-                while (str[pos] && isspace((unsigned)str[pos]))
+            if (isspace(UCHAR(descr->prefix[i])))
+                while (str[pos] && isspace(UCHAR(str[pos])))
                     ++pos;
             else if (descr->prefix[i] != str[pos])
                 break;          /* Prefix do not match here, leave the loop */
@@ -8624,7 +8624,7 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
     }
     /* For all but following conversion, skip leading WS */
     if (descr->type != 'c' && descr->type != '[' && descr->type != 'n')
-        while (isspace((unsigned)str[pos]))
+        while (isspace(UCHAR(str[pos])))
             ++pos;
     /* Determine how much skipped/scanned so far */
     scanned = pos - anchor;

@@ -60,7 +60,7 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
     msgObj = Jim_NewStringObj(interp, szPrefix, -1);
     if (dwLen > 0) {
         char *p = lpBuffer + dwLen - 1;        /* remove cr-lf at end */
-        for ( ; p && *p && isspace((unsigned)*p); p--)
+        for ( ; p && *p && isspace(UCHAR(*p)); p--)
             ;
         *++p = 0;
         Jim_AppendString(interp, msgObj, ": ", 2);

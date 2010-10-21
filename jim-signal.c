@@ -137,7 +137,7 @@ static int find_signal_by_name(Jim_Interp *interp, const char *name)
     if (strncasecmp(name, "sig", 3) == 0) {
         pt += 3;
     }
-    if (isdigit((unsigned)pt[0])) {
+    if (isdigit(UCHAR(pt[0]))) {
         i = atoi(pt);
         if (i > 0 && i < MAX_SIGNALS) {
             return i;
