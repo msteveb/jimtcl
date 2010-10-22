@@ -1,5 +1,12 @@
 #ifndef UTF8_UTIL_H
 #define UTF8_UTIL_H
+/**
+ * UTF-8 utility functions
+ *
+ * (c) 2010 Steve Bennett <steveb@workware.net.au>
+ *
+ * See LICENCE for licence details.
+ */
 
 /**
  * Converts the given unicode codepoint (0 - 0xffff) to utf-8

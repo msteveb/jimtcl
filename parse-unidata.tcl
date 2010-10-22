@@ -1,5 +1,12 @@
 #!/usr/bin/env tclsh
 
+# Generate UTF-8 case mapping tables
+#
+# (c) 2010 Steve Bennett <steveb@workware.net.au>
+#
+# See LICENCE for licence details.
+#/
+
 # Parse the unicode data from: http://unicode.org/Public/UNIDATA/UnicodeData.txt
 # to generate case mapping tables
 

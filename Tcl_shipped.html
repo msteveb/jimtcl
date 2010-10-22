@@ -1250,7 +1250,7 @@ sequence is replaced by the given character:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>\u*nnnn*</tt>
+<tt>\<strong>unnnn</strong></tt>
 </dt>
 <dd>
 <p>
@@ -1836,12 +1836,64 @@ for backward compatibility with experimental versions of this feature.</p></div>
 </div>
 <h2 id="_regular_expressions">REGULAR EXPRESSIONS</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Tcl provides two commands that support string matching using
-<em>egrep</em>-style regular expressions: <em>regexp</em> and <em>regsub</em>.</p></div>
-<div class="paragraph"><p>Regular expressions are implemented using the system&#8217;s C library as
-Extended Regular Expressions (EREs) rather than Basic Regular Expressions (BREs).</p></div>
+<div class="paragraph"><p>Tcl provides two commands that support string matching using regular
+expressions, <em>regexp</em> and <em>regsub</em>, as well as <em>switch -regexp</em> and
+<em>lsearch -regexp</em>.</p></div>
+<div class="paragraph"><p>Regular expressions may be implemented one of two ways. Either using the system&#8217;s C library
+POSIX regular expression support, or using the built-in regular expression engine.
+The differences between these are described below.</p></div>
+<div class="paragraph"><p><strong>NOTE</strong> Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (<tt>ARE</tt>).</p></div>
+<h3 id="_posix_regular_expressions">POSIX Regular Expressions</h3><div style="clear:left"></div>
+<div class="paragraph"><p>If the system supports POSIX regular expressions, and UTF-8 support is not enabled,
+this support will be used by default. The type of regular expressions supported are
+Extended Regular Expressions (<tt>ERE</tt>) rather than Basic Regular Expressions (<tt>BRE</tt>).
+See REG_EXTENDED in the documentation.</p></div>
+<div class="paragraph"><p>Using the system-supported POSIX regular expressions will typically
+make for the smallest code size, but some features such as UTF-8
+and <tt>\w</tt>, <tt>\d</tt>, <tt>\s</tt> are not supported.</p></div>
 <div class="paragraph"><p>See regex(3) and regex(7) for full details.</p></div>
-<div class="paragraph"><p><strong>NOTE</strong> Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (AREs).</p></div>
+<h3 id="_jim_built_in_regular_expressions">Jim built-in Regular Expressions</h3><div style="clear:left"></div>
+<div class="paragraph"><p>The Jim built-in regulare expression engine may be selected with <tt>./configure --with-jim-regexp</tt>
+or it will be selected automatically if UTF-8 support is enabled.</p></div>
+<div class="paragraph"><p>This engine supports UTF-8 as well as some <tt>ARE</tt> features. The differences with both Tcl 7.x/8.x
+and POSIX are highlighted below.</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+UTF-8 strings and patterns are both supported
+</p>
+</li>
+<li>
+<p>
+Supported character classes: <tt>[:alnum:]</tt>, <tt>[:digit:]</tt> and <tt>[:space:]</tt>
+</p>
+</li>
+<li>
+<p>
+Supported shorthand character classes: <tt>\w = +[:alnum:]</tt>, <tt>\d</tt> = <tt>[:digit:],</tt> <tt>\s</tt> = <tt>[:space:]</tt>
+</p>
+</li>
+<li>
+<p>
+Character classes apply to ASCII characters only
+</p>
+</li>
+<li>
+<p>
+Supported constraint escapes: <tt>\m</tt> = <tt>\&lt;</tt> = start of word, <tt>\M</tt> = <tt>\&gt;</tt> = end of word
+</p>
+</li>
+<li>
+<p>
+Backslash escapes may be used within regular expressions, such as <tt>\n</tt> = newline, <tt>\uNNNN</tt> = unicode
+</p>
+</li>
+<li>
+<p>
+No support for the <tt>?</tt> non-greedy quantifier. e.g. <tt>*?</tt>
+</p>
+</li>
+</ol></div>
 </div>
 <h2 id="_command_results">COMMAND RESULTS</h2>
 <div class="sectionbody">
@@ -2327,7 +2379,7 @@ is still available to embed UTF-8 sequences.</p></div>
 pattern matching rules. These commands support UTF-8. For example:</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>string match a{backslash}[{backslash}ua0-{backslash}ubf{backslash}]b "a{backslash}a3b"</tt></pre>
+<pre><tt>string match a\[\ua0-\ubf\]b "a\a3b"</tt></pre>
 </div></div>
 <h3 id="_format_and_scan">format and scan</h3><div style="clear:left"></div>
 <div class="paragraph"><p><em>format %c</em> allows a unicode codepoint to be be encoded. For example, the following will return
@@ -2340,13 +2392,13 @@ a string with two bytes and one character. The same as \ub5</p></div>
 return a string with three characters, not three bytes.</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>format %.3s {backslash}ub5{backslash}ub6{backslash}ub7{backslash}ub8</tt></pre>
+<pre><tt>format %.3s \ub5\ub6\ub7\ub8</tt></pre>
 </div></div>
 <div class="paragraph"><p>Similarly, <em>scan &#8230; %c</em> allows a UTF-8 to be decoded to a unicode codepoint. The following will set
 <strong>a</strong> to 181 (0xb5) and <strong>b</strong> to <em>181</em> and <em>b</em> to 65.</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>scan {backslash}00b5A %c%c a b</tt></pre>
+<pre><tt>scan \00b5A %c%c a b</tt></pre>
 </div></div>
 <div class="paragraph"><p><em>scan %s</em> will also accept a character class, including unicode ranges.</p></div>
 <h3 id="_string_classes">String Classes</h3><div style="clear:left"></div>
@@ -2354,7 +2406,7 @@ return a string with three characters, not three bytes.</p></div>
 will return 0, even though the string may be considered to be alphabetic.</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>string is {backslash}b5Test</tt></pre>
+<pre><tt>string is \b5Test</tt></pre>
 </div></div>
 <div class="paragraph"><p>This does not affect the string classes <em>ascii</em>, <em>control</em>, <em>digit</em>, <em>double</em>, <em>integer</em> or <em>xdigit</em>.</p></div>
 <h3 id="_case_mapping_and_conversion">Case Mapping and Conversion</h3><div style="clear:left"></div>
@@ -2376,9 +2428,9 @@ the following returns 2.</p></div>
 <pre><tt>string bytelength \xff\xff</tt></pre>
 </div></div>
 <h3 id="_regular_expressions_2">Regular Expressions</h3><div style="clear:left"></div>
-<div class="paragraph"><p>At this time, regular expressions do <strong>not</strong> support UTF-8 strings. This included
-<em>regexp</em>, <em>regsub</em>, <em>switch -regexp</em> and <em>lsearch -regexp</em>.</p></div>
-<div class="paragraph"><p>This means that regular expresion operations operate on bytes, not characters.</p></div>
+<div class="paragraph"><p>If UTF-8 support is enabled, the built-in regular expression engine will be
+selected which supports UTF-8 strings and patterns.</p></div>
+<div class="paragraph"><p>See REGULAR EXPRESSIONS</p></div>
 </div>
 <h2 id="_built_in_commands">BUILT-IN COMMANDS</h2>
 <div class="sectionbody">
@@ -6356,7 +6408,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-11-11 10:56:50 EST
+Last updated 2010-11-11 10:57:51 EST
 </div>
 </div>
 </body>

@@ -1,0 +1,116 @@
+UTF-8 Support for Jim Tcl
+=========================
+
+Author: Steve Bennett <steveb@workware.net.au>
+Date: 2 Nov 2010 10:55:52 EST
+
+OVERVIEW
+--------
+Traditionally Jim Tcl has support strings, including binary strings containing
+nulls, however it has had no support for multi-byte character encodings.
+
+In some fields, such as when dealing with the web, or other user-generated content,
+support for multi-byte character encodings is necessary.
+In these cases it would be very useful for Jim Tcl to be able to process strings
+as multi-byte character strings rather than simply binary bytes. 
+
+Supporting multiple character encodings and translation between those encodings
+is beyond the scope of Jim Tcl. Therefore, Jim has been enhanced to add support
+for UTF-8, as probably the most popular general purpose multi-byte encoding.
+
+UTF-8 support is optional. It can be enabled at compile time with:
+
+  ./configure --enable-utf8
+
+The Jim Tcl documentation fully documents the UTF-8 support. This README includes
+additional background information.
+
+Unicode vs UTF-8
+----------------
+It is important to understand that Unicode is an abstract representation
+of the concept of a "character", while UTF-8 is an encoding of
+Unicode into bytes.  Thus the Unicode codepoint U+00B5 is encoded
+in UTF-8 with the byte sequence: 0xc2, 0xb5. This is different from
+ASCII which the same name is used interchangeably between a character
+set and an encoding.
+
+Unicode Escapes
+---------------
+Even without UTF-8 enabled, it is useful to be able to encode UTF-8 characters
+in strings. This can be done with the \uNNNN Unicode escape. This syntax
+is compatible with Tcl and is enabled even if UTF-8 is disabled.
+
+Like Tcl, currently only 16-bit Unicode characters can be encoded.
+
+UTF-8 Properties
+----------------
+Due to the design of the UTF-8 encoding, many (most) commands continue
+to work with UTF-8 strings. This is due to the following properties of UTF-8:
+
+* ASCII characters in strings have the same representation in UTF-8
+* An ASCII string will never match the middle of a multi-byte UTF-8 sequence
+* UTF-8 strings can be sorted as bytes and produce the same result as sorting
+  by characters
+* UTF-8 strings in Jim continue to be null terminated
+
+Commands Supporting UTF-8
+-------------------------
+The following commands have been enhanced to support UTF-8 strings.
+
+* array {get,names,unset}
+* case
+* glob
+* lsearch -glob, -regexp
+* switch -glob, -regexp
+* regexp, regsub
+* format
+* scan
+* split
+* string index, range, length, compare, equal, first, last, map, match, reverse, tolower, toupper
+* string bytelength (new)
+* info procs, commands, vars, globals, locals
+
+Character Classes
+-----------------
+Jim Tcl has no support for UTF-8 character classes.  Thus [:alpha:]
+will match [a-zA-Z], but not non-ASCII alphabetic characters.  The
+same is true for 'string is'.
+
+Regular Expressions
+-------------------
+Normally, Jim Tcl uses the system-supplied POSIX-compatible regex
+implementation.
+
+Typically systems do not provide a UTF-8 capable regex implementation,
+therefore when UTF-8 support is enabled, the built-in regex
+implementation is used which includes UTF-8 support.
+
+Case Insensitivity
+------------------
+Case folding is much more complex under Unicode than under ASCII.
+For example it is possible for a character to change the number of
+bytes required for representation when converting from one case to
+another. Jim Tcl supports only "simple" case folding, where case
+is folded only where the number of bytes does not change.
+
+Case folding tables are automatically generated from the official
+unicode data table at http://unicode.org/Public/UNIDATA/UnicodeData.txt
+
+Working with Binary Data and non-UTF-8 encodings
+------------------------------------------------
+If it is necessary to work with both UTF-8 and binary data (bytes
+>= 0x80), or non-UTF-8 encodings you will need to arrange for the
+data to be converted between UTF-8 on input and output.  Individual
+characters can be converted from Unicode to UTF-8 with the
+utf8_fromunicode() function and the reverse with utf8_tounicode().
+
+Internal Details
+----------------
+Jim_Utf8Length() will calculate the character length of the string and cache
+it for later access. It uses utf8_strlen() which relies on the string to be null
+terminated (which it always will be).
+
+It is possible to tell if a string is ascii-only because length == bytelength
+
+It is possible to provide optimised versions of various routines for
+the ascii-only case. Currently this is done only for 'string index' and 'string range'.

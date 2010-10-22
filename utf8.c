@@ -1,6 +1,10 @@
-/* -----------------------------------------------------------------------------
- * Utility functions
- * ---------------------------------------------------------------------------*/
+/**
+ * UTF-8 utility functions
+ *
+ * (c) 2010 Steve Bennett <steveb@workware.net.au>
+ *
+ * See LICENCE for licence details.
+ */
 
 #include <ctype.h>
 #include <stdlib.h>

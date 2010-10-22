@@ -38,11 +38,12 @@
  *** seiwald@perforce.com, on 20 January 2000, to use function prototypes.
  *** THIS IS AN ALTERED VERSION.  It was altered by Christopher Seiwald
  *** seiwald@perforce.com, on 05 November 2002, to const string literals.
- *** THIS IS AN ALTERED VERSION.  It was altered by Steve Bennett <steveb@workware.net.au>
- *** on 16 October 2010, to remove static state and add better Tcl ARE compatibility.
- *** This includes counted repetitions, UTF-8 support, character classes,
- *** shorthand character classes, increased number of parentheses to 100,
- *** backslash escape sequences.
+ *
+ *   THIS IS AN ALTERED VERSION.  It was altered by Steve Bennett <steveb@workware.net.au>
+ *   on 16 October 2010, to remove static state and add better Tcl ARE compatibility.
+ *   This includes counted repetitions, UTF-8 support, character classes,
+ *   shorthand character classes, increased number of parentheses to 100,
+ *   backslash escape sequences.
  *
  * Beware that some of this code is subtly aware of the way operator
  * precedence is structured in regular expressions.  Serious changes in

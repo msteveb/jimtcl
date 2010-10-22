@@ -492,7 +492,7 @@ sequence is replaced by the given character:
     The digits *ddd* (one, two, or three of them) give the octal value of
     the character.  Note that Jim supports null characters in strings.
 
-+{backslash}u*nnnn*+::
++{backslash}*unnnn*+::
     The hex digits *nnnn* (between one and four of them) give a unicode codepoint.
 	The UTF-8 encoding of the codepoint is inserted.
 
@@ -918,15 +918,44 @@ for backward compatibility with experimental versions of this feature.
 
 REGULAR EXPRESSIONS
 -------------------
-Tcl provides two commands that support string matching using
-'egrep'-style regular expressions: 'regexp' and 'regsub'.
+Tcl provides two commands that support string matching using regular
+expressions, 'regexp' and 'regsub', as well as 'switch -regexp' and
+'lsearch -regexp'.
 
-Regular expressions are implemented using the system's C library as
-Extended Regular Expressions (EREs) rather than Basic Regular Expressions (BREs).
+Regular expressions may be implemented one of two ways. Either using the system's C library
+POSIX regular expression support, or using the built-in regular expression engine.
+The differences between these are described below.
+
+*NOTE* Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (+ARE+).
+
+POSIX Regular Expressions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+If the system supports POSIX regular expressions, and UTF-8 support is not enabled,
+this support will be used by default. The type of regular expressions supported are
+Extended Regular Expressions (+ERE+) rather than Basic Regular Expressions (+BRE+).
+See REG_EXTENDED in the documentation.
+
+Using the system-supported POSIX regular expressions will typically
+make for the smallest code size, but some features such as UTF-8
+and +{backslash}w+, +{backslash}d+, +{backslash}s+ are not supported.
 
 See regex(3) and regex(7) for full details.
 
-*NOTE* Tcl 7.x and 8.x use perl-style Advanced Regular Expressions (AREs).
+Jim built-in Regular Expressions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Jim built-in regulare expression engine may be selected with +./configure --with-jim-regexp+
+or it will be selected automatically if UTF-8 support is enabled.
+
+This engine supports UTF-8 as well as some +ARE+ features. The differences with both Tcl 7.x/8.x
+and POSIX are highlighted below.
+
+1. UTF-8 strings and patterns are both supported
+2. Supported character classes: +[:alnum:]+, +[:digit:]+ and +[:space:]+
+3. Supported shorthand character classes: +{backslash}w = +[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}s+ = +[:space:]+
+4. Character classes apply to ASCII characters only
+5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
+6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
+7. No support for the +?+ non-greedy quantifier. e.g. +*?+
 
 COMMAND RESULTS
 ---------------
@@ -1351,7 +1380,7 @@ String Matching
 Commands such as 'string match', 'lsearch -glob', 'array names' and others use string
 pattern matching rules. These commands support UTF-8. For example:
 
-  string match a{backslash}[{backslash}ua0-{backslash}ubf{backslash}]b "a{backslash}a3b"
+  string match a\[\ua0-\ubf\]b "a\a3b"
 
 format and scan
 ~~~~~~~~~~~~~~~
@@ -1363,12 +1392,12 @@ a string with two bytes and one character. The same as {backslash}ub5
 'format' respects widths as character widths, not byte widths. For example, the following will
 return a string with three characters, not three bytes.
 
-  format %.3s {backslash}ub5{backslash}ub6{backslash}ub7{backslash}ub8
+  format %.3s \ub5\ub6\ub7\ub8
 
 Similarly, 'scan ... %c' allows a UTF-8 to be decoded to a unicode codepoint. The following will set
 *a* to 181 (0xb5) and *b* to '181' and 'b' to 65.
 
-  scan {backslash}00b5A %c%c a b
+  scan \00b5A %c%c a b
 
 'scan %s' will also accept a character class, including unicode ranges.
 
@@ -1377,7 +1406,7 @@ String Classes
 'string is' has *not* been extended to classify UTF-8 characters. Therefore, the following
 will return 0, even though the string may be considered to be alphabetic.
 
-  string is {backslash}b5Test
+  string is \b5Test
 
 This does not affect the string classes 'ascii', 'control', 'digit', 'double', 'integer' or 'xdigit'.
 
@@ -1406,10 +1435,10 @@ the following returns 2.
 
 Regular Expressions
 ~~~~~~~~~~~~~~~~~~~
-At this time, regular expressions do *not* support UTF-8 strings. This included
-'regexp', 'regsub', 'switch -regexp' and 'lsearch -regexp'.
+If UTF-8 support is enabled, the built-in regular expression engine will be
+selected which supports UTF-8 strings and patterns.
 
-This means that regular expresion operations operate on bytes, not characters.
+See REGULAR EXPRESSIONS
 
 BUILT-IN COMMANDS
 -----------------
