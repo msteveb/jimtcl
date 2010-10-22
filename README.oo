@@ -1,0 +1,253 @@
+OO Package for Jim Tcl
+======================
+
+Author: Steve Bennett <steveb@workware.net.au>
+Date: 1 Nov 2010 09:18:40
+
+OVERVIEW
+--------
+The pure-Tcl oo package leverages Jim's unique strengths
+to provide support for Object Oriented programming. 
+
+The oo package can be statically linked with Jim or installed
+as a separate Tcl package and loaded with:
+
+  package require oo
+
+DECLARING CLASSES
+-----------------
+A class is declared with the 'class' proc as follows.
+
+  class myclass ?baseclasses? classvars
+
+This declares a class named 'myclass' with the given dictionary,
+'classvars', providing the initial state of all new objects.
+It is important to list all class variables in 'classvars', even
+if initialised only to the empty string, since the class makes
+these variables available in methods and via [myclass vars].
+
+A list of zero or more base classes may also be specified from
+which methods and class variables are imported. See INHERITANCE
+below for more details.
+
+Declaring a class creates a procedure with the class name along
+with some related procedures. For example:
+
+  . class Account {balance 0}
+  Account
+  . info procs Account*
+  {Account get} {Account methods} {Account eval} Account {Account new} {Account destroy}
+  {Account vars} {Account classname} {Account classvars} {Account method}
+
+Notice that apart from the main 'Account' procedure, all the remaining procedures (methods)
+are prefixed with 'Account' and a space.
+
+PREDEFINED CLASS METHODS
+------------------------
+Decaring a class pre-defines a number of "class" methods. i.e. those which don't
+require an object and simply return or manipulate properties of the class. These are:
+
+  new ?instancevars?::
+    Creates and returns new object, optionally overriding the default class variable values.
+	Note that the class name is an alias for 'classname new {}' and can be used as a shorthand
+	for creating new objects with default values.
+
+  method name arglist body::
+    Creates or redefines a method for the class with the given name, argument list and body.
+
+  methods::
+    Returns a list of the methods supported by this class, including both class methods
+	and instance methods. Also includes base class methods.
+
+  vars::
+	Returns a list of the class variables for this class (names
+	only). Also includes base class variables.
+
+  classvars::
+	Returns a dictionary the class variables, including initial values, for this class.
+	Also includes base class variables.
+
+  classname::
+    Returns the classname. This can be useful as [$self classname].
+
+Class methods may be invoked either via the class name or via an object of the class.
+For example:
+
+  . class Account {balance 0}
+  Account
+  . Account methods
+  classname classvars destroy eval get method methods new vars
+  . set a [Account]
+  <reference.<Account>.00000000000000000001>
+  . $a methods
+  classname classvars destroy eval get method methods new vars
+
+PREDEFINED OBJECT METHODS
+-------------------------
+Decaring a class pre-defines a number of "object" methods. i.e. those which operate
+on a specific object.
+
+  destroy::
+    Destroys the object. This method may be overridden, but note that it should
+	delete the object with {rename $self ""}. This method will also be called
+	if the object is reaped during garbage collection.
+
+  get varname::
+    Returns the value of the given instance variable.
+
+  eval ?locals? body::
+    Makes any given local variables available to the body, along with
+	the instance variables, and evaluate the body in that context.
+	This can be used for one-off evaluation to avoid declaring a method.
+
+CREATING OBJECTS
+----------------
+An object is created with the 'new' method, or simply by using the classname shortcut.
+If the 'new' method is used, the variables for the newly created object (instance variables)
+may be initialised. Otherwise they are set to the default values specified when the
+class was declared.
+
+For example:
+
+  . class Account {balance 0}
+  Account
+  . set a [Account]
+  <reference.<Account>.00000000000000000001>
+  . set b [Account new {balance 1000}]
+  <reference.<Account>.00000000000000000002>
+  . $a get balance
+  0
+  . $b get balance
+  1000
+
+DECLARING METHODS
+-----------------
+In addition to the predefined methods, new methods may be decared, or existing
+methods redefined with the class method, method.
+
+Declaring a method is very similar to defining a proc, and the arglist
+has identical syntax. For example:
+
+  . Account method show {{channel stdout}} { $channel puts "Balance of account is $balance" }
+  . $b show
+  Balance of account is 1000
+
+All instance variables are available within the method and any
+changes to these variables are maintained by the object.
+
+In addition, the $self variables is defined and refers to the current object.
+This may be used to invoke further methods on the object. For example:
+
+  . Account method show {} { puts "Balance of account is [$self get balance]" }
+  . $b show
+  Balance of account is 1000
+
+Notes:
+* It is a bad idea to unset an instance variable.
+* In general, you should avoid redefining any of the pre-defined methods, except for 'destroy'.
+* When accessing the caller's scope with upvar or uplevel, note that there
+  are two frame levels between the caller and the method. Thus it is necessary
+  to use 'upvar 2' or 'uplevel 2'
+
+INHERITANCE
+-----------
+For each base class given in a new class declaration, the methods
+and variables of those classes are imported into the new class being
+defined. Base classes are imported in left to right order, so that if a
+method is defined in more than one base class, the later definition
+is selected. This applies similarly to class variables.
+
+Within a method, 'super' may be used to explicitly invoke a
+base class method on the object. This applies only to the *last*
+base class given. For example:
+
+  # Assumes the existence of classes Account and Client
+  . Account method debit {amount} { incr balance -$amount }
+  . class CreditAccount {Client Account} {type visa}
+  CreditAccount
+  . CreditAccount method debit {amount} {
+    puts "Debit $type card"
+	super debit $amount
+  }
+  . set a [CreditAccount]
+  <reference.<Account>.00000000000000000001>
+  . $a debit 20
+  Debit visa card
+  . $a balance
+  -20
+
+In the CreditAccount debit method, the call to 'super debit' invokes
+the method 'Account debit' since Account is the last base class listed.
+
+OBJECT LIFETIME/GARBAGE COLLECTION
+----------------------------------
+Objects are implemented as lambdas. That is, they are procedures with state
+and are named as references. This means that when an object is no longer
+reachable by any name and garbage collection runs, the object will be
+discarded and the destructor will be invoked. Note that the garbage collector
+can be invoked manually with 'collect' if required.
+
+  . class Account {}
+  Account
+  . Account method destroy {} { puts dying...; rename $self "" }
+  Account destroy
+  . proc a {} { set b [Account]; return "" }
+  a
+  . a
+  . collect
+  dying...
+  1
+
+CLASS METHODS/CLASS STATIC VARIABLES
+------------------------------------
+All methods defined with 'method' operate on objects (instances).
+If a class method is required, it is possible to simply declare one with 'proc'.
+The method dispatcher will automatically be able to dispatch to this method.
+Using this approach, it is also possible to add class static variables by
+defining static variables to the proc. Although strictly these variables
+are accessible only to that proc, not the class as a whole.
+
+For example:
+
+  . class Account {}
+  Account
+  . proc {Account nextid} {} {{id 0}} { incr id }
+  Account nextid
+  . Account nextid
+  1
+  . Account nextid
+  2
+  . set a [Account]
+  <reference.<Account>.00000000000000000001>
+  . $a nextid
+  3
+  . $a eval { $self nextid }
+  4
+
+HOW METHOD DISPATCH WORKS
+-------------------------
+All class and object methods are name "classname methodname".
+
+The class method dispatcher is named "classname". When invoked with a methodname,
+it simply invokes the method "classname methodname".
+
+The method dispatch is via a two step process. Firstly the object procedure is invoked
+with the method name. This procedure then invokes "classname method" which sets up
+the appropriate access to the object variables, and then invokes the method body.
+
+EXAMPLES
+--------
+tree.tcl
+~~~~~~~~
+The 'tree' package is implemented using the 'oo' package.
+See the source code in tree.tcl and a usage example in tests/tree.test
+
+Of particular note is how callbacks and recursive invocation is used in the 'walk' method.
+
+examples/ootest.tcl
+~~~~~~~~~~~~~~~~~~~
+A comprehensive OO example is provided in examples/ootest.tcl.
+
+It can be run simply as:
+
+  ./jimsh examples/ootest.tcl

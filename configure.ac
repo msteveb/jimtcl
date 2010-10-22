@@ -92,12 +92,12 @@ in_list()
 }
 
 # Tcl extensions
-ext_tcl="stdlib glob tclcompat tree rlprompt"
+ext_tcl="stdlib glob tclcompat tree rlprompt oo"
 # C extensions
 ext_c="load package readdir array clock exec file posix regexp signal aio eventloop syslog nvp readline sqlite sqlite3 win32"
 
 # Tcl extensions which can be modules
-ext_tcl_mod="glob tree rlprompt"
+ext_tcl_mod="glob tree rlprompt oo"
 # C extensions which can be modules
 ext_c_mod="readdir array clock file posix regexp syslog readline sqlite sqlite3 win32"
 
@@ -133,7 +133,8 @@ AC_ARG_WITH(jim-ext,
        These are disabled by default:
 
        nvp       - Name-value pairs C-only API
-       tree      - Similar to tcllib ::struct::tree using references
+       oo        - Jim OO extension
+       tree      - OO tree structure, similar to tcllib ::struct::tree
        readline  - Interface to libreadline
        rlprompt  - Tcl wrapper around the readline extension
        sqlite    - Interface to sqlite

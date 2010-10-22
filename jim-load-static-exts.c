@@ -54,5 +54,11 @@ int Jim_InitStaticExtensions(Jim_Interp *interp)
 #ifdef jim_ext_syslog
     LOAD_EXT(syslog);
 #endif
+#ifdef jim_ext_oo
+    LOAD_EXT(oo);
+#endif
+#ifdef jim_ext_tree
+    LOAD_EXT(tree);
+#endif
     return JIM_OK;
 }
