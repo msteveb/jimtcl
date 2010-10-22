@@ -40,4 +40,162 @@ test dict-2.3 "Modify dict via reference - one line" references {
 	dict get [getref $dref] car
 } {toyota}
 
+# Sort a dictionary in key order - return a list
+proc dictsort {dict} {
+	set result {}
+	foreach k [lsort [dict keys $dict]] {
+		lappend result $k [dict get $dict $k]
+	}
+	return $result
+}
+
+set a [dict create a 1 b 2]
+set b [dict create b 3 c 4]
+test dict-3.1 {Merge} {
+	dict merge
+} {}
+test dict-3.2 {Merge} {
+	dictsort [dict merge $a]
+} {a 1 b 2}
+test dict-3.3 {Merge} {
+	dictsort [dict merge $b]
+} {b 3 c 4}
+test dict-3.4 {Merge} {
+	dictsort [dict merge $a $b]
+} {a 1 b 3 c 4}
+test dict-3.5 {Merge} {
+	dictsort [dict merge $b $a]
+} {a 1 b 2 c 4}
+test dict-3.6 {Merge} {
+	dictsort [dict merge $b $a {a 5}]
+} {a 5 b 2 c 4}
+test dict-3.7 {Merge} {
+	dictsort [dict merge {a 5} $b $a]
+} {a 1 b 2 c 4}
+test dict-3.8 {Merge} {
+	catch {dict merge 1 $b $a}
+} 1
+test dict-3.9 {Merge} {
+	catch {dict merge $b 1 $a}
+} 1
+test dict-3.10 {Merge} {
+	catch {dict merge $b $a 1}
+} 1
+test dict-3.11 {Merge} {
+	catch {dict merge 1}
+} 1
+
+test dict-4.1 {Dict size} {
+	dict size {a b}
+} 1
+test dict-4.2 {Dict size} {
+	dict size {a b c d}
+} 2
+
+test dict-5.1 {Dict with} {
+	proc a {} {
+		set x [dict create a b c d]
+		dict with x {
+			set a B
+			unset c
+		}
+		set x
+	}
+	dictsort [a]
+} {a B}
+test dict-5.2 {Dict with} {
+	proc a {} {
+		set x [dict create a b c d]
+		dict with x {
+			set a B
+			unset c
+		}
+		set x
+	}
+	dictsort [a]
+} {a B}
+
+test dict-22.1 {dict with command} {
+    list [catch {dict with} msg] $msg
+} {1 {wrong # args: should be "dict with dictVar ?key ...? script"}}
+test dict-22.2 {dict with command} {
+    list [catch {dict with v} msg] $msg
+} {1 {wrong # args: should be "dict with dictVar ?key ...? script"}}
+test dict-22.3 {dict with command} {
+    unset -nocomplain v
+    list [catch {dict with v {error "in body"}} msg] $msg
+} {1 {can't read "v": no such variable}}
+test dict-22.4 {dict with command} {
+    set a {b c d e}
+    unset -nocomplain b d
+    set result [list [info exist b] [info exist d]]
+    dict with a {
+	lappend result [info exist b] [info exist d] $b $d
+    }
+    set result
+} {0 0 1 1 c e}
+test dict-22.5 {dict with command} {
+    set a {b c d e}
+    dict with a {
+	lassign "$b $d" d b
+    }
+    dictsort $a
+} {b e d c}
+test dict-22.6 {dict with command} {
+    set a {b c d e}
+    dict with a {
+	unset b
+	# This *won't* go into the dict...
+	set f g
+    }
+    set a
+} {d e}
+test dict-22.7 {dict with command} {
+    set a {b c d e}
+    dict with a {
+	dict unset a b
+    }
+    dictsort $a
+} {b c d e}
+test dict-22.8 {dict with command} {
+    set a [dict create b c]
+    dict with a {
+	set b $a
+    }
+    set a
+} {b {b c}}
+test dict-22.9 {dict with command} {
+    set a {b {c d}}
+    dict with a b {
+	set c $c$c
+    }
+    set a
+} {b {c dd}}
+test dict-22.10 {dict with command: result handling tricky case} {
+    set a {b {c d}}
+    foreach i {0 1} {
+	if {$i} break
+	dict with a b {
+	    set a {}
+	    # We're checking to see if we lose this break
+	    break
+	}
+    }
+    list $i $a
+} {0 {}}
+test dict-22.11 {dict with command: no recursive structures [Bug 1786481]} {
+    set foo {t {t {t {inner 1}}}}
+    dict with foo {
+	dict with t {
+	    dict with t {
+		dict with t {
+		    incr inner
+		}
+	    }
+	}
+    }
+    string range [append foo OK] end-1 end
+} OK
+
+
 testreport

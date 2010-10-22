@@ -623,6 +623,8 @@ JIM_EXPORT int Jim_EvalFile(Jim_Interp *interp, const char *filename);
 JIM_EXPORT int Jim_EvalObj (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_EXPORT int Jim_EvalObjVector (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
+JIM_EXPORT int Jim_EvalObjPrefix(Jim_Interp *interp, const char *prefix,
+        int objc, Jim_Obj *const *objv);
 JIM_EXPORT int Jim_SubstObj (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
@@ -791,6 +793,7 @@ JIM_EXPORT int Jim_DictPairs(Jim_Interp *interp,
 JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr);
 JIM_EXPORT int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj);
+JIM_EXPORT int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr);
 
 /* return code object */
 JIM_EXPORT int Jim_GetReturnCode (Jim_Interp *interp, Jim_Obj *objPtr,

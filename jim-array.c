@@ -175,7 +175,10 @@ static int array_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Not found means zero length */
     objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
     if (objPtr) {
-        len = Jim_ListLength(interp, objPtr) / 2;
+        len = Jim_DictSize(interp, objPtr);
+        if (len < 0) {
+            return JIM_ERR;
+        }
     }
 
     Jim_SetResultInt(interp, len);

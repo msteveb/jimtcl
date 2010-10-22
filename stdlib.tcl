@@ -113,3 +113,38 @@ proc {info nameofexecutable} {} {
 	}
 	return ""
 }
+
+# Script-based implementation of 'dict with'
+proc {dict with} {dictVar args script} {
+	upvar $dictVar dict
+	set keys {}
+	foreach {n v} [dict get $dict {*}$args] {
+		upvar $n var_$n
+		set var_$n $v
+		lappend keys $n
+	}
+	catch {uplevel 1 $script} msg opts
+	if {[info exists dict] && [dict exists $dict {*}$args]} {
+		foreach n $keys {
+			if {[info exists var_$n]} {
+				dict set dict {*}$args $n [set var_$n]
+			} else {
+				dict unset dict {*}$args $n
+			}
+		}
+	}
+	return {*}$opts $msg
+}
+
+# Script-based implementation of 'dict merge'
+# This won't get called in the trivial case of no args
+proc {dict merge} {dict args} {
+	foreach d $args {
+		# Check for a valid dict
+		dict size $d
+		foreach {k v} $d {
+			dict set dict $k $v
+		}
+	}
+	return $dict
+}

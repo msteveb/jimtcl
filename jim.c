@@ -9032,6 +9032,24 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     return JimEvalObjVector(interp, objc, objv, NULL, 0);
 }
 
+/**
+ * Invokes 'prefix' as a command with the objv array as arguments.
+ */
+int Jim_EvalObjPrefix(Jim_Interp *interp, const char *prefix, int objc, Jim_Obj *const *objv)
+{
+    int i;
+    int ret;
+    Jim_Obj **nargv = Jim_Alloc((objc + 1) * sizeof(*nargv));
+
+    nargv[0] = Jim_NewStringObj(interp, prefix, -1);
+    for (i = 0; i < objc; i++) {
+        nargv[i + 1] = objv[i];
+    }
+    ret = Jim_EvalObjVector(interp, objc + 1, nargv);
+    Jim_Free(nargv);
+    return ret;
+}
+
 /* Interpolate the given tokens into a unique Jim_Obj returned by reference
  * via *objPtrPtr. This function is only called by Jim_EvalObj().
  * The returned object has refcount = 0. */
@@ -12577,17 +12595,25 @@ int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj)
     return JIM_OK;
 }
 
+int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+        return -1;
+    }
+    return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
+}
+
 /* [dict] */
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
     int option;
     const char *options[] = {
-        "create", "get", "set", "unset", "exists", "keys", NULL
+        "create", "get", "set", "unset", "exists", "keys", "merge", "size", "with", NULL
     };
     enum
     {
-        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST, OPT_KEYS
+        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST, OPT_KEYS, OPT_MERGE, OPT_SIZE, OPT_WITH,
     };
 
     if (argc < 2) {
@@ -12601,6 +12627,10 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
     switch (option) {
         case OPT_GET:
+            if (argc < 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "varName ?key ...?");
+                return JIM_ERR;
+            }
             if (Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3, &objPtr,
                     JIM_ERRMSG) != JIM_OK) {
                 return JIM_ERR;
@@ -12616,6 +12646,10 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 4, argv[argc - 1]);
 
         case OPT_EXIST:
+            if (argc < 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "varName ?key ...?");
+                return JIM_ERR;
+            }
             Jim_SetResultBool(interp, Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3,
                     &objPtr, JIM_ERRMSG) == JIM_OK);
             return JIM_OK;
@@ -12633,6 +12667,45 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             return Jim_DictKeys(interp, argv[2], argc == 4 ? argv[3] : NULL);
+
+        case OPT_SIZE: {
+            int size;
+
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictVar");
+                return JIM_ERR;
+            }
+
+            size = Jim_DictSize(interp, argv[2]);
+            if (size < 0) {
+                return JIM_ERR;
+            }
+            Jim_SetResultInt(interp, size);
+            return JIM_OK;
+        }
+
+        case OPT_MERGE:
+            if (argc == 2) {
+                return JIM_OK;
+            }
+            else if (argv[2]->typePtr != &dictObjType && SetDictFromAny(interp, argv[2]) != JIM_OK) {
+                return JIM_ERR;
+            }
+            else {
+                return Jim_EvalObjPrefix(interp, "dict merge", argc - 2, argv + 2);
+            }
+
+        case OPT_WITH:
+            if (argc < 4) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?key ...? script");
+                return JIM_ERR;
+            }
+            else if (Jim_GetVariable(interp, argv[2], JIM_ERRMSG) == NULL) {
+                return JIM_ERR;
+            }
+            else {
+                return Jim_EvalObjPrefix(interp, "dict with", argc - 2, argv + 2);
+            }
 
         case OPT_CREATE:
             if (argc % 2) {
