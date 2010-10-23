@@ -231,6 +231,7 @@ libs_sqlite="sqlite"
 needs_sqlite3="ac_cv_search_sqlite3_open"
 libs_sqlite3="sqlite3"
 needs_win32="iswin"
+dep_tree="oo"
 
 dnl First handle dependencies. If an extension is enabled, also enable its dependency
 for i in $ext_default $with_jim_ext; do

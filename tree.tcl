@@ -3,6 +3,8 @@
 # To mimic tcllib, do:
 #   rename [tree] mytree
 
+package require oo
+
 # set pt [tree]
 #
 #   Create a tree
@@ -28,6 +30,10 @@
 #
 #   Returns the value associated with the given key
 # 
+# $pt getall <nodename>
+#
+#   Returns the entire attribute dictionary associated with the given key
+# 
 # $pt depth <nodename>
 #
 #   Returns the depth of the given node. The depth of "root" is 0.
@@ -48,10 +54,10 @@
 #
 #   Returns the next sibling node, or "" if none.
 # 
-# $pt insert <nodename> <index>
+# $pt insert <nodename> ?index?
 #
 #   Add a new child node to the given node.
-#   Currently the node is always added at the end (index=end)
+#   THe default index is "end"
 #   Returns the name of the newly added node
 #
 # $pt walk <nodename> dfs|bfs {actionvar nodevar} <code>
@@ -61,163 +67,135 @@
 #   The value "enter" or "exit" is stored in variable $actionvar
 #   The name of each node is stored in $nodevar.
 #   The script $code is evaluated twice for each node, on entry and exit.
+#
+# $pt dump
+#
+#   Dumps the tree contents to stdout
 
-# Create a new tree
-proc tree {} {
-	# A tree is a dictionary of (name, noderef)
-	# The name for the root node is always "root",
-	# and other nodes are automatically named "node1", "node2", etc.
+#------------------------------------------
+# Internal implementation.
+# The tree class has 4 instance variables.
+# - tree is a dictionary. key=node, value=node value dictionary
+# - parent is a dictionary. key=node, value=parent of this node
+# - children is a dictionary. key=node, value=list of child nodes for this node
+# - nodeid is an integer which increments to give each node a unique id
 
-	# Create the root node
-	lassign [tree._makenode ""] dummy rootref
-
-	# Create the tree containing one node
-	set tree [dict create root $rootref]
-
-	# And create a reference to a tree dictionary
-	set treeref [ref $tree tree]
-
-	lambda {command args} {treeref} {
-		#puts "You invoked [list \$tree $command $args]"
-		uplevel 1 [list tree.$command $treeref {*}$args]
-	}
+# Construct a tree with a single root node with no parent and no children
+class tree {
+	tree {root {}}
+	parents {root {}}
+	children {root {}}
+	nodeid 0
 }
 
-# $tree insert node ?index?
-#
-proc tree.insert {treeref node {index end}} {
-	# Get the parent node
-	set parentref [tree._getnoderef $treeref $node]
-
-	# Make a new node
-	lassign [tree._makenode $parentref] childname childref
-
-	# Add it to the list of children in the parent node
-	tree._update_node $treeref $node parent {
-		lappend parent(.children) $childref
+# Simply walk up the tree to get the depth
+tree method depth {node} {
+	set depth 0
+	while {$node ne "root"} {
+		incr depth
+		set node [dict get $parents $node]
 	}
+	return $depth
+}
 
-	# Add it to the tree
-	tree._update_tree $treeref tree {
-		set tree($childname) $childref
-	}
+tree method parent {node} {
+	dict get $parents $node
+}
+
+tree method children {node} {
+	dict get $children $node
+}
+
+tree method numchildren {node} {
+	llength [dict get $children $node]
+}
+
+tree method next {node} {
+	# My siblings are my parents children
+	set siblings [dict get $children [dict get $parents $node]]
+	# Find me
+	set i [lsearch $siblings $node]
+	incr i
+	lindex $siblings $i
+}
+
+tree method set {node key value} {
+	dict set tree $node $key $value
+	return $value
+}
+
+tree method get {node key} {
+	dict get $tree $node $key
+}
+
+tree method keyexists {node key} {
+	dict exists $tree $node $key
+}
+
+tree method getall {node} {
+	dict get $tree $node
+}
+
+tree method insert {node {index end}} {
+
+	# Make a new node and add it to the tree
+	set childname node[incr nodeid]
+	dict set tree $childname {}
+
+	# The new node has no children
+	dict set children $childname {}
+
+	# Set the parent
+	dict set parents $childname $node
+
+	# And add it as a child
+	set nodes [dict get $children $node]
+	dict set children $node [linsert $nodes $index $childname]
 
 	return $childname
 }
 
-# $tree set node key value
-#
-proc tree.set {treeref node key value} {
-	tree._update_node $treeref $node n {
-		set n($key) $value
+tree method lappend {node key args} {
+	if {[dict exists $tree $node $key]} {
+		set result [dict get $tree $node $key]
 	}
-	return $value
-}
-
-# $tree lappend node key value
-#
-proc tree.lappend {treeref node key args} {
-	tree._update_node $treeref $node n {
-		lappend n($key) {expand}$args
-		set result $n($key)
-	}
+	lappend result {*}$args
+	dict set tree $node $key $result
 	return $result
-}
-
-# $tree get node key
-#
-proc tree.get {treeref node key} {
-	set n [tree._getnode $treeref $node]
-
-	return $n($key)
-}
-
-# $tree keyexists node key
-#
-proc tree.keyexists {treeref node key} {
-	set n [tree._getnode $treeref $node]
-	info exists n($key)
-}
-
-# $tree depth node
-#
-proc tree.depth {treeref node} {
-	set n [tree._getnode $treeref $node]
-	return $n(.depth)
-}
-
-# $tree parent node
-#
-proc tree.parent {treeref node} {
-	set n [tree._getnode $treeref $node]
-	return $n(.parent)
-}
-
-# $tree numchildren node
-#
-proc tree.numchildren {treeref node} {
-	set n [tree._getnode $treeref $node]
-	llength $n(.children)
-}
-
-# $tree children node
-#
-proc tree.children {treeref node} {
-	set n [tree._getnode $treeref $node]
-	set result {}
-	foreach child $n(.children) {
-		set c [getref $child]
-		lappend result $c(.name)
-	}
-	return $result
-}
-
-# $tree next node
-#
-proc tree.next {treeref node} {
-	set parent [tree.parent $treeref $node]
-	set siblings [tree.children $treeref $parent] 
-	set i [lsearch $siblings $node]
-	incr i
-	return [lindex $siblings $i]
 }
 
 # $tree walk node bfs|dfs {action loopvar} <code>
 #
-proc tree.walk {treeref node type vars code} {
-	set n [tree._getnode $treeref $node]
-
+tree method walk {node type vars code} {
 	# set up vars
 	lassign $vars actionvar namevar
 
+	set n $node
+
 	if {$type ne "child"} {
-		upvar $namevar name
-		upvar $actionvar action
+		upvar 2 $namevar name $actionvar action
 
 		# Enter this node
 		set name $node
 		set action enter
 
-		uplevel 1 $code
+		uplevel 2 $code
 	}
 
 	if {$type eq "dfs"} {
 		# Depth-first so do the children
-		foreach childref $n(.children) {
-			set child [getref $childref]
-			uplevel 1 [list tree.walk $treeref $child(.name) $type $vars $code]
+		foreach child [$self children $n] {
+			uplevel 2 [list $self walk $child $type $vars $code]
 		}
 	} elseif {$type ne "none"} {
 		# Breadth-first so do the children to one level only
-		foreach childref $n(.children) {
-			set child [getref $childref]
-			uplevel 1 [list tree.walk $treeref $child(.name) none $vars $code]
+		foreach child [$self children $n] {
+			uplevel 2 [list $self walk $child none $vars $code]
 		}
 
 		# Now our grandchildren
-		foreach childref $n(.children) {
-			set child [getref $childref]
-			uplevel 1 [list tree.walk $treeref $child(.name) child $vars $code]
+		foreach child [$self children $n] {
+			uplevel 2 [list $self walk $child child $vars $code]
 		}
 	}
 
@@ -226,100 +204,16 @@ proc tree.walk {treeref node type vars code} {
 		set name $node
 		set action exit
 
-		uplevel 1 $code
+		uplevel 2 $code
 	}
 }
 
-# Destroys the tree
-#
-proc tree.destroy {treeref} {
-	set tree [getref $treeref]
-	foreach {nodename noderef} $tree {
-		setref $noderef {}
+tree method dump {} {
+	$self walk root dfs {action n} {
+		set indent [string repeat "  " [$self depth $n]]
+		if {$action eq "enter"} {
+			puts "$indent$n ([$self getall $n])"
+		}
 	}
-	setref $treeref {}
-
-	# Extract the name of the handle
-	set t [lindex [info level 1] 0]
-	rename $t ""
-}
-
-#
-# INTERNAL procedures below this point
-#
-
-
-# Make a new child node of the parent
-#
-# Note that this does *not* add the node
-# to the parent or to the tree
-#
-# Returns a list of {nodename noderef}
-#
-proc tree._makenode {parent} {{nodeid 1}} {
-	if {$parent eq ""} {
-		# The root node
-		set name root
-		set depth 0
-		set parentname ""
-	} else {
-		set parentnode [getref $parent]
-
-		set name node$nodeid
-		incr nodeid
-		set depth $parentnode(.depth)
-		incr depth
-		set parentname $parentnode(.name)
-	}
-
-	# Return a list of name, reference
-	list $name [ref [list .name $name .depth $depth .parent $parentname .children {}] node]
-}
-
-# Return the node (dictionary value) with the given name
-#
-proc tree._getnode {treeref node} {
-	getref [dict get [getref $treeref] $node]
-}
-
-# Return the noderef with the given name
-#
-proc tree._getnoderef {treeref node} {
-	dict get [getref $treeref] $node
-}
-
-# Set a dictionary value named $varname in the parent context,
-# evaluate $code, and then store any changes to
-# the node (via $varname) back to the node
-#
-proc tree._update_node {treeref node varname code} {
-	upvar $varname n
-
-	# Get a reference to the node
-	set ref [tree._getnoderef $treeref $node]
-
-	# Get the node itself
-	set n [getref $ref]
-
-	uplevel 1 $code
-
-	# And update the reference
-	setref $ref $n
-}
-
-# Set a dictionary value named $varname in the parent context,
-# evaluate $code, and then store any changes to
-# the tree (via $varname) back to the tree
-#
-proc tree._update_tree {treeref varname code} {
-	upvar $varname t
-
-	# Get the tree value
-	set t [getref $treeref]
-
-	# Possibly modify it
-	uplevel 1 $code
-
-	# And update the reference
-	setref $treeref $t
+	puts ""
 }

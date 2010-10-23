@@ -54,13 +54,12 @@ test tree-1.7 "Key exists false" {
 	$pt keyexists $n boguskey
 } {0}
 
-test tree-1.8 "lappend new key" {
+test tree-1.8 "lappend" {
 	$pt lappend $n newkey first
-} {first}
-
-test tree-1.9 "lappend existing key" {
-	$pt lappend $n newkey next
-} {first next}
+	$pt lappend $n newkey second
+	$pt lappend $n newkey third
+	$pt lappend $n newkey last
+} {first second third last}
 
 test tree-2.0 "Add more nodes" {
 	set c [$pt insert root]
