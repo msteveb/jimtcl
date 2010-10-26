@@ -12995,6 +12995,51 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_OK;
 }
 
+/* [exists] */
+static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr;
+
+    static const char * const options[] = {
+        "-command", "-proc", "-var", NULL
+    };
+    enum
+    {
+        OPT_COMMAND, OPT_PROC, OPT_VAR
+    };
+    int option;
+
+    if (argc == 2) {
+        option = OPT_VAR;
+        objPtr = argv[1];
+    }
+    else if (argc == 3) {
+        if (Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+            return JIM_ERR;
+        }
+        objPtr = argv[2];
+    }
+    else {
+        Jim_WrongNumArgs(interp, 1, argv, "?option? name");
+        return JIM_ERR;
+    }
+
+    /* Test for the the most common commands first, just in case it makes a difference */
+    switch (option) {
+        case OPT_VAR:
+            Jim_SetResultBool(interp, Jim_GetVariable(interp, objPtr, 0) != NULL);
+            break;
+
+        case OPT_COMMAND:
+        case OPT_PROC: {
+            Jim_Cmd *cmd = Jim_GetCommand(interp, objPtr, JIM_NONE);
+            Jim_SetResultBool(interp, cmd != NULL && (option == OPT_COMMAND || !cmd->cmdProc));
+            break;
+        }
+    }
+    return JIM_OK;
+}
+
 /* [split] */
 static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -13501,6 +13546,7 @@ static const struct {
     {"dict", Jim_DictCoreCommand},
     {"subst", Jim_SubstCoreCommand},
     {"info", Jim_InfoCoreCommand},
+    {"exists", Jim_ExistsCoreCommand},
     {"split", Jim_SplitCoreCommand},
     {"join", Jim_JoinCoreCommand},
     {"format", Jim_FormatCoreCommand},

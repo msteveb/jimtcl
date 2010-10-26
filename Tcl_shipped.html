@@ -726,6 +726,11 @@ Add <em>info channels</em>
 The <em>bio</em> extension is gone. Now <em>aio</em> supports <em>copyto</em>.
 </p>
 </li>
+<li>
+<p>
+Add <em>exists</em> command
+</p>
+</li>
 </ol></div>
 <div class="paragraph"><p>Since v0.62:</p></div>
 <div class="olist arabic"><ol class="arabic">
@@ -2713,6 +2718,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_exec">exec</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_exists">exists</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exit">exit</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_expr">expr</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_file">file</a></p></td>
@@ -2720,9 +2726,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_flush">flush</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_for">for</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_foreach">foreach</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_format">format</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_format">format</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_getref">getref</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_gets">gets</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_glob">glob</a></p></td>
@@ -2730,9 +2736,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_if">if</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_incr">incr</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_info">info</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_join">join</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_join">join</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_kill">kill</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lambda">lambda</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lappend">lappend</a></p></td>
@@ -2740,9 +2746,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lindex">lindex</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_linsert">linsert</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_list">list</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_llength">llength</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_llength">llength</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lmap">lmap</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load">load</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_local">local</a></p></td>
@@ -2750,9 +2756,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat">lrepeat</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreplace">lreplace</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreverse">lreverse</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lsearch">lsearch</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lsearch">lsearch</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset">lset</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort">lsort</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_open">open</a></p></td>
@@ -2760,9 +2766,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.gethostname</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.getids</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.uptime</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1">os.wait</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1">os.wait</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package">package</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pid">pid</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">posix</a></p></td>
@@ -2770,9 +2776,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_puts">puts</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd">pwd</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rand">rand</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_range">range</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_range">range</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read">read</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_ref">ref</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp">regexp</a></p></td>
@@ -2780,9 +2786,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_rename">rename</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return">return</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_scan">scan</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_seek">seek</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_seek">seek</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set">set</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_setref">setref</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal">signal</a></p></td>
@@ -2790,9 +2796,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_socket">socket</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source">source</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_split">split</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_stackdump">stackdump</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_stackdump">stackdump</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace">stacktrace</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_string">string</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst">subst</a></p></td>
@@ -2800,9 +2806,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_syslog">syslog</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall">tailcall</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell">tell</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_throw">throw</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_throw">throw</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time">time</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try">try</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown">unknown</a></p></td>
@@ -2810,11 +2816,10 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_2">update</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel">uplevel</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar">upvar</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_2">vwait</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_2">vwait</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while">while</a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -3531,6 +3536,15 @@ option in <em>catch</em>) will be set to a list, as follows:</p></div>
 </dl></div>
 <div class="paragraph"><p>The environment for the executed command is set from $::env (unless
 this variable is unset, in which case the original environment is used).</p></div>
+</div>
+<div class="sect2">
+<h3 id="_exists">exists</h3>
+<div class="paragraph"><p><tt><strong>exists ?-var|-proc|-command?</strong> <em>name</em></tt></p></div>
+<div class="paragraph"><p>Checks the existence of the given variable, procedure or command
+respectively and returns 1 if it exists or 0 if not.  This command
+provides a more simplified/convenient version of <em>info exists</em>,
+<em>info procs</em> and <em>info commands</em>.</p></div>
+<div class="paragraph"><p>If the type is omitted, a type of <em>-var</em> is used. The type may be abbreviated.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_exit">exit</h3>
@@ -6806,7 +6820,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-11-15 11:22:37 EST
+Last updated 2010-11-22 20:39:26 EST
 </div>
 </div>
 </body>

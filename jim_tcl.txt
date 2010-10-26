@@ -64,6 +64,7 @@ Since v0.63:
 2. Add aio '$handle filename'
 3. Add 'info channels'
 4. The 'bio' extension is gone. Now 'aio' supports 'copyto'.
+5. Add 'exists' command
 
 Since v0.62:
 
@@ -2058,6 +2059,17 @@ option in 'catch') will be set to a list, as follows:
 
 The environment for the executed command is set from $::env (unless
 this variable is unset, in which case the original environment is used).
+
+exists
+~~~~~~
++*exists ?-var|-proc|-command?* 'name'+
+
+Checks the existence of the given variable, procedure or command
+respectively and returns 1 if it exists or 0 if not.  This command
+provides a more simplified/convenient version of 'info exists',
+'info procs' and 'info commands'.
+
+If the type is omitted, a type of '-var' is used. The type may be abbreviated.
 
 exit
 ~~~~
