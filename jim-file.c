@@ -529,16 +529,7 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *new_argv[4];
-    int i;
-
-    new_argv[0] = Jim_NewStringObj(interp, "file copy", -1);
-    for (i = 0; i < argc; i++) {
-        new_argv[i + 1] = argv[i];
-    }
-
-    /* Note that Jim_EvalObjVector() will incr then decr ref count of new_argv[0] */
-    return Jim_EvalObjVector(interp, argc + 1, new_argv);
+    return Jim_EvalObjPrefix(interp, "file copy", argc, argv);
 }
 
 static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
