@@ -67,6 +67,8 @@ install: all docs
 test:
 	$(MAKE) -C tests
 
+$(OBJS) $(EXTENSION_OBJS): Makefile
+
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSIONS_OBJS)
 	$(AR) cr $@ $^
