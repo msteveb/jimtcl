@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT([jim], [0.63], [steveb@workware.net.au])
+AC_INIT([jim], [0.64], [steveb@workware.net.au])
 AC_CONFIG_HEADER(jimautoconf.h)
 
 # Checks for programs.

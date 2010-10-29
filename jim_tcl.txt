@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.63 - overview of the Jim tool command language facilities
+Jim Tcl v0.64 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -58,6 +58,8 @@ The major differences are:
 
 CHANGES
 -------
+Since v0.63:
+
 Since v0.62:
 
 1. 'source' now checks that a script is complete (.i.e. not missing a brace)
