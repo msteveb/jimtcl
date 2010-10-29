@@ -44,7 +44,7 @@ The major differences are:
 7. 'file mkdir', 'file rename', 'file tempfile' (Tcl 7.x, 8.x)
 8. 'env' command to access environment variables
 9. List: 'lmap', 'lset', 'lreverse', 'lassign' (Tcl 8.x)
-10. 'os.fork', 'os.wait', 'rand' 
+10. 'os.fork', 'os.wait', 'rand'
 11. '\{*\}'/'\{expand\}'
 12. 'string map' (Tcl 7.x)
 13. 'subst' (Tcl 7.x)
@@ -59,6 +59,10 @@ The major differences are:
 CHANGES
 -------
 Since v0.63:
+
+1. $::platform_tcl() settings are now automatically determined
+2. Add aio '$handle filename'
+3. Add 'info channels'
 
 Since v0.62:
 
@@ -754,7 +758,7 @@ precedence level.  For example, the expression
 evaluates to 0.
 
 The '&&', '||', and '?:' operators have 'lazy
-evaluation', just as in C, 
+evaluation', just as in C,
 which means that operands are not evaluated if they are
 not needed to determine the outcome.  For example, in
 
@@ -1077,7 +1081,7 @@ has an initialiser, so it is initialised to 2.
 
 Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.
-    
+
 See the 'proc' command for information on
 how to define procedures and what happens when they are invoked.
 
@@ -1502,7 +1506,7 @@ Below are some examples of 'case' commands:
 
     case abc in {a b} {format 1} default {format 2} a* {format 3}
 
-will return '3', 
+will return '3',
 
     case a in {
         {a b} {format 1}
@@ -2161,7 +2165,7 @@ foreach
 
 In this command, *varName* is the name of a variable, *list*
 is a list of values to assign to *varName*, and *body* is a
-collection of Tcl commands. 
+collection of Tcl commands.
 
 For each field in *list* (in order from left to right),'foreach' assigns
 the contents of the field to *varName* (as if the 'lindex' command
@@ -2336,6 +2340,9 @@ The legal *option*'s (which may be abbreviated) are:
     Returns the body of procedure *procname*.  *Procname* must be
     the name of a Tcl command procedure.
 
++*info channels*+::
+    Returns a list of all open 'aio' channels.
+
 +*info commands* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
@@ -2508,7 +2515,7 @@ This command provides a relatively efficient way to build up large lists.
 For example, 'lappend a $b' is much more efficient than
 
     set a [concat $a [list $b]]
-    
+
 when '$a' is long.
 
 lassign
@@ -2917,7 +2924,7 @@ The first form returns the process identifier of the current process.
 
 The second form accepts a handle returned by 'open' and returns a list
 of the process ids forming the pipeline in the same form as 'exec ... &'.
-If 'fileId' represents a regular file handle rather than a command pipeline, 
+If 'fileId' represents a regular file handle rather than a command pipeline,
 the empty string is returned instead.
 
 See also 'open', 'exec'
@@ -3140,7 +3147,7 @@ The following switches modify the behaviour of *regsub*
     Upper-case characters in *string* are converted to lower-case
     before matching against *exp*;  however, substitutions
     specified by *subSpec* use the original unconverted form
-    of *string*. 
+    of *string*.
 
 +*-all*+::
     All ranges in *string* that match *exp* are found and substitution
@@ -3590,7 +3597,7 @@ The legal options (which may be abbreviated) are:
     removed.
     If *chars* is not specified then white space is removed
     (spaces, tabs, newlines, and carriage returns).
-	Null characters are always removed.
+    Null characters are always removed.
 
 subst
 ~~~~~
@@ -4002,13 +4009,13 @@ posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
     Returns a list of 3 elements.
 
    {0 none 0} if -nohang is specified, and the process is still alive.
- 
+
    {-1 error <error-description>} if the process does not exist or has already been waited for.
- 
+
    {<pid> exit <exit-status>} if the process exited normally.
- 
+
    {<pid> signal <signal-number>} if the process terminated on a signal.
- 
+
    {<pid> other 0} otherwise (core dump, stopped, continued, etc.)
 
 +*os.gethostname*+::
@@ -4042,6 +4049,10 @@ aio
 
 +$handle *flush*+::
     Flush the stream
+
++$handle *filename*+::
+    Returns the original filename associated with the handle.
+    Handles returned by 'socket' give the socket type instead of a filename.
 
 +$handle *eof*+::
     Returns 1 if stream is at eof
@@ -4131,8 +4142,8 @@ Time-based execution is also available via the eventloop API.
 
 +*update ?idletasks?*+::
     A call to 'update' enters the eventloop to process expired events, but
-	no new events. If 'idletasks' is specified, only expired time events are handled,
-	not file events.
+    no new events. If 'idletasks' is specified, only expired time events are handled,
+    not file events.
     Returns once handlers have been run for all expired events.
 
 Scripts are executed at the global scope. If an error occurs during a handler script,
@@ -4266,8 +4277,13 @@ by the Tcl library.
     Reading an element will return the value of the corresponding
     environment variable.
     This array is initialised at startup from the 'env' command.
-	It may be modified and will affect the environment passed to
-	commands invoked with 'exec'.
+    It may be modified and will affect the environment passed to
+    commands invoked with 'exec'.
+
++*platform_tcl*+::
+    This variable is set by Jim as an array containing information
+    about the platform on which Jim was built. Currnetly this includes
+    'os' and 'platform'.
 
 +*auto_path*+::
     This variable contains a list of paths to search for packages.
@@ -4312,14 +4328,14 @@ LICENCE
 
  Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
- Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+ Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net>
  Copyright 2008 oharboe - Oyvind Harboe - oyvind.harboe@zylin.com
  Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
  Copyright 2009 Steve Bennett <steveb@workware.net.au>
- 
-[literal] 
+
+[literal]
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
@@ -4329,7 +4345,7 @@ LICENCE
     copyright notice, this list of conditions and the following
     disclaimer in the documentation and/or other materials
     provided with the distribution.
- 
+
  THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -4342,7 +4358,7 @@ LICENCE
  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
+
  The views and conclusions contained in the software and documentation
  are those of the authors and should not be interpreted as representing
  official policies, either expressed or implied, of the Jim Tcl Project.

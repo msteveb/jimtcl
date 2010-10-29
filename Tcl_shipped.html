@@ -705,6 +705,23 @@ The history command is not supported
 <h2 id="_changes">CHANGES</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Since v0.63:</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+$::platform_tcl() settings are now automatically determined
+</p>
+</li>
+<li>
+<p>
+Add aio <em>$handle filename</em>
+</p>
+</li>
+<li>
+<p>
+Add <em>info channels</em>
+</p>
+</li>
+</ol></div>
 <div class="paragraph"><p>Since v0.62:</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
@@ -3682,6 +3699,14 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>info channels</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns a list of all open <em>aio</em> channels.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>info commands</strong> ?<em>pattern</em>?</tt>
 </dt>
 <dd>
@@ -5342,7 +5367,7 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
     removed.
     If <strong>chars</strong> is not specified then white space is removed
     (spaces, tabs, newlines, and carriage returns).
-        Null characters are always removed.
+    Null characters are always removed.
 </p>
 </dd>
 </dl></div>
@@ -5868,6 +5893,15 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt>$handle <strong>filename</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns the original filename associated with the handle.
+    Handles returned by <em>socket</em> give the socket type instead of a filename.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt>$handle <strong>eof</strong></tt>
 </dt>
 <dd>
@@ -6047,8 +6081,8 @@ handler is removed.</p></div>
 <dd>
 <p>
     A call to <em>update</em> enters the eventloop to process expired events, but
-        no new events. If <em>idletasks</em> is specified, only expired time events are handled,
-        not file events.
+    no new events. If <em>idletasks</em> is specified, only expired time events are handled,
+    not file events.
     Returns once handlers have been run for all expired events.
 </p>
 </dd>
@@ -6266,8 +6300,18 @@ by the Tcl library.</p></div>
     Reading an element will return the value of the corresponding
     environment variable.
     This array is initialised at startup from the <em>env</em> command.
-        It may be modified and will affect the environment passed to
-        commands invoked with <em>exec</em>.
+    It may be modified and will affect the environment passed to
+    commands invoked with <em>exec</em>.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>platform_tcl</strong></tt>
+</dt>
+<dd>
+<p>
+    This variable is set by Jim as an array containing information
+    about the platform on which Jim was built. Currnetly this includes
+    <em>os</em> and <em>platform</em>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6399,7 +6443,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-10-29 15:54:49 EST
+Last updated 2010-10-29 16:09:39 EST
 </div>
 </div>
 </body>
