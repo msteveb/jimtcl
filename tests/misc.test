@@ -134,18 +134,16 @@ test lrepeat-1.5 "Errors" {
 } {1}
 
 test lrepeat-1.6 "Errors" {
-	catch {lrepeat 1}
-} {1}
+	lrepeat 1
+} {}
 
 test lrepeat-1.7 "Errors" {
-	catch {lrepeat 0 a b}
-} {1}
+	lrepeat 0 a b
+} {}
 
 test lrepeat-1.8 "Errors" {
 	catch {lrepeat -10 a}
 } {1}
-
-section "string/list index"
 
 test lindex-1.1 "Integer" {
 	lindex {a b c} 0
