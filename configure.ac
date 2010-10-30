@@ -173,13 +173,69 @@ AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
 AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
 AC_CHECK_FUNCS([syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo])
 
-dnl XXX: Don't need to search for libs if the corresponding extensions aren't enabled
-AC_SEARCH_LIBS(dlopen, dl, have_dlopen=yes; AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function]))
-AC_SEARCH_LIBS(readline, readline, AC_DEFINE([HAVE_READLINE],[1],[Have libreadline]))
-AC_SEARCH_LIBS(sqlite_open, sqlite, AC_DEFINE([HAVE_SQLITE],[1],[Have libsqlite]))
-AC_SEARCH_LIBS(sqlite3_open, sqlite3, AC_DEFINE([HAVE_SQLITE3],[1],[Have libsqlite3]))
+# needs_xxx="yyy zzz" means that extension xxx needs environment variables $yyy and $zzz
+#           to not be "no"
+# dep_xxx="yyy zzz" means that if xxx is selected, so is yyy and zzz
+# libs_xxx="yyy zzz" means that if xxx is selected, libs yyy and zzz may be required
+libs_aio="socket"
+needs_regexp="ac_cv_func_regcomp"
+needs_syslog="ac_cv_func_syslog"
+needs_exec="ac_cv_func_vfork"
+needs_readdir="ac_cv_func_opendir"
+dep_glob="readdir"
+needs_posix="ac_cv_func_waitpid"
+needs_load="have_dlopen"
+libs_load="dl"
+needs_signal="ac_cv_func_sigaction ac_cv_func_vfork"
+needs_readline="ac_cv_search_readline"
+dep_rlprompt="readline"
+libs_readline="readline"
+needs_sqlite="ac_cv_search_sqlite_open"
+libs_sqlite="sqlite"
+needs_sqlite3="ac_cv_search_sqlite3_open"
+libs_sqlite3="sqlite3"
+needs_win32="iswin"
 
-AC_SEARCH_LIBS(socket, socket)
+dnl First handle dependencies. If an extension is enabled, also enable its dependency
+for i in $ext_default $with_jim_ext; do
+    in_list "$i" "$with_out_jim_ext" && continue
+    eval "dep=\$dep_$i"
+    test -z "$dep" && continue
+    with_jim_ext="$with_jim_ext $dep"
+done
+for i in $with_jim_extmod; do
+    eval "dep=\$dep_$i"
+    dnl Theoretically, a mod could depend upon something which must be static
+    test -z "$dep" && continue
+    dnl If already configured static, don't make it a module
+    for d in $dep; do
+        in_list "$d" "$with_jim_ext" || with_jim_extmod="$with_jim_extmod $d"
+    done
+done
+
+dnl Now what libraries may we need?
+for i in $ext_default $with_jim_ext $with_jim_extmod; do
+    in_list "$i" "$with_out_jim_ext" && continue
+    eval "libs=\$libs_$i"
+	needed_libs="$needed_libs $libs"
+done
+
+dnl Don't need to search for libs if the corresponding extensions aren't enabled
+if in_list dl "$needed_libs"; then
+	AC_SEARCH_LIBS(dlopen, dl, have_dlopen=yes; AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function]))
+fi
+if in_list readline "$needed_libs"; then
+	AC_SEARCH_LIBS(readline, readline, AC_DEFINE([HAVE_READLINE],[1],[Have libreadline]))
+fi
+if in_list sqlite "$needed_libs"; then
+	AC_SEARCH_LIBS(sqlite_open, sqlite, AC_DEFINE([HAVE_SQLITE],[1],[Have libsqlite]))
+fi
+if in_list sqlite3 "$needed_libs"; then
+	AC_SEARCH_LIBS(sqlite3_open, sqlite3, AC_DEFINE([HAVE_SQLITE3],[1],[Have libsqlite3]))
+fi
+if in_list socket "$needed_libs"; then
+	AC_SEARCH_LIBS(socket, socket)
+fi
 
 dnl Look for environ. If it is declared in unistd, no need to declare it
 AC_MSG_CHECKING([environ declared in unistd.h?])
@@ -202,37 +258,6 @@ int main(int argc, char **argv) { char **ep = environ; }
 # -   If yes, add it if it is enabled or is a default
 # -   If no, error if it is enabled, or do nothing otherwise
 # - Modules may be either C or Tcl
-
-needs_regexp="ac_cv_func_regcomp"
-needs_syslog="ac_cv_func_syslog"
-needs_exec="ac_cv_func_vfork"
-needs_readdir="ac_cv_func_opendir"
-dep_glob="readdir"
-needs_posix="ac_cv_func_waitpid"
-needs_load="have_dlopen"
-needs_signal="ac_cv_func_sigaction ac_cv_func_vfork"
-needs_readline="ac_cv_search_readline"
-dep_rlprompt="readline"
-needs_sqlite="ac_cv_search_sqlite_open"
-needs_sqlite3="ac_cv_search_sqlite3_open"
-needs_win32="iswin"
-
-# First handle dependencies. If an extension is enabled, also enable its dependency
-for i in $ext_default $with_jim_ext; do
-    in_list "$i" "$with_out_jim_ext" && continue
-    eval "dep=\$dep_$i"
-    test -z "$dep" && continue
-    with_jim_ext="$with_jim_ext $dep"
-done
-for i in $with_jim_extmod; do
-    eval "dep=\$dep_$i"
-    dnl Theoretically, a mod could depend upon something which must be static
-    test -z "$dep" && continue
-    dnl If already configured static, don't make it a module
-    for d in $dep; do
-        in_list "$d" "$with_jim_ext" || with_jim_extmod="$with_jim_extmod $d"
-    done
-done
 
 for i in $ext_all; do
     AC_MSG_CHECKING(extension $i)
