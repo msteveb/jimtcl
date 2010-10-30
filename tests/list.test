@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: list.test,v 1.5 2000/04/10 17:19:01 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # First, a bunch of individual tests
 

@@ -1,6 +1,4 @@
-source testing.tcl
-
-section "lsort -command"
+source [file dirname [info script]]/testing.tcl
 
 set list {b d a c z}
 

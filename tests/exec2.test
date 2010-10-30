@@ -2,8 +2,9 @@
 # of exec where sh -c must be used and thus we must take extra care
 # in quoting arguments to exec.
 
-source testing.tcl
-package-or-skip exec
+source [file dirname [info script]]/testing.tcl
+
+needs cmd exec
 
 set d \"
 set s '
@@ -38,3 +39,5 @@ test exec2-2.4 "Remove all env var" {
 	unset -nocomplain env
 	exec printenv | sed -n -e /^testenv2=/p
 } {}
+
+testreport

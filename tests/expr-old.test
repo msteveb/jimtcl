@@ -15,7 +15,7 @@
 #
 # RCS: @(#) $Id: expr-old.test,v 1.8.2.1 2002/04/18 13:10:27 msofer Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # First, test all of the integer operators individually.
 
@@ -82,7 +82,7 @@ test expr-old-1.53 {integer operators} {
 # automatic conversion to integers where needed.
 
 test expr-old-2.1 {floating-point operators} {expr -4.2} -4.2
-test expr-old-2.2 {floating-point operators} {expr -(1.1+4.2)} -5.3
+test expr-old-2.2 {floating-point operators} jim {expr -(1.1+4.2)} -5.3
 test expr-old-2.3 {floating-point operators} {expr +5.7} 5.7
 test expr-old-2.4 {floating-point operators} {expr +--+-62.0} -62.0
 test expr-old-2.5 {floating-point operators} {expr !2.1} 0

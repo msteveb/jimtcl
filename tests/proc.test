@@ -16,7 +16,9 @@
 #
 # RCS: @(#) $Id: proc-old.test,v 1.6 2000/04/10 17:19:03 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
 
 catch {rename t1 ""}
 catch {rename foo ""}

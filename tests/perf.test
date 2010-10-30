@@ -1,3 +1,7 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint manual
+
 set iterations 10000
 
 set version [info patchlevel]
@@ -129,3 +133,5 @@ bench "foreach: assign to dictsugar" {read_file_split_assign_foreach_dictsugar t
 bench "foreach: assign to dictsugar via lindex" {read_file_split_assign_lindex test.in}
 
 file delete test.in
+
+# testreport

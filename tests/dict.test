@@ -1,6 +1,4 @@
-package require testing
-
-section "basic dict"
+source [file dirname [info script]]/testing.tcl
 
 test dict-1.1 "Basic dict" {
 	set d [dict create]
@@ -13,7 +11,7 @@ test dict-1.1 "Basic dict" {
 
 catch {unset d}
 
-test dict-2.1 "Dict via reference" {
+test dict-2.1 "Dict via reference" references {
 	set d [dict create]
 	dict set d fruit apple
 	dict set d car holden
@@ -23,7 +21,7 @@ test dict-2.1 "Dict via reference" {
 	dict get [getref $dref] car
 } {holden}
 
-test dict-2.2 "Modify dict via reference" {
+test dict-2.2 "Modify dict via reference" references {
 	# Get the value out of the refernence
 	set d [getref $dref]
 	# Modify it
@@ -34,7 +32,7 @@ test dict-2.2 "Modify dict via reference" {
 	dict get [getref $dref] car
 } {toyota}
 
-test dict-2.3 "Modify dict via reference - one line" {
+test dict-2.3 "Modify dict via reference - one line" references {
 	# Get the value out of the refernence
 	set d [getref $dref]
 	setref $dref [dict set d car toyota]

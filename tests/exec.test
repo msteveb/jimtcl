@@ -13,8 +13,9 @@
 #
 # RCS: @(#) $Id: exec.test,v 1.8.2.1 2001/10/17 19:29:25 das Exp $
 
-source testing.tcl
-package-or-skip exec
+source [file dirname [info script]]/testing.tcl
+
+needs cmd exec
 
 set f [open echo w]
 puts $f {
@@ -304,16 +305,16 @@ test exec-9.2 {commands returning errors} {
 test exec-9.3 {commands returning errors} {
     list [catch {exec sleep 1 | false | sleep 1} msg]
 } {1}
-test exec-9.4 {commands returning errors} {
+test exec-9.4 {commands returning errors} jim {
     list [catch {exec false | echo "foo bar"} msg] $msg
 } {1 {foo bar}}
 test exec-9.5 {commands returning errors} {
     list [catch {exec gorp456 | echo a b c} msg]
 } {1}
-test exec-9.6 {commands returning errors} {
+test exec-9.6 {commands returning errors} jim {
     list [catch {exec sh -c "echo error msg 1>&2"} msg] $msg
 } {0 {error msg}}
-test exec-9.7 {commands returning errors} {
+test exec-9.7 {commands returning errors} jim {
     # Note: Use sleep here to ensure the order
     list [catch {exec sh -c "echo error msg 1 1>&2" \
 		     | sh -c "sleep 1; echo error msg 2 1>&2"} msg] $msg

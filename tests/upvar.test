@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: upvar.test,v 1.7 2000/04/10 17:19:05 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 test upvar-1.1 {reading variables with upvar} {
     proc p1 {a b} {set c 22; set d 33; p2}
@@ -287,7 +287,7 @@ test upvar-8.6 {errors in upvar command} {
     list [catch p1 msg] $msg
 } {1 {variable "a" already exists}}
 # Jim allows dicts within dicts. Tcl can't do this.
-test upvar-8.8 {create nested array with upvar} {
+test upvar-8.8 {create nested array with upvar} jim {
     proc p1 {} {upvar x(a) b; set b(2) 44}
     catch {unset x}
     p1
@@ -308,11 +308,11 @@ test upvar-9.2 {upvar redefine} {
     proc p1 {} { upvar a x; upvar b x; return $x }
     p1
 } 2
-test upvar-9.3 {upvar redefine static} {
+test upvar-9.3 {upvar redefine static} jim {
     proc p1 {} {{a 3}} { upvar b a; return $b }
     list [catch p1 msg] $msg
 } {1 {variable "a" already exists}}
-test upvar-9.4 {upvar links to static} {
+test upvar-9.4 {upvar links to static} jim {
     proc p1 {} {} { upvar a x; incr x; return $x }
     proc p2 {} {{a 3}} { list [p1] $a }
     p2

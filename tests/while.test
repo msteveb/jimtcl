@@ -15,7 +15,7 @@
 #
 # RCS: @(#) $Id: while-old.test,v 1.6 2000/04/10 17:19:06 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 test while-old-1.1 {basic while loops} {
     set count 0

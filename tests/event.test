@@ -9,10 +9,12 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
-source testing.tcl
-package-or-skip eventloop
+source [file dirname [info script]]/testing.tcl
 
-test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
+needs cmd after eventloop
+testConstraint socket [expr {[info commands socket] ne ""}]
+
+test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} jim {
     catch {rename bgerror {}}
     proc bgerror msg {
 	lappend ::x $msg
@@ -80,7 +82,7 @@ test event-11.1 {Tcl_VwaitCmd procedure} {
 test event-11.2 {Tcl_VwaitCmd procedure} {
     list [catch {vwait a b} msg] $msg
 } {1 {wrong # args: should be "vwait name"}}
-test event-11.3 {Tcl_VwaitCmd procedure} {
+test event-11.3 {Tcl_VwaitCmd procedure} jim {
     catch {unset x}
     set x 1
     list [catch {vwait x(1)} msg] $msg
@@ -105,8 +107,7 @@ foreach i [after info] {
     after cancel $i
 }
 
-if {[info commands socket] ne ""} {
-test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
+test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {jim socket} {
     set f1 [open test1 w]
     proc accept {s args} {
 	puts $s foobar
@@ -129,7 +130,7 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
     file delete test1 test2
     list $x $y $z
 } {3 3 done}
-}
+
 test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
     file delete test1 test2
     set f1 [open test1 w]

@@ -1,7 +1,5 @@
-package require testing
-package-or-skip tree
-
-section "tree"
+source [file dirname [info script]]/testing.tcl
+needs cmd tree
 
 proc dputs {msg} {
 	#puts $msg
@@ -113,3 +111,5 @@ test tree-2.3 "walk bfs" {
 } {rootnode childnode1 root.c2 root.c3 childnode2 n.c4 n.c5 n.c5.c6}
 
 $pt destroy
+
+testreport

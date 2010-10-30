@@ -1,5 +1,5 @@
-package require testing
-
+source [file dirname [info script]]/testing.tcl
+needs constraint jim
 proc a {} {
 	error "error thrown from a"
 }
@@ -51,3 +51,5 @@ test error-1.2 "Modify stacktrace" {
 test error-2.1 "Exit from package" {
 	list [catch -exit {package require exitpackage} msg] $msg
 } {6 {Can't load package exitpackage}}
+
+testreport

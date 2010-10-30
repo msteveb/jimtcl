@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: subst.test,v 1.6.2.1 2001/04/03 22:54:38 hobbs Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 test subst-1.0 {basics} {
     subst {\$x}

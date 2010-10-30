@@ -1,4 +1,6 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
 
 proc aproc {} {
 	list
@@ -24,8 +26,6 @@ proc gproc {b c {d dd} args e} {
 proc hproc {{a aa} args} {
 	list a $a args $args
 }
-
-section "Proc - TIP #288"
 
 set n 1
 foreach {proc params result} {

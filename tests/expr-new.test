@@ -12,7 +12,7 @@
 #
 # RCS: @(#) $Id: expr.test,v 1.9 2000/04/10 17:18:59 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # procedures used below
 
@@ -271,11 +271,11 @@ test expr-9.4 {CompileRelationalExpr: just shift expr} {expr {1<<3}} 8
 # architectures because LONG_MIN is different
 
 if {0x80000000 > 0} {
-    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN} {
+    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN (64bit)} jim {
 	expr {1<<63}
     } -9223372036854775808
 } else {
-    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN} {
+    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN (32bit)} jim {
 	expr {1<<31}
     } -2147483648
 }

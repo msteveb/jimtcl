@@ -13,15 +13,11 @@
 #
 # RCS: @(#) $Id$
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
-catch {package require regexp}
-if {[info commands regexp] eq "" || [regexp {\d} 1] == 0} {
-    # No regexp, or not using a sufficiently capable regexp implementation
-    puts "   --- skipped"
-    exit 0
-}
-
+needs cmd regexp
+testConstraint regexp_are [regexp {\d} 1]
+needs constraint regexp_are
 
 # Procedure to evaluate a script within a proc, to test compilation
 # functionality

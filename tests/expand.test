@@ -1,6 +1,4 @@
-source testing.tcl
-
-section "Expand Testing"
+source [file dirname [info script]]/testing.tcl
 
 test expand-1.1 "Basic tests" {
 	set a {1 2 3}
@@ -8,7 +6,7 @@ test expand-1.1 "Basic tests" {
 	lappend a {*}$b
 } {1 2 3 4 5 6}
 
-test expand-1.2 "Basic tests" {
+test expand-1.2 "Basic tests" jim {
 	set a {1 2 3}
 	set b {4 5 6}
 	lappend a {expand}$b

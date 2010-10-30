@@ -13,8 +13,9 @@
 #
 # RCS: @(#) $Id: regexp.test,v 1.30.2.1 2008/08/21 23:19:06 hobbs Exp $
 
-source testing.tcl
-package-or-skip regexp
+source [file dirname [info script]]/testing.tcl
+
+needs cmd regexp
 
 catch {unset foo}
 test regexp-1.1 {basic regexp operation} {
@@ -191,13 +192,13 @@ test regexp-5.5 {exercise cache of compiled expressions} {
     regexp .*e xe
 } 1
 
-test regexp-6.1 {regexp errors} {
+test regexp-6.1 {regexp errors} jim {
     list [catch {regexp a} msg] $msg
 } {1 {wrong # args: should be "regexp ?switches? exp string ?matchVar? ?subMatchVar subMatchVar ...?"}}
-test regexp-6.2 {regexp errors} {
+test regexp-6.2 {regexp errors} jim {
     list [catch {regexp -nocase a} msg] $msg
 } {1 {wrong # args: should be "regexp ?switches? exp string ?matchVar? ?subMatchVar subMatchVar ...?"}}
-test regexp-6.3 {regexp errors} {
+test regexp-6.3 {regexp errors} jim {
     list [catch {regexp -gorp a} msg] $msg
 } {1 {bad switch "-gorp": must be --, -all, -indices, -inline, -line, -nocase, or -start}}
 test regexp-6.4 {regexp errors} {
@@ -212,7 +213,7 @@ test regexp-6.6 {regexp errors} {
 test regexp-6.7 {regexp errors} {
     list [catch {regexp (x)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.) xyzzy} msg] $msg
 } {0 0}
-test regexp-6.8 {regexp errors} {
+test regexp-6.8 {regexp errors} jim {
     catch {unset f1}
     set f1 44
     list [catch {regexp abc abc f1(f2)} msg] $msg
@@ -347,25 +348,25 @@ test regexp-10.3 {newline sensitivity in regsub} {
 #    list [regsub -linestop {a.*b} "da\nbaxyb\nxb" 123 foo] $foo
 #} "1 {da\nb123\nxb}"
 
-test regexp-11.1 {regsub errors} {
+test regexp-11.1 {regsub errors} jim {
     list [catch {regsub a b} msg] $msg
 } {1 {wrong # args: should be "regsub ?switches? exp string subSpec ?varName?"}}
-test regexp-11.2 {regsub errors} {
+test regexp-11.2 {regsub errors} jim {
     list [catch {regsub -nocase a b} msg] $msg
 } {1 {wrong # args: should be "regsub ?switches? exp string subSpec ?varName?"}}
-test regexp-11.3 {regsub errors} {
+test regexp-11.3 {regsub errors} jim {
     list [catch {regsub -nocase -all a b} msg] $msg
 } {1 {wrong # args: should be "regsub ?switches? exp string subSpec ?varName?"}}
-test regexp-11.4 {regsub errors} {
+test regexp-11.4 {regsub errors} jim {
     list [catch {regsub a b c d e f} msg] $msg
 } {1 {wrong # args: should be "regsub ?switches? exp string subSpec ?varName?"}}
-test regexp-11.5 {regsub errors} {
+test regexp-11.5 {regsub errors} jim {
     list [catch {regsub -gorp a b c} msg] $msg
 } {1 {bad switch "-gorp": must be --, -all, -line, -nocase, or -start}}
 test regexp-11.6 {regsub errors} {
     list [catch {regsub -nocase a( b c d} msg] [string match *parentheses* $msg]
 } {1 1}
-test regexp-11.7 {regsub errors} {
+test regexp-11.7 {regsub errors} jim {
     catch {unset f1}
     set f1 44
     list [catch {regsub -nocase aaa aaa xxx f1(f2)} msg] $msg
@@ -639,8 +640,8 @@ test regexp-21.13 {multiple matches handle newlines} {
     regexp -all -inline -indices -line -- ^ "a\nb\nc"
 } {{0 -1} {2 1} {4 3}}
 
-test regexp-22.1 {effect of caching} {
-	
+test regexp-22.1 {effect of caching} jim {
+
     set filedata {BEGIN_TABLE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; END_TABLE}
 
 	# Note: use 2 REs because often libc will cache a single regcomp() result

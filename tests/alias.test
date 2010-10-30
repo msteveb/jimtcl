@@ -1,4 +1,6 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
 
 test alias-1.1 "One word alias" {
 	set x 2
@@ -121,3 +123,5 @@ test local-1.9 "local on existing proc" {
 	}
 	list [info procs a] $result 
 } {{} {2 1}}
+
+testreport

@@ -1,4 +1,4 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # return -code
 
@@ -46,3 +46,5 @@ test return-2.5 {return -level 1} {
 test return-2.6 {return -level 2} {
 	list [catch {b 2 20 text} msg] $msg
 } {20 text}
+
+testreport

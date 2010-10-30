@@ -1,4 +1,5 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
+needs cmd try tclcompat
 
 test try-1.1 "Simple case" {
 	try {
@@ -100,7 +101,11 @@ proc c {} {
 	try {
 		error here
 	} on error {msg opts} {
-		incr opts(-level)
+		# jim can do simply: 
+		if {[catch {incr opts(-level)}]} {
+			# Must be Tcl
+			dict incr opts -level
+		}
 		return {*}$opts $msg
 	}
 }
@@ -108,3 +113,5 @@ proc c {} {
 test try-3.1 "rethrow error in try/on handler" {
 	list [catch c msg] $msg
 } {1 here}
+
+testreport

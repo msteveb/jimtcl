@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: string.test,v 1.23.2.1 2001/04/03 22:54:38 hobbs Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # Some tests require the testobj command
 
@@ -207,29 +207,28 @@ test string-5.8 {string index} {
 test string-5.9 {string index} {
     string index abc end-1
 } b
-#test string-5.17 {string index, bad integer} {
-#    list [catch {string index "abc" 08} msg]
-#} {1}
-#test string-5.18 {string index, bad integer} {
-#    list [catch {string index "abc" end-00289} msg]
-#} {1}
-
-test string-6.1 {string is, too few args} {
+test string-5.17 {string index, bad integer} tcl {
+    list [catch {string index "abc" 08} msg]
+} {1}
+test string-5.18 {string index, bad integer} tcl {
+    list [catch {string index "abc" end-00289} msg]
+} {1}
+test string-6.1 {string is, too few args} jim {
     list [catch {string is} msg] $msg
 } {1 {wrong # args: should be "string is class ?-strict? str"}}
-test string-6.2 {string is, too few args} {
+test string-6.2 {string is, too few args} jim {
     list [catch {string is alpha} msg] $msg
 } {1 {wrong # args: should be "string is class ?-strict? str"}}
-test string-6.3 {string is, bad args} {
+test string-6.3 {string is, bad args} jim {
     list [catch {string is alpha -failin str} msg] $msg
 } {1 {wrong # args: should be "string is class ?-strict? str"}}
-test string-6.4 {string is, too many args} {
+test string-6.4 {string is, too many args} jim {
     list [catch {string is alpha -failin var -strict str more} msg] $msg
 } {1 {wrong # args: should be "string is class ?-strict? str"}}
-test string-6.5 {string is, class check} {
+test string-6.5 {string is, class check} jim {
     list [catch {string is bogus str} msg] $msg
 } {1 {bad class "bogus": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
-test string-6.6 {string is, ambiguous class} {
+test string-6.6 {string is, ambiguous class} jim {
     list [catch {string is al str} msg] $msg
 } {1 {ambiguous class "al": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
 test string-6.10 {string is, ok on empty} {
@@ -283,7 +282,7 @@ test string-6.35 {string is double, false} {
 test string-6.36 {string is double, false} {
     list [string is double  "\n"]
 } {0}
-test string-6.38 {string is double, false on underflow} {
+test string-6.38 {string is double, false on underflow} jim {
     list [string is double  123e-9999]
 } {0}
 test string-6.39 {string is double, false} {
@@ -406,12 +405,9 @@ test string-7.14 {string last, start index} {
 test string-7.15 {string last, start index} {
     string last \u00dca \u00dcad\u00dcad 0
 } -1
-ifutf8 {
-    test string-7.16 {string last, start index} {
-        string last \u00dca \u00dcad\u00dcad end-1
-    } 3
-}
-
+test string-7.16 {string last, start index} utf8 {
+    string last \u00dca \u00dcad\u00dcad end-1
+} 3
 test string-9.1 {string length} {
     list [catch {string length} msg]
 } {1}
@@ -600,10 +596,10 @@ test string-11.40 {string match, *special case} {
 test string-11.41 {string match, *special case} {
     string match {*[ab]*} abc
 } 1
-# XXX: I don't see why this shouldn't match. Changed result
-test string-11.42 {string match, *special case} {
+# I don't see why this shouldn't match. Ignored for jim
+test string-11.42 {string match, *special case} tcl {
     string match "*\\" "\\"
-} 1
+} 0
 test string-11.43 {string match, *special case} {
     string match "*\\\\" "\\"
 } 1
@@ -625,10 +621,10 @@ test string-11.48 {string match, *special case} {
 test string-11.49 {string match, *special case} {
     string match "?\\*" "a*"
 } 1
-# XXX: I don't see why this shouldn't match. Changed result
-test string-11.50 {string match, *special case} {
+# I don't see why this shouldn't match. Ignored for jim
+test string-11.50 {string match, *special case} jim {
     string match "\\" "\\"
-} 1
+} 0
 
 
 test string-12.1 {string range} {

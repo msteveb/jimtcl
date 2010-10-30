@@ -1,4 +1,4 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 test concat-1.1 {simple concatenation} {
     concat a b c d e f g
@@ -62,3 +62,5 @@ test concat-6.6 {Tcl_ConcatObj - utf-8 sequence with "whitespace" char} {
     # Check for Bug #227512.  If this violates C isspace, then it returns \xc3.
     concat \xe0
 } \xe0
+
+testreport

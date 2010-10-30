@@ -1,8 +1,6 @@
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
-ifutf8 {
-
-section "string tests"
+needs constraint utf8
 
 test utf8-1.1 "Pattern matching - ?" {
 	string match "abc?def" "abc\u00b5def"
@@ -128,4 +126,3 @@ test utf8-7.2 {append counts correctly} {
 } {8 12}
 
 testreport
-}

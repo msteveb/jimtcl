@@ -1,5 +1,6 @@
-source testing.tcl
-package-or-skip file
+source [file dirname [info script]]/testing.tcl
+
+needs cmd file
 
 test join-1.1 "One name" {
 	file join abc
@@ -57,7 +58,9 @@ test join-2.2 "File is empty string" {
 	file join abc ""
 } {abc}
 
-test join-2.3 "Path too long" {
+test join-2.3 "Path too long" jim {
 	set components [string repeat {abcdefghi } 500]
 	list [catch [concat file join $components] msg] $msg
 } {1 {Path too long}}
+
+testreport

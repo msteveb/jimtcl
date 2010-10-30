@@ -10,12 +10,12 @@
 #
 # RCS: @(#) $Id: lsort.test,v 1.12.2.2 2001/10/08 15:50:24 dkf Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
-test lsort-1.1 {Tcl_LsortObjCmd procedure} {
+test lsort-1.1 {Tcl_LsortObjCmd procedure} jim {
     list [catch {lsort} msg] $msg
 } {1 {wrong # args: should be "lsort ?options? list"}}
-test lsort-1.2 {Tcl_LsortObjCmd procedure} {
+test lsort-1.2 {Tcl_LsortObjCmd procedure} jim {
     list [catch {lsort -foo {1 3 2 5}} msg] $msg
 } {1 {bad option "-foo": must be -ascii, -command, -decreasing, -increasing, -index, -integer, or -nocase}}
 test lsort-1.3 {Tcl_LsortObjCmd procedure, default options} {
@@ -121,10 +121,10 @@ test lsort-3.1 {SortCompare procedure, skip comparisons after error} {
     list [catch {lsort -integer -command cmp {48 6 28 190 16 2 3 6 1}} msg] \
 	    $msg $x
 } {1 {error #1} 1}
-test lsort-3.3 {SortCompare procedure, -index option} {
+test lsort-3.3 {SortCompare procedure, -index option} jim {
     list [catch {lsort -integer -index 2 {{20 10} {15 30 40}}} msg] $msg
 } {1 {list index out of range}}
-test lsort-3.5 {SortCompare procedure, -index option} {
+test lsort-3.5 {SortCompare procedure, -index option} jim {
     list [catch {lsort -integer -index 2 {{20 10 13} {15}}} msg] $msg
 } {1 {list index out of range}}
 test lsort-3.6 {SortCompare procedure, -index option} {
@@ -154,7 +154,7 @@ test lsort-3.16 {SortCompare procedure, -command option, long command} {
     }
     lsort -command {cmp {this argument is very very long in order to make the dstring overflow its statically allocated space}} {{this first element is also long in order to help expand the dstring} {the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring}}
 } {{the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring} {this first element is also long in order to help expand the dstring}}
-test lsort-3.17 {SortCompare procedure, -command option, non-integer result} {
+test lsort-3.17 {SortCompare procedure, -command option, non-integer result} jim {
     proc cmp {a b} {
 	return foow
     }
@@ -170,8 +170,7 @@ test lsort-3.19 {SortCompare procedure, -decreasing option} {
     lsort -decreasing -integer {35 21 0x20 30 023 100 8}
 } {100 35 0x20 30 21 023 8}
 
-ifutf8 {
-test lsort-4.26 {DefaultCompare procedure, signed characters} {
+test lsort-4.26 {DefaultCompare procedure, signed characters} utf8 {
     set l [lsort [list "abc\u80" "abc"]]
     set viewlist {}
     foreach s $l {
@@ -190,6 +189,5 @@ test lsort-4.26 {DefaultCompare procedure, signed characters} {
     }
     set viewlist
 } [list "abc" "abc\\200"]
-}
 
 testreport

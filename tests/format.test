@@ -12,7 +12,9 @@
 #
 # RCS: @(#) $Id: format.test,v 1.8 2000/04/10 17:18:59 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
+
+needs cmd format
 
 # The following code is needed because some versions of SCO Unix have
 # a round-off error in sprintf which would cause some of the tests to
@@ -81,14 +83,12 @@ test format-2.4 {string formatting} {
 test format-2.5 {string formatting, embedded nulls} {
     format "%10s" abc\0def
 } "   abc\0def"
-ifutf8 {
-    test format-2.6 {string formatting, international chars} {
-        format "%10s" abc\ufeffdef
-    } "   abc\ufeffdef"
-    test format-2.6 {string formatting, international chars} {
-        format "%.5s" abc\ufeffdef
-    } "abc\ufeffd"
-}
+test format-2.6 {string formatting, international chars} utf8 {
+    format "%10s" abc\ufeffdef
+} "   abc\ufeffdef"
+test format-2.6 {string formatting, international chars} utf8 {
+    format "%.5s" abc\ufeffdef
+} "abc\ufeffd"
 test format-2.7 {string formatting, international chars} {
     format "foo\ufeffbar%s" baz
 } "foo\ufeffbarbaz"
@@ -119,16 +119,12 @@ test format-2.8 {string formatting, width and precision} {
 test format-2.8 {string formatting, width and precision} {
     format "a%5.7sa" foobarbaz
 } "afoobarba"
-
-ifutf8 {
-    test format-3.1 {Tcl_FormatObjCmd: character formatting} {
-        format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 65 65 65 65 65 65 3 65 -4 65
-    } "|A|A|A|A|A     |     A|  A|A   |"
-    test format-3.2 {Tcl_FormatObjCmd: international character formatting} {
-        format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 0xa2 0x4e4e 0x25a 0xc3 0xff08 0 3 0x6575 -4 0x4e4f
-    } "|\ua2|\u4e4e|\u25a|\uc3|\uff08     |     \0|  \u6575|\u4e4f   |"
-}
-
+test format-3.1 {Tcl_FormatObjCmd: character formatting} utf8 {
+    format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 65 65 65 65 65 65 3 65 -4 65
+} "|A|A|A|A|A     |     A|  A|A   |"
+test format-3.2 {Tcl_FormatObjCmd: international character formatting} utf8 {
+    format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 0xa2 0x4e4e 0x25a 0xc3 0xff08 0 3 0x6575 -4 0x4e4f
+} "|\ua2|\u4e4e|\u25a|\uc3|\uff08     |     \0|  \u6575|\u4e4f   |"
 test format-4.1 {e and f formats} {
     format "%e %e %e %e" 34.2e12 68.514 -.125 -16000. .000053
 } {3.420000e+13 6.851400e+01 -1.250000e-01 -1.600000e+04}
@@ -279,7 +275,7 @@ test format-7.3 {various syntax features} {
 test format-8.1 {error conditions} {
     catch format
 } 1
-test format-8.2 {error conditions} {
+test format-8.2 {error conditions} jim {
     catch format msg
     set msg
 } {wrong # args: should be "format formatString ?arg arg ...?"}
@@ -327,7 +323,7 @@ test format-8.14 {error conditions} {
 test format-8.15 {error conditions} {
     catch {format %f 2.1z}
 } 1
-test format-8.16 {error conditions} {
+test format-8.16 {error conditions} jim {
     catch {format %f 2.1z} msg
     set msg
 } {expected number but got "2.1z"}

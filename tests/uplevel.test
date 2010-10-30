@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: uplevel.test,v 1.6 2000/04/10 17:19:05 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 proc a {x y} {
     newset z [expr $x+$y]

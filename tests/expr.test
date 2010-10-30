@@ -1,6 +1,4 @@
-source testing.tcl
-
-section "String comparison"
+source [file dirname [info script]]/testing.tcl
 
 test expr-1.1 "Compare strings lt" {
 	expr {"V000500" < "V000405"}
@@ -68,19 +66,19 @@ test expr-1.13 "Short circuit evaluation" {
 	list $a $c
 } {100 1}
 
-test expr-1.14 "Rotate left" {
+test expr-1.14 "Rotate left" jim {
 	expr {1 <<< 5}
 } {32}
 
-test expr-1.15 "Rotate left" {
+test expr-1.15 "Rotate left" jim {
 	expr {1 <<< 65}
 } {2}
 
-test expr-1.16 "Rotate right" {
+test expr-1.16 "Rotate right" jim {
 	expr {1 >>> 48}
 } {65536}
 
-test expr-1.17 "Rotate left" {
+test expr-1.17 "Rotate left" jim {
 	expr {1 >>> 63}
 } {2}
 

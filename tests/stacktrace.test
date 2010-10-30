@@ -1,6 +1,6 @@
-package require testing
+source [file dirname [info script]]/testing.tcl
+needs constraint jim
 package require errors
-
 # Make this a proc so that the line numbers don't have to change
 proc main {} {
 	set id1 0

@@ -15,8 +15,8 @@
 #
 # RCS: @(#) $Id: timer.test,v 1.7.2.1 2001/10/13 01:14:19 hobbs Exp $
 
-source testing.tcl
-package-or-skip eventloop
+source [file dirname [info script]]/testing.tcl
+needs cmd after eventloop
 
 test timer-1.1 {Tcl_CreateTimerHandler procedure} {
     foreach i [after info] {
@@ -173,10 +173,10 @@ test timer-5.1 {Tcl_ServiceIdle, self-rescheduling handlers} {
 test timer-6.1 {Tcl_AfterCmd procedure, basics} {
     list [catch {after} msg] $msg
 } {1 {wrong # args: should be "after option ?arg ...?"}}
-test timer-6.2 {Tcl_AfterCmd procedure, basics} {
+test timer-6.2 {Tcl_AfterCmd procedure, basics} jim {
     list [catch {after 2x} msg] $msg
 } {1 {bad argument "2x": must be cancel, idle, or info}}
-test timer-6.3 {Tcl_AfterCmd procedure, basics} {
+test timer-6.3 {Tcl_AfterCmd procedure, basics} jim {
     list [catch {after gorp} msg] $msg
 } {1 {bad argument "gorp": must be cancel, idle, or info}}
 test timer-6.4 {Tcl_AfterCmd procedure, ms argument} {

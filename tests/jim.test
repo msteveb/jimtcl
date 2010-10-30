@@ -7,13 +7,11 @@
 #
 # Sometimes tests are modified to reflect different error messages.
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
+needs constraint jim
 catch {package require regexp}
-
-if {[info commands regexp] eq ""} {
-    proc regexp {pat str} {expr {$pat eq "^a*b$" && $str eq "aaaab"}}
-}
+testConstraint regexp [expr {[info commands regexp] ne {}}]
 
 ################################################################################
 # SET
@@ -2452,7 +2450,7 @@ test switch-3.1 {-exact vs. -glob vs. -regexp} {
 	default	{concat none}
     }
 } exact
-test switch-3.2 {-exact vs. -glob vs. -regexp (no [regexp] cmd)} {
+test switch-3.2 {-exact vs. -glob vs. -regexp (no [regexp] cmd)} regexp {
 	rename regexp regexp.none
     set rc [catch {
         switch -regexp aaaab {
@@ -2466,7 +2464,7 @@ test switch-3.2 {-exact vs. -glob vs. -regexp (no [regexp] cmd)} {
 	set rc
 } 1
 
-test switch-3.3 {-exact vs. -glob vs. -regexp (with [regexp] cmd)} {
+test switch-3.3 {-exact vs. -glob vs. -regexp (with [regexp] cmd)} regexp {
     switch -regexp aaaab {
 	^a*b$	{concat regexp}
 	*b	    {concat glob}
@@ -2516,13 +2514,13 @@ test switch-4.5 {error in default command} {
 	    default {error switch2}} msg] $msg
 } {1 switch2}
 
-#~ test switch-5.1 {errors in -regexp matching} {
-    #~ list [catch {switch -regexp aaaab {
-	#~ *b	{concat glob}
-	#~ aaaab	{concat exact}
-	#~ default	{concat none}
-    #~ }} msg] $msg
-#~ } {1 {couldn't compile regular expression pattern: quantifier operand invalid}}
+test switch-5.1 {errors in -regexp matching} regexp {
+    list [catch {switch -regexp aaaab {
+	*b	{concat glob}
+	aaaab	{concat exact}
+	default	{concat none}
+    }} msg] $msg
+} {1 {couldn't compile regular expression pattern: quantifier operand invalid}}
 
 test switch-6.1 {backslashes in patterns} {
     switch -exact {\a\$\.\[} {

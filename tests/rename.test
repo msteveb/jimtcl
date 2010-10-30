@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: rename.test,v 1.8.2.1 2001/09/12 20:34:59 dgp Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 # Must eliminate the "unknown" command while the test is running,
 # especially if the test is being run in a program with its

@@ -13,7 +13,7 @@
 #
 # RCS: @(#) $Id: lsearch.test,v 1.5 2000/04/10 17:19:01 ericm Exp $
 
-source testing.tcl
+source [file dirname [info script]]/testing.tcl
 
 set x {abcd bbcd 123 234 345}
 test lsearch-1.1 {lsearch command} {
@@ -136,43 +136,43 @@ test lsearch-5.11 {lsearch -inline, no match} {
     lsearch -glob -inline {a1 a2 b1 b2 a3 b3} C*
 } {}
 
-test lsearch-6.1 {lsearch -bool, found} {
+test lsearch-6.1 {lsearch -bool, found} jim {
     lsearch -bool {a1 a2 b1 b2 a3 b3} b1
 } {1}
 
-test lsearch-6.2 {lsearch -bool, not found} {
+test lsearch-6.2 {lsearch -bool, not found} jim {
     lsearch -bool {a1 a2 b1 b2 a3 b3} c1
 } {0}
 
-test lsearch-6.3 {lsearch -not -bool, found} {
+test lsearch-6.3 {lsearch -not -bool, found} jim {
     lsearch -not -bool {a1 a2 b1 b2 a3 b3} b1
 } {0}
 
-test lsearch-6.4 {lsearch -not -bool, not found} {
+test lsearch-6.4 {lsearch -not -bool, not found} jim {
     lsearch -not -bool {a1 a2 b1 b2 a3 b3} c1
 } {1}
 
-test lsearch-6.5 {lsearch -bool -all} {
+test lsearch-6.5 {lsearch -bool -all} jim {
     lsearch -bool -glob -all {a1 a2 b1 b2 a3 b3} a*
 } {1 1 0 0 1 0}
 
-test lsearch-6.6 {lsearch -bool -all no match} {
+test lsearch-6.6 {lsearch -bool -all no match} jim {
     lsearch -bool -glob -all {a1 a2 b1 b2 a3 b3} B*
 } {0 0 0 0 0 0}
 
-test lsearch-6.7 {lsearch -bool -all -nocase} {
+test lsearch-6.7 {lsearch -bool -all -nocase} jim {
     lsearch -bool -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
 } {0 0 1 1 0 1}
 
-test lsearch-6.8 {lsearch -not -bool -all} {
+test lsearch-6.8 {lsearch -not -bool -all} jim {
     lsearch -not -bool -glob -all {a1 a2 b1 b2 a3 b3} a*
 } {0 0 1 1 0 1}
 
-test lsearch-6.9 {lsearch -not -bool -all no match} {
+test lsearch-6.9 {lsearch -not -bool -all no match} jim {
     lsearch -not -bool -glob -all {a1 a2 b1 b2 a3 b3} B*
 } {1 1 1 1 1 1}
 
-test lsearch-6.10 {lsearch -not -bool -all -nocase} {
+test lsearch-6.10 {lsearch -not -bool -all -nocase} jim {
     lsearch -not -bool -glob -all -nocase {a1 a2 b1 b2 a3 b3} B*
 } {1 1 0 0 1 0}
 

@@ -1,6 +1,7 @@
-source testing.tcl
-package-or-skip file
-package-or-skip exec
+source [file dirname [info script]]/testing.tcl
+
+needs cmd file
+needs cmd exec
 
 catch {
 	exec rm -rf tmp
