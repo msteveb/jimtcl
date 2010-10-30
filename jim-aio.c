@@ -1028,6 +1028,10 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     hdlfmt = "aio.sock%ld";
 
+    if (argc > 2) {
+        hostportarg = Jim_GetString(argv[2], NULL);
+    }
+
     switch (socktype) {
         case SOCK_DGRAM_CLIENT:
             if (argc == 2) {
@@ -1048,8 +1052,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 if (argc != 3) {
                     goto wrongargs;
                 }
-
-                hostportarg = Jim_GetString(argv[2], NULL);
 
                 if (ipv6) {
                     if (JimParseIPv6Address(interp, hostportarg, &sa, &salen) != JIM_OK) {
@@ -1082,8 +1084,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 if (argc != 3) {
                     goto wrongargs;
                 }
-
-                hostportarg = Jim_GetString(argv[2], NULL);
 
                 if (ipv6) {
                     if (JimParseIPv6Address(interp, hostportarg, &sa, &salen) != JIM_OK) {
