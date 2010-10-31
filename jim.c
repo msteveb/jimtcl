@@ -1065,8 +1065,10 @@ void *Jim_StackPeek(Jim_Stack *stack)
 #define JIM_TT_EXPR_INT       13
 #define JIM_TT_EXPR_DOUBLE    14
 
+#define JIM_TT_EXPRSUGAR      15  /* $(expression) */
+
 /* Operator token types start here */
-#define JIM_TT_EXPR_OP        15
+#define JIM_TT_EXPR_OP        20
 
 #define TOKEN_IS_SEP(type) (type >= JIM_TT_SEP && type <= JIM_TT_EOF)
 
@@ -1352,7 +1354,7 @@ static int JimParseVar(struct JimParserCtx *pc)
                     count--;
                 }
             }
-            ttype = JIM_TT_DICTSUGAR;
+            ttype = (*pc->tstart == '(') ? JIM_TT_EXPRSUGAR : JIM_TT_DICTSUGAR;
             if (count == 0) {
                 if (*pc->p != '\0') {
                     pc->p++;
@@ -4116,6 +4118,18 @@ static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_DecrRefCount(interp, substKeyObjPtr);
 
     return resObjPtr;
+}
+
+static Jim_Obj *JimExpandExprSugar(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    Jim_Obj *resultObjPtr;
+
+    if (Jim_EvalExpression(interp, objPtr, &resultObjPtr) == JIM_OK) {
+        /* Note that the result has a ref count of 1, but we need a ref count of 0 */
+        resultObjPtr->refCount--;
+        return resultObjPtr;
+    }
+    return NULL;
 }
 
 /* -----------------------------------------------------------------------------
@@ -7530,8 +7544,13 @@ static int JimParseExpression(struct JimParserCtx *pc)
         case '$':
             if (JimParseVar(pc) == JIM_ERR)
                 return JimParseExprOperator(pc);
-            else
+            else {
+                /* Don't allow expr sugar in expressions */
+                if (pc->tt == JIM_TT_EXPRSUGAR) {
+                    return JIM_ERR;
+                }
                 return JIM_OK;
+            }
             break;
         case '0':
         case '1':
@@ -7679,7 +7698,7 @@ const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
-            "DBL" };
+            "DBL", "$()" };
     if (type < JIM_TT_EXPR_OP) {
         return tt_names[type];
     }
@@ -8089,6 +8108,7 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             case JIM_TT_ESC:
             case JIM_TT_VAR:
             case JIM_TT_DICTSUGAR:
+            case JIM_TT_EXPRSUGAR:
             case JIM_TT_CMD:
                 token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
                 token->type = t->type;
@@ -9407,6 +9427,9 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
         case JIM_TT_DICTSUGAR:
             objPtr = JimExpandDictSugar(interp, token->objPtr);
             break;
+        case JIM_TT_EXPRSUGAR:
+            objPtr = JimExpandExprSugar(interp, token->objPtr);
+            break;
         case JIM_TT_CMD:
             switch (Jim_EvalObj(interp, token->objPtr)) {
                 case JIM_OK:
@@ -9661,6 +9684,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                         break;
                     case JIM_TT_VAR:
                         wordObjPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
+                        break;
+                    case JIM_TT_EXPRSUGAR:
+                        wordObjPtr = JimExpandExprSugar(interp, token[i].objPtr);
                         break;
                     case JIM_TT_DICTSUGAR:
                         wordObjPtr = JimExpandDictSugar(interp, token[i].objPtr);
@@ -11827,6 +11853,9 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
                     break;
                 case JIM_TT_DICTSUGAR:
                     type = "dictsugar";
+                    break;
+                case JIM_TT_EXPRSUGAR:
+                    type = "exprsugar";
                     break;
                 case JIM_TT_ESC:
                     type = "subst";
