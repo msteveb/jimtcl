@@ -9773,6 +9773,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
         int arglen = Jim_ListLength(interp, cmd->argListObjPtr);
 
         for (i = 0; i < arglen; i++) {
+            Jim_Obj *objPtr;
             Jim_ListIndex(interp, cmd->argListObjPtr, i, &argObjPtr, JIM_NONE);
 
             Jim_AppendString(interp, argmsg, " ", 1);
@@ -9781,11 +9782,18 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
                 Jim_AppendObj(interp, argmsg, argObjPtr);
             }
             else if (i == arglen - cmd->rightArity - cmd->args) {
-                Jim_AppendString(interp, argmsg, "?argument ...?", -1);
+                if (Jim_ListLength(interp, argObjPtr) == 1) {
+                    /* We have plain args */
+                    Jim_AppendString(interp, argmsg, "?argument ...?", -1);
+                }
+                else {
+                    Jim_AppendString(interp, argmsg, "?", 1);
+                    Jim_ListIndex(interp, argObjPtr, 1, &objPtr, JIM_NONE);
+                    Jim_AppendObj(interp, argmsg, objPtr);
+                    Jim_AppendString(interp, argmsg, " ...?", -1);
+                }
             }
             else {
-                Jim_Obj *objPtr;
-
                 Jim_AppendString(interp, argmsg, "?", 1);
                 Jim_ListIndex(interp, argObjPtr, 0, &objPtr, JIM_NONE);
                 Jim_AppendObj(interp, argmsg, objPtr);
@@ -9866,8 +9874,15 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     if (cmd->args) {
         Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
 
-        /* Use the 'args' name from the procedure args */
+        /* Get the 'args' name from the procedure args */
         Jim_ListIndex(interp, cmd->argListObjPtr, d, &argObjPtr, JIM_NONE);
+
+        /* It is possible to rename args. */
+        i = Jim_ListLength(interp, argObjPtr);
+        if (i == 2) {
+            Jim_ListIndex(interp, argObjPtr, 1, &argObjPtr, JIM_NONE);
+        }
+
         Jim_SetVariable(interp, argObjPtr, listObjPtr);
         argv += argc;
         d++;
@@ -12098,7 +12113,23 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         Jim_Obj *argPtr;
         int len;
 
+        /* Examine a parameter */
         Jim_ListIndex(interp, argv[2], i, &argPtr, JIM_NONE);
+        len = Jim_ListLength(interp, argPtr);
+        if (len == 0) {
+            Jim_SetResultString(interp, "procedure has argument with no name", -1);
+            return JIM_ERR;
+        }
+        if (len > 2) {
+            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
+            return JIM_ERR;
+        }
+
+        if (len == 2) {
+            /* May be {args newname} */
+            Jim_ListIndex(interp, argPtr, 0, &argPtr, JIM_NONE);
+        }
+
         if (Jim_CompareStringImmediate(interp, argPtr, "args")) {
             if (args) {
                 Jim_SetResultString(interp, "procedure has 'args' specified more than once", -1);
@@ -12113,16 +12144,6 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         }
 
         /* Does this parameter have a default? */
-        Jim_GetString(argPtr, NULL);
-        len = Jim_ListLength(interp, argPtr);
-        if (len == 0) {
-            Jim_SetResultString(interp, "procedure has argument with no name", -1);
-            return JIM_ERR;
-        }
-        if (len > 2) {
-            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
-            return JIM_ERR;
-        }
         if (len == 1) {
             /* A required arg. Is it part of leftArity or rightArity? */
             if (optionalArgs || args) {

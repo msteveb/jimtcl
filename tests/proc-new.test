@@ -77,4 +77,25 @@ test proc-2.4 "Real test of optional switches" {
 	multiarg_search -nocase -glob c* {A a B b C c D d}
 } 4
 
+test proc-3.1 "Rename optional args" {
+	proc a {b {args vars}} {
+	}
+	catch {a} msg
+	set msg
+} {wrong # args: should be "a b ?vars ...?"}
+
+test proc-3.2 "Rename optional args" {
+	proc a {b {args vars} c} {
+	}
+	catch {a} msg
+	set msg
+} {wrong # args: should be "a b ?vars ...? c"}
+
+test proc-3.2 "Rename optional args" {
+	proc a {b {args vars}} {
+		return $vars
+	}
+	a B C D
+} {C D}
+
 testreport
