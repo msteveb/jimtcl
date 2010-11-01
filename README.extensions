@@ -1,0 +1,12 @@
+The /lib/jim directory contains both dynamically loadable extensions
+and pure-Tcl extensions.
+
+Dynamically loadable extensions must have a .so file extension
+Tcl extensions must have a .tcl file extension
+
+As long as /lib/jim is in $::auto_path (it is by default), extension
+abc can be loaded with:
+
+  package require abc
+
+First abc.so will be tried, and then abc.tcl

@@ -64,7 +64,7 @@ install: all docs $(EXTENSION_TCL)
 	install $(JIMSH) $(DESTDIR)/bin
 	install -d $(DESTDIR)/lib/jim
 	install $(LIBJIM) $(DESTDIR)/lib
-	install $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
+	install README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
 	install -d $(DESTDIR)/include
 	install @SRCDIR@/jim.h @SRCDIR@/jim-*.h $(DESTDIR)/include
 	install jimautoconfext.h $(DESTDIR)/include/jimautoconf.h
