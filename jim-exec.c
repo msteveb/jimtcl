@@ -4,7 +4,12 @@
  *
  * Implements the exec command for Jim
  *
- * Based on code originally from Tcl 6.7:
+ * Based on code originally from Tcl 6.7 by John Ousterhout.
+ * From that code:
+ *
+ * The Tcl_Fork and Tcl_WaitPids procedures are based on code
+ * contributed by Karl Lehenbauer, Mark Diekhans and Peter
+ * da Silva.
  *
  * Copyright 1987-1991 Regents of the University of California
  * Permission to use, copy, modify, and distribute this
