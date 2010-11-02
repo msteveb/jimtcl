@@ -1,8 +1,8 @@
-JIMSH ?= ../jimsh
+jimsh ?= ../jimsh
 LD_LIBRARY_PATH := ..:$(LD_LIBRARY_PATH)
 
-test: $(JIMSH)
-	@set -e; for i in *.test; do $(JIMSH) $$i; done
+test:
+	@set -e; for i in *.test; do $(jimsh) $$i; done
 
 ../jimsh: ../*.c
 	make -C .. all
