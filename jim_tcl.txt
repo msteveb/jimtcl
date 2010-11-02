@@ -1372,7 +1372,7 @@ while 'string length' returns the number of characters.
 If UTF-8 support is not enabled, all commands treat bytes as characters
 and 'string bytelength' returns the same value as 'string length'.
 
-Note that even if UTF-8 support is not enabled, the {backslash}uNNNN syntax
+Note that even if UTF-8 support is not enabled, the +{backslash}uNNNN+ syntax
 is still available to embed UTF-8 sequences.
 
 String Matching
@@ -1380,12 +1380,12 @@ String Matching
 Commands such as 'string match', 'lsearch -glob', 'array names' and others use string
 pattern matching rules. These commands support UTF-8. For example:
 
-  string match a\[\ua0-\ubf\]b "a\a3b"
+  string match a\[\ua0-\ubf\]b "a\u00a3b"
 
 format and scan
 ~~~~~~~~~~~~~~~
-'format %c' allows a unicode codepoint to be be encoded. For example, the following will return
-a string with two bytes and one character. The same as {backslash}ub5
++format %c+ allows a unicode codepoint to be be encoded. For example, the following will return
+a string with two bytes and one character. The same as +{backslash}ub5+
 
   format %c 0xb5
 
@@ -1394,10 +1394,10 @@ return a string with three characters, not three bytes.
 
   format %.3s \ub5\ub6\ub7\ub8
 
-Similarly, 'scan ... %c' allows a UTF-8 to be decoded to a unicode codepoint. The following will set
-*a* to 181 (0xb5) and *b* to '181' and 'b' to 65.
+Similarly, +scan ... %c+ allows a UTF-8 to be decoded to a unicode codepoint. The following will set
+*a* to 181 (0xb5) and *b* to 65 (0x41).
 
-  scan \00b5A %c%c a b
+  scan \u00b5A %c%c a b
 
 'scan %s' will also accept a character class, including unicode ranges.
 
@@ -1406,7 +1406,7 @@ String Classes
 'string is' has *not* been extended to classify UTF-8 characters. Therefore, the following
 will return 0, even though the string may be considered to be alphabetic.
 
-  string is \b5Test
+  string is alpha \ub5Test
 
 This does not affect the string classes 'ascii', 'control', 'digit', 'double', 'integer' or 'xdigit'.
 

@@ -98,11 +98,18 @@ unicode data table at http://unicode.org/Public/UNIDATA/UnicodeData.txt
 
 Working with Binary Data and non-UTF-8 encodings
 ------------------------------------------------
-If it is necessary to work with both UTF-8 and binary data (bytes
->= 0x80), or non-UTF-8 encodings you will need to arrange for the
-data to be converted between UTF-8 on input and output.  Individual
-characters can be converted from Unicode to UTF-8 with the
-utf8_fromunicode() function and the reverse with utf8_tounicode().
+Almost all Jim commands will work identically with binary data and
+UTF-8 encoded data, including read, gets, puts and 'string eq'.  It
+is only certain string manipulation commands which will operated
+differently.  For example, 'string index' will return UTF-8 characters,
+not bytes.
+
+If it is necessary to manipulate strings containing binary, non-ASCII
+data (bytes >= 0x80), there are two options.
+
+1. Build Jim without UTF-8 support
+2. Arrange to encode and decode binary data or data in other encodings
+   to UTF-8 before manipulation.
 
 Internal Details
 ----------------

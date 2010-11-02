@@ -2372,18 +2372,18 @@ characters can take a variable number of bytes. Thus the addition of
 while <em>string length</em> returns the number of characters.</p></div>
 <div class="paragraph"><p>If UTF-8 support is not enabled, all commands treat bytes as characters
 and <em>string bytelength</em> returns the same value as <em>string length</em>.</p></div>
-<div class="paragraph"><p>Note that even if UTF-8 support is not enabled, the \uNNNN syntax
+<div class="paragraph"><p>Note that even if UTF-8 support is not enabled, the <tt>\uNNNN</tt> syntax
 is still available to embed UTF-8 sequences.</p></div>
 <h3 id="_string_matching">String Matching</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Commands such as <em>string match</em>, <em>lsearch -glob</em>, <em>array names</em> and others use string
 pattern matching rules. These commands support UTF-8. For example:</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>string match a\[\ua0-\ubf\]b "a\a3b"</tt></pre>
+<pre><tt>string match a\[\ua0-\ubf\]b "a\u00a3b"</tt></pre>
 </div></div>
 <h3 id="_format_and_scan">format and scan</h3><div style="clear:left"></div>
-<div class="paragraph"><p><em>format %c</em> allows a unicode codepoint to be be encoded. For example, the following will return
-a string with two bytes and one character. The same as \ub5</p></div>
+<div class="paragraph"><p><tt>format %c</tt> allows a unicode codepoint to be be encoded. For example, the following will return
+a string with two bytes and one character. The same as <tt>\ub5</tt></p></div>
 <div class="literalblock">
 <div class="content">
 <pre><tt>format %c 0xb5</tt></pre>
@@ -2394,11 +2394,11 @@ return a string with three characters, not three bytes.</p></div>
 <div class="content">
 <pre><tt>format %.3s \ub5\ub6\ub7\ub8</tt></pre>
 </div></div>
-<div class="paragraph"><p>Similarly, <em>scan &#8230; %c</em> allows a UTF-8 to be decoded to a unicode codepoint. The following will set
-<strong>a</strong> to 181 (0xb5) and <strong>b</strong> to <em>181</em> and <em>b</em> to 65.</p></div>
+<div class="paragraph"><p>Similarly, <tt>scan &#8230; %c</tt> allows a UTF-8 to be decoded to a unicode codepoint. The following will set
+<strong>a</strong> to 181 (0xb5) and <strong>b</strong> to 65 (0x41).</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>scan \00b5A %c%c a b</tt></pre>
+<pre><tt>scan \u00b5A %c%c a b</tt></pre>
 </div></div>
 <div class="paragraph"><p><em>scan %s</em> will also accept a character class, including unicode ranges.</p></div>
 <h3 id="_string_classes">String Classes</h3><div style="clear:left"></div>
@@ -2406,7 +2406,7 @@ return a string with three characters, not three bytes.</p></div>
 will return 0, even though the string may be considered to be alphabetic.</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>string is \b5Test</tt></pre>
+<pre><tt>string is alpha \ub5Test</tt></pre>
 </div></div>
 <div class="paragraph"><p>This does not affect the string classes <em>ascii</em>, <em>control</em>, <em>digit</em>, <em>double</em>, <em>integer</em> or <em>xdigit</em>.</p></div>
 <h3 id="_case_mapping_and_conversion">Case Mapping and Conversion</h3><div style="clear:left"></div>
@@ -6408,7 +6408,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-11-11 10:57:51 EST
+Last updated 2010-11-11 10:58:17 EST
 </div>
 </div>
 </body>
