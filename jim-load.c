@@ -11,106 +11,57 @@
 #include <dlfcn.h>
 #endif
 
+/**
+ * Note that Jim_LoadLibrary() requires a path to an existing file.
+ * 
+ * If it is necessary to search JIM_LIBPATH, use Jim_PackageRequire() instead.
+ */
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {
-    Jim_Obj *libPathObjPtr;
-    int prefixc, i;
-    void *handle;
-    int (*onload) (Jim_Interp *);
-
-    libPathObjPtr = Jim_GetGlobalVariableStr(interp, JIM_LIBPATH, JIM_NONE);
-    if (libPathObjPtr == NULL) {
-        prefixc = 0;
-        libPathObjPtr = NULL;
+    void *handle = dlopen(pathName, RTLD_LAZY);
+    if (handle == NULL) {
+        Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName,
+            dlerror());
     }
     else {
-        Jim_IncrRefCount(libPathObjPtr);
-        prefixc = Jim_ListLength(interp, libPathObjPtr);
-    }
-
-    for (i = -1; i < prefixc; i++) {
-        if (i < 0) {
-            handle = dlopen(pathName, RTLD_LAZY);
-        }
-        else {
-            FILE *fp;
-            /* XXX: Move off stack */
-            char buf[JIM_PATH_LEN];
-            const char *prefix;
-            int prefixlen;
-            Jim_Obj *prefixObjPtr;
-
-            buf[0] = '\0';
-            if (Jim_ListIndex(interp, libPathObjPtr, i, &prefixObjPtr, JIM_NONE) != JIM_OK)
-                continue;
-            prefix = Jim_GetString(prefixObjPtr, &prefixlen);
-            if (prefixlen + strlen(pathName) + 1 >= JIM_PATH_LEN)
-                continue;
-            if (*pathName == '/') {
-                strcpy(buf, pathName);
-            }
-            else if (prefixlen && prefix[prefixlen - 1] == '/')
-                sprintf(buf, "%s%s", prefix, pathName);
-            else
-                sprintf(buf, "%s/%s", prefix, pathName);
-            fp = fopen(buf, "r");
-            if (fp == NULL)
-                continue;
-            fclose(fp);
-            handle = dlopen(buf, RTLD_LAZY);
-        }
-        if (handle == NULL) {
-            Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName,
-                dlerror());
-            if (i < 0)
-                continue;
-            goto err;
-        }
-
-        /* Now, we use a unique init symbol depending on the extension name.
+        /* We use a unique init symbol depending on the extension name.
          * This is done for compatibility between static and dynamic extensions.
          * For extension readline.so, the init symbol is "Jim_readlineInit"
          */
-        {
-            const char *pt;
-            const char *pkgname;
-            int pkgnamelen;
-            char initsym[50];
+        const char *pt;
+        const char *pkgname;
+        int pkgnamelen;
+        char initsym[40];
+        int (*onload) (Jim_Interp *);
 
-            pt = strrchr(pathName, '/');
-            if (pt) {
-                pkgname = pt + 1;
-            }
-            else {
-                pkgname = pathName;
-            }
-            pt = strchr(pkgname, '.');
-            if (pt) {
-                pkgnamelen = pt - pkgname;
-            }
-            else {
-                pkgnamelen = strlen(pkgname);
-            }
-            snprintf(initsym, sizeof(initsym), "Jim_%.*sInit", pkgnamelen, pkgname);
+        pt = strrchr(pathName, '/');
+        if (pt) {
+            pkgname = pt + 1;
+        }
+        else {
+            pkgname = pathName;
+        }
+        pt = strchr(pkgname, '.');
+        if (pt) {
+            pkgnamelen = pt - pkgname;
+        }
+        else {
+            pkgnamelen = strlen(pkgname);
+        }
+        snprintf(initsym, sizeof(initsym), "Jim_%.*sInit", pkgnamelen, pkgname);
 
-            if ((onload = dlsym(handle, initsym)) == NULL) {
-                Jim_SetResultFormatted(interp,
-                    "No %s symbol found in extension %s", initsym, pathName);
-                goto err;
-            }
+        if ((onload = dlsym(handle, initsym)) == NULL) {
+            Jim_SetResultFormatted(interp,
+                "No %s symbol found in extension %s", initsym, pathName);
         }
-        if (onload(interp) == JIM_ERR) {
-            dlclose(handle);
-            goto err;
+        else if (onload(interp) != JIM_ERR) {
+            Jim_SetEmptyResult(interp);
+            return JIM_OK;
         }
-        Jim_SetEmptyResult(interp);
-        if (libPathObjPtr != NULL)
-            Jim_DecrRefCount(interp, libPathObjPtr);
-        return JIM_OK;
     }
-  err:
-    if (libPathObjPtr != NULL)
-        Jim_DecrRefCount(interp, libPathObjPtr);
+    if (handle) {
+        dlclose(handle);
+    }
     return JIM_ERR;
 }
 #else /* JIM_DYNLIB */

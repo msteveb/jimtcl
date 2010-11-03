@@ -4151,6 +4151,15 @@ jim&gt; lmap a {1 2 3} b {A B C} {list $a $b}
 If the body invokes <em>break</em>, the loop ends and no more values are added.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_load">load</h3>
+<div class="paragraph"><p><tt><strong>load</strong> <em>filename</em></tt></p></div>
+<div class="paragraph"><p>Loads the dynamic extension, <strong>filename</strong>. Generally the filename should have
+the extension <em>.so</em>. The initialisation function for the module must be based
+on the name of the file. For example loading <tt>dir/hwaccess.so</tt> will invoke
+the initialisation function, <tt>Jim_hwaccessInit</tt>. Normally the <em>load</em> command
+should not be used directly. Instead it is invoked automatically by <em>package require</em>.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_lrange">lrange</h3>
 <div class="paragraph"><p><tt><strong>lrange</strong> <em>list first last</em></tt></p></div>
 <div class="paragraph"><p><strong>List</strong> must be a valid Tcl list. This command will return a new
@@ -4404,8 +4413,14 @@ If no version is specified, <em>1.0</em> is used.</p></div>
 as the first statement, although it is not required.</p></div>
 <div class="paragraph"><p><tt><strong>package require</strong> <em>name ?version?</em>*</tt></p></div>
 <div class="paragraph"><p>Searches for the package with the given <strong>name</strong> by examining each path
-in <em>$::auto_path</em> and trying to load <em>$path/$name.tcl</em>.</p></div>
-<div class="paragraph"><p>If either file exists, it is loaded with <em>source</em>.</p></div>
+in <em>$::auto_path</em> and trying to load <em>$path/$name.so</em> as a dynamic extension,
+or <em>$path/$name.tcl</em> as a script package.</p></div>
+<div class="paragraph"><p>The first such file which is found is considered to provide the the package.
+(The version number is ignored).</p></div>
+<div class="paragraph"><p>If <em>$name.so</em> exists, it is loaded with the <em>load</em> command,
+otherwise if <em>$name.tcl</em> exists it is loaded with the <em>source</em> command.</p></div>
+<div class="paragraph"><p>If <em>load</em> or <em>source</em> fails, <em>package require</em> will fail immediately.
+No further attempt will be made to locate the file.</p></div>
 <div class="paragraph"><p>Typically <em>$::auto_path</em> contains the paths <em>.</em> and <em>/lib/jim</em>.</p></div>
 </div>
 <div class="sect2">
@@ -6443,7 +6458,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-10-30 18:17:58 EST
+Last updated 2010-11-03 16:14:30 EST
 </div>
 </div>
 </body>

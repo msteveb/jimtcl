@@ -2697,6 +2697,16 @@ For example:
 If the body invokes 'continue', no value is added for this iteration.
 If the body invokes 'break', the loop ends and no more values are added.
 
+load
+~~~~
++*load* 'filename'+
+
+Loads the dynamic extension, *filename*. Generally the filename should have
+the extension '.so'. The initialisation function for the module must be based
+on the name of the file. For example loading +dir/hwaccess.so+ will invoke
+the initialisation function, +Jim_hwaccessInit+. Normally the 'load' command
+should not be used directly. Instead it is invoked automatically by 'package require'.
+
 lrange
 ~~~~~~
 +*lrange* 'list first last'+
@@ -2908,9 +2918,17 @@ as the first statement, although it is not required.
 +*package require* 'name ?version?'*+
 
 Searches for the package with the given *name* by examining each path
-in '$::auto_path' and trying to load '$path/$name.tcl'.
+in '$::auto_path' and trying to load '$path/$name.so' as a dynamic extension,
+or '$path/$name.tcl' as a script package.
 
-If either file exists, it is loaded with 'source'.
+The first such file which is found is considered to provide the the package.
+(The version number is ignored).
+
+If '$name.so' exists, it is loaded with the 'load' command,
+otherwise if '$name.tcl' exists it is loaded with the 'source' command.
+
+If 'load' or 'source' fails, 'package require' will fail immediately.
+No further attempt will be made to locate the file.
 
 Typically '$::auto_path' contains the paths '.' and '/lib/jim'.
 
