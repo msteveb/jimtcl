@@ -11,11 +11,17 @@
 int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, int flags)
 {
     /* If the package was already provided returns an error. */
-    if (Jim_FindHashEntry(&interp->packages, name) != NULL) {
+    Jim_HashEntry *he = Jim_FindHashEntry(&interp->packages, name);
+
+    /* An empty result means the automatic entry. This can be replaced */
+    if (he && *(const char *)he->val) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp, "package \"%s\" was already provided", name);
         }
         return JIM_ERR;
+    }
+    if (he) {
+        Jim_DeleteHashEntry(&interp->packages, name);
     }
     Jim_AddHashEntry(&interp->packages, name, (char *)ver);
     return JIM_OK;
@@ -24,32 +30,31 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, in
 static char *JimFindPackage(Jim_Interp *interp, char **prefixes, int prefixc, const char *pkgName)
 {
     int i;
+    char *buf = Jim_Alloc(JIM_PATH_LEN);
 
     for (i = 0; i < prefixc; i++) {
-        /* XXX: Move off stack */
-        char buf[JIM_PATH_LEN];
-
         if (prefixes[i] == NULL)
             continue;
 
-        if (strcmp(prefixes[i], ".") == 0) {
-            snprintf(buf, sizeof(buf), "%s.tcl", pkgName);
-        }
-        else {
-            snprintf(buf, sizeof(buf), "%s/%s.tcl", prefixes[i], pkgName);
-        }
-
-        if (access(buf, R_OK) == 0) {
-            return Jim_StrDup(buf);
-        }
-
+        /* Loadable modules are tried first */
 #ifdef jim_ext_load
-        snprintf(buf, sizeof(buf), "%s/%s.so", prefixes[i], pkgName);
+        snprintf(buf, JIM_PATH_LEN, "%s/%s.so", prefixes[i], pkgName);
         if (access(buf, R_OK) == 0) {
-            return Jim_StrDup(buf);
+            return buf;
         }
 #endif
+        if (strcmp(prefixes[i], ".") == 0) {
+            snprintf(buf, JIM_PATH_LEN, "%s.tcl", pkgName);
+        }
+        else {
+            snprintf(buf, JIM_PATH_LEN, "%s/%s.tcl", prefixes[i], pkgName);
+        }
+
+        if (access(buf, R_OK) == 0) {
+            return buf;
+        }
     }
+    Jim_Free(buf);
     return NULL;
 }
 
@@ -88,6 +93,12 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
     if (path != NULL) {
         char *p = strrchr(path, '.');
 
+        /* Note: Even if the file fails to load, we consider the package loaded.
+         *       This prevents issues with recursion.
+         *       Use a dummy version of "" to signify this case.
+         */
+        Jim_PackageProvide(interp, name, "", 0);
+
         /* Try to load/source it */
         if (p && strcmp(p, ".tcl") == 0) {
             retCode = Jim_EvalFile(interp, path);
@@ -97,10 +108,11 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
             retCode = Jim_LoadLibrary(interp, path);
         }
 #endif
+        if (retCode != JIM_OK) {
+            /* Upon failure, remove the dummy entry */
+            Jim_DeleteHashEntry(&interp->packages, name);
+        }
         Jim_Free(path);
-    }
-    else {
-        retCode = JIM_ERR;
     }
     for (i = 0; i < prefixc; i++)
         Jim_Free(prefixes[i]);
@@ -113,8 +125,6 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
 int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
 {
     Jim_HashEntry *he;
-    int retcode = 0;
-    const char *version;
 
     /* Start with an empty error string */
     Jim_SetResultString(interp, "", 0);
@@ -122,7 +132,7 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
     he = Jim_FindHashEntry(&interp->packages, name);
     if (he == NULL) {
         /* Try to load the package. */
-        retcode = JimLoadPackage(interp, name, flags);
+        int retcode = JimLoadPackage(interp, name, flags);
         if (retcode != JIM_OK) {
             if (flags & JIM_ERRMSG) {
                 int len;
@@ -133,24 +143,16 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
             }
             return retcode;
         }
-        else {
-            he = Jim_FindHashEntry(&interp->packages, name);
-            if (he == NULL) {
-                /* Did not call package provide, so we do it for them */
-                Jim_PackageProvide(interp, name, "1.0", 0);
 
-                version = "1.0";
-            }
-            else {
-                version = he->val;
-            }
-        }
+        /* In case the package did no 'package provide' */
+        Jim_PackageProvide(interp, name, "1.0", 0);
+
+        /* Now it must exist */
+        he = Jim_FindHashEntry(&interp->packages, name);
     }
-    else {
-        version = he->val;
-    }
-    Jim_SetResultString(interp, version, -1);
-    return retcode;
+
+    Jim_SetResultString(interp, he->val, -1);
+    return JIM_OK;
 }
 
 /*

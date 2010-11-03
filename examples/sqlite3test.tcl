@@ -1,3 +1,5 @@
+package require sqlite3
+
 set db [sqlite3.open :memory:]
 $db query {CREATE TABLE plays (id, author, title)}
 $db query {INSERT INTO plays (id, author, title) VALUES (1, 'Goethe', 'Faust');}
