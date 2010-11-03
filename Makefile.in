@@ -90,7 +90,7 @@ endif
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt
-	asciidoc -o $@ -d manpage $^ || cp @SRCDIR@/Tcl_shipped.html Tcl.html
+	tclsh @SRCDIR@/make-index $^ | asciidoc -o $@ -d manpage - || cp @SRCDIR@/Tcl_shipped.html Tcl.html
 
 clean:
 	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html

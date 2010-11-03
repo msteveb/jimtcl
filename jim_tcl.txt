@@ -1347,7 +1347,7 @@ as the preceding argument(s).
 [[CommandIndex]]
 Command Index
 ~~~~~~~~~~~~~
-// @INSERTINDEX@
+@INSERTINDEX@
 
 alarm
 ~~~~~
