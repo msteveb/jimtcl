@@ -25,101 +25,25 @@
 
 #include "jim.h"
 
-/* JimGetExePath try to get the absolute path of the directory
- * of the jim binary, in order to add this path to the library path.
- * Likely shipped libraries are in the same path too. */
-#ifndef JIM_ANSIC
-
-/* A bit complex on POSIX */
-#include <unistd.h>
-static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
-{
-    char *p;
-
-    /* Check if the executable was called with an absolute pathname */
-    if (argv0[0] == '/') {
-        p = strrchr(argv0, '/');
-        return Jim_NewStringObj(interp, argv0, (p == argv0) ? 1 : p - argv0);
-    }
-    else {
-        int l;
-        char *path = Jim_Alloc(JIM_PATH_LEN + 1);
-
-        if (getcwd(path, JIM_PATH_LEN) == NULL) {
-default_path:
-            Jim_Free(path);
-            return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
-        }
-
-        /* Need to add the directory component of argv0 to pwd (path) */
-
-        /* Strip any leading "./" off argv0 for cleanliness */
-        while (argv0[0] == '.' && argv0[1] == '/') {
-            argv0 += 2;
-        }
-
-        l = strlen(path);
-
-        /* Strip the last component from argv0 */
-        p = strrchr(argv0, '/');
-        if (p) {
-            int argv0len = p - argv0;
-
-            /* Need a trailing / on pwd */
-            if (l > 0 && path[l - 1] != '/')
-                path[l++] = '/';
-
-            /* And append it to 'path' */
-            if (l + argv0len > JIM_PATH_LEN) {
-                /* It won't fit. Don't both trying to realloc. */
-                goto default_path;
-            }
-            memcpy(path + l, argv0, argv0len);
-            l += argv0len;
-            path[l] = '\0';
-        }
-
-        return Jim_NewStringObjNoAlloc(interp, path, l);
-    }
-}
-#else /* JIM_ANSIC */
-
-/* ... and impossible with just ANSI C */
-static Jim_Obj *JimGetExePath(Jim_Interp *interp, const char *argv0)
-{
-    JIM_NOTUSED(argv0);
-    return Jim_NewStringObj(interp, "/usr/local/lib/jim/", -1);
-}
-#endif /* JIM_ANSIC */
-
-static int JimLoadJimRc(Jim_Interp *interp)
-{
-    const char *home;
-    /* XXX: Move off stack */
-    char buf[JIM_PATH_LEN + 1];
-    const char *names[] = { ".jimrc", "jimrc.tcl", NULL };
-    int i;
-    FILE *fp;
-    int retcode;
-
-    if ((home = getenv("HOME")) == NULL)
-        return JIM_OK;
-    for (i = 0; names[i] != NULL; i++) {
-        if (strlen(home) + strlen(names[i]) + 1 > JIM_PATH_LEN)
-            continue;
-        sprintf(buf, "%s/%s", home, names[i]);
-        if ((fp = fopen(buf, "r")) != NULL) {
-            fclose(fp);
-            retcode = Jim_EvalFile(interp, buf);
-            if (retcode == JIM_ERR) {
-                Jim_MakeErrorMessage(interp);
-                fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
-            }
-            return retcode;
-        }
-    }
-    return JIM_OK;
-}
+/* Script to help initialise jimsh */
+static const char jimsh_init[] = \
+"proc _init {} {\n"
+"\trename _init {}\n"
+"\tlappend p {*}[split [env JIMLIB {}] :]\n"
+"\tlappend p {*}$::auto_path\n"
+"\tlappend p [file dirname [info nameofexecutable]]\n"
+"\tset ::auto_path $p\n"
+"\n"
+"\tif {$::tcl_interactive && [env HOME {}] ne \"\"} {\n"
+"\t\tforeach src {.jimrc jimrc.tcl} {\n"
+"\t\t\tif {[file exists [env HOME]/$src]} {\n"
+"\t\t\t\tuplevel #0 source [env HOME]/$src\n"
+"\t\t\t\tbreak\n"
+"\t\t\t}\n"
+"\t\t}\n"
+"\t}\n"
+"}\n"
+"_init\n";
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
 {
@@ -141,7 +65,6 @@ int main(int argc, char *const argv[])
 {
     int retcode;
     Jim_Interp *interp;
-    Jim_Obj *listObj;
 
     /* Create and initialize the interpreter */
     interp = Jim_CreateInterp();
@@ -153,26 +76,21 @@ int main(int argc, char *const argv[])
         fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
     }
 
-    /* Append the path where the executed Jim binary is contained
-     * in the jim_libpath list. */
-    listObj = Jim_GetVariableStr(interp, JIM_LIBPATH, JIM_NONE);
-    if (Jim_IsShared(listObj))
-        listObj = Jim_DuplicateObj(interp, listObj);
-    Jim_ListAppendElement(interp, listObj, JimGetExePath(interp, argv[0]));
-    Jim_SetVariableStr(interp, JIM_LIBPATH, listObj);
-
     Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
+    Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, argc == 1 ? "1" : "0");
+    retcode = Jim_Eval(interp, jimsh_init);
 
     if (argc == 1) {
-        Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
-        JimSetArgv(interp, 0, NULL);
-        retcode = JimLoadJimRc(interp);
+        if (retcode == JIM_ERR) {
+            Jim_MakeErrorMessage(interp);
+            fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+        }
         if (retcode != JIM_EXIT) {
+            JimSetArgv(interp, 0, NULL);
             retcode = Jim_InteractivePrompt(interp);
         }
     }
     else {
-        Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "0");
         if (argc > 2 && strcmp(argv[1], "-e") == 0) {
             JimSetArgv(interp, argc - 3, argv + 3);
             retcode = Jim_Eval(interp, argv[2]);

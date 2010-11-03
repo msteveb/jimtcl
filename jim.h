@@ -171,13 +171,8 @@ extern "C" {
 #define JIM_NL "\n"
 #endif
 
-#ifdef JIM_TCL_COMPAT
 #define JIM_LIBPATH "auto_path"
 #define JIM_INTERACTIVE "tcl_interactive"
-#else
-#define JIM_LIBPATH "jim_libpath"
-#define JIM_INTERACTIVE "jim_interactive"
-#endif
 
 #ifndef TCL_PLATFORM_OS
 #define TCL_PLATFORM_OS "unknown"

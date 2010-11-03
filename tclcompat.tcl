@@ -101,21 +101,6 @@ proc parray {arrayname {pattern *} {puts puts}} {
 	}
 }
 
-proc {info nameofexecutable} {} {
-	if {[info exists ::jim_argv0]} {
-		if {[string first "/" $::jim_argv0] >= 0} {
-			return $::jim_argv0
-		}
-		foreach path [split [env PATH ""] :] {
-			set exec [file join $path $::jim_argv0]
-			if {[file executable $exec]} {
-				return $exec
-			}
-		}
-	}
-	return ""
-}
-
 # Implements 'file copy' - single file mode only
 proc {file copy} {{force {}} source target} {
 	try {

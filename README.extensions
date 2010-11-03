@@ -10,3 +10,6 @@ abc can be loaded with:
   package require abc
 
 First abc.so will be tried, and then abc.tcl
+
+Note that this directory may be something like /lib/jim, /usr/lib/jim or
+/usr/local/lib/jim, depending upon where jim was installed.

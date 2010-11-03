@@ -2930,8 +2930,6 @@ otherwise if '$name.tcl' exists it is loaded with the 'source' command.
 If 'load' or 'source' fails, 'package require' will fail immediately.
 No further attempt will be made to locate the file.
 
-Typically '$::auto_path' contains the paths '.' and '/lib/jim'.
-
 pid
 ~~~
 +*pid*+
@@ -4305,7 +4303,11 @@ by the Tcl library.
 
 +*auto_path*+::
     This variable contains a list of paths to search for packages.
-    It contains {. /lib/jim} by default.
+    It defaults to a location based on where jim is installed
+    (e.g. +/usr/local/lib/jim+), but may be changed by +jimsh+
+    or the embedding application. Note that +jimsh+ will consider
+    the environment variable +$JIMLIB+ to be a list of colon-separated
+    list of paths to add to *auto_path*.
 
 +*errorCode*+::
     This variable holds the value of the -errorcode return
