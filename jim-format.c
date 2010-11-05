@@ -327,14 +327,9 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 	    /* Fill in the width and precision */
 	    if (width) {
 		p += sprintf(p, "%ld", width);
-		if (width > length) {
-		    length = width;
-		}
 	    }
 	    if (gotPrecision) {
-		*p++ = '.';
-		p += sprintf(p, "%ld", precision);
-		length += precision;
+		p += sprintf(p, ".%ld", precision);
 	    }
 
 	    /* Now the modifier, and get the actual value here */
@@ -370,6 +365,14 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 
 	    *p++ = (char) ch;
 	    *p = '\0';
+
+	    /* Adjust length for width and precision */
+	    if (width > length) {
+		length = width;
+	    }
+	    if (gotPrecision) {
+		length += precision;
+	    }
 
 	    /* Increase the size of the buffer if needed */
 	    if (num_buffer_size < length + 1) {
