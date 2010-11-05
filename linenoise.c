@@ -312,7 +312,6 @@ static void refreshLine(const char *prompt, struct current *current) {
             if (i < pos) {
                 backup++;
             }
-            w++;
         }
         else {
             b += w;

@@ -149,7 +149,6 @@
 /*
  * Utility definitions.
  */
-//#define	UCHARAT(p)	(*(p))
 
 #define	FAIL(R,M)	{ (R)->err = (M); return (M); }
 #define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?' || (c) == '{')
