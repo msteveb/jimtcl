@@ -1,4 +1,5 @@
-#include <jim.h>
+#include "jim.h"
+#include "jimautoconf.h"
 #include <string.h>
 
 /* -----------------------------------------------------------------------------

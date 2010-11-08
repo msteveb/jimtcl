@@ -27,6 +27,7 @@
 #include <errno.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 
 #ifdef HAVE_SYSINFO
 #include <sys/sysinfo.h>

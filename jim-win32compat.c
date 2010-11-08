@@ -1,4 +1,5 @@
 #include <jim.h>
+#include "jimautoconf.h"
 
 #ifdef HAVE_DLOPEN_COMPAT
 void *dlopen(const char *path, int mode)

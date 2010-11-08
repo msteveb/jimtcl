@@ -68,8 +68,9 @@ install: all docs $(EXTENSION_TCL)
 	install $(LIBJIM) $(DESTDIR)/lib
 	install README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
 	install -d $(DESTDIR)/include
-	install @SRCDIR@/jim.h @SRCDIR@/jim-*.h $(DESTDIR)/include
-	install jimautoconfext.h $(DESTDIR)/include/jimautoconf.h
+	install @SRCDIR@/jim.h @SRCDIR@/jim-eventloop.h @SRCDIR@/jim-nvp.h @SRCDIR@/jim-signal.h \
+		@SRCDIR@/jim-subcmd.h @SRCDIR@/jim-win32compat.h $(DESTDIR)/include
+	install jim-config.h $(DESTDIR)/include
 	install -d $(DESTDIR)/doc/jim
 	install Tcl.html $(DESTDIR)/doc/jim
 
@@ -99,7 +100,7 @@ clean:
 	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
 
 distclean: clean
-	rm -f jimautoconf.h jimautoconfext.h Makefile config.status config.log
+	rm -f jimautoconf.h jim-config.h Makefile config.status config.log
 	rm -rf autom4te.cache
 
 ship: Tcl.html

@@ -50,7 +50,6 @@
 #include <string.h>
 #include <dirent.h>
 
-#define JIM_EXTENSION
 #include "jim.h"
 
 /*

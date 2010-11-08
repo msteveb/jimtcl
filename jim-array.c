@@ -1,6 +1,6 @@
 
 /* 
- * Implements the file command for jim
+ * Implements the array command for jim
  *
  * (c) 2008 Steve Bennett <steveb@workware.net.au>
  *

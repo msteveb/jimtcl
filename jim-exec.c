@@ -24,6 +24,7 @@
 #include <sys/wait.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jim-subcmd.h"
 #include "jim-signal.h"
 

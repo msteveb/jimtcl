@@ -18,7 +18,6 @@
  * limitations under the License.
  */
 
-#define JIM_EXTENSION
 #include "jim.h"
 
 #include <readline/readline.h>

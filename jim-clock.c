@@ -15,6 +15,7 @@
 #include <sys/time.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jim-subcmd.h"
 
 static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

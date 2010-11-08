@@ -4256,7 +4256,7 @@ PLATFORM_OS=`uname -s`
 PLATFORM_PLATFORM=unix
 
 
-ac_config_files="$ac_config_files Makefile jimautoconfext.h"
+ac_config_files="$ac_config_files Makefile jim-config.h"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4961,7 +4961,7 @@ do
   case $ac_config_target in
     "jimautoconf.h") CONFIG_HEADERS="$CONFIG_HEADERS jimautoconf.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
-    "jimautoconfext.h") CONFIG_FILES="$CONFIG_FILES jimautoconfext.h" ;;
+    "jim-config.h") CONFIG_FILES="$CONFIG_FILES jim-config.h" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

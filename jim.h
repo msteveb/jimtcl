@@ -82,7 +82,7 @@ extern "C" {
 #include <jim-win32compat.h>
 
 #ifndef HAVE_NO_AUTOCONF
-#include <jimautoconf.h>
+#include <jim-config.h>
 #endif
 
 /* -----------------------------------------------------------------------------

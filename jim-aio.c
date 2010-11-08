@@ -45,6 +45,7 @@
 #include <fcntl.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 
 #if !defined(JIM_ANSIC)
 #include <sys/socket.h>

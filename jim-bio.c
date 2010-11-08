@@ -28,8 +28,8 @@
 #include <time.h>
 #include <errno.h>
 
-#include <jim.h>
-#include <jim-subcmd.h>
+#include "jim.h"
+#include "jim-subcmd.h"
 
 static int hex2char(const char *hex)
 {

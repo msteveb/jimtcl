@@ -1,8 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <jim.h>
-#include <jim-subcmd.h>
+#include "jim.h"
+#include "jim-subcmd.h"
 
 /* -----------------------------------------------------------------------------
  * Packages handling

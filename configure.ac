@@ -353,5 +353,5 @@ AC_SUBST(SRCDIR,`dirname $0`)
 AC_SUBST(PLATFORM_OS,`uname -s`)
 AC_SUBST(PLATFORM_PLATFORM,unix)
 
-AC_CONFIG_FILES([Makefile jimautoconfext.h])
+AC_CONFIG_FILES([Makefile jim-config.h])
 AC_OUTPUT

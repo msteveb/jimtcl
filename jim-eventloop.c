@@ -39,6 +39,7 @@
  **/
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jim-eventloop.h"
 
 /* POSIX includes */

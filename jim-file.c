@@ -53,6 +53,7 @@
 #include <sys/param.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jim-subcmd.h"
 
 #ifndef MAXPATHLEN
