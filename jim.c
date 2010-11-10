@@ -366,7 +366,7 @@ static int JimStringLast(const char *s1, int l1, const char *s2, int l2)
     while ((i = JimStringFirst(s1, l1, s2, l2, i)) >= 0) {
         int c;
         result = i;
-        i += utf8_tounicode(s1 + i, &c);
+        i += utf8_tounicode(s2 + i, &c);
     }
     return result;
 #else
