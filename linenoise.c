@@ -521,14 +521,23 @@ static int linenoisePrompt(const char *prompt, struct current *current) {
 process_char:
         if (c == -1) return current->len;
         switch(c) {
-        case ctrl('D'):     /* ctrl-d */
         case '\r':    /* enter */
             history_len--;
             free(history[history_len]);
-            if (current->len == 0 && c == ctrl('D')) {
+            return current->len;
+
+        case ctrl('D'):     /* ctrl-d */
+            if (current->len == 0) {
+                /* Empty line, so EOF */
+                history_len--;
+                free(history[history_len]);
                 return -1;
             }
-            return current->len;
+            /* Otherwise delete char to right of cursor */
+            if (remove_char(current, current->pos)) {
+                refreshLine(prompt, current);
+            }
+            break;
 
         case ctrl('C'):     /* ctrl-c */
             errno = EAGAIN;
@@ -594,7 +603,7 @@ process_char:
                         }
                         skipsame = 1;
                     }
-                    else if (c == CTRL('N') || c == SPECIAL_DOWN) {
+                    else if (c == ctrl('N') || c == SPECIAL_DOWN) {
                         /* Search for the next (later) match */
                         if (searchpos < history_len) {
                             searchpos++;
