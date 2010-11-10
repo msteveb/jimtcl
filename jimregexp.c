@@ -1146,11 +1146,11 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 			if (ret) {
 				return REG_NOERROR;
 			}
-			if (*preg->reginput) {
+			if (*string) {
 nextline:
 				if (preg->cflags & REG_NEWLINE) {
 					/* Try the next anchor? */
-					string = strchr(preg->reginput, '\n');
+					string = strchr(string, '\n');
 					if (string) {
 						preg->regbol = ++string;
 						continue;
