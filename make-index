@@ -1,7 +1,7 @@
 #!/usr/bin/env tclsh
 # vim:se syn=tcl:
 
-lassign $argv filename
+set filename [lindex $argv 0]
 set f [open $filename]
 
 while {[gets $f buf] >= 0} {
