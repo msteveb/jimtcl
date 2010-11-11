@@ -8,6 +8,7 @@ Makefile
 Tcl.html
 jimautoconf.h
 jimautoconfext.h
+jim-config.h
 jim-glob.c
 jim-stdlib.c
 jim-tclcompat.c
