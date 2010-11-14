@@ -490,11 +490,16 @@ static int *regpiece(regex_t *preg, int *flagp)
 				return NULL;
 			}
 		}
-		preg->regparse = end;
-		max = strtoul(preg->regparse + 1, &end, 10);
-		if (*end != '}') {
-			preg->err = REG_ERR_UNMATCHED_BRACES;
-			return NULL;
+		if (*end == '}') {
+			max = min;
+		}
+		else {
+			preg->regparse = end;
+			max = strtoul(preg->regparse + 1, &end, 10);
+			if (*end != '}') {
+				preg->err = REG_ERR_UNMATCHED_BRACES;
+				return NULL;
+			}
 		}
 		if (end == preg->regparse + 1) {
 			max = -1;

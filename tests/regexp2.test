@@ -906,4 +906,8 @@ test regexp-25.1 {Repeat on escaped char} {
     regexp {\x41\x42*} bc
 } 0
 
+test regexp-25.2 {Single braced count} {
+    regexp "a{4}" baaaad
+} 1
+
 testreport
