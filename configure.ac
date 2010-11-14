@@ -164,6 +164,22 @@ AC_ARG_WITH(jim-shared,
         fi
     ]
 )
+AC_ARG_ENABLE(shared,
+    [  --enable-shared         build a shared library instead of a static library],
+    [
+        if test "x$enableval" = "xyes" ; then
+            JIM_LIBTYPE=shared
+        fi
+    ]
+)
+AC_ARG_ENABLE(static,
+    [  --enable-static         build a static library instead of a shared library],
+    [
+        if test "x$enableval" = "xyes" ; then
+            JIM_LIBTYPE=static
+        fi
+    ]
+)
 AC_SUBST(JIM_LIBTYPE,$JIM_LIBTYPE)
 
 AC_CHECK_HEADERS([sys/un.h dlfcn.h])

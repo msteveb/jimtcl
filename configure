@@ -687,6 +687,8 @@ with_jim_ext
 with_out_jim_ext
 with_jim_extmod
 with_jim_shared
+enable_shared
+enable_static
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1316,6 +1318,8 @@ Optional Features:
   --disable-fork          do not use fork (no exec, etc.)
   --enable-math           include support for math functions
   --enable-ipv6           include ipv6 support in the aio extension
+  --enable-shared         build a shared library instead of a static library
+  --enable-static         build a static library instead of a shared library
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3693,6 +3697,26 @@ if test "${with_jim_shared+set}" = set; then :
   withval=$with_jim_shared;
         if test "x$withval" = "xyes" ; then
             JIM_LIBTYPE=shared
+        fi
+
+
+fi
+
+# Check whether --enable-shared was given.
+if test "${enable_shared+set}" = set; then :
+  enableval=$enable_shared;
+        if test "x$enableval" = "xyes" ; then
+            JIM_LIBTYPE=shared
+        fi
+
+
+fi
+
+# Check whether --enable-static was given.
+if test "${enable_static+set}" = set; then :
+  enableval=$enable_static;
+        if test "x$enableval" = "xyes" ; then
+            JIM_LIBTYPE=static
         fi
 
 
