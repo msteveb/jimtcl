@@ -333,4 +333,8 @@ test stringreverse-1.1 "Containing nulls" {
 	string reverse abc\0def
 } "fed\0cba"
 
+test split-1.1 "Split with leading null" {
+	split "\0abc\0def\0" \0
+} {{} abc def {}}
+
 testreport

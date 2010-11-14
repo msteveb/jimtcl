@@ -12915,15 +12915,17 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     int splitLen, strLen;
     Jim_Obj *resObjPtr;
     int c;
+    int len;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "string ?splitChars?");
         return JIM_ERR;
     }
 
-    str = Jim_GetString(argv[1], NULL);
-    if (!*str)
+    str = Jim_GetString(argv[1], &len);
+    if (len == 0) {
         return JIM_OK;
+    }
     strLen = Jim_Utf8Length(interp, argv[1]);
 
     /* Init */
