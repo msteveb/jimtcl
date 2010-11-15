@@ -364,6 +364,49 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    long count = 0;
+    long maxlen = LONG_MAX;
+    FILE *outfh = Jim_AioFilehandle(interp, argv[0]);
+
+    if (outfh == NULL) {
+        return JIM_ERR;
+    }
+
+    if (argc == 2) {
+        if (Jim_GetLong(interp, argv[1], &maxlen) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
+    while (count < maxlen) {
+        int ch = fgetc(af->fp);
+
+        if (ch == EOF || fputc(ch, outfh) == EOF) {
+            break;
+        }
+        count++;
+    }
+
+    if (ferror(af->fp)) {
+        Jim_SetResultFormatted(interp, "error while reading: %s", strerror(errno));
+        clearerr(af->fp);
+        return JIM_ERR;
+    }
+
+    if (ferror(outfh)) {
+        Jim_SetResultFormatted(interp, "error while writing: %s", strerror(errno));
+        clearerr(outfh);
+        return JIM_ERR;
+    }
+
+    Jim_SetResultInt(interp, count);
+
+    return JIM_OK;
+}
+
 static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -748,6 +791,13 @@ static const jim_subcmd_type aio_command_table[] = {
         .minargs = 0,
         .maxargs = 2,
         .description = "Read and return bytes from the stream. To eof if no len."
+    },
+    {   .cmd = "copyto",
+        .args = "handle ?size?",
+        .function = aio_cmd_copy,
+        .minargs = 1,
+        .maxargs = 2,
+        .description = "Copy up to 'size' bytes to the given filehandle, or to eof if no size."
     },
     {   .cmd = "gets",
         .args = "?var?",
@@ -1232,6 +1282,7 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
     if (cmdPtr && cmdPtr->cmdProc == JimAioSubCmdProc) {
         return ((AioFile *) cmdPtr->privData)->fp;
     }
+    Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
     return NULL;
 }
 

@@ -63,6 +63,7 @@ Since v0.63:
 1. $::platform_tcl() settings are now automatically determined
 2. Add aio '$handle filename'
 3. Add 'info channels'
+4. The 'bio' extension is gone. Now 'aio' supports 'copyto'.
 
 Since v0.62:
 
@@ -4131,29 +4132,6 @@ OPTIONAL-EXTENSIONS
 The following extensions may or may not be available depending upon
 what options were selected when Jim Tcl was built.
 
-bio
-~~~
-The bio command provides a way to read and write binary files
-from within Tcl. Note that since Jim supports binary strings, the
-main use of this command is 'bio copy' to easily copy between file
-descriptors.
-
-+*bio read ?-hex?* 'fd var numbytes'+::
-    Read bytes from a file descriptor. By default the data is not encoded.
-    Using *-hex* encodes the data as ascii hex instead. Returns
-    the number of bytes actually read.
-
-+*bio write ?-hex?* 'fd buf'+::
-    Write a string to a file descriptor. If *-hex* is specified, the
-    string is expected to be in ascii hexx format. Returns the number
-    of bytes actually written.
-
-+*bio copy* 'fromfd tofd ?numbytes?'+::
-    Copy binary data from the file descriptor *fromfd* to the
-    file descriptor *tofd*. If *numbytes* is specified, at most that many
-    bytes will be copied. Otherwise copying continues until the end
-    of the input file. Returns the number of bytes actually copied.
-
 posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +*os.fork*+::
@@ -4201,6 +4179,11 @@ aio
 
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
+
++$handle *copyto* 'tofd ?size?'+::
+    Copy bytes to the file descriptor *tofd*. If *size* is specified, at most
+    that many bytes will be copied. Otherwise copying continues until the end
+    of the input file. Returns the number of bytes actually copied.
 
 +$handle *flush*+::
     Flush the stream

@@ -115,7 +115,7 @@ proc {file copy} {{force {}} source target} {
 			error "error copying \"$source\" to \"$target\": file already exists"
 		}
 		set out [open $target w]
-		bio copy $in $out
+		$in copyto $out
 		$out close
 	} on error {msg opts} {
 		incr opts(-level)

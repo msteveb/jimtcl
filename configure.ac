@@ -103,12 +103,12 @@ in_list()
 # Tcl extensions
 ext_tcl="stdlib glob tclcompat tree rlprompt"
 # C extensions
-ext_c="load package readdir array clock exec file posix regexp signal aio bio eventloop syslog nvp readline sqlite sqlite3 win32"
+ext_c="load package readdir array clock exec file posix regexp signal aio eventloop syslog nvp readline sqlite sqlite3 win32"
 
 # Tcl extensions which can be modules
 ext_tcl_mod="glob tree rlprompt"
 # C extensions which can be modules
-ext_c_mod="readdir array clock file posix regexp bio syslog readline sqlite sqlite3 win32"
+ext_c_mod="readdir array clock file posix regexp syslog readline sqlite sqlite3 win32"
 
 # All extensions
 ext_all="$ext_c $ext_tcl"
@@ -141,7 +141,6 @@ AC_ARG_WITH(jim-ext,
 
        These are disabled by default:
 
-       bio       - Binary I/O, mostly for bio copy/file copy
        nvp       - Name-value pairs C-only API
        tree      - Similar to tcllib ::struct::tree using references
        readline  - Interface to libreadline

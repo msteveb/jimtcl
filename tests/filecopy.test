@@ -1,7 +1,8 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd file
-needs cmd bio
+
+cd $testdir
 
 file mkdir tempdir
 
