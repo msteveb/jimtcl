@@ -9870,7 +9870,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     int readlen;
     char missing;
 
-    if (stat(filename, &sb) != 0 || (fp = fopen(filename, "r")) == NULL) {
+    if (stat(filename, &sb) != 0 || (fp = fopen(filename, "rt")) == NULL) {
         Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
@@ -9880,13 +9880,15 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     }
 
     buf = Jim_Alloc(sb.st_size + 1);
-    readlen = fread(buf, sb.st_size, 1, fp);
-    fclose(fp);
-    if (readlen != 1) {
+    readlen = fread(buf, 1, sb.st_size, fp);
+    if (ferror(fp)) {
+        fclose(fp);
         Jim_Free(buf);
+        Jim_SetResultFormatted(interp, "failed to load file \"%s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
-    buf[sb.st_size] = 0;
+    fclose(fp);
+    buf[readlen] = 0;
 
     if (!Jim_ScriptIsComplete(buf, sb.st_size, &missing)) {
         Jim_SetResultFormatted(interp, "missing %s in \"%s\"",
@@ -9895,7 +9897,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
         return JIM_ERR;
     }
 
-    scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, sb.st_size);
+    scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
     JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
     Jim_IncrRefCount(scriptObjPtr);
 
