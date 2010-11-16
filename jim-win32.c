@@ -19,6 +19,15 @@
  */
 
 #include <jim.h>
+
+/* Apparently windows.h and cygwin don't mix, but we seem to get
+ * away with it here. Use at your own risk under cygwin
+ */
+#if defined(__CYGWIN__)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include <shellapi.h>
 #include <lmcons.h>
 #include <psapi.h>

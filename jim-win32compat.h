@@ -6,11 +6,11 @@
 	#define STRICT
 #endif
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 /* None of these is needed for cygwin */
 #if !defined(__CYGWIN__)
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #define JIM_ANSIC
 #define MKDIR_ONE_ARG
