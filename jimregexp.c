@@ -55,6 +55,7 @@
 #include <string.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jimregexp.h"
 #include "utf8.h"
 
