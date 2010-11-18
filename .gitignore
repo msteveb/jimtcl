@@ -18,3 +18,4 @@ libjim.a
 libjim.so
 *.o
 unicode_mapping.c
+configure.gnu
