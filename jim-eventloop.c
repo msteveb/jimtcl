@@ -408,7 +408,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 dt = 1;
             }
             tvp->tv_sec = dt / 1000;
-            tvp->tv_usec = dt % 1000;
+            tvp->tv_usec = 1000 * (dt % 1000);
         }
         else {
             tvp = NULL;         /* wait forever */
