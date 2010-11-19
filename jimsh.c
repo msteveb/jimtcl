@@ -108,14 +108,14 @@ int main(int argc, char *const argv[])
             fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
         }
     }
-    if (retcode == JIM_OK) {
-        retcode = 0;
+    if (retcode == JIM_EXIT) {
+        retcode = Jim_GetExitCode(interp);
     }
-    else if (retcode == JIM_EXIT) {
-        retcode = interp->exitCode;
+    else if (retcode == JIM_ERR) {
+        retcode = 1;
     }
     else {
-        retcode = 1;
+        retcode = 0;
     }
     Jim_FreeInterp(interp);
     return retcode;

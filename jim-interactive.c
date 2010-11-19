@@ -117,7 +117,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 
         if (retcode == JIM_EXIT) {
             Jim_Free(history_file);
-            exit(Jim_GetExitCode(interp));
+            return JIM_EXIT;
         }
         if (retcode == JIM_ERR) {
             Jim_MakeErrorMessage(interp);
@@ -129,5 +129,5 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
   out:
     Jim_Free(history_file);
-    return 0;
+    return JIM_OK;
 }
