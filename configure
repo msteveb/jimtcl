@@ -3665,10 +3665,6 @@ if test "${enable_lineedit+set}" = set; then :
 
 fi
 
-if test $lineedit -eq 1; then
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
-    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
-fi
 
 # Is $1 in list $2?
 in_list()
@@ -3769,7 +3765,7 @@ if test "${with_jim_regexp+set}" = set; then :
 fi
 
 
-for ac_header in sys/un.h dlfcn.h
+for ac_header in sys/un.h dlfcn.h termios.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -3781,6 +3777,14 @@ _ACEOF
 fi
 
 done
+
+ac_fn_c_check_header_mongrel "$LINENO" "termios.h" "ac_cv_header_termios_h" "$ac_includes_default"
+if test "x$ac_cv_header_termios_h" = xyes; then :
+
+else
+  lineedit=0
+fi
+
 
 
 for ac_func in ualarm sysinfo lstat fork vfork
@@ -4310,6 +4314,11 @@ if test $iswin = yes; then
     in_list "aio" "$ext $extmod" && LIBS="$LIBS -lwsock32"
     EXTRA_OBJS="$EXTRA_OBJS jim-win32compat.o"
 fi
+if test $lineedit -eq 1; then
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
+    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
+fi
+
 
 EXTRA_CFLAGS=$EXTRA_CFLAGS
 

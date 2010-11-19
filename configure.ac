@@ -93,10 +93,6 @@ AC_ARG_ENABLE(lineedit,
         fi
     ]
 )
-if test $lineedit -eq 1; then
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
-    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
-fi
 
 # Is $1 in list $2?
 in_list()
@@ -214,7 +210,8 @@ AC_ARG_WITH(jim-regexp,
     ]
 )
 
-AC_CHECK_HEADERS([sys/un.h dlfcn.h])
+AC_CHECK_HEADERS([sys/un.h dlfcn.h termios.h])
+AC_CHECK_HEADER(termios.h,,lineedit=0)
 
 AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
 AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
@@ -393,6 +390,11 @@ if test $iswin = yes; then
     in_list "aio" "$ext $extmod" && LIBS="$LIBS -lwsock32"
     EXTRA_OBJS="$EXTRA_OBJS jim-win32compat.o"
 fi
+if test $lineedit -eq 1; then
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -DUSE_LINENOISE"
+    EXTRA_OBJS="$EXTRA_OBJS linenoise.o"
+fi
+
 
 AC_SUBST(EXTRA_CFLAGS,$EXTRA_CFLAGS)
 AC_SUBST(EXTRA_OBJS,$EXTRA_OBJS)
