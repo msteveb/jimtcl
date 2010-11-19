@@ -4555,7 +4555,9 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_Free((void *)i->errorFileName);
     Jim_DecrRefCount(i, i->currentScriptObj);
     Jim_FreeHashTable(&i->commands);
+#ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);
+#endif
     Jim_FreeHashTable(&i->assocData);
     Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
