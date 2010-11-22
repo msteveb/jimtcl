@@ -66,7 +66,7 @@ install: all docs $(EXTENSION_TCL)
 	install $(JIMSH) $(DESTDIR)/bin
 	install -d $(DESTDIR)/lib/jim
 	install $(LIBJIM) $(DESTDIR)/lib
-	install README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
+	install @SRCDIR@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
 	install -d $(DESTDIR)/include
 	install @SRCDIR@/jim.h @SRCDIR@/jim-eventloop.h @SRCDIR@/jim-nvp.h @SRCDIR@/jim-signal.h \
 		@SRCDIR@/jim-subcmd.h @SRCDIR@/jim-win32compat.h $(DESTDIR)/include
