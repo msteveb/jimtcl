@@ -10046,12 +10046,31 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
     Jim_SetResult(interp, objPtr);
 }
 
+#define JimTrivialMatch(pattern)	(strpbrk((pattern), "*[?\\") == NULL)
+
 /* type is: 0=commands, 1=procs, 2=channels */
 static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
 {
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+
+    /* Check for the non-pattern case. We can do this much more efficiently. */
+    if (patternObjPtr && JimTrivialMatch(Jim_GetString(patternObjPtr, NULL))) {
+        Jim_Cmd *cmdPtr = Jim_GetCommand(interp, patternObjPtr, JIM_NONE);
+        if (cmdPtr) {
+            if (type == 1 && cmdPtr->cmdProc) {
+                /* not a proc */
+            }
+            else if (type == 2 && !Jim_AioFilehandle(interp, patternObjPtr)) {
+                /* not a channel */
+            }
+            else {
+                Jim_ListAppendElement(interp, listObjPtr, patternObjPtr);
+            }
+        }
+        return listObjPtr;
+    }
 
     htiter = Jim_GetHashTableIterator(&interp->commands);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
@@ -12589,6 +12608,9 @@ int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj)
         return JIM_ERR;
     }
 
+    /* XXX: Could make the exact-match case much more efficient here.
+     *      See JimCommandsList()
+     */
     if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
         return JIM_ERR;
     }
