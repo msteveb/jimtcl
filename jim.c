@@ -1327,6 +1327,7 @@ static int JimParseVar(struct JimParserCtx *pc)
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
             int count = 1;
+            const char *paren = pc->p;
 
             while (count && pc->len) {
                 pc->p++;
@@ -1342,11 +1343,18 @@ static int JimParseVar(struct JimParserCtx *pc)
                     count--;
                 }
             }
-            if (*pc->p != '\0') {
-                pc->p++;
-                pc->len--;
+            if (count == 0) {
+                if (*pc->p != '\0') {
+                    pc->p++;
+                    pc->len--;
+                }
+                ttype = JIM_TT_DICTSUGAR;
             }
-            ttype = JIM_TT_DICTSUGAR;
+            else {
+                /* Missing '(', so back up */
+                pc->len += pc->p - paren;
+                pc->p = paren;
+            }
         }
         pc->tend = pc->p - 1;
     }

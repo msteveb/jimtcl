@@ -105,6 +105,11 @@ catch {a $msg $opts(-errorinfo)}
 proc a {} { rename a newa}
 a
 
+# REGTEST 17
+# 26 Nov 2010 - crashes on invalid dict sugar
+catch {eval {$x(}}
+puts "TEST 17 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
