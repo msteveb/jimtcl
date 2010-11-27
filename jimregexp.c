@@ -43,7 +43,7 @@
  *   on 16 October 2010, to remove static state and add better Tcl ARE compatibility.
  *   This includes counted repetitions, UTF-8 support, character classes,
  *   shorthand character classes, increased number of parentheses to 100,
- *   backslash escape sequences.
+ *   backslash escape sequences. It also removes \n as an alternative to |.
  *
  * Beware that some of this code is subtly aware of the way operator
  * precedence is structured in regular expressions.  Serious changes in
@@ -342,7 +342,7 @@ static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 	if (!(flags&HASWIDTH))
 		*flagp &= ~HASWIDTH;
 	*flagp |= flags&SPSTART;
-	while (*preg->regparse == '|' || *preg->regparse == '\n') {
+	while (*preg->regparse == '|') {
 		preg->regparse++;
 		br = regbranch(preg, &flags);
 		if (br == NULL)
@@ -395,7 +395,7 @@ static int *regbranch(regex_t *preg, int *flagp )
 	ret = regnode(preg, BRANCH);
 	chain = NULL;
 	while (*preg->regparse != '\0' && *preg->regparse != ')' &&
-	       *preg->regparse != '\n' && *preg->regparse != '|') {
+	       *preg->regparse != '|') {
 		latest = regpiece(preg, &flags);
 		if (latest == NULL)
 			return(NULL);
@@ -852,7 +852,6 @@ static int *regatom(regex_t *preg, int *flagp)
 		break;
 	case '\0':
 	case '|':
-	case '\n':
 	case ')':
 		preg->err = REG_ERR_INTERNAL;
 		return NULL;	/* Supposed to be caught earlier. */

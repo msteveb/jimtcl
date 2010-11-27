@@ -640,6 +640,10 @@ test regexp-21.13 {multiple matches handle newlines} {
     regexp -all -inline -indices -line -- ^ "a\nb\nc"
 } {{0 -1} {2 1} {4 3}}
 
+test regexp-21.14 {Literal newline in pattern} {
+    regexp -all -inline "\n(\[ \t\]+)" "\n\t\t# This  is  a test"
+} "{\n\t\t} {\t\t}"
+
 test regexp-22.1 {effect of caching} jim {
 
     set filedata {BEGIN_TABLE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; END_TABLE}
