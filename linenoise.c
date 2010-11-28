@@ -189,6 +189,9 @@ struct current {
     int cols;   /* Size of the window, in chars */
 };
 
+/* gcc/glibc insists that we care about the return code of write! */
+#define IGNORE_RC(EXPR) ((EXPR) < 0 ? -1 : 0)
+
 /* This is fd_printf() on some systems, but use a different
  * name to avoid conflicts
  */
@@ -201,7 +204,7 @@ static void fd_printf(int fd, const char *format, ...)
     va_start(args, format);
     n = vsnprintf(buf, sizeof(buf), format, args);
     va_end(args);
-    write(fd, buf, n);
+    IGNORE_RC(write(fd, buf, n));
 }
 
 
@@ -224,7 +227,7 @@ static int get_char(struct current *current, int pos)
     if (pos >= 0 && pos < current->chars) {
         int c;
         int i = utf8_index(current->buf, pos);
-        utf8_tounicode(current->buf + i, &c);
+        (void)utf8_tounicode(current->buf + i, &c);
         return c;
     }
     return -1;
@@ -285,7 +288,7 @@ static void refreshLine(const char *prompt, struct current *current) {
 
     /* Cursor to left edge, then the prompt */
     fd_printf(current->fd, "\x1b[0G");
-    write(current->fd, prompt, plen);
+    IGNORE_RC(write(current->fd, prompt, plen));
 
     /* Now the current buffer content */
 
@@ -305,7 +308,7 @@ static void refreshLine(const char *prompt, struct current *current) {
         }
         if (ch < ' ') {
             /* A control character, so write the buffer so far */
-            write(current->fd, buf, b);
+            IGNORE_RC(write(current->fd, buf, b));
             buf += b + w;
             b = 0;
             fd_printf(current->fd, "\033[7m^%c\033[0m", ch + '@');
@@ -317,7 +320,7 @@ static void refreshLine(const char *prompt, struct current *current) {
             b += w;
         }
     }
-    write(current->fd, buf, b);
+    IGNORE_RC(write(current->fd, buf, b));
 
     /* Erase to right, move cursor to original position */
     fd_printf(current->fd, "\x1b[0K" "\x1b[0G\x1b[%dC", pos + pchars + backup);

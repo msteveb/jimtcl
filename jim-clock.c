@@ -6,7 +6,9 @@
  */
 
 /* For strptime() */
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 500
+#endif
 
 #include <stdlib.h>
 #include <string.h>

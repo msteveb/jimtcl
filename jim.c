@@ -4619,7 +4619,7 @@ void Jim_FreeInterp(Jim_Interp *i)
             const char *type = objPtr->typePtr ? objPtr->typePtr->name : "string";
 
             printf("%p (%d) %-10s: '%.20s'" JIM_NL,
-                objPtr, objPtr->refCount, type, objPtr->bytes ? objPtr->bytes : "(null)");
+                (void *)objPtr, objPtr->refCount, type, objPtr->bytes ? objPtr->bytes : "(null)");
             if (objPtr->typePtr == &sourceObjType) {
                 printf("FILE %s LINE %d" JIM_NL,
                     objPtr->internalRep.sourceValue.fileName,
@@ -10353,7 +10353,7 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
 
         Jim_ListAppendElement(interp, listObj, targetCallFrame->argv[0]);
         Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp,
-                targetCallFrame->filename ? : "", -1));
+                targetCallFrame->filename ? targetCallFrame->filename : "", -1));
         Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, targetCallFrame->line));
         *objPtrPtr = listObj;
     }
