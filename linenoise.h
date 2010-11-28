@@ -37,6 +37,9 @@
 #ifndef __LINENOISE_H
 #define __LINENOISE_H
 
+/* Currently never enable completion */
+#define NO_COMPLETION
+
 #ifndef NO_COMPLETION
 typedef struct linenoiseCompletions {
   size_t len;

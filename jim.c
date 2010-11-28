@@ -69,6 +69,17 @@
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
 
+/* For the no-autoconf case */
+#ifndef TCL_LIBRARY
+#define TCL_LIBRARY "."
+#endif
+#ifndef TCL_PLATFORM_OS
+#define TCL_PLATFORM_OS "unknown"
+#endif
+#ifndef TCL_PLATFORM_PLATFORM
+#define TCL_PLATFORM_PLATFORM "unknown"
+#endif
+
 /*#define DEBUG_SHOW_SCRIPT*/
 /*#define DEBUG_SHOW_SCRIPT_TOKENS*/
 /*#define DEBUG_SHOW_SUBST*/

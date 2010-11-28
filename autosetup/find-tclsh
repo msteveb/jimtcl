@@ -1,0 +1,11 @@
+#!/bin/sh
+# Looks for a suitable tclsh or jimsh in the PATH
+# If not found, builds a bootstrap jimsh from source
+PATH="$PATH:$(pwd)"
+d=$(dirname "$0")
+for tclsh in jimsh tclsh8.5 tclsh8.6 jimsh0; do
+	$tclsh "$d/test-tclsh" 2>/dev/null && exit 0
+done
+echo 1>&2 "No installed jimsh or tclsh, building local bootstrap jimsh0"
+${CC_FOR_BUILD:-cc} -o jimsh0 "$d/jimsh0.c" || exit 1
+$(pwd)/jimsh0 "$d/test-tclsh"

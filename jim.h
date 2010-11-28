@@ -178,14 +178,6 @@ extern "C" {
 #define JIM_LIBPATH "auto_path"
 #define JIM_INTERACTIVE "tcl_interactive"
 
-#ifndef TCL_PLATFORM_OS
-#define TCL_PLATFORM_OS "unknown"
-#endif
-#ifndef TCL_PLATFORM_PLATFORM
-#define TCL_PLATFORM_PLATFORM "unknown"
-#endif
-
-
 /* -----------------------------------------------------------------------------
  * Stack
  * ---------------------------------------------------------------------------*/

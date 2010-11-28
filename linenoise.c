@@ -110,7 +110,7 @@
 #include <unistd.h>
 #include "linenoise.h"
 
-#include "linenoise.h"
+#include "jim-config.h"
 #ifdef JIM_UTF8
 #define USE_UTF8
 #endif

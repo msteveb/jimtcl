@@ -13,6 +13,7 @@ jim-glob.c
 jim-stdlib.c
 jim-tclcompat.c
 jim-tree.c
+jim-oo.c
 jimsh
 libjim.a
 libjim.so

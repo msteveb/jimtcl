@@ -1,7 +1,8 @@
 # Tools
-CC = @CC@
+CC = @CCACHE@ @CC@
 RANLIB = @RANLIB@
 AR = @AR@
+STRIP = @STRIP@
 
 # Configuration
 
@@ -16,14 +17,11 @@ LDLIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 
-# Set an initial, default library and auto_path
-CPPFLAGS += -DTCL_LIBRARY=\"@TCL_LIBRARY@\"
-
-CPPFLAGS += -DTCL_PLATFORM_OS=\"@PLATFORM_OS@\" -DTCL_PLATFORM_PLATFORM=\"@PLATFORM_PLATFORM@\"
-CPPFLAGS += -DJIM_REFERENCES -D_GNU_SOURCE -DNO_COMPLETION
-
-CPPFLAGS += -Wall $(OPTIM) -I@srcdir@ -I. @EXTRA_CFLAGS@
+CPPFLAGS += -D_GNU_SOURCE -Wall -Werror $(OPTIM) -I.
+ifneq (@srcdir@,.)
+CPPFLAGS += -I@srcdir@
 VPATH := @srcdir@
+endif
 
 ifeq ($(jim_libtype),static)
 	LIBJIM := libjim.a
@@ -31,6 +29,7 @@ else
 	LIBJIM := libjim.so
 	SH_LIBJIM := $(LIBJIM)
 	CPPFLAGS += $(SH_CFLAGS)
+	DEF_LD_PATH := @LD_LIBRARY_PATH@=`pwd` 
 endif
 
 .EXPORT_ALL_VARIABLES:
@@ -47,7 +46,6 @@ EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
-	echo $@ >>.clean
 	sh @srcdir@/make-c-ext.sh $< >$@
 
 OBJS += jim-load-static-exts.o
@@ -57,23 +55,24 @@ all: $(JIMSH) $(EXTENSION_MODS)
 docs: Tcl.html
 
 $(JIMSH): $(LIBJIM) jimsh.o
-	$(CC) $(CFLAGS) @LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) -lm
+	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) -lm
 
 install: all docs $(EXTENSION_TCL)
-	install -d $(DESTDIR)$(prefix)/bin
-	install $(JIMSH) $(DESTDIR)$(prefix)/bin
-	install -d $(DESTDIR)$(prefix)/lib/jim
-	install $(LIBJIM) $(DESTDIR)$(prefix)/lib
-	install @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
-	install -d $(DESTDIR)$(prefix)/include
-	install @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
-		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
-	install jim-config.h $(DESTDIR)$(prefix)/include
-	install -d $(DESTDIR)$(prefix)/doc/jim
-	install Tcl.html $(DESTDIR)$(prefix)/doc/jim
 
-test:
-	$(MAKE) jimsh=$(shell pwd)/jimsh -C tests
+	mkdir -p $(DESTDIR)$(prefix)/bin
+	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
+	mkdir -p $(DESTDIR)$(prefix)/lib/jim
+	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
+	cp @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
+	mkdir -p $(DESTDIR)$(prefix)/include
+	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
+		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
+	cp jim-config.h $(DESTDIR)$(prefix)/include
+	mkdir -p $(DESTDIR)$(prefix)/doc/jim
+	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
+
+test: $(JIMSH)
+	$(DEF_LD_PATH) $(MAKE) jimsh=`pwd`/jimsh -C @srcdir@/tests
 
 $(OBJS) $(EXTENSION_OBJS): Makefile
 
@@ -82,7 +81,7 @@ ifneq (@JIM_UTF8@,)
 utf8.o: unicode_mapping.c
 
 unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
-	tclsh @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@
+	@tclsh@ @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@
 endif
 
 ifeq ($(jim_libtype),static)
@@ -99,23 +98,31 @@ endif
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt
-	tclsh @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
+	@tclsh@ @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c
-	if [ -f .clean ]; then rm -f `cat .clean` .clean; fi
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c @GENERATED_SRCS@
 
 distclean: clean
-	rm -f jimautoconf.h jim-config.h Makefile config.status config.log
-	rm -rf autom4te.cache
+	rm -f jimautoconf.h jim-config.h Makefile config.log
 
 ship: Tcl.html
 	cp Tcl.html Tcl_shipped.html
-	autoconf && autoheader
 
 # automake compatibility. do nothing for all these targets
 EMPTY_AUTOMAKE_TARGETS := dvi pdf ps info html tags ctags mostlyclean maintainer-clean check installcheck installdirs \
- install-pdf install-ps install-info install-html -install-dvi uninstall install-exec install-data distdir
+ install-pdf install-ps install-info install-html -install-dvi uninstall install-exec install-data
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 $(EMPTY_AUTOMAKE_TARGETS):
 
+# automake compatibilty - install sources from $(srcdir) to $(distdir)
+distdir:
+	( test -z "$(srcdir)" || cd "$(srcdir)"; git ls-files ) | cpio -pdmu $(distdir)
+
+ifeq ($(findstring clean,$(MAKECMDGOALS)),)
+Makefile: @AUTODEPS@ @srcdir@/Makefile.in
+	@CC='@CC@' @AUTOREMAKE@
+endif
+
+reconfig:
+	CC='@CC@' @AUTOREMAKE@

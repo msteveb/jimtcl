@@ -1,6 +1,10 @@
 #ifndef JIMREGEXP_H
 #define JIMREGEXP_H
 
+#ifndef _JIMAUTOCONF_H
+#error Need jimautoconf.h
+#endif
+
 #if defined(HAVE_REGCOMP) && !defined(JIM_REGEXP)
 /* Use POSIX regex */
 #include <regex.h>
