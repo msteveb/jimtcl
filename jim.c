@@ -2782,7 +2782,7 @@ typedef struct ScriptObj
     int inUse;                  /* Used to share a ScriptObj. Currently
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
-    char *fileName;
+    const char *fileName;
     int line;                   /* Line number of the first line */
 } ScriptObj;
 
@@ -2798,7 +2798,9 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
         Jim_DecrRefCount(interp, script->token[i].objPtr);
     }
     Jim_Free(script->token);
-    Jim_Free(script->fileName);
+    if (script->fileName) {
+        Jim_ReleaseSharedString(interp, script->fileName);
+    }
     Jim_Free(script);
 }
 
@@ -3094,7 +3096,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
-        script->fileName = Jim_StrDup(objPtr->internalRep.sourceValue.fileName);
+        script->fileName = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
         script->line = objPtr->internalRep.sourceValue.lineNumber;
     }
     else {
@@ -3123,7 +3125,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     ScriptTokenListFree(&tokenlist);
 
     if (!script->fileName) {
-        script->fileName = Jim_StrDup("");
+        script->fileName = Jim_GetSharedString(interp, "");
     }
 
     /* Free the old internal rep and set the new one. */
@@ -5416,12 +5418,12 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct JimParserCtx parser;
     const char *str;
     int strLen;
-    char *filename = NULL;
+    const char *filename = NULL;
     int linenr = 1;
 
     /* Try to preserve information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
-        filename = Jim_StrDup(objPtr->internalRep.sourceValue.fileName);
+        filename = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
         linenr = objPtr->internalRep.sourceValue.lineNumber;
     }
 
@@ -5450,7 +5452,9 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         }
         ListAppendElement(objPtr, elementPtr);
     }
-    free(filename);
+    if (filename) {
+        Jim_ReleaseSharedString(interp, filename);
+    }
     return JIM_OK;
 }
 
