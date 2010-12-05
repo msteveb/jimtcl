@@ -1,8 +1,7 @@
 # Tools
 CC = @CC@
-CROSS ?= @CROSS@
-RANLIB ?= $(CROSS)ranlib
-AR ?= $(CROSS)ar
+RANLIB = @RANLIB@
+AR = @AR@
 
 # Configuration
 

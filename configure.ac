@@ -14,6 +14,9 @@ AC_CHECK_TYPES(long long, AC_SUBST(DEFINE_HAVE_LONG_LONG,["#define HAVE_LONG_LON
 
 AC_CANONICAL_HOST
 
+AC_CHECK_TOOL([AR], ar)
+AC_CHECK_TOOL([RANLIB], ranlib, true)
+
 iswin=no
 # Shared library support. Because we don't believe in automake!
 case $host in
@@ -44,10 +47,6 @@ case $host in
     AC_SUBST(SHOBJ_LDFLAGS,"-shared -nostartfiles")
     ;;
 esac
-
-if test -n "$host_alias"; then
-    AC_SUBST(CROSS,$host_alias-)
-fi
 
 AC_ARG_ENABLE(fork,
     [  --disable-fork          do not use fork (no exec, etc.)],
