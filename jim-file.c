@@ -839,7 +839,7 @@ static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     path = Jim_GetString(argv[1], NULL);
 
     if (chdir(path) != 0) {
-        Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", argv[1],
+        Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", path,
             strerror(errno));
         return JIM_ERR;
     }
