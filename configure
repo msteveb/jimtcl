@@ -613,6 +613,7 @@ JIM_TCL_EXTENSIONS
 JIM_MOD_EXTENSIONS
 JIM_EXTENSIONS
 JIM_LIBTYPE
+JIM_UTF8
 LINKFLAGS
 SHOBJ_LDFLAGS
 SHOBJ_CFLAGS
@@ -3828,6 +3829,8 @@ if test "${enable_utf8+set}" = set; then :
   enableval=$enable_utf8;
         if test "x$enableval" = "xyes" ; then
                         EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
+            JIM_UTF8=1
+
         fi
 
 
@@ -4056,11 +4059,11 @@ done
 for i in $ext_default $with_jim_ext $with_jim_extmod; do
     in_list "$i" "$with_out_jim_ext" && continue
     eval "libs=\$libs_$i"
-	needed_libs="$needed_libs $libs"
+    needed_libs="$needed_libs $libs"
 done
 
 if in_list dl "$needed_libs"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
 $as_echo_n "checking for library containing dlopen... " >&6; }
 if ${ac_cv_search_dlopen+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4120,7 +4123,7 @@ fi
 
 fi
 if in_list readline "$needed_libs"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing readline" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing readline" >&5
 $as_echo_n "checking for library containing readline... " >&6; }
 if ${ac_cv_search_readline+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4180,7 +4183,7 @@ fi
 
 fi
 if in_list sqlite "$needed_libs"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite_open" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite_open" >&5
 $as_echo_n "checking for library containing sqlite_open... " >&6; }
 if ${ac_cv_search_sqlite_open+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4240,7 +4243,7 @@ fi
 
 fi
 if in_list sqlite3 "$needed_libs"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite3_open" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqlite3_open" >&5
 $as_echo_n "checking for library containing sqlite3_open... " >&6; }
 if ${ac_cv_search_sqlite3_open+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4300,7 +4303,7 @@ fi
 
 fi
 if in_list socket "$needed_libs"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing socket" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing socket" >&5
 $as_echo_n "checking for library containing socket... " >&6; }
 if ${ac_cv_search_socket+:} false; then :
   $as_echo_n "(cached) " >&6

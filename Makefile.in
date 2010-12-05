@@ -78,11 +78,13 @@ test:
 
 $(OBJS) $(EXTENSION_OBJS): Makefile
 
+ifneq (@JIM_UTF8@,)
 # Generate the unicode case mapping
 utf8.o: unicode_mapping.c
 
 unicode_mapping.c: @SRCDIR@/UnicodeData.txt @SRCDIR@/parse-unidata.tcl
 	tclsh @SRCDIR@/parse-unidata.tcl @SRCDIR@/UnicodeData.txt >$@
+endif
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSION_OBJS)

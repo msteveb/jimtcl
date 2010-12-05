@@ -79,6 +79,7 @@ AC_ARG_ENABLE(utf8,
         if test "x$enableval" = "xyes" ; then
             dnl Note that utf-8 support requires the built-in regexp
             EXTRA_CFLAGS="$EXTRA_CFLAGS -DJIM_UTF8 -DJIM_REGEXP"
+            AC_SUBST(JIM_UTF8,1)
         fi
     ]
 )
@@ -260,24 +261,24 @@ dnl Now what libraries may we need?
 for i in $ext_default $with_jim_ext $with_jim_extmod; do
     in_list "$i" "$with_out_jim_ext" && continue
     eval "libs=\$libs_$i"
-	needed_libs="$needed_libs $libs"
+    needed_libs="$needed_libs $libs"
 done
 
 dnl Don't need to search for libs if the corresponding extensions aren't enabled
 if in_list dl "$needed_libs"; then
-	AC_SEARCH_LIBS(dlopen, dl, have_dlopen=yes; AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function]))
+    AC_SEARCH_LIBS(dlopen, dl, have_dlopen=yes; AC_DEFINE([HAVE_DLOPEN],[1],[Have the dlopen function]))
 fi
 if in_list readline "$needed_libs"; then
-	AC_SEARCH_LIBS(readline, readline, AC_DEFINE([HAVE_READLINE],[1],[Have libreadline]))
+    AC_SEARCH_LIBS(readline, readline, AC_DEFINE([HAVE_READLINE],[1],[Have libreadline]))
 fi
 if in_list sqlite "$needed_libs"; then
-	AC_SEARCH_LIBS(sqlite_open, sqlite, AC_DEFINE([HAVE_SQLITE],[1],[Have libsqlite]))
+    AC_SEARCH_LIBS(sqlite_open, sqlite, AC_DEFINE([HAVE_SQLITE],[1],[Have libsqlite]))
 fi
 if in_list sqlite3 "$needed_libs"; then
-	AC_SEARCH_LIBS(sqlite3_open, sqlite3, AC_DEFINE([HAVE_SQLITE3],[1],[Have libsqlite3]))
+    AC_SEARCH_LIBS(sqlite3_open, sqlite3, AC_DEFINE([HAVE_SQLITE3],[1],[Have libsqlite3]))
 fi
 if in_list socket "$needed_libs"; then
-	AC_SEARCH_LIBS(socket, socket)
+    AC_SEARCH_LIBS(socket, socket)
 fi
 
 dnl Look for environ. If it is declared in unistd, no need to declare it
