@@ -1,5 +1,10 @@
 # Common code
-array set testinfo {verbose 0 numpass 0 numfail 0 numskip 0 numtests 0 failed {}}
+set testinfo(verbose) 0
+set testinfo(numpass) 0
+set testinfo(numfail) 0
+set testinfo(numskip) 0
+set testinfo(numtests) 0
+set testinfo(failed) {}
 
 set testdir [file dirname [info script]]
 

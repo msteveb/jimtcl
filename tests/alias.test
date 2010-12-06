@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+needs cmd array
 
 test alias-1.1 "One word alias" {
 	set x 2

@@ -16,13 +16,15 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd pid posix
+catch {package require regexp}
+testConstraint regexp [expr {[info commands regexp] ne {}}]
 
 file delete test1
 
-test pid-1.1 {pid command} {
+test pid-1.1 {pid command} regexp {
     regexp {(^[0-9]+$)|(^0x[0-9a-fA-F]+$)} [pid]
 } 1
-test pid-1.2 {pid command} {
+test pid-1.2 {pid command} regexp {
     set f [open {| echo foo | cat >test1} w]
     set pids [pid $f]
     close $f

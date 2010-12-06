@@ -1,5 +1,5 @@
 source [file dirname [info script]]/testing.tcl
-needs constraint jim
+needs constraint jim; needs cmd package
 proc a {} {
 	error "error thrown from a"
 }

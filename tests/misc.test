@@ -1,6 +1,8 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+needs cmd gets tclcompat
+needs cmd array
 
 catch {unset a b}
 test regr-1.1 "Double dereference arrays" {

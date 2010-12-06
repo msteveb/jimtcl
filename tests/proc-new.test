@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+needs cmd array
 
 proc aproc {} {
 	list

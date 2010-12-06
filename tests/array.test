@@ -1,5 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
+needs cmd array
+
 array set a {
 	1 one
 	2 two

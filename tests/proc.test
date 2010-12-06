@@ -19,6 +19,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+needs cmd array
 
 catch {rename t1 ""}
 catch {rename foo ""}

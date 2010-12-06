@@ -1,6 +1,9 @@
 source [file dirname [info script]]/testing.tcl
 
+needs constraint jim
 needs cmd file
+needs cmd exec
+needs cmd parray tclcompat
 
 cd $testdir
 
@@ -61,6 +64,6 @@ test filecopy-2.5 "Source doesn't exist and can't write to target (-force)" {
 } {1 {missing: No such file or directory}}
 
 file delete tempfile
-exec rmdir tempdir
+exec rm -rf tempdir
 
 testreport

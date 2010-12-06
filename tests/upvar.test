@@ -15,6 +15,8 @@
 
 source [file dirname [info script]]/testing.tcl
 
+needs cmd array
+
 test upvar-1.1 {reading variables with upvar} {
     proc p1 {a b} {set c 22; set d 33; p2}
     proc p2 {} {upvar a x1 b x2 c x3 d x4; set a abc; list $x1 $x2 $x3 $x4 $a}

@@ -15,6 +15,9 @@
 
 source [file dirname [info script]]/testing.tcl
 
+catch {package require regexp}
+testConstraint regexp [expr {[info commands regexp] ne {}}]
+
 set x {abcd bbcd 123 234 345}
 test lsearch-1.1 {lsearch command} {
     lsearch $x 123
@@ -44,10 +47,10 @@ test lsearch-2.4 {search modes} {
 test lsearch-2.5 {search modes} {
     lsearch -exact {foo bar cat} bar
 } 1
-test lsearch-2.6 {search modes} {
+test lsearch-2.6 {search modes} regexp {
     list [catch {lsearch -regexp {xyz bbcc *bc*} *bc*} msg]
 } {1}
-test lsearch-2.7 {search modes} {
+test lsearch-2.7 {search modes} regexp {
     lsearch -regexp {b.x ^bc xy bcx} ^bc
 } 3
 test lsearch-2.8 {search modes} {
@@ -59,7 +62,7 @@ test lsearch-2.9 {search modes} {
 test lsearch-2.10 {search modes} {
     list [catch {lsearch -glib {b.x bx xy bcx} b.x} msg]
 } {1}
-test lsearch-2.7 {search modes, -nocase} {
+test lsearch-2.7 {search modes, -nocase} regexp {
     lsearch -nocase -regexp {b.x ^bc xy bcx} ^BC
 } 3
 test lsearch-2.8 {search modes, -nocase} {
