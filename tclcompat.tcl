@@ -7,34 +7,35 @@
 # Set up the ::env array
 set env [env]
 
-# Tcl-compatible I/O commands
-foreach p {gets flush close eof seek tell} {
-	proc $p {chan args} {p} {
-		tailcall $chan $p {*}$args
+if {[info commands stdout] ne ""} {
+	# Tcl-compatible I/O commands
+	foreach p {gets flush close eof seek tell} {
+		proc $p {chan args} {p} {
+			tailcall $chan $p {*}$args
+		}
+	}
+	unset p
+
+	# puts is complicated by -nonewline
+	#
+	proc puts {{-nonewline {}} {chan stdout} msg} {
+		if {${-nonewline} ni {-nonewline {}}} {
+			tailcall ${-nonewline} puts $msg
+		}
+		tailcall $chan puts {*}${-nonewline} $msg
+	}
+
+	# read is complicated by -nonewline
+	#
+	# read chan ?maxchars?
+	# read -nonewline chan
+	proc read {{-nonewline {}} chan} {
+		if {${-nonewline} ni {-nonewline {}}} {
+			tailcall ${-nonewline} read {*}${chan}
+		}
+		tailcall $chan read {*}${-nonewline}
 	}
 }
-unset p
-
-# puts is complicated by -nonewline
-#
-proc puts {{-nonewline {}} {chan stdout} msg} {
-	if {${-nonewline} ni {-nonewline {}}} {
-		tailcall ${-nonewline} puts $msg
-	}
-	tailcall $chan puts {*}${-nonewline} $msg
-}
-
-# read is complicated by -nonewline
-#
-# read chan ?maxchars?
-# read -nonewline chan
-proc read {{-nonewline {}} chan} {
-	if {${-nonewline} ni {-nonewline {}}} {
-		tailcall ${-nonewline} read {*}${chan}
-	}
-	tailcall $chan read {*}${-nonewline}
-}
-
 
 # case var ?in? pattern action ?pattern action ...?
 proc case {var args} {
