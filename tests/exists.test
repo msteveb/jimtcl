@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exists
+testConstraint lambda [expr {[info commands lambda] ne {}}]
 
 test exists-1.1 "Exists var" {
 	set a 1
@@ -61,14 +62,14 @@ test exists-1.1 "Exists -command" {
 	exists -command bogus
 } 0
 
-test exists-1.1 "Exists local lambda after exit" {
+test exists-1.1 "Exists local lambda after exit" lambda {
 	proc a {} {
 		local lambda {} {dummy}
 	}
 	exists -proc [a]
 } 0
 
-test exists-1.1 "Exists local lambda" {
+test exists-1.1 "Exists local lambda" lambda {
 	proc a {} {
 		exists -proc [local lambda {} {dummy}]
 	}

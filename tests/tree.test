@@ -1,5 +1,6 @@
 source [file dirname [info script]]/testing.tcl
 needs cmd tree
+needs cmd ref
 
 proc dputs {msg} {
 	#puts $msg
