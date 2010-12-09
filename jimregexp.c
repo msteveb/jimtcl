@@ -643,7 +643,7 @@ static void reg_addrange_str(regex_t *preg, const char *str)
  * 
  * If 'upper' is set, converts the char to uppercase.
  */
-static int utf8_tounicode_case(const char *s, int *uc, int upper)
+static int reg_utf8_tounicode_case(const char *s, int *uc, int upper)
 {
 	int l = utf8_tounicode(s, uc);
 	if (upper) {
@@ -657,7 +657,7 @@ static int utf8_tounicode_case(const char *s, int *uc, int upper)
  * 
  * Returns -1 for an invalid hex digit.
  */
-static int xdigitval(int c)
+static int hexdigitval(int c)
 {
 	if (c >= '0' && c <= '9')
 		return c - '0';
@@ -680,7 +680,7 @@ static int parse_hex(const char *s, int n, int *uc)
 	int k;
 
 	for (k = 0; k < n; k++) {
-		int c = xdigitval(*s++);
+		int c = hexdigitval(*s++);
 		if (c == -1) {
 			break;
 		}
@@ -747,7 +747,7 @@ static int *regatom(regex_t *preg, int *flagp)
 	int nocase = (preg->cflags & REG_ICASE);
 
 	int ch;
-	int n = utf8_tounicode_case(preg->regparse, &ch, nocase);
+	int n = reg_utf8_tounicode_case(preg->regparse, &ch, nocase);
 
 	*flagp = WORST;		/* Tentatively. */
 
@@ -784,7 +784,7 @@ static int *regatom(regex_t *preg, int *flagp)
 				int start;
 				int end;
 
-				pattern += utf8_tounicode_case(pattern, &start, nocase);
+				pattern += reg_utf8_tounicode_case(pattern, &start, nocase);
 				if (start == '\\') {
 					pattern += reg_decode_escape(pattern, &start);
 					if (start == 0) {
@@ -795,7 +795,7 @@ static int *regatom(regex_t *preg, int *flagp)
 				if (pattern[0] == '-' && pattern[1]) {
 					/* skip '-' */
 					pattern += utf8_tounicode(pattern, &end);
-					pattern += utf8_tounicode_case(pattern, &end, nocase);
+					pattern += reg_utf8_tounicode_case(pattern, &end, nocase);
 					if (end == '\\') {
 						pattern += reg_decode_escape(pattern, &end);
 						if (end == 0) {
@@ -926,7 +926,7 @@ static int *regatom(regex_t *preg, int *flagp)
 
 			/* Until end of string or a META char is reached */
 			while (*preg->regparse && strchr(META, *preg->regparse) == NULL) {
-				n = utf8_tounicode_case(preg->regparse, &ch, (preg->cflags & REG_ICASE));
+				n = reg_utf8_tounicode_case(preg->regparse, &ch, (preg->cflags & REG_ICASE));
 				if (ch == '\\' && preg->regparse[n]) {
 					/* Non-trailing backslash.
 					 * Is this a special escape, or a regular escape?
@@ -1220,7 +1220,7 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 	const char *s = string;
 	while (proglen && *s) {
 		int ch;
-		int n = utf8_tounicode_case(s, &ch, nocase);
+		int n = reg_utf8_tounicode_case(s, &ch, nocase);
 		if (ch != *prog) {
 			return -1;
 		}
@@ -1274,7 +1274,7 @@ static const char *str_find(const char *string, int c, int nocase)
 	}
 	while (*string) {
 		int ch;
-		int n = utf8_tounicode_case(string, &ch, nocase);
+		int n = reg_utf8_tounicode_case(string, &ch, nocase);
 		if (c == ch) {
 			return string;
 		}
@@ -1427,7 +1427,7 @@ static int regmatch(regex_t *preg, const int *prog)
 				no = regrepeat(preg, OPERAND(scan));
 				while (no >= min) {
 					int ch;
-					utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
+					reg_utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
 					/* If it could work, try it. */
 					if (reg_iseol(preg, nextch) || ch == nextch)
 						if (regmatch(preg, next))
@@ -1506,7 +1506,7 @@ static int regrepeat(regex_t *preg, const int *p )
 		if (preg->cflags & REG_ICASE) {
 			while (1) {
 				int ch;
-				int n = utf8_tounicode_case(scan, &ch, 1);
+				int n = reg_utf8_tounicode_case(scan, &ch, 1);
 				if (*opnd != ch) {
 					break;
 				}
