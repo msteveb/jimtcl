@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "utf8.h"
 
 #define JIM_UTF_MAX 3

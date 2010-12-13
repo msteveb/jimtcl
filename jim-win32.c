@@ -18,7 +18,8 @@
  * limitations under the License.
  */
 
-#include <jim.h>
+#include "jim.h"
+#include "jimautoconf.h"
 
 /* Apparently windows.h and cygwin don't mix, but we seem to get
  * away with it here. Use at your own risk under cygwin

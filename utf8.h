@@ -7,6 +7,7 @@
  *
  * See LICENCE for licence details.
  */
+#include <jim-config.h>
 
 /**
  * Converts the given unicode codepoint (0 - 0xffff) to utf-8

@@ -59,6 +59,7 @@
 #include <sys/time.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "utf8.h"
 
 #ifdef HAVE_BACKTRACE

@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "jim-subcmd.h"
+#include "jimautoconf.h"
 
 /**
  * Implements the common 'commands' subcommand

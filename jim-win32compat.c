@@ -1,4 +1,4 @@
-#include <jim.h>
+#include "jim.h"
 #include "jimautoconf.h"
 
 #ifdef HAVE_DLOPEN_COMPAT

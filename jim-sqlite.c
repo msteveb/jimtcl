@@ -23,6 +23,7 @@
 #include <sqlite.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 
 typedef struct JimSqliteHandle
 {

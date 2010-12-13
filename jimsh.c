@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 
 /* Script to help initialise jimsh */
 static const char jimsh_init[] = \

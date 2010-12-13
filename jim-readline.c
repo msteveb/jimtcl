@@ -19,6 +19,7 @@
  */
 
 #include "jim.h"
+#include "jimautoconf.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>

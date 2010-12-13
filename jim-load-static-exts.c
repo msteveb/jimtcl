@@ -1,4 +1,5 @@
 #include "jim.h"
+#include "jimautoconf.h"
 
 #define LOAD_EXT(n) \
     extern int Jim_ ## n ## Init(Jim_Interp *); \

@@ -6,7 +6,8 @@
  * Slightly modified by Steve Bennett <steveb@snapgear.com>
  * Ported to Jim by Steve Bennett <steveb@workware.net.au>
  */
-#include <jim.h>
+#include "jim.h"
+#include "jimautoconf.h"
 #include <syslog.h>
 #include <string.h>
 

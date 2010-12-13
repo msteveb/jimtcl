@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "jim.h"
+#include "jimautoconf.h"
 #include "jim-subcmd.h"
 
 /* -----------------------------------------------------------------------------
