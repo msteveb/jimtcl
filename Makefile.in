@@ -23,8 +23,8 @@ CPPFLAGS += -DTCL_LIBRARY=\"@TCL_LIBRARY@\"
 CPPFLAGS += -DTCL_PLATFORM_OS=\"@PLATFORM_OS@\" -DTCL_PLATFORM_PLATFORM=\"@PLATFORM_PLATFORM@\"
 CPPFLAGS += -DJIM_REFERENCES -D_GNU_SOURCE
 
-CPPFLAGS += -Wall $(OPTIM) -I@SRCDIR@ -I. @EXTRA_CFLAGS@
-VPATH := @SRCDIR@
+CPPFLAGS += -Wall $(OPTIM) -I@srcdir@ -I. @EXTRA_CFLAGS@
+VPATH := @srcdir@
 
 ifeq ($(jim_libtype),static)
 	LIBJIM := libjim.a
@@ -49,7 +49,7 @@ EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
 	echo $@ >>.clean
-	sh @SRCDIR@/make-c-ext.sh $< >$@
+	sh @srcdir@/make-c-ext.sh $< >$@
 
 OBJS += jim-load-static-exts.o
 
@@ -65,10 +65,10 @@ install: all docs $(EXTENSION_TCL)
 	install $(JIMSH) $(DESTDIR)/bin
 	install -d $(DESTDIR)/lib/jim
 	install $(LIBJIM) $(DESTDIR)/lib
-	install @SRCDIR@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
+	install @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
 	install -d $(DESTDIR)/include
-	install @SRCDIR@/jim.h @SRCDIR@/jim-eventloop.h @SRCDIR@/jim-nvp.h @SRCDIR@/jim-signal.h \
-		@SRCDIR@/jim-subcmd.h @SRCDIR@/jim-win32compat.h $(DESTDIR)/include
+	install @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
+		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)/include
 	install jim-config.h $(DESTDIR)/include
 	install -d $(DESTDIR)/doc/jim
 	install Tcl.html $(DESTDIR)/doc/jim
@@ -82,8 +82,8 @@ ifneq (@JIM_UTF8@,)
 # Generate the unicode case mapping
 utf8.o: unicode_mapping.c
 
-unicode_mapping.c: @SRCDIR@/UnicodeData.txt @SRCDIR@/parse-unidata.tcl
-	tclsh @SRCDIR@/parse-unidata.tcl @SRCDIR@/UnicodeData.txt >$@
+unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
+	tclsh @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@
 endif
 
 ifeq ($(jim_libtype),static)
@@ -100,7 +100,7 @@ endif
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt
-	tclsh @SRCDIR@/make-index $^ | asciidoc -o $@ -d manpage - || cp @SRCDIR@/Tcl_shipped.html Tcl.html
+	tclsh @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
 	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c
