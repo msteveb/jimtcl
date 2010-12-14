@@ -1309,12 +1309,13 @@ static int JimParseVar(struct JimParserCtx *pc)
         }
     }
     else {
-        /* Include leading colons */
-        while (*pc->p == ':') {
-            pc->p++;
-            pc->len--;
-        }
         while (!stop) {
+            /* Skip double colon, but not single colon! */
+            if (pc->p[0] == ':' && pc->len > 1 && pc->p[1] == ':') {
+                pc->p += 2;
+                pc->len -= 2;
+                continue;
+            }
             if (!((*pc->p >= 'a' && *pc->p <= 'z') ||
                     (*pc->p >= 'A' && *pc->p <= 'Z') ||
                     (*pc->p >= '0' && *pc->p <= '9') || *pc->p == '_'))

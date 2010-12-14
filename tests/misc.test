@@ -331,4 +331,11 @@ test split-1.1 "Split with leading null" {
 	split "\0abc\0def\0" \0
 } {{} abc def {}}
 
+test parsevar-1.1 "Variables should include double colons" {
+	set ::a::b 2
+	set x $::a::b
+	unset ::a::b
+	set x
+} 2
+
 testreport
