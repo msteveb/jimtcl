@@ -103,19 +103,23 @@ proc testConstraint {constraint bool} {
 testConstraint {utf8} [expr {[string length "\xc2\xb5"] == 1}]
 testConstraint {references} [expr {[info commands ref] ne ""}]
 testConstraint {jim} 1
+testConstraint {tcl} 0
 
 proc bytestring {x} {
 	return $x
 }
 
-proc test {id descr script {constraints {}} expected} {
+proc test {id descr {constraints {}} script expected} {
 	incr ::testinfo(numtests)
 	if {$::testinfo(verbose)} {
 		puts -nonewline "$id "
 	}
 
 	foreach c $constraints {
-		if {![info exists ::tcltest::testConstraints($c)]} {
+		if {[info exists ::tcltest::testConstraints($c)]} {
+			if {$::tcltest::testConstraints($c)} {
+				continue
+			}
 			incr ::testinfo(numskip)
 			if {$::testinfo(verbose)} {
 				puts "SKIP"

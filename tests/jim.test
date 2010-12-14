@@ -2515,12 +2515,12 @@ test switch-4.5 {error in default command} {
 } {1 switch2}
 
 test switch-5.1 {errors in -regexp matching} regexp {
-    list [catch {switch -regexp aaaab {
+    catch {switch -regexp aaaab {
 	*b	{concat glob}
 	aaaab	{concat exact}
 	default	{concat none}
-    }} msg] $msg
-} {1 {couldn't compile regular expression pattern: quantifier operand invalid}}
+    }} msg
+} 1
 
 test switch-6.1 {backslashes in patterns} {
     switch -exact {\a\$\.\[} {

@@ -622,7 +622,7 @@ test string-11.49 {string match, *special case} {
     string match "?\\*" "a*"
 } 1
 # I don't see why this shouldn't match. Ignored for jim
-test string-11.50 {string match, *special case} jim {
+test string-11.50 {string match, *special case} tcl {
     string match "\\" "\\"
 } 0
 
