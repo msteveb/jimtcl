@@ -202,8 +202,8 @@ test regexp-6.3 {regexp errors} jim {
     list [catch {regexp -gorp a} msg] $msg
 } {1 {bad switch "-gorp": must be --, -all, -indices, -inline, -line, -nocase, or -start}}
 test regexp-6.4 {regexp errors} {
-    list [catch {regexp a( b} msg] [string match *parentheses* $msg]
-} {1 1}
+    catch {regexp a( b} msg
+} 1
 #test regexp-6.5 {regexp errors} {
 #    list [catch {regexp a) b} msg] [string match *parentheses* $msg]
 #} {1 1}
@@ -364,8 +364,8 @@ test regexp-11.5 {regsub errors} jim {
     list [catch {regsub -gorp a b c} msg] $msg
 } {1 {bad switch "-gorp": must be --, -all, -line, -nocase, or -start}}
 test regexp-11.6 {regsub errors} {
-    list [catch {regsub -nocase a( b c d} msg] [string match *parentheses* $msg]
-} {1 1}
+    catch {regsub -nocase a( b c d} msg
+} 1
 test regexp-11.7 {regsub errors} jim {
     catch {unset f1}
     set f1 44
