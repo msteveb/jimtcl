@@ -146,6 +146,24 @@ static char **JimBuildEnv(Jim_Interp *interp)
 #endif
 }
 
+/**
+ * Frees the environment allocated by JimBuildEnv()
+ *
+ * Must pass original_environ.
+ */
+static void JimFreeEnv(Jim_Interp *interp, char **env, char **original_environ)
+{
+#ifdef jim_ext_tclcompat
+    if (env != original_environ) {
+        int i;
+        for (i = 0; env[i]; i++) {
+            Jim_Free(env[i]);
+        }
+        Jim_Free(env);
+    }
+#endif
+}
+
 /*
  * Create error messages for unusual process exits.  An
  * extra newline gets appended to each error message, but
@@ -180,7 +198,7 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
             type = "CHILDSUSP";
             action = "suspended";
         }
-            
+
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, type, -1));
 
 #ifdef jim_ext_signal
@@ -199,7 +217,6 @@ static int JimCheckWaitStatus(Jim_Interp *interp, int pid, int waitStatus)
     return rc;
 }
 
-#if defined(HAVE_FORK) && !defined(HAVE_NO_FORK)
 /*
  * Data structures of the following type are used by JimFork and
  * JimWaitPids to keep track of child processes.
@@ -316,64 +333,6 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         result = JIM_ERR;
     }
     return result;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * JimFork --
- *
- *  Create a new process using the vfork system call, and keep
- *  track of it for "safe" waiting with JimWaitPids.
- *
- * Results:
- *  The return value is the value returned by the vfork system
- *  call (0 means child, > 0 means parent (value is child id),
- *  < 0 means error).
- *
- * Side effects:
- *  A new process is created, and an entry is added to an internal
- *  table of child processes if the process is created successfully.
- *
- *----------------------------------------------------------------------
- */
-static int JimFork(Jim_Interp *interp)
-{
-    pid_t pid;
-    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
-
-    /*
-     * Disable SIGPIPE signals:  if they were allowed, this process
-     * might go away unexpectedly if children misbehave.  This code
-     * can potentially interfere with other application code that
-     * expects to handle SIGPIPEs;  what's really needed is an
-     * arbiter for signals to allow them to be "shared".
-     */
-    if (table->info == NULL) {
-        (void)signal(SIGPIPE, SIG_IGN);
-    }
-
-    /*
-     * Enlarge the wait table if there isn't enough space for a new
-     * entry.
-     */
-    if (table->used == table->size) {
-        table->size += WAIT_TABLE_GROW_BY;
-        table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
-    }
-
-    /*
-     * Make a new process and enter it into the table if the fork
-     * is successful.
-     */
-
-    pid = fork();
-    if (pid > 0) {
-        table->info[table->used].pid = pid;
-        table->info[table->used].flags = 0;
-        table->used++;
-    }
-    return pid;
 }
 
 /*
@@ -620,6 +579,8 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     int lastBar;
     char *execName;
     int i, pid;
+    char **orig_environ;
+    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
     /* Holds the args which will be used to exec */
     char **arg_array = Jim_Alloc(sizeof(*arg_array) * (argc + 1));
@@ -635,6 +596,10 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         *errFilePtr = -1;
     }
     pipeIds[0] = pipeIds[1] = -1;
+
+    /* Must do this before vfork(), so do it now */
+    orig_environ = environ;
+    environ = JimBuildEnv(interp);
 
     /*
      * First, scan through all the arguments to figure out the structure
@@ -855,7 +820,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
                     errorId = dup(lastOutputId);
                 }
                 else {
-                    /* No redirection stdout, so just use 2>@stdout */
+                    /* No redirection of stdout, so just use 2>@stdout */
                     error = "stdout";
                 }
             }
@@ -929,6 +894,9 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     }
     for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg + 1) {
         int pipe_dup_err = 0;
+        int origErrorId = errorId;
+        char execerr[64];
+        int execerrlen;
 
         for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
             if (arg_array[lastArg][0] == '|') {
@@ -951,42 +919,74 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             outputId = pipeIds[1];
         }
         execName = arg_array[firstArg];
-        pid = JimFork(interp);
-        if (pid == -1) {
+
+        /* Now fork the child */
+
+        /*
+         * Disable SIGPIPE signals:  if they were allowed, this process
+         * might go away unexpectedly if children misbehave.  This code
+         * can potentially interfere with other application code that
+         * expects to handle SIGPIPEs;  what's really needed is an
+         * arbiter for signals to allow them to be "shared".
+         */
+        if (table->info == NULL) {
+            (void)signal(SIGPIPE, SIG_IGN);
+        }
+
+        /*
+         * Enlarge the wait table if there isn't enough space for a new
+         * entry.
+         */
+        if (table->used == table->size) {
+            table->size += WAIT_TABLE_GROW_BY;
+            table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
+        }
+
+        /* Need to do this befor vfork() */
+        if (pipe_dup_err) {
+            errorId = outputId;
+        }
+
+        /* Need to prep an error message before vfork(), just in case */
+        snprintf(execerr, sizeof(execerr), "couldn't exec \"%s\"", execName);
+        execerrlen = strlen(execerr);
+
+        /*
+         * Make a new process and enter it into the table if the fork
+         * is successful.
+         */
+        pid = vfork();
+        if (pid < 0) {
             Jim_SetResultErrno(interp, "couldn't fork child process");
             goto error;
         }
         if (pid == 0) {
-            char errSpace[200];
-            int rc;
+            /* Child */
 
-            if (pipe_dup_err) {
-                errorId = outputId;
-            }
+            if (inputId != -1) dup2(inputId, 0);
+            if (outputId != -1) dup2(outputId, 1);
+            if (errorId != -1) dup2(errorId, 2);
 
-            if ((inputId != -1 && dup2(inputId, 0) == -1)
-                || (outputId != -1 && dup2(outputId, 1) == -1)
-                || (errorId != -1 && (dup2(errorId, 2) == -1))) {
-
-                static const char err[] = "forked process couldn't set up input/output\n";
-
-                rc = write(errorId < 0 ? 2 : errorId, err, strlen(err));
-                _exit(1);
-            }
             for (i = 3; (i <= outputId) || (i <= inputId) || (i <= errorId); i++) {
                 close(i);
             }
-            /* Build new environ from the current ::env dict */
-            environ = JimBuildEnv(interp);
+
             execvp(execName, &arg_array[firstArg]);
 
-            snprintf(errSpace, sizeof(errSpace), "couldn't find \"%.150s\" to execute\n", arg_array[firstArg]);
-            rc = write(2, errSpace, strlen(errSpace));
+            /* we really can ignore the error here! */
+            write(2, execerr, execerrlen) < 0 ? -1 : 0;
             _exit(127);
         }
-        else {
-            pidPtr[numPids] = pid;
-        }
+
+        /* parent */
+        table->info[table->used].pid = pid;
+        table->info[table->used].flags = 0;
+        table->used++;
+
+        pidPtr[numPids] = pid;
+
+        /* Restore in case of pipe_dup_err */
+        errorId = origErrorId;
 
         /*
          * Close off our copies of file descriptors that were set up for
@@ -1019,6 +1019,9 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
         close(errorId);
     }
     Jim_Free(arg_array);
+
+    JimFreeEnv(interp, environ, orig_environ);
+    environ = orig_environ;
 
     return numPids;
 
@@ -1114,154 +1117,6 @@ static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int
 
     return result;
 }
-#else
-/**
- * Frees the environment allocated by JimBuildEnv()
- *
- * Must pass original_environ.
- */
-static void JimFreeEnv(Jim_Interp *interp, char **env, char **original_environ)
-{
-#ifdef jim_ext_tclcompat
-    if (env != original_environ) {
-        int i;
-        for (i = 0; env[i]; i++) {
-            Jim_Free(env[i]);
-        }
-        Jim_Free(env);
-    }
-#endif
-}
-
-static void JimFreeWaitInfoTable(struct Jim_Interp *interp, void *privData)
-{
-}
-
-static struct WaitInfoTable *JimAllocWaitInfoTable(void)
-{
-    return NULL;
-}
-
-/**
- * Joins the given args into a single quoted, space-separate string.
- */
-static Jim_Obj *JimQuoteArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    Jim_Obj *cmdlineObj = Jim_NewEmptyStringObj(interp);
-    int i, j;
-
-    /* Create an escape command lines */
-    for (i = 0; i < argc; i++) {
-        int len;
-        const char *arg = Jim_GetString(argv[i], &len);
-
-        if (i) {
-            Jim_AppendString(interp, cmdlineObj, " ", 1);
-        }
-        for (j = 0; j < len; j++) {
-            if (arg[j] == '\\') {
-                /* Need to double escape backslash */
-                Jim_AppendString(interp, cmdlineObj, "\\\\\\\\", 4);
-                continue;
-            }
-            if (arg[j] == '"' || arg[j] == '`' || arg[j] == '\'' || arg[j] == '\n') {
-                /* Escape these */
-                Jim_AppendString(interp, cmdlineObj, "\\", 1);
-            }
-            Jim_AppendString(interp, cmdlineObj, &arg[j], 1);
-        }
-    }
-
-    return cmdlineObj;
-}
-
-static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    int pid;
-    int tmpfd;
-    int status;
-    int result;
-    char *nargv[4];
-    char **new_environ;
-    Jim_Obj *cmdlineObj;
-
-#define TMP_NAME "/tmp/tcl.exec.XXXXXX"
-    char tmpname[sizeof(TMP_NAME) + 1];
-
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[argc - 1], "&")) {
-        Jim_SetResultString(interp, "unsupported: background exec", -1);
-        return JIM_ERR;
-    }
-
-    /* Create a temporary file for the output from our exec command */
-    strcpy(tmpname, TMP_NAME);
-    tmpfd = mkstemp(tmpname);
-    if (tmpfd < 0) {
-        Jim_SetResultErrno(interp, "couldn't create temp file file for exec");
-        return JIM_ERR;
-    }
-
-
-    /* Execute: sh -c "arguments..."
-     * 
-     * Note we do it this way in order to get command line redirection, etc.
-     */
-    cmdlineObj = JimQuoteArgs(interp, argc - 1, argv + 1);
-
-    nargv[0] = "sh";
-    nargv[1] = "-c";
-    nargv[2] = (char *)Jim_GetString(cmdlineObj, NULL);
-    nargv[3] = NULL;
-
-    /*printf("Writing output to %s, fd=%d\n", tmpname, tmpfd); */
-    unlink(tmpname);
-
-    /* Must do this before vfork() */
-    new_environ = JimBuildEnv(interp);
-
-    /* Use vfork and send output to this temporary file */
-    pid = vfork();
-    if (pid == 0) {
-        close(0);
-        open("/dev/null", O_RDONLY);
-        close(1);
-        if (dup(tmpfd) != -1) {
-            close(2);
-            if (dup(tmpfd) != -1) {
-                close(tmpfd);
-                execve("/bin/sh", nargv, new_environ);
-            }
-        }
-        _exit(127);
-    }
-
-    /* Wait for the child to exit */
-    waitpid(pid, &status, 0);
-
-    JimFreeEnv(interp, new_environ, environ);
-
-    Jim_FreeNewObj(interp, cmdlineObj);
-
-    result = JimCheckWaitStatus(interp, pid, status);
-
-    /*
-     * Read the child's output (if any) and put it into the result.
-     */
-    lseek(tmpfd, 0L, SEEK_SET);
-
-    Jim_SetResultString(interp, "", 0);
-
-    if (JimAppendStreamToString(interp, tmpfd, Jim_GetResult(interp)) != JIM_OK) {
-        Jim_SetResultErrno(interp, "error reading from stderr output file");
-        result = JIM_ERR;
-    }
-    close(tmpfd);
-
-    JimTrimTrailingNewline(interp);
-
-    return result;
-}
-#endif
 
 int Jim_execInit(Jim_Interp *interp)
 {

@@ -48,15 +48,6 @@ case $host in
     ;;
 esac
 
-AC_ARG_ENABLE(fork,
-    [  --disable-fork          do not use fork (no exec, etc.)],
-    [
-        if test "x$enableval" = "xno" ; then
-            AC_MSG_RESULT(* disabling fork)
-            EXTRA_CFLAGS="-DJIM_NOFORK"
-        fi
-    ],
-)
 AC_ARG_ENABLE(math,
     [  --enable-math           include support for math functions],
     [
@@ -212,7 +203,7 @@ AC_ARG_WITH(jim-regexp,
 AC_CHECK_HEADERS([sys/un.h dlfcn.h termios.h])
 AC_CHECK_HEADER(termios.h,,lineedit=0)
 
-AC_CHECK_FUNCS([ualarm sysinfo lstat fork vfork])
+AC_CHECK_FUNCS([ualarm sysinfo lstat vfork])
 AC_CHECK_FUNCS([backtrace geteuid mkstemp realpath strptime])
 AC_CHECK_FUNCS([regcomp waitpid sigaction sys_signame sys_siglist])
 AC_CHECK_FUNCS([syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo])
