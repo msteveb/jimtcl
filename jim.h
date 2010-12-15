@@ -147,6 +147,8 @@ extern "C" {
 #define JIM_NONE 0    /* no flags set */
 #define JIM_ERRMSG 1    /* set an error message in the interpreter. */
 
+#define JIM_UNSHARED 4 /* Flag to Jim_GetVariable() */
+
 /* Flags for Jim_SubstObj() */
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */

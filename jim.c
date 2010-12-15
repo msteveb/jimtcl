@@ -3526,7 +3526,7 @@ int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
 /* -------------------- Variables related functions ------------------------- */
 static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *ObjPtr, Jim_Obj *valObjPtr);
-static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *ObjPtr);
+static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *ObjPtr, int flags);
 
 /* For now that's dummy. Variables lookup should be optimized
  * in many ways, with caching of lookups, and possibly with
@@ -3689,7 +3689,13 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
 /* Return the Jim_Obj pointer associated with a variable name,
  * or NULL if the variable was not found in the current context.
  * The same optimization discussed in the comment to the
- * 'SetVariable' function should apply here. */
+ * 'SetVariable' function should apply here.
+ *
+ * If JIM_UNSHARED is set and the variable is an array element (dict sugar)
+ * in a dictionary which is shared, the array variable value is duplicated first.
+ * This allows the array element to be updated (e.g. append, lappend) without
+ * affecting other references to the dictionary.
+ */
 Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 {
     switch (SetVariableFromAny(interp, nameObjPtr)) {
@@ -3718,7 +3724,7 @@ Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 
         case JIM_DICT_SUGAR:
             /* [dict] syntax sugar. */
-            return JimDictSugarGet(interp, nameObjPtr);
+            return JimDictSugarGet(interp, nameObjPtr, flags);
     }
     if (flags & JIM_ERRMSG) {
         Jim_SetResultFormatted(interp, "can't read \"%#s\": no such variable", nameObjPtr);
@@ -3884,8 +3890,14 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *valObjP
     return err;
 }
 
+/**
+ * Expands the array variable (dict sugar) and returns the result, or NULL on error.
+ *
+ * If JIM_UNSHARED is set and the dictionary is shared, it will be duplicated
+ * and stored back to the variable before expansion.
+ */
 static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPtr,
-    Jim_Obj *keyObjPtr)
+    Jim_Obj *keyObjPtr, int flags)
 {
     Jim_Obj *dictObjPtr;
     Jim_Obj *resObjPtr = NULL;
@@ -3908,19 +3920,28 @@ static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPt
                 "can't read \"%#s(%#s)\": no such element in array", varObjPtr, keyObjPtr);
         }
     }
+    else if ((flags & JIM_UNSHARED) && Jim_IsShared(dictObjPtr)) {
+        dictObjPtr = Jim_DuplicateObj(interp, dictObjPtr);
+        if (Jim_SetVariable(interp, varObjPtr, dictObjPtr) != JIM_OK) {
+            /* This can probably never happen */
+            Jim_Panic(interp, "SetVariable failed for JIM_UNSHARED");
+        }
+        /* We know that the key exists. Get the result in the now-unshared dictionary */
+        Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_NONE);
+    }
 
     return resObjPtr;
 }
 
 /* Helper of Jim_GetVariable() to deal with dict-syntax variable names */
-static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr)
+static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Obj *varObjPtr, *keyObjPtr, *resObjPtr;
 
 
     JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
 
-    resObjPtr = JimDictExpandArrayVariable(interp, varObjPtr, keyObjPtr);
+    resObjPtr = JimDictExpandArrayVariable(interp, varObjPtr, keyObjPtr, flags);
 
     Jim_DecrRefCount(interp, varObjPtr);
     Jim_DecrRefCount(interp, keyObjPtr);
@@ -3995,7 +4016,7 @@ static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_IncrRefCount(substKeyObjPtr);
     resObjPtr =
         JimDictExpandArrayVariable(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr,
-        substKeyObjPtr);
+        substKeyObjPtr, 0);
     Jim_DecrRefCount(interp, substKeyObjPtr);
 
     return resObjPtr;
@@ -5796,7 +5817,7 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
     Jim_Obj *varObjPtr, *objPtr, *listObjPtr;
     int shared, i, idx;
 
-    varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
+    varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG | JIM_UNSHARED);
     if (objPtr == NULL)
         return JIM_ERR;
     if ((shared = Jim_IsShared(objPtr)))
@@ -9086,7 +9107,7 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         if (Jim_GetWide(interp, argv[2], &increment) != JIM_OK)
             return JIM_ERR;
     }
-    intObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
+    intObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
     if (!intObjPtr) {
         /* Set missing variable to 0 */
         wideValue = 0;
@@ -11284,7 +11305,7 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
         return JIM_ERR;
     }
-    listObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
+    listObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
     if (!listObjPtr) {
         /* Create the list if it does not exists */
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
@@ -11523,7 +11544,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
     }
     else {
-        stringObjPtr = Jim_GetVariable(interp, argv[1], JIM_NONE);
+        stringObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
         if (!stringObjPtr) {
             /* Create the string if it does not exists */
             stringObjPtr = Jim_NewEmptyStringObj(interp);
