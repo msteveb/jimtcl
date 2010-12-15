@@ -7806,6 +7806,164 @@ static void ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken 
     }
 }
 
+/**
+ * Returns the index of the COLON_LEFT to the left of 'right_index'
+ * taking into account nesting.
+ * 
+ * The expression *must* be well formed, thus a COLON_LEFT will always be found.
+ */
+static int ExprTernaryGetColonLeftIndex(ExprByteCode *expr, int right_index)
+{
+    int ternary_count = 1;
+
+    right_index--;
+
+    while (right_index > 1) {
+        if (expr->token[right_index].type == JIM_EXPROP_TERNARY_LEFT) {
+            ternary_count--;
+        }
+        else if (expr->token[right_index].type == JIM_EXPROP_COLON_RIGHT) {
+            ternary_count++;
+        }
+        else if (expr->token[right_index].type == JIM_EXPROP_COLON_LEFT && ternary_count == 1) {
+            return right_index;
+        }
+        right_index--;
+    }
+
+    /*notreached*/
+    return -1;
+}
+
+/**
+ * Find the left/right indices for the ternary expression to the left of 'right_index'.
+ *
+ * Returns 1 if found, and fills in *prev_right_index and *prev_left_index.
+ * Otherwise returns 0.
+ */
+static int ExprTernaryGetMoveIndices(ExprByteCode *expr, int right_index, int *prev_right_index, int *prev_left_index)
+{
+    int i = right_index - 1;
+    int ternary_count = 1;
+
+    while (i > 1) {
+        if (expr->token[i].type == JIM_EXPROP_TERNARY_LEFT) {
+            if (--ternary_count == 0 && expr->token[i - 2].type == JIM_EXPROP_COLON_RIGHT) {
+                *prev_right_index = i - 2;
+                *prev_left_index = ExprTernaryGetColonLeftIndex(expr, *prev_right_index);
+                return 1;
+            }
+        }
+        else if (expr->token[i].type == JIM_EXPROP_COLON_RIGHT) {
+            if (ternary_count == 0) {
+                return 0;
+            }
+            ternary_count++;
+        }
+        i--;
+    }
+    return 0;
+}
+
+/*
+* ExprTernaryReorderExpression description
+* ========================================
+*
+* ?: is right-to-left associative which doesn't work with the stack-based
+* expression engine. The fix is to reorder the bytecode.
+*
+* The expression:
+* 
+*    expr 1?2:0?3:4
+*
+* Has initial bytecode:
+*
+*    '1' '2' (40=TERNARY_LEFT) '2' (41=TERNARY_RIGHT) '2' (43=COLON_LEFT) '0' (44=COLON_RIGHT)
+*    '2' (40=TERNARY_LEFT) '3' (41=TERNARY_RIGHT) '2' (43=COLON_LEFT) '4' (44=COLON_RIGHT)
+*
+* The fix involves simulating this expression instead:
+*
+*    expr 1?2:(0?3:4)
+*
+* With the following bytecode:
+*
+*    '1' '2' (40=TERNARY_LEFT) '2' (41=TERNARY_RIGHT) '10' (43=COLON_LEFT) '0' '2' (40=TERNARY_LEFT)
+*    '3' (41=TERNARY_RIGHT) '2' (43=COLON_LEFT) '4' (44=COLON_RIGHT) (44=COLON_RIGHT)
+*
+* i.e. The token COLON_RIGHT at index 8 is moved towards the end of the stack, all tokens above 8
+*      are shifted down and the skip count of the token JIM_EXPROP_COLON_LEFT at index 5 is
+*      incremented by the amount tokens shifted down. The token JIM_EXPROP_COLON_RIGHT that is moved
+*      is identified as immediately preceeding a token JIM_EXPROP_TERNARY_LEFT
+*
+* ExprTernaryReorderExpression works thus as follows :
+* - start from the end of the stack
+* - while walking towards the beginning of the stack
+*     if token=JIM_EXPROP_COLON_RIGHT then
+*        find the associated token JIM_EXPROP_TERNARY_LEFT, which allows to
+*            find the associated token previous(JIM_EXPROP_COLON_RIGHT)
+*            find the associated token previous(JIM_EXPROP_LEFT_RIGHT)
+*        if all found then
+*            perform the rotation
+*            update the skip count of the token previous(JIM_EXPROP_LEFT_RIGHT)
+*        end if
+*    end if
+*
+* Note: care has to be taken for nested ternary constructs!!!
+*/
+static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
+{
+    int i;
+
+    for (i = expr->len - 1; i > 1; i--) {
+        int prev_right_index;
+        int prev_left_index;
+        int j;
+        ScriptToken tmp;
+
+        if (expr->token[i].type != JIM_EXPROP_COLON_RIGHT) {
+            continue;
+        }
+
+        /* COLON_RIGHT found: get the indexes needed to move the tokens in the stack (if any) */
+        if (ExprTernaryGetMoveIndices(expr, i, &prev_right_index, &prev_left_index) == 0) {
+            continue;
+        }
+
+        /*
+        ** rotate tokens down
+        **
+        ** +->  [i]                         : JIM_EXPROP_COLON_RIGHT
+        ** |     |                             |
+        ** |     V                             V
+        ** |   [...]                        : ...
+        ** |     |                             |
+        ** |     V                             V
+        ** |   [...]                        : ...
+        ** |     |                             |
+        ** |     V                             V
+        ** +-  [prev_right_index]           : JIM_EXPROP_COLON_RIGHT
+        */
+        tmp = expr->token[prev_right_index];
+        for (j = prev_right_index; j < i; j++) {
+            expr->token[j] = expr->token[j + 1];
+        }
+        expr->token[i] = tmp;
+
+        /* Increment the 'skip' count associated to the previous JIM_EXPROP_COLON_LEFT token
+         * 
+         * This is 'colon left increment' = i - prev_right_index
+         *
+         * [prev_left_index]      : JIM_EXPROP_LEFT_RIGHT
+         * [prev_left_index-1]    : skip_count
+         *
+         */
+        JimWideValue(expr->token[prev_left_index-1].objPtr) += (i - prev_right_index);
+
+        /* Adjust for i-- in the loop */
+        i++;
+    }
+}
+
 static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist)
 {
     Jim_Stack stack;
@@ -7813,6 +7971,7 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
     int ok = 1;
     int i;
     int prevtt = JIM_TT_NONE;
+    int have_ternary = 0;
 
     /* -1 for EOL */
     int count = tokenlist->count - 1;
@@ -7823,12 +7982,18 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
 
     Jim_InitStack(&stack);
 
-    /* Need extra bytecodes for lazy operators */
+    /* Need extra bytecodes for lazy operators.
+     * Also check for the ternary operator
+     */
     for (i = 0; i < tokenlist->count; i++) {
         ParseToken *t = &tokenlist->list[i];
 
         if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
             count += 2;
+            /* Ternary is a lazy op but also needs reordering */
+            if (t->type == JIM_EXPROP_TERNARY) {
+                have_ternary = 1;
+            }
         }
     }
 
@@ -7913,7 +8078,7 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                         const struct Jim_ExprOperator *tt_op =
                             JimExprOperatorInfoByOpcode(tt->type);
 
-                        /* XXX: Should handle right-to-left associativity of ?: operator */
+                        /* Note that right-to-left associativity of ?: operator is handled later */
 
                         if (op->arity != 1 && tt_op->precedence >= op->precedence) {
                             ExprAddOperator(interp, expr, tt);
@@ -7940,6 +8105,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             goto err;
         }
         ExprAddOperator(interp, expr, tt);
+    }
+
+    if (have_ternary) {
+        ExprTernaryReorderExpression(interp, expr);
     }
 
   err:

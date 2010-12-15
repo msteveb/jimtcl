@@ -316,12 +316,12 @@ test expr-old-19.4 {precedence checks} {expr 1||1&&0} 1
 
 test expr-old-20.1 {precedence checks} {expr 1||0?3:4} 3
 test expr-old-20.2 {precedence checks} {expr 1?0:4||1} 0
-# REVISIT: tinytcl gets the following horribly wrong
-# at least jim only gets 20.3 wrong
-# test expr-old-20.3 {precedence checks} {expr 1?2:0?3:4} 2
+test expr-old-20.3 {precedence checks} {expr 1?2:0?3:4} 2
 test expr-old-20.4 {precedence checks} {expr 0?2:0?3:4} 4
 test expr-old-20.5 {precedence checks} {expr 1?2?3:4:0} 3
 test expr-old-20.6 {precedence checks} {expr 0?2?3:4:0} 0
+test expr-old-20.7 {precedence checks} {expr 0?1?1?2:3:0?4:5:1?0?6:7:0?8:9} 7
+
 
 # Parentheses.
 
