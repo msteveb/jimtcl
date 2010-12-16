@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.64 - overview of the Jim tool command language facilities
+Jim Tcl v0.70 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -27,91 +27,41 @@ earlier, smaller versions of Tcl (6.x) as well as more modern
 features from later versions of Tcl (7.x, 8.x). It also has some some
 entirely new features not available in any version of Tcl.
 
-This version is approximately the same size as "tinytcl" (6.8) but
-is faster and has more features.
+This version is about double the size of "tinytcl" (6.8), dependening upon
+the features selected, but is significantly faster and has many new features.
 
 Note that most of this man page is the original 6.8 Tcl man page, with
 changes made for differences with Jim.
 
-The major differences are:
+The major differences with Tcl 8.5/8.6 are:
 
-1. Object-based I/O (aio) with backward compatibility wrapper
-2. I/O: Support for sockets (client and server)
-3. I/O: Support for readable/writable event handlers
-4. Integers are 64bit
-5. Support for references ('ref'/'getref'/'setref') and garbage collection
-6. Builtin dictionary type ('dict')
-7. 'file mkdir', 'file rename', 'file tempfile' (Tcl 7.x, 8.x)
-8. 'env' command to access environment variables
-9. List: 'lmap', 'lset', 'lreverse', 'lassign' (Tcl 8.x)
-10. 'os.fork', 'os.wait', 'rand'
-11. '\{*\}'/'\{expand\}'
-12. 'string map' (Tcl 7.x)
-13. 'subst' (Tcl 7.x)
-14. 'switch' (Tcl 7.x) (note that 'case' is provided for compatibility)
-15. Much better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
-16. Support for "static" variables in procedures
-17. Significantly faster for many scripts/operations
-18. Support for tail-call optimisation, 'tailcall'
-19. Variable traces are not supported
-20. The history command is not supported
+1. Object-based I/O (aio), but with a Tcl-compatility layer
+2. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
+3. Integers are 64bit
+4. Support for references ('ref'/'getref'/'setref') and garbage collection
+5. Builtin dictionary type ('dict') with some limitations compared to Tcl 8.6
+6. 'env' command to access environment variables
+7. 'os.fork', 'os.wait', 'os.uptime', 'rand'
+8. Much better error reporting. 'info stacktrace' as a replacement for 'errorInfo', 'errorCode'
+9. Support for "static" variables in procedures
+10. Namespaces are not support
+11. Variable traces are not supported
+12. The history command is not supported
 
-CHANGES
--------
-Since v0.63:
+CHANGES IN THIS RELEASE
+-----------------------
 
 1. $::platform_tcl() settings are now automatically determined
 2. Add aio '$handle filename'
 3. Add 'info channels'
 4. The 'bio' extension is gone. Now 'aio' supports 'copyto'.
 5. Add 'exists' command
-
-Since v0.62:
-
-1. 'source' now checks that a script is complete (.i.e. not missing a brace)
-2. 'info complete' now uses the real parser and so is 100% accurate
-3. Better access to live stack frames with 'info frame', 'stacktrace' and 'stackdump'
-4. 'tailcall' no longer loses stack trace information
-5. Add 'alias' and 'curry'
-6. 'lambda', 'alias' and 'curry' are implemented via 'tailcall' for efficiency
-7. 'local' allows procedures to be deleted automatically at the end of the current procedure
-8. udp sockets are now supported for both clients and servers.
-9. vfork-based exec is now working correctly
-10. Add 'file tempfile'
-11. Add 'socket pipe'
-12. Enhance 'try ... on ... finally' to be more Tcl 8.6 compatible
-13. It is now possible to 'return' from within 'try'
-14. IPv6 support is now included
-15. Add 'string is'
-16. Event handlers works better if an error occurs. eof handler has been removed.
-17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
-18. Command pipelines via open "|..." are now supported
-19. 'pid' can now return pids of a command pipeline
-20. Add 'info references'
-21. Add support for 'after *ms*', 'after idle', 'after info', 'update'
-22. 'exec' now sets environment based on $::env
-23. Add 'dict keys'
-24. Add support for 'lsort -index'
-
-Since v0.61:
-
-1. Add support to 'exec' for '>&', '>>&', '|&', '2>@1'
-2. Fix 'exec' error messages when special token (e.g. '>') is the last token
-3. Fix 'subst' handling of backslash escapes.
-4. Allow abbreviated options for 'subst'
-5. Add support for 'return', 'break', 'continue' in subst
-6. Many 'expr' bug fixes
-7. Add support for functions in 'expr' (e.g. int(), abs()), and also 'in', 'ni' list operations
-8. The variable name argument to 'regsub' is now optional
-9. Add support for 'unset -nocomplain'
-10. Add support for list commands: 'lassign', 'lrepeat'
-11. Fully-functional 'lsearch' is now implemented
-12. Add 'info nameofexecutable' and 'info returncodes'
-13. Allow 'catch' to determine what return codes are caught
-14. Allow 'incr' to increment an unset variable by first setting to 0
-15. Allow 'args' and optional arguments to the left or required arguments in 'proc'
-16. Add 'file copy'
-17. Add 'try ... finally' command
+6. Add the pure-Tcl 'oo' extension
+7. The 'exec' command now only uses vfork(), not fork()
+8. Unit test framework is less verbose and more Tcl-compatible
+9. Optional UTF-8 support
+10. Optional built-in regexp engines for better Tcl compatibility and UTF-8 support
+11. Command line editing in interactive mode, e.g. 'jimsh'
 
 TCL INTRODUCTION
 -----------------
@@ -2971,10 +2921,11 @@ By default, ASCII sorting is used, with the result in increasing order.
 
 If *-integer* is specified, numeric sorting is used.
 
-If *-command cmdname* is specified, *cmdname* is treated as a
-command name. For each comparison, *cmdname $value1 $value2* is called
-which should return '-1' if *$value1* is less than *$value2*, '0' if
-they are equal, or '1' otherwise.
+If *-command cmdname* is specified, *cmdname* is treated as a command
+name. For each comparison, *cmdname $value1 $value2* is called which
+should compare the values and return an integer less than, equal
+to, or greater than zero if the *$value1* is to be considered less
+than, equal to, or greater than *$value2*, respectively.
 
 If *-decreasing* is specified, the resulting list is in the opposite
 order to what it would be otherwise. *-increasing* is the default.
@@ -4484,6 +4435,56 @@ The following global variables are set by jimsh.
 
 +*jim_argv0*+::
     The value of argv[0] when jimsh was invoked.
+
+CHANGES IN PREVIOUS RELEASES
+----------------------------
+
+=== In v0.63 ===
+
+1. 'source' now checks that a script is complete (.i.e. not missing a brace)
+2. 'info complete' now uses the real parser and so is 100% accurate
+3. Better access to live stack frames with 'info frame', 'stacktrace' and 'stackdump'
+4. 'tailcall' no longer loses stack trace information
+5. Add 'alias' and 'curry'
+6. 'lambda', 'alias' and 'curry' are implemented via 'tailcall' for efficiency
+7. 'local' allows procedures to be deleted automatically at the end of the current procedure
+8. udp sockets are now supported for both clients and servers.
+9. vfork-based exec is now working correctly
+10. Add 'file tempfile'
+11. Add 'socket pipe'
+12. Enhance 'try ... on ... finally' to be more Tcl 8.6 compatible
+13. It is now possible to 'return' from within 'try'
+14. IPv6 support is now included
+15. Add 'string is'
+16. Event handlers works better if an error occurs. eof handler has been removed.
+17. 'exec' now sets $::errorCode, and catch sets opts(-errorcode) for exit status
+18. Command pipelines via open "|..." are now supported
+19. 'pid' can now return pids of a command pipeline
+20. Add 'info references'
+21. Add support for 'after *ms*', 'after idle', 'after info', 'update'
+22. 'exec' now sets environment based on $::env
+23. Add 'dict keys'
+24. Add support for 'lsort -index'
+
+=== In v0.62 ===
+
+1. Add support to 'exec' for '>&', '>>&', '|&', '2>@1'
+2. Fix 'exec' error messages when special token (e.g. '>') is the last token
+3. Fix 'subst' handling of backslash escapes.
+4. Allow abbreviated options for 'subst'
+5. Add support for 'return', 'break', 'continue' in subst
+6. Many 'expr' bug fixes
+7. Add support for functions in 'expr' (e.g. int(), abs()), and also 'in', 'ni' list operations
+8. The variable name argument to 'regsub' is now optional
+9. Add support for 'unset -nocomplain'
+10. Add support for list commands: 'lassign', 'lrepeat'
+11. Fully-functional 'lsearch' is now implemented
+12. Add 'info nameofexecutable' and 'info returncodes'
+13. Allow 'catch' to determine what return codes are caught
+14. Allow 'incr' to increment an unset variable by first setting to 0
+15. Allow 'args' and optional arguments to the left or required arguments in 'proc'
+16. Add 'file copy'
+17. Add 'try ... finally' command
 
 
 LICENCE

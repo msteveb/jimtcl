@@ -543,7 +543,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.64 -
+<p>Jim Tcl v0.70 -
    overview of the Jim tool command language facilities
 </p>
 </div>
@@ -592,25 +592,20 @@ Jim Tcl(n) Manual Page
 earlier, smaller versions of Tcl (6.x) as well as more modern
 features from later versions of Tcl (7.x, 8.x). It also has some some
 entirely new features not available in any version of Tcl.</p></div>
-<div class="paragraph"><p>This version is approximately the same size as "tinytcl" (6.8) but
-is faster and has more features.</p></div>
+<div class="paragraph"><p>This version is about double the size of "tinytcl" (6.8), dependening upon
+the features selected, but is significantly faster and has many new features.</p></div>
 <div class="paragraph"><p>Note that most of this man page is the original 6.8 Tcl man page, with
 changes made for differences with Jim.</p></div>
-<div class="paragraph"><p>The major differences are:</p></div>
+<div class="paragraph"><p>The major differences with Tcl 8.5/8.6 are:</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-Object-based I/O (aio) with backward compatibility wrapper
+Object-based I/O (aio), but with a Tcl-compatility layer
 </p>
 </li>
 <li>
 <p>
-I/O: Support for sockets (client and server)
-</p>
-</li>
-<li>
-<p>
-I/O: Support for readable/writable event handlers
+I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
 </p>
 </li>
 <li>
@@ -625,12 +620,7 @@ Support for references (<em>ref</em>/<em>getref</em>/<em>setref</em>) and garbag
 </li>
 <li>
 <p>
-Builtin dictionary type (<em>dict</em>)
-</p>
-</li>
-<li>
-<p>
-<em>file mkdir</em>, <em>file rename</em>, <em>file tempfile</em> (Tcl 7.x, 8.x)
+Builtin dictionary type (<em>dict</em>) with some limitations compared to Tcl 8.6
 </p>
 </li>
 <li>
@@ -640,32 +630,7 @@ Builtin dictionary type (<em>dict</em>)
 </li>
 <li>
 <p>
-List: <em>lmap</em>, <em>lset</em>, <em>lreverse</em>, <em>lassign</em> (Tcl 8.x)
-</p>
-</li>
-<li>
-<p>
-<em>os.fork</em>, <em>os.wait</em>, <em>rand</em>
-</p>
-</li>
-<li>
-<p>
-<em>{*}</em>/<em>{expand}</em>
-</p>
-</li>
-<li>
-<p>
-<em>string map</em> (Tcl 7.x)
-</p>
-</li>
-<li>
-<p>
-<em>subst</em> (Tcl 7.x)
-</p>
-</li>
-<li>
-<p>
-<em>switch</em> (Tcl 7.x) (note that <em>case</em> is provided for compatibility)
+<em>os.fork</em>, <em>os.wait</em>, <em>os.uptime</em>, <em>rand</em>
 </p>
 </li>
 <li>
@@ -680,12 +645,7 @@ Support for "static" variables in procedures
 </li>
 <li>
 <p>
-Significantly faster for many scripts/operations
-</p>
-</li>
-<li>
-<p>
-Support for tail-call optimisation, <em>tailcall</em>
+Namespaces are not support
 </p>
 </li>
 <li>
@@ -702,9 +662,8 @@ The history command is not supported
 </div>
 </div>
 <div class="sect1">
-<h2 id="_changes">CHANGES</h2>
+<h2 id="_changes_in_this_release">CHANGES IN THIS RELEASE</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Since v0.63:</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
@@ -731,215 +690,34 @@ The <em>bio</em> extension is gone. Now <em>aio</em> supports <em>copyto</em>.
 Add <em>exists</em> command
 </p>
 </li>
-</ol></div>
-<div class="paragraph"><p>Since v0.62:</p></div>
-<div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-<em>source</em> now checks that a script is complete (.i.e. not missing a brace)
+Add the pure-Tcl <em>oo</em> extension
 </p>
 </li>
 <li>
 <p>
-<em>info complete</em> now uses the real parser and so is 100% accurate
+The <em>exec</em> command now only uses vfork(), not fork()
 </p>
 </li>
 <li>
 <p>
-Better access to live stack frames with <em>info frame</em>, <em>stacktrace</em> and <em>stackdump</em>
+Unit test framework is less verbose and more Tcl-compatible
 </p>
 </li>
 <li>
 <p>
-<em>tailcall</em> no longer loses stack trace information
+Optional UTF-8 support
 </p>
 </li>
 <li>
 <p>
-Add <em>alias</em> and <em>curry</em>
+Optional built-in regexp engines for better Tcl compatibility and UTF-8 support
 </p>
 </li>
 <li>
 <p>
-<em>lambda</em>, <em>alias</em> and <em>curry</em> are implemented via <em>tailcall</em> for efficiency
-</p>
-</li>
-<li>
-<p>
-<em>local</em> allows procedures to be deleted automatically at the end of the current procedure
-</p>
-</li>
-<li>
-<p>
-udp sockets are now supported for both clients and servers.
-</p>
-</li>
-<li>
-<p>
-vfork-based exec is now working correctly
-</p>
-</li>
-<li>
-<p>
-Add <em>file tempfile</em>
-</p>
-</li>
-<li>
-<p>
-Add <em>socket pipe</em>
-</p>
-</li>
-<li>
-<p>
-Enhance <em>try &#8230; on &#8230; finally</em> to be more Tcl 8.6 compatible
-</p>
-</li>
-<li>
-<p>
-It is now possible to <em>return</em> from within <em>try</em>
-</p>
-</li>
-<li>
-<p>
-IPv6 support is now included
-</p>
-</li>
-<li>
-<p>
-Add <em>string is</em>
-</p>
-</li>
-<li>
-<p>
-Event handlers works better if an error occurs. eof handler has been removed.
-</p>
-</li>
-<li>
-<p>
-<em>exec</em> now sets $::errorCode, and catch sets opts(-errorcode) for exit status
-</p>
-</li>
-<li>
-<p>
-Command pipelines via open "|&#8230;" are now supported
-</p>
-</li>
-<li>
-<p>
-<em>pid</em> can now return pids of a command pipeline
-</p>
-</li>
-<li>
-<p>
-Add <em>info references</em>
-</p>
-</li>
-<li>
-<p>
-Add support for <em>after <strong>ms</strong></em>, <em>after idle</em>, <em>after info</em>, <em>update</em>
-</p>
-</li>
-<li>
-<p>
-<em>exec</em> now sets environment based on $::env
-</p>
-</li>
-<li>
-<p>
-Add <em>dict keys</em>
-</p>
-</li>
-<li>
-<p>
-Add support for <em>lsort -index</em>
-</p>
-</li>
-</ol></div>
-<div class="paragraph"><p>Since v0.61:</p></div>
-<div class="olist arabic"><ol class="arabic">
-<li>
-<p>
-Add support to <em>exec</em> for <em>&gt;&amp;</em>, <em>&gt;&gt;&amp;</em>, <em>|&amp;</em>, <em>2&gt;@1</em>
-</p>
-</li>
-<li>
-<p>
-Fix <em>exec</em> error messages when special token (e.g. <em>&gt;</em>) is the last token
-</p>
-</li>
-<li>
-<p>
-Fix <em>subst</em> handling of backslash escapes.
-</p>
-</li>
-<li>
-<p>
-Allow abbreviated options for <em>subst</em>
-</p>
-</li>
-<li>
-<p>
-Add support for <em>return</em>, <em>break</em>, <em>continue</em> in subst
-</p>
-</li>
-<li>
-<p>
-Many <em>expr</em> bug fixes
-</p>
-</li>
-<li>
-<p>
-Add support for functions in <em>expr</em> (e.g. int(), abs()), and also <em>in</em>, <em>ni</em> list operations
-</p>
-</li>
-<li>
-<p>
-The variable name argument to <em>regsub</em> is now optional
-</p>
-</li>
-<li>
-<p>
-Add support for <em>unset -nocomplain</em>
-</p>
-</li>
-<li>
-<p>
-Add support for list commands: <em>lassign</em>, <em>lrepeat</em>
-</p>
-</li>
-<li>
-<p>
-Fully-functional <em>lsearch</em> is now implemented
-</p>
-</li>
-<li>
-<p>
-Add <em>info nameofexecutable</em> and <em>info returncodes</em>
-</p>
-</li>
-<li>
-<p>
-Allow <em>catch</em> to determine what return codes are caught
-</p>
-</li>
-<li>
-<p>
-Allow <em>incr</em> to increment an unset variable by first setting to 0
-</p>
-</li>
-<li>
-<p>
-Allow <em>args</em> and optional arguments to the left or required arguments in <em>proc</em>
-</p>
-</li>
-<li>
-<p>
-Add <em>file copy</em>
-</p>
-</li>
-<li>
-<p>
-Add <em>try &#8230; finally</em> command
+Command line editing in interactive mode, e.g. <em>jimsh</em>
 </p>
 </li>
 </ol></div>
@@ -4656,10 +4434,11 @@ the list are to be matched against pattern and must have one of the values below
 <div class="paragraph"><p>Sort the elements of <strong>list</strong>, returning a new list in sorted order.
 By default, ASCII sorting is used, with the result in increasing order.</p></div>
 <div class="paragraph"><p>If <strong>-integer</strong> is specified, numeric sorting is used.</p></div>
-<div class="paragraph"><p>If <strong>-command cmdname</strong> is specified, <strong>cmdname</strong> is treated as a
-command name. For each comparison, <strong>cmdname $value1 $value2</strong> is called
-which should return <em>-1</em> if <strong>$value1</strong> is less than <strong>$value2</strong>, <em>0</em> if
-they are equal, or <em>1</em> otherwise.</p></div>
+<div class="paragraph"><p>If <strong>-command cmdname</strong> is specified, <strong>cmdname</strong> is treated as a command
+name. For each comparison, <strong>cmdname $value1 $value2</strong> is called which
+should compare the values and return an integer less than, equal
+to, or greater than zero if the <strong>$value1</strong> is to be considered less
+than, equal to, or greater than <strong>$value2</strong>, respectively.</p></div>
 <div class="paragraph"><p>If <strong>-decreasing</strong> is specified, the resulting list is in the opposite
 order to what it would be otherwise. <strong>-increasing</strong> is the default.</p></div>
 <div class="paragraph"><p>If <strong>-index listindex</strong> is specified, each element of the list is treated as a list and
@@ -6768,6 +6547,226 @@ by the Tcl library.</p></div>
 </div>
 </div>
 <div class="sect1">
+<h2 id="_changes_in_previous_releases">CHANGES IN PREVIOUS RELEASES</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_in_v0_63">In v0.63</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<em>source</em> now checks that a script is complete (.i.e. not missing a brace)
+</p>
+</li>
+<li>
+<p>
+<em>info complete</em> now uses the real parser and so is 100% accurate
+</p>
+</li>
+<li>
+<p>
+Better access to live stack frames with <em>info frame</em>, <em>stacktrace</em> and <em>stackdump</em>
+</p>
+</li>
+<li>
+<p>
+<em>tailcall</em> no longer loses stack trace information
+</p>
+</li>
+<li>
+<p>
+Add <em>alias</em> and <em>curry</em>
+</p>
+</li>
+<li>
+<p>
+<em>lambda</em>, <em>alias</em> and <em>curry</em> are implemented via <em>tailcall</em> for efficiency
+</p>
+</li>
+<li>
+<p>
+<em>local</em> allows procedures to be deleted automatically at the end of the current procedure
+</p>
+</li>
+<li>
+<p>
+udp sockets are now supported for both clients and servers.
+</p>
+</li>
+<li>
+<p>
+vfork-based exec is now working correctly
+</p>
+</li>
+<li>
+<p>
+Add <em>file tempfile</em>
+</p>
+</li>
+<li>
+<p>
+Add <em>socket pipe</em>
+</p>
+</li>
+<li>
+<p>
+Enhance <em>try &#8230; on &#8230; finally</em> to be more Tcl 8.6 compatible
+</p>
+</li>
+<li>
+<p>
+It is now possible to <em>return</em> from within <em>try</em>
+</p>
+</li>
+<li>
+<p>
+IPv6 support is now included
+</p>
+</li>
+<li>
+<p>
+Add <em>string is</em>
+</p>
+</li>
+<li>
+<p>
+Event handlers works better if an error occurs. eof handler has been removed.
+</p>
+</li>
+<li>
+<p>
+<em>exec</em> now sets $::errorCode, and catch sets opts(-errorcode) for exit status
+</p>
+</li>
+<li>
+<p>
+Command pipelines via open "|&#8230;" are now supported
+</p>
+</li>
+<li>
+<p>
+<em>pid</em> can now return pids of a command pipeline
+</p>
+</li>
+<li>
+<p>
+Add <em>info references</em>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>after <strong>ms</strong></em>, <em>after idle</em>, <em>after info</em>, <em>update</em>
+</p>
+</li>
+<li>
+<p>
+<em>exec</em> now sets environment based on $::env
+</p>
+</li>
+<li>
+<p>
+Add <em>dict keys</em>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>lsort -index</em>
+</p>
+</li>
+</ol></div>
+</div>
+<div class="sect2">
+<h3 id="_in_v0_62">In v0.62</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Add support to <em>exec</em> for <em>&gt;&amp;</em>, <em>&gt;&gt;&amp;</em>, <em>|&amp;</em>, <em>2&gt;@1</em>
+</p>
+</li>
+<li>
+<p>
+Fix <em>exec</em> error messages when special token (e.g. <em>&gt;</em>) is the last token
+</p>
+</li>
+<li>
+<p>
+Fix <em>subst</em> handling of backslash escapes.
+</p>
+</li>
+<li>
+<p>
+Allow abbreviated options for <em>subst</em>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>return</em>, <em>break</em>, <em>continue</em> in subst
+</p>
+</li>
+<li>
+<p>
+Many <em>expr</em> bug fixes
+</p>
+</li>
+<li>
+<p>
+Add support for functions in <em>expr</em> (e.g. int(), abs()), and also <em>in</em>, <em>ni</em> list operations
+</p>
+</li>
+<li>
+<p>
+The variable name argument to <em>regsub</em> is now optional
+</p>
+</li>
+<li>
+<p>
+Add support for <em>unset -nocomplain</em>
+</p>
+</li>
+<li>
+<p>
+Add support for list commands: <em>lassign</em>, <em>lrepeat</em>
+</p>
+</li>
+<li>
+<p>
+Fully-functional <em>lsearch</em> is now implemented
+</p>
+</li>
+<li>
+<p>
+Add <em>info nameofexecutable</em> and <em>info returncodes</em>
+</p>
+</li>
+<li>
+<p>
+Allow <em>catch</em> to determine what return codes are caught
+</p>
+</li>
+<li>
+<p>
+Allow <em>incr</em> to increment an unset variable by first setting to 0
+</p>
+</li>
+<li>
+<p>
+Allow <em>args</em> and optional arguments to the left or required arguments in <em>proc</em>
+</p>
+</li>
+<li>
+<p>
+Add <em>file copy</em>
+</p>
+</li>
+<li>
+<p>
+Add <em>try &#8230; finally</em> command
+</p>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_licence">LICENCE</h2>
 <div class="sectionbody">
 <div class="literalblock">
@@ -6820,7 +6819,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-11-22 20:39:26 EST
+Last updated 2010-12-17 13:12:25 EST
 </div>
 </div>
 </body>
