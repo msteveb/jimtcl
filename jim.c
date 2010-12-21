@@ -428,6 +428,7 @@ int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
 int Jim_DoubleToString(char *buf, double doubleValue)
 {
     int len;
+    char *buf0 = buf;
 
     len = sprintf(buf, "%.12g", doubleValue);
 
@@ -438,6 +439,11 @@ int Jim_DoubleToString(char *buf, double doubleValue)
             /* inf -> Inf, nan -> Nan */
             if (*buf == 'i' || *buf == 'n') {
                 *buf = toupper(UCHAR(*buf));
+            }
+            if (*buf == 'I') {
+                /* Infinity -> Inf */
+                buf[3] = '\0';
+                len = buf - buf0 + 3;
             }
             return len;
         }
