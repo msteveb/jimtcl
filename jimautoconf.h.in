@@ -9,6 +9,9 @@
 /* Have the dlopen function */
 #undef HAVE_DLOPEN
 
+/* Define to 1 if you have the `fork' function. */
+#undef HAVE_FORK
+
 /* Define to 1 if you have the `getaddrinfo' function. */
 #undef HAVE_GETADDRINFO
 
