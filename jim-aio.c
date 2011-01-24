@@ -252,7 +252,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
 static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct sockaddr_un *sa)
 {
     sa->sun_family = PF_UNIX;
-    strcpy(sa->sun_path, path);
+    snprintf(sa->sun_path, sizeof(sa->sun_path), "%s", path);
 
     return JIM_OK;
 }
@@ -608,7 +608,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     af->wEvent = NULL;
     af->eEvent = NULL;
     af->addr_family = serv_af->addr_family;
-    sprintf(buf, "aio.sockstream%ld", Jim_GetId(interp));
+    snprintf(buf, sizeof(buf), "aio.sockstream%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
     Jim_SetResultString(interp, buf, -1);
     return JIM_OK;
@@ -949,7 +949,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
             return JIM_ERR;
         }
         /* Get the next file id */
-        sprintf(buf, "aio.handle%ld", Jim_GetId(interp));
+        snprintf(buf, sizeof(buf), "aio.handle%ld", Jim_GetId(interp));
         cmdname = buf;
     }
 
