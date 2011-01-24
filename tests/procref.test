@@ -1,0 +1,56 @@
+# Tests auto-upref with the "&name" syntax
+
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+
+proc a1 {&b c} {
+	append b b
+	append c c
+}
+
+proc a2 {&b {dummy 3} &c} {
+	append b b
+	append c c
+}
+
+proc a3 {&b(c)} {
+	append b(c) b_c
+}
+
+# This is treated as a normal var "&b"
+proc a4 {{&b x}} {
+	append &b B
+}
+
+set B 1
+set C 1
+
+test procref-1.1 {Basic test} {
+	a1 B $C
+	set B
+} {1b}
+
+test procref-1.2 {Basic test} {
+	a1 B $C
+	set B
+} {1bb}
+
+test procref-1.3 {Unset var} {
+	catch {a1 unsetB $C}
+} 1
+
+test procref-1.4 {Left and right args are refs} {
+	a2 B C
+	list $B $C
+} {1bbb 1c}
+
+test procref-1.5 {Invalid arg} {
+	catch {a3 B}
+} 1
+
+test procref-1.6 {Default arg as ref} {
+	a4
+} xB
+
+testreport

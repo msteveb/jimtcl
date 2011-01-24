@@ -9748,6 +9748,35 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     return retcode;
 }
 
+static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argValObj)
+{
+    int retcode;
+    /* If argObjPtr begins with '&', do an automatic upvar */
+    const char *varname = Jim_GetString(argNameObj, NULL);
+    if (*varname == '&') {
+        /* First check that the target variable exists */
+        Jim_Obj *objPtr;
+        Jim_CallFrame *savedCallFrame = interp->framePtr;
+
+        interp->framePtr = interp->framePtr->parentCallFrame;
+        objPtr = Jim_GetVariable(interp, argValObj, JIM_ERRMSG);
+        interp->framePtr = savedCallFrame;
+        if (!objPtr) {
+            return JIM_ERR;
+        }
+
+        /* It exists, so perform the binding. */
+        objPtr = Jim_NewStringObj(interp, varname + 1, -1);
+        Jim_IncrRefCount(objPtr);
+        retcode = Jim_SetVariableLink(interp, objPtr, argValObj, interp->framePtr->parentCallFrame);
+        Jim_DecrRefCount(interp, objPtr);
+    }
+    else {
+        retcode = Jim_SetVariable(interp, argNameObj, argValObj);
+    }
+    return retcode;
+}
+
 /* Call a procedure implemented in Tcl.
  * It's possible to speed-up a lot this function, currently
  * the callframes are not cached, but allocated and
@@ -9842,7 +9871,10 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     /* leftArity required args */
     for (d = 0; d < cmd->leftArity; d++) {
         Jim_ListIndex(interp, cmd->argListObjPtr, d, &argObjPtr, JIM_NONE);
-        Jim_SetVariable(interp, argObjPtr, *argv++);
+        retcode = JimSetProcArg(interp, argObjPtr, *argv++);
+        if (retcode != JIM_OK) {
+            goto badargset;
+        }
         argc--;
     }
 
@@ -9891,7 +9923,10 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     /* rightArity required args */
     for (i = 0; i < cmd->rightArity; i++) {
         Jim_ListIndex(interp, cmd->argListObjPtr, d++, &argObjPtr, JIM_NONE);
-        Jim_SetVariable(interp, argObjPtr, *argv++);
+        retcode = JimSetProcArg(interp, argObjPtr, *argv++);
+        if (retcode != JIM_OK) {
+            goto badargset;
+        }
     }
 
     /* Install a new stack for local procs */
@@ -9905,6 +9940,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     JimDeleteLocalProcs(interp);
     interp->localProcs = prevLocalProcs;
 
+badargset:
     /* Destroy the callframe */
     interp->framePtr = interp->framePtr->parentCallFrame;
     if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
