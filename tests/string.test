@@ -357,7 +357,7 @@ test string-6.84 {string is control} {
     ## 00..1F && 7F..9F
     list [string is control  \x00\x01\x10\x1F\x7F\x80\x9F\x60]
 } 0
-test string-6.85 {string is control} {
+test string-6.85 {string is control} tcl {
     string is control \u0100
 } 0
 test string-6.86 {string is graph} {
