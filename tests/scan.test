@@ -658,4 +658,16 @@ test scan-13.8 {Tcl_ScanObjCmd, inline XPG case lots of arguments} {
     list [llength $msg] [lindex $msg 99] [lindex $msg 4] [lindex $msg 199]
 } {200 10 20 30}
 
+test scan-14.1 {scan with null chars} {
+    scan a\0c %c%c%c
+} {97 0 99}
+
+test scan-14.2 {scan with null chars} {
+    scan \0\0c %c%c%c
+} {0 0 99}
+
+test scan-14.3 {scan with null chars} {
+    scan ab12x\0 %cb%dx%c
+} {97 12 0}
+
 testreport

@@ -8804,12 +8804,12 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
  * returned of -1 in case of no conversion tool place and string was
  * already scanned thru */
 
-static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
+static int ScanOneEntry(Jim_Interp *interp, const char *str, int pos, int strLen,
     ScanFmtStringObj * fmtObj, long idx, Jim_Obj **valObjPtr)
 {
     const char *tok;
     const ScanFmtPartDescr *descr = &fmtObj->descr[idx];
-    size_t sLen = utf8_strlen(&str[pos], -1), scanned = 0;
+    size_t scanned = 0;
     size_t anchor = pos;
     int i;
     Jim_Obj *tmpObj = NULL;
@@ -8819,18 +8819,20 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
     if (descr->prefix) {
         /* There was a prefix given before the conversion, skip it and adjust
          * the string-to-be-parsed accordingly */
-        for (i = 0; str[pos] && descr->prefix[i]; ++i) {
+        /* XXX: Should be checking strLen, not str[pos] */
+        for (i = 0; pos < strLen && descr->prefix[i]; ++i) {
             /* If prefix require, skip WS */
             if (isspace(UCHAR(descr->prefix[i])))
-                while (str[pos] && isspace(UCHAR(str[pos])))
+                while (pos < strLen && isspace(UCHAR(str[pos])))
                     ++pos;
             else if (descr->prefix[i] != str[pos])
                 break;          /* Prefix do not match here, leave the loop */
             else
                 ++pos;          /* Prefix matched so far, next round */
         }
-        if (str[pos] == 0)
+        if (pos >= strLen) {
             return -1;          /* All of str consumed: EOF condition */
+        }
         else if (descr->prefix[i] != 0)
             return 0;           /* Not whole prefix consumed, no conversion possible */
     }
@@ -8840,19 +8842,28 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
             ++pos;
     /* Determine how much skipped/scanned so far */
     scanned = pos - anchor;
+
+    /* %c is a special, simple case. no width */
     if (descr->type == 'n') {
         /* Return pseudo conversion means: how much scanned so far? */
         *valObjPtr = Jim_NewIntObj(interp, anchor + scanned);
     }
-    else if (str[pos] == 0) {
+    else if (pos >= strLen) {
         /* Cannot scan anything, as str is totally consumed */
         return -1;
+    }
+    else if (descr->type == 'c') {
+            int c;
+            scanned += utf8_tounicode(&str[pos], &c);
+            *valObjPtr = Jim_NewIntObj(interp, c);
+            return scanned;
     }
     else {
         /* Processing of conversions follows ... */
         if (descr->width > 0) {
             /* Do not try to scan as fas as possible but only the given width.
              * To ensure this, we copy the part that should be scanned. */
+            size_t sLen = utf8_strlen(&str[pos], strLen - pos);
             size_t tLen = descr->width > sLen ? sLen : descr->width;
 
             tmpObj = Jim_NewStringObjUtf8(interp, str + pos, tLen);
@@ -8863,12 +8874,6 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, long pos,
             tok = &str[pos];
         }
         switch (descr->type) {
-            case 'c': {
-                    int c;
-                    scanned += utf8_tounicode(tok, &c);
-                    *valObjPtr = Jim_NewIntObj(interp, c);
-                }
-                break;
             case 'd':
             case 'o':
             case 'x':
@@ -8950,7 +8955,8 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
 {
     size_t i, pos;
     int scanned = 1;
-    const char *str = Jim_GetString(strObjPtr, 0);
+    const char *str = Jim_GetString(strObjPtr, NULL);
+    int strLen = Jim_Utf8Length(interp, strObjPtr);
     Jim_Obj *resultList = 0;
     Jim_Obj **resultVec = 0;
     int resultc;
@@ -8989,12 +8995,13 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
             continue;
         /* As long as any conversion could be done, we will proceed */
         if (scanned > 0)
-            scanned = ScanOneEntry(interp, str, pos, fmtObj, i, &value);
+            scanned = ScanOneEntry(interp, str, pos, strLen, fmtObj, i, &value);
         /* In case our first try results in EOF, we will leave */
         if (scanned == -1 && i == 0)
             goto eof;
         /* Advance next pos-to-be-scanned for the amount scanned already */
         pos += scanned;
+
         /* value == 0 means no conversion took place so take empty string */
         if (value == 0)
             value = Jim_NewEmptyStringObj(interp);
