@@ -131,7 +131,9 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {jim
     list $x $y $z
 } {3 3 done}
 
-test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
+# Note: This one doesn't really require socket, but mingw32 doesn't have socket and
+#       also doesn't allow file events (select) on non-sockets
+test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {socket} {
     file delete test1 test2
     set f1 [open test1 w]
     set f2 [open test2 w]

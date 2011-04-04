@@ -339,11 +339,12 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed or -1 if
- * there are no matching handlers
+ * there are no matching handlers, or -2 on error.
  */
 int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 {
-    int maxfd = 0, numfd = 0, processed = 0;
+    jim_wide sleep_ms = -1;
+    int maxfd = -1, numfd = 0, processed = 0;
     fd_set rfds, wfds, efds;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
     Jim_FileEvent *fe = eventLoop->fileEventHead;
@@ -358,65 +359,81 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         }
     }
 
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
+    if (flags & JIM_FILE_EVENTS) {
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
 
-    /* Check file events */
-    while (fe != NULL) {
-        int fd = fileno(fe->handle);
+        /* Check file events */
+        while (fe != NULL) {
+            int fd = fileno(fe->handle);
 
-        if (fe->mask & JIM_EVENT_READABLE)
-            FD_SET(fd, &rfds);
-        if (fe->mask & JIM_EVENT_WRITABLE)
-            FD_SET(fd, &wfds);
-        if (fe->mask & JIM_EVENT_EXCEPTION)
-            FD_SET(fd, &efds);
-        if (maxfd < fd)
-            maxfd = fd;
-        numfd++;
-        fe = fe->next;
+            if (fe->mask & JIM_EVENT_READABLE)
+                FD_SET(fd, &rfds);
+            if (fe->mask & JIM_EVENT_WRITABLE)
+                FD_SET(fd, &wfds);
+            if (fe->mask & JIM_EVENT_EXCEPTION)
+                FD_SET(fd, &efds);
+            if (maxfd < fd)
+                maxfd = fd;
+            numfd++;
+            fe = fe->next;
+        }
     }
 
     /* Note that we want call select() even if there are no
      * file events to process as long as we want to process time
      * events, in order to sleep until the next time event is ready
      * to fire. */
-    if (numfd || ((flags & JIM_TIME_EVENTS) && !(flags & JIM_DONT_WAIT))) {
-        int retval;
-        struct timeval tv, *tvp;
-        jim_wide dt;
 
-        if (flags & JIM_DONT_WAIT) {
-            /* Wait no time */
-            tvp = &tv;
-            tvp->tv_sec = 0;
-            tvp->tv_usec = 0;
-        }
+    if (flags & JIM_DONT_WAIT) {
+        /* Wait no time */
+        sleep_ms = 0;
+    }
+    else if (flags & JIM_TIME_EVENTS) {
         /* The nearest timer is always at the head of the list */
-        else if (eventLoop->timeEventHead) {
+        if (eventLoop->timeEventHead) {
             Jim_TimeEvent *shortest = eventLoop->timeEventHead;
             long now_sec, now_ms;
 
             /* Calculate the time missing for the nearest
              * timer to fire. */
             JimGetTime(&now_sec, &now_ms);
-            tvp = &tv;
-            dt = 1000 * (shortest->when_sec - now_sec);
-            dt += (shortest->when_ms - now_ms);
-            if (dt < 0) {
-                dt = 1;
+            sleep_ms = 1000 * (shortest->when_sec - now_sec) + (shortest->when_ms - now_ms);
+            if (sleep_ms < 0) {
+                sleep_ms = 1;
             }
-            tvp->tv_sec = dt / 1000;
-            tvp->tv_usec = 1000 * (dt % 1000);
         }
         else {
-            tvp = NULL;         /* wait forever */
+            /* Wait forever */
+            sleep_ms = -1;
+        }
+    }
+
+    if (numfd == 0) {
+        /* Some systems (mingw) can't select() in this case, so convert to a simple sleep */
+        if (sleep_ms > 0) {
+            msleep(sleep_ms);
+        }
+    }
+    else {
+        int retval;
+        struct timeval tv, *tvp = NULL;
+        if (sleep_ms >= 0) {
+            tvp = &tv;
+            tvp->tv_sec = sleep_ms / 1000;
+            tvp->tv_usec = 1000 * (sleep_ms % 1000);
         }
 
         retval = select(maxfd + 1, &rfds, &wfds, &efds, tvp);
+
         if (retval < 0) {
-            /* XXX: Consider errno? EINTR? */
+            if (errno == EINVAL) {
+                /* This can happen on mingw32 if a non-socket filehandle is passed */
+                Jim_SetResultString(interp, "non-waitable filehandle", -1);
+                return -2;
+            }
+            /* XXX: What about EINTR? */
         }
         else if (retval > 0) {
             fe = eventLoop->fileEventHead;
@@ -527,6 +544,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
     Jim_Obj *oldValue;
+    int rc;
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "name");
@@ -548,13 +566,8 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     eventLoop->suppress_bgerror = 0;
 
-    while (1) {
+    while ((rc = Jim_ProcessEvents(interp, JIM_ALL_EVENTS)) >= 0) {
         Jim_Obj *currValue;
-
-        if (Jim_ProcessEvents(interp, JIM_ALL_EVENTS) < 0) {
-            /* Nothing level to process */
-            break;
-        }
         currValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,
          * or if was unset and now is set (or the contrary). */
@@ -565,6 +578,11 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     if (oldValue)
         Jim_DecrRefCount(interp, oldValue);
+
+
+    if (rc == -2) {
+        return JIM_ERR;
+    }
 
     Jim_SetEmptyResult(interp);
     return JIM_OK;
@@ -579,6 +597,7 @@ static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     enum { UPDATE_IDLE, UPDATE_NONE };
     int option = UPDATE_NONE;
     int flags = JIM_TIME_EVENTS;
+    int rc;
 
     if (argc == 1) {
         flags = JIM_ALL_EVENTS;
@@ -590,7 +609,7 @@ static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
     eventLoop->suppress_bgerror = 0;
 
-    while (Jim_ProcessEvents(interp, flags | JIM_DONT_WAIT) > 0) {
+    while ((rc = Jim_ProcessEvents(interp, flags | JIM_DONT_WAIT)) > 0) {
     }
 
     return JIM_OK;
