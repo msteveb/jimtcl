@@ -620,6 +620,10 @@ JIM_EXPORT void Jim_Free (void *ptr);
 JIM_EXPORT char * Jim_StrDup (const char *s);
 JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 
+/* environment */
+JIM_EXPORT char **Jim_GetEnviron(void);
+JIM_EXPORT void Jim_SetEnviron(char **env);
+
 /* evaluation */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);
 /* in C code, you can do this and get better error messages */

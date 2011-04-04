@@ -15,7 +15,6 @@
 #define JIM_ANSIC
 #define MKDIR_ONE_ARG
 
-#define RTLD_LAZY 0
 void *dlopen(const char *path, int mode);
 int dlclose(void *handle);
 void *dlsym(void *handle, const char *symbol);

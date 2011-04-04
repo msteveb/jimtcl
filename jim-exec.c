@@ -36,8 +36,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-extern char **environ;
-
 #if defined(__GNUC__) && !defined(__clang__)
 #define IGNORE_RC(EXPR) ((EXPR) < 0 ? -1 : 0)
 #else
@@ -121,7 +119,7 @@ static char **JimBuildEnv(Jim_Interp *interp)
     Jim_Obj *objPtr = Jim_GetGlobalVariableStr(interp, "env", JIM_NONE);
 
     if (!objPtr) {
-        return environ;
+        return Jim_GetEnviron();
     }
 
     /* Calculate the required size */
@@ -151,7 +149,7 @@ static char **JimBuildEnv(Jim_Interp *interp)
 
     return env;
 #else
-    return environ;
+    return Jim_GetEnviron();
 #endif
 }
 
@@ -631,8 +629,8 @@ badargs:
     }
 
     /* Must do this before vfork(), so do it now */
-    orig_environ = environ;
-    environ = JimBuildEnv(interp);
+    orig_environ = Jim_GetEnviron();
+    Jim_SetEnviron(JimBuildEnv(interp));
 
     /*
      * Set up the redirected input source for the pipeline, if
@@ -954,8 +952,8 @@ badargs:
     }
     Jim_Free(arg_array);
 
-    JimFreeEnv(interp, environ, orig_environ);
-    environ = orig_environ;
+    JimFreeEnv(interp, Jim_GetEnviron(), orig_environ);
+    Jim_SetEnviron(orig_environ);
 
     return numPids;
 

@@ -65,6 +65,9 @@
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #endif
+#ifdef HAVE_CRT_EXTERNS_H
+#include <crt_externs.h>
+#endif
 
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
@@ -13869,6 +13872,32 @@ static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     return JIM_OK;
 }
 
+char **Jim_GetEnviron(void)
+{
+#if defined(HAVE__NSGETENVIRON)
+    return *_NSGetEnviron();
+#else
+    #if !defined(NO_ENVIRON_EXTERN)
+    extern char **environ;
+    #endif
+
+    return environ;
+#endif
+}
+
+void Jim_SetEnviron(char **env)
+{
+#if defined(HAVE__NSGETENVIRON)
+    *_NSGetEnviron() = env;
+#else
+    #if !defined(NO_ENVIRON_EXTERN)
+    extern char **environ;
+    #endif
+
+    environ = env;
+#endif
+}
+
 /* [env] */
 static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -13876,19 +13905,17 @@ static int Jim_EnvCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     const char *val;
 
     if (argc == 1) {
-#ifndef NO_ENVIRON_EXTERN
-        extern char **environ;
-#endif
+        char **e = Jim_GetEnviron();
 
         int i;
         Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
-        for (i = 0; environ[i]; i++) {
-            const char *equals = strchr(environ[i], '=');
+        for (i = 0; e[i]; i++) {
+            const char *equals = strchr(e[i], '=');
 
             if (equals) {
-                Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, environ[i],
-                        equals - environ[i]));
+                Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, e[i],
+                        equals - e[i]));
                 Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, equals + 1, -1));
             }
         }

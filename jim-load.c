@@ -12,6 +12,13 @@
 #include <dlfcn.h>
 #endif
 
+#ifndef RTLD_NOW
+    #define RTLD_NOW 0
+#endif
+#ifndef RTLD_LOCAL
+    #define RTLD_LOCAL 0
+#endif
+
 /**
  * Note that Jim_LoadLibrary() requires a path to an existing file.
  * 
@@ -19,7 +26,7 @@
  */
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {
-    void *handle = dlopen(pathName, RTLD_LAZY);
+    void *handle = dlopen(pathName, RTLD_NOW | RTLD_LOCAL);
     if (handle == NULL) {
         Jim_SetResultFormatted(interp, "error loading extension \"%s\": %s", pathName,
             dlerror());

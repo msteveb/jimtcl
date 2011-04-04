@@ -56,7 +56,7 @@ options {
 
 cc-check-types "long long"
 
-cc-check-includes sys/un.h dlfcn.h unistd.h
+cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
 
 cc-check-functions ualarm sysinfo lstat fork vfork system
 cc-check-functions backtrace geteuid mkstemp realpath strptime
@@ -74,12 +74,14 @@ switch -glob -- [get-define host] {
 cc-check-tools ar ranlib strip
 define tclsh [info nameofexecutable]
 
-msg-checking "Checking environ declared in unistd.h..."
-if {[cctest -cflags -D_GNU_SOURCE -includes unistd.h -code {char **ep = environ;}]} {
-    define NO_ENVIRON_EXTERN
-    msg-result "yes"
-} else {
-    msg-result "no"
+if {![cc-check-functions _NSGetEnviron]} {
+    msg-checking "Checking environ declared in unistd.h..."
+    if {[cctest -cflags -D_GNU_SOURCE -includes unistd.h -code {char **ep = environ;}]} {
+        define NO_ENVIRON_EXTERN
+        msg-result "yes"
+    } else {
+        msg-result "no"
+    }
 }
 
 set extra_objs {}
