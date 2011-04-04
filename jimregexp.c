@@ -1339,16 +1339,16 @@ static int regmatch(regex_t *preg, const int *prog)
 			break;
 		case WORDA:
 			/* Must be looking at a letter, digit, or _ */
-			if ((!isalnum(*preg->reginput)) && *preg->reginput != '_')
+			if ((!isalnum(UCHAR(*preg->reginput))) && *preg->reginput != '_')
 				return(0);
 			/* Prev must be BOL or nonword */
 			if (preg->reginput > preg->regbol &&
-			    (isalnum(preg->reginput[-1]) || preg->reginput[-1] == '_'))
+			    (isalnum(UCHAR(preg->reginput[-1])) || preg->reginput[-1] == '_'))
 				return(0);
 			break;
 		case WORDZ:
 			/* Must be looking at non letter, digit, or _ */
-			if (isalnum(*preg->reginput) || *preg->reginput == '_')
+			if (isalnum(UCHAR(*preg->reginput)) || *preg->reginput == '_')
 				return(0);
 			/* We don't care what the previous char was */
 			break;
