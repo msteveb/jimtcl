@@ -47,7 +47,7 @@
  * - Completion?
  *
  * List of escape sequences used by this program, we do everything just
- * with three sequences. In order to be so cheap we may have some
+ * a few sequences. In order to be so cheap we may have some
  * flickering effect with some slow terminal, but the lesser sequences
  * the more compatible.
  *
@@ -64,6 +64,11 @@
  * CUF (CUrsor Forward)
  *    Sequence: ESC [ n C
  *    Effect: moves cursor forward of n chars
+ *
+ * DSR/CPR (Report cursor position)
+ *    Sequence: ESC [ 6 n
+ *    Effect: reports current cursor position as ESC [ NNN ; MMM R
+ *
  * 
  * For highlighting control characters, we also use:
  * SO (enter StandOut)
@@ -103,6 +108,7 @@ static int history_len = 0;
 static char **history = NULL;
 
 static void linenoiseAtExit(void);
+static int getColumns(int fd);
 
 static int isUnsupportedTerm(void) {
     char *term = getenv("TERM");
@@ -171,13 +177,6 @@ static void linenoiseAtExit(void) {
     freeHistory();
 }
 
-static int getColumns(void) {
-    struct winsize ws;
-
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) return 80;
-    return ws.ws_col;
-}
-
 /* Structure to contain the status of the current (being edited) line */
 struct current {
     int fd;     /* Terminal fd */
@@ -232,7 +231,7 @@ static int get_char(struct current *current, int pos)
     }
     return -1;
 }
-                
+
 static void refreshLine(const char *prompt, struct current *current) {
     size_t plen;
     int pchars;
@@ -246,7 +245,7 @@ static void refreshLine(const char *prompt, struct current *current) {
     int n;
 
     /* Should intercept SIGWINCH. For now, just get the size every time */
-    current->cols = getColumns();
+    current->cols = getColumns(current->fd);
 
     plen = strlen(prompt);
     pchars = utf8_strlen(prompt, plen);
@@ -444,6 +443,53 @@ static int fd_read(int fd)
 #else
     return fd_read_char(fd, -1);
 #endif
+}
+
+static int getColumns(int fd) {
+    struct winsize ws;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+        static int queried_cols = 0;
+
+        if (queried_cols == 0) {
+            queried_cols = 80;
+
+            /* Failed to query the window size. Perhaps we are on a serial terminal.
+             * Try to query the width by sending the cursor as far to the right
+             * and reading back the cursor position.
+             * Note that this is only done once.
+             */
+            /* Move cursor far right and report cursor position */
+            fd_printf(fd, "\x1b[999G" "\x1b[6n");
+
+            /* Parse the response: ESC [ rows ; cols R */
+            if (fd_read_char(fd, 100) == 0x1b && fd_read_char(fd, 100) == '[') {
+                int n = 0;
+                while (1) {
+                    int ch = fd_read_char(fd, 100);
+                    if (ch == ';') {
+                        /* Ignore rows */
+                        n = 0;
+                    }
+                    else if (ch == 'R') {
+                        /* Got cols */
+                        if (n != 0 && n < 1000) {
+                            queried_cols = n;
+                        }
+                        break;
+                    }
+                    else if (ch >= 0 && ch <= '9') {
+                        n = n * 10 + ch - '0';
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+        }
+        return queried_cols;
+    }
+    return ws.ws_col;
 }
 
 /* Use -ve numbers here to co-exist with normal unicode chars */
