@@ -11683,7 +11683,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             return JIM_ERR;
         }
         s = Jim_GetString(argv[2], &len);
-        Jim_GetStringUtf8(interp, argv[2], &charlen);
+        charlen = Jim_Utf8Length(interp, argv[2]);
         printf("chars (%d): <<%s>>\n", charlen, s);
         printf("bytes (%d):", len);
         while (len--) {
