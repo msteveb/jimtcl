@@ -57,10 +57,7 @@ docs: Tcl.html
 $(JIMSH): $(LIBJIM) jimsh.o
 	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS)
 
-install: all docs $(EXTENSION_TCL)
-
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
+install: all docs $(EXTENSION_TCL) install-exec
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
 	cp @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
@@ -70,6 +67,10 @@ install: all docs $(EXTENSION_TCL)
 	cp jim-config.h $(DESTDIR)$(prefix)/include
 	mkdir -p $(DESTDIR)$(prefix)/doc/jim
 	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
+
+install-exec: all
+	mkdir -p $(DESTDIR)$(prefix)/bin
+	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
 
 test: $(JIMSH)
 	$(DEF_LD_PATH) $(MAKE) jimsh=`pwd`/jimsh -C @srcdir@/tests
@@ -111,7 +112,7 @@ ship: Tcl.html
 
 # automake compatibility. do nothing for all these targets
 EMPTY_AUTOMAKE_TARGETS := dvi pdf ps info html tags ctags mostlyclean maintainer-clean check installcheck installdirs \
- install-pdf install-ps install-info install-html -install-dvi uninstall install-exec install-data
+ install-pdf install-ps install-info install-html -install-dvi uninstall install-data
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 $(EMPTY_AUTOMAKE_TARGETS):
 
