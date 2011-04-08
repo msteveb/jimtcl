@@ -2,38 +2,43 @@
  * line editing lib needs to be 20,000 lines of C code.
  *
  * You can find the latest source code at:
- * 
+ *
  *   http://github.com/antirez/linenoise
  *
  * Does a number of crazy assumptions that happen to be true in 99.9999% of
  * the 2010 UNIX computers around.
  *
+ * ------------------------------------------------------------------------
+ *
  * Copyright (c) 2010, Salvatore Sanfilippo <antirez at gmail dot com>
+ * Copyright (c) 2010, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
- *     to endorse or promote products derived from this software without
- *     specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * ------------------------------------------------------------------------
  *
  * References:
  * - http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -76,12 +81,7 @@
  *    Sequence: ESC [ 2 J
  *    Effect: clear the whole screen
  *
- * DSR/CPR (Report cursor position)
- *    Sequence: ESC [ 6 n
- *    Effect: reports current cursor position as ESC [ NNN ; MMM R
- *
- * 
- * For highlighting control characters, we also use:
+ * == For highlighting control characters, we also use the following two ==
  * SO (enter StandOut)
  *    Sequence: ESC [ 7 m
  *    Effect: Uses some standout mode such as reverse video
@@ -89,6 +89,11 @@
  * SE (Standout End)
  *    Sequence: ESC [ 0 m
  *    Effect: Exit standout mode
+ *
+ * == Only used if TIOCGWINSZ fails ==
+ * DSR/CPR (Report cursor position)
+ *    Sequence: ESC [ 6 n
+ *    Effect: reports current cursor position as ESC [ NNN ; MMM R
  */
 
 #include <termios.h>
@@ -103,8 +108,12 @@
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <unistd.h>
+#include "linenoise.h"
 
 #include "linenoise.h"
+#ifdef JIM_UTF8
+#define USE_UTF8
+#endif
 #include "utf8.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -119,7 +128,8 @@ static int history_len = 0;
 static char **history = NULL;
 
 static void linenoiseAtExit(void);
-static int getColumns(int fd);
+static int fd_read(int fd);
+static void getColumns(int fd, int *cols);
 
 static int isUnsupportedTerm(void) {
     char *term = getenv("TERM");
@@ -197,6 +207,7 @@ struct current {
     int chars;  /* Number of chars in 'buf' (utf-8 chars) */
     int pos;    /* Cursor position, measured in chars */
     int cols;   /* Size of the window, in chars */
+    const char *prompt;
 };
 
 /* gcc/glibc insists that we care about the return code of write! */
@@ -217,10 +228,9 @@ static void fd_printf(int fd, const char *format, ...)
     IGNORE_RC(write(fd, buf, n));
 }
 
-
 static int utf8_getchars(char *buf, int c)
 {
-#ifdef JIM_UTF8
+#ifdef USE_UTF8
     return utf8_fromunicode(buf, c);
 #else
     *buf = c;
@@ -244,7 +254,7 @@ static int get_char(struct current *current, int pos)
 }
 
 static void refreshLine(const char *prompt, struct current *current) {
-    size_t plen;
+    int plen;
     int pchars;
     int backup = 0;
     int i;
@@ -256,7 +266,7 @@ static void refreshLine(const char *prompt, struct current *current) {
     int n;
 
     /* Should intercept SIGWINCH. For now, just get the size every time */
-    current->cols = getColumns(current->fd);
+    getColumns(current->fd, &current->cols);
 
     plen = strlen(prompt);
     pchars = utf8_strlen(prompt, plen);
@@ -348,25 +358,48 @@ static int has_room(struct current *current, int bytes)
 {
     return current->len + bytes < current->bufmax - 1;
 }
-                
+
+/**
+ * Removes the char at 'pos'.
+ * 
+ * Returns 1 if the line needs to be refreshed, 2 if not
+ * and 0 if nothing was removed
+ */
 static int remove_char(struct current *current, int pos)
 {
     if (pos >= 0 && pos < current->chars) {
         int p1, p2;
+        int ret = 1;
         p1 = utf8_index(current->buf, pos);
         p2 = p1 + utf8_index(current->buf + p1, 1);
+
+        /* optimise remove char in the case of removing the last char */
+        if (current->pos == pos + 1 && current->pos == current->chars) {
+            if (current->buf[pos] >= ' ' && utf8_strlen(current->prompt, -1) + utf8_strlen(current->buf, current->len) < current->cols - 1) {
+                ret = 2;
+                fd_printf(current->fd, "\b \b");
+            }
+        }
+
         /* Move the null char too */
         memmove(current->buf + p1, current->buf + p2, current->len - p2 + 1);
         current->len -= (p2 - p1);
         current->chars--;
+
         if (current->pos > pos) {
             current->pos--;
         }
-        return 1;
+        return ret;
     }
     return 0;
 }
 
+/**
+ * Insert 'ch' at position 'pos'
+ * 
+ * Returns 1 if the line needs to be refreshed, 2 if not
+ * and 0 if nothing was inserted (no room)
+ */
 static int insert_char(struct current *current, int pos, int ch)
 {
     char buf[3];
@@ -374,21 +407,115 @@ static int insert_char(struct current *current, int pos, int ch)
 
     if (has_room(current, n) && pos >= 0 && pos <= current->chars) {
         int p1, p2;
+        int ret = 1;
         p1 = utf8_index(current->buf, pos);
         p2 = p1 + n;
+
+        /* optimise the case where adding a single char to the end and no scrolling is needed */
+        if (current->pos == pos && current->chars == pos) {
+            if (ch >= ' ' && utf8_strlen(current->prompt, -1) + utf8_strlen(current->buf, current->len) < current->cols - 1) {
+                IGNORE_RC(write(current->fd, buf, n));
+                ret = 2;
+            }
+        }
+
         memmove(current->buf + p2, current->buf + p1, current->len - p1);
         memcpy(current->buf + p1, buf, n);
         current->len += n;
+
         current->chars++;
         if (current->pos >= pos) {
             current->pos++;
         }
-        return 1;
+        return ret;
     }
     return 0;
 }
 
-/* XXX: Optimise this later */
+#ifndef NO_COMPLETION
+static linenoiseCompletionCallback *completionCallback = NULL;
+
+static void beep() {
+    fprintf(stderr, "\x7");
+    fflush(stderr);
+}
+
+static void freeCompletions(linenoiseCompletions *lc) {
+    size_t i;
+    for (i = 0; i < lc->len; i++)
+        free(lc->cvec[i]);
+    free(lc->cvec);
+}
+
+static int completeLine(struct current *current) {
+    linenoiseCompletions lc = { 0, NULL };
+    int c = 0;
+
+    completionCallback(current->buf,&lc);
+    if (lc.len == 0) {
+        beep();
+    } else {
+        size_t stop = 0, i = 0;
+
+        while(!stop) {
+            /* Show completion or original buffer */
+            if (i < lc.len) {
+                struct current tmp = *current;
+                tmp.buf = lc.cvec[i];
+                tmp.pos = tmp.len = strlen(tmp.buf);
+                tmp.chars = utf8_strlen(tmp.buf, tmp.len);
+                refreshLine(current->prompt, &tmp);
+            } else {
+                refreshLine(current->prompt, current);
+            }
+
+            c = fd_read(current->fd);
+            if (c < 0) {
+                break;
+            }
+
+            switch(c) {
+                case '\t': /* tab */
+                    i = (i+1) % (lc.len+1);
+                    if (i == lc.len) beep();
+                    break;
+                case 27: /* escape */
+                    /* Re-show original buffer */
+                    if (i < lc.len) {
+                        refreshLine(current->prompt, current);
+                    }
+                    stop = 1;
+                    break;
+                default:
+                    /* Update buffer and return */
+                    if (i < lc.len) {
+                        set_current(current,lc.cvec[i]);
+                    }
+                    stop = 1;
+                    break;
+            }
+        }
+    }
+
+    freeCompletions(&lc);
+    return c; /* Return last read character */
+}
+
+/* Register a callback function to be called for tab-completion. */
+void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn) {
+    completionCallback = fn;
+}
+
+void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
+    lc->cvec = realloc(lc->cvec,sizeof(char*)*(lc->len+1));
+    lc->cvec[lc->len++] = strdup(str);
+}
+
+#endif
+
+/**
+ * Returns 0 if no chars were removed or non-zero otherwise.
+ */
 static int remove_chars(struct current *current, int pos, int n)
 {
     int removed = 0;
@@ -400,7 +527,7 @@ static int remove_chars(struct current *current, int pos, int n)
 
 /**
  * Reads a char from 'fd', waiting at most 'timeout' milliseconds.
- * 
+ *
  * A timeout of -1 means to wait forever.
  *
  * Returns -1 if no char is received within the time or an error occurs.
@@ -429,7 +556,7 @@ static int fd_read_char(int fd, int timeout)
  */
 static int fd_read(int fd)
 {
-#ifdef JIM_UTF8
+#ifdef USE_UTF8
     char buf[4];
     int n;
     int i;
@@ -456,51 +583,50 @@ static int fd_read(int fd)
 #endif
 }
 
-static int getColumns(int fd) {
+static void getColumns(int fd, int *cols) {
     struct winsize ws;
 
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
-        static int queried_cols = 0;
+    if (ioctl(1, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0) {
+        *cols = ws.ws_col;
+        return;
+    }
+    /* Failed to query the window size. Perhaps we are on a serial terminal.
+     * Try to query the width by sending the cursor as far to the right
+     * and reading back the cursor position.
+     * Note that this is only done once per call to linenoise rather than
+     * every time the line is refreshed for efficiency reasons.
+     */
+    if (*cols == 0) {
+        *cols = 80;
 
-        if (queried_cols == 0) {
-            queried_cols = 80;
+        /* Move cursor far right and report cursor position */
+        fd_printf(fd, "\x1b[999G" "\x1b[6n");
 
-            /* Failed to query the window size. Perhaps we are on a serial terminal.
-             * Try to query the width by sending the cursor as far to the right
-             * and reading back the cursor position.
-             * Note that this is only done once.
-             */
-            /* Move cursor far right and report cursor position */
-            fd_printf(fd, "\x1b[999G" "\x1b[6n");
-
-            /* Parse the response: ESC [ rows ; cols R */
-            if (fd_read_char(fd, 100) == 0x1b && fd_read_char(fd, 100) == '[') {
-                int n = 0;
-                while (1) {
-                    int ch = fd_read_char(fd, 100);
-                    if (ch == ';') {
-                        /* Ignore rows */
-                        n = 0;
+        /* Parse the response: ESC [ rows ; cols R */
+        if (fd_read_char(fd, 100) == 0x1b && fd_read_char(fd, 100) == '[') {
+            int n = 0;
+            while (1) {
+                int ch = fd_read_char(fd, 100);
+                if (ch == ';') {
+                    /* Ignore rows */
+                    n = 0;
+                }
+                else if (ch == 'R') {
+                    /* Got cols */
+                    if (n != 0 && n < 1000) {
+                        *cols = n;
                     }
-                    else if (ch == 'R') {
-                        /* Got cols */
-                        if (n != 0 && n < 1000) {
-                            queried_cols = n;
-                        }
-                        break;
-                    }
-                    else if (ch >= 0 && ch <= '9') {
-                        n = n * 10 + ch - '0';
-                    }
-                    else {
-                        break;
-                    }
+                    break;
+                }
+                else if (ch >= 0 && ch <= '9') {
+                    n = n * 10 + ch - '0';
+                }
+                else {
+                    break;
                 }
             }
         }
-        return queried_cols;
     }
-    return ws.ws_col;
 }
 
 /* Use -ve numbers here to co-exist with normal unicode chars */
@@ -511,12 +637,14 @@ enum {
     SPECIAL_LEFT = -22,
     SPECIAL_RIGHT = -23,
     SPECIAL_DELETE = -24,
+    SPECIAL_HOME = -25,
+    SPECIAL_END = -26,
 };
 
 /**
  * If escape (27) was received, reads subsequent
  * chars to determine if this is a known special key.
- * 
+ *
  * Returns SPECIAL_NONE if unrecognised, or -1 if EOF.
  *
  * If no additional char is received within a short time,
@@ -546,6 +674,10 @@ static int check_special(int fd)
                 return SPECIAL_RIGHT;
             case 'D':
                 return SPECIAL_LEFT;
+            case 'F':
+                return SPECIAL_END;
+            case 'H':
+                return SPECIAL_HOME;
         }
     }
     if (c == '[' && c2 >= '1' && c2 <= '6') {
@@ -566,7 +698,7 @@ static int check_special(int fd)
 
 #define ctrl(C) ((C) - '@')
 
-static int linenoisePrompt(const char *prompt, struct current *current) {
+static int linenoisePrompt(struct current *current) {
     int history_index = 0;
 
     /* The latest history entry is always our current buffer, that
@@ -574,10 +706,24 @@ static int linenoisePrompt(const char *prompt, struct current *current) {
     linenoiseHistoryAdd("");
 
     set_current(current, "");
-    refreshLine(prompt, current);
-    
+    refreshLine(current->prompt, current);
+
     while(1) {
         int c = fd_read(current->fd);
+
+#ifndef NO_COMPLETION
+        /* Only autocomplete when the callback is set. It returns < 0 when
+         * there was an error reading from fd. Otherwise it will return the
+         * character that should be handled next. */
+        if (c == 9 && completionCallback != NULL) {
+            c = completeLine(current);
+            /* Return on errors */
+            if (c < 0) return current->len;
+            /* Read next character when 0 */
+            if (c == 0) continue;
+        }
+#endif
+
 process_char:
         if (c == -1) return current->len;
         switch(c) {
@@ -585,7 +731,15 @@ process_char:
             history_len--;
             free(history[history_len]);
             return current->len;
-
+        case ctrl('C'):     /* ctrl-c */
+            errno = EAGAIN;
+            return -1;
+        case 127:   /* backspace */
+        case ctrl('H'):
+            if (remove_char(current, current->pos - 1) == 1) {
+                refreshLine(current->prompt, current);
+            }
+            break;
         case ctrl('D'):     /* ctrl-d */
             if (current->len == 0) {
                 /* Empty line, so EOF */
@@ -595,17 +749,7 @@ process_char:
             }
             /* Otherwise delete char to right of cursor */
             if (remove_char(current, current->pos)) {
-                refreshLine(prompt, current);
-            }
-            break;
-
-        case ctrl('C'):     /* ctrl-c */
-            errno = EAGAIN;
-            return -1;
-        case 127:   /* backspace */
-        case ctrl('H'):
-            if (remove_char(current, current->pos - 1)) {
-                refreshLine(prompt, current);
+                refreshLine(current->prompt, current);
             }
             break;
         case ctrl('W'):    /* ctrl-w */
@@ -622,7 +766,7 @@ process_char:
                 }
 
                 if (remove_chars(current, pos, current->pos - pos)) {
-                    refreshLine(prompt, current);
+                    refreshLine(current->prompt, current);
                 }
             }
             break;
@@ -672,7 +816,7 @@ process_char:
                         skipsame = 1;
                     }
                     else if (c >= ' ') {
-                        if (rlen >= sizeof(rbuf) + 3) {
+                        if (rlen >= (int)sizeof(rbuf) + 3) {
                             continue;
                         }
 
@@ -721,7 +865,7 @@ process_char:
                     c = 0;
                 }
                 /* Go process the char normally */
-                refreshLine(prompt, current);
+                refreshLine(current->prompt, current);
                 goto process_char;
             }
             break;
@@ -730,14 +874,14 @@ process_char:
                 c = get_char(current, current->pos);
                 remove_char(current, current->pos);
                 insert_char(current, current->pos - 1, c);
-                refreshLine(prompt, current);
+                refreshLine(current->prompt, current);
             }
             break;
         case ctrl('V'):    /* ctrl-v */
             if (has_room(current, 3)) {
                 /* Insert the ^V first */
                 if (insert_char(current, current->pos, c)) {
-                    refreshLine(prompt, current);
+                    refreshLine(current->prompt, current);
                     /* Now wait for the next char. Can insert anything except \0 */
                     c = fd_read(current->fd);
 
@@ -747,7 +891,7 @@ process_char:
                         /* Insert the actual char */
                         insert_char(current, current->pos, c);
                     }
-                    refreshLine(prompt, current);
+                    refreshLine(current->prompt, current);
                 }
             }
             break;
@@ -765,14 +909,14 @@ process_char:
                 case SPECIAL_LEFT:
                     if (current->pos > 0) {
                         current->pos--;
-                        refreshLine(prompt, current);
+                        refreshLine(current->prompt, current);
                     }
                     break;
                 case ctrl('F'):
                 case SPECIAL_RIGHT:
                     if (current->pos < current->chars) {
                         current->pos++;
-                        refreshLine(prompt, current);
+                        refreshLine(current->prompt, current);
                     }
                     break;
                 case ctrl('P'):
@@ -795,14 +939,22 @@ process_char:
                             break;
                         }
                         set_current(current, history[history_len-1-history_index]);
-                        refreshLine(prompt, current);
+                        refreshLine(current->prompt, current);
                     }
                     break;
 
                 case SPECIAL_DELETE:
-                    if (remove_char(current, current->pos)) {
-                        refreshLine(prompt, current);
+                    if (remove_char(current, current->pos) == 1) {
+                        refreshLine(current->prompt, current);
                     }
+                    break;
+                case SPECIAL_HOME:
+                    current->pos = 0;
+                    refreshLine(current->prompt, current);
+                    break;
+                case SPECIAL_END:
+                    current->pos = current->chars;
+                    refreshLine(current->prompt, current);
                     break;
             }
             }
@@ -810,35 +962,35 @@ process_char:
         default:
             /* Only tab is allowed without ^V */
             if (c == '\t' || c >= ' ') {
-                if (insert_char(current, current->pos, c)) {
-                    refreshLine(prompt, current);
+                if (insert_char(current, current->pos, c) == 1) {
+                    refreshLine(current->prompt, current);
                 }
             }
             break;
         case ctrl('U'): /* Ctrl+u, delete to beginning of line. */
             if (remove_chars(current, 0, current->pos)) {
-                refreshLine(prompt, current);
+                refreshLine(current->prompt, current);
             }
             break;
         case ctrl('K'): /* Ctrl+k, delete from current to end of line. */
             if (remove_chars(current, current->pos, current->chars - current->pos)) {
-                refreshLine(prompt, current);
+                refreshLine(current->prompt, current);
             }
             break;
         case ctrl('A'): /* Ctrl+a, go to the start of the line */
             current->pos = 0;
-            refreshLine(prompt, current);
+            refreshLine(current->prompt, current);
             break;
         case ctrl('E'): /* ctrl+e, go to the end of the line */
             current->pos = current->chars;
-            refreshLine(prompt, current);
+            refreshLine(current->prompt, current);
             break;
         case ctrl('L'): /* Ctrl+L, clear screen */
             /* clear screen */
             fd_printf(current->fd, "\x1b[H\x1b[2J");
             /* Force recalc of window size for serial terminals */
             current->cols = 0;
-            refreshLine(prompt, current);
+            refreshLine(current->prompt, current);
             break;
         }
     }
@@ -872,8 +1024,9 @@ static int linenoiseRaw(char *buf, size_t buflen, const char *prompt) {
         current.chars = 0;
         current.pos = 0;
         current.cols = 0;
+        current.prompt = prompt;
 
-        count = linenoisePrompt(prompt, &current);
+        count = linenoisePrompt(&current);
         disableRawMode(fd);
 
         printf("\n");
@@ -951,7 +1104,7 @@ int linenoiseHistorySetMaxLen(int len) {
 int linenoiseHistorySave(char *filename) {
     FILE *fp = fopen(filename,"w");
     int j;
-    
+
     if (fp == NULL) return -1;
     for (j = 0; j < history_len; j++) {
         const char *str = history[j];
@@ -986,7 +1139,7 @@ int linenoiseHistorySave(char *filename) {
 int linenoiseHistoryLoad(char *filename) {
     FILE *fp = fopen(filename,"r");
     char buf[LINENOISE_MAX_LINE];
-    
+
     if (fp == NULL) return -1;
 
     while (fgets(buf,LINENOISE_MAX_LINE,fp) != NULL) {
@@ -1014,7 +1167,7 @@ int linenoiseHistoryLoad(char *filename) {
             dest--;
         }
         *dest = 0;
-        
+
         linenoiseHistoryAdd(buf);
     }
     fclose(fp);
@@ -1022,7 +1175,7 @@ int linenoiseHistoryLoad(char *filename) {
 }
 
 /* Provide access to the history buffer.
- * 
+ *
  * If 'len' is not NULL, the length is stored in *len.
  */
 char **linenoiseHistory(int *len) {
