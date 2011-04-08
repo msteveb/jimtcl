@@ -67,6 +67,11 @@ int main(int argc, char *const argv[])
     int retcode;
     Jim_Interp *interp;
 
+    if (argc > 1 && strcmp(argv[1], "--version") == 0) {
+        printf("%d.%d\n", JIM_VERSION / 100, JIM_VERSION % 100);
+        return 0;
+    }
+
     /* Create and initialize the interpreter */
     interp = Jim_CreateInterp();
     Jim_RegisterCoreCommands(interp);
