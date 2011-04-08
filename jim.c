@@ -13059,6 +13059,14 @@ static int Jim_CollectCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         return JIM_ERR;
     }
     Jim_SetResultInt(interp, Jim_Collect(interp));
+
+    /* Free all the freed objects. */
+    while (interp->freeList) {
+        Jim_Obj *nextObjPtr = interp->freeList->nextObjPtr;
+        Jim_Free(interp->freeList);
+        interp->freeList = nextObjPtr;
+    }
+
     return JIM_OK;
 }
 
