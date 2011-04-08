@@ -65,6 +65,17 @@
  *    Sequence: ESC [ n C
  *    Effect: moves cursor forward of n chars
  *
+ * The following are used to clear the screen: ESC [ H ESC [ 2 J
+ * This is actually composed of two sequences:
+ *
+ * cursorhome
+ *    Sequence: ESC [ H
+ *    Effect: moves the cursor to upper left corner
+ *
+ * ED2 (Clear entire screen)
+ *    Sequence: ESC [ 2 J
+ *    Effect: clear the whole screen
+ *
  * DSR/CPR (Report cursor position)
  *    Sequence: ESC [ 6 n
  *    Effect: reports current cursor position as ESC [ NNN ; MMM R
@@ -820,6 +831,13 @@ process_char:
             break;
         case ctrl('E'): /* ctrl+e, go to the end of the line */
             current->pos = current->chars;
+            refreshLine(prompt, current);
+            break;
+        case ctrl('L'): /* Ctrl+L, clear screen */
+            /* clear screen */
+            fd_printf(current->fd, "\x1b[H\x1b[2J");
+            /* Force recalc of window size for serial terminals */
+            current->cols = 0;
             refreshLine(prompt, current);
             break;
         }
