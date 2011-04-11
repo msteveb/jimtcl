@@ -3243,21 +3243,23 @@ static void JimIncrCmdRefCount(Jim_Cmd *cmdPtr)
 static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
 {
     if (--cmdPtr->inUse == 0) {
-        if (cmdPtr->cmdProc == NULL) {
-            Jim_DecrRefCount(interp, cmdPtr->argListObjPtr);
-            Jim_DecrRefCount(interp, cmdPtr->bodyObjPtr);
-            if (cmdPtr->staticVars) {
-                Jim_FreeHashTable(cmdPtr->staticVars);
-                Jim_Free(cmdPtr->staticVars);
+        if (cmdPtr->isproc) {
+            Jim_DecrRefCount(interp, cmdPtr->u.proc.argListObjPtr);
+            Jim_DecrRefCount(interp, cmdPtr->u.proc.bodyObjPtr);
+            if (cmdPtr->u.proc.staticVars) {
+                Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
+                Jim_Free(cmdPtr->u.proc.staticVars);
+            }
+            if (cmdPtr->u.proc.prevCmd) {
+                /* Delete any pushed command too */
+                JimDecrCmdRefCount(interp, cmdPtr->u.proc.prevCmd);
             }
         }
-        else if (cmdPtr->delProc != NULL) {
-            /* If it was a C coded command, call the delProc if any */
-            cmdPtr->delProc(interp, cmdPtr->privData);
-        }
-        if (cmdPtr->prevCmd) {
-            /* Delete any pushed command too */
-            JimDecrCmdRefCount(interp, cmdPtr->prevCmd);
+        else {
+            /* native (C) */
+            if (cmdPtr->u.native.delProc) {
+                cmdPtr->u.native.delProc(interp, cmdPtr->u.native.privData);
+            }
         }
         Jim_Free(cmdPtr);
     }
@@ -3295,11 +3297,11 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 
     /* Store the new details for this proc */
-    cmdPtr->delProc = delProc;
-    cmdPtr->cmdProc = cmdProc;
-    cmdPtr->privData = privData;
     cmdPtr->inUse = 1;
-    cmdPtr->prevCmd = NULL;
+    cmdPtr->isproc = 0;
+    cmdPtr->u.native.delProc = delProc;
+    cmdPtr->u.native.cmdProc = cmdProc;
+    cmdPtr->u.native.privData = privData;
 
     Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
 
@@ -3317,21 +3319,18 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     Jim_HashEntry *he;
 
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
-    cmdPtr->cmdProc = NULL;     /* Not a C coded command */
-    cmdPtr->argListObjPtr = argListObjPtr;
-    cmdPtr->bodyObjPtr = bodyObjPtr;
+    cmdPtr->inUse = 1;
+    cmdPtr->isproc = 1;
+    cmdPtr->u.proc.argListObjPtr = argListObjPtr;
+    cmdPtr->u.proc.bodyObjPtr = bodyObjPtr;
     Jim_IncrRefCount(argListObjPtr);
     Jim_IncrRefCount(bodyObjPtr);
-    cmdPtr->leftArity = leftArity;
-    cmdPtr->optionalArgs = optionalArgs;
-    cmdPtr->args = args;
-    cmdPtr->rightArity = rightArity;
-    cmdPtr->staticVars = NULL;
-    cmdPtr->inUse = 1;
-    cmdPtr->prevCmd = NULL;
-    /* Not used, but keep the data tidy */
-    cmdPtr->delProc = NULL;
-    cmdPtr->privData = NULL;
+    cmdPtr->u.proc.leftArity = leftArity;
+    cmdPtr->u.proc.optionalArgs = optionalArgs;
+    cmdPtr->u.proc.args = args;
+    cmdPtr->u.proc.rightArity = rightArity;
+    cmdPtr->u.proc.staticVars = NULL;
+    cmdPtr->u.proc.prevCmd = NULL;
 
     /* Create the statics hash table. */
     if (staticsListObjPtr) {
@@ -3339,8 +3338,8 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
 
         len = Jim_ListLength(interp, staticsListObjPtr);
         if (len != 0) {
-            cmdPtr->staticVars = Jim_Alloc(sizeof(Jim_HashTable));
-            Jim_InitHashTable(cmdPtr->staticVars, &JimVariablesHashTableType, interp);
+            cmdPtr->u.proc.staticVars = Jim_Alloc(sizeof(Jim_HashTable));
+            Jim_InitHashTable(cmdPtr->u.proc.staticVars, &JimVariablesHashTableType, interp);
             for (i = 0; i < len; i++) {
                 Jim_Obj *objPtr = 0, *initObjPtr = 0, *nameObjPtr = 0;
                 Jim_Var *varPtr;
@@ -3373,7 +3372,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
                     varPtr->objPtr = initObjPtr;
                     Jim_IncrRefCount(initObjPtr);
                     varPtr->linkFramePtr = NULL;
-                    if (Jim_AddHashEntry(cmdPtr->staticVars,
+                    if (Jim_AddHashEntry(cmdPtr->u.proc.staticVars,
                         Jim_String(nameObjPtr), varPtr) != JIM_OK) {
                         Jim_SetResultFormatted(interp,
                             "static variable name \"%#s\" duplicated in statics list", nameObjPtr);
@@ -3414,7 +3413,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
 
     if (he && interp->local) {
         /* Just push this proc over the top of the previous one */
-        cmdPtr->prevCmd = he->val;
+        cmdPtr->u.proc.prevCmd = he->val;
         he->val = cmdPtr;
     }
     else {
@@ -3431,8 +3430,8 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     return JIM_OK;
 
   err:
-    Jim_FreeHashTable(cmdPtr->staticVars);
-    Jim_Free(cmdPtr->staticVars);
+    Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
+    Jim_Free(cmdPtr->u.proc.staticVars);
     Jim_DecrRefCount(interp, argListObjPtr);
     Jim_DecrRefCount(interp, bodyObjPtr);
     Jim_Free(cmdPtr);
@@ -9351,12 +9350,12 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
         /* Call it -- Make sure result is an empty object. */
         JimIncrCmdRefCount(cmdPtr);
         Jim_SetEmptyResult(interp);
-        if (cmdPtr->cmdProc) {
-            interp->cmdPrivData = cmdPtr->privData;
-            retcode = cmdPtr->cmdProc(interp, objc, objv);
+        if (cmdPtr->isproc) {
+            retcode = JimCallProcedure(interp, cmdPtr, filename, linenr, objc, objv);
         }
         else {
-            retcode = JimCallProcedure(interp, cmdPtr, filename, linenr, objc, objv);
+            interp->cmdPrivData = cmdPtr->u.native.privData;
+            retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
         }
         JimDecrCmdRefCount(interp, cmdPtr);
     }
@@ -9442,9 +9441,10 @@ static void JimDeleteLocalProcs(Jim_Interp *interp)
             Jim_Cmd *prevCmd = NULL;
             Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, procname);
             if (he) {
-                prevCmd = ((Jim_Cmd *)he->val)->prevCmd;
-                if (prevCmd) {
-                    ((Jim_Cmd *)he->val)->prevCmd = NULL;
+                Jim_Cmd *cmd = (Jim_Cmd *)he->val;
+                if (cmd->isproc && cmd->u.proc.prevCmd) {
+                    prevCmd = cmd->u.proc.prevCmd;
+                    cmd->u.proc.prevCmd = NULL;
                 }
             }
 
@@ -9659,7 +9659,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     }
     if (script->len == 3
         && script->token[1].objPtr->typePtr == &commandObjType
-        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->cmdProc == Jim_IncrCoreCommand
+        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->isproc == 0
+        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->u.native.cmdProc == Jim_IncrCoreCommand
         && script->token[2].objPtr->typePtr == &variableObjType) {
 
         Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
@@ -9816,13 +9817,12 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 /* Call it -- Make sure result is an empty object. */
                 JimIncrCmdRefCount(cmd);
                 Jim_SetEmptyResult(interp);
-                if (cmd->cmdProc) {
-                    interp->cmdPrivData = cmd->privData;
-                    retcode = cmd->cmdProc(interp, argc, argv);
-                }
-                else {
+                if (cmd->isproc) {
                     retcode =
                         JimCallProcedure(interp, cmd, script->fileName, linenr, argc, argv);
+                } else {
+                    interp->cmdPrivData = cmd->u.native.privData;
+                    retcode = cmd->u.native.cmdProc(interp, argc, argv);
                 }
                 JimDecrCmdRefCount(interp, cmd);
             }
@@ -9908,22 +9908,22 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     Jim_Stack *prevLocalProcs;
 
     /* Check arity */
-    if (argc - 1 < cmd->leftArity + cmd->rightArity ||
-        (!cmd->args && argc - 1 > cmd->leftArity + cmd->rightArity + cmd->optionalArgs)) {
+    if (argc - 1 < cmd->u.proc.leftArity + cmd->u.proc.rightArity ||
+        (!cmd->u.proc.args && argc - 1 > cmd->u.proc.leftArity + cmd->u.proc.rightArity + cmd->u.proc.optionalArgs)) {
         /* Create a nice error message, consistent with Tcl 8.5 */
         Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
-        int arglen = Jim_ListLength(interp, cmd->argListObjPtr);
+        int arglen = Jim_ListLength(interp, cmd->u.proc.argListObjPtr);
 
         for (i = 0; i < arglen; i++) {
             Jim_Obj *objPtr;
-            Jim_ListIndex(interp, cmd->argListObjPtr, i, &argObjPtr, JIM_NONE);
+            Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, i, &argObjPtr, JIM_NONE);
 
             Jim_AppendString(interp, argmsg, " ", 1);
 
-            if (i < cmd->leftArity || i >= arglen - cmd->rightArity) {
+            if (i < cmd->u.proc.leftArity || i >= arglen - cmd->u.proc.rightArity) {
                 Jim_AppendObj(interp, argmsg, argObjPtr);
             }
-            else if (i == arglen - cmd->rightArity - cmd->args) {
+            else if (i == arglen - cmd->u.proc.rightArity - cmd->u.proc.args) {
                 if (Jim_ListLength(interp, argObjPtr) == 1) {
                     /* We have plain args */
                     Jim_AppendString(interp, argmsg, "?argument ...?", -1);
@@ -9957,13 +9957,13 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     callFramePtr = JimCreateCallFrame(interp, interp->framePtr);
     callFramePtr->argv = argv;
     callFramePtr->argc = argc;
-    callFramePtr->procArgsObjPtr = cmd->argListObjPtr;
-    callFramePtr->procBodyObjPtr = cmd->bodyObjPtr;
-    callFramePtr->staticVars = cmd->staticVars;
+    callFramePtr->procArgsObjPtr = cmd->u.proc.argListObjPtr;
+    callFramePtr->procBodyObjPtr = cmd->u.proc.bodyObjPtr;
+    callFramePtr->staticVars = cmd->u.proc.staticVars;
     callFramePtr->filename = filename;
     callFramePtr->line = linenr;
-    Jim_IncrRefCount(cmd->argListObjPtr);
-    Jim_IncrRefCount(cmd->bodyObjPtr);
+    Jim_IncrRefCount(cmd->u.proc.argListObjPtr);
+    Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
     interp->framePtr = callFramePtr;
 
     /* Simplify arg counting */
@@ -9982,8 +9982,8 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     /* Note that 'd' steps along the arg list, whilst argc/argv follow the supplied args */
 
     /* leftArity required args */
-    for (d = 0; d < cmd->leftArity; d++) {
-        Jim_ListIndex(interp, cmd->argListObjPtr, d, &argObjPtr, JIM_NONE);
+    for (d = 0; d < cmd->u.proc.leftArity; d++) {
+        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d, &argObjPtr, JIM_NONE);
         retcode = JimSetProcArg(interp, argObjPtr, *argv++);
         if (retcode != JIM_OK) {
             goto badargset;
@@ -9992,14 +9992,14 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     }
 
     /* Shorten our idea of the number of supplied args */
-    argc -= cmd->rightArity;
+    argc -= cmd->u.proc.rightArity;
 
     /* optionalArgs optional args */
-    for (i = 0; i < cmd->optionalArgs; i++) {
+    for (i = 0; i < cmd->u.proc.optionalArgs; i++) {
         Jim_Obj *nameObjPtr;
         Jim_Obj *valueObjPtr;
 
-        Jim_ListIndex(interp, cmd->argListObjPtr, d++, &argObjPtr, JIM_NONE);
+        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d++, &argObjPtr, JIM_NONE);
 
         /* The name is the first element of the list */
         Jim_ListIndex(interp, argObjPtr, 0, &nameObjPtr, JIM_NONE);
@@ -10016,11 +10016,11 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     }
 
     /* Any remaining args go to 'args' */
-    if (cmd->args) {
+    if (cmd->u.proc.args) {
         Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
 
         /* Get the 'args' name from the procedure args */
-        Jim_ListIndex(interp, cmd->argListObjPtr, d, &argObjPtr, JIM_NONE);
+        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d, &argObjPtr, JIM_NONE);
 
         /* It is possible to rename args. */
         i = Jim_ListLength(interp, argObjPtr);
@@ -10034,8 +10034,8 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     }
 
     /* rightArity required args */
-    for (i = 0; i < cmd->rightArity; i++) {
-        Jim_ListIndex(interp, cmd->argListObjPtr, d++, &argObjPtr, JIM_NONE);
+    for (i = 0; i < cmd->u.proc.rightArity; i++) {
+        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d++, &argObjPtr, JIM_NONE);
         retcode = JimSetProcArg(interp, argObjPtr, *argv++);
         if (retcode != JIM_OK) {
             goto badargset;
@@ -10047,7 +10047,7 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     interp->localProcs = NULL;
 
     /* Eval the body */
-    retcode = Jim_EvalObj(interp, cmd->bodyObjPtr);
+    retcode = Jim_EvalObj(interp, cmd->u.proc.bodyObjPtr);
 
     /* Delete any local procs */
     JimDeleteLocalProcs(interp);
@@ -10417,7 +10417,7 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
     if (patternObjPtr && JimTrivialMatch(Jim_String(patternObjPtr))) {
         Jim_Cmd *cmdPtr = Jim_GetCommand(interp, patternObjPtr, JIM_NONE);
         if (cmdPtr) {
-            if (type == 1 && cmdPtr->cmdProc) {
+            if (type == 1 && !cmdPtr->isproc) {
                 /* not a proc */
             }
             else if (type == 2 && !Jim_AioFilehandle(interp, patternObjPtr)) {
@@ -10435,7 +10435,7 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
         Jim_Cmd *cmdPtr = he->val;
         Jim_Obj *cmdNameObj;
 
-        if (type == 1 && cmdPtr->cmdProc) {
+        if (type == 1 && !cmdPtr->isproc) {
             /* not a proc */
             continue;
         }
@@ -13308,12 +13308,12 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 if ((cmdPtr = Jim_GetCommand(interp, argv[2], JIM_ERRMSG)) == NULL) {
                     return JIM_ERR;
                 }
-                if (cmdPtr->cmdProc != NULL) {
+                if (!cmdPtr->isproc) {
                     Jim_SetResultFormatted(interp, "command \"%#s\" is not a procedure", argv[2]);
                     return JIM_ERR;
                 }
                 Jim_SetResult(interp,
-                    cmd == INFO_BODY ? cmdPtr->bodyObjPtr : cmdPtr->argListObjPtr);
+                    cmd == INFO_BODY ? cmdPtr->u.proc.bodyObjPtr : cmdPtr->u.proc.argListObjPtr);
                 break;
             }
 
@@ -13429,7 +13429,7 @@ static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         case OPT_COMMAND:
         case OPT_PROC: {
             Jim_Cmd *cmd = Jim_GetCommand(interp, objPtr, JIM_NONE);
-            Jim_SetResultBool(interp, cmd != NULL && (option == OPT_COMMAND || !cmd->cmdProc));
+            Jim_SetResultBool(interp, cmd != NULL && (option == OPT_COMMAND || cmd->isproc));
             break;
         }
     }

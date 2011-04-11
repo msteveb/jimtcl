@@ -1283,8 +1283,8 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
     Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
 
-    if (cmdPtr && cmdPtr->cmdProc == JimAioSubCmdProc) {
-        return ((AioFile *) cmdPtr->privData)->fp;
+    if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
+        return ((AioFile *) cmdPtr->u.native.privData)->fp;
     }
     Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
     return NULL;

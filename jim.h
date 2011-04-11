@@ -465,7 +465,7 @@ typedef struct Jim_Var {
     Jim_Obj *objPtr;
     struct Jim_CallFrame *linkFramePtr;
 } Jim_Var;
-    
+
 /* The cmd structure. */
 typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
@@ -476,17 +476,26 @@ typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
  * two objects referenced by arglistObjPtr and bodyoObjPtr. */
 typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
-    Jim_CmdProc cmdProc; /* Not-NULL for a C command. */
-    void *privData; /* Only used for C commands. */
-    struct Jim_Cmd *prevCmd; /* If any, and this command created "local" */
-    Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
-    Jim_Obj *argListObjPtr;
-    Jim_Obj *bodyObjPtr;
-    Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
-    int leftArity;    /* Required args assigned from the left */
-    int optionalArgs; /* Number of optional args (default values) */
-    int rightArity;   /* Required args assigned from the right */
-    int args;         /* True if 'args' specified */
+    int isproc;          /* Is this a procedure? */
+    union {
+        struct {
+            /* native (C) command */
+            Jim_CmdProc cmdProc; /* The command implementation */
+            Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
+            void *privData; /* command-private data available via Jim_CmdPrivData() */
+        } native;
+        struct {
+            /* Tcl procedure */
+            Jim_Obj *argListObjPtr;
+            Jim_Obj *bodyObjPtr;
+            Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
+            int leftArity;    /* Required args assigned from the left */
+            int optionalArgs; /* Number of optional args (default values) */
+            int rightArity;   /* Required args assigned from the right */
+            int args;         /* True if 'args' specified */
+            struct Jim_Cmd *prevCmd; /* Previous command defn if proc created 'local' */
+        } proc;
+    } u;
 } Jim_Cmd;
 
 /* Pseudo Random Number Generator State structure */
