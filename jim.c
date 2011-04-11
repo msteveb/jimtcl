@@ -3255,6 +3255,10 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
             /* If it was a C coded command, call the delProc if any */
             cmdPtr->delProc(interp, cmdPtr->privData);
         }
+        if (cmdPtr->prevCmd) {
+            /* Delete any pushed command too */
+            JimDecrCmdRefCount(interp, cmdPtr->prevCmd);
+        }
         Jim_Free(cmdPtr);
     }
 }
@@ -3295,6 +3299,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     cmdPtr->cmdProc = cmdProc;
     cmdPtr->privData = privData;
     cmdPtr->inUse = 1;
+    cmdPtr->prevCmd = NULL;
 
     Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
 
@@ -3309,6 +3314,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     int leftArity, int optionalArgs, int args, int rightArity)
 {
     Jim_Cmd *cmdPtr;
+    Jim_HashEntry *he;
 
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
     cmdPtr->cmdProc = NULL;     /* Not a C coded command */
@@ -3322,6 +3328,10 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     cmdPtr->rightArity = rightArity;
     cmdPtr->staticVars = NULL;
     cmdPtr->inUse = 1;
+    cmdPtr->prevCmd = NULL;
+    /* Not used, but keep the data tidy */
+    cmdPtr->delProc = NULL;
+    cmdPtr->privData = NULL;
 
     /* Create the statics hash table. */
     if (staticsListObjPtr) {
@@ -3385,18 +3395,36 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
 
     /* It may already exist, so we try to delete the old one.
      * Note that reference count means that it won't be deleted yet if
-     * it exists in the call stack
+     * it exists in the call stack.
+     *
+     * BUT, if 'local' is in force, instead of deleting the existing
+     * proc, we stash a reference to the old proc here.
      */
-    if (Jim_DeleteHashEntry(&interp->commands, cmdName) != JIM_ERR) {
+    he = Jim_FindHashEntry(&interp->commands, cmdName);
+    if (he) {
         /* There was an old procedure with the same name, this requires
          * a 'proc epoch' update. */
+
+        /* If a procedure with the same name didn't existed there is no need
+         * to increment the 'proc epoch' because creation of a new procedure
+         * can never affect existing cached commands. We don't do
+         * negative caching. */
         Jim_InterpIncrProcEpoch(interp);
     }
-    /* If a procedure with the same name didn't existed there is no need
-     * to increment the 'proc epoch' because creation of a new procedure
-     * can never affect existing cached commands. We don't do
-     * negative caching. */
-    Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
+
+    if (he && interp->local) {
+        /* Just push this proc over the top of the previous one */
+        cmdPtr->prevCmd = he->val;
+        he->val = cmdPtr;
+    }
+    else {
+        if (he) {
+            /* Replace the existing proc */
+            Jim_DeleteHashEntry(&interp->commands, cmdName);
+        }
+
+        Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
+    }
 
     /* Unlike Tcl, set the name of the proc as the result */
     Jim_SetResultString(interp, cmdName, -1);
@@ -4663,6 +4691,7 @@ Jim_Interp *Jim_CreateInterp(void)
      * interpreter liveList and freeList pointers are
      * initialized to NULL. */
     Jim_InitHashTable(&i->commands, &JimCommandsHashTableType, i);
+    i->local = 0;
 #ifdef JIM_REFERENCES
     Jim_InitHashTable(&i->references, &JimReferencesHashTableType, i);
 #endif
@@ -9409,7 +9438,23 @@ static void JimDeleteLocalProcs(Jim_Interp *interp)
         char *procname;
 
         while ((procname = Jim_StackPop(interp->localProcs)) != NULL) {
+            /* If there is a pushed command, find it */
+            Jim_Cmd *prevCmd = NULL;
+            Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, procname);
+            if (he) {
+                prevCmd = ((Jim_Cmd *)he->val)->prevCmd;
+                if (prevCmd) {
+                    ((Jim_Cmd *)he->val)->prevCmd = NULL;
+                }
+            }
+
+            /* Delete the local proc */
             Jim_DeleteCommand(interp, procname);
+
+            if (prevCmd) {
+                /* And restore the pushed command */
+                Jim_AddHashEntry(&interp->commands, procname, prevCmd);
+            }
             Jim_Free(procname);
         }
         Jim_FreeStack(interp->localProcs);
@@ -12183,8 +12228,13 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [local] */
 static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    /* Evaluate the arguments */
-    int retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
+    int retcode;
+
+    /* Evaluate the arguments with 'local' in force */
+    interp->local++;
+    retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
+    interp->local--;
+
 
     /* If OK, and the result is a proc, add it to the list of local procs */
     if (retcode == 0) {

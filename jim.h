@@ -478,6 +478,7 @@ typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
     Jim_CmdProc cmdProc; /* Not-NULL for a C command. */
     void *privData; /* Only used for C commands. */
+    struct Jim_Cmd *prevCmd; /* If any, and this command created "local" */
     Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
     Jim_Obj *argListObjPtr;
     Jim_Obj *bodyObjPtr;
@@ -521,6 +522,7 @@ typedef struct Jim_Interp {
                 callframe is created. This id is used for the
                 'ID' field contained in the Jim_CallFrame
                 structure. */
+    int local; /* If 'local' is in effect, newly defined procs keep a reference to the old defn */ 
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
