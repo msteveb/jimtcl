@@ -554,6 +554,7 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *localProcs; /* procs to be destroyed on end of evaluation */
+    Jim_Stack *loadHandles; /* handles of loaded modules [load] */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -647,6 +648,7 @@ JIM_EXPORT int Jim_StackLen(Jim_Stack *stack);
 JIM_EXPORT void Jim_StackPush(Jim_Stack *stack, void *element);
 JIM_EXPORT void * Jim_StackPop(Jim_Stack *stack);
 JIM_EXPORT void * Jim_StackPeek(Jim_Stack *stack);
+JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr));
 
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
@@ -880,6 +882,7 @@ JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 
 /* jim-load.c */
 JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
+JIM_EXPORT void Jim_FreeLoadHandles(Jim_Interp *interp);
 
 /* jim-aio.c */
 JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);

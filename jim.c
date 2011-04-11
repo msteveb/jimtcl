@@ -1054,6 +1054,14 @@ void *Jim_StackPeek(Jim_Stack *stack)
     return stack->vector[stack->len - 1];
 }
 
+void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
+{
+    int i;
+
+    for (i = 0; i < stack->len; i++)
+        freeFunc(stack->vector[i]);
+}
+
 /* -----------------------------------------------------------------------------
  * Parser
  * ---------------------------------------------------------------------------*/
@@ -4817,6 +4825,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->signal_level = 0;
     i->signal_set_result = NULL;
     i->localProcs = NULL;
+    i->loadHandles = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -4880,9 +4889,9 @@ void Jim_FreeInterp(Jim_Interp *i)
 #ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);
 #endif
-    Jim_FreeHashTable(&i->assocData);
     Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
+    Jim_FreeHashTable(&i->assocData);
     JimDeleteLocalProcs(i);
 
     /* Free the call frames list */
@@ -4929,6 +4938,10 @@ void Jim_FreeInterp(Jim_Interp *i)
         Jim_Free(cf);
         cf = nextcf;
     }
+#ifdef jim_ext_load
+    Jim_FreeLoadHandles(i);
+#endif
+
     /* Free the sharedString hash table. Make sure to free it
      * after every other Jim_Object was freed. */
     Jim_FreeHashTable(&i->sharedStrings);

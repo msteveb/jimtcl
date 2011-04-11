@@ -63,7 +63,15 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
                 "No %s symbol found in extension %s", initsym, pathName);
         }
         else if (onload(interp) != JIM_ERR) {
+            /* Add this handle to the stack of handles to be freed */
+            if (!interp->loadHandles) {
+                interp->loadHandles = Jim_Alloc(sizeof(*interp->loadHandles));
+                Jim_InitStack(interp->loadHandles);
+            }
+            Jim_StackPush(interp->loadHandles, handle);
+
             Jim_SetEmptyResult(interp);
+
             return JIM_OK;
         }
     }
@@ -72,6 +80,20 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
     }
     return JIM_ERR;
 }
+
+static void JimFreeOneLoadHandle(void *handle)
+{
+    dlclose(handle);
+}
+
+void Jim_FreeLoadHandles(Jim_Interp *interp)
+{
+    if (interp->loadHandles) {
+        Jim_FreeStackElements(interp->loadHandles, JimFreeOneLoadHandle);
+        Jim_Free(interp->loadHandles);
+    }
+}
+
 #else /* JIM_DYNLIB */
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 {
@@ -80,6 +102,10 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
 
     Jim_SetResultString(interp, "the Jim binary has no support for [load]", -1);
     return JIM_ERR;
+}
+
+void Jim_FreeLoadHandles(Jim_Interp *interp)
+{
 }
 #endif /* JIM_DYNLIB */
 
