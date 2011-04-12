@@ -17,6 +17,7 @@ proc bench {title script} {
         set ts [string range $ts [expr {[string length $ts]-10}] end]
         if {!$batchmode} {puts "$Title -$ts ms per iteration"}
     }
+    catch { collect }
 }
 
 ### BUSY LOOP ##################################################################

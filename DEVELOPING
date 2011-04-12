@@ -46,7 +46,7 @@ the project that is about to be started. The only thing that has to be
 taken care of is the project mode -- it should be "push mode".
 
 Once the project is created one must add a user that will actually
-start commiting new files to the repo. It can also be done throught
+start commiting new files to the repo. It can also be done through the
 WWW interface, so nothing more is necessary.
 
 Once finished with setting up a project on the WWW panel, one can
@@ -88,7 +88,6 @@ submitting patches, you can verify that your changes didn't bring any
 regressions to the Jim. In order to do so, sample regression tests have
 been implemented. You can execute them by typing:
 
-	cd tests
-	make
+	make test
 
 All tests should succeed.

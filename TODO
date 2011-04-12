@@ -15,31 +15,11 @@ OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
 EXTENSIONS
 
-- OOP system
 - Cryptography: hash functions, block ciphers, strim ciphers, PRNGs.
 - Tuplespace extension (http://wiki.tcl.tk/3947) (using sqlite as backend)
 - Zlib
 - Gdlib
 - CGI (interface compatible with ncgi, but possibly written in C for speed)
-
-SPEED OPTIMIZATIONS
-
-- Experiment with better ways to do literal sharing.
-
-  * Currently literal sharing is completely removed. Can it be made
-    efficient? What is the cost vs. benefit?
-
-IMPLEMENTATION ISSUES
-
-- Objects lazy free.
-
-- Rewrite all the commands accepting a set of options to use Jim_GetEnum().
-
-  - Many have been done.
-
-- Every time an extension is loaded Jim should put the dlopen() (or win32
-  equivalent) handle in a list inside the interpreter structure. When
-  the interpreter is freed all this handles should be closed with dlclose().
 
 REFERENCES SYSTEM
 
