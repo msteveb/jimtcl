@@ -1,0 +1,152 @@
+source [file dirname [info script]]/testing.tcl
+
+# Check "loop" and its use of continue and break.
+needs cmd loop
+
+catch {unset a i}
+test loop-1.1 {loop tests} {
+    set a {}
+    loop i 1 6 {
+        set a [concat $a $i]
+    }
+    set a
+} {1 2 3 4 5}
+
+test loop-1.2 {loop tests} {
+    set a {}
+    loop i 1 6 {
+        if $i==4 continue
+        set a [concat $a $i]
+    }
+    set a
+} {1 2 3 5}
+
+test loop-1.3 {loop tests} {
+    set a {}
+    loop i 1 6 {
+        if $i==4 break
+        set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+
+test loop-1.5 {loop errors} {
+    catch {loop 1 2 3} msg
+} {1}
+
+test loop-1.6 {loop errors} {
+    catch {loop 1 2 3 4 5} msg
+} {1}
+
+test loop-1.7 {loop tests} {
+    set a {xyz}
+    loop i 1 6 {
+    }
+    set a
+} xyz
+
+test loop-1.8 {error in loop} {
+    set rc [catch {
+        set a {}
+        loop i 1 6 {
+            lappend a $i
+            if {$i == 3} {
+                error "stop"
+            }
+        }
+    }]
+    list $a $rc
+} {{1 2 3} 1}
+
+test loop-1.9 {loop incr} {
+    set a {}
+    loop i 0 6 2 {
+        lappend a $i
+    }
+    set a
+} {0 2 4}
+
+test loop-1.10 {no exec infinite loop} {
+    set a {}
+    loop i 0 6 -1 {
+        lappend a $i
+        break
+    }
+    set a
+} {}
+
+test loop-2.1 {loop shimmering tests} {
+    loop i 1 6 {
+    }
+    set i
+} 6
+
+test loop-2.2 {loop shimmering tests} {
+    # Setting the variable inside the loop doesn't
+    # affect the loop or the final variable value
+    loop i 1 6 {
+        set i blah
+    }
+    set i
+} 6
+
+test loop-2.3 {loop shimmering tests} {
+    set a {}
+    loop i 1 6 {
+        lappend a $i
+        set i blah
+        lappend a $i
+    }
+    set a
+} {1 blah 2 blah 3 blah 4 blah 5 blah}
+
+test loop-2.4 {loop shimmering tests} {
+    set i xyz
+    loop i 1 6 {
+    }
+    set i
+} 6
+
+test loop-2.5 {loop shimmering tests} {
+    # Ensure that the string rep of $i is updated
+    set i {1 3}
+    loop i(1) 1 6 {
+    }
+    set i
+} {1 6}
+
+test loop-2.6 {modify loop var} {
+    unset -nocomplain i
+    catch {
+        loop i(1) 1 6 {
+            # this makes it impossible to set the loop var
+            set i blah
+        }
+    }
+} 1
+
+test loop-2.7 {unset loop var} {
+    unset -nocomplain i
+    loop i 1 6 {
+        # var will simply get recreated on each loop
+        unset i
+    }
+    set i
+} 6
+
+test loop-2.8 {modify loop var} {
+    unset -nocomplain i
+    set a {}
+    loop i 1 6 {
+        lappend a $i
+        incr i
+    }
+    set a
+} {1 2 3 4 5}
+
+testreport
+break
+
+
+
+testreport

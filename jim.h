@@ -820,8 +820,6 @@ JIM_EXPORT int Jim_GetWide (Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide *widePtr);
 JIM_EXPORT int Jim_GetLong (Jim_Interp *interp, Jim_Obj *objPtr,
         long *longPtr);
-JIM_EXPORT void Jim_SetWide (Jim_Interp *interp, Jim_Obj *objPtr,
-        jim_wide wideValue);
 #define Jim_NewWideObj  Jim_NewIntObj
 JIM_EXPORT Jim_Obj * Jim_NewIntObj (Jim_Interp *interp,
         jim_wide wideValue);

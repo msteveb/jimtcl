@@ -11082,6 +11082,74 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     return retval;
 }
 
+/* [loop] */
+static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int retval;
+    jim_wide i;
+    jim_wide limit;
+    jim_wide incr = 1;
+    Jim_Obj *bodyObjPtr;
+
+    if (argc != 5 && argc != 6) {
+        Jim_WrongNumArgs(interp, 1, argv, "var first limit ?incr? body");
+        return JIM_ERR;
+    }
+
+    if (Jim_GetWide(interp, argv[2], &i) != JIM_OK ||
+        Jim_GetWide(interp, argv[3], &limit) != JIM_OK ||
+          (argc == 6 && Jim_GetWide(interp, argv[4], &incr) != JIM_OK)) {
+        return JIM_ERR;
+    }
+    bodyObjPtr = (argc == 5) ? argv[4] : argv[5];
+
+    retval = Jim_SetVariable(interp, argv[1], argv[2]);
+
+    while (((i < limit && incr > 0) || (i > limit && incr < 0)) && retval == JIM_OK) {
+        retval = Jim_EvalObj(interp, bodyObjPtr);
+        if (retval == JIM_OK || retval == JIM_CONTINUE) {
+            Jim_Obj *objPtr = Jim_GetVariable(interp, argv[1], JIM_ERRMSG);
+
+            retval = JIM_OK;
+
+            /* Increment */
+            i += incr;
+
+            if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
+                if (argv[1]->typePtr != &variableObjType) {
+                    if (Jim_SetVariable(interp, argv[1], objPtr) != JIM_OK) {
+                        return JIM_ERR;
+                    }
+                }
+                JimWideValue(objPtr) = i;
+                Jim_InvalidateStringRep(objPtr);
+
+                /* The following step is required in order to invalidate the
+                 * string repr of "FOO" if the var name is of the form of "FOO(IDX)" */
+                if (argv[1]->typePtr != &variableObjType) {
+                    if (Jim_SetVariable(interp, argv[1], objPtr) != JIM_OK) {
+                        retval = JIM_ERR;
+                        break;
+                    }
+                }
+            }
+            else {
+                objPtr = Jim_NewIntObj(interp, i);
+                retval = Jim_SetVariable(interp, argv[1], objPtr);
+                if (retval != JIM_OK) {
+                    Jim_FreeNewObj(interp, objPtr);
+                }
+            }
+        }
+    }
+
+    if (retval == JIM_OK || retval == JIM_CONTINUE || retval == JIM_BREAK) {
+        Jim_SetEmptyResult(interp);
+        return JIM_OK;
+    }
+    return retval;
+}
+
 /* foreach + lmap implementation. */
 static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int doMap)
 {
@@ -14091,6 +14159,7 @@ static const struct {
     {"/", Jim_DivCoreCommand},
     {"incr", Jim_IncrCoreCommand},
     {"while", Jim_WhileCoreCommand},
+    {"loop", Jim_LoopCoreCommand},
     {"for", Jim_ForCoreCommand},
     {"foreach", Jim_ForeachCoreCommand},
     {"lmap", Jim_LmapCoreCommand},

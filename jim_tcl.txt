@@ -64,6 +64,7 @@ Changes between 0.70 and 0.71
 4. Support +jimsh --version+
 5. Additional variables in +tcl_platform()+
 6. 'local' procs now push existing commands and 'upcall' can call them
+7. Add 'loop' command (TclX compatible)
 
 Changes between 0.63 and 0.70
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2740,6 +2741,19 @@ than waiting until garbage collection.
       $x ...
       ...
     }
+
+loop
+~~~~
++*loop* 'var first limit ?incr? body'+
+
+Similar to 'for' except simpler and possibly more efficient.
+With a positive increment, equivalent to:
+
+  for {set var $first} {$var < $limit} {incr var $incr} $body
+
+If *incr* is not specified, 1 is used.
+Note that setting the loop variable inside the loop does not
+affect the loop count.
 
 lindex
 ~~~~~~
