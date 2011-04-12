@@ -10743,9 +10743,13 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
                     goto evalnext;
                 }
 
-                objPtr = Jim_GetVariable(interp, varNamePtr, JIM_NONE);
+                objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
 
                 /* Increment */
+                if (objPtr == NULL) {
+                    retval = JIM_ERR;
+                    goto out;
+                }
                 if (!Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
                     currentVal = ++objPtr->internalRep.wideValue;
                     Jim_InvalidateStringRep(objPtr);

@@ -110,6 +110,13 @@ a
 catch {eval {$x(}}
 puts "TEST 17 PASSED"
 
+# REGTEST 18
+# 12 Apr 2011 - crashes on unset for loop var
+catch {
+    for {set i 0} {$i < 5} {incr i} {unset i}
+}
+puts "TEST 18 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
