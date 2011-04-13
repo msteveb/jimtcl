@@ -494,6 +494,7 @@ typedef struct Jim_Cmd {
             int rightArity;   /* Required args assigned from the right */
             int args;         /* True if 'args' specified */
             struct Jim_Cmd *prevCmd; /* Previous command defn if proc created 'local' */
+            int upcall;       /* True if proc is currently in upcall */
         } proc;
     } u;
 } Jim_Cmd;

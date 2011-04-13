@@ -192,4 +192,47 @@ test local-2.3 "local proc over existing proc" {
 	lappend x [a 5]
 } {6 4 6}
 
+test upcall-1.1 "upcall pushed proc" {
+	proc a {b} {incr b}
+	local proc a {b} {
+		incr b 10
+		# invoke the original defn via upcall
+		return [upcall a $b]
+	}
+	# Should call the new defn which will call the original defn
+	a 3
+} 14
+
+test upcall-1.2 "upcall in proc" {
+	proc a {b} {incr b}
+	proc t {c} {
+		local proc a {b} {
+			incr b 10
+			return [upcall a $b]
+		}
+		a $c
+	}
+	unset -nocomplain x
+	lappend x [t 5]
+	lappend x [a 5]
+	set x
+} {16 6}
+
+test upcall-1.3 "double upcall" {
+	proc a {} {return 1}
+	local proc a {} {list 2 {*}[upcall a]}
+	local proc a {} {list 3 {*}[upcall a]}
+	a
+} {3 2 1}
+
+test upcall-1.4 "upcall errors" {
+	proc a {} {return 1}
+	list [catch {upcall a} msg] $msg
+} {1 {no previous proc: "a"}}
+
+test upcall-1.4 "upcall errors" {
+	proc a {} {upcall a}
+	list [catch a msg] $msg
+} {1 {no previous proc: "a"}}
+
 testreport

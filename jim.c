@@ -3297,8 +3297,8 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 
     /* Store the new details for this proc */
+    memset(cmdPtr, 0, sizeof(*cmdPtr));
     cmdPtr->inUse = 1;
-    cmdPtr->isproc = 0;
     cmdPtr->u.native.delProc = delProc;
     cmdPtr->u.native.cmdProc = cmdProc;
     cmdPtr->u.native.privData = privData;
@@ -3319,6 +3319,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     Jim_HashEntry *he;
 
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
+    memset(cmdPtr, 0, sizeof(*cmdPtr));
     cmdPtr->inUse = 1;
     cmdPtr->isproc = 1;
     cmdPtr->u.proc.argListObjPtr = argListObjPtr;
@@ -3331,6 +3332,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     cmdPtr->u.proc.rightArity = rightArity;
     cmdPtr->u.proc.staticVars = NULL;
     cmdPtr->u.proc.prevCmd = NULL;
+    cmdPtr->inUse = 1;
 
     /* Create the statics hash table. */
     if (staticsListObjPtr) {
@@ -3517,9 +3519,14 @@ int SetCommandFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
  * stored in objPtr. It tries to specialize the objPtr to contain
  * a cached info instead to perform the lookup into the hash table
  * every time. The information cached may not be uptodate, in such
- * a case the lookup is performed and the cache updated. */
+ * a case the lookup is performed and the cache updated.
+ *
+ * Respects the 'upcall' setting
+ */
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
+    Jim_Cmd *cmd;
+
     if ((objPtr->typePtr != &commandObjType ||
             objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch) &&
         SetCommandFromAny(interp, objPtr) == JIM_ERR) {
@@ -3528,7 +3535,11 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
         }
         return NULL;
     }
-    return objPtr->internalRep.cmdValue.cmdPtr;
+    cmd = objPtr->internalRep.cmdValue.cmdPtr;
+    while (cmd->isproc && cmd->u.proc.upcall) {
+        cmd = cmd->u.proc.prevCmd;
+    }
+    return cmd;
 }
 
 /* -----------------------------------------------------------------------------
@@ -12254,6 +12265,35 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return retcode;
 }
 
+/* [upcall] */
+static int Jim_UpcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "cmd ?args ...?");
+        return JIM_ERR;
+    }
+    else {
+        int retcode;
+
+        Jim_Cmd *cmdPtr = Jim_GetCommand(interp, argv[1], JIM_ERRMSG);
+        if (cmdPtr == NULL || !cmdPtr->isproc || !cmdPtr->u.proc.prevCmd) {
+            Jim_SetResultFormatted(interp, "no previous proc: \"%#s\"", argv[1]);
+            return JIM_ERR;
+        }
+        /* OK. Mark this command as being in an upcall */
+        cmdPtr->u.proc.upcall++;
+        JimIncrCmdRefCount(cmdPtr);
+
+        /* Invoke the command as normal */
+        retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
+
+        /* No longer in an upcall */
+        cmdPtr->u.proc.upcall--;
+        JimDecrCmdRefCount(interp, cmdPtr);
+
+        return retcode;
+    }
+}
 
 /* [concat] */
 static int Jim_ConcatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -13957,6 +13997,7 @@ static const struct {
     {"rand", Jim_RandCoreCommand},
     {"tailcall", Jim_TailcallCoreCommand},
     {"local", Jim_LocalCoreCommand},
+    {"upcall", Jim_UpcallCoreCommand},
     {NULL, NULL},
 };
 
