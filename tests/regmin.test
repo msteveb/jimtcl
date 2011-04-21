@@ -1,0 +1,39 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd regexp
+testConstraint regexp_are [regexp {\d} 1]
+needs constraint regexp_are
+
+test regexpmin-1.1 {Minimal +} {
+    regexp -inline {x(a|b|c)+?c} xabcabc
+} {xabc b}
+
+test regexpmin-1.2 {Maximal +} {
+    regexp -inline {x(a|b|c)+c} xabcabc
+} {xabcabc b}
+
+test regexpmin-1.3 {Minimal *} {
+    regexp -inline {x(a|b)*?} xababcabc
+} {x {}}
+
+test regexpmin-1.4 {Maximal *} {
+    regexp -inline {x(a|b)*} xababcabc
+} {xabab b}
+
+test regexpmin-1.5 {Maximal ?} {
+    regexp -inline {x(a|b)?} xababcabc
+} {xa a}
+
+test regexpmin-1.6 {Minimal ?} {
+    regexp -inline {x(a|b)??} xababcabc
+} {x {}}
+
+test regexpmin-1.7 {Maximal html} {
+	regexp -inline {<(.+)>} <foo><bar><grill>
+} {<foo><bar><grill> foo><bar><grill}
+
+test regexpmin-1.8 {Minimal html} {
+	regexp -inline {<(.+?)>} <foo><bar><grill>
+} {<foo> foo}
+
+testreport

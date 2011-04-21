@@ -92,9 +92,11 @@
 #define	EXACTLY	8	/* str	Match this string. */
 #define	NOTHING	9	/* no	Match empty string. */
 #define	STAR	10	/* node	Match this (simple) thing 0 or more times. */
-#define	PLUS	11	/* node	Match this (simple) thing 1 or more times. */
-#define	WORDA	12	/* no	Match "" at wordchar, where prev is nonword */
-#define	WORDZ	13	/* no	Match "" at nonwordchar, where prev is word */
+#define	STARMIN	11	/* node	Match this (simple) thing 0 or more times, mininal match. */
+#define	PLUS	12	/* node	Match this (simple) thing 1 or more times. */
+#define	PLUSMIN	13	/* node	Match this (simple) thing 1 or more times, mininal match. */
+#define	WORDA	14	/* no	Match "" at wordchar, where prev is nonword */
+#define	WORDZ	15	/* no	Match "" at nonwordchar, where prev is word */
 #define	OPEN	20	/* no	Mark this point in input as start of #n. */
 			/*	OPEN+1 is number 1, etc. */
 #define	CLOSE	(OPEN+REG_MAX_PAREN)	/* no	Analogous to OPEN. */
@@ -577,31 +579,106 @@ static int *regpiece(regex_t *preg, int *flagp)
 		}
 	}
 
-	if (op == '*' && (flags&SIMPLE))
-		reginsert(preg, STAR, ret);
+	if (op == '*' && (flags&SIMPLE)) {
+		if (preg->regparse[1] == '?') {
+			preg->regparse++;
+			reginsert(preg, STARMIN, ret);
+		}
+		else {
+			reginsert(preg, STAR, ret);
+		}
+	}
 	else if (op == '*') {
-		/* Emit x* as (x&|), where & means "self". */
-		reginsert(preg, BRANCH, ret);			/* Either x */
-		regoptail(preg, ret, regnode(preg, BACK));		/* and loop */
-		regoptail(preg, ret, ret);			/* back */
-		regtail(preg, ret, regnode(preg, BRANCH));		/* or */
-		regtail(preg, ret, regnode(preg, NOTHING));		/* null. */
-	} else if (op == '+' && (flags&SIMPLE))
-		reginsert(preg, PLUS, ret);
+		if (preg->regparse[1] == '?') {
+			int *last;
+			int *branch;
+
+			preg->regparse++;
+
+			/* Emit x*? as (|x&), where & means "self". */
+			/* x points to BRANCH */
+
+			/* Note that we need to insert BRANCH NOTHING BRANCH in front.
+			 * Carefully keep track of where everything is inserted.
+			 */
+			chain = ret;
+			next = ret = reginsert(preg, BRANCH, ret);
+			branch = ret = reginsert(preg, NOTHING, ret);
+			ret = reginsert(preg, BRANCH, ret);
+			regtail(preg, chain, branch);
+			regtail(preg, ret, regnode(preg, BACK));
+			regtail(preg, ret, chain);
+			last = regnode(preg, NOTHING);
+			regtail(preg, chain, last);
+			regtail(preg, next, last);
+		}
+		else {
+			/* Emit x* as (x&|), where & means "self". */
+			reginsert(preg, BRANCH, ret);			/* Either x */
+			regoptail(preg, ret, regnode(preg, BACK));		/* and loop */
+			regoptail(preg, ret, ret);			/* back */
+			regtail(preg, ret, regnode(preg, BRANCH));		/* or */
+			regtail(preg, ret, regnode(preg, NOTHING));		/* null. */
+		}
+	} else if (op == '+' && (flags&SIMPLE)) {
+		if (preg->regparse[1] == '?') {
+			preg->regparse++;
+			reginsert(preg, PLUSMIN, ret);
+		}
+		else {
+			reginsert(preg, PLUS, ret);
+		}
+	}
 	else if (op == '+') {
-		/* Emit x+ as x(&|), where & means "self". */
-		next = regnode(preg, BRANCH);			/* Either */
-		regtail(preg, ret, next);
-		regtail(preg, regnode(preg, BACK), ret);		/* loop back */
-		regtail(preg, next, regnode(preg, BRANCH));		/* or */
-		regtail(preg, ret, regnode(preg, NOTHING));		/* null. */
+		if (preg->regparse[1] == '?') {
+			int *last;
+			preg->regparse++;
+
+			/* Emit x+? as x(|&), where & means "self". */
+			/* x points to BRANCH */
+			regtail(preg, ret, regnode(preg, BRANCH));
+			next = regnode(preg, NOTHING);
+			regtail(preg, ret, regnode(preg, BRANCH));
+			regtail(preg, regnode(preg, BACK), ret);
+			/* Dummy node that both paths can point to */
+			last = regnode(preg, NOTHING);
+			regtail(preg, next, last);
+			regtail(preg, ret, last);
+		}
+		else {
+			/* Emit x+ as x(&|), where & means "self". */
+			next = regnode(preg, BRANCH);			/* Either */
+			regtail(preg, ret, next);
+			regtail(preg, regnode(preg, BACK), ret);		/* loop back */
+			regtail(preg, next, regnode(preg, BRANCH));		/* or */
+			regtail(preg, ret, regnode(preg, NOTHING));		/* null. */
+		}
 	} else if (op == '?') {
-		/* Emit x? as (x|) */
-		reginsert(preg, BRANCH, ret);			/* Either x */
-		regtail(preg, ret, regnode(preg, BRANCH));		/* or */
-		next = regnode(preg, NOTHING);		/* null. */
-		regtail(preg, ret, next);
-		regoptail(preg, ret, next);
+		if (preg->regparse[1] == '?') {
+			/* Emit x?? as (|x) */
+			int *last;
+			int *branch;
+
+			preg->regparse++;
+
+			chain = ret;
+			next = ret = reginsert(preg, BRANCH, ret);
+			branch = ret = reginsert(preg, NOTHING, ret);
+			ret = reginsert(preg, BRANCH, ret);
+			regtail(preg, chain, branch);
+			regtail(preg, ret, chain);
+			last = regnode(preg, NOTHING);
+			regtail(preg, chain, last);
+			regtail(preg, next, last);
+		}
+		else {
+			/* Emit x? as (x|) */
+			reginsert(preg, BRANCH, ret);			/* Either x */
+			regtail(preg, ret, regnode(preg, BRANCH));		/* or */
+			next = regnode(preg, NOTHING);		/* null. */
+			regtail(preg, ret, next);
+			regoptail(preg, ret, next);
+		}
 	}
 	preg->regparse++;
 	if (ISMULT(*preg->regparse)) {
@@ -1322,8 +1399,11 @@ static int regmatch(regex_t *preg, const int *prog)
 #endif
 	while (scan != NULL) {
 #ifdef DEBUG
-		if (regnarrate)
-			fprintf(stderr, "%s...\n", regprop(scan));
+		if (regnarrate) {
+			//fprintf(stderr, "%s...\n", regprop(scan));
+			int op = OP(scan);
+			fprintf(stderr, "%2d{%02x}%s...\n", (int)(scan-preg->program), op, regprop(scan));	/* Where, what. */
+		}
 #endif
 		next = regnext(preg, scan);
 
@@ -1398,8 +1478,9 @@ static int regmatch(regex_t *preg, const int *prog)
 				else {
 					do {
 						save = preg->reginput;
-						if (regmatch(preg, OPERAND(scan)))
+						if (regmatch(preg, OPERAND(scan))) {
 							return(1);
+						}
 						preg->reginput = save;
 						scan = regnext(preg, scan);
 					} while (scan != NULL && OP(scan) == BRANCH);
@@ -1408,6 +1489,38 @@ static int regmatch(regex_t *preg, const int *prog)
 				}
 			}
 			break;
+		case STARMIN:
+		case PLUSMIN: {
+				char nextch;
+				const char *save;
+				int min;
+				int max;
+
+				/*
+				 * Lookahead to avoid useless match attempts
+				 * when we know what character comes next.
+				 */
+				nextch = '\0';
+				if (OP(next) == EXACTLY)
+					nextch = *OPERAND(next);
+				min = (OP(scan) == STARMIN) ? 0 : 1;
+				save = preg->reginput;
+				max = regrepeat(preg, OPERAND(scan));
+				while (min < max) {
+					int ch;
+					preg->reginput = save + min;
+					reg_utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
+					/* If it could work, try it. */
+					if (reg_iseol(preg, nextch) || ch == nextch)
+						if (regmatch(preg, next))
+							return(1);
+					/* Couldn't or didn't, add one more */
+					min++;
+				}
+				return(0);
+			}
+			break;
+
 		case STAR:
 		case PLUS: {
 				char nextch;
@@ -1681,6 +1794,12 @@ static const char *regprop( const int *op )
 		break;
 	case PLUS:
 		p = "PLUS";
+		break;
+	case STARMIN:
+		p = "STARMIN";
+		break;
+	case PLUSMIN:
+		p = "PLUSMIN";
 		break;
 	case WORDA:
 		p = "WORDA";
