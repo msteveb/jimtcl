@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 #include "utf8.h"
 
 /* This one is always implemented */
@@ -85,6 +86,27 @@ int utf8_charequal(const char *s1, const char *s2)
     utf8_tounicode(s2, &c2);
 
     return c1 == c2;
+}
+
+int utf8_prev_len(const char *str, int len)
+{
+    int n = 1;
+
+    assert(len > 0);
+
+    /* Look up to len chars backward for a start-of-char byte */
+    while (--len) {
+        if ((str[-n] & 0x80) == 0) {
+            /* Start of a 1-byte char */
+            break;
+        }
+        if ((str[-n] & 0xc0) == 0xc0) {
+            /* Start of a multi-byte char */
+            break;
+        }
+        n++;
+    }
+    return n;
 }
 
 int utf8_tounicode(const char *str, int *uc)

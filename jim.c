@@ -354,23 +354,11 @@ static int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int id
     return -1;
 }
 
+/**
+ * Note: Lengths and return value are in bytes, not chars.
+ */
 static int JimStringLast(const char *s1, int l1, const char *s2, int l2)
 {
-#ifdef JIM_UTF8
-    int i = 0;
-    /* It is too hard to search backwards with utf-8, so just keep using JimStringFirst()
-     * until we find the last instance
-     */
-    int result = -1;
-    /* Search is inclusive of l2 */
-    l2++;
-    while ((i = JimStringFirst(s1, l1, s2, l2, i)) >= 0) {
-        int c;
-        result = i;
-        i += utf8_tounicode(s2 + i, &c);
-    }
-    return result;
-#else
     const char *p;
 
     if (!l1 || !l2 || l1 > l2)
@@ -383,8 +371,21 @@ static int JimStringLast(const char *s1, int l1, const char *s2, int l2)
         }
     }
     return -1;
-#endif
 }
+
+#ifdef JIM_UTF8
+/**
+ * Note: Lengths and return value are in chars.
+ */
+static int JimStringLastUtf8(const char *s1, int l1, const char *s2, int l2)
+{
+    int n = JimStringLast(s1, utf8_index(s1, l1), s2, utf8_index(s2, l2));
+    if (n > 0) {
+        n = utf8_strlen(s2, n);
+    }
+    return n;
+}
+#endif
 
 int Jim_WideToString(char *buf, jim_wide wideValue)
 {
@@ -2408,22 +2409,26 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     return Jim_NewStringObjNoAlloc(interp, buf, len);
 }
 
-/* Similar to strchr() except searches a UTF-8 string 'str' of byte length 'len'
+/* Similar to memchr() except searches a UTF-8 string 'str' of byte length 'len'
  * for unicode character 'c'.
- * Returns 1 if found or 0 if not
+ * Returns the position if found or NULL if not
  */
-static int utf8_strchr(const char *str, int len, int c)
+static const char *utf8_memchr(const char *str, int len, int c)
 {
+#ifdef JIM_UTF8
     while (len) {
         int sc;
         int n = utf8_tounicode(str, &sc);
         if (sc == c) {
-            return 1;
+            return str;
         }
         str += n;
         len -= n;
     }
-    return 0;
+    return NULL;
+#else
+    return memchr(str, c, len);
+#endif
 }
 
 /**
@@ -2439,7 +2444,7 @@ static const char *JimFindTrimLeft(const char *str, int len, const char *trimcha
         int c;
         int n = utf8_tounicode(str, &c);
 
-        if (utf8_strchr(trimchars, trimlen, c) == 0) {
+        if (utf8_memchr(trimchars, trimlen, c) == NULL) {
             /* Not a trim char, so stop */
             break;
         }
@@ -2458,26 +2463,23 @@ static const char *JimFindTrimLeft(const char *str, int len, const char *trimcha
  */
 static const char *JimFindTrimRight(const char *str, int len, const char *trimchars, int trimlen)
 {
-    /* It is too hard to search backwards with utf-8, so just examine every char
-     * of the string and remember the point just after the last non-trim char
-     */
-    const char *nontrim = NULL;
-
-    /* XXX: Could optimize this for non-utf-8 by searching backwards */
+    str += len;
 
     while (len) {
         int c;
-        int n = utf8_tounicode(str, &c);
+        int n = utf8_prev_len(str, len);
 
-        str += n;
         len -= n;
+        str -= n;
 
-        if (utf8_strchr(trimchars, trimlen, c) == 0) {
-            nontrim = str;
+        n = utf8_tounicode(str, &c);
+
+        if (utf8_memchr(trimchars, trimlen, c) == NULL) {
+            return str + n;
         }
     }
 
-    return nontrim;
+    return NULL;
 }
 
 static const char default_trim_chars[] = " \t\n\r";
@@ -12536,7 +12538,11 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                     Jim_SetResultInt(interp, JimStringFirst(s1, l1, s2, l2, idx));
                 }
                 else {
+#ifdef JIM_UTF8
+                    Jim_SetResultInt(interp, JimStringLastUtf8(s1, l1, s2, idx));
+#else
                     Jim_SetResultInt(interp, JimStringLast(s1, l1, s2, idx));
+#endif
                 }
                 return JIM_OK;
             }

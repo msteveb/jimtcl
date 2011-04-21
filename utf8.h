@@ -27,6 +27,7 @@ int utf8_fromunicode(char *p, unsigned short uc);
 #define utf8_lower(C) tolower(C)
 #define utf8_index(C, I) (I)
 #define utf8_charlen(C) 1
+#define utf8_prev_len(S, L) 1
 
 #else
 /**
@@ -76,6 +77,15 @@ int utf8_index(const char *str, int charindex);
  * Does not support unicode code points > \uffff
  */
 int utf8_tounicode(const char *str, int *uc);
+
+/**
+ * Returns the number of bytes before 'str' that the previous
+ * utf-8 character sequence starts (which may be the middle of a sequence).
+ *
+ * Looks back at most 'len' bytes backwards, which must be > 0.
+ * If no start char is found, returns -len
+ */
+int utf8_prev_len(const char *str, int len);
 
 /**
  * Returns the upper-case variant of the given unicode codepoint.
