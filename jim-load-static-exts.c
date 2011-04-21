@@ -61,5 +61,11 @@ int Jim_InitStaticExtensions(Jim_Interp *interp)
 #ifdef jim_ext_tree
     LOAD_EXT(tree);
 #endif
+#ifdef jim_ext_pack
+    LOAD_EXT(pack);
+#endif
+#ifdef jim_ext_binary
+    LOAD_EXT(binary);
+#endif
     return JIM_OK;
 }

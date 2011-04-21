@@ -1,0 +1,660 @@
+# This file tests the tclBinary.c file and the "binary" Tcl command.
+#
+# This file contains a collection of tests for one or more of the Tcl built-in
+# commands. Sourcing this file into Tcl runs the tests and generates output
+# for errors. No output means no errors were found.
+#
+# Copyright (c) 1997 by Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution of
+# this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: binary.test,v 1.38 2008/12/15 17:11:34 ferrieux Exp $
+
+source [file dirname [info script]]/testing.tcl
+
+needs cmd binary
+testConstraint bigEndian [expr {$tcl_platform(byteOrder) eq "bigEndian"}]
+testConstraint littleEndian [expr {$tcl_platform(byteOrder) eq "littleEndian"}]
+
+# ----------------------------------------------------------------------
+
+test binary-0.1 {DupByteArrayInternalRep} {
+    set hdr [binary format cc 0 0316]
+    set buf hellomatt
+    set data $hdr
+    append data $buf
+    string length $data
+} 11
+
+test binary-1.1 {Tcl_BinaryObjCmd: bad args} -body {
+    binary
+} -returnCodes error -match glob -result {wrong # args: *}
+test binary-1.2 {Tcl_BinaryObjCmd: bad args} -returnCodes error -body {
+    binary foo
+} -match glob -result {*}
+test binary-1.3 {Tcl_BinaryObjCmd: format error} -returnCodes error -body {
+    binary f
+} -match glob -result {*}
+test binary-1.4 {Tcl_BinaryObjCmd: format} -body {
+    binary format ""
+} -result {}
+
+test binary-2.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format a
+} -result {not enough arguments for all format specifiers}
+test binary-2.2 {Tcl_BinaryObjCmd: format} {
+    binary format a0 foo
+} {}
+test binary-2.3 {Tcl_BinaryObjCmd: format} {
+    binary format a f
+} {f}
+test binary-2.4 {Tcl_BinaryObjCmd: format} {
+    binary format a foo
+} {f}
+test binary-2.5 {Tcl_BinaryObjCmd: format} {
+    binary format a3 foo
+} {foo}
+test binary-2.6 {Tcl_BinaryObjCmd: format} {
+    binary format a5 foo
+} foo\x00\x00
+test binary-2.7 {Tcl_BinaryObjCmd: format} {
+    binary format a*a3 foobarbaz blat
+} foobarbazbla
+test binary-2.8 {Tcl_BinaryObjCmd: format} {
+    binary format a*X3a2 foobar x
+} foox\x00r
+
+test binary-3.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format A
+} -result {not enough arguments for all format specifiers}
+test binary-3.2 {Tcl_BinaryObjCmd: format} {
+    binary format A0 f
+} {}
+test binary-3.3 {Tcl_BinaryObjCmd: format} {
+    binary format A f
+} {f}
+test binary-3.4 {Tcl_BinaryObjCmd: format} {
+    binary format A foo
+} {f}
+test binary-3.5 {Tcl_BinaryObjCmd: format} {
+    binary format A3 foo
+} {foo}
+test binary-3.6 {Tcl_BinaryObjCmd: format} {
+    binary format A5 foo
+} {foo  }
+test binary-3.7 {Tcl_BinaryObjCmd: format} {
+    binary format A*A3 foobarbaz blat
+} foobarbazbla
+test binary-3.8 {Tcl_BinaryObjCmd: format} {
+    binary format A*X3A2 foobar x
+} {foox r}
+
+test binary-4.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format B
+} -result {not enough arguments for all format specifiers}
+test binary-4.2 {Tcl_BinaryObjCmd: format} {
+    binary format B0 1
+} {}
+test binary-4.3 {Tcl_BinaryObjCmd: format} {
+    binary format B 1
+} \x80
+test binary-4.4 {Tcl_BinaryObjCmd: format} {
+    binary format B* 010011
+} \x4c
+test binary-4.5 {Tcl_BinaryObjCmd: format} {
+    binary format B8 01001101
+} \x4d
+test binary-4.6 {Tcl_BinaryObjCmd: format} {
+    binary format A2X2B9 oo 01001101
+} \x4d\x00
+test binary-4.7 {Tcl_BinaryObjCmd: format} {
+    binary format B9 010011011010
+} \x4d\x80
+test binary-4.8 {Tcl_BinaryObjCmd: format} {
+    binary format B2B3 10 010
+} \x80\x40
+test binary-4.9 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format B1B5 1 foo
+} -match glob -result {expected *}
+
+test binary-5.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format b
+} -result {not enough arguments for all format specifiers}
+test binary-5.2 {Tcl_BinaryObjCmd: format} {
+    binary format b0 1
+} {}
+test binary-5.3 {Tcl_BinaryObjCmd: format} {
+    binary format b 1
+} \x01
+test binary-5.4 {Tcl_BinaryObjCmd: format} {
+    binary format b* 010011
+} 2
+test binary-5.5 {Tcl_BinaryObjCmd: format} {
+    binary format b8 01001101
+} \xb2
+test binary-5.6 {Tcl_BinaryObjCmd: format} {
+    binary format A2X2b9 oo 01001101
+} \xb2\x00
+test binary-5.7 {Tcl_BinaryObjCmd: format} {
+    binary format b9 010011011010
+} \xb2\x01
+test binary-5.8 {Tcl_BinaryObjCmd: format} {
+    binary format b17 1
+} \x01\00\00
+test binary-5.9 {Tcl_BinaryObjCmd: format} {
+    binary format b2b3 10 010
+} \x01\x02
+test binary-5.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format b1b5 1 foo
+} -match glob -result {expected *}
+
+test binary-6.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format h
+} -result {not enough arguments for all format specifiers}
+test binary-6.2 {Tcl_BinaryObjCmd: format} {
+    binary format h0 1
+} {}
+test binary-6.3 {Tcl_BinaryObjCmd: format} {
+    binary format h 1
+} \x01
+test binary-6.4 {Tcl_BinaryObjCmd: format} {
+    binary format h c
+} \x0c
+test binary-6.5 {Tcl_BinaryObjCmd: format} {
+    binary format h* baadf00d
+} \xab\xda\x0f\xd0
+test binary-6.6 {Tcl_BinaryObjCmd: format} {
+    binary format h4 c410
+} \x4c\x01
+test binary-6.7 {Tcl_BinaryObjCmd: format} {
+    binary format h6 c4102
+} \x4c\x01\x02
+test binary-6.8 {Tcl_BinaryObjCmd: format} {
+    binary format h5 c41020304
+} \x4c\x01\x02
+test binary-6.9 {Tcl_BinaryObjCmd: format} {
+    binary format a3X3h5 foo 2
+} \x02\x00\x00
+test binary-6.10 {Tcl_BinaryObjCmd: format} {
+    binary format h2h3 23 456
+} \x32\x54\x06
+test binary-6.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format h2 foo
+} -match glob -result {expected *}
+
+test binary-7.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format H
+} -result {not enough arguments for all format specifiers}
+test binary-7.2 {Tcl_BinaryObjCmd: format} {
+    binary format H0 1
+} {}
+test binary-7.3 {Tcl_BinaryObjCmd: format} {
+    binary format H 1
+} \x10
+test binary-7.4 {Tcl_BinaryObjCmd: format} {
+    binary format H c
+} \xc0
+test binary-7.5 {Tcl_BinaryObjCmd: format} {
+    binary format H* baadf00d
+} \xba\xad\xf0\x0d
+test binary-7.6 {Tcl_BinaryObjCmd: format} {
+    binary format H4 c410
+} \xc4\x10
+test binary-7.7 {Tcl_BinaryObjCmd: format} {
+    binary format H6 c4102
+} \xc4\x10\x20
+test binary-7.8 {Tcl_BinaryObjCmd: format} {
+    binary format H5 c41023304
+} \xc4\x10\x20
+test binary-7.9 {Tcl_BinaryObjCmd: format} {
+    binary format a3X3H5 foo 2
+} \x20\x00\x00
+test binary-7.10 {Tcl_BinaryObjCmd: format} {
+    binary format H2H3 23 456
+} \x23\x45\x60
+test binary-7.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format H2 foo
+} -match glob -result {expected *}
+
+test binary-8.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format c
+} -result {not enough arguments for all format specifiers}
+test binary-8.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format c blat
+} -match glob -result {expected *}
+test binary-8.3 {Tcl_BinaryObjCmd: format} {
+    binary format c0 0x50
+} {}
+test binary-8.4 {Tcl_BinaryObjCmd: format} {
+    binary format c 0x50
+} P
+test binary-8.5 {Tcl_BinaryObjCmd: format} {
+    binary format c 0x5052
+} R
+test binary-8.6 {Tcl_BinaryObjCmd: format} {
+    binary format c2 {0x50 0x52}
+} PR
+test binary-8.7 {Tcl_BinaryObjCmd: format} {
+    binary format c2 {0x50 0x52 0x53}
+} PR
+test binary-8.8 {Tcl_BinaryObjCmd: format} {
+    binary format c* {0x50 0x52}
+} PR
+test binary-8.9 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format c2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-8.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format c $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-8.11 {Tcl_BinaryObjCmd: format} {
+    set a {0x50 0x51}
+    binary format c1 $a
+} P
+
+test binary-9.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format s
+} -result {not enough arguments for all format specifiers}
+test binary-9.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format s blat
+} -result {expected integer but got "blat"}
+test binary-9.3 {Tcl_BinaryObjCmd: format} {
+    binary format s0 0x50
+} {}
+test binary-9.4 {Tcl_BinaryObjCmd: format} {
+    binary format s 0x50
+} P\x00
+test binary-9.5 {Tcl_BinaryObjCmd: format} {
+    binary format s 0x5052
+} RP
+test binary-9.6 {Tcl_BinaryObjCmd: format} {
+    binary format s 0x505251 0x53
+} QR
+test binary-9.7 {Tcl_BinaryObjCmd: format} {
+    binary format s2 {0x50 0x52}
+} P\x00R\x00
+test binary-9.8 {Tcl_BinaryObjCmd: format} {
+    binary format s* {0x5051 0x52}
+} QPR\x00
+test binary-9.9 {Tcl_BinaryObjCmd: format} {
+    binary format s2 {0x50 0x52 0x53} 0x54
+} P\x00R\x00
+test binary-9.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format s2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-9.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format s $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-9.12 {Tcl_BinaryObjCmd: format} {
+    set a {0x50 0x51}
+    binary format s1 $a
+} P\x00
+
+test binary-10.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format S
+} -result {not enough arguments for all format specifiers}
+test binary-10.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format S blat
+} -result {expected integer but got "blat"}
+test binary-10.3 {Tcl_BinaryObjCmd: format} {
+    binary format S0 0x50
+} {}
+test binary-10.4 {Tcl_BinaryObjCmd: format} {
+    binary format S 0x50
+} \x00P
+test binary-10.5 {Tcl_BinaryObjCmd: format} {
+    binary format S 0x5052
+} PR
+test binary-10.6 {Tcl_BinaryObjCmd: format} {
+    binary format S 0x505251 0x53
+} RQ
+test binary-10.7 {Tcl_BinaryObjCmd: format} {
+    binary format S2 {0x50 0x52}
+} \x00P\x00R
+test binary-10.8 {Tcl_BinaryObjCmd: format} {
+    binary format S* {0x5051 0x52}
+} PQ\x00R
+test binary-10.9 {Tcl_BinaryObjCmd: format} {
+    binary format S2 {0x50 0x52 0x53} 0x54
+} \x00P\x00R
+test binary-10.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format S2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-10.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format S $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-10.12 {Tcl_BinaryObjCmd: format} {
+    set a {0x50 0x51}
+    binary format S1 $a
+} \x00P
+
+test binary-11.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format i
+} -result {not enough arguments for all format specifiers}
+test binary-11.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format i blat
+} -result {expected integer but got "blat"}
+test binary-11.3 {Tcl_BinaryObjCmd: format} {
+    binary format i0 0x50
+} {}
+test binary-11.4 {Tcl_BinaryObjCmd: format} {
+    binary format i 0x50
+} P\x00\x00\x00
+test binary-11.5 {Tcl_BinaryObjCmd: format} {
+    binary format i 0x5052
+} RP\x00\x00
+test binary-11.6 {Tcl_BinaryObjCmd: format} {
+    binary format i 0x505251 0x53
+} QRP\x00
+test binary-11.7 {Tcl_BinaryObjCmd: format} {
+    binary format i1 {0x505251 0x53}
+} QRP\x00
+test binary-11.8 {Tcl_BinaryObjCmd: format} {
+    binary format i 0x53525150
+} PQRS
+test binary-11.9 {Tcl_BinaryObjCmd: format} {
+    binary format i2 {0x50 0x52}
+} P\x00\x00\x00R\x00\x00\x00
+test binary-11.10 {Tcl_BinaryObjCmd: format} {
+    binary format i* {0x50515253 0x52}
+} SRQPR\x00\x00\x00
+test binary-11.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format i2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-11.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format i $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-11.13 {Tcl_BinaryObjCmd: format} {
+    set a {0x50 0x51}
+    binary format i1 $a
+} P\x00\x00\x00
+
+test binary-12.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format I
+} -result {not enough arguments for all format specifiers}
+test binary-12.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format I blat
+} -result {expected integer but got "blat"}
+test binary-12.3 {Tcl_BinaryObjCmd: format} {
+    binary format I0 0x50
+} {}
+test binary-12.4 {Tcl_BinaryObjCmd: format} {
+    binary format I 0x50
+} \x00\x00\x00P
+test binary-12.5 {Tcl_BinaryObjCmd: format} {
+    binary format I 0x5052
+} \x00\x00PR
+test binary-12.6 {Tcl_BinaryObjCmd: format} {
+    binary format I 0x505251 0x53
+} \x00PRQ
+test binary-12.7 {Tcl_BinaryObjCmd: format} {
+    binary format I1 {0x505251 0x53}
+} \x00PRQ
+test binary-12.8 {Tcl_BinaryObjCmd: format} {
+    binary format I 0x53525150
+} SRQP
+test binary-12.9 {Tcl_BinaryObjCmd: format} {
+    binary format I2 {0x50 0x52}
+} \x00\x00\x00P\x00\x00\x00R
+test binary-12.10 {Tcl_BinaryObjCmd: format} {
+    binary format I* {0x50515253 0x52}
+} PQRS\x00\x00\x00R
+test binary-12.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format i2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-12.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format I $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-12.13 {Tcl_BinaryObjCmd: format} {
+    set a {0x50 0x51}
+    binary format I1 $a
+} \x00\x00\x00P
+
+
+test binary-15.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format ax*a "y" "z"
+} -result {cannot use "*" in format string with "x"}
+test binary-15.2 {Tcl_BinaryObjCmd: format} {
+    binary format axa "y" "z"
+} y\x00z
+test binary-15.3 {Tcl_BinaryObjCmd: format} {
+    binary format ax3a "y" "z"
+} y\x00\x00\x00z
+test binary-15.4 {Tcl_BinaryObjCmd: format} {
+    binary format a*X3x3a* "foo" "z"
+} \x00\x00\x00z
+test binary-15.5 {Tcl_BinaryObjCmd: format - bug #1923966} {
+    binary format x0s 1
+} \x01\x00
+test binary-15.6 {Tcl_BinaryObjCmd: format - bug #1923966} {
+    binary format x0ss 1 1
+} \x01\x00\x01\x00
+test binary-15.7 {Tcl_BinaryObjCmd: format - bug #1923966} {
+    binary format x1s 1
+} \x00\x01\x00
+test binary-15.8 {Tcl_BinaryObjCmd: format - bug #1923966} {
+    binary format x1ss 1 1
+} \x00\x01\x00\x01\x00
+
+test binary-16.1 {Tcl_BinaryObjCmd: format} {
+    binary format a*X*a "foo" "z"
+} zoo
+test binary-16.2 {Tcl_BinaryObjCmd: format} {
+    binary format aX3a "y" "z"
+} z
+test binary-16.3 {Tcl_BinaryObjCmd: format} {
+    binary format a*Xa* "foo" "zy"
+} fozy
+test binary-16.4 {Tcl_BinaryObjCmd: format} {
+    binary format a*X3a "foobar" "z"
+} foozar
+test binary-16.5 {Tcl_BinaryObjCmd: format} {
+    binary format a*X3aX2a "foobar" "z" "b"
+} fobzar
+
+test binary-17.1 {Tcl_BinaryObjCmd: format} {
+    binary format @1
+} \x00
+test binary-17.2 {Tcl_BinaryObjCmd: format} {
+    binary format @5a2 "ab"
+} \x00\x00\x00\x00\x00\x61\x62
+test binary-17.3 {Tcl_BinaryObjCmd: format} {
+    binary format {a*  @0  a2 @* a*} "foobar" "ab" "blat"
+} abobarblat
+
+test binary-18.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format u0a3 abc abd
+} -result {bad field specifier "u"}
+
+# GetFormatSpec is pretty thoroughly tested above, but there are a few cases
+# we should text explicitly
+
+test binary-37.1 {GetFormatSpec: whitespace} {
+    binary format "a3 a5     a3" foo barblat baz
+} foobarblbaz
+test binary-37.2 {GetFormatSpec: whitespace} {
+    binary format "      " foo
+} {}
+test binary-37.3 {GetFormatSpec: whitespace} {
+    binary format "     a3" foo
+} foo
+test binary-37.4 {GetFormatSpec: whitespace} {
+    binary format "" foo
+} {}
+test binary-37.5 {GetFormatSpec: whitespace} {
+    binary format "" foo
+} {}
+test binary-37.6 {GetFormatSpec: whitespace} {
+    binary format "     a3   " foo
+} foo
+
+test binary-38.1 {FormatNumber: word alignment} {
+    set x [binary format c1s1 1 1]
+} \x01\x01\x00
+test binary-38.2 {FormatNumber: word alignment} {
+    set x [binary format c1S1 1 1]
+} \x01\x00\x01
+test binary-38.3 {FormatNumber: word alignment} {
+    set x [binary format c1i1 1 1]
+} \x01\x01\x00\x00\x00
+test binary-38.4 {FormatNumber: word alignment} {
+    set x [binary format c1I1 1 1]
+} \x01\x00\x00\x00\x01
+
+# Wide int (guaranteed at least 64-bit) handling
+test binary-43.1 {Tcl_BinaryObjCmd: format wide int} {} {
+    binary format w 7810179016327718216
+} HelloTcl
+test binary-43.2 {Tcl_BinaryObjCmd: format wide int} {} {
+    binary format W 7810179016327718216
+} lcTolleH
+
+### TIP#129: endian specifiers ----
+
+# format t
+test binary-48.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format t
+} -result {not enough arguments for all format specifiers}
+test binary-48.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format t blat
+} -result {expected integer but got "blat"}
+test binary-48.3 {Tcl_BinaryObjCmd: format} {
+    binary format S0 0x50
+} {}
+test binary-48.4 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t 0x50
+} \x00P
+test binary-48.5 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t 0x50
+} P\x00
+test binary-48.6 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t 0x5052
+} PR
+test binary-48.7 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t 0x5052
+} RP
+test binary-48.8 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t 0x505251 0x53
+} RQ
+test binary-48.9 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t 0x505251 0x53
+} QR
+test binary-48.10 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t2 {0x50 0x52}
+} \x00P\x00R
+test binary-48.11 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t2 {0x50 0x52}
+} P\x00R\x00
+test binary-48.12 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t* {0x5051 0x52}
+} PQ\x00R
+test binary-48.13 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t* {0x5051 0x52}
+} QPR\x00
+test binary-48.14 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format t2 {0x50 0x52 0x53} 0x54
+} \x00P\x00R
+test binary-48.15 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format t2 {0x50 0x52 0x53} 0x54
+} P\x00R\x00
+test binary-48.16 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format t2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-48.17 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format t $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-48.18 {Tcl_BinaryObjCmd: format} bigEndian {
+    set a {0x50 0x51}
+    binary format t1 $a
+} \x00P
+test binary-48.19 {Tcl_BinaryObjCmd: format} littleEndian {
+    set a {0x50 0x51}
+    binary format t1 $a
+} P\x00
+
+# format n
+test binary-49.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format n
+} -result {not enough arguments for all format specifiers}
+test binary-49.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format n blat
+} -result {expected integer but got "blat"}
+test binary-49.3 {Tcl_BinaryObjCmd: format} {
+    binary format n0 0x50
+} {}
+test binary-49.4 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n 0x50
+} P\x00\x00\x00
+test binary-49.5 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n 0x5052
+} RP\x00\x00
+test binary-49.6 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n 0x505251 0x53
+} QRP\x00
+test binary-49.7 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format i1 {0x505251 0x53}
+} QRP\x00
+test binary-49.8 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n 0x53525150
+} PQRS
+test binary-49.9 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n2 {0x50 0x52}
+} P\x00\x00\x00R\x00\x00\x00
+test binary-49.10 {Tcl_BinaryObjCmd: format} littleEndian {
+    binary format n* {0x50515253 0x52}
+} SRQPR\x00\x00\x00
+test binary-49.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    binary format n2 {0x50}
+} -result {number of elements in list does not match count}
+test binary-49.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
+    set a {0x50 0x51}
+    binary format n $a
+} -result "expected integer but got \"0x50 0x51\""
+test binary-49.13 {Tcl_BinaryObjCmd: format} littleEndian {
+    set a {0x50 0x51}
+    binary format n1 $a
+} P\x00\x00\x00
+test binary-49.14 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n 0x50
+} \x00\x00\x00P
+test binary-49.15 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n 0x5052
+} \x00\x00PR
+test binary-49.16 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n 0x505251 0x53
+} \x00PRQ
+test binary-49.17 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format i1 {0x505251 0x53}
+} QRP\x00
+test binary-49.18 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n 0x53525150
+} SRQP
+test binary-49.19 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n2 {0x50 0x52}
+} \x00\x00\x00P\x00\x00\x00R
+test binary-49.20 {Tcl_BinaryObjCmd: format} bigEndian {
+    binary format n* {0x50515253 0x52}
+} PQRS\x00\x00\x00R
+
+# format m
+test binary-50.1 {Tcl_BinaryObjCmd: format wide int} littleEndian {
+    binary format m 7810179016327718216
+} HelloTcl
+test binary-50.2 {Tcl_BinaryObjCmd: format wide int} bigEndian {
+    binary format m 7810179016327718216
+} lcTolleH
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# Local Variables:
+# mode: tcl
+# End:

@@ -38,6 +38,7 @@ options {
         nvp       - Name-value pairs C-only API
         oo        - Jim OO extension
         tree      - OO tree structure, similar to tcllib ::struct::tree
+        binary    - Tcl-compatible 'binary' command
         readline  - Interface to libreadline
         rlprompt  - Tcl wrapper around the readline extension
         sqlite    - Interface to sqlite
@@ -126,14 +127,14 @@ set withext [join [opt-val {with-ext with-jim-ext}]]
 set withmod [join [opt-val {with-mod with-jim-extmod}]]
 
 # Tcl extensions
-set ext_tcl "stdlib glob tclcompat tree rlprompt oo"
+set ext_tcl "stdlib glob tclcompat tree rlprompt oo binary"
 # C extensions
-set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop syslog nvp readline sqlite sqlite3 win32"
+set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline sqlite sqlite3 win32"
 
 # Tcl extensions which can be modules
-set ext_tcl_mod "glob tree rlprompt oo"
+set ext_tcl_mod "glob tree rlprompt oo binary"
 # C extensions which can be modules
-set ext_c_mod "readdir array clock file posix regexp syslog readline sqlite sqlite3 win32"
+set ext_c_mod "readdir array clock file posix regexp syslog readline pack sqlite sqlite3 win32"
 
 # All extensions
 set ext_all [concat $ext_c $ext_tcl]
@@ -158,6 +159,7 @@ foreach i [concat $withext $without $withmod] {
 set dep(glob) readdir
 set dep(rlprompt) readline
 set dep(tree) oo
+set dep(binary) pack
 
 set needs(aio) {expr {[cc-check-function-in-lib socket socket] || 1}}
 set needs(exec) {expr {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]}}
