@@ -102,7 +102,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
 
         /* Try to load/source it */
         if (p && strcmp(p, ".tcl") == 0) {
-            retCode = Jim_EvalFile(interp, path);
+            retCode = Jim_EvalFileGlobal(interp, path);
         }
 #ifdef jim_ext_load
         else {

@@ -9970,6 +9970,18 @@ int Jim_EvalGlobal(Jim_Interp *interp, const char *script)
     return retval;
 }
 
+int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename)
+{
+    int retval;
+    Jim_CallFrame *savedFramePtr = interp->framePtr;
+
+    interp->framePtr = interp->topFramePtr;
+    retval = Jim_EvalFile(interp, filename);
+    interp->framePtr = savedFramePtr;
+
+    return retval;
+}
+
 #include <sys/stat.h>
 
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)

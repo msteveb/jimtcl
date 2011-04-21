@@ -622,6 +622,7 @@ JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);
 JIM_EXPORT int Jim_Eval_Named(Jim_Interp *interp, const char *script,const char *filename, int lineno);
 JIM_EXPORT int Jim_EvalGlobal(Jim_Interp *interp, const char *script);
 JIM_EXPORT int Jim_EvalFile(Jim_Interp *interp, const char *filename);
+JIM_EXPORT int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename);
 JIM_EXPORT int Jim_EvalObj (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 JIM_EXPORT int Jim_EvalObjVector (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
