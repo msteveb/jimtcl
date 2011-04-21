@@ -2408,77 +2408,154 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     return Jim_NewStringObjNoAlloc(interp, buf, len);
 }
 
-static const char *trim_left(const char *str, const char *trimchars)
+/* Similar to strchr() except searches a UTF-8 string 'str' of byte length 'len'
+ * for unicode character 'c'.
+ * Returns 1 if found or 0 if not
+ */
+static int utf8_strchr(const char *str, int len, int c)
 {
-    return str + strspn(str, trimchars);
+    while (len) {
+        int sc;
+        int n = utf8_tounicode(str, &sc);
+        if (sc == c) {
+            return 1;
+        }
+        str += n;
+        len -= n;
+    }
+    return 0;
 }
 
-/* Note that trim_right() always trims null characters */
-static void trim_right(char *str, const char *trimchars)
+/**
+ * Searches for the first non-trim char in string (str, len)
+ *
+ * If none is found, returns just past the last char.
+ * 
+ * Lengths are in bytes.
+ */
+static const char *JimFindTrimLeft(const char *str, int len, const char *trimchars, int trimlen)
 {
-    char *p = str + strlen(str) - 1;
-    char *end = str - 1;
+    while (len) {
+        int c;
+        int n = utf8_tounicode(str, &c);
 
-    while (p != end) {
-        if (*p && strchr(trimchars, *p) == NULL) {
+        if (utf8_strchr(trimchars, trimlen, c) == 0) {
+            /* Not a trim char, so stop */
             break;
         }
-        p--;
+        str += n;
+        len -= n;
     }
-    p[1] = 0;
+    return str;
+}
+
+/**
+ * Searches backwards for a non-trim char in string (str, len).
+ * 
+ * Returns a pointer to just after the non-trim char, or NULL if not found.
+ *
+ * Lengths are in bytes.
+ */
+static const char *JimFindTrimRight(const char *str, int len, const char *trimchars, int trimlen)
+{
+    /* It is too hard to search backwards with utf-8, so just examine every char
+     * of the string and remember the point just after the last non-trim char
+     */
+    const char *nontrim = NULL;
+
+    /* XXX: Could optimize this for non-utf-8 by searching backwards */
+
+    while (len) {
+        int c;
+        int n = utf8_tounicode(str, &c);
+
+        str += n;
+        len -= n;
+
+        if (utf8_strchr(trimchars, trimlen, c) == 0) {
+            nontrim = str;
+        }
+    }
+
+    return nontrim;
 }
 
 static const char default_trim_chars[] = " \t\n\r";
-
-static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
-{
-    char *buf;
-    const char *trimchars = default_trim_chars;
-
-    if (strObjPtr->typePtr != &stringObjType) {
-        SetStringFromAny(interp, strObjPtr);
-    }
-    if (trimcharsObjPtr) {
-        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
-    }
-
-    buf = Jim_Alloc(strObjPtr->length + 1);
-    strcpy(buf, trim_left(strObjPtr->bytes, trimchars));
-    trim_right(buf, trimchars);
-
-    return Jim_NewStringObjNoAlloc(interp, buf, -1);
-}
+/* sizeof() here includes the null byte */
+static int default_trim_chars_len = sizeof(default_trim_chars);
 
 static Jim_Obj *JimStringTrimLeft(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
 {
-    const char *str = Jim_GetString(strObjPtr, NULL);
+    int len;
+    const char *str = Jim_GetString(strObjPtr, &len);
     const char *trimchars = default_trim_chars;
+    int trimcharslen = default_trim_chars_len;
+    const char *newstr;
 
     if (trimcharsObjPtr) {
-        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
+        trimchars = Jim_GetString(trimcharsObjPtr, &trimcharslen);
     }
 
-    return Jim_NewStringObj(interp, trim_left(str, trimchars), -1);
+    newstr = JimFindTrimLeft(str, len, trimchars, trimcharslen);
+    if (newstr == str) {
+        return strObjPtr;
+    }
+
+    return Jim_NewStringObj(interp, newstr, len - (newstr - str));
 }
 
 static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
 {
-    char *buf;
+    int len;
     const char *trimchars = default_trim_chars;
+    int trimcharslen = default_trim_chars_len;
+    const char *nontrim;
 
     if (trimcharsObjPtr) {
-        trimchars = Jim_GetString(trimcharsObjPtr, NULL);
+        trimchars = Jim_GetString(trimcharsObjPtr, &trimcharslen);
     }
-
 
     if (strObjPtr->typePtr != &stringObjType) {
         SetStringFromAny(interp, strObjPtr);
     }
+    Jim_GetString(strObjPtr, &len);
+    nontrim = JimFindTrimRight(strObjPtr->bytes, len, trimchars, trimcharslen);
 
-    buf = Jim_StrDup(strObjPtr->bytes);
-    trim_right(buf, trimchars);
+    if (nontrim == NULL) {
+        /* All trim, so return a zero-length string */
+        return Jim_NewEmptyStringObj(interp);
+    }
+    if (nontrim == strObjPtr->bytes + len) {
+        return strObjPtr;
+    }
 
-    return Jim_NewStringObjNoAlloc(interp, buf, -1);
+    if (Jim_IsShared(strObjPtr)) {
+        strObjPtr = Jim_NewStringObj(interp, strObjPtr->bytes, (nontrim - strObjPtr->bytes));
+    }
+    else {
+        /* Can modify this string in place */
+        strObjPtr->bytes[nontrim - strObjPtr->bytes] = 0;
+        strObjPtr->length = (nontrim - strObjPtr->bytes);
+    }
+
+    return strObjPtr;
+}
+
+static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
+{
+    /* First trim left. */
+    Jim_Obj *objPtr = JimStringTrimLeft(interp, strObjPtr, trimcharsObjPtr);
+
+    /* Now trim right */
+    strObjPtr = JimStringTrimRight(interp, objPtr, trimcharsObjPtr);
+
+    if (objPtr != strObjPtr) {
+        /* Note that we don't want this object to be leaked */
+        Jim_IncrRefCount(objPtr);
+        Jim_DecrRefCount(interp, objPtr);
+    }
+
+    return strObjPtr;
 }
 
 

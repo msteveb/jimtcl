@@ -809,4 +809,19 @@ test string-20.5 {string trimright} {
     string trimright ""
 } {}
 
+# Test for 8-bit clean and utf-8 trim chars
+test string-21.1 {string trim embedded nulls} {
+    string trim " abc\x00def "
+} "abc\x00def"
+test string-21.2 {string trimleft embedded nulls} {
+    string trimleft " abc\x00def "
+} "abc\x00def "
+test string-21.3 {string trimright embedded nulls} {
+    string trimright " abc\x00def "
+} " abc\x00def"
+test string-21.4 {string trim utf-8} {
+    string trim "\u00b5\u00b6abc\x00def\u00b5\u00b5" "\u00b5\u00b6"
+} "abc\x00def"
+
+
 testreport
