@@ -2474,9 +2474,31 @@ static void JimRelToAbsRange(int len, int first, int last,
     *rangeLenPtr = rangeLen;
 }
 
+Jim_Obj *Jim_StringByteRangeObj(Jim_Interp *interp,
+    Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr)
+{
+    int first, last;
+    const char *str;
+    int rangeLen;
+    int bytelen;
+
+    if (Jim_GetIndex(interp, firstObjPtr, &first) != JIM_OK ||
+        Jim_GetIndex(interp, lastObjPtr, &last) != JIM_OK)
+        return NULL;
+    str = Jim_GetString(strObjPtr, &bytelen);
+    first = JimRelToAbsIndex(bytelen, first);
+    last = JimRelToAbsIndex(bytelen, last);
+    JimRelToAbsRange(bytelen, first, last, &first, &last, &rangeLen);
+    if (first == 0 && rangeLen == bytelen) {
+        return strObjPtr;
+    }
+    return Jim_NewStringObj(interp, str + first, rangeLen);
+}
+
 Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
     Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr)
 {
+#ifdef JIM_UTF8
     int first, last;
     const char *str;
     int len, rangeLen;
@@ -2490,11 +2512,17 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
     first = JimRelToAbsIndex(len, first);
     last = JimRelToAbsIndex(len, last);
     JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    if (first == 0 && rangeLen == len) {
+        return strObjPtr;
+    }
     if (len == bytelen) {
         /* ASCII optimisation */
         return Jim_NewStringObj(interp, str + first, rangeLen);
     }
     return Jim_NewStringObjUtf8(interp, str + utf8_index(str, first), rangeLen);
+#else
+    return Jim_StringByteRangeObj(interp, strObjPtr, firstObjPtr, lastObjPtr);
+#endif
 }
 
 static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
@@ -12627,13 +12655,13 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int opt_case = 1;
     int option;
     static const char * const options[] = {
-        "bytelength", "length", "compare", "match", "equal", "is", "range", "map",
+        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range", "map",
         "repeat", "reverse", "index", "first", "last",
         "trim", "trimleft", "trimright", "tolower", "toupper", NULL
     };
     enum
     {
-        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_RANGE, OPT_MAP,
+        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE, OPT_MAP,
         OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
         OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER
     };
@@ -12721,14 +12749,22 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 return JIM_OK;
             }
 
-        case OPT_RANGE:{
+        case OPT_RANGE:
+        case OPT_BYTERANGE:{
                 Jim_Obj *objPtr;
 
                 if (argc != 5) {
                     Jim_WrongNumArgs(interp, 2, argv, "string first last");
                     return JIM_ERR;
                 }
-                objPtr = Jim_StringRangeObj(interp, argv[2], argv[3], argv[4]);
+                if (option == OPT_RANGE) {
+                    objPtr = Jim_StringRangeObj(interp, argv[2], argv[3], argv[4]);
+                }
+                else
+                {
+                    objPtr = Jim_StringByteRangeObj(interp, argv[2], argv[3], argv[4]);
+                }
+
                 if (objPtr == NULL) {
                     return JIM_ERR;
                 }
