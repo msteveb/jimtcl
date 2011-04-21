@@ -111,7 +111,7 @@ proc bytestring {x} {
 
 # Note: We don't support -output or -errorOutput yet
 proc test {id descr args} {
-	if {[lindex $args 0] ni {-returnCodes -body -match -constraints -result -output -errorOutput}} {
+	if {[lindex $args 0] ni {-returnCodes -body -match -constraints -result -setup -output -errorOutput}} {
 		if {[llength $args] == 2} {
 			lassign $args body result constraints
 		} elseif {[llength $args] == 3} {
