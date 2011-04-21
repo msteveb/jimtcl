@@ -109,13 +109,28 @@ proc bytestring {x} {
 	return $x
 }
 
-proc test {id descr {constraints {}} script expected} {
+# Note: We don't support -output or -errorOutput yet
+proc test {id descr args} {
+	if {[lindex $args 0] ni {-returnCodes -body -match -constraints -result -output -errorOutput}} {
+		if {[llength $args] == 2} {
+			lassign $args body result constraints
+		} elseif {[llength $args] == 3} {
+			lassign $args constraints body result
+		} else {
+			return -code error "$id: Wrong syntax for tcltest::test v1"
+		}
+		tailcall test $id $descr -body $body -result $result -constraints $constraints
+	}
+	# tcltest::test v2 syntax
+	set a {-returnCodes {ok return} -match exact -result {} -constraints {} -body {} -setup {} -cleanup {}}
+	array set a $args
+
 	incr ::testinfo(numtests)
 	if {$::testinfo(verbose)} {
 		puts -nonewline "$id "
 	}
 
-	foreach c $constraints {
+	foreach c $a(-constraints) {
 		if {[info exists ::tcltest::testConstraints($c)]} {
 			if {$::tcltest::testConstraints($c)} {
 				continue
@@ -127,10 +142,29 @@ proc test {id descr {constraints {}} script expected} {
 			return
 		}
 	}
-	set rc [catch {uplevel 1 $script} result]
 
-	# Note that rc=2 is return
-	if {($rc == 0 || $rc == 2) && $result eq $expected} {
+	catch {uplevel 1 $a(-setup)}
+	set rc [catch {uplevel 1 $a(-body)} result]
+	catch {uplevel 1 $a(-cleanup)}
+
+	if {[info return $rc] ni $a(-returnCodes)} {
+		set ok 0
+		set expected "rc=$a(-returnCodes) result=$a(-result)"
+		set result "rc=[info return $rc] result=$result"
+	} else {
+		if {$a(-match) eq "exact"} {
+			set ok [string equal $a(-result) $result]
+		} elseif {$a(-match) eq "glob"} {
+			set ok [string match $a(-result) $result]
+		} elseif {$a(-match) eq "regexp"} {
+			set ok [regexp $a(-result) $result]
+		} else {
+			return -code error "$id: unknown match type: $a(-match)"
+		}
+		set expected $a(-result)
+	}
+
+	if {$ok} {
 		if {$::testinfo(verbose)} {
 			puts "OK  $descr"
 		}
@@ -143,7 +177,7 @@ proc test {id descr {constraints {}} script expected} {
 	}
 	puts "ERR $descr"
 	if {$rc == 0} {
-		set source [script_source $script]
+		set source [script_source $a(-body)]
 	} else {
 		set source [error_source]
 	}
@@ -151,6 +185,10 @@ proc test {id descr {constraints {}} script expected} {
 	puts "Got     : '$result'"
 	incr ::testinfo(numfail)
 	lappend ::testinfo(failed) [list $id $descr $source $expected $result]
+}
+
+proc ::tcltest::cleanupTests {} {
+	tailcall testreport
 }
 
 proc testreport {} {
