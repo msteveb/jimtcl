@@ -11911,7 +11911,7 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
 static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *stringObjPtr;
-    int shared, i;
+    int i;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
@@ -11923,26 +11923,26 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
     }
     else {
+        int freeobj = 0;
         stringObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
         if (!stringObjPtr) {
-            /* Create the string if it does not exists */
+            /* Create the string if it doesn't exist */
             stringObjPtr = Jim_NewEmptyStringObj(interp);
-            if (Jim_SetVariable(interp, argv[1], stringObjPtr)
-                != JIM_OK) {
-                Jim_FreeNewObj(interp, stringObjPtr);
-                return JIM_ERR;
-            }
+            freeobj = 1;
         }
-    }
-    shared = Jim_IsShared(stringObjPtr);
-    if (shared)
-        stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
-    for (i = 2; i < argc; i++)
-        Jim_AppendObj(interp, stringObjPtr, argv[i]);
-    if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
-        if (shared)
-            Jim_FreeNewObj(interp, stringObjPtr);
-        return JIM_ERR;
+        else if (Jim_IsShared(stringObjPtr)) {
+            freeobj = 1;
+            stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
+        }
+        for (i = 2; i < argc; i++) {
+            Jim_AppendObj(interp, stringObjPtr, argv[i]);
+        }
+        if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
+            if (freeobj) {
+                Jim_FreeNewObj(interp, stringObjPtr);
+            }
+            return JIM_ERR;
+        }
     }
     Jim_SetResult(interp, stringObjPtr);
     return JIM_OK;
