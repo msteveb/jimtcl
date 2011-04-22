@@ -441,6 +441,7 @@ typedef struct Jim_ObjType {
 /* Call frame */
 typedef struct Jim_CallFrame {
     unsigned jim_wide id; /* Call Frame ID. Used for caching. */
+    int level; /* Level of this call frame. 0 = global */
     struct Jim_HashTable vars; /* Where local vars are stored */
     struct Jim_HashTable *staticVars; /* pointer to procedure static vars */
     struct Jim_CallFrame *parentCallFrame;
@@ -502,7 +503,6 @@ typedef struct Jim_Interp {
     int errorLine; /* Error line where an error occurred. */
     char *errorFileName; /* Error file where an error occurred. */
     int addStackTrace; /* > 0 If a level should be added to the stack trace */
-    int numLevels; /* Number of current nested calls. */
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */
     int returnLevel; /* Current level of 'return -level' */
@@ -749,9 +749,8 @@ JIM_EXPORT int Jim_UnsetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 
 /* call frame */
-JIM_EXPORT int Jim_GetCallFrameByLevel (Jim_Interp *interp,
-        Jim_Obj *levelObjPtr, Jim_CallFrame **framePtrPtr,
-        int *newLevelPtr);
+JIM_EXPORT Jim_CallFrame *Jim_GetCallFrameByLevel(Jim_Interp *interp,
+        Jim_Obj *levelObjPtr);
 
 /* garbage collection */
 JIM_EXPORT int Jim_Collect (Jim_Interp *interp);
