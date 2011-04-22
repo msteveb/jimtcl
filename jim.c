@@ -89,9 +89,19 @@
 /*#define DEBUG_SHOW_EXPR*/
 /*#define DEBUG_SHOW_EXPR_TOKENS*/
 /*#define JIM_DEBUG_GC*/
-/*#define JIM_DEBUG_COMMAND*/
+#ifdef JIM_MAINTAINER
+#define JIM_DEBUG_COMMAND
+#define JIM_DEBUG_PANIC
+#endif
 
 const char *jim_tt_name(int type);
+
+#ifdef JIM_DEBUG_PANIC
+static void JimPanicDump(int panic_condition, Jim_Interp *interp, const char *fmt, ...);
+#define JimPanic(X) JimPanicDump X
+#else
+#define JimPanic(X)
+#endif
 
 /* -----------------------------------------------------------------------------
  * Global variables
@@ -498,13 +508,17 @@ static jim_wide JimPowWide(jim_wide b, jim_wide e)
 /* -----------------------------------------------------------------------------
  * Special functions
  * ---------------------------------------------------------------------------*/
-
+#ifdef JIM_DEBUG_PANIC
 /* Note that 'interp' may be NULL if not available in the
  * context of the panic. It's only useful to get the error
  * file descriptor, it will default to stderr otherwise. */
-void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
+void JimPanicDump(int condition, Jim_Interp *interp, const char *fmt, ...)
 {
     va_list ap;
+
+    if (!condition) {
+        return;
+    }
 
     va_start(ap, fmt);
     /*
@@ -532,6 +546,7 @@ void Jim_Panic(Jim_Interp *interp, const char *fmt, ...)
 
     abort();
 }
+#endif
 
 /* -----------------------------------------------------------------------------
  * Memory allocation
@@ -2070,10 +2085,8 @@ Jim_Obj *Jim_NewObj(Jim_Interp *interp)
 void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     /* Check if the object was already freed, panic. */
-    if (objPtr->refCount != 0) {
-        Jim_Panic(interp, "!!!Object %p freed with bad refcount %d, type=%s", objPtr,
-            objPtr->refCount, objPtr->typePtr ? objPtr->typePtr->name : "<none>");
-    }
+    JimPanic((objPtr->refCount != 0, interp, "!!!Object %p freed with bad refcount %d, type=%s", objPtr,
+        objPtr->refCount, objPtr->typePtr ? objPtr->typePtr->name : "<none>"));
 
     /* Free the internal representation */
     Jim_FreeIntRep(interp, objPtr);
@@ -2162,9 +2175,7 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
-        if (objPtr->typePtr->updateStringProc == NULL) {
-            Jim_Panic(NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name);
-        }
+        JimPanic((objPtr->typePtr->updateStringProc == NULL, NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
         objPtr->typePtr->updateStringProc(objPtr);
     }
     if (lenPtr)
@@ -2361,8 +2372,7 @@ static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
 /* Higher level API to append strings to objects. */
 void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str, int len)
 {
-    if (Jim_IsShared(objPtr))
-        Jim_Panic(interp, "Jim_AppendString called with shared object");
+    JimPanic((Jim_IsShared(objPtr), interp, "Jim_AppendString called with shared object"));
     if (objPtr->typePtr != &stringObjType)
         SetStringFromAny(interp, objPtr);
     StringAppendString(objPtr, str, len);
@@ -2895,13 +2905,13 @@ void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
     const char *fileName, int lineNumber)
 {
-    if (Jim_IsShared(objPtr))
-        Jim_Panic(interp, "JimSetSourceInfo called with shared object");
-    if (objPtr->typePtr != NULL)
-        Jim_Panic(interp, "JimSetSourceInfo called with typePtr != NULL");
-    objPtr->internalRep.sourceValue.fileName = Jim_GetSharedString(interp, fileName);
-    objPtr->internalRep.sourceValue.lineNumber = lineNumber;
-    objPtr->typePtr = &sourceObjType;
+    if (fileName) {
+        JimPanic((Jim_IsShared(objPtr), interp, "JimSetSourceInfo called with shared object"));
+        JimPanic((objPtr->typePtr != NULL, interp, "JimSetSourceInfo called with typePtr != NULL"));
+        objPtr->internalRep.sourceValue.fileName = Jim_GetSharedString(interp, fileName);
+        objPtr->internalRep.sourceValue.lineNumber = lineNumber;
+        objPtr->typePtr = &sourceObjType;
+    }
 }
 
 /* -----------------------------------------------------------------------------
@@ -3277,9 +3287,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             /* Every object is initially a string, but the
              * internal type may be specialized during execution of the
              * script. */
-            if (script->fileName) {
-                JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
-            }
+            JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
             token++;
         }
     }
@@ -4144,9 +4152,8 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
     str = Jim_GetString(objPtr, &len);
 
     p = strchr(str, '(');
-    if (p == NULL) {
-        Jim_Panic(interp, "JimDictSugarParseVarKey() called for non-dict-sugar (%s)", str);
-    }
+    JimPanic((p == NULL, interp, "JimDictSugarParseVarKey() called for non-dict-sugar (%s)", str));
+
     varObjPtr = Jim_NewStringObj(interp, str, p - str);
 
     p++;
@@ -4229,7 +4236,7 @@ static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPt
         dictObjPtr = Jim_DuplicateObj(interp, dictObjPtr);
         if (Jim_SetVariable(interp, varObjPtr, dictObjPtr) != JIM_OK) {
             /* This can probably never happen */
-            Jim_Panic(interp, "SetVariable failed for JIM_UNSHARED");
+            JimPanic((1, interp, "SetVariable failed for JIM_UNSHARED"));
         }
         /* We know that the key exists. Get the result in the now-unshared dictionary */
         Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_NONE);
@@ -4948,7 +4955,7 @@ void Jim_FreeInterp(Jim_Interp *i)
             objPtr = objPtr->nextObjPtr;
         }
         printf("-------------------------------------" JIM_NL JIM_NL);
-        Jim_Panic(i, "Live list non empty freeing the interpreter! Leak?");
+        JimPanic((1, i, "Live list non empty freeing the interpreter! Leak?"));
     }
     /* Free all the freed objects. */
     objPtr = i->freeList;
@@ -5233,18 +5240,15 @@ void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
     long refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
-    if (he == NULL) {
-        Jim_Panic(interp, "Jim_ReleaseSharedString called with " "unknown shared string '%s'", str);
+    JimPanic((he == NULL, interp, "Jim_ReleaseSharedString called with " "unknown shared string '%s'", str));
+
+    refCount = (long)he->val;
+    refCount--;
+    if (refCount == 0) {
+        Jim_DeleteHashEntry(&interp->sharedStrings, str);
     }
     else {
-        refCount = (long)he->val;
-        refCount--;
-        if (refCount == 0) {
-            Jim_DeleteHashEntry(&interp->sharedStrings, str);
-        }
-        else {
-            he->val = (void *)refCount;
-        }
+        he->val = (void *)refCount;
     }
 }
 
@@ -5772,9 +5776,7 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
             continue;
         elementPtr = JimParserGetTokenObj(interp, &parser);
-        if (filename) {
-            JimSetSourceInfo(interp, elementPtr, filename, parser.tline);
-        }
+        JimSetSourceInfo(interp, elementPtr, filename, parser.tline);
         ListAppendElement(objPtr, elementPtr);
     }
     if (filename) {
@@ -5910,8 +5912,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     int len;
     int rc;
 
-    if (Jim_IsShared(listObjPtr))
-        Jim_Panic(interp, "Jim_ListSortElements called with shared object");
+    JimPanic((Jim_IsShared(listObjPtr), interp, "Jim_ListSortElements called with shared object"));
     if (!Jim_IsList(listObjPtr))
         SetListFromAny(interp, listObjPtr);
 
@@ -5936,7 +5937,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
             break;
         default:
             fn = NULL;          /* avoid warning */
-            Jim_Panic(interp, "ListSort called with invalid sort type");
+            JimPanic((1, interp, "ListSort called with invalid sort type"));
     }
 
     if (info->indexed) {
@@ -6004,8 +6005,7 @@ static void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 
 void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr)
 {
-    if (Jim_IsShared(listPtr))
-        Jim_Panic(interp, "Jim_ListAppendElement called with shared object");
+    JimPanic((Jim_IsShared(listPtr), interp, "Jim_ListAppendElement called with shared object"));
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
@@ -6014,8 +6014,7 @@ void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr
 
 void Jim_ListAppendList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 {
-    if (Jim_IsShared(listPtr))
-        Jim_Panic(interp, "Jim_ListAppendList called with shared object");
+    JimPanic((Jim_IsShared(listPtr), interp, "Jim_ListAppendList called with shared object"));
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
@@ -6032,8 +6031,7 @@ int Jim_ListLength(Jim_Interp *interp, Jim_Obj *objPtr)
 void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     int objc, Jim_Obj *const *objVec)
 {
-    if (Jim_IsShared(listPtr))
-        Jim_Panic(interp, "Jim_ListInsertElement called with shared object");
+    JimPanic((Jim_IsShared(listPtr), interp, "Jim_ListInsertElement called with shared object"));
     if (!Jim_IsList(listPtr))
         SetListFromAny(interp, listPtr);
     if (idx >= 0 && idx > listPtr->internalRep.listValue.len)
@@ -6483,8 +6481,7 @@ int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
 {
     int retcode;
 
-    if (Jim_IsShared(objPtr))
-        Jim_Panic(interp, "Jim_DictAddElement called with shared object");
+    JimPanic((Jim_IsShared(objPtr), interp, "Jim_DictAddElement called with shared object"));
     if (objPtr->typePtr != &dictObjType) {
         if (SetDictFromAny(interp, objPtr) != JIM_OK)
             return JIM_ERR;
@@ -6499,8 +6496,7 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     Jim_Obj *objPtr;
     int i;
 
-    if (len % 2)
-        Jim_Panic(interp, "Jim_NewDictObj() 'len' argument must be even");
+    JimPanic((len % 2, interp, "Jim_NewDictObj() 'len' argument must be even"));
 
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &dictObjType;
@@ -9255,10 +9251,8 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
     ScanFmtStringObj *fmtObj;
 
     /* This should never happen. The format object should already be of the correct type */
-    if (fmtObjPtr->typePtr != &scanFmtStringObjType) {
-        Jim_Panic(interp, "Jim_ScanString() for non-scan format");
-        exit(1);
-    }
+    JimPanic((fmtObjPtr->typePtr != &scanFmtStringObjType, interp, "Jim_ScanString() for non-scan format"));
+
     fmtObj = (ScanFmtStringObj *) fmtObjPtr->internalRep.ptr;
     /* Check if format specification was valid */
     if (fmtObj->error != 0) {
@@ -9668,8 +9662,8 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
             }
             break;
         default:
-            Jim_Panic(interp,
-                "default token type (%d) reached " "in Jim_SubstObj().", token->type);
+            JimPanic((1, interp,
+                "default token type (%d) reached " "in Jim_SubstObj().", token->type));
             objPtr = NULL;
             break;
     }
@@ -9920,8 +9914,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                         }
                         break;
                     default:
-                        Jim_Panic(interp, "default token type reached " "in Jim_EvalObj().");
-                        exit(1);
+                        JimPanic((1, interp, "default token type reached " "in Jim_EvalObj()."));
                 }
             }
             else {

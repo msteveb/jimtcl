@@ -10,6 +10,7 @@ options {
     references=1    => "disable support for references"
     math            => "include support for math functions"
     ipv6            => "include ipv6 support in the aio extension"
+    maintainer      => {enable the [debug] command and JimPanic}
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp      => "use the built-in (Tcl-compatible) regexp, even if POSIX regex is available"
     with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
@@ -92,6 +93,10 @@ if {[opt-bool utf8]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     incr jimregexp
+}
+if {[opt-bool maintainer]} {
+    msg-result "Enabling maintainer settings"
+    define JIM_MAINTAINER
 }
 if {[opt-bool math]} {
     msg-result "Enabling math functions"
