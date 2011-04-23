@@ -1,16 +1,10 @@
-if {[info commands vwait] eq ""} {
-	return "noimpl"
-}
-
 proc bgerror {msg} {
-	#puts "bgerror: $msg"
+	puts "bgerror: $msg"
 	#exit 0
 }
 
-if {[info commands verbose] == ""} {
-	proc verbose {msg} {
-		puts $msg
-	}
+proc verbose {msg} {
+	puts $msg
 }
 
 if {[os.fork] == 0} {
@@ -29,16 +23,8 @@ if {[os.fork] == 0} {
 			verbose "child: read response '$buf'"
 		} else {
 			verbose "child: read got eof"
-			close $f
 			set ::done 1
-			$f readable {}
 		}
-	}
-
-	proc oneof {f} {
-		$f close
-		verbose "child: eof so closing"
-		set ::done 1
 	}
 
 	proc onwrite {f} {
@@ -48,8 +34,8 @@ if {[os.fork] == 0} {
 		$f writable {}
 	}
 
-	$f readable {onread $f} {oneof $f}
-	$f writable {onwrite $f}
+	$f readable [list onread $f]
+	$f writable [list onwrite $f]
 
 	alarm 10
 	catch -signal {
@@ -58,6 +44,7 @@ if {[os.fork] == 0} {
 		verbose "child: done event loop"
 	}
 	alarm 0
+	$f close
 	exit 0
 }
 
@@ -82,13 +69,14 @@ proc server_onread {f} {
 	incr ::done
 }
 
-$f readable {server_onread $f}
+$f readable [list server_onread $f]
 
 alarm 10
 catch -signal {
 	vwait done
 }
 alarm 0
+$f close
 
 sleep .5
 

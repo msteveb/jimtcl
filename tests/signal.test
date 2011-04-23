@@ -1,0 +1,97 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd signal
+needs cmd pid
+
+test signal-1.1 "catch/throw" {
+	signal handle TERM
+	set x 1
+	set rc [catch -signal {
+		signal throw -TERM
+		incr x
+	} result]
+	signal default TERM
+	list [info returncode $rc] $result $x
+} {signal SIGTERM 1}
+
+test signal-1.2 "catch/kill" {
+	signal handle TERM
+	set x 1
+	set rc [catch -signal {
+		kill -TERM [pid]
+		incr x
+	} result]
+	signal default TERM
+	list [info returncode $rc] $result $x
+} {signal SIGTERM 1}
+
+test signal-1.3 "catch/alarm" {
+	signal handle ALRM
+	set x 1
+	set rc [catch -signal {
+		alarm .2
+		sleep 1
+		incr x
+	} result]
+	signal default ALRM
+	list [info returncode $rc] $result $x
+} {signal SIGALRM 1}
+
+test signal-1.4 "multiple signals before catch" {
+	signal handle ALRM INT
+	kill -INT [pid]
+	alarm .2
+	sleep 1
+	set x 1
+	set rc [catch -signal {
+		# Doesn't not execute because signals already active
+		incr x
+	} result]
+	signal default ALRM INT
+	list [info returncode $rc] [lsort $result] $x
+} {signal {SIGALRM SIGINT} 1}
+
+test signal-1.5 "ignored signals" {
+	signal handle INT
+	signal ignore HUP
+
+	set x 1
+	catch -signal {
+		# Send an ignored signal
+		kill -HUP [pid]
+		incr x
+		# Now a caught signal
+		kill -INT [pid]
+		incr x
+	} result
+	signal default INT TERM
+	list [lsort $result] $x
+} {SIGINT 2}
+
+test signal-1.6 "check ignored signals" {
+	list [signal check SIGINT] [signal check]
+} {{} SIGHUP}
+
+test signal-1.7 "clearing ignored signals" {
+	signal check -clear
+	signal check
+} {}
+
+test signal-1.8 "try/signal" {
+	signal handle ALRM
+	try -signal {
+		alarm 0.4
+		foreach i [range 10] {
+			sleep 0.1
+		}
+		set msg ""
+	} on signal {msg} {
+		# Just set msg here
+	} finally {
+		alarm 0
+	}
+	signal default ALRM
+	list [expr {$i in {3 4 5}}] $msg
+} {1 SIGALRM}
+
+testreport
