@@ -715,6 +715,11 @@ Support <tt>jimsh --version</tt>
 Additional variables in <tt>tcl_platform()</tt>
 </p>
 </li>
+<li>
+<p>
+<em>local</em> procs now push existing commands and <em>upcall</em> can call them
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -961,8 +966,8 @@ no longer work.</p></div>
 <div class="sect1">
 <h2 id="_comments">COMMENTS</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>If the first non-blank character in a command is <em>#</em>, then everything
-from the <em>#</em> up through the next newline character is treated as
+<div class="paragraph"><p>If the first non-blank character in a command is <tt>#</tt>, then everything
+from the <tt>#</tt> up through the next newline character is treated as
 a comment and ignored.  When comments are embedded inside nested
 commands (e.g. fields enclosed in braces) they must have properly-matched
 braces (this is necessary because when Tcl parses the top-level command
@@ -1465,8 +1470,8 @@ If a field doesn&#8217;t begin with a brace then backslash,
 </li>
 <li>
 <p>
-If the first non-blank character of a command is a <em>#</em>, everything
-   from the <em>#</em> up through the next newline is treated as a comment
+If the first non-blank character of a command is a <tt>#</tt>, everything
+   from the <tt>#</tt> up through the next newline is treated as a comment
    and ignored.
 </p>
 </li>
@@ -1642,7 +1647,7 @@ of precedence:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>&lt;  &gt;  \&lt;=  &gt;=</tt>
+<tt>&lt;  &gt;  &lt;=  &gt;=</tt>
 </dt>
 <dd>
 <p>
@@ -1828,7 +1833,7 @@ its second argument to the expression evaluator to see whether or not
 to continue processing.  Unfortunately, in this case the value of <tt>i</tt>
 in the second argument will be substituted once and for all when the
 <em>for</em> command is parsed.  If <tt>i</tt> was 0 before the <em>for</em>
-command was invoked then for&#8217;s second argument will be <tt>0\&lt;=10</tt>
+command was invoked then for&#8217;s second argument will be <tt>0&lt;=10</tt>
 which will always evaluate to 1, even though <tt>i</tt> eventually
 becomes greater than 10.  In the above case the loop will never
 terminate.  Instead, the expression should be placed in braces:</p></div>
@@ -1862,7 +1867,7 @@ the string</p></div>
 <div class="content">
 <pre><tt>a b\ c {d e {f g h}}</tt></pre>
 </div></div>
-<div class="paragraph"><p>is a list with three elements:  <em>a</em>, <em>b c</em>, and <em>d e {f g h}</em>.</p></div>
+<div class="paragraph"><p>is a list with three elements:  <tt>a</tt>, <tt>b c</tt>, and <tt>d e {f g h}</tt>.</p></div>
 <div class="paragraph"><p>Whenever an element is extracted from a list, the same rules about
 braces and quotes and backslashes are applied as for commands.  Thus in
 the example above when the third element is extracted from the list,
@@ -2716,14 +2721,14 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_try">try</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown">unknown</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset">unset</a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_upcall">upcall</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2">update</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel">uplevel</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_upvar">upvar</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_upvar">upvar</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2">vwait</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while">while</a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -4255,6 +4260,10 @@ value to be a procedure name, which is marked as having local scope.
 This means that when the current procedure exits, the specified
 procedure is deleted. This can be useful with <em>lambda</em> or simply
 local procedures.</p></div>
+<div class="paragraph"><p>In addition, if a command already exists with the same name,
+the existing command will be kept rather than deleted, and may be called
+via <em>upcall</em>. The previous command will be restored when the current
+command is deleted. See <em>upcall</em> for more details.</p></div>
 <div class="paragraph"><p>In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.</p></div>
 <div class="literalblock">
@@ -5933,6 +5942,13 @@ is specified. The <em>--</em> argument may be specified to stop option processin
 in case the variable name may be <em>-nocomplain</em>.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_upcall">upcall</h3>
+<div class="paragraph"><p><tt><strong>upcall</strong> <em>command ?args &#8230;?</em></tt></p></div>
+<div class="paragraph"><p>May be used from within a proc defined as <tt>local proc</tt> in order to call
+the previous, hidden version of the same command.</p></div>
+<div class="paragraph"><p>If there is no previous definition of the command, an error is returned.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_uplevel">uplevel</h3>
 <div class="paragraph"><p><tt><strong>uplevel</strong> <em>?level? command ?command &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>All of the <strong>command</strong> arguments are concatenated as if they had
@@ -5943,14 +5959,14 @@ it gives a distance (up the procedure calling stack) to move before
 executing the command.  If <strong>level</strong> consists of <em>#</em> followed by
 a number then the number gives an absolute level number.  If <strong>level</strong>
 is omitted then it defaults to <em>1</em>.  <strong>Level</strong> cannot be
-defaulted if the first <strong>command</strong> argument starts with a digit or <em>\#</em>.</p></div>
+defaulted if the first <strong>command</strong> argument starts with a digit or <em>#</em>.</p></div>
 <div class="paragraph"><p>For example, suppose that procedure <em>a</em> was invoked
 from top-level, and that it called <em>b</em>, and that <em>b</em> called <em>c</em>.
 Suppose that <em>c</em> invokes the <em>uplevel</em> command.  If <strong>level</strong>
-is <em>1</em> or <em>\#2</em>  or omitted, then the command will be executed
-in the variable context of <em>b</em>.  If <strong>level</strong> is <em>2</em> or <em>\#1</em>
+is <em>1</em> or <em>#2</em>  or omitted, then the command will be executed
+in the variable context of <em>b</em>.  If <strong>level</strong> is <em>2</em> or <em>#1</em>
 then the command will be executed in the variable context of <em>a</em>.</p></div>
-<div class="paragraph"><p>If <strong>level</strong> is <em>3</em> or <em>\#0</em> then the command will be executed
+<div class="paragraph"><p>If <strong>level</strong> is <em>3</em> or <em>#0</em> then the command will be executed
 at top-level (only global variables will be visible).
 The <em>uplevel</em> command causes the invoking procedure to disappear
 from the procedure calling stack while the command is being executed.
@@ -5983,10 +5999,10 @@ procedure to refer to variables in an enclosing procedure call or
 to global variables.</p></div>
 <div class="paragraph"><p><strong>Level</strong> may have any of the forms permitted for the <em>uplevel</em>
 command, and may be omitted if the first letter of the first <strong>otherVar</strong>
-isn&#8217;t <em>\#</em> or a digit (it defaults to <em>1</em>).</p></div>
+isn&#8217;t <em>#</em> or a digit (it defaults to <em>1</em>).</p></div>
 <div class="paragraph"><p>For each <strong>otherVar</strong> argument, <em>upvar</em> makes the variable
 by that name in the procedure frame given by <strong>level</strong> (or at
-global level, if <strong>level</strong> is <em>\#0</em>) accessible
+global level, if <strong>level</strong> is <em>#0</em>) accessible
 in the current procedure by the name given in the corresponding
 <strong>myVar</strong> argument.</p></div>
 <div class="paragraph"><p>The variable named by <strong>otherVar</strong> need not exist at the time of the
@@ -6961,7 +6977,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-05-31 15:45:18 EST
+Last updated 2011-06-01 13:11:48 EST
 </div>
 </div>
 </body>

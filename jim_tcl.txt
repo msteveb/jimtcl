@@ -63,6 +63,7 @@ Changes between 0.70 and 0.71
 3. Add automatic reference variables in procs with +&var+ syntax
 4. Support +jimsh --version+
 5. Additional variables in +tcl_platform()+
+6. 'local' procs now push existing commands and 'upcall' can call them
 
 Changes between 0.63 and 0.70
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -259,8 +260,8 @@ no longer work.
 
 COMMENTS
 --------
-If the first non-blank character in a command is '\#', then everything
-from the '#' up through the next newline character is treated as
+If the first non-blank character in a command is +\#+, then everything
+from the +#+ up through the next newline character is treated as
 a comment and ignored.  When comments are embedded inside nested
 commands (e.g. fields enclosed in braces) they must have properly-matched
 braces (this is necessary because when Tcl parses the top-level command
@@ -600,8 +601,8 @@ COMMAND SUMMARY
    special treatment.  Substitution can
    occur on any field of a command, including the command name
    as well as the arguments.
-8. If the first non-blank character of a command is a '\#', everything
-   from the '#' up through the next newline is treated as a comment
+8. If the first non-blank character of a command is a +\#+, everything
+   from the +#+ up through the next newline is treated as a comment
    and ignored.
 
 EXPRESSIONS
@@ -724,7 +725,7 @@ of precedence:
 `<<  >> <<< >>>`::
     Left and right shift, left and right rotate.  Valid for integer operands only.
 
-`<  >  \<=  >=`::
+`<  >  <=  >=`::
     Boolean less, greater, less than or equal, and greater than or equal.
     Each operator produces 1 if the condition is true, 0 otherwise.
     These operators may be applied to strings as well as numeric operands,
@@ -859,7 +860,7 @@ its second argument to the expression evaluator to see whether or not
 to continue processing.  Unfortunately, in this case the value of `i`
 in the second argument will be substituted once and for all when the
 'for' command is parsed.  If `i` was 0 before the 'for'
-command was invoked then for's second argument will be `0\<=10`
+command was invoked then for's second argument will be `0<=10`
 which will always evaluate to 1, even though `i` eventually
 becomes greater than 10.  In the above case the loop will never
 terminate.  Instead, the expression should be placed in braces:
@@ -888,7 +889,7 @@ the string
 
     a b\ c {d e {f g h}}
 
-is a list with three elements:  'a', 'b c', and 'd e {f g h}'.
+is a list with three elements:  +a+, +b c+, and +d e {f g h}+.
 
 Whenever an element is extracted from a list, the same rules about
 braces and quotes and backslashes are applied as for commands.  Thus in
@@ -2708,6 +2709,11 @@ This means that when the current procedure exits, the specified
 procedure is deleted. This can be useful with 'lambda' or simply
 local procedures.
 
+In addition, if a command already exists with the same name,
+the existing command will be kept rather than deleted, and may be called
+via 'upcall'. The previous command will be restored when the current
+command is deleted. See 'upcall' for more details.
+
 In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.
 
@@ -4062,6 +4068,15 @@ An error occurs if any of the variables doesn't exist, unless '-nocomplain'
 is specified. The '--' argument may be specified to stop option processing
 in case the variable name may be '-nocomplain'.
 
+upcall
+~~~~~~~
++*upcall* 'command ?args ...?'+
+
+May be used from within a proc defined as +local proc+ in order to call
+the previous, hidden version of the same command.
+
+If there is no previous definition of the command, an error is returned.
+
 uplevel
 ~~~~~~~
 +*uplevel* '?level? command ?command ...?'+
@@ -4074,16 +4089,16 @@ it gives a distance (up the procedure calling stack) to move before
 executing the command.  If *level* consists of '\#' followed by
 a number then the number gives an absolute level number.  If *level*
 is omitted then it defaults to '1'.  *Level* cannot be
-defaulted if the first *command* argument starts with a digit or '\#'.
+defaulted if the first *command* argument starts with a digit or '#'.
 
 For example, suppose that procedure 'a' was invoked
 from top-level, and that it called 'b', and that 'b' called 'c'.
 Suppose that 'c' invokes the 'uplevel' command.  If *level*
-is '1' or '\#2'  or omitted, then the command will be executed
-in the variable context of 'b'.  If *level* is '2' or '\#1'
+is '1' or '#2'  or omitted, then the command will be executed
+in the variable context of 'b'.  If *level* is '2' or '#1'
 then the command will be executed in the variable context of 'a'.
 
-If *level* is '3' or '\#0' then the command will be executed
+If *level* is '3' or '#0' then the command will be executed
 at top-level (only global variables will be visible).
 The 'uplevel' command causes the invoking procedure to disappear
 from the procedure calling stack while the command is being executed.
@@ -4117,11 +4132,11 @@ to global variables.
 
 *Level* may have any of the forms permitted for the 'uplevel'
 command, and may be omitted if the first letter of the first *otherVar*
-isn't '\#' or a digit (it defaults to '1').
+isn't '#' or a digit (it defaults to '1').
 
 For each *otherVar* argument, 'upvar' makes the variable
 by that name in the procedure frame given by *level* (or at
-global level, if *level* is '\#0') accessible
+global level, if *level* is '#0') accessible
 in the current procedure by the name given in the corresponding
 *myVar* argument.
 
