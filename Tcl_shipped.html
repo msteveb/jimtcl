@@ -554,7 +554,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.70 -
+<p>Jim Tcl v0.71 -
    overview of the Jim tool command language facilities
 </p>
 </div>
@@ -570,7 +570,9 @@ Jim Tcl(n) Manual Page
 <div class="paragraph"><p>or</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>jimsh &lt;script&gt;</tt></pre>
+<pre><tt>jimsh [&lt;scriptfile&gt;]
+jimsh -e '&lt;immediate-script&gt;'
+jimsh --version</tt></pre>
 </div></div>
 <div class="ulist"><div class="title">Quick Index</div><ul>
 <li>
@@ -666,19 +668,61 @@ Variable traces are not supported
 </li>
 <li>
 <p>
-The history command is not supported
+Direct command line editing rather than the <em>history</em> command
+</p>
+</li>
+<li>
+<p>
+Expression shorthand syntax: <tt>$(&#8230;)</tt>
+</p>
+</li>
+<li>
+<p>
+The <em>binary</em> command is not supported
 </p>
 </li>
 </ol></div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_changes_in_this_release">CHANGES IN THIS RELEASE</h2>
+<h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_70_and_0_71">Changes between 0.70 and 0.71</h3>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-$::platform_tcl() settings are now automatically determined
+Allow <em>args</em> to be renamed in procs
+</p>
+</li>
+<li>
+<p>
+Add <tt>$(&#8230;)</tt> shorthand syntax for expressions
+</p>
+</li>
+<li>
+<p>
+Add automatic reference variables in procs with <tt>&amp;var</tt> syntax
+</p>
+</li>
+<li>
+<p>
+Support <tt>jimsh --version</tt>
+</p>
+</li>
+<li>
+<p>
+Additional variables in <tt>tcl_platform()</tt>
+</p>
+</li>
+</ol></div>
+</div>
+<div class="sect2">
+<h3 id="_changes_between_0_63_and_0_70">Changes between 0.63 and 0.70</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<tt>platform_tcl()</tt> settings are now automatically determined
 </p>
 </li>
 <li>
@@ -734,6 +778,7 @@ Command line editing in interactive mode, e.g. <em>jimsh</em>
 </ol></div>
 </div>
 </div>
+</div>
 <div class="sect1">
 <h2 id="_tcl_introduction">TCL INTRODUCTION</h2>
 <div class="sectionbody">
@@ -773,10 +818,64 @@ Tcl core described here, but various add-on libraries, such as the Tk
 toolkit, allow applications to issue commands to each other.  This makes
 it possible for applications to work together in much more powerful ways
 than was previously possible.</p></div>
+<div class="paragraph"><p>Fourth, Jim Tcl includes a command processor, <tt>jimsh</tt>, which can be
+used to run standalone Tcl scripts, or to run Tcl commands interactively.</p></div>
 <div class="paragraph"><p>This manual page focuses primarily on the Tcl language.  It describes
 the language syntax and the built-in commands that will be available
 in any application based on Tcl.  The individual library procedures are
 described in more detail in separate manual pages, one per procedure.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_jimsh_command_interpreter">JIMSH COMMAND INTERPRETER</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>A simple, but powerful command processor, <tt>jimsh</tt>, is part of Jim Tcl.
+It may be invoked in interactive mode as:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jimsh</tt></pre>
+</div></div>
+<div class="paragraph"><p>or to process the Tcl script in a file with:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jimsh filename</tt></pre>
+</div></div>
+<div class="paragraph"><p>It may also be invoked to execute an immediate script with:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>jimsh -e "script"</tt></pre>
+</div></div>
+<div class="sect2">
+<h3 id="_interactive_mode">Interactive Mode</h3>
+<div class="paragraph"><p>Interactive mode reads Tcl commands from standard input, evaluates
+those commands and prints the results.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>$ jimsh
+Welcome to Jim version 0.71, Copyright (c) 2005-8 Salvatore Sanfilippo
+. info version
+0.71
+. lsort [info commands p*]
+package parray pid popen proc puts pwd
+. foreach i {a b c} {
+{&gt; puts $i
+{&gt; }
+a
+b
+c
+. bad
+invalid command name "bad"
+[error] . exit
+$</tt></pre>
+</div></div>
+<div class="paragraph"><p>If <tt>jimsh</tt> is configured with line editing (it is by default) and a VT-100-compatible
+terminal is detected, Emacs-style line editing commands are available, including:
+arrow keys, <tt>^W</tt> to erase a word, <tt>^U</tt> to erase the line, <tt>^R</tt> for reverse incremental search
+in history. Additionally, the <tt>h</tt> command may be used to display the command history.</p></div>
+<div class="paragraph"><p>Command line history is automatically saved and loaded from <tt>~/.jim_history</tt></p></div>
+<div class="paragraph"><p>In interactive mode, <tt>jimsh</tt> automatically runs the script <tt>~/.jimrc</tt> at startup
+if it exists.</p></div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -1218,7 +1317,7 @@ sequence is replaced by the given character:</p></div>
 <dd>
 <p>
     The hex digits <strong>nnnn</strong> (between one and four of them) give a unicode codepoint.
-        The UTF-8 encoding of the codepoint is inserted.
+    The UTF-8 encoding of the codepoint is inserted.
 </p>
 </dd>
 </dl></div>
@@ -2010,13 +2109,26 @@ argument specifiers:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt>&amp;name</tt>
+</dt>
+<dd>
+<p>
+    Reference Argument - The caller is expected to pass the name of
+    an existing variable. An implicit <tt>upvar 1 <strong>origname</strong> <strong>name</strong></tt> is done
+    to make the variable available in the proc scope.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>args</strong></tt>
 </dt>
 <dd>
 <p>
-    Variable Argument - The special name <em>args</em>, which is
+    Variable Argument - The special name <strong>args</strong>, which is
     assigned all remaining arguments (including none). The
-    variable argument may only be specified once.
+    variable argument may only be specified once. Note that
+    the syntax <tt>args newname</tt> may be used to retain the special
+    behaviour of <strong>args</strong> with a different local name. In this case,
+    the variable is named <strong>newname</strong> rather than <strong>args</strong>.
 </p>
 </dd>
 </dl></div>
@@ -3351,6 +3463,13 @@ to 0.</p></div>
 <div class="paragraph"><p><tt><strong>expr</strong> <em>arg</em></tt></p></div>
 <div class="paragraph"><p>Calls the expression processor to evaluate <strong>arg</strong>, and returns
 the result as a string.  See the section EXPRESSIONS above.</p></div>
+<div class="paragraph"><p>Note that Jim supports a shorthand syntax for <em>expr</em> as <tt>$(&#8230;)</tt>
+The following two are identical.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>set x [expr {3 * 2 + 1}]
+set x $(3 * 2 + 1)</tt></pre>
+</div></div>
 </div>
 <div class="sect2">
 <h3 id="_file">file</h3>
@@ -5152,9 +5271,9 @@ The legal options (which may be abbreviated) are:</p></div>
 <dd>
 <p>
     Returns the length of the string in bytes. This will return
-        the same value as <em>string length</em> if UTF-8 support is not enabled,
-        or if the string is composed entirely of ASCII characters.
-        See UTF-8 AND UNICODE.
+    the same value as <em>string length</em> if UTF-8 support is not enabled,
+    or if the string is composed entirely of ASCII characters.
+    See UTF-8 AND UNICODE.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5380,8 +5499,8 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 <dd>
 <p>
     Returns a decimal string giving the number of characters in <strong>string</strong>.
-        If UTF-8 support is enabled, this may be different than the number of bytes.
-        See UTF-8 AND UNICODE
+    If UTF-8 support is enabled, this may be different than the number of bytes.
+    See UTF-8 AND UNICODE
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6085,8 +6204,8 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 <dd>
 <p>
     Returns the original filename used when opening the file.
-        If the handle was returned from <em>socket</em>, the type of the
-        handle is returned instead.
+    If the handle was returned from <em>socket</em>, the type of the
+    handle is returned instead.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6518,8 +6637,18 @@ by the Tcl library.</p></div>
 <dd>
 <p>
     This variable is set by Jim as an array containing information
-        about the platform upon which Jim was built.
+    about the platform upon which Jim was built. The following is an
+    example of the contents of this array.
 </p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>tcl_platform(byteOrder)   = littleEndian
+tcl_platform(os)          = Darwin
+tcl_platform(platform)    = unix
+tcl_platform(pointerSize) = 8
+tcl_platform(threaded)    = 0
+tcl_platform(wordSize)    = 8</tt></pre>
+</div></div>
 </dd>
 <dt class="hdlist1">
 <tt><strong>argv0</strong></tt>
@@ -6832,7 +6961,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-05-28 07:46:46 EST
+Last updated 2011-05-31 15:45:18 EST
 </div>
 </div>
 </body>

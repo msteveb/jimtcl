@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.70 - overview of the Jim tool command language facilities
+Jim Tcl v0.71 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -12,7 +12,10 @@ SYNOPSIS
 
 or
 
-  jimsh <script>
+  jimsh [<scriptfile>]
+  jimsh -e '<immediate-script>'
+  jimsh --version
+
 
 .Quick Index
 * <<CommandIndex,Command Reference>>
@@ -46,12 +49,24 @@ The major differences with Tcl 8.5/8.6 are:
 9. Support for "static" variables in procedures
 10. Namespaces are not support
 11. Variable traces are not supported
-12. The history command is not supported
+12. Direct command line editing rather than the 'history' command
+13. Expression shorthand syntax: +$(...)+
+14. The 'binary' command is not supported
 
-CHANGES IN THIS RELEASE
------------------------
+RECENT CHANGES
+--------------
 
-1. $::platform_tcl() settings are now automatically determined
+Changes between 0.70 and 0.71
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Allow 'args' to be renamed in procs
+2. Add +$(...)+ shorthand syntax for expressions
+3. Add automatic reference variables in procs with +&var+ syntax
+4. Support +jimsh --version+
+5. Additional variables in +tcl_platform()+
+
+Changes between 0.63 and 0.70
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. +platform_tcl()+ settings are now automatically determined
 2. Add aio '$handle filename'
 3. Add 'info channels'
 4. The 'bio' extension is gone. Now 'aio' supports 'copyto'.
@@ -107,10 +122,60 @@ toolkit, allow applications to issue commands to each other.  This makes
 it possible for applications to work together in much more powerful ways
 than was previously possible.
 
+Fourth, Jim Tcl includes a command processor, +jimsh+, which can be
+used to run standalone Tcl scripts, or to run Tcl commands interactively.
+
 This manual page focuses primarily on the Tcl language.  It describes
 the language syntax and the built-in commands that will be available
 in any application based on Tcl.  The individual library procedures are
 described in more detail in separate manual pages, one per procedure.
+
+JIMSH COMMAND INTERPRETER
+-------------------------
+A simple, but powerful command processor, +jimsh+, is part of Jim Tcl.
+It may be invoked in interactive mode as:
+
+  jimsh
+
+or to process the Tcl script in a file with:
+
+  jimsh filename
+
+It may also be invoked to execute an immediate script with:
+
+  jimsh -e "script"
+
+Interactive Mode
+~~~~~~~~~~~~~~~~
+Interactive mode reads Tcl commands from standard input, evaluates
+those commands and prints the results.
+
+  $ jimsh
+  Welcome to Jim version 0.71, Copyright (c) 2005-8 Salvatore Sanfilippo
+  . info version
+  0.71
+  . lsort [info commands p*]
+  package parray pid popen proc puts pwd
+  . foreach i {a b c} {
+  {> puts $i
+  {> }
+  a
+  b
+  c
+  . bad
+  invalid command name "bad"
+  [error] . exit
+  $
+
+If +jimsh+ is configured with line editing (it is by default) and a VT-100-compatible
+terminal is detected, Emacs-style line editing commands are available, including:
+arrow keys, +\^W+ to erase a word, +\^U+ to erase the line, +^R+ for reverse incremental search
+in history. Additionally, the +h+ command may be used to display the command history.
+
+Command line history is automatically saved and loaded from +~/.jim_history+
+
+In interactive mode, +jimsh+ automatically runs the script +~/.jimrc+ at startup
+if it exists.
 
 INTERPRETERS
 ------------
@@ -446,7 +511,7 @@ sequence is replaced by the given character:
 
 +{backslash}*unnnn*+::
     The hex digits *nnnn* (between one and four of them) give a unicode codepoint.
-	The UTF-8 encoding of the codepoint is inserted.
+    The UTF-8 encoding of the codepoint is inserted.
 
 For example, in the command
 
@@ -1000,10 +1065,18 @@ argument specifiers:
     argument name, followed by the default value, which will
     be used if the corresponding argument is not supplied.
 
++&name+::
+    Reference Argument - The caller is expected to pass the name of
+    an existing variable. An implicit +upvar 1 *origname* *name*+ is done
+    to make the variable available in the proc scope.
+
 +*args*+::
-    Variable Argument - The special name 'args', which is
+    Variable Argument - The special name *args*, which is
     assigned all remaining arguments (including none). The
-    variable argument may only be specified once.
+    variable argument may only be specified once. Note that
+    the syntax +args newname+ may be used to retain the special
+    behaviour of *args* with a different local name. In this case,
+    the variable is named *newname* rather than *args*.
 
 Arguments must be provided in the following order, any of which
 may be omitted:
@@ -2039,6 +2112,12 @@ expr
 
 Calls the expression processor to evaluate *arg*, and returns
 the result as a string.  See the section EXPRESSIONS above.
+
+Note that Jim supports a shorthand syntax for 'expr' as +$(...)+
+The following two are identical.
+
+  set x [expr {3 * 2 + 1}]
+  set x $(3 * 2 + 1)
 
 file
 ~~~~
@@ -3569,9 +3648,9 @@ The legal options (which may be abbreviated) are:
 
 +*string bytelength 'string'+::
     Returns the length of the string in bytes. This will return
-	the same value as 'string length' if UTF-8 support is not enabled,
-	or if the string is composed entirely of ASCII characters.
-	See UTF-8 AND UNICODE.
+    the same value as 'string length' if UTF-8 support is not enabled,
+    or if the string is composed entirely of ASCII characters.
+    See UTF-8 AND UNICODE.
 
 +*string compare ?-nocase?* 'string1 string2'+::
     Perform a character-by-character comparison of strings *string1* and
@@ -3638,8 +3717,8 @@ The legal options (which may be abbreviated) are:
 
 +*string length* 'string'+::
     Returns a decimal string giving the number of characters in *string*.
-	If UTF-8 support is enabled, this may be different than the number of bytes.
-	See UTF-8 AND UNICODE
+    If UTF-8 support is enabled, this may be different than the number of bytes.
+    See UTF-8 AND UNICODE
 
 +*string match ?-nocase?* 'pattern string'+::
     See if *pattern* matches *string*; return 1 if it does, 0
@@ -4169,8 +4248,8 @@ aio
 
 +$handle *filename*+::
     Returns the original filename used when opening the file.
-	If the handle was returned from 'socket', the type of the
-	handle is returned instead.
+    If the handle was returned from 'socket', the type of the
+    handle is returned instead.
 
 +$handle *ndelay ?0|1?*+::
     Set O_NDELAY (if arg). Returns current/new setting.
@@ -4419,7 +4498,15 @@ The following global variables are set by jimsh.
 
 +*tcl_platform*+::
     This variable is set by Jim as an array containing information
-	about the platform upon which Jim was built.
+    about the platform upon which Jim was built. The following is an
+    example of the contents of this array.
+
+    tcl_platform(byteOrder)   = littleEndian
+    tcl_platform(os)          = Darwin
+    tcl_platform(platform)    = unix
+    tcl_platform(pointerSize) = 8
+    tcl_platform(threaded)    = 0
+    tcl_platform(wordSize)    = 8
 
 +*argv0*+::
     If jimsh is invoked to run a script, this variable contains the name
