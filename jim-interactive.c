@@ -40,8 +40,8 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
 #endif
 
-    printf("Welcome to Jim version %d.%d, "
-        "Copyright (c) 2005-8 Salvatore Sanfilippo" JIM_NL, JIM_VERSION / 100, JIM_VERSION % 100);
+    printf("Welcome to Jim version %d.%d" JIM_NL,
+        JIM_VERSION / 100, JIM_VERSION % 100);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
 
     while (1) {
