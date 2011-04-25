@@ -55,7 +55,7 @@ all: $(JIMSH) $(EXTENSION_MODS)
 docs: Tcl.html
 
 $(JIMSH): $(LIBJIM) jimsh.o
-	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) -lm
+	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS)
 
 install: all docs $(EXTENSION_TCL)
 

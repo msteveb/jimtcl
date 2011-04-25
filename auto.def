@@ -93,6 +93,7 @@ if {[opt-bool utf8]} {
 if {[opt-bool math]} {
     msg-result "Enabling math functions"
     define JIM_MATH_FUNCTIONS
+    define-append LIBS -lm
 }
 if {[opt-bool ipv6]} {
     msg-result "Enabling IPv6"
