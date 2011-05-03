@@ -157,46 +157,36 @@ static int cmp_casemap(const void *key, const void *cm)
     return *(int *)key - (int)((const struct casemap *)cm)->code;
 }
 
-int utf8_upper(int uc)
+static int utf8_map_case(int uc, int upper)
 {
-    const struct casemap *cm;
-
-    if (isascii(uc)) {
-        return toupper(uc);
-    }
-
-    cm = bsearch(&uc, unicode_case_mapping, NUMCASEMAP, sizeof(*unicode_case_mapping), cmp_casemap);
+    const struct casemap *cm = bsearch(&uc, unicode_case_mapping, NUMCASEMAP, sizeof(*unicode_case_mapping), cmp_casemap);
 
     if (cm) {
         if (cm->lowerdelta == -128) {
-            uc = unicode_extmap[cm->upperdelta].upper;
+            uc = upper ? unicode_extmap[cm->upperdelta].upper : unicode_extmap[cm->upperdelta].lower;
         }
         else {
-            uc += cm->upperdelta;
+            uc += upper ? cm->upperdelta : cm->lowerdelta;
         }
     }
     return uc;
 }
 
+int utf8_upper(int uc)
+{
+    if (isascii(uc)) {
+        return toupper(uc);
+    }
+    return utf8_map_case(uc, 1);
+}
+
 int utf8_lower(int uc)
 {
-    const struct casemap *cm;
-
     if (isascii(uc)) {
         return tolower(uc);
     }
 
-    cm = bsearch(&uc, unicode_case_mapping, NUMCASEMAP, sizeof(*unicode_case_mapping), cmp_casemap);
-
-    if (cm) {
-        if (cm->lowerdelta == -128) {
-            uc = unicode_extmap[cm->upperdelta].lower;
-        }
-        else {
-            uc += cm->lowerdelta;
-        }
-    }
-    return uc;
+    return utf8_map_case(uc, 0);
 }
 
 #endif
