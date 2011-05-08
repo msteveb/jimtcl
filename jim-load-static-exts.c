@@ -3,7 +3,7 @@
 
 #define LOAD_EXT(n) \
     extern int Jim_ ## n ## Init(Jim_Interp *); \
-    Jim_ ## n ## Init(interp); \
+    Jim_ ## n ## Init(interp);
 
 int Jim_InitStaticExtensions(Jim_Interp *interp)
 {
