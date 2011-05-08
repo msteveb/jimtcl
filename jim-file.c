@@ -56,9 +56,9 @@
 #include "jimautoconf.h"
 #include "jim-subcmd.h"
 
-#ifndef MAXPATHLEN
-#define MAXPATHLEN JIM_PATH_LEN
-#endif
+# ifndef MAXPATHLEN
+# define MAXPATHLEN JIM_PATH_LEN
+# endif
 
 /*
  *----------------------------------------------------------------------
@@ -251,6 +251,7 @@ static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     }
     return JIM_OK;
 #else
+    Jim_SetResultString(interp, "Not implemented", -1);
     return JIM_ERR;
 #endif
 }
