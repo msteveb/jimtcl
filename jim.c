@@ -1243,40 +1243,50 @@ static int JimParseEol(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-/* Todo. Don't stop if ']' appears inside {} or quoted.
- * Also should handle the case of puts [string length "]"] */
 static int JimParseCmd(struct JimParserCtx *pc)
 {
     int level = 1;
-    int blevel = 0;
+    int quoted = 0;
 
     pc->tstart = ++pc->p;
     pc->len--;
     pc->tline = pc->linenr;
     while (pc->len) {
-        if (*pc->p == '[' && blevel == 0) {
-            level++;
-        }
-        else if (*pc->p == ']' && blevel == 0) {
-            level--;
-            if (!level)
-                break;
-        }
-        else if (*pc->p == '\\' && pc->len > 1) {
-            pc->p++;
-            pc->len--;
-            if (*pc->p == '\n')
+        if (*pc->p == '\\' && pc->len > 1) {
+            if (pc->p[1] == '\n')
                 pc->linenr++;
+
+            pc->p += 2;
+            pc->len -= 2;
+            continue;
         }
-        else if (*pc->p == '{') {
-            blevel++;
+        else if (*pc->p == '"') {
+            quoted = !quoted;
         }
-        else if (*pc->p == '}') {
-            if (blevel != 0)
-                blevel--;
+        else if (!quoted) {
+            if (*pc->p == '[') {
+                level++;
+            }
+            else if (*pc->p == ']') {
+                level--;
+                if (!level)
+                    break;
+            }
+            else if (*pc->p == '{') {
+                /* Save and restore tstart and tline across JimParseBrace() */
+                const char * tstart = pc->tstart;
+                int tline = pc->tline;
+
+                JimParseBrace(pc);
+
+                pc->tstart = tstart;
+                pc->tline = tline;
+                continue;
+            }
         }
-        else if (*pc->p == '\n')
+        if (*pc->p == '\n') {
             pc->linenr++;
+        }
         pc->p++;
         pc->len--;
     }
@@ -1400,6 +1410,7 @@ static int JimParseBrace(struct JimParserCtx *pc)
         else if (pc->len == 0 || *pc->p == '}') {
             if (pc->len == 0) {
                 pc->missing = '{';
+                /*printf("Missing brace at line %d, opened on line %d\n", pc->linenr, pc->tline);*/
             }
             level--;
             if (pc->len == 0 || level == 0) {
