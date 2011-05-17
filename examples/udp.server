@@ -3,6 +3,12 @@
 # Listen on port 20000. No host specified means 0.0.0.0
 set s [socket dgram.server 20000]
 
+# We won't run unsafe commands, but
+# we don't mind sending anything back
+catch {
+	$s taint sink 0
+}
+
 # For each request...
 $s readable {
 	# Get the request (max 80 chars) - need the source address
