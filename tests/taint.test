@@ -1,0 +1,204 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd taint
+
+# create a tainted var
+set t tainted
+taint t
+
+test taint-1.1 {taint simple var} {
+	info tainted $t
+} 1
+
+test taint-1.2 {set taint, simple var} {
+	set x $t
+	info tainted $x
+} 1
+
+test taint-1.3 {untaint ref counting simple var} {
+	untaint x
+	list [info tainted $x] [info tainted $t]
+} {0 1}
+
+# Tainting an array element taints the array/dict, but
+# not each element
+test taint-1.4 {taint array var} {
+	set a {1 one 2 two}
+	taint a(2)
+	list [info tainted $a(1)] [info tainted $a(2)] [info tainted $a]
+} {0 1 1}
+
+# Adding a tainted value to an array taints the array/dict, but
+# not each element
+test taint-1.5 {tainted value taints dict} {
+	unset -nocomplain a
+	array set a {1 one 2 two}
+	set a(3) $t
+	list [info tainted $a(1)] [info tainted $a(3)] [info tainted $a]
+} {0 1 1}
+
+# lappend taints the list, but not each element
+test taint-1.6 {lappend with taint} {
+	set a {1 2}
+	lappend a $t
+	list [info tainted $a] [lmap p $a {info tainted $p}]
+} {1 {0 0 1}}
+
+# lset taints the list, but not each element
+test taint-1.7 {lset with taint} {
+	set a [list a b c d]
+	lset a 1 $t
+	list [info tainted $a] [lmap p $a {info tainted $p}]
+} {1 {0 1 0 0}}
+
+# append taints the string
+test taint-1.8 {append with taint} {
+	set a abc
+	append a $t
+	info tainted $a
+} 1
+
+test taint-1.9 {taint entire list} {
+	set a [list 1 2 3]
+	taint a
+	list [info tainted $a] [lmap p $a {info tainted $p}]
+} {1 {1 1 1}}
+
+test taint-1.10 {taint entire dict} {
+	set a [dict create a 1 b 2 c 3]
+	taint a
+	list [info tainted $a] [info tainted [dict get $a b]]
+} {1 1}
+
+
+test taint-1.11 {interpolation with taint} {
+	set x "x$t"
+	info tainted $x
+} 1
+
+test taint-1.12 {lrange with taint} {
+	set a [list 1 2 3 $t 5 6]
+	info tainted [lrange $a 0 1]
+} 0
+
+test taint-1.13 {lrange with taint} {
+	set a [list 1 2 3 $t 5 6]
+	info tainted [lrange $a 2 4]
+} 1
+
+test taint-1.14 {lindex with taint} {
+	set a [list 1 2 3 $t 5 6]
+	info tainted [lindex $a 1]
+} 0
+
+test taint-1.15 {lassign with taint} {
+	set a [list 1 $t 3]
+	lassign $a x y z
+	list [info tainted $x] [info tainted $y] [info tainted $z]
+} {0 1 0}
+
+test taint-1.16 {lreverse with taint} {
+	set a [lreverse [list 1 2 $t]]
+	list [info tainted $a] [lmap p $a {info tainted $p}]
+} {1 {1 0 0}}
+
+test taint-1.17 {lsort with taint} {
+	set a [lsort [list zzz aaa $t bbb ppp]]
+	list [info tainted $a] [lmap p $a {info tainted $p}]
+} {1 {0 0 0 1 0}}
+
+test taint-1.18 {lreplace with taint} {
+	set a {a b c}
+	set b [lreplace $a 1 1 $t]
+	list [info tainted $b] [lmap p $b {info tainted $p}]
+} {1 {0 1 0}}
+
+test taint-1.19 {dict with taint} {
+	set a [dict create a 1 b 2 c $t d 4]
+	info tainted $a
+} 1
+
+test taint-1.20 {dict with taint} {
+	set a [dict create a 1 b 2 c $t d 4]
+	info tainted [dict get $a b]
+} 0
+
+test taint-1.21 {dict with taint} {
+	set a [dict create a 1 b 2 c $t d 4]
+	info tainted [dict get $a c]
+} 1
+
+test taint-1.22 {dict with taint} {
+	dict set a $t e
+	set result {}
+	foreach i [lsort [dict keys $a]] {
+		set v [dict get $a $i]
+		lappend result [list $i $v [info tainted $i] [info tainted $v]]
+	}
+	set result
+} {{a 1 0 0} {b 2 0 0} {c tainted 0 1} {d 4 0 0} {tainted e 1 0}}
+
+test taint-1.23 {nested dict with taint} {
+	set a [dict create]
+	dict set a 1 A 1-A
+	dict set a 2 A 2-A
+	dict set a 1 T $t
+	info tainted $a
+} 1
+
+test taint-2.1 {exec with tainted data} -body {
+	exec $t
+} -returnCodes error -result {exec: tainted data}
+
+test taint-2.2 {eval with tainted data - allowed} {
+	eval "set a $t"
+} tainted
+
+test taint-2.3 {eval with braced tainted data - allowed} {
+	eval {set a $t}
+} tainted
+
+test taint-2.4 {eval exec with tainted data} -body {
+	eval {exec $t}
+} -returnCodes error -result {exec: tainted data}
+
+test taint-2.5 {open with tainted data} -body {
+	open "|$t"
+} -returnCodes error -result {open: tainted data}
+
+test taint-2.6 {file delete with tainted data} -body {
+	file delete $t
+} -returnCodes error -result {file delete: tainted data}
+
+test taint-3.1 {filehandle not taint source by default} {
+	set f [open [info script]]
+	gets $f buf
+	info tainted $buf
+} 0
+
+test taint-3.2 {set taint source on filehandle} {
+	$f taint source 1
+	gets $f buf
+	info tainted $buf
+} 1
+
+test taint-3.3 {filehandle not taint sink by default} -body {
+	set g [open out.tmp w]
+	puts $g $t
+} -result {}
+
+test taint-3.4 {set taint sink on filehandle} -body {
+	$g taint sink 1
+	puts $g $t
+} -returnCodes error -result "puts: tainted data"
+
+test taint-3.5 {copyto taint source to sink} -body {
+	$f copyto $g
+} -returnCodes error -result {puts: tainted data}
+
+$f close
+$g close
+
+file delete out.tmp
+
+testreport

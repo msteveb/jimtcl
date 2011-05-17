@@ -2235,6 +2235,7 @@ Jim_Obj *Jim_NewObj(Jim_Interp *interp)
      * kind of GC implemented should take care to avoid
      * scanning objects with refCount == 0. */
     objPtr->refCount = 0;
+    objPtr->taint = interp->taint;
     /* All the other fields are left uninitialized to save time.
      * The caller will probably want to set them to the right
      * value anyway. */
@@ -2301,6 +2302,8 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_Obj *dupPtr;
 
     dupPtr = Jim_NewObj(interp);
+    dupPtr->taint = objPtr->taint;
+
     if (objPtr->bytes == NULL) {
         /* Object does not have a valid string representation. */
         dupPtr->bytes = NULL;
@@ -2581,6 +2584,7 @@ void Jim_AppendObj(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *appendObjPtr)
     int len;
     const char *str = Jim_GetString(appendObjPtr, &len);
     Jim_AppendString(interp, objPtr, str, len);
+    objPtr->taint |= appendObjPtr->taint;
 }
 
 void Jim_AppendStrings(Jim_Interp *interp, Jim_Obj *objPtr, ...)
@@ -3728,6 +3732,7 @@ static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct ScriptObj *script;
     ParseTokenList tokenlist;
     int line = 1;
+    int oldtaint;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
@@ -3748,6 +3753,11 @@ static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
 
     /* Create the "real" script tokens from the parsed tokens */
+
+    /* Set the correct taint on the objects in the script */
+    oldtaint = interp->taint;
+    interp->taint = objPtr->taint;
+
     script = Jim_Alloc(sizeof(*script));
     memset(script, 0, sizeof(*script));
     script->inUse = 1;
@@ -3770,6 +3780,8 @@ static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
+
+    interp->taint = oldtaint;
 }
 
 /**
@@ -4581,7 +4593,7 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
 /* -------------------- Variables related functions ------------------------- */
 static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *ObjPtr, Jim_Obj *valObjPtr);
-static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *ObjPtr, int flags);
+static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
 
 static int JimSetNewVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr, Jim_VarVal *vv)
 {
@@ -4972,6 +4984,7 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
     JimPanic((p == NULL, "JimDictSugarParseVarKey() called for non-dict-sugar (%s)", str));
 
     varObjPtr = Jim_NewStringObj(interp, str, p - str);
+    varObjPtr->taint = objPtr->taint;
 
     p++;
     keyLen = (str + len) - p;
@@ -4981,6 +4994,7 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
 
     /* Create the objects with the variable name and key. */
     keyObjPtr = Jim_NewStringObj(interp, p, keyLen);
+    keyObjPtr->taint = objPtr->taint;
 
     Jim_IncrRefCount(varObjPtr);
     Jim_IncrRefCount(keyObjPtr);
@@ -6266,6 +6280,7 @@ Jim_Obj *Jim_NewIntObj(Jim_Interp *interp, jim_wide wideValue)
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &intObjType;
     objPtr->bytes = NULL;
+    objPtr->taint = 0;
     objPtr->internalRep.wideValue = wideValue;
     return objPtr;
 }
@@ -6414,6 +6429,7 @@ Jim_Obj *Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue)
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &doubleObjType;
     objPtr->bytes = NULL;
+    objPtr->taint = 0;
     objPtr->internalRep.doubleValue = doubleValue;
     return objPtr;
 }
@@ -6826,6 +6842,7 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
                 continue;
             elementPtr = JimParserGetTokenObj(interp, &parser);
+            elementPtr->taint = objPtr->taint;
             JimSetSourceInfo(interp, elementPtr, fileNameObj, parser.tline);
             ListAppendElement(objPtr, elementPtr);
         }
@@ -6841,6 +6858,7 @@ Jim_Obj *Jim_NewListObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &listObjType;
     objPtr->bytes = NULL;
+    objPtr->taint = 0;
     objPtr->internalRep.listValue.ele = NULL;
     objPtr->internalRep.listValue.len = 0;
     objPtr->internalRep.listValue.maxLen = 0;
@@ -7112,6 +7130,7 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
     for (i = 0; i < elemc; ++i) {
         point[i] = elemVec[i];
+        listPtr->taint |= point[i]->taint;
         Jim_IncrRefCount(point[i]);
     }
     listPtr->internalRep.listValue.len += elemc;
@@ -7260,6 +7279,7 @@ static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
         idx = listPtr->internalRep.listValue.len + idx;
     Jim_DecrRefCount(interp, listPtr->internalRep.listValue.ele[idx]);
     listPtr->internalRep.listValue.ele[idx] = newObjPtr;
+    listPtr->taint |= newObjPtr->taint;
     Jim_IncrRefCount(newObjPtr);
     return JIM_OK;
 }
@@ -7798,6 +7818,7 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
             dict->table[dict->len++] = valueObjPtr;
 
         }
+        objPtr->taint |= keyObjPtr->taint | valueObjPtr->taint;
         return JIM_OK;
     }
 }
@@ -7956,6 +7977,9 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
                 if (newObjPtr || (flags & JIM_MUSTEXIST)) {
                     goto err;
                 }
+            }
+            if (newObjPtr) {
+                varObjPtr->taint |= newObjPtr->taint;
             }
             break;
         }
@@ -9726,6 +9750,9 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     exprText = Jim_GetString(objPtr, &exprTextLen);
 
+    int oldtaint = interp->taint;
+    interp->taint = objPtr->taint;
+
     /* Initially tokenise the expression into tokenlist */
     ScriptTokenListInit(&tokenlist);
 
@@ -9782,6 +9809,9 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, expr);
     objPtr->typePtr = &exprObjType;
+
+    interp->taint = oldtaint;
+
     return rc;
 }
 
@@ -10835,6 +10865,7 @@ tailcall:
         (retcode = JimTraceCallback(interp, "cmd", objc, objv)) == JIM_OK) {
         /* Call it -- Make sure result is an empty object. */
         Jim_SetEmptyResult(interp);
+        interp->taint = Jim_CalcTaint(objc, objv);
         if (cmdPtr->isproc) {
             retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
         }
@@ -11001,6 +11032,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     Jim_Obj *sintv[JIM_EVAL_SINTV_LEN];
     Jim_Obj *objPtr;
     char *s;
+    int taint = 0;
 
     if (tokens <= JIM_EVAL_SINTV_LEN)
         intv = sintv;
@@ -11038,6 +11070,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
                 }
                 return NULL;
         }
+        taint |= intv[i]->taint;
         Jim_IncrRefCount(intv[i]);
         Jim_String(intv[i]);
         totlen += intv[i]->length;
@@ -11053,6 +11086,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     /* Concatenate every token in an unique
      * object. */
     objPtr = Jim_NewStringObjNoAlloc(interp, NULL, 0);
+    objPtr->taint = taint;
 
     if (tokens == 4 && token[0].type == JIM_TT_ESC && token[1].type == JIM_TT_ESC
         && token[2].type == JIM_TT_VAR) {
@@ -11321,6 +11355,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         if (retcode == JIM_OK && argc) {
             /* Invoke the command */
             retcode = JimInvokeCommand(interp, argc, argv);
+            interp->taint = 0;
             /* Check for a signal after each command */
             if (Jim_CheckSignal(interp)) {
                 retcode = JIM_SIGNAL;
@@ -11752,6 +11787,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     struct JimParserCtx parser;
     struct ScriptObj *script = Jim_Alloc(sizeof(*script));
     ParseTokenList tokenlist;
+    int oldtaint;
 
     /* Initially parse the subst into tokens (in tokenlist) */
     ScriptTokenListInit(&tokenlist);
@@ -11766,6 +11802,9 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
             parser.tline);
     }
+
+    oldtaint = interp->taint;
+    interp->taint = objPtr->taint;
 
     /* Create the "real" subst/script tokens from the initial token list */
     script->inUse = 1;
@@ -11793,6 +11832,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
+    interp->taint = oldtaint;
     return JIM_OK;
 }
 
@@ -11832,23 +11872,57 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
 /* -----------------------------------------------------------------------------
  * Core commands utility functions
  * ---------------------------------------------------------------------------*/
-void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *msg)
+static Jim_Obj *JimJoinCmdArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
     Jim_Obj *listObjPtr;
 
-    JimPanic((argc == 0, "Jim_WrongNumArgs() called with argc=0"));
-
     listObjPtr = Jim_NewListObj(interp, argv, argc);
 
-    if (msg && *msg) {
-        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, msg, -1));
-    }
     Jim_IncrRefCount(listObjPtr);
     objPtr = Jim_ListJoin(interp, listObjPtr, " ", 1);
     Jim_DecrRefCount(interp, listObjPtr);
+    Jim_IncrRefCount(objPtr);
 
-    Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s\"", objPtr);
+    return objPtr;
+}
+
+void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *msg)
+{
+    Jim_Obj *objPtr = JimJoinCmdArgs(interp, argc, argv);
+    if (*msg) {
+        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s %s\"", objPtr, msg);
+    }
+    else {
+        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s\"", objPtr);
+    }
+    Jim_DecrRefCount(interp, objPtr);
+}
+
+/**
+ * Calculates the taint of the given objects (skipping NULL entries).
+ */
+int Jim_CalcTaint(int argc, Jim_Obj *const *argv)
+{
+    int taint = 0;
+#ifdef JIM_TAINT
+    int i;
+    for (i = 0; i < argc; i++) {
+        if (argv[i]) {
+            taint |= argv[i]->taint;
+        }
+    }
+#endif
+    return taint;
+}
+
+void Jim_SetTaintError(Jim_Interp *interp, int cmdargs, Jim_Obj *const *argv)
+{
+#ifdef JIM_TAINT
+    Jim_Obj *objPtr = JimJoinCmdArgs(interp, cmdargs, argv);
+    Jim_SetResultFormatted(interp, "%#s: tainted data", objPtr);
+    Jim_DecrRefCount(interp, objPtr);
+#endif
 }
 
 /**
@@ -13591,7 +13665,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         JIM_DEF_SUBCMD("exprlen", "expression", 1, 1),
         JIM_DEF_SUBCMD("invstr", "object", 1, 1),
         JIM_DEF_SUBCMD("objcount", NULL, 0, 0),
+#ifdef JIM_TAINT
         JIM_DEF_SUBCMD("objects", NULL, 0, 0),
+#else
+        JIM_DEF_SUBCMD("objects", "?-taint?", 0, 1),
+#endif
         JIM_DEF_SUBCMD("refcount", "object", 1, 1),
         JIM_DEF_SUBCMD("scriptlen", "script", 1, 1),
         JIM_DEF_SUBCMD("show", "object", 1, 1),
@@ -13637,13 +13715,29 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
         case OPT_OBJECTS:{
             Jim_Obj *objPtr, *listObjPtr, *subListObjPtr;
+            int tainted = 0;
 
-            /* Count the number of live objects. */
-            objPtr = interp->liveList;
+#ifdef JIM_TAINT
+            if (argc == 3) {
+                if (Jim_CompareStringImmediate(interp, argv[2], "-taint")) {
+                    tainted = 1;
+                }
+                else {
+                    Jim_SubCmdArgError(interp, ct, argv[0]);
+                    return JIM_ERR;
+                }
+            }
+#endif
+
+            /* Return a list of the objects */
             listObjPtr = Jim_NewListObj(interp, NULL, 0);
-            while (objPtr) {
+            for (objPtr = interp->liveList; objPtr; objPtr = objPtr->nextObjPtr) {
                 char buf[128];
                 const char *type = objPtr->typePtr ? objPtr->typePtr->name : "";
+
+                if (objPtr == listObjPtr || (tainted && !objPtr->taint)) {
+                    continue;
+                }
 
                 subListObjPtr = Jim_NewListObj(interp, NULL, 0);
                 sprintf(buf, "%p", objPtr);
@@ -13652,7 +13746,6 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
                 Jim_ListAppendElement(interp, subListObjPtr, Jim_NewIntObj(interp, objPtr->refCount));
                 Jim_ListAppendElement(interp, subListObjPtr, objPtr);
                 Jim_ListAppendElement(interp, listObjPtr, subListObjPtr);
-                objPtr = objPtr->nextObjPtr;
             }
             Jim_SetResult(interp, listObjPtr);
             return JIM_OK;
@@ -13681,9 +13774,9 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             charlen = len;
     #endif
             char buf[256];
-            snprintf(buf, sizeof(buf), "refcount: %d, type: %s\n"
+            snprintf(buf, sizeof(buf), "refcount: %d, taint: %d, type: %s\n"
                 "chars (%d):",
-                argv[2]->refCount, JimObjTypeName(argv[2]), charlen);
+                argv[2]->refCount, argv[2]->taint, JimObjTypeName(argv[2]), charlen);
             Jim_SetResultFormatted(interp, "%s <<%s>>\n", buf, s);
             snprintf(buf, sizeof(buf), "bytes (%d):", len);
             Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
@@ -14172,6 +14265,61 @@ static int Jim_ApplyCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
 }
 
+#ifdef JIM_TAINT
+static int JimTaintVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int taint)
+{
+    Jim_Obj *valueObjPtr = Jim_GetVariable(interp, nameObjPtr, JIM_ERRMSG | JIM_UNSHARED);
+
+    if (valueObjPtr == NULL) {
+        return JIM_ERR;
+    }
+
+    if (Jim_IsShared(valueObjPtr)) {
+        valueObjPtr = Jim_DuplicateObj(interp, valueObjPtr);
+        Jim_SetVariable(interp, nameObjPtr, valueObjPtr);
+    }
+
+    /* If this is an array element or a list, need to invalidate the string rep to
+     * force recalc. When it is regenerated, the whole string will be tainted if any component is.
+     */
+    if (taint && nameObjPtr->typePtr == &dictSubstObjType) {
+        /* Tainting an array element taints the array too */
+        Jim_Obj *objPtr = Jim_GetVariable(interp, nameObjPtr->internalRep.dictSubstValue.varNameObjPtr, JIM_NONE);
+        if (objPtr) {
+            SetStringFromAny(interp, valueObjPtr);
+            valueObjPtr->taint = taint;
+            objPtr->taint |= taint;
+        }
+    }
+
+    /* Manually tainting destroys any non-string rep */
+    SetStringFromAny(interp, valueObjPtr);
+    valueObjPtr->taint = taint;
+
+    //printf("taint of %s is %d\n", valueObjPtr->bytes, valueObjPtr->taint);
+    return JIM_OK;
+}
+
+/* [taint] */
+static int Jim_TaintCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "varname");
+        return JIM_ERR;
+    }
+    return JimTaintVariable(interp, argv[1], 1);
+}
+
+/* [untaint] */
+static int Jim_UntaintCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "varname");
+        return JIM_ERR;
+    }
+    return JimTaintVariable(interp, argv[1], 0);
+}
+#endif
 
 /* [concat] */
 static int Jim_ConcatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -15571,6 +15719,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         INFO_SOURCE,
         INFO_STACKTRACE,
         INFO_STATICS,
+        INFO_TAINTED,
         INFO_VARS,
         INFO_VERSION,
         INFO_COUNT
@@ -15597,6 +15746,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         JIM_DEF_SUBCMD("source", "source ?filename line?", 1, 3),
         JIM_DEF_SUBCMD("stacktrace", NULL, 0, 0),
         JIM_DEF_SUBCMD("statics", "procname", 1, 1),
+        JIM_DEF_SUBCMD("tainted", "value", 1, 1),
         JIM_DEF_SUBCMD("vars", "?pattern?", 0, 1),
         JIM_DEF_SUBCMD("version", NULL, 0, 0),
         { /* null terminator */ }
@@ -15641,6 +15791,14 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResult(interp, (Jim_Obj *)cmdPtr->u.native.privData);
             return JIM_OK;
         }
+
+        case INFO_TAINTED:
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "value");
+                return JIM_ERR;
+            }
+            Jim_SetResultBool(interp, argv[2]->taint != 0);
+            return JIM_OK;
 
         case INFO_CHANNELS:
             mode++;             /* JIM_CMDLIST_CHANNELS */
@@ -15855,9 +16013,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResultString(interp, "not supported", -1);
             return JIM_ERR;
 #endif
-        default:
-            abort();
+            default:
+                abort();
     }
+    /* notreached */
 }
 
 /* [exists] */
@@ -16252,14 +16411,18 @@ static int Jim_SourceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 {
     int retval;
 
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
+
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "fileName");
         return JIM_ERR;
     }
     retval = Jim_EvalFile(interp, Jim_String(argv[1]));
-    if (retval == JIM_RETURN)
-        return JIM_OK;
-    return retval;
+
+    return retval == JIM_RETURN ? JIM_OK : retval;
 }
 
 /* [lreverse] */
@@ -16458,6 +16621,10 @@ static const struct {
     {"upcall", Jim_UpcallCoreCommand},
     {"apply", Jim_ApplyCoreCommand},
     {"stacktrace", Jim_StacktraceCoreCommand},
+#ifdef JIM_TAINT
+    {"taint", Jim_TaintCoreCommand},
+    {"untaint", Jim_UntaintCoreCommand},
+#endif
     {NULL, NULL},
 };
 

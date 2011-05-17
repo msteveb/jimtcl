@@ -93,6 +93,7 @@
 #define AIO_EOF 4       /* EOF was reached */
 #define AIO_WBUF_NONE 8 /* default to buffering=none */
 #define AIO_NONBLOCK 16   /* socket is non-blocking */
+#define AIO_NOTAINT  32   /* don't make the channel tainted */
 
 enum wbuftype {
     WBUF_OPT_NONE,      /* write immediately */
@@ -187,6 +188,8 @@ typedef struct AioFile
     int flags;              /* AIO_KEEPOPEN | AIO_NODELETE | AIO_EOF */
     long timeout;           /* timeout (in ms) for read operations if blocking */
     int fd;
+    unsigned taintsource;       /* Data read from the file are tainted with this value */
+    unsigned taintsink;         /* Data with any of these taint types can't be written to this file */
     int addr_family;
     void *ssl;
     const JimAioFopsType *fops;
@@ -373,6 +376,7 @@ static int aio_start_nonblocking(AioFile *af)
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, int flags);
+static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink);
 
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 #ifndef HAVE_GETADDRINFO
@@ -849,6 +853,7 @@ static Jim_Obj *aio_read_consume(Jim_Interp *interp, AioFile *af, int neededLen)
         aio_consume(af->readbuf, neededLen);
     }
 
+    Jim_TaintObj(objPtr, af->taintsource);
     return objPtr;
 }
 
@@ -1097,6 +1102,8 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (nl) {
             /* got a line */
             objPtr = Jim_NewStringObj(interp, pt, nl - pt);
+            Jim_TaintObj(objPtr, af->taintsource);
+
             /* And consume it plus the newline */
             aio_consume(af->readbuf, nl - pt + 1);
             break;
@@ -1154,6 +1161,11 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *strObj;
     int wnow = 0;
     int nl = 1;
+
+    if (Jim_CheckTaint(interp, af->taintsink)) {
+        Jim_SetResultString(interp, "puts: tainted data", -1);
+        return JIM_ERR;
+    }
 
     if (argc == 2) {
         if (!Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
@@ -1218,6 +1230,7 @@ static int aio_cmd_isatty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+    Jim_Obj *objPtr;
     char *buf;
     union sockaddr_any sa;
     long len;
@@ -1237,7 +1250,10 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     buf[rlen] = 0;
-    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
+
+    objPtr = Jim_NewStringObjNoAlloc(interp, buf, rlen);
+    Jim_TaintObj(objPtr, af->taintsource);
+    Jim_SetResult(interp, objPtr);
 
     if (argc > 1) {
         return JimSetVariableSocketAddress(interp, argv[1], &sa, salen);
@@ -1257,6 +1273,10 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *addr = Jim_String(argv[1]);
     socklen_t salen;
 
+    if (Jim_CheckTaint(interp, af->taintsink)) {
+        Jim_SetResultString(interp, "sendto: tainted data", -1);
+        return JIM_ERR;
+    }
     if (JimParseSocketAddress(interp, af->addr_family, SOCK_DGRAM, addr, &sa, &salen) != JIM_OK) {
         return JIM_ERR;
     }
@@ -1279,7 +1299,8 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    AioFile *af = Jim_CmdPrivData(interp);
+    AioFile *serv_af = Jim_CmdPrivData(interp);
+    AioFile *af;
     int sock;
     union sockaddr_any sa;
     socklen_t salen = sizeof(sa);
@@ -1287,7 +1308,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int n = 0;
     int flags = AIO_NODELETE;
 
-    sock = accept(af->fd, &sa.sa, &salen);
+    sock = accept(serv_af->fd, &sa.sa, &salen);
     if (sock < 0) {
         JimAioSetError(interp, NULL);
         return JIM_ERR;
@@ -1312,8 +1333,13 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Create the file command */
-    return JimMakeChannel(interp, sock, filenameObj,
-        "aio.sockstream%ld", af->addr_family, flags) ? JIM_OK : JIM_ERR;
+    af = JimMakeChannel(interp, sock, filenameObj,
+        "aio.sockstream%ld", serv_af->addr_family, flags);
+    if (af) {
+        JimAioSetTaint(af, serv_af->taintsource, serv_af->taintsink);
+        return JIM_OK;
+    }
+    return JIM_ERR;
 }
 
 static int aio_cmd_sockname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1468,6 +1494,45 @@ static int aio_cmd_filename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, af->filename);
     return JIM_OK;
 }
+
+#ifdef JIM_TAINT
+static int aio_cmd_taint(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    static const char * const types[] = {
+        "sink",
+        "source",
+        NULL
+    };
+    enum
+    {
+        TAINT_TYPE_SINK,
+        TAINT_TYPE_SOURCE,
+    };
+    int type;
+    long taint;
+
+    if (Jim_GetEnum(interp, argv[0], types, &type, NULL, JIM_ERRMSG) != JIM_OK)
+        return JIM_ERR;
+
+    if (argc == 1) {
+        Jim_SetResultInt(interp, type == TAINT_TYPE_SINK ? af->taintsink : af->taintsource);
+        return JIM_OK;
+    }
+    else if (Jim_GetLong(interp, argv[1], &taint) == JIM_OK) {
+        if (type == TAINT_TYPE_SINK) {
+            af->taintsink = taint;
+        }
+        else {
+            af->taintsource = taint;
+        }
+        return JIM_OK;
+    }
+    else {
+        return JIM_ERR;
+    }
+}
+#endif
 
 #ifdef O_NDELAY
 static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -2052,6 +2117,15 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Returns the original filename */
     },
+#ifdef JIM_TAINT
+    {   "taint",
+        "source|sink ?0|n?",
+        aio_cmd_taint,
+        1,
+        2,
+        /* Description: Set or return the taint setting */
+    },
+#endif
 #ifdef O_NDELAY
     {   "ndelay",
         "?0|1?",
@@ -2272,10 +2346,16 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     const char *filename;
     int fd = -1;
     int n = 0;
-    int flags = 0;
+    /* filehandles created by open are not tainted by default */
+    int flags = AIO_NOTAINT;
+
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
 
     if (argc > 2 && Jim_CompareStringImmediate(interp, argv[2], "-noclose")) {
-        flags = AIO_KEEPOPEN;
+        flags |= AIO_KEEPOPEN;
         n++;
     }
     if (argc < 2 || argc > 3 + n) {
@@ -2318,7 +2398,8 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         return JIM_ERR;
     }
 
-    return JimMakeChannel(interp, fd, argv[1], "aio.handle%ld", 0, flags) ? JIM_OK : JIM_ERR;
+    JimMakeChannel(interp, fd, argv[1], "aio.handle%ld", 0, flags);
+    return JIM_OK;
 }
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -2349,6 +2430,12 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
     return ssl_ctx;
 }
 #endif /* JIM_BOOTSTRAP */
+
+static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink)
+{
+    af->taintsource = taintsource;
+    af->taintsink = taintsink;
+}
 
 /**
  * Creates a channel for fd/filename.
@@ -2406,6 +2493,10 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     af->writebuf = Jim_NewStringObj(interp, NULL, 0);
     Jim_IncrRefCount(af->writebuf);
 
+    /* By default, all channels are JIM_TAINT_STD for input and output. */
+    if (!(flags & AIO_NOTAINT)) {
+        JimAioSetTaint(af, JIM_TAINT_STD, JIM_TAINT_STD);
+    }
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     /* Note that the command must use the global namespace, even if
@@ -2423,21 +2514,13 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     const char *hdlfmt, int family, int flags)
 {
-    if (JimMakeChannel(interp, p[0], filename, hdlfmt, family, flags)) {
-        Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
-        Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-        if (JimMakeChannel(interp, p[1], filename, hdlfmt, family, flags)) {
-            Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-            Jim_SetResult(interp, objPtr);
-            return JIM_OK;
-        }
-    }
-
-    /* Can only be here if fdopen() failed */
-    close(p[0]);
-    close(p[1]);
-    JimAioSetError(interp, NULL);
-    return JIM_ERR;
+    JimMakeChannel(interp, p[0], filename, hdlfmt, family, flags);
+    Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
+    Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+    JimMakeChannel(interp, p[1], filename, hdlfmt, family, flags);
+    Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
 }
 #endif
 
@@ -2539,6 +2622,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc == 2 && Jim_CompareStringImmediate(interp, argv[1], "-commands")) {
         return Jim_CheckShowCommands(interp, argv[1], socktypes);
+    }
+
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
     }
 
     while (argc > 1 && Jim_String(argv[1])[0] == '-') {
@@ -2754,7 +2842,8 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         filename = argv[1];
     }
 
-    return JimMakeChannel(interp, sock, filename, "aio.sock%ld", family, flags) ? JIM_OK : JIM_ERR;
+    JimMakeChannel(interp, sock, filename, "aio.sock%ld", family, flags);
+    return JIM_OK;
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -2782,6 +2871,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 
 int Jim_aioInit(Jim_Interp *interp)
 {
+
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
@@ -2798,9 +2888,9 @@ int Jim_aioInit(Jim_Interp *interp)
 #endif
 
     /* Create filehandles for stdin, stdout and stderr */
-    JimMakeChannel(interp, fileno(stdin), NULL, "stdin", 0, AIO_KEEPOPEN);
-    JimMakeChannel(interp, fileno(stdout), NULL, "stdout", 0, AIO_KEEPOPEN);
-    JimMakeChannel(interp, fileno(stderr), NULL, "stderr", 0, AIO_KEEPOPEN | AIO_WBUF_NONE);
+    JimMakeChannel(interp, fileno(stdin), NULL, "stdin", 0, AIO_KEEPOPEN | AIO_NOTAINT);
+    JimMakeChannel(interp, fileno(stdout), NULL, "stdout", 0, AIO_KEEPOPEN | AIO_NOTAINT);
+    JimMakeChannel(interp, fileno(stderr), NULL, "stderr", 0, AIO_KEEPOPEN | AIO_WBUF_NONE | AIO_NOTAINT);
 
     return JIM_OK;
 }
