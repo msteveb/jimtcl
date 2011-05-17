@@ -120,6 +120,11 @@ test socket-1.7 {socketpair} -body {
 	lassign [socket pair] s1 s2
 	$s1 buffering line
 	$s2 buffering line
+	# We trust the data received on these sockets
+	if {[exists -command taint]} {
+		$s1 taint source 0
+		$s2 taint source 0
+	}
 	stdout flush
 	if {[os.fork] == 0} {
 		$s1 close
@@ -345,6 +350,10 @@ if {[os.fork] == 0} {
 		# read everything available (non-blocking read)
 		set buf [$c read]
 		if {[string length $buf]} {
+			# It is safe to send this back to where it came from
+			if {[exists -command untaint]} {
+				untaint buf
+			}
 			$c puts -nonewline $buf
 			$c flush
 		}

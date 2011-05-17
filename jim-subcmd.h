@@ -13,6 +13,10 @@ extern "C" {
 
 #define JIM_MODFLAG_HIDDEN   0x0001		/* Don't show the subcommand in usage or commands */
 #define JIM_MODFLAG_FULLARGV 0x0002		/* Subcmd proc gets called with full argv */
+#define JIM_MODFLAG_NOTAINT  0x0004		/* May not be called with tainted data */
+
+#define JIM_SUBCMD_BADARGS -1
+#define JIM_SUBCMD_TAINTED -2
 
 /* Custom flags start at 0x0100 */
 

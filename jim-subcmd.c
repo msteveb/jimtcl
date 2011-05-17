@@ -230,14 +230,22 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type * ct, int argc, Jim
     int ret = JIM_ERR;
 
     if (ct) {
-        if (ct->flags & JIM_MODFLAG_FULLARGV) {
+        if ((ct->flags & JIM_MODFLAG_NOTAINT) && Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+            ret = JIM_SUBCMD_TAINTED;
+        }
+        else if (ct->flags & JIM_MODFLAG_FULLARGV) {
             ret = ct->function(interp, argc, argv);
         }
         else {
             ret = ct->function(interp, argc - 2, argv + 2);
         }
         if (ret < 0) {
-            Jim_SubCmdArgError(interp, ct, argv[0]);
+            if (ret == JIM_SUBCMD_TAINTED) {
+                Jim_SetTaintError(interp, 2, argv);
+            }
+            else {
+                Jim_SubCmdArgError(interp, ct, argv[0]);
+            }
             ret = JIM_ERR;
         }
     }

@@ -28,6 +28,7 @@ options {
     full
     allextmod       => "Enable all non-default extensions as modules if prerequisites are found"
     compat          => "Enable some backward compatibility behaviour"
+    taint=1         => "Disable taint support"
     extinfo         => "Show information about available extensions"
     with-jim-shared shared => "Build a shared library instead of a static library"
     jim-regexp=1    => "Prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
@@ -482,9 +483,14 @@ if {[opt-bool compat]} {
     msg-result "Enabling compatibility mode"
     define JIM_COMPAT
 }
+
 if {![opt-bool introspection]} {
     msg-result "Disabling introspection"
     define JIM_NO_INTROSPECTION
+}
+if {[opt-bool taint]} {
+    msg-result "Enabling taint support"
+    define JIM_TAINT
 }
 if {[opt-bool shared with-jim-shared]} {
     msg-result "Building shared library"
@@ -663,7 +669,7 @@ foreach mod $extinfo(module-c) {
 }
 define BUILD_SHOBJS [join $lines \n]
 
-make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 SIZEOF_INT} -bare JIM_VERSION -none *
+make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 JIM_TAINT SIZEOF_INT} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template tests/Makefile.in
