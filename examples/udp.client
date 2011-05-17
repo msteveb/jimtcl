@@ -26,3 +26,8 @@ foreach i [range 5 10] {
 	# Receive the response - max length of 100
 	puts [$s recvfrom 100]
 }
+
+# If taint is supported, this is an unsafe command
+# and the server will refuse to do it
+$s puts -nonewline {[exec echo hello]}
+puts [$s recvfrom 100]
