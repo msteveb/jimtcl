@@ -150,7 +150,6 @@ extern "C" {
 
 #define JIM_NONE 0              /* no flags set */
 #define JIM_ERRMSG 1            /* set an error message in the interpreter. */
-#define JIM_ENUM_ABBREV 2       /* Jim_GetEnum() - Allow unambiguous abbreviation */
 #define JIM_UNSHARED 4          /* Jim_GetVariable() - return unshared object */
 #define JIM_MUSTEXIST 8         /* Jim_SetDictKeysVector() - fail if non-existent */
 #define JIM_NORESULT 16         /* Jim_SetDictKeysVector() - don't store the result in the interp result */
@@ -160,6 +159,14 @@ extern "C" {
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
 #define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substitution object */
+
+#define JIM_TAINT_STD   1 /* The "normal" type of taint. Allows for multiple
+                           * types of taint in the future
+                           */
+#define JIM_TAINT_ANY   ~0 /* Any type of taint at all */
+
+/* Flags for Jim_GetEnum() */
+#define JIM_ENUM_ABBREV 2    /* Allow unambiguous abbreviation */
 
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
@@ -286,6 +293,7 @@ typedef struct Jim_Obj {
     const struct Jim_ObjType *typePtr; /* object type. */
     int refCount; /* reference count */
     int length; /* number of bytes in 'bytes', not including the null term. */
+    unsigned taint;  /* If this object is tainted */
     /* Internal representation union */
     union {
         /* integer number type */
@@ -599,6 +607,7 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
+    unsigned taint;  /* Newly created objects get this taint */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -982,6 +991,22 @@ JIM_EXPORT int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 /* type inspection - avoid where possible */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);
 JIM_EXPORT int Jim_IsList(Jim_Obj *objPtr);
+
+/* taint */
+JIM_EXPORT void Jim_SetTaintError(Jim_Interp *interp, int cmdargs, Jim_Obj *const *argv);
+JIM_EXPORT int Jim_CalcTaint(int argc, Jim_Obj *const *argv);
+
+#ifdef JIM_TAINT
+#define Jim_CheckTaint(i, t) ((i)->taint & (t))
+#define Jim_TaintObj(o,t) (o)->taint |= (t)
+#define Jim_UntaintObj(o) (o)->taint = 0
+#define Jim_GetObjTaint(o) (o)->taint
+#else
+#define Jim_CheckTaint(i, t) 0
+#define Jim_TaintObj(o,t)
+#define Jim_UntaintObj(o)
+#define Jim_GetObjTaint(o) 0
+#endif
 
 #ifdef __cplusplus
 }

@@ -40,7 +40,7 @@ test debug-3.1 {debug objects} -body {
 # does not currently check for too many args
 test debug-3.2 {debug objects too many args} -body {
     debug objects a b c
-} -returnCodes error -result {wrong # args: should be "debug objects"}
+} -returnCodes error -result {wrong # args: should be "debug objects ?-taint?"}
 
 test debug-4.1 {debug invstr too few args} -body {
     debug invstr
@@ -100,7 +100,7 @@ test debug-8.1 {debug show} -body {
 	set x hello
 	lappend x there
     debug show $x
-} -result {refcount: 2, type: list
+} -result {refcount: 2, taint: 0, type: list
 chars (11): <<hello there>>
 bytes (11): 68 65 6c 6c 6f 20 74 68 65 72 65}
 

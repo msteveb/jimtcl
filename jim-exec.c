@@ -374,6 +374,11 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *errStrObj;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
+
     /*
      * See if the command is to be run in the background; if so, create
      * the command, detach it, and return.
