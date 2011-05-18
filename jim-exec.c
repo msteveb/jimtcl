@@ -597,10 +597,6 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     }
     pipeIds[0] = pipeIds[1] = -1;
 
-    /* Must do this before vfork(), so do it now */
-    orig_environ = environ;
-    environ = JimBuildEnv(interp);
-
     /*
      * First, scan through all the arguments to figure out the structure
      * of the pipeline.  Count the number of distinct processes (it's the
@@ -676,8 +672,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             if (strcmp(arg, "|") == 0 || strcmp(arg, "|&") == 0) {
                 if (i == lastBar + 1 || i == argc - 1) {
                     Jim_SetResultString(interp, "illegal use of | or |& in command", -1);
-                    Jim_Free(arg_array);
-                    return -1;
+                    goto badargs;
                 }
                 lastBar = i;
                 cmdCount++;
@@ -689,16 +684,20 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
 
         if (i >= argc) {
             Jim_SetResultFormatted(interp, "can't specify \"%s\" as last word in command", arg);
-            Jim_Free(arg_array);
-            return -1;
+            goto badargs;
         }
     }
 
     if (arg_count == 0) {
         Jim_SetResultString(interp, "didn't specify command to execute", -1);
+badargs:
         Jim_Free(arg_array);
         return -1;
     }
+
+    /* Must do this before vfork(), so do it now */
+    orig_environ = environ;
+    environ = JimBuildEnv(interp);
 
     /*
      * Set up the redirected input source for the pipeline, if
