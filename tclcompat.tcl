@@ -162,10 +162,10 @@ proc pid {{chan {}}} {
 	if {$chan eq ""} {
 		tailcall .pid
 	}
-	if {[catch {$chan tell}} {
+	if {[catch {$chan tell}]} {
 		return -code error "can not find channel named \"$chan\""
 	}
-	if {[catch {$chan pid} pids} {
+	if {[catch {$chan pid} pids]} {
 		return ""
 	}
 	return $pids
