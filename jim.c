@@ -95,7 +95,7 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim_Obj *newObjPtr,
     int flags);
-static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
+static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
@@ -1525,7 +1525,7 @@ static int JimParseStr(struct JimParserCtx *pc)
     return JIM_OK;              /* unreached */
 }
 
-int JimParseComment(struct JimParserCtx *pc)
+static int JimParseComment(struct JimParserCtx *pc)
 {
     while (*pc->p) {
         if (*pc->p == '\n') {
@@ -1811,7 +1811,7 @@ static int JimParseList(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-int JimParseListSep(struct JimParserCtx *pc)
+static int JimParseListSep(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
@@ -1827,7 +1827,7 @@ int JimParseListSep(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-int JimParseListStr(struct JimParserCtx *pc)
+static int JimParseListStr(struct JimParserCtx *pc)
 {
     int newword = (pc->tt == JIM_TT_SEP || pc->tt == JIM_TT_EOL || pc->tt == JIM_TT_NONE);
 
@@ -2446,7 +2446,7 @@ static const char *utf8_memchr(const char *str, int len, int c)
  * Searches for the first non-trim char in string (str, len)
  *
  * If none is found, returns just past the last char.
- * 
+ *
  * Lengths are in bytes.
  */
 static const char *JimFindTrimLeft(const char *str, int len, const char *trimchars, int trimlen)
@@ -2467,7 +2467,7 @@ static const char *JimFindTrimLeft(const char *str, int len, const char *trimcha
 
 /**
  * Searches backwards for a non-trim char in string (str, len).
- * 
+ *
  * Returns a pointer to just after the non-trim char, or NULL if not found.
  *
  * Lengths are in bytes.
@@ -3570,7 +3570,7 @@ static int Jim_NameIsDictSugar(const char *str, int len)
  * JIM_ERR if it does not exists, JIM_DICT_SUGAR if it's not
  * a variable name, but syntax glue for [dict] i.e. the last
  * character is ')' */
-int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     Jim_HashEntry *he;
     const char *varName;
@@ -4033,17 +4033,11 @@ static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPt
 /* Helper of Jim_GetVariable() to deal with dict-syntax variable names */
 static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    Jim_Obj *varObjPtr, *keyObjPtr, *resObjPtr;
+    SetDictSubstFromAny(interp, objPtr);
 
-
-    JimDictSugarParseVarKey(interp, objPtr, &varObjPtr, &keyObjPtr);
-
-    resObjPtr = JimDictExpandArrayVariable(interp, varObjPtr, keyObjPtr, flags);
-
-    Jim_DecrRefCount(interp, varObjPtr);
-    Jim_DecrRefCount(interp, keyObjPtr);
-
-    return resObjPtr;
+    return JimDictExpandArrayVariable(interp,
+        objPtr->internalRep.dictSubstValue.varNameObjPtr,
+        objPtr->internalRep.dictSubstValue.indexObjPtr, flags);
 }
 
 /* --------- $var(INDEX) substitution, using a specialized object ----------- */
@@ -4098,7 +4092,7 @@ static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
  * object that is *guaranteed* to be in the form VARNAME(INDEX).
  * The 'index' part is [subst]ituted, and is used to lookup a key inside
  * the [dict]ionary contained in variable VARNAME. */
-static Jim_Obj *Jim_ExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
+static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_Obj *resObjPtr = NULL;
     Jim_Obj *substKeyObjPtr = NULL;
@@ -7610,7 +7604,7 @@ static int JimParseExpression(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-int JimParseExprNumber(struct JimParserCtx *pc)
+static int JimParseExprNumber(struct JimParserCtx *pc)
 {
     int allowdot = 1;
     int allowhex = 0;
@@ -7645,7 +7639,7 @@ int JimParseExprNumber(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-int JimParseExprIrrational(struct JimParserCtx *pc)
+static int JimParseExprIrrational(struct JimParserCtx *pc)
 {
     const char *Tokens[] = { "NaN", "nan", "NAN", "Inf", "inf", "INF", NULL };
     const char **token;
@@ -7666,7 +7660,7 @@ int JimParseExprIrrational(struct JimParserCtx *pc)
     return JIM_ERR;
 }
 
-int JimParseExprOperator(struct JimParserCtx *pc)
+static int JimParseExprOperator(struct JimParserCtx *pc)
 {
     int i;
     int bestIdx = -1, bestLen = 0;
@@ -7925,7 +7919,7 @@ static void ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken 
 /**
  * Returns the index of the COLON_LEFT to the left of 'right_index'
  * taking into account nesting.
- * 
+ *
  * The expression *must* be well formed, thus a COLON_LEFT will always be found.
  */
 static int ExprTernaryGetColonLeftIndex(ExprByteCode *expr, int right_index)
@@ -7989,7 +7983,7 @@ static int ExprTernaryGetMoveIndices(ExprByteCode *expr, int right_index, int *p
 * expression engine. The fix is to reorder the bytecode.
 *
 * The expression:
-* 
+*
 *    expr 1?2:0?3:4
 *
 * Has initial bytecode:
@@ -8066,7 +8060,7 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
         expr->token[i] = tmp;
 
         /* Increment the 'skip' count associated to the previous JIM_EXPROP_COLON_LEFT token
-         * 
+         *
          * This is 'colon left increment' = i - prev_right_index
          *
          * [prev_left_index]      : JIM_EXPROP_LEFT_RIGHT
@@ -8507,7 +8501,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
                 break;
 
             case JIM_TT_DICTSUGAR:
-                objPtr = Jim_ExpandDictSugar(interp, expr->token[i].objPtr);
+                objPtr = JimExpandDictSugar(interp, expr->token[i].objPtr);
                 if (objPtr) {
                     ExprPush(&e, objPtr);
                 }
@@ -9386,7 +9380,7 @@ int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken * token, int tokens, J
                 }
                 break;
             case JIM_TT_DICTSUGAR:
-                intv[i] = Jim_ExpandDictSugar(interp, token[i].objPtr);
+                intv[i] = JimExpandDictSugar(interp, token[i].objPtr);
                 if (!intv[i]) {
                     retcode = JIM_ERR;
                     goto err;
@@ -9638,7 +9632,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                         wordObjPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
                         break;
                     case JIM_TT_DICTSUGAR:
-                        wordObjPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
+                        wordObjPtr = JimExpandDictSugar(interp, token[i].objPtr);
                         break;
                     case JIM_TT_CMD:
                         retcode = Jim_EvalObj(interp, token[i].objPtr);
@@ -10331,7 +10325,7 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
                     objPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
                 }
                 else {
-                    objPtr = Jim_ExpandDictSugar(interp, token[i].objPtr);
+                    objPtr = JimExpandDictSugar(interp, token[i].objPtr);
                 }
                 if (objPtr == NULL)
                     goto err;
