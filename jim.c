@@ -3274,7 +3274,7 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
 /* Commands HashTable Type.
  *
  * Keys are dynamic allocated strings, Values are Jim_Cmd structures. */
-static void Jim_CommandsHT_ValDestructor(void *interp, void *val)
+static void JimCommandsHT_ValDestructor(void *interp, void *val)
 {
     JimDecrCmdRefCount(interp, val);
 }
@@ -3285,7 +3285,7 @@ static const Jim_HashTableType JimCommandsHashTableType = {
     NULL,                       /* val dup */
     JimStringCopyHTKeyCompare,  /* key compare */
     JimStringCopyHTKeyDestructor,       /* key destructor */
-    Jim_CommandsHT_ValDestructor        /* val destructor */
+    JimCommandsHT_ValDestructor        /* val destructor */
 };
 
 /* ------------------------- Commands related functions --------------------- */
@@ -3316,7 +3316,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     return JIM_OK;
 }
 
-static int Jim_CreateProcedure(Jim_Interp *interp, const char *cmdName,
+static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
     int leftArity, int optionalArgs, int args, int rightArity)
 {
@@ -3558,7 +3558,7 @@ static const Jim_ObjType variableObjType = {
 
 /* Return true if the string "str" looks like syntax sugar for [dict]. I.e.
  * is in the form "varname(key)". */
-static int Jim_NameIsDictSugar(const char *str, int len)
+static int JimNameIsDictSugar(const char *str, int len)
 {
     if (len && str[len - 1] == ')' && strchr(str, '(') != NULL)
         return 1;
@@ -3591,7 +3591,7 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     varName = Jim_GetString(objPtr, &len);
 
     /* Make sure it's not syntax glue to get/set dict. */
-    if (Jim_NameIsDictSugar(varName, len)) {
+    if (JimNameIsDictSugar(varName, len)) {
         return JIM_DICT_SUGAR;
     }
 
@@ -3738,7 +3738,7 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
 
     varName = Jim_GetString(nameObjPtr, &len);
 
-    if (Jim_NameIsDictSugar(varName, len)) {
+    if (JimNameIsDictSugar(varName, len)) {
         Jim_SetResultString(interp, "Dict key syntax invalid as link source", -1);
         return JIM_ERR;
     }
@@ -5095,7 +5095,7 @@ int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 }
 
 #ifdef JIM_OPTIMIZATION
-static int Jim_IsWide(Jim_Obj *objPtr)
+static int JimIsWide(Jim_Obj *objPtr)
 {
     return objPtr->typePtr == &intObjType;
 }
@@ -8307,7 +8307,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     return rc;
 }
 
-static ExprByteCode *Jim_GetExpression(Jim_Interp *interp, Jim_Obj *objPtr)
+static ExprByteCode *JimGetExpression(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     if (objPtr->typePtr != &exprObjType) {
         if (SetExprFromAny(interp, objPtr) != JIM_OK) {
@@ -8342,7 +8342,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
     int retcode = JIM_OK;
     struct JimExprState e;
 
-    expr = Jim_GetExpression(interp, exprObjPtr);
+    expr = JimGetExpression(interp, exprObjPtr);
     if (!expr) {
         return JIM_ERR;         /* error in expression. */
     }
@@ -8388,7 +8388,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
                     jim_wide wideValue;
 
                     objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
-                    if (objPtr && Jim_IsWide(objPtr)
+                    if (objPtr && JimIsWide(objPtr)
                         && Jim_GetWide(interp, objPtr, &wideValue) == JIM_OK) {
                         *exprResultPtrPtr = wideValue ? interp->falseObj : interp->trueObj;
                         Jim_IncrRefCount(*exprResultPtrPtr);
@@ -8412,7 +8412,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
                                 jim_wide wideValueB;
 
                                 objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
-                                if (objPtr && Jim_IsWide(objPtr)
+                                if (objPtr && JimIsWide(objPtr)
                                     && Jim_GetWide(interp, objPtr, &wideValueA) == JIM_OK) {
                                     if (expr->token[1].type == JIM_TT_VAR) {
                                         objPtr =
@@ -8422,7 +8422,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
                                     else {
                                         objPtr = expr->token[1].objPtr;
                                     }
-                                    if (objPtr && Jim_IsWide(objPtr)
+                                    if (objPtr && JimIsWide(objPtr)
                                         && Jim_GetWide(interp, objPtr, &wideValueB) == JIM_OK) {
                                         int cmpRes;
 
@@ -10537,7 +10537,7 @@ static int Jim_PutsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 }
 
 /* Helper for [+] and [*] */
-static int Jim_AddMulHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int op)
+static int JimAddMulHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int op)
 {
     jim_wide wideValue, res;
     double doubleValue, doubleRes;
@@ -10570,7 +10570,7 @@ static int Jim_AddMulHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, 
 }
 
 /* Helper for [-] and [/] */
-static int Jim_SubDivHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int op)
+static int JimSubDivHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int op)
 {
     jim_wide wideValue, res = 0;
     double doubleValue, doubleRes = 0;
@@ -10646,25 +10646,25 @@ static int Jim_SubDivHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, 
 /* [+] */
 static int Jim_AddCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_AddMulHelper(interp, argc, argv, JIM_EXPROP_ADD);
+    return JimAddMulHelper(interp, argc, argv, JIM_EXPROP_ADD);
 }
 
 /* [*] */
 static int Jim_MulCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_AddMulHelper(interp, argc, argv, JIM_EXPROP_MUL);
+    return JimAddMulHelper(interp, argc, argv, JIM_EXPROP_MUL);
 }
 
 /* [-] */
 static int Jim_SubCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_SubDivHelper(interp, argc, argv, JIM_EXPROP_SUB);
+    return JimSubDivHelper(interp, argc, argv, JIM_EXPROP_SUB);
 }
 
 /* [/] */
 static int Jim_DivCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_SubDivHelper(interp, argc, argv, JIM_EXPROP_DIV);
+    return JimSubDivHelper(interp, argc, argv, JIM_EXPROP_DIV);
 }
 
 /* [set] */
@@ -10802,7 +10802,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         int cmpOffset;
 
         /* Do it only if there aren't shared arguments */
-        expr = Jim_GetExpression(interp, argv[2]);
+        expr = JimGetExpression(interp, argv[2]);
         incrScript = Jim_GetScript(interp, argv[3]);
 
         /* Ensure proper lengths to start */
@@ -11857,7 +11857,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_WrongNumArgs(interp, 2, argv, "expression");
             return JIM_ERR;
         }
-        expr = Jim_GetExpression(interp, argv[2]);
+        expr = JimGetExpression(interp, argv[2]);
         if (expr == NULL)
             return JIM_ERR;
         Jim_SetResultInt(interp, expr->len);
@@ -11872,7 +11872,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_WrongNumArgs(interp, 2, argv, "expression");
             return JIM_ERR;
         }
-        expr = Jim_GetExpression(interp, argv[2]);
+        expr = JimGetExpression(interp, argv[2]);
         if (expr == NULL)
             return JIM_ERR;
         objPtr = Jim_NewListObj(interp, NULL, 0);
@@ -12205,11 +12205,11 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     }
 
     if (argc == 4) {
-        return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+        return JimCreateProcedure(interp, Jim_GetString(argv[1], NULL),
             argv[2], NULL, argv[3], leftArity, optionalArgs, args, rightArity);
     }
     else {
-        return Jim_CreateProcedure(interp, Jim_GetString(argv[1], NULL),
+        return JimCreateProcedure(interp, Jim_GetString(argv[1], NULL),
             argv[2], argv[3], argv[4], leftArity, optionalArgs, args, rightArity);
     }
 }

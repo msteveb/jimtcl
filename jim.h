@@ -879,8 +879,9 @@ JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
 JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 
 
-int Jim_IsDict(Jim_Obj *objPtr);
-int Jim_IsList(Jim_Obj *objPtr);
+/* type inspection - avoid where possible */
+JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);
+JIM_EXPORT int Jim_IsList(Jim_Obj *objPtr);
 
 #ifdef __cplusplus
 }
