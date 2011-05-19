@@ -3016,8 +3016,8 @@ static Jim_Obj *JimMakeScriptObj(Jim_Interp *interp, const ParseToken *t)
 {
     Jim_Obj *objPtr;
 
-    if (t->type == JIM_TT_ESC) {
-        /* Convert the escape chars. */
+    if (t->type == JIM_TT_ESC && memchr(t->token, '\\', t->len) != NULL) {
+        /* Convert the backlash escapes . */
         int len = t->len;
         char *str = Jim_Alloc(len + 1);
         len = JimEscape(str, t->token, len);
@@ -10194,13 +10194,6 @@ static int JimParseSubst(struct JimParserCtx *pc, int flags)
  * for what is needed for [subst]itution tasks, but the reuse helps to
  * deal with a single data structure at the cost of some more memory
  * usage for substitutions. */
-static const Jim_ObjType substObjType = {
-    "subst",
-    FreeScriptInternalRep,
-    DupScriptInternalRep,
-    NULL,
-    JIM_TYPE_REFERENCES,
-};
 
 /* This method takes the string representation of an object
  * as a Tcl string where to perform [subst]itution, and generates
@@ -10257,9 +10250,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
 
 ScriptObj *Jim_GetSubst(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    struct ScriptObj *script = Jim_GetIntRepPtr(objPtr);
-
-    if (objPtr->typePtr != &substObjType || script->substFlags != flags)
+    if (objPtr->typePtr != &scriptObjType || ((ScriptObj *)Jim_GetIntRepPtr(objPtr))->substFlags != flags)
         SetSubstFromAny(interp, objPtr, flags);
     return (ScriptObj *) Jim_GetIntRepPtr(objPtr);
 }
@@ -10271,28 +10262,11 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
 {
     ScriptObj *script;
     ScriptToken *token;
-    int i, len, retcode = JIM_OK;
+    int i, retcode = JIM_OK;
     int rc;
-    Jim_Obj *resObjPtr, *savedResultObjPtr;
+    Jim_Obj *resObjPtr;
 
     script = Jim_GetSubst(interp, substObjPtr, flags);
-#ifdef JIM_OPTIMIZATION
-    /* Fast path for a very common case with array-alike syntax,
-     * that's: $foo($bar) */
-    if (script->len == 1 && script->token[0].type == JIM_TT_VAR) {
-        Jim_Obj *varObjPtr = script->token[0].objPtr;
-
-        Jim_IncrRefCount(varObjPtr);
-        resObjPtr = Jim_GetVariable(interp, varObjPtr, JIM_ERRMSG);
-        if (resObjPtr == NULL) {
-            Jim_DecrRefCount(interp, varObjPtr);
-            return JIM_ERR;
-        }
-        Jim_DecrRefCount(interp, varObjPtr);
-        *resObjPtrPtr = resObjPtr;
-        return JIM_OK;
-    }
-#endif
 
     Jim_IncrRefCount(substObjPtr);      /* Make sure it's shared. */
     /* In order to preserve the internal rep, we increment the
@@ -10300,78 +10274,73 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
     script->inUse++;
 
     token = script->token;
-    len = script->len;
 
-    /* Save the interp old result, to set it again before
-     * to return. */
-    savedResultObjPtr = interp->result;
-    Jim_IncrRefCount(savedResultObjPtr);
-
-    /* Perform the substitution. Starts with an empty object
+    /* Perform the substitution. Start with a null object in case Starts with an empty object
      * and adds every token (performing the appropriate
      * var/command/escape substitution). */
-    resObjPtr = Jim_NewStringObj(interp, "", 0);
-    for (i = 0; i < len; i++) {
+    if (script->len == 1) {
+        resObjPtr = NULL;
+    }
+    else {
+        resObjPtr = Jim_NewEmptyStringObj(interp);
+    }
+    for (i = 0; i < script->len; i++) {
         Jim_Obj *objPtr;
 
         switch (token[i].type) {
             case JIM_TT_STR:
             case JIM_TT_ESC:
-                Jim_AppendObj(interp, resObjPtr, token[i].objPtr);
+                objPtr = token[i].objPtr;
                 break;
             case JIM_TT_VAR:
-            case JIM_TT_DICTSUGAR:
-                if (token[i].type == JIM_TT_VAR) {
                     objPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
-                }
-                else {
+                    break;
+
+            case JIM_TT_DICTSUGAR:
                     objPtr = JimExpandDictSugar(interp, token[i].objPtr);
-                }
-                if (objPtr == NULL)
-                    goto err;
-                Jim_IncrRefCount(objPtr);
-                Jim_AppendObj(interp, resObjPtr, objPtr);
-                Jim_DecrRefCount(interp, objPtr);
-                break;
+                    break;
             case JIM_TT_CMD:
                 rc = Jim_EvalObj(interp, token[i].objPtr);
-                if (rc == JIM_BREAK) {
+                if (rc == JIM_OK || rc == JIM_RETURN) {
+                    objPtr = interp->result;
+                }
+                else if (rc == JIM_BREAK) {
                     /* Stop substituting */
                     goto ok;
                 }
                 else if (rc == JIM_CONTINUE) {
                     /* just skip this one */
-                }
-                else if (rc == JIM_OK || rc == JIM_RETURN) {
-                    Jim_AppendObj(interp, resObjPtr, interp->result);
+                    continue;
                 }
                 else {
-                    goto err;
+                    objPtr = NULL;
                 }
                 break;
             default:
                 Jim_Panic(interp,
                     "default token type (%d) reached " "in Jim_SubstObj().", token[i].type);
+                objPtr = NULL;
                 break;
         }
+
+        if (objPtr == NULL) {
+            if (resObjPtr) {
+                Jim_FreeNewObj(interp, resObjPtr);
+            }
+            retcode = JIM_ERR;
+            break;
+        }
+        if (script->len == 1) {
+            resObjPtr = objPtr;
+            break;
+        }
+        Jim_AppendObj(interp, resObjPtr, objPtr);
     }
   ok:
-    if (retcode == JIM_OK)
-        Jim_SetResult(interp, savedResultObjPtr);
-    Jim_DecrRefCount(interp, savedResultObjPtr);
-    /* Note that we don't have to decrement inUse, because the
-     * following code transfers our use of the reference again to
-     * the script object. */
-    Jim_FreeIntRep(interp, substObjPtr);
-    substObjPtr->typePtr = &scriptObjType;
-    Jim_SetIntRepPtr(substObjPtr, script);
+    script->inUse--;
     Jim_DecrRefCount(interp, substObjPtr);
     *resObjPtrPtr = resObjPtr;
     return retcode;
-  err:
-    Jim_FreeNewObj(interp, resObjPtr);
-    retcode = JIM_ERR;
-    goto ok;
 }
 
 /* -----------------------------------------------------------------------------
