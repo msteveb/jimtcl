@@ -9339,96 +9339,6 @@ int Jim_EvalObjPrefix(Jim_Interp *interp, const char *prefix, int objc, Jim_Obj 
     return ret;
 }
 
-/* Interpolate the given tokens into a unique Jim_Obj returned by reference
- * via *objPtrPtr. This function is only called by Jim_EvalObj().
- * The returned object has refcount = 0. */
-int Jim_InterpolateTokens(Jim_Interp *interp, ScriptToken * token, int tokens, Jim_Obj **objPtrPtr)
-{
-    int totlen = 0, i, retcode;
-    Jim_Obj **intv;
-    Jim_Obj *sintv[JIM_EVAL_SINTV_LEN];
-    Jim_Obj *objPtr;
-    char *s;
-
-    if (tokens <= JIM_EVAL_SINTV_LEN)
-        intv = sintv;
-    else
-        intv = Jim_Alloc(sizeof(Jim_Obj *) * tokens);
-    /* Compute every token forming the argument
-     * in the intv objects vector. */
-    for (i = 0; i < tokens; i++) {
-        switch (token[i].type) {
-            case JIM_TT_ESC:
-            case JIM_TT_STR:
-                intv[i] = token[i].objPtr;
-                break;
-            case JIM_TT_VAR:
-                intv[i] = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
-                if (!intv[i]) {
-                    retcode = JIM_ERR;
-                    goto err;
-                }
-                break;
-            case JIM_TT_DICTSUGAR:
-                intv[i] = JimExpandDictSugar(interp, token[i].objPtr);
-                if (!intv[i]) {
-                    retcode = JIM_ERR;
-                    goto err;
-                }
-                break;
-            case JIM_TT_CMD:
-                retcode = Jim_EvalObj(interp, token[i].objPtr);
-                if (retcode != JIM_OK)
-                    goto err;
-                intv[i] = Jim_GetResult(interp);
-                break;
-            default:
-                Jim_Panic(interp, "default token type reached " "in Jim_InterpolateTokens().");
-                exit(1);
-        }
-        Jim_IncrRefCount(intv[i]);
-        /* Make sure there is a valid
-         * string rep, and add the string
-         * length to the total legnth. */
-        Jim_GetString(intv[i], NULL);
-        totlen += intv[i]->length;
-    }
-    /* Concatenate every token in an unique
-     * object. */
-    objPtr = Jim_NewStringObjNoAlloc(interp, NULL, 0);
-
-    if (tokens == 4 && token[0].type == JIM_TT_ESC && token[1].type == JIM_TT_ESC
-        && token[2].type == JIM_TT_VAR) {
-        /* May be able to do fast interpolated object -> dictSubst */
-        objPtr->typePtr = &interpolatedObjType;
-        objPtr->internalRep.twoPtrValue.ptr1 = token;
-        objPtr->internalRep.twoPtrValue.ptr2 = intv[2];
-        Jim_IncrRefCount(intv[2]);
-    }
-
-    s = objPtr->bytes = Jim_Alloc(totlen + 1);
-    objPtr->length = totlen;
-    for (i = 0; i < tokens; i++) {
-        memcpy(s, intv[i]->bytes, intv[i]->length);
-        s += intv[i]->length;
-        Jim_DecrRefCount(interp, intv[i]);
-    }
-    objPtr->bytes[totlen] = '\0';
-    /* Free the intv vector if not static. */
-    if (tokens > JIM_EVAL_SINTV_LEN)
-        Jim_Free(intv);
-
-    *objPtrPtr = objPtr;
-    return JIM_OK;
-  err:
-    i--;
-    for (; i >= 0; i--)
-        Jim_DecrRefCount(interp, intv[i]);
-    if (tokens > JIM_EVAL_SINTV_LEN)
-        Jim_Free(intv);
-    return retcode;
-}
-
 static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
 {
     int rc = retcode;
@@ -9485,6 +9395,141 @@ static void JimDeleteLocalProcs(Jim_Interp *interp)
         interp->localProcs = NULL;
     }
 }
+
+static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Obj **objPtrPtr)
+{
+    Jim_Obj *objPtr;
+
+    switch (token->type) {
+        case JIM_TT_STR:
+        case JIM_TT_ESC:
+            objPtr = token->objPtr;
+            break;
+        case JIM_TT_VAR:
+            objPtr = Jim_GetVariable(interp, token->objPtr, JIM_ERRMSG);
+            break;
+        case JIM_TT_DICTSUGAR:
+            objPtr = JimExpandDictSugar(interp, token->objPtr);
+            break;
+        case JIM_TT_CMD:
+            switch (Jim_EvalObj(interp, token->objPtr)) {
+                case JIM_OK:
+                case JIM_RETURN:
+                    objPtr = interp->result;
+                    break;
+                case JIM_BREAK:
+                    /* Stop substituting */
+                    return JIM_BREAK;
+                case JIM_CONTINUE:
+                    /* just skip this one */
+                    return JIM_CONTINUE;
+                default:
+                    return JIM_ERR;
+            }
+            break;
+        default:
+            Jim_Panic(interp,
+                "default token type (%d) reached " "in Jim_SubstObj().", token->type);
+            objPtr = NULL;
+            break;
+    }
+    if (objPtr) {
+        *objPtrPtr = objPtr;
+        return JIM_OK;
+    }
+    return JIM_ERR;
+}
+
+/* Interpolate the given tokens into a unique Jim_Obj returned by reference
+ * via *objPtrPtr. This function is only called by Jim_EvalObj() and Jim_SubstObj()
+ * The returned object has refcount = 0.
+ */
+static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * token, int tokens, int flags)
+{
+    int totlen = 0, i;
+    Jim_Obj **intv;
+    Jim_Obj *sintv[JIM_EVAL_SINTV_LEN];
+    Jim_Obj *objPtr;
+    char *s;
+
+    if (tokens <= JIM_EVAL_SINTV_LEN)
+        intv = sintv;
+    else
+        intv = Jim_Alloc(sizeof(Jim_Obj *) * tokens);
+
+    /* Compute every token forming the argument
+     * in the intv objects vector. */
+    for (i = 0; i < tokens; i++) {
+        switch (JimSubstOneToken(interp, &token[i], &intv[i])) {
+            case JIM_OK:
+            case JIM_RETURN:
+                break;
+            case JIM_BREAK:
+                if (flags & JIM_SUBST_FLAG) {
+                    /* Stop here */
+                    tokens = i;
+                    continue;
+                }
+                /* XXX: Should probably set an error about break outside loop */
+                /* fall through to error */
+            case JIM_CONTINUE:
+                if (flags & JIM_SUBST_FLAG) {
+                    intv[i] = NULL;
+                    continue;
+                }
+                /* XXX: Ditto continue outside loop */
+                /* fall through to error */
+            default:
+                while (i--) {
+                    Jim_DecrRefCount(interp, intv[i]);
+                }
+                if (intv != sintv) {
+                    Jim_Free(intv);
+                }
+                return NULL;
+        }
+        Jim_IncrRefCount(intv[i]);
+        Jim_GetString(intv[i], NULL);
+        totlen += intv[i]->length;
+    }
+
+    /* Fast path return for a single token */
+    if (tokens == 1 && intv[0] && intv == sintv) {
+        Jim_DecrRefCount(interp, intv[0]);
+        return intv[0];
+    }
+
+    /* Concatenate every token in an unique
+     * object. */
+    objPtr = Jim_NewStringObjNoAlloc(interp, NULL, 0);
+
+    if (tokens == 4 && token[0].type == JIM_TT_ESC && token[1].type == JIM_TT_ESC
+        && token[2].type == JIM_TT_VAR) {
+        /* May be able to do fast interpolated object -> dictSubst */
+        objPtr->typePtr = &interpolatedObjType;
+        objPtr->internalRep.twoPtrValue.ptr1 = (void *)token;
+        objPtr->internalRep.twoPtrValue.ptr2 = intv[2];
+        Jim_IncrRefCount(intv[2]);
+    }
+
+    s = objPtr->bytes = Jim_Alloc(totlen + 1);
+    objPtr->length = totlen;
+    for (i = 0; i < tokens; i++) {
+        if (intv[i]) {
+            memcpy(s, intv[i]->bytes, intv[i]->length);
+            s += intv[i]->length;
+            Jim_DecrRefCount(interp, intv[i]);
+        }
+    }
+    objPtr->bytes[totlen] = '\0';
+    /* Free the intv vector if not static. */
+    if (intv != sintv) {
+        Jim_Free(intv);
+    }
+
+    return objPtr;
+}
+
 
 /* If listPtr is a list, call JimEvalObjVector() with the given source info.
  * Otherwise eval with Jim_EvalObj()
@@ -9638,7 +9683,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             else {
                 /* For interpolation we call a helper
                  * function to do the work for us. */
-                retcode = Jim_InterpolateTokens(interp, token + i, wordtokens, &wordObjPtr);
+                wordObjPtr = JimInterpolateTokens(interp, token + i, wordtokens, JIM_NONE);
             }
 
             if (!wordObjPtr) {
@@ -10238,7 +10283,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     return JIM_OK;
 }
 
-ScriptObj *Jim_GetSubst(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
+static ScriptObj *Jim_GetSubst(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     if (objPtr->typePtr != &scriptObjType || ((ScriptObj *)Jim_GetIntRepPtr(objPtr))->substFlags != flags)
         SetSubstFromAny(interp, objPtr, flags);
@@ -10250,87 +10295,21 @@ ScriptObj *Jim_GetSubst(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
  * resObjPtrPtr. */
 int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPtr, int flags)
 {
-    ScriptObj *script;
-    ScriptToken *token;
-    int i, retcode = JIM_OK;
-    int rc;
-    Jim_Obj *resObjPtr;
-
-    script = Jim_GetSubst(interp, substObjPtr, flags);
+    ScriptObj *script = Jim_GetSubst(interp, substObjPtr, flags);
 
     Jim_IncrRefCount(substObjPtr);      /* Make sure it's shared. */
     /* In order to preserve the internal rep, we increment the
      * inUse field of the script internal rep structure. */
     script->inUse++;
 
-    token = script->token;
+    *resObjPtrPtr = JimInterpolateTokens(interp, script->token, script->len, flags);
 
-    /* Perform the substitution. Start with a null object in case Starts with an empty object
-     * and adds every token (performing the appropriate
-     * var/command/escape substitution). */
-    if (script->len == 1) {
-        resObjPtr = NULL;
-    }
-    else {
-        resObjPtr = Jim_NewEmptyStringObj(interp);
-    }
-    for (i = 0; i < script->len; i++) {
-        Jim_Obj *objPtr;
-
-        switch (token[i].type) {
-            case JIM_TT_STR:
-            case JIM_TT_ESC:
-                objPtr = token[i].objPtr;
-                break;
-            case JIM_TT_VAR:
-                    objPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
-                    break;
-
-            case JIM_TT_DICTSUGAR:
-                    objPtr = JimExpandDictSugar(interp, token[i].objPtr);
-                    break;
-            case JIM_TT_CMD:
-                rc = Jim_EvalObj(interp, token[i].objPtr);
-                if (rc == JIM_OK || rc == JIM_RETURN) {
-                    objPtr = interp->result;
-                }
-                else if (rc == JIM_BREAK) {
-                    /* Stop substituting */
-                    goto ok;
-                }
-                else if (rc == JIM_CONTINUE) {
-                    /* just skip this one */
-                    continue;
-                }
-                else {
-                    objPtr = NULL;
-                }
-                break;
-            default:
-                Jim_Panic(interp,
-                    "default token type (%d) reached " "in Jim_SubstObj().", token[i].type);
-                objPtr = NULL;
-                break;
-        }
-
-        if (objPtr == NULL) {
-            if (resObjPtr) {
-                Jim_FreeNewObj(interp, resObjPtr);
-            }
-            retcode = JIM_ERR;
-            break;
-        }
-        if (script->len == 1) {
-            resObjPtr = objPtr;
-            break;
-        }
-        Jim_AppendObj(interp, resObjPtr, objPtr);
-    }
-  ok:
     script->inUse--;
     Jim_DecrRefCount(interp, substObjPtr);
-    *resObjPtrPtr = resObjPtr;
-    return retcode;
+    if (*resObjPtrPtr == NULL) {
+        return JIM_ERR;
+    }
+    return JIM_OK;
 }
 
 /* -----------------------------------------------------------------------------
