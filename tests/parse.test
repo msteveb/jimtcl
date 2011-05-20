@@ -21,4 +21,17 @@ test parse-1.5 "Braced bracket" {
 	set x [string length {]}]
 } {1}
 
+test parse-1.6 "Dict sugar" -body {
+    unset -nocomplain a
+    array set a {a 1 b 2 c 3}
+    set x $a(
+} -returnCodes error -match glob -result "*"
+
+test parse-1.8 "Dict sugar" {
+    unset -nocomplain a
+    array set a {a 1 b 2 c 3}
+    set x $a([set y b])
+} 2
+
+
 testreport

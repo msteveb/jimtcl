@@ -1346,7 +1346,6 @@ static int JimParseVar(struct JimParserCtx *pc)
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
             int count = 1;
-            const char *paren = pc->p;
 
             while (count && pc->len) {
                 pc->p++;
@@ -1362,17 +1361,12 @@ static int JimParseVar(struct JimParserCtx *pc)
                     count--;
                 }
             }
+            ttype = JIM_TT_DICTSUGAR;
             if (count == 0) {
                 if (*pc->p != '\0') {
                     pc->p++;
                     pc->len--;
                 }
-                ttype = JIM_TT_DICTSUGAR;
-            }
-            else {
-                /* Missing '(', so back up */
-                pc->len += pc->p - paren;
-                pc->p = paren;
             }
         }
         pc->tend = pc->p - 1;
@@ -3926,8 +3920,7 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
     Jim_Obj **varPtrPtr, Jim_Obj **keyPtrPtr)
 {
     const char *str, *p;
-    char *t;
-    int len, keyLen, nameLen;
+    int len, keyLen;
     Jim_Obj *varObjPtr, *keyObjPtr;
 
     str = Jim_GetString(objPtr, &len);
@@ -3936,19 +3929,16 @@ static void JimDictSugarParseVarKey(Jim_Interp *interp, Jim_Obj *objPtr,
     if (p == NULL) {
         Jim_Panic(interp, "JimDictSugarParseVarKey() called for non-dict-sugar (%s)", str);
     }
-    p++;
-    keyLen = len - ((p - str) + 1);
-    nameLen = (p - str) - 1;
-    /* Create the objects with the variable name and key. */
-    t = Jim_Alloc(nameLen + 1);
-    memcpy(t, str, nameLen);
-    t[nameLen] = '\0';
-    varObjPtr = Jim_NewStringObjNoAlloc(interp, t, nameLen);
+    varObjPtr = Jim_NewStringObj(interp, str, p - str);
 
-    t = Jim_Alloc(keyLen + 1);
-    memcpy(t, p, keyLen);
-    t[keyLen] = '\0';
-    keyObjPtr = Jim_NewStringObjNoAlloc(interp, t, keyLen);
+    p++;
+    keyLen = (str + len) - p;
+    if (str[len - 1] == ')') {
+        keyLen--;
+    }
+
+    /* Create the objects with the variable name and key. */
+    keyObjPtr = Jim_NewStringObj(interp, p, keyLen);
 
     Jim_IncrRefCount(varObjPtr);
     Jim_IncrRefCount(keyObjPtr);
