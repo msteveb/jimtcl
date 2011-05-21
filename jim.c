@@ -5730,29 +5730,6 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     return rc;
 }
 
-/* This is the low-level function to append an element to a list.
- * The higher-level Jim_ListAppendElement() performs shared object
- * check and invalidate the string repr. This version is used
- * in the internals of the List Object and is not exported.
- *
- * NOTE: this function can be called only against objects
- * with internal type of List. */
-void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
-{
-    int requiredLen = listPtr->internalRep.listValue.len + 1;
-
-    if (requiredLen > listPtr->internalRep.listValue.maxLen) {
-        int maxLen = requiredLen * 2;
-
-        listPtr->internalRep.listValue.ele =
-            Jim_Realloc(listPtr->internalRep.listValue.ele, sizeof(Jim_Obj *) * maxLen);
-        listPtr->internalRep.listValue.maxLen = maxLen;
-    }
-    listPtr->internalRep.listValue.ele[listPtr->internalRep.listValue.len] = objPtr;
-    listPtr->internalRep.listValue.len++;
-    Jim_IncrRefCount(objPtr);
-}
-
 /* This is the low-level function to insert elements into a list.
  * The higher-level Jim_ListInsertElements() performs shared object
  * check and invalidate the string repr. This version is used
@@ -5783,28 +5760,22 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     listPtr->internalRep.listValue.len += elemc;
 }
 
+/* Convenience call to ListInsertElements() to append a single element.
+ */
+static void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
+{
+    ListInsertElements(listPtr, listPtr->internalRep.listValue.len, 1, &objPtr);
+}
+
+
 /* Appends every element of appendListPtr into listPtr.
- * Both have to be of the list type. */
+ * Both have to be of the list type.
+ * Convenience call to ListInsertElements()
+ */
 static void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 {
-    int i, oldLen = listPtr->internalRep.listValue.len;
-    int appendLen = appendListPtr->internalRep.listValue.len;
-    int requiredLen = oldLen + appendLen;
-
-    if (requiredLen > listPtr->internalRep.listValue.maxLen) {
-        int maxLen = requiredLen * 2;
-
-        listPtr->internalRep.listValue.ele =
-            Jim_Realloc(listPtr->internalRep.listValue.ele, sizeof(Jim_Obj *) * maxLen);
-        listPtr->internalRep.listValue.maxLen = maxLen;
-    }
-    for (i = 0; i < appendLen; i++) {
-        Jim_Obj *objPtr = appendListPtr->internalRep.listValue.ele[i];
-
-        listPtr->internalRep.listValue.ele[oldLen + i] = objPtr;
-        Jim_IncrRefCount(objPtr);
-    }
-    listPtr->internalRep.listValue.len += appendLen;
+    ListInsertElements(listPtr, listPtr->internalRep.listValue.len,
+        appendListPtr->internalRep.listValue.len, appendListPtr->internalRep.listValue.ele);
 }
 
 void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr)
