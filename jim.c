@@ -1042,14 +1042,6 @@ void *Jim_StackPeek(Jim_Stack *stack)
     return stack->vector[stack->len - 1];
 }
 
-void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
-{
-    int i;
-
-    for (i = 0; i < stack->len; i++)
-        freeFunc(stack->vector[i]);
-}
-
 /* -----------------------------------------------------------------------------
  * Parser
  * ---------------------------------------------------------------------------*/
@@ -6948,9 +6940,6 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprState *e)
                 break;
             case JIM_EXPROP_BITOR:
                 wC = wA | wB;
-                break;
-            case JIM_EXPROP_POW:
-                wC = JimPowWide(wA, wB);
                 break;
             case JIM_EXPROP_MOD:
                 if (wB == 0) {

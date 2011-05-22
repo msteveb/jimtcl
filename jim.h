@@ -638,7 +638,6 @@ JIM_EXPORT int Jim_StackLen(Jim_Stack *stack);
 JIM_EXPORT void Jim_StackPush(Jim_Stack *stack, void *element);
 JIM_EXPORT void * Jim_StackPop(Jim_Stack *stack);
 JIM_EXPORT void * Jim_StackPeek(Jim_Stack *stack);
-JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr));
 
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
