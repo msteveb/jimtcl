@@ -1,0 +1,20 @@
+Source: jimtcl
+Section: devel
+Priority: extra
+Maintainer: Steve Bennett <steveb@workware.net.au>
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev
+Standards-Version: 3.9.1
+Homepage: http://jim.berlios.de/
+#Vcs-Git: git://git.debian.org/collab-maint/jimtcl.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/jimtcl.git;a=summary
+
+Package: jimtcl
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Jim is an opensource small-footprint implementation of Tcl.
+ Jim is an opensource small-footprint implementation of the Tcl programming 
+ language. It implements a large subset of Tcl and adds new features like 
+ references with garbage collection, closures, built-in Object Oriented 
+ Programming system, Functional Programming commands, first-class arrays and
+ UTF-8 support. All this with a binary size of about 100-200kB (depending upon 
+ selected options).
