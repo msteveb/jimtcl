@@ -137,4 +137,86 @@ test parse-1.26 "newline in braced var" {
 b}
 } var1
 
+test parse-1.27 "backslash escape in dict sugar" {
+	unset -nocomplain a
+	set a(b\x55d) 5
+	set x $a(b\x55d)
+} 5
+
+test parse-1.28 "nested dict sugar" {
+	set a(V) 5
+	set b(5) five
+	set x $b($a(V))
+} five
+
+set dq {"}
+set script "set x ${dq}hello"
+
+test parse-1.29 "missing quote" jim {
+	eval $script
+} hello
+
+test parse-1.30 "missing quote" {
+	info complete $script
+} 0
+
+test parse-1.31 "backslash newline in bare context" {
+	list abc\
+	123
+} {abc 123}
+
+test parse-1.32 "comment as last line of script" {
+	set script {set x 3; # this is a comment}
+	eval $script
+} 3
+
+test parse-1.33 "upper case hex escapes" {
+	list \x4A \x4F \x3C
+} {J O <}
+
+test parse-1.34 "octal escapes" {
+	list \112 \117 \074
+} {J O <}
+
+test parse-1.35 "invalid hex escape" {
+	list \xZZ
+} xZZ
+
+test parse-1.36 "unicode escape" jim {
+	list \u00b5
+} \xc2\xb5
+
+test parse-1.37 "invalid unicode escape after unicode" jim {
+	list \ub5x
+} \xc2\xb5x
+
+test parse-1.38 "invalid unicode escape" {
+	list \ux
+} ux
+
+test parse-1.39 "octal escape followed by invalid" {
+	list \76x
+} >x
+
+test parse-1.40 "list containing quoted trailing backslash" jim {
+	set x "abc \"def\\"
+	lindex $x 1
+} def\\
+
+test parse-1.41 "list containing quoted newline" {
+	set x {abc "def
+ghi"}
+	lindex $x 1
+} def\nghi
+
+test parse-1.42 "list containing missing quote" jim {
+	set x {abc "def}
+	lindex $x 1
+} def
+
+test parse-1.43 "list containing trailing backslash" {
+	set x "abc def\\"
+	lindex $x 1
+} def\\
+
 testreport

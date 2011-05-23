@@ -214,5 +214,12 @@ test stringmatch-6.6 {charset with ^} {
     string match {a[\]]c} {a]c}
 } 0
 
+test stringmatch=7.1 {short string with ?} {
+    string match {ab?} ab
+} 0
+
+test stringmatch=7.1 {multiple * to end} {
+    string match {ab**} ab
+} 1
 
 testreport

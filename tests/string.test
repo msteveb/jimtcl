@@ -179,6 +179,21 @@ test string-4.8 {string first} {
 test string-4.14 {string first, start index} {
     string first a abcabc end-4
 } 3
+test string-4.15 {string first, empty needle} {
+    string first "" b
+} -1
+test string-4.16 {string first, empty haystack} {
+    string first a ""
+} -1
+test string-4.17 {string first, needle bigger than haystack} {
+    string first aaa b
+} -1
+test string-4.18 {string first, negative index} {
+    string first a aaa -4
+} 0
+test string-4.19 {string first, not found} {
+    string first a bcd
+} -1
 
 test string-5.1 {string index} {
     list [catch {string index} msg]
@@ -408,6 +423,9 @@ test string-7.15 {string last, start index} {
 test string-7.16 {string last, start index} utf8 {
     string last \u00dca \u00dcad\u00dcad end-1
 } 3
+test string-7.17 {string last, too few args} {
+    string last abc def
+} -1
 test string-9.1 {string length} {
     list [catch {string length} msg]
 } {1}

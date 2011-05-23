@@ -110,23 +110,23 @@ if {[info command testdel] == "testdel"} {
 	set env(value)
     } {deleted}
     test rename-4.6 {reentrancy issues with command deletion and renaming} {
-	proc kill args {
+	proc killx args {
 	    interp delete foo
 	}
 	set env(value) before
 	interp create foo
-	foo alias kill kill
-	testdel foo cmd {set env(value) deleted; kill}
+	foo alias killx killx
+	testdel foo cmd {set env(value) deleted; killx}
 	list [catch {foo eval {rename cmd {}}} msg] $msg $env(value)
     } {0 {} deleted}
     test rename-4.7 {reentrancy issues with command deletion and renaming} {
-	proc kill args {
+	proc killx args {
 	    interp delete foo
 	}
 	set env(value) before
 	interp create foo
-	foo alias kill kill
-	testdel foo cmd {set env(value) deleted; kill}
+	foo alias killx killx
+	testdel foo cmd {set env(value) deleted; killx}
 	list [catch {interp delete foo} msg] $msg $env(value)
     } {0 {} deleted}
     if {[info exists env(value)]} {
@@ -150,6 +150,6 @@ if {[info commands split.old] != {}} {
     catch {rename split.old split}
 }
 catch {rename x {}}
-catch {rename kill {}}
+catch {rename killx {}}
 
 testreport

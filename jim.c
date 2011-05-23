@@ -1765,6 +1765,7 @@ int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
  * ---------------------------------------------------------------------------*/
 static int JimParseListSep(struct JimParserCtx *pc);
 static int JimParseListStr(struct JimParserCtx *pc);
+static int JimParseListQuote(struct JimParserCtx *pc);
 
 static int JimParseList(struct JimParserCtx *pc)
 {
@@ -1780,14 +1781,16 @@ static int JimParseList(struct JimParserCtx *pc)
         case '\n':
         case '\t':
         case '\r':
-            if (pc->state == JIM_PS_DEF)
-                return JimParseListSep(pc);
-            else
-                return JimParseListStr(pc);
-            break;
+            return JimParseListSep(pc);
+
+        case '"':
+            return JimParseListQuote(pc);
+
+        case '{':
+            return JimParseBrace(pc);
+
         default:
             return JimParseListStr(pc);
-            break;
     }
     return JIM_OK;
 }
@@ -1808,31 +1811,63 @@ static int JimParseListSep(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-static int JimParseListStr(struct JimParserCtx *pc)
+static int JimParseListQuote(struct JimParserCtx *pc)
 {
-    int newword = (pc->tt == JIM_TT_SEP || pc->tt == JIM_TT_EOL || pc->tt == JIM_TT_NONE);
+    pc->p++;
+    pc->len--;
 
-    if (newword && *pc->p == '{') {
-        return JimParseBrace(pc);
-    }
-    else if (newword && *pc->p == '"') {
-        pc->state = JIM_PS_QUOTE;
+    pc->tstart = pc->p;
+    pc->tline = pc->linenr;
+    pc->tt = JIM_TT_STR;
+
+    while (pc->len) {
+        switch (*pc->p) {
+            case '$':
+            case '[':
+                pc->tt = JIM_TT_ESC;
+                break;
+            case '\\':
+                pc->tt = JIM_TT_ESC;
+                if (--pc->len == 0) {
+                    /* Trailing backslash */
+                    pc->tend = pc->p;
+                    return JIM_OK;
+                }
+                pc->p++;
+                break;
+            case '\n':
+                pc->linenr++;
+                break;
+            case '"':
+                pc->tend = pc->p - 1;
+                pc->p++;
+                pc->len--;
+                return JIM_OK;
+        }
         pc->p++;
         pc->len--;
     }
+
+    pc->tend = pc->p - 1;
+    return JIM_OK;
+}
+
+static int JimParseListStr(struct JimParserCtx *pc)
+{
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (1) {
-        if (pc->len == 0) {
-            pc->tend = pc->p - 1;
-            pc->tt = JIM_TT_ESC;
-            return JIM_OK;
-        }
+    pc->tt = JIM_TT_STR;
+
+    while (pc->len) {
         switch (*pc->p) {
+            case '$':
+            case '[':
+                pc->tt = JIM_TT_ESC;
+                break;
             case '\\':
+                pc->tt = JIM_TT_ESC;
                 if (--pc->len == 0) {
-                    /* Trailing newline */
-                    pc->tt = JIM_TT_ESC;
+                    /* Trailing backslash */
                     pc->tend = pc->p;
                     return JIM_OK;
                 }
@@ -1842,30 +1877,14 @@ static int JimParseListStr(struct JimParserCtx *pc)
             case '\t':
             case '\n':
             case '\r':
-                if (pc->state == JIM_PS_DEF) {
-                    pc->tend = pc->p - 1;
-                    pc->tt = JIM_TT_ESC;
-                    return JIM_OK;
-                }
-                else if (*pc->p == '\n') {
-                    pc->linenr++;
-                }
-                break;
-            case '"':
-                if (pc->state == JIM_PS_QUOTE) {
-                    pc->tend = pc->p - 1;
-                    pc->tt = JIM_TT_ESC;
-                    pc->p++;
-                    pc->len--;
-                    pc->state = JIM_PS_DEF;
-                    return JIM_OK;
-                }
-                break;
+                pc->tend = pc->p - 1;
+                return JIM_OK;
         }
         pc->p++;
         pc->len--;
     }
-    return JIM_OK;              /* unreached */
+    pc->tend = pc->p - 1;
+    return JIM_OK;
 }
 
 /* -----------------------------------------------------------------------------
@@ -7540,7 +7559,7 @@ static int JimParseExpression(struct JimParserCtx *pc)
         case '{':
             /* Here it's possible to reuse the List String parsing. */
             pc->tt = JIM_TT_NONE;       /* Make sure it's sensed as a new word. */
-            return JimParseListStr(pc);
+            return JimParseList(pc);
             break;
         case 'N':
         case 'I':
