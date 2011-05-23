@@ -33,5 +33,108 @@ test parse-1.8 "Dict sugar" {
     set x $a([set y b])
 } 2
 
+test parse-1.9 "Backslash newline" {
+	set x 123;\
+	set y 456
+	list $x $y
+} {123 456}
+
+test parse-1.10 "Backslash newline in quotes" {
+	set x "abc\
+def"
+} "abc def"
+
+test parse-1.11 "Backslash newline in quotes after var" {
+	set y 1
+	set x "abc$y\
+def"
+} "abc1 def"
+
+test parse-1.12 "Backslash newline in quotes after var" {
+	set y 1
+	set x "abc$y\
+def"
+} "abc1 def"
+
+test parse-1.13 "Newline in quotes" {
+	set y 1
+	set x "abc
+def"
+} "abc\ndef"
+
+test parse-1.14 "Newline in quotes after var" {
+	set y 1
+	set x "abc$y
+def"
+} "abc1\ndef"
+
+test parse-1.15 "Space in quotes" {
+	set y 1
+	set x "abc def"
+} "abc def"
+
+test parse-1.16 "Space in quotes after var" {
+	set y 1
+	set x "abc${y} def"
+} "abc1 def"
+
+test parse-1.17 "Command and var in quotes" {
+	set y 1
+	set x "[set z 2][set y]"
+} 21
+
+test parse-1.18 "Command and var in bare context" {
+	set y 1
+	set x [set z 2][set y]
+} 21
+
+test parse-1.19 "Lone dollar sign in quotes" {
+	set y 1
+	set x "6$[set y]"
+} 6\$1
+
+test parse-1.20 "Command and var in bare context" {
+	set y 1
+	set x 6$[set y]
+} 6\$1
+
+test parse-1.21 "Comment" {
+	set y 1
+# A comment one a line
+	set x [set y] ;# comment after semicolon
+} 1
+
+test parse-1.22 "# char" {
+	set y 1
+	append y #
+	set x "[set y]#"
+} {1##}
+
+test parse-1.23 "newline in command" {
+	set y 1
+	set z 2
+	set x [incr y
+	incr z]
+	list $x $y $z
+} {3 2 3}
+
+test parse-1.24 "semicolon in command" {
+	set x [list a; list b c; list d e f]
+} {d e f}
+
+# Note that Tcl complains about the missing brace here
+# while Jim ignores it
+test parse-1.25 "missing brace in var" jim {
+	unset -nocomplain a
+	set a 3
+	set brace \{
+	set x [subst \$${brace}a]
+} 3
+
+test parse-1.26 "newline in braced var" {
+	set "a\nb" var1
+	set x ${a
+b}
+} var1
 
 testreport

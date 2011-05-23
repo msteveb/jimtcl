@@ -1143,8 +1143,9 @@ static int JimParseScript(struct JimParserCtx *pc)
         }
         switch (*(pc->p)) {
             case '\\':
-                if (*(pc->p + 1) == '\n')
+                if (*(pc->p + 1) == '\n' && pc->state == JIM_PS_DEF) {
                     return JimParseSep(pc);
+                }
                 else {
                     pc->comment = 0;
                     return JimParseStr(pc);
