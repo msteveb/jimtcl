@@ -106,6 +106,7 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
     const char *filename, int linenr);
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 static int JimSign(jim_wide w);
+static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -2108,24 +2109,6 @@ int Jim_Utf8Length(Jim_Interp *interp, Jim_Obj *objPtr)
 #endif
 }
 
-/**
- * Check that the name does not contain embedded nulls.
- *
- * Variable and procedure names are maniplated as null terminated strings, so
- * don't allow names with embedded nulls.
- */
-int Jim_ValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr)
-{
-    /* Variable names and proc names can't contain embedded nulls */
-    int len;
-    const char *str = Jim_GetString(nameObjPtr, &len);
-    if (memchr(str, '\0', len)) {
-        Jim_SetResultFormatted(interp, "%s name contains embedded null", type);
-        return JIM_ERR;
-    }
-    return JIM_OK;
-}
-
 /* len is in bytes -- see also Jim_NewStringObjUtf8() */
 Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
 {
@@ -3347,7 +3330,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
                     else {
                         Jim_ListIndex(interp, objPtr, 1, &initObjPtr, JIM_NONE);
                     }
-                    if (Jim_ValidName(interp, "static variable", nameObjPtr) != JIM_OK) {
+                    if (JimValidName(interp, "static variable", nameObjPtr) != JIM_OK) {
                         goto err;
                     }
 
@@ -3545,6 +3528,26 @@ static int JimNameIsDictSugar(const char *str, int len)
     return 0;
 }
 
+/**
+ * Check that the name does not contain embedded nulls.
+ *
+ * Variable and procedure names are maniplated as null terminated strings, so
+ * don't allow names with embedded nulls.
+ */
+static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr)
+{
+    /* Variable names and proc names can't contain embedded nulls */
+    if (nameObjPtr->typePtr != &variableObjType) {
+        int len;
+        const char *str = Jim_GetString(nameObjPtr, &len);
+        if (memchr(str, '\0', len)) {
+            Jim_SetResultFormatted(interp, "%s name contains embedded null", type);
+            return JIM_ERR;
+        }
+    }
+    return JIM_OK;
+}
+
 /* This method should be called only by the variable API.
  * It returns JIM_OK on success (variable already exists),
  * JIM_ERR if it does not exists, JIM_DICT_SUGAR if it's not
@@ -3565,6 +3568,10 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     if (objPtr->typePtr == &dictSubstObjType) {
         return JIM_DICT_SUGAR;
+    }
+
+    if (JimValidName(interp, "variable", objPtr) != JIM_OK) {
+        return JIM_ERR;
     }
 
     /* Get the string representation */
@@ -3624,7 +3631,7 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
         if (err == JIM_DICT_SUGAR)
             return JimDictSugarSet(interp, nameObjPtr, valObjPtr);
 
-        if (Jim_ValidName(interp, "variable", nameObjPtr) != JIM_OK) {
+        if (JimValidName(interp, "variable", nameObjPtr) != JIM_OK) {
             return JIM_ERR;
         }
 
@@ -12034,7 +12041,7 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     }
 
-    if (Jim_ValidName(interp, "procedure", argv[1]) != JIM_OK) {
+    if (JimValidName(interp, "procedure", argv[1]) != JIM_OK) {
         return JIM_ERR;
     }
 
@@ -12841,7 +12848,7 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         return JIM_ERR;
     }
 
-    if (Jim_ValidName(interp, "new procedure", argv[2])) {
+    if (JimValidName(interp, "new procedure", argv[2])) {
         return JIM_ERR;
     }
 
