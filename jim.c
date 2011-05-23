@@ -230,8 +230,6 @@ static int GlobMatch(const char *pattern, const char *string, int nocase)
                 return 0;       /* no match */
 
             case '?':
-                if (!*string)
-                    return 0;   /* no match */
                 string += utf8_tounicode(string, &c);
                 break;
 
@@ -1592,8 +1590,11 @@ static int JimEscape(char *dest, const char *s, int slen)
                         i++;
                         break;
                     case 'u':
-                        /* A unicode sequence. Expect 1-4 hex chars and convert to utf-8.
-                         * An invalid sequence means simple an escaped 'u'
+                    case 'x':
+                        /* A unicode or hex sequence.
+                         * \u Expect 1-4 hex chars and convert to utf-8.
+                         * \x Expect 1-2 hex chars and convert to hex.
+                         * An invalid sequence means simply the escaped char.
                          */
                         {
                             int val = 0;
@@ -1601,7 +1602,7 @@ static int JimEscape(char *dest, const char *s, int slen)
 
                             i++;
 
-                            for (k = 0; k < 4; k++) {
+                            for (k = 0; k < (s[i] == 'u' ? 4 : 2); k++) {
                                 int c = xdigitval(s[i + k + 1]);
                                 if (c == -1) {
                                     break;
@@ -1609,13 +1610,18 @@ static int JimEscape(char *dest, const char *s, int slen)
                                 val = (val << 4) | c;
                             }
                             if (k) {
-                                /* Got a valid unicode sequence, so convert to utf-8 */
+                                /* Got a valid sequence, so convert */
+                                if (s[i] == 'u') {
+                                    p += utf8_fromunicode(p, val);
+                                }
+                                else {
+                                    *p++ = val;
+                                }
                                 i += k;
-                                p += utf8_fromunicode(p, val);
                                 break;
                             }
-                            /* Not a valid codepoint, just an escaped u */
-                            *p++ = 'u';
+                            /* Not a valid codepoint, just an escaped char */
+                            *p++ = s[i];
                         }
                         break;
                     case 'v':
@@ -1630,29 +1636,16 @@ static int JimEscape(char *dest, const char *s, int slen)
                         *p++ = ' ';
                         i++;
                         break;
-                    default:
-                        if (s[i + 1] == 'x') {
-                            int val = 0;
-                            int c = xdigitval(s[i + 2]);
-
-                            if (c == -1) {
-                                *p++ = 'x';
-                                i++;
-                                break;
-                            }
-                            val = c;
-                            c = xdigitval(s[i + 3]);
-                            if (c == -1) {
-                                *p++ = val;
-                                i += 2;
-                                break;
-                            }
-                            val = (val * 16) + c;
-                            *p++ = val;
-                            i += 3;
-                            break;
-                        }
-                        else if (s[i + 1] >= '0' && s[i + 1] <= '7') {
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                        /* octal escape */
+                        {
                             int val = 0;
                             int c = odigitval(s[i + 1]);
 
@@ -1674,10 +1667,10 @@ static int JimEscape(char *dest, const char *s, int slen)
                             *p++ = val;
                             i += 3;
                         }
-                        else {
-                            *p++ = s[i + 1];
-                            i++;
-                        }
+                        break;
+                    default:
+                        *p++ = s[i + 1];
+                        i++;
                         break;
                 }
                 break;
@@ -7086,6 +7079,7 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
 #ifdef JIM_MATH_FUNCTIONS
                 dC = pow(dA, dB);
 #else
+                Jim_SetResultString(interp, "unsupported", -1);
                 rc = JIM_ERR;
 #endif
                 break;
