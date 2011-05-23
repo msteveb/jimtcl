@@ -442,12 +442,35 @@ test jimexpr-1.17 "- command" {
     - 6 3 1.5
 } 1.5
 
-test jimexpr-1.18 "errors in math commands" {
-    list [catch /] [catch {/ x}] [catch -] [catch {+ x y}] [catch {* x}]
-} {1 1 1 1 1}
+test jimexpr-1.17 "- command" {
+    - 6.5 3
+} 3.5
+
+test jimexpr-2.1 "errors in math commands" {
+    list [catch /] [catch {/ x}] [catch -] [catch {- blah blah}] [catch {- 2.0 blah}] [catch {+ x y}] [catch {* x}]
+} {1 1 1 1 1 1 1}
+
+test jimexpr-2.2 "not var optimisation" {
+	set x [expr 1]
+	set y [expr 0]
+	set z [expr 2.0]
+	list [expr {!$x}] [expr {!$y}] [expr {!$z}]
+} {0 1 0}
+
+test jimexpr-2.3 "expr access unset var" {
+	unset -nocomplain a
+	catch {expr {3 * $a}}
+} 1
+
+test jimexpr-2.4 "expr double as bool" {
+	set x 2
+	if {1.0} {
+		set x 3
+	}
+} 3
 
 # May be supported if support compiled in
-test jimexpr-2.1 "double ** operator" {
+test jimexpr-2.5 "double ** operator" {
     catch {expr {2.0 ** 3}} result
     expr {$result in {unsupported 8.0}}
 } 1
@@ -468,9 +491,54 @@ test jimobj-1.1 "duplicate obj with no dupIntRepProc" {
 	set x "y $a"
 } "y x x"
 
+test jimobj-1.2 "cooerced double to int" {
+	set x 3
+	# cooerce to a double
+	expr {4.5 + $x}
+	# Now get the int rep
+	incr x
+} 4
+
+test jimobj-1.3 "cooerced double to double" {
+	set x 3
+	# cooerce to a double
+	expr {4.5 + $x}
+	# Now use as a double
+	expr {1.5 + $x}
+} 4.5
+
+test jimobj-1.4 "incr dict sugar" {
+	unset -nocomplain a
+	set a(3) 3
+	incr a(3)
+	list $a(3) $a
+} {4 {3 4}}
+
 test jim-badvar-1.1 "invalid variable name" {
 	set x b\0c
 	catch {set $x 5}
 } 1
+
+test jim-badvar-1.2 "incr invalid variable name" {
+	set x b\0c
+	catch {incr $x}
+} 1
+
+test lset-1.1 "lset with bad var" {
+	catch {lset badvar 1 x}
+} 1
+
+test dict-1.1 "dict to string" {
+	set a [dict create abc \\ def \"]
+	set x x$a
+} "xabc \\\\ def {\"}"
+
+test channels-1.1 {info channels} {
+	lsort [info channels]
+} {stderr stdin stdout}
+
+test lmap-1.1 {lmap} {
+	lmap p {1 2 3} {incr p}
+} {2 3 4}
 
 testreport

@@ -23,6 +23,9 @@ proc newset {name value} {
     uplevel set $name $value
     uplevel 1 {uplevel 1 {set xyz 22}}
 }
+proc b {x y} {
+    uplevel #0 set $x $y
+}
 
 test uplevel-1.1 {simple operation} {
     set xyz 0
@@ -108,5 +111,14 @@ proc a3 {} {
 a2
 test uplevel-5.1 {info level} {set x} 1
 test uplevel-5.2 {info level} {set y} a3
+
+test uplevel-6.1 {uplevel #0} {
+    b g1 g1val
+    set ::g1
+} g1val
+
+test uplevel-6.2 {uplevel #bad} {
+    catch {uplevel #bad set x 1}
+} 1
 
 testreport

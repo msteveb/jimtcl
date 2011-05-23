@@ -126,4 +126,34 @@ test local-1.9 "local on existing proc" {
 	list [info procs a] $result 
 } {{} {2 1}}
 
+test statics-1.1 "missing static variable init" {
+	unset -nocomplain c
+	catch {
+		proc a {b} {c} {
+			# No initialiser for c
+		}
+	}
+} 1
+
+test statics-1.2 "static variable with invalid name" {
+	catch {
+		proc a {b} "{c\0d 4}" {
+		}
+	}
+} 1
+
+test statics-1.3 "duplicate static variable" {
+	catch {
+		proc a {b} {{c 1} {c 2}} {
+		}
+	}
+} 1
+
+test statics-1.4 "bad static variable init" {
+	catch {
+		proc a {b} {{c 1 2}} {
+		}
+	}
+} 1
+
 testreport

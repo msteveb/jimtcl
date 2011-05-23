@@ -2,6 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd array
 
+unset -nocomplain a
 array set a {
 	1 one
 	2 two
@@ -72,5 +73,16 @@ test array-1.12 "array set to invalid variable" {
 	set a 1
 	catch {array set a(1) {b c}}
 } {1}
+
+test array-1.13 "unset missing array element" {
+	unset -nocomplain a
+	set a(1) one
+	catch {unset a(2)}
+} 1
+
+test array-1.14 "access array via unset var" {
+	unset -nocomplain b
+	catch {expr {$a($b) + 4}}
+} 1
 
 testreport

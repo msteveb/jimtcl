@@ -3103,10 +3103,6 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
         while (wordtokens--) {
             const ParseToken *t = &tokenlist->list[i++];
 
-            if (t->type == JIM_TT_SEP) {
-                continue;
-            }
-
             token->type = t->type;
             token->objPtr = JimMakeScriptObj(interp, t);
             Jim_IncrRefCount(token->objPtr);
@@ -5059,7 +5055,7 @@ void UpdateStringOfInt(struct Jim_Obj *objPtr)
     int len;
     char buf[JIM_INTEGER_SPACE + 1];
 
-    len = Jim_WideToString(buf, objPtr->internalRep.wideValue);
+    len = Jim_WideToString(buf, JimWideValue(objPtr));
     objPtr->bytes = Jim_Alloc(len + 1);
     memcpy(objPtr->bytes, buf, len + 1);
     objPtr->length = len;
@@ -5131,18 +5127,6 @@ int Jim_GetLong(Jim_Interp *interp, Jim_Obj *objPtr, long *longPtr)
         return JIM_OK;
     }
     return JIM_ERR;
-}
-
-void Jim_SetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide wideValue)
-{
-    if (Jim_IsShared(objPtr))
-        Jim_Panic(interp, "Jim_SetWide called with shared object");
-    if (objPtr->typePtr != &intObjType) {
-        Jim_FreeIntRep(interp, objPtr);
-        objPtr->typePtr = &intObjType;
-    }
-    Jim_InvalidateStringRep(objPtr);
-    objPtr->internalRep.wideValue = wideValue;
 }
 
 Jim_Obj *Jim_NewIntObj(Jim_Interp *interp, jim_wide wideValue)
@@ -7867,7 +7851,7 @@ static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTo
     for (i = leftindex - 1; i > 0; i--) {
         if (JimExprOperatorInfoByOpcode(expr->token[i].type)->lazy == LAZY_LEFT) {
             if (JimWideValue(expr->token[i - 1].objPtr) + i - 1 >= leftindex) {
-                expr->token[i - 1].objPtr->internalRep.wideValue += 2;
+                JimWideValue(expr->token[i - 1].objPtr) += 2;
             }
         }
     }
@@ -9190,7 +9174,10 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         }
     }
     else {
-        Jim_SetWide(interp, intObjPtr, wideValue + increment);
+        /* Can do it the quick way */
+        Jim_InvalidateStringRep(intObjPtr);
+        JimWideValue(intObjPtr) = wideValue + increment;
+
         /* The following step is required in order to invalidate the
          * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
         if (argv[1]->typePtr != &variableObjType) {
@@ -9576,7 +9563,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
 
         if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
-            objPtr->internalRep.wideValue++;
+            JimWideValue(objPtr)++;
             Jim_InvalidateStringRep(objPtr);
             Jim_DecrRefCount(interp, scriptObjPtr);
             Jim_SetResult(interp, objPtr);
@@ -10813,7 +10800,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
                     goto out;
                 }
                 if (!Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
-                    currentVal = ++objPtr->internalRep.wideValue;
+                    currentVal = ++JimWideValue(objPtr);
                     Jim_InvalidateStringRep(objPtr);
                 }
                 else {

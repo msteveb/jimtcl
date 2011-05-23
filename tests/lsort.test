@@ -190,4 +190,8 @@ test lsort-4.26 {DefaultCompare procedure, signed characters} utf8 {
     set viewlist
 } [list "abc" "abc\\200"]
 
+test lsort-5.1 "Sort case insensitive" {
+    lsort -nocase {ba aB aa ce}
+} {aa aB ba ce}
+
 testreport

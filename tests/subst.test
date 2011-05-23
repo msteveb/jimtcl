@@ -159,5 +159,14 @@ test subst-11.3 {continue in a subst} {
     subst {foo [if 1 { continue; bogus code}] bar}
 } {foo  bar}
 
+test subst-12.1 {lone $} {
+    subst {$}
+} {$}
+
+test subst-12.2 {lone $} {
+    set a 1
+    subst -novar {${a}}
+} {${a}}
+
 # cleanup
 testreport

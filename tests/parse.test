@@ -219,4 +219,16 @@ test parse-1.43 "list containing trailing backslash" {
 	lindex $x 1
 } def\\
 
+test parse-1.44 "list creation" {
+	list "a{ }d"
+} {{a{ }d}}
+
+test parse-1.45 "spaces before expr function args" {
+	expr {round  (3.2)}
+} 3
+
+test parse-1.45 "expr function missing paren" {
+	catch {expr {round 3.2}}
+} 1
+
 testreport

@@ -98,4 +98,15 @@ test proc-3.2 "Rename optional args" {
 	a B C D
 } {C D}
 
+test proc-3.3 "dict sugar arg" {
+	proc a {b(c)} { return $b}
+	a 4
+} {c 4}
+
+test proc-3.4 "invalid upref in rightargs" {
+	proc a {{x 2} &b} { return $b}
+	unset -nocomplain B
+	catch {a B}
+} 1
+
 testreport
