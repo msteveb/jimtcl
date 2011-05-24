@@ -15,7 +15,6 @@ LDFLAGS = @LDFLAGS@
 LDLIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
-DESTDIR ?= $(prefix)
 
 # Set an initial, default library and auto_path
 CPPFLAGS += -DTCL_LIBRARY=\"@TCL_LIBRARY@\"
@@ -61,17 +60,17 @@ $(JIMSH): $(LIBJIM) jimsh.o
 	$(CC) $(CFLAGS) @LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS) -lm
 
 install: all docs $(EXTENSION_TCL)
-	install -d $(DESTDIR)/bin
-	install $(JIMSH) $(DESTDIR)/bin
-	install -d $(DESTDIR)/lib/jim
-	install $(LIBJIM) $(DESTDIR)/lib
-	install @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)/lib/jim
-	install -d $(DESTDIR)/include
+	install -d $(DESTDIR)$(prefix)/bin
+	install $(JIMSH) $(DESTDIR)$(prefix)/bin
+	install -d $(DESTDIR)$(prefix)/lib/jim
+	install $(LIBJIM) $(DESTDIR)$(prefix)/lib
+	install @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
+	install -d $(DESTDIR)$(prefix)/include
 	install @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
-		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)/include
-	install jim-config.h $(DESTDIR)/include
-	install -d $(DESTDIR)/doc/jim
-	install Tcl.html $(DESTDIR)/doc/jim
+		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
+	install jim-config.h $(DESTDIR)$(prefix)/include
+	install -d $(DESTDIR)$(prefix)/doc/jim
+	install Tcl.html $(DESTDIR)$(prefix)/doc/jim
 
 test:
 	$(MAKE) jimsh=$(shell pwd)/jimsh -C tests
