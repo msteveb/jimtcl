@@ -9181,9 +9181,8 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         /* The following step is required in order to invalidate the
          * string repr of "FOO" if the var name is on the form of "FOO(IDX)" */
         if (argv[1]->typePtr != &variableObjType) {
-            if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-                return JIM_ERR;
-            }
+            /* Note that this can't fail since GetVariable already succeeded */
+            Jim_SetVariable(interp, argv[1], intObjPtr);
         }
     }
     Jim_SetResult(interp, intObjPtr);
@@ -10895,13 +10894,10 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_Obj *varName, *ele;
                 int lst = i * 2 + 1;
 
-                if (Jim_ListIndex(interp, argv[var + 1], varIdx, &varName, JIM_ERRMSG)
-                    != JIM_OK)
-                    goto err;
+                /* List index operations below can't fail */
+                Jim_ListIndex(interp, argv[var + 1], varIdx, &varName, JIM_NONE);
                 if (listsIdx[i] < listsEnd[lst]) {
-                    if (Jim_ListIndex(interp, argv[lst + 1], listsIdx[i], &ele, JIM_ERRMSG)
-                        != JIM_OK)
-                        goto err;
+                    Jim_ListIndex(interp, argv[lst + 1], listsIdx[i], &ele, JIM_NONE);
                     /* Avoid shimmering */
                     Jim_IncrRefCount(ele);
                     result = Jim_SetVariable(interp, varName, ele);
@@ -12328,14 +12324,11 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             if (opt_case == 0) {
                 argv++;
             }
-            if (option == OPT_COMPARE) {
+            if (option == OPT_COMPARE || !opt_case) {
                 Jim_SetResultInt(interp, Jim_StringCompareObj(interp, argv[2], argv[3], !opt_case));
             }
-            else if (opt_case) {
-                Jim_SetResultBool(interp, Jim_StringEqObj(argv[2], argv[3]));
-            }
             else {
-                Jim_SetResultBool(interp, Jim_StringCompareObj(interp, argv[2], argv[3], 1) == 0);
+                Jim_SetResultBool(interp, Jim_StringEqObj(argv[2], argv[3]));
             }
             return JIM_OK;
 
