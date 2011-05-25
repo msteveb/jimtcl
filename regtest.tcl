@@ -117,6 +117,13 @@ catch {
 }
 puts "TEST 18 PASSED"
 
+# REGTEST 19
+# 25 May 2011 - crashes with double colon
+catch {
+    expr {5 ne ::}
+}
+puts "TEST 19 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

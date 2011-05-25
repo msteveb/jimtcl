@@ -73,12 +73,11 @@
 /*#define DEBUG_SHOW_SCRIPT_TOKENS*/
 /*#define DEBUG_SHOW_SUBST*/
 /*#define DEBUG_SHOW_EXPR*/
+/*#define DEBUG_SHOW_EXPR_TOKENS*/
 /*#define JIM_DEBUG_GC*/
 /*#define JIM_DEBUG_COMMAND*/
 
-#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(DEBUG_SHOW_EXPR) || defined(DEBUG_SHOW_SUBST)
-static const char *tt_name(int type);
-#endif
+const char *jim_tt_name(int type);
 
 /* -----------------------------------------------------------------------------
  * Global variables
@@ -3038,7 +3037,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 #ifdef DEBUG_SHOW_SCRIPT_TOKENS
     printf("==== Tokens ====\n");
     for (i = 0; i < tokenlist->count; i++) {
-        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist->list[i].line, tt_name(tokenlist->list[i].type),
+        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist->list[i].line, jim_tt_name(tokenlist->list[i].type),
             tokenlist->list[i].len, tokenlist->list[i].token);
     }
 #endif
@@ -3129,7 +3128,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     printf("==== Script ====\n");
     for (i = 0; i < script->len; i++) {
         const ScriptToken *t = &script->token[i];
-        printf("[%2d] %s %s\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+        printf("[%2d] %s %s\n", i, jim_tt_name(t->type), Jim_GetString(t->objPtr, NULL));
     }
 #endif
 
@@ -7668,8 +7667,7 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
     return &Jim_ExprOperators[opcode];
 }
 
-#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(DEBUG_SHOW_EXPR) || defined(DEBUG_SHOW_SUBST)
-static const char *tt_name(int type)
+const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
@@ -7688,7 +7686,6 @@ static const char *tt_name(int type)
         return buf;
     }
 }
-#endif
 
 /* -----------------------------------------------------------------------------
  * Expression Object
@@ -7807,7 +7804,7 @@ static int ExprCheckCorrectness(ExprByteCode * expr)
  * "&R" checks if 'a' is true:
  *      if it is true pushes 1, otherwise pushes 0.
  */
-static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
+static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
 {
     int i;
 
@@ -7815,6 +7812,7 @@ static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTo
 
     /* Search for the end of the first operator */
     leftindex = expr->len - 1;
+
     arity = 1;
     while (arity) {
         ScriptToken *tt = &expr->token[leftindex];
@@ -7823,7 +7821,9 @@ static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTo
             arity += JimExprOperatorInfoByOpcode(tt->type)->arity;
         }
         arity--;
-        leftindex--;
+        if (--leftindex < 0) {
+            return JIM_ERR;
+        }
     }
     leftindex++;
 
@@ -7855,19 +7855,21 @@ static void ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTo
             }
         }
     }
+    return JIM_OK;
 }
 
-static void ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
+static int ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
 {
     struct ScriptToken *token = &expr->token[expr->len];
 
     if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
-        ExprAddLazyOperator(interp, expr, t);
+        return ExprAddLazyOperator(interp, expr, t);
     }
     else {
         token->objPtr = interp->emptyObj;
         token->type = t->type;
         expr->len++;
+        return JIM_OK;
     }
 }
 
@@ -8112,7 +8114,9 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                         break;
                     }
 
-                    ExprAddOperator(interp, expr, tt);
+                    if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
+                        goto err;
+                    }
                 }
                 if (!ok) {
                     Jim_SetResultString(interp, "Unexpected close parenthesis", -1);
@@ -8146,7 +8150,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                         /* Note that right-to-left associativity of ?: operator is handled later */
 
                         if (op->arity != 1 && tt_op->precedence >= op->precedence) {
-                            ExprAddOperator(interp, expr, tt);
+                            if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
+                                ok = 0;
+                                goto err;
+                            }
                             Jim_StackPop(&stack);
                         }
                         else {
@@ -8169,7 +8176,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             Jim_SetResultString(interp, "Missing close parenthesis", -1);
             goto err;
         }
-        ExprAddOperator(interp, expr, tt);
+        if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
+            ok = 0;
+            goto err;
+        }
     }
 
     if (have_ternary) {
@@ -8223,6 +8233,17 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             parser.tline);
     }
 
+#ifdef DEBUG_SHOW_EXPR_TOKENS
+    {
+        int i;
+        printf("==== Expr Tokens ====\n");
+        for (i = 0; i < tokenlist.count; i++) {
+            printf("[%2d]@%d %s '%.*s'\n", i, tokenlist.list[i].line, jim_tt_name(tokenlist.list[i].type),
+                tokenlist.list[i].len, tokenlist.list[i].token);
+        }
+    }
+#endif
+
     /* Now create the expression bytecode from the tokenlist */
     expr = ExprCreateByteCode(interp, &tokenlist);
 
@@ -8241,7 +8262,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         for (i = 0; i < expr->len; i++) {
             ScriptToken *t = &expr->token[i];
 
-            printf("[%2d] %s '%s'\n", i, tt_name(t->type), Jim_GetString(t->objPtr, NULL));
+            printf("[%2d] %s '%s'\n", i, jim_tt_name(t->type), Jim_GetString(t->objPtr, NULL));
         }
     }
 #endif
@@ -10237,7 +10258,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
 
         printf("==== Subst ====\n");
         for (i = 0; i < script->len; i++) {
-            printf("[%2d] %s '%s'\n", i, tt_name(script->token[i].type),
+            printf("[%2d] %s '%s'\n", i, jim_tt_name(script->token[i].type),
                 Jim_GetString(script->token[i].objPtr, NULL));
         }
     }
