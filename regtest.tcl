@@ -124,6 +124,12 @@ catch {
 }
 puts "TEST 19 PASSED"
 
+# REGTEST 20
+# 26 May 2011 - infinite recursion
+proc a {} { global ::blah; set ::blah test }
+a
+puts "TEST 20 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -3658,7 +3658,7 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
         var->linkFramePtr = NULL;
         /* Insert the new variable */
         if (name[0] == ':' && name[1] == ':') {
-            /* Into to the top evel frame */
+            /* Into the top level frame */
             framePtr = interp->topFramePtr;
             Jim_AddHashEntry(&framePtr->vars, name + 2, var);
         }
@@ -3738,6 +3738,11 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     int len;
 
     varName = Jim_GetString(nameObjPtr, &len);
+
+    if (varName[0] == ':' && varName[1] == ':') {
+        /* Linking a global var does nothing */
+        return JIM_OK;
+    }
 
     if (JimNameIsDictSugar(varName, len)) {
         Jim_SetResultString(interp, "Dict key syntax invalid as link source", -1);
