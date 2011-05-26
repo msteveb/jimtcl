@@ -130,6 +130,11 @@ proc a {} { global ::blah; set ::blah test }
 a
 puts "TEST 20 PASSED"
 
+# REGTEST 21
+# 26 May 2011 - infinite loop with null byte in subst
+subst "abc\0def"
+puts "TEST 21 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

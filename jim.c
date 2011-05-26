@@ -10151,7 +10151,7 @@ static int JimParseSubstStr(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (*pc->p && *pc->p != '$' && *pc->p != '[') {
+    while (pc->len && *pc->p != '$' && *pc->p != '[') {
         if (*pc->p == '\\' && pc->len > 1) {
             pc->p++;
             pc->len--;
