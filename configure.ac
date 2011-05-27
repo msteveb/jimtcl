@@ -216,7 +216,7 @@ AC_CHECK_FUNCS([syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo]
 libs_aio="socket"
 needs_regexp="ac_cv_func_regcomp"
 needs_syslog="ac_cv_func_syslog"
-needs_exec="ac_cv_func_vfork"
+needs_exec="ac_cv_func_vfork ac_cv_func_waitpid"
 needs_readdir="ac_cv_func_opendir"
 dep_glob="readdir"
 needs_posix="ac_cv_func_waitpid"

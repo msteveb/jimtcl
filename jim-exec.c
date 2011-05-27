@@ -238,15 +238,11 @@ struct WaitInfoTable {
 /*
  * Flag bits in WaitInfo structures:
  *
- * WI_READY -           Non-zero means process has exited or
- *                      suspended since it was forked or last
- *                      returned by JimWaitPids.
  * WI_DETACHED -        Non-zero means no-one cares about the
  *                      process anymore.  Ignore it until it
  *                      exits, then forget about it.
  */
 
-#define WI_READY    1
 #define WI_DETACHED 2
 
 #define WAIT_TABLE_GROW_BY 4
@@ -270,7 +266,7 @@ static struct WaitInfoTable *JimAllocWaitInfoTable(void)
 
 static int Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     int **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
-static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr);
+static void JimDetachPids(Jim_Interp *interp, int numPids, const int *pidPtr);
 static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int errorId);
 
 static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -335,110 +331,57 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return result;
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * JimWaitPids --
- *
- *  This procedure is used to wait for one or more processes created
- *  by JimFork to exit or suspend.  It records information about
- *  all processes that exit or suspend, even those not waited for,
- *  so that later waits for them will be able to get the status
- *  information.
- *
- * Results:
- *  -1 is returned if there is an error in the wait kernel call.
- *  Otherwise the pid of an exited/suspended process from *pidPtr
- *  is returned and *statusPtr is set to the status value returned
- *  by the wait kernel call.
- *
- * Side effects:
- *  Doesn't return until one of the pids at *pidPtr exits or suspends.
- *
- *----------------------------------------------------------------------
- */
-static int JimWaitPids(struct WaitInfoTable *table, int numPids, int *pidPtr, int *statusPtr)
+void Jim_ReapDetachedPids(struct WaitInfoTable *table)
 {
-    int i, count, pid;
+    if (!table) {
+        return;
+    }
+
     struct WaitInfo *waitPtr;
-    int anyProcesses;
-    int status;
+    int count;
 
-    while (1) {
-        /*
-         * Scan the table of child processes to see if one of the
-         * specified children has already exited or suspended.  If so,
-         * remove it from the table and return its status.
-         */
-
-        anyProcesses = 0;
-        for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
-            for (i = 0; i < numPids; i++) {
-                if (pidPtr[i] != waitPtr->pid) {
-                    continue;
-                }
-                anyProcesses = 1;
-                if (waitPtr->flags & WI_READY) {
-                    *statusPtr = *((int *)&waitPtr->status);
-                    pid = waitPtr->pid;
-                    if (WIFEXITED(waitPtr->status) || WIFSIGNALED(waitPtr->status)) {
-                        if (waitPtr != &table->info[table->used - 1]) {
-                            *waitPtr = table->info[table->used - 1];
-                        }
-                        table->used--;
-                    }
-                    else {
-                        waitPtr->flags &= ~WI_READY;
-                    }
-                    return pid;
-                }
-            }
-        }
-
-        /*
-         * Make sure that the caller at least specified one valid
-         * process to wait for.
-         */
-        if (!anyProcesses) {
-            errno = ECHILD;
-            return -1;
-        }
-
-        /*
-         * Wait for a process to exit or suspend, then update its
-         * entry in the table and go back to the beginning of the
-         * loop to see if it's one of the desired processes.
-         */
-
-        pid = wait(&status);
-        if (pid < 0) {
-            return pid;
-        }
-        for (waitPtr = table->info, count = table->used;; waitPtr++, count--) {
-            if (count == 0) {
-                break;          /* Ignore unknown processes. */
-            }
-            if (pid != waitPtr->pid) {
-                continue;
-            }
-
-            /*
-             * If the process has been detached, then ignore anything
-             * other than an exit, and drop the entry on exit.
-             */
-            if (waitPtr->flags & WI_DETACHED) {
-                if (WIFEXITED(status) || WIFSIGNALED(status)) {
+    for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
+        if (waitPtr->flags & WI_DETACHED) {
+            int status;
+            int pid = waitpid(waitPtr->pid, &status, WNOHANG);
+            if (pid > 0) {
+                if (waitPtr != &table->info[table->used - 1]) {
                     *waitPtr = table->info[table->used - 1];
-                    table->used--;
                 }
+                table->used--;
             }
-            else {
-                waitPtr->status = status;
-                waitPtr->flags |= WI_READY;
-            }
-            break;
         }
     }
+}
+
+/**
+ * Does waitpid() on the given pid, and then removes the
+ * entry from the wait table.
+ * 
+ * Returns the pid if OK and updates *statusPtr with the status,
+ * or -1 if the pid was not in the table.
+ */
+static int JimWaitPid(struct WaitInfoTable *table, int pid, int *statusPtr)
+{
+    int i;
+
+    /* Find it in the table */
+    for (i = 0; i < table->used; i++) {
+        if (pid == table->info[i].pid) {
+            /* wait for it */
+            waitpid(pid, statusPtr, 0);
+
+            /* Remove it from the table */
+            if (i != table->used - 1) {
+                table->info[i] = table->info[table->used - 1];
+            }
+            table->used--;
+            return pid;
+        }
+    }
+
+    /* Not found */
+    return -1;
 }
 
 /*
@@ -448,8 +391,7 @@ static int JimWaitPids(struct WaitInfoTable *table, int numPids, int *pidPtr, in
  *
  *  This procedure is called to indicate that one or more child
  *  processes have been placed in background and are no longer
- *  cared about.  They should be ignored in future calls to
- *  JimWaitPids.
+ *  cared about.  These children can be cleaned up with JimReapDetachedPids().
  *
  * Results:
  *  None.
@@ -460,38 +402,20 @@ static int JimWaitPids(struct WaitInfoTable *table, int numPids, int *pidPtr, in
  *----------------------------------------------------------------------
  */
 
-static void JimDetachPids(Jim_Interp *interp, int numPids, int *pidPtr)
+static void JimDetachPids(Jim_Interp *interp, int numPids, const int *pidPtr)
 {
-    int i, count, pid;
+    int j;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
-    struct WaitInfo *waitPtr;
 
-    for (i = 0; i < numPids; i++) {
-        pid = pidPtr[i];
-        for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
-            if (pid != waitPtr->pid) {
-                continue;
+    for (j = 0; j < numPids; j++) {
+        /* Find it in the table */
+        int i;
+        for (i = 0; i < table->used; i++) {
+            if (pidPtr[j] == table->info[i].pid) {
+                table->info[i].flags |= WI_DETACHED;
+                break;
             }
-
-            /*
-             * If the process has already exited then destroy its
-             * table entry now.
-             */
-
-            if ((waitPtr->flags & WI_READY) && (WIFEXITED(waitPtr->status)
-                    || WIFSIGNALED(waitPtr->status))) {
-                *waitPtr = table->info[table->used - 1];
-                table->used--;
-            }
-            else {
-                waitPtr->flags |= WI_DETACHED;
-            }
-            goto nextPid;
         }
-        Jim_Panic(interp, "Jim_Detach couldn't find process");
-
-      nextPid:
-        continue;
     }
 }
 
@@ -585,6 +509,8 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     /* Holds the args which will be used to exec */
     char **arg_array = Jim_Alloc(sizeof(*arg_array) * (argc + 1));
     int arg_count = 0;
+
+    Jim_ReapDetachedPids(table);
 
     if (inPipePtr != NULL) {
         *inPipePtr = -1;
@@ -1091,10 +1017,10 @@ static int Jim_CleanupChildren(Jim_Interp *interp, int numPids, int *pidPtr, int
 
     for (i = 0; i < numPids; i++) {
         int waitStatus = 0;
-        int pid = JimWaitPids(table, 1, &pidPtr[i], &waitStatus);
-
-        if (pid >= 0 && JimCheckWaitStatus(interp, pid, waitStatus) != JIM_OK) {
-            result = JIM_ERR;
+        if (JimWaitPid(table, pidPtr[i], &waitStatus) > 0) {
+            if (JimCheckWaitStatus(interp, pidPtr[i], waitStatus) != JIM_OK) {
+                result = JIM_ERR;
+            }
         }
     }
     Jim_Free(pidPtr);
