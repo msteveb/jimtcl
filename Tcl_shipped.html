@@ -3,14 +3,27 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.1" />
+<meta name="generator" content="AsciiDoc 8.6.3" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
-/* Debug borders */
-p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
-/*
-  border: 1px solid red;
-*/
+/* Sans-serif font. */
+h1, h2, h3, h4, h5, h6,
+div.title, caption.title,
+thead, p.table.header,
+div#toctitle,
+span#author, span#revnumber, span#revdate, span#revremark,
+div#footer {
+  font-family: Arial,Helvetica,sans-serif;
+}
+
+/* Serif font. */
+div.sectionbody {
+  font-family: Georgia,"Times New Roman",Times,serif;
+}
+
+/* Monospace font. */
+tt {
+  font-size: inherit;
 }
 
 body {
@@ -36,12 +49,12 @@ strong {
 }
 
 tt {
+  font-size: inherit;
   color: navy;
 }
 
 h1, h2, h3, h4, h5, h6 {
   color: #527bbd;
-  font-family: sans-serif;
   margin-top: 1.2em;
   margin-bottom: 0.5em;
   line-height: 1.3;
@@ -61,7 +74,6 @@ h3 + * {
 }
 
 div.sectionbody {
-  font-family: serif;
   margin-left: 0;
 }
 
@@ -77,6 +89,8 @@ p {
 ul, ol, li > p {
   margin-top: 0;
 }
+ul > li     { color: #aaa; }
+ul > li > * { color: black; }
 
 pre {
   padding: 0;
@@ -85,18 +99,15 @@ pre {
 
 span#author {
   color: #527bbd;
-  font-family: sans-serif;
   font-weight: bold;
   font-size: 1.1em;
 }
 span#email {
 }
 span#revnumber, span#revdate, span#revremark {
-  font-family: sans-serif;
 }
 
 div#footer {
-  font-family: sans-serif;
   font-size: small;
   border-top: 2px solid silver;
   padding-top: 0.5em;
@@ -135,7 +146,6 @@ div.content { /* Block element content. */
 /* Block element titles. */
 div.title, caption.title {
   color: #527bbd;
-  font-family: sans-serif;
   font-weight: bold;
   text-align: left;
   margin-top: 1.0em;
@@ -157,13 +167,15 @@ div.content + div.title {
 
 div.sidebarblock > div.content {
   background: #ffffee;
-  border: 1px solid silver;
+  border: 1px solid #dddddd;
+  border-left: 4px solid #f0f0f0;
   padding: 0.5em;
 }
 
 div.listingblock > div.content {
-  border: 1px solid silver;
-  background: #f4f4f4;
+  border: 1px solid #dddddd;
+  border-left: 5px solid #f0f0f0;
+  background: #f8f8f8;
   padding: 0.5em;
 }
 
@@ -171,7 +183,7 @@ div.quoteblock, div.verseblock {
   padding-left: 1.0em;
   margin-left: 1.0em;
   margin-right: 10%;
-  border-left: 5px solid #dddddd;
+  border-left: 5px solid #f0f0f0;
   color: #777777;
 }
 
@@ -182,6 +194,7 @@ div.quoteblock > div.attribution {
 
 div.verseblock > pre.content {
   font-family: inherit;
+  font-size: inherit;
 }
 div.verseblock > div.attribution {
   padding-top: 0.75em;
@@ -258,7 +271,6 @@ div.tableblock > table {
   border: 3px solid #527bbd;
 }
 thead, p.table.header {
-  font-family: sans-serif;
   font-weight: bold;
   color: #527bbd;
 }
@@ -359,7 +371,6 @@ div#toc {
 
 div#toctitle {
   color: #527bbd;
-  font-family: sans-serif;
   font-size: 1.1em;
   font-weight: bold;
   margin-top: 1.0em;
@@ -592,7 +603,7 @@ Jim Tcl(n) Manual Page
 earlier, smaller versions of Tcl (6.x) as well as more modern
 features from later versions of Tcl (7.x, 8.x). It also has some some
 entirely new features not available in any version of Tcl.</p></div>
-<div class="paragraph"><p>This version is about double the size of "tinytcl" (6.8), dependening upon
+<div class="paragraph"><p>This version is about double the size of "tinytcl" (6.8), depending upon
 the features selected, but is significantly faster and has many new features.</p></div>
 <div class="paragraph"><p>Note that most of this man page is the original 6.8 Tcl man page, with
 changes made for differences with Jim.</p></div>
@@ -600,7 +611,7 @@ changes made for differences with Jim.</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-Object-based I/O (aio), but with a Tcl-compatility layer
+Object-based I/O (aio), but with a Tcl-compatibility layer
 </p>
 </li>
 <li>
@@ -796,7 +807,7 @@ The easiest way to understand the Tcl interpreter is to remember that
 everything is just an operation on a string.  In many cases Tcl constructs
 will look similar to more structured constructs from other languages.
 However, the Tcl constructs are not structured at all; they are just
-strings of characters, and this gives them a different behavior than
+strings of characters, and this gives them a different behaviour than
 the structures they may look like.</p></div>
 <div class="paragraph"><p>Although the exact interpretation of a Tcl string depends on who is doing
 the interpretation, there are three common forms that strings take:
@@ -852,7 +863,7 @@ no longer work.</p></div>
 <h2 id="_comments">COMMENTS</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>If the first non-blank character in a command is <em>#</em>, then everything
-from the <em>\#</em> up through the next newline character is treated as
+from the <em>#</em> up through the next newline character is treated as
 a comment and ignored.  When comments are embedded inside nested
 commands (e.g. fields enclosed in braces) they must have properly-matched
 braces (this is necessary because when Tcl parses the top-level command
@@ -1356,7 +1367,7 @@ If a field doesn&#8217;t begin with a brace then backslash,
 <li>
 <p>
 If the first non-blank character of a command is a <em>#</em>, everything
-   from the <em>\#</em> up through the next newline is treated as a comment
+   from the <em>#</em> up through the next newline is treated as a comment
    and ignored.
 </p>
 </li>
@@ -1653,7 +1664,7 @@ computations involving floating-point are done with the C type
 <div class="paragraph"><p>When converting a string to floating-point, exponent overflow is
 detected and results in a Tcl error.
 For conversion to integer from string, detection of overflow depends
-on the behavior of some routines in the local C library, so it should
+on the behaviour of some routines in the local C library, so it should
 be regarded as unreliable.
 In any case, overflow and underflow are generally not detected
 reliably for intermediate results.</p></div>
@@ -2071,7 +2082,8 @@ variables, which are created automatically when referenced and deleted
 when the procedure returns.  One local variable is automatically created
 for each of the procedure&#8217;s arguments.  Global variables can be
 accessed by invoking the <em>global</em> command or via the <em>::</em> prefix.</p></div>
-<div class="paragraph"><p><strong>New in Jim</strong></p></div>
+<div class="sect2">
+<h3 id="_new_in_jim">New in Jim</h3>
 <div class="paragraph"><p>In addition to procedure arguments, Jim procedures may declare static variables.
 These variables scoped to the procedure and initialised at procedure definition.
 Either from the static variable definition, or from the enclosing scope.</p></div>
@@ -2099,6 +2111,7 @@ has an initialiser, so it is initialised to 2.</p></div>
 invocations of the procedure.</p></div>
 <div class="paragraph"><p>See the <em>proc</em> command for information on
 how to define procedures and what happens when they are invoked.</p></div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -2259,7 +2272,7 @@ jim&gt; dict set a 3 T three
 <div class="sect1">
 <h2 id="_garbage_collection_references_lambda">GARBAGE COLLECTION, REFERENCES, LAMBDA</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Unlike Tcl, Jim has some sophistocated support for functional programming.
+<div class="paragraph"><p>Unlike Tcl, Jim has some sophisticated support for functional programming.
 These are described briefly below.</p></div>
 <div class="paragraph"><p>More information may be found at <a href="http://wiki.tcl.tk/13847">http://wiki.tcl.tk/13847</a></p></div>
 <div class="sect2">
@@ -2274,7 +2287,7 @@ Consider the following example:</p></div>
 jim&gt; getref $r
 One String</tt></pre>
 </div></div>
-<div class="paragraph"><p>The operation <em>ref</em> creates a references to the value specfied by the
+<div class="paragraph"><p>The operation <em>ref</em> creates a references to the value specified by the
 first argument. (The second argument is a "type" used for documentation purposes).</p></div>
 <div class="paragraph"><p>The operation <em>getref</em> is the dereferencing operation which retrieves the value
 stored in the reference.</p></div>
@@ -2613,7 +2626,7 @@ cellspacing="0" cellpadding="4">
 <h3 id="_alarm">alarm</h3>
 <div class="paragraph"><p><tt><strong>alarm</strong> <em>seconds</em></tt></p></div>
 <div class="paragraph"><p>Delivers the <em>SIGALRM</em> signal to the process after the given
-number of seconds. If the platform supports <em>ularm(3)</em> then
+number of seconds. If the platform supports <em>ualarm(3)</em> then
 the argument may be a floating point value. Otherwise it must
 be an integer.</p></div>
 <div class="paragraph"><p>Note that unless a signal handler for <em>SIGALRM</em> has been installed
@@ -2773,7 +2786,7 @@ since the braces around the whole list make it unnecessary to include a
 backslash at the end of each line.</p></div>
 <div class="paragraph"><p>Since the <strong>patList</strong> arguments are in braces in the second form,
 no command or variable substitutions are performed on them;  this makes
-the behavior of the second form different than the first form in some
+the behaviour of the second form different than the first form in some
 cases.</p></div>
 <div class="paragraph"><p>Below are some examples of <em>case</em> commands:</p></div>
 <div class="literalblock">
@@ -2807,7 +2820,7 @@ cases.</p></div>
 <h3 id="_catch">catch</h3>
 <div class="paragraph"><p><tt><strong>catch</strong> <em>?-?no?code &#8230;?</em> <strong>?--?</strong> <em>command ?resultVarName? ?optionsVarName?</em></tt></p></div>
 <div class="paragraph"><p>The <em>catch</em> command may be used to prevent errors from aborting
-command interpretation.  <em>Catch</em> evalues <strong>command</strong>, and returns a
+command interpretation.  <em>Catch</em> evaluates <strong>command</strong>, and returns a
 <tt>JIM_OK</tt> code, regardless of any errors that might occur while
 executing <strong>command</strong> (with the possible exception of <tt>JIM_SIGNAL</tt> -
 see below).</p></div>
@@ -4279,7 +4292,7 @@ If the body invokes <em>break</em>, the loop ends and no more values are added.<
 <div class="paragraph"><p><tt><strong>load</strong> <em>filename</em></tt></p></div>
 <div class="paragraph"><p>Loads the dynamic extension, <strong>filename</strong>. Generally the filename should have
 the extension <em>.so</em>. The initialisation function for the module must be based
-on the name of the file. For example loading <tt>dir/hwaccess.so</tt> will invoke
+on the name of the file. For example loading <tt>hwaccess.so</tt> will invoke
 the initialisation function, <tt>Jim_hwaccessInit</tt>. Normally the <em>load</em> command
 should not be used directly. Instead it is invoked automatically by <em>package require</em>.</p></div>
 </div>
@@ -4758,7 +4771,7 @@ string otherwise.</p></div>
 <strong>string</strong> using the rules described in REGULAR EXPRESSIONS
 above.</p></div>
 <div class="paragraph"><p>If <strong>varName</strong> is specified, the commands stores <strong>string</strong> to <strong>varName</strong>
-with the susbstitutions detailed below, and returns the number of
+with the substitutions detailed below, and returns the number of
 substitutions made (normally 1 unless <em>-all</em> is specified).
 This is 0 if there were no matches.</p></div>
 <div class="paragraph"><p>If <strong>varName</strong> is not specified, the substituted string will be returned
@@ -5633,7 +5646,7 @@ multi-line switch commands, since the braces around the whole list
 make it unnecessary to include a backslash at the end of each line.
 Since the pattern arguments are in braces in the second form, no
 command or variable substitutions are performed on them; this makes
-the behavior of the second form different than the first form in
+the behaviour of the second form different than the first form in
 some cases.</p></div>
 <div class="paragraph"><p>If a body is specified as <em>-</em> it means that the body for the next
 pattern should also be used as the body for this pattern (if the
@@ -5771,7 +5784,7 @@ invoke it if it does exist.</p></div>
 <div class="paragraph"><p>If the Tcl interpreter encounters a command name for which there
 is not a defined command, then Tcl checks for the existence of
 a command named <em>unknown</em>.</p></div>
-<div class="paragraph"><p>If there is no such command, then the interpeter returns an
+<div class="paragraph"><p>If there is no such command, then the interpreter returns an
 error.</p></div>
 <div class="paragraph"><p>If the <em>unknown</em> command exists, then it is invoked with
 arguments consisting of the fully-substituted name and arguments
@@ -6453,7 +6466,7 @@ by the Tcl library.</p></div>
 <dd>
 <p>
     This variable is set by Jim as an array containing information
-    about the platform on which Jim was built. Currnetly this includes
+    about the platform on which Jim was built. Currently this includes
     <em>os</em> and <em>platform</em>.
 </p>
 </dd>
@@ -6819,7 +6832,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2010-12-17 13:12:25 EST
+Last updated 2011-05-28 07:46:46 EST
 </div>
 </div>
 </body>

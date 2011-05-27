@@ -27,7 +27,7 @@ earlier, smaller versions of Tcl (6.x) as well as more modern
 features from later versions of Tcl (7.x, 8.x). It also has some some
 entirely new features not available in any version of Tcl.
 
-This version is about double the size of "tinytcl" (6.8), dependening upon
+This version is about double the size of "tinytcl" (6.8), depending upon
 the features selected, but is significantly faster and has many new features.
 
 Note that most of this man page is the original 6.8 Tcl man page, with
@@ -35,7 +35,7 @@ changes made for differences with Jim.
 
 The major differences with Tcl 8.5/8.6 are:
 
-1. Object-based I/O (aio), but with a Tcl-compatility layer
+1. Object-based I/O (aio), but with a Tcl-compatibility layer
 2. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
 3. Integers are 64bit
 4. Support for references ('ref'/'getref'/'setref') and garbage collection
@@ -139,7 +139,7 @@ The easiest way to understand the Tcl interpreter is to remember that
 everything is just an operation on a string.  In many cases Tcl constructs
 will look similar to more structured constructs from other languages.
 However, the Tcl constructs are not structured at all; they are just
-strings of characters, and this gives them a different behavior than
+strings of characters, and this gives them a different behaviour than
 the structures they may look like.
 
 Although the exact interpretation of a Tcl string depends on who is doing
@@ -195,7 +195,7 @@ no longer work.
 COMMENTS
 --------
 If the first non-blank character in a command is '\#', then everything
-from the '\#' up through the next newline character is treated as
+from the '#' up through the next newline character is treated as
 a comment and ignored.  When comments are embedded inside nested
 commands (e.g. fields enclosed in braces) they must have properly-matched
 braces (this is necessary because when Tcl parses the top-level command
@@ -536,7 +536,7 @@ COMMAND SUMMARY
    occur on any field of a command, including the command name
    as well as the arguments.
 8. If the first non-blank character of a command is a '\#', everything
-   from the '\#' up through the next newline is treated as a comment
+   from the '#' up through the next newline is treated as a comment
    and ignored.
 
 EXPRESSIONS
@@ -731,7 +731,7 @@ computations involving floating-point are done with the C type
 When converting a string to floating-point, exponent overflow is
 detected and results in a Tcl error.
 For conversion to integer from string, detection of overflow depends
-on the behavior of some routines in the local C library, so it should
+on the behaviour of some routines in the local C library, so it should
 be regarded as unreliable.
 In any case, overflow and underflow are generally not detected
 reliably for intermediate results.
@@ -1038,8 +1038,8 @@ when the procedure returns.  One local variable is automatically created
 for each of the procedure's arguments.  Global variables can be
 accessed by invoking the 'global' command or via the '::' prefix.
 
-*New in Jim*
-
+New in Jim
+~~~~~~~~~~
 In addition to procedure arguments, Jim procedures may declare static variables.
 These variables scoped to the procedure and initialised at procedure definition.
 Either from the static variable definition, or from the enclosing scope.
@@ -1223,7 +1223,7 @@ See the 'dict' command for more details.
 
 GARBAGE COLLECTION, REFERENCES, LAMBDA
 --------------------------------------
-Unlike Tcl, Jim has some sophistocated support for functional programming.
+Unlike Tcl, Jim has some sophisticated support for functional programming.
 These are described briefly below.
 
 More information may be found at http://wiki.tcl.tk/13847
@@ -1239,7 +1239,7 @@ Consider the following example:
     jim> getref $r
     One String
 
-The operation 'ref' creates a references to the value specfied by the
+The operation 'ref' creates a references to the value specified by the
 first argument. (The second argument is a "type" used for documentation purposes).
 
 The operation 'getref' is the dereferencing operation which retrieves the value
@@ -1422,7 +1422,7 @@ alarm
 +*alarm* 'seconds'+
 
 Delivers the 'SIGALRM' signal to the process after the given
-number of seconds. If the platform supports 'ularm(3)' then
+number of seconds. If the platform supports 'ualarm(3)' then
 the argument may be a floating point value. Otherwise it must
 be an integer.
 
@@ -1567,7 +1567,7 @@ backslash at the end of each line.
 
 Since the *patList* arguments are in braces in the second form,
 no command or variable substitutions are performed on them;  this makes
-the behavior of the second form different than the first form in some
+the behaviour of the second form different than the first form in some
 cases.
 
 Below are some examples of 'case' commands:
@@ -1600,7 +1600,7 @@ catch
 +*catch* '?-?no?code ...?' *?--?* 'command ?resultVarName? ?optionsVarName?'+
 
 The 'catch' command may be used to prevent errors from aborting
-command interpretation.  'Catch' evalues *command*, and returns a
+command interpretation.  'Catch' evaluates *command*, and returns a
 +JIM_OK+ code, regardless of any errors that might occur while
 executing *command* (with the possible exception of +JIM_SIGNAL+ -
 see below).
@@ -2791,7 +2791,7 @@ load
 
 Loads the dynamic extension, *filename*. Generally the filename should have
 the extension '.so'. The initialisation function for the module must be based
-on the name of the file. For example loading +dir/hwaccess.so+ will invoke
+on the name of the file. For example loading +hwaccess.so+ will invoke
 the initialisation function, +Jim_hwaccessInit+. Normally the 'load' command
 should not be used directly. Instead it is invoked automatically by 'package require'.
 
@@ -3224,7 +3224,7 @@ This command matches the regular expression *exp* against
 above.
 
 If *varName* is specified, the commands stores *string* to *varName*
-with the susbstitutions detailed below, and returns the number of
+with the substitutions detailed below, and returns the number of
 substitutions made (normally 1 unless '-all' is specified).
 This is 0 if there were no matches.
 
@@ -3794,7 +3794,7 @@ multi-line switch commands, since the braces around the whole list
 make it unnecessary to include a backslash at the end of each line.
 Since the pattern arguments are in braces in the second form, no
 command or variable substitutions are performed on them; this makes
-the behavior of the second form different than the first form in
+the behaviour of the second form different than the first form in
 some cases.
 
 If a body is specified as '-' it means that the body for the next
@@ -3946,7 +3946,7 @@ If the Tcl interpreter encounters a command name for which there
 is not a defined command, then Tcl checks for the existence of
 a command named 'unknown'.
 
-If there is no such command, then the interpeter returns an
+If there is no such command, then the interpreter returns an
 error.
 
 If the 'unknown' command exists, then it is invoked with
@@ -4388,7 +4388,7 @@ by the Tcl library.
 
 +*platform_tcl*+::
     This variable is set by Jim as an array containing information
-    about the platform on which Jim was built. Currnetly this includes
+    about the platform on which Jim was built. Currently this includes
     'os' and 'platform'.
 
 +*auto_path*+::
