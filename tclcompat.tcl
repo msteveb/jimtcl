@@ -146,6 +146,12 @@ proc popen {cmd {mode r}} {
 			if {$cmd eq "pid"} {
 				return $pids
 			}
+			if {$cmd eq "close"} {
+				$f close
+				# And wait for the child processes to complete
+				foreach p $pids { os.wait $p }
+				return
+			}
 			tailcall $f $cmd {*}$args
 		}
 	} on error {error opts} {
