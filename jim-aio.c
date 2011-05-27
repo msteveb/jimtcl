@@ -597,9 +597,11 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
     af->fd = sock;
+    fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     af->filename = Jim_NewStringObj(interp, "accept", -1);
     Jim_IncrRefCount(af->filename);
     af->fp = fdopen(sock, "r+");
+
     af->OpenFlags = 0;
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
@@ -957,6 +959,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fileno(fp);
+    fcntl(af->fd, F_SETFD, FD_CLOEXEC);
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
 #endif
@@ -1000,6 +1003,7 @@ static int JimMakeChannel(Jim_Interp *interp, Jim_Obj *filename, const char *hdl
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fd;
+    fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     af->OpenFlags = 0;
     af->filename = filename;
     Jim_IncrRefCount(af->filename);
