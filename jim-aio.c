@@ -1125,6 +1125,27 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     return JIM_OK;
 }
 
+static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
+    const char *hdlfmt, int family, const char *mode[2])
+{
+	if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0]) == JIM_OK) {
+		Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
+		Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+
+		if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1]) == JIM_OK) {
+			Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+			Jim_SetResult(interp, objPtr);
+			return JIM_OK;
+		}
+	}
+
+	/* Can only be here if fdopen() failed */
+	close(p[0]);
+	close(p[1]);
+	JimAioSetError(interp, NULL);
+	return JIM_ERR;
+}
+
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 
 static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1138,6 +1159,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         "stream",
         "stream.server",
         "pipe",
+        "pair",
         NULL
     };
     enum
@@ -1149,10 +1171,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         SOCK_STREAM_CLIENT,
         SOCK_STREAM_SERVER,
         SOCK_STREAM_PIPE,
-        SOCK_DGRAM6_CLIENT,
-        SOCK_DGRAM6_SERVER,
-        SOCK_STREAM6_CLIENT,
-        SOCK_STREAM6_SERVER,
+        SOCK_STREAM_SOCKETPAIR,
     };
     int socktype;
     int sock;
@@ -1348,38 +1367,45 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
 #endif
 
-#ifdef HAVE_PIPE
-        case SOCK_STREAM_PIPE:
-            {
+#if defined(HAVE_SOCKETPAIR) && defined(HAVE_SYS_UN_H)
+        case SOCK_STREAM_SOCKETPAIR:
+			{
                 int p[2];
+				static const char *mode[2] = { "r+", "r+" };
 
                 if (argc != 2 || ipv6) {
                     goto wrongargs;
                 }
 
-                if (pipe(p) < 0) {
-                    JimAioSetError(interp, NULL);
-                    return JIM_ERR;
-                }
-
-                if (JimMakeChannel(interp, NULL, p[0], argv[1], "aio.pipe%ld", 0, "r") == JIM_OK) {
-                    Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
-                    Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-
-                    if (JimMakeChannel(interp, NULL, p[1], argv[1], "aio.pipe%ld", 0, "w") == JIM_OK) {
-                        Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-                        Jim_SetResult(interp, objPtr);
-                        return JIM_OK;
-                    }
-                }
-                /* Can only be here if fdopen() failed */
-                close(p[0]);
-                close(p[1]);
-                JimAioSetError(interp, NULL);
-                return JIM_ERR;
-            }
+				if (socketpair(PF_UNIX, SOCK_STREAM, 0, p) < 0) {
+					JimAioSetError(interp, NULL);
+					return JIM_ERR;
+				}
+				return JimMakeChannelPair(interp, p, argv[1], "aio.sockpair%ld", PF_UNIX, mode);
+			}
             break;
 #endif
+
+#if defined(HAVE_PIPE)
+        case SOCK_STREAM_PIPE:
+            {
+                int p[2];
+				static const char *mode[2] = { "r", "w" };
+
+                if (argc != 2 || ipv6) {
+                    goto wrongargs;
+                }
+
+				if (pipe(p) < 0) {
+					JimAioSetError(interp, NULL);
+					return JIM_ERR;
+				}
+
+				return JimMakeChannelPair(interp, p, argv[1], "aio.pipe%ld", 0, mode);
+			}
+            break;
+#endif
+
         default:
             Jim_SetResultString(interp, "Unsupported socket type", -1);
             return JIM_ERR;

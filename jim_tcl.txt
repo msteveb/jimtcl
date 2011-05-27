@@ -58,6 +58,7 @@ Changes between 0.74 and 0.75
 3. `format` now supports +%b+ for binary conversion
 4. `lsort` now supports '-unique' and '-real'
 5. Add support for half-close with `aio close` ?r|w?
+6. Add `socket pair` for a bidirectional pipe
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4588,6 +4589,10 @@ Various socket types may be created.
 +*socket pipe*+::
     A pipe. Note that unlike all other socket types, this command returns
     a list of two channels: {read write}
+
++*socket pair*+::
+    A socketpair (see socketpair(2)). Like `socket pipe`, this command returns
+    a list of two channels: {s1 s2}. These channels are both readable and writable.
 
 This command creates a socket connected (client) or bound (server) to the given
 address.
