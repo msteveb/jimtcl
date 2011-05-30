@@ -148,7 +148,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
+        Jim_DeleteCommand(interp, Jim_String(argv[0]));
         return JIM_OK;
     }
     else if (option == OPT_QUERY) {
@@ -161,7 +161,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         char *nullstr;
 
         if (argc >= 4 && Jim_CompareStringImmediate(interp, argv[2], "-null")) {
-            nullstr = Jim_StrDup(Jim_GetString(argv[3], NULL));
+            nullstr = Jim_StrDup(Jim_String(argv[3]));
             argv += 2;
             argc -= 2;
         }
@@ -178,7 +178,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
             Jim_Free(nullstr);
             return JIM_ERR;
         }
-        query = Jim_GetString(objPtr, NULL);
+        query = Jim_String(objPtr);
         Jim_IncrRefCount(objPtr);
         /* Compile the query into VM code */
         if (sqlite_compile(sh->db, query, &tail, &vm, &errMsg) != SQLITE_OK) {
@@ -245,7 +245,7 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         Jim_WrongNumArgs(interp, 1, argv, "dbname");
         return JIM_ERR;
     }
-    db = sqlite_open(Jim_GetString(argv[1], NULL), 0, &errMsg);
+    db = sqlite_open(Jim_String(argv[1]), 0, &errMsg);
     if (db == NULL) {
         Jim_SetResultString(interp, errMsg, -1);
         sqlite_freemem(errMsg);

@@ -108,7 +108,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             continue;
         }
 
-        linenoiseHistoryAdd(Jim_GetString(scriptObjPtr, NULL));
+        linenoiseHistoryAdd(Jim_String(scriptObjPtr));
         linenoiseHistorySave(history_file);
 #endif
         retcode = Jim_EvalObj(interp, scriptObjPtr);

@@ -533,7 +533,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
     cmdCount = 1;
     lastBar = -1;
     for (i = 0; i < argc; i++) {
-        const char *arg = Jim_GetString(argv[i], NULL);
+        const char *arg = Jim_String(argv[i]);
 
         if (arg[0] == '<') {
             inputFile = FILE_NAME;
@@ -548,7 +548,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
             }
 
             if (!*input && ++i < argc) {
-                input = Jim_GetString(argv[i], NULL);
+                input = Jim_String(argv[i]);
             }
         }
         else if (arg[0] == '>') {
@@ -571,7 +571,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
                 output++;
             }
             if (!*output && ++i < argc) {
-                output = Jim_GetString(argv[i], NULL);
+                output = Jim_String(argv[i]);
             }
             if (dup_error) {
                 errorFile = outputFile;
@@ -591,7 +591,7 @@ Jim_CreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int **pid
                 error++;
             }
             if (!*error && ++i < argc) {
-                error = Jim_GetString(argv[i], NULL);
+                error = Jim_String(argv[i]);
             }
         }
         else {

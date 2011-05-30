@@ -83,11 +83,11 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         Jim_WrongNumArgs(interp, 1, objv, "verb path ?parameters?");
         return JIM_ERR;
     }
-    verb = Jim_GetString(objv[1], NULL);
-    file = Jim_GetString(objv[2], NULL);
+    verb = Jim_String(objv[1]);
+    file = Jim_String(objv[2]);
     GetCurrentDirectoryA(MAX_PATH + 1, cwd);
     if (objc == 4)
-        parm = Jim_GetString(objv[3], NULL);
+        parm = Jim_String(objv[3]);
     r = (int)ShellExecuteA(NULL, verb, file, parm, cwd, SW_SHOWNORMAL);
     if (r < 33)
         Jim_SetResult(interp,
@@ -108,9 +108,9 @@ Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         Jim_WrongNumArgs(interp, 1, objv, "title ?class?");
         return JIM_ERR;
     }
-    title = Jim_GetString(objv[1], NULL);
+    title = Jim_String(objv[1]);
     if (objc == 3)
-        class = Jim_GetString(objv[2], NULL);
+        class = Jim_String(objv[2]);
     hwnd = FindWindowA(class, title);
 
     if (hwnd == NULL) {
@@ -388,7 +388,7 @@ Win32_SetComputerName(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         Jim_WrongNumArgs(interp, 1, objv, "computername");
         return JIM_ERR;
     }
-    name = Jim_GetString(objv[1], NULL);
+    name = Jim_String(objv[1]);
     if (!SetComputerNameA(name)) {
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "SetComputerName", GetLastError()));
@@ -408,7 +408,7 @@ Win32_GetModuleHandle(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         return JIM_ERR;
     }
     if (objc == 2)
-        name = Jim_GetString(objv[1], NULL);
+        name = Jim_String(objv[1]);
     hModule = GetModuleHandleA(name);
     if (hModule == NULL) {
         Jim_SetResult(interp,
@@ -427,7 +427,7 @@ Win32_LoadLibrary(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         Jim_WrongNumArgs(interp, 1, objv, "path");
         return JIM_ERR;
     }
-    hLib = LoadLibraryA(Jim_GetString(objv[1], NULL));
+    hLib = LoadLibraryA(Jim_String(objv[1]));
     if (hLib == NULL) {
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "LoadLibrary", GetLastError()));

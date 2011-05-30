@@ -86,7 +86,7 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
             prefixes[i] = NULL;
             continue;
         }
-        prefixes[i] = Jim_StrDup(Jim_GetString(prefixObjPtr, NULL));
+        prefixes[i] = Jim_StrDup(Jim_String(prefixObjPtr));
     }
 
     /* Scan every directory for the the first match */
@@ -176,9 +176,9 @@ static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     const char *version = "1.0";
 
     if (argc == 2) {
-        version = Jim_GetString(argv[1], NULL);
+        version = Jim_String(argv[1]);
     }
-    return Jim_PackageProvide(interp, Jim_GetString(argv[0], NULL), version, JIM_ERRMSG);
+    return Jim_PackageProvide(interp, Jim_String(argv[0]), version, JIM_ERRMSG);
 }
 
 /*
@@ -199,7 +199,7 @@ static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     /* package require failing is important enough to add to the stack */
     interp->addStackTrace++;
 
-    return Jim_PackageRequire(interp, Jim_GetString(argv[0], NULL), JIM_ERRMSG);
+    return Jim_PackageRequire(interp, Jim_String(argv[0]), JIM_ERRMSG);
 }
 
 /*

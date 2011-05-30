@@ -164,7 +164,7 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
+        Jim_DeleteCommand(interp, Jim_String(argv[0]));
         return JIM_OK;
     }
     else if (option == OPT_FLIP) {

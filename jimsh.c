@@ -79,7 +79,7 @@ int main(int argc, char *const argv[])
     /* Register static extensions */
     if (Jim_InitStaticExtensions(interp) != JIM_OK) {
         Jim_MakeErrorMessage(interp);
-        fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+        fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
     }
 
     Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
@@ -89,7 +89,7 @@ int main(int argc, char *const argv[])
     if (argc == 1) {
         if (retcode == JIM_ERR) {
             Jim_MakeErrorMessage(interp);
-            fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+            fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
         }
         if (retcode != JIM_EXIT) {
             JimSetArgv(interp, 0, NULL);
@@ -101,7 +101,7 @@ int main(int argc, char *const argv[])
             JimSetArgv(interp, argc - 3, argv + 3);
             retcode = Jim_Eval(interp, argv[2]);
             if (retcode != JIM_ERR) {
-                printf("%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+                printf("%s\n", Jim_String(Jim_GetResult(interp)));
             }
         }
         else {
@@ -111,7 +111,7 @@ int main(int argc, char *const argv[])
         }
         if (retcode == JIM_ERR) {
             Jim_MakeErrorMessage(interp);
-            fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+            fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
         }
     }
     if (retcode == JIM_EXIT) {

@@ -129,7 +129,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             else {
                 /* Report the error to stderr. */
                 Jim_MakeErrorMessage(interp);
-                fprintf(stderr, "%s\n", Jim_GetString(Jim_GetResult(interp), NULL));
+                fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
                 /* And reset the result */
                 Jim_SetResultString(interp, "", -1);
             }

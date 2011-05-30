@@ -194,7 +194,7 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
 
     /* Iterate through the provided signals */
     for (i = 0; i < argc; i++) {
-        int sig = find_signal_by_name(interp, Jim_GetString(argv[i], NULL));
+        int sig = find_signal_by_name(interp, Jim_String(argv[i]));
 
         if (sig < 0) {
             return JIM_ERR;
@@ -272,7 +272,7 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         /* Signals specified */
         for (i = clear; i < argc; i++) {
-            int sig = find_signal_by_name(interp, Jim_GetString(argv[i], NULL));
+            int sig = find_signal_by_name(interp, Jim_String(argv[i]));
 
             if (sig < 0 || sig >= MAX_SIGNALS) {
                 return -1;
@@ -304,7 +304,7 @@ static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int sig = SIGINT;
 
     if (argc == 1) {
-        if ((sig = find_signal_by_name(interp, Jim_GetString(argv[0], NULL))) < 0) {
+        if ((sig = find_signal_by_name(interp, Jim_String(argv[0]))) < 0) {
             return JIM_ERR;
         }
     }
@@ -464,7 +464,7 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         pidObj = argv[1];
     }
     else {
-        signame = Jim_GetString(argv[1], NULL);
+        signame = Jim_String(argv[1]);
         pidObj = argv[2];
     }
 

@@ -47,7 +47,7 @@ Jim_Nvp *Jim_Nvp_name2value_nocase_simple(const Jim_Nvp * p, const char *name)
 
 int Jim_Nvp_name2value_obj(Jim_Interp *interp, const Jim_Nvp * p, Jim_Obj *o, Jim_Nvp ** result)
 {
-    return Jim_Nvp_name2value(interp, p, Jim_GetString(o, NULL), result);
+    return Jim_Nvp_name2value(interp, p, Jim_String(o), result);
 }
 
 
@@ -74,7 +74,7 @@ int Jim_Nvp_name2value(Jim_Interp *interp, const Jim_Nvp * _p, const char *name,
 int
 Jim_Nvp_name2value_obj_nocase(Jim_Interp *interp, const Jim_Nvp * p, Jim_Obj *o, Jim_Nvp ** puthere)
 {
-    return Jim_Nvp_name2value_nocase(interp, p, Jim_GetString(o, NULL), puthere);
+    return Jim_Nvp_name2value_nocase(interp, p, Jim_String(o), puthere);
 }
 
 int
@@ -158,7 +158,7 @@ void Jim_GetOpt_Debug(Jim_GetOptInfo * p)
 
     fprintf(stderr, "---args---\n");
     for (x = 0; x < p->argc; x++) {
-        fprintf(stderr, "%2d) %s\n", x, Jim_GetString(p->argv[x], NULL));
+        fprintf(stderr, "%2d) %s\n", x, Jim_String(p->argv[x]));
     }
     fprintf(stderr, "-------\n");
 }
@@ -325,10 +325,10 @@ const char *Jim_Debug_ArgvString(Jim_Interp *interp, int argc, Jim_Obj *const *a
 
     debug_string_obj = Jim_NewEmptyStringObj(interp);
     for (x = 0; x < argc; x++) {
-        Jim_AppendStrings(interp, debug_string_obj, Jim_GetString(argv[x], NULL), " ", NULL);
+        Jim_AppendStrings(interp, debug_string_obj, Jim_String(argv[x], NULL), " ");
     }
 
-    return Jim_GetString(debug_string_obj, NULL);
+    return Jim_String(debug_string_obj);
 }
 
 int Jim_nvpInit(Jim_Interp *interp)

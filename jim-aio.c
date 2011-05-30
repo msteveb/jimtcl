@@ -558,7 +558,7 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int len;
     const char *wdata;
     union sockaddr_any sa;
-    const char *addr = Jim_GetString(argv[1], NULL);
+    const char *addr = Jim_String(argv[1]);
     int salen;
 
     if (IPV6 && af->addr_family == PF_INET6) {
@@ -639,7 +639,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_DeleteCommand(interp, Jim_GetString(argv[0], NULL));
+    Jim_DeleteCommand(interp, Jim_String(argv[0]));
     return JIM_OK;
 }
 
@@ -916,7 +916,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
         return JIM_ERR;
     }
-    cmdname = Jim_GetString(argv[1], NULL);
+    cmdname = Jim_String(argv[1]);
     if (Jim_CompareStringImmediate(interp, argv[1], "stdin")) {
         OpenFlags |= AIO_KEEPOPEN;
         fp = stdin;
@@ -930,8 +930,8 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         fp = stderr;
     }
     else {
-        const char *mode = (argc == 3) ? Jim_GetString(argv[2], NULL) : "r";
-        const char *filename = Jim_GetString(argv[1], NULL);
+        const char *mode = (argc == 3) ? Jim_String(argv[2]) : "r";
+        const char *filename = Jim_String(argv[1]);
 
 #ifdef jim_ext_tclcompat
         /* If the filename starts with '|', use popen instead */
@@ -1084,7 +1084,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     hdlfmt = "aio.sock%ld";
 
     if (argc > 2) {
-        hostportarg = Jim_GetString(argv[2], NULL);
+        hostportarg = Jim_String(argv[2]);
     }
 
     switch (socktype) {

@@ -35,7 +35,7 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc == 3) {
-        format = Jim_GetString(argv[2], NULL);
+        format = Jim_String(argv[2]);
     }
 
     if (Jim_GetLong(interp, argv[0], &seconds) != JIM_OK) {
@@ -64,7 +64,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Initialise with the current date/time */
     localtime_r(&now, &tm);
 
-    pt = strptime(Jim_GetString(argv[0], NULL), Jim_GetString(argv[2], NULL), &tm);
+    pt = strptime(Jim_String(argv[0]), Jim_String(argv[2]), &tm);
     if (pt == 0 || *pt != 0) {
         Jim_SetResultString(interp, "Failed to parse time according to format", -1);
         return JIM_ERR;

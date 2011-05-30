@@ -564,6 +564,7 @@ typedef struct Jim_Interp {
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
+#define Jim_String(o) Jim_GetString((o), NULL)
 
 /* Note that 'o' is expanded only one time inside this macro,
  * so it's safe to use side effects. */

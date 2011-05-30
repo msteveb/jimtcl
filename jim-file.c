@@ -179,7 +179,7 @@ static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat
 
 static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     const char *p = strrchr(path, '/');
 
     if (!p) {
@@ -196,7 +196,7 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     const char *lastSlash = strrchr(path, '/');
     const char *p = strrchr(path, '.');
 
@@ -211,7 +211,7 @@ static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     const char *lastSlash = strrchr(path, '/');
     const char *p = strrchr(path, '.');
 
@@ -224,7 +224,7 @@ static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
 static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     const char *lastSlash = strrchr(path, '/');
 
     if (lastSlash) {
@@ -239,7 +239,7 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #ifdef HAVE_REALPATH
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     char *newname = Jim_Alloc(MAXPATHLEN + 1);
 
     if (realpath(path, newname)) {
@@ -306,7 +306,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_access(Jim_Interp *interp, Jim_Obj *filename, int mode)
 {
-    const char *path = Jim_GetString(filename, NULL);
+    const char *path = Jim_String(filename);
     int rc = access(path, mode);
 
     Jim_SetResultBool(interp, rc != -1);
@@ -337,7 +337,7 @@ static int file_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     while (argc--) {
-        const char *path = Jim_GetString(argv[0], NULL);
+        const char *path = Jim_String(argv[0]);
 
         if (unlink(path) == -1 && errno != ENOENT) {
             if (rmdir(path) == -1) {
@@ -409,7 +409,7 @@ static int mkdir_all(char *path)
 static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     while (argc--) {
-        char *path = Jim_StrDup(Jim_GetString(argv[0], NULL));
+        char *path = Jim_StrDup(Jim_String(argv[0]));
         int rc = mkdir_all(path);
 
         Jim_Free(path);
@@ -431,7 +431,7 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *template = "/tmp/tcl.tmp.XXXXXX";
 
     if (argc >= 1) {
-        template = Jim_GetString(argv[0], NULL);
+        template = Jim_String(argv[0]);
     }
     filename = Jim_StrDup(template);
 
@@ -462,8 +462,8 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         argc--;
     }
 
-    source = Jim_GetString(argv[0], NULL);
-    dest = Jim_GetString(argv[1], NULL);
+    source = Jim_String(argv[0]);
+    dest = Jim_String(argv[1]);
 
     if (!force && access(dest, F_OK) == 0) {
         Jim_SetResultFormatted(interp, "error renaming \"%#s\" to \"%#s\": target exists", argv[0],
@@ -482,7 +482,7 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
-    const char *path = Jim_GetString(filename, NULL);
+    const char *path = Jim_String(filename);
 
     if (stat(path, sb) == -1) {
         Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
@@ -497,7 +497,7 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 
 static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
-    const char *path = Jim_GetString(filename, NULL);
+    const char *path = Jim_String(filename);
 
     if (lstat(path, sb) == -1) {
         Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
@@ -585,7 +585,7 @@ static int file_cmd_owned(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #if defined(HAVE_READLINK)
 static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_GetString(argv[0], NULL);
+    const char *path = Jim_String(argv[0]);
     char *linkValue = Jim_Alloc(MAXPATHLEN + 1);
 
     int linkLength = readlink(path, linkValue, MAXPATHLEN);
@@ -828,7 +828,7 @@ static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    path = Jim_GetString(argv[1], NULL);
+    path = Jim_String(argv[1]);
 
     if (chdir(path) != 0) {
         Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", path,

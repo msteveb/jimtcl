@@ -32,7 +32,7 @@ static int JimRlReadlineCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         Jim_WrongNumArgs(interp, 1, argv, "prompt");
         return JIM_ERR;
     }
-    line = readline(Jim_GetString(argv[1], NULL));
+    line = readline(Jim_String(argv[1]));
     if (!line) {
         return JIM_EXIT;
     }
@@ -46,7 +46,7 @@ static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         Jim_WrongNumArgs(interp, 1, argv, "string");
         return JIM_ERR;
     }
-    add_history(Jim_GetString(argv[1], NULL));
+    add_history(Jim_String(argv[1]));
     return JIM_OK;
 }
 

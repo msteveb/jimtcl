@@ -86,7 +86,7 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
     }
 
     /* Get the string representation */
-    pattern = Jim_GetString(objPtr, NULL);
+    pattern = Jim_String(objPtr);
     compre = Jim_Alloc(sizeof(regex_t));
 
     if ((ret = regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
@@ -140,7 +140,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     for (i = 1; i < argc; i++) {
-        const char *opt = Jim_GetString(argv[i], NULL);
+        const char *opt = Jim_String(argv[i]);
 
         if (*opt != '-') {
             break;
@@ -192,7 +192,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    pattern = Jim_GetString(argv[i], NULL);
+    pattern = Jim_String(argv[i]);
     source_str = Jim_GetString(argv[i + 1], &source_len);
 
     num_vars = argc - i - 2;
@@ -369,7 +369,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     for (i = 1; i < argc; i++) {
-        const char *opt = Jim_GetString(argv[i], NULL);
+        const char *opt = Jim_String(argv[i]);
 
         if (*opt != '-') {
             break;
@@ -412,7 +412,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (!regex) {
         return JIM_ERR;
     }
-    pattern = Jim_GetString(argv[i], NULL);
+    pattern = Jim_String(argv[i]);
 
     source_str = Jim_GetString(argv[i + 1], &source_len);
     replace_str = Jim_GetString(argv[i + 2], &replace_len);

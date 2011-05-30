@@ -38,8 +38,8 @@ static void bad_subcmd(Jim_Interp *interp, const jim_subcmd_type * command_table
     Jim_Obj *cmd, Jim_Obj *subcmd)
 {
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(cmd, NULL), ", ", type,
-        " command \"", Jim_GetString(subcmd, NULL), "\": should be ", NULL);
+    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_String(cmd), ", ", type,
+        " command \"", Jim_String(subcmd), "\": should be ", NULL);
     add_commands(interp, command_table, ", ");
 }
 
@@ -47,7 +47,7 @@ static void show_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * command_t
     Jim_Obj *const *argv)
 {
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    Jim_AppendStrings(interp, Jim_GetResult(interp), "Usage: \"", Jim_GetString(argv[0], NULL),
+    Jim_AppendStrings(interp, Jim_GetResult(interp), "Usage: \"", Jim_String(argv[0]),
         " command ... \", where command is one of: ", NULL);
     add_commands(interp, command_table, ", ");
 }
@@ -55,7 +55,7 @@ static void show_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * command_t
 static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Obj *cmd)
 {
     if (cmd) {
-        Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_GetString(cmd, NULL), " ", NULL);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_String(cmd), " ", NULL);
     }
     Jim_AppendStrings(interp, Jim_GetResult(interp), ct->cmd, NULL);
     if (ct->args && *ct->args) {
@@ -97,7 +97,7 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
     const char *cmdname;
     int help = 0;
 
-    cmdname = Jim_GetString(argv[0], NULL);
+    cmdname = Jim_String(argv[0]);
 
     if (argc < 2) {
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
@@ -283,7 +283,7 @@ Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type * command_table, int
     if (argc - 1 < command_table->minargs || (command_table->maxargs >= 0
             && argc - 1 > command_table->maxargs)) {
         set_wrong_args(interp, command_table, NULL);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "\nUse \"", Jim_GetString(argv[0], NULL),
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "\nUse \"", Jim_String(argv[0]),
             " -help\" for help", NULL);
         return JIM_ERR;
     }
