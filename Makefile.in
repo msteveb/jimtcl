@@ -46,7 +46,7 @@ EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
-	sh @srcdir@/make-c-ext.sh $< >$@
+	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@
 
 OBJS += jim-load-static-exts.o
 
