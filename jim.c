@@ -1633,8 +1633,11 @@ static int JimEscape(char *dest, const char *s, int slen)
                         i++;
                         break;
                     case '\n':
+                        /* Replace all spaces and tabs after backslash newline with a single space*/
                         *p++ = ' ';
-                        i++;
+                        do {
+                            i++;
+                        } while (s[i + 1] == ' ' || s[i + 1] == '\t');
                         break;
                     case '0':
                     case '1':

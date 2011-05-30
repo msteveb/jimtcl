@@ -227,8 +227,33 @@ test parse-1.45 "spaces before expr function args" {
 	expr {round  (3.2)}
 } 3
 
-test parse-1.45 "expr function missing paren" {
+test parse-1.46 "expr function missing paren" {
 	catch {expr {round 3.2}}
 } 1
+
+test parse-1.47 "backslash newline in quotes" {
+	# spaces
+	set x "abc\
+      def"
+} "abc def"
+
+test parse-1.48 "backslash newline in quotes" {
+	# tabs
+	set x "abc\
+		def"
+} "abc def"
+
+test parse-1.49 "backslash newline in quotes" {
+	# tabs plus newline
+	set x "abc\
+		
+def"
+} "abc \ndef"
+
+test parse-1.50 "backslash newline in quotes" {
+	# tabs plus newline
+	set x "abc\
+def"
+} "abc def"
 
 testreport
