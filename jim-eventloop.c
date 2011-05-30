@@ -597,7 +597,6 @@ static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     enum { UPDATE_IDLE, UPDATE_NONE };
     int option = UPDATE_NONE;
     int flags = JIM_TIME_EVENTS;
-    int rc;
 
     if (argc == 1) {
         flags = JIM_ALL_EVENTS;
@@ -609,7 +608,7 @@ static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
     eventLoop->suppress_bgerror = 0;
 
-    while ((rc = Jim_ProcessEvents(interp, flags | JIM_DONT_WAIT)) > 0) {
+    while (Jim_ProcessEvents(interp, flags | JIM_DONT_WAIT) > 0) {
     }
 
     return JIM_OK;
