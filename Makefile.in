@@ -34,7 +34,7 @@ endif
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o @EXTRA_OBJS@
+OBJS := load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o @EXTRA_OBJS@
 
 JIMSH := jimsh@EXEEXT@
 
@@ -46,9 +46,7 @@ EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
-	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@
-
-OBJS += jim-load-static-exts.o
+	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@ || ( rm $@; exit 1)
 
 all: $(JIMSH) $(EXTENSION_MODS)
 
@@ -82,8 +80,11 @@ ifneq (@JIM_UTF8@,)
 utf8.o: unicode_mapping.c
 
 unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
-	@tclsh@ @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@
+	@tclsh@ @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@ || ( rm $@; exit 1)
 endif
+
+load-static-exts.c: @srcdir@/make-load-static-exts.tcl Makefile
+	@tclsh@ @srcdir@/make-load-static-exts.tcl @JIM_EXTENSIONS@ >$@ || ( rm $@; exit 1)
 
 ifeq ($(jim_libtype),static)
 $(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
@@ -102,7 +103,7 @@ Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c @GENERATED_SRCS@
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c load-static-exts.c @GENERATED_SRCS@
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log
