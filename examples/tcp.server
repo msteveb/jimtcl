@@ -11,6 +11,8 @@ $s readable {
 	if {[os.fork] == 0} {
 		$s close
 
+		$sock buffering line
+
 		# Get the request (max 80 chars) - need the source address
 		while {[$sock gets buf] >= 0} {
 			set buf [string trim $buf]
@@ -26,7 +28,6 @@ $s readable {
 
 			# Send the result back to where it came from
 			$sock puts $result
-			$sock flush
 		}
 	}
 

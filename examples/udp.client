@@ -15,12 +15,13 @@ $s close
 # Now sending via a connected udp socket
 
 set s [socket dgram 127.0.0.1:20000]
+$s buffering line
 
 foreach i [range 5 10] {
 	# Socket is connected, so can just use puts here
 	# But remember to flush to ensure that each message is separate
 	$s puts -nonewline "$i * $i"
-	$s flush
+	#$s flush
 
 	# Receive the response - max length of 100
 	puts [$s recvfrom 100]

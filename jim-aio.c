@@ -715,6 +715,41 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
+static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    static const char *options[] = {
+        "none",
+        "line",
+        "full",
+        NULL
+    };
+    enum
+    {
+        OPT_NONE,
+        OPT_LINE,
+        OPT_FULL,
+    };
+    int option;
+
+    if (Jim_GetEnum(interp, argv[0], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
+    }
+    switch (option) {
+        case OPT_NONE:
+            setvbuf(af->fp, NULL, _IONBF, 0);
+            break;
+        case OPT_LINE:
+            setvbuf(af->fp, NULL, _IOLBF, BUFSIZ);
+            break;
+        case OPT_FULL:
+            setvbuf(af->fp, NULL, _IOFBF, BUFSIZ);
+            break;
+    }
+    return JIM_OK;
+}
+
 #ifdef jim_ext_eventloop
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 {
@@ -874,6 +909,13 @@ static const jim_subcmd_type aio_command_table[] = {
         .description = "Set O_NDELAY (if arg). Returns current/new setting."
     },
 #endif
+    {   .cmd = "buffering",
+        .args = "none|line|full",
+        .function = aio_cmd_buffering,
+        .minargs = 1,
+        .maxargs = 1,
+        .description = "Sets buffering"
+    },
 #ifdef jim_ext_eventloop
     {   .cmd = "readable",
         .args = "?readable-script?",

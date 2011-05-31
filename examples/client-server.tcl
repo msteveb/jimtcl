@@ -15,6 +15,7 @@ if {[os.fork] == 0} {
 	sleep .1
 
 	set f [socket stream localhost:9876]
+	fconfigure $f -buffering line
 
 	set done 0
 
@@ -30,7 +31,6 @@ if {[os.fork] == 0} {
 	proc onwrite {f} {
 		verbose "child: sending request"
 		$f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
-		$f flush
 		$f writable {}
 	}
 

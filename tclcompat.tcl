@@ -35,6 +35,22 @@ if {[info commands stdout] ne ""} {
 		}
 		tailcall $chan read {*}${-nonewline}
 	}
+
+	proc fconfigure {f args} {
+		foreach {n v} $args {
+			switch -glob -- $n {
+				-bl* {
+					$f ndelay $v
+				}
+				-bu* {
+					$f buffering $v
+				}
+				default {
+					return -code error "fconfigure: unknown option $n"
+				}
+			}
+		}
+	}
 }
 
 # case var ?in? pattern action ?pattern action ...?
