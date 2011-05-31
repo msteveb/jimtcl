@@ -256,4 +256,54 @@ test parse-1.50 "backslash newline in quotes" {
 def"
 } "abc def"
 
+test parse-1.51 "special chars in dict sugar" {
+	unset -nocomplain a
+	set a(x$) 5
+	array names a
+} {{x$}}
+
+test parse-1.52 "special chars in dict sugar" {
+	set x $a(x$)
+} 5
+
+test parse-1.53 "special chars in dict sugar" {
+	unset -nocomplain a
+	set a(x\[) 5
+	array names a
+} {{x[}}
+
+test parse-1.52 "special chars in dict sugar" {
+	set x $a(x\[)
+} 5
+
+test parse-1.53 "special chars in dict sugar" {
+	unset -nocomplain a
+	set a(x\() 5
+	array names a
+} {x(}
+
+test parse-1.52 "special chars in dict sugar" {
+	set x $a(x\()
+} 5
+
+test parse-1.53 "special chars in dict sugar" {
+	unset -nocomplain a
+	set a(x() 5
+	array names a
+} {x(}
+
+test parse-1.52 "special chars in dict sugar" {
+	set x $a(x()
+} 5
+
+test parse-1.53 "special chars in dict sugar" {
+	unset -nocomplain a
+	set a(x") 5
+	lindex [array names a] 0
+} {x"}
+
+test parse-1.52 "special chars in dict sugar" {
+	set x $a(x")
+} 5
+
 testreport
