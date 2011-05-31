@@ -16,6 +16,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd pid posix
+needs cmd exec
 catch {package require regexp}
 testConstraint regexp [expr {[info commands regexp] ne {}}]
 

@@ -13,6 +13,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd after eventloop
 testConstraint socket [expr {[info commands socket] ne ""}]
+testConstraint exec [expr {[info commands exec] ne ""}]
 
 test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} jim {
     catch {rename bgerror {}}
@@ -70,7 +71,7 @@ test event-7.3 {bgerror / accumulation / break} {
 catch {rename bgerror {}}
 
 
-test event-10.1 {Tcl_Exit procedure} {
+test event-10.1 {Tcl_Exit procedure} exec {
     set cmd [list exec [info nameofexecutable] "<<exit 3"]
     list [catch $cmd msg] [lindex $errorCode 0] \
         [lindex $errorCode 2]
