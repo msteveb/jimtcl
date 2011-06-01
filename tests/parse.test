@@ -144,6 +144,7 @@ test parse-1.27 "backslash escape in dict sugar" {
 } 5
 
 test parse-1.28 "nested dict sugar" {
+	unset -nocomplain a b
 	set a(V) 5
 	set b(5) five
 	set x $b($a(V))
