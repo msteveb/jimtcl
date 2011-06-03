@@ -29,7 +29,11 @@ test lsort-1.5 {Tcl_LsortObjCmd procedure, -command option} {
 } {1 {"-command" option must be followed by comparison command}}
 test lsort-1.6 {Tcl_LsortObjCmd procedure, -command option} {
     proc cmp {a b} {
-	expr {[string match x* $b] - [string match x* $a]}
+		set rc [expr {[string match x* $b] - [string match x* $a]}]
+		if {$rc == 0} {
+			set rc [string compare $a $b]
+		}
+		return $rc
     }
     lsort -command cmp {x1 abc x2 def x3 x4}
 } {x1 x2 x3 x4 abc def}
