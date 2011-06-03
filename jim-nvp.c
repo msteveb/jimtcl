@@ -325,7 +325,7 @@ const char *Jim_Debug_ArgvString(Jim_Interp *interp, int argc, Jim_Obj *const *a
 
     debug_string_obj = Jim_NewEmptyStringObj(interp);
     for (x = 0; x < argc; x++) {
-        Jim_AppendStrings(interp, debug_string_obj, Jim_String(argv[x], NULL), " ");
+        Jim_AppendStrings(interp, debug_string_obj, Jim_String(argv[x]), " ", NULL);
     }
 
     return Jim_String(debug_string_obj);
