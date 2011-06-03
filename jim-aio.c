@@ -959,7 +959,9 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fileno(fp);
-    fcntl(af->fd, F_SETFD, FD_CLOEXEC);
+    if ((OpenFlags & AIO_KEEPOPEN) == 0) {
+        fcntl(af->fd, F_SETFD, FD_CLOEXEC);
+    }
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
 #endif
