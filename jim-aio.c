@@ -597,7 +597,9 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
     af->fd = sock;
+#ifdef FD_CLOEXEC
     fcntl(af->fd, F_SETFD, FD_CLOEXEC);
+#endif
     af->filename = Jim_NewStringObj(interp, "accept", -1);
     Jim_IncrRefCount(af->filename);
     af->fp = fdopen(sock, "r+");
@@ -959,9 +961,11 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     af = Jim_Alloc(sizeof(*af));
     af->fp = fp;
     af->fd = fileno(fp);
+#ifdef FD_CLOEXEC
     if ((OpenFlags & AIO_KEEPOPEN) == 0) {
         fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     }
+#endif
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
 #endif
