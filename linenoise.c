@@ -211,7 +211,11 @@ struct current {
 };
 
 /* gcc/glibc insists that we care about the return code of write! */
+#if defined(__GNUC__) && !defined(__clang__)
 #define IGNORE_RC(EXPR) ((EXPR) < 0 ? -1 : 0)
+#else
+#define IGNORE_RC(EXPR) EXPR
+#endif
 
 /* This is fd_printf() on some systems, but use a different
  * name to avoid conflicts

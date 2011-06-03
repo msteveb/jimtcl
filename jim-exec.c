@@ -35,6 +35,12 @@
 
 extern char **environ;
 
+#if defined(__GNUC__) && !defined(__clang__)
+#define IGNORE_RC(EXPR) ((EXPR) < 0 ? -1 : 0)
+#else
+#define IGNORE_RC(EXPR) EXPR
+#endif
+
 /* These two could be moved into the Tcl core */
 static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
 {
@@ -899,7 +905,7 @@ badargs:
             execvp(execName, &arg_array[firstArg]);
 
             /* we really can ignore the error here! */
-            write(2, execerr, execerrlen) < 0 ? -1 : 0;
+            IGNORE_RC(write(2, execerr, execerrlen));
             _exit(127);
         }
 

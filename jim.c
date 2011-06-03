@@ -7047,12 +7047,17 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprState *e)
                     unsigned long uA = (unsigned long)wA;
                     const unsigned int S = sizeof(unsigned long) * 8;
 
-                    wC = (unsigned long)((uA << wB) | (uA >> (S - wB)));
+                    /* Shift left by the word size or more is undefined. */
+                    wB %= S;
+
+                    wC = (unsigned long)(uA << wB) | (uA >> (S - wB));
                     break;
                 }
             case JIM_EXPROP_ROTR:{
                     unsigned long uA = (unsigned long)wA;
                     const unsigned int S = sizeof(unsigned long) * 8;
+
+                    wB %= S;
 
                     wC = (unsigned long)((uA >> wB) | (uA << (S - wB)));
                     break;
