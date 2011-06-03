@@ -272,38 +272,43 @@ test parse-1.53 "special chars in dict sugar" {
 	array names a
 } {{x[}}
 
-test parse-1.52 "special chars in dict sugar" {
+test parse-1.54 "special chars in dict sugar" {
 	set x $a(x\[)
 } 5
 
-test parse-1.53 "special chars in dict sugar" {
+test parse-1.55 "special chars in dict sugar" {
 	unset -nocomplain a
 	set a(x\() 5
 	array names a
 } {x(}
 
-test parse-1.52 "special chars in dict sugar" {
+test parse-1.56 "special chars in dict sugar" {
 	set x $a(x\()
 } 5
 
-test parse-1.53 "special chars in dict sugar" {
+test parse-1.57 "special chars in dict sugar" {
 	unset -nocomplain a
 	set a(x() 5
 	array names a
 } {x(}
 
-test parse-1.52 "special chars in dict sugar" {
+test parse-1.58 "special chars in dict sugar" {
 	set x $a(x()
 } 5
 
-test parse-1.53 "special chars in dict sugar" {
+test parse-1.59 "special chars in dict sugar" {
 	unset -nocomplain a
 	set a(x") 5
 	lindex [array names a] 0
 } {x"}
 
-test parse-1.52 "special chars in dict sugar" {
+test parse-1.60 "special chars in dict sugar" {
 	set x $a(x")
 } 5
+
+test parse-1.61 "quote in command" {
+	set x [list \\" x]
+	lindex $x end
+} x
 
 testreport

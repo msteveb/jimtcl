@@ -1095,20 +1095,18 @@ struct JimParserCtx
     char missing;               /* At end of parse, ' ' if complete, '{' if braces incomplete, '"' if quotes incomplete */
 };
 
-#define JimParserEof(c) ((c)->eof)
-#define JimParserTstart(c) ((c)->tstart)
-#define JimParserTend(c) ((c)->tend)
-#define JimParserTtype(c) ((c)->tt)
-#define JimParserTline(c) ((c)->tline)
-
 static int JimParseScript(struct JimParserCtx *pc);
 static int JimParseSep(struct JimParserCtx *pc);
 static int JimParseEol(struct JimParserCtx *pc);
 static int JimParseCmd(struct JimParserCtx *pc);
+static int JimParseQuote(struct JimParserCtx *pc);
 static int JimParseVar(struct JimParserCtx *pc);
 static int JimParseBrace(struct JimParserCtx *pc);
 static int JimParseStr(struct JimParserCtx *pc);
 static int JimParseComment(struct JimParserCtx *pc);
+static void JimParseSubCmd(struct JimParserCtx *pc);
+static int JimParseSubQuote(struct JimParserCtx *pc);
+static void JimParseSubCmd(struct JimParserCtx *pc);
 static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc);
 
 /* Initialize a parser context.
@@ -1236,59 +1234,217 @@ static int JimParseEol(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-static int JimParseCmd(struct JimParserCtx *pc)
+/*
+** Here are the rules for parsing:
+** {braced expression}
+** - Count open and closing braces
+** - Backslash escapes meaning of braces
+**
+** "quoted expression"
+** - First double quote at start of word terminates the expression
+** - Backslash escapes quote and bracket
+** - [commands brackets] are counted/nested
+** - command rules apply within [brackets], not quoting rules (i.e. quotes have their own rules)
+** 
+** [command expression]
+** - Count open and closing brackets
+** - Backslash escapes quote, bracket and brace
+** - [commands brackets] are counted/nested
+** - "quoted expressions" are parsed according to quoting rules
+** - {braced expressions} are parsed according to brace rules
+**
+** For everything, backslash escapes the next char, newline increments current line
+*/
+
+/**
+ * Parses a braced expression starting at pc->p.
+ * 
+ * Positions the parser at the end of the braced expression,
+ * sets pc->tend and possibly pc->missing.
+ */
+static void JimParseSubBrace(struct JimParserCtx *pc)
 {
     int level = 1;
-    int quoted = 0;
 
-    pc->tstart = ++pc->p;
+    /* Skip the brace */
+    pc->p++;
     pc->len--;
-    pc->tline = pc->linenr;
     while (pc->len) {
-        if (*pc->p == '\\' && pc->len > 1) {
-            if (pc->p[1] == '\n')
-                pc->linenr++;
+        switch (*pc->p) {
+            case '\\':
+                if (pc->len > 1) {
+                    if (*++pc->p == '\n') {
+                        pc->linenr++;
+                    }
+                    pc->len--;
+                }
+                break;
 
-            pc->p += 2;
-            pc->len -= 2;
-            continue;
-        }
-        else if (*pc->p == '"') {
-            quoted = !quoted;
-        }
-        else if (!quoted) {
-            if (*pc->p == '[') {
+            case '{':
                 level++;
-            }
-            else if (*pc->p == ']') {
-                level--;
-                if (!level)
-                    break;
-            }
-            else if (*pc->p == '{') {
-                /* Save and restore tstart and tline across JimParseBrace() */
-                const char * tstart = pc->tstart;
-                int tline = pc->tline;
+                break;
 
-                JimParseBrace(pc);
+            case '}':
+                if (--level == 0) {
+                    pc->tend = pc->p - 1;
+                    pc->p++;
+                    pc->len--;
+                    return;
+                }
+                break;
 
-                pc->tstart = tstart;
-                pc->tline = tline;
-                continue;
-            }
-        }
-        if (*pc->p == '\n') {
-            pc->linenr++;
+            case '\n':
+                pc->linenr++;
+                break;
         }
         pc->p++;
         pc->len--;
     }
+    pc->missing = '{';
     pc->tend = pc->p - 1;
-    pc->tt = JIM_TT_CMD;
-    if (*pc->p == ']') {
+}
+
+/**
+ * Parses a quoted expression starting at pc->p.
+ * 
+ * Positions the parser at the end of the quoted expression,
+ * sets pc->tend and possibly pc->missing.
+ *
+ * Returns the type of the token of the string,
+ * either JIM_TT_ESC (if it contains values which need to be [subst]ed)
+ * or JIM_TT_STR.
+ */
+static int JimParseSubQuote(struct JimParserCtx *pc)
+{
+    int tt = JIM_TT_STR;
+
+    /* Skip the quote */
+    pc->p++;
+    pc->len--;
+    while (pc->len) {
+        switch (*pc->p) {
+            case '\\':
+                if (pc->len > 1) {
+                    if (*++pc->p == '\n') {
+                        pc->linenr++;
+                    }
+                    pc->len--;
+                    tt = JIM_TT_ESC;
+                }
+                break;
+
+            case '"':
+                pc->tend = pc->p - 1;
+                pc->p++;
+                pc->len--;
+                return tt;
+
+            case '[':
+                JimParseSubCmd(pc);
+                tt = JIM_TT_ESC;
+                continue;
+
+            case '\n':
+                pc->linenr++;
+                break;
+
+            case '$':
+                tt = JIM_TT_ESC;
+                break;
+        }
         pc->p++;
         pc->len--;
     }
+    pc->missing = '"';
+    pc->tend = pc->p - 1;
+    return tt;
+}
+
+/**
+ * Parses a [command] expression starting at pc->p.
+ * 
+ * Positions the parser at the end of the command expression,
+ * sets pc->tend and possibly pc->missing.
+ */
+static void JimParseSubCmd(struct JimParserCtx *pc)
+{
+    int level = 1;
+    int startofword = 1;
+
+    /* Skip the bracket */
+    pc->p++;
+    pc->len--;
+    while (pc->len) {
+        switch (*pc->p) {
+            case '\\':
+                if (pc->len > 1) {
+                    if (*++pc->p == '\n') {
+                        pc->linenr++;
+                    }
+                    pc->len--;
+                }
+                break;
+
+            case '[':
+                level++;
+                break;
+
+            case ']':
+                if (--level == 0) {
+                    pc->tend = pc->p - 1;
+                    pc->p++;
+                    pc->len--;
+                    return;
+                }
+                break;
+
+            case '"':
+                if (startofword) {
+                    JimParseSubQuote(pc);
+                    continue;
+                }
+                break;
+
+            case '{':
+                JimParseSubBrace(pc);
+                startofword = 0;
+                continue;
+
+            case '\n':
+                pc->linenr++;
+                break;
+        }
+        startofword = isspace(UCHAR(*pc->p));
+        pc->p++;
+        pc->len--;
+    }
+    pc->missing = '[';
+    pc->tend = pc->p - 1;
+}
+
+static int JimParseBrace(struct JimParserCtx *pc)
+{
+    pc->tstart = pc->p + 1;
+    pc->tline = pc->linenr;
+    pc->tt = JIM_TT_STR;
+    JimParseSubBrace(pc);
+    return JIM_OK;
+}
+
+static int JimParseCmd(struct JimParserCtx *pc)
+{
+    pc->tstart = pc->p + 1;
+    pc->tline = pc->linenr;
+    pc->tt = JIM_TT_CMD;
+    JimParseSubCmd(pc);
+    return JIM_OK;
+}
+
+static int JimParseQuote(struct JimParserCtx *pc)
+{
+    pc->tstart = pc->p + 1;
+    pc->tline = pc->linenr;
+    pc->tt = JimParseSubQuote(pc);
     return JIM_OK;
 }
 
@@ -1381,48 +1537,6 @@ static int JimParseVar(struct JimParserCtx *pc)
     }
     pc->tt = ttype;
     return JIM_OK;
-}
-
-static int JimParseBrace(struct JimParserCtx *pc)
-{
-    int level = 1;
-
-    pc->tstart = ++pc->p;
-    pc->len--;
-    pc->tline = pc->linenr;
-    while (1) {
-        if (*pc->p == '\\' && pc->len >= 2) {
-            pc->p++;
-            pc->len--;
-            if (*pc->p == '\n')
-                pc->linenr++;
-        }
-        else if (*pc->p == '{') {
-            level++;
-        }
-        else if (pc->len == 0 || *pc->p == '}') {
-            if (pc->len == 0) {
-                pc->missing = '{';
-                /*printf("Missing brace at line %d, opened on line %d\n", pc->linenr, pc->tline);*/
-            }
-            level--;
-            if (pc->len == 0 || level == 0) {
-                pc->tend = pc->p - 1;
-                if (pc->len != 0) {
-                    pc->p++;
-                    pc->len--;
-                }
-                pc->tt = JIM_TT_STR;
-                return JIM_OK;
-            }
-        }
-        else if (*pc->p == '\n') {
-            pc->linenr++;
-        }
-        pc->p++;
-        pc->len--;
-    }
-    return JIM_OK;              /* unreached */
 }
 
 static int JimParseStr(struct JimParserCtx *pc)
@@ -1721,8 +1835,8 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
     char *token;
     int len;
 
-    start = JimParserTstart(pc);
-    end = JimParserTend(pc);
+    start = pc->tstart;
+    end = pc->tend;
     if (start > end) {
         len = 0;
         token = Jim_Alloc(1);
@@ -1731,7 +1845,7 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
     else {
         len = (end - start) + 1;
         token = Jim_Alloc(len + 1);
-        if (JimParserTtype(pc) != JIM_TT_ESC) {
+        if (pc->tt != JIM_TT_ESC) {
             /* No escape conversion needed? Just copy it. */
             memcpy(token, start, len);
             token[len] = '\0';
@@ -1761,7 +1875,7 @@ int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
     struct JimParserCtx parser;
 
     JimParserInit(&parser, s, len, 1);
-    while (!JimParserEof(&parser)) {
+    while (!parser.eof) {
         JimParseScript(&parser);
     }
     if (stateCharPtr) {
@@ -1779,13 +1893,6 @@ static int JimParseListQuote(struct JimParserCtx *pc);
 
 static int JimParseList(struct JimParserCtx *pc)
 {
-    if (pc->len == 0) {
-        pc->tstart = pc->tend = pc->p;
-        pc->tline = pc->linenr;
-        pc->tt = JIM_TT_EOL;
-        pc->eof = 1;
-        return JIM_OK;
-    }
     switch (*pc->p) {
         case ' ':
         case '\n':
@@ -1800,8 +1907,16 @@ static int JimParseList(struct JimParserCtx *pc)
             return JimParseBrace(pc);
 
         default:
-            return JimParseListStr(pc);
+            if (pc->len) {
+                return JimParseListStr(pc);
+            }
+            break;
     }
+
+    pc->tstart = pc->tend = pc->p;
+    pc->tline = pc->linenr;
+    pc->tt = JIM_TT_EOL;
+    pc->eof = 1;
     return JIM_OK;
 }
 
@@ -1832,10 +1947,6 @@ static int JimParseListQuote(struct JimParserCtx *pc)
 
     while (pc->len) {
         switch (*pc->p) {
-            case '$':
-            case '[':
-                pc->tt = JIM_TT_ESC;
-                break;
             case '\\':
                 pc->tt = JIM_TT_ESC;
                 if (--pc->len == 0) {
@@ -1870,17 +1981,13 @@ static int JimParseListStr(struct JimParserCtx *pc)
 
     while (pc->len) {
         switch (*pc->p) {
-            case '$':
-            case '[':
-                pc->tt = JIM_TT_ESC;
-                break;
             case '\\':
-                pc->tt = JIM_TT_ESC;
                 if (--pc->len == 0) {
                     /* Trailing backslash */
                     pc->tend = pc->p;
                     return JIM_OK;
                 }
+                pc->tt = JIM_TT_ESC;
                 pc->p++;
                 break;
             case ' ':
@@ -3194,7 +3301,7 @@ int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     ScriptTokenListInit(&tokenlist);
 
     JimParserInit(&parser, scriptText, scriptTextLen, script->line);
-    while (!JimParserEof(&parser)) {
+    while (!parser.eof) {
         JimParseScript(&parser);
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
             parser.tline);
@@ -5603,15 +5710,15 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     /* Convert into a list */
     JimParserInit(&parser, str, strLen, linenr);
-    while (!JimParserEof(&parser)) {
+    while (!parser.eof) {
         Jim_Obj *elementPtr;
 
         JimParseList(&parser);
-        if (JimParserTtype(&parser) != JIM_TT_STR && JimParserTtype(&parser) != JIM_TT_ESC)
+        if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
             continue;
         elementPtr = JimParserGetTokenObj(interp, &parser);
         if (filename) {
-            JimSetSourceInfo(interp, elementPtr, filename, JimParserTline(&parser));
+            JimSetSourceInfo(interp, elementPtr, filename, parser.tline);
         }
         ListAppendElement(objPtr, elementPtr);
     }
@@ -7586,7 +7693,6 @@ static int JimParseExpression(struct JimParserCtx *pc)
             break;
         case '[':
             return JimParseCmd(pc);
-            break;
         case '$':
             if (JimParseVar(pc) == JIM_ERR)
                 return JimParseExprOperator(pc);
@@ -7610,13 +7716,11 @@ static int JimParseExpression(struct JimParserCtx *pc)
         case '9':
         case '.':
             return JimParseExprNumber(pc);
-            break;
         case '"':
+            return JimParseQuote(pc);
         case '{':
-            /* Here it's possible to reuse the List String parsing. */
-            pc->tt = JIM_TT_NONE;       /* Make sure it's sensed as a new word. */
-            return JimParseList(pc);
-            break;
+            return JimParseBrace(pc);
+
         case 'N':
         case 'I':
         case 'n':
@@ -8294,7 +8398,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     ScriptTokenListInit(&tokenlist);
 
     JimParserInit(&parser, exprText, exprTextLen, 0);
-    while (!JimParserEof(&parser)) {
+    while (!parser.eof) {
         if (JimParseExpression(&parser) != JIM_OK) {
             ScriptTokenListFree(&tokenlist);
           invalidexpr:
@@ -10332,7 +10436,7 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     JimParserInit(&parser, scriptText, scriptTextLen, 1);
     while (1) {
         JimParseSubst(&parser, flags);
-        if (JimParserEof(&parser)) {
+        if (parser.eof) {
             /* Note that subst doesn't need the EOL token */
             break;
         }
