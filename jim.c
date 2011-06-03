@@ -7042,24 +7042,20 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprState *e)
                     }
                 }
                 break;
-            case JIM_EXPROP_ROTL:{
+            case JIM_EXPROP_ROTL:
+            case JIM_EXPROP_ROTR:{
                     /* uint32_t would be better. But not everyone has inttypes.h? */
                     unsigned long uA = (unsigned long)wA;
+                    unsigned long uB = (unsigned long)wB;
                     const unsigned int S = sizeof(unsigned long) * 8;
 
                     /* Shift left by the word size or more is undefined. */
-                    wB %= S;
+                    uB %= S;
 
-                    wC = (unsigned long)(uA << wB) | (uA >> (S - wB));
-                    break;
-                }
-            case JIM_EXPROP_ROTR:{
-                    unsigned long uA = (unsigned long)wA;
-                    const unsigned int S = sizeof(unsigned long) * 8;
-
-                    wB %= S;
-
-                    wC = (unsigned long)((uA >> wB) | (uA << (S - wB)));
+                    if (e->opcode == JIM_EXPROP_ROTR) {
+                        uB = S - uB;
+                    }
+                    wC = (unsigned long)(uA << uB) | (uA >> (S - uB));
                     break;
                 }
             default:
