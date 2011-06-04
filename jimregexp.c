@@ -179,7 +179,7 @@ static int *reginsert(regex_t *preg, int op, int *opnd );
 static void regtail(regex_t *preg, int *p, const int *val );
 static void regoptail(regex_t *preg, int *p, const int *val );
 
-static int reg_range_find(const int *string, int c, int nocase);
+static int reg_range_find(const int *string, int c);
 static const char *str_find(const char *string, int c, int nocase);
 static int prefix_cmp(const int *prog, int proglen, const char *string, int nocase);
 
@@ -1254,10 +1254,14 @@ nextline:
 	}
 	else
 		/* We don't -- general case. */
-		do {
+		while (1) {
 			if (regtry(preg, s))
 				return REG_NOERROR;
-		} while (*s++ != '\0');
+			if (*s == '\0') {
+				break;
+			}
+			s += utf8_charlen(*s);
+		}
 
 	/* Failure. */
 	return REG_NOMATCH;
@@ -1314,18 +1318,12 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 /**
  * Searchs for 'c' in the range 'range'.
  * 
- * If 'nocase' is set, the range is assumed to be uppercase
- * and 'c' is converted to uppercase before matching.
- *
  * Returns 1 if found, or 0 if not.
  */
-static int reg_range_find(const int *range, int c, int nocase)
+static int reg_range_find(const int *range, int c)
 {
-	if (nocase) {
-		/* The "string" should already be converted to uppercase */
-		c = utf8_upper(c);
-	}
 	while (*range) {
+		/*printf("Checking %d in range [%d,%d]\n", c, range[1], (range[0] + range[1] - 1));*/
 		if (c >= range[1] && c <= (range[0] + range[1] - 1)) {
 			return 1;
 		}
@@ -1398,6 +1396,8 @@ static int regmatch(regex_t *preg, const int *prog)
 		fprintf(stderr, "%s(\n", regprop(scan));
 #endif
 	while (scan != NULL) {
+		int n;
+		int c;
 #ifdef DEBUG
 		if (regnarrate) {
 			//fprintf(stderr, "%s...\n", regprop(scan));
@@ -1406,6 +1406,7 @@ static int regmatch(regex_t *preg, const int *prog)
 		}
 #endif
 		next = regnext(preg, scan);
+		n = reg_utf8_tounicode_case(preg->reginput, &c, (preg->cflags & REG_ICASE));
 
 		switch (OP(scan)) {
 		case BOL:
@@ -1413,7 +1414,7 @@ static int regmatch(regex_t *preg, const int *prog)
 				return(0);
 			break;
 		case EOL:
-			if (!reg_iseol(preg, *preg->reginput)) {
+			if (!reg_iseol(preg, c)) {
 				return(0);
 			}
 			break;
@@ -1433,9 +1434,9 @@ static int regmatch(regex_t *preg, const int *prog)
 			/* We don't care what the previous char was */
 			break;
 		case ANY:
-			if (reg_iseol(preg, *preg->reginput))
+			if (reg_iseol(preg, c))
 				return 0;
-			preg->reginput++;
+			preg->reginput += n;
 			break;
 		case EXACTLY: {
 				const int *opnd;
@@ -1453,18 +1454,16 @@ static int regmatch(regex_t *preg, const int *prog)
 			}
 			break;
 		case ANYOF:
-			if (reg_iseol(preg, *preg->reginput))
-				return 0;
-			if (reg_range_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) == 0)
+			if (reg_iseol(preg, c) || reg_range_find(OPERAND(scan), c) == 0) {
 				return(0);
-			preg->reginput++;
+			}
+			preg->reginput += n;
 			break;
 		case ANYBUT:
-			if (reg_iseol(preg, *preg->reginput))
-				return 0;
-			if (reg_range_find(OPERAND(scan), *preg->reginput, preg->cflags & REG_ICASE) != 0)
+			if (reg_iseol(preg, c) || reg_range_find(OPERAND(scan), c) != 0) {
 				return(0);
-			preg->reginput++;
+			}
+			preg->reginput += n;
 			break;
 		case NOTHING:
 			break;
@@ -1605,45 +1604,47 @@ static int regrepeat(regex_t *preg, const int *p )
 	int count = 0;
 	const char *scan;
 	const int *opnd;
+	int ch;
+	int n;
 
 	scan = preg->reginput;
 	opnd = OPERAND(p);
 	switch (OP(p)) {
 	case ANY:
+		/* No need to handle utf8 specially here */
 		while (!reg_iseol(preg, *scan)) {
 			count++;
 			scan++;
 		}
 		break;
 	case EXACTLY:
-		if (preg->cflags & REG_ICASE) {
-			while (1) {
-				int ch;
-				int n = reg_utf8_tounicode_case(scan, &ch, 1);
-				if (*opnd != ch) {
-					break;
-				}
-				count++;
-				scan += n;
+		while (1) {
+			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
+			if (*opnd != ch) {
+				break;
 			}
-		}
-		else {
-			while (*opnd == *scan) {
-				count++;
-				scan++;
-			}
+			count++;
+			scan += n;
 		}
 		break;
 	case ANYOF:
-		while (!reg_iseol(preg, *scan) && reg_range_find(opnd, *scan, preg->cflags & REG_ICASE) != 0) {
+		while (1) {
+			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
+			if (reg_iseol(preg, ch) || reg_range_find(opnd, ch) == 0) {
+				break;
+			}
 			count++;
-			scan++;
+			scan += n;
 		}
 		break;
 	case ANYBUT:
-		while (!reg_iseol(preg, *scan) && reg_range_find(opnd, *scan, preg->cflags & REG_ICASE) == 0) {
+		while (1) {
+			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
+			if (reg_iseol(preg, ch) || reg_range_find(opnd, ch) != 0) {
+				break;
+			}
 			count++;
-			scan++;
+			scan += n;
 		}
 		break;
 	default:		/* Oh dear.  Called inappropriately. */
