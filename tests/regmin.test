@@ -36,4 +36,12 @@ test regexpmin-1.8 {Minimal html} {
 	regexp -inline {<(.+?)>} <foo><bar><grill>
 } {<foo> foo}
 
+test regexpmin-2.1 {utf8 repeat} {
+	regexp -inline {a\u00df+}  a\udf\udf\udf\udf\ub5z
+} "a\udf\udf\udf\udf"
+
+test regexpmin-2.2 {utf8 min repeat} {
+	regexp -inline {a\u00df+?}  a\udf\udf\udf\udf\ub5z
+} "a\udf"
+
 testreport

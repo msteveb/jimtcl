@@ -1505,14 +1505,16 @@ static int regmatch(regex_t *preg, const int *prog)
 				min = (OP(scan) == STARMIN) ? 0 : 1;
 				save = preg->reginput;
 				max = regrepeat(preg, OPERAND(scan));
-				while (min < max) {
+				while (min <= max) {
 					int ch;
-					preg->reginput = save + min;
+					preg->reginput = save + utf8_index(save, min);
 					reg_utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
 					/* If it could work, try it. */
-					if (reg_iseol(preg, nextch) || ch == nextch)
-						if (regmatch(preg, next))
+					if (reg_iseol(preg, nextch) || ch == nextch) {
+						if (regmatch(preg, next)) {
 							return(1);
+						}
+					}
 					/* Couldn't or didn't, add one more */
 					min++;
 				}
@@ -1539,6 +1541,7 @@ static int regmatch(regex_t *preg, const int *prog)
 				no = regrepeat(preg, OPERAND(scan));
 				while (no >= min) {
 					int ch;
+					preg->reginput = save + utf8_index(save, no);
 					reg_utf8_tounicode_case(preg->reginput, &ch, (preg->cflags & REG_ICASE));
 					/* If it could work, try it. */
 					if (reg_iseol(preg, nextch) || ch == nextch)
@@ -1546,7 +1549,6 @@ static int regmatch(regex_t *preg, const int *prog)
 							return(1);
 					/* Couldn't or didn't -- back up. */
 					no--;
-					preg->reginput = save + no;
 				}
 				return(0);
 			}
