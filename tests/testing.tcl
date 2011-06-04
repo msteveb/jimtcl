@@ -183,6 +183,7 @@ proc test {id descr args} {
 	}
 	puts "Expected: '$expected'"
 	puts "Got     : '$result'"
+	puts ""
 	incr ::testinfo(numfail)
 	lappend ::testinfo(failed) [list $id $descr $source $expected $result]
 }
