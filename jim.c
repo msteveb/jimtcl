@@ -13611,15 +13611,19 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
 
         case INFO_COMPLETE:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "script");
+            if (argc != 3 && argc != 4) {
+                Jim_WrongNumArgs(interp, 2, argv, "script ?missing?");
                 return JIM_ERR;
             }
             else {
                 int len;
                 const char *s = Jim_GetString(argv[2], &len);
+                char missing = '\0';
 
-                Jim_SetResultBool(interp, Jim_ScriptIsComplete(s, len, NULL));
+                Jim_SetResultBool(interp, Jim_ScriptIsComplete(s, len, &missing));
+                if (missing && argc == 4) {
+                    Jim_SetVariable(interp, argv[3], Jim_NewStringObj(interp, &missing, 1));
+                }
             }
             break;
 
