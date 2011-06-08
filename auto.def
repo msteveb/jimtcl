@@ -242,6 +242,7 @@ dict set extdb attrs {
     file      {}
     glob      { tcl }
     history   {}
+    interp    { }
     load      { static }
     mk        { cpp optional }
     namespace { static }

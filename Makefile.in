@@ -154,6 +154,10 @@ file.so: jim-file.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-file.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-file.o $(SH_LIBJIM)
 
+interp.so: jim-interp.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-interp.o jim-interp.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-interp.o $(SH_LIBJIM) @LDLIBS_interp@
+
 posix.so: jim-posix.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-posix.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-posix.o $(SH_LIBJIM)
