@@ -7,6 +7,7 @@ set testinfo(stoponerror) 0
 set testinfo(numfail) 0
 set testinfo(numskip) 0
 set testinfo(numtests) 0
+set testinfo(reported) 0
 set testinfo(failed) {}
 
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
@@ -251,6 +252,11 @@ proc ::tcltest::cleanupTests {} {
 }
 
 proc testreport {} {
+	if {$::testinfo(reported)} {
+		return
+	}
+	incr ::testinfo(reported)
+
 	if {$::testinfo(verbose)} {
 		puts -nonewline "\n$::argv0"
 	} else {
