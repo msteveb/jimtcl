@@ -26,7 +26,6 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[100];
     time_t t;
     long seconds;
-    struct tm tm;
 
     const char *format = "%a %b  %d %H:%M:%S %Z %Y";
 
@@ -43,7 +42,7 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     t = seconds;
 
-    strftime(buf, sizeof(buf), format, localtime_r(&t, &tm));
+    strftime(buf, sizeof(buf), format, localtime(&t));
 
     Jim_SetResultString(interp, buf, -1);
 

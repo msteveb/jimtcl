@@ -14,8 +14,6 @@
 
 #define JIM_ANSIC
 #define MKDIR_ONE_ARG
-#define rand_r(S) ((void)(S), rand())
-#define localtime_r(T,TM) ((void)(TM), localtime(T))
 
 #define RTLD_LAZY 0
 void *dlopen(const char *path, int mode);
