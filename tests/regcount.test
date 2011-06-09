@@ -92,8 +92,9 @@ foreach {pat str exp} {
     {ab*c} xnbbmbbbc {}
     {.^xxx} yyy {}
     {\mb} "   abc   " ""
-	((a*)*b)*b aaaaaaaaaaaaaaaaaaaaaaaaab {b {} {}}
+	####((a*)*b)*b aaaaaaaaaaaaaaaaaaaaaaaaab {b {} {}}
 	####(a*)* aab {aa {}}
+	{^([^:=]*)(:)?(=)?$} version {version version {} {}}
 } {
 	if {[string match #* $pat]} {
 		continue

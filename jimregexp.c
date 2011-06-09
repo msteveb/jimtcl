@@ -455,6 +455,11 @@ static int *regpiece(regex_t *preg, int *flagp)
 		return(ret);
 	}
 
+	if (!(flags&HASWIDTH) && op != '?') {
+		preg->err = REG_ERR_OPERAND_COULD_BE_EMPTY;
+		return NULL;
+	}
+
 	/* Handle braces (counted repetition) by expansion */
 	if (op == '{') {
 		char *end;
@@ -1290,11 +1295,7 @@ static int regmatchrepeat(regex_t *preg, int *scan, int matchmin)
 	int max = scan[2];
 	int min = scan[3];
 
-	if (preg->reginput == preg->prev) {
-		/* If we haven't moved, no match */
-		return 0;
-	}
-	preg->prev = save = preg->reginput;
+	save = preg->reginput;
 
 	/* Have we reached min? */
 	if (scan[4] < min) {

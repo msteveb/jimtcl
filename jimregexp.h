@@ -66,7 +66,6 @@ typedef struct regexp {
 	const char *start;		/* Initial string pointer. */
 	const char *reginput;	/* Current input pointer. */
 	const char *regbol;		/* Beginning of input, for ^ check. */
-	const char *prev;		/* Ensure we don't try to match nothing more than once */
 
 	/* Input to regexec() */
 	regmatch_t *pmatch;		/* submatches will be stored here */
