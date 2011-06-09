@@ -9324,19 +9324,24 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
 /* -----------------------------------------------------------------------------
  * Pseudo Random Number Generation
  * ---------------------------------------------------------------------------*/
-static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedLen);
+static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 
 /* Initialize the sbox with the numbers from 0 to 255 */
 static void JimPrngInit(Jim_Interp *interp)
 {
+#define PRNG_SEED_SIZE 256
     int i;
-    /* XXX: Move off stack */
-    unsigned int seed[256];
+    unsigned int *seed;
+    time_t t = time(NULL);
 
     interp->prngState = Jim_Alloc(sizeof(Jim_PrngState));
-    for (i = 0; i < 256; i++)
-        seed[i] = (rand() ^ time(NULL) ^ clock());
-    JimPrngSeed(interp, (unsigned char *)seed, sizeof(int) * 256);
+
+    seed = Jim_Alloc(PRNG_SEED_SIZE * sizeof(*seed));
+    for (i = 0; i < PRNG_SEED_SIZE; i++) {
+        seed[i] = (rand() ^ t ^ clock());
+    }
+    JimPrngSeed(interp, (unsigned char *)seed, PRNG_SEED_SIZE * sizeof(*seed));
+    Jim_Free(seed);
 }
 
 /* Generates N bytes of random data */
@@ -9363,11 +9368,9 @@ static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len)
 }
 
 /* Re-seed the generator with user-provided bytes */
-static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedLen)
+static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen)
 {
     int i;
-    /* XXX: Move off stack */
-    unsigned char buf[256];
     Jim_PrngState *prng;
 
     /* initialization, only needed the first time */
@@ -9387,8 +9390,13 @@ static void JimPrngSeed(Jim_Interp *interp, const unsigned char *seed, int seedL
         prng->sbox[seed[i]] = t;
     }
     prng->i = prng->j = 0;
-    /* discard the first 256 bytes of stream. */
-    JimRandomBytes(interp, buf, 256);
+
+    /* discard at least the first 256 bytes of stream.
+     * borrow the seed buffer for this
+     */
+    for (i = 0; i < 256; i += seedLen) {
+        JimRandomBytes(interp, seed, seedLen);
+    }
 }
 
 /* [incr] */
