@@ -58,7 +58,7 @@ cc-check-types "long long"
 
 cc-check-includes sys/un.h dlfcn.h unistd.h
 
-cc-check-functions ualarm sysinfo lstat fork vfork
+cc-check-functions ualarm sysinfo lstat fork vfork system
 cc-check-functions backtrace geteuid mkstemp realpath strptime
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist
 cc-check-functions syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo
@@ -157,7 +157,7 @@ set dep(rlprompt) readline
 set dep(tree) oo
 
 set needs(aio) {expr {[cc-check-function-in-lib socket socket] || 1}}
-set needs(exec) {expr {[have-feature vfork] && [have-feature waitpid]}}
+set needs(exec) {expr {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]}}
 set needs(load) {expr {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]}}
 set needs(posix) {have-feature waitpid}
 set needs(readdir) {have-feature opendir}

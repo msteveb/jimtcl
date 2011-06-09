@@ -22,16 +22,19 @@
  */
 
 #include <string.h>
-#include <unistd.h>
 #include <signal.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/wait.h>
 
 #include "jim.h"
 #include "jimautoconf.h"
-#include "jim-subcmd.h"
+
+#if defined(HAVE_VFORK) && defined(HAVE_WAITPID)
+
 #include "jim-signal.h"
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/wait.h>
 
 extern char **environ;
 
@@ -1057,3 +1060,63 @@ int Jim_execInit(Jim_Interp *interp)
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, JimAllocWaitInfoTable(), JimFreeWaitInfoTable);
     return JIM_OK;
 }
+#else
+/* e.g. Windows. Poor mans implementation of exec with system()
+ *      The system() call *may* do command line redirection, etc.
+ *      The standard output is not available.
+ *      Can't redirect filehandles.
+ */
+static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *cmdlineObj = Jim_NewEmptyStringObj(interp);
+    int i, j;
+    int rc;
+
+    /* Create a quoted command line */
+    for (i = 1; i < argc; i++) {
+        int len;
+        const char *arg = Jim_GetString(argv[i], &len);
+
+        if (i > 1) {
+            Jim_AppendString(interp, cmdlineObj, " ", 1);
+        }
+        if (strpbrk(arg, "\\\" ") == NULL) {
+            /* No quoting required */
+            Jim_AppendString(interp, cmdlineObj, arg, len);
+            continue;
+        }
+
+        Jim_AppendString(interp, cmdlineObj, "\"", 1);
+        for (j = 0; j < len; j++) {
+            if (arg[j] == '\\' || arg[j] == '"') {
+                Jim_AppendString(interp, cmdlineObj, "\\", 1);
+            }
+            Jim_AppendString(interp, cmdlineObj, &arg[j], 1);
+        }
+        Jim_AppendString(interp, cmdlineObj, "\"", 1);
+    }
+    rc = system(Jim_String(cmdlineObj));
+
+    Jim_FreeNewObj(interp, cmdlineObj);
+
+    if (rc) {
+        Jim_Obj *errorCode = Jim_NewListObj(interp, NULL, 0);
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, 0));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, rc));
+        Jim_SetGlobalVariableStr(interp, "errorCode", errorCode);
+        return JIM_ERR;
+    }
+
+    return JIM_OK;
+}
+
+int Jim_execInit(Jim_Interp *interp)
+{
+    if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
+    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
+    return JIM_OK;
+}
+#endif

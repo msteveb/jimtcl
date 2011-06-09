@@ -57,6 +57,17 @@ for i in $allexts; do
 	echo "#define jim_ext_$i"
 done
 
+# Can we make a bootstrap jimsh work even on mingw32?
+cat <<EOF
+#ifdef __MINGW32__
+#define MKDIR_ONE_ARG
+#define HAVE_SYSTEM
+#else
+#define HAVE_VFORK
+#define HAVE_WAITPID
+#endif
+EOF
+
 # Now output header files, removing references to jim header files
 for i in utf8.h jim.h jim-subcmd.h jimregexp.h ; do
 	sed -e '/#include.*jim/d' -e '/#include.*utf8/d' $i
