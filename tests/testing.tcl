@@ -111,7 +111,8 @@ proc bytestring {x} {
 
 # Note: We don't support -output or -errorOutput yet
 proc test {id descr args} {
-	if {[lindex $args 0] ni {-returnCodes -body -match -constraints -result -setup -output -errorOutput}} {
+	set a [dict create -returnCodes {ok return} -match exact -result {} -constraints {} -body {} -setup {} -cleanup {}]
+	if {[lindex $args 0] ni [dict keys $a]} {
 		if {[llength $args] == 2} {
 			lassign $args body result constraints
 		} elseif {[llength $args] == 3} {
@@ -122,7 +123,6 @@ proc test {id descr args} {
 		tailcall test $id $descr -body $body -result $result -constraints $constraints
 	}
 	# tcltest::test v2 syntax
-	set a {-returnCodes {ok return} -match exact -result {} -constraints {} -body {} -setup {} -cleanup {}}
 	array set a $args
 
 	incr ::testinfo(numtests)
@@ -144,7 +144,7 @@ proc test {id descr args} {
 	}
 
 	catch {uplevel 1 $a(-setup)}
-	set rc [catch {uplevel 1 $a(-body)} result]
+	set rc [catch {uplevel 1 $a(-body)} result opts]
 	catch {uplevel 1 $a(-cleanup)}
 
 	if {[info return $rc] ni $a(-returnCodes)} {
