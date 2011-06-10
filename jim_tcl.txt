@@ -51,7 +51,6 @@ The major differences with Tcl 8.5/8.6 are:
 11. Variable traces are not supported
 12. Direct command line editing rather than the 'history' command
 13. Expression shorthand syntax: +$(...)+
-14. The 'binary' command is not supported
 
 RECENT CHANGES
 --------------
@@ -65,6 +64,11 @@ Changes between 0.70 and 0.71
 5. Additional variables in +tcl_platform()+
 6. 'local' procs now push existing commands and 'upcall' can call them
 7. Add 'loop' command (TclX compatible)
+8. Add 'aio' 'buffering' command
+9. 'info complete' can now return the missing character
+10. 'binary format' and 'binary scan' are now (optionally) supported
+11. Add 'string byterange'
+12. Built-in regexp now support non-greedy repetition (*?, +?, ??)
 
 Changes between 0.63 and 0.70
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,7 +81,7 @@ Changes between 0.63 and 0.70
 7. The 'exec' command now only uses vfork(), not fork()
 8. Unit test framework is less verbose and more Tcl-compatible
 9. Optional UTF-8 support
-10. Optional built-in regexp engines for better Tcl compatibility and UTF-8 support
+10. Optional built-in regexp engine for better Tcl compatibility and UTF-8 support
 11. Command line editing in interactive mode, e.g. 'jimsh'
 
 TCL INTRODUCTION
@@ -2507,9 +2511,6 @@ The legal *option*'s (which may be abbreviated) are:
     the name of a Tcl command procedure.
 
 +*info channels*+::
-    Returns a list of all open 'aio' channels.
-
-+*info channels*+::
     Returns a list of all open file handles from 'open' or 'socket'
 
 +*info commands* ?'pattern'?+::
@@ -2520,14 +2521,15 @@ The legal *option*'s (which may be abbreviated) are:
     are returned.  Matching is determined using the same rules as for
     'string match'.
 
-+*info complete* 'command'+::
++*info complete* 'command' ?'missing'?+::
     Returns 1 if *command* is a complete Tcl command in the sense of
     having no unclosed quotes, braces, brackets or array element names,
     If the command doesn't appear to be complete then 0 is returned.
     This command is typically used in line-oriented input environments
     to allow users to type in commands that span multiple lines;  if the
     command isn't complete, the script can delay evaluating it until additional
-    lines have been typed to complete the command.
+    lines have been typed to complete the command. If *varName* is specified, the
+    missing character is stored in the variable with that name.
 
 +*info exists* 'varName'+::
     Returns '1' if the variable named *varName* exists in the
@@ -3780,6 +3782,10 @@ The legal options (which may be abbreviated) are:
     it is treated as if it were 'end'.  If *first* is greater than
     *last* then an empty string is returned.
 
++*string byterange* 'string first last'+::
+    Like 'string range' except works on bytes rather than characters. These commands
+    are identical if UTF-8 support is not enabled
+
 +*string repeat* 'string count'+::
     Returns a new string consisting of *string* repeated *count* times.
 
@@ -4284,6 +4290,9 @@ aio
     Set O_NDELAY (if arg). Returns current/new setting.
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
+
++$handle *buffering none|line|full*+::
+    Sets the buffering mode of the stream.
 
 +$handle *accept*+::
     Server socket only: Accept a connection and return stream

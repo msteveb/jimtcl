@@ -676,11 +676,6 @@ Direct command line editing rather than the <em>history</em> command
 Expression shorthand syntax: <tt>$(&#8230;)</tt>
 </p>
 </li>
-<li>
-<p>
-The <em>binary</em> command is not supported
-</p>
-</li>
 </ol></div>
 </div>
 </div>
@@ -718,6 +713,36 @@ Additional variables in <tt>tcl_platform()</tt>
 <li>
 <p>
 <em>local</em> procs now push existing commands and <em>upcall</em> can call them
+</p>
+</li>
+<li>
+<p>
+Add <em>loop</em> command (TclX compatible)
+</p>
+</li>
+<li>
+<p>
+Add <em>aio</em> <em>buffering</em> command
+</p>
+</li>
+<li>
+<p>
+<em>info complete</em> can now return the missing character
+</p>
+</li>
+<li>
+<p>
+<em>binary format</em> and <em>binary scan</em> are now (optionally) supported
+</p>
+</li>
+<li>
+<p>
+Add <em>string byterange</em>
+</p>
+</li>
+<li>
+<p>
+Built-in regexp now support non-greedy repetition (*?, +?, ??)
 </p>
 </li>
 </ol></div>
@@ -772,7 +797,7 @@ Optional UTF-8 support
 </li>
 <li>
 <p>
-Optional built-in regexp engines for better Tcl compatibility and UTF-8 support
+Optional built-in regexp engine for better Tcl compatibility and UTF-8 support
 </p>
 </li>
 <li>
@@ -2660,12 +2685,13 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lmap">lmap</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load">load</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_local">local</a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_loop">loop</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrange">lrange</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat">lrepeat</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreplace">lreplace</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lreverse">lreverse</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lreverse">lreverse</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch">lsearch</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset">lset</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort">lsort</a></p></td>
@@ -2673,9 +2699,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.fork</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.gethostname</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.getids</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1">os.uptime</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1">os.uptime</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1">os.wait</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package">package</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pid">pid</a></p></td>
@@ -2683,9 +2709,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_proc">proc</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts">puts</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd">pwd</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_rand">rand</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_rand">rand</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_range">range</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read">read</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_ref">ref</a></p></td>
@@ -2693,9 +2719,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_regsub">regsub</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename">rename</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return">return</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_scan">scan</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_scan">scan</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_seek">seek</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set">set</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_setref">setref</a></p></td>
@@ -2703,9 +2729,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_sleep">sleep</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket">socket</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source">source</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_split">split</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_split">split</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump">stackdump</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace">stacktrace</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_string">string</a></p></td>
@@ -2713,9 +2739,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_switch">switch</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_syslog">syslog</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall">tailcall</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tell">tell</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_tell">tell</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw">throw</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time">time</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try">try</a></p></td>
@@ -2723,13 +2749,12 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_unset">unset</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall">upcall</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2">update</a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_uplevel">uplevel</a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_uplevel">uplevel</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar">upvar</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2">vwait</a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while">while</a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -3956,14 +3981,6 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 </dt>
 <dd>
 <p>
-    Returns a list of all open <em>aio</em> channels.
-</p>
-</dd>
-<dt class="hdlist1">
-<tt><strong>info channels</strong></tt>
-</dt>
-<dd>
-<p>
     Returns a list of all open file handles from <em>open</em> or <em>socket</em>
 </p>
 </dd>
@@ -3981,7 +3998,7 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><strong>info complete</strong> <em>command</em></tt>
+<tt><strong>info complete</strong> <em>command</em> ?<em>missing</em>?</tt>
 </dt>
 <dd>
 <p>
@@ -3991,7 +4008,8 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
     This command is typically used in line-oriented input environments
     to allow users to type in commands that span multiple lines;  if the
     command isn&#8217;t complete, the script can delay evaluating it until additional
-    lines have been typed to complete the command.
+    lines have been typed to complete the command. If <strong>varName</strong> is specified, the
+    missing character is stored in the variable with that name.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4297,6 +4315,19 @@ than waiting until garbage collection.</p></div>
   ...
 }</tt></pre>
 </div></div>
+</div>
+<div class="sect2">
+<h3 id="_loop">loop</h3>
+<div class="paragraph"><p><tt><strong>loop</strong> <em>var first limit ?incr? body</em></tt></p></div>
+<div class="paragraph"><p>Similar to <em>for</em> except simpler and possibly more efficient.
+With a positive increment, equivalent to:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>for {set var $first} {$var &lt; $limit} {incr var $incr} $body</tt></pre>
+</div></div>
+<div class="paragraph"><p>If <strong>incr</strong> is not specified, 1 is used.
+Note that setting the loop variable inside the loop does not
+affect the loop count.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_lindex">lindex</h3>
@@ -5603,6 +5634,15 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>string byterange</strong> <em>string first last</em></tt>
+</dt>
+<dd>
+<p>
+    Like <em>string range</em> except works on bytes rather than characters. These commands
+    are identical if UTF-8 support is not enabled
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string repeat</strong> <em>string count</em></tt>
 </dt>
 <dd>
@@ -6232,6 +6272,14 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
     Set O_NDELAY (if arg). Returns current/new setting.
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$handle <strong>buffering none|line|full</strong></tt>
+</dt>
+<dd>
+<p>
+    Sets the buffering mode of the stream.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6977,7 +7025,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-06-01 13:11:48 EST
+Last updated 2011-06-10 14:47:19 EST
 </div>
 </div>
 </body>
