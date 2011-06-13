@@ -72,6 +72,9 @@
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
 
+/* We may decide to switch to using $[...] after all, so leave it as an option */
+/*#define EXPRSUGAR_BRACKET*/
+
 /* For the no-autoconf case */
 #ifndef TCL_LIBRARY
 #define TCL_LIBRARY "."
@@ -1505,52 +1508,61 @@ static int JimParseQuote(struct JimParserCtx *pc)
 
 static int JimParseVar(struct JimParserCtx *pc)
 {
-    int brace = 0, stop = 0;
-    int ttype = JIM_TT_VAR;
+    /* skip the $ */
+    pc->p++;
+    pc->len--;
 
-    pc->tstart = ++pc->p;
-    pc->len--;                  /* skip the $ */
+#ifdef EXPRSUGAR_BRACKET
+    if (*pc->p == '[') {
+        /* Parse $[...] expr shorthand syntax */
+        JimParseCmd(pc);
+        pc->tt = JIM_TT_EXPRSUGAR;
+        return JIM_OK;
+    }
+#endif
+
+    pc->tstart = pc->p;
+    pc->tt = JIM_TT_VAR;
     pc->tline = pc->linenr;
+
     if (*pc->p == '{') {
         pc->tstart = ++pc->p;
         pc->len--;
-        brace = 1;
-    }
-    if (brace) {
-        while (!stop) {
-            if (*pc->p == '}' || pc->len == 0) {
-                pc->tend = pc->p - 1;
-                stop = 1;
-                if (pc->len == 0)
-                    break;
-            }
-            else if (*pc->p == '\n')
+
+        while (pc->len && *pc->p != '}') {
+            if (*pc->p == '\n') {
                 pc->linenr++;
+            }
+            pc->p++;
+            pc->len--;
+        }
+        pc->tend = pc->p - 1;
+        if (pc->len) {
             pc->p++;
             pc->len--;
         }
     }
     else {
-        while (!stop) {
+        while (1) {
             /* Skip double colon, but not single colon! */
-            if (pc->p[0] == ':' && pc->len > 1 && pc->p[1] == ':') {
+            if (pc->p[0] == ':' && pc->p[1] == ':') {
                 pc->p += 2;
                 pc->len -= 2;
                 continue;
             }
-            if (!((*pc->p >= 'a' && *pc->p <= 'z') ||
-                    (*pc->p >= 'A' && *pc->p <= 'Z') ||
-                    (*pc->p >= '0' && *pc->p <= '9') || *pc->p == '_'))
-                stop = 1;
-            else {
+            if (isalnum(UCHAR(*pc->p)) || *pc->p == '_') {
                 pc->p++;
                 pc->len--;
+                continue;
             }
+            break;
         }
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
             int count = 1;
             const char *paren = NULL;
+
+            pc->tt = JIM_TT_DICTSUGAR;
 
             while (count && pc->len) {
                 pc->p++;
@@ -1577,7 +1589,11 @@ static int JimParseVar(struct JimParserCtx *pc)
                 pc->len += (pc->p - paren);
                 pc->p = paren;
             }
-            ttype = (*pc->tstart == '(') ? JIM_TT_EXPRSUGAR : JIM_TT_DICTSUGAR;
+#ifndef EXPRSUGAR_BRACKET
+            if (*pc->tstart == '(') {
+                pc->tt = JIM_TT_EXPRSUGAR;
+            }
+#endif
         }
         pc->tend = pc->p - 1;
     }
@@ -1590,7 +1606,6 @@ static int JimParseVar(struct JimParserCtx *pc)
         pc->len++;
         return JIM_ERR;
     }
-    pc->tt = ttype;
     return JIM_OK;
 }
 
