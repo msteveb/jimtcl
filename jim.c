@@ -4853,33 +4853,16 @@ Jim_Interp *Jim_CreateInterp(void)
 {
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
 
-    i->errorLine = 0;
+    memset(i, 0, sizeof(*i));
+
     i->errorFileName = Jim_StrDup("");
-    i->addStackTrace = 0;
     i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
-    i->returnCode = JIM_OK;
-    i->returnLevel = 0;
-    i->exitCode = 0;
-    i->procEpoch = 0;
-    i->callFrameEpoch = 0;
-    i->liveList = i->freeList = NULL;
-    i->referenceNextId = 0;
-    i->lastCollectId = 0;
     i->lastCollectTime = time(NULL);
-    i->freeFramesList = NULL;
-    i->prngState = NULL;
-    i->id = 0;
-    i->sigmask = 0;
-    i->signal_level = 0;
-    i->signal_set_result = NULL;
-    i->localProcs = NULL;
-    i->loadHandles = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
      * initialized to NULL. */
     Jim_InitHashTable(&i->commands, &JimCommandsHashTableType, i);
-    i->local = 0;
 #ifdef JIM_REFERENCES
     Jim_InitHashTable(&i->references, &JimReferencesHashTableType, i);
 #endif
@@ -4893,7 +4876,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
-    i->unknown_called = 0;
     i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
