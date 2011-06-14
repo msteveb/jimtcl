@@ -865,15 +865,6 @@ badargs:
             (void)signal(SIGPIPE, SIG_IGN);
         }
 
-        /*
-         * Enlarge the wait table if there isn't enough space for a new
-         * entry.
-         */
-        if (table->used == table->size) {
-            table->size += WAIT_TABLE_GROW_BY;
-            table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
-        }
-
         /* Need to do this befor vfork() */
         if (pipe_dup_err) {
             errorId = outputId;
@@ -911,6 +902,16 @@ badargs:
         }
 
         /* parent */
+
+        /*
+         * Enlarge the wait table if there isn't enough space for a new
+         * entry.
+         */
+        if (table->used == table->size) {
+            table->size += WAIT_TABLE_GROW_BY;
+            table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
+        }
+
         table->info[table->used].pid = pid;
         table->info[table->used].flags = 0;
         table->used++;

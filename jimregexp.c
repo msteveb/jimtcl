@@ -1269,13 +1269,10 @@ static int regmatchsimplerepeat(regex_t *preg, int scan, int matchmin)
 
 static int regmatchrepeat(regex_t *preg, int scan, int matchmin)
 {
-	const char *save;
 	int *scanpt = preg->program + scan;
 
 	int max = scanpt[2];
 	int min = scanpt[3];
-
-	save = preg->reginput;
 
 	/* Have we reached min? */
 	if (scanpt[4] < min) {
@@ -1305,7 +1302,6 @@ static int regmatchrepeat(regex_t *preg, int scan, int matchmin)
 		return 0;
 	}
 	/* maximal, so try this branch again */
-	save = preg->reginput;
 	if (scanpt[4] < max) {
 		scanpt[4]++;
 		if (regmatch(preg, scan + 5)) {
@@ -1313,10 +1309,8 @@ static int regmatchrepeat(regex_t *preg, int scan, int matchmin)
 		}
 		scanpt[4]--;
 	}
-	/* At this point we are at max with no match. Back up by one and try the other branch */
-	preg->reginput = save;
-	int ret = regmatch(preg, regnext(preg, scan));
-	return ret;
+	/* At this point we are at max with no match. Try the other branch */
+	return regmatch(preg, regnext(preg, scan));
 }
 
 /*
