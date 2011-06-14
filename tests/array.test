@@ -60,7 +60,7 @@ test array-1.9 "array set - replace" {
 
 test array-1.10 "array unset - pattern" {
 	array unset b 2*
-	array names b
+	lsort [array names b]
 } {1 3}
 
 test array-1.11 "array unset - all" {
