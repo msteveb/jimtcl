@@ -11356,100 +11356,136 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return retval;
 }
 
+/* List iterators make it easy to iterate over a list.
+ * At some point iterators will be expanded to support generators.
+ */
+typedef struct {
+    Jim_Obj *objPtr;
+    int idx;
+} Jim_ListIter;
+
+/**
+ * Initialise the iterator at the start of the list.
+ */
+static void JimListIterInit(Jim_ListIter *iter, Jim_Obj *objPtr)
+{
+    iter->objPtr = objPtr;
+    iter->idx = 0;
+}
+
+/**
+ * Returns the next object from the list, or NULL on end-of-list.
+ */
+static Jim_Obj *JimListIterNext(Jim_Interp *interp, Jim_ListIter *iter)
+{
+    if (iter->idx >= Jim_ListLength(interp, iter->objPtr)) {
+        return NULL;
+    }
+    return iter->objPtr->internalRep.listValue.ele[iter->idx++];
+}
+
+/**
+ * Returns 1 if end-of-list has been reached.
+ */
+static int JimListIterDone(Jim_Interp *interp, Jim_ListIter *iter)
+{
+    return iter->idx >= Jim_ListLength(interp, iter->objPtr);
+}
+
 /* foreach + lmap implementation. */
 static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int doMap)
 {
-    int result = JIM_ERR, i, nbrOfLists, *listsIdx, *listsEnd;
-    int nbrOfLoops = 0;
-    Jim_Obj *emptyStr, *script, *mapRes = NULL;
+    int result = JIM_ERR;
+    int i, numargs;
+    Jim_ListIter twoiters[2];   /* Avoid allocation for a single list */
+    Jim_ListIter *iters;
+    Jim_Obj *script;
+    Jim_Obj *resultObj;
 
     if (argc < 4 || argc % 2 != 0) {
         Jim_WrongNumArgs(interp, 1, argv, "varList list ?varList list ...? script");
         return JIM_ERR;
     }
-    if (doMap) {
-        mapRes = Jim_NewListObj(interp, NULL, 0);
-        Jim_IncrRefCount(mapRes);
-    }
-    emptyStr = Jim_NewEmptyStringObj(interp);
-    Jim_IncrRefCount(emptyStr);
     script = argv[argc - 1];    /* Last argument is a script */
-    nbrOfLists = (argc - 1 - 1) / 2;    /* argc - 'foreach' - script */
-    listsIdx = (int *)Jim_Alloc(nbrOfLists * sizeof(int));
-    listsEnd = (int *)Jim_Alloc(nbrOfLists * 2 * sizeof(int));
-    /* Initialize iterators and remember max nbr elements each list */
-    memset(listsIdx, 0, nbrOfLists * sizeof(int));
-    /* Remember lengths of all lists and calculate how much rounds to loop */
-    for (i = 0; i < nbrOfLists * 2; i += 2) {
-        div_t cnt;
-        int count;
+    numargs = (argc - 1 - 1);    /* argc - 'foreach' - script */
 
-        listsEnd[i] = Jim_ListLength(interp, argv[i + 1]);
-        listsEnd[i + 1] = Jim_ListLength(interp, argv[i + 2]);
-        if (listsEnd[i] == 0) {
-            Jim_SetResultString(interp, "foreach varlist is empty", -1);
-            goto err;
-        }
-        cnt = div(listsEnd[i + 1], listsEnd[i]);
-        count = cnt.quot + (cnt.rem ? 1 : 0);
-        if (count > nbrOfLoops)
-            nbrOfLoops = count;
+    if (numargs == 2) {
+        iters = twoiters;
     }
-    for (; nbrOfLoops-- > 0;) {
-        for (i = 0; i < nbrOfLists; ++i) {
-            int varIdx = 0, var = i * 2;
+    else {
+        iters = Jim_Alloc(numargs * sizeof(*iters));
+    }
+    for (i = 0; i < numargs; i++) {
+        JimListIterInit(&iters[i], argv[i + 1]);
+        if (i % 2 == 0 && JimListIterDone(interp, &iters[i])) {
+            Jim_SetResultString(interp, "foreach varlist is empty", -1);
+            return JIM_ERR;
+        }
+    }
 
-            while (varIdx < listsEnd[var]) {
-                Jim_Obj *varName, *ele;
-                int lst = i * 2 + 1;
+    if (doMap) {
+        resultObj = Jim_NewListObj(interp, NULL, 0);
+    }
+    else {
+        resultObj = interp->emptyObj;
+    }
+    Jim_IncrRefCount(resultObj);
 
-                /* List index operations below can't fail */
-                Jim_ListIndex(interp, argv[var + 1], varIdx, &varName, JIM_NONE);
-                if (listsIdx[i] < listsEnd[lst]) {
-                    Jim_ListIndex(interp, argv[lst + 1], listsIdx[i], &ele, JIM_NONE);
-                    /* Avoid shimmering */
-                    Jim_IncrRefCount(ele);
-                    result = Jim_SetVariable(interp, varName, ele);
-                    Jim_DecrRefCount(interp, ele);
-                    if (result == JIM_OK) {
-                        ++listsIdx[i];  /* Remember next iterator of current list */
-                        ++varIdx;       /* Next variable */
-                        continue;
-                    }
+    while (1) {
+        /* Have we expired all lists? */
+        for (i = 0; i < numargs; i += 2) {
+            if (!JimListIterDone(interp, &iters[i + 1])) {
+                break;
+            }
+        }
+        if (i == numargs) {
+            /* All done */
+            break;
+        }
+
+        /* For each list */
+        for (i = 0; i < numargs; i += 2) {
+            Jim_Obj *varName;
+
+            /* foreach var */
+            JimListIterInit(&iters[i], argv[i + 1]);
+            while ((varName = JimListIterNext(interp, &iters[i])) != NULL) {
+                Jim_Obj *valObj = JimListIterNext(interp, &iters[i + 1]);
+                if (!valObj) {
+                    /* Ran out, so store the empty string */
+                    valObj = interp->emptyObj;
                 }
-                else if (Jim_SetVariable(interp, varName, emptyStr) == JIM_OK) {
-                    ++varIdx;   /* Next variable */
-                    continue;
+                /* Avoid shimmering */
+                Jim_IncrRefCount(valObj);
+                result = Jim_SetVariable(interp, varName, valObj);
+                Jim_DecrRefCount(interp, valObj);
+                if (result != JIM_OK) {
+                    goto err;
                 }
-                goto err;
             }
         }
         switch (result = Jim_EvalObj(interp, script)) {
             case JIM_OK:
-                if (doMap)
-                    Jim_ListAppendElement(interp, mapRes, interp->result);
+                if (doMap) {
+                    Jim_ListAppendElement(interp, resultObj, interp->result);
+                }
                 break;
             case JIM_CONTINUE:
                 break;
             case JIM_BREAK:
                 goto out;
-                break;
             default:
                 goto err;
         }
     }
   out:
     result = JIM_OK;
-    if (doMap)
-        Jim_SetResult(interp, mapRes);
-    else
-        Jim_SetEmptyResult(interp);
+    Jim_SetResult(interp, resultObj);
   err:
-    if (doMap)
-        Jim_DecrRefCount(interp, mapRes);
-    Jim_DecrRefCount(interp, emptyStr);
-    Jim_Free(listsIdx);
-    Jim_Free(listsEnd);
+    Jim_DecrRefCount(interp, resultObj);
+    if (numargs > 2) {
+        Jim_Free(iters);
+    }
     return result;
 }
 
