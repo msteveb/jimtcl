@@ -55,10 +55,11 @@ proc class {classname {baseclasses {}} classvars} {
 			if {![uplevel exists instvars]} {
 				return -code error -level 2 "\"[lindex [info level 0] 0]\" method called with no object"
 			}
-			lassign [info level -1] self
+			set self [lindex [info level -1] 0]
 			# Note that we can't use 'dict with' here because
 			# the dict isn't updated until the body completes.
 			foreach _ [$self vars] {upvar 1 instvars($_) $_}
+			unset _
 			eval $body
 		}
 	}
