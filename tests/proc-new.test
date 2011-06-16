@@ -28,6 +28,14 @@ proc hproc {{a aa} args} {
 	list a $a args $args
 }
 
+proc iproc {{a aa} b {c cc}} {
+	list a $a b $b c $c
+}
+
+proc jproc {args {a aa} b {c cc} d} {
+	list a $a b $b c $c d $d args $args
+}
+
 set n 1
 foreach {proc params result} {
 	aproc {} {}
@@ -48,6 +56,13 @@ foreach {proc params result} {
 	hproc {} {a aa args {}}
 	hproc {A} {a A args {}}
 	hproc {A X Y Z} {a A args {X Y Z}}
+	iproc {B} {a aa b B c cc}
+	iproc {A B} {a A b B c cc}
+	iproc {A B C} {a A b B c C}
+	jproc {B D} {a aa b B c cc d D args {}}
+	jproc {A B D} {a A b B c cc d D args {}}
+	jproc {A B C D} {a A b B c C d D args {}}
+	jproc {E F A B C D} {a A b B c C d D args {E F}}
 } {
 	test proc-1.$n "Proc args combos" [list $proc {*}$params] $result
 	incr n

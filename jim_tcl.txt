@@ -55,6 +55,10 @@ The major differences with Tcl 8.5/8.6 are:
 RECENT CHANGES
 --------------
 
+Changes between 0.71 and 0.72
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Allow 'args' and optional parameters in any position
+
 Changes between 0.70 and 0.71
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Allow 'args' to be renamed in procs
@@ -1052,14 +1056,14 @@ Tcl commands.
 
 The 'proc' command is used to create a new Tcl command procedure:
 
-+*proc* 'name args ?statics? body'+
++*proc* 'name arglist ?statics? body'+
 
 The new command is name *name*, and it replaces any existing command
 there may have been by that name. Whenever the new command is
 invoked, the contents of *body* will be executed by the Tcl
 interpreter.
 
-*args* specifies the formal arguments to the procedure.
+*arglist* specifies the formal arguments to the procedure.
 It consists of a list, possibly empty, of the following
 argument specifiers:
 
@@ -1078,19 +1082,11 @@ argument specifiers:
 
 +*args*+::
     Variable Argument - The special name *args*, which is
-    assigned all remaining arguments (including none). The
+    assigned all remaining arguments (including none) as a list. The
     variable argument may only be specified once. Note that
     the syntax +args newname+ may be used to retain the special
     behaviour of *args* with a different local name. In this case,
     the variable is named *newname* rather than *args*.
-
-Arguments must be provided in the following order, any of which
-may be omitted:
-
-1. Required Arguments (Left)
-2. Optional Arguments
-3. Variable Argument
-4. Required Arguments (Right)
 
 When the command is invoked, a local variable will be created for each of
 the formal arguments to the procedure; its value will be the value
@@ -1102,14 +1098,30 @@ invocation.  However, there must be enough actual arguments for all
 required arguments, and there must not be any extra actual arguments
 (unless the Variable Argument is specified).
 
-Actual arguments are assigned to formal arguments as follows:
+Actual arguments are assigned to formal arguments as in left-to-right
+order with the following precedence.
 
-1. Left Required Arguments are assigned from the left
-2. Right Required Arguments are assigned from the right
-3. Default Arguments are assigned from the left, following the Left Required Arguments.
-4. A list is formed from any remaining arguments, which are then
-   are assigned to the 'args' Variable Argument (if specified). The list will be empty
-   if there are no remaining arguments.
+1. Required Arguments (including Reference Arguments)
+2. Optional Arguments
+3. Variable Argument
+
+The following example illustrates precedence. Assume a procedure declaration:
+
+    proc p {{a A} args b {c C} d} {...}
+
+This procedure requires at least two arguments, but can accept an unlimited number.
+The following table shows how various numbers of arguments are assigned.
+Values marked as '-' are assigned the default value.
+
+[width="40%",frame="topbot",options="header"]
+|==============
+|Number of arguments|a|args|b|c|d
+|2|-|-|1|-|2
+|3|1|-|2|-|3
+|4|1|-|2|3|4
+|5|1|2|3|4|5
+|6|1|2,3|4|5|6
+|==============
 
 When *body* is being executed, variable names normally refer to local
 variables, which are created automatically when referenced and deleted

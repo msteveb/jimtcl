@@ -466,6 +466,8 @@ typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
 typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
 
+
+
 /* A command is implemented in C if funcPtr is != NULL, otherwise
  * it's a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyoObjPtr. */
@@ -483,13 +485,17 @@ typedef struct Jim_Cmd {
             /* Tcl procedure */
             Jim_Obj *argListObjPtr;
             Jim_Obj *bodyObjPtr;
-            Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
-            int leftArity;    /* Required args assigned from the left */
-            int optionalArgs; /* Number of optional args (default values) */
-            int rightArity;   /* Required args assigned from the right */
-            int args;         /* True if 'args' specified */
-            struct Jim_Cmd *prevCmd; /* Previous command defn if proc created 'local' */
-            int upcall;       /* True if proc is currently in upcall */
+            Jim_HashTable *staticVars;  /* Static vars hash table. NULL if no statics. */
+            struct Jim_Cmd *prevCmd;    /* Previous command defn if proc created 'local' */
+            int argListLen;             /* Length of argListObjPtr */
+            int reqArity;               /* Number of required parameters */
+            int optArity;               /* Number of optional parameters */
+            int argsPos;                /* Position of 'args', if specified, or -1 */
+            int upcall;                 /* True if proc is currently in upcall */
+            struct Jim_ProcArg {
+                Jim_Obj *nameObjPtr;    /* Name of this arg */
+                Jim_Obj *defaultObjPtr; /* Default value, (or rename for $args) */
+            } *arglist;
         } proc;
     } u;
 } Jim_Cmd;
