@@ -6195,6 +6195,9 @@ Jim_Obj *Jim_ListRange(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *firstOb
     first = JimRelToAbsIndex(len, first);
     last = JimRelToAbsIndex(len, last);
     JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    if (first == 0 && last == len) {
+        return listObjPtr;
+    }
     return Jim_NewListObj(interp, listObjPtr->internalRep.listValue.ele + first, rangeLen);
 }
 
