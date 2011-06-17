@@ -117,9 +117,10 @@ EMPTY_AUTOMAKE_TARGETS := dvi pdf ps info html tags ctags mostlyclean maintainer
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 $(EMPTY_AUTOMAKE_TARGETS):
 
-# automake compatibilty - install sources from $(srcdir) to $(distdir)
+# automake compatibilty - install sources from the current dir to $(distdir)
+distdir_full := $(shell cd $(distdir); pwd)
 distdir:
-	( test -z "$(srcdir)" || cd "$(srcdir)"; git ls-files ) | cpio -pdmu $(distdir)
+	cd "@srcdir@"; git ls-files | cpio -pdmu $(distdir_full)
 
 ifeq ($(findstring clean,$(MAKECMDGOALS)),)
 Makefile: @AUTODEPS@ @srcdir@/Makefile.in
