@@ -890,6 +890,11 @@ JIM_EXPORT void Jim_MakeErrorMessage (Jim_Interp *interp);
 
 /* interactive mode */
 JIM_EXPORT int Jim_InteractivePrompt (Jim_Interp *interp);
+JIM_EXPORT void Jim_HistoryLoad(const char *filename);
+JIM_EXPORT void Jim_HistorySave(const char *filename);
+JIM_EXPORT char *Jim_HistoryGetline(const char *prompt);
+JIM_EXPORT void Jim_HistoryAdd(const char *line);
+JIM_EXPORT void Jim_HistoryShow(void);
 
 /* Misc */
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);

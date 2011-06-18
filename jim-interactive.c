@@ -8,11 +8,17 @@
 #include <unistd.h>
 #include "linenoise.h"
 #else
-
 #define MAX_LINE_LEN 512
+#endif
 
-static char *linenoise(const char *prompt)
+/**
+ * Returns an allocated line, or NULL if EOF.
+ */
+char *Jim_HistoryGetline(const char *prompt)
 {
+#ifdef USE_LINENOISE
+    return linenoise(prompt);
+#else
     char *line = malloc(MAX_LINE_LEN);
 
     fputs(prompt, stdout);
@@ -23,8 +29,42 @@ static char *linenoise(const char *prompt)
         return NULL;
     }
     return line;
-}
 #endif
+}
+
+void Jim_HistoryLoad(const char *filename)
+{
+#ifdef USE_LINENOISE
+    linenoiseHistoryLoad(filename);
+#endif
+}
+
+void Jim_HistoryAdd(const char *line)
+{
+#ifdef USE_LINENOISE
+    linenoiseHistoryAdd(line);
+#endif
+}
+
+void Jim_HistorySave(const char *filename)
+{
+#ifdef USE_LINENOISE
+    linenoiseHistorySave(filename);
+#endif
+}
+
+void Jim_HistoryShow(void)
+{
+#ifdef USE_LINENOISE
+    /* built-in history command */
+    int i;
+    int len;
+    char **history = linenoiseHistory(&len);
+    for (i = 0; i < len; i++) {
+        printf("%4d %s\n", i + 1, history[i]);
+    }
+#endif
+}
 
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
@@ -38,7 +78,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         int history_len = strlen(home) + sizeof("/.jim_history");
         history_file = Jim_Alloc(history_len);
         snprintf(history_file, history_len, "%s/.jim_history", home);
-        linenoiseHistoryLoad(history_file);
+        Jim_HistoryLoad(history_file);
     }
 #endif
 
@@ -75,12 +115,13 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             int len;
             char *line;
 
-            line = linenoise(prompt);
+            line = Jim_HistoryGetline(prompt);
             if (line == NULL) {
                 if (errno == EINTR) {
                     continue;
                 }
                 Jim_DecrRefCount(interp, scriptObjPtr);
+                retcode = JIM_OK;
                 goto out;
             }
             if (Jim_Length(scriptObjPtr) != 0) {
@@ -100,29 +141,22 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
 #ifdef USE_LINENOISE
         if (strcmp(str, "h") == 0) {
             /* built-in history command */
-            int i;
-            int len;
-            char **history = linenoiseHistory(&len);
-            for (i = 0; i < len; i++) {
-                printf("%4d %s\n", i + 1, history[i]);
-            }
+            Jim_HistoryShow();
             Jim_DecrRefCount(interp, scriptObjPtr);
             continue;
         }
 
-        linenoiseHistoryAdd(Jim_String(scriptObjPtr));
+        Jim_HistoryAdd(Jim_String(scriptObjPtr));
         if (history_file) {
-            linenoiseHistorySave(history_file);
+            Jim_HistorySave(history_file);
         }
 #endif
         retcode = Jim_EvalObj(interp, scriptObjPtr);
         Jim_DecrRefCount(interp, scriptObjPtr);
 
-
-
         if (retcode == JIM_EXIT) {
-            Jim_Free(history_file);
-            return JIM_EXIT;
+            retcode = JIM_EXIT;
+            break;
         }
         if (retcode == JIM_ERR) {
             Jim_MakeErrorMessage(interp);
@@ -134,5 +168,5 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
   out:
     Jim_Free(history_file);
-    return JIM_OK;
+    return retcode;
 }
