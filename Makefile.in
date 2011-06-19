@@ -70,6 +70,13 @@ install-exec: all
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
 
+uninstall:
+	rm -f $(DESTDIR)$(prefix)/bin/$(JIMSH)
+	rm -f $(DESTDIR)$(prefix)/lib/$(LIBJIM)
+	for i in README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL); do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
+	rm -f $(DESTDIR)$(prefix)/include/jim*.h
+	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
+
 test: $(JIMSH)
 	$(DEF_LD_PATH) $(MAKE) jimsh=`pwd`/jimsh -C @srcdir@/tests
 
