@@ -136,6 +136,8 @@ static const Jim_HashTableType JimVariablesHashTableType;
 /* Fast access to the int (wide) value of an object which is known to be of int type */
 #define JimWideValue(objPtr) (objPtr)->internalRep.wideValue
 
+#define JimObjTypeName(O) (objPtr->typePtr ? objPtr->typePtr->name : "none")
+
 static int utf8_tounicode_case(const char *s, int *uc, int upper)
 {
     int l = utf8_tounicode(s, uc);
@@ -2153,17 +2155,17 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
     else {
         Jim_InitStringRep(dupPtr, objPtr->bytes, objPtr->length);
     }
+
+    /* By default, the new object has the same type as the old object */
+    dupPtr->typePtr = objPtr->typePtr;
     if (objPtr->typePtr != NULL) {
         if (objPtr->typePtr->dupIntRepProc == NULL) {
             dupPtr->internalRep = objPtr->internalRep;
         }
         else {
+            /* The dup proc may set a different type, e.g. NULL */
             objPtr->typePtr->dupIntRepProc(interp, objPtr, dupPtr);
         }
-        dupPtr->typePtr = objPtr->typePtr;
-    }
-    else {
-        dupPtr->typePtr = NULL;
     }
     return dupPtr;
 }

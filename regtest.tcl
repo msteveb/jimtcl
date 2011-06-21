@@ -135,6 +135,13 @@ puts "TEST 20 PASSED"
 subst "abc\0def"
 puts "TEST 21 PASSED"
 
+# REGTEST 22
+# 21 June 2011 - crashes on lappend to to value with script rep
+set x rand
+eval $x
+lappend x b
+puts "TEST 22 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
