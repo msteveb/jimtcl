@@ -344,12 +344,15 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
     }
     /* Check for error conditions */
-    if (ferror(af->fp) && errno != EAGAIN) {
-        /* I/O error */
-        Jim_FreeNewObj(interp, objPtr);
-        JimAioSetError(interp, af->filename);
+    if (ferror(af->fp)) {
         clearerr(af->fp);
-        return JIM_ERR;
+        /* eof and EAGAIN are not error conditions */
+        if (!feof(af->fp) && errno != EAGAIN) {
+            /* I/O error */
+            Jim_FreeNewObj(interp, objPtr);
+            JimAioSetError(interp, af->filename);
+            return JIM_ERR;
+        }
     }
     if (nonewline) {
         int len;
