@@ -58,9 +58,10 @@ string toupper [list a]
 puts "TEST 8 PASSED"
 
 # REGTEST 9
-# 04Nov2008 - crash on exit when replacing Tcl proc with C command. Requires the aio extension
-proc open {args} {}
-catch {package require aio}
+# 04Nov2008 - crash on exit when replacing Tcl proc with C command.
+# Requires the clock extension to be built as a loadable module.
+proc clock {args} {}
+catch {package require clock}
 # Note, crash on exit, so don't say we passed!
 
 # REGTEST 10
