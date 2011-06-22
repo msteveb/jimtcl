@@ -2938,7 +2938,6 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
     objPtr = Jim_NewStringObj(interp, buf, -1);
 #else
     objPtr = Jim_NewEmptyStringObj(interp);
-    objPtr->bytes = JimEmptyStringRep;
 #endif
     objPtr->typePtr = &scriptLineObjType;
     objPtr->internalRep.scriptLineValue.argc = argc;
