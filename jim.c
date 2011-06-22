@@ -2932,9 +2932,15 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
 {
     Jim_Obj *objPtr;
 
-    objPtr = Jim_NewObj(interp);
-    objPtr->typePtr = &scriptLineObjType;
+#ifdef DEBUG_SHOW_SCRIPT
+    char buf[100];
+    snprintf(buf, sizeof(buf), "line=%d, argc=%d", line, argc);
+    objPtr = Jim_NewStringObj(interp, buf, -1);
+#else
+    objPtr = Jim_NewEmptyStringObj(interp);
     objPtr->bytes = JimEmptyStringRep;
+#endif
+    objPtr->typePtr = &scriptLineObjType;
     objPtr->internalRep.scriptLineValue.argc = argc;
     objPtr->internalRep.scriptLineValue.line = line;
 
@@ -3275,8 +3281,11 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             }
         }
 
+        if (lineargs == 0) {
+            /* First real token on the line, so record the line number */
+            linenr = tokenlist->list[i].line;
+        }
         lineargs++;
-        linenr = tokenlist->list[i].line;
 
         /* Add each non-separator word token to the line */
         while (wordtokens--) {
@@ -3303,7 +3312,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     assert(script->len < count);
 
 #ifdef DEBUG_SHOW_SCRIPT
-    printf("==== Script ====\n");
+    printf("==== Script (%s) ====\n", script->fileName);
     for (i = 0; i < script->len; i++) {
         const ScriptToken *t = &script->token[i];
         printf("[%2d] %s %s\n", i, jim_tt_name(t->type), Jim_String(t->objPtr));
