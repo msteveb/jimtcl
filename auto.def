@@ -11,6 +11,7 @@ options {
     math            => "include support for math functions"
     ipv6            => "include ipv6 support in the aio extension"
     maintainer      => {enable the [debug] command and JimPanic}
+    full            => "Enable some optional features: ipv6, math, utf8, binary, oo, tree"
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp      => "use the built-in (Tcl-compatible) regexp, even if POSIX regex is available"
     with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
@@ -113,7 +114,7 @@ if {[cctest -includes {sys/types.h sys/stat.h} -code {mkdir("/dummy");}]} {
 set extra_objs {}
 set jimregexp 0
 
-if {[opt-bool utf8]} {
+if {[opt-bool utf8 full]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     incr jimregexp
@@ -122,16 +123,16 @@ if {[opt-bool maintainer]} {
     msg-result "Enabling maintainer settings"
     define JIM_MAINTAINER
 }
-if {[opt-bool math]} {
+if {[opt-bool math full]} {
     msg-result "Enabling math functions"
     define JIM_MATH_FUNCTIONS
     define-append LIBS -lm
 }
-if {[opt-bool ipv6]} {
+if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
 }
-if {[opt-bool lineedit] && [cc-check-includes termios.h]} {
+if {[opt-bool lineedit full] && [cc-check-includes termios.h]} {
     msg-result "Enabling line editing"
     define USE_LINENOISE
     lappend extra_objs linenoise.o
@@ -170,6 +171,10 @@ set ext_all [concat $ext_c $ext_tcl]
 
 # Default static extensions
 set ext_default "stdlib load package readdir glob array clock exec file posix regexp signal tclcompat aio eventloop syslog"
+
+if {[opt-bool full]} {
+    lappend ext_default tree binary
+}
 
 if {$without eq "default"} {
     set ext_default stdlib
