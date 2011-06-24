@@ -657,7 +657,7 @@ proc dputs {msg} {
 proc user-error {msg} {
 	show-notices
 	puts stderr "Error: $msg"
-	puts stderr "Try: autosetup --help for options"
+	puts stderr "Try: '[file tail $::autosetup(exe)] --help' for options"
 	exit 1
 }
 
