@@ -1,6 +1,6 @@
 #!/bin/sh
 
-version=`sed -n -e 's/AC_INIT[^0]*\([^]]*\).*/\1/p' configure.ac`
+version=`sed -n -e 's/.*JIM_VERSION *\([0-9]*\).*/0.\1/p' jim.h`
 
 if [ `git clean -nqx | wc -l` -ne 0 ]; then
 	git clean -nqx
