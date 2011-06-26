@@ -13793,13 +13793,13 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
          * Optimise by sharing common (ASCII) characters
          */
         Jim_Obj **commonObj = NULL;
-#define NUM_COMMON (128 - 32)
+#define NUM_COMMON (128 - 9)
         while (strLen--) {
             int n = utf8_tounicode(str, &c);
 #ifdef JIM_OPTIMIZATION
-            if (c >= 32 && c < 128) {
-                /* Common ASCII char */
-                c -= 32;
+            if (c >= 9 && c < 128) {
+                /* Common ASCII char. Note that 9 is the tab character */
+                c -= 9;
                 if (!commonObj) {
                     commonObj = Jim_Alloc(sizeof(*commonObj) * NUM_COMMON);
                     memset(commonObj, 0, sizeof(*commonObj) * NUM_COMMON);
