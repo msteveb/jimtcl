@@ -8209,16 +8209,20 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
 static int ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
 {
     struct ScriptToken *token = &expr->token[expr->len];
+    const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-    if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
-        return ExprAddLazyOperator(interp, expr, t);
+    if (op->lazy == LAZY_OP) {
+        if (ExprAddLazyOperator(interp, expr, t) != JIM_OK) {
+            Jim_SetResultFormatted(interp, "Expression has bad operands to %s", op->name);
+            return JIM_ERR;
+        }
     }
     else {
         token->objPtr = interp->emptyObj;
         token->type = t->type;
         expr->len++;
-        return JIM_OK;
     }
+    return JIM_OK;
 }
 
 /**

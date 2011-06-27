@@ -541,4 +541,9 @@ test lmap-1.1 {lmap} {
 	lmap p {1 2 3} {incr p}
 } {2 3 4}
 
+test exprerr-1.1 {Error message with bad expr} {
+	catch {expr {5 ||}} msg
+	set msg
+} {Expression has bad operands to ||}
+
 testreport
