@@ -15,7 +15,7 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, in
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->packages, name);
 
     /* An empty result means the automatic entry. This can be replaced */
-    if (he && *(const char *)he->val) {
+    if (he && *(const char *)he->u.val) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp, "package \"%s\" was already provided", name);
         }
@@ -152,7 +152,7 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
         he = Jim_FindHashEntry(&interp->packages, name);
     }
 
-    Jim_SetResultString(interp, he->val, -1);
+    Jim_SetResultString(interp, he->u.val, -1);
     return JIM_OK;
 }
 

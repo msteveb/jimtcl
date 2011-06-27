@@ -194,7 +194,10 @@ typedef struct Jim_Stack {
 
 typedef struct Jim_HashEntry {
     const void *key;
-    void *val;
+    union {
+        void *val;
+        int intval;
+    } u;
     struct Jim_HashEntry *next;
 } Jim_HashEntry;
 
@@ -229,13 +232,13 @@ typedef struct Jim_HashTableIterator {
 /* ------------------------------- Macros ------------------------------------*/
 #define Jim_FreeEntryVal(ht, entry) \
     if ((ht)->type->valDestructor) \
-        (ht)->type->valDestructor((ht)->privdata, (entry)->val)
+        (ht)->type->valDestructor((ht)->privdata, (entry)->u.val)
 
 #define Jim_SetHashVal(ht, entry, _val_) do { \
     if ((ht)->type->valDup) \
-        entry->val = (ht)->type->valDup((ht)->privdata, _val_); \
+        entry->u.val = (ht)->type->valDup((ht)->privdata, _val_); \
     else \
-        entry->val = (_val_); \
+        entry->u.val = (_val_); \
 } while(0)
 
 #define Jim_FreeEntryKey(ht, entry) \

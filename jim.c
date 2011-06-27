@@ -3590,8 +3590,8 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
 
     if (he && interp->local) {
         /* Just push this proc over the top of the previous one */
-        cmdPtr->u.proc.prevCmd = he->val;
-        he->val = cmdPtr;
+        cmdPtr->u.proc.prevCmd = he->u.val;
+        he->u.val = cmdPtr;
     }
     else {
         if (he) {
@@ -3645,8 +3645,8 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newNa
     }
 
     /* Add the new name first */
-    JimIncrCmdRefCount(he->val);
-    Jim_AddHashEntry(&interp->commands, newName, he->val);
+    JimIncrCmdRefCount(he->u.val);
+    Jim_AddHashEntry(&interp->commands, newName, he->u.val);
 
     /* Now remove the old name */
     Jim_DeleteHashEntry(&interp->commands, oldName);
@@ -3686,7 +3686,7 @@ int SetCommandFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &commandObjType;
     objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
-    objPtr->internalRep.cmdValue.cmdPtr = (void *)he->val;
+    objPtr->internalRep.cmdValue.cmdPtr = (void *)he->u.val;
     return JIM_OK;
 }
 
@@ -3842,7 +3842,7 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &variableObjType;
     objPtr->internalRep.varValue.callFrameId = framePtr->id;
-    objPtr->internalRep.varValue.varPtr = (void *)he->val;
+    objPtr->internalRep.varValue.varPtr = (void *)he->u.val;
     return JIM_OK;
 }
 
@@ -4405,10 +4405,10 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
             he = table[i];
             while (he != NULL) {
                 Jim_HashEntry *nextEntry = he->next;
-                Jim_Var *varPtr = (void *)he->val;
+                Jim_Var *varPtr = (void *)he->u.val;
 
                 Jim_DecrRefCount(interp, varPtr->objPtr);
-                Jim_Free(he->val);
+                Jim_Free(he->u.val);
                 Jim_Free((void *)he->key);      /* ATTENTION: const cast */
                 Jim_Free(he);
                 table[i] = NULL;
@@ -4580,7 +4580,7 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         Jim_SetResultFormatted(interp, "invalid reference id \"%#s\"", objPtr);
         return JIM_ERR;
     }
-    refPtr = he->val;
+    refPtr = he->u.val;
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &referenceObjType;
@@ -4774,7 +4774,7 @@ int Jim_Collect(Jim_Interp *interp)
             collected++;
             /* Drop the reference, but call the
              * finalizer first if registered. */
-            refPtr = he->val;
+            refPtr = he->u.val;
             if (refPtr->finalizerCmdNamePtr) {
                 char *refstr = Jim_Alloc(JIM_REFERENCE_SPACE + 1);
                 Jim_Obj *objv[3], *oldResult;
@@ -5194,7 +5194,7 @@ void *Jim_GetAssocData(Jim_Interp *interp, const char *key)
     Jim_HashEntry *entryPtr = Jim_FindHashEntry(&interp->assocData, key);
 
     if (entryPtr != NULL) {
-        AssocDataValue *assocEntryPtr = (AssocDataValue *) entryPtr->val;
+        AssocDataValue *assocEntryPtr = (AssocDataValue *) entryPtr->u.val;
 
         return assocEntryPtr->data;
     }
@@ -5233,32 +5233,25 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
     if (he == NULL) {
         char *strCopy = Jim_StrDup(str);
 
-        Jim_AddHashEntry(&interp->sharedStrings, strCopy, (void *)1);
+        Jim_AddHashEntry(&interp->sharedStrings, strCopy, NULL);
+	he = Jim_FindHashEntry(&interp->sharedStrings, strCopy);
+	he->u.intval = 1;
         return strCopy;
     }
     else {
-        long refCount = (long)he->val;
-
-        refCount++;
-        he->val = (void *)refCount;
+        he->u.intval++;
         return he->key;
     }
 }
 
 void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 {
-    long refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
     JimPanic((he == NULL, interp, "Jim_ReleaseSharedString called with " "unknown shared string '%s'", str));
 
-    refCount = (long)he->val;
-    refCount--;
-    if (refCount == 0) {
+    if (--he->u.intval == 0) {
         Jim_DeleteHashEntry(&interp->sharedStrings, str);
-    }
-    else {
-        he->val = (void *)refCount;
     }
 }
 
@@ -6303,7 +6296,7 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     htiter = Jim_GetHashTableIterator(ht);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         const Jim_Obj *keyObjPtr = he->key;
-        Jim_Obj *valObjPtr = he->val;
+        Jim_Obj *valObjPtr = he->u.val;
 
         Jim_IncrRefCount((Jim_Obj *)keyObjPtr); /* ATTENTION: const cast */
         Jim_IncrRefCount(valObjPtr);
@@ -6334,7 +6327,7 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
     i = 0;
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
-        objv[i++] = he->val;
+        objv[i++] = he->u.val;
     }
     Jim_FreeHashTableIterator(htiter);
     /* (Over) Estimate the space needed. */
@@ -6442,8 +6435,8 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
                 he = Jim_FindHashEntry(ht, keyObjPtr);
                 Jim_DecrRefCount(interp, keyObjPtr);
                 /* ATTENTION: const cast */
-                Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-                he->val = valObjPtr;
+                Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
+                he->u.val = valObjPtr;
             }
         }
 
@@ -6478,8 +6471,8 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
 
         Jim_DecrRefCount(interp, keyObjPtr);
         /* ATTENTION: const cast */
-        Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-        he->val = valueObjPtr;
+        Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
+        he->u.val = valueObjPtr;
     }
     return JIM_OK;
 }
@@ -6538,7 +6531,7 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
         }
         return JIM_ERR;
     }
-    *objPtrPtr = he->val;
+    *objPtrPtr = he->u.val;
     return JIM_OK;
 }
 
@@ -6563,7 +6556,7 @@ int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, in
     i = 0;
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
-        objv[i++] = he->val;
+        objv[i++] = he->u.val;
     }
     *len = i;
     Jim_FreeHashTableIterator(htiter);
@@ -9623,7 +9616,7 @@ static void JimDeleteLocalProcs(Jim_Interp *interp)
             Jim_Cmd *prevCmd = NULL;
             Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, procname);
             if (he) {
-                Jim_Cmd *cmd = (Jim_Cmd *)he->val;
+                Jim_Cmd *cmd = (Jim_Cmd *)he->u.val;
                 if (cmd->isproc && cmd->u.proc.prevCmd) {
                     prevCmd = cmd->u.proc.prevCmd;
                     cmd->u.proc.prevCmd = NULL;
@@ -10613,7 +10606,7 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
 
     htiter = Jim_GetHashTableIterator(&interp->commands);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Cmd *cmdPtr = he->val;
+        Jim_Cmd *cmdPtr = he->u.val;
         Jim_Obj *cmdNameObj;
 
         if (type == 1 && !cmdPtr->isproc) {
@@ -10659,7 +10652,7 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int
         htiter = Jim_GetHashTableIterator(&interp->framePtr->vars);
     }
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Var *varPtr = (Jim_Var *)he->val;
+        Jim_Var *varPtr = (Jim_Var *)he->u.val;
 
         if (mode == JIM_VARLIST_LOCALS) {
             if (varPtr->linkFramePtr != NULL)
@@ -13233,7 +13226,7 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     htiter = Jim_GetHashTableIterator(&interp->references);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         char buf[JIM_REFERENCE_SPACE];
-        Jim_Reference *refPtr = he->val;
+        Jim_Reference *refPtr = he->u.val;
         const jim_wide *refId = he->key;
 
         JimFormatReference(buf, refPtr, *refId);
