@@ -7835,6 +7835,9 @@ static int JimParseExpression(struct JimParserCtx *pc)
 {
     /* Discard spaces and quoted newline */
     while (isspace(UCHAR(*pc->p)) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
+        if (*pc->p == '\n') {
+            pc->linenr++;
+        }
         pc->p++;
         pc->len--;
     }
@@ -8382,7 +8385,7 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
     }
 }
 
-static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist)
+static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, const char *filename)
 {
     Jim_Stack stack;
     ExprByteCode *expr;
@@ -8436,6 +8439,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             case JIM_TT_CMD:
                 token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
                 token->type = t->type;
+                if (t->type == JIM_TT_CMD) {
+                    /* Only commands need source info */
+                    JimSetSourceInfo(interp, token->objPtr, filename, t->line);
+                }
                 expr->len++;
                 break;
 
@@ -8557,19 +8564,25 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
 
 /* This method takes the string representation of an expression
  * and generates a program for the Expr's stack-based VM. */
-int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     int exprTextLen;
     const char *exprText;
     struct JimParserCtx parser;
     struct ExprByteCode *expr;
     ParseTokenList tokenlist;
+    int line;
+    const char *filename;
     int rc = JIM_ERR;
-    int line = 1;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
         line = objPtr->internalRep.sourceValue.lineNumber;
+        filename = objPtr->internalRep.sourceValue.fileName;
+    }
+    else {
+        line = 1;
+        filename = NULL;
     }
 
     exprText = Jim_GetString(objPtr, &exprTextLen);
@@ -8603,7 +8616,7 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 #endif
 
     /* Now create the expression bytecode from the tokenlist */
-    expr = ExprCreateByteCode(interp, &tokenlist);
+    expr = ExprCreateByteCode(interp, &tokenlist, filename);
 
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
