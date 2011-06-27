@@ -22317,9 +22317,11 @@ static int *regpiece(regex_t *preg, int *flagp)
 	else {
 		next = reginsert(preg, flags & SIMPLE ? REP: REPX, 5, ret);
 	}
-	ret[2] = max;
-	ret[3] = min;
-	ret[4] = 0;
+	if (preg->regcode != &regdummy) {
+		ret[2] = max;
+		ret[3] = min;
+		ret[4] = 0;
+	}
 
 	*flagp = (min) ? (WORST|HASWIDTH) : (WORST|SPSTART);
 
