@@ -20,9 +20,9 @@ needs cmd scan
 test scan-1.1 {BuildCharSet, CharInSet} {
     list [scan foo {%[^o]} x] $x
 } {1 f}
-test scan-1.2 {BuildCharSet, CharInSet} jim {
+test scan-1.2 {BuildCharSet, CharInSet} {
     list [scan \]foo {%[]f]} x] $x
-} {1 {]f}}
+} {1 \]f}
 test scan-1.3 {BuildCharSet, CharInSet} {
     list [scan abc-def {%[a-c]} x] $x
 } {1 abc}

@@ -5618,7 +5618,7 @@ void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 #define JIM_ELESTR_QUOTE 2
 static int ListElementQuotingType(const char *s, int len)
 {
-    int i, level, trySimple = 1;
+    int i, level, blevel, trySimple = 1;
 
     /* Try with the SIMPLE case */
     if (len == 0)
@@ -5653,9 +5653,10 @@ static int ListElementQuotingType(const char *s, int len)
 
   testbrace:
     /* Test if it's possible to do with braces */
-    if (s[len - 1] == '\\' || s[len - 1] == ']')
+    if (s[len - 1] == '\\')
         return JIM_ELESTR_QUOTE;
     level = 0;
+    blevel = 0;
     for (i = 0; i < len; i++) {
         switch (s[i]) {
             case '{':
@@ -5666,6 +5667,12 @@ static int ListElementQuotingType(const char *s, int len)
                 if (level < 0)
                     return JIM_ELESTR_QUOTE;
                 break;
+            case '[':
+                blevel++;
+                break;
+            case ']':
+                blevel--;
+                break;
             case '\\':
                 if (s[i + 1] == '\n')
                     return JIM_ELESTR_QUOTE;
@@ -5674,6 +5681,10 @@ static int ListElementQuotingType(const char *s, int len)
                 break;
         }
     }
+    if (blevel < 0) {
+        return JIM_ELESTR_QUOTE;
+    }
+
     if (level == 0) {
         if (!trySimple)
             return JIM_ELESTR_BRACE;
@@ -5756,7 +5767,7 @@ static char *BackslashQuoteString(const char *s, int len, int *qlenPtr)
     return q;
 }
 
-void UpdateStringOfList(struct Jim_Obj *objPtr)
+static void UpdateStringOfList(struct Jim_Obj *objPtr)
 {
     int i, bufLen, realLength;
     const char *strRep;
