@@ -1,7 +1,7 @@
 #include "jim.h"
 #include "jimautoconf.h"
 
-#ifdef HAVE_DLOPEN_COMPAT
+#if defined(HAVE_DLOPEN_COMPAT)
 void *dlopen(const char *path, int mode)
 {
     JIM_NOTUSED(mode);
@@ -20,7 +20,7 @@ void *dlsym(void *handle, const char *symbol)
     return GetProcAddress((HMODULE)handle, symbol);
 }
 
-const char *dlerror(void)
+char *dlerror(void)
 {
     static char msg[121];
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
@@ -29,7 +29,7 @@ const char *dlerror(void)
 }
 #endif
 
-#if !defined(__MINGW32__) && !defined(__CYGWIN__)
+#ifdef _MSC_VER
 /* POSIX gettimeofday() compatibility for WIN32 */
 int gettimeofday(struct timeval *tv, void *unused)
 {

@@ -47,7 +47,7 @@
 #include "jim.h"
 #include "jimautoconf.h"
 
-#if !defined(JIM_ANSIC)
+#if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -55,6 +55,8 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#else
+#define JIM_ANSIC
 #endif
 
 #include "jim-eventloop.h"

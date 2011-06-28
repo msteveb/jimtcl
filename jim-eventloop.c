@@ -344,8 +344,7 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
 int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 {
     jim_wide sleep_ms = -1;
-    int maxfd = -1, numfd = 0, processed = 0;
-    fd_set rfds, wfds, efds;
+    int processed = 0;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
     Jim_FileEvent *fe = eventLoop->fileEventHead;
     Jim_TimeEvent *te;
@@ -356,28 +355,6 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         if ((flags & JIM_TIME_EVENTS) == 0 || eventLoop->timeEventHead == NULL) {
             /* No time events */
             return -1;
-        }
-    }
-
-    if (flags & JIM_FILE_EVENTS) {
-        FD_ZERO(&rfds);
-        FD_ZERO(&wfds);
-        FD_ZERO(&efds);
-
-        /* Check file events */
-        while (fe != NULL) {
-            int fd = fileno(fe->handle);
-
-            if (fe->mask & JIM_EVENT_READABLE)
-                FD_SET(fd, &rfds);
-            if (fe->mask & JIM_EVENT_WRITABLE)
-                FD_SET(fd, &wfds);
-            if (fe->mask & JIM_EVENT_EXCEPTION)
-                FD_SET(fd, &efds);
-            if (maxfd < fd)
-                maxfd = fd;
-            numfd++;
-            fe = fe->next;
         }
     }
 
@@ -410,15 +387,32 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         }
     }
 
-    if (numfd == 0) {
-        /* Some systems (mingw) can't select() in this case, so convert to a simple sleep */
-        if (sleep_ms > 0) {
-            msleep(sleep_ms);
-        }
-    }
-    else {
+#ifdef HAVE_SELECT
+    if (flags & JIM_FILE_EVENTS) {
         int retval;
         struct timeval tv, *tvp = NULL;
+        fd_set rfds, wfds, efds;
+        int maxfd = -1;
+
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
+
+        /* Check file events */
+        while (fe != NULL) {
+            int fd = fileno(fe->handle);
+
+            if (fe->mask & JIM_EVENT_READABLE)
+                FD_SET(fd, &rfds);
+            if (fe->mask & JIM_EVENT_WRITABLE)
+                FD_SET(fd, &wfds);
+            if (fe->mask & JIM_EVENT_EXCEPTION)
+                FD_SET(fd, &efds);
+            if (maxfd < fd)
+                maxfd = fd;
+            fe = fe->next;
+        }
+
         if (sleep_ms >= 0) {
             tvp = &tv;
             tvp->tv_sec = sleep_ms / 1000;
@@ -474,6 +468,11 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             }
         }
     }
+#else
+    if (sleep_ms > 0) {
+        msleep(sleep_ms);
+    }
+#endif
 
     /* Check time events */
     te = eventLoop->timeEventHead;

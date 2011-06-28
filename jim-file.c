@@ -351,7 +351,7 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#ifdef MKDIR_ONE_ARG
+#ifdef HAVE_MKDIR_ONE_ARG
 #define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME)
 #else
 #define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME, 0755)

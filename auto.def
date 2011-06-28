@@ -58,10 +58,11 @@ options {
 
 cc-check-types "long long"
 
+cc-check-includes sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
 
-cc-check-functions ualarm sysinfo lstat fork vfork system
-cc-check-functions backtrace geteuid mkstemp realpath strptime
+cc-check-functions ualarm sysinfo lstat fork vfork system select
+cc-check-functions backtrace geteuid mkstemp realpath strptime gettimeofday
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist
 cc-check-functions syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo
 
@@ -84,6 +85,16 @@ if {![cc-check-functions _NSGetEnviron]} {
     } else {
         msg-result "no"
     }
+}
+
+# Windows has a mkdir with no permission arg
+cc-check-includes sys/types.h sys/stat.h
+msg-checking "Checking for mkdir with one arg..."
+if {[cctest -includes {sys/types.h sys/stat.h} -code {mkdir("/dummy");}]} {
+    define HAVE_MKDIR_ONE_ARG
+    msg-result yes
+} else {
+    msg-result no
 }
 
 set extra_objs {}
@@ -168,7 +179,7 @@ set dep(binary) pack
 
 set needs(aio) {expr {[cc-check-function-in-lib socket socket] || 1}}
 set needs(exec) {expr {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]}}
-set needs(load) {expr {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]}}
+set needs(load) {expr {[cc-check-function-in-lib dlopen dl] || [have-feature dlopen-compat]}}
 set needs(posix) {have-feature waitpid}
 set needs(readdir) {have-feature opendir}
 set needs(readline) {cc-check-function-in-lib readline readline}
@@ -176,6 +187,7 @@ set needs(signal) {expr {[have-feature sigaction] && [have-feature vfork]}}
 set needs(sqlite) {cc-check-function-in-lib sqlite_open sqlite}
 set needs(sqlite3) {cc-check-function-in-lib sqlite3_open sqlite3}
 set needs(syslog) {have-feature syslog}
+set needs(eventloop) {expr {[have-feature select] || [have-feature usleep]}}
 set needs(win32) {have-feature windows}
 
 # First handle dependencies. If an extension is enabled, also enable its dependency
@@ -274,9 +286,6 @@ foreach i [lsort $ext_all] {
 }
 
 if {[have-feature windows]} {
-    if {"aio" in "$ext $extmod"} {
-        define-append LIBS -lwsock32
-    }
     lappend extra_objs jim-win32compat.o
 
     if {$extmod ne "" && [get-define JIM_LIBTYPE] eq "static"} {

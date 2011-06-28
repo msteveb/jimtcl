@@ -48,7 +48,7 @@ allexts="bootstrap aio readdir glob regexp file exec clock array stdlib tclcompa
 echo "/* This is single source file, bootstrap version of Jim Tcl. See http://jim.berlios.de/ */"
 
 # define some core features
-for i in _GNU_SOURCE JIM_TCL_COMPAT JIM_REFERENCES JIM_ANSIC HAVE_VFORK JIM_REGEXP HAVE_NO_AUTOCONF _JIMAUTOCONF_H; do
+for i in _GNU_SOURCE JIM_TCL_COMPAT JIM_REFERENCES JIM_ANSIC JIM_REGEXP HAVE_NO_AUTOCONF _JIMAUTOCONF_H; do
 	echo "#define $i"
 done
 echo '#define TCL_LIBRARY "."'
@@ -59,8 +59,8 @@ done
 
 # Can we make a bootstrap jimsh work even on mingw32?
 cat <<EOF
-#ifdef __MINGW32__
-#define MKDIR_ONE_ARG
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
 #else
 #define HAVE_VFORK

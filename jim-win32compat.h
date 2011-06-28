@@ -1,27 +1,24 @@
 #ifndef JIM_WIN32COMPAT_H
 #define JIM_WIN32COMPAT_H
 
-#if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__)
+/* Compatibility for Windows (mingw and msvc, not cygwin */
+
+/* Note that at this point we don't yet have access to jimautoconf.h */
+#if defined(_WIN32) || defined(WIN32)
 #ifndef STRICT
 	#define STRICT
 #endif
-
-/* None of these is needed for cygwin */
-#if !defined(__CYGWIN__)
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define JIM_ANSIC
-#define MKDIR_ONE_ARG
-
+#define HAVE_DLOPEN
 void *dlopen(const char *path, int mode);
 int dlclose(void *handle);
 void *dlsym(void *handle, const char *symbol);
-const char *dlerror(void);
+char *dlerror(void);
 
-#if !defined(__MINGW32__)
-/* Most of these are really gcc vs msvc */
+#ifdef _MSC_VER
+/* These are msvc vs gcc */
 
 #if _MSC_VER >= 1000
 	#pragma warning(disable:4146)
@@ -42,6 +39,7 @@ const char *dlerror(void);
 
 #include <io.h>
 
+#define HAVE_GETTIMEOFDAY
 struct timeval {
 	long tv_sec;
 	long tv_usec;
@@ -49,6 +47,7 @@ struct timeval {
 
 int gettimeofday(struct timeval *tv, void *unused);
 
+#define HAVE_OPENDIR
 struct dirent {
 	char *d_name;
 };
@@ -63,10 +62,8 @@ typedef struct DIR {
 DIR *opendir(const char *name);
 int closedir(DIR *dir);
 struct dirent *readdir(DIR *dir);
-#endif /* MSC */
+#endif /* _MSC_VER */
 
-#endif /* __MINGW32__ */
-
-#endif /* __CYGWIN__ */
+#endif /* WIN32 */
 
 #endif
