@@ -382,11 +382,11 @@ test regexpComp-7.17 {regsub utf compliance} {
     }
 } {0 0}
 
-test regexpComp-7.18 {regsub utf8 in char range} {
+test regexpComp-7.18 {regsub utf8 in char range} utf8 {
     regsub {[\u4e4ex]b} xyza\u4e4ebijka\u4e4ebpqr 555
 } xyza555ijka\u4e4ebpqr
 
-test regexpComp-7.19 {regsub utf8 in complemented char range} {
+test regexpComp-7.19 {regsub utf8 in complemented char range} utf8 {
     regsub -all {[^x\u4e4e]b} xyza\u4e4ebizbjxbka\u4e4fbpqr 555
 } xyza\u4e4ebi555jxbka555pqr
 
