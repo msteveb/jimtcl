@@ -56,14 +56,14 @@ typedef struct regexp {
 	int err;			/* Any error which occurred during compile */
 	int regstart;		/* Internal use only. */
 	int reganch;		/* Internal use only. */
-	const int *regmust;		/* Internal use only. */
+	int regmust;		/* Internal use only. */
 	int regmlen;		/* Internal use only. */
 	int *program;		/* Allocated */
 
 	/* working state - compile */
 	const char *regparse;		/* Input-scan pointer. */
-	int *regcode;		/* Code-emit pointer; &regdummy = don't. */
-	long regsize;		/* Code size. */
+	int p;				/* Current output pos in program */
+	int proglen;		/* Allocated program size */
 
 	/* working state - exec */
 	int eflags;				/* Flags used when executing */
