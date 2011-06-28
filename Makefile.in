@@ -113,7 +113,7 @@ clean:
 	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c load-static-exts.c @GENERATED_SRCS@
 
 distclean: clean
-	rm -f jimautoconf.h jim-config.h Makefile config.log
+	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@
 
 ship: Tcl.html
 	cp Tcl.html Tcl_shipped.html
