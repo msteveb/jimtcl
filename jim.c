@@ -130,6 +130,9 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
+static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
+static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
+
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -6917,6 +6920,8 @@ enum
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
     JIM_EXPROP_FUNC_ROUND,
+    JIM_EXPROP_FUNC_RAND,
+    JIM_EXPROP_FUNC_SRAND,
 
 #ifdef JIM_MATH_FUNCTIONS
     /* math functions from libm */
@@ -7050,30 +7055,46 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
     return rc;
 }
 
+static double JimRandDouble(Jim_Interp *interp)
+{
+    unsigned long x;
+    JimRandomBytes(interp, &x, sizeof(x));
+
+    return (double)x / (unsigned long)~0;
+}
+
 static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprState *e)
 {
     Jim_Obj *A = ExprPop(e);
     jim_wide wA;
-    int rc = JIM_ERR;
 
-
-    if (Jim_GetWide(interp, A, &wA) == JIM_OK) {
-        jim_wide wC;
-
+    int rc = Jim_GetWide(interp, A, &wA);
+    if (rc == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_BITNOT:
-                wC = ~wA;
+                ExprPush(e, Jim_NewIntObj(interp, ~wA));
+                break;
+            case JIM_EXPROP_FUNC_SRAND:
+                JimPrngSeed(interp, (unsigned char *)&wA, sizeof(wA));
+                ExprPush(e, Jim_NewDoubleObj(interp, JimRandDouble(interp)));
                 break;
             default:
                 abort();
         }
-        ExprPush(e, Jim_NewIntObj(interp, wC));
-        rc = JIM_OK;
     }
 
     Jim_DecrRefCount(interp, A);
 
     return rc;
+}
+
+static int JimExprOpNone(Jim_Interp *interp, struct JimExprState *e)
+{
+    JimPanic((e->opcode != JIM_EXPROP_FUNC_RAND));
+
+    ExprPush(e, Jim_NewDoubleObj(interp, JimRandDouble(interp)));
+
+    return JIM_OK;
 }
 
 #ifdef JIM_MATH_FUNCTIONS
@@ -7639,6 +7660,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_FUNC_DOUBLE] = {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_ABS] = {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_ROUND] = {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    [JIM_EXPROP_FUNC_RAND] = {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
+    [JIM_EXPROP_FUNC_SRAND] = {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
 
 #ifdef JIM_MATH_FUNCTIONS
     [JIM_EXPROP_FUNC_SIN] = {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
@@ -9327,8 +9350,6 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
 /* -----------------------------------------------------------------------------
  * Pseudo Random Number Generation
  * ---------------------------------------------------------------------------*/
-static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
-
 /* Initialize the sbox with the numbers from 0 to 255 */
 static void JimPrngInit(Jim_Interp *interp)
 {
