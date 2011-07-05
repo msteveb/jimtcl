@@ -11501,6 +11501,39 @@ static int Jim_LmapCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JimForeachMapHelper(interp, argc, argv, 1);
 }
 
+/* [lassign] */
+static int Jim_LassignCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int result = JIM_ERR;
+    int i;
+    Jim_ListIter iter;
+    Jim_Obj *resultObj;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "varList list ?varName ...?");
+        return JIM_ERR;
+    }
+
+    JimListIterInit(&iter, argv[1]);
+
+    for (i = 2; i < argc; i++) {
+        Jim_Obj *valObj = JimListIterNext(interp, &iter);
+        result = Jim_SetVariable(interp, argv[i], valObj ? valObj : interp->emptyObj);
+        if (result != JIM_OK) {
+            return result;
+        }
+    }
+
+    resultObj = Jim_NewListObj(interp, NULL, 0);
+    while (!JimListIterDone(interp, &iter)) {
+        Jim_ListAppendElement(interp, resultObj, JimListIterNext(interp, &iter));
+    }
+
+    Jim_SetResult(interp, resultObj);
+
+    return JIM_OK;
+}
+
 /* [if] */
 static int Jim_IfCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -14432,6 +14465,7 @@ static const struct {
     {"for", Jim_ForCoreCommand},
     {"foreach", Jim_ForeachCoreCommand},
     {"lmap", Jim_LmapCoreCommand},
+    {"lassign", Jim_LassignCoreCommand},
     {"if", Jim_IfCoreCommand},
     {"switch", Jim_SwitchCoreCommand},
     {"list", Jim_ListCoreCommand},
