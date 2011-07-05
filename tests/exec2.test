@@ -10,6 +10,8 @@ set d \"
 set s '
 set b \\
 
+array set saveenv [array get env]
+
 test exec2-1.1 "Quoting - Result" {
 	exec echo ${d}double quoted${d} ${s}single quoted${s} ${b}backslash quoted${b}
 } "\"double\ quoted\"\ 'single quoted'\ \\backslash\ quoted\\"
@@ -39,5 +41,7 @@ test exec2-2.4 "Remove all env var" {
 	unset -nocomplain env
 	exec printenv | sed -n -e /^TESTENV2=/p
 } {}
+
+array set env [array get saveenv]
 
 testreport
