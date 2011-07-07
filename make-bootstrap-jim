@@ -60,8 +60,8 @@ done
 # Can we make a bootstrap jimsh work even on mingw32?
 cat <<EOF
 #if defined(__MINGW32__)
-#define TCL_PLATFORM_OS "windows"
-#define TCL_PLATFORM_PLATFORM "mingw"
+#define TCL_PLATFORM_OS "mingw"
+#define TCL_PLATFORM_PLATFORM "windows"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
 #else
