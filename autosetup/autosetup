@@ -345,7 +345,7 @@ proc options-show {} {
 		set max [max $max [string length $opt]]
 	}
 	set indent [string repeat " " [expr $max+4]]
-	set cols [env COLUMNS 80]
+	set cols [getenv COLUMNS 80]
 	catch {
 		lassign [exec stty size] rows cols
 	}
@@ -1103,9 +1103,9 @@ proc autosetup_help {what} {
 # If not already paged and stdout is a tty, pipe the output through the pager
 # This is done by reinvoking autosetup with --nopager added
 proc use_pager {} {
-    if {![opt-bool nopager] && [env PAGER ""] ne "" && ![string match "not a tty" [exec tty]]} {
+    if {![opt-bool nopager] && [getenv PAGER ""] ne "" && ![string match "not a tty" [exec tty]]} {
         catch {
-            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv | [env PAGER] >@stdout <@stdin 2>/dev/null
+            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv | [getenv PAGER] >@stdout <@stdin 2>/dev/null
         }
         exit 0
     }
@@ -1474,7 +1474,7 @@ if {$autosetup(iswin)} {
 } else {
 	# unix separates $PATH with colons and has and executable bit
 	proc split-path {} {
-		split [env PATH .] :
+		split [getenv PATH .] :
 	}
 	proc file-isexec {exec} {
 		file executable $exec
@@ -1489,13 +1489,13 @@ proc exec-with-stderr {args} {
 if {$autosetup(istcl)} {
 	# Tcl doesn't have the env command
 	proc getenv {name args} {
-		if {[info exists ::env($var)]} {
-			return $::env($var)
+		if {[info exists ::env($name)]} {
+			return $::env($name)
 		}
 		if {[llength $args]} {
 			return [lindex $args 0]
 		}
-		return -code error "environment variable \"$var\" does not exist"
+		return -code error "environment variable \"$name\" does not exist"
 	}
 } elseif {$autosetup(iswin)} {
 	# On Windows, backslash convert all environment variables
