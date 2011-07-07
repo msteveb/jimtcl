@@ -30,8 +30,17 @@ proc glob {args} {
 			return $pattern
 		}
 
-		# Use -nocomplain here to return nothing if $dir is not a directory
-		foreach name [readdir -nocomplain $dir] {
+		# If the pattern isn't actually a pattern...
+		if {[string match {*[*?]*} $pattern]} {
+			# Use -nocomplain here to return nothing if $dir is not a directory
+			set files [readdir -nocomplain $dir]
+		} elseif {[file isdir $dir] && [file exists $dir/$pattern]} {
+			set files [list $pattern]
+		} else {
+			set files ""
+		}
+
+		foreach name $files {
 			if {[string match $pattern $name]} {
 				# Only include entries starting with . if the pattern starts with .
 				if {[string index $name 0] eq "." && [string index $pattern 0] ne "."} {
@@ -44,56 +53,56 @@ proc glob {args} {
 		return $result
 	}
 
-	# glob entries in directory $dir and pattern $rem
-	#
-	local proc glob.do {dir rem} {
-		# Take one level from rem
-		# Avoid regexp here
-		set i [string first / $rem]
-		if {$i < 0} {
-			set pattern $rem
-			set rempattern ""
-		} else {
-			set pattern [string range $rem 0 $i-1]
-			set rempattern [string range $rem $i+1 end]
-		}
-
-		# Determine the appropriate separator and globbing dir
-		set sep /
-		set globdir $dir
-		if {[string match "*/" $dir]} {
-			set sep ""
-		} elseif {$dir eq ""} {
-			set globdir .
-			set sep ""
-		}
-
-		set result {}
-
-		# If the pattern contains a braced expression, recursively call glob.do
-		# to expand the alternations. Avoid regexp for dependency reasons.
+	# If the pattern contains a braced expression, return a list of
+	# patterns with the braces expanded. {c,b}* => c* b*
+	# Otherwise just return the pattern
+	# Note: Only supports one braced expression. i.e. not {a,b}*{c,d}*
+	proc glob.expandbraces {pattern} {
+		# Avoid regexp for dependency reasons.
 		# XXX: Doesn't handle backslashed braces
-		if {[set fb [string first "\{" $pattern]] >= 0} {
-			if {[set nb [string first "\}" $pattern $fb]] >= 0} {
-				set before [string range $pattern 0 $fb-1]
-				set braced [string range $pattern $fb+1 $nb-1]
-				set after [string range $pattern $nb+1 end]
+		if {[set fb [string first "\{" $pattern]] < 0} {
+			return $pattern
+		}
+		if {[set nb [string first "\}" $pattern $fb]] < 0} {
+			return $pattern
+		}
+		set before [string range $pattern 0 $fb-1]
+		set braced [string range $pattern $fb+1 $nb-1]
+		set after [string range $pattern $nb+1 end]
 
-				foreach part [split $braced ,] {
-					lappend result {*}[glob.do $dir $before$part$after]
-				}
-				return $result
-			}
+		lmap part [split $braced ,] {
+			set pat $before$part$after
+		}
+	}
+
+	# Core glob implementation. Returns a list of files/directories matching the pattern
+	proc glob.glob {pattern} {
+		set dir [file dirname $pattern]
+		if {$dir eq $pattern} {
+			# At the top level
+			return [list $dir]
 		}
 
-		# Use readdir and select all files which match the pattern
-		foreach f [glob.readdir_pattern $globdir $pattern] {
-			if {$rempattern eq ""} {
-				# This is a terminal entry, so add it
-				lappend result $dir$sep$f
+		# Recursively expand the parent directory
+		set dirlist [glob.glob $dir]
+		set pattern [file tail $pattern]
+
+		# Now collect the fiels/directories
+		set result {}
+		foreach dir $dirlist {
+			set globdir $dir
+			if {[string match "*/" $dir]} {
+				set sep ""
+			} elseif {$dir eq "."} {
+				set globdir ""
+				set sep ""
 			} else {
-				# Expany any entries at this level and add them
-				lappend result {*}[glob.do $dir$sep$f $rempattern]
+				set sep /
+			}
+			foreach pat [glob.expandbraces $pattern] {
+				foreach name [glob.readdir_pattern $dir $pat] {
+					lappend result $globdir$sep$name
+				}
 			}
 		}
 		return $result
@@ -109,13 +118,7 @@ proc glob {args} {
 
 	set result {}
 	foreach pattern $args {
-		if {$pattern eq "/"} {
-			lappend result /
-		} elseif {[string match "/*" $pattern]} {
-			lappend result {*}[glob.do / [string range $pattern 1 end]]
-		} else {
-			lappend result {*}[glob.do "" $pattern]
-		}
+		lappend result {*}[glob.glob $pattern]
 	}
 
 	if {$nocomplain == 0 && [llength $result] == 0} {
