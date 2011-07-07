@@ -30,7 +30,12 @@
 static const char jimsh_init[] = \
 "proc _init {} {\n"
 "\trename _init {}\n"
+/* XXX This is a big ugly */
+#if defined(__MINGW32__)
+"\tlappend p {*}[split [env JIMLIB {}] {;}]\n"
+#else
 "\tlappend p {*}[split [env JIMLIB {}] :]\n"
+#endif
 "\tlappend p {*}$::auto_path\n"
 "\tlappend p [file dirname [info nameofexecutable]]\n"
 "\tset ::auto_path $p\n"
@@ -44,6 +49,10 @@ static const char jimsh_init[] = \
 "\t\t}\n"
 "\t}\n"
 "}\n"
+/* XXX This is a big ugly */
+#if defined(__MINGW32__)
+"set jim_argv0 [string map {\\\\ /} $jim_argv0]\n"
+#endif
 "_init\n";
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
