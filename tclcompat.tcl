@@ -45,6 +45,9 @@ if {[info commands stdout] ne ""} {
 				-bu* {
 					$f buffering $v
 				}
+				-tr* {
+					# Just ignore -translation
+				}
 				default {
 					return -code error "fconfigure: unknown option $n"
 				}
