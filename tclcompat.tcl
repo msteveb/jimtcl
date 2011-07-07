@@ -266,3 +266,11 @@ proc try {args} {
 proc throw {code {msg ""}} {
 	return -code $code $msg
 }
+
+# Helper for "file delete -force"
+proc {file delete force} {path} {
+	foreach e [readdir $path] {
+		file delete -force $path/$e
+	}
+	file delete $path
+}

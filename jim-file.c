@@ -348,14 +348,24 @@ static int file_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    int force = Jim_CompareStringImmediate(interp, argv[0], "-force");
+
+    if (force || Jim_CompareStringImmediate(interp, argv[0], "--")) {
+        argc++;
+        argv--;
+    }
+
     while (argc--) {
         const char *path = Jim_String(argv[0]);
 
         if (unlink(path) == -1 && errno != ENOENT) {
             if (rmdir(path) == -1) {
-                Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path,
-                    strerror(errno));
-                return JIM_ERR;
+                /* Maybe try using the script helper */
+                if (!force || Jim_EvalObjPrefix(interp, "file delete force", 1, argv) != JIM_OK) {
+                    Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path,
+                        strerror(errno));
+                    return JIM_ERR;
+                }
             }
         }
         argv++;
@@ -737,11 +747,11 @@ static const jim_subcmd_type file_command_table[] = {
         .description = "Does file exist"
     },
     {   .cmd = "delete",
-        .args = "name ...",
+        .args = "?-force|--? name ...",
         .function = file_cmd_delete,
         .minargs = 1,
         .maxargs = -1,
-        .description = "Deletes the files or empty directories"
+        .description = "Deletes the files or directories (must be empty unless -force)"
     },
     {   .cmd = "mkdir",
         .args = "dir ...",
