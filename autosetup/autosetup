@@ -1,10 +1,11 @@
 #!/bin/sh
 # Copyright (c) 2006-2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
+# vim:se syntax=tcl:
 # \
 exec $($(dirname "$0")/find-tclsh || echo false) "$0" "$@"
 
-set autosetup(version) 0.6.1
+set autosetup(version) 0.6.2
 
 # Can be set to 1 to debug early-init problems
 set autosetup(debug) 0
@@ -27,7 +28,7 @@ proc main {argv} {
 	# c. The build directory, where output files are created
 
 	# This is also complicated by the fact that autosetup may
-	# have been run via the configure wrapper ([env WRAPPER] is set)
+	# have been run via the configure wrapper ([getenv WRAPPER] is set)
 
 	# Here are the rules.
 	# a. This script is $::argv0
@@ -46,7 +47,7 @@ proc main {argv} {
 	# (a)
 	set autosetup(dir) [realdir [file dirname [realpath $::argv0]]]
 	set autosetup(prog) [file join $autosetup(dir) [file tail $::argv0]]
-	set autosetup(exe) [env WRAPPER $autosetup(prog)]
+	set autosetup(exe) [getenv WRAPPER $autosetup(prog)]
 	if {$autosetup(installed)} {
 		set autosetup(libdir) $autosetup(dir)
 	} else {
@@ -55,7 +56,7 @@ proc main {argv} {
 	autosetup_add_dep $autosetup(prog)
 
 	# (b)
-	if {[env WRAPPER ""] eq ""} {
+	if {[getenv WRAPPER ""] eq ""} {
 		# Invoked directly
 		set autosetup(srcdir) [pwd]
 	} else {
@@ -92,12 +93,18 @@ proc main {argv} {
 		nopager
 		quiet
 		timing
+		conf:
 	}
 
 	#parray ::useropts
 	if {[opt-bool version]} {
 		puts $autosetup(version)
 		exit 0
+	}
+
+	# autosetup --conf=alternate-auto.def
+	if {[opt-val conf] ne ""} {
+		set autosetup(autodef) [opt-val conf]
 	}
 
 	# Debugging output (set this early)
@@ -152,7 +159,7 @@ proc main {argv} {
 	define AUTOREMAKE $cmd
 
 	# Log how we were invoked
-	configlog "Invoked as: [env WRAPPER $::argv0] [quote-argv $autosetup(argv)]"
+	configlog "Invoked as: [getenv WRAPPER $::argv0] [quote-argv $autosetup(argv)]"
 
 	source $autosetup(autodef)
 
@@ -283,6 +290,9 @@ proc options-add {opts {header ""}} {
 	}
 }
 
+# @module-options optionlist
+#
+# Like 'options', but used within a module.
 proc module-options {opts} {
 	set header ""
 	if {$::autosetup(showhelp) > 1 && [llength $opts]} {
@@ -335,7 +345,11 @@ proc options-show {} {
 		set max [max $max [string length $opt]]
 	}
 	set indent [string repeat " " [expr $max+4]]
-
+	set cols [env COLUMNS 80]
+	catch {
+		lassign [exec stty size] rows cols
+	}
+	incr cols -1
 	# Now output
 	foreach {opt desc} $::autosetup(optionhelp) {
 		if {[string match =* $opt]} {
@@ -346,11 +360,39 @@ proc options-show {} {
 		if {[string match \n* $desc]} {
 			puts $desc
 		} else {
-			options-wrap-desc [string trim $desc] 90 "  " $indent [expr $max + 2]
+			options-wrap-desc [string trim $desc] $cols "  " $indent [expr $max + 2]
 		}
 	}
 }
 
+# @options options-spec
+#
+# Specifies configuration-time options which may be selected by the user
+# and checked with opt-val and opt-bool. The format of options-spec follows.
+#
+# A boolean option is of the form:
+#
+## name[=0|1]  => "Description of this boolean option"
+#
+# The default is name=0, meaning that the option is disabled by default.
+# If name=1 is used to make the option enabled by default, the description should reflect
+# that with text like "Disable support for ...".
+#
+# An argument option (one which takes a parameter) is of the form:
+#
+## name:[=]value  => "Description of this option"
+#
+# If the name:value form is used, the value must be provided with the option (as --name=myvalue).
+# If the name:=value form is used, the value is optional and the given value is used as the default
+# if is not provided.
+#
+# Undocumented options are also supported by omitting the "=> description.
+# These options are not displayed with --help and can be useful for internal options or as aliases.
+#
+# For example, --disable-lfs is an alias for --disable=largefile:
+#
+## lfs=1 largefile=1 => "Disable large file support"
+# 
 proc options {optlist} {
 	# Allow options as a list or args
 	options-add $optlist "Local Options:"
@@ -371,8 +413,8 @@ proc options {optlist} {
 }
 
 proc config_guess {} {
-	if {[file executable $::autosetup(dir)/config.guess]} {
-		exec $::autosetup(dir)/config.guess
+	if {[file-isexec $::autosetup(dir)/config.guess]} {
+		exec-with-stderr sh $::autosetup(dir)/config.guess
 	} else {
 		configlog "No config.guess, so using uname"
 		string tolower [exec uname -p]-unknown-[exec uname -s][exec uname -r]
@@ -380,8 +422,8 @@ proc config_guess {} {
 }
 
 proc config_sub {alias} {
-	if {[file executable $::autosetup(dir)/config.sub]} {
-		exec $::autosetup(dir)/config.sub $alias
+	if {[file-isexec $::autosetup(dir)/config.sub]} {
+		exec-with-stderr sh $::autosetup(dir)/config.sub $alias
 	} else {
 		return $alias
 	}
@@ -464,7 +506,7 @@ proc get-env {name default} {
 	if {[dict exists $::autosetup(cmdline) $name]} {
 		return [dict get $::autosetup(cmdline) $name]
 	}
-	env $name $default
+	getenv $name $default
 }
 
 # @env-is-set name
@@ -533,9 +575,10 @@ proc find-executable {name} {
 		# The empty string is never a valid executable
 		return 0
 	}
-	foreach p [split [env PATH .] :] {
+	foreach p [split-path] {
+		dputs "Looking for $name in $p"
 		set exec [file join $p $name]
-		if {[file isfile $exec] && [file executable $exec]} {
+		if {[file-isexec $exec]} {
 			dputs "Found $name -> $exec"
 			return 1
 		}
@@ -713,7 +756,6 @@ proc realdir {dir} {
 
 # Follow symlinks until we get to something which is not a symlink
 proc realpath {path} {
-	#puts -nonewline "$path -> "
 	while {1} {
 		if {[catch {
 			set path [file link $path]
@@ -722,7 +764,6 @@ proc realpath {path} {
 			break
 		}
 	}
-	#puts "$path"
 	return $path
 }
 
@@ -1412,12 +1453,42 @@ set modsource(misc) {
 # All rights reserved
 
 # Module containing misc procs useful to modules
+# Largely for platform compatibility
 
-set ::autosetup(istcl) [info exists ::tcl_library]
+set autosetup(istcl) [info exists ::tcl_library]
+set autosetup(iswin) [string equal windows $tcl_platform(platform)]
 
-# Tcl doesn't have the env command
-if {$::autosetup(istcl)} {
-	proc env {var args} {
+if {$autosetup(iswin)} {
+	# mingw/windows separates $PATH with semicolons
+	# and doesn't have an executable bit
+	proc split-path {} {
+		split [getenv PATH .] {;}
+	}
+	proc file-isexec {exec} {
+		# Basic test for windows. We ignore .bat
+		if {[file isfile $exec] || [file isfile $exec.exe]} {
+			return 1
+		}
+		return 0
+	}
+} else {
+	# unix separates $PATH with colons and has and executable bit
+	proc split-path {} {
+		split [env PATH .] :
+	}
+	proc file-isexec {exec} {
+		file executable $exec
+	}
+}
+
+# Assume that exec can return stdout and stderr
+proc exec-with-stderr {args} {
+	exec {*}$args 2>@1
+}
+
+if {$autosetup(istcl)} {
+	# Tcl doesn't have the env command
+	proc getenv {name args} {
 		if {[info exists ::env($var)]} {
 			return $::env($var)
 		}
@@ -1426,6 +1497,24 @@ if {$::autosetup(istcl)} {
 		}
 		return -code error "environment variable \"$var\" does not exist"
 	}
+} elseif {$autosetup(iswin)} {
+	# On Windows, backslash convert all environment variables
+	# (Assume that Tcl does this for us)
+	proc getenv {name args} {
+		string map {\\ /} [env $name {*}$args]
+	}
+	# Jim uses system() for exec under mingw, so
+	# we need to fetch the output ourselves
+	proc exec-with-stderr {args} {
+			set tmpfile /tmp/autosetup.[format %05x [rand 10000]].tmp
+			set rc [catch [list exec {*}$args >$tmpfile 2>&1] result]
+			set result [readfile $tmpfile]
+			file delete $tmpfile
+			return -code $rc $result
+	}
+} else {
+	# Jim on unix is simple
+	alias getenv env
 }
 
 # In case 'file normalize' doesn't exist

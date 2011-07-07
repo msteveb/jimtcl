@@ -3,7 +3,6 @@
 #define JIM_TCL_COMPAT
 #define JIM_REFERENCES
 #define JIM_ANSIC
-#define HAVE_VFORK
 #define JIM_REGEXP
 #define HAVE_NO_AUTOCONF
 #define _JIMAUTOCONF_H
@@ -19,10 +18,14 @@
 #define jim_ext_array
 #define jim_ext_stdlib
 #define jim_ext_tclcompat
-#ifdef __MINGW32__
-#define MKDIR_ONE_ARG
+#if defined(__MINGW32__)
+#define TCL_PLATFORM_OS "mingw"
+#define TCL_PLATFORM_PLATFORM "windows"
+#define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
 #else
+#define TCL_PLATFORM_OS "unknown"
+#define TCL_PLATFORM_PLATFORM "unix"
 #define HAVE_VFORK
 #define HAVE_WAITPID
 #endif
@@ -327,7 +330,10 @@ typedef struct Jim_Stack {
 
 typedef struct Jim_HashEntry {
     const void *key;
-    void *val;
+    union {
+        void *val;
+        int intval;
+    } u;
     struct Jim_HashEntry *next;
 } Jim_HashEntry;
 
@@ -362,13 +368,13 @@ typedef struct Jim_HashTableIterator {
 /* ------------------------------- Macros ------------------------------------*/
 #define Jim_FreeEntryVal(ht, entry) \
     if ((ht)->type->valDestructor) \
-        (ht)->type->valDestructor((ht)->privdata, (entry)->val)
+        (ht)->type->valDestructor((ht)->privdata, (entry)->u.val)
 
 #define Jim_SetHashVal(ht, entry, _val_) do { \
     if ((ht)->type->valDup) \
-        entry->val = (ht)->type->valDup((ht)->privdata, _val_); \
+        entry->u.val = (ht)->type->valDup((ht)->privdata, _val_); \
     else \
-        entry->val = (_val_); \
+        entry->u.val = (_val_); \
 } while(0)
 
 #define Jim_FreeEntryKey(ht, entry) \
@@ -1176,14 +1182,14 @@ typedef struct regexp {
 	int err;			/* Any error which occurred during compile */
 	int regstart;		/* Internal use only. */
 	int reganch;		/* Internal use only. */
-	const int *regmust;		/* Internal use only. */
+	int regmust;		/* Internal use only. */
 	int regmlen;		/* Internal use only. */
 	int *program;		/* Allocated */
 
 	/* working state - compile */
 	const char *regparse;		/* Input-scan pointer. */
-	int *regcode;		/* Code-emit pointer; &regdummy = don't. */
-	long regsize;		/* Code size. */
+	int p;				/* Current output pos in program */
+	int proglen;		/* Allocated program size */
 
 	/* working state - exec */
 	int eflags;				/* Flags used when executing */
@@ -1285,7 +1291,16 @@ int Jim_globInit(Jim_Interp *interp)
 "		}\n"
 "\n"
 "\n"
-"		foreach name [readdir -nocomplain $dir] {\n"
+"		if {[string match {*[*?]*} $pattern]} {\n"
+"\n"
+"			set files [readdir -nocomplain $dir]\n"
+"		} elseif {[file isdir $dir] && [file exists $dir/$pattern]} {\n"
+"			set files [list $pattern]\n"
+"		} else {\n"
+"			set files \"\"\n"
+"		}\n"
+"\n"
+"		foreach name $files {\n"
 "			if {[string match $pattern $name]} {\n"
 "\n"
 "				if {[string index $name 0] eq \".\" && [string index $pattern 0] ne \".\"} {\n"
@@ -1300,54 +1315,54 @@ int Jim_globInit(Jim_Interp *interp)
 "\n"
 "\n"
 "\n"
-"	local proc glob.do {dir rem} {\n"
 "\n"
 "\n"
-"		set i [string first / $rem]\n"
-"		if {$i < 0} {\n"
-"			set pattern $rem\n"
-"			set rempattern \"\"\n"
-"		} else {\n"
-"			set pattern [string range $rem 0 $i-1]\n"
-"			set rempattern [string range $rem $i+1 end]\n"
+"	proc glob.expandbraces {pattern} {\n"
+"\n"
+"\n"
+"		if {[set fb [string first \"\\{\" $pattern]] < 0} {\n"
+"			return $pattern\n"
+"		}\n"
+"		if {[set nb [string first \"\\}\" $pattern $fb]] < 0} {\n"
+"			return $pattern\n"
+"		}\n"
+"		set before [string range $pattern 0 $fb-1]\n"
+"		set braced [string range $pattern $fb+1 $nb-1]\n"
+"		set after [string range $pattern $nb+1 end]\n"
+"\n"
+"		lmap part [split $braced ,] {\n"
+"			set pat $before$part$after\n"
+"		}\n"
+"	}\n"
+"\n"
+"\n"
+"	proc glob.glob {pattern} {\n"
+"		set dir [file dirname $pattern]\n"
+"		if {$dir eq $pattern} {\n"
+"\n"
+"			return [list $dir]\n"
 "		}\n"
 "\n"
 "\n"
-"		set sep /\n"
-"		set globdir $dir\n"
-"		if {[string match \"*/\" $dir]} {\n"
-"			set sep \"\"\n"
-"		} elseif {$dir eq \"\"} {\n"
-"			set globdir .\n"
-"			set sep \"\"\n"
-"		}\n"
+"		set dirlist [glob.glob $dir]\n"
+"		set pattern [file tail $pattern]\n"
+"\n"
 "\n"
 "		set result {}\n"
-"\n"
-"\n"
-"\n"
-"\n"
-"		if {[set fb [string first \"\\{\" $pattern]] >= 0} {\n"
-"			if {[set nb [string first \"\\}\" $pattern $fb]] >= 0} {\n"
-"				set before [string range $pattern 0 $fb-1]\n"
-"				set braced [string range $pattern $fb+1 $nb-1]\n"
-"				set after [string range $pattern $nb+1 end]\n"
-"\n"
-"				foreach part [split $braced ,] {\n"
-"					lappend result {*}[glob.do $dir $before$part$after]\n"
-"				}\n"
-"				return $result\n"
-"			}\n"
-"		}\n"
-"\n"
-"\n"
-"		foreach f [glob.readdir_pattern $globdir $pattern] {\n"
-"			if {$rempattern eq \"\"} {\n"
-"\n"
-"				lappend result $dir$sep$f\n"
+"		foreach dir $dirlist {\n"
+"			set globdir $dir\n"
+"			if {[string match \"*/\" $dir]} {\n"
+"				set sep \"\"\n"
+"			} elseif {$dir eq \".\"} {\n"
+"				set globdir \"\"\n"
+"				set sep \"\"\n"
 "			} else {\n"
-"\n"
-"				lappend result {*}[glob.do $dir$sep$f $rempattern]\n"
+"				set sep /\n"
+"			}\n"
+"			foreach pat [glob.expandbraces $pattern] {\n"
+"				foreach name [glob.readdir_pattern $dir $pat] {\n"
+"					lappend result $globdir$sep$name\n"
+"				}\n"
 "			}\n"
 "		}\n"
 "		return $result\n"
@@ -1363,13 +1378,7 @@ int Jim_globInit(Jim_Interp *interp)
 "\n"
 "	set result {}\n"
 "	foreach pattern $args {\n"
-"		if {$pattern eq \"/\"} {\n"
-"			lappend result /\n"
-"		} elseif {[string match \"/*\" $pattern]} {\n"
-"			lappend result {*}[glob.do / [string range $pattern 1 end]]\n"
-"		} else {\n"
-"			lappend result {*}[glob.do \"\" $pattern]\n"
-"		}\n"
+"		lappend result {*}[glob.glob $pattern]\n"
 "	}\n"
 "\n"
 "	if {$nocomplain == 0 && [llength $result] == 0} {\n"
@@ -1590,6 +1599,9 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 "				}\n"
 "				-bu* {\n"
 "					$f buffering $v\n"
+"				}\n"
+"				-tr* {\n"
+"\n"
 "				}\n"
 "				default {\n"
 "					return -code error \"fconfigure: unknown option $n\"\n"
@@ -1812,6 +1824,14 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 "proc throw {code {msg \"\"}} {\n"
 "	return -code $code $msg\n"
 "}\n"
+"\n"
+"\n"
+"proc {file delete force} {path} {\n"
+"	foreach e [readdir $path] {\n"
+"		file delete -force $path/$e\n"
+"	}\n"
+"	file delete $path\n"
+"}\n"
 ,"tclcompat.tcl", 1);
 }
 
@@ -1861,7 +1881,7 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 #include <fcntl.h>
 
 
-#if !defined(JIM_ANSIC)
+#if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -1869,6 +1889,8 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#else
+#define JIM_ANSIC
 #endif
 
 
@@ -4037,6 +4059,12 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
     }
+#if defined(__MINGW32__)
+    else if (p[-1] == ':') {
+        /* z:/dir => z:/ */
+        Jim_SetResultString(interp, path, p - path + 1);
+    }
+#endif
     else {
         Jim_SetResultString(interp, path, p - path);
     }
@@ -4122,6 +4150,12 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             /* Absolute component, so go back to the start */
             last = newname;
         }
+#if defined(__MINGW32__)
+        else if (strchr(part, ':')) {
+            /* Absolute compontent on mingw, so go back to the start */
+            last = newname;
+        }
+#endif
 
         /* Add a slash if needed */
         if (last != newname) {
@@ -4185,14 +4219,24 @@ static int file_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    int force = Jim_CompareStringImmediate(interp, argv[0], "-force");
+
+    if (force || Jim_CompareStringImmediate(interp, argv[0], "--")) {
+        argc++;
+        argv--;
+    }
+
     while (argc--) {
         const char *path = Jim_String(argv[0]);
 
         if (unlink(path) == -1 && errno != ENOENT) {
             if (rmdir(path) == -1) {
-                Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path,
-                    strerror(errno));
-                return JIM_ERR;
+                /* Maybe try using the script helper */
+                if (!force || Jim_EvalObjPrefix(interp, "file delete force", 1, argv) != JIM_OK) {
+                    Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path,
+                        strerror(errno));
+                    return JIM_ERR;
+                }
             }
         }
         argv++;
@@ -4200,7 +4244,7 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#ifdef MKDIR_ONE_ARG
+#ifdef HAVE_MKDIR_ONE_ARG
 #define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME)
 #else
 #define MKDIR_DEFAULT(PATHNAME) mkdir(PATHNAME, 0755)
@@ -4574,11 +4618,11 @@ static const jim_subcmd_type file_command_table[] = {
         .description = "Does file exist"
     },
     {   .cmd = "delete",
-        .args = "name ...",
+        .args = "?-force|--? name ...",
         .function = file_cmd_delete,
         .minargs = 1,
         .maxargs = -1,
-        .description = "Deletes the files or empty directories"
+        .description = "Deletes the files or directories (must be empty unless -force)"
     },
     {   .cmd = "mkdir",
         .args = "dir ...",
@@ -4696,6 +4740,15 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, "Failed to get pwd", -1);
         return JIM_ERR;
     }
+#if defined(__MINGW32__)
+    {
+        /* Try to keep backlashes out of paths */
+        char *p = cwd;
+        while ((p = strchr(p, '\\')) != NULL) {
+            *p++ = '/';
+        }
+    }
+#endif
 
     Jim_SetResultString(interp, cwd, -1);
 
@@ -5577,15 +5630,6 @@ badargs:
             (void)signal(SIGPIPE, SIG_IGN);
         }
 
-        /*
-         * Enlarge the wait table if there isn't enough space for a new
-         * entry.
-         */
-        if (table->used == table->size) {
-            table->size += WAIT_TABLE_GROW_BY;
-            table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
-        }
-
         /* Need to do this befor vfork() */
         if (pipe_dup_err) {
             errorId = outputId;
@@ -5623,6 +5667,16 @@ badargs:
         }
 
         /* parent */
+
+        /*
+         * Enlarge the wait table if there isn't enough space for a new
+         * entry.
+         */
+        if (table->used == table->size) {
+            table->size += WAIT_TABLE_GROW_BY;
+            table->info = Jim_Realloc(table->info, table->size * sizeof(*table->info));
+        }
+
         table->info[table->used].pid = pid;
         table->info[table->used].flags = 0;
         table->used++;
@@ -6412,6 +6466,9 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
+static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
+static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
+
 
 static const Jim_HashTableType JimVariablesHashTableType;
 
@@ -7402,9 +7459,8 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
  * Tcl scripts and lists. */
 struct JimParserCtx
 {
-    const char *prg;            /* Program text */
     const char *p;              /* Pointer to the point of the program we are parsing */
-    int len;                    /* Left length of 'prg' */
+    int len;                    /* Remaining length */
     int linenr;                 /* Current line number */
     const char *tstart;
     const char *tend;           /* Returned token is at tstart-tend in 'prg'. */
@@ -7414,6 +7470,15 @@ struct JimParserCtx
     int state;                  /* Parser state */
     int comment;                /* Non zero if the next chars may be a comment. */
     char missing;               /* At end of parse, ' ' if complete, '{' if braces incomplete, '"' if quotes incomplete */
+    int missingline;            /* Line number starting the missing token */
+};
+
+/**
+ * Results of missing quotes, braces, etc. from parsing.
+ */
+struct JimParseResult {
+    char missing;               /* From JimParserCtx.missing */
+    int line;                   /* From JimParserCtx.missingline */
 };
 
 static int JimParseScript(struct JimParserCtx *pc);
@@ -7435,7 +7500,6 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
  * number of the first line contained in the program. */
 static void JimParserInit(struct JimParserCtx *pc, const char *prg, int len, int linenr)
 {
-    pc->prg = prg;
     pc->p = prg;
     pc->len = len;
     pc->tstart = NULL;
@@ -7447,6 +7511,7 @@ static void JimParserInit(struct JimParserCtx *pc, const char *prg, int len, int
     pc->linenr = linenr;
     pc->comment = 1;
     pc->missing = ' ';
+    pc->missingline = linenr;
 }
 
 static int JimParseScript(struct JimParserCtx *pc)
@@ -7622,6 +7687,7 @@ static void JimParseSubBrace(struct JimParserCtx *pc)
         pc->len--;
     }
     pc->missing = '{';
+    pc->missingline = pc->tline;
     pc->tend = pc->p - 1;
 }
 
@@ -7638,6 +7704,7 @@ static void JimParseSubBrace(struct JimParserCtx *pc)
 static int JimParseSubQuote(struct JimParserCtx *pc)
 {
     int tt = JIM_TT_STR;
+    int line = pc->tline;
 
     /* Skip the quote */
     pc->p++;
@@ -7677,6 +7744,7 @@ static int JimParseSubQuote(struct JimParserCtx *pc)
         pc->len--;
     }
     pc->missing = '"';
+    pc->missingline = line;
     pc->tend = pc->p - 1;
     return tt;
 }
@@ -7691,6 +7759,7 @@ static void JimParseSubCmd(struct JimParserCtx *pc)
 {
     int level = 1;
     int startofword = 1;
+    int line = pc->tline;
 
     /* Skip the bracket */
     pc->p++;
@@ -7740,6 +7809,7 @@ static void JimParseSubCmd(struct JimParserCtx *pc)
         pc->len--;
     }
     pc->missing = '[';
+    pc->missingline = line;
     pc->tend = pc->p - 1;
 }
 
@@ -7871,6 +7941,8 @@ static int JimParseStr(struct JimParserCtx *pc)
         pc->state = JIM_PS_QUOTE;
         pc->p++;
         pc->len--;
+        /* In case the end quote is missing */
+        pc->missingline = pc->tline;
     }
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
@@ -8182,11 +8254,11 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
 
 /* Parses the given string to determine if it represents a complete script.
  *
- * This is useful for interactive shells implementation, for [info complete]
- * and is used by source/Jim_EvalFile().
+ * This is useful for interactive shells implementation, for [info complete].
  *
  * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
  * '{' on scripts incomplete missing one or more '}' to be balanced.
+ * '[' on scripts incomplete missing one or more ']' to be balanced.
  * '"' on scripts incomplete missing a '"' char.
  *
  * If the script is complete, 1 is returned, otherwise 0.
@@ -9232,7 +9304,7 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
 
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
-static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
+static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct JimParseResult *result);
 
 static const Jim_ObjType scriptObjType = {
     "script",
@@ -9629,39 +9701,48 @@ static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 /* This method takes the string representation of an object
  * as a Tcl script, and generates the pre-parsed internal representation
  * of the script. */
-int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct JimParseResult *result)
 {
     int scriptTextLen;
     const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
     struct JimParserCtx parser;
-    struct ScriptObj *script = Jim_Alloc(sizeof(*script));
+    struct ScriptObj *script;
     ParseTokenList tokenlist;
+    int line = 1;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
-        script->fileName = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
-        script->line = objPtr->internalRep.sourceValue.lineNumber;
-    }
-    else {
-        script->fileName = NULL;
-        script->line = 1;
+        line = objPtr->internalRep.sourceValue.lineNumber;
     }
 
     /* Initially parse the script into tokens (in tokenlist) */
     ScriptTokenListInit(&tokenlist);
 
-    JimParserInit(&parser, scriptText, scriptTextLen, script->line);
+    JimParserInit(&parser, scriptText, scriptTextLen, line);
     while (!parser.eof) {
         JimParseScript(&parser);
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
             parser.tline);
     }
+    if (result && parser.missing != ' ') {
+        ScriptTokenListFree(&tokenlist);
+        result->missing = parser.missing;
+        result->line = parser.missingline;
+        return JIM_ERR;
+    }
+
     /* Add a final EOF token */
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
 
     /* Create the "real" script tokens from the initial token list */
-    script->substFlags = 0;
+    script = Jim_Alloc(sizeof(*script));
+    memset(script, 0, sizeof(*script));
     script->inUse = 1;
+    script->line = line;
+    if (objPtr->typePtr == &sourceObjType) {
+        script->fileName = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
+    }
+
     ScriptObjAddTokens(interp, script, &tokenlist);
 
     /* No longer need the token list */
@@ -9684,7 +9765,7 @@ ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
     struct ScriptObj *script = Jim_GetIntRepPtr(objPtr);
 
     if (objPtr->typePtr != &scriptObjType || script->substFlags) {
-        SetScriptFromAny(interp, objPtr);
+        SetScriptFromAny(interp, objPtr, NULL);
     }
     return (ScriptObj *) Jim_GetIntRepPtr(objPtr);
 }
@@ -9872,8 +9953,8 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
 
     if (he && interp->local) {
         /* Just push this proc over the top of the previous one */
-        cmdPtr->u.proc.prevCmd = he->val;
-        he->val = cmdPtr;
+        cmdPtr->u.proc.prevCmd = he->u.val;
+        he->u.val = cmdPtr;
     }
     else {
         if (he) {
@@ -9927,8 +10008,8 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newNa
     }
 
     /* Add the new name first */
-    JimIncrCmdRefCount(he->val);
-    Jim_AddHashEntry(&interp->commands, newName, he->val);
+    JimIncrCmdRefCount(he->u.val);
+    Jim_AddHashEntry(&interp->commands, newName, he->u.val);
 
     /* Now remove the old name */
     Jim_DeleteHashEntry(&interp->commands, oldName);
@@ -9968,7 +10049,7 @@ int SetCommandFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &commandObjType;
     objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
-    objPtr->internalRep.cmdValue.cmdPtr = (void *)he->val;
+    objPtr->internalRep.cmdValue.cmdPtr = (void *)he->u.val;
     return JIM_OK;
 }
 
@@ -10124,7 +10205,7 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &variableObjType;
     objPtr->internalRep.varValue.callFrameId = framePtr->id;
-    objPtr->internalRep.varValue.varPtr = (void *)he->val;
+    objPtr->internalRep.varValue.varPtr = (void *)he->u.val;
     return JIM_OK;
 }
 
@@ -10687,10 +10768,10 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
             he = table[i];
             while (he != NULL) {
                 Jim_HashEntry *nextEntry = he->next;
-                Jim_Var *varPtr = (void *)he->val;
+                Jim_Var *varPtr = (void *)he->u.val;
 
                 Jim_DecrRefCount(interp, varPtr->objPtr);
-                Jim_Free(he->val);
+                Jim_Free(he->u.val);
                 Jim_Free((void *)he->key);      /* ATTENTION: const cast */
                 Jim_Free(he);
                 table[i] = NULL;
@@ -10862,7 +10943,7 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         Jim_SetResultFormatted(interp, "invalid reference id \"%#s\"", objPtr);
         return JIM_ERR;
     }
-    refPtr = he->val;
+    refPtr = he->u.val;
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &referenceObjType;
@@ -11056,7 +11137,7 @@ int Jim_Collect(Jim_Interp *interp)
             collected++;
             /* Drop the reference, but call the
              * finalizer first if registered. */
-            refPtr = he->val;
+            refPtr = he->u.val;
             if (refPtr->finalizerCmdNamePtr) {
                 char *refstr = Jim_Alloc(JIM_REFERENCE_SPACE + 1);
                 Jim_Obj *objv[3], *oldResult;
@@ -11132,33 +11213,16 @@ Jim_Interp *Jim_CreateInterp(void)
 {
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
 
-    i->errorLine = 0;
+    memset(i, 0, sizeof(*i));
+
     i->errorFileName = Jim_StrDup("");
-    i->addStackTrace = 0;
     i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
-    i->returnCode = JIM_OK;
-    i->returnLevel = 0;
-    i->exitCode = 0;
-    i->procEpoch = 0;
-    i->callFrameEpoch = 0;
-    i->liveList = i->freeList = NULL;
-    i->referenceNextId = 0;
-    i->lastCollectId = 0;
     i->lastCollectTime = time(NULL);
-    i->freeFramesList = NULL;
-    i->prngState = NULL;
-    i->id = 0;
-    i->sigmask = 0;
-    i->signal_level = 0;
-    i->signal_set_result = NULL;
-    i->localProcs = NULL;
-    i->loadHandles = NULL;
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
      * initialized to NULL. */
     Jim_InitHashTable(&i->commands, &JimCommandsHashTableType, i);
-    i->local = 0;
 #ifdef JIM_REFERENCES
     Jim_InitHashTable(&i->references, &JimReferencesHashTableType, i);
 #endif
@@ -11172,7 +11236,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
-    i->unknown_called = 0;
     i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
@@ -11476,7 +11539,7 @@ void *Jim_GetAssocData(Jim_Interp *interp, const char *key)
     Jim_HashEntry *entryPtr = Jim_FindHashEntry(&interp->assocData, key);
 
     if (entryPtr != NULL) {
-        AssocDataValue *assocEntryPtr = (AssocDataValue *) entryPtr->val;
+        AssocDataValue *assocEntryPtr = (AssocDataValue *) entryPtr->u.val;
 
         return assocEntryPtr->data;
     }
@@ -11515,32 +11578,25 @@ const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
     if (he == NULL) {
         char *strCopy = Jim_StrDup(str);
 
-        Jim_AddHashEntry(&interp->sharedStrings, strCopy, (void *)1);
+        Jim_AddHashEntry(&interp->sharedStrings, strCopy, NULL);
+	he = Jim_FindHashEntry(&interp->sharedStrings, strCopy);
+	he->u.intval = 1;
         return strCopy;
     }
     else {
-        long refCount = (long)he->val;
-
-        refCount++;
-        he->val = (void *)refCount;
+        he->u.intval++;
         return he->key;
     }
 }
 
 void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
 {
-    long refCount;
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
 
     JimPanic((he == NULL, interp, "Jim_ReleaseSharedString called with " "unknown shared string '%s'", str));
 
-    refCount = (long)he->val;
-    refCount--;
-    if (refCount == 0) {
+    if (--he->u.intval == 0) {
         Jim_DeleteHashEntry(&interp->sharedStrings, str);
-    }
-    else {
-        he->val = (void *)refCount;
     }
 }
 
@@ -12499,6 +12555,9 @@ Jim_Obj *Jim_ListRange(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *firstOb
     first = JimRelToAbsIndex(len, first);
     last = JimRelToAbsIndex(len, last);
     JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    if (first == 0 && last == len) {
+        return listObjPtr;
+    }
     return Jim_NewListObj(interp, listObjPtr->internalRep.listValue.ele + first, rangeLen);
 }
 
@@ -12585,7 +12644,7 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     htiter = Jim_GetHashTableIterator(ht);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         const Jim_Obj *keyObjPtr = he->key;
-        Jim_Obj *valObjPtr = he->val;
+        Jim_Obj *valObjPtr = he->u.val;
 
         Jim_IncrRefCount((Jim_Obj *)keyObjPtr); /* ATTENTION: const cast */
         Jim_IncrRefCount(valObjPtr);
@@ -12616,7 +12675,7 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
     i = 0;
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
-        objv[i++] = he->val;
+        objv[i++] = he->u.val;
     }
     Jim_FreeHashTableIterator(htiter);
     /* (Over) Estimate the space needed. */
@@ -12724,8 +12783,8 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
                 he = Jim_FindHashEntry(ht, keyObjPtr);
                 Jim_DecrRefCount(interp, keyObjPtr);
                 /* ATTENTION: const cast */
-                Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-                he->val = valObjPtr;
+                Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
+                he->u.val = valObjPtr;
             }
         }
 
@@ -12760,8 +12819,8 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
 
         Jim_DecrRefCount(interp, keyObjPtr);
         /* ATTENTION: const cast */
-        Jim_DecrRefCount(interp, (Jim_Obj *)he->val);
-        he->val = valueObjPtr;
+        Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
+        he->u.val = valueObjPtr;
     }
     return JIM_OK;
 }
@@ -12820,7 +12879,7 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
         }
         return JIM_ERR;
     }
-    *objPtrPtr = he->val;
+    *objPtrPtr = he->u.val;
     return JIM_OK;
 }
 
@@ -12845,7 +12904,7 @@ int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, in
     i = 0;
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
-        objv[i++] = he->val;
+        objv[i++] = he->u.val;
     }
     *len = i;
     Jim_FreeHashTableIterator(htiter);
@@ -13206,6 +13265,8 @@ enum
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
     JIM_EXPROP_FUNC_ROUND,
+    JIM_EXPROP_FUNC_RAND,
+    JIM_EXPROP_FUNC_SRAND,
 
 #ifdef JIM_MATH_FUNCTIONS
     /* math functions from libm */
@@ -13339,30 +13400,46 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
     return rc;
 }
 
+static double JimRandDouble(Jim_Interp *interp)
+{
+    unsigned long x;
+    JimRandomBytes(interp, &x, sizeof(x));
+
+    return (double)x / (unsigned long)~0;
+}
+
 static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprState *e)
 {
     Jim_Obj *A = ExprPop(e);
     jim_wide wA;
-    int rc = JIM_ERR;
 
-
-    if (Jim_GetWide(interp, A, &wA) == JIM_OK) {
-        jim_wide wC;
-
+    int rc = Jim_GetWide(interp, A, &wA);
+    if (rc == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_BITNOT:
-                wC = ~wA;
+                ExprPush(e, Jim_NewIntObj(interp, ~wA));
+                break;
+            case JIM_EXPROP_FUNC_SRAND:
+                JimPrngSeed(interp, (unsigned char *)&wA, sizeof(wA));
+                ExprPush(e, Jim_NewDoubleObj(interp, JimRandDouble(interp)));
                 break;
             default:
                 abort();
         }
-        ExprPush(e, Jim_NewIntObj(interp, wC));
-        rc = JIM_OK;
     }
 
     Jim_DecrRefCount(interp, A);
 
     return rc;
+}
+
+static int JimExprOpNone(Jim_Interp *interp, struct JimExprState *e)
+{
+    JimPanic((e->opcode != JIM_EXPROP_FUNC_RAND));
+
+    ExprPush(e, Jim_NewDoubleObj(interp, JimRandDouble(interp)));
+
+    return JIM_OK;
 }
 
 #ifdef JIM_MATH_FUNCTIONS
@@ -13928,6 +14005,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_FUNC_DOUBLE] = {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_ABS] = {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_ROUND] = {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    [JIM_EXPROP_FUNC_RAND] = {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
+    [JIM_EXPROP_FUNC_SRAND] = {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
 
 #ifdef JIM_MATH_FUNCTIONS
     [JIM_EXPROP_FUNC_SIN] = {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
@@ -14734,13 +14813,19 @@ int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct ExprByteCode *expr;
     ParseTokenList tokenlist;
     int rc = JIM_ERR;
+    int line = 1;
+
+    /* Try to get information about filename / line number */
+    if (objPtr->typePtr == &sourceObjType) {
+        line = objPtr->internalRep.sourceValue.lineNumber;
+    }
 
     exprText = Jim_GetString(objPtr, &exprTextLen);
 
     /* Initially tokenise the expression into tokenlist */
     ScriptTokenListInit(&tokenlist);
 
-    JimParserInit(&parser, exprText, exprTextLen, 0);
+    JimParserInit(&parser, exprText, exprTextLen, line);
     while (!parser.eof) {
         if (JimParseExpression(&parser) != JIM_OK) {
             ScriptTokenListFree(&tokenlist);
@@ -15616,8 +15701,6 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
 /* -----------------------------------------------------------------------------
  * Pseudo Random Number Generation
  * ---------------------------------------------------------------------------*/
-static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
-
 /* Initialize the sbox with the numbers from 0 to 255 */
 static void JimPrngInit(Jim_Interp *interp)
 {
@@ -15905,7 +15988,7 @@ static void JimDeleteLocalProcs(Jim_Interp *interp)
             Jim_Cmd *prevCmd = NULL;
             Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, procname);
             if (he) {
-                Jim_Cmd *cmd = (Jim_Cmd *)he->val;
+                Jim_Cmd *cmd = (Jim_Cmd *)he->u.val;
                 if (cmd->isproc && cmd->u.proc.prevCmd) {
                     prevCmd = cmd->u.proc.prevCmd;
                     cmd->u.proc.prevCmd = NULL;
@@ -16621,7 +16704,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     struct stat sb;
     int retcode;
     int readlen;
-    char missing;
+    struct JimParseResult result;
 
     if (stat(filename, &sb) != 0 || (fp = fopen(filename, "rt")) == NULL) {
         Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
@@ -16643,16 +16726,35 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     fclose(fp);
     buf[readlen] = 0;
 
-    if (!Jim_ScriptIsComplete(buf, sb.st_size, &missing)) {
-        Jim_SetResultFormatted(interp, "missing %s in \"%s\"",
-            missing == '{' ? "close-brace" : "\"", filename);
-        Jim_Free(buf);
-        return JIM_ERR;
-    }
-
     scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
     JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
     Jim_IncrRefCount(scriptObjPtr);
+
+    /* Now check the script for unmatched braces, etc. */
+    if (SetScriptFromAny(interp, scriptObjPtr, &result) == JIM_ERR) {
+        const char *msg;
+        char linebuf[20];
+
+        switch (result.missing) {
+            case '[':
+                msg = "unmatched \"[\"";
+                break;
+            case '{':
+                msg = "missing close-brace";
+                break;
+            case '"':
+            default:
+                msg = "missing quote";
+                break;
+        }
+
+        snprintf(linebuf, sizeof(linebuf), "%d", result.line);
+
+        Jim_SetResultFormatted(interp, "%s in \"%s\" at line %s",
+            msg, filename, linebuf);
+        Jim_DecrRefCount(interp, scriptObjPtr);
+        return JIM_ERR;
+    }
 
     prevScriptObj = interp->currentScriptObj;
     interp->currentScriptObj = scriptObjPtr;
@@ -16895,7 +16997,7 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
 
     htiter = Jim_GetHashTableIterator(&interp->commands);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Cmd *cmdPtr = he->val;
+        Jim_Cmd *cmdPtr = he->u.val;
         Jim_Obj *cmdNameObj;
 
         if (type == 1 && !cmdPtr->isproc) {
@@ -16941,7 +17043,7 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int
         htiter = Jim_GetHashTableIterator(&interp->framePtr->vars);
     }
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Var *varPtr = (Jim_Var *)he->val;
+        Jim_Var *varPtr = (Jim_Var *)he->u.val;
 
         if (mode == JIM_VARLIST_LOCALS) {
             if (varPtr->linkFramePtr != NULL)
@@ -19515,7 +19617,7 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     htiter = Jim_GetHashTableIterator(&interp->references);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         char buf[JIM_REFERENCE_SPACE];
-        Jim_Reference *refPtr = he->val;
+        Jim_Reference *refPtr = he->u.val;
         const jim_wide *refId = he->key;
 
         JimFormatReference(buf, refPtr, *refId);
@@ -19910,10 +20012,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             else {
                 int len;
                 const char *s = Jim_GetString(argv[2], &len);
-                char missing = '\0';
+                char missing;
 
                 Jim_SetResultBool(interp, Jim_ScriptIsComplete(s, len, &missing));
-                if (missing && argc == 4) {
+                if (missing != ' ' && argc == 4) {
                     Jim_SetVariable(interp, argv[3], Jim_NewStringObj(interp, &missing, 1));
                 }
             }
@@ -20076,13 +20178,13 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
          * Optimise by sharing common (ASCII) characters
          */
         Jim_Obj **commonObj = NULL;
-#define NUM_COMMON (128 - 32)
+#define NUM_COMMON (128 - 9)
         while (strLen--) {
             int n = utf8_tounicode(str, &c);
 #ifdef JIM_OPTIMIZATION
-            if (c >= 32 && c < 128) {
-                /* Common ASCII char */
-                c -= 32;
+            if (c >= 9 && c < 128) {
+                /* Common ASCII char. Note that 9 is the tab character */
+                c -= 9;
                 if (!commonObj) {
                     commonObj = Jim_Alloc(sizeof(*commonObj) * NUM_COMMON);
                     memset(commonObj, 0, sizeof(*commonObj) * NUM_COMMON);
@@ -21952,8 +22054,8 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
  * Using two bytes for the "next" pointer is vast overkill for most things,
  * but allows patterns to get big without disasters.
  */
-#define	OP(p)	((p)[0])
-#define	NEXT(p)	((p)[1])
+#define	OP(preg, p)	(preg->program[p])
+#define	NEXT(preg, p)	(preg->program[p + 1])
 #define	OPERAND(p)	((p) + 2)
 
 /*
@@ -21982,16 +22084,17 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 /*
  * Forward declarations for regcomp()'s friends.
  */
-static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp );
-static int *regpiece(regex_t *preg, int *flagp );
-static int *regbranch(regex_t *preg, int *flagp );
-static int *regatom(regex_t *preg, int *flagp );
-static int *regnode(regex_t *preg, int op );
-static const int *regnext(regex_t *preg, const int *p );
+static int reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp );
+static int regpiece(regex_t *preg, int *flagp );
+static int regbranch(regex_t *preg, int *flagp );
+static int regatom(regex_t *preg, int *flagp );
+static int regnode(regex_t *preg, int op );
+static int regnext(regex_t *preg, int p );
 static void regc(regex_t *preg, int b );
-static int *reginsert(regex_t *preg, int op, int size, int *opnd );
-static void regtail(regex_t *preg, int *p, const int *val );
-static void regoptail(regex_t *preg, int *p, const int *val );
+static int reginsert(regex_t *preg, int op, int size, int opnd );
+static void regtail_(regex_t *preg, int p, int val, int line );
+static void regoptail(regex_t *preg, int p, int val );
+#define regtail(PREG, P, VAL) regtail_(PREG, P, VAL, __LINE__)
 
 static int reg_range_find(const int *string, int c);
 static const char *str_find(const char *string, int c, int nocase);
@@ -22001,11 +22104,9 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 #ifdef DEBUG
 int regnarrate = 0;
 static void regdump(regex_t *preg);
-static const char *regprop( const int *op );
+static const char *regprop( int op );
 #endif
 
-
-static int regdummy;
 
 /**
  * Returns the length of the null-terminated integer sequence.
@@ -22036,8 +22137,8 @@ static int str_int_len(const int *seq)
  */
 int regcomp(regex_t *preg, const char *exp, int cflags)
 {
-	const int *scan;
-	const int *longest;
+	int scan;
+	int longest;
 	unsigned len;
 	int flags;
 
@@ -22052,45 +22153,44 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 	/* First pass: determine size, legality. */
 	preg->cflags = cflags;
 	preg->regparse = exp;
-	preg->re_nsub = 0;
-	preg->regsize = 0L;
-	preg->regcode = &regdummy;
-	regc(preg, REG_MAGIC);
-	if (reg(preg, 0, &flags) == NULL)
-		return preg->err;
+	/* XXX: For now, start unallocated */
+	preg->program = NULL;
+	preg->proglen = 0;
 
-	/* Small enough for pointer-storage convention? */
-	if (preg->regsize >= 32767L || preg->re_nsub >= REG_MAX_PAREN)		/* Probably could be 65535L. */
-		FAIL(preg,REG_ERR_TOO_BIG);
-
+#if 1
 	/* Allocate space. */
-	preg->program = malloc(preg->regsize * sizeof(*preg->program));
+	preg->proglen = (strlen(exp) + 1) * 5;
+	preg->program = malloc(preg->proglen * sizeof(int));
 	if (preg->program == NULL)
 		FAIL(preg, REG_ERR_NOMEM);
+#endif
 
-	/* Second pass: emit code. */
-	preg->regparse = exp;
-	preg->re_nsub = 0;
-	preg->regsize = 0L;
-	preg->regcode = preg->program;
+	/* Note that since we store a magic value as the first item in the program,
+	 * program offsets will never be 0
+	 */
 	regc(preg, REG_MAGIC);
-	if (reg(preg, 0, &flags) == NULL)
+	if (reg(preg, 0, &flags) == 0) {
 		return preg->err;
+	}
+
+	/* Small enough for pointer-storage convention? */
+	if (preg->re_nsub >= REG_MAX_PAREN)		/* Probably could be 65535L. */
+		FAIL(preg,REG_ERR_TOO_BIG);
 
 	/* Dig out information for optimizations. */
 	preg->regstart = 0;	/* Worst-case defaults. */
 	preg->reganch = 0;
-	preg->regmust = NULL;
+	preg->regmust = 0;
 	preg->regmlen = 0;
-	scan = preg->program+1;			/* First BRANCH. */
-	if (OP(regnext(preg, scan)) == END) {		/* Only one top-level choice. */
+	scan = 1;			/* First BRANCH. */
+	if (OP(preg, regnext(preg, scan)) == END) {		/* Only one top-level choice. */
 		scan = OPERAND(scan);
 
 		/* Starting-point info. */
-		if (OP(scan) == EXACTLY) {
-			preg->regstart = *OPERAND(scan);
+		if (OP(preg, scan) == EXACTLY) {
+			preg->regstart = preg->program[OPERAND(scan)];
 		}
-		else if (OP(scan) == BOL)
+		else if (OP(preg, scan) == BOL)
 			preg->reganch++;
 
 		/*
@@ -22102,11 +22202,11 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 		 * strong reason, but sufficient in the absence of others.
 		 */
 		if (flags&SPSTART) {
-			longest = NULL;
+			longest = 0;
 			len = 0;
-			for (; scan != NULL; scan = regnext(preg, scan)) {
-				if (OP(scan) == EXACTLY) {
-					int plen = str_int_len(OPERAND(scan));
+			for (; scan != 0; scan = regnext(preg, scan)) {
+				if (OP(preg, scan) == EXACTLY) {
+					int plen = str_int_len(preg->program + OPERAND(scan));
 					if (plen >= len) {
 						longest = OPERAND(scan);
 						len = plen;
@@ -22134,11 +22234,11 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
  * is a trifle forced, but the need to tie the tails of the branches to what
  * follows makes it hard to avoid.
  */
-static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
+static int reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 {
-	int *ret;
-	int *br;
-	const int *ender;
+	int ret;
+	int br;
+	int ender;
 	int parno = 0;
 	int flags;
 
@@ -22149,13 +22249,13 @@ static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 		parno = ++preg->re_nsub;
 		ret = regnode(preg, OPEN+parno);
 	} else
-		ret = NULL;
+		ret = 0;
 
 	/* Pick up the branches, linking them together. */
 	br = regbranch(preg, &flags);
-	if (br == NULL)
-		return(NULL);
-	if (ret != NULL)
+	if (br == 0)
+		return 0;
+	if (ret != 0)
 		regtail(preg, ret, br);	/* OPEN -> first. */
 	else
 		ret = br;
@@ -22165,8 +22265,8 @@ static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 	while (*preg->regparse == '|') {
 		preg->regparse++;
 		br = regbranch(preg, &flags);
-		if (br == NULL)
-			return(NULL);
+		if (br == 0)
+			return 0;
 		regtail(preg, ret, br);	/* BRANCH -> BRANCH. */
 		if (!(flags&HASWIDTH))
 			*flagp &= ~HASWIDTH;
@@ -22174,24 +22274,24 @@ static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 	}
 
 	/* Make a closing node, and hook it on the end. */
-	ender = regnode(preg, (paren) ? CLOSE+parno : END);	
+	ender = regnode(preg, (paren) ? CLOSE+parno : END);
 	regtail(preg, ret, ender);
 
 	/* Hook the tails of the branches to the closing node. */
-	for (br = ret; br != NULL; br = (int *)regnext(preg, br))
+	for (br = ret; br != 0; br = regnext(preg, br))
 		regoptail(preg, br, ender);
 
 	/* Check for proper termination. */
 	if (paren && *preg->regparse++ != ')') {
 		preg->err = REG_ERR_UNMATCHED_PAREN;
-		return NULL;
+		return 0;
 	} else if (!paren && *preg->regparse != '\0') {
 		if (*preg->regparse == ')') {
 			preg->err = REG_ERR_UNMATCHED_PAREN;
-			return NULL;
+			return 0;
 		} else {
 			preg->err = REG_ERR_JUNK_ON_END;
-			return NULL;
+			return 0;
 		}
 	}
 
@@ -22203,24 +22303,24 @@ static int *reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
  *
  * Implements the concatenation operator.
  */
-static int *regbranch(regex_t *preg, int *flagp )
+static int regbranch(regex_t *preg, int *flagp )
 {
-	int *ret;
-	int *chain;
-	int *latest;
+	int ret;
+	int chain;
+	int latest;
 	int flags;
 
 	*flagp = WORST;		/* Tentatively. */
 
 	ret = regnode(preg, BRANCH);
-	chain = NULL;
+	chain = 0;
 	while (*preg->regparse != '\0' && *preg->regparse != ')' &&
 	       *preg->regparse != '|') {
 		latest = regpiece(preg, &flags);
-		if (latest == NULL)
-			return(NULL);
+		if (latest == 0)
+			return 0;
 		*flagp |= flags&HASWIDTH;
-		if (chain == NULL) {/* First piece. */
+		if (chain == 0) {/* First piece. */
 			*flagp |= flags&SPSTART;
 		}
 		else {
@@ -22228,7 +22328,7 @@ static int *regbranch(regex_t *preg, int *flagp )
 		}
 		chain = latest;
 	}
-	if (chain == NULL)	/* Loop ran zero times. */
+	if (chain == 0)	/* Loop ran zero times. */
 		(void) regnode(preg, NOTHING);
 
 	return(ret);
@@ -22243,22 +22343,19 @@ static int *regbranch(regex_t *preg, int *flagp )
  * It might seem that this node could be dispensed with entirely, but the
  * endmarker role is not redundant.
  */
-static int *regpiece(regex_t *preg, int *flagp)
+static int regpiece(regex_t *preg, int *flagp)
 {
-	int *ret;
+	int ret;
 	char op;
-	int *next;
+	int next;
 	int flags;
-	int size = preg->regsize;
-	int *chain = NULL;
+	int chain = 0;
 	int min;
 	int max;
 
 	ret = regatom(preg, &flags);
-	if (ret == NULL)
-		return(NULL);
-
-	size = preg->regsize - size;
+	if (ret == 0)
+		return 0;
 
 	op = *preg->regparse;
 	if (!ISMULT(op)) {
@@ -22268,7 +22365,7 @@ static int *regpiece(regex_t *preg, int *flagp)
 
 	if (!(flags&HASWIDTH) && op != '?') {
 		preg->err = REG_ERR_OPERAND_COULD_BE_EMPTY;
-		return NULL;
+		return 0;
 	}
 
 	/* Handle braces (counted repetition) by expansion */
@@ -22278,7 +22375,7 @@ static int *regpiece(regex_t *preg, int *flagp)
 		min = strtoul(preg->regparse + 1, &end, 10);
 		if (end == preg->regparse + 1) {
 			preg->err = REG_ERR_BAD_COUNT;
-			return NULL;
+			return 0;
 		}
 		if (*end == '}') {
 			max = min;
@@ -22288,7 +22385,7 @@ static int *regpiece(regex_t *preg, int *flagp)
 			max = strtoul(preg->regparse + 1, &end, 10);
 			if (*end != '}') {
 				preg->err = REG_ERR_UNMATCHED_BRACES;
-				return NULL;
+				return 0;
 			}
 		}
 		if (end == preg->regparse + 1) {
@@ -22296,11 +22393,11 @@ static int *regpiece(regex_t *preg, int *flagp)
 		}
 		else if (max < min || max >= 100) {
 			preg->err = REG_ERR_BAD_COUNT;
-			return NULL;
+			return 0;
 		}
 		if (min >= 100) {
 			preg->err = REG_ERR_BAD_COUNT;
-			return NULL;
+			return 0;
 		}
 
 		preg->regparse = strchr(preg->regparse, '}');
@@ -22317,16 +22414,14 @@ static int *regpiece(regex_t *preg, int *flagp)
 	else {
 		next = reginsert(preg, flags & SIMPLE ? REP: REPX, 5, ret);
 	}
-	if (preg->regcode != &regdummy) {
-		ret[2] = max;
-		ret[3] = min;
-		ret[4] = 0;
-	}
+	preg->program[ret + 2] = max;
+	preg->program[ret + 3] = min;
+	preg->program[ret + 4] = 0;
 
 	*flagp = (min) ? (WORST|HASWIDTH) : (WORST|SPSTART);
 
 	if (!(flags & SIMPLE)) {
-		int *back = regnode(preg, BACK);
+		int back = regnode(preg, BACK);
 		regtail(preg, back, ret);
 		regtail(preg, next, back);
 	}
@@ -22334,7 +22429,7 @@ static int *regpiece(regex_t *preg, int *flagp)
 	preg->regparse++;
 	if (ISMULT(*preg->regparse)) {
 		preg->err = REG_ERR_NESTED_COUNT;
-		return NULL;
+		return 0;
 	}
 
 	return chain ? chain : ret;
@@ -22468,9 +22563,9 @@ static int reg_decode_escape(const char *s, int *ch)
  * faster to run.  Backslashed characters are exceptions, each becoming a
  * separate node; the code is simpler that way and it's not worth fixing.
  */
-static int *regatom(regex_t *preg, int *flagp)
+static int regatom(regex_t *preg, int *flagp)
 {
-	int *ret;
+	int ret;
 	int flags;
 	int nocase = (preg->cflags & REG_ICASE);
 
@@ -22517,7 +22612,7 @@ static int *regatom(regex_t *preg, int *flagp)
 					pattern += reg_decode_escape(pattern, &start);
 					if (start == 0) {
 						preg->err = REG_ERR_NULL_CHAR;
-						return NULL;
+						return 0;
 					}
 				}
 				if (pattern[0] == '-' && pattern[1]) {
@@ -22528,7 +22623,7 @@ static int *regatom(regex_t *preg, int *flagp)
 						pattern += reg_decode_escape(pattern, &end);
 						if (end == 0) {
 							preg->err = REG_ERR_NULL_CHAR;
-							return NULL;
+							return 0;
 						}
 					}
 
@@ -22574,27 +22669,26 @@ static int *regatom(regex_t *preg, int *flagp)
 		break;
 	case '(':
 		ret = reg(preg, 1, &flags);
-		if (ret == NULL)
-			return(NULL);
+		if (ret == 0)
+			return 0;
 		*flagp |= flags&(HASWIDTH|SPSTART);
 		break;
 	case '\0':
 	case '|':
 	case ')':
 		preg->err = REG_ERR_INTERNAL;
-		return NULL;	/* Supposed to be caught earlier. */
+		return 0;	/* Supposed to be caught earlier. */
 	case '?':
 	case '+':
 	case '*':
 	case '{':
 		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
-		return NULL;
+		return 0;
 	case '\\':
 		switch (*preg->regparse++) {
 		case '\0':
 			preg->err = REG_ERR_TRAILING_BACKSLASH;
-			return NULL;
-			break;
+			return 0;
 		case '<':
 		case 'm':
 			ret = regnode(preg, WORDA);
@@ -22670,7 +22764,7 @@ static int *regatom(regex_t *preg, int *flagp)
 					n += reg_decode_escape(preg->regparse + n, &ch);
 					if (ch == 0) {
 						preg->err = REG_ERR_NULL_CHAR;
-						return NULL;
+						return 0;
 					}
 				}
 
@@ -22709,27 +22803,27 @@ static int *regatom(regex_t *preg, int *flagp)
 	return(ret);
 }
 
+static void reg_grow(regex_t *preg, int n)
+{
+	if (preg->p + n >= preg->proglen) {
+		preg->proglen = (preg->p + n) * 2;
+		preg->program = realloc(preg->program, preg->proglen * sizeof(int));
+	}
+}
+
 /*
  - regnode - emit a node
  */
 /* Location. */
-static int *regnode(regex_t *preg, int op)
+static int regnode(regex_t *preg, int op)
 {
-	int *ret;
-	int *ptr;
+	reg_grow(preg, 2);
 
-	preg->regsize += 2;
-	ret = preg->regcode;
-	if (ret == &regdummy) {
-		return(ret);
-	}
+	preg->program[preg->p++] = op;
+	preg->program[preg->p++] = 0;
 
-	ptr = ret;
-	*ptr++ = op;
-	*ptr++ = 0;		/* Null "next" pointer. */
-	preg->regcode = ptr;
-
-	return(ret);
+	/* Return the start of the node */
+	return preg->p - 2;
 }
 
 /*
@@ -22737,9 +22831,8 @@ static int *regnode(regex_t *preg, int op)
  */
 static void regc(regex_t *preg, int b )
 {
-	preg->regsize++;
-	if (preg->regcode != &regdummy)
-		*preg->regcode++ = b;
+	reg_grow(preg, 1);
+	preg->program[preg->p++] = b;
 }
 
 /*
@@ -22748,72 +22841,58 @@ static void regc(regex_t *preg, int b )
  * Means relocating the operand.
  * Returns the new location of the original operand.
  */
-static int *reginsert(regex_t *preg, int op, int size, int *opnd )
+static int reginsert(regex_t *preg, int op, int size, int opnd )
 {
-	int *src;
-	int *dst;
-	int *place;
+	reg_grow(preg, size);
 
-	preg->regsize += size;
+	/* Move everything from opnd up */
+	memmove(preg->program + opnd + size, preg->program + opnd, sizeof(int) * (preg->p - opnd));
+	/* Zero out the new space */
+	memset(preg->program + opnd, 0, sizeof(int) * size);
 
-	if (preg->regcode == &regdummy) {
-		return opnd;
-	}
+	preg->program[opnd] = op;
 
-	src = preg->regcode;
-	preg->regcode += size;
-	dst = preg->regcode;
-	while (src > opnd)
-		*--dst = *--src;
+	preg->p += size;
 
-	place = opnd;		/* Op node, where operand used to be. */
-	*place++ = op;
-	while (--size) {
-		*place++ = 0;
-	}
-
-	return place;
+	return opnd + size;
 }
 
 /*
  - regtail - set the next-pointer at the end of a node chain
  */
-static void regtail(regex_t *preg, int *p, const int *val )
+static void regtail_(regex_t *preg, int p, int val, int line )
 {
-	int *scan;
-	int *temp;
+	int scan;
+	int temp;
 	int offset;
-
-	if (p == &regdummy)
-		return;
 
 	/* Find last node. */
 	scan = p;
 	for (;;) {
-		temp = (int *)regnext(preg, scan);
-		if (temp == NULL)
+		temp = regnext(preg, scan);
+		if (temp == 0)
 			break;
 		scan = temp;
 	}
 
-	if (OP(scan) == BACK)
+	if (OP(preg, scan) == BACK)
 		offset = scan - val;
 	else
 		offset = val - scan;
 
-	scan[1] = offset;
+	preg->program[scan + 1] = offset;
 }
 
 /*
  - regoptail - regtail on operand of first argument; nop if operandless
  */
 
-static void regoptail(regex_t *preg, int *p, const int *val )
+static void regoptail(regex_t *preg, int p, int val )
 {
 	/* "Operandless" and "op != BRANCH" are synonymous in practice. */
-	if (p == NULL || p == &regdummy || OP(p) != BRANCH)
-		return;
-	regtail(preg, OPERAND(p), val);
+	if (p != 0 && OP(preg, p) == BRANCH) {
+		regtail(preg, OPERAND(p), val);
+	}
 }
 
 /*
@@ -22824,8 +22903,8 @@ static void regoptail(regex_t *preg, int *p, const int *val )
  * Forwards.
  */
 static int regtry(regex_t *preg, const char *string );
-static int regmatch(regex_t *preg, const int *prog);
-static int regrepeat(regex_t *preg, const int *p, int max);
+static int regmatch(regex_t *preg, int prog);
+static int regrepeat(regex_t *preg, int p, int max);
 
 /*
  - regexec - match a regexp against a string
@@ -22833,7 +22912,7 @@ static int regrepeat(regex_t *preg, const int *p, int max);
 int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmatch[], int eflags)
 {
 	const char *s;
-	const int *scan;
+	int scan;
 
 	/* Be paranoid... */
 	if (preg == NULL || preg->program == NULL || string == NULL) {
@@ -22856,22 +22935,22 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 	preg->start = string;	/* All offsets are computed from here */
 
 	/* Must clear out the embedded repeat counts */
-	for (scan = OPERAND(preg->program + 1); scan != NULL; scan = regnext(preg, scan)) {
-		switch (OP(scan)) {
+	for (scan = OPERAND(1); scan != 0; scan = regnext(preg, scan)) {
+		switch (OP(preg, scan)) {
 		case REP:
 		case REPMIN:
 		case REPX:
 		case REPXMIN:
-			*(int *)(scan + 4) = 0;
+			preg->program[scan + 4] = 0;
 			break;
 		}
 	}
 
 	/* If there is a "must appear" string, look for it. */
-	if (preg->regmust != NULL) {
+	if (preg->regmust != 0) {
 		s = string;
-		while ((s = str_find(s, preg->regmust[0], preg->cflags & REG_ICASE)) != NULL) {
-			if (prefix_cmp(preg->regmust, preg->regmlen, s, preg->cflags & REG_ICASE) >= 0) {
+		while ((s = str_find(s, preg->program[preg->regmust], preg->cflags & REG_ICASE)) != NULL) {
+			if (prefix_cmp(preg->program + preg->regmust, preg->regmlen, s, preg->cflags & REG_ICASE) >= 0) {
 				break;
 			}
 			s++;
@@ -22948,7 +23027,7 @@ static int regtry( regex_t *preg, const char *string )
 		preg->pmatch[i].rm_so = -1;
 		preg->pmatch[i].rm_eo = -1;
 	}
-	if (regmatch(preg, preg->program + 1)) {
+	if (regmatch(preg, 1)) {
 		preg->pmatch[0].rm_so = string - preg->start;
 		preg->pmatch[0].rm_eo = preg->reginput - preg->start;
 		return(1);
@@ -23041,23 +23120,23 @@ static int reg_iseol(regex_t *preg, int ch)
 	}
 }
 
-static int regmatchsimplerepeat(regex_t *preg, const int *scan, int matchmin)
+static int regmatchsimplerepeat(regex_t *preg, int scan, int matchmin)
 {
 	int nextch = '\0';
 	const char *save;
 	int no;
 	int c;
 
-	int max = scan[2];
-	int min = scan[3];
-	const int *next = regnext(preg, scan);
+	int max = preg->program[scan + 2];
+	int min = preg->program[scan + 3];
+	int next = regnext(preg, scan);
 
 	/*
 	 * Lookahead to avoid useless match attempts
 	 * when we know what character comes next.
 	 */
-	if (OP(next) == EXACTLY) {
-		nextch = *OPERAND(next);
+	if (OP(preg, next) == EXACTLY) {
+		nextch = preg->program[OPERAND(next)];
 	}
 	save = preg->reginput;
 	no = regrepeat(preg, scan + 5, max);
@@ -23101,26 +23180,24 @@ static int regmatchsimplerepeat(regex_t *preg, const int *scan, int matchmin)
 	return(0);
 }
 
-static int regmatchrepeat(regex_t *preg, int *scan, int matchmin)
+static int regmatchrepeat(regex_t *preg, int scan, int matchmin)
 {
-	const char *save;
+	int *scanpt = preg->program + scan;
 
-	int max = scan[2];
-	int min = scan[3];
-
-	save = preg->reginput;
+	int max = scanpt[2];
+	int min = scanpt[3];
 
 	/* Have we reached min? */
-	if (scan[4] < min) {
+	if (scanpt[4] < min) {
 		/* No, so get another one */
-		scan[4]++;
+		scanpt[4]++;
 		if (regmatch(preg, scan + 5)) {
 			return 1;
 		}
-		scan[4]--;
+		scanpt[4]--;
 		return 0;
 	}
-	if (scan[4] > max) {
+	if (scanpt[4] > max) {
 		return 0;
 	}
 
@@ -23130,26 +23207,23 @@ static int regmatchrepeat(regex_t *preg, int *scan, int matchmin)
 			return 1;
 		}
 		/* No, so try one more */
-		scan[4]++;
+		scanpt[4]++;
 		if (regmatch(preg, scan + 5)) {
 			return 1;
 		}
-		scan[4]--;
+		scanpt[4]--;
 		return 0;
 	}
 	/* maximal, so try this branch again */
-	save = preg->reginput;
-	if (scan[4] < max) {
-		scan[4]++;
+	if (scanpt[4] < max) {
+		scanpt[4]++;
 		if (regmatch(preg, scan + 5)) {
 			return 1;
 		}
-		scan[4]--;
+		scanpt[4]--;
 	}
-	/* At this point we are at max with no match. Back up by one and try the other branch */
-	preg->reginput = save;
-	int ret = regmatch(preg, regnext(preg, scan));
-	return ret;
+	/* At this point we are at max with no match. Try the other branch */
+	return regmatch(preg, regnext(preg, scan));
 }
 
 /*
@@ -23163,31 +23237,30 @@ static int regmatchrepeat(regex_t *preg, int *scan, int matchmin)
  * by recursion.
  */
 /* 0 failure, 1 success */
-static int regmatch(regex_t *preg, const int *prog)
+static int regmatch(regex_t *preg, int prog)
 {
-	const int *scan;	/* Current node. */
-	const int *next;		/* Next node. */
+	int scan;	/* Current node. */
+	int next;		/* Next node. */
 
 	scan = prog;
 
 #ifdef DEBUG
-	if (scan != NULL && regnarrate)
+	if (scan != 0 && regnarrate)
 		fprintf(stderr, "%s(\n", regprop(scan));
 #endif
-	while (scan != NULL) {
+	while (scan != 0) {
 		int n;
 		int c;
 #ifdef DEBUG
 		if (regnarrate) {
 			//fprintf(stderr, "%s...\n", regprop(scan));
-			int op = OP(scan);
-			fprintf(stderr, "%2d{%02x}%s...\n", (int)(scan-preg->program), op, regprop(scan));	/* Where, what. */
+			fprintf(stderr, "%3d: %s...\n", scan, regprop(OP(preg, scan)));	/* Where, what. */
 		}
 #endif
 		next = regnext(preg, scan);
 		n = reg_utf8_tounicode_case(preg->reginput, &c, (preg->cflags & REG_ICASE));
 
-		switch (OP(scan)) {
+		switch (OP(preg, scan)) {
 		case BOL:
 			if (preg->reginput != preg->regbol)
 				return(0);
@@ -23227,14 +23300,14 @@ static int regmatch(regex_t *preg, const int *prog)
 			preg->reginput += n;
 			break;
 		case EXACTLY: {
-				const int *opnd;
+				int opnd;
 				int len;
 				int slen;
 
 				opnd = OPERAND(scan);
-				len = str_int_len(opnd);
+				len = str_int_len(preg->program + opnd);
 
-				slen = prefix_cmp(opnd, len, preg->reginput, preg->cflags & REG_ICASE);
+				slen = prefix_cmp(preg->program + opnd, len, preg->reginput, preg->cflags & REG_ICASE);
 				if (slen < 0) {
 					return(0);
 				}
@@ -23242,13 +23315,13 @@ static int regmatch(regex_t *preg, const int *prog)
 			}
 			break;
 		case ANYOF:
-			if (reg_iseol(preg, c) || reg_range_find(OPERAND(scan), c) == 0) {
+			if (reg_iseol(preg, c) || reg_range_find(preg->program + OPERAND(scan), c) == 0) {
 				return(0);
 			}
 			preg->reginput += n;
 			break;
 		case ANYBUT:
-			if (reg_iseol(preg, c) || reg_range_find(OPERAND(scan), c) != 0) {
+			if (reg_iseol(preg, c) || reg_range_find(preg->program + OPERAND(scan), c) != 0) {
 				return(0);
 			}
 			preg->reginput += n;
@@ -23260,7 +23333,7 @@ static int regmatch(regex_t *preg, const int *prog)
 		case BRANCH: {
 				const char *save;
 
-				if (OP(next) != BRANCH)		/* No choice. */
+				if (OP(preg, next) != BRANCH)		/* No choice. */
 					next = OPERAND(scan);	/* Avoid recursion. */
 				else {
 					do {
@@ -23270,7 +23343,7 @@ static int regmatch(regex_t *preg, const int *prog)
 						}
 						preg->reginput = save;
 						scan = regnext(preg, scan);
-					} while (scan != NULL && OP(scan) == BRANCH);
+					} while (scan != 0 && OP(preg, scan) == BRANCH);
 					return(0);
 					/* NOTREACHED */
 				}
@@ -23278,17 +23351,17 @@ static int regmatch(regex_t *preg, const int *prog)
 			break;
 		case REP:
 		case REPMIN:
-			return regmatchsimplerepeat(preg, scan, OP(scan) == REPMIN);
+			return regmatchsimplerepeat(preg, scan, OP(preg, scan) == REPMIN);
 
 		case REPX:
 		case REPXMIN:
-			return regmatchrepeat(preg, (int *)scan, OP(scan) == REPXMIN);
+			return regmatchrepeat(preg, scan, OP(preg, scan) == REPXMIN);
 
 		case END:
 			return(1);	/* Success! */
 			break;
 		default:
-			if (OP(scan) >= OPEN+1 && OP(scan) < CLOSE_END) {
+			if (OP(preg, scan) >= OPEN+1 && OP(preg, scan) < CLOSE_END) {
 				const char *save;
 
 				save = preg->reginput;
@@ -23300,14 +23373,14 @@ static int regmatch(regex_t *preg, const int *prog)
 					 * invocation of the same parentheses
 					 * already has.
 					 */
-					if (OP(scan) < CLOSE) {
-						no = OP(scan) - OPEN;
+					if (OP(preg, scan) < CLOSE) {
+						no = OP(preg, scan) - OPEN;
 						if (no < preg->nmatch && preg->pmatch[no].rm_so == -1) {
 							preg->pmatch[no].rm_so = save - preg->start;
 						}
 					}
 					else {
-						no = OP(scan) - CLOSE;
+						no = OP(preg, scan) - CLOSE;
 						if (no < preg->nmatch && preg->pmatch[no].rm_eo == -1) {
 							preg->pmatch[no].rm_eo = save - preg->start;
 						}
@@ -23332,17 +23405,17 @@ static int regmatch(regex_t *preg, const int *prog)
 /*
  - regrepeat - repeatedly match something simple, report how many
  */
-static int regrepeat(regex_t *preg, const int *p, int max)
+static int regrepeat(regex_t *preg, int p, int max)
 {
 	int count = 0;
 	const char *scan;
-	const int *opnd;
+	int opnd;
 	int ch;
 	int n;
 
 	scan = preg->reginput;
 	opnd = OPERAND(p);
-	switch (OP(p)) {
+	switch (OP(preg, p)) {
 	case ANY:
 		/* No need to handle utf8 specially here */
 		while (!reg_iseol(preg, *scan) && count < max) {
@@ -23353,7 +23426,7 @@ static int regrepeat(regex_t *preg, const int *p, int max)
 	case EXACTLY:
 		while (count < max) {
 			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
-			if (*opnd != ch) {
+			if (preg->program[opnd] != ch) {
 				break;
 			}
 			count++;
@@ -23363,7 +23436,7 @@ static int regrepeat(regex_t *preg, const int *p, int max)
 	case ANYOF:
 		while (count < max) {
 			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
-			if (reg_iseol(preg, ch) || reg_range_find(opnd, ch) == 0) {
+			if (reg_iseol(preg, ch) || reg_range_find(preg->program + opnd, ch) == 0) {
 				break;
 			}
 			count++;
@@ -23373,7 +23446,7 @@ static int regrepeat(regex_t *preg, const int *p, int max)
 	case ANYBUT:
 		while (count < max) {
 			n = reg_utf8_tounicode_case(scan, &ch, preg->cflags & REG_ICASE);
-			if (reg_iseol(preg, ch) || reg_range_find(opnd, ch) != 0) {
+			if (reg_iseol(preg, ch) || reg_range_find(preg->program + opnd, ch) != 0) {
 				break;
 			}
 			count++;
@@ -23393,19 +23466,16 @@ static int regrepeat(regex_t *preg, const int *p, int max)
 /*
  - regnext - dig the "next" pointer out of a node
  */
-static const int *regnext(regex_t *preg, const int *p )
+static int regnext(regex_t *preg, int p )
 {
 	int offset;
 
-	if (p == &regdummy)
-		return(NULL);
-
-	offset = NEXT(p);
+	offset = NEXT(preg, p);
 
 	if (offset == 0)
-		return(NULL);
+		return 0;
 
-	if (OP(p) == BACK)
+	if (OP(preg, p) == BACK)
 		return(p-offset);
 	else
 		return(p+offset);
@@ -23418,42 +23488,48 @@ static const int *regnext(regex_t *preg, const int *p )
  */
 static void regdump(regex_t *preg)
 {
-	const int *s;
-	char op = EXACTLY;	/* Arbitrary non-END op. */
-	const int *next;
+	int s;
+	int op = EXACTLY;	/* Arbitrary non-END op. */
+	int next;
 	char buf[4];
 
-	if (preg->regcode == &regdummy)
-		return;
+	int i;
+	for (i = 1; i < preg->p; i++) {
+		printf("%02x ", preg->program[i]);
+		if (i % 16 == 15) {
+			printf("\n");
+		}
+	}
+	printf("\n");
 
-	s = preg->program + 1;
-	while (op != END && s < preg->regcode) {	/* While that wasn't END last time... */
-		op = OP(s);
-		printf("%2d{%02x}%s", (int)(s-preg->program), op, regprop(s));	/* Where, what. */
+	s = 1;
+	while (op != END && s < preg->p) {	/* While that wasn't END last time... */
+		op = OP(preg, s);
+		printf("%3d: %s", s, regprop(op));	/* Where, what. */
 		next = regnext(preg, s);
-		if (next == NULL)		/* Next ptr. */
+		if (next == 0)		/* Next ptr. */
 			printf("(0)");
-		else 
-			printf("(%d)", (int)((s-preg->program)+(next-s)));
+		else
+			printf("(%d)", next);
 		s += 2;
 		if (op == REP || op == REPMIN || op == REPX || op == REPXMIN) {
-			int max = s[0];
-			int min = s[1];
+			int max = preg->program[s];
+			int min = preg->program[s + 1];
 			if (max == 65535) {
 				printf("{%d,*}", min);
 			}
 			else {
 				printf("{%d,%d}", min, max);
 			}
-			printf(" %d", s[2]);
+			printf(" %d", preg->program[s + 2]);
 			s += 3;
 		}
 		else if (op == ANYOF || op == ANYBUT) {
 			/* set of ranges */
 
-			while (*s) {
-				int len = *s++;
-				int first = *s++;
+			while (preg->program[s]) {
+				int len = preg->program[s++];
+				int first = preg->program[s++];
 				buf[utf8_fromunicode(buf, first)] = 0;
 				printf("%s", buf);
 				if (len > 1) {
@@ -23466,8 +23542,8 @@ static void regdump(regex_t *preg)
 		else if (op == EXACTLY) {
 			/* Literal string, where present. */
 
-			while (*s) {
-				buf[utf8_fromunicode(buf, *s)] = 0;
+			while (preg->program[s]) {
+				buf[utf8_fromunicode(buf, preg->program[s])] = 0;
 				printf("%s", buf);
 				s++;
 			}
@@ -23484,11 +23560,11 @@ static void regdump(regex_t *preg)
 		}
 		if (preg->reganch)
 			printf("anchored ");
-		if (preg->regmust != NULL) {
+		if (preg->regmust != 0) {
 			int i;
 			printf("must have:");
 			for (i = 0; i < preg->regmlen; i++) {
-				putchar(preg->regmust[i]);
+				putchar(preg->program[preg->regmust + i]);
 			}
 			putchar('\n');
 		}
@@ -23499,78 +23575,55 @@ static void regdump(regex_t *preg)
 /*
  - regprop - printable representation of opcode
  */
-static const char *regprop( const int *op )
+static const char *regprop( int op )
 {
-	char *p;
 	static char buf[50];
 
-	(void) strcpy(buf, ":");
-
-	switch (OP(op)) {
+	switch (op) {
 	case BOL:
-		p = "BOL";
-		break;
+		return "BOL";
 	case EOL:
-		p = "EOL";
-		break;
+		return "EOL";
 	case ANY:
-		p = "ANY";
-		break;
+		return "ANY";
 	case ANYOF:
-		p = "ANYOF";
-		break;
+		return "ANYOF";
 	case ANYBUT:
-		p = "ANYBUT";
-		break;
+		return "ANYBUT";
 	case BRANCH:
-		p = "BRANCH";
-		break;
+		return "BRANCH";
 	case EXACTLY:
-		p = "EXACTLY";
-		break;
+		return "EXACTLY";
 	case NOTHING:
-		p = "NOTHING";
-		break;
+		return "NOTHING";
 	case BACK:
-		p = "BACK";
-		break;
+		return "BACK";
 	case END:
-		p = "END";
-		break;
+		return "END";
 	case REP:
-		p = "REP";
-		break;
+		return "REP";
 	case REPMIN:
-		p = "REPMIN";
-		break;
+		return "REPMIN";
 	case REPX:
-		p = "REPX";
-		break;
+		return "REPX";
 	case REPXMIN:
-		p = "REPXMIN";
-		break;
+		return "REPXMIN";
 	case WORDA:
-		p = "WORDA";
-		break;
+		return "WORDA";
 	case WORDZ:
-		p = "WORDZ";
-		break;
+		return "WORDZ";
 	default:
-		if (OP(op) >= OPEN && OP(op) < CLOSE) {
-			sprintf(buf+strlen(buf), "OPEN%d", OP(op)-OPEN);
+		if (op >= OPEN && op < CLOSE) {
+			snprintf(buf, sizeof(buf), "OPEN%d", op-OPEN);
 		}
-		else if (OP(op) >= CLOSE && OP(op) < CLOSE_END) {
-			sprintf(buf+strlen(buf), "CLOSE%d", OP(op)-CLOSE);
+		else if (op >= CLOSE && op < CLOSE_END) {
+			snprintf(buf, sizeof(buf), "CLOSE%d", op-CLOSE);
 		}
 		else {
-			abort();
+			snprintf(buf, sizeof(buf), "?%d?\n", op);
 		}
-		p = NULL;
-		break;
+		return(buf);
 	}
-	if (p != NULL)
-		(void) strcat(buf, p);
-	return(buf);
 }
 #endif
 
@@ -23645,7 +23698,12 @@ void regfree(regex_t *preg)
 static const char jimsh_init[] = \
 "proc _init {} {\n"
 "\trename _init {}\n"
+/* XXX This is a big ugly */
+#if defined(__MINGW32__)
+"\tlappend p {*}[split [env JIMLIB {}] {;}]\n"
+#else
 "\tlappend p {*}[split [env JIMLIB {}] :]\n"
+#endif
 "\tlappend p {*}$::auto_path\n"
 "\tlappend p [file dirname [info nameofexecutable]]\n"
 "\tset ::auto_path $p\n"
@@ -23659,6 +23717,10 @@ static const char jimsh_init[] = \
 "\t\t}\n"
 "\t}\n"
 "}\n"
+/* XXX This is a big ugly */
+#if defined(__MINGW32__)
+"set jim_argv0 [string map {\\\\ /} $jim_argv0]\n"
+#endif
 "_init\n";
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
