@@ -38,9 +38,9 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 
-#include "jim.h"
 #include "jimautoconf.h"
-#include "jim-eventloop.h"
+#include <jim.h>
+#include <jim-eventloop.h>
 
 /* POSIX includes */
 #include <sys/time.h>

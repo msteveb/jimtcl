@@ -1,0 +1,7 @@
+This directory contains examples of C extensions for Jim.
+
+In general, do:
+
+  build-jim-ext extsource.c
+
+See the Makefile

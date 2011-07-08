@@ -36,8 +36,7 @@
 #include <string.h>
 #include <sqlite.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
 
 typedef struct JimSqliteHandle
 {

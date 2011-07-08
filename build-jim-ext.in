@@ -1,0 +1,219 @@
+#!/usr/bin/env jimsh
+
+# Separate command line arguments into options and source files
+set opts {}
+set sources {}
+
+proc usage {{msg {}}} {
+	puts stderr "Usage: build-jim-ext ?--notest? ?--install? ?--static? ?cc-options? ?-o modname? sources..."
+	if {$msg ne ""} {
+		puts stderr \n$msg
+	}
+	exit 1
+}
+
+set linker "@CC@"
+set testmod 1
+set install 0
+set static 0
+set verbose 0
+set keep 0
+set includepaths {}
+set libpaths {}
+set libs {}
+for {set i 0} {$i < [llength $argv]} {incr i} {
+	set arg [lindex $argv $i]
+	switch -glob -- $arg {
+		*.c {
+			lappend sources $arg
+		}
+		*.cpp {
+			lappend sources $arg
+			set linker "@CXX@"
+		}
+		--notest {
+			set testmod 0
+		}
+		--install {
+			set install 1
+		}
+		--static {
+			set static 1
+		}
+		--verbose {
+			set verbose 1
+		}
+		--keep {
+			set keep 1
+		}
+		--help {
+			usage "Easily builds dynamic (loadable) modules for jim"
+		}
+		-o {
+			incr i
+			set modname [file rootname [lindex $argv $i]]
+			if {$modname eq ""} {
+				usage "Option -o requires an argument"
+			}
+		}
+		-I* {
+			lappend includepaths $arg
+			if {$arg eq "-I"} {
+				lappend includepaths [lindex $argv $i]
+			}
+		}
+		-L* {
+			lappend libpaths $arg
+			if {$arg eq "-L"} {
+				lappend libpaths [lindex $argv $i]
+			}
+		}
+		-l* {
+			lappend libs $arg
+		}
+		-* {
+			lappend opts $arg
+		}
+		default {
+			usage "Unexpected '$arg'"
+		}
+	}
+}
+
+if {$sources eq ""} {
+	usage "No sources provided"
+}
+if {![info exists modname]} {
+	set modname [file rootname [file tail [lindex $sources 0]]]
+	# Remove jim- prefix if one exists
+	regsub "^jim-" $modname "" modname
+}
+
+if {$static} {
+	set target libjim-$modname.a
+} else {
+	set target $modname.so
+}
+puts "Building $target from $sources\n"
+
+# Now add the standard location after any user include paths
+lappend includepaths -I@prefix@/include
+
+set CPPFLAGS "-D_GNU_SOURCE"
+
+if {"@JIM_STATICLIB@" eq "1" && !$static} {
+	puts stderr "Warning: libjim is static. Dynamic module may not work on some platforms.\n"
+	set ljim ""
+} else {
+	set ljim -ljim
+}
+
+set objs {}
+foreach source $sources {
+	set obj [file rootname [file tail $source]].o
+	if {[string match *.c $source]} {
+		set compiler "@CC@"
+	} else {
+		set compiler "@CXX@"
+	}
+	if {$static} {
+		set shobj_cflags ""
+	} else {
+		set shobj_cflags "@SHOBJ_CFLAGS@"
+	}
+	set compile "$compiler @CFLAGS@ $CPPFLAGS $shobj_cflags $includepaths $opts -c -o $obj $source"
+	puts "Compile: $obj"
+	lappend objs $obj
+	set rc [catch {
+		exec {*}$compile
+		if {$verbose} {
+			puts stderr $compile
+		}
+	} msg]
+	if {$rc} {
+		puts stderr $compile
+		puts stderr $msg
+		file delete {*}$objs
+		exit 1
+	}
+}
+
+if {$static} {
+	set ar "@AR@ cq $target $objs"
+	set ranlib "@RANLIB@ $target"
+
+	puts "Ar:      $target"
+	set rc [catch {
+		file delete $target
+		exec {*}$ar
+		exec {*}$ranlib
+		if {$verbose} {
+			puts stderr $ar
+		}
+	} msg]
+
+	file delete {*}$objs
+
+	if {$rc} {
+		puts stderr $ar
+		puts stderr $ranlib
+		puts stderr $msg
+		file delete $target
+		exit 1
+	}
+} else {
+	# Add the standard location after any user lib paths
+	lappend libpaths -L@prefix@/lib
+
+	set link "$linker @CFLAGS@ @LDFLAGS@ @SHOBJ_LDFLAGS@ $libpaths $opts -o $target $objs $ljim @LIBS@ $libs"
+
+	puts "Link:    $target"
+	set rc [catch {
+		exec {*}$link
+		if {$verbose} {
+			puts stderr $link
+		}
+	} msg]
+
+	if {!$keep} {
+		file delete {*}$objs
+	}
+
+	if {$rc} {
+		file delete $target
+		puts stderr $link
+		puts stderr $msg
+		exit 1
+	}
+
+	if {$testmod} {
+		# Now, is testing even possible?
+		# We must be running a compatible jimsh with the load command at least
+		set testmod 0
+		set rc [catch {
+			# This will avoid attempting on Tcl and on jimsh without load
+			# How to tell if we are cross compiling?
+			if {[info version] > 0.73 && [exists -command load]} {
+				set testmod 1
+			}
+		} msg]
+	}
+
+	set rc [catch {
+		if {$testmod} {
+			puts "Test:    load $target"
+			load $target
+		}
+		if {$install} {
+			set dest [env DESTDIR ""]@prefix@/lib/jim
+			puts "Install: $target => $dest"
+			file mkdir $dest
+			file copy $target $dest/$target
+		}
+		puts "\nSuccess!"
+	} msg]
+	if {$rc} {
+		puts stderr $msg
+		exit 1
+	}
+}

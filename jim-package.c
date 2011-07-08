@@ -1,8 +1,7 @@
 #include <string.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
-#include "jim-subcmd.h"
+#include <jim-subcmd.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

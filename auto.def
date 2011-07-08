@@ -434,3 +434,6 @@ define EXTRA_OBJS $extra_objs
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_*}
 make-template Makefile.in
+make-template build-jim-ext.in
+
+catch {exec chmod +x build-jim-ext}

@@ -9,8 +9,7 @@
 #include <syslog.h>
 #include <string.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
 
 typedef struct
 {

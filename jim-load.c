@@ -1,6 +1,7 @@
-#include "jim.h"
-#include "jimautoconf.h"
 #include <string.h>
+
+#include "jimautoconf.h"
+#include <jim.h>
 
 /* -----------------------------------------------------------------------------
  * Dynamic libraries support (WIN32 not supported)

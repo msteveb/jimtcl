@@ -40,8 +40,8 @@
 #include <signal.h>
 #include <errno.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
+#include <jim.h>
 
 #ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>

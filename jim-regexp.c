@@ -48,8 +48,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
+#include "jim.h"
 #include "jimregexp.h"
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)

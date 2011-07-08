@@ -49,8 +49,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
+#include <jimautoconf.h>
 
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>

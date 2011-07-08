@@ -32,8 +32,7 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  */
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
 
 /* Apparently windows.h and cygwin don't mix, but we seem to get
  * away with it here. Use at your own risk under cygwin

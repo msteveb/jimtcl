@@ -39,8 +39,7 @@
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxPrimitives.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
 
 #define AIO_CMD_LEN 128
 

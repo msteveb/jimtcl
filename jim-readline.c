@@ -32,8 +32,7 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  */
 
-#include "jim.h"
-#include "jimautoconf.h"
+#include <jim.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>

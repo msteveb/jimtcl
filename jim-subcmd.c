@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jim-subcmd.h"
-#include "jimautoconf.h"
+#include <jim-subcmd.h>
 
 /**
  * Implements the common 'commands' subcommand

@@ -15,9 +15,8 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
-#include "jim-subcmd.h"
+#include <jim-subcmd.h>
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>

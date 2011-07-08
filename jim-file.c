@@ -50,9 +50,8 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
-#include "jim-subcmd.h"
+#include <jimautoconf.h>
+#include <jim-subcmd.h>
 
 #ifdef HAVE_UTIMES
 #include <sys/time.h>

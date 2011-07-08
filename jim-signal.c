@@ -9,10 +9,9 @@
 #include <ctype.h>
 #include <unistd.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
-#include "jim-subcmd.h"
-#include "jim-signal.h"
+#include <jim-subcmd.h>
+#include <jim-signal.h>
 
 #define MAX_SIGNALS (sizeof(jim_wide) * 8)
 

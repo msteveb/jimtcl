@@ -47,7 +47,7 @@ OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o ut
 
 JIMSH := jimsh@EXEEXT@
 
-all: $(JIMSH) @C_EXT_SHOBJS@
+all: $(JIMSH) @C_EXT_SHOBJS@ build-jim-ext
 
 # Create C extensions from pure Tcl extensions
 .SUFFIXES: .tcl
@@ -72,6 +72,8 @@ install: all docs @TCL_EXTS@ install-exec
 	cp jim-config.h $(DESTDIR)$(prefix)/include
 	mkdir -p $(DESTDIR)$(prefix)/doc/jim
 	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
+	mkdir -p $(DESTDIR)$(prefix)/bin
+	cp build-jim-ext $(DESTDIR)$(prefix)/bin
 
 install-exec: all
 	mkdir -p $(DESTDIR)$(prefix)/bin
@@ -79,6 +81,7 @@ install-exec: all
 
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/$(JIMSH)
+	rm -f $(DESTDIR)$(prefix)/bin/build-jim-ext
 	rm -f $(DESTDIR)$(prefix)/lib/$(LIBJIM)
 	for i in README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@; do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
 	rm -f $(DESTDIR)$(prefix)/include/jim*.h

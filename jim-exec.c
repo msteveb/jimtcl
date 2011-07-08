@@ -23,8 +23,8 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
+#include <jim.h>
 
 #if (!defined(HAVE_VFORK) || !defined(HAVE_WAITPID)) && !defined(__MINGW32__)
 /* Poor man's implementation of exec with system()

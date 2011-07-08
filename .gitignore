@@ -1,9 +1,5 @@
-autom4te.cache
 config.log
-config.status
-config.h
 tags
-.clean
 /Makefile
 Tcl.html
 jimautoconf.h
@@ -17,7 +13,8 @@ jim-oo.c
 jimsh
 *.exe
 libjim.a
-libjim.so
+*.so
 *.o
 configure.gnu
 jimsh0
+build-jim-ext

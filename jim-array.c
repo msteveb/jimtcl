@@ -50,9 +50,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "jim.h"
-#include "jimautoconf.h"
-#include "jim-subcmd.h"
+#include <jim-subcmd.h>
 
 static int array_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
