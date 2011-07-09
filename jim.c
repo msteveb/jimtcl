@@ -10426,7 +10426,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     char *buf;
     Jim_Obj *scriptObjPtr;
     Jim_Obj *prevScriptObj;
-    Jim_Stack *prevLocalProcs;
     struct stat sb;
     int retcode;
     int readlen;
@@ -10485,15 +10484,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     prevScriptObj = interp->currentScriptObj;
     interp->currentScriptObj = scriptObjPtr;
 
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
-
     retcode = Jim_EvalObj(interp, scriptObjPtr);
-
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
 
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
@@ -12306,16 +12297,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int rc;
-    Jim_Stack *prevLocalProcs;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?...?");
         return JIM_ERR;
     }
-
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
 
     if (argc == 2) {
         rc = Jim_EvalObj(interp, argv[1]);
@@ -12323,10 +12309,6 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     else {
         rc = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc - 1, argv + 1));
     }
-
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
 
     if (rc == JIM_ERR) {
         /* eval is "interesting", so add a stack frame here */

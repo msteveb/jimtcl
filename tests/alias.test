@@ -53,15 +53,6 @@ test curry-1.5 "Delete curry" {
 	collect
 } {2}
 
-test local-1.1 "local lambda in eval" {
-	set x 1
-	eval {
-		local set a [lambda {b} { incr b }]
-		set x [$a $x]
-	}
-	list [info procs $a] $x
-} {{} 2}
-
 test local-1.2 "local curry in proc" {
 	proc a {} {
 		local set p [curry info exists]
@@ -116,13 +107,14 @@ test local-1.8 "local on non-proc" {
 } {1 {not a proc: "blah"}}
 
 test local-1.9 "local on existing proc" {
-	eval {
+	proc x {} {
 		proc a {b} {incr b}
 		local function a
 		set c [lambda b {incr b -1}]
 		local function $c
 		lappend result [a 1] [$c 2]
 	}
+	set result [x]
 	list [info procs a] $result 
 } {{} {2 1}}
 
