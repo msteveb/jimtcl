@@ -44,16 +44,19 @@ EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 .PRECIOUS: jim-%.c
 
+all: $(JIMSH) $(EXTENSION_MODS)
+
 # Create C extensions from pure Tcl extensions
 jim-%.c: %.tcl
 	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@ || ( rm $@; exit 1)
 
-all: $(JIMSH) $(EXTENSION_MODS)
+initjimsh.c: initjimsh.tcl
+	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@ || ( rm $@; exit 1)
 
 docs: Tcl.html
 
-$(JIMSH): $(LIBJIM) jimsh.o
-	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o $(LIBJIM) $(LDLIBS)
+$(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
+	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
 
 install: all docs $(EXTENSION_TCL) install-exec
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
@@ -110,7 +113,7 @@ Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c load-static-exts.c @GENERATED_SRCS@
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c load-static-exts.c initjimsh.c @GENERATED_SRCS@
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@

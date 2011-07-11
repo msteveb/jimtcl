@@ -40,7 +40,7 @@ EOF
 }
 
 cexts="aio readdir regexp file exec clock array"
-tclexts="bootstrap glob stdlib tclcompat"
+tclexts="bootstrap initjimsh glob stdlib tclcompat"
 
 # Note ordering
 allexts="bootstrap aio readdir glob regexp file exec clock array stdlib tclcompat"
@@ -62,11 +62,13 @@ cat <<EOF
 #if defined(__MINGW32__)
 #define TCL_PLATFORM_OS "mingw"
 #define TCL_PLATFORM_PLATFORM "windows"
+#define TCL_PLATFORM_PATH_SEPARATOR ";"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
+#define TCL_PLATFORM_PATH_SEPARATOR ":"
 #define HAVE_VFORK
 #define HAVE_WAITPID
 #endif

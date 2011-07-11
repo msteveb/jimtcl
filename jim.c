@@ -85,6 +85,9 @@
 #ifndef TCL_PLATFORM_PLATFORM
 #define TCL_PLATFORM_PLATFORM "unknown"
 #endif
+#ifndef TCL_PLATFORM_PATH_SEPARATOR
+#define TCL_PLATFORM_PATH_SEPARATOR ":"
+#endif
 
 /*#define DEBUG_SHOW_SCRIPT*/
 /*#define DEBUG_SHOW_SCRIPT_TOKENS*/
@@ -4991,6 +4994,7 @@ Jim_Interp *Jim_CreateInterp(void)
 
     Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
     Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
+    Jim_SetVariableStrWithStr(i, "tcl_platform(pathSeparator)", TCL_PLATFORM_PATH_SEPARATOR);
     Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", JimIsBigEndian() ? "bigEndian" : "littleEndian");
     Jim_SetVariableStrWithStr(i, "tcl_platform(threaded)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));

@@ -26,34 +26,8 @@
 #include "jim.h"
 #include "jimautoconf.h"
 
-/* Script to help initialise jimsh */
-static const char jimsh_init[] = \
-"proc _init {} {\n"
-"\trename _init {}\n"
-/* XXX This is a big ugly */
-#if defined(__MINGW32__)
-"\tlappend p {*}[split [env JIMLIB {}] {;}]\n"
-#else
-"\tlappend p {*}[split [env JIMLIB {}] :]\n"
-#endif
-"\tlappend p {*}$::auto_path\n"
-"\tlappend p [file dirname [info nameofexecutable]]\n"
-"\tset ::auto_path $p\n"
-"\n"
-"\tif {$::tcl_interactive && [env HOME {}] ne \"\"} {\n"
-"\t\tforeach src {.jimrc jimrc.tcl} {\n"
-"\t\t\tif {[file exists [env HOME]/$src]} {\n"
-"\t\t\t\tuplevel #0 source [env HOME]/$src\n"
-"\t\t\t\tbreak\n"
-"\t\t\t}\n"
-"\t\t}\n"
-"\t}\n"
-"}\n"
-/* XXX This is a big ugly */
-#if defined(__MINGW32__)
-"set jim_argv0 [string map {\\\\ /} $jim_argv0]\n"
-#endif
-"_init\n";
+/* From initjimsh.tcl */
+extern int Jim_initjimshInit(Jim_Interp *interp);
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
 {
@@ -93,7 +67,7 @@ int main(int argc, char *const argv[])
 
     Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, argc == 1 ? "1" : "0");
-    retcode = Jim_Eval(interp, jimsh_init);
+    retcode = Jim_initjimshInit(interp);
 
     if (argc == 1) {
         if (retcode == JIM_ERR) {

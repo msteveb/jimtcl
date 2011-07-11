@@ -21,4 +21,5 @@ libjim.so
 unicode_mapping.c
 configure.gnu
 load-static-exts.c
+initjimsh.c
 jimsh0

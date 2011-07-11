@@ -79,11 +79,13 @@ switch -glob -- $host_os {
         define-feature dlopen-compat
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM windows
+        define TCL_PLATFORM_PATH_SEPARATOR {;}
     }
     default {
         # Note that cygwin is considered a unix platform
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM unix
+        define TCL_PLATFORM_PATH_SEPARATOR :
     }
 }
 
