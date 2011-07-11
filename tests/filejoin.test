@@ -50,6 +50,24 @@ test join-1.12 "Two names with double slashes" {
 	file join abc/ /def
 } {/def}
 
+test join-1.13 "Join to root" {
+	file join / abc
+} {/abc}
+
+test join-1.14 "Join to root" {
+	set dir [file join / .]
+	# Either / or /. is OK here
+	expr {$dir in {/ /.}}
+} 1
+
+test join-1.15 "Join to root" {
+	file join / /
+} {/}
+
+test join-1.16 "Join to root" {
+	file join /abc /
+} {/}
+
 test join-2.1 "Dir is empty string" {
 	file join "" def
 } {def}

@@ -285,9 +285,18 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             last = newname;
         }
 #endif
+        else if (part[0] == '.') {
+            if (part[1] == '/') {
+                part += 2;
+            }
+            else if (part[1] == 0 && last != newname) {
+                /* Adding '.' to an existing path does nothing */
+                continue;
+            }
+        }
 
         /* Add a slash if needed */
-        if (last != newname) {
+        if (last != newname && last[-1] != '/') {
             *last++ = '/';
         }
 
@@ -302,7 +311,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
 
         /* Remove a slash if needed */
-        if (last != newname && last[-1] == '/') {
+        if (last > newname + 1 && last[-1] == '/') {
             *--last = 0;
         }
     }
