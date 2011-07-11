@@ -101,11 +101,11 @@ proc errorInfo {msg {stacktrace ""}} {
 # Returns the empty string if not found.
 proc {info nameofexecutable} {} {
 	if {[info exists ::jim_argv0]} {
-		if {[string first "/" $::jim_argv0] >= 0} {
-			return $::jim_argv0
+		if {[string match "*/*" $::jim_argv0]} {
+			return [file join [pwd] $::jim_argv0]
 		}
-		foreach path [split [env PATH ""] :] {
-			set exec [file join $path $::jim_argv0]
+		foreach path [split [env PATH ""] $::tcl_platform(pathSeparator)] {
+			set exec [file join [pwd] $path $::jim_argv0]
 			if {[file executable $exec]} {
 				return $exec
 			}
