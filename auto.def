@@ -120,6 +120,8 @@ if {[opt-bool utf8 full]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     incr jimregexp
+} else {
+    define JIM_UTF8 0
 }
 if {[opt-bool maintainer]} {
     msg-result "Enabling maintainer settings"
@@ -343,17 +345,23 @@ if {$extmod ne ""} {
     msg-result "Jim dynamic extensions: [lsort $extmod]"
 }
 
-define JIM_EXTENSIONS $ext
-define JIM_TCL_EXTENSIONS $extmodtcl
-define JIM_MOD_EXTENSIONS $extmod
-define EXTRA_OBJS $extra_objs
-
+# Separate out the static extensions into C and Tcl
+set ext_static_c {}
+set ext_static_tcl {}
 foreach e $ext {
     define jim_ext_$e
     if {$e in $ext_tcl} {
-        define-append GENERATED_SRCS jim-$e.c
+        lappend ext_static_tcl $e
+    } else {
+        lappend ext_static_c $e
     }
 }
+
+define JIM_STATIC_C_EXTS $ext_static_c
+define JIM_STATIC_TCL_EXTS $ext_static_tcl
+define JIM_TCL_EXTENSIONS $extmodtcl
+define JIM_MOD_EXTENSIONS $extmod
+define EXTRA_OBJS $extra_objs
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_*}

@@ -148,7 +148,7 @@ struct caseextmap {
 };
 
 /* Generated mapping tables */
-#include "unicode_mapping.c"
+#include "_unicode_mapping.c"
 
 #define NUMCASEMAP sizeof(unicode_case_mapping) / sizeof(*unicode_case_mapping)
 

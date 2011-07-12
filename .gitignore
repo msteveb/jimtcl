@@ -9,7 +9,7 @@ Tcl.html
 jimautoconf.h
 jimautoconfext.h
 jim-config.h
-jim-glob.c
+_*.c
 jim-stdlib.c
 jim-tclcompat.c
 jim-tree.c
@@ -18,8 +18,5 @@ jimsh
 libjim.a
 libjim.so
 *.o
-unicode_mapping.c
 configure.gnu
-load-static-exts.c
-initjimsh.c
 jimsh0

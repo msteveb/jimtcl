@@ -34,34 +34,35 @@ endif
 
 .EXPORT_ALL_VARIABLES:
 
-OBJS := load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o @EXTRA_OBJS@
+OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o @EXTRA_OBJS@
 
 JIMSH := jimsh@EXEEXT@
 
-EXTENSION_OBJS := $(patsubst %,jim-%.o,@JIM_EXTENSIONS@)
-EXTENSION_MODS := $(patsubst %,%.so,@JIM_MOD_EXTENSIONS@)
+JIM_EXTENSIONS := @JIM_STATIC_C_EXTS@ @JIM_STATIC_TCL_EXTS@
+C_EXT_OBJS := $(patsubst %,jim-%.o,@JIM_STATIC_C_EXTS@) $(patsubst %,_jim-%.o,@JIM_STATIC_TCL_EXTS@)
+C_EXT_SHOBJS := $(patsubst %,%.so,@JIM_MOD_EXTENSIONS@)
 EXTENSION_TCL := $(patsubst %,%.tcl,@JIM_TCL_EXTENSIONS@)
 
 .PRECIOUS: jim-%.c
 
-all: $(JIMSH) $(EXTENSION_MODS)
+all: $(JIMSH) $(C_EXT_SHOBJS)
 
 # Create C extensions from pure Tcl extensions
-jim-%.c: %.tcl
+_jim-%.c: %.tcl
 	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@ || ( rm $@; exit 1)
 
-initjimsh.c: initjimsh.tcl
+_initjimsh.c: initjimsh.tcl
 	@tclsh@ @srcdir@/make-c-ext.tcl $< >$@ || ( rm $@; exit 1)
 
 docs: Tcl.html
 
-$(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
-	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
+$(JIMSH): $(LIBJIM) jimsh.o _initjimsh.o
+	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o _initjimsh.o $(LIBJIM) $(LDLIBS)
 
 install: all docs $(EXTENSION_TCL) install-exec
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
-	cp @srcdir@/README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
+	cp @srcdir@/README.extensions $(C_EXT_SHOBJS) $(EXTENSION_TCL) $(DESTDIR)$(prefix)/lib/jim
 	mkdir -p $(DESTDIR)$(prefix)/include
 	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
 		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
@@ -76,32 +77,32 @@ install-exec: all
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/$(JIMSH)
 	rm -f $(DESTDIR)$(prefix)/lib/$(LIBJIM)
-	for i in README.extensions $(EXTENSION_MODS) $(EXTENSION_TCL); do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
+	for i in README.extensions $(C_EXT_SHOBJS) $(EXTENSION_TCL); do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
 	rm -f $(DESTDIR)$(prefix)/include/jim*.h
 	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
 
 test: $(JIMSH)
 	$(DEF_LD_PATH) $(MAKE) jimsh=`pwd`/jimsh -C @srcdir@/tests
 
-$(OBJS) $(EXTENSION_OBJS): Makefile
+$(OBJS) $(C_EXT_OBJS): Makefile
 
-ifneq (@JIM_UTF8@,)
+ifeq (@JIM_UTF8@,1)
 # Generate the unicode case mapping
-utf8.o: unicode_mapping.c
+utf8.o: _unicode_mapping.c
 
-unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
+_unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
 	@tclsh@ @srcdir@/parse-unidata.tcl @srcdir@/UnicodeData.txt >$@ || ( rm $@; exit 1)
 endif
 
-load-static-exts.c: @srcdir@/make-load-static-exts.tcl Makefile
-	@tclsh@ @srcdir@/make-load-static-exts.tcl @JIM_EXTENSIONS@ >$@ || ( rm $@; exit 1)
+_load-static-exts.c: @srcdir@/make-load-static-exts.tcl Makefile
+	@tclsh@ @srcdir@/make-load-static-exts.tcl $(JIM_EXTENSIONS) >$@ || ( rm $@; exit 1)
 
 ifeq ($(jim_libtype),static)
-$(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
+$(LIBJIM): $(OBJS) $(C_EXT_OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 else
-$(LIBJIM): $(OBJS) $(EXTENSION_OBJS)
+$(LIBJIM): $(OBJS) $(C_EXT_OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $^ $(LDLIBS)
 endif
 
@@ -113,7 +114,7 @@ Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html unicode_mapping.c load-static-exts.c initjimsh.c @GENERATED_SRCS@
+	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html _*.c
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@
