@@ -7,6 +7,7 @@ set testinfo(numtests) 0
 set testinfo(failed) {}
 
 set testdir [file dirname [info script]]
+set bindir [file dirname [info nameofexecutable]]
 
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
 	incr testinfo(verbose)
@@ -63,6 +64,8 @@ if {[catch {info version}]} {
 	}
 	return
 }
+
+lappend auto_path $testdir $bindir [file dirname [pwd]]
 
 # For Jim, this is reasonable compatible tcltest
 proc makeFile {contents name} {
