@@ -288,6 +288,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else if (part[0] == '.') {
             if (part[1] == '/') {
                 part += 2;
+                len -= 2;
             }
             else if (part[1] == 0 && last != newname) {
                 /* Adding '.' to an existing path does nothing */
