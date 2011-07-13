@@ -4,6 +4,7 @@
 #include "jimautoconf.h"
 
 #ifdef USE_LINENOISE
+#include <unistd.h>
 #include "linenoise.h"
 #else
 
@@ -32,7 +33,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     const char *home;
 
     home = getenv("HOME");
-    if (home) {
+    if (home && isatty(STDIN_FILENO)) {
         int history_len = strlen(home) + sizeof("/.jim_history");
         history_file = Jim_Alloc(history_len);
         snprintf(history_file, history_len, "%s/.jim_history", home);
@@ -109,7 +110,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         }
 
         linenoiseHistoryAdd(Jim_String(scriptObjPtr));
-        linenoiseHistorySave(history_file);
+        if (history_file) {
+            linenoiseHistorySave(history_file);
+        }
 #endif
         retcode = Jim_EvalObj(interp, scriptObjPtr);
         Jim_DecrRefCount(interp, scriptObjPtr);
