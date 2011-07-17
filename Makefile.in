@@ -16,6 +16,7 @@ LDFLAGS = @LDFLAGS@
 LDLIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
+install_jim = @install_jim@
 
 CPPFLAGS += -D_GNU_SOURCE -Wall -Werror $(OPTIM) -I.
 ifneq (@srcdir@,.)
@@ -59,6 +60,7 @@ docs: Tcl.html
 $(JIMSH): $(LIBJIM) jimsh.o _initjimsh.o
 	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o _initjimsh.o $(LIBJIM) $(LDLIBS)
 
+ifdef install_jim
 install: all docs $(EXTENSION_TCL) install-exec
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
@@ -80,6 +82,9 @@ uninstall:
 	for i in README.extensions $(C_EXT_SHOBJS) $(EXTENSION_TCL); do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
 	rm -f $(DESTDIR)$(prefix)/include/jim*.h
 	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
+else
+install install-exec uninstall:
+endif
 
 test: $(JIMSH)
 	$(DEF_LD_PATH) $(MAKE) jimsh=`pwd`/jimsh -C @srcdir@/tests

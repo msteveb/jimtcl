@@ -55,6 +55,8 @@ options {
         Specify jim extensions to build as separate modules (either C or Tcl).
         Note that not all extensions can be built as loadable modules.
     }
+    # To help out openocd with automake
+    install-jim=1
 }
 
 cc-check-types "long long"
@@ -151,6 +153,11 @@ if {[opt-bool shared with-jim-shared]} {
 } else {
     msg-result "Building static library"
     define JIM_LIBTYPE static
+}
+if {[opt-bool install-jim]} {
+    define install_jim 1
+} else {
+    define install_jim ""
 }
 
 # Note: Extension handling is mapped directly from the configure.ac
