@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.71 - overview of the Jim tool command language facilities
+Jim Tcl v0.72 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -57,7 +57,11 @@ RECENT CHANGES
 
 Changes between 0.71 and 0.72
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Allow 'args' and optional parameters in any position
+1. procs now allow 'args' and optional parameters in any position
+2. Add Tcl-compatible expr functions, 'rand()' and 'srand()'
+3. Add support for the '-force' option to 'file delete'
+4. Better diagnostics when 'source' fails to load a script with a missing quote or bracket
+5. New +tcl_platform(pathSeparator)+
 
 Changes between 0.70 and 0.71
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -703,12 +707,15 @@ on the right side of the line:
 The valid operators are listed below, grouped in decreasing order
 of precedence:
 [[OperatorPrecedence]]
-`int() double() round() abs()`::
-    Unary functions.
+`int() double() round() abs(), rand(), srand()`::
+    Unary functions (except rand() which takes no arguments)
     int() converts the numeric argument to an integer by truncating down.
     double() converts the numeric argument to floating point.
     round() converts the numeric argument to the closest integer value.
     abs() takes the absolute value of the numeric argument.
+    rand() takes the absolute value of the numeric argument.
+    rand() returns a pseudo-random floating-point value in the range (0,1).
+    srand() takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
 
 `sin() cos() tan() asin() acos() atan() sinh() cosh() tanh() ceil() floor() exp() log() log10() sqrt()`::
     Unary math functions.
@@ -1835,19 +1842,19 @@ Performs one of several operations on dictionary values.
 The *option* argument determines what action is carried out by the
 command.  The legal *options* are:
 
-*dict create* '?key value ...?'+::
++*dict create* '?key value ...?'+::
     Create and return a new dictionary value that contains each of
     the key/value mappings listed as  arguments (keys and values
     alternating, with each key being followed by its associated
     value.)
 
-*dict exists* 'dictionary key ?key ...?'+::
++*dict exists* 'dictionary key ?key ...?'+::
     Returns a boolean value indicating whether the given key (or path
     of keys through a set of nested dictionaries) exists in the given
     dictionary value.  This returns a true value exactly when 'dict get'
     on that path will succeed.
 
-*dict get* 'dictionary ?key ...?'+::
++*dict get* 'dictionary ?key ...?'+::
     Given a dictionary value (first argument) and a key (second argument),
     this will retrieve the value for that key. Where several keys are
     supplied, the behaviour of the command shall be as if the result
@@ -1860,26 +1867,26 @@ command.  The legal *options* are:
     be the value for that key.  It is an error to attempt to retrieve
     a value for a key that is not present in the dictionary.
 
-*dict keys* 'dictionary ?pattern?'+::
++*dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
     If pattern is specified, then only those keys whose
     names match *pattern* (using the matching rules of string
     match) are included.
 
-*dict keys* 'dictionary ?pattern?'+::
++*dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
     If pattern is specified, then only those keys whose
     names match *pattern* (using the matching rules of string
     match) are included.
 
-*dict set* 'dictionaryName key ?key ...? value'+::
++*dict set* 'dictionaryName key ?key ...? value'+::
     This operation takes the *name* of a variable containing a dictionary
     value and places an updated dictionary value in that variable
     containing a mapping from the given key to the given value. When
     multiple keys are present, this operation creates or updates a chain
     of nested dictionaries.
 
-*dict unset* 'dictionaryName key ?key ...? value'+::
++*dict unset* 'dictionaryName key ?key ...? value'+::
     This operation (the companion to 'dict set') takes the name of a
     variable containing a dictionary value and places an updated
     dictionary value in that variable that does not contain a mapping
@@ -2157,9 +2164,11 @@ abbreviation for *option* is acceptable.  The valid options are:
     Copies file *source* to file *target*. The source file must exist.
     The target file must not exist, unless *-force* is specified.
 
-+*file delete* 'name ...'+::
++*file delete ?-force?* 'name ...'+::
     Deletes file or directory *name*. If the file or directory doesn't exist, nothing happens.
-    If it can't be deleted, an error is generated. Non-empty directories will not be deleted.
+    If it can't be deleted, an error is generated. Non-empty directories will not be deleted
+    unless the '-force' options is given. In this case no errors will be generated, even
+    if the file/directory can't be deleted.
 
 +*file dirname* 'name'+::
     Return all of the characters in *name* up to but not including
@@ -2592,10 +2601,8 @@ The legal *option*'s (which may be abbreviated) are:
 
 +*info nameofexecutable*+::
     Returns the name of the binary file from which the application
-    was invoked, either
-    as a path relative to the current directory or as a full
-    path. If the path can't be determined, returns the empty
-    string.
+    was invoked. A full path will be returned, unless the path
+    can't be determined, in which case the empty string will be returned.
 
 +*info procs* ?'pattern'?+::
     If *pattern* isn't specified, returns a list of all the
@@ -3680,7 +3687,7 @@ string
 Perform one of several string operations, depending on *option*.
 The legal options (which may be abbreviated) are:
 
-+*string bytelength 'string'+::
++*string bytelength* 'string'+::
     Returns the length of the string in bytes. This will return
     the same value as 'string length' if UTF-8 support is not enabled,
     or if the string is composed entirely of ASCII characters.
@@ -4404,8 +4411,8 @@ Various socket types may be created.
 +*socket ?-ipv6? stream* 'addr:port'+::
     A TCP socket client.
 
-+*socket ?-ipv6? stream.server '?addr:?port'+::
-    A TCP socket server (*addr* defaults to 0.0.0.0 for IPv4 or [::] for IPv6).
++*socket ?-ipv6? stream.server* '?addr:?port'+::
+    A TCP socket server (*addr* defaults to +0.0.0.0+ for IPv4 or +[::]+ for IPv6).
 
 +*socket ?-ipv6? dgram* ?'addr:port'?+::
     A UDP socket client. If the address is not specified,
@@ -4551,12 +4558,13 @@ The following global variables are set by jimsh.
     about the platform upon which Jim was built. The following is an
     example of the contents of this array.
 
-    tcl_platform(byteOrder)   = littleEndian
-    tcl_platform(os)          = Darwin
-    tcl_platform(platform)    = unix
-    tcl_platform(pointerSize) = 8
-    tcl_platform(threaded)    = 0
-    tcl_platform(wordSize)    = 8
+    tcl_platform(byteOrder)     = littleEndian
+    tcl_platform(os)            = Darwin
+    tcl_platform(platform)      = unix
+    tcl_platform(pointerSize)   = 8
+    tcl_platform(threaded)      = 0
+    tcl_platform(wordSize)      = 8
+    tcl_platform(pathSeparator) = :
 
 +*argv0*+::
     If jimsh is invoked to run a script, this variable contains the name

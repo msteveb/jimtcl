@@ -554,7 +554,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.71 -
+<p>Jim Tcl v0.72 -
    overview of the Jim tool command language facilities
 </p>
 </div>
@@ -682,6 +682,36 @@ Expression shorthand syntax: <tt>$(&#8230;)</tt>
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_71_and_0_72">Changes between 0.71 and 0.72</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+procs now allow <em>args</em> and optional parameters in any position
+</p>
+</li>
+<li>
+<p>
+Add Tcl-compatible expr functions, <em>rand()</em> and <em>srand()</em>
+</p>
+</li>
+<li>
+<p>
+Add support for the <em>-force</em> option to <em>file delete</em>
+</p>
+</li>
+<li>
+<p>
+Better diagnostics when <em>source</em> fails to load a script with a missing quote or bracket
+</p>
+</li>
+<li>
+<p>
+New <tt>tcl_platform(pathSeparator)</tt>
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_70_and_0_71">Changes between 0.70 and 0.71</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -1606,15 +1636,18 @@ on the right side of the line:</p></div>
 of precedence:</p></div>
 <div class="dlist" id="OperatorPrecedence"><dl>
 <dt class="hdlist1">
-<tt>int() double() round() abs()</tt>
+<tt>int() double() round() abs(), rand(), srand()</tt>
 </dt>
 <dd>
 <p>
-    Unary functions.
+    Unary functions (except rand() which takes no arguments)
     int() converts the numeric argument to an integer by truncating down.
     double() converts the numeric argument to floating point.
     round() converts the numeric argument to the closest integer value.
     abs() takes the absolute value of the numeric argument.
+    rand() takes the absolute value of the numeric argument.
+    rand() returns a pseudo-random floating-point value in the range (0,1).
+    srand() takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -2111,12 +2144,12 @@ The only difference is that its body isn&#8217;t a piece of C code linked
 into the program; it is a string containing one or more other
 Tcl commands.</p></div>
 <div class="paragraph"><p>The <em>proc</em> command is used to create a new Tcl command procedure:</p></div>
-<div class="paragraph"><p><tt><strong>proc</strong> <em>name args ?statics? body</em></tt></p></div>
+<div class="paragraph"><p><tt><strong>proc</strong> <em>name arglist ?statics? body</em></tt></p></div>
 <div class="paragraph"><p>The new command is name <strong>name</strong>, and it replaces any existing command
 there may have been by that name. Whenever the new command is
 invoked, the contents of <strong>body</strong> will be executed by the Tcl
 interpreter.</p></div>
-<div class="paragraph"><p><strong>args</strong> specifies the formal arguments to the procedure.
+<div class="paragraph"><p><strong>arglist</strong> specifies the formal arguments to the procedure.
 It consists of a list, possibly empty, of the following
 argument specifiers:</p></div>
 <div class="dlist"><dl>
@@ -2154,7 +2187,7 @@ argument specifiers:</p></div>
 <dd>
 <p>
     Variable Argument - The special name <strong>args</strong>, which is
-    assigned all remaining arguments (including none). The
+    assigned all remaining arguments (including none) as a list. The
     variable argument may only be specified once. Note that
     the syntax <tt>args newname</tt> may be used to retain the special
     behaviour of <strong>args</strong> with a different local name. In this case,
@@ -2162,12 +2195,20 @@ argument specifiers:</p></div>
 </p>
 </dd>
 </dl></div>
-<div class="paragraph"><p>Arguments must be provided in the following order, any of which
-may be omitted:</p></div>
+<div class="paragraph"><p>When the command is invoked, a local variable will be created for each of
+the formal arguments to the procedure; its value will be the value
+of corresponding argument in the invoking command or the argument&#8217;s
+default value.</p></div>
+<div class="paragraph"><p>Arguments with default values need not be specified in a procedure
+invocation.  However, there must be enough actual arguments for all
+required arguments, and there must not be any extra actual arguments
+(unless the Variable Argument is specified).</p></div>
+<div class="paragraph"><p>Actual arguments are assigned to formal arguments as in left-to-right
+order with the following precedence.</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-Required Arguments (Left)
+Required Arguments (including Reference Arguments)
 </p>
 </li>
 <li>
@@ -2180,45 +2221,80 @@ Optional Arguments
 Variable Argument
 </p>
 </li>
-<li>
-<p>
-Required Arguments (Right)
-</p>
-</li>
 </ol></div>
-<div class="paragraph"><p>When the command is invoked, a local variable will be created for each of
-the formal arguments to the procedure; its value will be the value
-of corresponding argument in the invoking command or the argument&#8217;s
-default value.</p></div>
-<div class="paragraph"><p>Arguments with default values need not be specified in a procedure
-invocation.  However, there must be enough actual arguments for all
-required arguments, and there must not be any extra actual arguments
-(unless the Variable Argument is specified).</p></div>
-<div class="paragraph"><p>Actual arguments are assigned to formal arguments as follows:</p></div>
-<div class="olist arabic"><ol class="arabic">
-<li>
-<p>
-Left Required Arguments are assigned from the left
-</p>
-</li>
-<li>
-<p>
-Right Required Arguments are assigned from the right
-</p>
-</li>
-<li>
-<p>
-Default Arguments are assigned from the left, following the Left Required Arguments.
-</p>
-</li>
-<li>
-<p>
-A list is formed from any remaining arguments, which are then
-   are assigned to the <em>args</em> Variable Argument (if specified). The list will be empty
-   if there are no remaining arguments.
-</p>
-</li>
-</ol></div>
+<div class="paragraph"><p>The following example illustrates precedence. Assume a procedure declaration:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>proc p {{a A} args b {c C} d} {...}</tt></pre>
+</div></div>
+<div class="paragraph"><p>This procedure requires at least two arguments, but can accept an unlimited number.
+The following table shows how various numbers of arguments are assigned.
+Values marked as <em>-</em> are assigned the default value.</p></div>
+<div class="tableblock">
+<table rules="all"
+width="40%"
+frame="hsides"
+cellspacing="0" cellpadding="4">
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<thead>
+<tr>
+<th align="left" valign="top">Number of arguments</th>
+<th align="left" valign="top">a</th>
+<th align="left" valign="top">args</th>
+<th align="left" valign="top">b</th>
+<th align="left" valign="top">c</th>
+<th align="left" valign="top">d</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table">2</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">2</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">3</p></td>
+<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">2</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">3</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">4</p></td>
+<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">-</p></td>
+<td align="left" valign="top"><p class="table">2</p></td>
+<td align="left" valign="top"><p class="table">3</p></td>
+<td align="left" valign="top"><p class="table">4</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">5</p></td>
+<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">2</p></td>
+<td align="left" valign="top"><p class="table">3</p></td>
+<td align="left" valign="top"><p class="table">4</p></td>
+<td align="left" valign="top"><p class="table">5</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">6</p></td>
+<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">2,3</p></td>
+<td align="left" valign="top"><p class="table">4</p></td>
+<td align="left" valign="top"><p class="table">5</p></td>
+<td align="left" valign="top"><p class="table">6</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <div class="paragraph"><p>When <strong>body</strong> is being executed, variable names normally refer to local
 variables, which are created automatically when referenced and deleted
 when the procedure returns.  One local variable is automatically created
@@ -3111,7 +3187,7 @@ if {[$e var]} {
 command.  The legal <strong>options</strong> are:</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<strong>dict create</strong> <em>?key value &#8230;?</em>+
+<tt><strong>dict create</strong> <em>?key value &#8230;?</em></tt>
 </dt>
 <dd>
 <p>
@@ -3122,7 +3198,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict exists</strong> <em>dictionary key ?key &#8230;?</em>+
+<tt><strong>dict exists</strong> <em>dictionary key ?key &#8230;?</em></tt>
 </dt>
 <dd>
 <p>
@@ -3133,7 +3209,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict get</strong> <em>dictionary ?key &#8230;?</em>+
+<tt><strong>dict get</strong> <em>dictionary ?key &#8230;?</em></tt>
 </dt>
 <dd>
 <p>
@@ -3151,7 +3227,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict keys</strong> <em>dictionary ?pattern?</em>+
+<tt><strong>dict keys</strong> <em>dictionary ?pattern?</em></tt>
 </dt>
 <dd>
 <p>
@@ -3162,7 +3238,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict keys</strong> <em>dictionary ?pattern?</em>+
+<tt><strong>dict keys</strong> <em>dictionary ?pattern?</em></tt>
 </dt>
 <dd>
 <p>
@@ -3173,7 +3249,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict set</strong> <em>dictionaryName key ?key &#8230;? value</em>+
+<tt><strong>dict set</strong> <em>dictionaryName key ?key &#8230;? value</em></tt>
 </dt>
 <dd>
 <p>
@@ -3185,7 +3261,7 @@ command.  The legal <strong>options</strong> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<strong>dict unset</strong> <em>dictionaryName key ?key &#8230;? value</em>+
+<tt><strong>dict unset</strong> <em>dictionaryName key ?key &#8230;? value</em></tt>
 </dt>
 <dd>
 <p>
@@ -3530,12 +3606,14 @@ abbreviation for <strong>option</strong> is acceptable.  The valid options are:<
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><strong>file delete</strong> <em>name &#8230;</em></tt>
+<tt><strong>file delete ?-force?</strong> <em>name &#8230;</em></tt>
 </dt>
 <dd>
 <p>
     Deletes file or directory <strong>name</strong>. If the file or directory doesn&#8217;t exist, nothing happens.
-    If it can&#8217;t be deleted, an error is generated. Non-empty directories will not be deleted.
+    If it can&#8217;t be deleted, an error is generated. Non-empty directories will not be deleted
+    unless the <em>-force</em> options is given. In this case no errors will be generated, even
+    if the file/directory can&#8217;t be deleted.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4095,10 +4173,8 @@ The legal <strong>option</strong>'s (which may be abbreviated) are:
 <dd>
 <p>
     Returns the name of the binary file from which the application
-    was invoked, either
-    as a path relative to the current directory or as a full
-    path. If the path can&#8217;t be determined, returns the empty
-    string.
+    was invoked. A full path will be returned, unless the path
+    can&#8217;t be determined, in which case the empty string will be returned.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5306,7 +5382,7 @@ same form as produced by <em>catch</em> and <em>info stacktrace</em></p></div>
 The legal options (which may be abbreviated) are:</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>*string bytelength <em>string</em></tt>
+<tt><strong>string bytelength</strong> <em>string</em></tt>
 </dt>
 <dd>
 <p>
@@ -6471,11 +6547,11 @@ to prevent infinite errors. (A time event handler is always removed after execut
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>*socket ?-ipv6? stream.server <em>?addr:?port</em></tt>
+<tt><strong>socket ?-ipv6? stream.server</strong> <em>?addr:?port</em></tt>
 </dt>
 <dd>
 <p>
-    A TCP socket server (<strong>addr</strong> defaults to 0.0.0.0 for IPv4 or [::] for IPv6).
+    A TCP socket server (<strong>addr</strong> defaults to <tt>0.0.0.0</tt> for IPv4 or <tt>[::]</tt> for IPv6).
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6706,12 +6782,13 @@ by the Tcl library.</p></div>
 </p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>tcl_platform(byteOrder)   = littleEndian
-tcl_platform(os)          = Darwin
-tcl_platform(platform)    = unix
-tcl_platform(pointerSize) = 8
-tcl_platform(threaded)    = 0
-tcl_platform(wordSize)    = 8</tt></pre>
+<pre><tt>tcl_platform(byteOrder)     = littleEndian
+tcl_platform(os)            = Darwin
+tcl_platform(platform)      = unix
+tcl_platform(pointerSize)   = 8
+tcl_platform(threaded)      = 0
+tcl_platform(wordSize)      = 8
+tcl_platform(pathSeparator) = :</tt></pre>
 </div></div>
 </dd>
 <dt class="hdlist1">
@@ -7025,7 +7102,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-06-10 14:47:19 EST
+Last updated 2011-07-18 16:09:46 EST
 </div>
 </div>
 </body>
