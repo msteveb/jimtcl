@@ -13100,8 +13100,8 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     interp->signal_level -= sig;
 
-    /* Catch or pass through? Only the first 64 codes can be passed through */
-    if (exitCode >= 0 && exitCode < (int)sizeof(mask) && ((1 << exitCode) & mask) == 0) {
+    /* Catch or pass through? Only the first 32/64 codes can be passed through */
+    if (exitCode >= 0 && exitCode < (int)sizeof(mask) * 8 && ((1 << exitCode) & mask) == 0) {
         /* Not caught, pass it up */
         return exitCode;
     }
