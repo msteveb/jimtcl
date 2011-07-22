@@ -33,6 +33,8 @@ EOF
     echo "{"
     for ext in $*; do
         echo "extern int Jim_${ext}Init(Jim_Interp *);"
+    done
+    for ext in $*; do
         echo "Jim_${ext}Init(interp);"
     done
     echo "return JIM_OK;"

@@ -10282,11 +10282,12 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filena
         Jim_Obj *nameObjPtr = cmd->u.proc.arglist[d].nameObjPtr;
         if (d == cmd->u.proc.argsPos) {
             /* assign $args */
+            Jim_Obj *listObjPtr;
             int argsLen = 0;
             if (cmd->u.proc.reqArity + cmd->u.proc.optArity < argc - 1) {
                 argsLen = argc - 1 - (cmd->u.proc.reqArity + cmd->u.proc.optArity);
             }
-            Jim_Obj *listObjPtr = Jim_NewListObj(interp, &argv[i], argsLen);
+            listObjPtr = Jim_NewListObj(interp, &argv[i], argsLen);
 
             /* It is possible to rename args. */
             if (cmd->u.proc.arglist[d].defaultObjPtr) {

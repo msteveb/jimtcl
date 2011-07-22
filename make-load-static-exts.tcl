@@ -37,6 +37,9 @@ puts \{
 foreach e $exts {
     set ext [lindex $e 1]
     puts "\textern int Jim_${ext}Init(Jim_Interp *);"
+}
+foreach e $exts {
+    set ext [lindex $e 1]
     puts "\tJim_${ext}Init(interp);"
 }
 
