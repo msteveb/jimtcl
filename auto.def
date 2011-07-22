@@ -64,10 +64,17 @@ cc-check-types "long long"
 cc-check-includes sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
 
+# Haiku needs -lnetwork
+if {[cc-check-function-in-lib inet_ntop network]} {
+    if {[get-define lib_inet_ntop] ne ""} {
+        cc-with {-libs -lnetwork}
+    }
+}
+
 cc-check-functions ualarm sysinfo lstat fork vfork system select
 cc-check-functions backtrace geteuid mkstemp realpath strptime gettimeofday
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist
-cc-check-functions syslog opendir readlink sleep usleep pipe inet_ntop getaddrinfo
+cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo
 
 define TCL_LIBRARY [get-define prefix]/lib/jim
 
@@ -132,7 +139,7 @@ if {[opt-bool maintainer]} {
 if {[opt-bool math full]} {
     msg-result "Enabling math functions"
     define JIM_MATH_FUNCTIONS
-    define-append LIBS -lm
+    cc-check-function-in-lib sin m
 }
 if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"

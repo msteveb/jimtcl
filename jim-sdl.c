@@ -56,7 +56,7 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     JimSdlSurface *jss = Jim_CmdPrivData(interp);
     int option;
-    const char *options[] = {
+    static const char * const options[] = {
         "free", "flip", "pixel", "rectangle", "box", "line", "aaline",
         "circle", "aacircle", "fcircle", NULL
     };

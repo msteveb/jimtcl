@@ -11971,7 +11971,7 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [lsort] */
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
-    const char *options[] = {
+    static const char * const options[] = {
         "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-index", NULL
     };
     enum
@@ -12093,7 +12093,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #ifdef JIM_DEBUG_COMMAND
-    const char *options[] = {
+    static const char * const options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc", "show",
         NULL
@@ -13332,7 +13332,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 {
     Jim_Obj *objPtr;
     int option;
-    const char *options[] = {
+    static const char * const options[] = {
         "create", "get", "set", "unset", "exists", "keys", "merge", "size", "with", NULL
     };
     enum
@@ -13448,7 +13448,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [subst] */
 static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *options[] = {
+    static const char * const options[] = {
         "-nobackslashes", "-nocommands", "-novariables", NULL
     };
     enum

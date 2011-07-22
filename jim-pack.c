@@ -201,7 +201,7 @@ static void JimSetBitsIntLittleEndian(unsigned char *bitvec, jim_wide value, int
 static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int option;
-    static const char const *options[] = { "-intbe", "-intle", "-uintbe", "-uintle", "-str", NULL };
+    static const char * const options[] = { "-intbe", "-intle", "-uintbe", "-uintle", "-str", NULL };
     enum { OPT_INTBE, OPT_INTLE, OPT_UINTBE, OPT_UINTLE, OPT_STR, };
     jim_wide pos;
     jim_wide width;
@@ -280,7 +280,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int option;
-    static const char const *options[] = { "-intle", "-intbe", "-str", NULL };
+    static const char * const options[] = { "-intle", "-intbe", "-str", NULL };
     enum { OPT_LE, OPT_BE, OPT_STR };
     jim_wide pos = 0;
     jim_wide width;

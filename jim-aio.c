@@ -724,7 +724,7 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    static const char *options[] = {
+    static const char * const options[] = {
         "none",
         "line",
         "full",

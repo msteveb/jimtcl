@@ -18,7 +18,7 @@ exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 install_jim = @install_jim@
 
-CPPFLAGS += -D_GNU_SOURCE -Wall -Werror $(OPTIM) -I.
+CPPFLAGS += -D_GNU_SOURCE -Wall $(OPTIM) -I.
 ifneq (@srcdir@,.)
 CPPFLAGS += -I@srcdir@
 VPATH := @srcdir@
@@ -112,7 +112,7 @@ $(LIBJIM): $(OBJS) $(C_EXT_OBJS)
 endif
 
 %.so: jim-%.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o $^
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt

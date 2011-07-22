@@ -68,7 +68,9 @@ const char *Jim_SignalId(int sig)
     CHECK_SIG(SIGHUP);
     CHECK_SIG(SIGILL);
     CHECK_SIG(SIGINT);
+#ifdef SIGIO
     CHECK_SIG(SIGIO);
+#endif
     CHECK_SIG(SIGKILL);
     CHECK_SIG(SIGPIPE);
     CHECK_SIG(SIGPROF);

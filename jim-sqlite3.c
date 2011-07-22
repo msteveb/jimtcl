@@ -130,7 +130,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 {
     JimSqliteHandle *sh = Jim_CmdPrivData(interp);
     int option;
-    const char *options[] = {
+    static const char * const options[] = {
         "close", "query", "lastid", "changes", NULL
     };
     enum
