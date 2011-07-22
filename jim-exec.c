@@ -340,12 +340,12 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 void Jim_ReapDetachedPids(struct WaitInfoTable *table)
 {
+    struct WaitInfo *waitPtr;
+    int count;
+
     if (!table) {
         return;
     }
-
-    struct WaitInfo *waitPtr;
-    int count;
 
     for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
         if (waitPtr->flags & WI_DETACHED) {
