@@ -4,16 +4,17 @@
 # Outputs the full path to the interpreter
 
 if {[catch {info version} version] == 0} {
+	# This is Jim Tcl
 	if {$version >= 0.70} {
 		# Ensure that regexp works
-		regexp a a
+		regexp (a.*?) a
 
-		# Unlike Tcl, [info nameofexecutable] can return a relative path
+		# Older versions of jimsh may return a relative path for [info nameofexecutable]
 		puts [file join [pwd] [info nameofexecutable]]
 		exit 0
 	}
 } elseif {[catch {info tclversion} version] == 0} {
-	if {$version >= 8.5} {
+	if {$version >= 8.5 && ![string match 8.5a* [info patchlevel]]} {
 		puts [info nameofexecutable]
 		exit 0
 	}

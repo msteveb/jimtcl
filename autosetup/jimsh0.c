@@ -21,11 +21,13 @@
 #if defined(__MINGW32__)
 #define TCL_PLATFORM_OS "mingw"
 #define TCL_PLATFORM_PLATFORM "windows"
+#define TCL_PLATFORM_PATH_SEPARATOR ";"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
+#define TCL_PLATFORM_PATH_SEPARATOR ":"
 #define HAVE_VFORK
 #define HAVE_WAITPID
 #endif
@@ -602,6 +604,8 @@ typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
 typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
 
+
+
 /* A command is implemented in C if funcPtr is != NULL, otherwise
  * it's a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyoObjPtr. */
@@ -619,13 +623,17 @@ typedef struct Jim_Cmd {
             /* Tcl procedure */
             Jim_Obj *argListObjPtr;
             Jim_Obj *bodyObjPtr;
-            Jim_HashTable *staticVars; /* Static vars hash table. NULL if no statics. */
-            int leftArity;    /* Required args assigned from the left */
-            int optionalArgs; /* Number of optional args (default values) */
-            int rightArity;   /* Required args assigned from the right */
-            int args;         /* True if 'args' specified */
-            struct Jim_Cmd *prevCmd; /* Previous command defn if proc created 'local' */
-            int upcall;       /* True if proc is currently in upcall */
+            Jim_HashTable *staticVars;  /* Static vars hash table. NULL if no statics. */
+            struct Jim_Cmd *prevCmd;    /* Previous command defn if proc created 'local' */
+            int argListLen;             /* Length of argListObjPtr */
+            int reqArity;               /* Number of required parameters */
+            int optArity;               /* Number of optional parameters */
+            int argsPos;                /* Position of 'args', if specified, or -1 */
+            int upcall;                 /* True if proc is currently in upcall */
+            struct Jim_ProcArg {
+                Jim_Obj *nameObjPtr;    /* Name of this arg */
+                Jim_Obj *defaultObjPtr; /* Default value, (or rename for $args) */
+            } *arglist;
         } proc;
     } u;
 } Jim_Cmd;
@@ -1252,6 +1260,41 @@ int Jim_bootstrapInit(Jim_Interp *interp)
 "proc package {args} {}\n"
 ,"bootstrap.tcl", 1);
 }
+int Jim_initjimshInit(Jim_Interp *interp)
+{
+	if (Jim_PackageProvide(interp, "initjimsh", "1.0", JIM_ERRMSG))
+		return JIM_ERR;
+
+	return Jim_Eval_Named(interp, 
+"\n"
+"\n"
+"\n"
+"proc _jimsh_init {} {\n"
+"	rename _jimsh_init {}\n"
+"\n"
+"\n"
+"	lappend p {*}[split [env JIMLIB {}] $::tcl_platform(pathSeparator)]\n"
+"	lappend p {*}$::auto_path\n"
+"	lappend p [file dirname [info nameofexecutable]]\n"
+"	set ::auto_path $p\n"
+"\n"
+"	if {$::tcl_interactive && [env HOME {}] ne \"\"} {\n"
+"		foreach src {.jimrc jimrc.tcl} {\n"
+"			if {[file exists [env HOME]/$src]} {\n"
+"				uplevel #0 source [env HOME]/$src\n"
+"				break\n"
+"			}\n"
+"		}\n"
+"	}\n"
+"}\n"
+"\n"
+"if {$tcl_platform(platform) eq \"windows\"} {\n"
+"	set jim_argv0 [string map {\\\\ /} $jim_argv0]\n"
+"}\n"
+"\n"
+"_jimsh_init\n"
+,"initjimsh.tcl", 1);
+}
 int Jim_globInit(Jim_Interp *interp)
 {
 	if (Jim_PackageProvide(interp, "glob", "1.0", JIM_ERRMSG))
@@ -1498,11 +1541,11 @@ int Jim_stdlibInit(Jim_Interp *interp)
 "\n"
 "proc {info nameofexecutable} {} {\n"
 "	if {[info exists ::jim_argv0]} {\n"
-"		if {[string first \"/\" $::jim_argv0] >= 0} {\n"
-"			return $::jim_argv0\n"
+"		if {[string match \"*/*\" $::jim_argv0]} {\n"
+"			return [file join [pwd] $::jim_argv0]\n"
 "		}\n"
-"		foreach path [split [env PATH \"\"] :] {\n"
-"			set exec [file join $path $::jim_argv0]\n"
+"		foreach path [split [env PATH \"\"] $::tcl_platform(pathSeparator)] {\n"
+"			set exec [file join [pwd] $path $::jim_argv0]\n"
 "			if {[file executable $exec]} {\n"
 "				return $exec\n"
 "			}\n"
@@ -2556,7 +2599,7 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    static const char *options[] = {
+    static const char * const options[] = {
         "none",
         "line",
         "full",
@@ -4156,9 +4199,19 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             last = newname;
         }
 #endif
+        else if (part[0] == '.') {
+            if (part[1] == '/') {
+                part += 2;
+                len -= 2;
+            }
+            else if (part[1] == 0 && last != newname) {
+                /* Adding '.' to an existing path does nothing */
+                continue;
+            }
+        }
 
         /* Add a slash if needed */
-        if (last != newname) {
+        if (last != newname && last[-1] != '/') {
             *last++ = '/';
         }
 
@@ -4173,7 +4226,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
 
         /* Remove a slash if needed */
-        if (last != newname && last[-1] == '/') {
+        if (last > newname + 1 && last[-1] == '/') {
             *--last = 0;
         }
     }
@@ -5105,12 +5158,12 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 void Jim_ReapDetachedPids(struct WaitInfoTable *table)
 {
+    struct WaitInfo *waitPtr;
+    int count;
+
     if (!table) {
         return;
     }
-
-    struct WaitInfo *waitPtr;
-    int count;
 
     for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
         if (waitPtr->flags & WI_DETACHED) {
@@ -6314,26 +6367,26 @@ int Jim_arrayInit(Jim_Interp *interp)
 int Jim_InitStaticExtensions(Jim_Interp *interp)
 {
 extern int Jim_bootstrapInit(Jim_Interp *);
-Jim_bootstrapInit(interp);
 extern int Jim_aioInit(Jim_Interp *);
-Jim_aioInit(interp);
 extern int Jim_readdirInit(Jim_Interp *);
-Jim_readdirInit(interp);
 extern int Jim_globInit(Jim_Interp *);
-Jim_globInit(interp);
 extern int Jim_regexpInit(Jim_Interp *);
-Jim_regexpInit(interp);
 extern int Jim_fileInit(Jim_Interp *);
-Jim_fileInit(interp);
 extern int Jim_execInit(Jim_Interp *);
-Jim_execInit(interp);
 extern int Jim_clockInit(Jim_Interp *);
-Jim_clockInit(interp);
 extern int Jim_arrayInit(Jim_Interp *);
-Jim_arrayInit(interp);
 extern int Jim_stdlibInit(Jim_Interp *);
-Jim_stdlibInit(interp);
 extern int Jim_tclcompatInit(Jim_Interp *);
+Jim_bootstrapInit(interp);
+Jim_aioInit(interp);
+Jim_readdirInit(interp);
+Jim_globInit(interp);
+Jim_regexpInit(interp);
+Jim_fileInit(interp);
+Jim_execInit(interp);
+Jim_clockInit(interp);
+Jim_arrayInit(interp);
+Jim_stdlibInit(interp);
 Jim_tclcompatInit(interp);
 return JIM_OK;
 }
@@ -6408,6 +6461,9 @@ return JIM_OK;
 /* For INFINITY, even if math functions are not enabled */
 #include <math.h>
 
+/* We may decide to switch to using $[...] after all, so leave it as an option */
+/*#define EXPRSUGAR_BRACKET*/
+
 /* For the no-autoconf case */
 #ifndef TCL_LIBRARY
 #define TCL_LIBRARY "."
@@ -6417,6 +6473,9 @@ return JIM_OK;
 #endif
 #ifndef TCL_PLATFORM_PLATFORM
 #define TCL_PLATFORM_PLATFORM "unknown"
+#endif
+#ifndef TCL_PLATFORM_PATH_SEPARATOR
+#define TCL_PLATFORM_PATH_SEPARATOR ":"
 #endif
 
 /*#define DEBUG_SHOW_SCRIPT*/
@@ -7841,52 +7900,61 @@ static int JimParseQuote(struct JimParserCtx *pc)
 
 static int JimParseVar(struct JimParserCtx *pc)
 {
-    int brace = 0, stop = 0;
-    int ttype = JIM_TT_VAR;
+    /* skip the $ */
+    pc->p++;
+    pc->len--;
 
-    pc->tstart = ++pc->p;
-    pc->len--;                  /* skip the $ */
+#ifdef EXPRSUGAR_BRACKET
+    if (*pc->p == '[') {
+        /* Parse $[...] expr shorthand syntax */
+        JimParseCmd(pc);
+        pc->tt = JIM_TT_EXPRSUGAR;
+        return JIM_OK;
+    }
+#endif
+
+    pc->tstart = pc->p;
+    pc->tt = JIM_TT_VAR;
     pc->tline = pc->linenr;
+
     if (*pc->p == '{') {
         pc->tstart = ++pc->p;
         pc->len--;
-        brace = 1;
-    }
-    if (brace) {
-        while (!stop) {
-            if (*pc->p == '}' || pc->len == 0) {
-                pc->tend = pc->p - 1;
-                stop = 1;
-                if (pc->len == 0)
-                    break;
-            }
-            else if (*pc->p == '\n')
+
+        while (pc->len && *pc->p != '}') {
+            if (*pc->p == '\n') {
                 pc->linenr++;
+            }
+            pc->p++;
+            pc->len--;
+        }
+        pc->tend = pc->p - 1;
+        if (pc->len) {
             pc->p++;
             pc->len--;
         }
     }
     else {
-        while (!stop) {
+        while (1) {
             /* Skip double colon, but not single colon! */
-            if (pc->p[0] == ':' && pc->len > 1 && pc->p[1] == ':') {
+            if (pc->p[0] == ':' && pc->p[1] == ':') {
                 pc->p += 2;
                 pc->len -= 2;
                 continue;
             }
-            if (!((*pc->p >= 'a' && *pc->p <= 'z') ||
-                    (*pc->p >= 'A' && *pc->p <= 'Z') ||
-                    (*pc->p >= '0' && *pc->p <= '9') || *pc->p == '_'))
-                stop = 1;
-            else {
+            if (isalnum(UCHAR(*pc->p)) || *pc->p == '_') {
                 pc->p++;
                 pc->len--;
+                continue;
             }
+            break;
         }
         /* Parse [dict get] syntax sugar. */
         if (*pc->p == '(') {
             int count = 1;
             const char *paren = NULL;
+
+            pc->tt = JIM_TT_DICTSUGAR;
 
             while (count && pc->len) {
                 pc->p++;
@@ -7913,7 +7981,11 @@ static int JimParseVar(struct JimParserCtx *pc)
                 pc->len += (pc->p - paren);
                 pc->p = paren;
             }
-            ttype = (*pc->tstart == '(') ? JIM_TT_EXPRSUGAR : JIM_TT_DICTSUGAR;
+#ifndef EXPRSUGAR_BRACKET
+            if (*pc->tstart == '(') {
+                pc->tt = JIM_TT_EXPRSUGAR;
+            }
+#endif
         }
         pc->tend = pc->p - 1;
     }
@@ -7926,7 +7998,6 @@ static int JimParseVar(struct JimParserCtx *pc)
         pc->len++;
         return JIM_ERR;
     }
-    pc->tt = ttype;
     return JIM_OK;
 }
 
@@ -9849,28 +9920,32 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     return JIM_OK;
 }
 
-static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
-    Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr,
-    int leftArity, int optionalArgs, int args, int rightArity)
+static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
+    Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr)
 {
     Jim_Cmd *cmdPtr;
     Jim_HashEntry *he;
+    int argListLen;
+    int i;
 
-    cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
+    if (JimValidName(interp, "procedure", cmdName) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    argListLen = Jim_ListLength(interp, argListObjPtr);
+
+    /* Allocate space for both the command pointer and the arg list */
+    cmdPtr = Jim_Alloc(sizeof(*cmdPtr) + sizeof(struct Jim_ProcArg) * argListLen);
     memset(cmdPtr, 0, sizeof(*cmdPtr));
     cmdPtr->inUse = 1;
     cmdPtr->isproc = 1;
     cmdPtr->u.proc.argListObjPtr = argListObjPtr;
+    cmdPtr->u.proc.argListLen = argListLen;
     cmdPtr->u.proc.bodyObjPtr = bodyObjPtr;
+    cmdPtr->u.proc.argsPos = -1;
+    cmdPtr->u.proc.arglist = (struct Jim_ProcArg *)(cmdPtr + 1);
     Jim_IncrRefCount(argListObjPtr);
     Jim_IncrRefCount(bodyObjPtr);
-    cmdPtr->u.proc.leftArity = leftArity;
-    cmdPtr->u.proc.optionalArgs = optionalArgs;
-    cmdPtr->u.proc.args = args;
-    cmdPtr->u.proc.rightArity = rightArity;
-    cmdPtr->u.proc.staticVars = NULL;
-    cmdPtr->u.proc.prevCmd = NULL;
-    cmdPtr->inUse = 1;
 
     /* Create the statics hash table. */
     if (staticsListObjPtr) {
@@ -9930,6 +10005,59 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
         }
     }
 
+    /* Parse the args out into arglist, validating as we go */
+    /* Examine the argument list for default parameters and 'args' */
+    for (i = 0; i < argListLen; i++) {
+        Jim_Obj *argPtr;
+        Jim_Obj *nameObjPtr;
+        Jim_Obj *defaultObjPtr;
+        int len;
+        int n = 1;
+
+        /* Examine a parameter */
+        Jim_ListIndex(interp, argListObjPtr, i, &argPtr, JIM_NONE);
+        len = Jim_ListLength(interp, argPtr);
+        if (len == 0) {
+            Jim_SetResultString(interp, "procedure has argument with no name", -1);
+            goto err;
+        }
+        if (len > 2) {
+            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
+            goto err;
+        }
+
+        if (len == 2) {
+            /* Optional parameter */
+            Jim_ListIndex(interp, argPtr, 0, &nameObjPtr, JIM_NONE);
+            Jim_ListIndex(interp, argPtr, 1, &defaultObjPtr, JIM_NONE);
+        }
+        else {
+            /* Required parameter */
+            nameObjPtr = argPtr;
+            defaultObjPtr = NULL;
+        }
+
+
+        if (Jim_CompareStringImmediate(interp, nameObjPtr, "args")) {
+            if (cmdPtr->u.proc.argsPos >= 0) {
+                Jim_SetResultString(interp, "procedure has 'args' specified more than once", -1);
+                goto err;
+            }
+            cmdPtr->u.proc.argsPos = i;
+        }
+        else {
+            if (len == 2) {
+                cmdPtr->u.proc.optArity += n;
+            }
+            else {
+                cmdPtr->u.proc.reqArity += n;
+            }
+        }
+
+        cmdPtr->u.proc.arglist[i].nameObjPtr = nameObjPtr;
+        cmdPtr->u.proc.arglist[i].defaultObjPtr = defaultObjPtr;
+    }
+
     /* Add the new command */
 
     /* It may already exist, so we try to delete the old one.
@@ -9939,7 +10067,7 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
      * BUT, if 'local' is in force, instead of deleting the existing
      * proc, we stash a reference to the old proc here.
      */
-    he = Jim_FindHashEntry(&interp->commands, cmdName);
+    he = Jim_FindHashEntry(&interp->commands, Jim_String(cmdName));
     if (he) {
         /* There was an old procedure with the same name, this requires
          * a 'proc epoch' update. */
@@ -9959,18 +10087,20 @@ static int JimCreateProcedure(Jim_Interp *interp, const char *cmdName,
     else {
         if (he) {
             /* Replace the existing proc */
-            Jim_DeleteHashEntry(&interp->commands, cmdName);
+            Jim_DeleteHashEntry(&interp->commands, Jim_String(cmdName));
         }
 
-        Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
+        Jim_AddHashEntry(&interp->commands, Jim_String(cmdName), cmdPtr);
     }
 
     /* Unlike Tcl, set the name of the proc as the result */
-    Jim_SetResultString(interp, cmdName, -1);
+    Jim_SetResult(interp, cmdName);
     return JIM_OK;
 
   err:
-    Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
+    if (cmdPtr->u.proc.staticVars) {
+        Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
+    }
     Jim_Free(cmdPtr->u.proc.staticVars);
     Jim_DecrRefCount(interp, argListObjPtr);
     Jim_DecrRefCount(interp, bodyObjPtr);
@@ -11253,6 +11383,7 @@ Jim_Interp *Jim_CreateInterp(void)
 
     Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
     Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
+    Jim_SetVariableStrWithStr(i, "tcl_platform(pathSeparator)", TCL_PLATFORM_PATH_SEPARATOR);
     Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", JimIsBigEndian() ? "bigEndian" : "littleEndian");
     Jim_SetVariableStrWithStr(i, "tcl_platform(threaded)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));
@@ -11880,7 +12011,7 @@ void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 #define JIM_ELESTR_QUOTE 2
 static int ListElementQuotingType(const char *s, int len)
 {
-    int i, level, trySimple = 1;
+    int i, level, blevel, trySimple = 1;
 
     /* Try with the SIMPLE case */
     if (len == 0)
@@ -11915,9 +12046,10 @@ static int ListElementQuotingType(const char *s, int len)
 
   testbrace:
     /* Test if it's possible to do with braces */
-    if (s[len - 1] == '\\' || s[len - 1] == ']')
+    if (s[len - 1] == '\\')
         return JIM_ELESTR_QUOTE;
     level = 0;
+    blevel = 0;
     for (i = 0; i < len; i++) {
         switch (s[i]) {
             case '{':
@@ -11928,6 +12060,12 @@ static int ListElementQuotingType(const char *s, int len)
                 if (level < 0)
                     return JIM_ELESTR_QUOTE;
                 break;
+            case '[':
+                blevel++;
+                break;
+            case ']':
+                blevel--;
+                break;
             case '\\':
                 if (s[i + 1] == '\n')
                     return JIM_ELESTR_QUOTE;
@@ -11936,6 +12074,10 @@ static int ListElementQuotingType(const char *s, int len)
                 break;
         }
     }
+    if (blevel < 0) {
+        return JIM_ELESTR_QUOTE;
+    }
+
     if (level == 0) {
         if (!trySimple)
             return JIM_ELESTR_BRACE;
@@ -12018,7 +12160,7 @@ static char *BackslashQuoteString(const char *s, int len, int *qlenPtr)
     return q;
 }
 
-void UpdateStringOfList(struct Jim_Obj *objPtr)
+static void UpdateStringOfList(struct Jim_Obj *objPtr)
 {
     int i, bufLen, realLength;
     const char *strRep;
@@ -14460,16 +14602,20 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
 static int ExprAddOperator(Jim_Interp *interp, ExprByteCode * expr, ParseToken *t)
 {
     struct ScriptToken *token = &expr->token[expr->len];
+    const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-    if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
-        return ExprAddLazyOperator(interp, expr, t);
+    if (op->lazy == LAZY_OP) {
+        if (ExprAddLazyOperator(interp, expr, t) != JIM_OK) {
+            Jim_SetResultFormatted(interp, "Expression has bad operands to %s", op->name);
+            return JIM_ERR;
+        }
     }
     else {
         token->objPtr = interp->emptyObj;
         token->type = t->type;
         expr->len++;
-        return JIM_OK;
     }
+    return JIM_OK;
 }
 
 /**
@@ -16436,6 +16582,45 @@ static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argVa
     return retcode;
 }
 
+/**
+ * Sets the interp result to be an error message indicating the required proc args.
+ */
+static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cmd *cmd)
+{
+    /* Create a nice error message, consistent with Tcl 8.5 */
+    Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
+    int i;
+
+    for (i = 0; i < cmd->u.proc.argListLen; i++) {
+        Jim_AppendString(interp, argmsg, " ", 1);
+
+        if (i == cmd->u.proc.argsPos) {
+            if (cmd->u.proc.arglist[i].defaultObjPtr) {
+                /* Renamed args */
+                Jim_AppendString(interp, argmsg, "?", 1);
+                Jim_AppendObj(interp, argmsg, cmd->u.proc.arglist[i].defaultObjPtr);
+                Jim_AppendString(interp, argmsg, " ...?", -1);
+            }
+            else {
+                /* We have plain args */
+                Jim_AppendString(interp, argmsg, "?argument ...?", -1);
+            }
+        }
+        else {
+            if (cmd->u.proc.arglist[i].defaultObjPtr) {
+                Jim_AppendString(interp, argmsg, "?", 1);
+                Jim_AppendObj(interp, argmsg, cmd->u.proc.arglist[i].nameObjPtr);
+                Jim_AppendString(interp, argmsg, "?", 1);
+            }
+            else {
+                Jim_AppendObj(interp, argmsg, cmd->u.proc.arglist[i].nameObjPtr);
+            }
+        }
+    }
+    Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s%#s\"", procNameObj, argmsg);
+    Jim_FreeNewObj(interp, argmsg);
+}
+
 /* Call a procedure implemented in Tcl.
  * It's possible to speed-up a lot this function, currently
  * the callframes are not cached, but allocated and
@@ -16444,52 +16629,17 @@ static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argVa
  *
  * This can be fixed just implementing callframes caching
  * in JimCreateCallFrame() and JimFreeCallFrame(). */
-int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int linenr, int argc,
+static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int linenr, int argc,
     Jim_Obj *const *argv)
 {
-    int i, d, retcode;
     Jim_CallFrame *callFramePtr;
-    Jim_Obj *argObjPtr;
-    Jim_Obj *procname = argv[0];
     Jim_Stack *prevLocalProcs;
+    int i, d, retcode, optargs;
 
     /* Check arity */
-    if (argc - 1 < cmd->u.proc.leftArity + cmd->u.proc.rightArity ||
-        (!cmd->u.proc.args && argc - 1 > cmd->u.proc.leftArity + cmd->u.proc.rightArity + cmd->u.proc.optionalArgs)) {
-        /* Create a nice error message, consistent with Tcl 8.5 */
-        Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
-        int arglen = Jim_ListLength(interp, cmd->u.proc.argListObjPtr);
-
-        for (i = 0; i < arglen; i++) {
-            Jim_Obj *objPtr;
-            Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, i, &argObjPtr, JIM_NONE);
-
-            Jim_AppendString(interp, argmsg, " ", 1);
-
-            if (i < cmd->u.proc.leftArity || i >= arglen - cmd->u.proc.rightArity) {
-                Jim_AppendObj(interp, argmsg, argObjPtr);
-            }
-            else if (i == arglen - cmd->u.proc.rightArity - cmd->u.proc.args) {
-                if (Jim_ListLength(interp, argObjPtr) == 1) {
-                    /* We have plain args */
-                    Jim_AppendString(interp, argmsg, "?argument ...?", -1);
-                }
-                else {
-                    Jim_AppendString(interp, argmsg, "?", 1);
-                    Jim_ListIndex(interp, argObjPtr, 1, &objPtr, JIM_NONE);
-                    Jim_AppendObj(interp, argmsg, objPtr);
-                    Jim_AppendString(interp, argmsg, " ...?", -1);
-                }
-            }
-            else {
-                Jim_AppendString(interp, argmsg, "?", 1);
-                Jim_ListIndex(interp, argObjPtr, 0, &objPtr, JIM_NONE);
-                Jim_AppendObj(interp, argmsg, objPtr);
-                Jim_AppendString(interp, argmsg, "?", 1);
-            }
-        }
-        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s%#s\"", procname, argmsg);
-        Jim_FreeNewObj(interp, argmsg);
+    if (argc - 1 < cmd->u.proc.reqArity ||
+        (cmd->u.proc.argsPos < 0 && argc - 1 > cmd->u.proc.reqArity + cmd->u.proc.optArity)) {
+        JimSetProcWrongArgs(interp, argv[0], cmd);
         return JIM_ERR;
     }
 
@@ -16512,77 +16662,43 @@ int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
     interp->framePtr = callFramePtr;
 
-    /* Simplify arg counting */
-    argv++;
-    argc--;
+    /* How many optional args are available */
+    optargs = (argc - 1 - cmd->u.proc.reqArity);
 
-    /* Set arguments */
+    /* Step 'i' along the actual args, and step 'd' along the formal args */
+    i = 1;
+    for (d = 0; d < cmd->u.proc.argListLen; d++) {
+        Jim_Obj *nameObjPtr = cmd->u.proc.arglist[d].nameObjPtr;
+        if (d == cmd->u.proc.argsPos) {
+            /* assign $args */
+            Jim_Obj *listObjPtr;
+            int argsLen = 0;
+            if (cmd->u.proc.reqArity + cmd->u.proc.optArity < argc - 1) {
+                argsLen = argc - 1 - (cmd->u.proc.reqArity + cmd->u.proc.optArity);
+            }
+            listObjPtr = Jim_NewListObj(interp, &argv[i], argsLen);
 
-    /* Assign in this order:
-     * leftArity required args.
-     * rightArity required args (but actually do it last for simplicity)
-     * optionalArgs optional args
-     * remaining args into 'args' if 'args'
-     */
+            /* It is possible to rename args. */
+            if (cmd->u.proc.arglist[d].defaultObjPtr) {
+                nameObjPtr =cmd->u.proc.arglist[d].defaultObjPtr;
+            }
+            retcode = Jim_SetVariable(interp, nameObjPtr, listObjPtr);
+            if (retcode != JIM_OK) {
+                goto badargset;
+            }
 
-    /* Note that 'd' steps along the arg list, whilst argc/argv follow the supplied args */
-
-    /* leftArity required args */
-    for (d = 0; d < cmd->u.proc.leftArity; d++) {
-        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d, &argObjPtr, JIM_NONE);
-        retcode = JimSetProcArg(interp, argObjPtr, *argv++);
-        if (retcode != JIM_OK) {
-            goto badargset;
+            i += argsLen;
+            continue;
         }
-        argc--;
-    }
 
-    /* Shorten our idea of the number of supplied args */
-    argc -= cmd->u.proc.rightArity;
-
-    /* optionalArgs optional args */
-    for (i = 0; i < cmd->u.proc.optionalArgs; i++) {
-        Jim_Obj *nameObjPtr;
-        Jim_Obj *valueObjPtr;
-
-        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d++, &argObjPtr, JIM_NONE);
-
-        /* The name is the first element of the list */
-        Jim_ListIndex(interp, argObjPtr, 0, &nameObjPtr, JIM_NONE);
-        if (argc) {
-            valueObjPtr = *argv++;
-            argc--;
+        /* Optional or required? */
+        if (cmd->u.proc.arglist[d].defaultObjPtr == NULL || optargs-- > 0) {
+            retcode = JimSetProcArg(interp, nameObjPtr, argv[i++]);
         }
         else {
-            /* No more values, so use default */
-            /* The value is the second element of the list */
-            Jim_ListIndex(interp, argObjPtr, 1, &valueObjPtr, JIM_NONE);
+            /* Ran out, so use the default */
+            retcode = Jim_SetVariable(interp, nameObjPtr, cmd->u.proc.arglist[d].defaultObjPtr);
         }
-        Jim_SetVariable(interp, nameObjPtr, valueObjPtr);
-    }
-
-    /* Any remaining args go to 'args' */
-    if (cmd->u.proc.args) {
-        Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
-
-        /* Get the 'args' name from the procedure args */
-        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d, &argObjPtr, JIM_NONE);
-
-        /* It is possible to rename args. */
-        i = Jim_ListLength(interp, argObjPtr);
-        if (i == 2) {
-            Jim_ListIndex(interp, argObjPtr, 1, &argObjPtr, JIM_NONE);
-        }
-
-        Jim_SetVariable(interp, argObjPtr, listObjPtr);
-        argv += argc;
-        d++;
-    }
-
-    /* rightArity required args */
-    for (i = 0; i < cmd->u.proc.rightArity; i++) {
-        Jim_ListIndex(interp, cmd->u.proc.argListObjPtr, d++, &argObjPtr, JIM_NONE);
-        retcode = JimSetProcArg(interp, argObjPtr, *argv++);
         if (retcode != JIM_OK) {
             goto badargset;
         }
@@ -16628,7 +16744,7 @@ badargset:
     else if (retcode == JIM_ERR) {
         interp->addStackTrace++;
         Jim_DecrRefCount(interp, interp->errorProc);
-        interp->errorProc = procname;
+        interp->errorProc = argv[0];
         Jim_IncrRefCount(interp->errorProc);
     }
     return retcode;
@@ -16700,7 +16816,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     char *buf;
     Jim_Obj *scriptObjPtr;
     Jim_Obj *prevScriptObj;
-    Jim_Stack *prevLocalProcs;
     struct stat sb;
     int retcode;
     int readlen;
@@ -16759,15 +16874,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     prevScriptObj = interp->currentScriptObj;
     interp->currentScriptObj = scriptObjPtr;
 
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
-
     retcode = Jim_EvalObj(interp, scriptObjPtr);
-
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
 
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
@@ -18253,7 +18360,7 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [lsort] */
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
-    const char *options[] = {
+    static const char * const options[] = {
         "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-index", NULL
     };
     enum
@@ -18375,7 +18482,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #ifdef JIM_DEBUG_COMMAND
-    const char *options[] = {
+    static const char * const options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc", "show",
         NULL
@@ -18580,16 +18687,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int rc;
-    Jim_Stack *prevLocalProcs;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?...?");
         return JIM_ERR;
     }
-
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
 
     if (argc == 2) {
         rc = Jim_EvalObj(interp, argv[1]);
@@ -18597,10 +18699,6 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     else {
         rc = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc - 1, argv + 1));
     }
-
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
 
     if (rc == JIM_ERR) {
         /* eval is "interesting", so add a stack frame here */
@@ -18774,87 +18872,16 @@ static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 /* [proc] */
 static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int argListLen;
-    int leftArity, rightArity;
-    int i;
-    int optionalArgs = 0;
-    int args = 0;
-
     if (argc != 4 && argc != 5) {
         Jim_WrongNumArgs(interp, 1, argv, "name arglist ?statics? body");
         return JIM_ERR;
     }
 
-    if (JimValidName(interp, "procedure", argv[1]) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    argListLen = Jim_ListLength(interp, argv[2]);
-    leftArity = 0;
-    rightArity = 0;
-
-    /* Examine the argument list for default parameters and 'args' */
-    for (i = 0; i < argListLen; i++) {
-        Jim_Obj *argPtr;
-        int len;
-
-        /* Examine a parameter */
-        Jim_ListIndex(interp, argv[2], i, &argPtr, JIM_NONE);
-        len = Jim_ListLength(interp, argPtr);
-        if (len == 0) {
-            Jim_SetResultString(interp, "procedure has argument with no name", -1);
-            return JIM_ERR;
-        }
-        if (len > 2) {
-            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
-            return JIM_ERR;
-        }
-
-        if (len == 2) {
-            /* May be {args newname} */
-            Jim_ListIndex(interp, argPtr, 0, &argPtr, JIM_NONE);
-        }
-
-        if (Jim_CompareStringImmediate(interp, argPtr, "args")) {
-            if (args) {
-                Jim_SetResultString(interp, "procedure has 'args' specified more than once", -1);
-                return JIM_ERR;
-            }
-            if (rightArity) {
-                Jim_SetResultString(interp, "procedure has 'args' in invalid position", -1);
-                return JIM_ERR;
-            }
-            args = 1;
-            continue;
-        }
-
-        /* Does this parameter have a default? */
-        if (len == 1) {
-            /* A required arg. Is it part of leftArity or rightArity? */
-            if (optionalArgs || args) {
-                rightArity++;
-            }
-            else {
-                leftArity++;
-            }
-        }
-        else {
-            /* Optional arg. Can't be after rightArity */
-            if (rightArity || args) {
-                Jim_SetResultString(interp, "procedure has optional arg in invalid position", -1);
-                return JIM_ERR;
-            }
-            optionalArgs++;
-        }
-    }
-
     if (argc == 4) {
-        return JimCreateProcedure(interp, Jim_String(argv[1]),
-            argv[2], NULL, argv[3], leftArity, optionalArgs, args, rightArity);
+        return JimCreateProcedure(interp, argv[1], argv[2], NULL, argv[3]);
     }
     else {
-        return JimCreateProcedure(interp, Jim_String(argv[1]),
-            argv[2], argv[3], argv[4], leftArity, optionalArgs, args, rightArity);
+        return JimCreateProcedure(interp, argv[1], argv[2], argv[3], argv[4]);
     }
 }
 
@@ -19462,8 +19489,8 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     interp->signal_level -= sig;
 
-    /* Catch or pass through? Only the first 64 codes can be passed through */
-    if (exitCode >= 0 && exitCode < (int)sizeof(mask) && ((1 << exitCode) & mask) == 0) {
+    /* Catch or pass through? Only the first 32/64 codes can be passed through */
+    if (exitCode >= 0 && exitCode < (int)sizeof(mask) * 8 && ((1 << exitCode) & mask) == 0) {
         /* Not caught, pass it up */
         return exitCode;
     }
@@ -19694,7 +19721,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 {
     Jim_Obj *objPtr;
     int option;
-    const char *options[] = {
+    static const char * const options[] = {
         "create", "get", "set", "unset", "exists", "keys", "merge", "size", "with", NULL
     };
     enum
@@ -19810,7 +19837,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [subst] */
 static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *options[] = {
+    static const char * const options[] = {
         "-nobackslashes", "-nocommands", "-novariables", NULL
     };
     enum
@@ -21311,7 +21338,7 @@ struct caseextmap {
 };
 
 /* Generated mapping tables */
-#include "unicode_mapping.c"
+#include "_unicode_mapping.c"
 
 #define NUMCASEMAP sizeof(unicode_case_mapping) / sizeof(*unicode_case_mapping)
 
@@ -21357,6 +21384,7 @@ int utf8_lower(int uc)
 #include <string.h>
 
 #ifdef USE_LINENOISE
+#include <unistd.h>
 #include "linenoise.h"
 #else
 
@@ -21385,7 +21413,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     const char *home;
 
     home = getenv("HOME");
-    if (home) {
+    if (home && isatty(STDIN_FILENO)) {
         int history_len = strlen(home) + sizeof("/.jim_history");
         history_file = Jim_Alloc(history_len);
         snprintf(history_file, history_len, "%s/.jim_history", home);
@@ -21462,7 +21490,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         }
 
         linenoiseHistoryAdd(Jim_String(scriptObjPtr));
-        linenoiseHistorySave(history_file);
+        if (history_file) {
+            linenoiseHistorySave(history_file);
+        }
 #endif
         retcode = Jim_EvalObj(interp, scriptObjPtr);
         Jim_DecrRefCount(interp, scriptObjPtr);
@@ -23694,34 +23724,8 @@ void regfree(regex_t *preg)
 #include <string.h>
 
 
-/* Script to help initialise jimsh */
-static const char jimsh_init[] = \
-"proc _init {} {\n"
-"\trename _init {}\n"
-/* XXX This is a big ugly */
-#if defined(__MINGW32__)
-"\tlappend p {*}[split [env JIMLIB {}] {;}]\n"
-#else
-"\tlappend p {*}[split [env JIMLIB {}] :]\n"
-#endif
-"\tlappend p {*}$::auto_path\n"
-"\tlappend p [file dirname [info nameofexecutable]]\n"
-"\tset ::auto_path $p\n"
-"\n"
-"\tif {$::tcl_interactive && [env HOME {}] ne \"\"} {\n"
-"\t\tforeach src {.jimrc jimrc.tcl} {\n"
-"\t\t\tif {[file exists [env HOME]/$src]} {\n"
-"\t\t\t\tuplevel #0 source [env HOME]/$src\n"
-"\t\t\t\tbreak\n"
-"\t\t\t}\n"
-"\t\t}\n"
-"\t}\n"
-"}\n"
-/* XXX This is a big ugly */
-#if defined(__MINGW32__)
-"set jim_argv0 [string map {\\\\ /} $jim_argv0]\n"
-#endif
-"_init\n";
+/* From initjimsh.tcl */
+extern int Jim_initjimshInit(Jim_Interp *interp);
 
 static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
 {
@@ -23761,7 +23765,7 @@ int main(int argc, char *const argv[])
 
     Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, argc == 1 ? "1" : "0");
-    retcode = Jim_Eval(interp, jimsh_init);
+    retcode = Jim_initjimshInit(interp);
 
     if (argc == 1) {
         if (retcode == JIM_ERR) {

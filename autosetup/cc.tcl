@@ -610,7 +610,7 @@ proc calc-define-output-type {name spec} {
 }
 
 # Initialise some values from the environment or commandline or default settings
-foreach i {LDFLAGS LIBS CPPFLAGS LINKFLAGS {CFLAGS "-g -O2"} {CC_FOR_BUILD cc}} {
+foreach i {LDFLAGS LIBS CPPFLAGS LINKFLAGS {CFLAGS "-g -O2"}} {
 	lassign $i var default
 	define $var [get-env $var $default]
 }
@@ -642,6 +642,13 @@ define CXXFLAGS [get-env CXXFLAGS [get-define CFLAGS]]
 
 cc-check-tools ld
 
+# May need a CC_FOR_BUILD, so look for one
+define CC_FOR_BUILD [find-an-executable [get-env CC_FOR_BUILD ""] cc gcc false]
+
+if {[get-define CC] eq ""} {
+	user-error "Could not find a C compiler. Tried: [join $try ", "]"
+}
+
 define CCACHE [find-an-executable [get-env CCACHE ccache]]
 
 # Initial cctest settings
@@ -651,6 +658,7 @@ msg-result "C compiler...[get-define CCACHE] [get-define CC] [get-define CFLAGS]
 if {[get-define CXX] ne "false"} {
 	msg-result "C++ compiler...[get-define CCACHE] [get-define CXX] [get-define CXXFLAGS]"
 }
+msg-result "Build C compiler...[get-define CC_FOR_BUILD]"
 
 if {![cc-check-includes stdlib.h]} {
 	user-error "Compiler does not work. See config.log"
