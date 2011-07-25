@@ -692,10 +692,10 @@ int Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
     memset(n.table, 0, realsize * sizeof(Jim_HashEntry *));
 
     /* Copy all the elements from the old to the new table:
-     * note that if the old hash table is empty ht->size is zero,
-     * so Jim_ExpandHashTable just creates an hash table. */
+     * note that if the old hash table is empty ht->used is zero,
+     * so Jim_ExpandHashTable just creates an empty hash table. */
     n.used = ht->used;
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
+    for (i = 0; ht->used > 0; i++) {
         Jim_HashEntry *he, *nextHe;
 
         if (ht->table[i] == NULL)
@@ -770,7 +770,7 @@ int Jim_DeleteHashEntry(Jim_HashTable *ht, const void *key)
     unsigned int h;
     Jim_HashEntry *he, *prevHe;
 
-    if (ht->size == 0)
+    if (ht->used == 0)
         return JIM_ERR;
     h = Jim_HashKey(ht, key) & ht->sizemask;
     he = ht->table[h];
@@ -801,7 +801,7 @@ int Jim_FreeHashTable(Jim_HashTable *ht)
     unsigned int i;
 
     /* Free all the elements */
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
+    for (i = 0; ht->used > 0; i++) {
         Jim_HashEntry *he, *nextHe;
 
         if ((he = ht->table[i]) == NULL)
@@ -827,7 +827,7 @@ Jim_HashEntry *Jim_FindHashEntry(Jim_HashTable *ht, const void *key)
     Jim_HashEntry *he;
     unsigned int h;
 
-    if (ht->size == 0)
+    if (ht->used == 0)
         return NULL;
     h = Jim_HashKey(ht, key) & ht->sizemask;
     he = ht->table[h];
