@@ -14,7 +14,7 @@
 #include "utf8.h"
 
 /* This one is always implemented */
-int utf8_fromunicode(char *p, unsigned short uc)
+int utf8_fromunicode(char *p, unsigned uc)
 {
     if (uc <= 0x7f) {
         *p = uc;
@@ -25,11 +25,19 @@ int utf8_fromunicode(char *p, unsigned short uc)
         *p = 0x80 | (uc & 0x3f);
         return 2;
     }
-    else {
+    else if (uc <= 0xffff) {
         *p++ = 0xe0 | ((uc & 0xf000) >> 12);
         *p++ = 0x80 | ((uc & 0xfc0) >> 6);
         *p = 0x80 | (uc & 0x3f);
         return 3;
+    }
+    /* Note: We silently truncate to 21 bits here: 0x1fffff */
+    else {
+        *p++ = 0xf0 | ((uc & 0x1c0000) >> 18);
+        *p++ = 0x80 | ((uc & 0x3f000) >> 12);
+        *p++ = 0x80 | ((uc & 0xfc0) >> 6);
+        *p = 0x80 | (uc & 0x3f);
+        return 4;
     }
 }
 
@@ -127,6 +135,12 @@ int utf8_tounicode(const char *str, int *uc)
         if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80)) {
             *uc = ((s[0] & ~0xe0) << 12) | ((s[1] & ~0x80) << 6) | (s[2] & ~0x80);
             return 3;
+        }
+    }
+    else if (s[0] < 0xf8) {
+        if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80) && ((str[3] & 0xc0) == 0x80)) {
+            *uc = ((s[0] & ~0xf0) << 18) | ((s[1] & ~0x80) << 12) | ((s[2] & ~0x80) << 6) | (s[3] & ~0x80);
+            return 4;
         }
     }
 

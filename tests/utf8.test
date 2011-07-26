@@ -129,4 +129,20 @@ test utf8-7.3 {Upper, lower for titlecase utf-8} {
 	list [string toupper \u01c5] [string tolower \u01c5]
 } "\u01c4 \u01c6"
 
+test utf8-8.1 {Chars outside the BMP} jim {
+	string length \u{12000}\u{13000}
+} 2
+
+test utf8-8.2 {Chars outside the BMP} jim {
+	string match "ab\[\u{12000}c\]d" ab\u{12000}d
+} 1
+
+test utf8-8.3 {Chars outside the BMP} jim {
+	string last d "ab\u{101fff}cd"
+} 4
+
+test utf8-8.4 {Longer sequences} {
+	string length \u12000
+} 2
+
 testreport

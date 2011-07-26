@@ -9,13 +9,16 @@
  */
 #include <jim-config.h>
 
+/* Currently we support unicode points up to 2^22-1 */
+#define MAX_UTF8_LEN 4
+
 /**
- * Converts the given unicode codepoint (0 - 0xffff) to utf-8
+ * Converts the given unicode codepoint (0 - 0x1fffff) to utf-8
  * and stores the result at 'p'.
- *
- * Returns the number of utf-8 characters (1-3).
+ * 
+ * Returns the number of utf-8 characters (up to MAX_UTF8_LEN).
  */
-int utf8_fromunicode(char *p, unsigned short uc);
+int utf8_fromunicode(char *p, unsigned uc);
 
 #ifndef JIM_UTF8
 #include <ctype.h>
@@ -50,7 +53,7 @@ int utf8_charlen(int c);
  *
  * The string *must* be null terminated.
  *
- * Does not support unicode code points > \uffff
+ * Does not support unicode code points > \u1fffff
  */
 int utf8_strlen(const char *str, int bytelen);
 
@@ -76,7 +79,7 @@ int utf8_index(const char *str, int charindex);
  *
  * If it is not null terminated, the length *must* be checked first.
  *
- * Does not support unicode code points > \uffff
+ * Does not support unicode code points > \u1fffff
  */
 int utf8_tounicode(const char *str, int *uc);
 
@@ -92,7 +95,7 @@ int utf8_prev_len(const char *str, int len);
 /**
  * Returns the upper-case variant of the given unicode codepoint.
  *
- * Does not support unicode code points > \uffff
+ * Unicode code points > \uffff are returned unchanged.
  */
 int utf8_upper(int uc);
 
@@ -110,7 +113,7 @@ int utf8_title(int uc);
  *
  * NOTE: Use utf8_upper() in preference for case-insensitive matching.
  *
- * Does not support unicode code points > \uffff
+ * Unicode code points > \uffff are returned unchanged.
  */
 int utf8_lower(int uc);
 #endif /* JIM_BOOTSTRAP */

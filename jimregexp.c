@@ -632,7 +632,18 @@ static int reg_decode_escape(const char *s, int *ch)
 		case 't': *ch = '\t'; break;
 		case 'v': *ch = '\v'; break;
 		case 'u':
-			if ((n = parse_hex(s, 4, ch)) > 0) {
+			if (*s == '{') {
+				/* Expect \u{NNNN} */
+				n = parse_hex(s + 1, 6, ch);
+				if (n > 0 && s[n + 1] == '}' && *ch >= 0 && *ch <= 0x1fffff) {
+					s += n + 2;
+				}
+				else {
+					/* Invalid, so just treat as an escaped 'u' */
+					*ch = 'u';
+				}
+			}
+			else if ((n = parse_hex(s, 4, ch)) > 0) {
 				s += n;
 			}
 			break;
@@ -1609,7 +1620,7 @@ static void regdump(regex_t *preg)
 	int s;
 	int op = EXACTLY;	/* Arbitrary non-END op. */
 	int next;
-	char buf[4];
+	char buf[MAX_UTF8_LEN + 1];
 
 	int i;
 	for (i = 1; i < preg->p; i++) {

@@ -53,9 +53,12 @@ test utf-2.6 {Tcl_UtfToUniChar: lead (3-byte) followed by 1 trail} {
 test utf-2.7 {Tcl_UtfToUniChar: lead (3-byte) followed by 2 trail} {
     string length [bytestring "\xE4\xb9\x8e"]
 } {1}
-test utf-2.8 {Tcl_UtfToUniChar: longer UTF sequences not supported} {
+test utf-2.8 {Tcl_UtfToUniChar: longer UTF sequences not supported} tcl {
     string length [bytestring "\xF4\xA2\xA2\xA2"]
 } {4}
+test utf-2.9 {Tcl_UtfToUniChar: 4-byte UTF sequence} jim {
+    string length [bytestring "\xF4\xA2\xA2\xA2"]
+} {1}
 
 test utf-3.1 {Tcl_UtfCharComplete} {
 } {}

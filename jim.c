@@ -1724,30 +1724,54 @@ static int JimEscape(char *dest, const char *s, int slen)
                     case 'u':
                     case 'x':
                         /* A unicode or hex sequence.
-                         * \u Expect 1-4 hex chars and convert to utf-8.
                          * \x Expect 1-2 hex chars and convert to hex.
+                         * \u Expect 1-4 hex chars and convert to utf-8.
+                         * \u{NNN} supports 1-6 hex chars and convert to utf-8.
                          * An invalid sequence means simply the escaped char.
                          */
                         {
-                            int val = 0;
+                            unsigned val = 0;
                             int k;
+                            int maxchars = 2;
 
                             i++;
 
-                            for (k = 0; k < (s[i] == 'u' ? 4 : 2); k++) {
+                            if (s[i] == 'u') {
+                                if (s[i + 1] == '{') {
+                                    maxchars = 6;
+                                    i++;
+                                }
+                                else {
+                                    maxchars = 4;
+                                }
+                            }
+
+                            for (k = 0; k < maxchars; k++) {
                                 int c = xdigitval(s[i + k + 1]);
                                 if (c == -1) {
                                     break;
                                 }
                                 val = (val << 4) | c;
                             }
-                            if (k) {
-                                /* Got a valid sequence, so convert */
-                                if (s[i] == 'u') {
-                                    p += utf8_fromunicode(p, val);
+                            /* The \u{nnn} syntax supports up to 21 bit codepoints. */
+                            if (s[i] == '{') {
+                                if (k == 0 || val > 0x1fffff || s[i + k + 1] != '}') {
+                                    /* Back up */
+                                    i--;
+                                    k = 0;
                                 }
                                 else {
+                                    /* Skip the closing brace */
+                                    k++;
+                                }
+                            }
+                            if (k) {
+                                /* Got a valid sequence, so convert */
+                                if (s[i] == 'x') {
                                     *p++ = val;
+                                }
+                                else {
+                                    p += utf8_fromunicode(p, val);
                                 }
                                 i += k;
                                 break;
