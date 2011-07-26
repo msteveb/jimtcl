@@ -59,9 +59,9 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 {
     const char *span, *format, *formatEnd, *msg;
     int numBytes = 0, objIndex = 0, gotXpg = 0, gotSequential = 0;
-    static const char *mixedXPG =
+    static const char * const mixedXPG =
 	    "cannot mix \"%\" and \"%n$\" conversion specifiers";
-    static const char *badIndex[2] = {
+    static const char * const badIndex[2] = {
 	"not enough arguments for all format specifiers",
 	"\"%n$\" argument index out of range"
     };
