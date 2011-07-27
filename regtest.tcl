@@ -143,6 +143,16 @@ eval $x
 lappend x b
 puts "TEST 22 PASSED"
 
+# REGTEST 23
+# 27 July 2011 - unfreed objects on exit
+catch {
+    set x abc
+    subst $x
+    regexp $x $x
+}
+# Actually, the test passes if no objects leaked on exit
+puts "TEST 23 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

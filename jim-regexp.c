@@ -80,10 +80,6 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
     }
 
     /* Not a regexp or the flags do not match */
-    if (objPtr->typePtr == &regexpObjType) {
-        FreeRegexpInternalRep(interp, objPtr);
-        objPtr->typePtr = NULL;
-    }
 
     /* Get the string representation */
     pattern = Jim_String(objPtr);
@@ -98,6 +94,8 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
         Jim_Free(compre);
         return NULL;
     }
+
+    Jim_FreeIntRep(interp, objPtr);
 
     objPtr->typePtr = &regexpObjType;
     objPtr->internalRep.regexpValue.flags = flags;
