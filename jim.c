@@ -13023,9 +13023,9 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     int i;
     int sig = 0;
 
-    /* Which return codes are caught? These are the defaults */
-    jim_wide mask =
-        (1 << JIM_OK | 1 << JIM_ERR | 1 << JIM_BREAK | 1 << JIM_CONTINUE | 1 << JIM_RETURN);
+    /* Which return codes are ignored (passed through)? By default, only exit, eval and signal */
+    jim_wide ignore_mask = (1 << JIM_EXIT) | (1 << JIM_EVAL) | (1 << JIM_SIGNAL);
+    static const int max_ignore_code = sizeof(ignore_mask) * 8;
 
     /* Reset the error code before catch.
      * Note that this is not strictly correct.
@@ -13035,7 +13035,7 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     for (i = 1; i < argc - 1; i++) {
         const char *arg = Jim_String(argv[i]);
         jim_wide option;
-        int add;
+        int ignore;
 
         /* It's a pity we can't use Jim_GetEnum here :-( */
         if (strcmp(arg, "--") == 0) {
@@ -13048,11 +13048,11 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
         if (strncmp(arg, "-no", 3) == 0) {
             arg += 3;
-            add = 0;
+            ignore = 1;
         }
         else {
             arg++;
-            add = 1;
+            ignore = 0;
         }
 
         if (Jim_StringToWide(arg, &option, 10) != JIM_OK) {
@@ -13065,11 +13065,11 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             goto wrongargs;
         }
 
-        if (add) {
-            mask |= (1 << option);
+        if (ignore) {
+            ignore_mask |= (1 << option);
         }
         else {
-            mask &= ~(1 << option);
+            ignore_mask &= ~(1 << option);
         }
     }
 
@@ -13082,7 +13082,7 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     argv += i;
 
-    if (mask & (1 << JIM_SIGNAL)) {
+    if ((ignore_mask & (1 << JIM_SIGNAL)) == 0) {
         sig++;
     }
 
@@ -13097,7 +13097,7 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     interp->signal_level -= sig;
 
     /* Catch or pass through? Only the first 32/64 codes can be passed through */
-    if (exitCode >= 0 && exitCode < (int)sizeof(mask) * 8 && ((1 << exitCode) & mask) == 0) {
+    if (exitCode >= 0 && exitCode < max_ignore_code && ((1 << exitCode) & ignore_mask)) {
         /* Not caught, pass it up */
         return exitCode;
     }
