@@ -145,7 +145,7 @@ static const Jim_HashTableType JimVariablesHashTableType;
 /* Fast access to the int (wide) value of an object which is known to be of int type */
 #define JimWideValue(objPtr) (objPtr)->internalRep.wideValue
 
-#define JimObjTypeName(O) (objPtr->typePtr ? objPtr->typePtr->name : "none")
+#define JimObjTypeName(O) ((O)->typePtr ? (O)->typePtr->name : "none")
 
 static int utf8_tounicode_case(const char *s, int *uc, int upper)
 {
@@ -7188,7 +7188,7 @@ static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprState *e)
 
 static int JimExprOpNone(Jim_Interp *interp, struct JimExprState *e)
 {
-    JimPanic((e->opcode != JIM_EXPROP_FUNC_RAND));
+    JimPanic((e->opcode != JIM_EXPROP_FUNC_RAND, interp, "JimExprOpNone only support rand()"));
 
     ExprPush(e, Jim_NewDoubleObj(interp, JimRandDouble(interp)));
 
@@ -12190,6 +12190,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
         s = Jim_GetString(argv[2], &len);
         charlen = Jim_Utf8Length(interp, argv[2]);
+        printf("refcount: %d, type: %s\n", argv[2]->refCount, JimObjTypeName(argv[2]));
         printf("chars (%d): <<%s>>\n", charlen, s);
         printf("bytes (%d):", len);
         while (len--) {
