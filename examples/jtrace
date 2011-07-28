@@ -1,0 +1,25 @@
+#!/bin/sh
+# vim:se syntax=tcl:
+# \
+exec $(dirname "$0")/jimsh "$0" "$@"
+
+# Experimental code coverage for Jim Tcl
+
+set auto_path [linsert $auto_path 0 [file dirname $argv0]/jimlib]
+
+set argv [lassign $argv argv0]
+
+proc jtime::xtrace {type file line result name arglist} {
+	set indent [string repeat "  " [info level]]
+	if {[string length $arglist] > 45} {
+		set arglist [string range $arglist 0 45]...
+	}
+	stderr puts "$indent$name [string map {\r \\r \n \\n} $arglist]"
+}
+
+xtrace jtime::xtrace
+
+# Catch exit but not error
+set rc [catch -noerror -exit {source $argv0} msg opts]
+
+xtrace

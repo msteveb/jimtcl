@@ -1,0 +1,68 @@
+#!/bin/sh
+# vim:se syntax=tcl:
+# \
+exec $(dirname "$0")/jimsh "$0" "$@"
+
+# Experimental code coverage for Jim Tcl
+
+set auto_path [linsert $auto_path 0 [file dirname $argv0]/jimlib]
+
+set opt_all 0
+if {[lindex $argv 0] eq "-all"} {
+	incr opt_all
+	set argv [lrange $argv 1 end]
+}
+
+set argv [lassign $argv argv0]
+
+set coverage($argv0) {}
+
+proc xcov {type file line result name arglist} {
+	upvar ::coverage($file) info
+	incr info($line)
+}
+
+xtrace xcov
+
+# Catch exit but not error
+set rc [catch -noerror -exit {source $argv0} msg opts]
+
+xtrace
+
+proc show-coverage {filename} {
+	set info $::coverage($filename)
+
+	puts "=== $filename ==="
+	set f [open $filename]
+	set n 0
+	while {[$f gets buf] >= 0} {
+		incr n
+		if {[info exists info($n)]} {
+			set prefix [format "%4d: " $info($n)]
+		} else {
+			set b [string trimleft $buf]
+			if {$b eq "" || [string match "#*" $b] || [string match "\}*" $b]} {
+				set prefix "   -: "
+			} else {
+				set prefix "####: "
+			}
+		}
+		puts "$prefix$buf"
+	}
+	$f close
+}
+
+puts [dict keys $coverage]
+if {$opt_all} {
+	foreach filename [lsort [dict keys $coverage]] {
+		if {$filename in {"" jcov}} {
+			continue
+		}
+		show-coverage $filename
+		puts ""
+	}
+} else {
+	show-coverage $argv0
+}
+
+#parray coverage
