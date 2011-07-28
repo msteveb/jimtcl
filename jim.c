@@ -9886,7 +9886,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     /* If the object is of type "list", we can call
      * a specialized version of Jim_EvalObj() */
     if (Jim_IsList(scriptObjPtr)) {
-        return JimEvalObjList(interp, scriptObjPtr, NULL, 0);
+        return JimEvalObjList(interp, scriptObjPtr, interp->emptyObj, 1);
     }
 
     Jim_IncrRefCount(scriptObjPtr);     /* Make sure it's shared. */
@@ -10306,14 +10306,13 @@ badargset:
     return retcode;
 }
 
-int Jim_Eval_Named(Jim_Interp *interp, const char *script, const char *filename, int lineno)
+int Jim_EvalSource(Jim_Interp *interp, const char *filename, int lineno, const char *script)
 {
     int retval;
     Jim_Obj *scriptObjPtr;
 
     scriptObjPtr = Jim_NewStringObj(interp, script, -1);
     Jim_IncrRefCount(scriptObjPtr);
-
 
     if (filename) {
         Jim_Obj *prevScriptObj;
@@ -10336,7 +10335,7 @@ int Jim_Eval_Named(Jim_Interp *interp, const char *script, const char *filename,
 
 int Jim_Eval(Jim_Interp *interp, const char *script)
 {
-    return Jim_Eval_Named(interp, script, NULL, 0);
+    return Jim_EvalObj(interp, Jim_NewStringObj(interp, script, -1));
 }
 
 /* Execute script in the scope of the global level */

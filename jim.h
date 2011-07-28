@@ -636,8 +636,11 @@ JIM_EXPORT void Jim_SetEnviron(char **env);
 /* evaluation */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);
 /* in C code, you can do this and get better error messages */
-/*   Jim_Eval_Named( interp, "some tcl commands", __FILE__, __LINE__ ); */
-JIM_EXPORT int Jim_Eval_Named(Jim_Interp *interp, const char *script,const char *filename, int lineno);
+/*   Jim_EvalSource( interp, __FILE__, __LINE__ , "some tcl commands"); */
+JIM_EXPORT int Jim_EvalSource(Jim_Interp *interp, const char *filename, int lineno, const char *script);
+/* Backwards compatibility */
+#define Jim_Eval_Named(I, S, F, L) Jim_EvalSource((I), (F), (L), (S))
+
 JIM_EXPORT int Jim_EvalGlobal(Jim_Interp *interp, const char *script);
 JIM_EXPORT int Jim_EvalFile(Jim_Interp *interp, const char *filename);
 JIM_EXPORT int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename);

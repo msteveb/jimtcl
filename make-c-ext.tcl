@@ -32,7 +32,7 @@ set pkgname [file rootname $basename]
 lappend lines "int Jim_${pkgname}Init(Jim_Interp *interp)"
 lappend lines "\{"
 lappend lines "\tif (Jim_PackageProvide(interp, \"$pkgname\", \"1.0\", JIM_ERRMSG)) return JIM_ERR;"
-lappend lines "\treturn Jim_Eval_Named(interp, [join $sourcelines \n], \"$basename\", 1);"
+lappend lines "\treturn Jim_EvalSource(interp, \"$basename\", 1, [join $sourcelines \n]);"
 lappend lines "\}"
 
 puts [join $lines \n]
