@@ -129,10 +129,10 @@ static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
 static void JimDeleteLocalProcs(Jim_Interp *interp);
-static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int linenr,
+static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameObj, int linenr,
     int argc, Jim_Obj *const *argv);
 static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
-    const char *filename, int linenr);
+    Jim_Obj *fileNameObj, int linenr);
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
@@ -2924,27 +2924,24 @@ static const Jim_ObjType sourceObjType = {
 
 void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_ReleaseSharedString(interp, objPtr->internalRep.sourceValue.fileName);
+    Jim_DecrRefCount(interp, objPtr->internalRep.sourceValue.fileNameObj);
 }
 
 void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    dupPtr->internalRep.sourceValue.fileName =
-        Jim_GetSharedString(interp, srcPtr->internalRep.sourceValue.fileName);
-    dupPtr->internalRep.sourceValue.lineNumber = dupPtr->internalRep.sourceValue.lineNumber;
-    dupPtr->typePtr = &sourceObjType;
+    dupPtr->internalRep = srcPtr->internalRep;
+    Jim_IncrRefCount(dupPtr->internalRep.sourceValue.fileNameObj);
 }
 
 static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
-    const char *fileName, int lineNumber)
+    Jim_Obj *fileNameObj, int lineNumber)
 {
-    if (fileName) {
-        JimPanic((Jim_IsShared(objPtr), "JimSetSourceInfo called with shared object"));
-        JimPanic((objPtr->typePtr != NULL, "JimSetSourceInfo called with typePtr != NULL"));
-        objPtr->internalRep.sourceValue.fileName = Jim_GetSharedString(interp, fileName);
-        objPtr->internalRep.sourceValue.lineNumber = lineNumber;
-        objPtr->typePtr = &sourceObjType;
-    }
+    JimPanic((Jim_IsShared(objPtr), "JimSetSourceInfo called with shared object"));
+    JimPanic((objPtr->typePtr != NULL, "JimSetSourceInfo called with typePtr != NULL"));
+    Jim_IncrRefCount(fileNameObj);
+    objPtr->internalRep.sourceValue.fileNameObj = fileNameObj;
+    objPtr->internalRep.sourceValue.lineNumber = lineNumber;
+    objPtr->typePtr = &sourceObjType;
 }
 
 /* -----------------------------------------------------------------------------
@@ -3077,7 +3074,7 @@ typedef struct ScriptObj
     int inUse;                  /* Used to share a ScriptObj. Currently
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
-    const char *fileName;
+    Jim_Obj *fileNameObj;
     int line;                   /* Line number of the first line */
 } ScriptObj;
 
@@ -3093,9 +3090,7 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
         Jim_DecrRefCount(interp, script->token[i].objPtr);
     }
     Jim_Free(script->token);
-    if (script->fileName) {
-        Jim_ReleaseSharedString(interp, script->fileName);
-    }
+    Jim_DecrRefCount(interp, script->fileNameObj);
     Jim_Free(script);
 }
 
@@ -3328,7 +3323,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             /* Every object is initially a string, but the
              * internal type may be specialized during execution of the
              * script. */
-            JimSetSourceInfo(interp, token->objPtr, script->fileName, t->line);
+            JimSetSourceInfo(interp, token->objPtr, script->fileNameObj, t->line);
             token++;
         }
     }
@@ -3342,7 +3337,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     assert(script->len < count);
 
 #ifdef DEBUG_SHOW_SCRIPT
-    printf("==== Script (%s) ====\n", script->fileName);
+    printf("==== Script (%s) ====\n", Jim_String(script->fileNameObj));
     for (i = 0; i < script->len; i++) {
         const ScriptToken *t = &script->token[i];
         printf("[%2d] %s %s\n", i, jim_tt_name(t->type), Jim_String(t->objPtr));
@@ -3417,17 +3412,17 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
     script->inUse = 1;
     script->line = line;
     if (objPtr->typePtr == &sourceObjType) {
-        script->fileName = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
+        script->fileNameObj = objPtr->internalRep.sourceValue.fileNameObj;
     }
+    else {
+        script->fileNameObj = interp->emptyObj;
+    }
+    Jim_IncrRefCount(script->fileNameObj);
 
     ScriptObjAddTokens(interp, script, &tokenlist);
 
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
-
-    if (!script->fileName) {
-        script->fileName = Jim_GetSharedString(interp, "");
-    }
 
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
@@ -4951,7 +4946,6 @@ Jim_Interp *Jim_CreateInterp(void)
 
     memset(i, 0, sizeof(*i));
 
-    i->errorFileName = Jim_StrDup("");
     i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
     i->lastCollectTime = time(NULL);
 
@@ -4962,19 +4956,20 @@ Jim_Interp *Jim_CreateInterp(void)
 #ifdef JIM_REFERENCES
     Jim_InitHashTable(&i->references, &JimReferencesHashTableType, i);
 #endif
-    Jim_InitHashTable(&i->sharedStrings, &JimSharedStringsHashTableType, NULL);
     Jim_InitHashTable(&i->assocData, &JimAssocDataHashTableType, i);
     Jim_InitHashTable(&i->packages, &JimStringKeyValCopyHashTableType, NULL);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i, NULL);
     i->emptyObj = Jim_NewEmptyStringObj(i);
     i->trueObj = Jim_NewIntObj(i, 1);
     i->falseObj = Jim_NewIntObj(i, 0);
+    i->errorFileNameObj = i->emptyObj;
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
     i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
+    Jim_IncrRefCount(i->errorFileNameObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
     Jim_IncrRefCount(i->unknown);
@@ -5010,7 +5005,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->stackTrace);
     Jim_DecrRefCount(i, i->errorProc);
     Jim_DecrRefCount(i, i->unknown);
-    Jim_Free((void *)i->errorFileName);
+    Jim_DecrRefCount(i, i->errorFileNameObj);
     Jim_DecrRefCount(i, i->currentScriptObj);
     Jim_FreeHashTable(&i->commands);
 #ifdef JIM_REFERENCES
@@ -5041,7 +5036,7 @@ void Jim_FreeInterp(Jim_Interp *i)
                 (void *)objPtr, objPtr->refCount, type, objPtr->bytes ? objPtr->bytes : "(null)");
             if (objPtr->typePtr == &sourceObjType) {
                 printf("FILE %s LINE %d" JIM_NL,
-                    objPtr->internalRep.sourceValue.fileName,
+                    Jim_String(objPtr->internalRep.sourceValue.fileNameObj),
                     objPtr->internalRep.sourceValue.lineNumber);
             }
             objPtr = objPtr->nextObjPtr;
@@ -5069,9 +5064,6 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeLoadHandles(i);
 #endif
 
-    /* Free the sharedString hash table. Make sure to free it
-     * after every other Jim_Object was freed. */
-    Jim_FreeHashTable(&i->sharedStrings);
     /* Free the interpreter structure. */
     Jim_Free(i);
 }
@@ -5165,17 +5157,6 @@ static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *leve
     return NULL;
 }
 
-static void JimSetErrorFileName(Jim_Interp *interp, const char *filename)
-{
-    Jim_Free((void *)interp->errorFileName);
-    interp->errorFileName = Jim_StrDup(filename);
-}
-
-static void JimSetErrorLineNumber(Jim_Interp *interp, int linenr)
-{
-    interp->errorLine = linenr;
-}
-
 static void JimResetStackTrace(Jim_Interp *interp)
 {
     Jim_DecrRefCount(interp, interp->stackTrace);
@@ -5213,12 +5194,12 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 
 /* Returns 1 if the stack trace information was used or 0 if not */
 static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
-    const char *filename, int linenr)
+    Jim_Obj *fileNameObj, int linenr)
 {
     if (strcmp(procname, "unknown") == 0) {
         procname = "";
     }
-    if (!*procname && !*filename) {
+    if (!*procname && !Jim_Length(fileNameObj)) {
         /* No useful info here */
         return;
     }
@@ -5230,26 +5211,18 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
     }
 
     /* If we have no procname but the previous element did, merge with that frame */
-    if (!*procname && *filename) {
+    if (!*procname && Jim_Length(fileNameObj)) {
         /* Just a filename. Check the previous entry */
         int len = Jim_ListLength(interp, interp->stackTrace);
 
         if (len >= 3) {
-            Jim_Obj *procnameObj;
-            Jim_Obj *filenameObj;
-
-            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &procnameObj, JIM_NONE) == JIM_OK
-                && Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj,
-                    JIM_NONE) == JIM_OK) {
-
-                const char *prev_procname = Jim_String(procnameObj);
-                const char *prev_filename = Jim_String(filenameObj);
-
-                if (*prev_procname && !*prev_filename) {
-                    ListSetIndex(interp, interp->stackTrace, len - 2, Jim_NewStringObj(interp,
-                            filename, -1), 0);
-                    ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr),
-                        0);
+            Jim_Obj *objPtr;
+            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &objPtr, JIM_NONE) == JIM_OK && Jim_Length(objPtr)) {
+                /* Yes, the previous level had procname */
+                if (Jim_ListIndex(interp, interp->stackTrace, len - 2, &objPtr, JIM_NONE) == JIM_OK && !Jim_Length(objPtr)) {
+                    /* But no filename, so merge the new info with that frame */
+                    ListSetIndex(interp, interp->stackTrace, len - 2, fileNameObj, 0);
+                    ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);
                     return;
                 }
             }
@@ -5257,7 +5230,7 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
     }
 
     Jim_ListAppendElement(interp, interp->stackTrace, Jim_NewStringObj(interp, procname, -1));
-    Jim_ListAppendElement(interp, interp->stackTrace, Jim_NewStringObj(interp, filename, -1));
+    Jim_ListAppendElement(interp, interp->stackTrace, fileNameObj);
     Jim_ListAppendElement(interp, interp->stackTrace, Jim_NewIntObj(interp, linenr));
 }
 
@@ -5291,50 +5264,6 @@ int Jim_DeleteAssocData(Jim_Interp *interp, const char *key)
 int Jim_GetExitCode(Jim_Interp *interp)
 {
     return interp->exitCode;
-}
-
-/* -----------------------------------------------------------------------------
- * Shared strings.
- * Every interpreter has an hash table where to put shared dynamically
- * allocate strings that are likely to be used a lot of times.
- * For example, in the 'source' object type, there is a pointer to
- * the filename associated with that object. Every script has a lot
- * of this objects with the identical file name, so it is wise to share
- * this info.
- *
- * The API is trivial: Jim_GetSharedString(interp, "foobar")
- * returns the pointer to the shared string. Every time a reference
- * to the string is no longer used, the user should call
- * Jim_ReleaseSharedString(interp, stringPointer). Once no one is using
- * a given string, it is removed from the hash table.
- * ---------------------------------------------------------------------------*/
-const char *Jim_GetSharedString(Jim_Interp *interp, const char *str)
-{
-    Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
-
-    if (he == NULL) {
-        char *strCopy = Jim_StrDup(str);
-
-        Jim_AddHashEntry(&interp->sharedStrings, strCopy, NULL);
-	he = Jim_FindHashEntry(&interp->sharedStrings, strCopy);
-	he->u.intval = 1;
-        return strCopy;
-    }
-    else {
-        he->u.intval++;
-        return he->key;
-    }
-}
-
-void Jim_ReleaseSharedString(Jim_Interp *interp, const char *str)
-{
-    Jim_HashEntry *he = Jim_FindHashEntry(&interp->sharedStrings, str);
-
-    JimPanic((he == NULL, "Jim_ReleaseSharedString called with " "unknown shared string '%s'", str));
-
-    if (--he->u.intval == 0) {
-        Jim_DeleteHashEntry(&interp->sharedStrings, str);
-    }
 }
 
 /* -----------------------------------------------------------------------------
@@ -5843,14 +5772,20 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct JimParserCtx parser;
     const char *str;
     int strLen;
-    const char *filename = NULL;
-    int linenr = 1;
+    Jim_Obj *fileNameObj;
+    int linenr;
 
     /* Try to preserve information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
-        filename = Jim_GetSharedString(interp, objPtr->internalRep.sourceValue.fileName);
+        fileNameObj = objPtr->internalRep.sourceValue.fileNameObj;
         linenr = objPtr->internalRep.sourceValue.lineNumber;
     }
+    else {
+        fileNameObj = interp->emptyObj;
+        linenr = 1;
+    }
+    Jim_IncrRefCount(fileNameObj);
+    //printf("%s:%d incr %s\n", __FILE__, __LINE__, Jim_String(fileNameObj));
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &strLen);
@@ -5872,12 +5807,10 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
             continue;
         elementPtr = JimParserGetTokenObj(interp, &parser);
-        JimSetSourceInfo(interp, elementPtr, filename, parser.tline);
+        JimSetSourceInfo(interp, elementPtr, fileNameObj, parser.tline);
         ListAppendElement(objPtr, elementPtr);
     }
-    if (filename) {
-        Jim_ReleaseSharedString(interp, filename);
-    }
+    Jim_DecrRefCount(interp, fileNameObj);
     return JIM_OK;
 }
 
@@ -8385,7 +8318,7 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
     }
 }
 
-static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, const char *filename)
+static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, Jim_Obj *fileNameObj)
 {
     Jim_Stack stack;
     ExprByteCode *expr;
@@ -8441,7 +8374,7 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                 token->type = t->type;
                 if (t->type == JIM_TT_CMD) {
                     /* Only commands need source info */
-                    JimSetSourceInfo(interp, token->objPtr, filename, t->line);
+                    JimSetSourceInfo(interp, token->objPtr, fileNameObj, t->line);
                 }
                 expr->len++;
                 break;
@@ -8572,18 +8505,19 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct ExprByteCode *expr;
     ParseTokenList tokenlist;
     int line;
-    const char *filename;
+    Jim_Obj *fileNameObj;
     int rc = JIM_ERR;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
+        fileNameObj = objPtr->internalRep.sourceValue.fileNameObj;
         line = objPtr->internalRep.sourceValue.lineNumber;
-        filename = objPtr->internalRep.sourceValue.fileName;
     }
     else {
+        fileNameObj = interp->emptyObj;
         line = 1;
-        filename = NULL;
     }
+    Jim_IncrRefCount(fileNameObj);
 
     exprText = Jim_GetString(objPtr, &exprTextLen);
 
@@ -8616,7 +8550,7 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 #endif
 
     /* Now create the expression bytecode from the tokenlist */
-    expr = ExprCreateByteCode(interp, &tokenlist, filename);
+    expr = ExprCreateByteCode(interp, &tokenlist, fileNameObj);
 
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
@@ -8648,6 +8582,7 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
   err:
     /* Free the old internal rep and set the new one. */
+    Jim_DecrRefCount(interp, fileNameObj);
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, expr);
     objPtr->typePtr = &exprObjType;
@@ -9592,7 +9527,7 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #define JIM_EVAL_SINTV_LEN 8    /* static interpolation vector length */
 
 /* Handle calls to the [unknown] command */
-static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *filename,
+static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Obj *fileNameObj,
     int linenr)
 {
     Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
@@ -9626,7 +9561,7 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
     v[0] = interp->unknown;
     /* Call it */
     interp->unknown_called++;
-    retCode = JimEvalObjVector(interp, argc + 1, v, filename, linenr);
+    retCode = JimEvalObjVector(interp, argc + 1, v, fileNameObj, linenr);
     interp->unknown_called--;
 
     /* Clean up */
@@ -9645,7 +9580,7 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
  * in a way that ensures that every list element is a different
  * command argument. */
 static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
-    const char *filename, int linenr)
+    Jim_Obj *fileNameObj, int linenr)
 {
     int i, retcode;
     Jim_Cmd *cmdPtr;
@@ -9656,14 +9591,14 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
     /* Command lookup */
     cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
     if (cmdPtr == NULL) {
-        retcode = JimUnknown(interp, objc, objv, filename, linenr);
+        retcode = JimUnknown(interp, objc, objv, fileNameObj, linenr);
     }
     else {
         /* Call it -- Make sure result is an empty object. */
         JimIncrCmdRefCount(cmdPtr);
         Jim_SetEmptyResult(interp);
         if (cmdPtr->isproc) {
-            retcode = JimCallProcedure(interp, cmdPtr, filename, linenr, objc, objv);
+            retcode = JimCallProcedure(interp, cmdPtr, fileNameObj, linenr, objc, objv);
         }
         else {
             interp->cmdPrivData = cmdPtr->u.native.privData;
@@ -9701,15 +9636,17 @@ int Jim_EvalObjPrefix(Jim_Interp *interp, const char *prefix, int objc, Jim_Obj 
     return ret;
 }
 
-static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *filename, int line)
+static void JimAddErrorToStack(Jim_Interp *interp, int retcode, Jim_Obj *fileNameObj, int line)
 {
     int rc = retcode;
 
     if (rc == JIM_ERR && !interp->errorFlag) {
         /* This is the first error, so save the file/line information and reset the stack */
         interp->errorFlag = 1;
-        JimSetErrorFileName(interp, filename);
-        JimSetErrorLineNumber(interp, line);
+        Jim_IncrRefCount(fileNameObj);
+        Jim_DecrRefCount(interp, interp->errorFileNameObj);
+        interp->errorFileNameObj = fileNameObj;
+        interp->errorLine = line;
 
         JimResetStackTrace(interp);
         /* Always add a level where the error first occurs */
@@ -9720,13 +9657,13 @@ static void JimAddErrorToStack(Jim_Interp *interp, int retcode, const char *file
     if (rc == JIM_ERR && interp->addStackTrace > 0) {
         /* Add the stack info for the current level */
 
-        JimAppendStackTrace(interp, Jim_String(interp->errorProc), filename, line);
+        JimAppendStackTrace(interp, Jim_String(interp->errorProc), fileNameObj, line);
 
         /* Note: if we didn't have a filename for this level,
          * don't clear the addStackTrace flag
          * so we can pick it up at the next level
          */
-        if (*filename) {
+        if (Jim_Length(fileNameObj)) {
             interp->addStackTrace = 0;
         }
 
@@ -9916,7 +9853,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
 /* If listPtr is a list, call JimEvalObjVector() with the given source info.
  * Otherwise eval with Jim_EvalObj()
  */
-int Jim_EvalObjList(Jim_Interp *interp, Jim_Obj *listPtr, const char *filename, int linenr)
+static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *fileNameObj, int linenr)
 {
     if (!Jim_IsList(listPtr)) {
         return Jim_EvalObj(interp, listPtr);
@@ -9928,7 +9865,7 @@ int Jim_EvalObjList(Jim_Interp *interp, Jim_Obj *listPtr, const char *filename, 
             Jim_IncrRefCount(listPtr);
             retcode = JimEvalObjVector(interp,
                 listPtr->internalRep.listValue.len,
-                listPtr->internalRep.listValue.ele, filename, linenr);
+                listPtr->internalRep.listValue.ele, fileNameObj, linenr);
             Jim_DecrRefCount(interp, listPtr);
         }
         return retcode;
@@ -9949,7 +9886,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     /* If the object is of type "list", we can call
      * a specialized version of Jim_EvalObj() */
     if (Jim_IsList(scriptObjPtr)) {
-        return Jim_EvalObjList(interp, scriptObjPtr, NULL, 0);
+        return JimEvalObjList(interp, scriptObjPtr, NULL, 0);
     }
 
     Jim_IncrRefCount(scriptObjPtr);     /* Make sure it's shared. */
@@ -10130,7 +10067,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 Jim_SetEmptyResult(interp);
                 if (cmd->isproc) {
                     retcode =
-                        JimCallProcedure(interp, cmd, script->fileName, linenr, argc, argv);
+                        JimCallProcedure(interp, cmd, script->fileNameObj, linenr, argc, argv);
                 } else {
                     interp->cmdPrivData = cmd->u.native.privData;
                     retcode = cmd->u.native.cmdProc(interp, argc, argv);
@@ -10139,7 +10076,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             }
             else {
                 /* Call [unknown] */
-                retcode = JimUnknown(interp, argc, argv, script->fileName, linenr);
+                retcode = JimUnknown(interp, argc, argv, script->fileNameObj, linenr);
             }
             if (interp->signal_level && interp->sigmask) {
                 /* Check for a signal after each command */
@@ -10159,7 +10096,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     }
 
     /* Possibly add to the error stack trace */
-    JimAddErrorToStack(interp, retcode, script->fileName, linenr);
+    JimAddErrorToStack(interp, retcode, script->fileNameObj, linenr);
 
     /* Note that we don't have to decrement inUse, because the
      * following code transfers our use of the reference again to
@@ -10248,7 +10185,7 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
  *
  * This can be fixed just implementing callframes caching
  * in JimCreateCallFrame() and JimFreeCallFrame(). */
-static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filename, int linenr, int argc,
+static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameObj, int linenr, int argc,
     Jim_Obj *const *argv)
 {
     Jim_CallFrame *callFramePtr;
@@ -10275,7 +10212,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, const char *filena
     callFramePtr->procArgsObjPtr = cmd->u.proc.argListObjPtr;
     callFramePtr->procBodyObjPtr = cmd->u.proc.bodyObjPtr;
     callFramePtr->staticVars = cmd->u.proc.staticVars;
-    callFramePtr->filename = filename;
+    callFramePtr->fileNameObj = fileNameObj;
     callFramePtr->line = linenr;
     Jim_IncrRefCount(cmd->u.proc.argListObjPtr);
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
@@ -10349,7 +10286,7 @@ badargset:
 
         Jim_IncrRefCount(resultScriptObjPtr);
         /* Should be a list! */
-        retcode = Jim_EvalObjList(interp, resultScriptObjPtr, filename, linenr);
+        retcode = JimEvalObjList(interp, resultScriptObjPtr, fileNameObj, linenr);
         Jim_DecrRefCount(interp, resultScriptObjPtr);
     }
     /* Handle the JIM_RETURN return code */
@@ -10381,7 +10318,7 @@ int Jim_Eval_Named(Jim_Interp *interp, const char *script, const char *filename,
     if (filename) {
         Jim_Obj *prevScriptObj;
 
-        JimSetSourceInfo(interp, scriptObjPtr, filename, lineno);
+        JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), lineno);
 
         prevScriptObj = interp->currentScriptObj;
         interp->currentScriptObj = scriptObjPtr;
@@ -10461,7 +10398,7 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     buf[readlen] = 0;
 
     scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
-    JimSetSourceInfo(interp, scriptObjPtr, filename, 1);
+    JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), 1);
     Jim_IncrRefCount(scriptObjPtr);
 
     /* Now check the script for unmatched braces, etc. */
@@ -10622,7 +10559,8 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     /* Create the "real" subst/script tokens from the initial token list */
     script->inUse = 1;
     script->substFlags = flags;
-    script->fileName = NULL;
+    script->fileNameObj = interp->emptyObj;
+    Jim_IncrRefCount(script->fileNameObj);
     SubstObjAddTokens(interp, script, &tokenlist);
 
     /* No longer need the token list */
@@ -10804,8 +10742,7 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
         Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
 
         Jim_ListAppendElement(interp, listObj, targetCallFrame->argv[0]);
-        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp,
-                targetCallFrame->filename ? targetCallFrame->filename : "", -1));
+        Jim_ListAppendElement(interp, listObj, targetCallFrame->fileNameObj);
         Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, targetCallFrame->line));
         *objPtrPtr = listObj;
     }
@@ -13569,30 +13506,33 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "");
                 return JIM_ERR;
             }
-            Jim_SetResultString(interp, Jim_GetScript(interp, interp->currentScriptObj)->fileName,
-                -1);
+            Jim_SetResult(interp, Jim_GetScript(interp, interp->currentScriptObj)->fileNameObj);
             break;
 
         case INFO_SOURCE:{
-                const char *filename = "";
-                int line = 0;
+                int line;
                 Jim_Obj *resObjPtr;
+                Jim_Obj *fileNameObj;
 
                 if (argc != 3) {
                     Jim_WrongNumArgs(interp, 2, argv, "source");
                     return JIM_ERR;
                 }
                 if (argv[2]->typePtr == &sourceObjType) {
-                    filename = argv[2]->internalRep.sourceValue.fileName;
+                    fileNameObj = argv[2]->internalRep.sourceValue.fileNameObj;
                     line = argv[2]->internalRep.sourceValue.lineNumber;
                 }
                 else if (argv[2]->typePtr == &scriptObjType) {
                     ScriptObj *script = Jim_GetScript(interp, argv[2]);
-                    filename = script->fileName;
+                    fileNameObj = script->fileNameObj;
                     line = script->line;
                 }
+                else {
+                    fileNameObj = interp->emptyObj;
+                    line = 1;
+                }
                 resObjPtr = Jim_NewListObj(interp, NULL, 0);
-                Jim_ListAppendElement(interp, resObjPtr, Jim_NewStringObj(interp, filename, -1));
+                Jim_ListAppendElement(interp, resObjPtr, fileNameObj);
                 Jim_ListAppendElement(interp, resObjPtr, Jim_NewIntObj(interp, line));
                 Jim_SetResult(interp, resObjPtr);
                 break;

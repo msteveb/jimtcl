@@ -331,7 +331,7 @@ typedef struct Jim_Obj {
         } refValue;
         /* Source type */
         struct {
-            const char *fileName;
+            struct Jim_Obj *fileNameObj;
             int lineNumber;
         } sourceValue;
         /* Dict substitution type */
@@ -445,7 +445,7 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procArgsObjPtr; /* arglist object of the running procedure */
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *nextFramePtr;
-    const char *filename;       /* file and line of caller of this proc (if available) */
+    Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
     int line;
 } Jim_CallFrame;
 
@@ -513,7 +513,7 @@ typedef struct Jim_PrngState {
 typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
     int errorLine; /* Error line where an error occurred. */
-    char *errorFileName; /* Error file where an error occurred. */
+    Jim_Obj *errorFileNameObj; /* Error file where an error occurred. */
     int addStackTrace; /* > 0 If a level should be added to the stack trace */
     int maxNestingDepth; /* Used for infinite loop detection. */
     int returnCode; /* Completion code to return on JIM_RETURN. */
@@ -548,7 +548,6 @@ typedef struct Jim_Interp {
                 calls via the [collect] command inside
                 finalizers. */
     time_t lastCollectTime; /* unix time of the last GC execution */
-    struct Jim_HashTable sharedStrings; /* Shared Strings hash table */
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *errorProc; /* Name of last procedure which returned an error */
     Jim_Obj *unknown; /* Unknown command cache */
