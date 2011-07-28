@@ -1,0 +1,466 @@
+#!/usr/bin/env jimsh
+# vim:se syntax=tcl:
+#
+# A simple command line debugger for Jim Tcl.
+
+set opt_trace 0
+
+set argv [lassign $argv argv0]
+if {[string match -t* $argv0]} {
+    set opt_trace 1
+    set argv [lassign $argv argv0]
+}
+
+if {$argv0 eq ""} {
+    stderr puts "Usage: jimdb ?-trace? script ?args ...?"
+    exit 1
+}
+
+puts "Jim Tcl debugger v1.0  -  Use ? for help\n"
+
+# --- debugger implementation ---
+proc debugger::w {&s} {
+    set n 0
+    foreach t $s(stacktrace) {
+        lassign $t f l p args
+        set args [debugger::_squash $args]
+        if {$f eq ""} {
+            set loc ""
+        } else {
+            set loc " @ $f:$l"
+        }
+        puts [format "%s #%s %s" $($n == $s(level) ? ">" : " ") $n "$p $args $loc"]
+        incr n
+    }
+}
+
+proc debugger::? {&s {cmd ""}} {
+    set help {
+        s {s "step into" "Step to the next command"}
+        w {w "where (stacktrace)" "Displays the current stack trace. The current frame is identified with >"}
+        n {n "step over" "Step to the next command without entering procs"}
+        l {"l [loc]" "list source" "Lists source code. loc may be filename, filename:line, line, procname"}
+        r {r "step out" "Continue until the current proc exits"}
+        v {v "local vars" "Display all local variables in the current frame"}
+        c {c "continue" "Continue until a breakpoint or ^C"}
+        u {u "up stack frame" "Move up stack frame (towards #0)"}
+        p {"p [expr]" "print" "Prints an expression (or variable). e.g. p x, p \$x / 3"}
+        d {d "down stack frame" "Move down stack frame (away from #0)"}
+        b {"b [loc]" "breakpoints" "List breakpoints (no args), or set a breakpoint at filename:line, line or procname"}
+        t {"t [0|1|2]" "trace" "Toggle command tracing on/off, or sets given trace mode"}
+        ? {"? [cmd]" "help" "Display general help or for the given command"}
+        q {q "quit" "Quit the script"}
+    }
+    if {$cmd eq ""} {
+        foreach {cmd1 info1 cmd2 info2} $help {
+            lassign $info1 u1 desc1
+            lassign $info2 u2 desc2
+            puts [format "     %-9s %-20s     %-9s %-20s" $u1 $desc1 $u2 $desc2]
+        }
+    } elseif {[exists help($cmd)]} {
+        lassign $help($cmd) u desc detail
+        puts "$u    $detail"
+    } else {
+        puts "No such command: $cmd"
+    }
+}
+
+proc debugger::c {&s} {
+    return -code break
+}
+
+proc debugger::p {&s expr} {
+    if {[catch {uplevel #$s(level) [list expr $expr]} msg]} {
+        if {[uplevel #$s(level) exists $expr]} {
+            puts "p \$$expr"
+            catch {uplevel #$s(level) [list set $expr]} msg
+        }
+    }
+    return $msg
+}
+
+proc debugger::q {&s} {
+    exit 0
+}
+
+proc debugger::b {&s {loc ""}} {
+    if {$loc eq ""} {
+        foreach bp [lsort [dict keys $s(bplines)]] {
+            puts "Breakpoint at [dict get $s bplines $bp] ($bp)"
+        }
+        foreach bp [lsort [dict keys $s(bpprocs)]] {
+            puts "Breakpoint at $bp"
+        }
+        return
+    }
+    lassign [debugger::_findloc s $loc 0] file line
+    if {$file ne ""} {
+        dict set s(bplines) $file:$line $loc
+        puts "Breakpoint at $file:$line"
+    } else {
+        set procs [lsort [info procs $loc]]
+        if {[llength $procs] > 5} {
+            puts "Too many matches: $procs"
+        } elseif {[llength $procs] == 0} {
+            dict set s(bpprocs) $loc 1
+            puts "Breakpoint at $loc (future)"
+        } else {
+            foreach p $procs {
+                lassign [debugger::_findloc s $p] file line
+                dict set s(bpprocs) $p $file:$line
+                puts "Breakpoint at $p ($file:$line)"
+            }
+        }
+    }
+    return
+}
+
+proc debugger::n {&s} {
+    set s(bplevel) $s(blevel)
+    return -code break
+}
+
+proc debugger::r {&s} {
+    incr s(bplevel) -1
+    return -code break
+}
+
+proc debugger::s {&s} {
+    set s(bpany) 1
+    return -code break
+}
+
+proc debugger::v {&s {pat *}} {
+    set level #$s(level)
+    if {$s(level) == 0} {
+        set vars [info globals $pat]
+    } else {
+        set vars [uplevel $level info locals $pat]
+    }
+    foreach i [lsort $vars] {
+        puts "$i = [debugger::_squash [uplevel $level set $i]]"
+    }
+}
+
+proc debugger::u {&s} {
+    if {$s(level) > 0} {
+        incr s(level) -1
+    }
+    tailcall debugger::w s
+}
+
+proc debugger::d {&s} {
+    if {$s(level) < [info level] - 2} {
+        incr s(level)
+    }
+    tailcall debugger::w s
+}
+
+proc debugger::t {&s {mode {}}} {
+    if {$mode eq ""} {
+        set mode $(!$s(trace))
+    }
+    switch -exact -- $mode {
+        0 {
+            set msg off
+        }
+        1 {
+            set msg on
+        }
+        2 {
+            set msg full
+        }
+        default {
+            error "Unknown trace mode: $mode"
+        }
+    }
+    set s(trace) $mode
+    puts "Tracing is now $msg"
+}
+
+proc debugger::l {&s {loc {}}} {
+    if {$loc eq ""} {
+        lassign $s(active) file line
+        if {$file eq ""} {
+            return "No source location available"
+        }
+    } else {
+        lassign [debugger::_findloc s $loc] file line
+    }
+    if {$file eq ""} {
+        return "Don't know anything about: $loc"
+    }
+    puts "@ $file"
+    debugger::_showlines s $file $line 8
+    set s(lastcmd) "l $file:$($line + 8)"
+    return
+}
+
+# ----- internal commands below this point -----
+
+# This proc can be overridden to read commands from
+# some other location, such as remote socket
+proc debugger::_getcmd {&s &cmd} {
+    if {![exists s(historyfile)]} {
+        set s(historyfile) [env HOME]/.jimdb_history
+        history load $s(historyfile)
+    }
+    while 1 {
+        if {[history getline "dbg> " cmd] < 0} {
+            signal default SIGINT
+            puts "Use q to quit, ? for help"
+            set cmd ""
+            return 0
+        }
+        if {$cmd eq "h"} {
+            history show
+            continue
+        }
+        # Don't bother adding single char commands to the history
+        if {[string length $cmd] > 1} {
+            history add $cmd
+            history save $s(historyfile)
+        }
+        return 1
+    }
+}
+
+proc debugger::?? {&s} {
+    parray s
+    return ""
+}
+
+proc debugger::_squash {arglist} {
+    set arglist [regsub -all "\[\n\t\r \]+" $arglist { }]
+    if {[string length $arglist] > 60} {
+        set arglist [string range $arglist 0 57]...
+    }
+    return $arglist
+}
+
+# Converts something which looks like a location into a file/line
+# number -> file=active, line=number
+# filename -> file=filename, line=1
+# filename:number -> file=filename, line=number
+# procname -> file, line = of first line of body
+proc debugger::_findloc {&s loc {checkproc 1}} {
+    lassign $s(active) afile aline
+    if {[string is integer -strict $loc]} {
+        set result [list $afile $loc]
+    } else {
+        if {[string match *:* $loc]} {
+            regexp (.*):(.*) $loc -> file line
+        } else {
+            set file $loc
+            set line 1
+        }
+        if {[file exists $file]} {
+            set result [list $file $line]
+        } elseif {$checkproc && [exists -proc $loc]} {
+            set result [info source [info body $loc]]
+        } else {
+            set result ""
+        }
+    }
+    return $result
+}
+
+proc debugger::_showlines {&s file line context} {
+    lassign $s(active) afile aline
+    if {[catch {
+        set file [debugger::_findfile $file]
+        set f [open $file]
+        set file [file tail $file]
+        set afile [file tail $afile]
+        set n 0
+        set lines [split [$f read] \n]
+        if {$line >= [llength $lines]} {
+            set line [llength $lines]
+        }
+        foreach l $lines {
+            incr n
+            if {$n > $line + $context} {
+                break
+            }
+            if {$n >= $line - $context} {
+                if {$n == $aline && $file eq $afile} {
+                    set marker ">"
+                } elseif {$n == $line} {
+                    set marker "*"
+                } else {
+                    set marker " "
+                }
+                puts [format "%s%4d %s" $marker $n $l]
+            }
+        }
+        $f close
+    } msg]} {
+        puts $msg
+    }
+}
+
+proc debugger::_showloc {&s file line name arglist} {
+    set tail [file tail $file]
+    if {$file eq ""} {
+        puts "@ $name [debugger::_squash $arglist]"
+    } else {
+        puts "@ $tail:$line $name [debugger::_squash $arglist]"
+        debugger::_showlines s $file $line 1
+    }
+}
+
+proc debugger::_checkbp {&s file line name} {
+    if {[signal check -clear SIGINT] ne ""} {
+        return 1
+    }
+    if {$s(bpany) == 0} {
+        return 1
+    }
+    # We don't want to stop on the same line with a different command
+    # when stepping with 'n'. This isn't perfect since the same
+    # command might be part of a nested expression, but we have no additional
+    # information available.
+    if {$s(laststop) eq "$file:$line" && $s(prevname) ne $name} {
+        return 0
+    }
+    if {$s(blevel) <= $s(bplevel)} {
+        return 1
+    }
+    if {[dict exists $s(bplines) $file:$line]} {
+        puts "Breakpoint @ $file:$line"
+        return 1
+    }
+    return 0
+}
+
+proc debugger::_findfile {filename} {
+    # Search for the given file in likely places
+    foreach dir [list {*}$::auto_path . [file dirname $::argv0] [file dirname [info nameofexecutable]]] {
+        if {[file exists $dir/$filename]} {
+            return $dir/$filename
+        }
+    }
+    return $filename
+}
+
+# The execution trace (xtrace) callback
+proc debugger::_db {type file line result name arglist} {
+    upvar #0 debugger::state s
+
+    #puts "@ $file:$line ($result) $type $name [debugger::_squash $arglist]"
+
+    # proc is only used to activate breakpoints
+    if {$type eq "proc"} {
+        # If we aren't already going to stop at the next command
+        # do so if we have a proc breakpoint
+        if {$s(bpany) != 1} {
+            set s(bpany) [dict exists $s bpprocs $name]
+        }
+        return
+    }
+
+    # level is the proc frame level
+    set s(level) $([info level] - 1)
+    # blevel is the breakpoint level for n, r commands
+    set s(blevel) [info level]
+    set s(active) [list $file $line $name $arglist]
+
+    incr s(bpany) -1
+
+    if {[catch -nobreak -noreturn {
+        if {[debugger::_checkbp s $file $line $name]} {
+            # Breakpoint here
+            set s(bpany) 0
+            set s(bplevel) -1
+            set s(laststop) $file:$line
+            set s(prevname) $name
+
+            # Build the active stacktrace
+            set s(stacktrace) {}
+            foreach level [range 1 [info level]] {
+                lassign [info frame $level] p f l
+                lassign [info level $level] p pargs
+                lappend s(stacktrace) [list $f $l $p $pargs]
+            }
+            lappend s(stacktrace) $s(active)
+
+            if {$result ne ""} {
+                puts "=> [debugger::_squash $result]"
+            }
+            debugger::_showloc s $file $line $name $arglist
+
+            set buf {}
+            while {1} {
+                set rc [debugger::_getcmd s buf]
+                if {$rc == -1} {
+                    # Stop tracing
+                    return
+                }
+                if {$buf eq ""} {
+                    set buf $s(lastcmd)
+                } else {
+                    set s(lastcmd) $buf
+                }
+
+                # Mark the active stack frame
+                set s(active) [lindex $s(stacktrace) $s(level)]
+
+                set args [lassign $buf cmd]
+                catch -nobreak {
+                    if {[exists -proc debugger::$cmd]} {
+                        debugger::$cmd s {*}$args
+                    } else {
+                        uplevel #$s(level) $buf
+                    }
+                } result
+                if {$result ne ""} {
+                    puts $result
+                }
+            }
+        } elseif {$s(trace) && $file ne ""} {
+            if {$s(trace) == 2 && $result ne ""} {
+                puts "=> [debugger::_squash $result]"
+            }
+            if {$file ne $s(lastsource)} {
+                puts "@ $file"
+            }
+            set s(lastsource) $file
+            debugger::_showlines s $file $line 0
+        }
+    } err opts]} {
+        puts [errorInfo $err]
+        exit 1
+    }
+}
+
+# Allows a breakpoint to be manually inserted
+# The message is for documentation purposes
+proc breakpoint {{msg ""}} {
+    set ::debugger::state(bpany) 1
+}
+
+signal ignore SIGINT
+
+set debugger::state {
+    bplevel -1
+    bpany -1
+    bplines {}
+    bpprocs {}
+    lastcmd ""
+    laststop ""
+    level 0
+    trace 0
+    active {}
+    prevname {}
+    stacktrace {}
+    lastsource {}
+}
+
+set debugger::state(trace) $opt_trace
+# Break at the very next command after source
+set debugger::state(bpany) 2
+
+# Install the debugger
+xtrace debugger::_db
+
+source $argv0

@@ -117,6 +117,7 @@ install: all @TCL_EXTS@ install-exec install-docs
 install-exec: all
 	$(INSTALL_DATA_DIR) $(DESTDIR)@bindir@
 	$(INSTALL_PROGRAM) $(JIMSH) $(DESTDIR)@bindir@
+	$(INSTALL_PROGRAM) jimdb $(DESTDIR)@bindir@
 
 uninstall:
 	rm -f $(DESTDIR)@bindir@/$(JIMSH)
