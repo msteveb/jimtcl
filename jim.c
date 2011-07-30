@@ -9615,7 +9615,7 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 
 int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
-    return JimEvalObjVector(interp, objc, objv, NULL, 0);
+    return JimEvalObjVector(interp, objc, objv, interp->emptyObj, 1);
 }
 
 /**
