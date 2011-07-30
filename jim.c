@@ -12133,7 +12133,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             return JIM_ERR;
         }
         s = Jim_GetString(argv[2], &len);
-        charlen = Jim_Utf8Length(interp, argv[2]);
+#ifdef JIM_UTF8
+        charlen = utf8_strlen(s, len);
+#else
+        charlen = len;
+#endif
         printf("refcount: %d, type: %s\n", argv[2]->refCount, JimObjTypeName(argv[2]));
         printf("chars (%d): <<%s>>\n", charlen, s);
         printf("bytes (%d):", len);
