@@ -1105,10 +1105,11 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
 /* Additional token types needed for expressions */
 #define JIM_TT_SUBEXPR_START  11
 #define JIM_TT_SUBEXPR_END    12
-#define JIM_TT_EXPR_INT       13
-#define JIM_TT_EXPR_DOUBLE    14
+#define JIM_TT_SUBEXPR_COMMA  13
+#define JIM_TT_EXPR_INT       14
+#define JIM_TT_EXPR_DOUBLE    15
 
-#define JIM_TT_EXPRSUGAR      15  /* $(expression) */
+#define JIM_TT_EXPRSUGAR      16  /* $(expression) */
 
 /* Operator token types start here */
 #define JIM_TT_EXPR_OP        20
@@ -6960,7 +6961,6 @@ enum
     JIM_EXPROP_FUNC_RAND,
     JIM_EXPROP_FUNC_SRAND,
 
-#ifdef JIM_MATH_FUNCTIONS
     /* math functions from libm */
     JIM_EXPROP_FUNC_SIN,
     JIM_EXPROP_FUNC_COS,
@@ -6977,7 +6977,7 @@ enum
     JIM_EXPROP_FUNC_LOG,
     JIM_EXPROP_FUNC_LOG10,
     JIM_EXPROP_FUNC_SQRT,
-#endif
+    JIM_EXPROP_FUNC_POW,
 };
 
 struct JimExprState
@@ -7312,6 +7312,7 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
 
         switch (e->opcode) {
             case JIM_EXPROP_POW:
+            case JIM_EXPROP_FUNC_POW:
                 wC = JimPowWide(wA, wB);
                 break;
             case JIM_EXPROP_ADD:
@@ -7372,6 +7373,7 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
     else if (Jim_GetDouble(interp, A, &dA) == JIM_OK && Jim_GetDouble(interp, B, &dB) == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_POW:
+            case JIM_EXPROP_FUNC_POW:
 #ifdef JIM_MATH_FUNCTIONS
                 dC = pow(dA, dB);
 #else
@@ -7716,6 +7718,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     [JIM_EXPROP_FUNC_LOG] = {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_LOG10] = {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
     [JIM_EXPROP_FUNC_SQRT] = {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    [JIM_EXPROP_FUNC_POW] = {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
 #endif
 
     [JIM_EXPROP_NOT] = {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
@@ -7795,16 +7798,16 @@ static int JimParseExpression(struct JimParserCtx *pc)
     }
     switch (*(pc->p)) {
         case '(':
-            pc->tstart = pc->tend = pc->p;
-            pc->tline = pc->linenr;
-            pc->tt = JIM_TT_SUBEXPR_START;
-            pc->p++;
-            pc->len--;
-            break;
+                pc->tt = JIM_TT_SUBEXPR_START;
+                goto singlechar;
         case ')':
+                pc->tt = JIM_TT_SUBEXPR_END;
+                goto singlechar;
+        case ',':
+            pc->tt = JIM_TT_SUBEXPR_COMMA;
+singlechar:
             pc->tstart = pc->tend = pc->p;
             pc->tline = pc->linenr;
-            pc->tt = JIM_TT_SUBEXPR_END;
             pc->p++;
             pc->len--;
             break;
@@ -7964,7 +7967,7 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
-        { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", "INT",
+        { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", ",,,", "INT",
             "DBL", "$()" };
     if (type < JIM_TT_EXPR_OP) {
         return tt_names[type];
@@ -8405,6 +8408,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             case JIM_TT_SUBEXPR_START:
                 Jim_StackPush(&stack, t);
                 prevtt = JIM_TT_NONE;
+                continue;
+
+            case JIM_TT_SUBEXPR_COMMA:
+                /* Simple approach. Comma is simply ignored */
                 continue;
 
             case JIM_TT_SUBEXPR_END:
