@@ -197,5 +197,10 @@ test dict-22.11 {dict with command: no recursive structures [Bug 1786481]} {
     string range [append foo OK] end-1 end
 } OK
 
+test dict-23.1 {dict unset missing last level} {
+    set a {b c d e}
+	dict unset a xyz
+	dict size $a
+} 2
 
 testreport

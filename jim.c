@@ -5785,7 +5785,6 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         linenr = 1;
     }
     Jim_IncrRefCount(fileNameObj);
-    //printf("%s:%d incr %s\n", __FILE__, __LINE__, Jim_String(fileNameObj));
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &strLen);
@@ -6632,8 +6631,9 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     varObjPtr = objPtr =
         Jim_GetVariable(interp, varNamePtr, newObjPtr == NULL ? JIM_ERRMSG : JIM_NONE);
     if (objPtr == NULL) {
-        if (newObjPtr == NULL)  /* Cannot remove a key from non existing var */
+        if (newObjPtr == NULL)  /* Cannot remove a key from non existing var */ {
             return JIM_ERR;
+        }
         varObjPtr = objPtr = Jim_NewDictObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
             Jim_FreeNewObj(interp, varObjPtr);
@@ -6647,8 +6647,9 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
 
         /* Check if it's a valid dictionary */
         if (dictObjPtr->typePtr != &dictObjType) {
-            if (SetDictFromAny(interp, dictObjPtr) != JIM_OK)
+            if (SetDictFromAny(interp, dictObjPtr) != JIM_OK) {
                 goto err;
+            }
         }
         /* Check if the given key exists. */
         Jim_InvalidateStringRep(dictObjPtr);
@@ -6665,21 +6666,26 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
             /* Key not found. If it's an [unset] operation
              * this is an error. Only the last key may not
              * exist. */
-            if (newObjPtr == NULL)
+            if (newObjPtr == NULL) {
                 goto err;
+            }
             /* Otherwise set an empty dictionary
              * as key's value. */
             objPtr = Jim_NewDictObj(interp, NULL, 0);
             DictAddElement(interp, dictObjPtr, keyv[i], objPtr);
         }
     }
+    /* Note error on unset with missing last key is OK */
     if (Jim_DictAddElement(interp, objPtr, keyv[keyc - 1], newObjPtr) != JIM_OK) {
-        goto err;
+        if (newObjPtr) {
+            goto err;
+        }
     }
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
-    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
+    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK) {
         goto err;
+    }
     Jim_SetResult(interp, varObjPtr);
     return JIM_OK;
   err:
