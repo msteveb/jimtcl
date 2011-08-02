@@ -1722,10 +1722,12 @@ static int JimEscape(char *dest, const char *s, int slen)
                         i++;
                         break;
                     case 'u':
+                    case 'U':
                     case 'x':
                         /* A unicode or hex sequence.
                          * \x Expect 1-2 hex chars and convert to hex.
                          * \u Expect 1-4 hex chars and convert to utf-8.
+                         * \U Expect 1-8 hex chars and convert to utf-8.
                          * \u{NNN} supports 1-6 hex chars and convert to utf-8.
                          * An invalid sequence means simply the escaped char.
                          */
@@ -1736,7 +1738,10 @@ static int JimEscape(char *dest, const char *s, int slen)
 
                             i++;
 
-                            if (s[i] == 'u') {
+                            if (s[i] == 'U') {
+                                maxchars = 8;
+                            }
+                            else if (s[i] == 'u') {
                                 if (s[i + 1] == '{') {
                                     maxchars = 6;
                                     i++;
