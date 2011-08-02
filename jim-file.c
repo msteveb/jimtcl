@@ -132,7 +132,7 @@ static int set_array_int_value(Jim_Interp *interp, Jim_Obj *container, const cha
     Jim_Obj *nameobj = Jim_NewStringObj(interp, key, -1);
     Jim_Obj *valobj = Jim_NewWideObj(interp, value);
 
-    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj) != JIM_OK) {
+    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj, JIM_ERRMSG) != JIM_OK) {
         Jim_FreeObj(interp, nameobj);
         Jim_FreeObj(interp, valobj);
         return JIM_ERR;
@@ -146,7 +146,7 @@ static int set_array_string_value(Jim_Interp *interp, Jim_Obj *container, const 
     Jim_Obj *nameobj = Jim_NewStringObj(interp, key, -1);
     Jim_Obj *valobj = Jim_NewStringObj(interp, value, -1);
 
-    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj) != JIM_OK) {
+    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj, JIM_ERRMSG) != JIM_OK) {
         Jim_FreeObj(interp, nameobj);
         Jim_FreeObj(interp, valobj);
         return JIM_ERR;

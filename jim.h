@@ -810,7 +810,7 @@ JIM_EXPORT int Jim_DictKeysVector (Jim_Interp *interp,
         Jim_Obj **objPtrPtr, int flags);
 JIM_EXPORT int Jim_SetDictKeysVector (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
-        Jim_Obj *newObjPtr);
+        Jim_Obj *newObjPtr, int flags);
 JIM_EXPORT int Jim_DictPairs(Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len);
 JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,

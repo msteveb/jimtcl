@@ -4284,7 +4284,7 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *valObjP
     SetDictSubstFromAny(interp, objPtr);
 
     err = Jim_SetDictKeysVector(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr,
-        &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr);
+        &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr, JIM_ERRMSG);
 
     if (err == JIM_OK) {
         /* Don't keep an extra ref to the result */
@@ -6621,9 +6621,13 @@ int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
  * with the new value of the element 'newObjPtr'.
  *
  * If newObjPtr == NULL the operation is to remove the given key
- * from the dictionary. */
+ * from the dictionary.
+ *
+ * If flags & JIM_ERRMSG, then failure to remove the key is considered an error
+ * and JIM_ERR is returned. Otherwise it is ignored and JIM_OK is returned.
+ */
 int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
-    Jim_Obj *const *keyv, int keyc, Jim_Obj *newObjPtr)
+    Jim_Obj *const *keyv, int keyc, Jim_Obj *newObjPtr, int flags)
 {
     Jim_Obj *varObjPtr, *objPtr, *dictObjPtr;
     int shared, i;
@@ -6677,7 +6681,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     }
     /* Note error on unset with missing last key is OK */
     if (Jim_DictAddElement(interp, objPtr, keyv[keyc - 1], newObjPtr) != JIM_OK) {
-        if (newObjPtr) {
+        if (newObjPtr || (flags & JIM_ERRMSG)) {
             goto err;
         }
     }
@@ -13322,7 +13326,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...? value");
                 return JIM_ERR;
             }
-            return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 4, argv[argc - 1]);
+            return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 4, argv[argc - 1], JIM_ERRMSG);
 
         case OPT_EXIST:
             if (argc < 3) {
@@ -13338,7 +13342,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...?");
                 return JIM_ERR;
             }
-            return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL);
+            return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL, JIM_NONE);
 
         case OPT_KEYS:
             if (argc != 3 && argc != 4) {

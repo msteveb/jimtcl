@@ -211,7 +211,7 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_ListIndex(interp, listObj, i, &nameObj, JIM_NONE);
         Jim_ListIndex(interp, listObj, i + 1, &valueObj, JIM_NONE);
 
-        rc = Jim_SetDictKeysVector(interp, argv[0], &nameObj, 1, valueObj);
+        rc = Jim_SetDictKeysVector(interp, argv[0], &nameObj, 1, valueObj, JIM_ERRMSG);
     }
 
     return rc;
