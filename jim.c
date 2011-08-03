@@ -1485,7 +1485,10 @@ static int JimParseVar(struct JimParserCtx *pc)
                 pc->len -= 2;
                 continue;
             }
-            if (isalnum(UCHAR(*pc->p)) || *pc->p == '_') {
+            /* Note that any char >= 0x80 must be part of a utf-8 char.
+             * We consider all unicode points outside of ASCII as letters
+             */
+            if (isalnum(UCHAR(*pc->p)) || *pc->p == '_' || UCHAR(*pc->p) >= 0x80) {
                 pc->p++;
                 pc->len--;
                 continue;
