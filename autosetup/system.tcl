@@ -8,9 +8,7 @@
 #
 # It also support the 'feature' naming convention, where searching
 # for a feature such as sys/type.h defines HAVE_SYS_TYPES_H
-
-# Note that the hidden options are supported for autoconf compatibility
-
+#
 module-options {
 	host:host-alias =>		{a complete or partial cpu-vendor-opsys for the system where
 							the application will run (defaults to the same value as --build)}
@@ -19,13 +17,19 @@ module-options {
 							result of running config.guess)}
 	prefix:dir =>			{the target directory for the build (defaults to /usr/local)}
 
+	# These (hidden) options are supported for autoconf/automake compatibility
+	exec-prefix:
+	bindir:
+	sbindir:
 	includedir:
 	mandir:
 	infodir:
 	libexecdir:
+	datadir:
+	libdir:
 	sysconfdir:
+	sharedstatedir:
 	localstatedir:
-
 	maintainer-mode=0
 	dependency-tracking=0
 }
@@ -173,19 +177,23 @@ define srcdir $autosetup(srcdir)
 # Allow this to come from the environment
 define top_srcdir [get-env top_srcdir [get-define srcdir]]
 
-# And less common ones too
-define exec_prefix \${prefix}
-define bindir \${exec_prefix}/bin
-define sbindir \${exec_prefix}/sbin
-define libexecdir [get-env libexecdir \${exec_prefix}/libexec]
-define datadir \${prefix}/share
-define sysconfdir [get-env sysconfdir \${prefix}/etc]
-define sharedstatedir \${prefix}/com
-define localstatedir [get-env localstatedir \${prefix}/var]
-define libdir \${exec_prefix}/lib
-define infodir [get-env infodir \${prefix}/share/info]
-define mandir [get-env mandir \${prefix}/share/man]
-define includedir [get-env includdir \${prefix}/include]
+# autoconf supports all of these
+define exec_prefix [opt-val exec-prefix [get-env exec-prefix \${prefix}]]
+foreach {name defpath} {
+	bindir \${exec_prefix}/bin
+	sbindir \${exec_prefix}/sbin
+	libexecdir \${exec_prefix}/libexec
+	libdir \${exec_prefix}/lib
+	datadir \${prefix}/share
+	sysconfdir \${prefix}/etc
+	sharedstatedir \${prefix}/com
+	localstatedir \${prefix}/var
+	infodir \${prefix}/share/info
+	mandir \${prefix}/share/man
+	includedir \${prefix}/include
+} {
+	define $name [opt-val $name [get-env $name $defpath]]
+}
 
 define SHELL [get-env SHELL [find-an-executable sh bash ksh]]
 
