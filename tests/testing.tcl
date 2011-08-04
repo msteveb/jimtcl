@@ -150,7 +150,7 @@ proc test {id descr args} {
 	set rc [catch {uplevel 1 $a(-body)} result opts]
 	catch {uplevel 1 $a(-cleanup)}
 
-	if {[info return $rc] ni $a(-returnCodes)} {
+	if {[info return $rc] ni $a(-returnCodes) && $rc ni $a(-returnCodes)} {
 		set ok 0
 		set expected "rc=$a(-returnCodes) result=$a(-result)"
 		set result "rc=[info return $rc] result=$result"
