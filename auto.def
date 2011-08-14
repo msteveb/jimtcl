@@ -224,7 +224,6 @@ set needs(signal) {expr {[have-feature sigaction] && [have-feature vfork]}}
 set needs(sqlite) {cc-check-function-in-lib sqlite_open sqlite}
 set needs(sqlite3) {cc-check-function-in-lib sqlite3_open sqlite3}
 set needs(syslog) {have-feature syslog}
-set needs(eventloop) {expr {[have-feature select] || [have-feature usleep]}}
 set needs(win32) {have-feature windows}
 
 # First handle dependencies. If an extension is enabled, also enable its dependency

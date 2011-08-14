@@ -53,6 +53,9 @@
 #include <windows.h>
 #include <winsock.h>
 #define msleep Sleep
+#ifndef HAVE_USLEEP
+#define usleep(US) msleep((US) / 1000)
+#endif
 #else
 #include <sys/select.h>
 
