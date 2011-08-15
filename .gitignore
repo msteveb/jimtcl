@@ -15,6 +15,7 @@ jim-tclcompat.c
 jim-tree.c
 jim-oo.c
 jimsh
+*.exe
 libjim.a
 libjim.so
 *.o
