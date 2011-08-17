@@ -51,6 +51,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include "jim.h"
 #include "jimautoconf.h"
@@ -553,6 +554,27 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct stat sb;
 
+    if (argc == 2) {
+#ifdef HAVE_UTIMES
+        jim_wide newtime;
+        struct timeval times[2];
+
+        if (Jim_GetWide(interp, argv[1], &newtime) != JIM_OK) {
+            return JIM_ERR;
+        }
+
+        times[1].tv_sec = times[0].tv_sec = newtime;
+        times[1].tv_usec = times[0].tv_usec = 0;
+
+        if (utimes(Jim_String(argv[0]), times) != 0) {
+            Jim_SetResultFormatted(interp, "can't set time on \"%#s\": %s", argv[0], strerror(errno));
+            return JIM_ERR;
+        }
+#else
+        Jim_SetResultString(interp, "Not implemented", -1);
+        return JIM_ERR;
+#endif
+    }
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
@@ -624,7 +646,7 @@ static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (linkLength == -1) {
         Jim_Free(linkValue);
-        Jim_SetResultFormatted(interp, "couldn't readlink \"%s\": %s", argv[0], strerror(errno));
+        Jim_SetResultFormatted(interp, "couldn't readlink \"%#s\": %s", argv[0], strerror(errno));
         return JIM_ERR;
     }
     linkValue[linkLength] = 0;
@@ -673,11 +695,11 @@ static const jim_subcmd_type file_command_table[] = {
         .description = "Last access time"
     },
     {   .cmd = "mtime",
-        .args = "name",
+        .args = "name ?time?",
         .function = file_cmd_mtime,
         .minargs = 1,
-        .maxargs = 1,
-        .description = "Last modification time"
+        .maxargs = 2,
+        .description = "Get or set last modification time"
     },
     {   .cmd = "copy",
         .args = "?-force? source dest",

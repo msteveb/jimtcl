@@ -62,6 +62,7 @@ Changes between 0.71 and 0.72
 3. Add support for the '-force' option to 'file delete'
 4. Better diagnostics when 'source' fails to load a script with a missing quote or bracket
 5. New +tcl_platform(pathSeparator)+
+6. Add support settings the modification time with 'file mtime'
 
 Changes between 0.70 and 0.71
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2219,12 +2220,13 @@ abbreviation for *option* is acceptable.  The valid options are:
     error.  Arguments are processed in the order specified, halting
     at the first error, if any.
 
-+*file mtime* 'name'+::
++*file mtime* 'name ?time?'+::
     Return a decimal string giving the time at which file *name*
     was last modified.  The time is measured in the standard UNIX
     fashion as seconds from a fixed starting time (often January 1, 1970).
     If the file doesn't exist or its modified time cannot be queried then an
-    error is generated.
+    error is generated. If *time* is given, sets the modification time
+    of the file to the given value.
 
 +*file normalize* 'name'+::
     Return the normalized path of *name*. See realpath(3).
