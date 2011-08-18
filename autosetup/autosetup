@@ -184,7 +184,7 @@ proc main {argv} {
 #
 # Check each of the named, boolean options and return 1 if any of them have
 # been set by the user.
-# 
+#
 proc opt-bool {args} {
 	option-check-names {*}$args
 	opt_bool ::useropts {*}$args
@@ -200,7 +200,7 @@ proc opt-bool {args} {
 ## lindex [opt-val $names] end
 #
 # If no options were set, $default is returned (exactly, not as a list).
-# 
+#
 proc opt-val {names {default ""}} {
 	option-check-names {*}$names
 	join [opt_val ::useropts $names $default]
@@ -398,7 +398,7 @@ proc options-show {} {
 # For example, --disable-lfs is an alias for --disable=largefile:
 #
 ## lfs=1 largefile=1 => "Disable large file support"
-# 
+#
 proc options {optlist} {
 	# Allow options as a list or args
 	options-add $optlist "Local Options:"
@@ -436,7 +436,7 @@ proc config_sub {alias} {
 }
 
 # @define name ?value=1?
-# 
+#
 # Defines the named variable to the given value.
 # These (name, value) pairs represent the results of the configuration check
 # and are available to be checked, modified and substituted.
@@ -565,6 +565,36 @@ proc quote-argv {argv} {
 		lappend args [quote-if-needed $arg]
 	}
 	join $args
+}
+
+# @suffix suf list
+#
+# Takes a list and returns a new list with $suf appended
+# to each element
+#
+## suffix .c {a b c} => {a.c b.c c.c}
+#
+proc suffix {suf list} {
+	set result {}
+	foreach p $list {
+		lappend result $p$suf
+	}
+	return $result
+}
+
+# @prefix pre list
+#
+# Takes a list and returns a new list with $pre prepended
+# to each element
+#
+## prefix jim- {a.c b.c} => {jim-a.c jim-b.c}
+#
+proc prefix {pre list} {
+	set result {}
+	foreach p $list {
+		lappend result $pre$p
+	}
+	return $result
 }
 
 # @find-executable name

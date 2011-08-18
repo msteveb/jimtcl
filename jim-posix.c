@@ -29,7 +29,7 @@
 #include "jim.h"
 #include "jimautoconf.h"
 
-#ifdef HAVE_SYSINFO
+#ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>
 #endif
 
@@ -183,7 +183,7 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *co
 
 static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#ifdef HAVE_SYSINFO
+#ifdef HAVE_STRUCT_SYSINFO_UPTIME
     struct sysinfo info;
 
     if (argc != 1) {

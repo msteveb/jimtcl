@@ -113,6 +113,24 @@ proc write-if-changed {file buf {script {}}} {
 # path to the source directory from the directory where the output
 # file is created. Use @top_srcdir@ for the absolute path.
 #
+# Conditional sections may be specified as follows:
+## @if name == value
+## lines
+## @else
+## lines
+## @endif
+#
+# Where 'name' is a defined variable name and @else is optional.
+# If the expression does not match, all lines through '@endif' are ignored.
+#
+# The alternative forms may also be used:
+## @if name
+## @if name != value
+#
+# Where the first form is true if the variable is defined, but not empty or 0
+#
+# Currently these expressions can't be nested.
+#
 proc make-template {template {out {}}} {
 	set infile [file join $::autosetup(srcdir) $template]
 
@@ -142,7 +160,39 @@ proc make-template {template {out {}}} {
 	foreach {n v} [array get ::define] {
 		lappend mapping @$n@ $v
 	}
-	writefile $out [string map $mapping [readfile $infile]]\n
+	set result {}
+	foreach line [split [readfile $infile] \n] {
+		if {[info exists cond]} {
+			set l [string trimright $line]
+			if {$l eq "@endif"} {
+				unset cond
+				continue
+			}
+			if {$l eq "@else"} {
+				set cond [expr {!$cond}]
+				continue
+			}
+			if {$cond} {
+				lappend result $line
+			}
+			continue
+		}
+		if {[regexp {^@if\s+(\w+)(.*)} $line -> name expression]} {
+			lassign $expression equal value
+			set varval [get-define $name ""]
+			if {$equal eq ""} {
+				set cond [expr {$varval ni {"" 0}}]
+			} else {
+				set cond [expr {$varval eq $value}]
+				if {$equal ne "=="} {
+					set cond [expr {!$cond}]
+				}
+			}
+			continue
+		}
+		lappend result $line
+	}
+	writefile $out [string map $mapping [join $result \n]]\n
 
 	msg-result "Created [relative-path $out] from [relative-path $template]"
 }

@@ -64,17 +64,28 @@ cc-check-types "long long"
 cc-check-includes sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
 
-# Haiku needs -lnetwork
-if {[cc-check-function-in-lib inet_ntop network]} {
-    if {[get-define lib_inet_ntop] ne ""} {
-        cc-with {-libs -lnetwork}
+# Haiku needs -lnetwork, Solaris needs -lnsl
+if {[cc-check-function-in-lib inet_ntop {nsl network}]} {
+    # This does nothing if no libs are needed
+    cc-with [list -libs [get-define lib_inet_ntop]]
+}
+# Solaris needs -lsocket, Windows needs -lwsock32
+if {![cc-check-function-in-lib socket socket]} {
+    # Last resort, may be Windows
+    if {[string match *mingw* [get-define host]]} {
+        define-append LIBS -lwsock32
     }
 }
 
-cc-check-functions ualarm sysinfo lstat fork vfork system select
+cc-check-functions ualarm lstat fork vfork system select
 cc-check-functions backtrace geteuid mkstemp realpath strptime gettimeofday
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo
+if {[cc-check-functions sysinfo]} {
+    cc-with {-includes sys/sysinfo.h} {
+        cc-check-members "struct sysinfo.uptime"
+    }
+}
 
 define TCL_LIBRARY [get-define prefix]/lib/jim
 
@@ -214,7 +225,6 @@ set dep(rlprompt) readline
 set dep(tree) oo
 set dep(binary) pack
 
-set needs(aio) {expr {[cc-check-function-in-lib socket socket] || 1}}
 set needs(exec) {expr {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]}}
 set needs(load) {expr {[cc-check-function-in-lib dlopen dl] || [have-feature dlopen-compat]}}
 set needs(posix) {have-feature waitpid}

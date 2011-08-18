@@ -37,12 +37,27 @@ switch -glob -- [get-define host] {
 		define SH_LDFLAGS -shared
 		define SHOBJ_LDFLAGS -shared
 	}
+	*-*-solaris* {
+		# XXX: These haven't been fully tested. 
+		#define SH_LINKFLAGS -Wl,-export-dynamic
+		define SH_CFLAGS -Kpic
+		define SHOBJ_CFLAGS -Kpic
+		define SHOBJ_LDFLAGS "-G"
+	}
+	*-*-hpux {
+		# XXX: These haven't been tested
+		define SH_LINKFLAGS -Wl,+s
+		define SH_CFLAGS +z
+		define SHOBJ_CFLAGS "+O3 +z"
+		define SHOBJ_LDFLAGS -b
+		define LD_LIBRARY_PATH SHLIB_PATH
+	}
 	* {
 		# Generic Unix settings
 		define SH_LINKFLAGS -rdynamic
-		define SH_CFLAGS -fPIC
+		define SH_CFLAGS -fpic
 		define SH_LDFLAGS -shared
-		define SHOBJ_CFLAGS -fPIC
+		define SHOBJ_CFLAGS -fpic
 		define SHOBJ_LDFLAGS "-shared -nostartfiles"
 	}
 }
