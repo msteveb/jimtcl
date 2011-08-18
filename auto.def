@@ -168,16 +168,11 @@ if {[opt-bool references]} {
 }
 if {[opt-bool shared with-jim-shared]} {
     msg-result "Building shared library"
-    define JIM_LIBTYPE shared
 } else {
     msg-result "Building static library"
-    define JIM_LIBTYPE static
+    define JIM_STATICLIB
 }
-if {[opt-bool install-jim]} {
-    define install_jim 1
-} else {
-    define install_jim ""
-}
+define JIM_INSTALL [opt-bool install-jim]
 
 # Note: Extension handling is mapped directly from the configure.ac
 # implementation
@@ -381,10 +376,11 @@ foreach e $ext {
     }
 }
 
-define JIM_STATIC_C_EXTS $ext_static_c
-define JIM_STATIC_TCL_EXTS $ext_static_tcl
-define JIM_TCL_EXTENSIONS $extmodtcl
-define JIM_MOD_EXTENSIONS $extmod
+define STATIC_EXTS [concat $ext_static_c $ext_static_tcl]
+define C_EXT_OBJS [prefix jim- [suffix .o $ext_static_c]]
+define TCL_EXT_OBJS [suffix .o $ext_static_tcl]
+define C_EXT_SHOBJS [suffix .so $extmod]
+define TCL_EXTS [suffix .tcl $extmodtcl]
 define EXTRA_OBJS $extra_objs
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -none *
