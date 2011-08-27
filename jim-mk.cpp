@@ -23,19 +23,15 @@ extern "C" { /* The whole file is essentially C */
 
 #define MK_CMD_LEN 32
 #define JIM_CURSOR_SPACE (35+JIM_REFERENCE_TAGLEN + 1 + 20)
+#define JIM_MK_DESCR_SIZE 64 /* Default, will be reallocated if needed */
 
 #define isnamech(c) ( !strchr(":,[^]!-", (c)) && (c) != 0 )
 
-#define JIM_MKFLAG_INMEMORY 0x0001
-#define JIM_MKFLAG_READONLY 0x0002
-#define JIM_MKFLAG_EXTEND   0x0004
-#define JIM_MKFLAG_NOCOMMIT 0x0008
-
-#define JIM_CMDFLAG_NODESTROY 0x0100 /* Do not destroy a one-shot view after this command */
-
 /* utilities */
 static int JimCheckMkName(Jim_Interp *interp, Jim_Obj *name, const char *type);
-static const char *MkPropertyTypeName(c4_Property p);
+static const char *JimMkTypeName(char type);
+static Jim_Obj *JimFromMkDescription(Jim_Interp *interp, const char *descr, const char **endPtr);
+static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *obj, char **descrPtr);
 static Jim_Obj *JimGetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop);
 static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop, Jim_Obj *obj);
 
@@ -64,7 +60,7 @@ static int JimSeekCursor (Jim_Interp *interp, Jim_Obj *obj, int position);
 
 static int JimCheckCursor (Jim_Interp *interp, Jim_Obj *curObj, int flags);
 
-/* view object */
+/* view handle */
 static Jim_Obj *JimNewViewObj (Jim_Interp *interp, c4_View view);
 static int JimGetView (Jim_Interp *interp, Jim_Obj *obj, c4_View *viewPtr);
 static void JimPinView (Jim_Interp *interp, Jim_Obj *obj);
@@ -100,6 +96,17 @@ static const char *const jim_mktype_options[] = {
     0
 };
 
+static const char *const jim_mktype_names[] = {
+    "integer",
+    "long",
+    "float",
+    "double",
+    "string",
+    "subview",
+    /* FIXME "binary", */
+    0
+};
+
 static const char jim_mktype_types[] = {
     MK_PROPERTY_INT,
     MK_PROPERTY_LONG,
@@ -112,16 +119,146 @@ static const char jim_mktype_types[] = {
 
 #define JIM_MKTYPES ((int)(sizeof(jim_mktype_types) / sizeof(jim_mktype_types[0])))
 
-static const char *MkPropertyTypeName(c4_Property p)
+static const char *JimMkTypeName(char type)
 {
     int i;
 
     for (i = 0; i < JIM_MKTYPES; i++) {
-        if (p.Type() == jim_mktype_types[i])
-            /* Name without the dash */
-            return jim_mktype_options[i] + 1;
+        if (type == jim_mktype_types[i])
+            return jim_mktype_names[i];
     }
     return "(unknown type)";
+}
+
+static Jim_Obj *JimFromMkDescription(Jim_Interp *interp, const char *descr, const char **endPtr)
+{
+    Jim_Obj *result;
+    const char *delim;
+
+    result = Jim_NewListObj(interp, NULL, 0);
+    for (;;) {
+        if (*descr == ']') {
+            descr++;
+            break;
+        }
+        else if (*descr == '\0')
+            break;
+        else if (*descr == ',')
+            descr++;
+
+        delim = strpbrk(descr, ",:[]");
+        /* JimPanic((!delim, "Invalid Metakit description string")); */
+
+        Jim_ListAppendElement(interp, result,
+            Jim_NewStringObj(interp, descr, delim - descr));
+
+        if (delim[0] == '[') {
+            Jim_ListAppendElement(interp, result,
+                JimFromMkDescription(interp, delim + 1, &descr));
+        }
+        else if (delim[0] == ':') {
+            Jim_ListAppendElement(interp, result,
+                Jim_NewStringObj(interp, JimMkTypeName(delim[1]), -1));
+            descr = delim + 2;
+        }
+        else {
+            /* Seems that Metakit never generates descriptions without type
+             * tags, but let's handle this just to be safe
+             */
+
+            Jim_ListAppendElement(interp, result,
+                Jim_NewStringObj(interp, JimMkTypeName(MK_PROPERTY_STRING), -1));
+        }
+    }
+
+    if (endPtr)
+        *endPtr = descr;
+    return result;
+}
+
+/* This allocates the buffer once per user call and stores it in a static
+ * variable. Recursive calls are distinguished by descrPtr == NULL.
+ */
+static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *descrObj, char **descrPtr)
+{
+    static char *descr, *outPtr;
+    static int bufSize;
+
+    #define ENLARGE(size) do {                             \
+        if ((descr - outPtr) + (size) > bufSize)           \
+            descr = (char *)Jim_Realloc(descr, 2*bufSize); \
+    } while(0)
+
+    int i, count;
+    Jim_Obj *name, *struc;
+
+    const char *rep;
+    int len;
+
+    count = Jim_ListLength(interp, descrObj);
+    if (count % 2) {
+        Jim_SetResultString(interp,
+            "view description must have an even number of elements", -1);
+        return JIM_ERR;
+    }
+
+    if (descrPtr) {
+        descr = (char *)Jim_Alloc(bufSize = JIM_MK_DESCR_SIZE);
+        outPtr = descr;
+    }
+
+    for (i = 0; i < count; i += 2) {
+        Jim_ListIndex(interp, descrObj, i, &name, 0);
+        Jim_ListIndex(interp, descrObj, i + 1, &struc, 0);
+
+        if (JimCheckMkName(interp, name, NULL) != JIM_OK)
+            goto err;
+
+        rep = Jim_GetString(name, &len);
+        ENLARGE(len + 3); /* At least :T, or [], */
+        memcpy(outPtr, rep, len);
+        outPtr += len;
+
+        if (Jim_ListLength(interp, struc) == 1) {
+            int idx;
+
+            if (Jim_GetEnum(interp, struc, jim_mktype_names, &idx,
+                    "property type", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
+                goto err;
+
+            *outPtr++ = ':';
+            *outPtr++ = jim_mktype_types[idx];
+        }
+        else {
+            *outPtr++ = '[';
+
+            if (JimToMkDescription(interp, struc, NULL) != JIM_OK)
+                goto err;
+
+            ENLARGE(2); /* bracket, comma */
+            *outPtr++ = ']';
+        }
+
+        *outPtr++ = ',';
+    }
+    *(--outPtr) = '\0';
+
+    #undef ENLARGE
+
+    if (descrPtr) {
+        Jim_Realloc(descr, strlen(descr) + 1);
+        *descrPtr = descr;
+        descr = NULL; /* Safety measure */
+    }
+
+    return JIM_OK;
+
+  err:
+
+    if (descrPtr)
+        Jim_Free(descr);
+
+    return JIM_ERR;
 }
 
 static Jim_Obj *JimGetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop)
@@ -257,7 +394,8 @@ static int JimGetProperty(Jim_Interp *interp, Jim_Obj *obj, c4_View view, const 
 
     if (obj->typePtr == &propertyObjType) {
         index = view.FindProperty(JimPropertyValue(obj)->GetId());
-    } else {
+    }
+    else {
         if (JimCheckMkName(interp, obj, name) != JIM_OK)
             return JIM_ERR;
         index = view.FindPropIndexByName(Jim_String(obj));
@@ -313,7 +451,7 @@ static int JimGetNewProperty(Jim_Interp *interp, Jim_Obj *obj, c4_View view, cha
 
     if (prop->Type() != newp->Type()) {
         Jim_SetResultFormatted(interp, "property \"%#s\" is %s, not %s",
-            obj, MkPropertyTypeName(*prop), MkPropertyTypeName(*newp));
+            obj, JimMkTypeName(prop->Type()), JimMkTypeName(newp->Type()));
         return JIM_ERR;
     }
 
@@ -432,12 +570,17 @@ static int JimGetCursor(Jim_Interp *interp, Jim_Obj *obj, const c4_Cursor **curP
          * values for N >=2 correctly.
          */
 
-        if (index == INT_MAX)
-            index = view.GetSize();
-        else if (index <= -INT_MAX) /* yes, -INT_MAX and not INT_MIN */
+        if (index <= -INT_MAX) { /* yes, -INT_MAX and not INT_MIN */
             index = -1;
-        else if (index < 0)
+        }
+        else if (index == INT_MAX) {
+            index = view.GetSize();
+            Jim_InvalidateStringRep(obj); /* because the view size may change later */
+        }
+        else if (index < 0) {
             index = view.GetSize() + index;
+            Jim_InvalidateStringRep(obj);
+        }
 
         obj->typePtr = &cursorObjType;
         obj->internalRep.twoPtrValue.ptr1 = new c4_Cursor(&view[index]);
@@ -560,7 +703,8 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             /* No type annotation, existing property */
             if (JimGetProperty(interp, argv[1], view, NULL, &propPtr) != JIM_OK)
                 return JIM_ERR;
-        } else {
+        }
+        else {
             /* Explicit type annotation; the property may be new */
             int idx;
 
@@ -614,7 +758,8 @@ static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 return JIM_ERR;
             }
         }
-    } else {
+    }
+    else {
         /* Update everything from argv[1..]. New properties are permitted if
          * explicitly typed.
          */
@@ -666,9 +811,9 @@ static int cursor_cmd_insert(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     view = (**curPtr).Container();
 
-    if (argc == 1) {
+    if (argc == 1)
         count = 1;
-    } else {
+    else {
         if (Jim_GetWide(interp, argv[1], &count) != JIM_OK)
             return JIM_ERR;
     }
@@ -697,9 +842,9 @@ static int cursor_cmd_remove(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     view = (**curPtr).Container();
     pos = curPtr->_index;
 
-    if (argc == 1) {
+    if (argc == 1)
         count = 1;
-    } else {
+    else {
         if (Jim_GetWide(interp, argv[1], &count) != JIM_OK)
             return JIM_ERR;
     }
@@ -753,9 +898,9 @@ static int cursor_cmd_validfor(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
     int idx;
 
-    if (argc == 1) {
+    if (argc == 1)
         idx = 0;
-    } else {
+    else {
         if (Jim_GetEnum(interp, argv[0], options, &idx, NULL,
                 JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
             return JIM_ERR;
@@ -792,9 +937,9 @@ static int cursor_cmd_incr(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *curObj;
     jim_wide offset;
 
-    if (argc == 1) {
+    if (argc == 1)
         offset = 1;
-    } else {
+    else {
         if (Jim_GetWide(interp, argv[1], &offset) != JIM_OK)
             return JIM_ERR;
     }
@@ -881,7 +1026,7 @@ static const jim_subcmd_type cursor_command_table[] = {
 };
 
 /* -------------------------------------------------------------------------
- * View object
+ * View handle
  * ------------------------------------------------------------------------- */
 
 /* Views aren't really Jim objects; instead, they are Tk-style commands with
@@ -938,7 +1083,7 @@ static int view_cmd_group(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int view_cmd_flatten(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
     const c4_Property *subviewPtr;
 
     if (JimGetProperty(interp, argv[0], *viewPtr, NULL, &subviewPtr) != JIM_OK)
@@ -946,11 +1091,43 @@ static int view_cmd_flatten(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (subviewPtr->Type() != MK_PROPERTY_VIEW) {
         Jim_SetResultFormatted(interp, "expected a subview property but got %s one",
-            MkPropertyTypeName(*subviewPtr));
+            JimMkTypeName(subviewPtr->Type()));
         return JIM_ERR;
     }
 
     Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->JoinProp(*(c4_ViewProp *)subviewPtr)));
+    return JIM_OK;
+}
+
+static int view_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+
+    if (argc == 1) {
+        const c4_Property *propPtr;
+
+        if (JimGetProperty(interp, argv[0], *viewPtr, NULL, &propPtr) != JIM_OK)
+            return JIM_ERR;
+
+        Jim_SetResultString(interp, JimMkTypeName(propPtr->Type()), -1);
+    }
+    else {
+        Jim_Obj *result;
+        int i, count;
+
+        result = Jim_NewListObj(interp, NULL, 0);
+        count = viewPtr->NumProperties();
+
+        for (i = 0; i < count; i++) {
+            c4_Property prop = viewPtr->NthProperty(i);
+            Jim_ListAppendElement(interp, result, JimNewPropertyObj(interp, prop));
+            Jim_ListAppendElement(interp, result,
+                Jim_NewStringObj(interp, JimMkTypeName(prop.Type()), -1));
+        }
+
+        Jim_SetResult(interp, result);
+    }
+
     return JIM_OK;
 }
 
@@ -1013,6 +1190,8 @@ static int view_cmd_resize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 /* Command table ----------------------------------------------------------- */
 
+#define JIM_CMDFLAG_NODESTROY 0x0100 /* Do not destroy a one-shot view after this command */
+
 static const jim_subcmd_type view_command_table[] = {
 
     /* Relational operations */
@@ -1029,7 +1208,7 @@ static const jim_subcmd_type view_command_table[] = {
         0,
         "Group rows with equal specified properties, move all other properties into subview"
     },
-    {   "flatten", "subviewName",
+    {   "flatten", "subviewProp",
         view_cmd_flatten,
         1, 1,
         0,
@@ -1055,6 +1234,12 @@ static const jim_subcmd_type view_command_table[] = {
         1, 1,
         0,
         "Set the number of records in the view"
+    },
+    {   "type", "?prop?",
+        view_cmd_type,
+        0, 1,
+        0,
+        "Return the type of an existing property, or of all properties"
     },
 
     /* Lifetime management */
@@ -1158,7 +1343,7 @@ static Jim_Obj *JimViewPropertiesList(Jim_Interp *interp, c4_View view)
 }
 
 /* ----------------------------------------------------------------------------
- * Storage object
+ * Storage handle
  * ---------------------------------------------------------------------------- */
 
 /* These are also commands, like views, but must be managed explicitly by the
@@ -1172,9 +1357,14 @@ typedef struct MkStorage {
     c4_Cursor content;
 } MkStorage;
 
+#define JIM_MKFLAG_INMEMORY     0x0001
+#define JIM_MKFLAG_READONLY     0x0002
+#define JIM_MKFLAG_EXTEND       0x0004
+#define JIM_MKFLAG_AUTOCOMMIT   0x0008
+
 /* Attributes -------------------------------------------------------------- */
 
-static int storage_cmd_nocommit(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int storage_cmd_autocommit(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     MkStorage *mk = (MkStorage *)Jim_CmdPrivData(interp);
 
@@ -1185,13 +1375,13 @@ static int storage_cmd_nocommit(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             return JIM_ERR;
 
         if (flag)
-            mk->flags |= JIM_MKFLAG_NOCOMMIT;
+            mk->flags |= JIM_MKFLAG_AUTOCOMMIT;
         else
-            mk->flags &= ~JIM_MKFLAG_NOCOMMIT;
-        mk->storage.AutoCommit(!flag);
+            mk->flags &= ~JIM_MKFLAG_AUTOCOMMIT;
+        mk->storage.AutoCommit(flag);
     }
 
-    Jim_SetResultBool(interp, (mk->flags & JIM_MKFLAG_NOCOMMIT) != 0);
+    Jim_SetResultBool(interp, (mk->flags & JIM_MKFLAG_AUTOCOMMIT) != 0);
     return JIM_OK;
 }
 
@@ -1222,6 +1412,53 @@ static int storage_cmd_view(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
 
     Jim_SetResult(interp, JimGetMkValue(interp, mk->content, *propPtr));
+    return JIM_OK;
+}
+
+static int storage_cmd_structure(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    MkStorage *mk = (MkStorage *)Jim_CmdPrivData(interp);
+
+    if (argc < 2) { /* Query */
+        const char *name;
+
+        if (argc == 0)
+            name = NULL;
+        else {
+            const c4_Property *propPtr;
+
+            if (JimGetProperty(interp, argv[0], mk->storage, "view", &propPtr) != JIM_OK)
+                return JIM_ERR;
+            name = propPtr->Name();
+        }
+
+        Jim_SetResult(interp, JimFromMkDescription(interp,
+            mk->storage.Description(name), NULL));
+    }
+    else { /* Modify */
+        char *descr;
+        const char *name;
+        int len, dlen;
+
+        if (JimCheckMkName(interp, argv[0], "view") != JIM_OK)
+            return JIM_ERR;
+        name = Jim_GetString(argv[0], &len);
+
+        if (JimToMkDescription(interp, argv[1], &descr) != JIM_OK)
+            return JIM_ERR;
+        dlen = strlen(descr);
+
+        Jim_Realloc(descr, dlen + len + 2);
+        memmove(descr + len + 1, descr, dlen);
+        memcpy(descr, name, len);
+        descr[len] = '[';
+        descr[len + 1 + dlen] = ']';
+
+        mk->storage.GetAs(descr);
+
+        Jim_Free(descr);
+    }
+
     return JIM_OK;
 }
 
@@ -1280,8 +1517,8 @@ static const jim_subcmd_type storage_command_table[] = {
 
     /* Options */
 
-    {   "nocommit", "?value?",
-        storage_cmd_nocommit,
+    {   "autocommit", "?value?",
+        storage_cmd_autocommit,
         0, 1,
         0,
         "Query or modify the auto-commit option of this storage"
@@ -1307,6 +1544,12 @@ static const jim_subcmd_type storage_command_table[] = {
         0,
         "Retrieve the view specified by viewName"
     },
+    {   "structure", "?viewName? ?description?",
+        storage_cmd_structure,
+        0, 2,
+        0,
+        "Query or modify the structure of this storage"
+    },
 
     /* Store operations */
 
@@ -1328,6 +1571,7 @@ static const jim_subcmd_type storage_command_table[] = {
         JIM_MODFLAG_FULLARGV,
         "Close this storage"
     },
+
     { 0 }
 };
 
@@ -1382,7 +1626,7 @@ static int JimStorageCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int option;
 
     mk = (MkStorage *)Jim_Alloc(sizeof(MkStorage));
-    mk->flags = 0;
+    mk->flags = JIM_MKFLAG_AUTOCOMMIT;
     mode = MK_MODE_READWRITE;
     for (i = 1; i < argc - 1; i++ ) {
         if (Jim_GetEnum(interp, argv[i], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
@@ -1416,7 +1660,7 @@ static int JimStorageCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 break;
 
             case OPT_NOCOMMIT:
-                mk->flags |= JIM_MKFLAG_NOCOMMIT;
+                mk->flags &= ~JIM_MKFLAG_AUTOCOMMIT;
                 break;
         }
     }
@@ -1433,9 +1677,8 @@ static int JimStorageCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         mk->filename = argv[argc-1];
 
-        if (!((mk->flags & JIM_MKFLAG_NOCOMMIT) || (mk->flags & JIM_MKFLAG_READONLY))) {
+        if ((mk->flags & JIM_MKFLAG_AUTOCOMMIT) && !(mk->flags & JIM_MKFLAG_READONLY))
             mk->storage.AutoCommit(1);
-        }
     }
     else {
         mk->flags |= JIM_MKFLAG_INMEMORY;
