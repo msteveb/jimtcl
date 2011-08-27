@@ -6,6 +6,10 @@
 
 #include <jim.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define JIM_MODFLAG_HIDDEN   0x0001		/* Don't show the subcommand in usage or commands */
 #define JIM_MODFLAG_FULLARGV 0x0002		/* Subcmd proc gets called with full argv */
 
@@ -79,5 +83,9 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_
  */
 int
 Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
