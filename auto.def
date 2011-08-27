@@ -43,6 +43,7 @@ options {
         binary    - Tcl-compatible 'binary' command
         readline  - Interface to libreadline
         rlprompt  - Tcl wrapper around the readline extension
+        mk        - Interface to Metakit
         sqlite    - Interface to sqlite
         sqlite3   - Interface to sqlite3
         win32     - Interface to win32
@@ -133,6 +134,22 @@ if {[cctest -includes {sys/types.h sys/stat.h} -code {mkdir("/dummy");}]} {
     msg-result no
 }
 
+# autosetup can't handle C++ libraries
+proc check-metakit {} {
+    set found 0
+    cc-with {-lang c++} {
+        msg-checking "Checking for Metakit..."
+        if {[cctest -includes mk4.h -libs -lmk4 -code {c4_Storage dummy();}]} {
+            msg-result ok
+            define lib_mk -lmk4
+            incr found
+        } else {
+            msg-result "not found"
+        }
+    }
+    return $found
+}
+
 set extra_objs {}
 set jimregexp 0
 
@@ -184,13 +201,16 @@ set withmod [join [opt-val {with-mod with-jim-extmod}]]
 
 # Tcl extensions
 set ext_tcl "stdlib glob tclcompat tree rlprompt oo binary"
-# C extensions
-set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline sqlite sqlite3 win32"
+# Native extensions
+set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline mk sqlite sqlite3 win32"
+
+# C++ extensions
+set ext_cxx "mk"
 
 # Tcl extensions which can be modules
 set ext_tcl_mod "glob tree rlprompt oo binary"
-# C extensions which can be modules
-set ext_c_mod "readdir array clock file posix regexp syslog readline pack sqlite sqlite3 win32"
+# Native extensions which can be modules
+set ext_c_mod "readdir array clock file posix regexp syslog readline pack mk sqlite sqlite3 win32"
 
 # All extensions
 set ext_all [concat $ext_c $ext_tcl]
@@ -229,6 +249,8 @@ set needs(readdir) {have-feature opendir}
 set needs(readline) {cc-check-function-in-lib readline readline}
 set libdep(readline) lib_readline
 set needs(signal) {expr {[have-feature sigaction] && [have-feature vfork]}}
+set needs(mk) {check-metakit}
+set libdep(mk) lib_mk
 set needs(sqlite) {cc-check-function-in-lib sqlite_open sqlite}
 set libdep(sqlite) lib_sqlite_open
 set needs(sqlite3) {cc-check-function-in-lib sqlite3_open sqlite3}
@@ -383,6 +405,14 @@ foreach e $ext {
         lappend ext_static_tcl $e
     } else {
         lappend ext_static_c $e
+    }
+}
+
+# If there are any static C++ extensions, jimsh must be linked using
+# the C++ compiler
+foreach e $ext_static_c {
+    if {$e in $ext_cxx} {
+        define HAVE_CXX_EXTENSIONS
     }
 }
 
