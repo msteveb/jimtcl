@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 #include <new>
 #include <mk4.h>
 
@@ -23,9 +24,10 @@ extern "C" { /* The whole file is essentially C */
 
 #define MK_CMD_LEN 32
 #define JIM_CURSOR_SPACE (35+JIM_REFERENCE_TAGLEN + 1 + 20)
+#define JIM_POSITION_SPACE 32
 #define JIM_MK_DESCR_SIZE 64 /* Default, will be reallocated if needed */
 
-#define isnamech(c) ( !strchr(":,[^]!-", (c)) && (c) != 0 )
+#define isnamech(c) ( (c) && !strchr(":,[^]!-", (c)) )
 
 /* utilities */
 static int JimCheckMkName(Jim_Interp *interp, Jim_Obj *name, const char *type);
@@ -48,10 +50,12 @@ static int JimGetProperties (Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 static Jim_Obj *JimViewPropertiesList (Jim_Interp *interp, c4_View view);
 
 /* cursor object */
-static int JimGetCursor (Jim_Interp *interp, Jim_Obj *obj,
-    const c4_Cursor **curPtr, Jim_Obj **viewObjPtr);
+static int JimGetCursor (Jim_Interp *interp, Jim_Obj *obj, c4_Cursor *curPtr);
+static int JimGetCursorView (Jim_Interp *interp, Jim_Obj *obj,
+    Jim_Obj **viewObjPtr);
+static int JimCursorPos (Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **posObjPtr);
 static int JimIncrCursor (Jim_Interp *interp, Jim_Obj *obj, int offset);
-static int JimSeekCursor (Jim_Interp *interp, Jim_Obj *obj, int position);
+static int JimSeekCursor (Jim_Interp *interp, Jim_Obj *obj, Jim_Obj *posObj);
 
 /* Also accepts JIM_ERRMSG */
 #define JIM_CURSOR_GET      (1 << JIM_PRIV_FLAG_SHIFT)
@@ -491,20 +495,29 @@ static Jim_Obj *JimNewPropertyObj(Jim_Interp *interp, c4_Property prop)
  * Cursor object
  * ------------------------------------------------------------------------- */
 
-#define JimCursorValue(o) ((c4_Cursor *)((o)->internalRep.twoPtrValue.ptr1))
-#define JimCursorView(o)  ((Jim_Obj *)((o)->internalRep.twoPtrValue.ptr2))
+/* A normal position if endFlag == 0; otherwise an offset from end+1 (!) */
+typedef struct MkPosition {
+    int index;
+    int endFlag;
+} MkPosition;
 
+typedef struct MkCursor {
+    MkPosition pos;
+    Jim_Obj *viewObj;
+} MkCursor;
+
+#define JimCursorValue(obj) ((MkCursor *)(obj->internalRep.ptr))
 static void FreeCursorInternalRep(Jim_Interp *interp, Jim_Obj *obj)
 {
-    delete JimCursorValue(obj);
-    Jim_DecrRefCount(interp, JimCursorView(obj));
+    Jim_DecrRefCount(interp, JimCursorValue(obj)->viewObj);
+    Jim_Free(obj->internalRep.ptr);
 }
 
 static void DupCursorInternalRep(Jim_Interp *interp, Jim_Obj *oldObj, Jim_Obj *newObj)
 {
-    newObj->internalRep.twoPtrValue.ptr1 = new c4_Cursor(*JimCursorValue(oldObj));
-    newObj->internalRep.twoPtrValue.ptr2 = JimCursorView(oldObj);
-    Jim_IncrRefCount(JimCursorView(oldObj));
+    newObj->internalRep.ptr = Jim_Alloc(sizeof(MkCursor));
+    *JimCursorValue(newObj) = *JimCursorValue(oldObj);
+    Jim_IncrRefCount(JimCursorValue(oldObj)->viewObj);
 
     newObj->typePtr = oldObj->typePtr;
 }
@@ -512,13 +525,24 @@ static void DupCursorInternalRep(Jim_Interp *interp, Jim_Obj *oldObj, Jim_Obj *n
 static void UpdateStringOfCursor(Jim_Obj *obj)
 {
     char buf[JIM_CURSOR_SPACE + 1];
-    int len;
+    MkCursor *curPtr = JimCursorValue(obj);
+    int idx, len;
 
-    snprintf(buf, JIM_CURSOR_SPACE + 1, "%s!%d",
-        Jim_String(JimCursorView(obj)), JimCursorValue(obj)->_index);
+    len = snprintf(buf, JIM_CURSOR_SPACE + 1, "%s!", Jim_String(curPtr->viewObj));
 
-    len = strlen(buf);
-    obj->bytes = (char *) Jim_Alloc(len + 1);
+    if (curPtr->pos.endFlag) {
+        idx = curPtr->pos.index + 1;
+        if (idx == 0)
+            len += snprintf(buf + len, JIM_CURSOR_SPACE + 1 - len, "end");
+        else
+            len += snprintf(buf + len, JIM_CURSOR_SPACE + 1 - len, "end%+d", idx);
+    }
+    else {
+        len += snprintf(buf + len, JIM_CURSOR_SPACE + 1 - len, "%d",
+            curPtr->pos.index);
+    }
+
+    obj->bytes = (char *)Jim_Alloc(len + 1);
     memcpy(obj->bytes, buf, len + 1);
     obj->length = len;
 }
@@ -533,127 +557,184 @@ static Jim_ObjType cursorObjType = {
 
 /* Functions --------------------------------------------------------------- */
 
-static int JimGetCursor(Jim_Interp *interp, Jim_Obj *obj, const c4_Cursor **curPtr, Jim_Obj **viewObjPtr)
+/* This is mostly the same as SetIndexFromAny, but preserves more information
+ * and allows multiple [+-]integer parts.
+ */
+static int JimGetPosition(Jim_Interp *interp, Jim_Obj *obj, MkPosition *posPtr)
 {
-    if (obj->typePtr != &cursorObjType) {
-        const char *rep, *delim;
-        int len, index;
-        Jim_Obj *viewObj, *indexObj;
-        c4_View view;
+    MkPosition pos;
+    const char *rep;
+    char *end;
+    int sign, offset;
 
-        rep = Jim_GetString(obj, &len);
-        delim = (char *) memchr(rep, '!', len);
+    rep = Jim_String(obj);
 
-        if (!delim) {
-            Jim_SetResultFormatted(interp, "expected cursor but got \"%#s\"", obj);
-            return JIM_ERR;
-        }
+    if (strncmp(rep, "end", 3) == 0) {
+        pos.endFlag = 1;
+        pos.index = -1;
 
-        viewObj = Jim_NewStringObj(interp, rep, delim - rep);
-        indexObj = Jim_NewStringObj(interp, delim + 1, len - (delim - rep) - 1);
+        rep += 3;
+    }
+    else {
+        pos.endFlag = 0;
+        pos.index = strtol(rep, &end, 10);
+        if (end == rep)
+            goto err;
 
-        if (Jim_GetIndex(interp, indexObj, &index) != JIM_OK ||
-            JimGetView(interp, viewObj, &view) != JIM_OK)
-            /* prefer this order - the view is constructed last */
-        {
-            Jim_FreeNewObj(interp, viewObj);
-            Jim_FreeNewObj(interp, indexObj);
-            return JIM_ERR;
-        }
-
-        Jim_FreeIntRep(interp, obj);
-        Jim_FreeNewObj(interp, indexObj);
-        Jim_IncrRefCount(viewObj);
-
-        /* Jim_GetIndex sometimes returns int limit values, but these are too
-         * dangerous to manipulate. Unfortunately, we also can't handle end+N
-         * values for N >=2 correctly.
-         */
-
-        if (index <= -INT_MAX) { /* yes, -INT_MAX and not INT_MIN */
-            index = -1;
-        }
-        else if (index == INT_MAX) {
-            index = view.GetSize();
-            Jim_InvalidateStringRep(obj); /* because the view size may change later */
-        }
-        else if (index < 0) {
-            index = view.GetSize() + index;
-            Jim_InvalidateStringRep(obj);
-        }
-
-        obj->typePtr = &cursorObjType;
-        obj->internalRep.twoPtrValue.ptr1 = new c4_Cursor(&view[index]);
-        obj->internalRep.twoPtrValue.ptr2 = viewObj;
+        rep = end;
     }
 
-    if (curPtr)
-        *curPtr = JimCursorValue(obj);
-    if (viewObjPtr)
-        *viewObjPtr = JimCursorView(obj);
+    while ((rep[0] == '+') || (rep[0] == '-')) {
+        sign = (rep[0] == '+' ? 1 : -1);
+        rep++;
 
+        offset = strtol(rep, &end, 10);
+        if (end == rep)
+            goto err;
+
+        pos.index += sign * offset;
+        rep = end;
+    }
+
+    while (isspace(UCHAR(*rep)))
+        rep++;
+    if (*rep != '\0')
+        goto err;
+
+    *posPtr = pos;
+    return JIM_OK;
+
+  err:
+    Jim_SetResultFormatted(interp, "expected cursor position but got \"%#s\"", obj);
+    return JIM_ERR;
+}
+
+static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
+{
+    const char *rep, *delim;
+    int len;
+    Jim_Obj *posObj;
+    MkCursor cur;
+
+    rep = Jim_GetString(obj, &len);
+    delim = (char *)memrchr(rep, '!', len);
+
+    if (!delim) {
+        Jim_SetResultFormatted(interp, "expected cursor but got \"%#s\"", obj);
+        return JIM_ERR;
+    }
+
+    cur.viewObj = Jim_NewStringObj(interp, rep, delim - rep);
+    posObj = Jim_NewStringObj(interp, delim + 1, len - (delim - rep) - 1);
+
+    if (JimGetPosition(interp, posObj, &cur.pos) != JIM_OK) {
+        Jim_FreeNewObj(interp, posObj);
+        Jim_FreeNewObj(interp, cur.viewObj);
+        return JIM_ERR;
+    }
+
+    Jim_FreeIntRep(interp, obj);
+    Jim_FreeNewObj(interp, posObj);
+    Jim_IncrRefCount(cur.viewObj);
+
+    obj->typePtr = &cursorObjType;
+    obj->internalRep.ptr = Jim_Alloc(sizeof(MkCursor));
+    *JimCursorValue(obj) = cur;
+
+    return JIM_OK;
+}
+
+static int JimCursorPos(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **posObjPtr)
+{
+    const char *rep;
+    int len;
+
+    if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
+        return JIM_ERR;
+
+    rep = Jim_GetString(obj, &len);
+    *posObjPtr = Jim_NewStringObj(interp, (const char *)memrchr(rep, '!', len) + 1, -1);
+    return JIM_OK;
+}
+
+static int JimGetCursorView(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **viewObjPtr)
+{
+    if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
+        return JIM_ERR;
+
+    *viewObjPtr = JimCursorValue(obj)->viewObj;
+    return JIM_OK;
+}
+
+static int JimGetCursor(Jim_Interp *interp, Jim_Obj *obj, c4_Cursor *curPtr)
+{
+    c4_View view;
+    MkPosition *posPtr;
+
+    if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
+        return JIM_ERR;
+    if (JimGetView(interp, JimCursorValue(obj)->viewObj, &view) != JIM_OK)
+        return JIM_ERR;
+
+    posPtr = &JimCursorValue(obj)->pos;
+    if (curPtr) {
+        if (posPtr->endFlag)
+            *curPtr = &view[view.GetSize() + posPtr->index];
+        else
+            *curPtr = &view[posPtr->index];
+    }
     return JIM_OK;
 }
 
 static int JimIncrCursor(Jim_Interp *interp, Jim_Obj *obj, int offset)
 {
-    const c4_Cursor *cur;
-
     /* JimPanic((Jim_IsShared(obj), "JimIncrCursor called with shared object")) */
 
-    if (JimGetCursor(interp, obj, &cur, NULL) != JIM_OK)
+    if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
         return JIM_ERR;
 
     Jim_InvalidateStringRep(obj);
-    *((c4_Cursor *)cur) += offset;
+    JimCursorValue(obj)->pos.index += offset;
     return JIM_OK;
 }
 
-static int JimSeekCursor(Jim_Interp *interp, Jim_Obj *obj, int index)
+static int JimSeekCursor(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj *posObj)
 {
-    const c4_Cursor *cur;
-
     /* JimPanic((Jim_IsShared(obj), "JimSeekCursor called with shared object")) */
 
-    if (JimGetCursor(interp, obj, &cur, NULL) != JIM_OK)
+    if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
         return JIM_ERR;
+
     Jim_InvalidateStringRep(obj);
-
-    if (index <= -INT_MAX)
-        index = -1;
-    else if (index == INT_MAX)
-        index = (**cur).Container().GetSize();
-    else if (index < 0)
-        index = (**cur).Container().GetSize() + index;
-
-    ((c4_Cursor *)cur)->_index = index;
-    return JIM_OK;
+    return JimGetPosition(interp, posObj, &JimCursorValue(obj)->pos);
 }
 
 static int JimCheckCursor(Jim_Interp *interp, Jim_Obj *curObj, int flags)
 {
-    const c4_Cursor *cur;
+    static c4_View nullView;
+
+    c4_Cursor cur = &nullView[0];
     int size;
 
-    if (JimGetCursor(interp, curObj, &cur, NULL) != JIM_OK)
+    if (JimGetCursor(interp, curObj, &cur) != JIM_OK)
         return JIM_ERR;
-    size = (**cur).Container().GetSize();
+    size = (*cur).Container().GetSize();
 
-    if ((flags & JIM_CURSOR_GET) && (cur->_index < 0 || cur->_index >= size)) {
+    if ((flags & JIM_CURSOR_GET) && (cur._index < 0 || cur._index >= size)) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp,
                 "cursor \"%#s\" does not point to an existing row", curObj);
         }
         return JIM_ERR;
     }
-    else if ((flags & JIM_CURSOR_SET) && cur->_index < 0) {
+    else if ((flags & JIM_CURSOR_SET) && cur._index < 0) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp,
                 "cursor \"%#s\" points before start of view", curObj);
         }
         return JIM_ERR;
     }
-    else if ((flags & JIM_CURSOR_INSERT) && (cur->_index < 0 || cur->_index > size)) {
+    else if ((flags & JIM_CURSOR_INSERT) && (cur._index < 0 || cur._index > size)) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp,
                 "cursor \"%#s\" does not point to a valid insert position", curObj);
@@ -668,15 +749,15 @@ static int JimCheckCursor(Jim_Interp *interp, Jim_Obj *curObj, int flags)
 
 static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_Cursor *curPtr;
     c4_View view;
+    c4_Cursor cur = &view[0];
 
-    if (JimGetCursor(interp, argv[0], &curPtr, NULL) != JIM_OK)
+    if (JimGetCursor(interp, argv[0], &cur) != JIM_OK)
         return JIM_ERR;
     if (JimCheckCursor(interp, argv[0], JIM_ERRMSG | JIM_CURSOR_GET) != JIM_OK)
         return JIM_ERR;
 
-    view = (**curPtr).Container();
+    view = (*cur).Container();
 
     if (argc == 1) { /* Return all properties */
         int i, count;
@@ -688,10 +769,8 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         for (i = 0; i < count; i++) {
             c4_Property prop = view.NthProperty(i);
 
-            Jim_ListAppendElement(interp, result,
-                JimNewPropertyObj(interp, prop));
-            Jim_ListAppendElement(interp, result,
-                JimGetMkValue(interp, *curPtr, prop));
+            Jim_ListAppendElement(interp, result, JimNewPropertyObj(interp, prop));
+            Jim_ListAppendElement(interp, result, JimGetMkValue(interp, cur, prop));
         }
 
         Jim_SetResult(interp, result);
@@ -715,7 +794,7 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 return JIM_ERR;
         }
 
-        Jim_SetResult(interp, JimGetMkValue(interp, *curPtr, *propPtr));
+        Jim_SetResult(interp, JimGetMkValue(interp, cur, *propPtr));
     }
 
     return JIM_OK;
@@ -723,21 +802,21 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_Cursor *curPtr;
-    const c4_Property *propPtr;
     c4_View view;
-    int i;
+    c4_Cursor cur = &view[0];
+    const c4_Property *propPtr;
+    int i, oldSize;
 
-    if (JimGetCursor(interp, argv[0], &curPtr, NULL) != JIM_OK)
+    if (JimGetCursor(interp, argv[0], &cur) != JIM_OK)
         return JIM_ERR;
     if (JimCheckCursor(interp, argv[0], JIM_ERRMSG | JIM_CURSOR_SET) != JIM_OK)
         return JIM_ERR;
 
-    view = (**curPtr).Container();
+    view = (*cur).Container();
+    oldSize = view.GetSize();
 
-    if (curPtr->_index >= view.GetSize()) {
-        view.SetSize(curPtr->_index + 1);
-    }
+    if (cur._index >= oldSize)
+        view.SetSize(cur._index + 1);
 
     if (argc == 2) {
         /* Update everything except subviews from a dictionary in argv[1].
@@ -748,14 +827,14 @@ static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Obj **objv;
 
         if (Jim_DictPairs(interp, argv[1], &objv, &objc) != JIM_OK)
-            return JIM_ERR;
+            goto err;
 
         for (i = 0; i < objc; i += 2) {
             if (JimGetProperty(interp, objv[i], view, NULL, &propPtr) != JIM_OK ||
-                JimSetMkValue(interp, *curPtr, *propPtr, objv[i+1]) != JIM_OK)
+                JimSetMkValue(interp, cur, *propPtr, objv[i+1]) != JIM_OK)
             {
                 Jim_Free(objv);
-                return JIM_ERR;
+                goto err;
             }
         }
     }
@@ -770,46 +849,50 @@ static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
                 if (i + 2 >= argc) {
                     Jim_WrongNumArgs(interp, 2, argv, "?-type? prop value ?...?");
-                    return JIM_ERR;
+                    goto err;
                 }
 
                 if (Jim_GetEnum(interp, argv[i], jim_mktype_options, &idx,
                         "property type", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
-                    return JIM_ERR;
+                    goto err;
                 if (JimGetNewProperty(interp, argv[i+1], view, jim_mktype_types[idx], &propPtr) != JIM_OK)
-                    return JIM_ERR;
+                    goto err;
                 i++;
             }
             else {
                 if (i + 1 >= argc) {
                     Jim_WrongNumArgs(interp, 2, argv, "?-type? prop value ?...?");
-                    return JIM_ERR;
+                    goto err;
                 }
 
                 if (JimGetProperty(interp, argv[i], view, NULL, &propPtr) != JIM_OK)
-                    return JIM_ERR;
+                    goto err;
             }
 
-            if (JimSetMkValue(interp, *curPtr, *propPtr, argv[i+1]) != JIM_OK)
-                return JIM_ERR;
+            if (JimSetMkValue(interp, cur, *propPtr, argv[i+1]) != JIM_OK)
+                goto err;
         }
     }
 
     return JIM_OK;
+
+  err:
+    view.SetSize(oldSize);
+    return JIM_ERR;
 }
 
 static int cursor_cmd_insert(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     c4_View view;
-    const c4_Cursor *curPtr;
+    c4_Cursor cur = &view[0];
     jim_wide count;
 
-    if (JimGetCursor(interp, argv[0], &curPtr, NULL) != JIM_OK)
+    if (JimGetCursor(interp, argv[0], &cur) != JIM_OK)
         return JIM_ERR;
     if (JimCheckCursor(interp, argv[0], JIM_ERRMSG | JIM_CURSOR_INSERT) != JIM_OK)
         return JIM_ERR;
 
-    view = (**curPtr).Container();
+    view = (*cur).Container();
 
     if (argc == 1)
         count = 1;
@@ -820,7 +903,7 @@ static int cursor_cmd_insert(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (count > 0) {
         c4_Row empty;
-        view.InsertAt(curPtr->_index, empty, (int)count);
+        view.InsertAt(cur._index, empty, (int)count);
     }
 
     Jim_SetEmptyResult(interp);
@@ -830,17 +913,17 @@ static int cursor_cmd_insert(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int cursor_cmd_remove(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     c4_View view;
-    const c4_Cursor *curPtr;
+    c4_Cursor cur = &view[0];
     int pos;
     jim_wide count;
 
-    if (JimGetCursor(interp, argv[0], &curPtr, NULL) != JIM_OK)
+    if (JimGetCursor(interp, argv[0], &cur) != JIM_OK)
         return JIM_ERR;
     if (JimCheckCursor(interp, argv[0], JIM_ERRMSG | JIM_CURSOR_SET) != JIM_OK)
         return JIM_ERR;
 
-    view = (**curPtr).Container();
-    pos = curPtr->_index;
+    view = (*cur).Container();
+    pos = cur._index;
 
     if (argc == 1)
         count = 1;
@@ -864,7 +947,7 @@ static int cursor_cmd_view(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *viewObj;
 
-    if (JimGetCursor(interp, argv[0], NULL, &viewObj) != JIM_OK)
+    if (JimGetCursorView(interp, argv[0], &viewObj) != JIM_OK)
         return JIM_ERR;
 
     JimPinView(interp, viewObj);
@@ -876,11 +959,29 @@ static int cursor_cmd_view(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int cursor_cmd_tell(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_Cursor *curPtr;
+    if (argc == 1) {
+        Jim_Obj *result;
 
-    if (JimGetCursor(interp, argv[0], &curPtr, NULL) != JIM_OK)
-        return JIM_ERR;
-    Jim_SetResultInt(interp, curPtr->_index);
+        if (JimCursorPos(interp, argv[0], &result) != JIM_OK)
+            return JIM_ERR;
+        Jim_SetResult(interp, result);
+    }
+    else {
+        static c4_View nullView;
+        c4_Cursor cur = &nullView[0];
+
+        if (!Jim_CompareStringImmediate(interp, argv[0], "-absolute")) {
+            Jim_SetResultFormatted(interp,
+                "bad option \"%#s\": must be -absolute", argv[0]);
+            return JIM_ERR;
+        }
+
+        if (JimGetCursor(interp, argv[1], &cur) != JIM_OK)
+            return JIM_ERR;
+
+        Jim_SetResultInt(interp, cur._index);
+    }
+
     return JIM_OK;
 }
 
@@ -906,7 +1007,7 @@ static int cursor_cmd_validfor(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return JIM_ERR;
     }
 
-    if (JimGetCursor(interp, argv[argc-1], NULL, NULL) != JIM_OK)
+    if (JimGetCursor(interp, argv[argc-1], NULL) != JIM_OK)
         return JIM_ERR;
 
     Jim_SetResultBool(interp, JimCheckCursor(interp, argv[argc-1], optflags[idx]) == JIM_OK);
@@ -916,16 +1017,12 @@ static int cursor_cmd_validfor(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int cursor_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *curObj;
-    int index;
-
-    if (Jim_GetIndex(interp, argv[1], &index) != JIM_OK)
-        return JIM_ERR;
 
     curObj = Jim_GetVariable(interp, argv[0], JIM_ERRMSG | JIM_UNSHARED);
     if (curObj == NULL)
         return JIM_ERR;
 
-    if (JimSeekCursor(interp, curObj, index) != JIM_OK)
+    if (JimSeekCursor(interp, curObj, argv[1]) != JIM_OK)
         return JIM_ERR;
 
     Jim_SetResult(interp, curObj);
@@ -997,9 +1094,9 @@ static const jim_subcmd_type cursor_command_table[] = {
 
     /* Positioning */
 
-    {   "tell", "cur",
+    {   "tell", "?-absolute? cur",
         cursor_cmd_tell,
-        1, 1,
+        1, 2,
         0,
         "Get the position of the cursor"
     },
