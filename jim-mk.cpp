@@ -1164,13 +1164,20 @@ static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const
 
 /* Unary operations -------------------------------------------------------- */
 
-static int view_cmd_unique(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
-
-    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Unique()));
-    return JIM_OK;
+#define UNOP(name, Method) \
+static int view_cmd_##name(Jim_Interp *interp, int argc, Jim_Obj *const *argv)  \
+{   \
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);          \
+    \
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Method()));            \
+    return JIM_OK;                                                              \
 }
+
+UNOP(copy, Duplicate)
+UNOP(clone, Clone)
+UNOP(unique, Unique)
+
+#undef UNOP
 
 static int view_cmd_blocked(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -1527,6 +1534,18 @@ static const jim_subcmd_type view_command_table[] = {
 
     /* Unary operations */
 
+    {   "copy", "",
+        view_cmd_copy,
+        0, 0,
+        0,
+        "Create a copy of the view with exactly the same data"
+    },
+    {   "clone", "",
+        view_cmd_clone,
+        0, 0,
+        0,
+        "Create an empty view with the same properties as this one"
+    },
     {   "unique", "",
         view_cmd_unique,
         0, 0,
