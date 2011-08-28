@@ -25,7 +25,8 @@ extern "C" { /* The whole file is essentially C */
 #define MK_CMD_LEN 32
 #define JIM_CURSOR_SPACE (35+JIM_REFERENCE_TAGLEN + 1 + 20)
 #define JIM_POSITION_SPACE 32
-#define JIM_MK_DESCR_SIZE 64 /* Default, will be reallocated if needed */
+#define MK_VERSION_SPACE 16
+#define JIM_MK_DESCR_LEN 64 /* Default, will be reallocated if needed */
 
 #define isnamech(c) ( (c) && !strchr(":,[^]!", (c)) )
 
@@ -213,7 +214,7 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *descrObj, char **desc
     }
 
     if (descrPtr) {
-        descr = (char *)Jim_Alloc(bufSize = JIM_MK_DESCR_SIZE);
+        descr = (char *)Jim_Alloc(bufSize = JIM_MK_DESCR_LEN);
         outPtr = descr;
     }
 
@@ -2139,12 +2140,12 @@ static int JimStorageCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_mkInit(Jim_Interp *interp)
 {
-    char version[4];
+    char version[MK_VERSION_SPACE];
 
-    version[0] = '0' + d4_MetakitLibraryVersion / 100;
-    version[1] = '0' + d4_MetakitLibraryVersion % 100 / 10;
-    version[2] = '0' + d4_MetakitLibraryVersion / 10;
-    version[3] = '\0';
+    snprintf(version, MK_VERSION_SPACE, "%d.%d.%d",
+        d4_MetakitLibraryVersion / 100,
+        d4_MetakitLibraryVersion % 100 / 10,
+        d4_MetakitLibraryVersion % 10);
 
     if (Jim_PackageProvide(interp, "mk", version, JIM_ERRMSG))
         return JIM_ERR;
