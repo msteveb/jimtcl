@@ -1,5 +1,6 @@
 # Tools
 CC = @CCACHE@ @CC@
+CXX = @CCACHE@ @CXX@
 RANLIB = @RANLIB@
 AR = @AR@
 STRIP = @STRIP@
@@ -11,14 +12,17 @@ SH_LDFLAGS ?= @SH_LDFLAGS@
 SHOBJ_CFLAGS ?= @SHOBJ_CFLAGS@
 SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
 CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
 LDFLAGS = @LDFLAGS@
 LDLIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 
 CC += -D_GNU_SOURCE -Wall $(OPTIM) -I.
+CXX += -D_GNU_SOURCE -Wall $(OPTIM) -I.
 @if srcdir != .
 CFLAGS += -I@srcdir@
+CXXFLAGS += -I@srcdir@
 VPATH := @srcdir@
 @endif
 
@@ -28,7 +32,14 @@ LIBJIM := libjim.a
 LIBJIM := libjim.so
 SH_LIBJIM := $(LIBJIM)
 CC += $(SH_CFLAGS)
+CXX += $(SH_CFLAGS)
 DEF_LD_PATH := @LD_LIBRARY_PATH@=`pwd` 
+@endif
+
+@if HAVE_CXX_EXTENSIONS
+JIMSH_CC := $(CXX) $(CXXFLAGS)
+@else
+JIMSH_CC := $(CC) $(CFLAGS)
 @endif
 
 OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o \
@@ -48,7 +59,7 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 docs: Tcl.html
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
-	$(CC) $(CFLAGS) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
+	$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
 
 @if JIM_INSTALL
 install: all docs @TCL_EXTS@ install-exec
@@ -103,8 +114,12 @@ $(LIBJIM): $(OBJS)
 
 # XXX: This won't work for BSD make
 %.so: jim-%.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o jim-$*.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o $<
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
+
+%.so: jim-%.cpp
+	$(CXX) $(CXXFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o $<
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
 
 Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index jim_tcl.txt | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
