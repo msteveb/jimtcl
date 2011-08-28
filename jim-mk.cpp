@@ -27,7 +27,7 @@ extern "C" { /* The whole file is essentially C */
 #define JIM_POSITION_SPACE 32
 #define JIM_MK_DESCR_SIZE 64 /* Default, will be reallocated if needed */
 
-#define isnamech(c) ( (c) && !strchr(":,[^]!-", (c)) )
+#define isnamech(c) ( (c) && !strchr(":,[^]!", (c)) )
 
 /* utilities */
 static int JimCheckMkName(Jim_Interp *interp, Jim_Obj *name, const char *type);
@@ -50,6 +50,7 @@ static int JimGetProperties (Jim_Interp *interp, int objc, Jim_Obj *const *objv,
 static Jim_Obj *JimViewPropertiesList (Jim_Interp *interp, c4_View view);
 
 /* cursor object */
+static int JimGetPosition (Jim_Interp *interp, Jim_Obj *obj, c4_View view, int *indexPtr);
 static int JimGetCursor (Jim_Interp *interp, Jim_Obj *obj, c4_Cursor *curPtr);
 static int JimGetCursorView (Jim_Interp *interp, Jim_Obj *obj,
     Jim_Obj **viewObjPtr);
@@ -79,14 +80,19 @@ static int JimCheckMkName(Jim_Interp *interp, Jim_Obj *name, const char *type)
     int i, len;
 
     s = Jim_GetString(name, &len);
+
+    if (len > 0 && s[0] == '-')
+        goto err;
     for (i = 0; i < len; i++) {
-        if (!isnamech(s[i])) {
-            Jim_SetResultFormatted(interp, "expected %s name but got \"%#s\"", type ? type : "property", name);
-            return JIM_ERR;
-        }
+        if (!isnamech(s[i]))
+            goto err;
     }
 
     return JIM_OK;
+
+  err:
+    Jim_SetResultFormatted(interp, "expected %s name but got \"%#s\"", type ? type : "property", name);
+    return JIM_ERR;
 }
 
 static const char *const jim_mktype_options[] = {
@@ -495,11 +501,86 @@ static Jim_Obj *JimNewPropertyObj(Jim_Interp *interp, c4_Property prop)
  * Cursor object
  * ------------------------------------------------------------------------- */
 
+/* Position ---------------------------------------------------------------- */
+
 /* A normal position if endFlag == 0; otherwise an offset from end+1 (!) */
 typedef struct MkPosition {
     int index;
     int endFlag;
 } MkPosition;
+
+/* This is mostly the same as SetIndexFromAny, but preserves more information
+ * and allows multiple [+-]integer parts.
+ */
+static int GetPosition(Jim_Interp *interp, Jim_Obj *obj, MkPosition *posPtr)
+{
+    MkPosition pos;
+    const char *rep;
+    char *end;
+    int sign, offset;
+
+    rep = Jim_String(obj);
+
+    if (strncmp(rep, "end", 3) == 0) {
+        pos.endFlag = 1;
+        pos.index = -1;
+
+        rep += 3;
+    }
+    else {
+        pos.endFlag = 0;
+        pos.index = strtol(rep, &end, 10);
+        if (end == rep)
+            goto err;
+
+        rep = end;
+    }
+
+    while ((rep[0] == '+') || (rep[0] == '-')) {
+        sign = (rep[0] == '+' ? 1 : -1);
+        rep++;
+
+        offset = strtol(rep, &end, 10);
+        if (end == rep)
+            goto err;
+
+        pos.index += sign * offset;
+        rep = end;
+    }
+
+    while (isspace(UCHAR(*rep)))
+        rep++;
+    if (*rep != '\0')
+        goto err;
+
+    *posPtr = pos;
+    return JIM_OK;
+
+  err:
+    Jim_SetResultFormatted(interp, "expected cursor position but got \"%#s\"", obj);
+    return JIM_ERR;
+}
+
+static int PositionIndex(const MkPosition *posPtr, c4_View view)
+{
+    if (posPtr->endFlag)
+        return view.GetSize() + posPtr->index;
+    else
+        return posPtr->index;
+}
+
+static int JimGetPosition(Jim_Interp *interp, Jim_Obj *obj, c4_View view, int *indexPtr)
+{
+    MkPosition pos;
+
+    if (GetPosition(interp, obj, &pos) != JIM_OK)
+        return JIM_ERR;
+
+    *indexPtr = PositionIndex(&pos, view);
+    return JIM_OK;
+}
+
+/* Cursor type ------------------------------------------------------------- */
 
 typedef struct MkCursor {
     MkPosition pos;
@@ -555,60 +636,6 @@ static Jim_ObjType cursorObjType = {
     JIM_TYPE_REFERENCES
 };
 
-/* Functions --------------------------------------------------------------- */
-
-/* This is mostly the same as SetIndexFromAny, but preserves more information
- * and allows multiple [+-]integer parts.
- */
-static int JimGetPosition(Jim_Interp *interp, Jim_Obj *obj, MkPosition *posPtr)
-{
-    MkPosition pos;
-    const char *rep;
-    char *end;
-    int sign, offset;
-
-    rep = Jim_String(obj);
-
-    if (strncmp(rep, "end", 3) == 0) {
-        pos.endFlag = 1;
-        pos.index = -1;
-
-        rep += 3;
-    }
-    else {
-        pos.endFlag = 0;
-        pos.index = strtol(rep, &end, 10);
-        if (end == rep)
-            goto err;
-
-        rep = end;
-    }
-
-    while ((rep[0] == '+') || (rep[0] == '-')) {
-        sign = (rep[0] == '+' ? 1 : -1);
-        rep++;
-
-        offset = strtol(rep, &end, 10);
-        if (end == rep)
-            goto err;
-
-        pos.index += sign * offset;
-        rep = end;
-    }
-
-    while (isspace(UCHAR(*rep)))
-        rep++;
-    if (*rep != '\0')
-        goto err;
-
-    *posPtr = pos;
-    return JIM_OK;
-
-  err:
-    Jim_SetResultFormatted(interp, "expected cursor position but got \"%#s\"", obj);
-    return JIM_ERR;
-}
-
 static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
 {
     const char *rep, *delim;
@@ -627,7 +654,7 @@ static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
     cur.viewObj = Jim_NewStringObj(interp, rep, delim - rep);
     posObj = Jim_NewStringObj(interp, delim + 1, len - (delim - rep) - 1);
 
-    if (JimGetPosition(interp, posObj, &cur.pos) != JIM_OK) {
+    if (GetPosition(interp, posObj, &cur.pos) != JIM_OK) {
         Jim_FreeNewObj(interp, posObj);
         Jim_FreeNewObj(interp, cur.viewObj);
         return JIM_ERR;
@@ -643,6 +670,8 @@ static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
 
     return JIM_OK;
 }
+
+/* Functions --------------------------------------------------------------- */
 
 static int JimCursorPos(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **posObjPtr)
 {
@@ -669,20 +698,14 @@ static int JimGetCursorView(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **viewObjP
 static int JimGetCursor(Jim_Interp *interp, Jim_Obj *obj, c4_Cursor *curPtr)
 {
     c4_View view;
-    MkPosition *posPtr;
 
     if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
         return JIM_ERR;
     if (JimGetView(interp, JimCursorValue(obj)->viewObj, &view) != JIM_OK)
         return JIM_ERR;
 
-    posPtr = &JimCursorValue(obj)->pos;
-    if (curPtr) {
-        if (posPtr->endFlag)
-            *curPtr = &view[view.GetSize() + posPtr->index];
-        else
-            *curPtr = &view[posPtr->index];
-    }
+    if (curPtr)
+        *curPtr = &view[PositionIndex(&JimCursorValue(obj)->pos, view)];
     return JIM_OK;
 }
 
@@ -706,7 +729,7 @@ static int JimSeekCursor(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj *posObj)
         return JIM_ERR;
 
     Jim_InvalidateStringRep(obj);
-    return JimGetPosition(interp, posObj, &JimCursorValue(obj)->pos);
+    return GetPosition(interp, posObj, &JimCursorValue(obj)->pos);
 }
 
 static int JimCheckCursor(Jim_Interp *interp, Jim_Obj *curObj, int flags)
@@ -1139,11 +1162,222 @@ static const jim_subcmd_type cursor_command_table[] = {
 static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
-/* Relational view operations ---------------------------------------------- */
+/* Unary operations -------------------------------------------------------- */
+
+static int view_cmd_unique(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Unique()));
+    return JIM_OK;
+}
+
+static int view_cmd_blocked(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+
+    if (viewPtr->GetSize() != 1 ||
+        strcmp(viewPtr->NthProperty(0).Name(), "_B") != 0 ||
+        viewPtr->NthProperty(0).Type() != MK_PROPERTY_VIEW)
+    {
+        Jim_SetResultString(interp,
+            "blocked view must have exactly one subview property called _B", -1);
+        return JIM_ERR;
+    }
+
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Blocked()));
+    return JIM_OK;
+}
+
+/* Binary operations ------------------------------------------------------- */
+
+#define BINOP(name, Method) \
+static int view_cmd_##name(Jim_Interp *interp, int argc, Jim_Obj *const *argv)  \
+{   \
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);          \
+    c4_View otherView;                                                          \
+    \
+    if (JimGetView(interp, argv[0], &otherView) != JIM_OK)                      \
+        return JIM_ERR;                                                         \
+    \
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Method(otherView)));   \
+    return JIM_OK;                                                              \
+}
+
+BINOP(pair, Pair)
+BINOP(concat, Concat)
+BINOP(product, Product)
+
+BINOP(union, Union)
+BINOP(intersect, Intersect)
+BINOP(minus, Minus)
+BINOP(different, Different)
+
+#undef BINOP
+
+/* Projections ------------------------------------------------------------- */
+
+static int view_cmd_project(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    c4_View props;
+
+    if (JimGetProperties(interp, argc, argv, *viewPtr, &props) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Project(props)));
+    return JIM_OK;
+}
+
+static int view_cmd_without(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    c4_View props;
+
+    if (JimGetProperties(interp, argc, argv, *viewPtr, &props) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->ProjectWithout(props)));
+    return JIM_OK;
+}
+
+static int view_cmd_range(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    int start, end;
+    jim_wide step;
+
+    if (JimGetPosition(interp, argv[0], *viewPtr, &start) != JIM_OK ||
+        JimGetPosition(interp, argv[1], *viewPtr, &end) != JIM_OK)
+    {
+        return JIM_ERR;
+    }
+
+    if (argc == 2)
+        step = 1;
+    else if (Jim_GetWide(interp, argv[2], &step) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Slice(start, end, (int)step)));
+    return JIM_OK;
+}
+
+/* Ordering ---------------------------------------------------------------- */
+
+static int view_cmd_sort(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    c4_View sortProps, revProps;
+    const c4_Property *propPtr;
+    int i, len;
+
+    const char *rep;
+    int reverse;
+    Jim_Obj *propObj;
+
+    /* Special case: property names may be preceded with a dash. Use
+     * a temporary object in this case.
+     */
+
+    for (i = 0; i < argc; i++) {
+        propObj = argv[i];
+
+        rep = Jim_GetString(argv[i], &len);
+        reverse = (len > 0 && rep[0] == '-');
+
+        if (reverse)
+            propObj = Jim_NewStringObj(interp, rep + 1, len - 1);
+
+        if (JimGetProperty(interp, propObj, *viewPtr, NULL, &propPtr) != JIM_OK) {
+            if (reverse)
+                Jim_FreeNewObj(interp, propObj);
+            return JIM_ERR;
+        }
+
+        sortProps.AddProperty(*propPtr);
+        if (reverse) {
+            revProps.AddProperty(*propPtr);
+            Jim_FreeNewObj(interp, propObj);
+        }
+    }
+
+    if (sortProps.GetSize() == 0)
+        Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Sort()));
+    else if (revProps.GetSize() == 0)
+        Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->SortOn(sortProps)));
+    else
+        Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->SortOnReverse(sortProps, revProps)));
+
+    return JIM_OK;
+}
+
+/* Metakit core seems to be doing something similar for SortOn, but neither
+ * Ordered nor Hash use it, for unknown reason.
+ */
+
+static int BubbleProperties(Jim_Interp *interp, c4_View orig, int objc, Jim_Obj *const *objv, c4_View *projPtr)
+{
+    c4_View proj;
+    const c4_Property *propPtr;
+    int i, count;
+
+    for (i = 0; i < objc; i++) {
+        if (JimGetProperty(interp, objv[i], orig, NULL, &propPtr) != JIM_OK)
+            return JIM_ERR;
+        proj.AddProperty(*propPtr);
+    }
+
+    count = orig.NumProperties();
+    for (i = 0; i < count; i++)
+        proj.AddProperty(orig.NthProperty(i));
+
+    *projPtr = proj;
+    return JIM_OK;
+}
+
+static int view_cmd_ordered(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    c4_View proj;
+
+    if (BubbleProperties(interp, *viewPtr, argc, argv, &proj) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, JimNewViewObj(interp, proj.Ordered(argc)));
+    return JIM_OK;
+}
+
+static int view_cmd_hash(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
+    c4_View hash, proj;
+
+    if (JimGetView(interp, argv[0], &hash) != JIM_OK)
+        return JIM_ERR;
+
+    if (hash.GetSize() != 2 ||
+        strcmp(hash.NthProperty(0).Name(), "_H") != 0 ||
+        hash.NthProperty(0).Type() != MK_PROPERTY_INT ||
+        strcmp(hash.NthProperty(1).Name(), "_R") != 0 ||
+        hash.NthProperty(1).Type() != MK_PROPERTY_INT) /* Ouch. */
+    {
+        Jim_SetResultString(interp,
+            "hash view must be laid out as {_H integer _R integer}", -1);
+        return JIM_ERR;
+    }
+
+    if (BubbleProperties(interp, *viewPtr, argc - 1, argv + 1, &proj) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, JimNewViewObj(interp, proj.Hash(hash, argc - 1)));
+    return JIM_OK;
+}
+
+/* Relational operations --------------------------------------------------- */
 
 static int view_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
     c4_View other, props;
     int outer, off;
 
@@ -1164,7 +1398,7 @@ static int view_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int view_cmd_group(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
+    const c4_View *viewPtr = (const c4_View *)Jim_CmdPrivData(interp);
     const c4_Property *subviewPtr;
     c4_View props;
 
@@ -1193,6 +1427,40 @@ static int view_cmd_flatten(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->JoinProp(*(c4_ViewProp *)subviewPtr)));
+    return JIM_OK;
+}
+
+/* View queries ------------------------------------------------------------ */
+
+static int view_cmd_properties(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
+    Jim_SetResult(interp, JimViewPropertiesList(interp, *viewPtr));
+    return JIM_OK;
+}
+
+static int view_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
+    Jim_SetResultInt(interp, viewPtr->GetSize());
+    return JIM_OK;
+}
+
+static int view_cmd_resize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    c4_View *view = (c4_View *) Jim_CmdPrivData(interp);
+    jim_wide size;
+
+    if (Jim_GetWide(interp, argv[0], &size) != JIM_OK)
+        return JIM_ERR;
+    if (size < 0 || size > INT_MAX) {
+        Jim_SetResultFormatted(interp,
+            "view size \"%#s\" is out of range", argv[0]);
+        return JIM_ERR;
+    }
+
+    view->SetSize((int)size);
+    Jim_SetResult(interp, argv[0]);
     return JIM_OK;
 }
 
@@ -1251,45 +1519,94 @@ static int view_cmd_destroy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-/* View queries */
-
-static int view_cmd_properties(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
-    Jim_SetResult(interp, JimViewPropertiesList(interp, *viewPtr));
-    return JIM_OK;
-}
-
-static int view_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    const c4_View *viewPtr = (const c4_View *) Jim_CmdPrivData(interp);
-    Jim_SetResultInt(interp, viewPtr->GetSize());
-    return JIM_OK;
-}
-
-static int view_cmd_resize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    c4_View *view = (c4_View *) Jim_CmdPrivData(interp);
-    jim_wide size;
-
-    if (Jim_GetWide(interp, argv[0], &size) != JIM_OK)
-        return JIM_ERR;
-    if (size < 0 || size > INT_MAX) {
-        Jim_SetResultFormatted(interp,
-            "view size \"%#s\" is out of range", argv[0]);
-        return JIM_ERR;
-    }
-
-    view->SetSize((int)size);
-    Jim_SetResult(interp, argv[0]);
-    return JIM_OK;
-}
-
 /* Command table ----------------------------------------------------------- */
 
 #define JIM_CMDFLAG_NODESTROY 0x0100 /* Do not destroy a one-shot view after this command */
 
 static const jim_subcmd_type view_command_table[] = {
+
+    /* Unary operations */
+
+    {   "unique", "",
+        view_cmd_unique,
+        0, 0,
+        0,
+        "Derived view without any duplicate rows (read-only, no change notifications)"
+    },
+    {   "blocked", "",
+        view_cmd_blocked,
+        0, 0,
+        0,
+        "Build a scalable \"blocked\" out of a view with a single subview property called _B"
+    },
+
+    /* Binary operations */
+
+    #define BINOP(name, descr)  \
+    {   #name, "otherView",     \
+        view_cmd_##name,        \
+        1, 1, 0,                \
+        descr                   \
+    }
+
+    BINOP(pair, "Pairwise concatenation of two views"),
+    BINOP(concat, "Concatenation of two views; unlike union, doesn't remove duplicates"),
+    BINOP(product, "Cartesian product of two views, i.e. every row in view paired with every row in otherView"),
+
+    /* Set operations */
+
+    #define SETOP(name, descr) BINOP(name, descr "; works only if all the rows are unique")
+
+    SETOP(union, "Set union of two views (read-only, no change notifications)"),
+    SETOP(intersect, "Set intersection of two views"),
+    SETOP(different, "Symmetric difference of two views"),
+    SETOP(minus, "Set minus, i.e. all rows from view not in otherView"),
+
+    #undef SETOP
+
+    #undef BINOP
+
+    /* Projections and selections */
+
+    {   "project", "prop ?prop ...?",
+        view_cmd_project,
+        1, -1,
+        0,
+        "View projection: only the specified properties, in the specified order"
+    },
+    {   "without", "prop ?prop ...?",
+        view_cmd_without,
+        1, -1,
+        0,
+        "View projection: remove the specified properties"
+    },
+    {   "range", "first last ?step?",
+        view_cmd_range,
+        2, 3,
+        0,
+        "Range or slice of the view (read-write, no change notifications)"
+    },
+
+    /* Ordering */
+
+    {   "sort", "?[prop|-prop] ...?",
+        view_cmd_sort,
+        0, -1,
+        0,
+        "Derived view sorted on the specified properties (in order), or on all properties"
+    },
+    {   "ordered", "prop ?prop ...?",
+        view_cmd_ordered,
+        1, -1,
+        0,
+        "Consider the underlying view ordered on the specified properties"
+    },
+    {   "hash", "hashView prop ?prop ...?",
+        view_cmd_hash,
+        2, -1,
+        0,
+        "Mapped view maintaining a hash table on the key consisting of the specified properties"
+    },
 
     /* Relational operations */
 
