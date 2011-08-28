@@ -482,9 +482,9 @@ static int JimGetProperties(Jim_Interp *interp, int objc, Jim_Obj *const *objv, 
     c4_View props;
 
     for (i = 0; i < objc; i++) {
-        if (JimGetProperty(interp, objv[i], view, NULL, &prop) != JIM_OK) {
+        if (JimGetProperty(interp, objv[i], view, NULL, &prop) != JIM_OK)
             return JIM_ERR;
-        }
+
         props.AddProperty(*prop);
     }
 
@@ -1405,7 +1405,7 @@ static int view_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (JimGetProperties(interp, argc - off, argv + off, *viewPtr, &props) != JIM_OK)
         return JIM_ERR;
 
-    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Join(other, props, outer)));
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Join(props, other, outer)));
     return JIM_OK;
 }
 
