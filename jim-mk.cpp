@@ -30,6 +30,10 @@ extern "C" { /* The whole file is essentially C */
 
 #define isnamech(c) ( (c) && !strchr(":,[^]!", (c)) )
 
+#ifndef max
+#define max(x, y) ((x) >= (y) ? (x) : (y))
+#endif
+
 /* utilities */
 static int JimCheckMkName(Jim_Interp *interp, Jim_Obj *name, const char *type);
 static const char *JimMkTypeName(char type);
@@ -195,9 +199,11 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *descrObj, char **desc
     static char *descr, *outPtr;
     static int bufSize;
 
-    #define ENLARGE(size) do {                             \
-        if ((descr - outPtr) + (size) > bufSize)           \
-            descr = (char *)Jim_Realloc(descr, 2*bufSize); \
+    #define ENLARGE(size) do {                                   \
+        if ((descr - outPtr) + (size) > bufSize) {               \
+            bufSize = max(2*bufSize, (descr - outPtr) + (size)); \
+            descr = (char *)Jim_Realloc(descr, bufSize);         \
+        }                                                        \
     } while(0)
 
     int i, count;
@@ -257,8 +263,7 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *descrObj, char **desc
     #undef ENLARGE
 
     if (descrPtr) {
-        Jim_Realloc(descr, strlen(descr) + 1);
-        *descrPtr = descr;
+        *descrPtr = (char *)Jim_Realloc(descr, strlen(descr) + 1);
         descr = NULL; /* Safety measure */
     }
 
@@ -1882,11 +1887,12 @@ static int storage_cmd_structure(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
         dlen = strlen(descr);
 
-        Jim_Realloc(descr, dlen + len + 2);
+        descr = (char *)Jim_Realloc(descr, dlen + len + 2);
         memmove(descr + len + 1, descr, dlen);
         memcpy(descr, name, len);
         descr[len] = '[';
         descr[len + 1 + dlen] = ']';
+        descr[len + 1 + dlen + 1] = '\0';
 
         mk->storage.GetAs(descr);
 
