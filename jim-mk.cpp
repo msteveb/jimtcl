@@ -1289,7 +1289,7 @@ static int view_cmd_range(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (Jim_GetWide(interp, argv[2], &step) != JIM_OK)
         return JIM_ERR;
 
-    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Slice(start, end, (int)step)));
+    Jim_SetResult(interp, JimNewViewObj(interp, viewPtr->Slice(start, end + 1, (int)step)));
     return JIM_OK;
 }
 
