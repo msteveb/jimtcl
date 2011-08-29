@@ -803,16 +803,23 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
 
         Jim_SetResult(interp, result);
+        return JIM_OK;
     }
     else { /* Return a single property */
         const c4_Property *propPtr;
+        int pipe;
 
-        if (argc == 2) {
+        for (pipe = 1; pipe < argc; pipe++) {
+            if (Jim_CompareStringImmediate(interp, argv[pipe], "|"))
+                break;
+        }
+
+        if (pipe == 2) {
             /* No type annotation, existing property */
             if (JimGetProperty(interp, argv[1], view, NULL, &propPtr) != JIM_OK)
                 return JIM_ERR;
         }
-        else {
+        else if (pipe == 3) {
             /* Explicit type annotation; the property may be new */
             int idx;
 
@@ -822,11 +829,18 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (JimGetNewProperty(interp, argv[2], view, jim_mktype_types[idx], &propPtr) != JIM_OK)
                 return JIM_ERR;
         }
+        else {
+            Jim_WrongNumArgs(interp, 0, NULL, "cursor get ?-type? ?prop?");
+            return JIM_ERR;
+        }
 
         Jim_SetResult(interp, JimGetMkValue(interp, cur, *propPtr));
-    }
 
-    return JIM_OK;
+        if (pipe == argc)
+            return JIM_OK;
+        else
+            return Jim_EvalObjPrefix(interp, Jim_GetResult(interp), argc - pipe - 1, argv + pipe + 1);
+    }
 }
 
 static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1089,7 +1103,7 @@ static const jim_subcmd_type cursor_command_table[] = {
 
     {   "get", "cur ?-type? ?prop?",
         cursor_cmd_get,
-        1, 3,
+        1, -1,
         0,
         "Get the whole record or a specific property at the cursor"
     },
@@ -2003,7 +2017,7 @@ static const jim_subcmd_type storage_command_table[] = {
         0,
         "Returns the list of views stored here"
     },
-    {   "view", "viewName ? | pipeline?",
+    {   "view", "viewName",
         storage_cmd_view,
         1, -1,
         0,
