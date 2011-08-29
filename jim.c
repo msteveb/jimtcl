@@ -9631,13 +9631,13 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 /**
  * Invokes 'prefix' as a command with the objv array as arguments.
  */
-int Jim_EvalObjPrefix(Jim_Interp *interp, const char *prefix, int objc, Jim_Obj *const *objv)
+int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix, int objc, Jim_Obj *const *objv)
 {
     int i;
     int ret;
     Jim_Obj **nargv = Jim_Alloc((objc + 1) * sizeof(*nargv));
 
-    nargv[0] = Jim_NewStringObj(interp, prefix, -1);
+    nargv[0] = prefix;
     for (i = 0; i < objc; i++) {
         nargv[i + 1] = objv[i];
     }
@@ -13375,7 +13375,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             else {
-                return Jim_EvalObjPrefix(interp, "dict merge", argc - 2, argv + 2);
+                return Jim_EvalPrefix(interp, "dict merge", argc - 2, argv + 2);
             }
 
         case OPT_WITH:
@@ -13387,7 +13387,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             else {
-                return Jim_EvalObjPrefix(interp, "dict with", argc - 2, argv + 2);
+                return Jim_EvalPrefix(interp, "dict with", argc - 2, argv + 2);
             }
 
         case OPT_CREATE:
