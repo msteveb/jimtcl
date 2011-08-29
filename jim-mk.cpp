@@ -42,6 +42,8 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *obj, char **descrPtr)
 static Jim_Obj *JimGetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop);
 static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop, Jim_Obj *obj);
 
+static int JimEvalObjPipeline(Jim_Interp *interp, int objc, Jim_Obj *const *objv);
+
 /* property object */
 static Jim_Obj *JimNewPropertyObj (Jim_Interp *interp, c4_Property prop);
 static int JimGetProperty (Jim_Interp *interp, Jim_Obj *obj,
@@ -367,6 +369,22 @@ static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &p
             Jim_SetResultString(interp, "unsupported Metakit type", -1);
             return JIM_ERR;
     }
+}
+
+/* This is quite like Jim_EvalObjPrefix, but uses interp->result
+ * as the command name.
+ */
+static int JimEvalObjPipeline(Jim_Interp *interp, int objc, Jim_Obj *const *objv) {
+    int i, result;
+    Jim_Obj **nargv = (Jim_Obj **)Jim_Alloc((objc + 1) * sizeof(Jim_Obj *));
+
+    nargv[0] = Jim_GetResult(interp);
+    for (i = 0; i < objc; i++)
+        nargv[i + 1] = objv[i];
+
+    result = Jim_EvalObjVector(interp, objc + 1, nargv);
+    Jim_Free(nargv);
+    return result;
 }
 
 /* -------------------------------------------------------------------------
@@ -1534,8 +1552,6 @@ static int view_cmd_destroy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 /* Command table ----------------------------------------------------------- */
 
-#define JIM_CMDFLAG_NODESTROY 0x0100 /* Do not destroy a one-shot view after this command */
-
 static const jim_subcmd_type view_command_table[] = {
 
     /* Unary operations */
@@ -1686,19 +1702,19 @@ static const jim_subcmd_type view_command_table[] = {
     {   "return", "",
         view_cmd_return,
         0, 0,
-        JIM_MODFLAG_FULLARGV | JIM_CMDFLAG_NODESTROY,
+        JIM_MODFLAG_FULLARGV,
         "Marks the view as persistent"
     },
     {   "as", "varName",
         view_cmd_as,
         1, 1,
-        JIM_MODFLAG_FULLARGV | JIM_CMDFLAG_NODESTROY,
+        JIM_MODFLAG_FULLARGV,
         "Marks the view as persistent and assigns it to the given variable"
     },
     {   "destroy", "",
         view_cmd_destroy,
         0, 0,
-        JIM_MODFLAG_FULLARGV | JIM_CMDFLAG_NODESTROY,
+        JIM_MODFLAG_FULLARGV,
         "Destroys the view explicitly"
     },
 
@@ -1712,16 +1728,34 @@ static void JimViewDelProc(Jim_Interp *interp, void *privData)
 
 static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, view_command_table, argc, argv), argc, argv);
+    int pipe, len, result;
+    const char *rep;
+
+    for (pipe = 1; pipe < argc; pipe++) {
+        rep = Jim_GetString(argv[pipe], &len);
+        if (len == 1 && rep[0] == '|')
+            break;
+    }
+
+    result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, view_command_table, pipe, argv), pipe, argv);
+
+    if (result != JIM_OK || pipe == argc)
+        return result;
+    else
+        return JimEvalObjPipeline(interp, argc - pipe - 1, argv + pipe + 1);
 }
 
 static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const jim_subcmd_type *cmd = Jim_ParseSubCmd(interp, view_command_table, argc, argv);
-    int result = Jim_CallSubCmd(interp, cmd, argc, argv);
+    int result;
+    Jim_Cmd *cmd;
 
-    if (!cmd || !(cmd->flags & JIM_CMDFLAG_NODESTROY))
+    result = JimViewSubCmdProc(interp, argc, argv);
+
+    cmd = Jim_GetCommand(interp, argv[0], 0);
+    if (cmd && !cmd->isproc && cmd->u.native.cmdProc == JimOneShotViewSubCmdProc)
         Jim_DeleteCommand(interp, Jim_String(argv[0]));
+
     return result;
 }
 
@@ -1849,9 +1883,18 @@ static int storage_cmd_view(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (JimGetProperty(interp, argv[0], mk->storage, "view", &propPtr) != JIM_OK)
         return JIM_ERR;
-
     Jim_SetResult(interp, JimGetMkValue(interp, mk->content, *propPtr));
-    return JIM_OK;
+
+    if (argc == 1)
+        return JIM_OK;
+    else {
+        if (!Jim_CompareStringImmediate(interp, argv[1], "|")) {
+            Jim_SetResultFormatted(interp,
+                "expected start of a pipeline but got \"%#s\"", argv[1]);
+            return JIM_ERR;
+        }
+        return JimEvalObjPipeline(interp, argc - 2, argv + 2);
+    }
 }
 
 static int storage_cmd_structure(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1978,9 +2021,9 @@ static const jim_subcmd_type storage_command_table[] = {
         0,
         "Returns the list of views stored here"
     },
-    {   "view", "viewName",
+    {   "view", "viewName ? | pipeline?",
         storage_cmd_view,
-        1, 1,
+        1, -1,
         0,
         "Retrieve the view specified by viewName"
     },
