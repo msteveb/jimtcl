@@ -372,7 +372,7 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (unlink(path) == -1 && errno != ENOENT) {
             if (rmdir(path) == -1) {
                 /* Maybe try using the script helper */
-                if (!force || Jim_EvalObjPrefix(interp, "file delete force", 1, argv) != JIM_OK) {
+                if (!force || Jim_EvalPrefix(interp, "file delete force", 1, argv) != JIM_OK) {
                     Jim_SetResultFormatted(interp, "couldn't delete file \"%s\": %s", path,
                         strerror(errno));
                     return JIM_ERR;
@@ -584,7 +584,7 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_EvalObjPrefix(interp, "file copy", argc, argv);
+    return Jim_EvalPrefix(interp, "file copy", argc, argv);
 }
 
 static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

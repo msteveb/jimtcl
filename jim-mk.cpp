@@ -42,8 +42,6 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *obj, char **descrPtr)
 static Jim_Obj *JimGetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop);
 static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop, Jim_Obj *obj);
 
-static int JimEvalObjPipeline(Jim_Interp *interp, int objc, Jim_Obj *const *objv);
-
 /* property object */
 static Jim_Obj *JimNewPropertyObj (Jim_Interp *interp, c4_Property prop);
 static int JimGetProperty (Jim_Interp *interp, Jim_Obj *obj,
@@ -369,22 +367,6 @@ static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &p
             Jim_SetResultString(interp, "unsupported Metakit type", -1);
             return JIM_ERR;
     }
-}
-
-/* This is quite like Jim_EvalObjPrefix, but uses interp->result
- * as the command name.
- */
-static int JimEvalObjPipeline(Jim_Interp *interp, int objc, Jim_Obj *const *objv) {
-    int i, result;
-    Jim_Obj **nargv = (Jim_Obj **)Jim_Alloc((objc + 1) * sizeof(Jim_Obj *));
-
-    nargv[0] = Jim_GetResult(interp);
-    for (i = 0; i < objc; i++)
-        nargv[i + 1] = objv[i];
-
-    result = Jim_EvalObjVector(interp, objc + 1, nargv);
-    Jim_Free(nargv);
-    return result;
 }
 
 /* -------------------------------------------------------------------------
@@ -1742,7 +1724,7 @@ static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (result != JIM_OK || pipe == argc)
         return result;
     else
-        return JimEvalObjPipeline(interp, argc - pipe - 1, argv + pipe + 1);
+        return Jim_EvalObjPrefix(interp, Jim_GetResult(interp), argc - pipe - 1, argv + pipe + 1);
 }
 
 static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1893,7 +1875,7 @@ static int storage_cmd_view(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 "expected start of a pipeline but got \"%#s\"", argv[1]);
             return JIM_ERR;
         }
-        return JimEvalObjPipeline(interp, argc - 2, argv + 2);
+        return Jim_EvalObjPrefix(interp, Jim_GetResult(interp), argc - 2, argv + 2);
     }
 }
 
