@@ -377,7 +377,7 @@ static int JimPipelineBoundary(int argc, Jim_Obj *const *argv) {
 
     for (pipe = 0; pipe < argc; pipe++) {
         rep = Jim_GetString(argv[pipe], &len);
-        if (len == 0 && rep[pipe] == '|')
+        if (len == 1 && rep[0] == '|')
             break;
     }
     return pipe;
