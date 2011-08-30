@@ -42,6 +42,8 @@ static int JimToMkDescription(Jim_Interp *interp, Jim_Obj *obj, char **descrPtr)
 static Jim_Obj *JimGetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop);
 static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &prop, Jim_Obj *obj);
 
+static int JimPipelineBoundary(int argc, Jim_Obj *const *argv);
+
 /* property object */
 static Jim_Obj *JimNewPropertyObj (Jim_Interp *interp, c4_Property prop);
 static int JimGetProperty (Jim_Interp *interp, Jim_Obj *obj,
@@ -367,6 +369,18 @@ static int JimSetMkValue(Jim_Interp *interp, c4_Cursor cur, const c4_Property &p
             Jim_SetResultString(interp, "unsupported Metakit type", -1);
             return JIM_ERR;
     }
+}
+
+static int JimPipelineBoundary(int argc, Jim_Obj *const *argv) {
+    const char *rep;
+    int pipe, len;
+
+    for (pipe = 0; pipe < argc; pipe++) {
+        rep = Jim_GetString(argv[pipe], &len);
+        if (len == 0 && rep[pipe] == '|')
+            break;
+    }
+    return pipe;
 }
 
 /* -------------------------------------------------------------------------
@@ -809,11 +823,7 @@ static int cursor_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         const c4_Property *propPtr;
         int pipe;
 
-        for (pipe = 1; pipe < argc; pipe++) {
-            if (Jim_CompareStringImmediate(interp, argv[pipe], "|"))
-                break;
-        }
-
+        pipe = JimPipelineBoundary(argc, argv);
         if (pipe == 2) {
             /* No type annotation, existing property */
             if (JimGetProperty(interp, argv[1], view, NULL, &propPtr) != JIM_OK)
@@ -1164,6 +1174,27 @@ static const jim_subcmd_type cursor_command_table[] = {
 
     { 0 }
 };
+
+static int JimCursorCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *cmdObj;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "command ...");
+        return JIM_ERR;
+    }
+
+    cmdObj = Jim_NewStringObj(interp, "cursor ", -1);
+    Jim_AppendObj(interp, cmdObj, argv[1]);
+
+    if (Jim_GetCommand(interp, cmdObj, 0) != NULL)
+        return Jim_EvalObjPrefix(interp, cmdObj, argc - 2, argv + 2);
+    else {
+        Jim_FreeNewObj(interp, cmdObj);
+        return Jim_CallSubCmd(interp,
+            Jim_ParseSubCmd(interp, cursor_command_table, argc, argv), argc, argv);
+    }
+}
 
 /* -------------------------------------------------------------------------
  * View handle
@@ -1724,16 +1755,41 @@ static void JimViewDelProc(Jim_Interp *interp, void *privData)
 
 static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int pipe, len, result;
-    const char *rep;
+    int pipe, result;
+    Jim_Obj *cmdObj;
 
-    for (pipe = 1; pipe < argc; pipe++) {
-        rep = Jim_GetString(argv[pipe], &len);
-        if (len == 1 && rep[0] == '|')
-            break;
+    pipe = JimPipelineBoundary(argc, argv);
+
+    if (pipe < 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "command ...");
+        return JIM_ERR;
     }
 
-    result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, view_command_table, pipe, argv), pipe, argv);
+    /* Check for a Tcl command first, and try builtins afterwards.
+     * We have to do it in this order so that Jim_ParseSubCmd isn't too greedy
+     * about abbreviations, and still it can't now detect ambigous abbrevs
+     * properly :( Tcl commands cannot be abbreviated at all.
+     */
+
+    cmdObj = Jim_NewStringObj(interp, "mk.view ", -1);
+    Jim_AppendObj(interp, cmdObj, argv[1]);
+
+    /* The command will be cached even though we discard the result */
+    if (Jim_GetCommand(interp, cmdObj, 0) != NULL) {
+        /* Shuffle the arguments: $view cmd args... => {mk.view cmd} $view args... */
+
+        Jim_Obj **objv = (Jim_Obj **)Jim_Alloc(pipe * sizeof(Jim_Obj *));
+        objv[0] = cmdObj;
+        objv[1] = argv[0];
+        memcpy(objv + 2, argv + 2, (pipe - 2) * sizeof(Jim_Obj *));
+
+        result = Jim_EvalObjVector(interp, pipe, objv);
+
+        Jim_Free(objv);
+    } else {
+        Jim_FreeNewObj(interp, cmdObj);
+        result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, view_command_table, pipe, argv), pipe, argv);
+    }
 
     if (result != JIM_OK || pipe == argc)
         return result;
@@ -2066,8 +2122,28 @@ static void JimStorageDelProc(Jim_Interp *interp, void *privData)
 
 static int JimStorageSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp,
-        storage_command_table, argc, argv), argc, argv);
+    Jim_Obj *cmdObj;
+
+    cmdObj = Jim_NewStringObj(interp, "mk.storage ", -1);
+    Jim_AppendObj(interp, cmdObj, argv[1]);
+
+    if (Jim_GetCommand(interp, cmdObj, 0) != NULL) {
+        int result;
+
+        Jim_Obj **objv = (Jim_Obj **)Jim_Alloc(argc * sizeof(Jim_Obj *));
+        objv[0] = cmdObj;
+        objv[1] = argv[0];
+        memcpy(objv + 2, argv + 2, (argc - 2) * sizeof(Jim_Obj *));
+
+        result = Jim_EvalObjVector(interp, argc, objv);
+
+        Jim_Free(objv);
+        return result;
+    } else {
+        Jim_FreeNewObj(interp, cmdObj);
+        return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp,
+            storage_command_table, argc, argv), argc, argv);
+    }
 }
 
 /* -------------------------------------------------------------------------
@@ -2196,7 +2272,7 @@ int Jim_mkInit(Jim_Interp *interp)
         return JIM_ERR;
 
     Jim_CreateCommand(interp, "storage", JimStorageCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "cursor", Jim_SubCmdProc, (void *)cursor_command_table, NULL);
+    Jim_CreateCommand(interp, "cursor", JimCursorCommand, NULL, NULL);
     Jim_CreateCommand(interp, "mk.view.finalizer", JimViewFinalizerProc, NULL, NULL);
 
     return JIM_OK;
