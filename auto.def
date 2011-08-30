@@ -64,17 +64,17 @@ cc-check-types "long long"
 cc-check-includes sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
 
+define LDLIBS ""
+
 # Haiku needs -lnetwork, Solaris needs -lnsl
 if {[cc-check-function-in-lib inet_ntop {nsl network}]} {
     # This does nothing if no libs are needed
     cc-with [list -libs [get-define lib_inet_ntop]]
+    define-append LDLIBS [get-define lib_inet_ntop]
 }
 # Solaris needs -lsocket, Windows needs -lwsock32
-if {![cc-check-function-in-lib socket socket]} {
-    # Last resort, may be Windows
-    if {[string match *mingw* [get-define host]]} {
-        define-append LIBS -lwsock32
-    }
+if {[cc-check-function-in-lib socket socket]} {
+    define-append LDLIBS [get-define lib_socket]
 }
 
 cc-check-functions ualarm lstat fork vfork system select
@@ -151,6 +151,7 @@ if {[opt-bool math full]} {
     msg-result "Enabling math functions"
     define JIM_MATH_FUNCTIONS
     cc-check-function-in-lib sin m
+    define-append LDLIBS [get-define lib_sin]
 }
 if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"
@@ -222,12 +223,16 @@ set dep(binary) pack
 
 set needs(exec) {expr {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]}}
 set needs(load) {expr {[cc-check-function-in-lib dlopen dl] || [have-feature dlopen-compat]}}
+set libdep(load) lib_dlopen
 set needs(posix) {have-feature waitpid}
 set needs(readdir) {have-feature opendir}
 set needs(readline) {cc-check-function-in-lib readline readline}
+set libdep(readline) lib_readline
 set needs(signal) {expr {[have-feature sigaction] && [have-feature vfork]}}
 set needs(sqlite) {cc-check-function-in-lib sqlite_open sqlite}
+set libdep(sqlite) lib_sqlite_open
 set needs(sqlite3) {cc-check-function-in-lib sqlite3_open sqlite3}
+set libdep(sqlite3) lib_sqlite3_open
 set needs(syslog) {have-feature syslog}
 set needs(win32) {have-feature windows}
 
@@ -283,6 +288,8 @@ foreach i [lsort $ext_all] {
         set met [eval $needs($i)]
     }
 
+    define LDLIBS_$i ""
+
     msg-checking "Extension $i..."
 
     # Selected as a module?
@@ -301,6 +308,9 @@ foreach i [lsort $ext_all] {
         }
         msg-result "module"
         lappend extmod $i
+        if {[info exists libdep($i)]} {
+            define-append LDLIBS_$i [get-define $libdep($i) ""]
+        }
         continue
     }
 
@@ -310,19 +320,19 @@ foreach i [lsort $ext_all] {
             user-error "dependencies not met"
         }
         msg-result "enabled"
-        lappend ext $i
-        continue
-    }
-
-    # Enabled by default?
-    if {$i in $ext_default} {
+    } elseif {$i in $ext_default} {
         if {!$met} {
             msg-result "disabled (dependencies)"
             continue
         }
         msg-result "enabled (default)"
-        lappend ext $i
+    } else {
         continue
+    }
+
+    lappend ext $i
+    if {[info exists libdep($i)]} {
+        define-append LDLIBS [get-define $libdep($i) ""]
     }
 }
 

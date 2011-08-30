@@ -12,7 +12,7 @@ SHOBJ_CFLAGS ?= @SHOBJ_CFLAGS@
 SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
 CFLAGS = @CFLAGS@
 LDFLAGS = @LDFLAGS@
-LDLIBS += @LIBS@
+LDLIBS += @LDLIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 
@@ -101,13 +101,57 @@ $(LIBJIM): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 @endif
 
-# XXX: This won't work for BSD make
-%.so: jim-%.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o $*.o jim-$*.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ $*.o $(SH_LIBJIM) $(LDLIBS)
+# Note that $> $^ is for compatibility with both GNU make and BSD make
+readdir.so: jim-readdir.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readdir.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readdir.o $(SH_LIBJIM) 
+
+array.so: jim-array.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-array.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-array.o $(SH_LIBJIM) 
+
+clock.so: jim-clock.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-clock.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-clock.o $(SH_LIBJIM) 
+
+file.so: jim-file.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-file.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-file.o $(SH_LIBJIM) 
+
+posix.so: jim-posix.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-posix.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-posix.o $(SH_LIBJIM) 
+
+regexp.so: jim-regexp.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-regexp.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-regexp.o $(SH_LIBJIM) 
+
+syslog.so: jim-syslog.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-syslog.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-syslog.o $(SH_LIBJIM) 
+
+readline.so: jim-readline.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readline.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readline.o $(SH_LIBJIM) @LDLIBS_readline@
+
+pack.so: jim-pack.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-pack.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-pack.o $(SH_LIBJIM) @LDLIBS_pack@
+
+sqlite.so: jim-sqlite.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite.o $(SH_LIBJIM) @LDLIBS_sqlite@
+
+sqlite3.so: jim-sqlite3.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite3.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite3.o $(SH_LIBJIM) @LDLIBS_sqlite3@
+
+win32.so: jim-win32.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-win32.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-win32.o $(SH_LIBJIM) @LDLIBS_win32@
 
 Tcl.html: jim_tcl.txt
-	@tclsh@ @srcdir@/make-index jim_tcl.txt | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
+	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
 	rm -f *.o *.so lib*.a $(JIMSH) Tcl.html _*.c
@@ -116,7 +160,7 @@ distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@
 
 ship: Tcl.html
-	cp Tcl.html Tcl_shipped.html
+	cp $< Tcl_shipped.html
 
 # automake compatibility. do nothing for all these targets
 EMPTY_AUTOMAKE_TARGETS := dvi pdf ps info html tags ctags mostlyclean maintainer-clean check installcheck installdirs \
