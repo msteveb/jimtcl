@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+
 #define JIM_MODFLAG_HIDDEN   0x0001		/* Don't show the subcommand in usage or commands */
 #define JIM_MODFLAG_FULLARGV 0x0002		/* Subcmd proc gets called with full argv */
 
