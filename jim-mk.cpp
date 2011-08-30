@@ -664,7 +664,7 @@ static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
     MkCursor cur;
 
     rep = Jim_GetString(obj, &len);
-    delim = (char *)memrchr(rep, '!', len);
+    delim = strrchr(rep, '!');
 
     if (!delim) {
         Jim_SetResultFormatted(interp, "expected cursor but got \"%#s\"", obj);
@@ -695,14 +695,10 @@ static int SetCursorFromAny(Jim_Interp *interp, Jim_Obj *obj)
 
 static int JimCursorPos(Jim_Interp *interp, Jim_Obj *obj, Jim_Obj **posObjPtr)
 {
-    const char *rep;
-    int len;
-
     if (obj->typePtr != &cursorObjType && SetCursorFromAny(interp, obj) != JIM_OK)
         return JIM_ERR;
 
-    rep = Jim_GetString(obj, &len);
-    *posObjPtr = Jim_NewStringObj(interp, (const char *)memrchr(rep, '!', len) + 1, -1);
+    *posObjPtr = Jim_NewStringObj(interp, strrchr(Jim_String(obj), '!') + 1, -1);
     return JIM_OK;
 }
 
