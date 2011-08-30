@@ -1556,7 +1556,7 @@ static int view_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 /* View lifetime ----------------------------------------------------------- */
 
-static int view_cmd_return(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int view_cmd_pin(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     JimPinView(interp, argv[0]);
     Jim_SetResult(interp, argv[0]);
@@ -1726,8 +1726,8 @@ static const jim_subcmd_type view_command_table[] = {
 
     /* Lifetime management */
 
-    {   "return", "",
-        view_cmd_return,
+    {   "pin", "",
+        view_cmd_pin,
         0, 0,
         JIM_MODFLAG_FULLARGV,
         "Marks the view as persistent"
