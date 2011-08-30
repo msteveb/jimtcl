@@ -1,0 +1,316 @@
+---
+title: Metakit
+---
+
+Metakit Extension for Jim Tcl
+=============================
+
+OVERVIEW
+--------
+The mk extension provides an interface to the Metakit small-footprint
+embeddable database library (<http://equi4.com/metakit/>). The underlying
+library is efficient at manipulating not-so-large amounts of data and takes a
+different approach to composing database operations than common SQL-based
+relational databases.
+
+Both the Metakit core library and the mk package can be linked either
+statically or dynamically and loaded using
+
+    package require mk
+
+CREATING A DATABASE
+-------------------
+A database (called a "storage" in Metakit terms) may either reside totally in
+memory or be backed by a file. To open or create a database, call the
+`storage` command with an optional filename parameter:
+
+    set db [storage test.mk]
+
+The returned handle can be used as a command name to access the database. When
+you are done, execute the `close` method, that is, run
+
+    $db close
+
+A lost handle won't be found by GC but will be closed when the interpreter
+exits. Note that by default Metakit will only record changes to the database
+when you close the handle. Use the `commit` method to record the current
+state of the database to disk.
+
+CREATING VIEWS
+--------------
+*Views* in Metakit are what is called "tables" in conventional databases. A view
+may several typed *properties*, or columns, and contains homogenous *rows*, or
+records. New properties may be added to a view as needed; however, new properties
+are not stored in the database file by default. The structure method specifies
+the stored properties of a view, creating a new view or restructuring an old one
+as needed:
+
+    $db structure viewName description
+
+The view description must be a list of form `{propName type propName type ...}`.
+The supported property types include:
+
+`string`
+:   A NULL-terminated string, stored as an array of bytes (without any encoding
+    assumptions).
+
+`binary`
+:   **Not yet supported by the `mk` extension.**
+    Blob of binary data that may contain embedded NULLs (zero bytes). Stored
+    as-is. This is more efficient than `string` when storing large blocks of
+    data (e.g. images) and will adjust the storage strategy as needed.
+
+`integer`
+:   An signed integer value occupying a maximum of 32 bits. If all values
+    stored in a column can fit in a smaller range (16, 8, or even 4 or 2 bits),
+    they are packed automatically.
+
+`long`
+:   Like `integer`, but is required to fit into 64 bits.
+
+`float` and `double`
+:   32-bit and 64-bit IEEE floating-point values respectively.
+
+`subview`
+:   This type is not usually specified directly; instead, a structure
+    description of a nested view is given. `subview` properties store complete
+    views as their value, creating hierarchical data structures. When retreived
+    from a view, a value of a subview property is a normal view handle.
+
+Without a `description` parameter, the `structure` method returns the current
+structure of the named view; without any parameters, it returns a dictionary
+containing structure descriptions of all views stored in the database.
+
+After specifying the properties you expect to see in the view, call
+
+    [$db view $viewName] as viewHandle
+
+to obtain a view handle. These handles are also commands, but are
+garbage-collected and also destroy themselves after a single method call; the
+`as viewHandle` call assigns the view handle to the specified variable and also
+tells the view not to destroy itself until all the references to it are gone.
+
+View handles may also be made permanent by giving them a global command name,
+e.g.
+
+    rename [$db view data] .db.data
+
+However, such view handles are not managed automatically at all and must be
+destroyed using the `destroy` method, or by renaming them to `""`.
+
+MANIPULATING DATA
+-----------------
+The value of a particular property is obtained using
+
+    cursor get $cur propName
+
+where `$cur` is a string of form `viewHandle!index`. Row indices are zero-based
+and may also be specified relative to the last row of the view using the
+`end[+-]integer` notation.
+
+A dictionary containing all property name and value pairs can be retreived by
+omitting the `propName` argument:
+
+    cursor get $cur
+
+Setting property values is also performed either individually, using
+
+    cursor set $cur propName value ?propName value ...?
+
+or via a dictionary with
+
+    cursor set $cur dictValue
+
+In the first form of the command, property names may also be preceded by a
+-_typeName_ option. In this case, a new property of the specified type will be
+created if it doesn't already exist; note that this will cause *all* the rows
+in the view to have the property (but see **A NOTE ON NULL** below).
+
+If the row index points after the end of the view, an appropriate number of
+fresh rows will be inserted first. So, for example, you can use `end+1`
+to append a new row. (Note that you then have to set it all at once, though.)
+
+The total number of rows can be obtained using
+
+    $viewHandle size
+
+and set manually with
+
+    $viewHandle resize newSize
+
+For example, you can use `$viewHandle resize 0` to clear a view.
+
+INSERT AND REMOVE
+-----------------
+New rows may also be inserted at an arbitrary position in a view with
+
+    cursor insert $cur ?count?
+
+This will insert _count_ fresh rows into the view so that _$cur_ points to
+the first one. The inverse of this operation is
+
+    cursor remove $cur ?count?
+
+COMPOSING VIEWS
+---------------
+The real power of Metakit lies in the way existing views are combined to create
+new ones to obtain a particular perspective on the stored data. A single
+operation takes one or more views and possibly additional options and produces a
+new view, usually tracking notifications to the underlying views and sometimes
+even supporting modification.
+
+Binary operations are left-biased when there are conflicting property values;
+that is, they always prefer the values from the left view.
+
+### Unary operations ###
+
+*view* `unique`
+:   Derived view with duplicate rows removed.
+
+*view* `sort` *crit ?crit ...?*
+:   Derived view sorted on the specified criteria, in order. A single _crit_
+    is either a property name or a property name preceded by a dash; the latter
+    specifies that the sorting is to be performed in reverse order.
+
+### Binary operations ###
+
+The operations taking _set_ arguments require that the given views have no
+duplicate rows. The `unique` method can be used to ensure this.
+
+*view1* `concat` *view2*
+:   Vertical concatenation; that is, all the rows of _view1_ and then all rows
+    of _view2_.
+
+*view1* `pair` *view2*
+:   Pairing, or horizontal concatenation: every row in _view1_ is matched with
+    a row with the same index in _view2_; the result has all the properties of
+    _view1_ and all the properties of _view2_.
+
+*view1* `product` *view2*
+:   Cartesian product: each row in _view1_ horizontally concatenated with every
+    row in _view2_.
+
+*set1* `union` *set2*
+:   Set union. Unlike `concat`, this operation removes duplicates from the
+    result. A row is in the result if it is in _set1_ **or** in _set2_.
+
+*set1* `intersect` *set2*
+:   Set intersection. A row is in the result if it is in _set1_ **and** in
+    _set2_.
+
+*set1* `different` *set2*
+:   Symmetric difference. A row is in the result if it is in _set1_ **xor** in
+    _set2_, that is, in _set1_ or in _set2_, but not in both.
+
+*set1* `minus` *set2*
+:   Set minus. A row is in the result if it is in _set1_ **and not** in _set2_.
+
+### Relational operations ###
+
+*view1* `join` *view2* ?`-outer`? *prop ?prop ...?*
+:   Relational join on the specified properties: the rows from _view1_ and
+    _view2_ with all the specified properties equal are concatenated to form a
+    new row. If the `-outer` option is specified, the rows from _view1_ that do
+    not have a corresponding one in _view2_ are also left in the view, with the
+    properties existing only in _view2_ filled with default values.
+
+*view* `group` *subviewName prop ?prop ...?*
+:   Groups the rows with all the specified properties equal; moves all the
+    remaining properties into a newly created subview property called
+    _subviewName_.
+
+*view* `flatten` *subviewProp*
+:   The inverse of `group`.
+
+### Projections and selections ###
+
+*view* `project` *prop ?prop ...?*
+:   Projection: a derived view with only the specified properties left.
+
+*view* `without` *prop ?prop ...?*
+:   The opposite of `project`: a derived view with the specified properties
+    removed.
+
+*view* `range` *start end ?step?*
+    A slice or a segment of _view_: rows at _start_, _start+step_, and so on,
+    until the row number becomes larger than _end_. The usual `end[+-]integer`
+    notation is supported, but the indices don't change if the underlying view
+    is resized.
+
+**(!) select etc. should go here**
+
+### Search and storage optimization ###
+
+*view* `blocked`
+:   Invokes an optimization designed for storing large amounts of data. _view_
+    must have a single subview property called `_B` with the desired structure
+    inside. This additional level of indirection is used by `blocked` to create
+    a view that looks like a usual one, but can store much more data
+    efficiently. As a result, indexing into the view becomes a bit slower. Once
+    this method is invoked, all access to _view_ must go through the returned
+    view.
+
+*view* `ordered` *prop ?prop ...?*
+:   Does not transform the structure of the view in any way, but signals that
+    the view should be considered ordered on a unique key consisting of the
+    specified properties, enabling some optimizations. Note that duplicate keys
+    are not allowed in an ordered view.
+
+**(!) TODO: hash, indexed(?) -- these make no sense until searches are implemented**
+
+### Pipelines ###
+
+Because constructs like `[[view op1 ...] op2 ...] op3 ...` tend to be common in
+programs using Metakit, a shorthand syntax is introduced: such expressions may
+also be written as `view op1 ... | op2 ... | op3 ...`.
+
+Note though that this syntax is not in any way magically wired into the
+interpreter: it is understood only by the view handles and the two commands that
+can possibly return a view: `$db view` and `cursor get`. If you want to support
+this syntax in Tcl procedures, you'll need to do this yourself, or you may want
+to create a custom view method and have the view handle work out the syntax for
+you (see **USER-DEFINED METHODS** below).
+
+OTHER VIEW METHODS
+------------------
+
+*view* `copy`
+:   Creates a copy of view with the same data.
+
+*view* `clone`
+:   Creates a view with the same structure, but no data.
+
+*view* `pin`
+:   Specifies that the view should not be destroyed after a single method call.
+    Returns _view_.
+
+*view* `as` *varName*
+:   In addition to the actions performed by `pin`, assigns the view handle to
+    the variable named varName in the caller's scope.
+
+*view* `properties`
+:   Returns the names of all properties in the view.
+
+*view* `type` *prop*
+:   Returns the type of the specified property.
+
+A NOTE ON NULL
+--------------
+Note that Metakit does not have a special `NULL` value like conventional
+relational databases do. Instead, it defines _default_ property values: `""` for
+`string` and `binary` types, `0` for all numeric types and a view with no rows
+for subviews. These defaults are used when a fresh row is inserted and when
+a new property is added to the view to fill in the missing values.
+
+USER-DEFINED METHODS
+--------------------
+The storage and view handles support custom methods defined in Tcl: to define
+_methodName_ on every storage or view handle, create a procedure called
+{`mk.storage` *methodName*} or {`mk.view` *methodName*} respectively. These
+procedures will receive the handle as the first argument and all the remaining
+arguments. Remember to `pin` the view handle in view methods if you call more
+than one method of it!
+
+Custom `cursor` subcommands may also be defined by creating a procedure called
+{`cursor` *methodName*}. These receive all the arguments without any
+modifications.
