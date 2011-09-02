@@ -50,7 +50,7 @@ proc cc-check-endian {} {
 	msg-checking "Checking endian..."
 	cc-with {-includes {sys/types.h sys/param.h}} {
 		if {[cctest -code {
-			#if! defined(BIG_ENDIAN) || !defined(BYTE_ORDER)
+			#if !defined(BIG_ENDIAN) || !defined(BYTE_ORDER)
 				#error unknown
 			#elif BYTE_ORDER != BIG_ENDIAN
 				#error little
@@ -60,7 +60,7 @@ proc cc-check-endian {} {
 			msg-result "big"
 			set rc 1
 		} elseif {[cctest -code {
-			#if! defined(LITTLE_ENDIAN) || !defined(BYTE_ORDER)
+			#if !defined(LITTLE_ENDIAN) || !defined(BYTE_ORDER)
 				#error unknown
 			#elif BYTE_ORDER != LITTLE_ENDIAN
 				#error big

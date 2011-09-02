@@ -333,13 +333,7 @@ proc cc-get-settings {} {
 # Returns the previous settings
 proc cc-update-settings {args} {
 	set prev [cc-get-settings]
-	array set new $prev
-
-	foreach {name value} $args {
-		set new($name) $value
-	}
-	cc-store-settings $new
-
+	cc-store-settings [dict merge $prev $args]
 	return $prev
 }
 
@@ -418,7 +412,7 @@ proc cc-with {settings args} {
 #
 proc cctest {args} {
 	set src conftest__.c
-	set tmp conftest__.o
+	set tmp conftest__
 
 	# Easiest way to merge in the settings
 	cc-with $args {
@@ -470,6 +464,7 @@ proc cctest {args} {
 	}
 
 	if {!$opts(-link)} {
+		set tmp conftest__.o
 		lappend cmdline -c
 	}
 	lappend cmdline {*}$opts(-cflags)
