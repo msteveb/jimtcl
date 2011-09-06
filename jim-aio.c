@@ -623,6 +623,22 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    long backlog;
+
+    if (Jim_GetLong(interp, argv[0], &backlog) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    if (listen(af->fd, backlog)) {
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+
+    return JIM_OK;
+}
 #endif
 
 static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -690,23 +706,6 @@ static int aio_cmd_filename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     AioFile *af = Jim_CmdPrivData(interp);
 
     Jim_SetResult(interp, af->filename);
-    return JIM_OK;
-}
-
-static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *af = Jim_CmdPrivData(interp);
-    long backlog;
-
-    if (Jim_GetLong(interp, argv[0], &backlog) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    if (listen(af->fd, backlog)) {
-        JimAioSetError(interp, NULL);
-        return JIM_ERR;
-    }
-
     return JIM_OK;
 }
 
@@ -893,6 +892,13 @@ static const jim_subcmd_type aio_command_table[] = {
         .function = aio_cmd_accept,
         .description = "Server socket only: Accept a connection and return stream"
     },
+    {   .cmd = "listen",
+        .args = "backlog",
+        .function = aio_cmd_listen,
+        .minargs = 1,
+        .maxargs = 1,
+        .description = "Set the listen backlog for server socket"
+    },
 #endif
     {   .cmd = "flush",
         .function = aio_cmd_flush,
@@ -921,13 +927,6 @@ static const jim_subcmd_type aio_command_table[] = {
     {   .cmd = "filename",
         .function = aio_cmd_filename,
         .description = "Returns the original filename"
-    },
-    {   .cmd = "listen",
-        .args = "backlog",
-        .function = aio_cmd_listen,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Set the listen backlog for server socket"
     },
 #ifdef O_NDELAY
     {   .cmd = "ndelay",
