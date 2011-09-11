@@ -263,8 +263,8 @@ test exec-6.2 {redirecting stderr through a pipeline} {
 } "foo bar"
 test exec-6.3 {redirecting stderr through a pipeline} {
     exec sh -c "echo foo bar 1>&2" \
-	|& sh -c "echo second msg 1>&2 ; cat" |& cat
-} "second msg\nfoo bar"
+	|& cat |& cat
+} "foo bar"
 
 # I/O redirection: combinations.
 
@@ -409,7 +409,7 @@ exec sleep 3
 
 test exec-12.1 {reaping background processes} {
     for {set i 0} {$i < 20} {incr i} {
-		exec echo foo > /dev/null &
+		exec echo foo > exec.tmp1 &
     }
     exec sleep 1
     catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg

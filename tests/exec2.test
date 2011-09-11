@@ -19,25 +19,25 @@ test exec2-1.2 "Quoting - Word Grouping" {
 } {6}
 
 test exec2-2.1 "Add to exec environment" {
-	set env(testenv) "the value"
-	exec printenv | sed -n -e /^testenv=/p
-} {testenv=the value}
+	set env(TESTENV) "the value"
+	exec printenv | sed -n -e /^TESTENV=/p
+} {TESTENV=the value}
 
 test exec2-2.2 "Remove from exec environment" {
-	set env(testenv2) "new value"
-	unset env(testenv)
-	exec printenv | sed -n -e /^testenv=/p
+	set env(TESTENV2) "new value"
+	unset env(TESTENV)
+	exec printenv | sed -n -e /^TESTENV=/p
 } {}
 
 
 test exec2-2.3 "Remove all exec environment" {
 	array unset env *
-	exec printenv | sed -n -e /^testenv2=/p
+	exec printenv | sed -n -e /^TESTENV2=/p
 } {}
 
 test exec2-2.4 "Remove all env var" {
 	unset -nocomplain env
-	exec printenv | sed -n -e /^testenv2=/p
+	exec printenv | sed -n -e /^TESTENV2=/p
 } {}
 
 testreport

@@ -2,7 +2,7 @@
 #
 # Loads some Tcl-compatible features.
 # I/O commands, case, lassign, parray, errorInfo, ::tcl_platform, ::env
-# try, throw, file copy, info nameofexecutable
+# try, throw, file copy, file delete -force
 
 # Set up the ::env array
 set env [env]
