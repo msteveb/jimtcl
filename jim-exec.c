@@ -1590,9 +1590,10 @@ static int JimCreateTemp(Jim_Interp *interp, const char *contents)
         Jim_SetResultErrno(interp, "couldn't create temp file");
         return -1;
     }
+    unlink(inName);
     if (contents) {
         int length = strlen(contents);
-        if (unlink(inName) == -1 || write(fd, contents, length) != length) {
+        if (write(fd, contents, length) != length) {
             Jim_SetResultErrno(interp, "couldn't write temp file");
             close(fd);
             return -1;
