@@ -14,7 +14,7 @@ int Jim_${basename}Init(Jim_Interp *interp)
 	if (Jim_PackageProvide(interp, "$basename", "1.0", JIM_ERRMSG))
 		return JIM_ERR;
 
-	return Jim_EvalSource(interp, \"$source\", 1,
+	return Jim_EvalSource(interp, "$source", 1,
 EOF
 
 # Note: Keep newlines so that line numbers match in error messages
@@ -66,6 +66,8 @@ cat <<EOF
 #define TCL_PLATFORM_PATH_SEPARATOR ";"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
