@@ -366,7 +366,7 @@ static int has_room(struct current *current, int bytes)
 
 /**
  * Removes the char at 'pos'.
- * 
+ *
  * Returns 1 if the line needs to be refreshed, 2 if not
  * and 0 if nothing was removed
  */
@@ -401,7 +401,7 @@ static int remove_char(struct current *current, int pos)
 
 /**
  * Insert 'ch' at position 'pos'
- * 
+ *
  * Returns 1 if the line needs to be refreshed, 2 if not
  * and 0 if nothing was inserted (no room)
  */

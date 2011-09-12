@@ -33,7 +33,7 @@ static int JimTestBitLittleEndian(const unsigned char *bitvec, int b)
 
 /**
  * Sign extends the given value, 'n' of width 'width' bits.
- * 
+ *
  * For example, sign extending 0x80 with a width of 8, produces -128
  */
 static jim_wide JimSignExtend(jim_wide n, int width)
@@ -52,7 +52,7 @@ static jim_wide JimSignExtend(jim_wide n, int width)
 
 /**
  * Big endian integer extraction.
- * 
+ *
  * Considers 'bitvect' as a big endian bit stream.
  * Returns an integer of the given width (in bits)
  * starting at the given position (in bits).
@@ -85,7 +85,7 @@ static jim_wide JimBitIntBigEndian(const unsigned char *bitvec, int pos, int wid
 
 /**
  * Little endian integer extraction.
- * 
+ *
  * Like JimBitIntBigEndian() but considers 'bitvect' as a little endian bit stream.
  */
 static jim_wide JimBitIntLittleEndian(const unsigned char *bitvec, int pos, int width)
@@ -113,7 +113,7 @@ static jim_wide JimBitIntLittleEndian(const unsigned char *bitvec, int pos, int 
 
 /**
  * Big endian bit set.
- * 
+ *
  * Considers 'bitvect' as a big endian bit stream and sets
  * bit 'b' to 'bit'
  */
@@ -130,7 +130,7 @@ static void JimSetBitBigEndian(unsigned char *bitvec, int b, int bit)
 
 /**
  * Little endian bit set.
- * 
+ *
  * Considers 'bitvect' as a little endian bit stream and sets
  * bit 'b' to 'bit'
  */
@@ -147,7 +147,7 @@ static void JimSetBitLittleEndian(unsigned char *bitvec, int b, int bit)
 
 /**
  * Big endian integer packing.
- * 
+ *
  * Considers 'bitvect' as a big endian bit stream.
  * Packs integer 'value' of the given width (in bits)
  * starting at the given position (in bits).

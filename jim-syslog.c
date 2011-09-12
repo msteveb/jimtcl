@@ -72,7 +72,7 @@ static void Jim_SyslogCmdDelete(Jim_Interp *interp, void *privData)
 /* Syslog_Log -
  * implements syslog tcl command. General format: syslog ?options? level text
  * options -facility -ident -options
- * 
+ *
  * syslog ?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? text
  */
 int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -173,7 +173,7 @@ int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_syslogInit(Jim_Interp *interp)
 {
     SyslogInfo *info;
-    
+
     if (Jim_PackageProvide(interp, "syslog", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 

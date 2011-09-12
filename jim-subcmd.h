@@ -35,7 +35,7 @@ typedef struct {
 /**
  * Looks up the appropriate subcommand in the given command table and return
  * the command function which implements the subcommand.
- * NULL will be returned and an appropriate error will be set if the subcommand or 
+ * NULL will be returned and an appropriate error will be set if the subcommand or
  * arguments are invalid.
  *
  * Typical usage is:
@@ -62,7 +62,7 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 /**
  * Invokes the given subcmd with the given args as returned
  * by Jim_ParseSubCmd()
- * 
+ *
  * If ct is NULL, returns JIM_ERR, leaving any message.
  * Otherwise invokes ct->function
  *
@@ -73,13 +73,13 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_
 
 /**
  * Standard processing for a command.
- * 
+ *
  * This does the '-help' and '-usage' check and the number of args checks.
  * for a top level command against a single 'jim_subcmd_type' structure.
  *
  * Additionally, if command_table->function is set, it should point to a sub command table
  * and '-subhelp ?subcmd?', '-subusage' and '-subcommands' are then also recognised.
- * 
+ *
  * Returns 0 if user requested usage, -1 on arg error, 1 if OK to process.
  */
 int

@@ -524,7 +524,7 @@ static int regpiece(regex_t *preg, int *flagp)
 
 /**
  * Add all characters in the inclusive range between lower and upper.
- * 
+ *
  * Handles a swapped range (upper < lower).
  */
 static void reg_addrange(regex_t *preg, int lower, int upper)
@@ -550,7 +550,7 @@ static void reg_addrange_str(regex_t *preg, const char *str)
 
 /**
  * Extracts the next unicode char from utf8.
- * 
+ *
  * If 'upper' is set, converts the char to uppercase.
  */
 static int reg_utf8_tounicode_case(const char *s, int *uc, int upper)
@@ -564,7 +564,7 @@ static int reg_utf8_tounicode_case(const char *s, int *uc, int upper)
 
 /**
  * Converts a hex digit to decimal.
- * 
+ *
  * Returns -1 for an invalid hex digit.
  */
 static int hexdigitval(int c)
@@ -604,7 +604,7 @@ static int parse_hex(const char *s, int n, int *uc)
 
 /**
  * Call for chars after a backlash to decode the escape sequence.
- * 
+ *
  * Stores the result in *ch.
  *
  * Returns the number of bytes consumed.
@@ -1150,7 +1150,7 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 
 /**
  * Searchs for 'c' in the range 'range'.
- * 
+ *
  * Returns 1 if found, or 0 if not.
  */
 static int reg_range_find(const int *range, int c)
@@ -1167,7 +1167,7 @@ static int reg_range_find(const int *range, int c)
 
 /**
  * Search for the character 'c' in the utf-8 string 'string'.
- * 
+ *
  * If 'nocase' is set, the 'string' is assumed to be uppercase
  * and 'c' is converted to uppercase before matching.
  *
@@ -1193,7 +1193,7 @@ static const char *str_find(const char *string, int c, int nocase)
 
 /**
  * Returns true if 'ch' is an end-of-line char.
- * 
+ *
  * In REG_NEWLINE mode, \n is considered EOL in
  * addition to \0
  */

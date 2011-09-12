@@ -68,18 +68,18 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
  * If -nohang is specified, and the process is still alive, returns
  *
  *   {0 none 0}
- * 
+ *
  * If the process does not exist or has already been waited for, returns:
  *
- *   {-1 error <error-description>} 
+ *   {-1 error <error-description>}
  *
  * If the process exited normally, returns:
  *
- *   {<pid> exit <exit-status>} 
+ *   {<pid> exit <exit-status>}
  *
  * If the process terminated on a signal, returns:
  *
- *   {<pid> signal <signal-number>} 
+ *   {<pid> signal <signal-number>}
  *
  * Otherwise (core dump, stopped, continued, ...), returns:
  *

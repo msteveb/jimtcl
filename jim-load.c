@@ -21,7 +21,7 @@
 
 /**
  * Note that Jim_LoadLibrary() requires a path to an existing file.
- * 
+ *
  * If it is necessary to search JIM_LIBPATH, use Jim_PackageRequire() instead.
  */
 int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)

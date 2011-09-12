@@ -3,23 +3,23 @@
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
- * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+ * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net>
  * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above
  *    copyright notice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials
  *    provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -32,7 +32,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
@@ -162,7 +162,7 @@ static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union s
 
     memset(&req, '\0', sizeof(req));
     req.ai_family = PF_INET6;
-    
+
     if (getaddrinfo(sthost, NULL, &req, &ai)) {
         Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
         ret = JIM_ERR;
@@ -215,7 +215,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
         struct addrinfo *ai;
         memset(&req, '\0', sizeof(req));
         req.ai_family = PF_INET;
-        
+
         if (getaddrinfo(sthost, NULL, &req, &ai)) {
             ret = JIM_ERR;
         }
@@ -975,7 +975,7 @@ static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, aio_command_table, argc, argv), argc, argv);
 }
 
-static int JimAioOpenCommand(Jim_Interp *interp, int argc, 
+static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     FILE *fp;
@@ -1054,7 +1054,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 
 /**
  * Creates a channel for fd.
- * 
+ *
  * hdlfmt is a sprintf format for the filehandle. Anything with %ld at the end will do.
  * mode is usual "r+", but may be another fdopen() mode as required.
  *

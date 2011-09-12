@@ -1296,7 +1296,7 @@ static int JimParseEol(struct JimParserCtx *pc)
 ** - Backslash escapes quote and bracket
 ** - [commands brackets] are counted/nested
 ** - command rules apply within [brackets], not quoting rules (i.e. quotes have their own rules)
-** 
+**
 ** [command expression]
 ** - Count open and closing brackets
 ** - Backslash escapes quote, bracket and brace
@@ -1309,7 +1309,7 @@ static int JimParseEol(struct JimParserCtx *pc)
 
 /**
  * Parses a braced expression starting at pc->p.
- * 
+ *
  * Positions the parser at the end of the braced expression,
  * sets pc->tend and possibly pc->missing.
  */
@@ -1358,7 +1358,7 @@ static void JimParseSubBrace(struct JimParserCtx *pc)
 
 /**
  * Parses a quoted expression starting at pc->p.
- * 
+ *
  * Positions the parser at the end of the quoted expression,
  * sets pc->tend and possibly pc->missing.
  *
@@ -1416,7 +1416,7 @@ static int JimParseSubQuote(struct JimParserCtx *pc)
 
 /**
  * Parses a [command] expression starting at pc->p.
- * 
+ *
  * Positions the parser at the end of the command expression,
  * sets pc->tend and possibly pc->missing.
  */
@@ -9759,7 +9759,7 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
             }
             break;
         default:
-            JimPanic((1, 
+            JimPanic((1,
                 "default token type (%d) reached " "in Jim_SubstObj().", token->type));
             objPtr = NULL;
             break;

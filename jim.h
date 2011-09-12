@@ -2,23 +2,23 @@
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
  * Copyright 2005 Clemens Hintze <c.hintze@gmx.net>
- * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+ * Copyright 2005 patthoyts - Pat Thoyts <patthoyts@users.sf.net>
  * Copyright 2008 oharboe - Øyvind Harboe - oyvind.harboe@zylin.com
  * Copyright 2008 Andrew Lunn <andrew@lunn.ch>
  * Copyright 2008 Duane Ellis <openocd@duaneellis.com>
  * Copyright 2008 Uwe Klein <uklein@klein-messgeraete.de>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above
  *    copyright notice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials
  *    provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE JIM TCL PROJECT ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -31,12 +31,12 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  *
- *--- Inline Header File Documentation --- 
+ *--- Inline Header File Documentation ---
  *    [By Duane Ellis, openocd@duaneellis.com, 8/18/8]
  *
  * Belief is "Jim" would greatly benifit if Jim Internals where
@@ -411,7 +411,7 @@ typedef void (Jim_FreeInternalRepProc)(struct Jim_Interp *interp,
 typedef void (Jim_DupInternalRepProc)(struct Jim_Interp *interp,
         struct Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 typedef void (Jim_UpdateStringProc)(struct Jim_Obj *objPtr);
-    
+
 typedef struct Jim_ObjType {
     const char *name; /* The name of the type. */
     Jim_FreeInternalRepProc *freeIntRepProc;
@@ -533,7 +533,7 @@ typedef struct Jim_Interp {
                 callframe is created. This id is used for the
                 'ID' field contained in the Jim_CallFrame
                 structure. */
-    int local; /* If 'local' is in effect, newly defined procs keep a reference to the old defn */ 
+    int local; /* If 'local' is in effect, newly defined procs keep a reference to the old defn */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
@@ -740,12 +740,12 @@ JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, .
 
 /* commands */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
-JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp, 
+JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
         const char *cmdName, Jim_CmdProc cmdProc, void *privData,
          Jim_DelCmdProc delProc);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         const char *cmdName);
-JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp, 
+JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         const char *oldName, const char *newName);
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
@@ -846,7 +846,7 @@ JIM_EXPORT void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr,
 JIM_EXPORT Jim_Obj * Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue);
 
 /* shared strings */
-JIM_EXPORT const char * Jim_GetSharedString (Jim_Interp *interp, 
+JIM_EXPORT const char * Jim_GetSharedString (Jim_Interp *interp,
         const char *str);
 JIM_EXPORT void Jim_ReleaseSharedString (Jim_Interp *interp,
         const char *str);
@@ -860,7 +860,7 @@ JIM_EXPORT int Jim_ScriptIsComplete (const char *s, int len,
         char *stateCharPtr);
 /**
  * Find a matching name in the array of the given length.
- * 
+ *
  * NULL entries are ignored.
  *
  * Returns the matching index if found, or -1 if not.
