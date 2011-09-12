@@ -5,7 +5,7 @@
 # \
 dir=`dirname "$0"`; exec "`$dir/find-tclsh`" "$0" "$@"
 
-set autosetup(version) 0.6.2
+set autosetup(version) 0.6.3
 
 # Can be set to 1 to debug early-init problems
 set autosetup(debug) 0
@@ -518,12 +518,16 @@ proc get-env {name default} {
 # @env-is-set name
 #
 # Returns 1 if the $name was specified on the command line or in the environment.
+# Note that an empty environment variable is not considered to be set.
 #
 proc env-is-set {name} {
 	if {[dict exists $::autosetup(cmdline) $name]} {
 		return 1
 	}
-	info exists ::env($name)
+	if {[getenv $name ""] ne ""} {
+		return 1
+	}
+	return 0
 }
 
 # @readfile filename ?default=""?
@@ -1542,15 +1546,6 @@ if {$autosetup(istcl)} {
 	# (Assume that Tcl does this for us)
 	proc getenv {name args} {
 		string map {\\ /} [env $name {*}$args]
-	}
-	# Jim uses system() for exec under mingw, so
-	# we need to fetch the output ourselves
-	proc exec-with-stderr {args} {
-			set tmpfile auto[format %04x [rand 10000]].tmp
-			set rc [catch [list exec {*}$args >$tmpfile 2>&1] result]
-			set result [readfile $tmpfile]
-			file delete $tmpfile
-			return -code $rc $result
 	}
 } else {
 	# Jim on unix is simple

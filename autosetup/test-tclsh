@@ -5,12 +5,10 @@
 
 if {[catch {info version} version] == 0} {
 	# This is Jim Tcl
-	if {$version >= 0.70} {
+	if {$version >= 0.72} {
 		# Ensure that regexp works
 		regexp (a.*?) a
-
-		# Older versions of jimsh may return a relative path for [info nameofexecutable]
-		puts [file join [pwd] [info nameofexecutable]]
+		puts [info nameofexecutable]
 		exit 0
 	}
 } elseif {[catch {info tclversion} version] == 0} {

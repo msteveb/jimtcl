@@ -228,21 +228,26 @@ define srcdir $autosetup(srcdir)
 define top_srcdir [get-env top_srcdir [get-define srcdir]]
 
 # autoconf supports all of these
-define exec_prefix [opt-val exec-prefix [get-env exec-prefix \${prefix}]]
+set exec_prefix [opt-val exec-prefix $prefix]
+define exec_prefix $exec_prefix
 foreach {name defpath} {
-	bindir \${exec_prefix}/bin
-	sbindir \${exec_prefix}/sbin
-	libexecdir \${exec_prefix}/libexec
-	libdir \${exec_prefix}/lib
-	datadir \${prefix}/share
-	sysconfdir \${prefix}/etc
-	sharedstatedir \${prefix}/com
-	localstatedir \${prefix}/var
-	infodir \${prefix}/share/info
-	mandir \${prefix}/share/man
-	includedir \${prefix}/include
+	bindir /bin
+	sbindir /sbin
+	libexecdir /libexec
+	libdir /lib
 } {
-	define $name [opt-val $name [get-env $name $defpath]]
+	define $name [opt-val $name $exec_prefix$defpath]
+}
+foreach {name defpath} {
+	datadir /share
+	sysconfdir /etc
+	sharedstatedir /com
+	localstatedir /var
+	infodir /share/info
+	mandir /share/man
+	includedir /include
+} {
+	define $name [opt-val $name $prefix$defpath]
 }
 
 define SHELL [get-env SHELL [find-an-executable sh bash ksh]]
