@@ -76,7 +76,7 @@
 #endif
 #endif
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
     struct sockaddr sa;
     struct sockaddr_in sin;
@@ -95,7 +95,7 @@ const char *inet_ntop(int af, const void *src, char *dst, int size)
     return dst;
 }
 #endif
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 typedef struct AioFile
 {
@@ -117,7 +117,7 @@ typedef struct AioFile
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
 {
 #if IPV6
@@ -259,7 +259,7 @@ static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct so
     return JIM_OK;
 }
 #endif
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
@@ -503,7 +503,7 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_ERR;
 }
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -639,7 +639,7 @@ static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return JIM_OK;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 static int aio_cmd_flush(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -873,7 +873,7 @@ static const jim_subcmd_type aio_command_table[] = {
         .maxargs = 2,
         .description = "Write the string, with newline unless -nonewline"
     },
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
     {   .cmd = "recvfrom",
         .args = "len ?addrvar?",
         .function = aio_cmd_recvfrom,
@@ -899,7 +899,7 @@ static const jim_subcmd_type aio_command_table[] = {
         .maxargs = 1,
         .description = "Set the listen backlog for server socket"
     },
-#endif
+#endif /* JIM_BOOTSTRAP */
     {   .cmd = "flush",
         .function = aio_cmd_flush,
         .description = "Flush the stream"
@@ -1050,7 +1050,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JIM_OK;
 }
 
-#ifndef JIM_ANSIC
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 
 /**
  * Creates a channel for fd.
@@ -1353,7 +1353,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return JimMakeChannel(interp, argv[1], hdlfmt, sock, family, mode);
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {

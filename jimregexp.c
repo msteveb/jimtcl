@@ -1340,7 +1340,6 @@ static int regmatch(regex_t *preg, int prog)
 		int c;
 #ifdef DEBUG
 		if (regnarrate) {
-			//fprintf(stderr, "%s...\n", regprop(scan));
 			fprintf(stderr, "%3d: %s...\n", scan, regprop(OP(preg, scan)));	/* Where, what. */
 		}
 #endif
@@ -1568,7 +1567,7 @@ static int regnext(regex_t *preg, int p )
 		return(p+offset);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(JIM_BOOTSTRAP)
 
 /*
  - regdump - dump a regexp onto stdout in vaguely comprehensible form
@@ -1712,7 +1711,7 @@ static const char *regprop( int op )
 		return(buf);
 	}
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_size)
 {

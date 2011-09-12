@@ -4776,11 +4776,12 @@ static const Jim_HashTableType JimRefMarkHashTableType = {
 /* Performs the garbage collection. */
 int Jim_Collect(Jim_Interp *interp)
 {
+    int collected = 0;
+#ifndef JIM_BOOTSTRAP
     Jim_HashTable marks;
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
     Jim_Obj *objPtr;
-    int collected = 0;
 
     /* Avoid recursive calls */
     if (interp->lastCollectId == -1) {
@@ -4905,6 +4906,7 @@ int Jim_Collect(Jim_Interp *interp)
     Jim_FreeHashTable(&marks);
     interp->lastCollectId = interp->referenceNextId;
     interp->lastCollectTime = time(NULL);
+#endif /* JIM_BOOTSTRAP */
     return collected;
 }
 
@@ -12046,7 +12048,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 /* [debug] */
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#ifdef JIM_DEBUG_COMMAND
+#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
     static const char * const options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc", "show",
@@ -12247,7 +12249,8 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     /* unreached */
-#else
+#endif /* JIM_BOOTSTRAP */
+#if !defined(JIM_DEBUG_COMMAND)
     Jim_SetResultString(interp, "unsupported", -1);
     return JIM_ERR;
 #endif

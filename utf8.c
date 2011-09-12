@@ -33,7 +33,7 @@ int utf8_fromunicode(char *p, unsigned short uc)
     }
 }
 
-#ifdef JIM_UTF8
+#if defined(JIM_UTF8) && !defined(JIM_BOOTSTRAP)
 int utf8_charlen(int c)
 {
     if ((c & 0x80) == 0) {
@@ -189,4 +189,4 @@ int utf8_lower(int uc)
     return utf8_map_case(uc, 0);
 }
 
-#endif
+#endif /* JIM_BOOTSTRAP */

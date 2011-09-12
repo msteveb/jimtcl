@@ -77,9 +77,16 @@ cat <<EOF
 #endif
 EOF
 
+outputsource()
+{
+        sed -e '/#include.*jim/d' -e '/#include.*utf8/d' \
+                -e '/^#.*if.*JIM_BOOTSTRAP/,/^#endif.*JIM_BOOTSTRAP/d' \
+                -e 's/\/\*.*\*\///' -e '/^[ 	]*\/\*/,/\*\//d' $1
+}
+
 # Now output header files, removing references to jim header files
 for i in utf8.h jim.h jim-subcmd.h jimregexp.h ; do
-	sed -e '/#include.*jim/d' -e '/#include.*utf8/d' $i
+	outputsource $i
 done
 
 # Now extension source code
@@ -87,11 +94,11 @@ for i in $tclexts; do
 	makeext $i.tcl
 done
 for i in $cexts; do
-	sed -e '/#include.*jim/d' jim-$i.c
+	outputsource jim-$i.c
 done
 makeloadexts $allexts
 
 # And finally the core source code
 for i in jim.c jim-subcmd.c utf8.c jim-interactive.c jim-format.c jimregexp.c jimsh.c; do
-	sed -e '/#include.*jim/d' -e '/#include.*utf8/d' $i
+	outputsource $i
 done
