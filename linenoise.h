@@ -56,6 +56,7 @@ int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);
 int linenoiseHistorySave(const char *filename);
 int linenoiseHistoryLoad(const char *filename);
+void linenoiseHistoryFree(void);
 char **linenoiseHistory(int *len);
 
 #endif /* __LINENOISE_H */

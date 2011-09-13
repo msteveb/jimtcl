@@ -174,11 +174,12 @@ if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
 }
-if {[opt-bool lineedit full] && [cc-check-includes termios.h] && [cc-check-functions isatty]} {
-    msg-result "Enabling line editing"
-    define USE_LINENOISE
-    lappend extra_objs linenoise.o
-    cc-check-functions isatty
+if {[opt-bool lineedit full]} {
+    if {[cc-check-includes termios.h] && [cc-check-functions isatty]} {
+        msg-result "Enabling line editing"
+        define USE_LINENOISE
+        lappend extra_objs linenoise.o
+    }
 }
 if {[opt-bool references]} {
     msg-result "Enabling references"
