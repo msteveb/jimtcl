@@ -22,7 +22,7 @@ int utf8_fromunicode(char *p, unsigned short uc);
 
 /* No utf-8 support. 1 byte = 1 char */
 #define utf8_strlen(S, B) (B) < 0 ? strlen(S) : (B)
-#define utf8_tounicode(S, CP) (*(CP) = *(S), 1)
+#define utf8_tounicode(S, CP) (*(CP) = (unsigned char)*(S), 1)
 #define utf8_upper(C) toupper(C)
 #define utf8_lower(C) tolower(C)
 #define utf8_index(C, I) (I)

@@ -58,7 +58,7 @@
  *
  * CHA (Cursor Horizontal Absolute)
  *    Sequence: ESC [ n G
- *    Effect: moves cursor to column n
+ *    Effect: moves cursor to column n (1 based)
  *
  * EL (Erase Line)
  *    Sequence: ESC [ n K
@@ -118,7 +118,7 @@
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
-static char *unsupported_term[] = {"dumb","cons25",NULL};
+static const char *unsupported_term[] = {"dumb","cons25",NULL};
 
 static struct termios orig_termios; /* in order to restore at exit */
 static int rawmode = 0; /* for atexit() function to check if restore is needed*/
@@ -212,11 +212,7 @@ struct current {
 };
 
 /* gcc/glibc insists that we care about the return code of write! */
-#if defined(__GNUC__) && !defined(__clang__)
-#define IGNORE_RC(EXPR) ((EXPR) < 0 ? -1 : 0)
-#else
-#define IGNORE_RC(EXPR) EXPR
-#endif
+#define IGNORE_RC(EXPR) if (EXPR) {}
 
 /* This is fd_printf() on some systems, but use a different
  * name to avoid conflicts
@@ -312,7 +308,7 @@ static void refreshLine(const char *prompt, struct current *current) {
     }
 
     /* Cursor to left edge, then the prompt */
-    fd_printf(current->fd, "\x1b[0G");
+    fd_printf(current->fd, "\x1b[1G");
     IGNORE_RC(write(current->fd, prompt, plen));
 
     /* Now the current buffer content */
@@ -348,7 +344,7 @@ static void refreshLine(const char *prompt, struct current *current) {
     IGNORE_RC(write(current->fd, buf, b));
 
     /* Erase to right, move cursor to original position */
-    fd_printf(current->fd, "\x1b[0K" "\x1b[0G\x1b[%dC", pos + pchars + backup);
+    fd_printf(current->fd, "\x1b[0K" "\x1b[1G\x1b[%dC", pos + pchars + backup);
 }
 
 static void set_current(struct current *current, const char *str)
@@ -512,7 +508,7 @@ void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn) {
 }
 
 void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
-    lc->cvec = realloc(lc->cvec,sizeof(char*)*(lc->len+1));
+    lc->cvec = (char **)realloc(lc->cvec,sizeof(char*)*(lc->len+1));
     lc->cvec[lc->len++] = strdup(str);
 }
 
@@ -1068,7 +1064,7 @@ int linenoiseHistoryAdd(const char *line) {
 
     if (history_max_len == 0) return 0;
     if (history == NULL) {
-        history = malloc(sizeof(char*)*history_max_len);
+        history = (char**)malloc(sizeof(char*)*history_max_len);
         if (history == NULL) return 0;
         memset(history,0,(sizeof(char*)*history_max_len));
     }
@@ -1085,18 +1081,18 @@ int linenoiseHistoryAdd(const char *line) {
 }
 
 int linenoiseHistorySetMaxLen(int len) {
-    char **new;
+    char **newHistory;
 
     if (len < 1) return 0;
     if (history) {
         int tocopy = history_len;
 
-        new = malloc(sizeof(char*)*len);
-        if (new == NULL) return 0;
+        newHistory = (char**)malloc(sizeof(char*)*len);
+        if (newHistory == NULL) return 0;
         if (len < tocopy) tocopy = len;
-        memcpy(new,history+(history_max_len-tocopy), sizeof(char*)*tocopy);
+        memcpy(newHistory,history+(history_max_len-tocopy), sizeof(char*)*tocopy);
         free(history);
-        history = new;
+        history = newHistory;
     }
     history_max_len = len;
     if (history_len > history_max_len)
@@ -1106,7 +1102,7 @@ int linenoiseHistorySetMaxLen(int len) {
 
 /* Save the history in the specified file. On success 0 is returned
  * otherwise -1 is returned. */
-int linenoiseHistorySave(char *filename) {
+int linenoiseHistorySave(const char *filename) {
     FILE *fp = fopen(filename,"w");
     int j;
 
@@ -1141,7 +1137,7 @@ int linenoiseHistorySave(char *filename) {
  *
  * If the file exists and the operation succeeded 0 is returned, otherwise
  * on error -1 is returned. */
-int linenoiseHistoryLoad(char *filename) {
+int linenoiseHistoryLoad(const char *filename) {
     FILE *fp = fopen(filename,"r");
     char buf[LINENOISE_MAX_LINE];
 
