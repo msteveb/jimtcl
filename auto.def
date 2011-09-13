@@ -98,6 +98,7 @@ switch -glob -- $host_os {
     mingw* {
         # We provide our own implementation of dlopen for mingw32
         define-feature dlopen-compat
+        define-feature winconsole
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM windows
         define TCL_PLATFORM_PATH_SEPARATOR {;}
@@ -175,7 +176,7 @@ if {[opt-bool ipv6 full]} {
     define JIM_IPV6
 }
 if {[opt-bool lineedit full]} {
-    if {[cc-check-includes termios.h] && [cc-check-functions isatty]} {
+    if {([cc-check-includes termios.h] && [cc-check-functions isatty]) || [have-feature winconsole]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
         lappend extra_objs linenoise.o

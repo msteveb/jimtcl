@@ -96,9 +96,17 @@
  *    Effect: reports current cursor position as ESC [ NNN ; MMM R
  */
 
+#ifdef __MINGW32__
+#include <windows.h>
+#include <fcntl.h>
+#define USE_WINCONSOLE
+#else
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>
+#define USE_TERMIOS
+#endif
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -147,7 +155,15 @@ struct current {
     int pos;    /* Cursor position, measured in chars */
     int cols;   /* Size of the window, in chars */
     const char *prompt;
+#if defined(USE_TERMIOS)
     int fd;     /* Terminal fd */
+#elif defined(USE_WINCONSOLE)
+    HANDLE outh; /* Console output handle */
+    HANDLE inh; /* Console input handle */
+    int rows;   /* Screen rows */
+    int x;      /* Current column during output */
+    int y;      /* Current row */
+#endif
 };
 
 static int fd_read(struct current *current);
@@ -164,6 +180,7 @@ void linenoiseHistoryFree(void) {
     }
 }
 
+#if defined(USE_TERMIOS)
 static void linenoiseAtExit(void);
 static struct termios orig_termios; /* in order to restore at exit */
 static int rawmode = 0; /* for atexit() function to check if restore is needed*/
@@ -450,6 +467,152 @@ static int check_special(int fd)
 
     return SPECIAL_NONE;
 }
+#elif defined(USE_WINCONSOLE)
+
+static DWORD orig_consolemode = 0;
+
+static int enableRawMode(struct current *current) {
+    DWORD n;
+    INPUT_RECORD irec;
+
+    current->outh = GetStdHandle(STD_OUTPUT_HANDLE);
+    current->inh = GetStdHandle(STD_INPUT_HANDLE);
+
+    if (!PeekConsoleInput(current->inh, &irec, 1, &n)) {
+        return -1;
+    }
+    if (getWindowSize(current) != 0) {
+        return -1;
+    }
+    if (GetConsoleMode(current->inh, &orig_consolemode)) {
+        SetConsoleMode(current->inh, ENABLE_PROCESSED_INPUT);
+    }
+    return 0;
+}
+
+static void disableRawMode(struct current *current)
+{
+    SetConsoleMode(current->inh, orig_consolemode);
+}
+
+static void clearScreen(struct current *current)
+{
+    COORD topleft = { 0, 0 };
+    DWORD n;
+
+    FillConsoleOutputCharacter(current->outh, ' ',
+        current->cols * current->rows, topleft, &n);
+    FillConsoleOutputAttribute(current->outh,
+        FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN,
+        current->cols * current->rows, topleft, &n);
+    SetConsoleCursorPosition(current->outh, topleft);
+}
+
+static void cursorToLeft(struct current *current)
+{
+    COORD pos = { 0, current->y };
+    DWORD n;
+
+    FillConsoleOutputAttribute(current->outh,
+        FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, current->cols, pos, &n);
+    current->x = 0;
+}
+
+static int outputChars(struct current *current, const char *buf, int len)
+{
+    COORD pos = { current->x, current->y };
+    WriteConsoleOutputCharacter(current->outh, buf, len, pos, 0);
+    current->x += len;
+    return 0;
+}
+
+static void outputControlChar(struct current *current, char ch)
+{
+    COORD pos = { current->x, current->y };
+    DWORD n;
+
+    FillConsoleOutputAttribute(current->outh, BACKGROUND_INTENSITY, 2, pos, &n);
+    outputChars(current, "^", 1);
+    outputChars(current, &ch, 1);
+}
+
+static void eraseEol(struct current *current)
+{
+    COORD pos = { current->x, current->y };
+    DWORD n;
+
+    FillConsoleOutputCharacter(current->outh, ' ', current->cols - current->x, pos, &n);
+}
+
+static void setCursorPos(struct current *current, int x)
+{
+    COORD pos = { x, current->y };
+
+    SetConsoleCursorPosition(current->outh, pos);
+    current->x = x;
+}
+
+static int fd_read(struct current *current)
+{
+    while (1) {
+        INPUT_RECORD irec;
+        DWORD n;
+        if (WaitForSingleObject(current->inh, INFINITE) != WAIT_OBJECT_0) {
+            break;
+        }
+        if (!ReadConsoleInput (current->inh, &irec, 1, &n)) {
+            break;
+        }
+        if (irec.EventType == KEY_EVENT && irec.Event.KeyEvent.bKeyDown) {
+            KEY_EVENT_RECORD *k = &irec.Event.KeyEvent;
+            if (k->dwControlKeyState & ENHANCED_KEY) {
+                switch (k->wVirtualKeyCode) {
+                 case VK_LEFT:
+                    return SPECIAL_LEFT;
+                 case VK_RIGHT:
+                    return SPECIAL_RIGHT;
+                 case VK_UP:
+                    return SPECIAL_UP;
+                 case VK_DOWN:
+                    return SPECIAL_DOWN;
+                 case VK_DELETE:
+                    return SPECIAL_DELETE;
+                 case VK_HOME:
+                    return SPECIAL_HOME;
+                 case VK_END:
+                    return SPECIAL_END;
+                }
+            }
+            /* Note that control characters are already translated in AsciiChar */
+            else {
+#ifdef USE_UTF8
+                return k->uChar.UnicodeChar;
+#else
+                return k->uChar.AsciiChar;
+#endif
+            }
+        }
+    }
+    return -1;
+}
+
+static int getWindowSize(struct current *current)
+{
+    CONSOLE_SCREEN_BUFFER_INFO info;
+    if (!GetConsoleScreenBufferInfo(current->outh, &info)) {
+        return -1;
+    }
+    current->cols = info.dwSize.X;
+    current->rows = info.dwSize.Y;
+    if (current->cols <= 0 || current->rows <= 0) {
+        current->cols = 80;
+        return -1;
+    }
+    current->y = info.dwCursorPosition.Y;
+    current->x = info.dwCursorPosition.X;
+    return 0;
+}
+#endif
 
 static int utf8_getchars(char *buf, int c)
 {
@@ -598,6 +761,7 @@ static int remove_char(struct current *current, int pos)
         p1 = utf8_index(current->buf, pos);
         p2 = p1 + utf8_index(current->buf + p1, 1);
 
+#ifdef USE_TERMIOS
         /* optimise remove char in the case of removing the last char */
         if (current->pos == pos + 1 && current->pos == current->chars) {
             if (current->buf[pos] >= ' ' && utf8_strlen(current->prompt, -1) + utf8_strlen(current->buf, current->len) < current->cols - 1) {
@@ -605,6 +769,7 @@ static int remove_char(struct current *current, int pos)
                 fd_printf(current->fd, "\b \b");
             }
         }
+#endif
 
         /* Move the null char too */
         memmove(current->buf + p1, current->buf + p2, current->len - p2 + 1);
@@ -636,6 +801,7 @@ static int insert_char(struct current *current, int pos, int ch)
         p1 = utf8_index(current->buf, pos);
         p2 = p1 + n;
 
+#ifdef USE_TERMIOS
         /* optimise the case where adding a single char to the end and no scrolling is needed */
         if (current->pos == pos && current->chars == pos) {
             if (ch >= ' ' && utf8_strlen(current->prompt, -1) + utf8_strlen(current->buf, current->len) < current->cols - 1) {
@@ -643,6 +809,7 @@ static int insert_char(struct current *current, int pos, int ch)
                 ret = 2;
             }
         }
+#endif
 
         memmove(current->buf + p2, current->buf + p1, current->len - p1);
         memcpy(current->buf + p1, buf, n);
@@ -673,8 +840,10 @@ static int remove_chars(struct current *current, int pos, int n)
 static linenoiseCompletionCallback *completionCallback = NULL;
 
 static void beep() {
+#ifdef USE_TERMIOS
     fprintf(stderr, "\x7");
     fflush(stderr);
+#endif
 }
 
 static void freeCompletions(linenoiseCompletions *lc) {
@@ -779,9 +948,11 @@ static int linenoisePrompt(struct current *current) {
 
 process_char:
         if (c == -1) return current->len;
+#ifdef USE_TERMIOS
         if (c == 27) {   /* escape sequence */
             c = check_special(current->fd);
         }
+#endif
         switch(c) {
         case '\r':    /* enter */
             history_len--;
@@ -853,9 +1024,11 @@ process_char:
                         }
                         continue;
                     }
+#ifdef USE_TERMIOS
                     if (c == 27) {
                         c = check_special(current->fd);
                     }
+#endif
                     if (c == ctrl('P') || c == SPECIAL_UP) {
                         /* Search for the previous (earlier) match */
                         if (searchpos > 0) {
