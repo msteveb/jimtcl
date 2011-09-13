@@ -29,7 +29,8 @@ int utf8_fromunicode(char *p, unsigned short uc);
 #define utf8_charlen(C) 1
 #define utf8_prev_len(S, L) 1
 
-#elif !defined(JIM_BOOTSTRAP)
+#else
+#if !defined(JIM_BOOTSTRAP)
 /**
  * Returns the length of the utf-8 sequence starting with 'c'.
  *
@@ -102,7 +103,8 @@ int utf8_upper(int uc);
  * Does not support unicode code points > \uffff
  */
 int utf8_lower(int uc);
-
 #endif /* JIM_BOOTSTRAP */
+
+#endif
 
 #endif
