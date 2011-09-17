@@ -417,33 +417,30 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     AioFile *af = Jim_CmdPrivData(interp);
     char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr;
+    int len;
 
     errno = 0;
 
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (1) {
-        int more = 0;
-
         buf[AIO_BUF_LEN - 1] = '_';
         if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
             break;
-        if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n')
-            more = 1;
-        if (more) {
+
+        if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n') {
             Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN - 1);
         }
         else {
-            int len = strlen(buf);
+            len = strlen(buf);
 
-            if (len) {
-                int hasnl = (buf[len - 1] == '\n');
-
+            if (len && (buf[len - 1] == '\n')) {
                 /* strip "\n" */
-                Jim_AppendString(interp, objPtr, buf, strlen(buf) - hasnl);
+                len--;
             }
-        }
-        if (!more)
+
+            Jim_AppendString(interp, objPtr, buf, len);
             break;
+        }
     }
     if (ferror(af->fp) && errno != EAGAIN && errno != EINTR) {
         /* I/O error */
@@ -452,23 +449,20 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         clearerr(af->fp);
         return JIM_ERR;
     }
-    /* On EOF returns -1 if varName was specified, or the empty string. */
-    if (feof(af->fp) && Jim_Length(objPtr) == 0) {
-        Jim_FreeNewObj(interp, objPtr);
-        if (argc) {
-            Jim_SetResultInt(interp, -1);
-        }
-        return JIM_OK;
-    }
-    if (argc) {
-        int totLen;
 
-        Jim_GetString(objPtr, &totLen);
+    if (argc) {
         if (Jim_SetVariable(interp, argv[0], objPtr) != JIM_OK) {
             Jim_FreeNewObj(interp, objPtr);
             return JIM_ERR;
         }
-        Jim_SetResultInt(interp, totLen);
+
+        len = Jim_Length(objPtr);
+
+        if (len == 0 && feof(af->fp)) {
+            /* On EOF returns -1 if varName was specified */
+            len = -1;
+        }
+        Jim_SetResultInt(interp, len);
     }
     else {
         Jim_SetResult(interp, objPtr);
