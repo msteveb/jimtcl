@@ -61,7 +61,6 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_READABLE 1
 #define JIM_EVENT_WRITABLE 2
 #define JIM_EVENT_EXCEPTION 4
-#define JIM_EVENT_FEOF 8
 
 JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
         FILE *handle, int mask,

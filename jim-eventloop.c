@@ -436,21 +436,16 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             fe = eventLoop->fileEventHead;
             while (fe != NULL) {
                 int fd = fileno(fe->handle);
+                int mask = 0;
 
-                if ((fe->mask & JIM_EVENT_READABLE && FD_ISSET(fd, &rfds)) ||
-                    (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds)) ||
-                    (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))) {
-                    int mask = 0;
+                if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds))
+                    mask |= JIM_EVENT_READABLE;
+                if (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds))
+                    mask |= JIM_EVENT_WRITABLE;
+                if (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))
+                    mask |= JIM_EVENT_EXCEPTION;
 
-                    if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds)) {
-                        mask |= JIM_EVENT_READABLE;
-                        if ((fe->mask & JIM_EVENT_FEOF) && feof(fe->handle))
-                            mask |= JIM_EVENT_FEOF;
-                    }
-                    if (fe->mask & JIM_EVENT_WRITABLE && FD_ISSET(fd, &wfds))
-                        mask |= JIM_EVENT_WRITABLE;
-                    if (fe->mask & JIM_EVENT_EXCEPTION && FD_ISSET(fd, &efds))
-                        mask |= JIM_EVENT_EXCEPTION;
+                if (mask) {
                     if (fe->fileProc(interp, fe->clientData, mask) != JIM_OK) {
                         /* Remove the element on handler error */
                         Jim_DeleteFileHandler(interp, fe->handle);
