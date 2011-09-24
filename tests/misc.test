@@ -546,4 +546,12 @@ test exprerr-1.1 {Error message with bad expr} {
 	set msg
 } {Expression has bad operands to ||}
 
+test eval-list-1.1 {Lost string rep with list} {
+	set x {set y 1; incr y}
+	# Convert to list rep internally
+	lindex $x 4
+	# But make sure we don't lost the original string rep
+	list [catch $x] $y
+} {0 2}
+
 testreport

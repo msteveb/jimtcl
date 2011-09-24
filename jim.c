@@ -9895,9 +9895,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     interp->errorFlag = 0;
 
-    /* If the object is of type "list", we can call
+    /* If the object is of type "list", with no string rep we can call
      * a specialized version of Jim_EvalObj() */
-    if (Jim_IsList(scriptObjPtr)) {
+    if (Jim_IsList(scriptObjPtr) && scriptObjPtr->bytes == NULL) {
         return JimEvalObjList(interp, scriptObjPtr, interp->emptyObj, 1);
     }
 
