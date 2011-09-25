@@ -2723,7 +2723,7 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
     if (strObjPtr->typePtr != &stringObjType) {
         SetStringFromAny(interp, strObjPtr);
     }
-    Jim_GetString(strObjPtr, &len);
+    len = Jim_Length(strObjPtr);
     nontrim = JimFindTrimRight(strObjPtr->bytes, len, trimchars, trimcharslen);
 
     if (nontrim == NULL) {
@@ -5188,7 +5188,7 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 
         Jim_GetString(filenameObj, &len);
 
-        if (len == 0) {
+        if (!Jim_Length(filenameObj)) {
             interp->addStackTrace = 1;
         }
     }
@@ -6259,11 +6259,10 @@ static unsigned int JimObjectHTHashFunction(const void *key)
 {
     const char *str;
     Jim_Obj *objPtr = (Jim_Obj *)key;
-    int len, h;
+    int len;
 
     str = Jim_GetString(objPtr, &len);
-    h = Jim_GenHashFunction((unsigned char *)str, len);
-    return h;
+    return Jim_GenHashFunction((unsigned char *)str, len);
 }
 
 static int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
@@ -11463,7 +11462,7 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         return JIM_ERR;
     }
     for (opt = 1; opt < argc; ++opt) {
-        const char *option = Jim_GetString(argv[opt], 0);
+        const char *option = Jim_String(argv[opt]);
 
         if (*option != '-')
             break;
@@ -12800,10 +12799,6 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 }
 
                 str = Jim_GetString(argv[2], &len);
-                if (!str) {
-                    return JIM_ERR;
-                }
-
                 buf = Jim_Alloc(len + 1);
                 p = buf + len;
                 *p = 0;
