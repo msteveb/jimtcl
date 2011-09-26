@@ -47,8 +47,8 @@ The major differences with Tcl 8.5/8.6 are:
 7. `os.fork`, `os.wait`, `os.uptime`, `rand`
 8. Much better error reporting. `info stacktrace` as a replacement for '$errorInfo', '$errorCode'
 9. Support for "static" variables in procedures
-10. Namespaces are not support
-11. Variable traces are not supported
+10. Namespaces, threads and coroutines are not support
+11. Command and variable traces are not supported
 12. Direct command line editing rather than the `history` command
 13. Expression shorthand syntax: +$(...)+
 
@@ -58,11 +58,15 @@ RECENT CHANGES
 Changes between 0.71 and 0.72
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. procs now allow 'args' and optional parameters in any position
-2. Add Tcl-compatible expr functions, `rand()` and `srand()`
+2. Add Tcl-compatible expr functions, `rand()`, `srand()` and `pow()`
 3. Add support for the '-force' option to `file delete`
 4. Better diagnostics when `source` fails to load a script with a missing quote or bracket
 5. New +tcl_platform(pathSeparator)+
 6. Add support settings the modification time with `file mtime`
+7. `exec` is now fully supported on win32 (mingw32)
+8. `file join`, `pwd`, `glob` etc. now work for mingw32
+9. Line editing is now supported for the win32 console (mingw32)
+10. Add `aio listen` command
 
 Changes between 0.70 and 0.71
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -710,13 +714,13 @@ of precedence:
 [[OperatorPrecedence]]
 +int() double() round() abs(), rand(), srand()+::
     Unary functions (except rand() which takes no arguments)
-    int() converts the numeric argument to an integer by truncating down.
-    double() converts the numeric argument to floating point.
-    round() converts the numeric argument to the closest integer value.
-    abs() takes the absolute value of the numeric argument.
-    rand() takes the absolute value of the numeric argument.
-    rand() returns a pseudo-random floating-point value in the range (0,1).
-    srand() takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
+    * +'int()'+ converts the numeric argument to an integer by truncating down.
+    * +'double()'+ converts the numeric argument to floating point.
+    * +'round()'+ converts the numeric argument to the closest integer value.
+    * +'abs()'+ takes the absolute value of the numeric argument.
+    * +'rand()'+ takes the absolute value of the numeric argument.
+    * +'rand()'+ returns a pseudo-random floating-point value in the range (0,1).
+    * +'srand()'+ takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
 
 +sin() cos() tan() asin() acos() atan() sinh() cosh() tanh() ceil() floor() exp() log() log10() sqrt()+::
     Unary math functions.
@@ -727,16 +731,17 @@ of precedence:
     may be applied to string operands, and bit-wise NOT may be
     applied only to integers.
 
-+**+::
-    Power. e.g. pow(). If Jim is compiled with math support, supports doubles and
-    integers. Otherwise supports integers only.
++** pow(x,y)+::
+    Power. e.g. 'x^y^'. If Jim is compiled with math support, supports doubles and
+    integers. Otherwise supports integers only. (Note that the math-function form
+    has the same highest precedence)
 
 +* / %+::
     Multiply, divide, remainder.  None of these operands may be
     applied to string operands, and remainder may be applied only
     to integers.
 
-+\+ -+::
+++ -+::
     Add and subtract.  Valid for any numeric operands.
 
 +<<  >> <<< >>>+::
@@ -1873,11 +1878,12 @@ command.  The legal +'options'+ are:
     names match +'pattern'+ (using the matching rules of string
     match) are included.
 
-+*dict keys* 'dictionary ?pattern?'+::
-    Returns a list of the keys in the dictionary.
-    If pattern is specified, then only those keys whose
-    names match +'pattern'+ (using the matching rules of string
-    match) are included.
++*dict merge* ?'dictionary \...'?+::
+    Return a dictionary that contains the contents of each of the
+    +'dictionary'+ arguments. Where two (or more) dictionaries
+    contain a mapping for the same key, the resulting dictionary
+    maps that key to the value according to the last dictionary on
+    the command line containing a mapping for that key.
 
 +*dict set* 'dictionaryName key ?key \...? value'+::
     This operation takes the +'name'+ of a variable containing a dictionary
@@ -1885,6 +1891,9 @@ command.  The legal +'options'+ are:
     containing a mapping from the given key to the given value. When
     multiple keys are present, this operation creates or updates a chain
     of nested dictionaries.
+
++*dict size* 'dictionary'+::
+    Return the number of key/value mappings in the given dictionary value.
 
 +*dict unset* 'dictionaryName key ?key \...? value'+::
     This operation (the companion to `dict set`) takes the name of a
@@ -1894,6 +1903,25 @@ command.  The legal +'options'+ are:
     a path through nested dictionaries to the mapping to remove. At
     least one key must be specified, but the last key on the key-path
     need not exist. All other components on the path must exist.
+
++*dict with* 'dictionaryName key ?key \...? script'+::
+    Execute the Tcl script in +'script'+ with the value for each
+    key in +'dictionaryName'+ mapped to a variable with the same
+    name. Where one or more keys are given, these indicate a chain
+    of nested dictionaries, with the innermost dictionary being the
+    one opened out for the execution of body. Making +'dictionaryName'+
+    unreadable will make the updates to the dictionary be discarded,
+    and this also happens if the contents of +'dictionaryName'+ are
+    adjusted so that the chain of dictionaries no longer exists.
+    The result of `dict with` is (unless some kind of error occurs)
+    the result of the evaluation of body.
+ ::
+    The variables are mapped in the scope enclosing the `dict with`;
+    it is recommended that this command only be used in a local
+    scope (procedure). Because of this, the variables set by
+    `dict with` will continue to exist after the command finishes (unless
+    explicitly unset). Note that changes to the contents of +'dictionaryName'+
+    only happen when +'script'+ terminates.
 
 env
 ~~~
@@ -4281,13 +4309,13 @@ aio
 +$handle *read ?-nonewline?* '?len?'+::
     Read and return bytes from the stream. To eof if no len.
 
-+$handle +'gets'+ '?var?'+::
++$handle *gets* '?var?'+::
     Read one line and return it or store it in the var
 
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
 
-+$handle +'copyto'+ 'tofd ?size?'+::
++$handle *copyto* 'tofd ?size?'+::
     Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
     that many bytes will be copied. Otherwise copying continues until the end
     of the input file. Returns the number of bytes actually copied.
@@ -4305,7 +4333,7 @@ aio
 +$handle *close*+::
     Closes the stream
 
-+$handle +'seek'+ 'offset' *?start|current|end?*+::
++$handle *seek* 'offset' *?start|current|end?*+::
     Seeks in the stream (default 'current')
 
 +$handle *tell*+::
@@ -4327,17 +4355,25 @@ aio
 +$handle *accept*+::
     Server socket only: Accept a connection and return stream
 
-+$handle +'sendto'+ 'str ?hostname:?port'+::
++$handle *sendto* 'str ?hostname:?port'+::
     Sends the string, +'str'+, to the given address via the socket using sendto(2).
     This is intended for udp sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
 
-+$handle +'recvfrom'+ 'maxlen ?addrvar?'+::
++$handle *recvfrom* 'maxlen ?addrvar?'+::
     Receives a message from the handle via recvfrom(2) and returns it.
     At most +'maxlen'+ bytes are read.
     If +'addrvar'+ is specified, the sending address of the message is stored in
     the named variable in the form 'addr:port'. See `socket` for details.
+
+fconfigure
+~~~~~~~~~~
++*fconfigure* 'handle' *?-blocking 0|1? ?-buffering noneline|full? ?-translation* 'mode'?+::
+    For compatibility with Tcl, a limited form of the `fconfigure`
+    command is supported.  `fconfigure ... -blocking` maps to
+    `aio ndelay`, `fconfigure ... -buffering` maps to `aio buffering`,
+    while `fconfigure ... -translation` is accepted but ignored.
 
 [[cmd_2]]
 eventloop: after, vwait, update
