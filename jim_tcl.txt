@@ -4371,9 +4371,10 @@ fconfigure
 ~~~~~~~~~~
 +*fconfigure* 'handle' *?-blocking 0|1? ?-buffering noneline|full? ?-translation* 'mode'?+::
     For compatibility with Tcl, a limited form of the `fconfigure`
-    command is supported.  `fconfigure ... -blocking` maps to
-    `aio ndelay`, `fconfigure ... -buffering` maps to `aio buffering`,
-    while `fconfigure ... -translation` is accepted but ignored.
+    command is supported.
+    * `fconfigure ... -blocking` maps to `aio ndelay`
+    * `fconfigure ... -buffering` maps to `aio buffering`
+    * `fconfigure ... -translation` is accepted but ignored
 
 [[cmd_2]]
 eventloop: after, vwait, update
@@ -4553,6 +4554,113 @@ may be specified before priority to control these parameters:
     use numeric values of those from your system syslog.h file,
     because I haven't got time to implement yet another hash
     table.
+
+pack: pack, unpack
+~~~~~~~~~~~~~~~~~~
+The optional 'pack' extension provides commands to encode and decode binary strings.
+
++*pack* 'varName value' *-intle|-intbe|-str* 'bitwidth ?bitoffset?'+::
+    Packs the binary representation of +'value'+ into the variable
+    +'varName'+. The value is packed according to the given type
+    (integer/string, big-endian/little-endian), width and bit offset.
+    The variable is created if necessary (like `append`).
+    Ihe variable is expanded if necessary.
+
++*unpack* 'binvalue' *-intbe|-intle|-uintbe|-uintle|-str* 'bitpos bitwidth'+::
+    Unpacks bits from +'binvalue'+ at bit position +'bitpos'+ and with +'bitwidth'+.
+    Interprets the value according to the type (integer/string, big-endian/little-endian
+    and signed/unsigned) and returns it. For integer types, +'bitwidth'+
+    may be up to the size of a Jim Tcl integer (typically 64 bits). For the string type,
+    both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
+    access outside the length of the value will return 0 for integer types or the empty string
+    for the string type.
+
+binary
+~~~~~~
+The optional, pure-Tcl 'binary' extension provides the Tcl-compatible `binary scan` and `binary format`
+commands based on the low-level `pack` and `unpack` commands.
+
+See the Tcl documentation at: http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm
+
+Note that packing and unpacking of floating point values is not supported.
+
+oo: class, super
+~~~~~~~~~~~~~~~~
+The optional, pure-Tcl 'oo' extension provides object-oriented (OO) support for Jim Tcl.
+
+See the online documentation (http://jim.berlios.de/documentation/oo/) for more details.
+
++*class* 'classname ?baseclasses? classvars'+::
+    Create a new class, +'classname'+, with the given dictionary
+    (+'classvars'+) as class variables. These are the initial variables
+    which all newly created objects of this class are initialised with.
+    If a list of baseclasses is given, methods and instance variables
+    are inherited.
+
++*super* 'method ?args \...?'+::
+    From within a method, invokes the given method on the base class.
+    Note that this will only call the last baseclass given.
+
+tree
+~~~~
+The optional, pure-Tcl 'tree' extension implements an OO, general purpose tree structure
+similar to that provided by tcllib ::struct::tree (http://tcllib.sourceforge.net/doc/struct_tree.html)
+
+A tree is a collection of nodes, where each node (except the root node) has a single parent
+and zero or more child nodes (ordered), as well as zero or more attribute/value pairs.
+
++*tree*+::
+    Creates and returns a new tree object with a single node named "root".
+    All operations on the tree are invoked through this object.
+
++$tree *destroy*+::
+    Destroy the tree and all it's nodes. (Note that the the tree will also
+    be automatically garbage collected once it goes out of scope).
+
++$tree *set* 'nodename key value'+::
+    Set the value for the given attribute key.
+
++$tree *lappend* 'nodename key value \...'+::
+    Append to the (list) value(s) for the given attribute key, or set if not yet set.
+
++$tree *keyexists* 'nodename key'+::
+    Returns 1 if the given attribute key exists.
+
++$tree *get* 'nodename key'+::
+    Returns the value associated with the given attribute key.
+
++$tree *getall* 'nodename'+::
+    Returns the entire attribute dictionary associated with the given key.
+
++$tree *depth* 'nodename'+::
+    Returns the depth of the given node. The depth of "root" is 0.
+
++$tree *parent* 'nodename'+::
+    Returns the node name of the parent node, or "" for the root node.
+
++$tree *numchildren* 'nodename'+::
+    Returns the number of child nodes.
+
++$tree *children* 'nodename'+::
+    Returns a list of the child nodes.
+
++$tree *next* 'nodename'+::
+    Returns the next sibling node, or "" if none.
+
++$tree *insert* 'nodename ?index?'+::
+    Add a new child node to the given node. The index is a list index
+    such as +3+ or +end-2+. The default index is +end+.
+    Returns the name of the newly added node.
+
++$tree *walk* 'nodename' *dfs|bfs* {'actionvar nodevar'} 'script'+::
+    Walks the tree starting from the given node, either breadth first (+bfs+)
+    depth first (+dfs+).
+    The value +"enter"+ or +"exit"+ is stored in variable +'actionvar'+.
+    The name of each node is stored in +'nodevar'+.
+    The script is evaluated twice for each node, on entry and exit.
+
++$tree *dump*+::
+    Dumps the tree contents to stdout
 
 [[BuiltinVariables]]
 BUILT-IN VARIABLES
