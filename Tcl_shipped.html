@@ -839,12 +839,12 @@ Support for "static" variables in procedures
 </li>
 <li>
 <p>
-Namespaces are not support
+Namespaces, threads and coroutines are not support
 </p>
 </li>
 <li>
 <p>
-Variable traces are not supported
+Command and variable traces are not supported
 </p>
 </li>
 <li>
@@ -873,7 +873,7 @@ procs now allow <em>args</em> and optional parameters in any position
 </li>
 <li>
 <p>
-Add Tcl-compatible expr functions, <tt>rand()</tt> and <tt>srand()</tt>
+Add Tcl-compatible expr functions, <tt>rand()</tt>, <tt>srand()</tt> and <tt>pow()</tt>
 </p>
 </li>
 <li>
@@ -894,6 +894,26 @@ New <tt>tcl_platform(pathSeparator)</tt>
 <li>
 <p>
 Add support settings the modification time with <a href="#_file"><strong><tt>file</tt></strong></a> <tt>mtime</tt>
+</p>
+</li>
+<li>
+<p>
+<a href="#_exec"><strong><tt>exec</tt></strong></a> is now fully supported on win32 (mingw32)
+</p>
+</li>
+<li>
+<p>
+<a href="#_file"><strong><tt>file</tt></strong></a> <tt>join</tt>, <a href="#_pwd"><strong><tt>pwd</tt></strong></a>, <a href="#_glob"><strong><tt>glob</tt></strong></a> etc. now work for mingw32
+</p>
+</li>
+<li>
+<p>
+Line editing is now supported for the win32 console (mingw32)
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_aio"><strong><tt>aio</tt></strong></a> <tt>listen</tt> command
 </p>
 </li>
 </ol></div>
@@ -948,7 +968,7 @@ Add <a href="#_aio"><strong><tt>aio</tt></strong></a> <tt>buffering</tt> command
 </li>
 <li>
 <p>
-<tt>binary format</tt> and <tt>binary scan</tt> are now (optionally) supported
+<a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>format</tt> and <a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>scan</tt> are now (optionally) supported
 </p>
 </li>
 <li>
@@ -1827,14 +1847,44 @@ of precedence:</p></div>
 <dd>
 <p>
     Unary functions (except rand() which takes no arguments)
-    int() converts the numeric argument to an integer by truncating down.
-    double() converts the numeric argument to floating point.
-    round() converts the numeric argument to the closest integer value.
-    abs() takes the absolute value of the numeric argument.
-    rand() takes the absolute value of the numeric argument.
-    rand() returns a pseudo-random floating-point value in the range (0,1).
-    srand() takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
 </p>
+<div class="ulist"><ul>
+<li>
+<p>
+<tt><em>int()</em></tt> converts the numeric argument to an integer by truncating down.
+</p>
+</li>
+<li>
+<p>
+<tt><em>double()</em></tt> converts the numeric argument to floating point.
+</p>
+</li>
+<li>
+<p>
+<tt><em>round()</em></tt> converts the numeric argument to the closest integer value.
+</p>
+</li>
+<li>
+<p>
+<tt><em>abs()</em></tt> takes the absolute value of the numeric argument.
+</p>
+</li>
+<li>
+<p>
+<tt><em>rand()</em></tt> takes the absolute value of the numeric argument.
+</p>
+</li>
+<li>
+<p>
+<tt><em>rand()</em></tt> returns a pseudo-random floating-point value in the range (0,1).
+</p>
+</li>
+<li>
+<p>
+<tt><em>srand()</em></tt> takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
+</p>
+</li>
+</ul></div>
 </dd>
 <dt class="hdlist1">
 <tt>sin() cos() tan() asin() acos() atan() sinh() cosh() tanh() ceil() floor() exp() log() log10() sqrt()</tt>
@@ -1856,12 +1906,13 @@ of precedence:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>**</tt>
+<tt>** pow(x,y)</tt>
 </dt>
 <dd>
 <p>
-    Power. e.g. pow(). If Jim is compiled with math support, supports doubles and
-    integers. Otherwise supports integers only.
+    Power. e.g. <em>x<sup>y</sup></em>. If Jim is compiled with math support, supports doubles and
+    integers. Otherwise supports integers only. (Note that the math-function form
+    has the same highest precedence)
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1875,7 +1926,7 @@ of precedence:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>\</tt> -+
+<tt>+ -</tt>
 </dt>
 <dd>
 <p>
@@ -2888,134 +2939,144 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_alias"><strong><tt>alias</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_append"><strong><tt>append</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_array"><strong><tt>array</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_binary"><strong><tt>binary</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_break"><strong><tt>break</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_case"><strong><tt>case</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_case"><strong><tt>case</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_catch"><strong><tt>catch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_cd"><strong><tt>cd</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>class</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_clock"><strong><tt>clock</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_close"><strong><tt>close</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_collect"><strong><tt>collect</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_concat"><strong><tt>concat</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_continue"><strong><tt>continue</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_curry"><strong><tt>curry</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_continue"><strong><tt>continue</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_curry"><strong><tt>curry</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_dict"><strong><tt>dict</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_env"><strong><tt>env</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eof"><strong><tt>eof</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_error"><strong><tt>error</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eval"><strong><tt>eval</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>eventloop</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_exec"><strong><tt>exec</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_exists"><strong><tt>exists</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_exec"><strong><tt>exec</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_exists"><strong><tt>exists</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exit"><strong><tt>exit</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_expr"><strong><tt>expr</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_file"><strong><tt>file</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_finalize"><strong><tt>finalize</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_flush"><strong><tt>flush</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_for"><strong><tt>for</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_foreach"><strong><tt>foreach</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_format"><strong><tt>format</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_getref"><strong><tt>getref</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_gets"><strong><tt>gets</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_glob"><strong><tt>glob</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_global"><strong><tt>global</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_if"><strong><tt>if</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_incr"><strong><tt>incr</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_info"><strong><tt>info</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_join"><strong><tt>join</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_kill"><strong><tt>kill</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><tt>lambda</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lappend"><strong><tt>lappend</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><tt>lassign</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><tt>lindex</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_linsert"><strong><tt>linsert</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_list"><strong><tt>list</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_llength"><strong><tt>llength</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_lmap"><strong><tt>lmap</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load"><strong><tt>load</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_local"><strong><tt>local</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_loop"><strong><tt>loop</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><tt>lrange</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat"><strong><tt>lrepeat</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreplace"><strong><tt>lreplace</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreverse"><strong><tt>lreverse</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><tt>lsearch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset"><strong><tt>lset</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><tt>lsort</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>oo</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_open"><strong><tt>open</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.fork</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.gethostname</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.getids</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.uptime</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.wait</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>pack</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>pack</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_package"><strong><tt>package</tt></strong></a></p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.wait</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_package"><strong><tt>package</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pid"><strong><tt>pid</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>posix</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><tt>proc</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts"><strong><tt>puts</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><tt>pwd</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><tt>rand</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_range"><strong><tt>range</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read"><strong><tt>read</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_ref"><strong><tt>ref</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><tt>regexp</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><tt>regsub</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename"><strong><tt>rename</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return"><strong><tt>return</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><tt>scan</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_seek"><strong><tt>seek</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set"><strong><tt>set</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_setref"><strong><tt>setref</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><tt>signal</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><tt>sleep</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket"><strong><tt>socket</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source"><strong><tt>source</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><tt>split</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><tt>stackdump</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><tt>stacktrace</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_string"><strong><tt>string</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><tt>subst</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>super</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_switch"><strong><tt>switch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><tt>syslog</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><tt>tailcall</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><tt>tell</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_throw"><strong><tt>throw</tt></strong></a></p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table"><a href="#_throw"><strong><tt>throw</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><tt>time</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tree"><strong><tt>tree</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><tt>try</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><tt>unknown</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>unpack</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><tt>unset</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><tt>upcall</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>update</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><tt>uplevel</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><tt>uplevel</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><tt>upvar</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>vwait</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><tt>while</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -3423,14 +3484,15 @@ command.  The legal <tt><em>options</em></tt> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><strong>dict keys</strong> <em>dictionary ?pattern?</em></tt>
+<tt><strong>dict merge</strong> ?<em>dictionary ...</em>?</tt>
 </dt>
 <dd>
 <p>
-    Returns a list of the keys in the dictionary.
-    If pattern is specified, then only those keys whose
-    names match <tt><em>pattern</em></tt> (using the matching rules of string
-    match) are included.
+    Return a dictionary that contains the contents of each of the
+    <tt><em>dictionary</em></tt> arguments. Where two (or more) dictionaries
+    contain a mapping for the same key, the resulting dictionary
+    maps that key to the value according to the last dictionary on
+    the command line containing a mapping for that key.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -3446,6 +3508,14 @@ command.  The legal <tt><em>options</em></tt> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>dict size</strong> <em>dictionary</em></tt>
+</dt>
+<dd>
+<p>
+    Return the number of key/value mappings in the given dictionary value.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>dict unset</strong> <em>dictionaryName key ?key ...? value</em></tt>
 </dt>
 <dd>
@@ -3457,6 +3527,36 @@ command.  The legal <tt><em>options</em></tt> are:</p></div>
     a path through nested dictionaries to the mapping to remove. At
     least one key must be specified, but the last key on the key-path
     need not exist. All other components on the path must exist.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>dict with</strong> <em>dictionaryName key ?key ...? script</em></tt>
+</dt>
+<dd>
+<p>
+    Execute the Tcl script in <tt><em>script</em></tt> with the value for each
+    key in <tt><em>dictionaryName</em></tt> mapped to a variable with the same
+    name. Where one or more keys are given, these indicate a chain
+    of nested dictionaries, with the innermost dictionary being the
+    one opened out for the execution of body. Making <tt><em>dictionaryName</em></tt>
+    unreadable will make the updates to the dictionary be discarded,
+    and this also happens if the contents of <tt><em>dictionaryName</em></tt> are
+    adjusted so that the chain of dictionaries no longer exists.
+    The result of <a href="#_dict"><strong><tt>dict</tt></strong></a> <tt>with</tt> is (unless some kind of error occurs)
+    the result of the evaluation of body.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    The variables are mapped in the scope enclosing the <a href="#_dict"><strong><tt>dict</tt></strong></a> <tt>with</tt>;
+    it is recommended that this command only be used in a local
+    scope (procedure). Because of this, the variables set by
+    <a href="#_dict"><strong><tt>dict</tt></strong></a> <tt>with</tt> will continue to exist after the command finishes (unless
+    explicitly unset). Note that changes to the contents of <tt><em>dictionaryName</em></tt>
+    only happen when <tt><em>script</em></tt> terminates.
 </p>
 </dd>
 </dl></div>
@@ -6456,7 +6556,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>$handle +<em>gets</em></tt> <em>?var?</em>+
+<tt>$handle <strong>gets</strong> <em>?var?</em></tt>
 </dt>
 <dd>
 <p>
@@ -6472,7 +6572,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>$handle +<em>copyto</em></tt> <em>tofd ?size?</em>+
+<tt>$handle <strong>copyto</strong> <em>tofd ?size?</em></tt>
 </dt>
 <dd>
 <p>
@@ -6515,7 +6615,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>$handle +<em>seek</em></tt> <em>offset</em> <strong>?start|current|end?</strong>+
+<tt>$handle <strong>seek</strong> <em>offset</em> <strong>?start|current|end?</strong></tt>
 </dt>
 <dd>
 <p>
@@ -6567,7 +6667,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>$handle +<em>sendto</em></tt> <em>str ?hostname:?port</em>+
+<tt>$handle <strong>sendto</strong> <em>str ?hostname:?port</em></tt>
 </dt>
 <dd>
 <p>
@@ -6578,7 +6678,7 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>$handle +<em>recvfrom</em></tt> <em>maxlen ?addrvar?</em>+
+<tt>$handle <strong>recvfrom</strong> <em>maxlen ?addrvar?</em></tt>
 </dt>
 <dd>
 <p>
@@ -6587,6 +6687,37 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
     If <tt><em>addrvar</em></tt> is specified, the sending address of the message is stored in
     the named variable in the form <em>addr:port</em>. See <a href="#_socket"><strong><tt>socket</tt></strong></a> for details.
 </p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_fconfigure">fconfigure</h3>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>fconfigure</strong> <em>handle</em> <strong>?-blocking 0|1? ?-buffering noneline|full? ?-translation</strong> <em>mode</em>?</tt>
+</dt>
+<dd>
+<p>
+    For compatibility with Tcl, a limited form of the <a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a>
+    command is supported.
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a> <tt>... -blocking</tt> maps to <a href="#_aio"><strong><tt>aio</tt></strong></a> <tt>ndelay</tt>
+</p>
+</li>
+<li>
+<p>
+<a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a> <tt>... -buffering</tt> maps to <a href="#_aio"><strong><tt>aio</tt></strong></a> <tt>buffering</tt>
+</p>
+</li>
+<li>
+<p>
+<a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a> <tt>... -translation</tt> is accepted but ignored
+</p>
+</li>
+</ul></div>
 </dd>
 </dl></div>
 </div>
@@ -6893,6 +7024,210 @@ uucp, local0-local7</tt></pre>
     use numeric values of those from your system syslog.h file,
     because I haven&#8217;t got time to implement yet another hash
     table.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="cmd_3">pack: pack, unpack</h3>
+<div class="paragraph"><p>The optional <em>pack</em> extension provides commands to encode and decode binary strings.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>pack</strong> <em>varName value</em> <strong>-intle|-intbe|-str</strong> <em>bitwidth ?bitoffset?</em></tt>
+</dt>
+<dd>
+<p>
+    Packs the binary representation of <tt><em>value</em></tt> into the variable
+    <tt><em>varName</em></tt>. The value is packed according to the given type
+    (integer/string, big-endian/little-endian), width and bit offset.
+    The variable is created if necessary (like <a href="#_append"><strong><tt>append</tt></strong></a>).
+    Ihe variable is expanded if necessary.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>unpack</strong> <em>binvalue</em> <strong>-intbe|-intle|-uintbe|-uintle|-str</strong> <em>bitpos bitwidth</em></tt>
+</dt>
+<dd>
+<p>
+    Unpacks bits from <tt><em>binvalue</em></tt> at bit position <tt><em>bitpos</em></tt> and with <tt><em>bitwidth</em></tt>.
+    Interprets the value according to the type (integer/string, big-endian/little-endian
+    and signed/unsigned) and returns it. For integer types, <tt><em>bitwidth</em></tt>
+    may be up to the size of a Jim Tcl integer (typically 64 bits). For the string type,
+    both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
+    access outside the length of the value will return 0 for integer types or the empty string
+    for the string type.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_binary">binary</h3>
+<div class="paragraph"><p>The optional, pure-Tcl <em>binary</em> extension provides the Tcl-compatible <a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>scan</tt> and <a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>format</tt>
+commands based on the low-level <a href="#cmd_3"><strong><tt>pack</tt></strong></a> and <a href="#cmd_3"><strong><tt>unpack</tt></strong></a> commands.</p></div>
+<div class="paragraph"><p>See the Tcl documentation at: <a href="http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm">http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm</a></p></div>
+<div class="paragraph"><p>Note that packing and unpacking of floating point values is not supported.</p></div>
+</div>
+<div class="sect2">
+<h3 id="cmd_4">oo: class, super</h3>
+<div class="paragraph"><p>The optional, pure-Tcl <em>oo</em> extension provides object-oriented (OO) support for Jim Tcl.</p></div>
+<div class="paragraph"><p>See the online documentation (<a href="http://jim.berlios.de/documentation/oo/">http://jim.berlios.de/documentation/oo/</a>) for more details.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>class</strong> <em>classname ?baseclasses? classvars</em></tt>
+</dt>
+<dd>
+<p>
+    Create a new class, <tt><em>classname</em></tt>, with the given dictionary
+    (<tt><em>classvars</em></tt>) as class variables. These are the initial variables
+    which all newly created objects of this class are initialised with.
+    If a list of baseclasses is given, methods and instance variables
+    are inherited.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>super</strong> <em>method ?args ...?</em></tt>
+</dt>
+<dd>
+<p>
+    From within a method, invokes the given method on the base class.
+    Note that this will only call the last baseclass given.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_tree">tree</h3>
+<div class="paragraph"><p>The optional, pure-Tcl <em>tree</em> extension implements an OO, general purpose tree structure
+similar to that provided by tcllib ::struct::tree (<a href="http://tcllib.sourceforge.net/doc/struct_tree.html">http://tcllib.sourceforge.net/doc/struct_tree.html</a>)</p></div>
+<div class="paragraph"><p>A tree is a collection of nodes, where each node (except the root node) has a single parent
+and zero or more child nodes (ordered), as well as zero or more attribute/value pairs.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>tree</strong></tt>
+</dt>
+<dd>
+<p>
+    Creates and returns a new tree object with a single node named "root".
+    All operations on the tree are invoked through this object.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>destroy</strong></tt>
+</dt>
+<dd>
+<p>
+    Destroy the tree and all it&#8217;s nodes. (Note that the the tree will also
+    be automatically garbage collected once it goes out of scope).
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>set</strong> <em>nodename key value</em></tt>
+</dt>
+<dd>
+<p>
+    Set the value for the given attribute key.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>lappend</strong> <em>nodename key value ...</em></tt>
+</dt>
+<dd>
+<p>
+    Append to the (list) value(s) for the given attribute key, or set if not yet set.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>keyexists</strong> <em>nodename key</em></tt>
+</dt>
+<dd>
+<p>
+    Returns 1 if the given attribute key exists.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>get</strong> <em>nodename key</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the value associated with the given attribute key.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>getall</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the entire attribute dictionary associated with the given key.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>depth</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the depth of the given node. The depth of "root" is 0.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>parent</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the node name of the parent node, or "" for the root node.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>numchildren</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the number of child nodes.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>children</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a list of the child nodes.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>next</strong> <em>nodename</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the next sibling node, or "" if none.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>insert</strong> <em>nodename ?index?</em></tt>
+</dt>
+<dd>
+<p>
+    Add a new child node to the given node. The index is a list index
+    such as <tt>3</tt> or <tt>end-2</tt>. The default index is <tt>end</tt>.
+    Returns the name of the newly added node.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>walk</strong> <em>nodename</em> <strong>dfs|bfs</strong> {<em>actionvar nodevar</em>} <em>script</em></tt>
+</dt>
+<dd>
+<p>
+    Walks the tree starting from the given node, either breadth first (<tt>bfs</tt>)
+    depth first (<tt>dfs</tt>).
+    The value <tt>"enter"</tt> or <tt>"exit"</tt> is stored in variable <tt><em>actionvar</em></tt>.
+    The name of each node is stored in <tt><em>nodevar</em></tt>.
+    The script is evaluated twice for each node, on entry and exit.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>$tree <strong>dump</strong></tt>
+</dt>
+<dd>
+<p>
+    Dumps the tree contents to stdout
 </p>
 </dd>
 </dl></div>
@@ -7302,7 +7637,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-09-02 14:36:51 EST
+Last updated 2011-09-26 14:30:23 EST
 </div>
 </div>
 </body>
