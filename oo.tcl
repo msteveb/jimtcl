@@ -10,16 +10,18 @@
 # The *last* baseclass can be accessed directly with [super]
 # Later baseclasses take precedence if the same method exists in more than one
 proc class {classname {baseclasses {}} classvars} {
+	set baseclassvars {}
 	foreach baseclass $baseclasses {
 		# Start by mapping all methods to the parent class
 		foreach method [$baseclass methods] { alias "$classname $method" "$baseclass $method" }
 		# Now import the base class classvars
-		set classvars [dict merge $classvars [$baseclass classvars]]
+		set baseclassvars [dict merge $baseclassvars [$baseclass classvars]]
 		# The last baseclass will win here
 		proc "$classname baseclass" {} baseclass { return $baseclass }
 	}
 
-	# Make sure that classvars is a dictionary
+	# Merge in the baseclass vars with lower precedence
+	set classvars [dict merge $baseclassvars $classvars]
 	set vars [lsort [dict keys $classvars]]
 
 	# This is the class dispatcher for $classname

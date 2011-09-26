@@ -59,6 +59,7 @@ puts ""
 # Now create a new subclass
 class CreditAccount Account {
 	limit -1000
+	balance -20
 }
 # Override the 'withdraw' method to allow overdrawing
 CreditAccount method withdraw {amount} {
@@ -85,6 +86,7 @@ set b [CreditAccount new {name "John White"}]
 puts b.vars=[$b vars]
 puts b.classname=[$b classname]
 
+puts "initial balance -> [$b see]"
 $b deposit 100
 puts "deposit 100 -> [$b see]"
 
