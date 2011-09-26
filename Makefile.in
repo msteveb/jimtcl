@@ -165,6 +165,10 @@ mk.so: jim-mk.cpp
 	$(CXX) $(CXXFLAGS) $(SHOBJ_CFLAGS) -c -o jim-mk.o $> $^
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-mk.o $(SH_LIBJIM) @LDLIBS_mk@
 
+sdl.so: jim-sdl.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sdl.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sdl.o $(SH_LIBJIM) @LDLIBS_sdl@
+
 Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 

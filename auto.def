@@ -204,7 +204,7 @@ set withmod [join [opt-val {with-mod with-jim-extmod}]]
 # Tcl extensions
 set ext_tcl "stdlib glob tclcompat tree rlprompt oo binary"
 # Native extensions
-set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline mk sqlite sqlite3 win32"
+set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline mk sqlite sqlite3 win32 sdl"
 
 # C++ extensions
 set ext_cxx "mk"
@@ -212,7 +212,7 @@ set ext_cxx "mk"
 # Tcl extensions which can be modules
 set ext_tcl_mod "glob tree rlprompt oo binary"
 # Native extensions which can be modules
-set ext_c_mod "readdir array clock file posix regexp syslog readline pack mk sqlite sqlite3 win32"
+set ext_c_mod "readdir array clock file posix regexp syslog readline pack mk sqlite sqlite3 win32 sdl"
 
 # All extensions
 set ext_all [concat $ext_c $ext_tcl]
@@ -259,6 +259,8 @@ set needs(sqlite3) {cc-check-function-in-lib sqlite3_open sqlite3}
 set libdep(sqlite3) lib_sqlite3_open
 set needs(syslog) {have-feature syslog}
 set needs(win32) {have-feature windows}
+set needs(sdl) {expr {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}}
+set libdep(sdl) {lib_SDL_SetVideoMode lib_rectangleRGBA}
 
 # First handle dependencies. If an extension is enabled, also enable its dependency
 foreach i [concat $ext_default $withext] {
@@ -333,7 +335,9 @@ foreach i [lsort $ext_all] {
         msg-result "module"
         lappend extmod $i
         if {[info exists libdep($i)]} {
-            define-append LDLIBS_$i [get-define $libdep($i) ""]
+            foreach j $libdep($i) {
+                define-append LDLIBS_$i [get-define $j ""]
+            }
         }
         continue
     }
@@ -356,7 +360,9 @@ foreach i [lsort $ext_all] {
 
     lappend ext $i
     if {[info exists libdep($i)]} {
-        define-append LDLIBS [get-define $libdep($i) ""]
+        foreach j $libdep($i) {
+            define-append LDLIBS [get-define $j ""]
+        }
     }
 }
 
