@@ -3,7 +3,8 @@
  *
  * You can find the latest source code at:
  *
- *   http://github.com/antirez/linenoise
+ *   http://github.com/msteveb/linenoise
+ *   (forked from http://github.com/antirez/linenoise)
  *
  * Does a number of crazy assumptions that happen to be true in 99.9999% of
  * the 2010 UNIX computers around.
@@ -12,6 +13,7 @@
  *
  * Copyright (c) 2010, Salvatore Sanfilippo <antirez at gmail dot com>
  * Copyright (c) 2010, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Copyright (c) 2011, Steve Bennett <steveb at workware dot net dot au>
  *
  * All rights reserved.
  *
@@ -44,13 +46,11 @@
  * - http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
  * - http://www.3waylabs.com/nw/WWW/products/wizcon/vt220.html
  *
- * Todo list:
- * - Win32 support
- * - Save and load history containing newlines
- *
  * Bloat:
  * - Completion?
  *
+ * Unix/termios
+ * ------------
  * List of escape sequences used by this program, we do everything just
  * a few sequences. In order to be so cheap we may have some
  * flickering effect with some slow terminal, but the lesser sequences
@@ -94,6 +94,12 @@
  * DSR/CPR (Report cursor position)
  *    Sequence: ESC [ 6 n
  *    Effect: reports current cursor position as ESC [ NNN ; MMM R
+ *
+ * win32/console
+ * -------------
+ * If __MINGW32__ is defined, the win32 console API is used.
+ * This could probably be made to work for the msvc compiler too.
+ * This support based in part on work by Jon Griffiths.
  */
 
 #ifdef __MINGW32__
@@ -452,16 +458,22 @@ static int check_special(int fd)
                 return SPECIAL_HOME;
         }
     }
-    if (c == '[' && c2 >= '1' && c2 <= '6') {
+    if (c == '[' && c2 >= '1' && c2 <= '8') {
         /* extended escape */
-        int c3 = fd_read_char(fd, 50);
-        if (c2 == '3' && c3 == '~') {
-            /* delete char under cursor */
-            return SPECIAL_DELETE;
+        c = fd_read_char(fd, 50);
+        if (c == '~') {
+            switch (c2) {
+                case '3':
+                    return SPECIAL_DELETE;
+                case '7':
+                    return SPECIAL_HOME;
+                case '8':
+                    return SPECIAL_END;
+            }
         }
-        while (c3 != -1 && c3 != '~') {
+        while (c != -1 && c != '~') {
             /* .e.g \e[12~ or '\e[11;2~   discard the complete sequence */
-            c3 = fd_read_char(fd, 50);
+            c = fd_read_char(fd, 50);
         }
     }
 
@@ -974,8 +986,9 @@ process_char:
                 free(history[history_len]);
                 return -1;
             }
-            /* Otherwise delete char to right of cursor */
-            if (remove_char(current, current->pos)) {
+            /* Otherwise fall through to delete char to right of cursor */
+        case SPECIAL_DELETE:
+            if (remove_char(current, current->pos) == 1) {
                 refreshLine(current->prompt, current);
             }
             break;
@@ -1161,27 +1174,15 @@ process_char:
                 refreshLine(current->prompt, current);
             }
             break;
-
-        case SPECIAL_DELETE:
-            if (remove_char(current, current->pos) == 1) {
-                refreshLine(current->prompt, current);
-            }
-            break;
+        case ctrl('A'): /* Ctrl+a, go to the start of the line */
         case SPECIAL_HOME:
             current->pos = 0;
             refreshLine(current->prompt, current);
             break;
+        case ctrl('E'): /* ctrl+e, go to the end of the line */
         case SPECIAL_END:
             current->pos = current->chars;
             refreshLine(current->prompt, current);
-            break;
-        default:
-            /* Only tab is allowed without ^V */
-            if (c == '\t' || c >= ' ') {
-                if (insert_char(current, current->pos, c) == 1) {
-                    refreshLine(current->prompt, current);
-                }
-            }
             break;
         case ctrl('U'): /* Ctrl+u, delete to beginning of line. */
             if (remove_chars(current, 0, current->pos)) {
@@ -1193,20 +1194,19 @@ process_char:
                 refreshLine(current->prompt, current);
             }
             break;
-        case ctrl('A'): /* Ctrl+a, go to the start of the line */
-            current->pos = 0;
-            refreshLine(current->prompt, current);
-            break;
-        case ctrl('E'): /* ctrl+e, go to the end of the line */
-            current->pos = current->chars;
-            refreshLine(current->prompt, current);
-            break;
         case ctrl('L'): /* Ctrl+L, clear screen */
-            /* clear screen */
             clearScreen(current);
             /* Force recalc of window size for serial terminals */
             current->cols = 0;
             refreshLine(current->prompt, current);
+            break;
+        default:
+            /* Only tab is allowed without ^V */
+            if (c == '\t' || c >= ' ') {
+                if (insert_char(current, current->pos, c) == 1) {
+                    refreshLine(current->prompt, current);
+                }
+            }
             break;
         }
     }
@@ -1256,10 +1256,16 @@ int linenoiseHistoryAdd(const char *line) {
 
     if (history_max_len == 0) return 0;
     if (history == NULL) {
-        history = (char**)malloc(sizeof(char*)*history_max_len);
+        history = (char **)malloc(sizeof(char*)*history_max_len);
         if (history == NULL) return 0;
         memset(history,0,(sizeof(char*)*history_max_len));
     }
+
+    /* do not insert duplicate lines into history */
+    if (history_len > 0 && strcmp(line, history[history_len - 1]) == 0) {
+        return 0;
+    }
+
     linecopy = strdup(line);
     if (!linecopy) return 0;
     if (history_len == history_max_len) {
@@ -1279,7 +1285,7 @@ int linenoiseHistorySetMaxLen(int len) {
     if (history) {
         int tocopy = history_len;
 
-        newHistory = (char**)malloc(sizeof(char*)*len);
+        newHistory = (char **)malloc(sizeof(char*)*len);
         if (newHistory == NULL) return 0;
         if (len < tocopy) tocopy = len;
         memcpy(newHistory,history+(history_max_len-tocopy), sizeof(char*)*tocopy);
