@@ -1201,6 +1201,7 @@ static int JimParseScript(struct JimParserCtx *pc)
             case ' ':
             case '\t':
             case '\r':
+            case '\f':
                 if (pc->state == JIM_PS_DEF)
                     return JimParseSep(pc);
                 pc->comment = 0;
@@ -1241,8 +1242,10 @@ static int JimParseSep(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' ||
-        (*pc->p == '\\' && *(pc->p + 1) == '\n')) {
+    while (isspace(UCHAR(*pc->p)) || (*pc->p == '\\' && *(pc->p + 1) == '\n')) {
+        if (*pc->p == '\n') {
+            break;
+        }
         if (*pc->p == '\\') {
             pc->p++;
             pc->len--;
@@ -1260,7 +1263,7 @@ static int JimParseEol(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (*pc->p == ' ' || *pc->p == '\n' || *pc->p == '\t' || *pc->p == '\r' || *pc->p == ';') {
+    while (isspace(UCHAR(*pc->p)) || *pc->p == ';') {
         if (*pc->p == '\n')
             pc->linenr++;
         pc->p++;
@@ -1663,6 +1666,7 @@ static int JimParseStr(struct JimParserCtx *pc)
             case '\t':
             case '\n':
             case '\r':
+            case '\f':
             case ';':
                 if (pc->state == JIM_PS_DEF) {
                     pc->tend = pc->p - 1;
@@ -1951,13 +1955,10 @@ static int JimParseListQuote(struct JimParserCtx *pc);
 
 static int JimParseList(struct JimParserCtx *pc)
 {
+    if (isspace(UCHAR(*pc->p))) {
+        return JimParseListSep(pc);
+    }
     switch (*pc->p) {
-        case ' ':
-        case '\n':
-        case '\t':
-        case '\r':
-            return JimParseListSep(pc);
-
         case '"':
             return JimParseListQuote(pc);
 
@@ -1982,7 +1983,7 @@ static int JimParseListSep(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (*pc->p == ' ' || *pc->p == '\t' || *pc->p == '\r' || *pc->p == '\n') {
+    while (isspace(UCHAR(*pc->p))) {
         if (*pc->p == '\n') {
             pc->linenr++;
         }
@@ -2038,22 +2039,18 @@ static int JimParseListStr(struct JimParserCtx *pc)
     pc->tt = JIM_TT_STR;
 
     while (pc->len) {
-        switch (*pc->p) {
-            case '\\':
-                if (--pc->len == 0) {
-                    /* Trailing backslash */
-                    pc->tend = pc->p;
-                    return JIM_OK;
-                }
-                pc->tt = JIM_TT_ESC;
-                pc->p++;
-                break;
-            case ' ':
-            case '\t':
-            case '\n':
-            case '\r':
-                pc->tend = pc->p - 1;
+        if (isspace(UCHAR(*pc->p))) {
+            pc->tend = pc->p - 1;
+            return JIM_OK;
+        }
+        if (*pc->p == '\\') {
+            if (--pc->len == 0) {
+                /* Trailing backslash */
+                pc->tend = pc->p;
                 return JIM_OK;
+            }
+            pc->tt = JIM_TT_ESC;
+            pc->p++;
         }
         pc->p++;
         pc->len--;
