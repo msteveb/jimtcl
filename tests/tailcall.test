@@ -52,4 +52,17 @@ test tailcall-1.5 {interaction of uplevel and tailcall} {
 	a b
 } {c c}
 
+test tailcall-1.6 {tailcall pass through return} {
+	proc a {script} {
+		# return from $script should pass through back to the caller
+		tailcall foreach i {1 2 3} $script
+	}
+	proc b {} {
+		a {return ok}
+		# Should not get here
+		return bad
+	}
+	b
+} {ok}
+
 testreport

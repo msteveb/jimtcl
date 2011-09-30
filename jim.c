@@ -9879,21 +9879,18 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
  */
 static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *fileNameObj, int linenr)
 {
-    if (!Jim_IsList(listPtr)) {
-        return Jim_EvalObj(interp, listPtr);
-    }
-    else {
-        int retcode = JIM_OK;
+    int retcode = JIM_OK;
 
-        if (listPtr->internalRep.listValue.len) {
-            Jim_IncrRefCount(listPtr);
-            retcode = JimEvalObjVector(interp,
-                listPtr->internalRep.listValue.len,
-                listPtr->internalRep.listValue.ele, fileNameObj, linenr);
-            Jim_DecrRefCount(interp, listPtr);
-        }
-        return retcode;
+    JimPanic((!Jim_IsList(listPtr), "JimEvalObjList() called without list arg"));
+
+    if (listPtr->internalRep.listValue.len) {
+        Jim_IncrRefCount(listPtr);
+        retcode = JimEvalObjVector(interp,
+            listPtr->internalRep.listValue.len,
+            listPtr->internalRep.listValue.ele, fileNameObj, linenr);
+        Jim_DecrRefCount(interp, listPtr);
     }
+    return retcode;
 }
 
 int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
@@ -10309,8 +10306,14 @@ badargset:
         Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
 
         Jim_IncrRefCount(resultScriptObjPtr);
-        /* Should be a list! */
+        /* Result must be a list */
         retcode = JimEvalObjList(interp, resultScriptObjPtr, fileNameObj, linenr);
+        if (retcode == JIM_RETURN) {
+            /* If the result of the tailcall invokes 'return', push
+             * it up to the caller
+             */
+            interp->returnLevel++;
+        }
         Jim_DecrRefCount(interp, resultScriptObjPtr);
     }
     /* Handle the JIM_RETURN return code */
