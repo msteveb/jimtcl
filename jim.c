@@ -6618,9 +6618,10 @@ int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
     for (i = 0; i < keyc; i++) {
         Jim_Obj *objPtr;
 
-        if (Jim_DictKey(interp, dictPtr, keyv[i], &objPtr, flags)
-            != JIM_OK)
-            return JIM_ERR;
+        int rc = Jim_DictKey(interp, dictPtr, keyv[i], &objPtr, flags);
+        if (rc != JIM_OK) {
+            return rc;
+        }
         dictPtr = objPtr;
     }
     *objPtrPtr = dictPtr;
@@ -6643,10 +6644,10 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     Jim_Obj *varObjPtr, *objPtr, *dictObjPtr;
     int shared, i;
 
-    varObjPtr = objPtr =
-        Jim_GetVariable(interp, varNamePtr, newObjPtr == NULL ? JIM_ERRMSG : JIM_NONE);
+    varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, flags);
     if (objPtr == NULL) {
-        if (newObjPtr == NULL)  /* Cannot remove a key from non existing var */ {
+        if (newObjPtr == NULL && (flags & JIM_ERRMSG)) {
+            /* Cannot remove a key from non existing var */
             return JIM_ERR;
         }
         varObjPtr = objPtr = Jim_NewDictObj(interp, NULL, 0);
@@ -6657,7 +6658,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     }
     if ((shared = Jim_IsShared(objPtr)))
         varObjPtr = objPtr = Jim_DuplicateObj(interp, objPtr);
-    for (i = 0; i < keyc - 1; i++) {
+    for (i = 0; i < keyc; i++) {
         dictObjPtr = objPtr;
 
         /* Check if it's a valid dictionary */
@@ -6666,6 +6667,17 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
                 goto err;
             }
         }
+
+        if (i == keyc - 1) {
+            /* Last key: Note that error on unset with missing last key is OK */
+            if (Jim_DictAddElement(interp, objPtr, keyv[keyc - 1], newObjPtr) != JIM_OK) {
+                if (newObjPtr || (flags & JIM_ERRMSG)) {
+                    goto err;
+                }
+            }
+            break;
+        }
+
         /* Check if the given key exists. */
         Jim_InvalidateStringRep(dictObjPtr);
         if (Jim_DictKey(interp, dictObjPtr, keyv[i], &objPtr,
@@ -6688,12 +6700,6 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
              * as key's value. */
             objPtr = Jim_NewDictObj(interp, NULL, 0);
             DictAddElement(interp, dictObjPtr, keyv[i], objPtr);
-        }
-    }
-    /* Note error on unset with missing last key is OK */
-    if (Jim_DictAddElement(interp, objPtr, keyv[keyc - 1], newObjPtr) != JIM_OK) {
-        if (newObjPtr || (flags & JIM_ERRMSG)) {
-            goto err;
         }
     }
     Jim_InvalidateStringRep(objPtr);

@@ -203,4 +203,28 @@ test dict-23.1 {dict unset missing last level} {
 	dict size $a
 } 2
 
+test dict-23.2 {dict unset command} -returnCodes error -body {
+    set dictVar a
+    dict unset dictVar a
+} -cleanup {
+    unset dictVar
+} -result {invalid dictionary value: must be a list with an even number of elements}
+
+test dict-23.3 {dict unset command} -setup {
+    unset -nocomplain dictVar
+} -body {
+    list [info exists dictVar] [dict unset dictVar a] [info exists dictVar]
+} -cleanup {
+    unset dictVar
+} -result {0 {} 1}
+
+test dict-23.4 {dict unset command: write failure} -setup {
+    unset -nocomplain dictVar
+} -body {
+    set dictVar 1
+    dict unset dictVar a
+} -returnCodes error -cleanup {
+    unset dictVar
+} -result {invalid dictionary value: must be a list with an even number of elements}
+
 testreport
