@@ -179,7 +179,7 @@ proc test {id descr args} {
 		puts -nonewline "$id "
 	}
 	puts "ERR $descr"
-	if {$rc == 0} {
+	if {$rc in {0 2}} {
 		set source [script_source $a(-body)]
 	} else {
 		set source [error_source]
