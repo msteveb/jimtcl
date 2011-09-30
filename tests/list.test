@@ -42,6 +42,8 @@ test list-1.22 {basic tests} {list "{ab}\\"} \\{ab\\}\\\\
 test list-1.23 {basic tests} {list \{} "\\{"
 test list-1.24 {basic tests} {list} {}
 test list-1.25 {basic tests} {list #} {{#}}
+test list-1.26 {basic tests} {list #abc} {{#abc}}
+test list-1.27 {basic tests} {list def #abc} {def #abc}
 
 # For the next round of tests create a list and then pick it apart
 # with "index" to make sure that we get back exactly what went in.

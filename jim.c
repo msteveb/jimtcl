@@ -5550,8 +5550,6 @@ static int ListElementQuotingType(const char *s, int len)
     /* Try with the SIMPLE case */
     if (len == 0)
         return JIM_ELESTR_BRACE;
-    if (s[0] == '#')
-        return JIM_ELESTR_BRACE;
     if (s[0] == '"' || s[0] == '{') {
         trySimple = 0;
         goto testbrace;
@@ -5712,8 +5710,13 @@ static void UpdateStringOfList(struct Jim_Obj *objPtr)
         quotingType[i] = ListElementQuotingType(strRep, len);
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
-                bufLen += len;
-                break;
+                if (i != 0 || strRep[0] != '#') {
+                    bufLen += len;
+                    break;
+                }
+                /* Special case '#' on first element needs braces */
+                quotingType[i] = JIM_ELESTR_BRACE;
+                /* fall through */
             case JIM_ELESTR_BRACE:
                 bufLen += len + 2;
                 break;
@@ -6371,8 +6374,13 @@ void UpdateStringOfDict(struct Jim_Obj *objPtr)
         quotingType[i] = ListElementQuotingType(strRep, len);
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
-                bufLen += len;
-                break;
+                if (i != 0 || strRep[0] != '#') {
+                    bufLen += len;
+                    break;
+                }
+                /* Special case '#' on first element needs braces */
+                quotingType[i] = JIM_ELESTR_BRACE;
+                /* fall through */
             case JIM_ELESTR_BRACE:
                 bufLen += len + 2;
                 break;
