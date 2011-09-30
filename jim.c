@@ -13297,8 +13297,10 @@ int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj)
 
 int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
-        return -1;
+    if (objPtr->typePtr != &dictObjType) {
+        if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+            return -1;
+        }
     }
     return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
 }
