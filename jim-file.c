@@ -175,7 +175,7 @@ static int set_array_string_value(Jim_Interp *interp, Jim_Obj *container, const 
 static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat *sb)
 {
     if (set_array_int_value(interp, varName, "dev", sb->st_dev) != JIM_OK) {
-        Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variables isn't array", varName);
+        Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variable isn't array", varName);
         return JIM_ERR;
     }
     set_array_int_value(interp, varName, "ino", sb->st_ino);
