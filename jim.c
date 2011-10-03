@@ -10239,6 +10239,10 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
     interp->framePtr = callFramePtr;
 
+    /* Install a new stack for local procs */
+    prevLocalProcs = interp->localProcs;
+    interp->localProcs = NULL;
+
     /* How many optional args are available */
     optargs = (argc - 1 - cmd->u.proc.reqArity);
 
@@ -10281,16 +10285,8 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
         }
     }
 
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
-
     /* Eval the body */
     retcode = Jim_EvalObj(interp, cmd->u.proc.bodyObjPtr);
-
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
 
 badargset:
     /* Destroy the callframe */
@@ -10330,6 +10326,11 @@ badargset:
         interp->errorProc = argv[0];
         Jim_IncrRefCount(interp->errorProc);
     }
+
+    /* Delete any local procs */
+    JimDeleteLocalProcs(interp);
+    interp->localProcs = prevLocalProcs;
+
     return retcode;
 }
 
