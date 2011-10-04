@@ -50,11 +50,11 @@ test rename-2.1 {renaming built-in command} {
 } {1 {invalid command name "list"} {a b c} 1 {invalid command name "l.new"} {111 222}}
 
 test rename-3.1 {error conditions} {
-    list [catch {rename r1} msg] $msg $errorCode
-} {1 {wrong # args: should be "rename oldName newName"} NONE}
+    list [catch {rename r1} msg] $msg
+} {1 {wrong # args: should be "rename oldName newName"}}
 test rename-3.2 {error conditions} {
-    list [catch {rename r1 r2 r3} msg] $msg $errorCode
-} {1 {wrong # args: should be "rename oldName newName"} NONE}
+    list [catch {rename r1 r2 r3} msg] $msg
+} {1 {wrong # args: should be "rename oldName newName"}}
 test rename-3.3 {error conditions} {
     proc r1 {} {}
     proc r2 {} {}
