@@ -5688,6 +5688,15 @@ The legal options (which may be abbreviated) are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>string byterange</strong> <em>string first last</em></tt>
+</dt>
+<dd>
+<p>
+    Like <a href="#_string"><strong><tt>string</tt></strong></a> <tt>range</tt> except works on bytes rather than characters.
+    These commands are identical if UTF-8 support is not enabled.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string compare ?-nocase?</strong> <em>string1 string2</em></tt>
 </dt>
 <dd>
@@ -5920,6 +5929,55 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>string map ?-nocase?</strong> <em>mapping string</em></tt>
+</dt>
+<dd>
+<p>
+    Replaces substrings in <tt><em>string</em></tt> based on the key-value pairs in
+    <tt><em>mapping</em></tt>, which is a list of <tt>key value key value ...</tt> as in the form
+    returned by <a href="#_array"><strong><tt>array</tt></strong></a> <tt>get</tt>. Each instance of a key in the string will be
+    replaced with its corresponding value.  If <tt>-nocase</tt> is specified, then
+    matching is done without regard to case differences. Both key and value may
+    be multiple characters.  Replacement is done in an ordered manner, so the
+    key appearing first in the list will be checked first, and so on. <tt><em>string</em></tt> is
+    only iterated over once, so earlier key replacements will have no affect for
+    later key matches. For example,
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>string map {abc 1 ab 2 a 3 1 0} 1abcaababcabababc</tt></pre>
+</div></div>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    will return the string <tt>01321221</tt>.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    Note that if an earlier key is a prefix of a later one, it will completely mask the later
+    one.  So if the previous example is reordered like this,
+</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>string map {1 0 ab 2 a 3 abc 1} 1abcaababcabababc</tt></pre>
+</div></div>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    it will return the string <tt>02c322c222c</tt>.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string match ?-nocase?</strong> <em>pattern string</em></tt>
 </dt>
 <dd>
@@ -5949,12 +6007,12 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>[</tt><em>chars</em><tt>]</tt>
+<tt>[<em>chars</em>]</tt>
 </dt>
 <dd>
 <p>
         Matches any character in the set given by <tt><em>chars</em></tt>.
-        If a sequence of the form <tt><em>x</em></tt>-<tt><em>y</em></tt> appears in <tt><em>chars</em></tt>,
+        If a sequence of the form <tt><em>x-y</em></tt> appears in <tt><em>chars</em></tt>,
         then any character between <tt><em>x</em></tt> and <tt><em>y</em></tt>, inclusive,
         will match.
 </p>
@@ -5965,8 +6023,8 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 <dd>
 <p>
         Matches the single character <tt><em>x</em></tt>.  This provides a way of
-        avoiding the special interpretation of the characters <tt>\*?[]\</tt>
-        in <tt><em>'+pattern</tt></em>'+.
+        avoiding the special interpretation of the characters <tt>\*?[]</tt>
+        in <tt><em>pattern</em></tt>.
 </p>
 </dd>
 </dl></div>
@@ -6007,15 +6065,6 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
     if <tt><em>last</em></tt> is greater than or equal to the length of the string then
     it is treated as if it were <tt>end</tt>.  If <tt><em>first</em></tt> is greater than
     <tt><em>last</em></tt> then an empty string is returned.
-</p>
-</dd>
-<dt class="hdlist1">
-<tt><strong>string byterange</strong> <em>string first last</em></tt>
-</dt>
-<dd>
-<p>
-    Like <em>string range</em> except works on bytes rather than characters. These commands
-    are identical if UTF-8 support is not enabled
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7637,7 +7686,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-09-26 14:30:23 EST
+Last updated 2011-10-06 07:52:30 EST
 </div>
 </div>
 </body>
