@@ -89,7 +89,7 @@ close $f
 
 set f [open sleep w]
 puts $f {
-    after [expr $argv*1000]
+    after [expr $argv*100]
     exit
 }
 close $f

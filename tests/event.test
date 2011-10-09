@@ -115,7 +115,7 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {jim
 	close $s
     }
     set s1 [socket stream.server 5001]
-    after 1000
+    after 200
     set s2 [socket stream 127.0.0.1:5001]
     close $s1
     set x 0
@@ -174,7 +174,7 @@ test event-12.4 {Tcl_UpdateCmd procedure} {
     }
     after 10; update; # On Mac make sure update won't take long
     after 200 {set x x-done}
-    after 600 {set y y-done}
+    after 400 {set y y-done}
     after idle {set z z-done}
     set x before
     set y before
