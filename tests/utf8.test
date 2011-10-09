@@ -125,4 +125,8 @@ test utf8-7.2 {append counts correctly} {
 	list [string length $x] [string bytelength $x]
 } {8 12}
 
+test utf8-7.3 {Upper, lower for titlecase utf-8} {
+	list [string toupper \u01c5] [string tolower \u01c5]
+} "\u01c4 \u01c6"
+
 testreport

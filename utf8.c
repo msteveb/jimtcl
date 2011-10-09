@@ -136,57 +136,48 @@ int utf8_tounicode(const char *str, int *uc)
 }
 
 struct casemap {
-    unsigned short code;    /* code point */
-    signed char lowerdelta; /* add for lowercase, or if -128 use the ext table */
-    signed char upperdelta; /* add for uppercase, or offset into the ext table */
-};
-
-/* Extended table for codepoints where |delta| > 127 */
-struct caseextmap {
-    unsigned short lower;
-    unsigned short upper;
+    unsigned short code;        /* code point */
+    unsigned short altcode;     /* alternate case code point */
 };
 
 /* Generated mapping tables */
 #include "_unicode_mapping.c"
 
-#define NUMCASEMAP sizeof(unicode_case_mapping) / sizeof(*unicode_case_mapping)
+#define ARRAYSIZE(A) sizeof(A) / sizeof(*(A))
 
 static int cmp_casemap(const void *key, const void *cm)
 {
     return *(int *)key - (int)((const struct casemap *)cm)->code;
 }
 
-static int utf8_map_case(int uc, int upper)
+static int utf8_map_case(const struct casemap *mapping, int num, int ch)
 {
-    const struct casemap *cm = bsearch(&uc, unicode_case_mapping, NUMCASEMAP, sizeof(*unicode_case_mapping), cmp_casemap);
+    /* We only support 16 bit case mapping */
+    if (ch <= 0xffff) {
+        const struct casemap *cm =
+            bsearch(&ch, mapping, num, sizeof(*mapping), cmp_casemap);
 
-    if (cm) {
-        if (cm->lowerdelta == -128) {
-            uc = upper ? unicode_extmap[cm->upperdelta].upper : unicode_extmap[cm->upperdelta].lower;
-        }
-        else {
-            uc += upper ? cm->upperdelta : cm->lowerdelta;
+        if (cm) {
+            return cm->altcode;
         }
     }
-    return uc;
+    return ch;
 }
 
-int utf8_upper(int uc)
+int utf8_upper(int ch)
 {
-    if (isascii(uc)) {
-        return toupper(uc);
+    if (isascii(ch)) {
+        return toupper(ch);
     }
-    return utf8_map_case(uc, 1);
+    return utf8_map_case(unicode_case_mapping_upper, ARRAYSIZE(unicode_case_mapping_upper), ch);
 }
 
-int utf8_lower(int uc)
+int utf8_lower(int ch)
 {
-    if (isascii(uc)) {
-        return tolower(uc);
+    if (isascii(ch)) {
+        return tolower(ch);
     }
-
-    return utf8_map_case(uc, 0);
+    return utf8_map_case(unicode_case_mapping_lower, ARRAYSIZE(unicode_case_mapping_lower), ch);
 }
 
 #endif /* JIM_BOOTSTRAP */
