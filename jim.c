@@ -5495,6 +5495,7 @@ Jim_Obj *Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue)
 /* -----------------------------------------------------------------------------
  * List object
  * ---------------------------------------------------------------------------*/
+static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *const *elemVec);
 static void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr);
 static void FreeListInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
@@ -5770,7 +5771,7 @@ static void UpdateStringOfList(struct Jim_Obj *objPtr)
     Jim_Free(quotingType);
 }
 
-int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     struct JimParserCtx parser;
     const char *str;
@@ -5819,7 +5820,6 @@ int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 Jim_Obj *Jim_NewListObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
 {
     Jim_Obj *objPtr;
-    int i;
 
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &listObjType;
@@ -5827,9 +5827,11 @@ Jim_Obj *Jim_NewListObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     objPtr->internalRep.listValue.ele = NULL;
     objPtr->internalRep.listValue.len = 0;
     objPtr->internalRep.listValue.maxLen = 0;
-    for (i = 0; i < len; i++) {
-        ListAppendElement(objPtr, elements[i]);
+
+    if (len) {
+        ListInsertElements(objPtr, 0, len, elements);
     }
+
     return objPtr;
 }
 
@@ -6001,11 +6003,10 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     Jim_Obj **point;
 
     if (requiredLen > listPtr->internalRep.listValue.maxLen) {
-        int maxLen = requiredLen * 2;
+        listPtr->internalRep.listValue.maxLen = requiredLen * 2;
 
-        listPtr->internalRep.listValue.ele =
-            Jim_Realloc(listPtr->internalRep.listValue.ele, sizeof(Jim_Obj *) * maxLen);
-        listPtr->internalRep.listValue.maxLen = maxLen;
+        listPtr->internalRep.listValue.ele = Jim_Realloc(listPtr->internalRep.listValue.ele,
+            sizeof(Jim_Obj *) * listPtr->internalRep.listValue.maxLen);
     }
     point = listPtr->internalRep.listValue.ele + idx;
     memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
@@ -6170,7 +6171,7 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
 
         for (i = 0; i < objc; i++)
-            Jim_ListAppendList(interp, objPtr, objv[i]);
+            ListAppendList(objPtr, objv[i]);
         return objPtr;
     }
     else {
@@ -13990,11 +13991,7 @@ static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
     objPtr = Jim_NewListObj(interp, argv, argc);
     while (--count) {
-        int i;
-
-        for (i = 0; i < argc; i++) {
-            ListAppendElement(objPtr, argv[i]);
-        }
+        ListInsertElements(objPtr, objPtr->internalRep.listValue.len, argc, argv);
     }
 
     Jim_SetResult(interp, objPtr);
