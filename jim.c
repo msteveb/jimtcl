@@ -5994,7 +5994,10 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
  * in the internals of the List Object and is not exported.
  *
  * NOTE: this function can be called only against objects
- * with internal type of List. */
+ * with internal type of List.
+ *
+ * An insertion point (idx) of -1 means end-of-list.
+ */
 static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *const *elemVec)
 {
     int currentLen = listPtr->internalRep.listValue.len;
@@ -6007,6 +6010,9 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
 
         listPtr->internalRep.listValue.ele = Jim_Realloc(listPtr->internalRep.listValue.ele,
             sizeof(Jim_Obj *) * listPtr->internalRep.listValue.maxLen);
+    }
+    if (idx < 0) {
+        idx = currentLen;
     }
     point = listPtr->internalRep.listValue.ele + idx;
     memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
@@ -6021,9 +6027,8 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
  */
 static void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
 {
-    ListInsertElements(listPtr, listPtr->internalRep.listValue.len, 1, &objPtr);
+    ListInsertElements(listPtr, -1, 1, &objPtr);
 }
-
 
 /* Appends every element of appendListPtr into listPtr.
  * Both have to be of the list type.
@@ -6031,7 +6036,7 @@ static void ListAppendElement(Jim_Obj *listPtr, Jim_Obj *objPtr)
  */
 static void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 {
-    ListInsertElements(listPtr, listPtr->internalRep.listValue.len,
+    ListInsertElements(listPtr, -1,
         appendListPtr->internalRep.listValue.len, appendListPtr->internalRep.listValue.ele);
 }
 
@@ -9360,7 +9365,7 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
     emptyStr = Jim_NewEmptyStringObj(interp);
     Jim_IncrRefCount(emptyStr);
     /* Create a list and fill it with empty strings up to max specified XPG3 */
-    resultList = Jim_NewListObj(interp, 0, 0);
+    resultList = Jim_NewListObj(interp, NULL, 0);
     if (fmtObj->maxPos > 0) {
         for (i = 0; i < fmtObj->maxPos; ++i)
             Jim_ListAppendElement(interp, resultList, emptyStr);
@@ -11847,8 +11852,6 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     int first, last, len, rangeLen;
     Jim_Obj *listObj;
     Jim_Obj *newListObj;
-    int i;
-    int shared;
 
     if (argc < 4) {
         Jim_WrongNumArgs(interp, 1, argv, "list first last ?element element ...?");
@@ -11884,31 +11887,16 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         return JIM_ERR;
     }
 
-    newListObj = Jim_NewListObj(interp, NULL, 0);
-
-    shared = Jim_IsShared(listObj);
-    if (shared) {
-        listObj = Jim_DuplicateObj(interp, listObj);
-    }
-
     /* Add the first set of elements */
-    for (i = 0; i < first; i++) {
-        Jim_ListAppendElement(interp, newListObj, listObj->internalRep.listValue.ele[i]);
-    }
+    newListObj = Jim_NewListObj(interp, listObj->internalRep.listValue.ele, first);
 
     /* Add supplied elements */
-    for (i = 4; i < argc; i++) {
-        Jim_ListAppendElement(interp, newListObj, argv[i]);
-    }
+    ListInsertElements(newListObj, -1, argc - 4, argv + 4);
 
     /* Add the remaining elements */
-    for (i = first + rangeLen; i < len; i++) {
-        Jim_ListAppendElement(interp, newListObj, listObj->internalRep.listValue.ele[i]);
-    }
+    ListInsertElements(newListObj, -1, len - first - rangeLen, listObj->internalRep.listValue.ele + first + rangeLen);
+
     Jim_SetResult(interp, newListObj);
-    if (shared) {
-        Jim_FreeNewObj(interp, listObj);
-    }
     return JIM_OK;
 }
 
@@ -13991,7 +13979,7 @@ static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
     objPtr = Jim_NewListObj(interp, argv, argc);
     while (--count) {
-        ListInsertElements(objPtr, objPtr->internalRep.listValue.len, argc, argv);
+        ListInsertElements(objPtr, -1, argc, argv);
     }
 
     Jim_SetResult(interp, objPtr);
