@@ -1,5 +1,5 @@
 source [file dirname [info script]]/testing.tcl
-needs constraint jim
+
 needs cmd tailcall
 needs cmd try tclcompat
 
@@ -31,7 +31,8 @@ test tailcall-1.3 {Tailcall does return} {
 	set x
 } {5}
 
-test tailcall-1.4 {uplevel tailcall} {
+# Note that Tcl can't do tailcall in uplevel
+test tailcall-1.4 {uplevel tailcall} jim {
 	proc a {} { set ::y [info level] }
 	proc b {} { set ::x [info level]; uplevel 1 tailcall a}
 	b
