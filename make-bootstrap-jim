@@ -99,6 +99,10 @@ done
 makeloadexts $allexts
 
 # And finally the core source code
-for i in jim.c jim-subcmd.c utf8.c jim-interactive.c jim-format.c jimregexp.c jimsh.c; do
+for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c; do
 	outputsource $i
 done
+echo "#ifndef JIM_BOOTSTRAP_LIB_ONLY"
+outputsource jim-interactive.c
+outputsource jimsh.c
+echo "#endif"
