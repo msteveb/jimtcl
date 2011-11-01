@@ -2470,39 +2470,52 @@ static int JimRelToAbsIndex(int len, int idx)
     return idx;
 }
 
-/* Convert a pair of index as normalize by JimRelToAbsIndex(),
- * into a range stored in *firstPtr, *lastPtr, *rangeLenPtr, suitable
- * for implementation of commands like [string range] and [lrange].
+/* Convert a pair of index  (*firstPtr, *lastPtr) as normalized by JimRelToAbsIndex(),
+ * into form suitable for implementation of commands like [string range] and [lrange].
  *
  * The resulting range is guaranteed to address valid elements of
- * the structure. */
-static void JimRelToAbsRange(int len, int first, int last,
-    int *firstPtr, int *lastPtr, int *rangeLenPtr)
+ * the structure.
+ *
+ */
+static void JimRelToAbsRange(int len, int *firstPtr, int *lastPtr, int *rangeLenPtr)
 {
     int rangeLen;
 
-    if (first > last) {
+    if (*firstPtr > *lastPtr) {
         rangeLen = 0;
     }
     else {
-        rangeLen = last - first + 1;
+        rangeLen = *lastPtr - *firstPtr + 1;
         if (rangeLen) {
-            if (first < 0) {
-                rangeLen += first;
-                first = 0;
+            if (*firstPtr < 0) {
+                rangeLen += *firstPtr;
+                *firstPtr = 0;
             }
-            if (last >= len) {
-                rangeLen -= (last - (len - 1));
-                last = len - 1;
+            if (*lastPtr >= len) {
+                rangeLen -= (*lastPtr - (len - 1));
+                *lastPtr = len - 1;
             }
         }
     }
     if (rangeLen < 0)
         rangeLen = 0;
 
-    *firstPtr = first;
-    *lastPtr = last;
     *rangeLenPtr = rangeLen;
+}
+
+static int JimStringGetRange(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr,
+    int len, int *first, int *last, int *range)
+{
+    if (Jim_GetIndex(interp, firstObjPtr, first) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if (Jim_GetIndex(interp, lastObjPtr, last) != JIM_OK) {
+        return JIM_ERR;
+    }
+    *first = JimRelToAbsIndex(len, *first);
+    *last = JimRelToAbsIndex(len, *last);
+    JimRelToAbsRange(len, first, last, range);
+    return JIM_OK;
 }
 
 Jim_Obj *Jim_StringByteRangeObj(Jim_Interp *interp,
@@ -2513,13 +2526,12 @@ Jim_Obj *Jim_StringByteRangeObj(Jim_Interp *interp,
     int rangeLen;
     int bytelen;
 
-    if (Jim_GetIndex(interp, firstObjPtr, &first) != JIM_OK ||
-        Jim_GetIndex(interp, lastObjPtr, &last) != JIM_OK)
-        return NULL;
     str = Jim_GetString(strObjPtr, &bytelen);
-    first = JimRelToAbsIndex(bytelen, first);
-    last = JimRelToAbsIndex(bytelen, last);
-    JimRelToAbsRange(bytelen, first, last, &first, &last, &rangeLen);
+
+    if (JimStringGetRange(interp, firstObjPtr, lastObjPtr, bytelen, &first, &last, &rangeLen) != JIM_OK) {
+        return NULL;
+    }
+
     if (first == 0 && rangeLen == bytelen) {
         return strObjPtr;
     }
@@ -2535,14 +2547,13 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
     int len, rangeLen;
     int bytelen;
 
-    if (Jim_GetIndex(interp, firstObjPtr, &first) != JIM_OK ||
-        Jim_GetIndex(interp, lastObjPtr, &last) != JIM_OK)
-        return NULL;
     str = Jim_GetString(strObjPtr, &bytelen);
     len = Jim_Utf8Length(interp, strObjPtr);
-    first = JimRelToAbsIndex(len, first);
-    last = JimRelToAbsIndex(len, last);
-    JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+
+    if (JimStringGetRange(interp, firstObjPtr, lastObjPtr, len, &first, &last, &rangeLen) != JIM_OK) {
+        return NULL;
+    }
+
     if (first == 0 && rangeLen == len) {
         return strObjPtr;
     }
@@ -6230,7 +6241,7 @@ Jim_Obj *Jim_ListRange(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *firstOb
     len = Jim_ListLength(interp, listObjPtr);   /* will convert into list */
     first = JimRelToAbsIndex(len, first);
     last = JimRelToAbsIndex(len, last);
-    JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    JimRelToAbsRange(len, &first, &last, &rangeLen);
     if (first == 0 && last == len) {
         return listObjPtr;
     }
@@ -11868,7 +11879,7 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 
     first = JimRelToAbsIndex(len, first);
     last = JimRelToAbsIndex(len, last);
-    JimRelToAbsRange(len, first, last, &first, &last, &rangeLen);
+    JimRelToAbsRange(len, &first, &last, &rangeLen);
 
     /* Now construct a new list which consists of:
      * <elements before first> <supplied elements> <elements after last>
