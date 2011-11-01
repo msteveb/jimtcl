@@ -58,6 +58,6 @@ switch -glob -- [get-define host] {
 		define SH_CFLAGS -fpic
 		define SH_LDFLAGS -shared
 		define SHOBJ_CFLAGS -fpic
-		define SHOBJ_LDFLAGS "-shared"
+		define SHOBJ_LDFLAGS -shared
 	}
 }
