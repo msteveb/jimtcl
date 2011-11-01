@@ -24,6 +24,7 @@ int utf8_fromunicode(char *p, unsigned short uc);
 #define utf8_strlen(S, B) ((B) < 0 ? strlen(S) : (B))
 #define utf8_tounicode(S, CP) (*(CP) = (unsigned char)*(S), 1)
 #define utf8_upper(C) toupper(C)
+#define utf8_title(C) toupper(C)
 #define utf8_lower(C) tolower(C)
 #define utf8_index(C, I) (I)
 #define utf8_charlen(C) 1
@@ -94,6 +95,15 @@ int utf8_prev_len(const char *str, int len);
  * Does not support unicode code points > \uffff
  */
 int utf8_upper(int uc);
+
+/**
+ * Returns the title-case variant of the given unicode codepoint.
+ *
+ * If none, returns utf8_upper().
+ *
+ * Unicode code points > \uffff are returned unchanged.
+ */
+int utf8_title(int uc);
 
 /**
  * Returns the lower-case variant of the given unicode codepoint.

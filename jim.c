@@ -2531,9 +2531,19 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
 #endif
 }
 
+static void JimStrCopyUpperLower(char *dest, const char *str, int uc)
+{
+    while (*str) {
+        int c;
+        str += utf8_tounicode(str, &c);
+        dest += utf8_fromunicode(dest, uc ? utf8_upper(c) : utf8_lower(c));
+    }
+    *dest = 0;
+}
+
 static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
-    char *buf, *p;
+    char *buf;
     int len;
     const char *str;
 
@@ -2541,33 +2551,46 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     str = Jim_GetString(strObjPtr, &len);
 
-    buf = p = Jim_Alloc(len + 1);
-    while (*str) {
-        int c;
-        str += utf8_tounicode(str, &c);
-        p += utf8_fromunicode(p, utf8_lower(c));
-    }
-    *p = 0;
+    buf = Jim_Alloc(len + 1);
+    JimStrCopyUpperLower(buf, str, 0);
     return Jim_NewStringObjNoAlloc(interp, buf, len);
 }
 
 static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
-    char *buf, *p;
-    int len;
+    char *buf;
     const char *str;
+    int len;
 
-    SetStringFromAny(interp, strObjPtr);
+    if (strObjPtr->typePtr != &stringObjType) {
+        SetStringFromAny(interp, strObjPtr);
+    }
 
     str = Jim_GetString(strObjPtr, &len);
 
-    buf = p = Jim_Alloc(len + 1);
-    while (*str) {
-        int c;
-        str += utf8_tounicode(str, &c);
-        p += utf8_fromunicode(p, utf8_upper(c));
+    buf = Jim_Alloc(len + 1);
+    JimStrCopyUpperLower(buf, str, 1);
+    return Jim_NewStringObjNoAlloc(interp, buf, len);
+}
+
+static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
+{
+    char *buf, *p;
+    int len;
+    int c;
+    const char *str;
+
+    str = Jim_GetString(strObjPtr, &len);
+    if (len == 0) {
+        return strObjPtr;
     }
-    *p = 0;
+    buf = p = Jim_Alloc(len + 1);
+
+    str += utf8_tounicode(str, &c);
+    p += utf8_fromunicode(p, utf8_title(c));
+
+    JimStrCopyUpperLower(p, str, 0);
+
     return Jim_NewStringObjNoAlloc(interp, buf, len);
 }
 
@@ -12639,15 +12662,15 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int opt_case = 1;
     int option;
     static const char * const options[] = {
-        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range", "map",
-        "repeat", "reverse", "index", "first", "last",
-        "trim", "trimleft", "trimright", "tolower", "toupper", NULL
+        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range",
+        "map", "repeat", "reverse", "index", "first", "last",
+        "trim", "trimleft", "trimright", "tolower", "toupper", "totitle", NULL
     };
     enum
     {
-        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE, OPT_MAP,
-        OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
-        OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER
+        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE,
+        OPT_MAP, OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
+        OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER, OPT_TOTITLE
     };
     static const char * const nocase_options[] = {
         "-nocase", NULL
@@ -12894,6 +12917,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 
         case OPT_TOLOWER:
         case OPT_TOUPPER:
+        case OPT_TOTITLE:
             if (argc != 3) {
                 Jim_WrongNumArgs(interp, 2, argv, "string");
                 return JIM_ERR;
@@ -12901,8 +12925,11 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             if (option == OPT_TOLOWER) {
                 Jim_SetResult(interp, JimStringToLower(interp, argv[2]));
             }
-            else {
+            else if (option == OPT_TOUPPER) {
                 Jim_SetResult(interp, JimStringToUpper(interp, argv[2]));
+            }
+            else {
+                Jim_SetResult(interp, JimStringToTitle(interp, argv[2]));
             }
             return JIM_OK;
 

@@ -770,6 +770,19 @@ test string-16.6 {string toupper} {
     string toupper {123#$&*()}
 } {123#$&*()}
 
+test string-17.1 {string totitle} -body {
+    string totitle
+}  -returnCodes error -match glob -result {wrong # args: should be "string totitle string*}
+test string-17.3 {string totitle} {
+    string totitle abCDEf
+} {Abcdef}
+test string-17.4 {string totitle} {
+    string totitle "abc xYz"
+} {Abc xyz}
+test string-17.5 {string totitle} {
+    string totitle {123#$&*()}
+} {123#$&*()}
+
 test string-18.1 {string trim} {
     list [catch {string trim} msg]
 } {1}

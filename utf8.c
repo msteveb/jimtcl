@@ -180,4 +180,13 @@ int utf8_lower(int ch)
     return utf8_map_case(unicode_case_mapping_lower, ARRAYSIZE(unicode_case_mapping_lower), ch);
 }
 
+int utf8_title(int ch)
+{
+    int newch = utf8_map_case(unicode_case_mapping_title, ARRAYSIZE(unicode_case_mapping_title), ch);
+    if (newch != ch) {
+        return newch ? newch : ch;
+    }
+    return utf8_upper(ch);
+}
+
 #endif /* JIM_BOOTSTRAP */
