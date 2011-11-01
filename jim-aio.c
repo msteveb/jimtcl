@@ -277,11 +277,12 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
 
-    Jim_DecrRefCount(interp, af->filename);
-
     if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
+
+    Jim_DecrRefCount(interp, af->filename);
+
 #ifdef jim_ext_eventloop
     /* remove existing EventHandlers */
     if (af->rEvent) {
@@ -953,8 +954,6 @@ static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
-    FILE *fp;
-    const char *hdlfmt;
     const char *mode;
 
     if (argc != 2 && argc != 3) {
@@ -963,38 +962,21 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     }
 
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
-    hdlfmt = Jim_String(argv[1]);
-    if (Jim_CompareStringImmediate(interp, argv[1], "stdin")) {
-        fp = stdin;
-    }
-    else if (Jim_CompareStringImmediate(interp, argv[1], "stdout")) {
-        fp = stdout;
-    }
-    else if (Jim_CompareStringImmediate(interp, argv[1], "stderr")) {
-        fp = stderr;
-    }
-    else {
-        const char *filename = Jim_String(argv[1]);
-
+    const char *filename = Jim_String(argv[1]);
 
 #ifdef jim_ext_tclcompat
-        /* If the filename starts with '|', use popen instead */
-        if (*filename == '|') {
-            Jim_Obj *evalObj[3];
+    /* If the filename starts with '|', use popen instead */
+    if (*filename == '|') {
+        Jim_Obj *evalObj[3];
 
-            evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
-            evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
-            evalObj[2] = Jim_NewStringObj(interp, mode, -1);
+        evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
+        evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
+        evalObj[2] = Jim_NewStringObj(interp, mode, -1);
 
-            return Jim_EvalObjVector(interp, 3, evalObj);
-        }
-#endif
-        hdlfmt = "aio.handle%ld";
-        fp = NULL;
+        return Jim_EvalObjVector(interp, 3, evalObj);
     }
-
-    /* Create the file command */
-    return JimMakeChannel(interp, fp, -1, argv[1], hdlfmt, 0, mode);
+#endif
+    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode);
 }
 
 /**
@@ -1015,6 +997,10 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     AioFile *af;
     char buf[AIO_CMD_LEN];
     int OpenFlags = 0;
+
+    if (filename == NULL) {
+        filename = Jim_NewStringObj(interp, hdlfmt, -1);
+    }
 
     Jim_IncrRefCount(filename);
 
@@ -1046,9 +1032,9 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 #ifdef FD_CLOEXEC
     if ((OpenFlags & AIO_KEEPOPEN) == 0) {
         fcntl(af->fd, F_SETFD, FD_CLOEXEC);
-        af->OpenFlags = OpenFlags;
     }
 #endif
+    af->OpenFlags = OpenFlags;
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
 #endif
@@ -1346,8 +1332,10 @@ int Jim_aioInit(Jim_Interp *interp)
     Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);
 #endif
 
-    /* Takeover stdin, stdout and stderr */
-    Jim_EvalGlobal(interp, "open stdin; open stdout; open stderr");
+    /* Create filehandles for stdin, stdout and stderr */
+    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r");
+    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w");
+    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w");
 
     return JIM_OK;
 }
