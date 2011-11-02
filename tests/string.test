@@ -854,5 +854,8 @@ test string-21.4 {string trim utf-8} {
     string trim "\u00b5\u00b6abc\x00def\u00b5\u00b5" "\u00b5\u00b6"
 } "abc\x00def"
 
+test string-22.1 {string replace} {
+    string replace //test.net/path/path2?query=url?otherquery 21 end
+} {//test.net/path/path2}
 
 testreport

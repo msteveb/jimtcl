@@ -2531,6 +2531,40 @@ Jim_Obj *Jim_StringRangeObj(Jim_Interp *interp,
 #endif
 }
 
+Jim_Obj *JimStringReplaceObj(Jim_Interp *interp,
+    Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr, Jim_Obj *newStrObj)
+{
+    int first, last;
+    const char *str;
+    int len, rangeLen;
+    Jim_Obj *objPtr;
+
+    len = Jim_Utf8Length(interp, strObjPtr);
+
+    if (JimStringGetRange(interp, firstObjPtr, lastObjPtr, len, &first, &last, &rangeLen) != JIM_OK) {
+        return NULL;
+    }
+
+    if (last <= first) {
+        return strObjPtr;
+    }
+
+    str = Jim_String(strObjPtr);
+
+    /* Before part */
+    objPtr = Jim_NewStringObjUtf8(interp, str, first);
+
+    /* Replacement */
+    if (newStrObj) {
+        Jim_AppendObj(interp, objPtr, newStrObj);
+    }
+
+    /* After part */
+    Jim_AppendString(interp, objPtr, str + utf8_index(str, last + 1), len - last - 1);
+
+    return objPtr;
+}
+
 static void JimStrCopyUpperLower(char *dest, const char *str, int uc)
 {
     while (*str) {
@@ -12662,13 +12696,13 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int opt_case = 1;
     int option;
     static const char * const options[] = {
-        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range",
+        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range", "replace",
         "map", "repeat", "reverse", "index", "first", "last",
         "trim", "trimleft", "trimright", "tolower", "toupper", "totitle", NULL
     };
     enum
     {
-        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE,
+        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE, OPT_REPLACE,
         OPT_MAP, OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
         OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER, OPT_TOTITLE
     };
@@ -12778,6 +12812,22 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 Jim_SetResult(interp, objPtr);
                 return JIM_OK;
             }
+
+        case OPT_REPLACE:{
+                Jim_Obj *objPtr;
+
+                if (argc != 5 && argc != 6) {
+                    Jim_WrongNumArgs(interp, 2, argv, "string first last ?newstring?");
+                    return JIM_ERR;
+                }
+                objPtr = JimStringReplaceObj(interp, argv[2], argv[3], argv[4], argc == 6 ? argv[5] : NULL);
+                if (objPtr == NULL) {
+                    return JIM_ERR;
+                }
+                Jim_SetResult(interp, objPtr);
+                return JIM_OK;
+            }
+
 
         case OPT_REPEAT:{
                 Jim_Obj *objPtr;
