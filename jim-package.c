@@ -1,9 +1,14 @@
-#include <unistd.h>
 #include <string.h>
 
 #include "jim.h"
 #include "jimautoconf.h"
 #include "jim-subcmd.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#else
+#define R_OK 4
+#endif
 
 /* -----------------------------------------------------------------------------
  * Packages handling

@@ -55,13 +55,13 @@
 #include <time.h>
 #include <setjmp.h>
 
-#include <unistd.h>
-#include <sys/time.h>
-
 #include "jim.h"
 #include "jimautoconf.h"
 #include "utf8.h"
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #endif
@@ -13406,10 +13406,8 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             objPtr = Jim_NewDictObj(interp, argv + 2, argc - 2);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
-
-        default:
-            abort();
     }
+    return JIM_ERR;
 }
 
 /* [subst] */

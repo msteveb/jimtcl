@@ -47,15 +47,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/time.h>
 
 #include "jim.h"
 #include "jimautoconf.h"
 #include "jim-subcmd.h"
+
+#ifdef HAVE_UTIMES
+#include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#elif defined(_MSC_VER)
+#include <direct.h>
+#define F_OK 0
+#define W_OK 2
+#define R_OK 4
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
 
 # ifndef MAXPATHLEN
 # define MAXPATHLEN JIM_PATH_LEN
@@ -86,25 +97,31 @@ static const char *JimGetFileType(int mode)
     else if (S_ISDIR(mode)) {
         return "directory";
     }
+#ifdef S_ISCHR
     else if (S_ISCHR(mode)) {
         return "characterSpecial";
     }
+#endif
+#ifdef S_ISBLK
     else if (S_ISBLK(mode)) {
         return "blockSpecial";
     }
+#endif
+#ifdef S_ISFIFO
     else if (S_ISFIFO(mode)) {
         return "fifo";
-#ifdef S_ISLNK
     }
+#endif
+#ifdef S_ISLNK
     else if (S_ISLNK(mode)) {
         return "link";
+    }
 #endif
 #ifdef S_ISSOCK
-    }
     else if (S_ISSOCK(mode)) {
         return "socket";
-#endif
     }
+#endif
     return "unknown";
 }
 
@@ -189,7 +206,7 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
     }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
     else if (p[-1] == ':') {
         /* z:/dir => z:/ */
         Jim_SetResultString(interp, path, p - path + 1);
@@ -280,7 +297,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             /* Absolute component, so go back to the start */
             last = newname;
         }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
         else if (strchr(part, ':')) {
             /* Absolute compontent on mingw, so go back to the start */
             last = newname;
@@ -349,7 +366,15 @@ static int file_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_executable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#ifdef X_OK
     return file_access(interp, argv[0], X_OK);
+#else
+    /* XXX: X_OK doesn't work under Windows.
+     * In any case, may need to add .exe, etc. so just lie!
+     */
+    Jim_SetResultBool(interp, 1);
+    return JIM_OK;
+#endif
 }
 
 static int file_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -901,7 +926,7 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, "Failed to get pwd", -1);
         return JIM_ERR;
     }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
     {
         /* Try to keep backlashes out of paths */
         char *p = cwd;

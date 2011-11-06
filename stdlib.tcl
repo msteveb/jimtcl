@@ -105,7 +105,7 @@ proc {info nameofexecutable} {} {
 			return [file join [pwd] $::jim_argv0]
 		}
 		foreach path [split [env PATH ""] $::tcl_platform(pathSeparator)] {
-			set exec [file join [pwd] $path $::jim_argv0]
+			set exec [file join [pwd] [string map {\\ /} $path] $::jim_argv0]
 			if {[file executable $exec]} {
 				return $exec
 			}

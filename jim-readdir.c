@@ -48,10 +48,13 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <dirent.h>
 
 #include "jim.h"
 #include "jimautoconf.h"
+
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
 
 /*
  *-----------------------------------------------------------------------------

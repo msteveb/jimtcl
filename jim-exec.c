@@ -90,10 +90,13 @@ int Jim_execInit(Jim_Interp *interp)
 #include <errno.h>
 #include <signal.h>
 
-#define XXX printf("@%s:%d\n", __FILE__, __LINE__); fflush(stdout);
-
 #if defined(__MINGW32__)
-    /* XXX: Should we use this implementation for cygwin too? */
+    /* XXX: Should we use this implementation for cygwin too? msvc? */
+    #ifndef STRICT
+    #define STRICT
+    #endif
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
     #include <fcntl.h>
 
     typedef HANDLE fdtype;

@@ -38,7 +38,6 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -52,6 +51,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <unistd.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -973,6 +973,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     const char *mode;
+    const char *filename;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
@@ -980,7 +981,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     }
 
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
-    const char *filename = Jim_String(argv[1]);
+    filename = Jim_String(argv[1]);
 
 #ifdef jim_ext_tclcompat
     /* If the filename starts with '|', use popen instead */
@@ -1036,7 +1037,9 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 
     if (fh == NULL) {
         JimAioSetError(interp, filename);
-        close(fd);
+        if (fd >= 0) {
+            close(fd);
+        }
         Jim_DecrRefCount(interp, filename);
         return JIM_ERR;
     }

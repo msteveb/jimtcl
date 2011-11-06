@@ -58,22 +58,31 @@ for i in $allexts; do
 	echo "#define jim_ext_$i"
 done
 
-# Can we make a bootstrap jimsh work even on mingw32?
 cat <<EOF
-#if defined(__MINGW32__)
+#if defined(_MSC_VER)
+#define TCL_PLATFORM_OS "windows"
+#define TCL_PLATFORM_PLATFORM "windows"
+#define TCL_PLATFORM_PATH_SEPARATOR ";"
+#define HAVE_MKDIR_ONE_ARG
+#define HAVE_SYSTEM
+#elif defined(__MINGW32__)
 #define TCL_PLATFORM_OS "mingw"
 #define TCL_PLATFORM_PLATFORM "windows"
 #define TCL_PLATFORM_PATH_SEPARATOR ";"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#define HAVE_SYS_TIME_H
+#define HAVE_DIRENT_H
+#define HAVE_UNISTD_H
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
 #define TCL_PLATFORM_PATH_SEPARATOR ":"
 #define HAVE_VFORK
 #define HAVE_WAITPID
+#define HAVE_SYS_TIME_H
+#define HAVE_DIRENT_H
+#define HAVE_UNISTD_H
 #endif
 EOF
 
@@ -85,7 +94,7 @@ outputsource()
 }
 
 # Now output header files, removing references to jim header files
-for i in utf8.h jim.h jim-subcmd.h jimregexp.h ; do
+for i in jim-win32compat.h utf8.h jim.h jim-subcmd.h jimregexp.h ; do
 	outputsource $i
 done
 
@@ -99,7 +108,7 @@ done
 makeloadexts $allexts
 
 # And finally the core source code
-for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c; do
+for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c jim-win32compat.c; do
 	outputsource $i
 done
 echo "#ifndef JIM_BOOTSTRAP_LIB_ONLY"

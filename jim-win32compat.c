@@ -1,6 +1,13 @@
 #include "jim.h"
 #include "jimautoconf.h"
 
+#if defined(_WIN32) || defined(WIN32)
+#ifndef STRICT
+#define STRICT
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #if defined(HAVE_DLOPEN_COMPAT)
 void *dlopen(const char *path, int mode)
 {
@@ -30,6 +37,9 @@ char *dlerror(void)
 #endif
 
 #ifdef _MSC_VER
+
+#include <sys/timeb.h>
+
 /* POSIX gettimeofday() compatibility for WIN32 */
 int gettimeofday(struct timeval *tv, void *unused)
 {
@@ -118,4 +128,5 @@ struct dirent *readdir(DIR * dir)
     }
     return result;
 }
+#endif
 #endif

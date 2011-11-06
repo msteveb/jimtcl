@@ -62,8 +62,8 @@ options {
 
 cc-check-types "long long"
 
-cc-check-includes sys/socket.h netinet/in.h arpa/inet.h netdb.h
-cc-check-includes sys/un.h dlfcn.h unistd.h crt_externs.h
+cc-check-includes sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
+cc-check-includes sys/un.h dlfcn.h unistd.h dirent.h crt_externs.h
 
 define LDLIBS ""
 
@@ -79,7 +79,7 @@ if {[cc-check-function-in-lib socket socket]} {
 }
 
 cc-check-functions ualarm lstat fork vfork system select
-cc-check-functions backtrace geteuid mkstemp realpath strptime gettimeofday
+cc-check-functions backtrace geteuid mkstemp realpath strptime
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 if {[cc-check-functions sysinfo]} {
