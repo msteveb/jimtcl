@@ -351,42 +351,42 @@ static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
  *-----------------------------------------------------------------------------
  */
 static const jim_subcmd_type signal_command_table[] = {
-    {   .cmd = "handle",
-        .args = "?signals ...?",
-        .function = signal_cmd_handle,
-        .minargs = 0,
-        .maxargs = -1,
-        .description = "Lists handled signals, or adds to handled signals"
+    {   "handle",
+        "?signals ...?",
+        signal_cmd_handle,
+        0,
+        -1,
+        /* Description: Lists handled signals, or adds to handled signals */
     },
-    {   .cmd = "ignore",
-        .args = "?signals ...?",
-        .function = signal_cmd_ignore,
-        .minargs = 0,
-        .maxargs = -1,
-        .description = "Lists ignored signals, or adds to ignored signals"
+    {   "ignore",
+        "?signals ...?",
+        signal_cmd_ignore,
+        0,
+        -1,
+        /* Description: Lists ignored signals, or adds to ignored signals */
     },
-    {   .cmd = "default",
-        .args = "?signals ...?",
-        .function = signal_cmd_default,
-        .minargs = 0,
-        .maxargs = -1,
-        .description = "Lists defaulted signals, or adds to defaulted signals"
+    {   "default",
+        "?signals ...?",
+        signal_cmd_default,
+        0,
+        -1,
+        /* Description: Lists defaulted signals, or adds to defaulted signals */
     },
-    {   .cmd = "check",
-        .args = "?-clear? ?signals ...?",
-        .function = signal_cmd_check,
-        .minargs = 0,
-        .maxargs = -1,
-        .description = "Returns ignored signals which have occurred, and optionally clearing them"
+    {   "check",
+        "?-clear? ?signals ...?",
+        signal_cmd_check,
+        0,
+        -1,
+        /* Description: Returns ignored signals which have occurred, and optionally clearing them */
     },
-    {   .cmd = "throw",
-        .args = "?signal?",
-        .function = signal_cmd_throw,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Raises the given signal (default SIGINT)"
+    {   "throw",
+        "?signal?",
+        signal_cmd_throw,
+        0,
+        1,
+        /* Description: Raises the given signal (default SIGINT) */
     },
-    { 0 }
+    { NULL }
 };
 
 static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

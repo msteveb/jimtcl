@@ -821,129 +821,147 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #endif
 
 static const jim_subcmd_type aio_command_table[] = {
-    {   .cmd = "read",
-        .args = "?-nonewline? ?len?",
-        .function = aio_cmd_read,
-        .minargs = 0,
-        .maxargs = 2,
-        .description = "Read and return bytes from the stream. To eof if no len."
+    {   "read",
+        "?-nonewline? ?len?",
+        aio_cmd_read,
+        0,
+        2,
+        /* Description: Read and return bytes from the stream. To eof if no len. */
     },
-    {   .cmd = "copyto",
-        .args = "handle ?size?",
-        .function = aio_cmd_copy,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Copy up to 'size' bytes to the given filehandle, or to eof if no size."
+    {   "copyto",
+        "handle ?size?",
+        aio_cmd_copy,
+        1,
+        2,
+        /* Description: Copy up to 'size' bytes to the given filehandle, or to eof if no size. */
     },
-    {   .cmd = "gets",
-        .args = "?var?",
-        .function = aio_cmd_gets,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Read one line and return it or store it in the var"
+    {   "gets",
+        "?var?",
+        aio_cmd_gets,
+        0,
+        1,
+        /* Description: Read one line and return it or store it in the var */
     },
-    {   .cmd = "puts",
-        .args = "?-nonewline? str",
-        .function = aio_cmd_puts,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Write the string, with newline unless -nonewline"
+    {   "puts",
+        "?-nonewline? str",
+        aio_cmd_puts,
+        1,
+        2,
+        /* Description: Write the string, with newline unless -nonewline */
     },
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
-    {   .cmd = "recvfrom",
-        .args = "len ?addrvar?",
-        .function = aio_cmd_recvfrom,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Receive up to 'len' bytes on the socket. Sets 'addrvar' with receive address, if set"
+    {   "recvfrom",
+        "len ?addrvar?",
+        aio_cmd_recvfrom,
+        1,
+        2,
+        /* Description: Receive up to 'len' bytes on the socket. Sets 'addrvar' with receive address, if set */
     },
-    {   .cmd = "sendto",
-        .args = "str address",
-        .function = aio_cmd_sendto,
-        .minargs = 2,
-        .maxargs = 2,
-        .description = "Send 'str' to the given address (dgram only)"
+    {   "sendto",
+        "str address",
+        aio_cmd_sendto,
+        2,
+        2,
+        /* Description: Send 'str' to the given address (dgram only) */
     },
-    {   .cmd = "accept",
-        .function = aio_cmd_accept,
-        .description = "Server socket only: Accept a connection and return stream"
+    {   "accept",
+        NULL,
+        aio_cmd_accept,
+        0,
+        0,
+        /* Description: Server socket only: Accept a connection and return stream */
     },
-    {   .cmd = "listen",
-        .args = "backlog",
-        .function = aio_cmd_listen,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Set the listen backlog for server socket"
+    {   "listen",
+        "backlog",
+        aio_cmd_listen,
+        1,
+        1,
+        /* Description: Set the listen backlog for server socket */
     },
 #endif /* JIM_BOOTSTRAP */
-    {   .cmd = "flush",
-        .function = aio_cmd_flush,
-        .description = "Flush the stream"
+    {   "flush",
+        NULL,
+        aio_cmd_flush,
+        0,
+        0,
+        /* Description: Flush the stream */
     },
-    {   .cmd = "eof",
-        .function = aio_cmd_eof,
-        .description = "Returns 1 if stream is at eof"
+    {   "eof",
+        NULL,
+        aio_cmd_eof,
+        0,
+        0,
+        /* Description: Returns 1 if stream is at eof */
     },
-    {   .cmd = "close",
-        .flags = JIM_MODFLAG_FULLARGV,
-        .function = aio_cmd_close,
-        .description = "Closes the stream"
+    {   "close",
+        NULL,
+        aio_cmd_close,
+        0,
+        0,
+        JIM_MODFLAG_FULLARGV,
+        /* Description: Closes the stream */
     },
-    {   .cmd = "seek",
-        .args = "offset ?start|current|end",
-        .function = aio_cmd_seek,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Seeks in the stream (default 'current')"
+    {   "seek",
+        "offset ?start|current|end",
+        aio_cmd_seek,
+        1,
+        2,
+        /* Description: Seeks in the stream (default 'current') */
     },
-    {   .cmd = "tell",
-        .function = aio_cmd_tell,
-        .description = "Returns the current seek position"
+    {   "tell",
+        NULL,
+        aio_cmd_tell,
+        0,
+        0,
+        /* Description: Returns the current seek position */
     },
-    {   .cmd = "filename",
-        .function = aio_cmd_filename,
-        .description = "Returns the original filename"
+    {   "filename",
+        NULL,
+        aio_cmd_filename,
+        0,
+        0,
+        /* Description: Returns the original filename */
     },
 #ifdef O_NDELAY
-    {   .cmd = "ndelay",
-        .args = "?0|1?",
-        .function = aio_cmd_ndelay,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Set O_NDELAY (if arg). Returns current/new setting."
+    {   "ndelay",
+        "?0|1?",
+        aio_cmd_ndelay,
+        0,
+        1,
+        /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
     },
 #endif
-    {   .cmd = "buffering",
-        .args = "none|line|full",
-        .function = aio_cmd_buffering,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Sets buffering"
+    {   "buffering",
+        "none|line|full",
+        aio_cmd_buffering,
+        1,
+        1,
+        /* Description: Sets buffering */
     },
 #ifdef jim_ext_eventloop
-    {   .cmd = "readable",
-        .args = "?readable-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_readable,
-        .description = "Returns script, or invoke readable-script when readable, {} to remove",
+    {   "readable",
+        "?readable-script?",
+        aio_cmd_readable,
+        0,
+        1,
+        /* Description: Returns script, or invoke readable-script when readable, {} to remove */
     },
-    {   .cmd = "writable",
-        .args = "?writable-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_writable,
-        .description = "Returns script, or invoke writable-script when writable, {} to remove",
+    {   "writable",
+        "?writable-script?",
+        aio_cmd_writable,
+        0,
+        1,
+        /* Description: Returns script, or invoke writable-script when writable, {} to remove */
     },
-    {   .cmd = "onexception",
-        .args = "?exception-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_onexception,
-        .description = "Returns script, or invoke exception-script when oob data, {} to remove",
+    {   "onexception",
+        "?exception-script?",
+        aio_cmd_onexception,
+        0,
+        1,
+        /* Description: Returns script, or invoke exception-script when oob data, {} to remove */
     },
 #endif
-    { 0 }
+    { NULL }
 };
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

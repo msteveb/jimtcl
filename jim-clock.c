@@ -106,47 +106,51 @@ static int clock_cmd_millis(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type clock_command_table[] = {
-    {   .cmd = "seconds",
-        .function = clock_cmd_seconds,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time as seconds since the epoch"
+    {   "seconds",
+        NULL,
+        clock_cmd_seconds,
+        0,
+        0,
+        /* Description: Returns the current time as seconds since the epoch */
     },
-    {   .cmd = "clicks",
-        .function = clock_cmd_micros,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in 'clicks'"
+    {   "clicks",
+        NULL,
+        clock_cmd_micros,
+        0,
+        0,
+        /* Description: Returns the current time in 'clicks' */
     },
-    {   .cmd = "microseconds",
-        .function = clock_cmd_micros,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in microseconds"
+    {   "microseconds",
+        NULL,
+        clock_cmd_micros,
+        0,
+        0,
+        /* Description: Returns the current time in microseconds */
     },
-    {   .cmd = "milliseconds",
-        .function = clock_cmd_millis,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in milliseconds"
+    {   "milliseconds",
+        NULL,
+        clock_cmd_millis,
+        0,
+        0,
+        /* Description: Returns the current time in milliseconds */
     },
-    {   .cmd = "format",
-        .args = "seconds ?-format format?",
-        .function = clock_cmd_format,
-        .minargs = 1,
-        .maxargs = 3,
-        .description = "Format the given time"
+    {   "format",
+        "seconds ?-format format?",
+        clock_cmd_format,
+        1,
+        3,
+        /* Description: Format the given time */
     },
 #ifdef HAVE_STRPTIME
-    {   .cmd = "scan",
-        .args = "str -format format",
-        .function = clock_cmd_scan,
-        .minargs = 3,
-        .maxargs = 3,
-        .description = "Determine the time according to the given format"
+    {   "scan",
+        "str -format format",
+        clock_cmd_scan,
+        3,
+        3,
+        /* Description: Determine the time according to the given format */
     },
 #endif
-    { 0 }
+    { NULL }
 };
 
 int Jim_clockInit(Jim_Interp *interp)

@@ -28,8 +28,7 @@ typedef struct {
 	tclmod_cmd_function *function;	/* Function implementing the subcommand */
 	short minargs;					/* Minimum required arguments */
 	short maxargs;					/* Maximum allowed arguments or -1 if no limit */
-	unsigned flags;					/* JIM_MODFLAG_... plus custom flags */
-	const char *description;		/* Description of the subcommand */
+	unsigned short flags;			/* JIM_MODFLAG_... plus custom flags */
 } jim_subcmd_type;
 
 /**
@@ -70,20 +69,6 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
  * Otherwise returns the result of ct->function.
  */
 int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_Obj *const *argv);
-
-/**
- * Standard processing for a command.
- *
- * This does the '-help' and '-usage' check and the number of args checks.
- * for a top level command against a single 'jim_subcmd_type' structure.
- *
- * Additionally, if command_table->function is set, it should point to a sub command table
- * and '-subhelp ?subcmd?', '-subusage' and '-subcommands' are then also recognised.
- *
- * Returns 0 if user requested usage, -1 on arg error, 1 if OK to process.
- */
-int
-Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv);
 
 #ifdef __cplusplus
 }

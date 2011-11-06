@@ -218,49 +218,49 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type array_command_table[] = {
-        {       .cmd = "exists",
-                .args = "arrayName",
-                .function = array_cmd_exists,
-                .minargs = 1,
-                .maxargs = 1,
-                .description = "Does array exist?"
+        {       "exists",
+                "arrayName",
+                array_cmd_exists,
+                1,
+                1,
+                /* Description: Does array exist? */
         },
-        {       .cmd = "get",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_get,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Array contents as name value list"
+        {       "get",
+                "arrayName ?pattern?",
+                array_cmd_get,
+                1,
+                2,
+                /* Description: Array contents as name value list */
         },
-        {       .cmd = "names",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_names,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Array keys as a list"
+        {       "names",
+                "arrayName ?pattern?",
+                array_cmd_names,
+                1,
+                2,
+                /* Description: Array keys as a list */
         },
-        {       .cmd = "set",
-                .args = "arrayName list",
-                .function = array_cmd_set,
-                .minargs = 2,
-                .maxargs = 2,
-                .description = "Set array from list"
+        {       "set",
+                "arrayName list",
+                array_cmd_set,
+                2,
+                2,
+                /* Description: Set array from list */
         },
-        {       .cmd = "size",
-                .args = "arrayName",
-                .function = array_cmd_size,
-                .minargs = 1,
-                .maxargs = 1,
-                .description = "Number of elements in array"
+        {       "size",
+                "arrayName",
+                array_cmd_size,
+                1,
+                1,
+                /* Description: Number of elements in array */
         },
-        {       .cmd = "unset",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_unset,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Unset elements of an array"
+        {       "unset",
+                "arrayName ?pattern?",
+                array_cmd_unset,
+                1,
+                2,
+                /* Description: Unset elements of an array */
         },
-        {       .cmd = 0,
+        {       NULL
         }
 };
 

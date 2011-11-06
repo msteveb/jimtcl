@@ -6827,14 +6827,14 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
 
 /* NOTE: These must be kept in the same order as JIM_OK, JIM_ERR, ... */
 static const char * const jimReturnCodes[] = {
-    [JIM_OK] = "ok",
-    [JIM_ERR] = "error",
-    [JIM_RETURN] = "return",
-    [JIM_BREAK] = "break",
-    [JIM_CONTINUE] = "continue",
-    [JIM_SIGNAL] = "signal",
-    [JIM_EXIT] = "exit",
-    [JIM_EVAL] = "eval",
+    "ok",
+    "error",
+    "return",
+    "break",
+    "continue",
+    "signal",
+    "exit",
+    "eval",
     NULL
 };
 
@@ -6904,7 +6904,7 @@ enum
 {
     /* Continues on from the JIM_TT_ space */
     /* Operations */
-    JIM_EXPROP_MUL = JIM_TT_EXPR_OP,    /* 15 */
+    JIM_EXPROP_MUL = JIM_TT_EXPR_OP,             /* 20 */
     JIM_EXPROP_DIV,
     JIM_EXPROP_MOD,
     JIM_EXPROP_SUB,
@@ -6919,47 +6919,47 @@ enum
     JIM_EXPROP_GTE,
     JIM_EXPROP_NUMEQ,
     JIM_EXPROP_NUMNE,
-    JIM_EXPROP_BITAND,          /* 30 */
+    JIM_EXPROP_BITAND,          /* 35 */
     JIM_EXPROP_BITXOR,
     JIM_EXPROP_BITOR,
 
     /* Note must keep these together */
-    JIM_EXPROP_LOGICAND,        /* 33 */
+    JIM_EXPROP_LOGICAND,        /* 38 */
     JIM_EXPROP_LOGICAND_LEFT,
     JIM_EXPROP_LOGICAND_RIGHT,
 
     /* and these */
-    JIM_EXPROP_LOGICOR,         /* 36 */
+    JIM_EXPROP_LOGICOR,         /* 41 */
     JIM_EXPROP_LOGICOR_LEFT,
     JIM_EXPROP_LOGICOR_RIGHT,
 
     /* and these */
     /* Ternary operators */
-    JIM_EXPROP_TERNARY,         /* 39 */
+    JIM_EXPROP_TERNARY,         /* 44 */
     JIM_EXPROP_TERNARY_LEFT,
     JIM_EXPROP_TERNARY_RIGHT,
 
     /* and these */
-    JIM_EXPROP_COLON,           /* 42 */
+    JIM_EXPROP_COLON,           /* 47 */
     JIM_EXPROP_COLON_LEFT,
     JIM_EXPROP_COLON_RIGHT,
 
-    JIM_EXPROP_POW,             /* 45 */
+    JIM_EXPROP_POW,             /* 50 */
 
 /* Binary operators (strings) */
-    JIM_EXPROP_STREQ,
+    JIM_EXPROP_STREQ,           /* 51 */
     JIM_EXPROP_STRNE,
     JIM_EXPROP_STRIN,
     JIM_EXPROP_STRNI,
 
 /* Unary operators (numbers) */
-    JIM_EXPROP_NOT,
+    JIM_EXPROP_NOT,             /* 55 */
     JIM_EXPROP_BITNOT,
     JIM_EXPROP_UNARYMINUS,
     JIM_EXPROP_UNARYPLUS,
 
     /* Functions */
-    JIM_EXPROP_FUNC_FIRST,
+    JIM_EXPROP_FUNC_FIRST,      /* 59 */
     JIM_EXPROP_FUNC_INT = JIM_EXPROP_FUNC_FIRST,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
@@ -6968,7 +6968,7 @@ enum
     JIM_EXPROP_FUNC_SRAND,
 
     /* math functions from libm */
-    JIM_EXPROP_FUNC_SIN,
+    JIM_EXPROP_FUNC_SIN,        /* 64 */
     JIM_EXPROP_FUNC_COS,
     JIM_EXPROP_FUNC_TAN,
     JIM_EXPROP_FUNC_ASIN,
@@ -7699,86 +7699,92 @@ enum
     LAZY_RIGHT
 };
 
-/* name - precedence - arity - opcode */
+/* name - precedence - arity - opcode
+ *
+ * This array *must* be kept in sync with the JIM_EXPROP enum
+ */
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
-    [JIM_EXPROP_FUNC_INT] = {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_DOUBLE] = {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ABS] = {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ROUND] = {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_RAND] = {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SRAND] = {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
+    {"*", 200, 2, JimExprOpBin, LAZY_NONE},
+    {"/", 200, 2, JimExprOpBin, LAZY_NONE},
+    {"%", 200, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"-", 100, 2, JimExprOpBin, LAZY_NONE},
+    {"+", 100, 2, JimExprOpBin, LAZY_NONE},
+
+    {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    {">>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"<", 80, 2, JimExprOpBin, LAZY_NONE},
+    {">", 80, 2, JimExprOpBin, LAZY_NONE},
+    {"<=", 80, 2, JimExprOpBin, LAZY_NONE},
+    {">=", 80, 2, JimExprOpBin, LAZY_NONE},
+
+    {"==", 70, 2, JimExprOpBin, LAZY_NONE},
+    {"!=", 70, 2, JimExprOpBin, LAZY_NONE},
+
+    {"&", 50, 2, JimExprOpIntBin, LAZY_NONE},
+    {"^", 49, 2, JimExprOpIntBin, LAZY_NONE},
+    {"|", 48, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"&&", 10, 2, NULL, LAZY_OP},
+    {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT},
+    {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+
+    {"||", 9, 2, NULL, LAZY_OP},
+    {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT},
+    {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+
+    {"?", 5, 2, JimExprOpNull, LAZY_OP},
+    {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
+    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+
+    {":", 5, 2, JimExprOpNull, LAZY_OP},
+    {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT},
+    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+
+    {"**", 250, 2, JimExprOpBin, LAZY_NONE},
+
+    {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE},
+    {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE},
+
+    {"in", 55, 2, JimExprOpStrBin, LAZY_NONE},
+    {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE},
+
+    {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE},
+    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
+    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
+
+
+
+    {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
+    {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
 
 #ifdef JIM_MATH_FUNCTIONS
-    [JIM_EXPROP_FUNC_SIN] = {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_COS] = {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_TAN] = {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ASIN] = {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ACOS] = {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ATAN] = {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SINH] = {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_COSH] = {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_TANH] = {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_CEIL] = {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_FLOOR] = {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_EXP] = {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_LOG] = {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_LOG10] = {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SQRT] = {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_POW] = {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
+    {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
 #endif
-
-    [JIM_EXPROP_NOT] = {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_BITNOT] = {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE},
-    [JIM_EXPROP_UNARYMINUS] = {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_UNARYPLUS] = {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
-
-    [JIM_EXPROP_POW] = {"**", 250, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_MUL] = {"*", 200, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_DIV] = {"/", 200, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_MOD] = {"%", 200, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_SUB] = {"-", 100, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_ADD] = {"+", 100, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_ROTL] = {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_ROTR] = {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_LSHIFT] = {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_RSHIFT] = {">>", 90, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_LT] = {"<", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_GT] = {">", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_LTE] = {"<=", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_GTE] = {">=", 80, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_NUMEQ] = {"==", 70, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_NUMNE] = {"!=", 70, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_STREQ] = {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE},
-    [JIM_EXPROP_STRNE] = {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE},
-
-    [JIM_EXPROP_STRIN] = {"in", 55, 2, JimExprOpStrBin, LAZY_NONE},
-    [JIM_EXPROP_STRNI] = {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE},
-
-    [JIM_EXPROP_BITAND] = {"&", 50, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_BITXOR] = {"^", 49, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_BITOR] = {"|", 48, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_LOGICAND] = {"&&", 10, 2, NULL, LAZY_OP},
-    [JIM_EXPROP_LOGICOR] = {"||", 9, 2, NULL, LAZY_OP},
-
-    [JIM_EXPROP_TERNARY] = {"?", 5, 2, JimExprOpNull, LAZY_OP},
-    [JIM_EXPROP_COLON] = {":", 5, 2, JimExprOpNull, LAZY_OP},
-
-    /* private operators */
-    [JIM_EXPROP_TERNARY_LEFT] = {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
-    [JIM_EXPROP_TERNARY_RIGHT] = {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
-    [JIM_EXPROP_COLON_LEFT] = {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT},
-    [JIM_EXPROP_COLON_RIGHT] = {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
-    [JIM_EXPROP_LOGICAND_LEFT] = {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT},
-    [JIM_EXPROP_LOGICAND_RIGHT] = {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT},
-    [JIM_EXPROP_LOGICOR_LEFT] = {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT},
-    [JIM_EXPROP_LOGICOR_RIGHT] = {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT},
 };
 
 #define JIM_EXPR_OPERATORS_NUM \
@@ -7923,7 +7929,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
     int bestIdx = -1, bestLen = 0;
 
     /* Try to get the longest match. */
-    for (i = JIM_TT_EXPR_OP; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
+    for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
         const char *opname;
         int oplen;
 
@@ -7934,7 +7940,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
         oplen = strlen(opname);
 
         if (strncmp(opname, pc->p, oplen) == 0 && oplen > bestLen) {
-            bestIdx = i;
+            bestIdx = i + JIM_TT_EXPR_OP;
             bestLen = oplen;
         }
     }
@@ -7967,7 +7973,11 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
 
 static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 {
-    return &Jim_ExprOperators[opcode];
+    static Jim_ExprOperator dummy_op;
+    if (opcode < JIM_TT_EXPR_OP) {
+        return &dummy_op;
+    }
+    return &Jim_ExprOperators[opcode - JIM_TT_EXPR_OP];
 }
 
 const char *jim_tt_name(int type)
@@ -7982,7 +7992,7 @@ const char *jim_tt_name(int type)
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(type);
         static char buf[20];
 
-        if (op && op->name) {
+        if (op->name) {
             return op->name;
         }
         sprintf(buf, "(%d)", type);
@@ -8060,17 +8070,15 @@ static int ExprCheckCorrectness(ExprByteCode * expr)
         ScriptToken *t = &expr->token[i];
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-        if (op) {
-            stacklen -= op->arity;
-            if (stacklen < 0) {
-                break;
-            }
-            if (t->type == JIM_EXPROP_TERNARY || t->type == JIM_EXPROP_TERNARY_LEFT) {
-                ternary++;
-            }
-            else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
-                ternary--;
-            }
+        stacklen -= op->arity;
+        if (stacklen < 0) {
+            break;
+        }
+        if (t->type == JIM_EXPROP_TERNARY || t->type == JIM_EXPROP_TERNARY_LEFT) {
+            ternary++;
+        }
+        else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
+            ternary--;
         }
 
         /* All operations and operands add one to the stack */
@@ -8152,7 +8160,8 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
 
     /* Do we need to adjust the skip count for any &L, |L, ?L or :L in the left operand? */
     for (i = leftindex - 1; i > 0; i--) {
-        if (JimExprOperatorInfoByOpcode(expr->token[i].type)->lazy == LAZY_LEFT) {
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(expr->token[i].type);
+        if (op->lazy == LAZY_LEFT) {
             if (JimWideValue(expr->token[i - 1].objPtr) + i - 1 >= leftindex) {
                 JimWideValue(expr->token[i - 1].objPtr) += 2;
             }
@@ -8361,8 +8370,9 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
      */
     for (i = 0; i < tokenlist->count; i++) {
         ParseToken *t = &tokenlist->list[i];
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-        if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
+        if (op->lazy == LAZY_OP) {
             count += 2;
             /* Ternary is a lazy op but also needs reordering */
             if (t->type == JIM_EXPROP_TERNARY) {

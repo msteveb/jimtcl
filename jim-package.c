@@ -232,24 +232,33 @@ static int package_cmd_list(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type package_command_table[] = {
-    {.cmd = "provide",
-            .args = "name ?version?",
-            .function = package_cmd_provide,
-            .minargs = 1,
-            .maxargs = 2,
-        .description = "Indicates that the current script provides the given package"},
-    {.cmd = "require",
-            .args = "name ?version?",
-            .function = package_cmd_require,
-            .minargs = 1,
-            .maxargs = 2,
-        .description = "Loads the given package by looking in standard places"},
-    {.cmd = "list",
-            .function = package_cmd_list,
-            .minargs = 0,
-            .maxargs = 0,
-        .description = "Lists all known packages"},
-    {0}
+    {
+        "provide",
+        "name ?version?",
+        package_cmd_provide,
+        1,
+        2,
+        /* Description: Indicates that the current script provides the given package */
+    },
+    {
+        "require",
+        "name ?version?",
+        package_cmd_require,
+        1,
+        2,
+        /* Description: Loads the given package by looking in standard places */
+    },
+    {
+        "list",
+        NULL,
+        package_cmd_list,
+        0,
+        0,
+        /* Description: Lists all known packages */
+    },
+    {
+        NULL
+    }
 };
 
 int Jim_packageInit(Jim_Interp *interp)
