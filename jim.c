@@ -1196,57 +1196,42 @@ static int JimParseScript(struct JimParserCtx *pc)
                 if (*(pc->p + 1) == '\n' && pc->state == JIM_PS_DEF) {
                     return JimParseSep(pc);
                 }
-                else {
-                    pc->comment = 0;
-                    return JimParseStr(pc);
-                }
-                break;
+                pc->comment = 0;
+                return JimParseStr(pc);
             case ' ':
             case '\t':
             case '\r':
                 if (pc->state == JIM_PS_DEF)
                     return JimParseSep(pc);
-                else {
-                    pc->comment = 0;
-                    return JimParseStr(pc);
-                }
-                break;
+                pc->comment = 0;
+                return JimParseStr(pc);
             case '\n':
             case ';':
                 pc->comment = 1;
                 if (pc->state == JIM_PS_DEF)
                     return JimParseEol(pc);
-                else
-                    return JimParseStr(pc);
-                break;
+                return JimParseStr(pc);
             case '[':
                 pc->comment = 0;
                 return JimParseCmd(pc);
-                break;
             case '$':
                 pc->comment = 0;
                 if (JimParseVar(pc) == JIM_ERR) {
+                    /* An orphan $. Create as a separate token */
                     pc->tstart = pc->tend = pc->p++;
                     pc->len--;
-                    pc->tline = pc->linenr;
-                    pc->tt = JIM_TT_STR;
-                    return JIM_OK;
+                    pc->tt = JIM_TT_ESC;
                 }
-                else
-                    return JIM_OK;
-                break;
+                return JIM_OK;
             case '#':
                 if (pc->comment) {
                     JimParseComment(pc);
                     continue;
                 }
-                else {
-                    return JimParseStr(pc);
-                }
+                return JimParseStr(pc);
             default:
                 pc->comment = 0;
                 return JimParseStr(pc);
-                break;
         }
         return JIM_OK;
     }
@@ -1610,17 +1595,19 @@ static int JimParseVar(struct JimParserCtx *pc)
 
 static int JimParseStr(struct JimParserCtx *pc)
 {
-    int newword = (pc->tt == JIM_TT_SEP || pc->tt == JIM_TT_EOL ||
-        pc->tt == JIM_TT_NONE || pc->tt == JIM_TT_STR);
-    if (newword && *pc->p == '{') {
-        return JimParseBrace(pc);
-    }
-    else if (newword && *pc->p == '"') {
-        pc->state = JIM_PS_QUOTE;
-        pc->p++;
-        pc->len--;
-        /* In case the end quote is missing */
-        pc->missingline = pc->tline;
+    if (pc->tt == JIM_TT_SEP || pc->tt == JIM_TT_EOL ||
+        pc->tt == JIM_TT_NONE || pc->tt == JIM_TT_STR) {
+        /* Starting a new word */
+        if (*pc->p == '{') {
+            return JimParseBrace(pc);
+        }
+        if (*pc->p == '"') {
+            pc->state = JIM_PS_QUOTE;
+            pc->p++;
+            pc->len--;
+            /* In case the end quote is missing */
+            pc->missingline = pc->tline;
+        }
     }
     pc->tstart = pc->p;
     pc->tline = pc->linenr;

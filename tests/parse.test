@@ -312,4 +312,12 @@ test parse-1.61 "quote in command" {
 	lindex $x end
 } x
 
+test parse-1.62 "quoted orphan dollar sign" {
+	set x "x$"
+} {x$}
+
+test parse-1.63 "unquoted dollar sign" {
+	set x x$
+} {x$}
+
 testreport
