@@ -44,4 +44,12 @@ test regexpmin-2.2 {utf8 min repeat} utf8 {
 	regexp -inline {a\u00df+?}  a\udf\udf\udf\udf\ub5z
 } "a\udf"
 
+test regexpmin-3.1 {non-capturing paren} {
+    regexp -inline {x(?:a|b)?} xababcabc
+} {xa}
+
+test regexpmin-3.2 {non-capturing paren} {
+    regexp -inline {x(?:a|b)?.*(b|c)} xababcabc
+} {xababcabc c}
+
 testreport

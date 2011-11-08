@@ -77,7 +77,7 @@
  * to the thing following the set of BRANCHes.)  The opcodes are:
  */
 
-/* This *MUST* be less than (255-20)/2=117 */
+/* This *MUST* be less than (255-20-1)/2=117 */
 #define REG_MAX_PAREN 100
 
 /* definition	number	opnd?	meaning */
@@ -98,10 +98,12 @@
 
 #define	WORDA	15	/* no	Match "" at wordchar, where prev is nonword */
 #define	WORDZ	16	/* no	Match "" at nonwordchar, where prev is word */
+#define	OPENNC	19	/* no	Non-capturing parentheses - must be OPEN-1 */
 #define	OPEN	20	/* no	Mark this point in input as start of #n. */
 			/*	OPEN+1 is number 1, etc. */
-#define	CLOSE	(OPEN+REG_MAX_PAREN)	/* no	Analogous to OPEN. */
+#define	CLOSE	(OPEN+REG_MAX_PAREN+1)	/* no	Analogous to OPEN. */
 #define	CLOSE_END	(CLOSE+REG_MAX_PAREN)
+#define	CLOSENC	(CLOSE-1)	/* no	Non-capturing parentheses - must be CLOSE-1 */
 
 /*
  * The first byte of the regexp internal "program" is actually this magic
@@ -333,7 +335,14 @@ static int reg(regex_t *preg, int paren /* Parenthesized? */, int *flagp )
 
 	/* Make an OPEN node, if parenthesized. */
 	if (paren) {
-		parno = ++preg->re_nsub;
+		if (preg->regparse[0] == '?' && preg->regparse[1] == ':') {
+			/* non-capturing paren */
+			preg->regparse += 2;
+			parno = -1;
+		}
+		else {
+			parno = ++preg->re_nsub;
+		}
 		ret = regnode(preg, OPEN+parno);
 	} else
 		ret = 0;
@@ -1446,6 +1455,14 @@ static int regmatch(regex_t *preg, int prog)
 		case END:
 			return(1);	/* Success! */
 			break;
+
+		case OPENNC:
+		case CLOSENC:
+			if (regmatch(preg, next)) {
+				return 1;
+			}
+			return 0;
+
 		default:
 			if (OP(preg, scan) >= OPEN+1 && OP(preg, scan) < CLOSE_END) {
 				const char *save;

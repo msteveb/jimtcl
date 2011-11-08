@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.72 - overview of the Jim tool command language facilities
+Jim Tcl v0.73 - overview of the Jim tool command language facilities
 
 SYNOPSIS
 --------
@@ -54,6 +54,10 @@ The major differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+
+Changes between 0.72 and 0.73
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Built-in regexp now support non-capturing parentheses: (?:...)
 
 Changes between 0.71 and 0.72
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -994,7 +998,8 @@ and POSIX are highlighted below.
 4. Character classes apply to ASCII characters only
 5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
-7. No support for the +?+ non-greedy quantifier. e.g. +*?+
+7. Support for the +?+ non-greedy quantifier. e.g. +*?+
+7. Support for non-capuring parentheses +(?:...)+
 
 COMMAND RESULTS
 ---------------
