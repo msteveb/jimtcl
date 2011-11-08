@@ -2,7 +2,7 @@
 #
 
 # Note: modules which support options *must* be included before 'options'
-use cc cc-shared
+use cc cc-shared cc-db
 
 options {
     utf8            => "include support for utf8-encoded strings"

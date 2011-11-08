@@ -18,20 +18,95 @@
 #define jim_ext_array
 #define jim_ext_stdlib
 #define jim_ext_tclcompat
-#if defined(__MINGW32__)
+#if defined(_MSC_VER)
+#define TCL_PLATFORM_OS "windows"
+#define TCL_PLATFORM_PLATFORM "windows"
+#define TCL_PLATFORM_PATH_SEPARATOR ";"
+#define HAVE_MKDIR_ONE_ARG
+#define HAVE_SYSTEM
+#elif defined(__MINGW32__)
 #define TCL_PLATFORM_OS "mingw"
 #define TCL_PLATFORM_PLATFORM "windows"
 #define TCL_PLATFORM_PATH_SEPARATOR ";"
 #define HAVE_MKDIR_ONE_ARG
 #define HAVE_SYSTEM
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#define HAVE_SYS_TIME_H
+#define HAVE_DIRENT_H
+#define HAVE_UNISTD_H
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
 #define TCL_PLATFORM_PATH_SEPARATOR ":"
 #define HAVE_VFORK
 #define HAVE_WAITPID
+#define HAVE_SYS_TIME_H
+#define HAVE_DIRENT_H
+#define HAVE_UNISTD_H
+#endif
+#ifndef JIM_WIN32COMPAT_H
+#define JIM_WIN32COMPAT_H
+
+
+
+
+#if defined(_WIN32) || defined(WIN32)
+
+#define HAVE_DLOPEN
+void *dlopen(const char *path, int mode);
+int dlclose(void *handle);
+void *dlsym(void *handle, const char *symbol);
+char *dlerror(void);
+
+#ifdef _MSC_VER
+
+
+#if _MSC_VER >= 1000
+	#pragma warning(disable:4146)
+#endif
+
+#include <limits.h>
+#define jim_wide _int64
+#ifndef LLONG_MAX
+	#define LLONG_MAX    9223372036854775807I64
+#endif
+#ifndef LLONG_MIN
+	#define LLONG_MIN    (-LLONG_MAX - 1I64)
+#endif
+#define JIM_WIDE_MIN LLONG_MIN
+#define JIM_WIDE_MAX LLONG_MAX
+#define JIM_WIDE_MODIFIER "I64d"
+#define strcasecmp _stricmp
+#define strtoull _strtoui64
+#define snprintf _snprintf
+
+#include <io.h>
+
+struct timeval {
+	long tv_sec;
+	long tv_usec;
+};
+
+int gettimeofday(struct timeval *tv, void *unused);
+
+#define HAVE_OPENDIR
+struct dirent {
+	char *d_name;
+};
+
+typedef struct DIR {
+	long                handle; 
+	struct _finddata_t  info;
+	struct dirent       result; 
+	char                *name;  
+} DIR;
+
+DIR *opendir(const char *name);
+int closedir(DIR *dir);
+struct dirent *readdir(DIR *dir);
+#endif 
+
+#endif 
+
 #endif
 #ifndef UTF8_UTIL_H
 #define UTF8_UTIL_H
@@ -104,7 +179,7 @@ extern "C" {
 #define UCHAR(c) ((unsigned char)(c))
 
 
-#define JIM_VERSION 72
+#define JIM_VERSION 73
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -818,8 +893,7 @@ typedef struct {
 	tclmod_cmd_function *function;	
 	short minargs;					
 	short maxargs;					
-	unsigned flags;					
-	const char *description;		
+	unsigned short flags;			
 } jim_subcmd_type;
 
 const jim_subcmd_type *
@@ -828,9 +902,6 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
 int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
 int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_Obj *const *argv);
-
-int
-Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type *command_table, int argc, Jim_Obj *const *argv);
 
 #ifdef __cplusplus
 }
@@ -1223,7 +1294,7 @@ int Jim_stdlibInit(Jim_Interp *interp)
 "			return [file join [pwd] $::jim_argv0]\n"
 "		}\n"
 "		foreach path [split [env PATH \"\"] $::tcl_platform(pathSeparator)] {\n"
-"			set exec [file join [pwd] $path $::jim_argv0]\n"
+"			set exec [file join [pwd] [string map {\\\\ /} $path] $::jim_argv0]\n"
 "			if {[file executable $exec]} {\n"
 "				return $exec\n"
 "			}\n"
@@ -1557,7 +1628,6 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 }
 
 
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -1569,6 +1639,7 @@ int Jim_tclcompatInit(Jim_Interp *interp)
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <unistd.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -1629,11 +1700,12 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
 
-    Jim_DecrRefCount(interp, af->filename);
-
     if (!(af->OpenFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
+
+    Jim_DecrRefCount(interp, af->filename);
+
 #ifdef jim_ext_eventloop
     
     if (af->rEvent) {
@@ -2054,102 +2126,117 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #endif
 
 static const jim_subcmd_type aio_command_table[] = {
-    {   .cmd = "read",
-        .args = "?-nonewline? ?len?",
-        .function = aio_cmd_read,
-        .minargs = 0,
-        .maxargs = 2,
-        .description = "Read and return bytes from the stream. To eof if no len."
+    {   "read",
+        "?-nonewline? ?len?",
+        aio_cmd_read,
+        0,
+        2,
+        
     },
-    {   .cmd = "copyto",
-        .args = "handle ?size?",
-        .function = aio_cmd_copy,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Copy up to 'size' bytes to the given filehandle, or to eof if no size."
+    {   "copyto",
+        "handle ?size?",
+        aio_cmd_copy,
+        1,
+        2,
+        
     },
-    {   .cmd = "gets",
-        .args = "?var?",
-        .function = aio_cmd_gets,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Read one line and return it or store it in the var"
+    {   "gets",
+        "?var?",
+        aio_cmd_gets,
+        0,
+        1,
+        
     },
-    {   .cmd = "puts",
-        .args = "?-nonewline? str",
-        .function = aio_cmd_puts,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Write the string, with newline unless -nonewline"
+    {   "puts",
+        "?-nonewline? str",
+        aio_cmd_puts,
+        1,
+        2,
+        
     },
-    {   .cmd = "flush",
-        .function = aio_cmd_flush,
-        .description = "Flush the stream"
+    {   "flush",
+        NULL,
+        aio_cmd_flush,
+        0,
+        0,
+        
     },
-    {   .cmd = "eof",
-        .function = aio_cmd_eof,
-        .description = "Returns 1 if stream is at eof"
+    {   "eof",
+        NULL,
+        aio_cmd_eof,
+        0,
+        0,
+        
     },
-    {   .cmd = "close",
-        .flags = JIM_MODFLAG_FULLARGV,
-        .function = aio_cmd_close,
-        .description = "Closes the stream"
+    {   "close",
+        NULL,
+        aio_cmd_close,
+        0,
+        0,
+        JIM_MODFLAG_FULLARGV,
+        
     },
-    {   .cmd = "seek",
-        .args = "offset ?start|current|end",
-        .function = aio_cmd_seek,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Seeks in the stream (default 'current')"
+    {   "seek",
+        "offset ?start|current|end",
+        aio_cmd_seek,
+        1,
+        2,
+        
     },
-    {   .cmd = "tell",
-        .function = aio_cmd_tell,
-        .description = "Returns the current seek position"
+    {   "tell",
+        NULL,
+        aio_cmd_tell,
+        0,
+        0,
+        
     },
-    {   .cmd = "filename",
-        .function = aio_cmd_filename,
-        .description = "Returns the original filename"
+    {   "filename",
+        NULL,
+        aio_cmd_filename,
+        0,
+        0,
+        
     },
 #ifdef O_NDELAY
-    {   .cmd = "ndelay",
-        .args = "?0|1?",
-        .function = aio_cmd_ndelay,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Set O_NDELAY (if arg). Returns current/new setting."
+    {   "ndelay",
+        "?0|1?",
+        aio_cmd_ndelay,
+        0,
+        1,
+        
     },
 #endif
-    {   .cmd = "buffering",
-        .args = "none|line|full",
-        .function = aio_cmd_buffering,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Sets buffering"
+    {   "buffering",
+        "none|line|full",
+        aio_cmd_buffering,
+        1,
+        1,
+        
     },
 #ifdef jim_ext_eventloop
-    {   .cmd = "readable",
-        .args = "?readable-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_readable,
-        .description = "Returns script, or invoke readable-script when readable, {} to remove",
+    {   "readable",
+        "?readable-script?",
+        aio_cmd_readable,
+        0,
+        1,
+        
     },
-    {   .cmd = "writable",
-        .args = "?writable-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_writable,
-        .description = "Returns script, or invoke writable-script when writable, {} to remove",
+    {   "writable",
+        "?writable-script?",
+        aio_cmd_writable,
+        0,
+        1,
+        
     },
-    {   .cmd = "onexception",
-        .args = "?exception-script?",
-        .minargs = 0,
-        .maxargs = 1,
-        .function = aio_cmd_onexception,
-        .description = "Returns script, or invoke exception-script when oob data, {} to remove",
+    {   "onexception",
+        "?exception-script?",
+        aio_cmd_onexception,
+        0,
+        1,
+        
     },
 #endif
-    { 0 }
+    { NULL }
 };
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -2160,9 +2247,8 @@ static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
-    FILE *fp;
-    const char *hdlfmt;
     const char *mode;
+    const char *filename;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
@@ -2170,38 +2256,21 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     }
 
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
-    hdlfmt = Jim_String(argv[1]);
-    if (Jim_CompareStringImmediate(interp, argv[1], "stdin")) {
-        fp = stdin;
-    }
-    else if (Jim_CompareStringImmediate(interp, argv[1], "stdout")) {
-        fp = stdout;
-    }
-    else if (Jim_CompareStringImmediate(interp, argv[1], "stderr")) {
-        fp = stderr;
-    }
-    else {
-        const char *filename = Jim_String(argv[1]);
-
+    filename = Jim_String(argv[1]);
 
 #ifdef jim_ext_tclcompat
-        
-        if (*filename == '|') {
-            Jim_Obj *evalObj[3];
-
-            evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
-            evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
-            evalObj[2] = Jim_NewStringObj(interp, mode, -1);
-
-            return Jim_EvalObjVector(interp, 3, evalObj);
-        }
-#endif
-        hdlfmt = "aio.handle%ld";
-        fp = NULL;
-    }
-
     
-    return JimMakeChannel(interp, fp, -1, argv[1], hdlfmt, 0, mode);
+    if (*filename == '|') {
+        Jim_Obj *evalObj[3];
+
+        evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
+        evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
+        evalObj[2] = Jim_NewStringObj(interp, mode, -1);
+
+        return Jim_EvalObjVector(interp, 3, evalObj);
+    }
+#endif
+    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode);
 }
 
 static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
@@ -2210,6 +2279,10 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     AioFile *af;
     char buf[AIO_CMD_LEN];
     int OpenFlags = 0;
+
+    if (filename == NULL) {
+        filename = Jim_NewStringObj(interp, hdlfmt, -1);
+    }
 
     Jim_IncrRefCount(filename);
 
@@ -2227,7 +2300,9 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 
     if (fh == NULL) {
         JimAioSetError(interp, filename);
-        close(fd);
+        if (fd >= 0) {
+            close(fd);
+        }
         Jim_DecrRefCount(interp, filename);
         return JIM_ERR;
     }
@@ -2241,9 +2316,9 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 #ifdef FD_CLOEXEC
     if ((OpenFlags & AIO_KEEPOPEN) == 0) {
         fcntl(af->fd, F_SETFD, FD_CLOEXEC);
-        af->OpenFlags = OpenFlags;
     }
 #endif
+    af->OpenFlags = OpenFlags;
 #ifdef O_NDELAY
     af->flags = fcntl(af->fd, F_GETFL);
 #endif
@@ -2279,7 +2354,9 @@ int Jim_aioInit(Jim_Interp *interp)
 #endif
 
     
-    Jim_EvalGlobal(interp, "open stdin; open stdout; open stderr");
+    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r");
+    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w");
+    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w");
 
     return JIM_OK;
 }
@@ -2288,8 +2365,11 @@ int Jim_aioInit(Jim_Interp *interp)
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <dirent.h>
 
+
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
 
 int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -2836,12 +2916,23 @@ int Jim_regexpInit(Jim_Interp *interp)
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/time.h>
 
+
+#ifdef HAVE_UTIMES
+#include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#elif defined(_MSC_VER)
+#include <direct.h>
+#define F_OK 0
+#define W_OK 2
+#define R_OK 4
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
 
 # ifndef MAXPATHLEN
 # define MAXPATHLEN JIM_PATH_LEN
@@ -2856,25 +2947,31 @@ static const char *JimGetFileType(int mode)
     else if (S_ISDIR(mode)) {
         return "directory";
     }
+#ifdef S_ISCHR
     else if (S_ISCHR(mode)) {
         return "characterSpecial";
     }
+#endif
+#ifdef S_ISBLK
     else if (S_ISBLK(mode)) {
         return "blockSpecial";
     }
+#endif
+#ifdef S_ISFIFO
     else if (S_ISFIFO(mode)) {
         return "fifo";
-#ifdef S_ISLNK
     }
+#endif
+#ifdef S_ISLNK
     else if (S_ISLNK(mode)) {
         return "link";
+    }
 #endif
 #ifdef S_ISSOCK
-    }
     else if (S_ISSOCK(mode)) {
         return "socket";
-#endif
     }
+#endif
     return "unknown";
 }
 
@@ -2941,7 +3038,7 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
     }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
     else if (p[-1] == ':') {
         
         Jim_SetResultString(interp, path, p - path + 1);
@@ -3032,7 +3129,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             
             last = newname;
         }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
         else if (strchr(part, ':')) {
             
             last = newname;
@@ -3101,7 +3198,12 @@ static int file_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_executable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#ifdef X_OK
     return file_access(interp, argv[0], X_OK);
+#else
+    Jim_SetResultBool(interp, 1);
+    return JIM_OK;
+#endif
 }
 
 static int file_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -3432,189 +3534,189 @@ static int file_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type file_command_table[] = {
-    {   .cmd = "atime",
-        .args = "name",
-        .function = file_cmd_atime,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Last access time"
+    {   "atime",
+        "name",
+        file_cmd_atime,
+        1,
+        1,
+        
     },
-    {   .cmd = "mtime",
-        .args = "name ?time?",
-        .function = file_cmd_mtime,
-        .minargs = 1,
-        .maxargs = 2,
-        .description = "Get or set last modification time"
+    {   "mtime",
+        "name ?time?",
+        file_cmd_mtime,
+        1,
+        2,
+        
     },
-    {   .cmd = "copy",
-        .args = "?-force? source dest",
-        .function = file_cmd_copy,
-        .minargs = 2,
-        .maxargs = 3,
-        .description = "Copy source file to destination file"
+    {   "copy",
+        "?-force? source dest",
+        file_cmd_copy,
+        2,
+        3,
+        
     },
-    {   .cmd = "dirname",
-        .args = "name",
-        .function = file_cmd_dirname,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Directory part of the name"
+    {   "dirname",
+        "name",
+        file_cmd_dirname,
+        1,
+        1,
+        
     },
-    {   .cmd = "rootname",
-        .args = "name",
-        .function = file_cmd_rootname,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Name without any extension"
+    {   "rootname",
+        "name",
+        file_cmd_rootname,
+        1,
+        1,
+        
     },
-    {   .cmd = "extension",
-        .args = "name",
-        .function = file_cmd_extension,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Last extension including the dot"
+    {   "extension",
+        "name",
+        file_cmd_extension,
+        1,
+        1,
+        
     },
-    {   .cmd = "tail",
-        .args = "name",
-        .function = file_cmd_tail,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Last component of the name"
+    {   "tail",
+        "name",
+        file_cmd_tail,
+        1,
+        1,
+        
     },
-    {   .cmd = "normalize",
-        .args = "name",
-        .function = file_cmd_normalize,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Normalized path of name"
+    {   "normalize",
+        "name",
+        file_cmd_normalize,
+        1,
+        1,
+        
     },
-    {   .cmd = "join",
-        .args = "name ?name ...?",
-        .function = file_cmd_join,
-        .minargs = 1,
-        .maxargs = -1,
-        .description = "Join multiple path components"
+    {   "join",
+        "name ?name ...?",
+        file_cmd_join,
+        1,
+        -1,
+        
     },
-    {   .cmd = "readable",
-        .args = "name",
-        .function = file_cmd_readable,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Is file readable"
+    {   "readable",
+        "name",
+        file_cmd_readable,
+        1,
+        1,
+        
     },
-    {   .cmd = "writable",
-        .args = "name",
-        .function = file_cmd_writable,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Is file writable"
+    {   "writable",
+        "name",
+        file_cmd_writable,
+        1,
+        1,
+        
     },
-    {   .cmd = "executable",
-        .args = "name",
-        .function = file_cmd_executable,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Is file executable"
+    {   "executable",
+        "name",
+        file_cmd_executable,
+        1,
+        1,
+        
     },
-    {   .cmd = "exists",
-        .args = "name",
-        .function = file_cmd_exists,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Does file exist"
+    {   "exists",
+        "name",
+        file_cmd_exists,
+        1,
+        1,
+        
     },
-    {   .cmd = "delete",
-        .args = "?-force|--? name ...",
-        .function = file_cmd_delete,
-        .minargs = 1,
-        .maxargs = -1,
-        .description = "Deletes the files or directories (must be empty unless -force)"
+    {   "delete",
+        "?-force|--? name ...",
+        file_cmd_delete,
+        1,
+        -1,
+        
     },
-    {   .cmd = "mkdir",
-        .args = "dir ...",
-        .function = file_cmd_mkdir,
-        .minargs = 1,
-        .maxargs = -1,
-        .description = "Creates the directories"
+    {   "mkdir",
+        "dir ...",
+        file_cmd_mkdir,
+        1,
+        -1,
+        
     },
 #ifdef HAVE_MKSTEMP
-    {   .cmd = "tempfile",
-        .args = "?template?",
-        .function = file_cmd_tempfile,
-        .minargs = 0,
-        .maxargs = 1,
-        .description = "Creates a temporary filename"
+    {   "tempfile",
+        "?template?",
+        file_cmd_tempfile,
+        0,
+        1,
+        
     },
 #endif
-    {   .cmd = "rename",
-        .args = "?-force? source dest",
-        .function = file_cmd_rename,
-        .minargs = 2,
-        .maxargs = 3,
-        .description = "Renames a file"
+    {   "rename",
+        "?-force? source dest",
+        file_cmd_rename,
+        2,
+        3,
+        
     },
 #if defined(HAVE_READLINK)
-    {   .cmd = "readlink",
-        .args = "name",
-        .function = file_cmd_readlink,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Value of the symbolic link"
+    {   "readlink",
+        "name",
+        file_cmd_readlink,
+        1,
+        1,
+        
     },
 #endif
-    {   .cmd = "size",
-        .args = "name",
-        .function = file_cmd_size,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Size of file"
+    {   "size",
+        "name",
+        file_cmd_size,
+        1,
+        1,
+        
     },
-    {   .cmd = "stat",
-        .args = "name var",
-        .function = file_cmd_stat,
-        .minargs = 2,
-        .maxargs = 2,
-        .description = "Stores results of stat in var array"
+    {   "stat",
+        "name var",
+        file_cmd_stat,
+        2,
+        2,
+        
     },
-    {   .cmd = "lstat",
-        .args = "name var",
-        .function = file_cmd_lstat,
-        .minargs = 2,
-        .maxargs = 2,
-        .description = "Stores results of lstat in var array"
+    {   "lstat",
+        "name var",
+        file_cmd_lstat,
+        2,
+        2,
+        
     },
-    {   .cmd = "type",
-        .args = "name",
-        .function = file_cmd_type,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Returns type of the file"
+    {   "type",
+        "name",
+        file_cmd_type,
+        1,
+        1,
+        
     },
 #ifdef HAVE_GETEUID
-    {   .cmd = "owned",
-        .args = "name",
-        .function = file_cmd_owned,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Returns 1 if owned by the current owner"
+    {   "owned",
+        "name",
+        file_cmd_owned,
+        1,
+        1,
+        
     },
 #endif
-    {   .cmd = "isdirectory",
-        .args = "name",
-        .function = file_cmd_isdirectory,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Returns 1 if name is a directory"
+    {   "isdirectory",
+        "name",
+        file_cmd_isdirectory,
+        1,
+        1,
+        
     },
-    {   .cmd = "isfile",
-        .args = "name",
-        .function = file_cmd_isfile,
-        .minargs = 1,
-        .maxargs = 1,
-        .description = "Returns 1 if name is a file"
+    {   "isfile",
+        "name",
+        file_cmd_isfile,
+        1,
+        1,
+        
     },
     {
-        .cmd = 0
+        NULL
     }
 };
 
@@ -3646,7 +3748,7 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, "Failed to get pwd", -1);
         return JIM_ERR;
     }
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_MSC_VER)
     {
         
         char *p = cwd;
@@ -3736,10 +3838,13 @@ int Jim_execInit(Jim_Interp *interp)
 #include <errno.h>
 #include <signal.h>
 
-#define XXX printf("@%s:%d\n", __FILE__, __LINE__); fflush(stdout);
-
 #if defined(__MINGW32__)
     
+    #ifndef STRICT
+    #define STRICT
+    #endif
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
     #include <fcntl.h>
 
     typedef HANDLE fdtype;
@@ -5024,8 +5129,11 @@ static void JimRestoreEnv(char **env)
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/time.h>
 
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 
 static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -5113,47 +5221,51 @@ static int clock_cmd_millis(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type clock_command_table[] = {
-    {   .cmd = "seconds",
-        .function = clock_cmd_seconds,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time as seconds since the epoch"
+    {   "seconds",
+        NULL,
+        clock_cmd_seconds,
+        0,
+        0,
+        
     },
-    {   .cmd = "clicks",
-        .function = clock_cmd_micros,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in 'clicks'"
+    {   "clicks",
+        NULL,
+        clock_cmd_micros,
+        0,
+        0,
+        
     },
-    {   .cmd = "microseconds",
-        .function = clock_cmd_micros,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in microseconds"
+    {   "microseconds",
+        NULL,
+        clock_cmd_micros,
+        0,
+        0,
+        
     },
-    {   .cmd = "milliseconds",
-        .function = clock_cmd_millis,
-        .minargs = 0,
-        .maxargs = 0,
-        .description = "Returns the current time in milliseconds"
+    {   "milliseconds",
+        NULL,
+        clock_cmd_millis,
+        0,
+        0,
+        
     },
-    {   .cmd = "format",
-        .args = "seconds ?-format format?",
-        .function = clock_cmd_format,
-        .minargs = 1,
-        .maxargs = 3,
-        .description = "Format the given time"
+    {   "format",
+        "seconds ?-format format?",
+        clock_cmd_format,
+        1,
+        3,
+        
     },
 #ifdef HAVE_STRPTIME
-    {   .cmd = "scan",
-        .args = "str -format format",
-        .function = clock_cmd_scan,
-        .minargs = 3,
-        .maxargs = 3,
-        .description = "Determine the time according to the given format"
+    {   "scan",
+        "str -format format",
+        clock_cmd_scan,
+        3,
+        3,
+        
     },
 #endif
-    { 0 }
+    { NULL }
 };
 
 int Jim_clockInit(Jim_Interp *interp)
@@ -5170,7 +5282,6 @@ int Jim_clockInit(Jim_Interp *interp)
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 
 
@@ -5337,49 +5448,49 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type array_command_table[] = {
-        {       .cmd = "exists",
-                .args = "arrayName",
-                .function = array_cmd_exists,
-                .minargs = 1,
-                .maxargs = 1,
-                .description = "Does array exist?"
+        {       "exists",
+                "arrayName",
+                array_cmd_exists,
+                1,
+                1,
+                
         },
-        {       .cmd = "get",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_get,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Array contents as name value list"
+        {       "get",
+                "arrayName ?pattern?",
+                array_cmd_get,
+                1,
+                2,
+                
         },
-        {       .cmd = "names",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_names,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Array keys as a list"
+        {       "names",
+                "arrayName ?pattern?",
+                array_cmd_names,
+                1,
+                2,
+                
         },
-        {       .cmd = "set",
-                .args = "arrayName list",
-                .function = array_cmd_set,
-                .minargs = 2,
-                .maxargs = 2,
-                .description = "Set array from list"
+        {       "set",
+                "arrayName list",
+                array_cmd_set,
+                2,
+                2,
+                
         },
-        {       .cmd = "size",
-                .args = "arrayName",
-                .function = array_cmd_size,
-                .minargs = 1,
-                .maxargs = 1,
-                .description = "Number of elements in array"
+        {       "size",
+                "arrayName",
+                array_cmd_size,
+                1,
+                1,
+                
         },
-        {       .cmd = "unset",
-                .args = "arrayName ?pattern?",
-                .function = array_cmd_unset,
-                .minargs = 1,
-                .maxargs = 2,
-                .description = "Unset elements of an array"
+        {       "unset",
+                "arrayName ?pattern?",
+                array_cmd_unset,
+                1,
+                2,
+                
         },
-        {       .cmd = 0,
+        {       NULL
         }
 };
 
@@ -5432,10 +5543,10 @@ return JIM_OK;
 #include <time.h>
 #include <setjmp.h>
 
-#include <unistd.h>
+
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-
-
+#endif
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #endif
@@ -11389,14 +11500,14 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
 
 
 static const char * const jimReturnCodes[] = {
-    [JIM_OK] = "ok",
-    [JIM_ERR] = "error",
-    [JIM_RETURN] = "return",
-    [JIM_BREAK] = "break",
-    [JIM_CONTINUE] = "continue",
-    [JIM_SIGNAL] = "signal",
-    [JIM_EXIT] = "exit",
-    [JIM_EVAL] = "eval",
+    "ok",
+    "error",
+    "return",
+    "break",
+    "continue",
+    "signal",
+    "exit",
+    "eval",
     NULL
 };
 
@@ -11460,7 +11571,7 @@ enum
 {
     
     
-    JIM_EXPROP_MUL = JIM_TT_EXPR_OP,    
+    JIM_EXPROP_MUL = JIM_TT_EXPR_OP,             
     JIM_EXPROP_DIV,
     JIM_EXPROP_MOD,
     JIM_EXPROP_SUB,
@@ -11503,19 +11614,19 @@ enum
     JIM_EXPROP_POW,             
 
 
-    JIM_EXPROP_STREQ,
+    JIM_EXPROP_STREQ,           
     JIM_EXPROP_STRNE,
     JIM_EXPROP_STRIN,
     JIM_EXPROP_STRNI,
 
 
-    JIM_EXPROP_NOT,
+    JIM_EXPROP_NOT,             
     JIM_EXPROP_BITNOT,
     JIM_EXPROP_UNARYMINUS,
     JIM_EXPROP_UNARYPLUS,
 
     
-    JIM_EXPROP_FUNC_FIRST,
+    JIM_EXPROP_FUNC_FIRST,      
     JIM_EXPROP_FUNC_INT = JIM_EXPROP_FUNC_FIRST,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
@@ -11524,7 +11635,7 @@ enum
     JIM_EXPROP_FUNC_SRAND,
 
     
-    JIM_EXPROP_FUNC_SIN,
+    JIM_EXPROP_FUNC_SIN,        
     JIM_EXPROP_FUNC_COS,
     JIM_EXPROP_FUNC_TAN,
     JIM_EXPROP_FUNC_ASIN,
@@ -12239,86 +12350,88 @@ enum
     LAZY_RIGHT
 };
 
-
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
-    [JIM_EXPROP_FUNC_INT] = {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_DOUBLE] = {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ABS] = {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ROUND] = {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_RAND] = {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SRAND] = {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
+    {"*", 200, 2, JimExprOpBin, LAZY_NONE},
+    {"/", 200, 2, JimExprOpBin, LAZY_NONE},
+    {"%", 200, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"-", 100, 2, JimExprOpBin, LAZY_NONE},
+    {"+", 100, 2, JimExprOpBin, LAZY_NONE},
+
+    {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    {">>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"<", 80, 2, JimExprOpBin, LAZY_NONE},
+    {">", 80, 2, JimExprOpBin, LAZY_NONE},
+    {"<=", 80, 2, JimExprOpBin, LAZY_NONE},
+    {">=", 80, 2, JimExprOpBin, LAZY_NONE},
+
+    {"==", 70, 2, JimExprOpBin, LAZY_NONE},
+    {"!=", 70, 2, JimExprOpBin, LAZY_NONE},
+
+    {"&", 50, 2, JimExprOpIntBin, LAZY_NONE},
+    {"^", 49, 2, JimExprOpIntBin, LAZY_NONE},
+    {"|", 48, 2, JimExprOpIntBin, LAZY_NONE},
+
+    {"&&", 10, 2, NULL, LAZY_OP},
+    {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT},
+    {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+
+    {"||", 9, 2, NULL, LAZY_OP},
+    {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT},
+    {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+
+    {"?", 5, 2, JimExprOpNull, LAZY_OP},
+    {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
+    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+
+    {":", 5, 2, JimExprOpNull, LAZY_OP},
+    {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT},
+    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+
+    {"**", 250, 2, JimExprOpBin, LAZY_NONE},
+
+    {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE},
+    {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE},
+
+    {"in", 55, 2, JimExprOpStrBin, LAZY_NONE},
+    {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE},
+
+    {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE},
+    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
+    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
+
+
+
+    {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
+    {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
+    {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
 
 #ifdef JIM_MATH_FUNCTIONS
-    [JIM_EXPROP_FUNC_SIN] = {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_COS] = {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_TAN] = {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ASIN] = {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ACOS] = {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_ATAN] = {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SINH] = {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_COSH] = {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_TANH] = {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_CEIL] = {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_FLOOR] = {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_EXP] = {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_LOG] = {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_LOG10] = {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_SQRT] = {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    [JIM_EXPROP_FUNC_POW] = {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
+    {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
+    {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
 #endif
-
-    [JIM_EXPROP_NOT] = {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_BITNOT] = {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE},
-    [JIM_EXPROP_UNARYMINUS] = {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    [JIM_EXPROP_UNARYPLUS] = {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
-
-    [JIM_EXPROP_POW] = {"**", 250, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_MUL] = {"*", 200, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_DIV] = {"/", 200, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_MOD] = {"%", 200, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_SUB] = {"-", 100, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_ADD] = {"+", 100, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_ROTL] = {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_ROTR] = {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_LSHIFT] = {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_RSHIFT] = {">>", 90, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_LT] = {"<", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_GT] = {">", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_LTE] = {"<=", 80, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_GTE] = {">=", 80, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_NUMEQ] = {"==", 70, 2, JimExprOpBin, LAZY_NONE},
-    [JIM_EXPROP_NUMNE] = {"!=", 70, 2, JimExprOpBin, LAZY_NONE},
-
-    [JIM_EXPROP_STREQ] = {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE},
-    [JIM_EXPROP_STRNE] = {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE},
-
-    [JIM_EXPROP_STRIN] = {"in", 55, 2, JimExprOpStrBin, LAZY_NONE},
-    [JIM_EXPROP_STRNI] = {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE},
-
-    [JIM_EXPROP_BITAND] = {"&", 50, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_BITXOR] = {"^", 49, 2, JimExprOpIntBin, LAZY_NONE},
-    [JIM_EXPROP_BITOR] = {"|", 48, 2, JimExprOpIntBin, LAZY_NONE},
-
-    [JIM_EXPROP_LOGICAND] = {"&&", 10, 2, NULL, LAZY_OP},
-    [JIM_EXPROP_LOGICOR] = {"||", 9, 2, NULL, LAZY_OP},
-
-    [JIM_EXPROP_TERNARY] = {"?", 5, 2, JimExprOpNull, LAZY_OP},
-    [JIM_EXPROP_COLON] = {":", 5, 2, JimExprOpNull, LAZY_OP},
-
-    
-    [JIM_EXPROP_TERNARY_LEFT] = {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
-    [JIM_EXPROP_TERNARY_RIGHT] = {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
-    [JIM_EXPROP_COLON_LEFT] = {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT},
-    [JIM_EXPROP_COLON_RIGHT] = {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
-    [JIM_EXPROP_LOGICAND_LEFT] = {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT},
-    [JIM_EXPROP_LOGICAND_RIGHT] = {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT},
-    [JIM_EXPROP_LOGICOR_LEFT] = {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT},
-    [JIM_EXPROP_LOGICOR_RIGHT] = {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT},
 };
 
 #define JIM_EXPR_OPERATORS_NUM \
@@ -12463,7 +12576,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
     int bestIdx = -1, bestLen = 0;
 
     
-    for (i = JIM_TT_EXPR_OP; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
+    for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
         const char *opname;
         int oplen;
 
@@ -12474,7 +12587,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
         oplen = strlen(opname);
 
         if (strncmp(opname, pc->p, oplen) == 0 && oplen > bestLen) {
-            bestIdx = i;
+            bestIdx = i + JIM_TT_EXPR_OP;
             bestLen = oplen;
         }
     }
@@ -12507,7 +12620,11 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
 
 static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
 {
-    return &Jim_ExprOperators[opcode];
+    static Jim_ExprOperator dummy_op;
+    if (opcode < JIM_TT_EXPR_OP) {
+        return &dummy_op;
+    }
+    return &Jim_ExprOperators[opcode - JIM_TT_EXPR_OP];
 }
 
 const char *jim_tt_name(int type)
@@ -12522,7 +12639,7 @@ const char *jim_tt_name(int type)
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(type);
         static char buf[20];
 
-        if (op && op->name) {
+        if (op->name) {
             return op->name;
         }
         sprintf(buf, "(%d)", type);
@@ -12594,17 +12711,15 @@ static int ExprCheckCorrectness(ExprByteCode * expr)
         ScriptToken *t = &expr->token[i];
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-        if (op) {
-            stacklen -= op->arity;
-            if (stacklen < 0) {
-                break;
-            }
-            if (t->type == JIM_EXPROP_TERNARY || t->type == JIM_EXPROP_TERNARY_LEFT) {
-                ternary++;
-            }
-            else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
-                ternary--;
-            }
+        stacklen -= op->arity;
+        if (stacklen < 0) {
+            break;
+        }
+        if (t->type == JIM_EXPROP_TERNARY || t->type == JIM_EXPROP_TERNARY_LEFT) {
+            ternary++;
+        }
+        else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
+            ternary--;
         }
 
         
@@ -12658,7 +12773,8 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
 
     
     for (i = leftindex - 1; i > 0; i--) {
-        if (JimExprOperatorInfoByOpcode(expr->token[i].type)->lazy == LAZY_LEFT) {
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(expr->token[i].type);
+        if (op->lazy == LAZY_LEFT) {
             if (JimWideValue(expr->token[i - 1].objPtr) + i - 1 >= leftindex) {
                 JimWideValue(expr->token[i - 1].objPtr) += 2;
             }
@@ -12785,8 +12901,9 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
 
     for (i = 0; i < tokenlist->count; i++) {
         ParseToken *t = &tokenlist->list[i];
+        const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
 
-        if (JimExprOperatorInfoByOpcode(t->type)->lazy == LAZY_OP) {
+        if (op->lazy == LAZY_OP) {
             count += 2;
             
             if (t->type == JIM_EXPROP_TERNARY) {
@@ -17351,10 +17468,8 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             objPtr = Jim_NewDictObj(interp, argv + 2, argc - 2);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
-
-        default:
-            abort();
     }
+    return JIM_ERR;
 }
 
 
@@ -18399,9 +18514,7 @@ static int subcmd_null(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type dummy_subcmd = {
-    .cmd = "dummy",
-    .function = subcmd_null,
-    .flags = JIM_MODFLAG_HIDDEN,
+    "dummy", NULL, subcmd_null, 0, 0, JIM_MODFLAG_HIDDEN
 };
 
 static void add_commands(Jim_Interp *interp, const jim_subcmd_type * ct, const char *sep)
@@ -18445,22 +18558,6 @@ static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Ob
     }
 }
 
-static void show_full_usage(Jim_Interp *interp, const jim_subcmd_type * ct, int argc,
-    Jim_Obj *const *argv)
-{
-    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    for (; ct->cmd; ct++) {
-        if (!(ct->flags & JIM_MODFLAG_HIDDEN)) {
-            
-            add_cmd_usage(interp, ct, argv[0]);
-            if (ct->description) {
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n    ", ct->description, NULL);
-            }
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", NULL);
-        }
-    }
-}
-
 static void set_wrong_args(Jim_Interp *interp, const jim_subcmd_type * command_table, Jim_Obj *subcmd)
 {
     Jim_SetResultString(interp, "wrong # args: must be \"", -1);
@@ -18485,18 +18582,11 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
         Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
         Jim_AppendStrings(interp, Jim_GetResult(interp), "wrong # args: should be \"", cmdname,
             " command ...\"\n", NULL);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "Use \"", cmdname, " -help\" or \"",
-            cmdname, " -help command\" for help", NULL);
+        Jim_AppendStrings(interp, Jim_GetResult(interp), "Use \"", cmdname, " -help ?command?\" for help", NULL);
         return 0;
     }
 
     cmd = argv[1];
-
-    if (argc == 2 && Jim_CompareStringImmediate(interp, cmd, "-usage")) {
-        
-        show_full_usage(interp, command_table, argc, argv);
-        return &dummy_subcmd;
-    }
 
     
     if (Jim_CompareStringImmediate(interp, cmd, "-help")) {
@@ -18562,9 +18652,6 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
         Jim_SetResultString(interp, "Usage: ", -1);
         
         add_cmd_usage(interp, ct, argv[0]);
-        if (ct->description) {
-            Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", ct->description, NULL);
-        }
         return &dummy_subcmd;
     }
 
@@ -18607,71 +18694,6 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_ParseSubCmd(interp, (const jim_subcmd_type *)Jim_CmdPrivData(interp), argc, argv);
 
     return Jim_CallSubCmd(interp, ct, argc, argv);
-}
-
-
-int
-Jim_CheckCmdUsage(Jim_Interp *interp, const jim_subcmd_type * command_table, int argc,
-    Jim_Obj *const *argv)
-{
-    
-    if (argc == 2) {
-        if (Jim_CompareStringImmediate(interp, argv[1], "-usage")
-            || Jim_CompareStringImmediate(interp, argv[1], "-help")) {
-            Jim_SetResultString(interp, "Usage: ", -1);
-            add_cmd_usage(interp, command_table, NULL);
-            if (command_table->description) {
-                Jim_AppendStrings(interp, Jim_GetResult(interp), "\n\n", command_table->description,
-                    NULL);
-            }
-            return JIM_OK;
-        }
-    }
-    if (argc >= 2 && command_table->function) {
-        
-
-        Jim_Obj *nargv[4];
-        int nargc = 0;
-        const char *subcmd = NULL;
-
-        if (Jim_CompareStringImmediate(interp, argv[1], "-subcommands")) {
-            Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-            add_commands(interp, (jim_subcmd_type *) command_table->function, " ");
-            return JIM_OK;
-        }
-
-        if (Jim_CompareStringImmediate(interp, argv[1], "-subhelp")
-            || Jim_CompareStringImmediate(interp, argv[1], "-help")) {
-            subcmd = "-help";
-        }
-        else if (Jim_CompareStringImmediate(interp, argv[1], "-subusage")) {
-            subcmd = "-usage";
-        }
-
-        if (subcmd) {
-            nargv[nargc++] = Jim_NewStringObj(interp, "$handle", -1);
-            nargv[nargc++] = Jim_NewStringObj(interp, subcmd, -1);
-            if (argc >= 3) {
-                nargv[nargc++] = argv[2];
-            }
-            Jim_ParseSubCmd(interp, (jim_subcmd_type *) command_table->function, nargc, nargv);
-            Jim_FreeNewObj(interp, nargv[0]);
-            Jim_FreeNewObj(interp, nargv[1]);
-            return 0;
-        }
-    }
-
-    
-    if (argc - 1 < command_table->minargs || (command_table->maxargs >= 0
-            && argc - 1 > command_table->maxargs)) {
-        set_wrong_args(interp, command_table, NULL);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "\nUse \"", Jim_String(argv[0]),
-            " -help\" for help", NULL);
-        return JIM_ERR;
-    }
-
-    
-    return -1;
 }
 
 #include <ctype.h>
@@ -20348,6 +20370,124 @@ void regfree(regex_t *preg)
 	free(preg->program);
 }
 
+#endif
+
+#if defined(_WIN32) || defined(WIN32)
+#ifndef STRICT
+#define STRICT
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+#if defined(HAVE_DLOPEN_COMPAT)
+void *dlopen(const char *path, int mode)
+{
+    JIM_NOTUSED(mode);
+
+    return (void *)LoadLibraryA(path);
+}
+
+int dlclose(void *handle)
+{
+    FreeLibrary((HANDLE)handle);
+    return 0;
+}
+
+void *dlsym(void *handle, const char *symbol)
+{
+    return GetProcAddress((HMODULE)handle, symbol);
+}
+
+char *dlerror(void)
+{
+    static char msg[121];
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
+                   LANG_NEUTRAL, msg, sizeof(msg) - 1, NULL);
+    return msg;
+}
+#endif
+
+#ifdef _MSC_VER
+
+#include <sys/timeb.h>
+
+
+int gettimeofday(struct timeval *tv, void *unused)
+{
+    struct _timeb tb;
+
+    _ftime(&tb);
+    tv->tv_sec = tb.time;
+    tv->tv_usec = tb.millitm * 1000;
+
+    return 0;
+}
+
+
+DIR *opendir(const char *name)
+{
+    DIR *dir = 0;
+
+    if (name && name[0]) {
+        size_t base_length = strlen(name);
+        const char *all =       
+            strchr("/\\", name[base_length - 1]) ? "*" : "/*";
+
+        if ((dir = (DIR *) Jim_Alloc(sizeof *dir)) != 0 &&
+            (dir->name = (char *)Jim_Alloc(base_length + strlen(all) + 1)) != 0) {
+            strcat(strcpy(dir->name, name), all);
+
+            if ((dir->handle = (long)_findfirst(dir->name, &dir->info)) != -1)
+                dir->result.d_name = 0;
+            else {              
+                Jim_Free(dir->name);
+                Jim_Free(dir);
+                dir = 0;
+            }
+        }
+        else {                  
+            Jim_Free(dir);
+            dir = 0;
+            errno = ENOMEM;
+        }
+    }
+    else {
+        errno = EINVAL;
+    }
+    return dir;
+}
+
+int closedir(DIR * dir)
+{
+    int result = -1;
+
+    if (dir) {
+        if (dir->handle != -1)
+            result = _findclose(dir->handle);
+        Jim_Free(dir->name);
+        Jim_Free(dir);
+    }
+    if (result == -1)           
+        errno = EBADF;
+    return result;
+}
+
+struct dirent *readdir(DIR * dir)
+{
+    struct dirent *result = 0;
+
+    if (dir && dir->handle != -1) {
+        if (!dir->result.d_name || _findnext(dir->handle, &dir->info) != -1) {
+            result = &dir->result;
+            result->d_name = dir->info.name;
+        }
+    }
+    else {
+        errno = EBADF;
+    }
+    return result;
+}
+#endif
 #endif
 #ifndef JIM_BOOTSTRAP_LIB_ONLY
 #include <errno.h>

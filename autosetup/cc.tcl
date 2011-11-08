@@ -113,8 +113,32 @@ proc cc-check-some-feature {list script} {
 # Checks that the given include files can be used
 proc cc-check-includes {args} {
 	cc-check-some-feature $args {
-		cctest -includes $each
+		set with {}
+		if {[dict exists $::autosetup(cc-include-deps) $each]} {
+			set deps [dict keys [dict get $::autosetup(cc-include-deps) $each]]
+			msg-quiet cc-check-includes $deps
+			foreach i $deps {
+				if {[have-feature $i]} {
+					lappend with $i
+				}
+			}
+		}
+		if {[llength $with]} {
+			cc-with [list -includes $with] {
+				cctest -includes $each
+			}
+		} else {
+			cctest -includes $each
+		}
 	}
+}
+
+# @cc-include-needs include required
+#
+# Ensures that when checking for 'include', a check is first
+# made for 'required', and if found, it is #included
+proc cc-include-needs {file depfile} {
+	dict set ::autosetup(cc-include-deps) $file $depfile 1
 }
 
 # @cc-check-types type ...
@@ -374,7 +398,7 @@ proc cc-with {settings args} {
 		set rc [catch {uplevel 1 [lindex $args 0]} result info]
 		cc-store-settings $save
 		if {$rc != 0} {
-			return $result -code [dict get $info -code]
+			return -code [dict get $info -code] $result
 		}
 		return $result
 	}
@@ -648,6 +672,7 @@ define CCACHE [find-an-executable [get-env CCACHE ccache]]
 
 # Initial cctest settings
 cc-store-settings {-cflags {} -includes {} -declare {} -link 0 -lang c -libs {} -code {}}
+set autosetup(cc-include-deps) {}
 
 msg-result "C compiler...[get-define CCACHE] [get-define CC] [get-define CFLAGS]"
 if {[get-define CXX] ne "false"} {
