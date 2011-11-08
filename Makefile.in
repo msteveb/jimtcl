@@ -88,7 +88,7 @@ install install-exec uninstall:
 @endif
 
 test: $(JIMSH)
-	$(DEF_LD_PATH) $(MAKE) -C @srcdir@/tests jimsh=`pwd`/jimsh
+	 jimsh=`pwd`/jimsh; cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=$$jimsh
 
 $(OBJS): Makefile
 
