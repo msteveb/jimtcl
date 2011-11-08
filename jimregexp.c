@@ -711,7 +711,7 @@ static int regatom(regex_t *preg, int *flagp)
 						return 0;
 					}
 				}
-				if (pattern[0] == '-' && pattern[1]) {
+				if (pattern[0] == '-' && pattern[1] && pattern[1] != ']') {
 					/* skip '-' */
 					pattern += utf8_tounicode(pattern, &end);
 					pattern += reg_utf8_tounicode_case(pattern, &end, nocase);
