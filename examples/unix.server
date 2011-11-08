@@ -1,0 +1,48 @@
+# Example of a unix domain stream server which sends a response
+
+file delete unix.tmp
+set s [socket unix.server unix.tmp]
+
+puts "Listening on [$s sockname]"
+
+$s readable {
+	# Clean up children
+	wait -nohang 0
+	set sock [$s accept]
+
+	# Make this server forking so we can accept multiple
+	# simultaneous connections
+	if {[os.fork] == 0} {
+		# We don't want the unix domain path to be deleted here
+		$s close -nodelete
+
+		$sock buffering line
+
+		# Get the requests, one line at a time an evaluate
+		while {[$sock gets buf] >= 0} {
+			set buf [string trim $buf]
+			if {$buf in {? help}} {
+				set result "Enter any Tcl command to run in the server"
+			} else {
+				try {
+					set result [eval $buf]
+					set result [string map [list \\ \\\\ \n \\n \r \\r] $result]
+				} on error {msg} {
+					set result "Error: $buf => $msg"
+				}
+			}
+
+			# Send the result back to where it came from
+			$sock puts $result
+		}
+	}
+
+	$sock close
+}
+
+# Handle signals so the socket is removed on exit
+signal handle SIGINT SIGTERM
+
+catch -signal {
+	vwait done
+}

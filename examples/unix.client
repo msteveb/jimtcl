@@ -1,0 +1,9 @@
+# Example of sending via a connected tcp socket
+
+set s [socket unix unix.tmp]
+
+foreach i [range 1 20] {
+	$s puts "expr {1 << $i}"
+
+	puts [$s gets]
+}

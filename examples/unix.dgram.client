@@ -1,0 +1,18 @@
+# Example of sending from an unconnected socket
+
+# Now sending via a connected udp socket
+
+set s [socket unix.dgram unix.sock]
+$s buffering none
+
+puts "dgram socket [$s sockname] connected to [$s peername]"
+
+foreach i [range 5 10] {
+	# Socket is connected, so can just use puts here
+	# No need to flush because we set 'buffering none' above.
+	$s puts -nonewline "$i * $i"
+	#$s flush
+
+	# Receive the response - max length of 100
+	puts [$s recvfrom 100]
+}
