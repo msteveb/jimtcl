@@ -72,6 +72,11 @@ proc makeFile {contents name} {
 	set f [open $name w]
 	puts $f $contents
 	close $f
+	return $name
+}
+
+proc removeFile {name} {
+	file delete $name
 }
 
 proc script_source {script} {
