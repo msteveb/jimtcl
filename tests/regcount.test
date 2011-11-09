@@ -103,4 +103,10 @@ foreach {pat str exp} {
 	test regcount-1.[incr n] "Test: regexp $pat $str" [list regexp -inline -- $pat $str] $exp
 }
 
+test regcount-2.1 "regexp counts cleared" {
+	set re "((a|b){1,2}(c{2,3}))"
+	regexp -inline $re xabcccce
+	regexp -inline $re xabcccce
+} {abccc abccc b ccc}
+
 testreport

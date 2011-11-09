@@ -191,7 +191,7 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 
 /*#define DEBUG*/
 #ifdef DEBUG
-int regnarrate = 0;
+static int regnarrate = 0;
 static void regdump(regex_t *preg);
 static const char *regprop( int op );
 #endif
@@ -246,13 +246,11 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 	preg->program = NULL;
 	preg->proglen = 0;
 
-#if 1
 	/* Allocate space. */
 	preg->proglen = (strlen(exp) + 1) * 5;
 	preg->program = malloc(preg->proglen * sizeof(int));
 	if (preg->program == NULL)
 		FAIL(preg, REG_ERR_NOMEM);
-#endif
 
 	/* Note that since we store a magic value as the first item in the program,
 	 * program offsets will never be 0
@@ -1031,13 +1029,30 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 	preg->start = string;	/* All offsets are computed from here */
 
 	/* Must clear out the embedded repeat counts */
-	for (scan = OPERAND(1); scan != 0; scan = regnext(preg, scan)) {
+	for (scan = OPERAND(1); scan != 0; ) {
 		switch (OP(preg, scan)) {
 		case REP:
 		case REPMIN:
 		case REPX:
 		case REPXMIN:
 			preg->program[scan + 4] = 0;
+			scan += 5;
+			break;
+
+		case ANYOF:
+		case ANYBUT:
+		case EXACTLY:
+			scan += 2;
+			while (preg->program[scan++]) {
+			}
+			break;
+
+		case END:
+			scan = 0;
+			break;
+
+		default:
+			scan += 2;
 			break;
 		}
 	}
@@ -1598,8 +1613,8 @@ static void regdump(regex_t *preg)
 
 	int i;
 	for (i = 1; i < preg->p; i++) {
-		printf("%02x ", preg->program[i]);
-		if (i % 16 == 15) {
+		printf("%02x ", (unsigned char)preg->program[i]);
+		if (i % 16 == 0) {
 			printf("\n");
 		}
 	}
@@ -1715,6 +1730,10 @@ static const char *regprop( int op )
 		return "WORDA";
 	case WORDZ:
 		return "WORDZ";
+	case OPENNC:
+		return "OPEN";
+	case CLOSENC:
+		return "CLOSE";
 	default:
 		if (op >= OPEN && op < CLOSE) {
 			snprintf(buf, sizeof(buf), "OPEN%d", op-OPEN);
