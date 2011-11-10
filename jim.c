@@ -10777,6 +10777,8 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
 #define JIM_VARLIST_LOCALS 1
 #define JIM_VARLIST_VARS 2
 
+#define JIM_VARLIST_VALUES 0x1000
+
 /**
  * Adds matching variable names to the list.
  */
@@ -10788,6 +10790,9 @@ static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
 
     if (mode != JIM_VARLIST_LOCALS || varPtr->linkFramePtr == NULL) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, he->key, -1));
+        if (mode & JIM_VARLIST_VALUES) {
+            Jim_ListAppendElement(interp, listObjPtr, varPtr->objPtr);
+        }
     }
 }
 
@@ -13509,13 +13514,13 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     int mode = 0;
 
     static const char * const commands[] = {
-        "body", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
+        "body", "statics", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
         "script", "source", "stacktrace", "nameofexecutable", "returncodes",
         "references", NULL
     };
     enum
-    { INFO_BODY, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
+    { INFO_BODY, INFO_STATICS, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
         INFO_FRAME, INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
         INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
         INFO_RETURNCODES, INFO_REFERENCES,
@@ -13633,6 +13638,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             break;
 
         case INFO_BODY:
+        case INFO_STATICS:
         case INFO_ARGS:{
                 Jim_Cmd *cmdPtr;
 
@@ -13647,8 +13653,21 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     Jim_SetResultFormatted(interp, "command \"%#s\" is not a procedure", argv[2]);
                     return JIM_ERR;
                 }
-                Jim_SetResult(interp,
-                    cmd == INFO_BODY ? cmdPtr->u.proc.bodyObjPtr : cmdPtr->u.proc.argListObjPtr);
+                switch (cmd) {
+                    case INFO_BODY:
+                        Jim_SetResult(interp, cmdPtr->u.proc.bodyObjPtr);
+                        break;
+                    case INFO_ARGS:
+                        Jim_SetResult(interp, cmdPtr->u.proc.argListObjPtr);
+                        break;
+                    case INFO_STATICS:
+                        if (cmdPtr->u.proc.staticVars) {
+                            int mode = JIM_VARLIST_LOCALS | JIM_VARLIST_VALUES;
+                            Jim_SetResult(interp, JimHashtablePatternMatch(interp, cmdPtr->u.proc.staticVars,
+                                NULL, JimVariablesMatch, &mode, 1));
+                        }
+                        break;
+                }
                 break;
             }
 
