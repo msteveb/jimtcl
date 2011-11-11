@@ -140,8 +140,6 @@ static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
 
 
-static const Jim_HashTableType JimVariablesHashTableType;
-
 /* Fast access to the int (wide) value of an object which is known to be of int type */
 #define JimWideValue(objPtr) (objPtr)->internalRep.wideValue
 
@@ -932,82 +930,28 @@ static unsigned int JimStringCopyHTHashFunction(const void *key)
     return Jim_GenHashFunction(key, strlen(key));
 }
 
-static const void *JimStringCopyHTKeyDup(void *privdata, const void *key)
+static void *JimStringCopyHTDup(void *privdata, const void *key)
 {
-    int len = strlen(key);
-    char *copy = Jim_Alloc(len + 1);
-
-    JIM_NOTUSED(privdata);
-
-    memcpy(copy, key, len);
-    copy[len] = '\0';
-    return copy;
-}
-
-static void *JimStringKeyValCopyHTValDup(void *privdata, const void *val)
-{
-    int len = strlen(val);
-    char *copy = Jim_Alloc(len + 1);
-
-    JIM_NOTUSED(privdata);
-
-    memcpy(copy, val, len);
-    copy[len] = '\0';
-    return copy;
+    return strdup(key);
 }
 
 static int JimStringCopyHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
-    JIM_NOTUSED(privdata);
-
     return strcmp(key1, key2) == 0;
 }
 
-static void JimStringCopyHTKeyDestructor(void *privdata, const void *key)
+static void JimStringCopyHTKeyDestructor(void *privdata, void *key)
 {
-    JIM_NOTUSED(privdata);
-
-    Jim_Free((void *)key);      /* ATTENTION: const cast */
+    Jim_Free(key);
 }
 
-static void JimStringKeyValCopyHTValDestructor(void *privdata, void *val)
-{
-    JIM_NOTUSED(privdata);
-
-    Jim_Free((void *)val);      /* ATTENTION: const cast */
-}
-
-#if 0
-static Jim_HashTableType JimStringCopyHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,      /* key dup */
-    NULL,                       /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
-    NULL                        /* val destructor */
-};
-#endif
-
-/* This is like StringCopy but does not auto-duplicate the key.
- * It's used for intepreter's shared strings. */
-static const Jim_HashTableType JimSharedStringsHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    NULL,                       /* key dup */
-    NULL,                       /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
-    NULL                        /* val destructor */
-};
-
-/* This is like StringCopy but also automatically handle dynamic
- * allocated C strings as values. */
-static const Jim_HashTableType JimStringKeyValCopyHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,      /* key dup */
-    JimStringKeyValCopyHTValDup,        /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
-    JimStringKeyValCopyHTValDestructor, /* val destructor */
+static const Jim_HashTableType JimPackageHashTableType = {
+    JimStringCopyHTHashFunction,     /* hash function */
+    JimStringCopyHTDup,              /* key dup */
+    NULL,                            /* val dup */
+    JimStringCopyHTKeyCompare,       /* key compare */
+    JimStringCopyHTKeyDestructor,    /* key destructor */
+    NULL                             /* val destructor */
 };
 
 typedef struct AssocDataValue
@@ -1026,11 +970,11 @@ static void JimAssocDataHashTableValueDestructor(void *privdata, void *data)
 }
 
 static const Jim_HashTableType JimAssocDataHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,      /* key dup */
-    NULL,                       /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
+    JimStringCopyHTHashFunction,    /* hash function */
+    JimStringCopyHTDup,             /* key dup */
+    NULL,                           /* val dup */
+    JimStringCopyHTKeyCompare,      /* key compare */
+    JimStringCopyHTKeyDestructor,   /* key destructor */
     JimAssocDataHashTableValueDestructor        /* val destructor */
 };
 
@@ -3478,6 +3422,29 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
     }
 }
 
+/* Variables HashTable Type.
+ *
+ * Keys are dynamic allocated strings, Values are Jim_Var structures.
+ */
+
+/* Variables HashTable Type.
+ *
+ * Keys are dynamic allocated strings, Values are Jim_Var structures. */
+static void JimVariablesHTValDestructor(void *interp, void *val)
+{
+    Jim_DecrRefCount(interp, ((Jim_Var *)val)->objPtr);
+    Jim_Free(val);
+}
+
+static const Jim_HashTableType JimVariablesHashTableType = {
+    JimStringCopyHTHashFunction,        /* hash function */
+    JimStringCopyHTDup,                 /* key dup */
+    NULL,                               /* val dup */
+    JimStringCopyHTKeyCompare,  /* key compare */
+    JimStringCopyHTKeyDestructor,       /* key destructor */
+    JimVariablesHTValDestructor /* val destructor */
+};
+
 /* Commands HashTable Type.
  *
  * Keys are dynamic allocated strings, Values are Jim_Cmd structures. */
@@ -3487,12 +3454,12 @@ static void JimCommandsHT_ValDestructor(void *interp, void *val)
 }
 
 static const Jim_HashTableType JimCommandsHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,      /* key dup */
-    NULL,                       /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
-    JimCommandsHT_ValDestructor        /* val destructor */
+    JimStringCopyHTHashFunction,    /* hash function */
+    JimStringCopyHTDup,             /* key dup */
+    NULL,                           /* val dup */
+    JimStringCopyHTKeyCompare,      /* key compare */
+    JimStringCopyHTKeyDestructor,   /* key destructor */
+    JimCommandsHT_ValDestructor     /* val destructor */
 };
 
 /* ------------------------- Commands related functions --------------------- */
@@ -3817,26 +3784,6 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 /* -----------------------------------------------------------------------------
  * Variables
  * ---------------------------------------------------------------------------*/
-
-/* Variables HashTable Type.
- *
- * Keys are dynamic allocated strings, Values are Jim_Var structures. */
-static void JimVariablesHTValDestructor(void *interp, void *val)
-{
-    Jim_Var *varPtr = (void *)val;
-
-    Jim_DecrRefCount(interp, varPtr->objPtr);
-    Jim_Free(val);
-}
-
-static const Jim_HashTableType JimVariablesHashTableType = {
-    JimStringCopyHTHashFunction,        /* hash function */
-    JimStringCopyHTKeyDup,      /* key dup */
-    NULL,                       /* val dup */
-    JimStringCopyHTKeyCompare,  /* key compare */
-    JimStringCopyHTKeyDestructor,       /* key destructor */
-    JimVariablesHTValDestructor /* val destructor */
-};
 
 /* -----------------------------------------------------------------------------
  * Variable object
@@ -4548,7 +4495,7 @@ static unsigned int JimReferencesHTHashFunction(const void *key)
     return Jim_IntHashFunction(intValue);
 }
 
-static const void *JimReferencesHTKeyDup(void *privdata, const void *key)
+static void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
     void *copy = Jim_Alloc(sizeof(jim_wide));
 
@@ -4565,11 +4512,11 @@ static int JimReferencesHTKeyCompare(void *privdata, const void *key1, const voi
     return memcmp(key1, key2, sizeof(jim_wide)) == 0;
 }
 
-static void JimReferencesHTKeyDestructor(void *privdata, const void *key)
+static void JimReferencesHTKeyDestructor(void *privdata, void *key)
 {
     JIM_NOTUSED(privdata);
 
-    Jim_Free((void *)key);
+    Jim_Free(key);
 }
 
 static const Jim_HashTableType JimReferencesHashTableType = {
@@ -4962,7 +4909,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_InitHashTable(&i->references, &JimReferencesHashTableType, i);
 #endif
     Jim_InitHashTable(&i->assocData, &JimAssocDataHashTableType, i);
-    Jim_InitHashTable(&i->packages, &JimStringKeyValCopyHashTableType, NULL);
+    Jim_InitHashTable(&i->packages, &JimPackageHashTableType, NULL);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i, NULL);
     i->emptyObj = Jim_NewEmptyStringObj(i);
     i->trueObj = Jim_NewIntObj(i, 1);
@@ -6269,26 +6216,19 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
 static unsigned int JimObjectHTHashFunction(const void *key)
 {
-    const char *str;
-    Jim_Obj *objPtr = (Jim_Obj *)key;
     int len;
-
-    str = Jim_GetString(objPtr, &len);
-    return Jim_GenHashFunction((unsigned char *)str, len);
+    const char *str = Jim_GetString((Jim_Obj *)key, &len);
+    return Jim_GenHashFunction((const unsigned char *)str, len);
 }
 
 static int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
-    JIM_NOTUSED(privdata);
-
     return Jim_StringEqObj((Jim_Obj *)key1, (Jim_Obj *)key2);
 }
 
 static void JimObjectHTKeyValDestructor(void *interp, void *val)
 {
-    Jim_Obj *objPtr = val;
-
-    Jim_DecrRefCount(interp, objPtr);
+    Jim_DecrRefCount(interp, (Jim_Obj *)val);
 }
 
 static const Jim_HashTableType JimDictHashTableType = {
@@ -6296,8 +6236,7 @@ static const Jim_HashTableType JimDictHashTableType = {
     NULL,                       /* key dup */
     NULL,                       /* val dup */
     JimObjectHTKeyCompare,      /* key compare */
-    (void (*)(void *, const void *))    /* ATTENTION: const cast */
-        JimObjectHTKeyValDestructor,    /* key destructor */
+    JimObjectHTKeyValDestructor,    /* key destructor */
     JimObjectHTKeyValDestructor /* val destructor */
 };
 

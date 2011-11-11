@@ -193,7 +193,7 @@ typedef struct Jim_Stack {
  * ---------------------------------------------------------------------------*/
 
 typedef struct Jim_HashEntry {
-    const void *key;
+    void *key;
     union {
         void *val;
         int intval;
@@ -203,10 +203,10 @@ typedef struct Jim_HashEntry {
 
 typedef struct Jim_HashTableType {
     unsigned int (*hashFunction)(const void *key);
-    const void *(*keyDup)(void *privdata, const void *key);
+    void *(*keyDup)(void *privdata, const void *key);
     void *(*valDup)(void *privdata, const void *obj);
     int (*keyCompare)(void *privdata, const void *key1, const void *key2);
-    void (*keyDestructor)(void *privdata, const void *key);
+    void (*keyDestructor)(void *privdata, void *key);
     void (*valDestructor)(void *privdata, void *obj);
 } Jim_HashTableType;
 
@@ -249,7 +249,7 @@ typedef struct Jim_HashTableIterator {
     if ((ht)->type->keyDup) \
         entry->key = (ht)->type->keyDup((ht)->privdata, _key_); \
     else \
-        entry->key = (_key_); \
+        entry->key = (void *)(_key_); \
 } while(0)
 
 #define Jim_CompareHashKeys(ht, key1, key2) \

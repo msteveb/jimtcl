@@ -10,6 +10,9 @@
 #define R_OK 4
 #endif
 
+/* All packages have a fixed, dummy version */
+static const char *package_version_1 = "1.0";
+
 /* -----------------------------------------------------------------------------
  * Packages handling
  * ---------------------------------------------------------------------------*/
@@ -166,24 +169,18 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
  *
  * package provide name ?version?
  *
- *      This procedure is invoked to declare that a particular version
- *      of a particular package is now present in an interpreter.  There
- *      must not be any other version of this package already
- *      provided in the interpreter.
+ *      This procedure is invoked to declare that
+ *      a particular package is now present in an interpreter.
+ *      The package must not already be provided in the interpreter.
  *
  * Results:
- *      Returns JIM_OK and sets the package version (or 1.0 if not specified).
+ *      Returns JIM_OK and sets results as "1.0" (the given version is ignored)
  *
  *----------------------------------------------------------------------
  */
 static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *version = "1.0";
-
-    if (argc == 2) {
-        version = Jim_String(argv[1]);
-    }
-    return Jim_PackageProvide(interp, Jim_String(argv[0]), version, JIM_ERRMSG);
+    return Jim_PackageProvide(interp, Jim_String(argv[0]), package_version_1, JIM_ERRMSG);
 }
 
 /*
