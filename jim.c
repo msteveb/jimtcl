@@ -3809,15 +3809,6 @@ static const Jim_ObjType variableObjType = {
     JIM_TYPE_REFERENCES,
 };
 
-/* Return true if the string "str" looks like syntax sugar for [dict]. I.e.
- * is in the form "varname(key)". */
-static int JimNameIsDictSugar(const char *str, int len)
-{
-    if (len && str[len - 1] == ')' && strchr(str, '(') != NULL)
-        return 1;
-    return 0;
-}
-
 /**
  * Check that the name does not contain embedded nulls.
  *
@@ -3838,6 +3829,16 @@ static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPt
     return JIM_OK;
 }
 
+static const char *JimUnscopedName(Jim_Interp *interp, const char *varName, Jim_CallFrame **framePtr)
+{
+    if (varName[0] == ':' && varName[1] == ':') {
+        *framePtr = interp->topFramePtr;
+        return varName + 2;
+    }
+    *framePtr = interp->framePtr;
+    return varName;
+}
+
 /* This method should be called only by the variable API.
  * It returns JIM_OK on success (variable already exists),
  * JIM_ERR if it does not exists, JIM_DICT_SUGAR if it's not
@@ -3845,62 +3846,95 @@ static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPt
  * character is ')' */
 static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
-    Jim_HashEntry *he;
     const char *varName;
-    int len;
-    Jim_CallFrame *framePtr = interp->framePtr;
+    Jim_CallFrame *framePtr;
+    Jim_HashEntry *he;
 
     /* Check if the object is already an uptodate variable */
-    if (objPtr->typePtr == &variableObjType &&
-        objPtr->internalRep.varValue.callFrameId == framePtr->id) {
-        return JIM_OK;          /* nothing to do */
-    }
+    if (objPtr->typePtr == &variableObjType) {
+        varName = objPtr->bytes;
+        if (varName[0] == ':' && varName[1] == ':') {
+            framePtr = interp->topFramePtr;
+            varName += 2;
+        }
+        else {
+            framePtr = interp->framePtr;
+        }
 
-    if (objPtr->typePtr == &dictSubstObjType) {
+        if (objPtr->internalRep.varValue.callFrameId == framePtr->id) {
+            /* nothing to do */
+            return JIM_OK;
+        }
+        /* Need to re-resolve the variable in the updated callframe */
+    }
+    else if (objPtr->typePtr == &dictSubstObjType) {
         return JIM_DICT_SUGAR;
     }
-
-    if (JimValidName(interp, "variable", objPtr) != JIM_OK) {
+    else if (JimValidName(interp, "variable", objPtr) != JIM_OK) {
         return JIM_ERR;
     }
+    else {
+        int len;
 
-    /* Get the string representation */
-    varName = Jim_GetString(objPtr, &len);
+        varName = Jim_GetString(objPtr, &len);
 
-    /* Make sure it's not syntax glue to get/set dict. */
-    if (JimNameIsDictSugar(varName, len)) {
-        return JIM_DICT_SUGAR;
+        /* Make sure it's not syntax glue to get/set dict. */
+        if (len && varName[len - 1] == ')' && strchr(varName, '(') != NULL) {
+            return JIM_DICT_SUGAR;
+        }
+
+        varName = JimUnscopedName(interp, varName, &framePtr);
     }
 
-    if (varName[0] == ':' && varName[1] == ':') {
-        framePtr = interp->topFramePtr;
-        he = Jim_FindHashEntry(&framePtr->vars, varName + 2);
+    /* Resolve this name in the variables hash table */
+    he = Jim_FindHashEntry(&framePtr->vars, varName);
+    if (he == NULL) {
+        if (framePtr->staticVars) {
+            /* Try with static vars. */
+            he = Jim_FindHashEntry(framePtr->staticVars, varName);
+        }
         if (he == NULL) {
             return JIM_ERR;
         }
     }
-    else {
-        /* Lookup this name into the variables hash table */
-        he = Jim_FindHashEntry(&framePtr->vars, varName);
-        if (he == NULL) {
-            /* Try with static vars. */
-            if (framePtr->staticVars == NULL)
-                return JIM_ERR;
-            if (!(he = Jim_FindHashEntry(framePtr->staticVars, varName)))
-                return JIM_ERR;
-        }
-    }
+
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &variableObjType;
     objPtr->internalRep.varValue.callFrameId = framePtr->id;
-    objPtr->internalRep.varValue.varPtr = (void *)he->u.val;
+    objPtr->internalRep.varValue.varPtr = he->u.val;
     return JIM_OK;
 }
 
 /* -------------------- Variables related functions ------------------------- */
 static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *ObjPtr, Jim_Obj *valObjPtr);
 static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *ObjPtr, int flags);
+
+static Jim_Var *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
+{
+    const char *name;
+    Jim_CallFrame *framePtr;
+
+    /* New variable to create */
+    Jim_Var *var = Jim_Alloc(sizeof(*var));
+
+    var->objPtr = valObjPtr;
+    Jim_IncrRefCount(valObjPtr);
+    var->linkFramePtr = NULL;
+
+    name = JimUnscopedName(interp, Jim_String(nameObjPtr), &framePtr);
+
+    /* Insert the new variable */
+    Jim_AddHashEntry(&framePtr->vars, name, var);
+
+    /* Make the object int rep a variable */
+    Jim_FreeIntRep(interp, nameObjPtr);
+    nameObjPtr->typePtr = &variableObjType;
+    nameObjPtr->internalRep.varValue.callFrameId = framePtr->id;
+    nameObjPtr->internalRep.varValue.varPtr = var;
+
+    return var;
+}
 
 /* For now that's dummy. Variables lookup should be optimized
  * in many ways, with caching of lookups, and possibly with
@@ -3910,60 +3944,37 @@ static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *ObjPtr, int flags);
 
 int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 {
-    const char *name;
-    Jim_Var *var;
     int err;
+    Jim_Var *var;
 
-    if ((err = SetVariableFromAny(interp, nameObjPtr)) != JIM_OK) {
-        Jim_CallFrame *framePtr = interp->framePtr;
-
-        /* Check for [dict] syntax sugar. */
-        if (err == JIM_DICT_SUGAR)
+    switch (SetVariableFromAny(interp, nameObjPtr)) {
+        case JIM_DICT_SUGAR:
             return JimDictSugarSet(interp, nameObjPtr, valObjPtr);
 
-        if (JimValidName(interp, "variable", nameObjPtr) != JIM_OK) {
-            return JIM_ERR;
-        }
+        case JIM_ERR:
+            if (JimValidName(interp, "variable", nameObjPtr) != JIM_OK) {
+                return JIM_ERR;
+            }
+            JimCreateVariable(interp, nameObjPtr, valObjPtr);
+            break;
 
-        /* New variable to create */
-        name = Jim_String(nameObjPtr);
+        case JIM_OK:
+            var = nameObjPtr->internalRep.varValue.varPtr;
+            if (var->linkFramePtr == NULL) {
+                Jim_IncrRefCount(valObjPtr);
+                Jim_DecrRefCount(interp, var->objPtr);
+                var->objPtr = valObjPtr;
+            }
+            else {                  /* Else handle the link */
+                Jim_CallFrame *savedCallFrame;
 
-        var = Jim_Alloc(sizeof(*var));
-        var->objPtr = valObjPtr;
-        Jim_IncrRefCount(valObjPtr);
-        var->linkFramePtr = NULL;
-        /* Insert the new variable */
-        if (name[0] == ':' && name[1] == ':') {
-            /* Into the top level frame */
-            framePtr = interp->topFramePtr;
-            Jim_AddHashEntry(&framePtr->vars, name + 2, var);
-        }
-        else {
-            Jim_AddHashEntry(&framePtr->vars, name, var);
-        }
-        /* Make the object int rep a variable */
-        Jim_FreeIntRep(interp, nameObjPtr);
-        nameObjPtr->typePtr = &variableObjType;
-        nameObjPtr->internalRep.varValue.callFrameId = framePtr->id;
-        nameObjPtr->internalRep.varValue.varPtr = var;
-    }
-    else {
-        var = nameObjPtr->internalRep.varValue.varPtr;
-        if (var->linkFramePtr == NULL) {
-            Jim_IncrRefCount(valObjPtr);
-            Jim_DecrRefCount(interp, var->objPtr);
-            var->objPtr = valObjPtr;
-        }
-        else {                  /* Else handle the link */
-            Jim_CallFrame *savedCallFrame;
-
-            savedCallFrame = interp->framePtr;
-            interp->framePtr = var->linkFramePtr;
-            err = Jim_SetVariable(interp, var->objPtr, valObjPtr);
-            interp->framePtr = savedCallFrame;
-            if (err != JIM_OK)
-                return err;
-        }
+                savedCallFrame = interp->framePtr;
+                interp->framePtr = var->linkFramePtr;
+                err = Jim_SetVariable(interp, var->objPtr, valObjPtr);
+                interp->framePtr = savedCallFrame;
+                if (err != JIM_OK)
+                    return err;
+            }
     }
     return JIM_OK;
 }
@@ -4011,42 +4022,59 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     Jim_Obj *targetNameObjPtr, Jim_CallFrame *targetCallFrame)
 {
     const char *varName;
-    int len;
+    const char *targetName;
+    Jim_CallFrame *framePtr;
+    Jim_Var *varPtr;
 
-    varName = Jim_GetString(nameObjPtr, &len);
+    /* Check for an existing variable or link */
+    switch (SetVariableFromAny(interp, nameObjPtr)) {
+        case JIM_DICT_SUGAR:
+            /* XXX: This message seem unnecessarily verbose, but it matches Tcl */
+            Jim_SetResultFormatted(interp, "bad variable name \"%#s\": upvar won't create a scalar variable that looks like an array element", nameObjPtr);
+            return JIM_ERR;
+
+        case JIM_OK:
+            varPtr = nameObjPtr->internalRep.varValue.varPtr;
+
+            if (varPtr->linkFramePtr == NULL) {
+                Jim_SetResultFormatted(interp, "variable \"%#s\" already exists", nameObjPtr);
+                return JIM_ERR;
+            }
+
+            /* It exists, but is a link, so first delete the link */
+            varPtr->linkFramePtr = NULL;
+            break;
+    }
+
+    /* Resolve the call frames for both variables */
+    /* XXX: SetVariableFromAny() already did this! */
+    varName = Jim_String(nameObjPtr);
 
     if (varName[0] == ':' && varName[1] == ':') {
         /* Linking a global var does nothing */
-        return JIM_OK;
+        varName += 2;
+        framePtr = interp->topFramePtr;
+    }
+    else {
+        framePtr = interp->framePtr;
     }
 
-    if (JimNameIsDictSugar(varName, len)) {
-        Jim_SetResultString(interp, "Dict key syntax invalid as link source", -1);
-        return JIM_ERR;
+    targetName = Jim_String(targetNameObjPtr);
+    if (targetName[0] == ':' && targetName[1] == ':') {
+        targetNameObjPtr = Jim_NewStringObj(interp, targetName + 2, -1);
+        targetCallFrame = interp->topFramePtr;
     }
-
-    /* Check for an existing variable or link */
-    if (SetVariableFromAny(interp, nameObjPtr) == JIM_OK) {
-        Jim_Var *varPtr = nameObjPtr->internalRep.varValue.varPtr;
-
-        if (varPtr->linkFramePtr == NULL) {
-            Jim_SetResultFormatted(interp, "variable \"%#s\" already exists", nameObjPtr);
-            return JIM_ERR;
-        }
-
-        /* It exists, but is a link, so delete the link */
-        varPtr->linkFramePtr = NULL;
-    }
+    Jim_IncrRefCount(targetNameObjPtr);
 
     /* Check for cycles. */
-    if (interp->framePtr == targetCallFrame) {
+    if (framePtr == targetCallFrame) {
         Jim_Obj *objPtr = targetNameObjPtr;
-        Jim_Var *varPtr;
 
         /* Cycles are only possible with 'uplevel 0' */
         while (1) {
-            if (Jim_StringEqObj(objPtr, nameObjPtr)) {
+            if (strcmp(Jim_String(objPtr), varName) == 0) {
                 Jim_SetResultString(interp, "can't upvar from variable to itself", -1);
+                Jim_DecrRefCount(interp, targetNameObjPtr);
                 return JIM_ERR;
             }
             if (SetVariableFromAny(interp, objPtr) != JIM_OK)
@@ -4062,6 +4090,7 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     Jim_SetVariable(interp, nameObjPtr, targetNameObjPtr);
     /* We are now sure 'nameObjPtr' type is variableObjType */
     nameObjPtr->internalRep.varValue.varPtr->linkFramePtr = targetCallFrame;
+    Jim_DecrRefCount(interp, targetNameObjPtr);
     return JIM_OK;
 }
 
@@ -4175,13 +4204,10 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
             interp->framePtr = savedCallFrame;
         }
         else {
-            Jim_CallFrame *framePtr = interp->framePtr;
+            Jim_CallFrame *framePtr;
 
-            name = Jim_String(nameObjPtr);
-            if (name[0] == ':' && name[1] == ':') {
-                framePtr = interp->topFramePtr;
-                name += 2;
-            }
+            name = JimUnscopedName(interp, Jim_String(nameObjPtr), &framePtr);
+
             retval = Jim_DeleteHashEntry(&framePtr->vars, name);
             if (retval == JIM_OK) {
                 /* Change the callframe id, invalidating var lookup caching */
@@ -12538,8 +12564,12 @@ static int Jim_GlobalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     if (interp->framePtr->level == 0)
         return JIM_OK;          /* global at toplevel... */
     for (i = 1; i < argc; i++) {
-        if (Jim_SetVariableLink(interp, argv[i], argv[i], interp->topFramePtr) != JIM_OK)
-            return JIM_ERR;
+        /* global ::blah does nothing */
+        const char *name = Jim_String(argv[i]);
+        if (name[0] != ':' || name[1] != ':') {
+            if (Jim_SetVariableLink(interp, argv[i], argv[i], interp->topFramePtr) != JIM_OK)
+                return JIM_ERR;
+        }
     }
     return JIM_OK;
 }

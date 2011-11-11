@@ -300,6 +300,10 @@ test upvar-8.10 {upvar will create element alias for new array element} {
     array set upvarArray {}
     catch {upvar 0 upvarArray(elem) upvarArrayElemAlias}
 } {0}
+test upvar-8.11 {error upvar array element} {
+    proc a {} { upvar a b(1) }
+    list [catch {a} msg] $msg
+} {1 {bad variable name "b(1)": upvar won't create a scalar variable that looks like an array element}}
 test upvar-9.1 {global redefine} {
     proc p1 {} { global x; global x }
     p1
@@ -319,6 +323,22 @@ test upvar-9.4 {upvar links to static} jim {
     proc p2 {} {{a 3}} { list [p1] $a }
     p2
 } {4 4}
+test upvar-9.5 {upvar via global namespace} {
+    set x 2
+    unset -nocomplain y
+    # Links ::y to ::x
+    proc p1 {} { upvar x ::y; incr ::y -1 }
+    p1
+    list $x $y
+} {1 1}
+
+test upvar-9.6 {upvar via global namespace} {
+    set x 2
+    unset -nocomplain x
+    # Links ::x to ::x
+    proc p1 {} { upvar x ::x; incr ::x }
+    list [catch p1 msg] $msg
+} {1 {can't upvar from variable to itself}}
 
 catch {unset a}
 

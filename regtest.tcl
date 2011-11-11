@@ -153,6 +153,18 @@ catch {
 # Actually, the test passes if no objects leaked on exit
 puts "TEST 23 PASSED"
 
+# REGTEST 24
+# 13 Nov 2011 - invalid cached global var
+proc a {} {
+    foreach i {1 2} {
+        incr z [set ::t]
+        unset ::t
+    }
+}
+set t 6
+catch a
+puts "TEST 24 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
