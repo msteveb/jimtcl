@@ -605,9 +605,9 @@ static jim_wide JimClock(void)
  * ---------------------------------------------------------------------------*/
 
 /* -------------------------- private prototypes ---------------------------- */
-static int JimExpandHashTableIfNeeded(Jim_HashTable *ht);
+static void JimExpandHashTableIfNeeded(Jim_HashTable *ht);
 static unsigned int JimHashTableNextPower(unsigned int size);
-static int JimInsertHashEntry(Jim_HashTable *ht, const void *key);
+static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int replace);
 
 /* -------------------------- hash functions -------------------------------- */
 
@@ -658,25 +658,25 @@ int Jim_InitHashTable(Jim_HashTable *ht, const Jim_HashTableType *type, void *pr
 
 /* Resize the table to the minimal size that contains all the elements,
  * but with the invariant of a USER/BUCKETS ration near to <= 1 */
-int Jim_ResizeHashTable(Jim_HashTable *ht)
+void Jim_ResizeHashTable(Jim_HashTable *ht)
 {
     int minimal = ht->used;
 
     if (minimal < JIM_HT_INITIAL_SIZE)
         minimal = JIM_HT_INITIAL_SIZE;
-    return Jim_ExpandHashTable(ht, minimal);
+    Jim_ExpandHashTable(ht, minimal);
 }
 
 /* Expand or create the hashtable */
-int Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
+void Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
 {
     Jim_HashTable n;            /* the new hashtable */
     unsigned int realsize = JimHashTableNextPower(size), i;
 
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hashtable */
-    if (ht->used >= size)
-        return JIM_ERR;
+     if (size <= ht->used)
+        return;
 
     Jim_InitHashTable(&n, ht->type, ht->privdata);
     n.size = realsize;
@@ -716,47 +716,47 @@ int Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
 
     /* Remap the new hashtable in the old */
     *ht = n;
-    return JIM_OK;
 }
 
 /* Add an element to the target hash table */
 int Jim_AddHashEntry(Jim_HashTable *ht, const void *key, void *val)
 {
-    int idx;
     Jim_HashEntry *entry;
 
     /* Get the index of the new element, or -1 if
      * the element already exists. */
-    if ((idx = JimInsertHashEntry(ht, key)) == -1)
+    entry = JimInsertHashEntry(ht, key, 0);
+    if (entry == NULL)
         return JIM_ERR;
-
-    /* Allocates the memory and stores key */
-    entry = Jim_Alloc(sizeof(*entry));
-    entry->next = ht->table[idx];
-    ht->table[idx] = entry;
 
     /* Set the hash entry fields. */
     Jim_SetHashKey(ht, entry, key);
     Jim_SetHashVal(ht, entry, val);
-    ht->used++;
     return JIM_OK;
 }
 
 /* Add an element, discarding the old if the key already exists */
 int Jim_ReplaceHashEntry(Jim_HashTable *ht, const void *key, void *val)
 {
+    int existed;
     Jim_HashEntry *entry;
 
-    /* Try to add the element. If the key
-     * does not exists Jim_AddHashEntry will suceed. */
-    if (Jim_AddHashEntry(ht, key, val) == JIM_OK)
-        return JIM_OK;
-    /* It already exists, get the entry */
-    entry = Jim_FindHashEntry(ht, key);
-    /* Free the old value and set the new one */
-    Jim_FreeEntryVal(ht, entry);
+    /* Get the index of the new element, or -1 if
+     * the element already exists. */
+    entry = JimInsertHashEntry(ht, key, 1);
+    if (entry->key) {
+        /* It already exists, so replace the value */
+        Jim_FreeEntryVal(ht, entry);
+        existed = 1;
+    }
+    else {
+        /* Doesn't exist, so set the key */
+        Jim_SetHashKey(ht, entry, key);
+        existed = 0;
+    }
     Jim_SetHashVal(ht, entry, val);
-    return JIM_OK;
+
+    return existed;
 }
 
 /* Search and remove an element */
@@ -870,15 +870,14 @@ Jim_HashEntry *Jim_NextHashEntry(Jim_HashTableIterator *iter)
 /* ------------------------- private functions ------------------------------ */
 
 /* Expand the hash table if needed */
-static int JimExpandHashTableIfNeeded(Jim_HashTable *ht)
+static void JimExpandHashTableIfNeeded(Jim_HashTable *ht)
 {
     /* If the hash table is empty expand it to the intial size,
      * if the table is "full" dobule its size. */
     if (ht->size == 0)
-        return Jim_ExpandHashTable(ht, JIM_HT_INITIAL_SIZE);
+        Jim_ExpandHashTable(ht, JIM_HT_INITIAL_SIZE);
     if (ht->size == ht->used)
-        return Jim_ExpandHashTable(ht, ht->size * 2);
-    return JIM_OK;
+        Jim_ExpandHashTable(ht, ht->size * 2);
 }
 
 /* Our hash table capability is a power of two */
@@ -898,24 +897,32 @@ static unsigned int JimHashTableNextPower(unsigned int size)
 /* Returns the index of a free slot that can be populated with
  * an hash entry for the given 'key'.
  * If the key already exists, -1 is returned. */
-static int JimInsertHashEntry(Jim_HashTable *ht, const void *key)
+static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int replace)
 {
     unsigned int h;
     Jim_HashEntry *he;
 
     /* Expand the hashtable if needed */
-    if (JimExpandHashTableIfNeeded(ht) == JIM_ERR)
-        return -1;
+    JimExpandHashTableIfNeeded(ht);
+
     /* Compute the key hash value */
     h = Jim_HashKey(ht, key) & ht->sizemask;
     /* Search if this slot does not already contain the given key */
     he = ht->table[h];
     while (he) {
         if (Jim_CompareHashKeys(ht, key, he->key))
-            return -1;
+            return replace ? he : NULL;
         he = he->next;
     }
-    return h;
+
+    /* Allocates the memory and stores key */
+    he = Jim_Alloc(sizeof(*he));
+    he->next = ht->table[h];
+    ht->table[h] = he;
+    ht->used++;
+    he->key = NULL;
+
+    return he;
 }
 
 /* ----------------------- StringCopy Hash Table Type ------------------------*/
@@ -6505,13 +6512,9 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
     }
     Jim_IncrRefCount(keyObjPtr);
     Jim_IncrRefCount(valueObjPtr);
-    if (Jim_AddHashEntry(ht, keyObjPtr, valueObjPtr) != JIM_OK) {
-        Jim_HashEntry *he = Jim_FindHashEntry(ht, keyObjPtr);
-
+    if (Jim_ReplaceHashEntry(ht, keyObjPtr, valueObjPtr)) {
+        /* Value existed, so need to decrement key ref count */
         Jim_DecrRefCount(interp, keyObjPtr);
-        /* ATTENTION: const cast */
-        Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
-        he->u.val = valueObjPtr;
     }
     return JIM_OK;
 }

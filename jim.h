@@ -665,7 +665,7 @@ JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *p
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
         const Jim_HashTableType *type, void *privdata);
-JIM_EXPORT int Jim_ExpandHashTable (Jim_HashTable *ht,
+JIM_EXPORT void Jim_ExpandHashTable (Jim_HashTable *ht,
         unsigned int size);
 JIM_EXPORT int Jim_AddHashEntry (Jim_HashTable *ht, const void *key,
         void *val);
@@ -676,7 +676,7 @@ JIM_EXPORT int Jim_DeleteHashEntry (Jim_HashTable *ht,
 JIM_EXPORT int Jim_FreeHashTable (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashEntry * Jim_FindHashEntry (Jim_HashTable *ht,
         const void *key);
-JIM_EXPORT int Jim_ResizeHashTable (Jim_HashTable *ht);
+JIM_EXPORT void Jim_ResizeHashTable (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashTableIterator *Jim_GetHashTableIterator
         (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashEntry * Jim_NextHashEntry
