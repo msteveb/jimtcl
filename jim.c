@@ -3491,6 +3491,67 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
     return JIM_OK;
 }
 
+static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *staticsListObjPtr)
+{
+    int len, i;
+
+    len = Jim_ListLength(interp, staticsListObjPtr);
+    if (len == 0) {
+        return JIM_OK;
+    }
+
+    cmdPtr->u.proc.staticVars = Jim_Alloc(sizeof(Jim_HashTable));
+    Jim_InitHashTable(cmdPtr->u.proc.staticVars, &JimVariablesHashTableType, interp);
+    for (i = 0; i < len; i++) {
+        Jim_Obj *objPtr = NULL, *initObjPtr = NULL, *nameObjPtr = NULL;
+        Jim_Var *varPtr;
+        int subLen;
+
+        Jim_ListIndex(interp, staticsListObjPtr, i, &objPtr, JIM_NONE);
+        /* Check if it's composed of two elements. */
+        subLen = Jim_ListLength(interp, objPtr);
+        if (subLen == 1 || subLen == 2) {
+            /* Try to get the variable value from the current
+             * environment. */
+            Jim_ListIndex(interp, objPtr, 0, &nameObjPtr, JIM_NONE);
+            if (subLen == 1) {
+                initObjPtr = Jim_GetVariable(interp, nameObjPtr, JIM_NONE);
+                if (initObjPtr == NULL) {
+                    Jim_SetResultFormatted(interp,
+                        "variable for initialization of static \"%#s\" not found in the local context",
+                        nameObjPtr);
+                    return JIM_ERR;
+                }
+            }
+            else {
+                Jim_ListIndex(interp, objPtr, 1, &initObjPtr, JIM_NONE);
+            }
+            if (JimValidName(interp, "static variable", nameObjPtr) != JIM_OK) {
+                return JIM_ERR;
+            }
+
+            varPtr = Jim_Alloc(sizeof(*varPtr));
+            varPtr->objPtr = initObjPtr;
+            Jim_IncrRefCount(initObjPtr);
+            varPtr->linkFramePtr = NULL;
+            if (Jim_AddHashEntry(cmdPtr->u.proc.staticVars,
+                Jim_String(nameObjPtr), varPtr) != JIM_OK) {
+                Jim_SetResultFormatted(interp,
+                    "static variable name \"%#s\" duplicated in statics list", nameObjPtr);
+                Jim_DecrRefCount(interp, initObjPtr);
+                Jim_Free(varPtr);
+                return JIM_ERR;
+            }
+        }
+        else {
+            Jim_SetResultFormatted(interp, "too many fields in static specifier \"%#s\"",
+                objPtr);
+            return JIM_ERR;
+        }
+    }
+    return JIM_OK;
+}
+
 static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr)
 {
@@ -3519,61 +3580,8 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     Jim_IncrRefCount(bodyObjPtr);
 
     /* Create the statics hash table. */
-    if (staticsListObjPtr) {
-        int len, i;
-
-        len = Jim_ListLength(interp, staticsListObjPtr);
-        if (len != 0) {
-            cmdPtr->u.proc.staticVars = Jim_Alloc(sizeof(Jim_HashTable));
-            Jim_InitHashTable(cmdPtr->u.proc.staticVars, &JimVariablesHashTableType, interp);
-            for (i = 0; i < len; i++) {
-                Jim_Obj *objPtr = 0, *initObjPtr = 0, *nameObjPtr = 0;
-                Jim_Var *varPtr;
-                int subLen;
-
-                Jim_ListIndex(interp, staticsListObjPtr, i, &objPtr, JIM_NONE);
-                /* Check if it's composed of two elements. */
-                subLen = Jim_ListLength(interp, objPtr);
-                if (subLen == 1 || subLen == 2) {
-                    /* Try to get the variable value from the current
-                     * environment. */
-                    Jim_ListIndex(interp, objPtr, 0, &nameObjPtr, JIM_NONE);
-                    if (subLen == 1) {
-                        initObjPtr = Jim_GetVariable(interp, nameObjPtr, JIM_NONE);
-                        if (initObjPtr == NULL) {
-                            Jim_SetResultFormatted(interp,
-                                "variable for initialization of static \"%#s\" not found in the local context",
-                                nameObjPtr);
-                            goto err;
-                        }
-                    }
-                    else {
-                        Jim_ListIndex(interp, objPtr, 1, &initObjPtr, JIM_NONE);
-                    }
-                    if (JimValidName(interp, "static variable", nameObjPtr) != JIM_OK) {
-                        goto err;
-                    }
-
-                    varPtr = Jim_Alloc(sizeof(*varPtr));
-                    varPtr->objPtr = initObjPtr;
-                    Jim_IncrRefCount(initObjPtr);
-                    varPtr->linkFramePtr = NULL;
-                    if (Jim_AddHashEntry(cmdPtr->u.proc.staticVars,
-                        Jim_String(nameObjPtr), varPtr) != JIM_OK) {
-                        Jim_SetResultFormatted(interp,
-                            "static variable name \"%#s\" duplicated in statics list", nameObjPtr);
-                        Jim_DecrRefCount(interp, initObjPtr);
-                        Jim_Free(varPtr);
-                        goto err;
-                    }
-                }
-                else {
-                    Jim_SetResultFormatted(interp, "too many fields in static specifier \"%#s\"",
-                        objPtr);
-                    goto err;
-                }
-            }
-        }
+    if (staticsListObjPtr && JimCreateProcedureStatics(interp, cmdPtr, staticsListObjPtr) != JIM_OK) {
+        goto err;
     }
 
     /* Parse the args out into arglist, validating as we go */
