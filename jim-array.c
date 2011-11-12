@@ -63,58 +63,30 @@ static int array_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int i;
-    int len;
-    int all = 0;
-    Jim_Obj *resultObj;
     Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
-    Jim_Obj *dictObj;
-    Jim_Obj **dictValuesObj;
 
     if (!objPtr) {
         return JIM_OK;
     }
 
     if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
-        all = 1;
-    }
-
-    /* If it is a dictionary or list with an even number of elements, nothing else to do */
-    if (all) {
-        if (Jim_IsDict(objPtr) || (Jim_IsList(objPtr) && Jim_ListLength(interp, objPtr) % 2 == 0)) {
-            Jim_SetResult(interp, objPtr);
-            return JIM_OK;
-        }
-    }
-
-    if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    if (all) {
-        /* Return the whole array */
-        Jim_SetResult(interp, dictObj);
-    }
-    else {
-        /* Only return the matching values */
-        resultObj = Jim_NewListObj(interp, NULL, 0);
-
-        for (i = 0; i < len; i += 2) {
-            if (Jim_StringMatchObj(interp, argv[1], dictValuesObj[i], 0)) {
-                Jim_ListAppendElement(interp, resultObj, dictValuesObj[i]);
-                Jim_ListAppendElement(interp, resultObj, dictValuesObj[i + 1]);
+        /* Optimise the "all" case */
+        if (Jim_IsList(objPtr)) {
+            if (Jim_ListLength(interp, objPtr) % 2 != 0) {
+                /* A list with an odd number of elements */
+                return JIM_ERR;
             }
         }
-
-        Jim_SetResult(interp, resultObj);
+        else if (Jim_DictSize(interp, objPtr) < 0) {
+            /* Can't be converted to a dictionary */
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
     }
-    Jim_Free(dictValuesObj);
-    return JIM_OK;
 
+    /* Return a list of keys and values where the keys match the pattern */
+    return Jim_DictValues(interp, objPtr, argv[1]);
 }
 
 static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -134,7 +106,6 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int len;
     Jim_Obj *resultObj;
     Jim_Obj *objPtr;
-    Jim_Obj *dictObj;
     Jim_Obj **dictValuesObj;
 
     if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
@@ -145,11 +116,7 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
 
-    if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
+    if (Jim_DictPairs(interp, objPtr, &dictValuesObj, &len) != JIM_OK) {
         return JIM_ERR;
     }
 
@@ -190,30 +157,35 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int i;
     int len;
-    int rc = JIM_OK;
     Jim_Obj *listObj = argv[1];
-
-    if (Jim_GetVariable(interp, argv[0], JIM_NONE) == NULL) {
-        /* Doesn't exist, so just set the list directly */
-        return Jim_SetVariable(interp, argv[0], listObj);
-    }
+    Jim_Obj *dictObj;
 
     len = Jim_ListLength(interp, listObj);
     if (len % 2) {
         Jim_SetResultString(interp, "list must have an even number of elements", -1);
         return JIM_ERR;
     }
-    for (i = 0; i < len && rc == JIM_OK; i += 2) {
+
+    dictObj = Jim_GetVariable(interp, argv[0], JIM_UNSHARED);
+    if (!dictObj) {
+        /* Doesn't exist, so just set the list directly */
+        return Jim_SetVariable(interp, argv[0], listObj);
+    }
+
+    if (Jim_IsShared(dictObj)) {
+        dictObj = Jim_DuplicateObj(interp, dictObj);
+    }
+
+    for (i = 0; i < len; i += 2) {
         Jim_Obj *nameObj;
         Jim_Obj *valueObj;
 
         Jim_ListIndex(interp, listObj, i, &nameObj, JIM_NONE);
         Jim_ListIndex(interp, listObj, i + 1, &valueObj, JIM_NONE);
 
-        rc = Jim_SetDictKeysVector(interp, argv[0], &nameObj, 1, valueObj, JIM_ERRMSG);
+        Jim_DictAddElement(interp, dictObj, nameObj, valueObj);
     }
-
-    return rc;
+    return Jim_SetVariable(interp, argv[0], dictObj);
 }
 
 static const jim_subcmd_type array_command_table[] = {

@@ -240,7 +240,7 @@ first:
 /* Note: string *must* be valid UTF-8 sequences
  *       slen is a char length, not byte counts.
  */
-static int GlobMatch(const char *pattern, const char *string, int nocase)
+static int JimGlobMatch(const char *pattern, const char *string, int nocase)
 {
     int c;
     int pchar;
@@ -256,7 +256,7 @@ static int GlobMatch(const char *pattern, const char *string, int nocase)
                 }
                 while (*string) {
                     /* Recursive call - Does the remaining pattern match anywhere? */
-                    if (GlobMatch(pattern, string, nocase))
+                    if (JimGlobMatch(pattern, string, nocase))
                         return 1;       /* match */
                     string += utf8_tounicode(string, &c);
                 }
@@ -307,7 +307,7 @@ static int GlobMatch(const char *pattern, const char *string, int nocase)
 
 static int JimStringMatch(Jim_Interp *interp, Jim_Obj *patternObj, const char *string, int nocase)
 {
-    return GlobMatch(Jim_String(patternObj), string, nocase);
+    return JimGlobMatch(Jim_String(patternObj), string, nocase);
 }
 
 /**
@@ -5773,6 +5773,29 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_Obj *fileNameObj;
     int linenr;
 
+#if 0
+    /* Optimise dict -> list. XXX: Is it worth it?  */
+    if (Jim_IsDict(objPtr)) {
+        Jim_Obj **listObjPtrPtr;
+        int len;
+        int i;
+
+        Jim_DictPairs(interp, objPtr, &listObjPtrPtr, &len);
+        for (i = 0; i < len; i++) {
+            Jim_IncrRefCount(listObjPtrPtr[i]);
+        }
+
+        /* Now just switch the internal rep */
+        Jim_FreeIntRep(interp, objPtr);
+        objPtr->typePtr = &listObjType;
+        objPtr->internalRep.listValue.len = len;
+        objPtr->internalRep.listValue.maxLen = len;
+        objPtr->internalRep.listValue.ele = listObjPtrPtr;
+
+        return JIM_OK;
+    }
+#endif
+
     /* Try to preserve information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
         fileNameObj = objPtr->internalRep.sourceValue.fileNameObj;
@@ -6426,6 +6449,10 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     int listlen;
 
+    if (objPtr->typePtr == &dictObjType) {
+        return JIM_OK;
+    }
+
     /* Get the string representation. Do this first so we don't
      * change order in case of fast conversion to dict.
      */
@@ -6508,9 +6535,8 @@ int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
     int retcode;
 
     JimPanic((Jim_IsShared(objPtr), "Jim_DictAddElement called with shared object"));
-    if (objPtr->typePtr != &dictObjType) {
-        if (SetDictFromAny(interp, objPtr) != JIM_OK)
-            return JIM_ERR;
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+        return JIM_ERR;
     }
     retcode = DictAddElement(interp, objPtr, keyObjPtr, valueObjPtr);
     Jim_InvalidateStringRep(objPtr);
@@ -6543,9 +6569,8 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
     Jim_HashEntry *he;
     Jim_HashTable *ht;
 
-    if (dictPtr->typePtr != &dictObjType) {
-        if (SetDictFromAny(interp, dictPtr) != JIM_OK)
-            return -1;
+    if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
+        return -1;
     }
     ht = dictPtr->internalRep.ptr;
     if ((he = Jim_FindHashEntry(ht, keyPtr)) == NULL) {
@@ -6567,9 +6592,8 @@ int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, in
     Jim_Obj **objv;
     int i;
 
-    if (dictPtr->typePtr != &dictObjType) {
-        if (SetDictFromAny(interp, dictPtr) != JIM_OK)
-            return JIM_ERR;
+    if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
+        return JIM_ERR;
     }
     ht = dictPtr->internalRep.ptr;
 
@@ -6646,10 +6670,8 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
         dictObjPtr = objPtr;
 
         /* Check if it's a valid dictionary */
-        if (dictObjPtr->typePtr != &dictObjType) {
-            if (SetDictFromAny(interp, dictObjPtr) != JIM_OK) {
-                goto err;
-            }
+        if (SetDictFromAny(interp, dictObjPtr) != JIM_OK) {
+            goto err;
         }
 
         if (i == keyc - 1) {
@@ -10663,92 +10685,116 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
     Jim_SetResult(interp, objPtr);
 }
 
+/**
+ * May add the key and/or value to the list.
+ */
+typedef void JimHashtableIteratorCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr,
+    Jim_HashEntry *he, void *privdata);
+
 #define JimTrivialMatch(pattern)	(strpbrk((pattern), "*[?\\") == NULL)
 
-/* type is: 0=commands, 1=procs, 2=channels */
-static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
+/**
+ * For each key of the hash table 'ht' which matches the glob pattern (all if NULL),
+ * invoke the callback to add entries to a list.
+ * Returns the list.
+ * 
+ * If 'string_keys' is set, the hash table keys are plain strings instead of objects.
+ */
+static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, Jim_Obj *patternObjPtr,
+    JimHashtableIteratorCallbackType *callback, void *privdata, int string_keys)
 {
-    Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
     /* Check for the non-pattern case. We can do this much more efficiently. */
     if (patternObjPtr && JimTrivialMatch(Jim_String(patternObjPtr))) {
-        Jim_Cmd *cmdPtr = Jim_GetCommand(interp, patternObjPtr, JIM_NONE);
-        if (cmdPtr) {
-            if (type == 1 && !cmdPtr->isproc) {
-                /* not a proc */
-            }
-            else if (type == 2 && !Jim_AioFilehandle(interp, patternObjPtr)) {
-                /* not a channel */
-            }
-            else {
-                Jim_ListAppendElement(interp, listObjPtr, patternObjPtr);
-            }
+        he = Jim_FindHashEntry(ht, string_keys ? (void *)Jim_String(patternObjPtr) : (void *)patternObjPtr);
+        if (he) {
+            callback(interp, listObjPtr, he, privdata);
         }
-        return listObjPtr;
     }
+    else {
+        Jim_HashTableIterator *htiter;
 
-    htiter = Jim_GetHashTableIterator(&interp->commands);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Cmd *cmdPtr = he->u.val;
-        Jim_Obj *cmdNameObj;
-
-        if (type == 1 && !cmdPtr->isproc) {
-            /* not a proc */
-            continue;
+        htiter = Jim_GetHashTableIterator(ht);
+        while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+            if (patternObjPtr == NULL || JimStringMatch(interp, patternObjPtr, string_keys ? he->key : Jim_String((Jim_Obj *)he->key), 0)) {
+                callback(interp, listObjPtr, he, privdata);
+            }
         }
-        if (patternObjPtr && !JimStringMatch(interp, patternObjPtr, he->key, 0))
-            continue;
-
-        cmdNameObj = Jim_NewStringObj(interp, he->key, -1);
-
-        /* Is it a channel? */
-        if (type == 2 && !Jim_AioFilehandle(interp, cmdNameObj)) {
-            Jim_FreeNewObj(interp, cmdNameObj);
-            continue;
-        }
-
-        Jim_ListAppendElement(interp, listObjPtr, cmdNameObj);
+        Jim_FreeHashTableIterator(htiter);
     }
-    Jim_FreeHashTableIterator(htiter);
     return listObjPtr;
 }
 
-/* Keep this in order */
+/* Keep these in order */
+#define JIM_CMDLIST_COMMANDS 0
+#define JIM_CMDLIST_PROCS 1
+#define JIM_CMDLIST_CHANNELS 2
+
+/**
+ * Adds matching command names (procs, channels) to the list.
+ */
+static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
+    Jim_HashEntry *he, void *privdata)
+{
+    Jim_Cmd *cmdPtr = (Jim_Cmd *)he->u.val;
+    int type = *(int *)privdata;
+    Jim_Obj *objPtr;
+
+    if (type == JIM_CMDLIST_PROCS && !cmdPtr->isproc) {
+        /* not a proc */
+        return;
+    }
+
+    objPtr = Jim_NewStringObj(interp, he->key, -1);
+
+    if (type == JIM_CMDLIST_CHANNELS && !Jim_AioFilehandle(interp, objPtr)) {
+        /* not a channel */
+        Jim_FreeNewObj(interp, objPtr);
+        return;
+    }
+
+    Jim_ListAppendElement(interp, listObjPtr, objPtr);
+}
+
+/* type is JIM_CMDLIST_xxx */
+static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
+{
+    return JimHashtablePatternMatch(interp, &interp->commands, patternObjPtr, JimCommandMatch, &type, 1);
+}
+
+/* Keep these in order */
 #define JIM_VARLIST_GLOBALS 0
 #define JIM_VARLIST_LOCALS 1
 #define JIM_VARLIST_VARS 2
 
-static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int mode)
+/**
+ * Adds matching variable names to the list.
+ */
+static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
+    Jim_HashEntry *he, void *privdata)
 {
-    Jim_HashTableIterator *htiter;
-    Jim_HashEntry *he;
-    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    Jim_Var *varPtr = (Jim_Var *)he->u.val;
+    int mode = *(int *)privdata;
 
-    if (mode == JIM_VARLIST_GLOBALS) {
-        htiter = Jim_GetHashTableIterator(&interp->topFramePtr->vars);
-    }
-    else {
-        /* For [info locals], if we are at top level an emtpy list
-         * is returned. I don't agree, but we aim at compatibility (SS) */
-        if (mode == JIM_VARLIST_LOCALS && interp->framePtr == interp->topFramePtr)
-            return listObjPtr;
-        htiter = Jim_GetHashTableIterator(&interp->framePtr->vars);
-    }
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        Jim_Var *varPtr = (Jim_Var *)he->u.val;
-
-        if (mode == JIM_VARLIST_LOCALS) {
-            if (varPtr->linkFramePtr != NULL)
-                continue;
-        }
-        if (patternObjPtr && !JimStringMatch(interp, patternObjPtr, he->key, 0))
-            continue;
+    if (mode != JIM_VARLIST_LOCALS || varPtr->linkFramePtr == NULL) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, he->key, -1));
     }
-    Jim_FreeHashTableIterator(htiter);
-    return listObjPtr;
+}
+
+/* mode is JIM_VARLIST_xxx */
+static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int mode)
+{
+    if (mode == JIM_VARLIST_LOCALS && interp->framePtr == interp->topFramePtr) {
+        /* For [info locals], if we are at top level an emtpy list
+         * is returned. I don't agree, but we aim at compatibility (SS) */
+        return interp->emptyObj;
+    }
+    else {
+        Jim_CallFrame *framePtr = (mode == JIM_VARLIST_GLOBALS) ? interp->topFramePtr : interp->framePtr;
+        return JimHashtablePatternMatch(interp, &framePtr->vars, patternObjPtr, JimVariablesMatch, &mode, 1);
+    }
 }
 
 static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
@@ -13250,45 +13296,41 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     return Jim_RenameCommand(interp, oldName, newName);
 }
 
-int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj)
+static void JimDictMatchKeys(Jim_Interp *interp, Jim_Obj *listObjPtr,
+    Jim_HashEntry *he, void *privdata)
 {
-    int i;
-    int len;
-    Jim_Obj *resultObj;
-    Jim_Obj *dictObj;
-    Jim_Obj **dictValuesObj;
+    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
+}
 
-    if (Jim_DictKeysVector(interp, objPtr, NULL, 0, &dictObj, JIM_ERRMSG) != JIM_OK) {
+int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
+{
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
+    Jim_SetResult(interp, JimHashtablePatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, NULL, 0));
+    return JIM_OK;
+}
 
-    /* XXX: Could make the exact-match case much more efficient here.
-     *      See JimCommandsList()
-     */
-    if (Jim_DictPairs(interp, dictObj, &dictValuesObj, &len) != JIM_OK) {
+static void JimDictMatchValues(Jim_Interp *interp, Jim_Obj *listObjPtr,
+    Jim_HashEntry *he, void *privdata)
+{
+    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
+    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->u.val);
+}
+
+int Jim_DictValues(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
+{
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
-
-    /* Only return the matching values */
-    resultObj = Jim_NewListObj(interp, NULL, 0);
-
-    for (i = 0; i < len; i += 2) {
-        if (patternObj == NULL || Jim_StringMatchObj(interp, patternObj, dictValuesObj[i], 0)) {
-            Jim_ListAppendElement(interp, resultObj, dictValuesObj[i]);
-        }
-    }
-    Jim_Free(dictValuesObj);
-
-    Jim_SetResult(interp, resultObj);
+    Jim_SetResult(interp, JimHashtablePatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchValues, NULL, 0));
     return JIM_OK;
 }
 
 int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    if (objPtr->typePtr != &dictObjType) {
-        if (SetDictFromAny(interp, objPtr) != JIM_OK) {
-            return -1;
-        }
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+        return -1;
     }
     return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
 }
@@ -13378,7 +13420,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             if (argc == 2) {
                 return JIM_OK;
             }
-            else if (argv[2]->typePtr != &dictObjType && SetDictFromAny(interp, argv[2]) != JIM_OK) {
+            else if (SetDictFromAny(interp, argv[2]) != JIM_OK) {
                 return JIM_ERR;
             }
             else {
@@ -13492,18 +13534,20 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
 
         case INFO_CHANNELS:
+            mode++;             /* JIM_CMDLIST_CHANNELS */
 #ifndef jim_ext_aio
             Jim_SetResultString(interp, "aio not enabled", -1);
             return JIM_ERR;
 #endif
-        case INFO_COMMANDS:
         case INFO_PROCS:
+            mode++;             /* JIM_CMDLIST_PROCS */
+        case INFO_COMMANDS:
+            /* mode 0 => JIM_CMDLIST_COMMANDS */
             if (argc != 2 && argc != 3) {
                 Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
                 return JIM_ERR;
             }
-            Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL,
-                    (cmd - INFO_COMMANDS)));
+            Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL, mode));
             break;
 
         case INFO_VARS:
