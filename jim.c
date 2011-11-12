@@ -2215,15 +2215,21 @@ static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *d
 
 static int SetStringFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    /* Get a fresh string representation. */
-    (void)Jim_String(objPtr);
-    /* Free any other internal representation. */
-    Jim_FreeIntRep(interp, objPtr);
-    /* Set it as string, i.e. just set the maxLength field. */
-    objPtr->typePtr = &stringObjType;
-    objPtr->internalRep.strValue.maxLength = objPtr->length;
-    /* Don't know the utf-8 length yet */
-    objPtr->internalRep.strValue.charLength = -1;
+    if (objPtr->typePtr != &stringObjType) {
+        /* Get a fresh string representation. */
+        if (objPtr->bytes == NULL) {
+            /* Invalid string repr. Generate it. */
+            JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
+            objPtr->typePtr->updateStringProc(objPtr);
+        }
+        /* Free any other internal representation. */
+        Jim_FreeIntRep(interp, objPtr);
+        /* Set it as string, i.e. just set the maxLength field. */
+        objPtr->typePtr = &stringObjType;
+        objPtr->internalRep.strValue.maxLength = objPtr->length;
+        /* Don't know the utf-8 length yet */
+        objPtr->internalRep.strValue.charLength = -1;
+    }
     return JIM_OK;
 }
 
@@ -2235,8 +2241,7 @@ static int SetStringFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 int Jim_Utf8Length(Jim_Interp *interp, Jim_Obj *objPtr)
 {
 #ifdef JIM_UTF8
-    if (objPtr->typePtr != &stringObjType)
-        SetStringFromAny(interp, objPtr);
+    SetStringFromAny(interp, objPtr);
 
     if (objPtr->internalRep.strValue.charLength < 0) {
         objPtr->internalRep.strValue.charLength = utf8_strlen(objPtr->bytes, objPtr->length);
@@ -2342,8 +2347,7 @@ static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
 void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str, int len)
 {
     JimPanic((Jim_IsShared(objPtr), "Jim_AppendString called with shared object"));
-    if (objPtr->typePtr != &stringObjType)
-        SetStringFromAny(interp, objPtr);
+    SetStringFromAny(interp, objPtr);
     StringAppendString(objPtr, str, len);
 }
 
@@ -2360,8 +2364,7 @@ void Jim_AppendStrings(Jim_Interp *interp, Jim_Obj *objPtr, ...)
 {
     va_list ap;
 
-    if (objPtr->typePtr != &stringObjType)
-        SetStringFromAny(interp, objPtr);
+    SetStringFromAny(interp, objPtr);
     va_start(ap, objPtr);
     while (1) {
         char *s = va_arg(ap, char *);
@@ -2521,9 +2524,7 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
     int len;
     const char *str;
 
-    if (strObjPtr->typePtr != &stringObjType) {
-        SetStringFromAny(interp, strObjPtr);
-    }
+    SetStringFromAny(interp, strObjPtr);
 
     str = Jim_GetString(strObjPtr, &len);
 
@@ -2543,9 +2544,7 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     int len;
     const char *str;
 
-    if (strObjPtr->typePtr != &stringObjType) {
-        SetStringFromAny(interp, strObjPtr);
-    }
+    SetStringFromAny(interp, strObjPtr);
 
     str = Jim_GetString(strObjPtr, &len);
 
@@ -2667,9 +2666,8 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
         trimchars = Jim_GetString(trimcharsObjPtr, &trimcharslen);
     }
 
-    if (strObjPtr->typePtr != &stringObjType) {
-        SetStringFromAny(interp, strObjPtr);
-    }
+    SetStringFromAny(interp, strObjPtr);
+
     len = Jim_Length(strObjPtr);
     nontrim = JimFindTrimRight(strObjPtr->bytes, len, trimchars, trimcharslen);
 
