@@ -5773,6 +5773,10 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_Obj *fileNameObj;
     int linenr;
 
+    if (objPtr->typePtr == &listObjType) {
+        return JIM_OK;
+    }
+
 #if 0
     /* Optimise dict -> list. XXX: Is it worth it?  */
     if (Jim_IsDict(objPtr)) {
@@ -5963,8 +5967,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     int rc;
 
     JimPanic((Jim_IsShared(listObjPtr), "Jim_ListSortElements called with shared object"));
-    if (!Jim_IsList(listObjPtr))
-        SetListFromAny(interp, listObjPtr);
+    SetListFromAny(interp, listObjPtr);
 
     /* Allow lsort to be called reentrantly */
     prev_info = sort_info;
@@ -6060,8 +6063,7 @@ static void ListAppendList(Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr)
 {
     JimPanic((Jim_IsShared(listPtr), "Jim_ListAppendElement called with shared object"));
-    if (!Jim_IsList(listPtr))
-        SetListFromAny(interp, listPtr);
+    SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
     ListAppendElement(listPtr, objPtr);
 }
@@ -6069,16 +6071,14 @@ void Jim_ListAppendElement(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *objPtr
 void Jim_ListAppendList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *appendListPtr)
 {
     JimPanic((Jim_IsShared(listPtr), "Jim_ListAppendList called with shared object"));
-    if (!Jim_IsList(listPtr))
-        SetListFromAny(interp, listPtr);
+    SetListFromAny(interp, listPtr);
     Jim_InvalidateStringRep(listPtr);
     ListAppendList(listPtr, appendListPtr);
 }
 
 int Jim_ListLength(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    if (!Jim_IsList(objPtr))
-        SetListFromAny(interp, objPtr);
+    SetListFromAny(interp, objPtr);
     return objPtr->internalRep.listValue.len;
 }
 
@@ -6086,8 +6086,7 @@ void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     int objc, Jim_Obj *const *objVec)
 {
     JimPanic((Jim_IsShared(listPtr), "Jim_ListInsertElement called with shared object"));
-    if (!Jim_IsList(listPtr))
-        SetListFromAny(interp, listPtr);
+    SetListFromAny(interp, listPtr);
     if (idx >= 0 && idx > listPtr->internalRep.listValue.len)
         idx = listPtr->internalRep.listValue.len;
     else if (idx < 0)
@@ -6098,8 +6097,7 @@ void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
 
 int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPtrPtr, int flags)
 {
-    if (!Jim_IsList(listPtr))
-        SetListFromAny(interp, listPtr);
+    SetListFromAny(interp, listPtr);
     if ((idx >= 0 && idx >= listPtr->internalRep.listValue.len) ||
         (idx < 0 && (-idx - 1) >= listPtr->internalRep.listValue.len)) {
         if (flags & JIM_ERRMSG) {
@@ -6117,8 +6115,7 @@ int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPt
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     Jim_Obj *newObjPtr, int flags)
 {
-    if (!Jim_IsList(listPtr))
-        SetListFromAny(interp, listPtr);
+    SetListFromAny(interp, listPtr);
     if ((idx >= 0 && idx >= listPtr->internalRep.listValue.len) ||
         (idx < 0 && (-idx - 1) >= listPtr->internalRep.listValue.len)) {
         if (flags & JIM_ERRMSG) {
