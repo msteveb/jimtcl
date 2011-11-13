@@ -340,6 +340,11 @@ test upvar-9.6 {upvar via global namespace} {
     list [catch p1 msg] $msg
 } {1 {can't upvar from variable to itself}}
 
+test upvar-9.7 {upvar to higher level} {
+    proc p1 {} { upvar 0 x ::globx }
+    list [catch p1 msg] $msg
+} {1 {bad variable name "::globx": upvar won't create namespace variable that refers to procedure variable}}
+
 catch {unset a}
 
 testreport

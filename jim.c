@@ -4066,6 +4066,14 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     }
     Jim_IncrRefCount(targetNameObjPtr);
 
+    if (framePtr->level < targetCallFrame->level) {
+        Jim_SetResultFormatted(interp,
+            "bad variable name \"%#s\": upvar won't create namespace variable that refers to procedure variable",
+            nameObjPtr);
+        Jim_DecrRefCount(interp, targetNameObjPtr);
+        return JIM_ERR;
+    }
+
     /* Check for cycles. */
     if (framePtr == targetCallFrame) {
         Jim_Obj *objPtr = targetNameObjPtr;

@@ -165,6 +165,19 @@ set t 6
 catch a
 puts "TEST 24 PASSED"
 
+# REGTEST 25
+# 14 Nov 2011 - link global var to proc var
+proc a {} {
+    set x 3
+    upvar 0 x ::globx
+}
+set globx 0
+catch {
+    a
+}
+incr globx
+puts "TEST 25 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
