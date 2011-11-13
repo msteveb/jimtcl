@@ -2155,10 +2155,23 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 /* Just returns the length of the object's string rep */
 int Jim_Length(Jim_Obj *objPtr)
 {
-    int len;
+    if (objPtr->bytes == NULL) {
+        /* Invalid string repr. Generate it. */
+        JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
+        objPtr->typePtr->updateStringProc(objPtr);
+    }
+    return objPtr->length;
+}
 
-    Jim_GetString(objPtr, &len);
-    return len;
+/* Just returns the length of the object's string rep */
+const char *Jim_String(Jim_Obj *objPtr)
+{
+    if (objPtr->bytes == NULL) {
+        /* Invalid string repr. Generate it. */
+        JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
+        objPtr->typePtr->updateStringProc(objPtr);
+    }
+    return objPtr->bytes;
 }
 
 static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);

@@ -577,7 +577,6 @@ typedef struct Jim_Interp {
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
 #define Jim_GetResult(i) ((i)->result)
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
-#define Jim_String(o) Jim_GetString((o), NULL)
 
 /* Note that 'o' is expanded only one time inside this macro,
  * so it's safe to use side effects. */
@@ -692,6 +691,7 @@ JIM_EXPORT Jim_Obj * Jim_DuplicateObj (Jim_Interp *interp,
         Jim_Obj *objPtr);
 JIM_EXPORT const char * Jim_GetString(Jim_Obj *objPtr,
         int *lenPtr);
+JIM_EXPORT const char *Jim_String(Jim_Obj *objPtr);
 JIM_EXPORT int Jim_Length(Jim_Obj *objPtr);
 
 /* string object */
