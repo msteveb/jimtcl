@@ -10697,37 +10697,33 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
  * May add the key and/or value to the list.
  */
 typedef void JimHashtableIteratorCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, void *privdata);
+    Jim_HashEntry *he, int type);
 
 #define JimTrivialMatch(pattern)	(strpbrk((pattern), "*[?\\") == NULL)
 
 /**
- * For each key of the hash table 'ht' which matches the glob pattern (all if NULL),
+ * For each key of the hash table 'ht' (with string keys) which matches the glob pattern (all if NULL),
  * invoke the callback to add entries to a list.
  * Returns the list.
- * 
- * If 'string_keys' is set, the hash table keys are plain strings instead of objects.
  */
 static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, Jim_Obj *patternObjPtr,
-    JimHashtableIteratorCallbackType *callback, void *privdata, int string_keys)
+    JimHashtableIteratorCallbackType *callback, int type)
 {
     Jim_HashEntry *he;
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
     /* Check for the non-pattern case. We can do this much more efficiently. */
     if (patternObjPtr && JimTrivialMatch(Jim_String(patternObjPtr))) {
-        he = Jim_FindHashEntry(ht, string_keys ? (void *)Jim_String(patternObjPtr) : (void *)patternObjPtr);
+        he = Jim_FindHashEntry(ht, Jim_String(patternObjPtr));
         if (he) {
-            callback(interp, listObjPtr, he, privdata);
+            callback(interp, listObjPtr, he, type);
         }
     }
     else {
-        Jim_HashTableIterator *htiter;
-
-        htiter = Jim_GetHashTableIterator(ht);
+        Jim_HashTableIterator *htiter = Jim_GetHashTableIterator(ht);
         while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-            if (patternObjPtr == NULL || JimStringMatch(interp, patternObjPtr, string_keys ? he->key : Jim_String((Jim_Obj *)he->key), 0)) {
-                callback(interp, listObjPtr, he, privdata);
+            if (patternObjPtr == NULL || JimStringMatch(interp, patternObjPtr, he->key, 0)) {
+                callback(interp, listObjPtr, he, type);
             }
         }
         Jim_FreeHashTableIterator(htiter);
@@ -10744,10 +10740,9 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
  * Adds matching command names (procs, channels) to the list.
  */
 static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, void *privdata)
+    Jim_HashEntry *he, int type)
 {
     Jim_Cmd *cmdPtr = (Jim_Cmd *)he->u.val;
-    int type = *(int *)privdata;
     Jim_Obj *objPtr;
 
     if (type == JIM_CMDLIST_PROCS && !cmdPtr->isproc) {
@@ -10756,20 +10751,18 @@ static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
     }
 
     objPtr = Jim_NewStringObj(interp, he->key, -1);
+    Jim_IncrRefCount(objPtr);
 
-    if (type == JIM_CMDLIST_CHANNELS && !Jim_AioFilehandle(interp, objPtr)) {
-        /* not a channel */
-        Jim_FreeNewObj(interp, objPtr);
-        return;
+    if (type != JIM_CMDLIST_CHANNELS || Jim_AioFilehandle(interp, objPtr)) {
+        Jim_ListAppendElement(interp, listObjPtr, objPtr);
     }
-
-    Jim_ListAppendElement(interp, listObjPtr, objPtr);
+    Jim_DecrRefCount(interp, objPtr);
 }
 
 /* type is JIM_CMDLIST_xxx */
 static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
 {
-    return JimHashtablePatternMatch(interp, &interp->commands, patternObjPtr, JimCommandMatch, &type, 1);
+    return JimHashtablePatternMatch(interp, &interp->commands, patternObjPtr, JimCommandMatch, type);
 }
 
 /* Keep these in order */
@@ -10783,14 +10776,13 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
  * Adds matching variable names to the list.
  */
 static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, void *privdata)
+    Jim_HashEntry *he, int type)
 {
     Jim_Var *varPtr = (Jim_Var *)he->u.val;
-    int mode = *(int *)privdata;
 
-    if (mode != JIM_VARLIST_LOCALS || varPtr->linkFramePtr == NULL) {
+    if (type != JIM_VARLIST_LOCALS || varPtr->linkFramePtr == NULL) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, he->key, -1));
-        if (mode & JIM_VARLIST_VALUES) {
+        if (type & JIM_VARLIST_VALUES) {
             Jim_ListAppendElement(interp, listObjPtr, varPtr->objPtr);
         }
     }
@@ -10806,7 +10798,7 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int
     }
     else {
         Jim_CallFrame *framePtr = (mode == JIM_VARLIST_GLOBALS) ? interp->topFramePtr : interp->framePtr;
-        return JimHashtablePatternMatch(interp, &framePtr->vars, patternObjPtr, JimVariablesMatch, &mode, 1);
+        return JimHashtablePatternMatch(interp, &framePtr->vars, patternObjPtr, JimVariablesMatch, mode);
     }
 }
 
@@ -13309,26 +13301,47 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     return Jim_RenameCommand(interp, oldName, newName);
 }
 
-static void JimDictMatchKeys(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, void *privdata)
+#define JIM_DICTMATCH_VALUES 0x0001
+
+typedef void JimDictMatchCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_HashEntry *he, int type);
+
+static void JimDictMatchKeys(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_HashEntry *he, int type)
 {
     Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
+    if (type & JIM_DICTMATCH_VALUES) {
+        Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->u.val);
+    }
 }
+
+/**
+ * Like JimHashtablePatternMatch, but for dictionaries.
+ */
+static Jim_Obj *JimDictPatternMatch(Jim_Interp *interp, Jim_HashTable *ht, Jim_Obj *patternObjPtr,
+    JimDictMatchCallbackType *callback, int type)
+{
+    Jim_HashEntry *he;
+    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
+
+    /* Check for the non-pattern case. We can do this much more efficiently. */
+    Jim_HashTableIterator *htiter = Jim_GetHashTableIterator(ht);
+    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        if (patternObjPtr == NULL || JimGlobMatch(Jim_String(patternObjPtr), Jim_String((Jim_Obj *)he->key), 0)) {
+            callback(interp, listObjPtr, he, type);
+        }
+    }
+    Jim_FreeHashTableIterator(htiter);
+
+    return listObjPtr;
+}
+
 
 int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
 {
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
-    Jim_SetResult(interp, JimHashtablePatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, NULL, 0));
+    Jim_SetResult(interp, JimDictPatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, 0));
     return JIM_OK;
-}
-
-static void JimDictMatchValues(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, void *privdata)
-{
-    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
-    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->u.val);
 }
 
 int Jim_DictValues(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
@@ -13336,7 +13349,7 @@ int Jim_DictValues(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
-    Jim_SetResult(interp, JimHashtablePatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchValues, NULL, 0));
+    Jim_SetResult(interp, JimDictPatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, JIM_DICTMATCH_VALUES));
     return JIM_OK;
 }
 
@@ -13664,7 +13677,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                         if (cmdPtr->u.proc.staticVars) {
                             int mode = JIM_VARLIST_LOCALS | JIM_VARLIST_VALUES;
                             Jim_SetResult(interp, JimHashtablePatternMatch(interp, cmdPtr->u.proc.staticVars,
-                                NULL, JimVariablesMatch, &mode, 1));
+                                NULL, JimVariablesMatch, mode));
                         }
                         break;
                 }
