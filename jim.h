@@ -305,12 +305,13 @@ typedef struct Jim_Obj {
         } twoPtrValue;
         /* Variable object */
         struct {
-            unsigned jim_wide callFrameId;
+            unsigned long callFrameId;
             struct Jim_Var *varPtr;
+            int global;
         } varValue;
         /* Command object */
         struct {
-            unsigned jim_wide procEpoch;
+            unsigned long procEpoch;
             struct Jim_Cmd *cmdPtr;
         } cmdValue;
         /* List object */
@@ -326,7 +327,7 @@ typedef struct Jim_Obj {
         } strValue;
         /* Reference type */
         struct {
-            jim_wide id;
+            unsigned long id;
             struct Jim_Reference *refPtr;
         } refValue;
         /* Source type */
@@ -435,7 +436,7 @@ typedef struct Jim_ObjType {
 
 /* Call frame */
 typedef struct Jim_CallFrame {
-    unsigned jim_wide id; /* Call Frame ID. Used for caching. */
+    unsigned long id; /* Call Frame ID. Used for caching. */
     int level; /* Level of this call frame. 0 = global */
     struct Jim_HashTable vars; /* Where local vars are stored */
     struct Jim_HashTable *staticVars; /* pointer to procedure static vars */
@@ -526,10 +527,10 @@ typedef struct Jim_Interp {
     Jim_CallFrame *framePtr; /* Pointer to the current call frame */
     Jim_CallFrame *topFramePtr; /* toplevel/global frame pointer. */
     struct Jim_HashTable commands; /* Commands hash table */
-    unsigned jim_wide procEpoch; /* Incremented every time the result
+    unsigned long procEpoch; /* Incremented every time the result
                 of procedures names lookup caching
                 may no longer be valid. */
-    unsigned jim_wide callFrameEpoch; /* Incremented every time a new
+    unsigned long callFrameEpoch; /* Incremented every time a new
                 callframe is created. This id is used for the
                 'ID' field contained in the Jim_CallFrame
                 structure. */
@@ -540,9 +541,9 @@ typedef struct Jim_Interp {
     Jim_Obj *emptyObj; /* Shared empty string object. */
     Jim_Obj *trueObj; /* Shared true int object. */
     Jim_Obj *falseObj; /* Shared false int object. */
-    unsigned jim_wide referenceNextId; /* Next id for reference. */
+    unsigned long referenceNextId; /* Next id for reference. */
     struct Jim_HashTable references; /* References hash table. */
-    jim_wide lastCollectId; /* reference max Id of the last GC
+    unsigned long lastCollectId; /* reference max Id of the last GC
                 execution. It's set to -1 while the collection
                 is running as sentinel to avoid to recursive
                 calls via the [collect] command inside

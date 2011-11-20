@@ -4582,8 +4582,8 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
 
 /* References HashTable Type.
  *
- * Keys are jim_wide integers, dynamically allocated for now but in the
- * future it's worth to cache this 8 bytes objects. Values are poitners
+ * Keys are unsigned long integers, dynamically allocated for now but in the
+ * future it's worth to cache this 4 bytes objects. Values are pointers
  * to Jim_References. */
 static void JimReferencesHTValDestructor(void *interp, void *val)
 {
@@ -4599,7 +4599,7 @@ static void JimReferencesHTValDestructor(void *interp, void *val)
 static unsigned int JimReferencesHTHashFunction(const void *key)
 {
     /* Only the least significant bits are used. */
-    const jim_wide *widePtr = key;
+    const unsigned long *widePtr = key;
     unsigned int intValue = (unsigned int)*widePtr;
 
     return Jim_IntHashFunction(intValue);
@@ -4607,11 +4607,11 @@ static unsigned int JimReferencesHTHashFunction(const void *key)
 
 static void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
-    void *copy = Jim_Alloc(sizeof(jim_wide));
+    void *copy = Jim_Alloc(sizeof(unsigned long));
 
     JIM_NOTUSED(privdata);
 
-    memcpy(copy, key, sizeof(jim_wide));
+    memcpy(copy, key, sizeof(unsigned long));
     return copy;
 }
 
@@ -4619,7 +4619,7 @@ static int JimReferencesHTKeyCompare(void *privdata, const void *key1, const voi
 {
     JIM_NOTUSED(privdata);
 
-    return memcmp(key1, key2, sizeof(jim_wide)) == 0;
+    return memcmp(key1, key2, sizeof(unsigned long)) == 0;
 }
 
 static void JimReferencesHTKeyDestructor(void *privdata, void *key)
@@ -4651,9 +4651,9 @@ static const Jim_HashTableType JimReferencesHashTableType = {
 
 #define JIM_REFERENCE_SPACE (35+JIM_REFERENCE_TAGLEN)
 
-static int JimFormatReference(char *buf, Jim_Reference *refPtr, jim_wide id)
+static int JimFormatReference(char *buf, Jim_Reference *refPtr, unsigned long id)
 {
-    const char *fmt = "<reference.<%s>.%020" JIM_WIDE_MODIFIER ">";
+    const char *fmt = "<reference.<%s>.%020lu>";
 
     sprintf(buf, fmt, refPtr->tag, id);
     return JIM_REFERENCE_SPACE;
@@ -4691,12 +4691,13 @@ static int isrefchar(int c)
 
 static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    jim_wide wideValue;
+    unsigned long value;
     int i, len;
     const char *str, *start, *end;
     char refId[21];
     Jim_Reference *refPtr;
     Jim_HashEntry *he;
+    char *endptr;
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &len);
@@ -4725,11 +4726,12 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     /* Extract info from the reference. */
     memcpy(refId, start + 14 + JIM_REFERENCE_TAGLEN, 20);
     refId[20] = '\0';
-    /* Try to convert the ID into a jim_wide */
-    if (Jim_StringToWide(refId, &wideValue, 10) != JIM_OK)
+    /* Try to convert the ID into an unsigned long */
+    value = strtoul(refId, &endptr, 10);
+    if (JimCheckConversion(refId, endptr) != JIM_OK)
         goto badformat;
     /* Check if the reference really exists! */
-    he = Jim_FindHashEntry(&interp->references, &wideValue);
+    he = Jim_FindHashEntry(&interp->references, &value);
     if (he == NULL) {
         Jim_SetResultFormatted(interp, "invalid reference id \"%#s\"", objPtr);
         return JIM_ERR;
@@ -4738,7 +4740,7 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &referenceObjType;
-    objPtr->internalRep.refValue.id = wideValue;
+    objPtr->internalRep.refValue.id = value;
     objPtr->internalRep.refValue.refPtr = refPtr;
     return JIM_OK;
 
@@ -4753,7 +4755,7 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *tagPtr, Jim_Obj *cmdNamePtr)
 {
     struct Jim_Reference *refPtr;
-    jim_wide wideValue = interp->referenceNextId;
+    unsigned long id;
     Jim_Obj *refObjPtr;
     const char *tag;
     int tagLen, i;
@@ -4767,11 +4769,12 @@ Jim_Obj *Jim_NewReference(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *tagPtr, 
     refPtr->finalizerCmdNamePtr = cmdNamePtr;
     if (cmdNamePtr)
         Jim_IncrRefCount(cmdNamePtr);
-    Jim_AddHashEntry(&interp->references, &wideValue, refPtr);
+    id = interp->referenceNextId++;
+    Jim_AddHashEntry(&interp->references, &id, refPtr);
     refObjPtr = Jim_NewObj(interp);
     refObjPtr->typePtr = &referenceObjType;
     refObjPtr->bytes = NULL;
-    refObjPtr->internalRep.refValue.id = interp->referenceNextId;
+    refObjPtr->internalRep.refValue.id = id;
     refObjPtr->internalRep.refValue.refPtr = refPtr;
     interp->referenceNextId++;
     /* Set the tag. Trimmed at JIM_REFERENCE_TAGLEN. Everything
@@ -4882,8 +4885,7 @@ int Jim_Collect(Jim_Interp *interp)
             /* Extract references from the object string repr. */
             while (1) {
                 int i;
-                jim_wide id;
-                char buf[21];
+                unsigned long id;
 
                 if ((p = strstr(p, "<reference.<")) == NULL)
                     break;
@@ -4896,9 +4898,7 @@ int Jim_Collect(Jim_Interp *interp)
                     if (!isdigit(UCHAR(p[i])))
                         break;
                 /* Get the ID */
-                memcpy(buf, p + 21, 20);
-                buf[20] = '\0';
-                Jim_StringToWide(buf, &id, 10);
+                id = strtoul(p + 21, NULL, 10);
 
                 /* Ok, a reference for the given ID
                  * was found. Mark it. */
@@ -4916,7 +4916,7 @@ int Jim_Collect(Jim_Interp *interp)
      * is not referenced outside (not present in the mark HT). */
     htiter = Jim_GetHashTableIterator(&interp->references);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        const jim_wide *refId;
+        const unsigned long *refId;
         Jim_Reference *refPtr;
 
         refId = he->key;
@@ -4975,7 +4975,7 @@ int Jim_Collect(Jim_Interp *interp)
 
 void Jim_CollectIfNeeded(Jim_Interp *interp)
 {
-    jim_wide elapsedId;
+    unsigned long elapsedId;
     int elapsedTime;
 
     elapsedId = interp->referenceNextId - interp->lastCollectId;
