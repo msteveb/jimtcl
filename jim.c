@@ -11880,8 +11880,8 @@ static int Jim_LinsertCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     int idx, len;
     Jim_Obj *listPtr;
 
-    if (argc < 4) {
-        Jim_WrongNumArgs(interp, 1, argv, "list index element " "?element ...?");
+    if (argc < 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "list index ?element ...?");
         return JIM_ERR;
     }
     listPtr = argv[1];
@@ -11912,7 +11912,7 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     Jim_Obj *newListObj;
 
     if (argc < 4) {
-        Jim_WrongNumArgs(interp, 1, argv, "list first last ?element element ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "list first last ?element ...?");
         return JIM_ERR;
     }
     if (Jim_GetIndex(interp, argv[2], &first) != JIM_OK ||
