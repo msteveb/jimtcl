@@ -5758,6 +5758,10 @@ static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
                 realLength += len + 2;
                 break;
             case JIM_ELESTR_QUOTE:
+                if (i == 0 && strRep[0] == '#') {
+                    *p++ = '\\';
+                    realLength++;
+                }
                 qlen = BackslashQuoteString(strRep, p);
                 p += qlen;
                 realLength += qlen;

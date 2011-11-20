@@ -1,0 +1,481 @@
+# This file is a Tcl script to test the code in the file tclUtil.c.
+# This file is organized in the standard fashion for Tcl tests.
+#
+# Copyright (c) 1995-1998 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+
+needs cmd binary
+testConstraint controversialNaN 1
+testConstraint testdstring [llength [info commands testdstring]]
+testConstraint testconcatobj [llength [info commands testconcatobj]]
+
+# Big test for correct ordering of data in [expr]
+
+proc convertDouble { x } {
+    variable ieeeValues
+    if { $ieeeValues(littleEndian) } {
+	binary scan [binary format w $x] d result
+    } else {
+	binary scan [binary format W $x] d result
+    }
+    return $result
+}
+
+test util-1.1 {TclFindElement procedure - binary element in middle of list} {
+    lindex {0 foo\x00help 1} 1
+} "foo\x00help"
+test util-1.2 {TclFindElement procedure - binary element at end of list} {
+    lindex {0 foo\x00help} 1
+} "foo\x00help"
+
+test util-2.1 {TclCopyAndCollapse procedure - normal string} {
+    lindex {0 foo} 1
+} {foo}
+test util-2.2 {TclCopyAndCollapse procedure - string with backslashes} {
+    lindex {0 foo\n\x00help 1} 1
+} "foo\n\x00help"
+
+test util-3.1 {Tcl_ScanCountedElement procedure - don't leave unmatched braces} {
+    # This test checks for a very tricky feature.  Any list element
+    # generated with Tcl_ScanCountedElement and Tcl_ConvertElement must
+    # have the property that it can be enclosing in curly braces to make
+    # an embedded sub-list.  If this property doesn't hold, then
+    # Tcl_DStringStartSublist doesn't work.
+    set x {}
+    lappend x "# \\\{ \\"
+    concat $x [llength "{$x}"]
+} {\#\ \\\{\ \\ 1}
+test util-3.2 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    list # # a
+} {{#} # a}
+test util-3.3 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    list #\{ # a
+} {\#\{ # a}
+test util-3.4 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    proc # {} {return #}
+    set result [eval [list #]]
+    rename # {}
+    set result
+} {#}
+test util-3.4.1 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    proc # {} {return #}
+    set cmd [list #]
+    append cmd ""	;# force string rep generation
+    set result [eval $cmd]
+    rename # {}
+    set result
+} {#}
+test util-3.5 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    proc #\{ {} {return #}
+    set result [eval [list #\{]]
+    rename #\{ {}
+    set result
+} {#}
+test util-3.5.1 {Tcl_ConverCountedElement procedure - quote leading '#'} {
+    proc #\{ {} {return #}
+    set cmd [list #\{]
+    append cmd ""	;# force string rep generation
+    set result [eval $cmd]
+    rename #\{ {}
+    set result
+} {#}
+test util-3.6 {Tcl_ConvertElement, Bug 3371644} tcl {
+    interp create #\\
+    interp alias {} x #\\ concat
+    interp target {} x ;# Crash if bug not fixed
+    interp delete #\\
+} {}
+
+test util-4.1 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\ } c
+} {a b\  c}
+test util-4.2 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\   } c
+} {a b\  c}
+test util-4.3 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b\\   } c
+} {a b\\  c}
+test util-4.4 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a {b } c
+} {a b c}
+test util-4.5 {Tcl_ConcatObj - backslash-space at end of argument} {
+    concat a { } c
+} {a c}
+test util-4.6 {Tcl_ConcatObj - utf-8 sequence with "whitespace" char} {
+    # Check for Bug #227512.  If this violates C isspace, then it returns \xc3.
+    concat \xe0
+} \xe0
+test util-4.7 {Tcl_ConcatObj - refCount safety} testconcatobj {
+    # Check for Bug #1447328 (actually, bugs in its original "fix"). One of the
+    # symptoms was Bug #2055782. 
+    testconcatobj
+} {}
+
+proc Wrapper_Tcl_StringMatch {pattern string} {
+    # Forces use of Tcl_StringMatch, not Tcl_UniCharCaseMatch
+    switch -glob -- $string $pattern {return 1} default {return 0}
+}
+test util-5.1 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch ab*c abc
+} 1
+test util-5.2 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch ab**c abc
+} 1
+test util-5.3 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch ab* abcdef
+} 1
+test util-5.4 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch *c abc
+} 1
+test util-5.5 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch *3*6*9 0123456789
+} 1
+test util-5.6 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch *3*6*9 01234567890
+} 0
+test util-5.7 {Tcl_StringMatch: UTF-8} {
+    Wrapper_Tcl_StringMatch *u \u4e4fu
+} 1
+test util-5.8 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch a?c abc
+} 1
+test util-5.9 {Tcl_StringMatch: UTF-8} {
+    # skip one character in string
+    Wrapper_Tcl_StringMatch a?c a\u4e4fc
+} 1
+test util-5.10 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch a??c abc
+} 0
+test util-5.11 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch ?1??4???8? 0123456789
+} 1
+test util-5.12 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {[abc]bc} abc
+} 1
+test util-5.13 {Tcl_StringMatch: UTF-8} {
+    # string += Tcl_UtfToUniChar(string, &ch);
+    Wrapper_Tcl_StringMatch "\[\u4e4fxy\]bc" "\u4e4fbc"
+} 1
+test util-5.14 {Tcl_StringMatch} {
+    # if ((*pattern == ']') || (*pattern == '\0'))
+    # badly formed pattern
+    Wrapper_Tcl_StringMatch {[]} {[]}
+} 0
+test util-5.15 {Tcl_StringMatch} {
+    # if ((*pattern == ']') || (*pattern == '\0'))
+    # badly formed pattern
+    Wrapper_Tcl_StringMatch {[} {[}
+} 0
+test util-5.16 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {a[abc]c} abc
+} 1
+test util-5.17 {Tcl_StringMatch: UTF-8} {
+    # pattern += Tcl_UtfToUniChar(pattern, &endChar);
+    # get 1 UTF-8 character
+    Wrapper_Tcl_StringMatch "a\[a\u4e4fc]c" "a\u4e4fc"
+} 1
+test util-5.18 {Tcl_StringMatch: UTF-8} {
+    # pattern += Tcl_UtfToUniChar(pattern, &endChar);
+    # proper advance: wrong answer would match on UTF trail byte of \u4e4f
+    Wrapper_Tcl_StringMatch {a[a\u4e4fc]c} [bytestring a\u008fc]
+} 0
+test util-5.19 {Tcl_StringMatch: UTF-8} {
+    # pattern += Tcl_UtfToUniChar(pattern, &endChar);
+    # proper advance.
+    Wrapper_Tcl_StringMatch {a[a\u4e4fc]c} "acc"
+} 1
+test util-5.20 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {a[xyz]c} abc
+} 0
+test util-5.21 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[2-7]45} 12345
+} 1
+test util-5.22 {Tcl_StringMatch: UTF-8 range} {
+    Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "0"
+} 0
+test util-5.23 {Tcl_StringMatch: UTF-8 range} {
+    Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "\u4e33"
+} 1
+test util-5.24 {Tcl_StringMatch: UTF-8 range} {
+    Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "\uff08"
+} 0
+test util-5.25 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[ab2-4cd]45} 12345
+} 1
+test util-5.26 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[ab2-4cd]45} 12b45
+} 1
+test util-5.27 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[ab2-4cd]45} 12d45
+} 1
+test util-5.28 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[ab2-4cd]45} 12145
+} 0
+test util-5.29 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {12[ab2-4cd]45} 12545
+} 0
+test util-5.30 {Tcl_StringMatch: forwards range} {
+    Wrapper_Tcl_StringMatch {[k-w]} "z"
+} 0
+test util-5.31 {Tcl_StringMatch: forwards range} {
+    Wrapper_Tcl_StringMatch {[k-w]} "w"
+} 1
+test util-5.32 {Tcl_StringMatch: forwards range} {
+    Wrapper_Tcl_StringMatch {[k-w]} "r"
+} 1
+test util-5.33 {Tcl_StringMatch: forwards range} {
+    Wrapper_Tcl_StringMatch {[k-w]} "k"
+} 1
+test util-5.34 {Tcl_StringMatch: forwards range} {
+    Wrapper_Tcl_StringMatch {[k-w]} "a"
+} 0
+test util-5.35 {Tcl_StringMatch: reverse range} {
+    Wrapper_Tcl_StringMatch {[w-k]} "z"
+} 0
+test util-5.36 {Tcl_StringMatch: reverse range} {
+    Wrapper_Tcl_StringMatch {[w-k]} "w"
+} 1
+test util-5.37 {Tcl_StringMatch: reverse range} {
+    Wrapper_Tcl_StringMatch {[w-k]} "r"
+} 1
+test util-5.38 {Tcl_StringMatch: reverse range} {
+    Wrapper_Tcl_StringMatch {[w-k]} "k"
+} 1
+test util-5.39 {Tcl_StringMatch: reverse range} {
+    Wrapper_Tcl_StringMatch {[w-k]} "a"
+} 0
+test util-5.40 {Tcl_StringMatch: skip correct number of ']'} {
+    Wrapper_Tcl_StringMatch {[A-]x} Ax
+} 0
+test util-5.41 {Tcl_StringMatch: skip correct number of ']'} {
+    Wrapper_Tcl_StringMatch {[A-]]x} Ax
+} 1
+test util-5.42 {Tcl_StringMatch: skip correct number of ']'} {
+    Wrapper_Tcl_StringMatch {[A-]]x} \ue1x
+} 0
+test util-5.43 {Tcl_StringMatch: skip correct number of ']'} {
+    Wrapper_Tcl_StringMatch \[A-]\ue1]x \ue1x
+} 1
+test util-5.44 {Tcl_StringMatch: skip correct number of ']'} {
+    Wrapper_Tcl_StringMatch {[A-]h]x} hx
+} 1
+test util-5.45 {Tcl_StringMatch} {
+    # if (*pattern == '\0')
+    # badly formed pattern, still treats as a set
+    Wrapper_Tcl_StringMatch {[a} a
+} 1
+test util-5.46 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {a\*b} a*b
+} 1
+test util-5.47 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {a\*b} ab
+} 0
+test util-5.48 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch {a\*\?\[\]\\\x} "a*?\[\]\\x"
+} 1
+test util-5.49 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch ** ""
+} 1
+test util-5.50 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch *. ""
+} 0
+test util-5.51 {Tcl_StringMatch} {
+    Wrapper_Tcl_StringMatch "" ""
+} 1
+
+test util-9.0.0 {TclGetIntForIndex} {
+    string index abcd 0
+} a
+test util-9.0.1 {TclGetIntForIndex} {
+    string index abcd 0x0
+} a
+test util-9.0.2 {TclGetIntForIndex} {
+    string index abcd -0x0
+} a
+test util-9.0.3 {TclGetIntForIndex} {
+    string index abcd { 0 }
+} a
+test util-9.0.4 {TclGetIntForIndex} {
+    string index abcd { 0x0 }
+} a
+test util-9.0.5 {TclGetIntForIndex} {
+    string index abcd { -0x0 }
+} a
+test util-9.0.6 {TclGetIntForIndex} {
+    string index abcd 01
+} b
+test util-9.0.7 {TclGetIntForIndex} {
+    string index abcd { 01 }
+} b
+test util-9.1.0 {TclGetIntForIndex} {
+    string index abcd 3
+} d
+test util-9.1.1 {TclGetIntForIndex} {
+    string index abcd { 3 }
+} d
+test util-9.1.2 {TclGetIntForIndex} {
+    string index abcdefghijk 0xa
+} k
+test util-9.1.3 {TclGetIntForIndex} {
+    string index abcdefghijk { 0xa }
+} k
+test util-9.2.0 {TclGetIntForIndex} {
+    string index abcd end
+} d 
+test util-9.2.1 {TclGetIntForIndex} -body {
+    string index abcd { end}
+} -returnCodes error -match glob -result *
+test util-9.2.2 {TclGetIntForIndex} -constraints tcl -body {
+    string index abcd {end }
+} -returnCodes error -match glob -result *
+test util-9.3 {TclGetIntForIndex} tcl {
+    # Deprecated
+    string index abcd en
+} d
+test util-9.4 {TclGetIntForIndex} tcl {
+    # Deprecated
+    string index abcd e
+} d
+test util-9.5.0 {TclGetIntForIndex} {
+    string index abcd end-1
+} c
+test util-9.5.1 {TclGetIntForIndex} tcl {
+    string index abcd {end-1 }
+} c
+test util-9.5.2 {TclGetIntForIndex} -body {
+    string index abcd { end-1}
+} -returnCodes error -match glob -result *
+test util-9.6 {TclGetIntForIndex} {
+    string index abcd end+-1
+} c
+test util-9.7 {TclGetIntForIndex} {
+    string index abcd end+1
+} {}
+test util-9.8 {TclGetIntForIndex} {
+    string index abcd end--1
+} {}
+test util-9.9.0 {TclGetIntForIndex} {
+    string index abcd 0+0
+} a
+test util-9.9.1 {TclGetIntForIndex} tcl {
+    string index abcd { 0+0 }
+} a
+test util-9.10 {TclGetIntForIndex} {
+    string index abcd 0-0
+} a
+test util-9.11 {TclGetIntForIndex} {
+    string index abcd 1+0
+} b
+test util-9.12 {TclGetIntForIndex} {
+    string index abcd 1-0
+} b
+test util-9.13 {TclGetIntForIndex} {
+    string index abcd 1+1
+} c
+test util-9.14 {TclGetIntForIndex} {
+    string index abcd 1-1
+} a
+test util-9.15 {TclGetIntForIndex} {
+    string index abcd -1+2
+} b
+test util-9.16 {TclGetIntForIndex} {
+    string index abcd -1--2
+} b
+test util-9.17 {TclGetIntForIndex} tcl {
+    string index abcd { -1+2 }
+} b
+test util-9.18 {TclGetIntForIndex} tcl {
+    string index abcd { -1--2 }
+} b
+test util-9.19 {TclGetIntForIndex} -body {
+    string index a {}
+} -returnCodes error -match glob -result *
+test util-9.20 {TclGetIntForIndex} -body {
+    string index a { }
+} -returnCodes error -match glob -result *
+test util-9.21 {TclGetIntForIndex} -body {
+    string index a " \r\t\n"
+} -returnCodes error -match glob -result *
+test util-9.22 {TclGetIntForIndex} -body {
+    string index a +
+} -returnCodes error -match glob -result *
+test util-9.23 {TclGetIntForIndex} -body {
+    string index a -
+} -returnCodes error -match glob -result *
+test util-9.24 {TclGetIntForIndex} -body {
+    string index a x
+} -returnCodes error -match glob -result *
+test util-9.25 {TclGetIntForIndex} -body {
+    string index a +x
+} -returnCodes error -match glob -result *
+test util-9.26 {TclGetIntForIndex} -body {
+    string index a -x
+} -returnCodes error -match glob -result *
+test util-9.27 {TclGetIntForIndex} -body {
+    string index a 0y
+} -returnCodes error -match glob -result *
+test util-9.28 {TclGetIntForIndex} -body {
+    string index a 1*
+} -returnCodes error -match glob -result *
+test util-9.29 {TclGetIntForIndex} -body {
+    string index a 0+
+} -returnCodes error -match glob -result *
+test util-9.30 {TclGetIntForIndex} -body {
+    string index a {0+ }
+} -returnCodes error -match glob -result *
+test util-9.31 {TclGetIntForIndex} -body {
+    string index a 0x
+} -returnCodes error -match glob -result *
+test util-9.32 {TclGetIntForIndex} -constraints tcl -body {
+    string index a 0x1FFFFFFFF+0
+} -returnCodes error -match glob -result *
+test util-9.33 {TclGetIntForIndex} -constraints tcl -body {
+    string index a 100000000000+0
+} -returnCodes error -match glob -result *
+test util-9.34 {TclGetIntForIndex} -body {
+    string index a 1.0
+} -returnCodes error -match glob -result *
+test util-9.35 {TclGetIntForIndex} -body {
+    string index a 1e23
+} -returnCodes error -match glob -result *
+test util-9.36 {TclGetIntForIndex} -body {
+    string index a 1.5e2
+} -returnCodes error -match glob -result *
+test util-9.37 {TclGetIntForIndex} -body {
+    string index a 0+x
+} -returnCodes error -match glob -result *
+test util-9.38 {TclGetIntForIndex} -body {
+    string index a 0+0x
+} -returnCodes error -match glob -result *
+test util-9.39 {TclGetIntForIndex} -body {
+    string index a 0+0xg
+} -returnCodes error -match glob -result *
+test util-9.40 {TclGetIntForIndex} -body {
+    string index a 0+0xg
+} -returnCodes error -match glob -result *
+test util-9.41 {TclGetIntForIndex} -body {
+    string index a 0+1.0
+} -returnCodes error -match glob -result *
+test util-9.42 {TclGetIntForIndex} -body {
+    string index a 0+1e2
+} -returnCodes error -match glob -result *
+test util-9.43 {TclGetIntForIndex} -body {
+    string index a 0+1.5e1
+} -returnCodes error -match glob -result *
+test util-9.44 {TclGetIntForIndex} -constraints tcl -body {
+    string index a 0+1000000000000
+} -returnCodes error -match glob -result *
+
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# Local Variables:
+# mode: tcl
+# End:
