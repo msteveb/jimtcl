@@ -6777,7 +6777,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         idx = 0;
     }
     else {
-        idx = strtol(str, &endptr, 10);
+        idx = strtol(str, &endptr, 0);
 
         if (endptr == str) {
             goto badindex;
@@ -6789,7 +6789,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     if (*str == '+' || *str == '-') {
         int sign = (*str == '+' ? 1 : -1);
 
-        idx += sign * strtol(++str, &endptr, 10);
+        idx += sign * strtol(++str, &endptr, 0);
         if (str == endptr || *endptr) {
             goto badindex;
         }
