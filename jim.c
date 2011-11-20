@@ -5643,13 +5643,15 @@ static int ListElementQuotingType(const char *s, int len)
     return JIM_ELESTR_QUOTE;
 }
 
-/* Returns the malloc-ed representation of a string
- * using backslash to quote special chars. */
-static char *BackslashQuoteString(const char *s, int len, int *qlenPtr)
+/* Backslashes-escapes the null-terminated string 's' into the buffer at 'q'
+ * The buffer must be at least strlen(s) * 2 + 1 bytes long for the worst-case
+ * scenario.
+ * Returns the length of the result.
+ */
+static int BackslashQuoteString(const char *s, char *q)
 {
-    char *q = Jim_Alloc(len * 2 + 1), *p;
+    char *p = q;
 
-    p = q;
     while (*s) {
         switch (*s) {
             case ' ':
@@ -5695,25 +5697,24 @@ static char *BackslashQuoteString(const char *s, int len, int *qlenPtr)
         }
     }
     *p = '\0';
-    *qlenPtr = p - q;
-    return q;
+
+    return p - q;
 }
 
-static void UpdateStringOfList(struct Jim_Obj *objPtr)
+static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
 {
     int i, bufLen, realLength;
     const char *strRep;
     char *p;
     int *quotingType;
-    Jim_Obj **ele = objPtr->internalRep.listValue.ele;
 
     /* (Over) Estimate the space needed. */
-    quotingType = Jim_Alloc(sizeof(int) * objPtr->internalRep.listValue.len + 1);
+    quotingType = Jim_Alloc(sizeof(int) * objc + 1);
     bufLen = 0;
-    for (i = 0; i < objPtr->internalRep.listValue.len; i++) {
+    for (i = 0; i < objc; i++) {
         int len;
 
-        strRep = Jim_GetString(ele[i], &len);
+        strRep = Jim_GetString(objv[i], &len);
         quotingType[i] = ListElementQuotingType(strRep, len);
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
@@ -5738,11 +5739,10 @@ static void UpdateStringOfList(struct Jim_Obj *objPtr)
     /* Generate the string rep. */
     p = objPtr->bytes = Jim_Alloc(bufLen + 1);
     realLength = 0;
-    for (i = 0; i < objPtr->internalRep.listValue.len; i++) {
+    for (i = 0; i < objc; i++) {
         int len, qlen;
-        char *q;
 
-        strRep = Jim_GetString(ele[i], &len);
+        strRep = Jim_GetString(objv[i], &len);
 
         switch (quotingType[i]) {
             case JIM_ELESTR_SIMPLE:
@@ -5758,15 +5758,13 @@ static void UpdateStringOfList(struct Jim_Obj *objPtr)
                 realLength += len + 2;
                 break;
             case JIM_ELESTR_QUOTE:
-                q = BackslashQuoteString(strRep, len, &qlen);
-                memcpy(p, q, qlen);
-                Jim_Free(q);
+                qlen = BackslashQuoteString(strRep, p);
                 p += qlen;
                 realLength += qlen;
                 break;
         }
         /* Add a separating space */
-        if (i + 1 != objPtr->internalRep.listValue.len) {
+        if (i + 1 != objc) {
             *p++ = ' ';
             realLength++;
         }
@@ -5774,6 +5772,11 @@ static void UpdateStringOfList(struct Jim_Obj *objPtr)
     *p = '\0';                  /* nul term. */
     objPtr->length = realLength;
     Jim_Free(quotingType);
+}
+
+static void UpdateStringOfList(struct Jim_Obj *objPtr)
+{
+    JimMakeListStringRep(objPtr, objPtr->internalRep.listValue.ele, objPtr->internalRep.listValue.len);
 }
 
 static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
@@ -6361,95 +6364,37 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     dupPtr->typePtr = &dictObjType;
 }
 
-void UpdateStringOfDict(struct Jim_Obj *objPtr)
+static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len)
 {
-    int i, bufLen, realLength;
-    const char *strRep;
-    char *p;
-    int *quotingType, objc;
     Jim_HashTable *ht;
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
     Jim_Obj **objv;
+    int i;
 
-    /* Trun the hash table into a flat vector of Jim_Objects. */
-    ht = objPtr->internalRep.ptr;
-    objc = ht->used * 2;
-    objv = Jim_Alloc(objc * sizeof(Jim_Obj *));
+    ht = dictPtr->internalRep.ptr;
+
+    /* Turn the hash table into a flat vector of Jim_Objects. */
+    objv = Jim_Alloc((ht->used * 2) * sizeof(Jim_Obj *));
     htiter = Jim_GetHashTableIterator(ht);
     i = 0;
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
+        objv[i++] = (Jim_Obj *)he->key;
         objv[i++] = he->u.val;
     }
+    *len = i;
     Jim_FreeHashTableIterator(htiter);
-    /* (Over) Estimate the space needed. */
-    quotingType = Jim_Alloc(sizeof(int) * objc);
-    bufLen = 0;
-    for (i = 0; i < objc; i++) {
-        int len;
+    return objv;
+}
 
-        strRep = Jim_GetString(objv[i], &len);
-        quotingType[i] = ListElementQuotingType(strRep, len);
-        switch (quotingType[i]) {
-            case JIM_ELESTR_SIMPLE:
-                if (i != 0 || strRep[0] != '#') {
-                    bufLen += len;
-                    break;
-                }
-                /* Special case '#' on first element needs braces */
-                quotingType[i] = JIM_ELESTR_BRACE;
-                /* fall through */
-            case JIM_ELESTR_BRACE:
-                bufLen += len + 2;
-                break;
-            case JIM_ELESTR_QUOTE:
-                bufLen += len * 2;
-                break;
-        }
-        bufLen++;               /* elements separator. */
-    }
-    bufLen++;
+static void UpdateStringOfDict(struct Jim_Obj *objPtr)
+{
+    /* Turn the hash table into a flat vector of Jim_Objects. */
+    int len;
+    Jim_Obj **objv = JimDictPairs(objPtr, &len);
 
-    /* Generate the string rep. */
-    p = objPtr->bytes = Jim_Alloc(bufLen + 1);
-    realLength = 0;
-    for (i = 0; i < objc; i++) {
-        int len, qlen;
-        char *q;
+    JimMakeListStringRep(objPtr, objv, len);
 
-        strRep = Jim_GetString(objv[i], &len);
-
-        switch (quotingType[i]) {
-            case JIM_ELESTR_SIMPLE:
-                memcpy(p, strRep, len);
-                p += len;
-                realLength += len;
-                break;
-            case JIM_ELESTR_BRACE:
-                *p++ = '{';
-                memcpy(p, strRep, len);
-                p += len;
-                *p++ = '}';
-                realLength += len + 2;
-                break;
-            case JIM_ELESTR_QUOTE:
-                q = BackslashQuoteString(strRep, len, &qlen);
-                memcpy(p, q, qlen);
-                Jim_Free(q);
-                p += qlen;
-                realLength += qlen;
-                break;
-        }
-        /* Add a separating space */
-        if (i + 1 != objc) {
-            *p++ = ' ';
-            realLength++;
-        }
-    }
-    *p = '\0';                  /* nul term. */
-    objPtr->length = realLength;
-    Jim_Free(quotingType);
     Jim_Free(objv);
 }
 
@@ -6594,28 +6539,11 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
 /* Return an allocated array of key/value pairs for the dictionary. Stores the length in *len */
 int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len)
 {
-    Jim_HashTable *ht;
-    Jim_HashTableIterator *htiter;
-    Jim_HashEntry *he;
-    Jim_Obj **objv;
-    int i;
-
     if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
         return JIM_ERR;
     }
-    ht = dictPtr->internalRep.ptr;
+    *objPtrPtr = JimDictPairs(dictPtr, len);
 
-    /* Turn the hash table into a flat vector of Jim_Objects. */
-    objv = Jim_Alloc((ht->used * 2) * sizeof(Jim_Obj *));
-    htiter = Jim_GetHashTableIterator(ht);
-    i = 0;
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        objv[i++] = (Jim_Obj *)he->key; /* ATTENTION: const cast */
-        objv[i++] = he->u.val;
-    }
-    *len = i;
-    Jim_FreeHashTableIterator(htiter);
-    *objPtrPtr = objv;
     return JIM_OK;
 }
 
