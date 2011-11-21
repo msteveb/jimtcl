@@ -84,7 +84,8 @@ uninstall:
 	rm -f $(DESTDIR)$(prefix)/include/jim*.h
 	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
 @else
-install install-exec uninstall:
+install install-exec: all
+uninstall:
 @endif
 
 test: $(JIMSH)
