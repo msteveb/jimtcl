@@ -735,7 +735,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.72 -
+<p>Jim Tcl v0.73 -
    overview of the Jim tool command language facilities
 </p>
 </div>
@@ -863,6 +863,41 @@ Expression shorthand syntax: <tt>$(&#8230;)</tt>
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_72_and_0_73">Changes between 0.72 and 0.73</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Built-in regexp now support non-capturing parentheses: (?:&#8230;)
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_string"><strong><tt>string</tt></strong></a> <tt>replace</tt>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_string"><strong><tt>string</tt></strong></a> <tt>totitle</tt>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_info"><strong><tt>info</tt></strong></a> <tt>statics</tt>
+</p>
+</li>
+<li>
+<p>
+Add <tt>build-jim-ext</tt> for easy separate building of loadable modules (extensions)
+</p>
+</li>
+<li>
+<p>
+<a href="#_local"><strong><tt>local</tt></strong></a> now works with any command, not just procs
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_71_and_0_72">Changes between 0.71 and 0.72</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -2266,7 +2301,12 @@ Backslash escapes may be used within regular expressions, such as <tt>\n</tt> = 
 </li>
 <li>
 <p>
-No support for the <tt>?</tt> non-greedy quantifier. e.g. <tt>*?</tt>
+Support for the <tt>?</tt> non-greedy quantifier. e.g. <tt>*?</tt>
+</p>
+</li>
+<li>
+<p>
+Support for non-capuring parentheses <tt>(?:&#8230;)</tt>
 </p>
 </li>
 </ol></div>
@@ -4530,6 +4570,17 @@ The legal <tt><em>option</em></tt>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>info statics</strong> <em>procname</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a dictionary of the static variables of procedure
+    <tt><em>procname</em></tt>.  <tt><em>procname</em></tt> must be the name of a Tcl command
+    procedure. An empty dictionary is returned if the procedure has
+    no static variables.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>info version</strong></tt>
 </dt>
 <dd>
@@ -4644,15 +4695,15 @@ a=1,b=2</tt></pre>
 <div class="sect2">
 <h3 id="_local">local</h3>
 <div class="paragraph"><p><tt><strong>local</strong> <em>args</em></tt></p></div>
-<div class="paragraph"><p>Executes it&#8217;s arguments as a command (per <a href="#_eval"><strong><tt>eval</tt></strong></a>) and considers the return
-value to be a procedure name, which is marked as having local scope.
+<div class="paragraph"><p>Executes it&#8217;s arguments as a single command (per <a href="#_eval"><strong><tt>eval</tt></strong></a>) and considers the return
+value to be a command name, which is marked as having local scope.
 This means that when the current procedure exits, the specified
-procedure is deleted. This can be useful with <a href="#_lambda"><strong><tt>lambda</tt></strong></a> or simply
-local procedures.</p></div>
+command is deleted. This can be useful with <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, local procedures or
+to automatically close a filehandle.</p></div>
 <div class="paragraph"><p>In addition, if a command already exists with the same name,
 the existing command will be kept rather than deleted, and may be called
 via <a href="#_upcall"><strong><tt>upcall</tt></strong></a>. The previous command will be restored when the current
-command is deleted. See <a href="#_upcall"><strong><tt>upcall</tt></strong></a> for more details.</p></div>
+procedure exits. See <a href="#_upcall"><strong><tt>upcall</tt></strong></a> for more details.</p></div>
 <div class="paragraph"><p>In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.</p></div>
 <div class="literalblock">
@@ -6076,6 +6127,22 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>string replace</strong> <em>string first last ?newstring?</em></tt>
+</dt>
+<dd>
+<p>
+    Removes a range of consecutive characters from <tt><em>string</em></tt>, starting
+    with the character whose index is <tt><em>first</em></tt> and ending with the
+    character whose index is <tt><em>last</em></tt>.  If <tt><em>newstring</em></tt> is specified,
+    then it is placed in the removed character range. If <tt><em>first</em></tt> is
+    less than zero then it is treated as if it were zero, and if <tt><em>last</em></tt>
+    is greater than or equal to the length of the string then it is
+    treated as if it were <tt>end</tt>. If <tt><em>first</em></tt> is greater than <tt><em>last</em></tt>
+    or the length of the initial string, or <tt><em>last</em></tt> is less than 0,
+    then the initial string is returned untouched.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string reverse</strong> <em>string</em></tt>
 </dt>
 <dd>
@@ -6091,6 +6158,16 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 <p>
     Returns a value equal to <tt><em>string</em></tt> except that all upper case
     letters have been converted to lower case.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>string totitle</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a value equal to <tt><em>string</em></tt> except that the first character
+    is converted to title case (or upper case if there is no UTF-8 titlecase variant)
+    and all remaining characters have been converted to lower case.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7686,7 +7763,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-10-06 07:52:30 EST
+Last updated 2011-11-29 08:56:55 EST
 </div>
 </div>
 </body>

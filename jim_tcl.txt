@@ -58,6 +58,11 @@ RECENT CHANGES
 Changes between 0.72 and 0.73
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Built-in regexp now support non-capturing parentheses: (?:...)
+2. Add `string replace`
+3. Add `string totitle`
+4. Add `info statics`
+5. Add +build-jim-ext+ for easy separate building of loadable modules (extensions)
+6. `local` now works with any command, not just procs
 
 Changes between 0.71 and 0.72
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -999,7 +1004,7 @@ and POSIX are highlighted below.
 5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
 7. Support for the +?+ non-greedy quantifier. e.g. +*?+
-7. Support for non-capuring parentheses +(?:...)+
+8. Support for non-capuring parentheses +(?:...)+
 
 COMMAND RESULTS
 ---------------
@@ -2674,6 +2679,12 @@ The legal +'option'+'s (which may be abbreviated) are:
     After an error is caught with `catch`, returns the stack trace as a list
     of +{procedure filename line \...}+.
 
++*info statics* 'procname'+::
+    Returns a dictionary of the static variables of procedure
+    +'procname'+.  +'procname'+ must be the name of a Tcl command
+    procedure. An empty dictionary is returned if the procedure has
+    no static variables.
+
 +*info version*+::
     Returns the version number for this version of Jim in the form +*x.yy*+.
 
@@ -2767,16 +2778,16 @@ local
 ~~~~~
 +*local* 'args'+
 
-Executes it's arguments as a command (per `eval`) and considers the return
-value to be a procedure name, which is marked as having local scope.
+Executes it's arguments as a single command (per `eval`) and considers the return
+value to be a command name, which is marked as having local scope.
 This means that when the current procedure exits, the specified
-procedure is deleted. This can be useful with `lambda` or simply
-local procedures.
+command is deleted. This can be useful with `lambda`, local procedures or
+to automatically close a filehandle.
 
 In addition, if a command already exists with the same name,
 the existing command will be kept rather than deleted, and may be called
 via `upcall`. The previous command will be restored when the current
-command is deleted. See `upcall` for more details.
+procedure exits. See `upcall` for more details.
 
 In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.
@@ -3875,6 +3886,17 @@ The legal options (which may be abbreviated) are:
 +*string repeat* 'string count'+::
     Returns a new string consisting of +'string'+ repeated +'count'+ times.
 
++*string replace* 'string first last ?newstring?'+::
+    Removes a range of consecutive characters from +'string'+, starting
+    with the character whose index is +'first'+ and ending with the
+    character whose index is +'last'+.  If +'newstring'+ is specified,
+    then it is placed in the removed character range. If +'first'+ is
+    less than zero then it is treated as if it were zero, and if +'last'+
+    is greater than or equal to the length of the string then it is
+    treated as if it were +end+. If +'first'+ is greater than +'last'+
+    or the length of the initial string, or +'last'+ is less than 0,
+    then the initial string is returned untouched.
+
 +*string reverse* 'string'+::
     Returns a string that is the same length as +'string'+ but
     with its characters in the reverse order.
@@ -3882,6 +3904,11 @@ The legal options (which may be abbreviated) are:
 +*string tolower* 'string'+::
     Returns a value equal to +'string'+ except that all upper case
     letters have been converted to lower case.
+
++*string totitle* 'string'+::
+    Returns a value equal to +'string'+ except that the first character
+    is converted to title case (or upper case if there is no UTF-8 titlecase variant)
+    and all remaining characters have been converted to lower case.
 
 +*string toupper* 'string'+::
     Returns a value equal to +'string'+ except that all lower case
