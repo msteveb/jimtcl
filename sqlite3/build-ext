@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# This is a small wrapper around build-jim-ext
+# which knows it is running in <srcdir>/sqlite3 and
+# so can find a host version of jimsh/tclsh
+
+# Prefer jimsh in .. if it exists
+PATH=..:$PATH; export PATH
+asdir="`dirname "$0"`/../autosetup"
+exec "`$asdir/find-tclsh`" ../build-jim-ext "$@"
