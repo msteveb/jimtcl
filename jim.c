@@ -6292,6 +6292,24 @@ int Jim_SetListIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
     return JIM_ERR;
 }
 
+Jim_Obj *Jim_ListJoin(Jim_Interp *interp, Jim_Obj *listObjPtr, const char *joinStr, int joinStrLen)
+{
+    int i;
+    int listLen = Jim_ListLength(interp, listObjPtr);
+    Jim_Obj *resObjPtr = Jim_NewEmptyStringObj(interp);
+
+    for (i = 0; i < listLen; ) {
+        Jim_Obj *objPtr;
+
+        Jim_ListIndex(interp, listObjPtr, i, &objPtr, JIM_NONE);
+        Jim_AppendObj(interp, resObjPtr, objPtr);
+        if (++i != listLen) {
+            Jim_AppendString(interp, resObjPtr, joinStr, joinStrLen);
+        }
+    }
+    return resObjPtr;
+}
+
 Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int i;
@@ -13919,8 +13937,7 @@ static int Jim_SplitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 static int Jim_JoinCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     const char *joinStr;
-    int joinStrLen, i, listLen;
-    Jim_Obj *resObjPtr;
+    int joinStrLen;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "list ?joinString?");
@@ -13934,19 +13951,7 @@ static int Jim_JoinCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     else {
         joinStr = Jim_GetString(argv[2], &joinStrLen);
     }
-    listLen = Jim_ListLength(interp, argv[1]);
-    resObjPtr = Jim_NewStringObj(interp, NULL, 0);
-    /* Split */
-    for (i = 0; i < listLen; i++) {
-        Jim_Obj *objPtr = 0;
-
-        Jim_ListIndex(interp, argv[1], i, &objPtr, JIM_NONE);
-        Jim_AppendObj(interp, resObjPtr, objPtr);
-        if (i + 1 != listLen) {
-            Jim_AppendString(interp, resObjPtr, joinStr, joinStrLen);
-        }
-    }
-    Jim_SetResult(interp, resObjPtr);
+    Jim_SetResult(interp, Jim_ListJoin(interp, argv[1], joinStr, joinStrLen));
     return JIM_OK;
 }
 

@@ -803,6 +803,8 @@ JIM_EXPORT int Jim_SetListIndex (Jim_Interp *interp,
         Jim_Obj *newObjPtr);
 JIM_EXPORT Jim_Obj * Jim_ConcatObj (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
+JIM_EXPORT Jim_Obj *Jim_ListJoin(Jim_Interp *interp,
+        Jim_Obj *listObjPtr, const char *joinStr, int joinStrLen);
 
 /* dict object */
 JIM_EXPORT Jim_Obj * Jim_NewDictObj (Jim_Interp *interp,
