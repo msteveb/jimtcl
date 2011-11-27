@@ -37,6 +37,11 @@ test alias-1.8 "Replace proc with alias" {
 	infoexists any
 } {0}
 
+test alias-1.9 "error message from alias" -body {
+	alias newstring string
+	newstring match
+} -returnCodes error -result {wrong # args: should be "newstring match ?-nocase? pattern string"}
+
 test curry-1.1 "One word curry" {
 	set x 2
 	set one [curry incr]
@@ -80,7 +85,7 @@ test local-1.3 "local alias in proc" {
 		list [p x] [p y]
 	}
 	lassign [a] exists_x exists_y
-	list [info procs p] $exists_x $exists_y
+	list [info commands p] $exists_x $exists_y
 } {{} 1 0}
 
 test local-1.5 "local proc in proc" {

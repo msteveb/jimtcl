@@ -1,13 +1,3 @@
-# Create a single word alias (proc) for one or more words
-# e.g. alias x info exists
-# if {[x var]} ...
-proc alias {name args} {
-	set prefix $args
-	proc $name args prefix {
-		tailcall {*}$prefix {*}$args
-	}
-}
-
 # Creates an anonymous procedure
 proc lambda {arglist args} {
 	set name [ref {} function lambda.finalizer]

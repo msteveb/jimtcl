@@ -10217,6 +10217,10 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
     Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
     int i;
 
+    if (interp->rewriteNameObj) {
+        procNameObj = interp->rewriteNameObj;
+    }
+
     for (i = 0; i < cmd->u.proc.argListLen; i++) {
         Jim_AppendString(interp, argmsg, " ", 1);
 
@@ -10695,18 +10699,28 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
  * ---------------------------------------------------------------------------*/
 void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *msg)
 {
-    int i;
-    Jim_Obj *objPtr = Jim_NewEmptyStringObj(interp);
+    Jim_Obj *objPtr;
+    Jim_Obj *listObjPtr;
 
-    Jim_AppendString(interp, objPtr, "wrong # args: should be \"", -1);
-    for (i = 0; i < argc; i++) {
-        Jim_AppendObj(interp, objPtr, argv[i]);
-        if (!(i + 1 == argc && msg[0] == '\0'))
-            Jim_AppendString(interp, objPtr, " ", 1);
+    if (interp->rewriteNameObj) {
+        argc -= interp->rewriteNameCount;
+        argv += interp->rewriteNameCount;
+        listObjPtr = Jim_NewListObj(interp, &interp->rewriteNameObj, 1);
+        ListInsertElements(listObjPtr, -1, argc, argv);
     }
-    Jim_AppendString(interp, objPtr, msg, -1);
-    Jim_AppendString(interp, objPtr, "\"", 1);
-    Jim_SetResult(interp, objPtr);
+    else {
+        listObjPtr = Jim_NewListObj(interp, argv, argc);
+    }
+    if (*msg) {
+        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, msg, -1));
+    }
+    Jim_IncrRefCount(listObjPtr);
+    objPtr = Jim_ListJoin(interp, listObjPtr, " ", 1);
+    Jim_DecrRefCount(interp, listObjPtr);
+
+    Jim_IncrRefCount(objPtr);
+    Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s\"", objPtr);
+    Jim_DecrRefCount(interp, objPtr);
 }
 
 /**
@@ -12504,11 +12518,56 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 /* [tailcall] */
 static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr;
-
-    objPtr = Jim_NewListObj(interp, argv + 1, argc - 1);
-    Jim_SetResult(interp, objPtr);
+    Jim_SetResult(interp, Jim_NewListObj(interp, argv + 1, argc - 1));
     return JIM_EVAL;
+}
+
+static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int retcode;
+    Jim_Obj *prefixObj = Jim_CmdPrivData(interp);
+    Jim_Obj *saveRewriteNameObj = interp->rewriteNameObj;
+    interp->rewriteNameObj = argv[0];
+    interp->rewriteNameCount = Jim_ListLength(interp, prefixObj);
+
+    Jim_Obj *cmdList = Jim_DuplicateObj(interp, prefixObj);
+    ListInsertElements(cmdList, -1, argc - 1, argv + 1);
+    Jim_IncrRefCount(cmdList);
+
+    retcode = JimEvalObjList(interp, cmdList, interp->emptyObj, 1);
+
+    Jim_DecrRefCount(interp, cmdList);
+    interp->rewriteNameObj = saveRewriteNameObj;
+
+    return retcode;
+}
+
+static void JimAliasCmdDelete(Jim_Interp *interp, void *privData)
+{
+    Jim_Obj *prefixObj = privData;
+    Jim_DecrRefCount(interp, prefixObj);
+}
+
+static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *prefixObj;
+    const char *newname;
+
+    if (argc < 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "newname command ?args ...?");
+        return JIM_ERR;
+    }
+
+    prefixObj = Jim_NewListObj(interp, argv + 2, argc - 2);
+    Jim_IncrRefCount(prefixObj);
+    newname = Jim_String(argv[1]);
+    if (newname[0] == ':' && newname[1] == ':') {
+        newname += 2;
+    }
+
+    Jim_SetResult(interp, argv[1]);
+
+    return Jim_CreateCommand(interp, newname, JimAliasCmd, prefixObj, JimAliasCmdDelete);
 }
 
 /* [proc] */
@@ -14307,6 +14366,7 @@ static const struct {
     const char *name;
     Jim_CmdProc cmdProc;
 } Jim_CoreCommandsTable[] = {
+    {"alias", Jim_AliasCoreCommand},
     {"set", Jim_SetCoreCommand},
     {"unset", Jim_UnsetCoreCommand},
     {"puts", Jim_PutsCoreCommand},
