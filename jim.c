@@ -124,11 +124,11 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim_Obj *newObjPtr,
     int flags);
+static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands);
 static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
-static void JimDeleteLocalProcs(Jim_Interp *interp);
 static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameObj, int linenr,
     int argc, Jim_Obj *const *argv);
 static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
@@ -3475,16 +3475,16 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
                 Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
                 Jim_Free(cmdPtr->u.proc.staticVars);
             }
-            if (cmdPtr->u.proc.prevCmd) {
-                /* Delete any pushed command too */
-                JimDecrCmdRefCount(interp, cmdPtr->u.proc.prevCmd);
-            }
         }
         else {
             /* native (C) */
             if (cmdPtr->u.native.delProc) {
                 cmdPtr->u.native.delProc(interp, cmdPtr->u.native.privData);
             }
+        }
+        if (cmdPtr->prevCmd) {
+            /* Delete any pushed command too */
+            JimDecrCmdRefCount(interp, cmdPtr->prevCmd);
         }
         Jim_Free(cmdPtr);
     }
@@ -3532,30 +3532,59 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 
 /* ------------------------- Commands related functions --------------------- */
 
-int Jim_CreateCommand(Jim_Interp *interp, const char *cmdName,
-    Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
+static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
 {
-    Jim_Cmd *cmdPtr;
+    /* It may already exist, so we try to delete the old one.
+     * Note that reference count means that it won't be deleted yet if
+     * it exists in the call stack.
+     *
+     * BUT, if 'local' is in force, instead of deleting the existing
+     * proc, we stash a reference to the old proc here.
+     */
+    Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, name);
+    if (he) {
+        /* There was an old cmd with the same name, 
+         * so this requires a 'proc epoch' update. */
 
-    if (Jim_DeleteHashEntry(&interp->commands, cmdName) != JIM_ERR) {
-        /* Command existed so incr proc epoch */
+        /* If a procedure with the same name didn't exist there is no need
+         * to increment the 'proc epoch' because creation of a new procedure
+         * can never affect existing cached commands. We don't do
+         * negative caching. */
         Jim_InterpIncrProcEpoch(interp);
     }
 
-    cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
+    if (he && interp->local) {
+        /* Push this command over the top of the previous one */
+        cmd->prevCmd = he->u.val;
+        he->u.val = cmd;
+    }
+    else {
+        if (he) {
+            /* Replace the existing command */
+            Jim_DeleteHashEntry(&interp->commands, name);
+        }
 
-    /* Store the new details for this proc */
+        //printf("%s:%d add %s\n", __FILE__, __LINE__, cmdname);
+        Jim_AddHashEntry(&interp->commands, name, cmd);
+    }
+    return JIM_OK;
+}
+
+
+int Jim_CreateCommand(Jim_Interp *interp, const char *cmdNameStr,
+    Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
+{
+    Jim_Cmd *cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
+
+    /* Store the new details for this command */
     memset(cmdPtr, 0, sizeof(*cmdPtr));
     cmdPtr->inUse = 1;
     cmdPtr->u.native.delProc = delProc;
     cmdPtr->u.native.cmdProc = cmdProc;
     cmdPtr->u.native.privData = privData;
 
-    Jim_AddHashEntry(&interp->commands, cmdName, cmdPtr);
+    JimCreateCommand(interp, cmdNameStr, cmdPtr);
 
-    /* There is no need to increment the 'proc epoch' because
-     * creation of a new procedure can never affect existing
-     * cached commands. We don't do negative caching. */
     return JIM_OK;
 }
 
@@ -3624,7 +3653,6 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr)
 {
     Jim_Cmd *cmdPtr;
-    Jim_HashEntry *he;
     int argListLen;
     int i;
 
@@ -3706,39 +3734,7 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     }
 
     /* Add the new command */
-
-    /* It may already exist, so we try to delete the old one.
-     * Note that reference count means that it won't be deleted yet if
-     * it exists in the call stack.
-     *
-     * BUT, if 'local' is in force, instead of deleting the existing
-     * proc, we stash a reference to the old proc here.
-     */
-    he = Jim_FindHashEntry(&interp->commands, Jim_String(cmdName));
-    if (he) {
-        /* There was an old procedure with the same name, this requires
-         * a 'proc epoch' update. */
-
-        /* If a procedure with the same name didn't existed there is no need
-         * to increment the 'proc epoch' because creation of a new procedure
-         * can never affect existing cached commands. We don't do
-         * negative caching. */
-        Jim_InterpIncrProcEpoch(interp);
-    }
-
-    if (he && interp->local) {
-        /* Just push this proc over the top of the previous one */
-        cmdPtr->u.proc.prevCmd = he->u.val;
-        he->u.val = cmdPtr;
-    }
-    else {
-        if (he) {
-            /* Replace the existing proc */
-            Jim_DeleteHashEntry(&interp->commands, Jim_String(cmdName));
-        }
-
-        Jim_AddHashEntry(&interp->commands, Jim_String(cmdName), cmdPtr);
-    }
+    JimCreateCommand(interp, Jim_String(cmdName), cmdPtr);
 
     /* Unlike Tcl, set the name of the proc as the result */
     Jim_SetResult(interp, cmdName);
@@ -3851,8 +3847,8 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
         return NULL;
     }
     cmd = objPtr->internalRep.cmdValue.cmdPtr;
-    while (cmd->isproc && cmd->u.proc.upcall) {
-        cmd = cmd->u.proc.prevCmd;
+    while (cmd->u.proc.upcall) {
+        cmd = cmd->prevCmd;
     }
     return cmd;
 }
@@ -4517,7 +4513,7 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
 
     if (interp->freeFramesList) {
         cf = interp->freeFramesList;
-        interp->freeFramesList = cf->nextFramePtr;
+        interp->freeFramesList = cf->next;
     }
     else {
         cf = Jim_Alloc(sizeof(*cf));
@@ -4525,14 +4521,16 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     }
 
     cf->id = interp->callFrameEpoch++;
-    cf->parentCallFrame = parent;
+    cf->parent = parent;
     cf->level = parent ? parent->level + 1 : 0;
     cf->argv = NULL;
     cf->argc = 0;
     cf->procArgsObjPtr = NULL;
     cf->procBodyObjPtr = NULL;
-    cf->nextFramePtr = NULL;
+    cf->next = NULL;
     cf->staticVars = NULL;
+    cf->localCommands = NULL;
+
     if (cf->vars.table == NULL)
         Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     return cf;
@@ -4543,6 +4541,43 @@ static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf)
 {
     cf->id = interp->callFrameEpoch++;
 }
+
+static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
+{
+    /* Delete any local procs */
+    if (localCommands) {
+        Jim_Obj *cmdNameObj;
+
+        while ((cmdNameObj = Jim_StackPop(localCommands)) != NULL) {
+            Jim_HashEntry *he;
+
+            he = Jim_FindHashEntry(&interp->commands, Jim_String(cmdNameObj));
+
+            if (he) {
+                Jim_Cmd *cmd = he->u.val;
+                if (cmd->prevCmd) {
+                    Jim_Cmd *prevCmd = cmd->prevCmd;
+                    cmd->prevCmd = NULL;
+
+                    /* Delete the old command */
+                    JimDecrCmdRefCount(interp, cmd);
+
+                    /* And restore the original */
+                    he->u.val = prevCmd;
+                }
+                else {
+                    Jim_DeleteHashEntry(&interp->commands, Jim_String(cmdNameObj));
+                    Jim_InterpIncrProcEpoch(interp);
+                }
+            }
+            Jim_DecrRefCount(interp, cmdNameObj);
+        }
+        Jim_FreeStack(localCommands);
+        Jim_Free(localCommands);
+    }
+    return JIM_OK;
+}
+
 
 #define JIM_FCF_NONE 0          /* no flags */
 #define JIM_FCF_NOHT 1          /* don't free the hash table */
@@ -4574,9 +4609,14 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
         }
         cf->vars.used = 0;
     }
-    cf->nextFramePtr = interp->freeFramesList;
+
+    JimDeleteLocalProcs(interp, cf->localCommands);
+
+    cf->next = interp->freeFramesList;
     interp->freeFramesList = cf;
+
 }
+
 
 /* -----------------------------------------------------------------------------
  * References
@@ -5079,11 +5119,10 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
     Jim_FreeHashTable(&i->assocData);
-    JimDeleteLocalProcs(i);
 
     /* Free the call frames list */
     while (cf) {
-        prevcf = cf->parentCallFrame;
+        prevcf = cf->parent;
         JimFreeCallFrame(i, cf, JIM_FCF_NONE);
         cf = prevcf;
     }
@@ -5119,7 +5158,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     /* Free cached CallFrame structures */
     cf = i->freeFramesList;
     while (cf) {
-        nextcf = cf->nextFramePtr;
+        nextcf = cf->next;
         if (cf->vars.table != NULL)
             Jim_Free(cf->vars.table);
         Jim_Free(cf);
@@ -5181,7 +5220,7 @@ Jim_CallFrame *Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr)
     }
     if (level > 0) {
         /* Lookup */
-        for (framePtr = interp->framePtr; framePtr; framePtr = framePtr->parentCallFrame) {
+        for (framePtr = interp->framePtr; framePtr; framePtr = framePtr->parent) {
             if (framePtr->level == level) {
                 return framePtr;
             }
@@ -5211,7 +5250,7 @@ static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *leve
         }
 
         /* Lookup */
-        for (framePtr = interp->framePtr; framePtr; framePtr = framePtr->parentCallFrame) {
+        for (framePtr = interp->framePtr; framePtr; framePtr = framePtr->parent) {
             if (framePtr->level == level) {
                 return framePtr;
             }
@@ -9728,39 +9767,6 @@ static void JimAddErrorToStack(Jim_Interp *interp, int retcode, Jim_Obj *fileNam
     }
 }
 
-/* And delete any local procs */
-static void JimDeleteLocalProcs(Jim_Interp *interp)
-{
-    if (interp->localProcs) {
-        char *procname;
-
-        while ((procname = Jim_StackPop(interp->localProcs)) != NULL) {
-            /* If there is a pushed command, find it */
-            Jim_Cmd *prevCmd = NULL;
-            Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, procname);
-            if (he) {
-                Jim_Cmd *cmd = (Jim_Cmd *)he->u.val;
-                if (cmd->isproc && cmd->u.proc.prevCmd) {
-                    prevCmd = cmd->u.proc.prevCmd;
-                    cmd->u.proc.prevCmd = NULL;
-                }
-            }
-
-            /* Delete the local proc */
-            Jim_DeleteCommand(interp, procname);
-
-            if (prevCmd) {
-                /* And restore the pushed command */
-                Jim_AddHashEntry(&interp->commands, procname, prevCmd);
-            }
-            Jim_Free(procname);
-        }
-        Jim_FreeStack(interp->localProcs);
-        Jim_Free(interp->localProcs);
-        interp->localProcs = NULL;
-    }
-}
-
 static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Obj **objPtrPtr)
 {
     Jim_Obj *objPtr;
@@ -10165,7 +10171,7 @@ static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argVa
         Jim_Obj *objPtr;
         Jim_CallFrame *savedCallFrame = interp->framePtr;
 
-        interp->framePtr = interp->framePtr->parentCallFrame;
+        interp->framePtr = interp->framePtr->parent;
         objPtr = Jim_GetVariable(interp, argValObj, JIM_ERRMSG);
         interp->framePtr = savedCallFrame;
         if (!objPtr) {
@@ -10175,7 +10181,7 @@ static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argVa
         /* It exists, so perform the binding. */
         objPtr = Jim_NewStringObj(interp, varname + 1, -1);
         Jim_IncrRefCount(objPtr);
-        retcode = Jim_SetVariableLink(interp, objPtr, argValObj, interp->framePtr->parentCallFrame);
+        retcode = Jim_SetVariableLink(interp, objPtr, argValObj, interp->framePtr->parent);
         Jim_DecrRefCount(interp, objPtr);
     }
     else {
@@ -10235,8 +10241,8 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
     Jim_Obj *const *argv)
 {
     Jim_CallFrame *callFramePtr;
-    Jim_Stack *prevLocalProcs;
     int i, d, retcode, optargs;
+    Jim_Stack *localCommands;
 
     /* Check arity */
     if (argc - 1 < cmd->u.proc.reqArity ||
@@ -10263,10 +10269,6 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
     Jim_IncrRefCount(cmd->u.proc.argListObjPtr);
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
     interp->framePtr = callFramePtr;
-
-    /* Install a new stack for local procs */
-    prevLocalProcs = interp->localProcs;
-    interp->localProcs = NULL;
 
     /* How many optional args are available */
     optargs = (argc - 1 - cmd->u.proc.reqArity);
@@ -10315,13 +10317,18 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
 
 badargset:
     /* Destroy the callframe */
-    interp->framePtr = interp->framePtr->parentCallFrame;
+    /* But first remove the local commands */
+    localCommands = callFramePtr->localCommands;
+    callFramePtr->localCommands = NULL;
+
+    interp->framePtr = interp->framePtr->parent;
     if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
     }
     else {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
     }
+
     /* Handle the JIM_EVAL return code */
     while (retcode == JIM_EVAL) {
         Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
@@ -10352,9 +10359,8 @@ badargset:
         Jim_IncrRefCount(interp->errorProc);
     }
 
-    /* Delete any local procs */
-    JimDeleteLocalProcs(interp);
-    interp->localProcs = prevLocalProcs;
+    /* Finally delete local procs */
+    JimDeleteLocalProcs(interp, localCommands);
 
     return retcode;
 }
@@ -12516,17 +12522,18 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     /* If OK, and the result is a proc, add it to the list of local procs */
     if (retcode == 0) {
-        const char *procname = Jim_String(Jim_GetResult(interp));
+        Jim_Obj *cmdNameObj = Jim_GetResult(interp);
 
-        if (Jim_FindHashEntry(&interp->commands, procname) == NULL) {
-            Jim_SetResultFormatted(interp, "not a proc: \"%s\"", procname);
+        if (Jim_FindHashEntry(&interp->commands, Jim_String(cmdNameObj)) == NULL) {
+            Jim_SetResultFormatted(interp, "not a command: \"%#s\"", cmdNameObj);
             return JIM_ERR;
         }
-        if (interp->localProcs == NULL) {
-            interp->localProcs = Jim_Alloc(sizeof(*interp->localProcs));
-            Jim_InitStack(interp->localProcs);
+        if (interp->framePtr->localCommands == NULL) {
+            interp->framePtr->localCommands = Jim_Alloc(sizeof(*interp->framePtr->localCommands));
+            Jim_InitStack(interp->framePtr->localCommands);
         }
-        Jim_StackPush(interp->localProcs, Jim_StrDup(procname));
+        Jim_IncrRefCount(cmdNameObj);
+        Jim_StackPush(interp->framePtr->localCommands, cmdNameObj);
     }
 
     return retcode;
@@ -12543,8 +12550,8 @@ static int Jim_UpcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         int retcode;
 
         Jim_Cmd *cmdPtr = Jim_GetCommand(interp, argv[1], JIM_ERRMSG);
-        if (cmdPtr == NULL || !cmdPtr->isproc || !cmdPtr->u.proc.prevCmd) {
-            Jim_SetResultFormatted(interp, "no previous proc: \"%#s\"", argv[1]);
+        if (cmdPtr == NULL || !cmdPtr->isproc || !cmdPtr->prevCmd) {
+            Jim_SetResultFormatted(interp, "no previous command: \"%#s\"", argv[1]);
             return JIM_ERR;
         }
         /* OK. Mark this command as being in an upcall */

@@ -440,14 +440,15 @@ typedef struct Jim_CallFrame {
     int level; /* Level of this call frame. 0 = global */
     struct Jim_HashTable vars; /* Where local vars are stored */
     struct Jim_HashTable *staticVars; /* pointer to procedure static vars */
-    struct Jim_CallFrame *parentCallFrame;
+    struct Jim_CallFrame *parent; /* The parent callframe */
     Jim_Obj *const *argv; /* object vector of the current procedure call. */
     int argc; /* number of args of the current procedure call. */
     Jim_Obj *procArgsObjPtr; /* arglist object of the running procedure */
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
-    struct Jim_CallFrame *nextFramePtr;
+    struct Jim_CallFrame *next; /* Callframes are in a linked list */
     Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
     int line;
+    Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
 } Jim_CallFrame;
 
 /* The var structure. It just holds the pointer of the referenced
@@ -475,6 +476,7 @@ typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
 typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
     int isproc;          /* Is this a procedure? */
+    struct Jim_Cmd *prevCmd;    /* Previous command defn if cmd created 'local' */
     union {
         struct {
             /* native (C) command */
@@ -487,7 +489,6 @@ typedef struct Jim_Cmd {
             Jim_Obj *argListObjPtr;
             Jim_Obj *bodyObjPtr;
             Jim_HashTable *staticVars;  /* Static vars hash table. NULL if no statics. */
-            struct Jim_Cmd *prevCmd;    /* Previous command defn if proc created 'local' */
             int argListLen;             /* Length of argListObjPtr */
             int reqArity;               /* Number of required parameters */
             int optArity;               /* Number of optional parameters */
@@ -562,8 +563,9 @@ typedef struct Jim_Interp {
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
-    Jim_Stack *localProcs; /* procs to be destroyed on end of evaluation */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
+    Jim_Obj *rewriteNameObj; /* Replaces the name of the current command for error reporting */
+    int rewriteNameCount; /* How many elements of the current command name to replace */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
