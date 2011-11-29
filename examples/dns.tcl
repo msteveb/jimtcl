@@ -46,7 +46,7 @@ package require binary
 # Poor-man's variable for Jim Tcl
 # Links a global variable, ::ns::var to a local variable, var
 proc variable {ns var} {
-    uplevel 1 [list upvar #0 ${ns}::$var $var]
+    catch {uplevel 1 [list upvar #0 ${ns}::$var $var]}
 }
 
 set dns::version 1.3.3
