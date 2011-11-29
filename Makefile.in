@@ -33,7 +33,7 @@ LIBJIM := libjim.so
 SH_LIBJIM := $(LIBJIM)
 CC += $(SH_CFLAGS)
 CXX += $(SH_CFLAGS)
-DEF_LD_PATH := @LD_LIBRARY_PATH@=`pwd`
+DEF_LD_PATH := @LD_LIBRARY_PATH@=@builddir@
 @endif
 
 @if HAVE_CXX_EXTENSIONS
@@ -92,7 +92,7 @@ uninstall:
 @endif
 
 test: $(JIMSH)
-	 jimsh=`pwd`/jimsh; cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=$$jimsh
+	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh
 
 $(OBJS): Makefile
 
