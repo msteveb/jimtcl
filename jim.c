@@ -13626,13 +13626,13 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         "body", "statics", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
         "vars", "version", "patchlevel", "complete", "args", "hostname",
         "script", "source", "stacktrace", "nameofexecutable", "returncodes",
-        "references", NULL
+        "references", "alias", NULL
     };
     enum
     { INFO_BODY, INFO_STATICS, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
         INFO_FRAME, INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
         INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
-        INFO_RETURNCODES, INFO_REFERENCES,
+        INFO_RETURNCODES, INFO_REFERENCES, INFO_ALIAS
     };
 
     if (argc < 2) {
@@ -13646,14 +13646,31 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
     /* Test for the the most common commands first, just in case it makes a difference */
     switch (cmd) {
-        case INFO_EXISTS:{
-                if (argc != 3) {
-                    Jim_WrongNumArgs(interp, 2, argv, "varName");
-                    return JIM_ERR;
-                }
-                Jim_SetResultBool(interp, Jim_GetVariable(interp, argv[2], 0) != NULL);
-                break;
+        case INFO_EXISTS:
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "varName");
+                return JIM_ERR;
             }
+            Jim_SetResultBool(interp, Jim_GetVariable(interp, argv[2], 0) != NULL);
+            break;
+
+        case INFO_ALIAS:{
+            Jim_Cmd *cmdPtr;
+
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "command");
+                return JIM_ERR;
+            }
+            if ((cmdPtr = Jim_GetCommand(interp, argv[2], JIM_ERRMSG)) == NULL) {
+                return JIM_ERR;
+            }
+            if (cmdPtr->isproc || cmdPtr->u.native.cmdProc != JimAliasCmd) {
+                Jim_SetResultFormatted(interp, "command \"%#s\" is not an alias", argv[2]);
+                return JIM_ERR;
+            }
+            Jim_SetResult(interp, (Jim_Obj *)cmdPtr->u.native.privData);
+            return JIM_OK;
+        }
 
         case INFO_CHANNELS:
             mode++;             /* JIM_CMDLIST_CHANNELS */

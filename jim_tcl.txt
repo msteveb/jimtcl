@@ -63,6 +63,7 @@ Changes between 0.72 and 0.73
 4. Add `info statics`
 5. Add +build-jim-ext+ for easy separate building of loadable modules (extensions)
 6. `local` now works with any command, not just procs
+7. Add `info alias` to access the target of an alias
 
 Changes between 0.71 and 0.72
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1546,7 +1547,7 @@ alias
 ~~~~~
 +*alias* 'name args\...'+
 
-Creates a single word alias (`proc`) for one or more words. For example,
+Creates a single word alias (command) for one or more words. For example,
 the following creates an alias for the command `info exists`.
 
     alias e info exists
@@ -1556,7 +1557,7 @@ the following creates an alias for the command `info exists`.
 
 `alias` returns +'name'+, allowing it to be used with `local`.
 
-See also `proc`, `curry`, `lambda`, `local`.
+See also `proc`, `curry`, `lambda`, `local`, `info alias`
 
 append
 ~~~~~~
@@ -2569,6 +2570,10 @@ The legal +'option'+'s (which may be abbreviated) are:
     Returns a list containing the names of the arguments to procedure
     +'procname'+, in order.  +'procname'+ must be the name of a
     Tcl command procedure.
+
++*info alias* 'command'+::
+    +'command'+ must be an alias created with `alias`. In which case the target
+    command and arguments, as passed to `alias` are returned.
 
 +*info body* 'procname'+::
     Returns the body of procedure +'procname'+.  +'procname'+ must be

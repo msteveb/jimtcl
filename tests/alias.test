@@ -42,6 +42,15 @@ test alias-1.9 "error message from alias" -body {
 	newstring match
 } -returnCodes error -result {wrong # args: should be "newstring match ?-nocase? pattern string"}
 
+test alias-1.10 "info alias" {
+	alias x info exists
+	info alias x
+} {info exists}
+
+test alias-1.10 "info alias on non-alias" -body {
+	info alias format
+} -returnCodes error -result {command "format" is not an alias}
+
 test curry-1.1 "One word curry" {
 	set x 2
 	set one [curry incr]
