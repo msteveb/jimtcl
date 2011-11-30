@@ -12525,12 +12525,14 @@ static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int retcode;
+    Jim_Obj *cmdList;
     Jim_Obj *prefixObj = Jim_CmdPrivData(interp);
     Jim_Obj *saveRewriteNameObj = interp->rewriteNameObj;
+
     interp->rewriteNameObj = argv[0];
     interp->rewriteNameCount = Jim_ListLength(interp, prefixObj);
 
-    Jim_Obj *cmdList = Jim_DuplicateObj(interp, prefixObj);
+    cmdList = Jim_DuplicateObj(interp, prefixObj);
     ListInsertElements(cmdList, -1, argc - 1, argv + 1);
     Jim_IncrRefCount(cmdList);
 
