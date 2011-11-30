@@ -15,11 +15,11 @@ $s close
 # Now sending via a connected udp socket
 
 set s [socket dgram 127.0.0.1:20000]
-$s buffering line
+$s buffering none
 
 foreach i [range 5 10] {
 	# Socket is connected, so can just use puts here
-	# But remember to flush to ensure that each message is separate
+	# No need to flush because we set 'buffering none' above.
 	$s puts -nonewline "$i * $i"
 	#$s flush
 
