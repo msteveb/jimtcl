@@ -67,7 +67,7 @@ install: all docs @TCL_EXTS@ install-exec
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
 	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@ $(DESTDIR)$(prefix)/lib/jim
 	mkdir -p $(DESTDIR)$(prefix)/include
-	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-nvp.h @srcdir@/jim-signal.h \
+	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-signal.h \
 		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
 	cp jim-config.h $(DESTDIR)$(prefix)/include
 	mkdir -p $(DESTDIR)$(prefix)/doc/jim
