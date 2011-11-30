@@ -555,7 +555,7 @@ void JimPanicDump(int condition, const char *fmt, ...)
 
 void *Jim_Alloc(int size)
 {
-    return malloc(size);
+    return size ? malloc(size) : NULL;
 }
 
 void Jim_Free(void *ptr)
