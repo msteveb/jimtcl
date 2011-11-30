@@ -37,7 +37,6 @@ options {
 
         These are disabled by default:
 
-        nvp       - Name-value pairs C-only API
         oo        - Jim OO extension
         tree      - OO tree structure, similar to tcllib ::struct::tree
         binary    - Tcl-compatible 'binary' command
@@ -204,7 +203,7 @@ set withmod [join [opt-val {with-mod with-jim-extmod}]]
 # Tcl extensions
 set ext_tcl "stdlib glob tclcompat tree rlprompt oo binary"
 # Native extensions
-set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog nvp readline mk sqlite sqlite3 win32 sdl"
+set ext_c "load package readdir array clock exec file posix regexp signal aio eventloop pack syslog readline mk sqlite sqlite3 win32 sdl"
 
 # C++ extensions
 set ext_cxx "mk"
