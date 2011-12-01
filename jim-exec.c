@@ -552,6 +552,19 @@ static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr
     }
 }
 
+static FILE *JimGetAioFilehandle(Jim_Interp *interp, const char *name)
+{
+    FILE *fh;
+    Jim_Obj *fhObj;
+
+    fhObj = Jim_NewStringObj(interp, name, -1);
+    Jim_IncrRefCount(fhObj);
+    fh = Jim_AioFilehandle(interp, fhObj);
+    Jim_DecrRefCount(interp, fhObj);
+
+    return fh;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -778,10 +791,8 @@ badargs:
         }
         else if (inputFile == FILE_HANDLE) {
             /* Should be a file descriptor */
-            Jim_Obj *fhObj = Jim_NewStringObj(interp, input, -1);
-            FILE *fh = Jim_AioFilehandle(interp, fhObj);
+            FILE *fh = JimGetAioFilehandle(interp, input);
 
-            Jim_FreeNewObj(interp, fhObj);
             if (fh == NULL) {
                 goto error;
             }
@@ -814,10 +825,7 @@ badargs:
      */
     if (output != NULL) {
         if (outputFile == FILE_HANDLE) {
-            Jim_Obj *fhObj = Jim_NewStringObj(interp, output, -1);
-            FILE *fh = Jim_AioFilehandle(interp, fhObj);
-
-            Jim_FreeNewObj(interp, fhObj);
+            FILE *fh = JimGetAioFilehandle(interp, output);
             if (fh == NULL) {
                 goto error;
             }
@@ -861,10 +869,7 @@ badargs:
                 }
             }
             if (errorId == JIM_BAD_FD) {
-                Jim_Obj *fhObj = Jim_NewStringObj(interp, error, -1);
-                FILE *fh = Jim_AioFilehandle(interp, fhObj);
-
-                Jim_FreeNewObj(interp, fhObj);
+                FILE *fh = JimGetAioFilehandle(interp, error);
                 if (fh == NULL) {
                     goto error;
                 }
