@@ -548,7 +548,7 @@ void JimPanicDump(int condition, const char *fmt, ...)
     }
 #endif
 
-    abort();
+    exit(1);
 }
 #endif
 
