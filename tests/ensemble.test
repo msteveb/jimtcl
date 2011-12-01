@@ -1,0 +1,47 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs package ensemble
+
+# Let's create some procs for our ensembles
+
+proc {foo a} {x} {
+	incr x
+}
+proc {foo b} {y} {
+	incr y 2
+}
+test ensemble-1.1 {Basic ensemble} {
+	ensemble foo
+	foo a 5
+} 6
+
+test ensemble-1.2 {ensemble -commands} {
+	foo -commands
+} {a b}
+
+test ensemble-1.3 {ensemble -help} {
+	foo -help
+} {Usage: "foo command ... ", where command is one of: a, b}
+
+test ensemble-1.4 {ensemble with invalid subcommand} -body {
+	foo c x
+} -returnCodes error -result {invalid command name "foo c"}
+
+test ensemble-1.5 {ensemble add new commands} {
+	proc {foo c} {z} {
+		append z @
+	}
+	foo c x
+} {x@}
+
+test ensemble-1.6 {ensemble remove mapping} -body {
+	rename {foo a} ""
+	foo a 4
+} -returnCodes error -result {invalid command name "foo a"}
+
+test ensemble-1.7 {ensemble updated -commands} {
+	foo -commands
+} {b c}
+
+testreport
