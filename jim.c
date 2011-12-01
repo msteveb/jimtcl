@@ -235,7 +235,6 @@ first:
 /* Glob-style pattern matching. */
 
 /* Note: string *must* be valid UTF-8 sequences
- *       slen is a char length, not byte counts.
  */
 static int JimGlobMatch(const char *pattern, const char *string, int nocase)
 {
@@ -1476,8 +1475,10 @@ static int JimParseVar(struct JimParserCtx *pc)
         while (1) {
             /* Skip double colon, but not single colon! */
             if (pc->p[0] == ':' && pc->p[1] == ':') {
-                pc->p += 2;
-                pc->len -= 2;
+                while (*pc->p == ':') {
+                    pc->p++;
+                    pc->len--;
+                }
                 continue;
             }
             /* Note that any char >= 0x80 must be part of a utf-8 char.
@@ -3523,6 +3524,7 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
         if (cmdPtr->isproc) {
             Jim_DecrRefCount(interp, cmdPtr->u.proc.argListObjPtr);
             Jim_DecrRefCount(interp, cmdPtr->u.proc.bodyObjPtr);
+            Jim_DecrRefCount(interp, cmdPtr->u.proc.nsObj);
             if (cmdPtr->u.proc.staticVars) {
                 Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
                 Jim_Free(cmdPtr->u.proc.staticVars);
@@ -3583,6 +3585,38 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 };
 
 /* ------------------------- Commands related functions --------------------- */
+
+#ifdef jim_ext_namespace
+/**
+ * Qualifies 'name' with the current namespace if necessary and
+ * returns the "unscoped" name (that is, without the leading ::).
+ * The object stored in *objPtrPtr should be decremented after use.
+ */
+static const char *JimQualifyName(Jim_Interp *interp, const char *name, Jim_Obj **objPtrPtr)
+{
+    Jim_Obj *objPtr = interp->emptyObj;
+
+    if (name[0] == ':' && name[1] == ':') {
+        /* This command is being defined in the global namespace */
+        while (*++name == ':') {
+        }
+    }
+    else if (Jim_Length(interp->framePtr->nsObj)) {
+        /* This command is being defined in a non-global namespace */
+        objPtr = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
+        Jim_AppendStrings(interp, objPtr, "::", name, NULL);
+        name = Jim_String(objPtr);
+    }
+    Jim_IncrRefCount(objPtr);
+    *objPtrPtr = objPtr;
+    return name;
+}
+    #define JimFreeQualifiedName(INTERP, OBJ) Jim_DecrRefCount((INTERP), (OBJ))
+#else
+    /* We can be more efficient in the no-namespace case */
+    #define JimQualifyName(INTERP, NAME, DUMMY) (((NAME)[0] == ':' && (NAME)[1] == ':') ? (NAME) + 2 : (NAME))
+    #define JimFreeQualifiedName(INTERP, DUMMY) (void)(DUMMY)
+#endif
 
 static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
 {
@@ -3700,14 +3734,36 @@ static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Ob
     return JIM_OK;
 }
 
-static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
+static void JimUpdateProcNamespace(Jim_Interp *interp, Jim_Cmd *cmdPtr, const char *cmdname)
+{
+#ifdef jim_ext_namespace
+    if (cmdPtr->isproc) {
+        /* XXX: Really need JimNamespaceSplit() */
+        const char *pt = strrchr(cmdname, ':');
+        if (pt && pt != cmdname && pt[-1] == ':') {
+            Jim_DecrRefCount(interp, cmdPtr->u.proc.nsObj);
+            cmdPtr->u.proc.nsObj = Jim_NewStringObj(interp, cmdname, pt - cmdname - 1);
+            Jim_IncrRefCount(cmdPtr->u.proc.nsObj);
+
+            if (Jim_FindHashEntry(&interp->commands, pt + 1)) {
+                /* This commands shadows a global command, so a proc epoch update is required */
+                Jim_InterpIncrProcEpoch(interp);
+            }
+        }
+    }
+#endif
+}
+
+static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdNameObj,
     Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr)
 {
     Jim_Cmd *cmdPtr;
     int argListLen;
     int i;
+    Jim_Obj *qualifiedCmdNameObj;
+    const char *cmdname;
 
-    if (JimValidName(interp, "procedure", cmdName) != JIM_OK) {
+    if (JimValidName(interp, "procedure", cmdNameObj) != JIM_OK) {
         return JIM_ERR;
     }
 
@@ -3723,8 +3779,10 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     cmdPtr->u.proc.bodyObjPtr = bodyObjPtr;
     cmdPtr->u.proc.argsPos = -1;
     cmdPtr->u.proc.arglist = (struct Jim_ProcArg *)(cmdPtr + 1);
+    cmdPtr->u.proc.nsObj = interp->emptyObj;
     Jim_IncrRefCount(argListObjPtr);
     Jim_IncrRefCount(bodyObjPtr);
+    Jim_IncrRefCount(cmdPtr->u.proc.nsObj);
 
     /* Create the statics hash table. */
     if (staticsListObjPtr && JimCreateProcedureStatics(interp, cmdPtr, staticsListObjPtr) != JIM_OK) {
@@ -3745,7 +3803,9 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
         len = Jim_ListLength(interp, argPtr);
         if (len == 0) {
             Jim_SetResultString(interp, "procedure has argument with no name", -1);
-            goto err;
+err:
+            JimDecrCmdRefCount(interp, cmdPtr);
+            return JIM_ERR;
         }
         if (len > 2) {
             Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
@@ -3785,72 +3845,106 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdName,
     }
 
     /* Add the new command */
-    JimCreateCommand(interp, Jim_String(cmdName), cmdPtr);
+    cmdname = JimQualifyName(interp, Jim_String(cmdNameObj), &qualifiedCmdNameObj);
+
+    JimCreateCommand(interp, cmdname, cmdPtr);
+
+    /* Calculate and set the namespace for this proc */
+    JimUpdateProcNamespace(interp, cmdPtr, cmdname);
+
+    JimFreeQualifiedName(interp, qualifiedCmdNameObj);
 
     /* Unlike Tcl, set the name of the proc as the result */
-    Jim_SetResult(interp, cmdName);
+    Jim_SetResult(interp, cmdNameObj);
     return JIM_OK;
-
-  err:
-    if (cmdPtr->u.proc.staticVars) {
-        Jim_FreeHashTable(cmdPtr->u.proc.staticVars);
-    }
-    Jim_Free(cmdPtr->u.proc.staticVars);
-    Jim_DecrRefCount(interp, argListObjPtr);
-    Jim_DecrRefCount(interp, bodyObjPtr);
-    Jim_Free(cmdPtr);
-    return JIM_ERR;
 }
 
-int Jim_DeleteCommand(Jim_Interp *interp, const char *cmdName)
+int Jim_DeleteCommand(Jim_Interp *interp, const char *name)
 {
-    if (Jim_DeleteHashEntry(&interp->commands, cmdName) == JIM_ERR)
-        return JIM_ERR;
-    Jim_InterpIncrProcEpoch(interp);
-    return JIM_OK;
+    int ret = JIM_OK;
+    Jim_Obj *qualifiedNameObj;
+    const char *qualname = JimQualifyName(interp, name, &qualifiedNameObj);
+
+    if (Jim_DeleteHashEntry(&interp->commands, qualname) == JIM_ERR) {
+        Jim_SetResultFormatted(interp, "can't delete \"%s\": command doesn't exist", name);
+        ret = JIM_ERR;
+    }
+    else {
+        Jim_InterpIncrProcEpoch(interp);
+    }
+
+    JimFreeQualifiedName(interp, qualifiedNameObj);
+
+    return ret;
 }
 
 int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newName)
 {
+    int ret = JIM_ERR;
     Jim_HashEntry *he;
+    Jim_Cmd *cmdPtr;
+    Jim_Obj *qualifiedOldNameObj;
+    Jim_Obj *qualifiedNewNameObj;
+    const char *fqold;
+    const char *fqnew;
+
+    if (newName[0] == 0) {
+        return Jim_DeleteCommand(interp, oldName);
+    }
+
+    fqold = JimQualifyName(interp, oldName, &qualifiedOldNameObj);
+    fqnew = JimQualifyName(interp, newName, &qualifiedNewNameObj);
 
     /* Does it exist? */
-    he = Jim_FindHashEntry(&interp->commands, oldName);
+    he = Jim_FindHashEntry(&interp->commands, fqold);
     if (he == NULL) {
-        Jim_SetResultFormatted(interp, "can't %s \"%s\": command doesn't exist",
-            newName[0] ? "rename" : "delete", oldName);
-        return JIM_ERR;
+        Jim_SetResultFormatted(interp, "can't rename \"%s\": command doesn't exist", oldName);
     }
-
-    if (newName[0] == '\0')     /* Delete! */
-        return Jim_DeleteCommand(interp, oldName);
-
-    /* rename */
-    if (Jim_FindHashEntry(&interp->commands, newName)) {
+    else if (Jim_FindHashEntry(&interp->commands, fqnew)) {
         Jim_SetResultFormatted(interp, "can't rename to \"%s\": command already exists", newName);
-        return JIM_ERR;
+    }
+    else {
+        /* Add the new name first */
+        cmdPtr = he->u.val;
+        JimIncrCmdRefCount(cmdPtr);
+        JimUpdateProcNamespace(interp, cmdPtr, fqnew);
+        Jim_AddHashEntry(&interp->commands, fqnew, cmdPtr);
+
+        /* Now remove the old name */
+        Jim_DeleteHashEntry(&interp->commands, fqold);
+
+        /* Increment the epoch */
+        Jim_InterpIncrProcEpoch(interp);
+
+        ret = JIM_OK;
     }
 
-    /* Add the new name first */
-    JimIncrCmdRefCount(he->u.val);
-    Jim_AddHashEntry(&interp->commands, newName, he->u.val);
+    JimFreeQualifiedName(interp, qualifiedOldNameObj);
+    JimFreeQualifiedName(interp, qualifiedNewNameObj);
 
-    /* Now remove the old name */
-    Jim_DeleteHashEntry(&interp->commands, oldName);
-
-    /* Increment the epoch */
-    Jim_InterpIncrProcEpoch(interp);
-    return JIM_OK;
+    return ret;
 }
 
 /* -----------------------------------------------------------------------------
  * Command object
  * ---------------------------------------------------------------------------*/
 
+static void FreeCommandInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    Jim_DecrRefCount(interp, objPtr->internalRep.cmdValue.nsObj);
+}
+
+static void DupCommandInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+{
+    dupPtr->internalRep.cmdValue = srcPtr->internalRep.cmdValue;
+    dupPtr->typePtr = srcPtr->typePtr;
+    Jim_IncrRefCount(dupPtr->internalRep.cmdValue.nsObj);
+}
+
 static const Jim_ObjType commandObjType = {
     "command",
-    NULL,
-    NULL,
+    FreeCommandInternalRep,
+    DupCommandInternalRep,
     NULL,
     JIM_TYPE_REFERENCES,
 };
@@ -3867,26 +3961,62 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
 
+    /* In order to be valid, the proc epoch must match and
+     * the lookup must have occurred in the same namespace
+     */
     if (objPtr->typePtr != &commandObjType ||
-            objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch) {
-
+            objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
+#ifdef jim_ext_namespace
+            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
+#endif
+        ) {
         /* Not cached or out of date, so lookup */
-        Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, Jim_String(objPtr));
+
+        /* Do we need to try the local namespace? */
+        const char *name = Jim_String(objPtr);
+        Jim_HashEntry *he;
+
+        if (name[0] == ':' && name[1] == ':') {
+            while (*++name == ':') {
+            }
+        }
+#ifdef jim_ext_namespace
+        else if (Jim_Length(interp->framePtr->nsObj)) {
+            /* This command is being defined in a non-global namespace */
+            Jim_Obj *nameObj = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
+            Jim_AppendStrings(interp, nameObj, "::", name, NULL);
+            he = Jim_FindHashEntry(&interp->commands, Jim_String(nameObj));
+            Jim_FreeNewObj(interp, nameObj);
+            if (he) {
+                goto found;
+            }
+        }
+#endif
+
+        /* Lookup in the global namespace */
+        he = Jim_FindHashEntry(&interp->commands, name);
         if (he == NULL) {
             if (flags & JIM_ERRMSG) {
                 Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
             }
             return NULL;
         }
+#ifdef jim_ext_namespace
+found:
+#endif
+        cmd = (Jim_Cmd *)he->u.val;
 
         /* Free the old internal repr and set the new one. */
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &commandObjType;
         objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
-        objPtr->internalRep.cmdValue.cmdPtr = (void *)he->u.val;
+        objPtr->internalRep.cmdValue.cmdPtr = cmd;
+        objPtr->internalRep.cmdValue.nsObj = interp->framePtr->nsObj;
+        Jim_IncrRefCount(interp->framePtr->nsObj);
     }
-
-    cmd = objPtr->internalRep.cmdValue.cmdPtr;
+    else {
+        cmd = objPtr->internalRep.cmdValue.cmdPtr;
+    }
     while (cmd->u.proc.upcall) {
         cmd = cmd->prevCmd;
     }
@@ -3971,8 +4101,9 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     }
 
     if (varName[0] == ':' && varName[1] == ':') {
+        while (*++varName == ':') {
+        }
         global = 1;
-        varName += 2;
         framePtr = interp->topFramePtr;
     }
     else {
@@ -3982,12 +4113,14 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     /* Resolve this name in the variables hash table */
     he = Jim_FindHashEntry(&framePtr->vars, varName);
-    if (he == NULL && !global && framePtr->staticVars) {
-        /* Try with static vars. */
-        he = Jim_FindHashEntry(framePtr->staticVars, varName);
-    }
     if (he == NULL) {
-        return JIM_ERR;
+        if (!global && framePtr->staticVars) {
+            /* Try with static vars. */
+            he = Jim_FindHashEntry(framePtr->staticVars, varName);
+        }
+        if (he == NULL) {
+            return JIM_ERR;
+        }
     }
 
     /* Free the old internal repr and set the new one. */
@@ -4018,8 +4151,9 @@ static Jim_Var *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_O
 
     name = Jim_String(nameObjPtr);
     if (name[0] == ':' && name[1] == ':') {
+        while (*++name == ':') {
+        }
         framePtr = interp->topFramePtr;
-        name += 2;
         global = 1;
     }
     else {
@@ -4155,8 +4289,9 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
     varName = Jim_String(nameObjPtr);
 
     if (varName[0] == ':' && varName[1] == ':') {
+        while (*++varName == ':') {
+        }
         /* Linking a global var does nothing */
-        varName += 2;
         framePtr = interp->topFramePtr;
     }
     else {
@@ -4165,7 +4300,9 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
 
     targetName = Jim_String(targetNameObjPtr);
     if (targetName[0] == ':' && targetName[1] == ':') {
-        targetNameObjPtr = Jim_NewStringObj(interp, targetName + 2, -1);
+        while (*++targetName == ':') {
+        }
+        targetNameObjPtr = Jim_NewStringObj(interp, targetName, -1);
         targetCallFrame = interp->topFramePtr;
     }
     Jim_IncrRefCount(targetNameObjPtr);
@@ -4383,7 +4520,7 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *valObjP
     SetDictSubstFromAny(interp, objPtr);
 
     err = Jim_SetDictKeysVector(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr,
-        &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr, JIM_ERRMSG);
+        &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr, JIM_MUSTEXIST);
 
     if (err == JIM_OK) {
         /* Don't keep an extra ref to the result */
@@ -4545,7 +4682,7 @@ static Jim_Obj *JimExpandExprSugar(Jim_Interp *interp, Jim_Obj *objPtr)
  * CallFrame
  * ---------------------------------------------------------------------------*/
 
-static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *parent)
+static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *parent, Jim_Obj *nsObj)
 {
     Jim_CallFrame *cf;
 
@@ -4569,6 +4706,8 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     cf->staticVars = NULL;
     cf->localCommands = NULL;
 
+    cf->nsObj = nsObj;
+    Jim_IncrRefCount(nsObj);
     if (cf->vars.table == NULL)
         Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     return cf;
@@ -4588,8 +4727,11 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
 
         while ((cmdNameObj = Jim_StackPop(localCommands)) != NULL) {
             Jim_HashEntry *he;
+            Jim_Obj *fqObjName;
 
-            he = Jim_FindHashEntry(&interp->commands, Jim_String(cmdNameObj));
+            const char *fqname = JimQualifyName(interp, Jim_String(cmdNameObj), &fqObjName);
+
+            he = Jim_FindHashEntry(&interp->commands, fqname);
 
             if (he) {
                 Jim_Cmd *cmd = he->u.val;
@@ -4604,11 +4746,12 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
                     he->u.val = prevCmd;
                 }
                 else {
-                    Jim_DeleteHashEntry(&interp->commands, Jim_String(cmdNameObj));
+                    Jim_DeleteHashEntry(&interp->commands, fqname);
                     Jim_InterpIncrProcEpoch(interp);
                 }
             }
             Jim_DecrRefCount(interp, cmdNameObj);
+            JimFreeQualifiedName(interp, fqObjName);
         }
         Jim_FreeStack(localCommands);
         Jim_Free(localCommands);
@@ -4625,6 +4768,7 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
         Jim_DecrRefCount(interp, cf->procArgsObjPtr);
     if (cf->procBodyObjPtr)
         Jim_DecrRefCount(interp, cf->procBodyObjPtr);
+    Jim_DecrRefCount(interp, cf->nsObj);
     if (!(flags & JIM_FCF_NOHT))
         Jim_FreeHashTable(&cf->vars);
     else {
@@ -5095,10 +5239,10 @@ Jim_Interp *Jim_CreateInterp(void)
 #endif
     Jim_InitHashTable(&i->assocData, &JimAssocDataHashTableType, i);
     Jim_InitHashTable(&i->packages, &JimPackageHashTableType, NULL);
-    i->framePtr = i->topFramePtr = JimCreateCallFrame(i, NULL);
     i->emptyObj = Jim_NewEmptyStringObj(i);
     i->trueObj = Jim_NewIntObj(i, 1);
     i->falseObj = Jim_NewIntObj(i, 0);
+    i->framePtr = i->topFramePtr = JimCreateCallFrame(i, NULL, i->emptyObj);
     i->errorFileNameObj = i->emptyObj;
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
@@ -5168,8 +5312,14 @@ void Jim_FreeInterp(Jim_Interp *i)
         while (objPtr) {
             const char *type = objPtr->typePtr ? objPtr->typePtr->name : "string";
 
-            printf("%p (%d) %-10s: '%.20s'" JIM_NL,
-                (void *)objPtr, objPtr->refCount, type, objPtr->bytes ? objPtr->bytes : "(null)");
+            if (objPtr->bytes && strlen(objPtr->bytes) > 20) {
+                printf("%p (%d) %-10s: '%.20s...'" JIM_NL,
+                    (void *)objPtr, objPtr->refCount, type, objPtr->bytes);
+            }
+            else {
+                printf("%p (%d) %-10s: '%s'" JIM_NL,
+                    (void *)objPtr, objPtr->refCount, type, objPtr->bytes ? objPtr->bytes : "(null)");
+            }
             if (objPtr->typePtr == &sourceObjType) {
                 printf("FILE %s LINE %d" JIM_NL,
                     Jim_String(objPtr->internalRep.sourceValue.fileNameObj),
@@ -6751,7 +6901,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
 
     varObjPtr = objPtr = Jim_GetVariable(interp, varNamePtr, flags);
     if (objPtr == NULL) {
-        if (newObjPtr == NULL && (flags & JIM_ERRMSG)) {
+        if (newObjPtr == NULL && (flags & JIM_MUSTEXIST)) {
             /* Cannot remove a key from non existing var */
             return JIM_ERR;
         }
@@ -6774,7 +6924,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
         if (i == keyc - 1) {
             /* Last key: Note that error on unset with missing last key is OK */
             if (Jim_DictAddElement(interp, objPtr, keyv[keyc - 1], newObjPtr) != JIM_OK) {
-                if (newObjPtr || (flags & JIM_ERRMSG)) {
+                if (newObjPtr || (flags & JIM_MUSTEXIST)) {
                     goto err;
                 }
             }
@@ -10271,6 +10421,50 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
     Jim_FreeNewObj(interp, argmsg);
 }
 
+#ifdef jim_ext_namespace
+/*
+ * [namespace eval]
+ */
+int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj)
+{
+    Jim_CallFrame *callFramePtr;
+    int retcode;
+
+    /* Create a new callframe */
+    callFramePtr = JimCreateCallFrame(interp, interp->framePtr, nsObj);
+    callFramePtr->argv = &interp->emptyObj;
+    callFramePtr->argc = 0;
+    callFramePtr->procArgsObjPtr = NULL;
+    callFramePtr->procBodyObjPtr = scriptObj;
+    callFramePtr->staticVars = NULL;
+    callFramePtr->fileNameObj = interp->emptyObj;
+    callFramePtr->line = 0;
+    Jim_IncrRefCount(scriptObj);
+    interp->framePtr = callFramePtr;
+
+    /* Check if there are too nested calls */
+    if (interp->framePtr->level == interp->maxCallFrameDepth) {
+        Jim_SetResultString(interp, "Too many nested calls. Infinite recursion?", -1);
+        retcode = JIM_ERR;
+    }
+    else {
+        /* Eval the body */
+        retcode = Jim_EvalObj(interp, scriptObj);
+    }
+
+    /* Destroy the callframe */
+    interp->framePtr = interp->framePtr->parent;
+    if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
+        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
+    }
+    else {
+        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
+    }
+
+    return retcode;
+}
+#endif
+
 /* Call a procedure implemented in Tcl.
  * It's possible to speed-up a lot this function, currently
  * the callframes are not cached, but allocated and
@@ -10300,7 +10494,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
     }
 
     /* Create a new callframe */
-    callFramePtr = JimCreateCallFrame(interp, interp->framePtr);
+    callFramePtr = JimCreateCallFrame(interp, interp->framePtr, cmd->u.proc.nsObj);
     callFramePtr->argv = argv;
     callFramePtr->argc = argc;
     callFramePtr->procArgsObjPtr = cmd->u.proc.argListObjPtr;
@@ -12640,7 +12834,8 @@ static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     Jim_IncrRefCount(prefixListObj);
     newname = Jim_String(argv[1]);
     if (newname[0] == ':' && newname[1] == ':') {
-        newname += 2;
+        while (*++newname == ':') {
+        }
     }
 
     Jim_SetResult(interp, argv[1]);
@@ -12679,8 +12874,7 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     if (retcode == 0) {
         Jim_Obj *cmdNameObj = Jim_GetResult(interp);
 
-        if (Jim_FindHashEntry(&interp->commands, Jim_String(cmdNameObj)) == NULL) {
-            Jim_SetResultFormatted(interp, "not a command: \"%#s\"", cmdNameObj);
+        if (Jim_GetCommand(interp, cmdNameObj, JIM_ERRMSG) == NULL) {
             return JIM_ERR;
         }
         if (interp->framePtr->localCommands == NULL) {
@@ -13454,8 +13648,6 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 /* [rename] */
 static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *oldName, *newName;
-
     if (argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "oldName newName");
         return JIM_ERR;
@@ -13465,9 +13657,7 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         return JIM_ERR;
     }
 
-    oldName = Jim_String(argv[1]);
-    newName = Jim_String(argv[2]);
-    return Jim_RenameCommand(interp, oldName, newName);
+    return Jim_RenameCommand(interp, Jim_String(argv[1]), Jim_String(argv[2]));
 }
 
 #define JIM_DICTMATCH_VALUES 0x0001
@@ -13694,6 +13884,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     int cmd;
     Jim_Obj *objPtr;
     int mode = 0;
+    int nons = 0;
 
     static const char * const commands[] = {
         "body", "statics", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
@@ -13711,6 +13902,12 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
         return JIM_ERR;
+    }
+    if (argc > 2 && Jim_CompareStringImmediate(interp, argv[1], "-nons")) {
+        /* This is for internal use only */
+        argc--;
+        argv++;
+        nons = 1;
     }
     if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV)
         != JIM_OK) {
@@ -13759,6 +13956,13 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
                 return JIM_ERR;
             }
+#ifdef jim_ext_namespace
+            if (!nons) {
+                if (Jim_Length(interp->framePtr->nsObj) || (argc == 3 && JimGlobMatch("::*", Jim_String(argv[2]), 0))) {
+                    return Jim_EvalPrefix(interp, "namespace info", argc - 1, argv + 1);
+                }
+            }
+#endif
             Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL, mode));
             break;
 
@@ -13772,6 +13976,13 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
                 return JIM_ERR;
             }
+#ifdef jim_ext_namespace
+            if (!nons) {
+                if (Jim_Length(interp->framePtr->nsObj) || (argc == 3 && JimGlobMatch("::*", Jim_String(argv[2]), 0))) {
+                    return Jim_EvalPrefix(interp, "namespace info", argc - 1, argv + 1);
+                }
+            }
+#endif
             Jim_SetResult(interp, JimVariablesList(interp, argc == 3 ? argv[2] : NULL, mode));
             break;
 

@@ -1,0 +1,191 @@
+Lightweight Namespaces for Jim Tcl
+==================================
+
+There are two broad requirements for namespace support in Jim Tcl.
+
+1. To allow code from multiple sources while reducing the chance of name clashes
+2. To simplify porting existing Tcl code which uses namespaces
+
+This proposal addresses both of these requirements, with the following
+additional requirements imposed by Jim Tcl.
+
+3. Support for namespaces should be optional, with the space and time overhead
+   when namespaces are disabled as close to zero as possible.
+4. The implementation should be small and reasonably efficient.
+
+To further expand on requirement (2), the goal is not to be able to run
+any Tcl scripts using namespaces with no changes. Rather, scripts
+which use namespaces in a straightforward manner, should be easily
+ported with changes which are compatible with Tcl.
+
+Implicit namespaces
+-------------------
+Rather than supporting explicit namespaces as Tcl does, Jim Tcl
+supports implicit namespaces. Any procedure or variable which
+is defined with a name containing ::, is implicitly scoped within
+a namespace.
+
+For example, the following procedure and variable are created
+in the namespace 'test'
+
+proc ::test::myproc {} {
+  puts "I am in namespace [namespace current]"
+}
+set ::test::myvar 3
+
+This approach allows much of the existing variable and command
+resolution machinery to be used with little change. It also means
+that it is possible to simply define a namespace-scoped variable
+or procedure without first creating the namespace, and similarly,
+namespaces "disappear" when all variables and procedures defined
+with the namespace scope are deleted.
+
+Namespaces, procedures and call frames
+--------------------------------------
+When namespace support is enabled (at build time), each procedure has an associated
+namespace (based on the procedure name). When the procedure is evaluated,
+the namespace for the created call frame is set to the namespace associated
+with the procedure.
+
+Command resolution is based on the namespace of the current call frame.
+An unscoped command name will first be looked up in the current namespace,
+and then in the global namespace.
+
+This also means that commands which do not create a call frame (such as commands
+implemented in C) do not have an associated namespace.
+
+Similarly to Tcl, namespace eval introduces a temporary, anonymous
+call frame with the associated namespace. For example, the following
+will return "::test,1".
+
+namespace eval test {
+	puts [namespace current],[info level]
+}
+
+Variable resolution
+-------------------
+The variable command in Jim Tcl has the same syntax as Tcl, but is closer in behaviour to the global command.
+The variable command creates a link from a local variable to a namespace variable, possibly initialising it.
+
+For example, the following procedure uses 'variable' to initialse and access myvar.
+
+proc ::test::myproc {} {
+  variable myvar 4
+  incr myvar
+}
+
+Note that there is no automatic resolution of namespace variables.
+For example, the following will *not* work.
+
+namespace eval ::test {
+  variable myvar 4
+}
+namespace eval ::test {
+  # This will increment a local variable, not ::test::myvar
+  incr myvar
+}
+
+And similarly, the following will only access local variables
+
+set x 3
+namespace eval ::test {
+	# This will incremement a local variable, not ::x
+	incr x
+	# This will also increment a local variable
+	incr abc::def
+}
+
+In the same way that variable resolution does not "fall back" to
+global variables, it also does not "fall back" to namespace variables.
+
+This approach allows name resolution to be simpler and more efficient
+since it uses the same variable linking mechanism as upvar/global
+and it allows namespaces to be implicit. It also solves the "creative
+writing" problem where a variable may be created in an unintentional
+scope.
+
+The namespace command
+---------------------
+Currently, the following namespace commands are supported.
+
+* current - returns the current, fully-qualified namespace
+* eval - evaluates a script in a namespace (introduces a call frame)
+* qualifiers, tail, parent - note that these do not check for existence
+* code, inscope - implemented
+* delete - deletes all variables and commands with the namespace prefix
+* which - implemented
+* upvar - implemented
+
+namespace children, exists, path
+--------------------------------
+With implicit namespaces, the namespace exists and namespace children commands
+are expensive to implement and are of limited use. Checking the existence
+of a namespace can be better done by checking for the existence of a known procedure
+or variable in the namespace.
+
+Command resolution is always done by first looking in the namespace and then
+at the global scope, so namespace path is not required.
+
+namespace ensemble
+------------------
+The namespace ensemble command is not currently supported. A future version
+of Jim Tcl will have a general-purpose ensemble creation and manipulation
+mechanism and namespace ensemble will be implemented in terms of that mechanism.
+
+namespace import, export, forget, origin
+----------------------------------------
+Since Jim Tcl namespaces are implicit, there is no location to store export patterns.
+Therefore the namespace export command is a dummy command which does nothing.
+All procedures in a namespace are considered to be exported.
+
+The namespace import command works by creating aliases to the target namespace
+procedures.
+
+namespace forget is not implemented.
+
+namespace origin understands aliases created by namespace import
+and can return the original command.
+
+namespace unknown
+-----------------
+If an undefined command is invoked, the "unknown" command is invoked.
+The same namespace resolution rules apply for the unknown command.
+This means that in the following example, test::unknown will be invoked
+for the missing command rather than the global ::unknown.
+
+proc unknown {args} {
+	puts "global unknown"
+}
+
+proc test::unknown {args} {
+	puts "test unknown"
+}
+
+namespace eval test {
+	bogus
+}
+
+This approach requires no special support and provides enough flexibility that
+the namespace unknown command is not implemented.
+
+Porting namespace code from Tcl to Jim Tcl
+------------------------------------------
+For most code, the following changes will be sufficient to port code.
+
+1. Canonicalise namespace names. For example, ::ns:: should be written
+   as ::ns or ns as appropriate, and excess colons should be removed.
+   For example ::ns:::blah should be written as ::ns::blah
+   (Note that the only "excess colon" case supported is ::::abc
+   in order to support [namespace current]::abc in the global namespace)
+
+2. The variable command should be used within namespace eval to link
+   to namespace variables, and access to variables in other namespaces
+   should be fully qualified
+
+Changes in the core Jim Tcl
+---------------------------
+Previously Jim Tcl performed no scoping of command names.  i.e. The
+::format command was considered different from the format command.
+
+Even if namespace support is disabled, the command resolution will
+recognised global scoping of commands and treat these as identical.

@@ -197,6 +197,8 @@ dict set extdb attrs {
     history   {}
     load      { static }
     mk        { cpp optional }
+    namespace { static }
+    nshelper  { tcl optional }
     oo        { tcl }
     pack      {}
     package   { static }
@@ -226,10 +228,12 @@ dict set extdb info {
     glob     { dep readdir }
     load     { check {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]} libdep lib_dlopen }
     mk       { check {[check-metakit]} libdep lib_mk }
+    namespace { dep nshelper }
     posix    { check {[have-feature waitpid]} }
     readdir  { check {[have-feature opendir]} }
     readline { check {[cc-check-function-in-lib readline readline]} }
     rlprompt { dep readline }
+    tree     { dep oo }
     sdl      { check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
                libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
              }

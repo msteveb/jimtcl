@@ -15,7 +15,7 @@
 /**
  * Converts the given unicode codepoint (0 - 0x1fffff) to utf-8
  * and stores the result at 'p'.
- * 
+ *
  * Returns the number of utf-8 characters (up to MAX_UTF8_LEN).
  */
 int utf8_fromunicode(char *p, unsigned uc);

@@ -121,7 +121,7 @@ test local-1.7 "check no reference procs" {
 
 test local-1.8 "local on non-existent command" {
 	list [catch {local set x blah} msg] $msg
-} {1 {not a command: "blah"}}
+} {1 {invalid command name "blah"}}
 
 test local-1.9 "local on existing proc" {
 	proc x {} {

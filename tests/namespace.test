@@ -1,0 +1,493 @@
+source [file dirname [info script]]/testing.tcl
+needs cmd namespace
+
+test namespace-1.1 {usage for "namespace" command} -body {
+    namespace
+} -returnCodes error -match glob -result {wrong # args: should be *}
+
+test namespace-1.2 {global namespace's name is "::" or {}} {
+    list [namespace current] [namespace eval {} {namespace current}] [namespace eval :: {namespace current}]
+} {:: :: ::}
+
+test namespace-1.3 {usage for "namespace eval"} -body {
+    namespace eval
+} -returnCodes error -match glob -result {wrong # args: should be "namespace eval *"}
+
+test namespace-1.5 {access a new namespace} {
+    namespace eval ns1 { namespace current }
+} {::ns1}
+
+test namespace-1.7 {usage for "namespace eval"} -body {
+    namespace eval ns1
+} -returnCodes error -match glob -result {wrong # args: should be "namespace eval *"}
+
+test namespace-1.8 {command "namespace eval" concatenates args} {
+    namespace eval ns1 namespace current
+} {::ns1}
+
+test namespace-1.9 {simple namespace elements} {
+    namespace eval ns1 {
+        variable v1 1
+        proc p1 {a} {variable v1; list $a $v1}
+        p1 3
+    }
+} {3 1}
+
+test namespace-1.10 {commands in a namespace} {
+    namespace eval ns1 {
+        info commands [namespace current]::*
+    }
+} {::ns1::p1}
+
+test namespace-1.11 {variables in a namespace} {
+    namespace eval ns1 {
+        info vars [namespace current]::*
+    }
+} {::ns1::v1}
+
+test namespace-1.12 {global vars are separate from locals vars} {
+    set v1 2
+    list [ns1::p1 123] [set ns1::v1] [set ::v1]
+} {{123 1} 1 2}
+
+test namespace-1.13 {add to an existing namespace} {
+    namespace eval ns1 {
+        variable v2 22
+        proc p2 {script} {variable v2; eval $script}
+        p2 {return $v2}
+    }
+} 22
+
+test namespace-1.14 {commands in a namespace} {
+    lsort [namespace eval ns1 {info commands [namespace current]::*}]
+} {::ns1::p1 ::ns1::p2}
+
+test namespace-1.15 {variables in a namespace} {
+    lsort [namespace eval ns1 {info vars [namespace current]::*}]
+} {::ns1::v1 ::ns1::v2}
+
+# Tcl produces fully scoped names here
+test namespace-1.16 {variables in a namespace} jim {
+    lsort [info vars ns1::*]
+} {ns1::v1 ns1::v2}
+
+test namespace-1.17 {commands in a namespace are hidden} -body {
+    v2 {return 3}
+} -returnCodes error -result {invalid command name "v2"}
+
+test namespace-1.18 {using namespace qualifiers} {
+    ns1::p2 {return 44}
+} 44
+
+test namespace-1.19 {using absolute namespace qualifiers} {
+    ::ns1::p2 {return 55}
+} 55
+
+test namespace-1.20 {variables in a namespace are hidden} -body {
+    set v2
+}  -returnCodes error -result {can't read "v2": no such variable}
+
+test namespace-1.21 {using namespace qualifiers} {
+    list $ns1::v1 $ns1::v2
+} {1 22}
+
+test namespace-1.22 {using absolute namespace qualifiers} {
+    list $::ns1::v1 $::ns1::v2
+} {1 22}
+
+test namespace-1.23 {variables can be accessed within a namespace} {
+    ns1::p2 {
+        variable v1
+        variable v2
+        list $v1 $v2
+    }
+} {1 22}
+
+test namespace-1.24 {setting global variables} {
+    ns1::p2 {
+		variable v1
+        set v1 new
+    }
+    namespace eval ns1 {
+        variable v1
+        variable v2
+        list $v1 $v2
+    }
+} {new 22}
+
+test namespace-1.25 {qualified variables don't need a global declaration} {
+    namespace eval ns2 { variable x 456 }
+    set cmd {set ::ns2::x}
+    ns1::p2 "$cmd some-value"
+	set ::ns2::x
+} {some-value}
+
+test namespace-1.26 {namespace qualifiers are okay after $'s} {
+    namespace eval ns1 { variable x; variable y; set x 12; set y 34 }
+    set cmd {list $::ns1::x $::ns1::y}
+    list [ns1::p2 $cmd] [eval $cmd]
+} {{12 34} {12 34}}
+
+test namespace-1.27 {can create commands with null names} {
+    proc ns1:: {args} {return $args}
+	ns1:: x
+} {x}
+
+unset -nocomplain ns1::x ns1::y
+
+# -----------------------------------------------------------------------
+# TEST: using "info" in namespace contexts
+# -----------------------------------------------------------------------
+test namespace-2.1 {querying:  info commands} {
+    lsort [ns1::p2 {info commands [namespace current]::*}]
+} {::ns1:: ::ns1::p1 ::ns1::p2}
+
+test namespace-2.2 {querying:  info procs} {
+    lsort [ns1::p2 {info procs}]
+} {{} p1 p2}
+
+# Tcl produces fully scoped names here
+test namespace-2.3 {querying:  info vars} jim {
+    lsort [info vars ns1::*]
+} {ns1::v1 ns1::v2}
+
+test namespace-2.4 {querying:  info vars} {
+    lsort [ns1::p2 {info vars [namespace current]::*}]
+} {::ns1::v1 ::ns1::v2}
+
+test namespace-2.5 {querying:  info locals} {
+    lsort [ns1::p2 {info locals}]
+} {script}
+
+test namespace-2.6 {querying:  info exists} {
+    ns1::p2 {info exists v1}
+} {0}
+
+test namespace-2.7 {querying:  info exists} {
+    ns1::p2 {info exists v2}
+} {1}
+
+test namespace-2.8 {querying:  info args} {
+    info args ns1::p2
+} {script}
+
+test namespace-2.9 {querying:  info body} {
+    string trim [info body ns1::p1]
+} {variable v1; list $a $v1}
+
+# -----------------------------------------------------------------------
+# TEST: namespace qualifiers, namespace tail
+# -----------------------------------------------------------------------
+test namespace-3.1 {usage for "namespace qualifiers"} {
+    list [catch "namespace qualifiers" msg] $msg
+} {1 {wrong # args: should be "namespace qualifiers string"}}
+
+test namespace-3.2 {querying:  namespace qualifiers} {
+    list [namespace qualifiers ""] \
+         [namespace qualifiers ::] \
+         [namespace qualifiers x] \
+         [namespace qualifiers ::x] \
+         [namespace qualifiers foo::x] \
+         [namespace qualifiers ::foo::bar::xyz]
+} {{} {} {} {} foo ::foo::bar}
+
+test namespace-3.3 {usage for "namespace tail"} {
+    list [catch "namespace tail" msg] $msg
+} {1 {wrong # args: should be "namespace tail string"}}
+
+test namespace-3.4 {querying:  namespace tail} {
+    list [namespace tail ""] \
+         [namespace tail ::] \
+         [namespace tail x] \
+         [namespace tail ::x] \
+         [namespace tail foo::x] \
+         [namespace tail ::foo::bar::xyz]
+} {{} {} x x x xyz}
+
+# -----------------------------------------------------------------------
+# TEST: namespace hierarchy
+# -----------------------------------------------------------------------
+test namespace-5.1 {define nested namespaces} {
+    set test_ns_var_global "var in ::"
+    proc test_ns_cmd_global {} {return "cmd in ::"}
+    namespace eval nsh1 {
+        set test_ns_var_hier1 "particular to hier1"
+        proc test_ns_cmd_hier1 {} {return "particular to hier1"}
+        proc test_ns_show {} {return "[namespace current]: 1"}
+        namespace eval nsh2 {
+            set test_ns_var_hier2 "particular to hier2"
+            proc test_ns_cmd_hier2 {} {return "particular to hier2"}
+            proc test_ns_show {} {return "[namespace current]: 2"}
+            namespace eval nsh3a {}
+            namespace eval nsh3b {}
+        }
+        namespace eval nsh2a {}
+        namespace eval nsh2b {}
+    }
+} {}
+
+test namespace-5.2 {namespaces can be nested} {
+    list [namespace eval nsh1 {namespace current}] \
+         [namespace eval nsh1 {
+              namespace eval nsh2 {namespace current}
+          }]
+} {::nsh1 ::nsh1::nsh2}
+
+test namespace-5.3 {namespace qualifiers work in namespace command} {
+    list [namespace eval ::nsh1 {namespace current}] \
+         [namespace eval nsh1::nsh2 {namespace current}] \
+         [namespace eval ::nsh1::nsh2 {namespace current}]
+} {::nsh1 ::nsh1::nsh2 ::nsh1::nsh2}
+
+test namespace-5.4 {nested namespaces can access global namespace} {
+    list [namespace eval nsh1 {set ::test_ns_var_global}] \
+         [namespace eval nsh1 {test_ns_cmd_global}] \
+         [namespace eval nsh1::nsh2 {set ::test_ns_var_global}] \
+         [namespace eval nsh1::nsh2 {test_ns_cmd_global}]
+} {{var in ::} {cmd in ::} {var in ::} {cmd in ::}}
+
+test namespace-5.6 {commands in different namespaces don't conflict} {
+    list [nsh1::test_ns_show] \
+         [nsh1::nsh2::test_ns_show]
+} {{::nsh1: 1} {::nsh1::nsh2: 2}}
+test namespace-5.7 {nested namespaces don't see variables in parent} {
+    set cmd {
+        namespace eval nsh1::nsh2 {set test_ns_var_hier1}
+    }
+    list [catch $cmd msg] $msg
+} {1 {can't read "test_ns_var_hier1": no such variable}}
+test namespace-5.8 {nested namespaces don't see commands in parent} {
+    set cmd {
+        namespace eval nsh1::nsh2 {test_ns_cmd_hier1}
+    }
+    list [catch $cmd msg] $msg
+} {1 {invalid command name "test_ns_cmd_hier1"}}
+
+test namespace-5.18 {usage for "namespace parent"} {
+    list [catch {namespace parent x y} msg] $msg
+} {1 {wrong # args: should be "namespace parent ?name?"}}
+
+test namespace-5.20 {querying namespace parent} {
+    list [namespace eval :: {namespace parent}] \
+        [namespace eval nsh1 {namespace parent}] \
+        [namespace eval nsh1::nsh2 {namespace parent}] \
+        [namespace eval nsh1::nsh2::nsh3a {namespace parent}] \
+} {{} :: ::nsh1 ::nsh1::nsh2}
+
+test namespace-5.21 {querying namespace parent for explicit namespace} {
+    list [namespace parent ::] \
+         [namespace parent nsh1] \
+         [namespace parent nsh1::nsh2] \
+         [namespace parent nsh1::nsh2::nsh3a]
+} {{} :: ::nsh1 ::nsh1::nsh2}
+
+# -----------------------------------------------------------------------
+# TEST: name resolution and caching
+# -----------------------------------------------------------------------
+test namespace-6.1 {relative ns names only looked up in current ns} {
+    namespace eval tns1 {}
+    namespace eval tns2 {}
+    namespace eval tns2::test_ns_cache3 {}
+    set trigger {
+        namespace eval tns2 {namespace current}
+    }
+    set trigger2 {
+        namespace eval tns2::test_ns_cache3 {namespace current}
+    }
+    list [namespace eval tns1 $trigger] \
+         [namespace eval tns1 $trigger2]
+} {::tns1::tns2 ::tns1::tns2::test_ns_cache3}
+test namespace-6.2 {relative ns names only looked up in current ns} {
+    namespace eval tns1::tns2 {}
+    list [namespace eval tns1 $trigger] \
+         [namespace eval tns1 $trigger2]
+} {::tns1::tns2 ::tns1::tns2::test_ns_cache3}
+test namespace-6.3 {relative ns names only looked up in current ns} {
+    namespace eval tns1::tns2::test_ns_cache3 {}
+    list [namespace eval tns1 $trigger] \
+         [namespace eval tns1 $trigger2]
+} {::tns1::tns2 ::tns1::tns2::test_ns_cache3}
+test namespace-6.4 {relative ns names only looked up in current ns} {
+    namespace delete tns1::tns2
+    list [namespace eval tns1 $trigger] \
+         [namespace eval tns1 $trigger2]
+} {::tns1::tns2 ::tns1::tns2::test_ns_cache3}
+
+test namespace-6.5 {define test commands} {
+    proc testcmd {} {
+        return "global version"
+    }
+    namespace eval tns1 {
+        proc trigger {} {
+            testcmd
+        }
+    }
+    tns1::trigger
+} {global version}
+
+test namespace-6.6 {one-level check for command shadowing} {
+    proc tns1::testcmd {} {
+        return "cache1 version"
+    }
+    tns1::trigger
+} {cache1 version}
+
+test namespace-6.7 {renaming commands changes command epoch} {
+    namespace eval tns1 {
+        rename testcmd testcmd_new
+    }
+    tns1::trigger
+} {global version}
+test namespace-6.8 {renaming back handles shadowing} {
+    namespace eval tns1 {
+        rename testcmd_new testcmd
+    }
+    tns1::trigger
+} {cache1 version}
+test namespace-6.9 {deleting commands changes command epoch} {
+    namespace eval tns1 {
+        rename testcmd ""
+    }
+    tns1::trigger
+} {global version}
+test namespace-6.10 {define test namespaces} {
+    namespace eval tns2 {
+        proc testcmd {} {
+            return "global cache2 version"
+        }
+    }
+    namespace eval tns1 {
+        proc trigger {} {
+            tns2::testcmd
+        }
+    }
+    namespace eval tns1::tns2 {
+        proc trigger {} {
+            testcmd
+        }
+    }
+    list [tns1::trigger] [tns1::tns2::trigger]
+} {{global cache2 version} {global version}}
+
+test namespace-6.11 {commands affect all parent namespaces} {
+    proc tns1::tns2::testcmd {} {
+        return "cache2 version"
+    }
+    list [tns1::trigger] [tns1::tns2::trigger]
+} {{cache2 version} {cache2 version}}
+
+# -----------------------------------------------------------------------
+# TEST: uplevel/upvar across namespace boundaries
+# -----------------------------------------------------------------------
+# Note that Tcl behaves a little differently for uplevel and upvar
+
+test namespace-7.1 {uplevel in namespace eval} jim {
+	set x 66
+    namespace eval uns1 {
+		variable y 55
+		set x 33
+        uplevel 1 set x
+    }
+} {66}
+
+test namespace-7.2 {upvar in ns proc} jim {
+	proc uns1::getvar {v} {
+		variable y
+		upvar $v var
+		list $var $y
+	}
+	uns1::getvar x
+} {66 55}
+
+# -----------------------------------------------------------------------
+# TEST: scoped values
+# -----------------------------------------------------------------------
+test namespace-10.1 {define namespace for scope test} {
+    namespace eval ins1 {
+        variable x "x-value"
+        proc show {args} {
+            return "show: $args"
+        }
+        proc do {args} {
+            return [eval $args]
+        }
+        list [set x] [show test]
+    }
+} {x-value {show: test}}
+
+test namespace-10.2 {command "namespace code" requires one argument} {
+    list [catch {namespace code} msg] $msg
+} {1 {wrong # args: should be "namespace code arg"}}
+
+test namespace-10.3 {command "namespace code" requires one argument} {
+    list [catch {namespace code first "second arg" third} msg] $msg
+} {1 {wrong # args: should be "namespace code arg"}}
+
+test namespace-10.4 {command "namespace code" gets current namesp context} {
+    namespace eval ins1 {
+        namespace code {"1 2 3" "4 5" 6}
+    }
+} {::namespace inscope ::ins1 {"1 2 3" "4 5" 6}}
+
+test namespace-10.5 {with one arg, first "scope" sticks} {
+    set sval [namespace eval ins1 {namespace code {one two}}]
+    namespace code $sval
+} {::namespace inscope ::ins1 {one two}}
+
+test namespace-10.6 {with many args, each "scope" adds new args} {
+    set sval [namespace eval ins1 {namespace code {one two}}]
+    namespace code "$sval three"
+} {::namespace inscope ::ins1 {one two} three}
+
+test namespace-10.7 {scoped commands work with eval} {
+    set cref [namespace eval ins1 {namespace code show}]
+    list [eval $cref "a" "b c" "d e f"]
+} {{show: a b c d e f}}
+
+test namespace-10.8 {scoped commands execute in namespace context} {
+    set cref [namespace eval ins1 {
+        namespace code {variable x; set x "some new value"}
+    }]
+    list [set ins1::x] [eval $cref] [set ins1::x]
+} {x-value {some new value} {some new value}}
+
+test namespace-11.1 {command caching} {
+	proc cmd1 {} { return global }
+	set result {}
+	namespace eval ns1 {
+		proc cmd1 {} { return ns1 }
+		proc cmd2 {} {
+			uplevel 1 cmd1
+		}
+		lappend ::result [cmd2]
+	}
+	lappend result [ns1::cmd2]
+} {ns1 global}
+
+foreach cmd [info commands test_ns_*] {
+    rename $cmd ""
+}
+
+catch {rename cmd {}}
+catch {rename cmd1 {}}
+catch {rename cmd2 {}}
+catch {rename ncmd {}}
+catch {rename ncmd1 {}}
+catch {rename ncmd2 {}}
+catch {unset cref}
+catch {unset trigger}
+catch {unset trigger2}
+catch {unset sval}
+catch {unset msg}
+catch {unset x}
+catch {unset test_ns_var_global}
+catch {unset cmd}
+catch {eval namespace delete [namespace children :: test_ns_*]}
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# Local Variables:
+# mode: tcl
+# End:

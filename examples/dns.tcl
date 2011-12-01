@@ -42,12 +42,7 @@
 # $Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $
 
 package require binary
-
-# Poor-man's variable for Jim Tcl
-# Links a global variable, ::ns::var to a local variable, var
-proc variable {ns var} {
-    catch {uplevel 1 [list upvar #0 ${ns}::$var $var]}
-}
+package require namespace
 
 set dns::version 1.3.3
 set dns::rcsid {$Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $}
@@ -81,8 +76,8 @@ if {![info exists dns::uid]} {
 #  to be set. With no options, returns a list of all current settings.
 #
 proc dns::configure {args} {
-    variable dns options
-    variable dns log
+    variable options
+    variable log
 
     if {[llength $args] < 1} {
         set r {}
@@ -169,9 +164,9 @@ proc dns::configure {args} {
 #  to be used to obtain any further information about this query.
 #
 proc dns::resolve {query args} {
-    variable dns uid
-    variable dns options
-    variable dns log
+    variable uid
+    variable options
+    variable log
 
     # get a guaranteed unique and non-present token id.
     set id [incr uid]
@@ -427,7 +422,7 @@ proc dns::dump {args} {
     }
 
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     set result {}
@@ -467,11 +462,11 @@ proc dns::DumpMessage {data} {
 #
 proc dns::BuildMessage {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
-    variable dns types
-    variable dns classes
-    variable dns options
+    variable types
+    variable classes
+    variable options
 
     if {! [info exists types($state(-type))] } {
         return -code error "invalid DNS query type"
@@ -564,8 +559,8 @@ proc dns::PackString {text} {
 # eg: PackRecord name wiki.tcl.tk type MX class IN rdata {10 mail.example.com}
 #
 proc dns::PackRecord {args} {
-    variable dns types
-    variable dns classes
+    variable types
+    variable classes
     array set rr {name "" type A class IN ttl 0 rdlength 0 rdata ""}
     array set rr $args
     set data [dns::PackName $rr(name)]
@@ -626,7 +621,7 @@ proc dns::PackRecord {args} {
 #
 proc dns::TcpTransmit {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     # setup the timeout
@@ -646,7 +641,7 @@ proc dns::TcpTransmit {token} {
 }
 
 proc dns::TcpConnected {token s} {
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     fileevent $s writable {}
@@ -681,7 +676,7 @@ proc dns::TcpConnected {token s} {
 #
 proc dns::UdpTransmit {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     # setup the timeout
@@ -710,7 +705,7 @@ proc dns::UdpTransmit {token} {
 #
 proc dns::Finish {token {errormsg ""}} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
     global errorInfo errorCode
 
@@ -740,7 +735,7 @@ proc dns::Finish {token {errormsg ""}} {
 #
 proc dns::Eof {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
     set state(status) eof
     dns::Finish $token
@@ -753,7 +748,7 @@ proc dns::Eof {token} {
 #
 proc dns::Receive {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     binary scan $state(reply) SS id flags
@@ -781,9 +776,9 @@ proc dns::Receive {token} {
 #  file event handler for tcp socket. Wait for the reply data.
 #
 proc dns::TcpEvent {token} {
-    variable dns log
+    variable log
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
     set s $state(sock)
 
@@ -838,7 +833,7 @@ proc dns::TcpEvent {token} {
 #  file event handler for udp sockets.
 proc dns::UdpEvent {token} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
     set s $state(sock)
 
@@ -859,7 +854,7 @@ proc dns::UdpEvent {token} {
 
 proc dns::Flags {token {varname {}}} {
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     if {$varname != {}} {
@@ -888,9 +883,9 @@ proc dns::Flags {token {varname {}}} {
 #  Decode a DNS packet (either query or response).
 #
 proc dns::Decode {token args} {
-    variable dns log
+    variable log
     # FRINK: nocheck
-    variable dns $token
+    variable $token
     upvar 0 $token state
 
     array set opts {-rdata 0 -query 0}
@@ -988,8 +983,8 @@ proc dns::KeyOf {&array value {default {}}} {
 # 12 of a message but may be of variable length.
 #
 proc dns::ReadQuestion {nitems data indexvar} {
-    variable dns types
-    variable dns classes
+    variable types
+    variable classes
     upvar $indexvar index
     set result {}
 
@@ -1017,8 +1012,8 @@ proc dns::ReadQuestion {nitems data indexvar} {
 # Read an answer section from a DNS message.
 #
 proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
-    variable dns types
-    variable dns classes
+    variable types
+    variable classes
     upvar $indexvar index
     set result {}
 

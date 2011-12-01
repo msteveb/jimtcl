@@ -149,6 +149,10 @@ extern "C" {
 #define JIM_ERRMSG 1    /* set an error message in the interpreter. */
 
 #define JIM_UNSHARED 4 /* Flag to Jim_GetVariable() */
+#define JIM_MUSTEXIST 8    /* Flag to Jim_SetDictKeysVector() - fail if non-existent */
+
+/* Internal flags */
+#define JIM_GLOBAL_ONLY 0x100
 
 /* Flags for Jim_SubstObj() */
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */
@@ -309,6 +313,7 @@ typedef struct Jim_Obj {
         /* Command object */
         struct {
             unsigned long procEpoch; /* for caching */
+            struct Jim_Obj *nsObj;
             struct Jim_Cmd *cmdPtr;
         } cmdValue;
         /* List object */
@@ -438,6 +443,7 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procArgsObjPtr; /* arglist object of the running procedure */
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *next; /* Callframes are in a linked list */
+    Jim_Obj *nsObj;             /* Namespace for this proc call frame */
     Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
     int line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
@@ -490,6 +496,7 @@ typedef struct Jim_Cmd {
                 Jim_Obj *nameObjPtr;    /* Name of this arg */
                 Jim_Obj *defaultObjPtr; /* Default value, (or rename for $args) */
             } *arglist;
+            Jim_Obj *nsObj;             /* Namespace for this proc */
         } proc;
     } u;
 } Jim_Cmd;
@@ -645,6 +652,7 @@ JIM_EXPORT int Jim_EvalObjList(Jim_Interp *interp, Jim_Obj *listObj);
 JIM_EXPORT int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix,
         int objc, Jim_Obj *const *objv);
 #define Jim_EvalPrefix(i, p, oc, ov) Jim_EvalObjPrefix((i), Jim_NewStringObj((i), (p), -1), (oc), (ov))
+JIM_EXPORT int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj);
 JIM_EXPORT int Jim_SubstObj (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
@@ -758,6 +766,9 @@ JIM_EXPORT int Jim_SetVariableStrWithStr (Jim_Interp *interp,
 JIM_EXPORT int Jim_SetVariableLink (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
+JIM_EXPORT int Jim_CreateNamespaceVariable(Jim_Interp *interp,
+        Jim_Obj *varNameObj, Jim_Obj *targetNameObj);
+JIM_EXPORT int Jim_DiscardNamespaceVars(Jim_Interp *interp);
 JIM_EXPORT Jim_Obj * Jim_GetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariable (Jim_Interp *interp,
