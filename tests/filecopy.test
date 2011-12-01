@@ -31,11 +31,11 @@ test filecopy-1.5 "Source doesn't exist and can't write to target" {
 
 test filecopy-1.6 "Wrong args" {
 	list [catch {file copy onearg} msg] $msg
-} {1 {wrong # args: must be "file copy ?-force? source dest"}}
+} {1 {wrong # args: should be "file copy ?-force? source dest"}}
 
 test filecopy-1.7 "Wrong args" {
 	list [catch {file copy too many args here} msg] $msg
-} {1 {wrong # args: must be "file copy ?-force? source dest"}}
+} {1 {wrong # args: should be "file copy ?-force? source dest"}}
 
 test filecopy-1.8 "Wrong args" {
 	list [catch {file copy -blah testio.in tempfile} msg] $msg

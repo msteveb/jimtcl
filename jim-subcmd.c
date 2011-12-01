@@ -62,7 +62,7 @@ static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Ob
 
 static void set_wrong_args(Jim_Interp *interp, const jim_subcmd_type * command_table, Jim_Obj *subcmd)
 {
-    Jim_SetResultString(interp, "wrong # args: must be \"", -1);
+    Jim_SetResultString(interp, "wrong # args: should be \"", -1);
     add_cmd_usage(interp, command_table, subcmd);
     Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
 }
@@ -159,7 +159,7 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
 
     /* Check the number of args */
     if (argc - 2 < ct->minargs || (ct->maxargs >= 0 && argc - 2 > ct->maxargs)) {
-        Jim_SetResultString(interp, "wrong # args: must be \"", -1);
+        Jim_SetResultString(interp, "wrong # args: should be \"", -1);
         /* subcmd */
         add_cmd_usage(interp, ct, argv[0]);
         Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
