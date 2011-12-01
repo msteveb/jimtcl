@@ -65,6 +65,7 @@ foreach {mod attrs help} {
     array     {}                    {Tcl-compatible array command}
     binary    { tcl optional }      {Tcl-compatible binary command}
     clock     {}                    {Tcl-compatible clock command}
+    ensemble  { optional tcl }      {Ensemble command}
     eventloop { static }            {after, vwait, update}
     exec      { static }            {Tcl-compatible exec command}
     file      {}                    {Tcl-compatible file command}

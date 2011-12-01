@@ -1,0 +1,50 @@
+An ensemble is a single command that can dispatch subcommands
+to other commands.
+
+For example [string] is a built-in ensemble.
+
+The ensemble command allows an ensemble command to be created
+that redirects to other commands.
+
+Create an ensemble by having multiple commands that all share
+the same prefix. For example:
+
+proc {test open} {name} { ... }
+proc {test close} {handle} { ... }
+proc {test show} {handle} { ... }
+
+Then simply:
+
+ensemble test
+
+Now a new command, test, is created that will invoke the other commands
+based on the first argument. For example:
+
+set h [test open file.txt]
+test show $h
+test close $h
+
+By default ensemble expects the commands to be named "<name> ". If another
+prefix is used, this can be specified with the -automap option. e.g.
+
+ensemble test -automap test.
+
+This could be used if the commands were named test.open, test.close, test.show
+
+Note that ensembles are dynamic, not fixed at the point of creation.
+This means, for example, that we can can create a new commands, "test reverse"
+after the ensemble has been created and it can still be invoked as test reverse ...
+
+It is easy to create an ensemble for commands in a namespace by simply using
+-automap <ns>:: however for compatibility with Tcl, 'namespace ensemble create' is provided
+that does with when invoked within a namespace. e.g.
+
+namespace eval test {
+	namespace ensemble create
+
+	proc open {name} { ... }
+	proc close {handle} { ... }
+	proc show {handle} { ... }
+}
+
+test open file.txt

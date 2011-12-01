@@ -201,13 +201,13 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int option;
     static const char * const options[] = {
         "eval", "current", "canonical", "qualifiers", "parent", "tail", "delete",
-        "origin", "code", "inscope", "import", "export",
+        "origin", "code", "inscope", "ensemble", "import", "export",
         "which", "upvar", NULL
     };
     enum
     {
         OPT_EVAL, OPT_CURRENT, OPT_CANONICAL, OPT_QUALIFIERS, OPT_PARENT, OPT_TAIL, OPT_DELETE,
-        OPT_ORIGIN, OPT_CODE, OPT_INSCOPE, OPT_IMPORT, OPT_EXPORT,
+        OPT_ORIGIN, OPT_CODE, OPT_INSCOPE, OPT_ENSEMBLE, OPT_IMPORT, OPT_EXPORT,
         OPT_WHICH, OPT_UPVAR,
     };
 

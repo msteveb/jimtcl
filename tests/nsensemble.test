@@ -1,0 +1,75 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd ensemble
+needs cmd namespace
+testConstraint package-ensemble [expr {"ensemble" in [package list]}]
+
+# Let's create some procs for our ensemble
+namespace eval foo {
+	proc a {x} {
+		incr x
+	}
+	proc b {y} {
+		incr y 2
+	}
+	proc c {z} {
+		append z @
+	}
+}
+
+test nsensemble-1.0 {Create ensemble outside namespace} -body {
+	# Create an ensemble for our namespace
+	namespace ensemble create
+} -returnCodes error -result {namespace ensemble create: must be called within a namespace}
+
+test nsensemble-1.1 {Basic namespace ensemble} {
+	# Create an ensemble for our namespace
+	namespace eval foo {
+		namespace ensemble create
+	}
+	# And invoke a method
+	foo a 5
+} 6
+
+test nsensemble-1.2 {namespace ensemble -commands} package-ensemble {
+	foo -commands
+} {a b c}
+
+test nsensemble-1.3 {namespace ensemble -help} package-ensemble {
+	foo -help
+} {Usage: "foo command ... ", where command is one of: a, b, c}
+
+test nsensemble-1.4 {namespace ensemble with invalid subcommand} -constraints package-ensemble -body {
+	foo d x
+} -returnCodes error -result {invalid command name "foo::d"}
+
+# Now a nested namespace ensemble
+namespace eval foo {
+	namespace eval bar {
+		proc a {x} {
+			incr x 10
+		}
+		proc b {y} {
+			incr y 20
+		}
+		proc c {z} {
+			append z %
+		}
+		namespace ensemble create
+	}
+}
+
+test nsensemble-2.1 {Nested namespace ensemble} {
+	# And invoke a method
+	foo::bar a 5
+} 15
+
+test nsensemble-2.2 {Nested namespace ensemble from namespace} {
+	# And invoke a method
+	namespace eval foo {
+		bar a 6
+	}
+} 16
+
+testreport
