@@ -283,18 +283,14 @@ typedef struct Jim_HashTableIterator {
 typedef struct Jim_Obj {
     int refCount; /* reference count */
     char *bytes; /* string representation buffer. NULL = no string repr. */
-    int length; /* number of bytes in 'bytes', not including the numterm. */
+    int length; /* number of bytes in 'bytes', not including the null term. */
     const struct Jim_ObjType *typePtr; /* object type. */
     /* Internal representation union */
     union {
         /* integer number type */
         jim_wide wideValue;
-        /* hashed object type value */
-        int hashValue;
-        /* index type */
-        int indexValue;
-        /* return code type */
-        int returnCode;
+        /* generic integer value (e.g. index, return code) */
+        int intValue;
         /* double number type */
         double doubleValue;
         /* Generic pointer */
@@ -306,13 +302,13 @@ typedef struct Jim_Obj {
         } twoPtrValue;
         /* Variable object */
         struct {
-            unsigned long callFrameId;
+            unsigned long callFrameId; /* for caching */
             struct Jim_Var *varPtr;
-            int global;
+            int global; /* If the variable name is globally scoped with :: */
         } varValue;
         /* Command object */
         struct {
-            unsigned long procEpoch;
+            unsigned long procEpoch; /* for caching */
             struct Jim_Cmd *cmdPtr;
         } cmdValue;
         /* List object */
@@ -341,11 +337,6 @@ typedef struct Jim_Obj {
             struct Jim_Obj *varNameObjPtr;
             struct Jim_Obj *indexObjPtr;
         } dictSubstValue;
-        /* tagged binary type */
-        struct {
-            unsigned char *data;
-            size_t         len;
-        } binaryValue;
         /* Regular expression pattern */
         struct {
             unsigned flags;
