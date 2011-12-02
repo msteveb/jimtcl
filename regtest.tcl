@@ -178,6 +178,24 @@ catch {
 incr globx
 puts "TEST 25 PASSED"
 
+# REGTEST 26
+# 2 Dec 2011 - infinite eval recursion
+catch {
+    set x 0
+    set y {incr x; eval $y}
+    eval $y
+} msg
+puts "TEST 26 PASSED"
+
+# REGTEST 27
+# 2 Dec 2011 - infinite alias recursion
+catch {
+    proc p {} {}
+    alias p p
+    p
+} msg
+puts "TEST 27 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

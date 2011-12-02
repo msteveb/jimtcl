@@ -140,7 +140,8 @@ extern "C" {
 /* The following are internal codes and should never been seen/used */
 #define JIM_EVAL 7
 
-#define JIM_MAX_NESTING_DEPTH 1000 /* default max nesting depth */
+#define JIM_MAX_CALLFRAME_DEPTH 1000 /* default max nesting depth for procs */
+#define JIM_MAX_EVAL_DEPTH 2000 /* default max nesting depth for eval */
 
 /* Some function get an integer argument with flags to change
  * the behaviour. */
@@ -517,7 +518,9 @@ typedef struct Jim_Interp {
     int errorLine; /* Error line where an error occurred. */
     Jim_Obj *errorFileNameObj; /* Error file where an error occurred. */
     int addStackTrace; /* > 0 If a level should be added to the stack trace */
-    int maxNestingDepth; /* Used for infinite loop detection. */
+    int maxCallFrameDepth; /* Used for infinite loop detection. */
+    int maxEvalDepth; /* Used for infinite loop detection. */
+    int evalDepth;  /* Current eval depth */
     int returnCode; /* Completion code to return on JIM_RETURN. */
     int returnLevel; /* Current level of 'return -level' */
     int exitCode; /* Code to return to the OS on JIM_EXIT. */

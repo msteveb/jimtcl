@@ -5051,7 +5051,8 @@ Jim_Interp *Jim_CreateInterp(void)
 
     memset(i, 0, sizeof(*i));
 
-    i->maxNestingDepth = JIM_MAX_NESTING_DEPTH;
+    i->maxCallFrameDepth = JIM_MAX_CALLFRAME_DEPTH;
+    i->maxEvalDepth = JIM_MAX_EVAL_DEPTH;
     i->lastCollectTime = time(NULL);
 
     /* Note that we can create objects only after the
@@ -9676,6 +9677,35 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Ob
     return retCode;
 }
 
+static int JimInvokeCommand(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *fileNameObj, int linenr, int objc, Jim_Obj *const *objv)
+{
+    int retcode;
+
+    if (cmdPtr == NULL) {
+        return JimUnknown(interp, objc, objv, fileNameObj, linenr);
+    }
+    if (interp->evalDepth == interp->maxEvalDepth) {
+        Jim_SetResultString(interp, "Infinite eval recursion", -1);
+        return JIM_ERR;
+    }
+    interp->evalDepth++;
+
+    /* Call it -- Make sure result is an empty object. */
+    JimIncrCmdRefCount(cmdPtr);
+    Jim_SetEmptyResult(interp);
+    if (cmdPtr->isproc) {
+        retcode = JimCallProcedure(interp, cmdPtr, fileNameObj, linenr, objc, objv);
+    }
+    else {
+        interp->cmdPrivData = cmdPtr->u.native.privData;
+        retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
+    }
+    JimDecrCmdRefCount(interp, cmdPtr);
+    interp->evalDepth--;
+
+    return retcode;
+}
+
 /* Eval the object vector 'objv' composed of 'objc' elements.
  * Every element is used as single argument.
  * Jim_EvalObj() will call this function every time its object
@@ -9694,24 +9724,11 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
     /* Incr refcount of arguments. */
     for (i = 0; i < objc; i++)
         Jim_IncrRefCount(objv[i]);
+
     /* Command lookup */
     cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
-    if (cmdPtr == NULL) {
-        retcode = JimUnknown(interp, objc, objv, fileNameObj, linenr);
-    }
-    else {
-        /* Call it -- Make sure result is an empty object. */
-        JimIncrCmdRefCount(cmdPtr);
-        Jim_SetEmptyResult(interp);
-        if (cmdPtr->isproc) {
-            retcode = JimCallProcedure(interp, cmdPtr, fileNameObj, linenr, objc, objv);
-        }
-        else {
-            interp->cmdPrivData = cmdPtr->u.native.privData;
-            retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
-        }
-        JimDecrCmdRefCount(interp, cmdPtr);
-    }
+    retcode = JimInvokeCommand(interp, cmdPtr, fileNameObj, linenr, objc, objv);
+
     /* Decr refcount of arguments and return the retcode */
     for (i = 0; i < objc; i++)
         Jim_DecrRefCount(interp, objv[i]);
@@ -10131,23 +10148,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         if (retcode == JIM_OK && argc) {
             /* Lookup the command to call */
             cmd = Jim_GetCommand(interp, argv[0], JIM_ERRMSG);
-            if (cmd != NULL) {
-                /* Call it -- Make sure result is an empty object. */
-                JimIncrCmdRefCount(cmd);
-                Jim_SetEmptyResult(interp);
-                if (cmd->isproc) {
-                    retcode =
-                        JimCallProcedure(interp, cmd, script->fileNameObj, linenr, argc, argv);
-                } else {
-                    interp->cmdPrivData = cmd->u.native.privData;
-                    retcode = cmd->u.native.cmdProc(interp, argc, argv);
-                }
-                JimDecrCmdRefCount(interp, cmd);
-            }
-            else {
-                /* Call [unknown] */
-                retcode = JimUnknown(interp, argc, argv, script->fileNameObj, linenr);
-            }
+            retcode = JimInvokeCommand(interp, cmd, script->fileNameObj, linenr, argc, argv);
             if (interp->signal_level && interp->sigmask) {
                 /* Check for a signal after each command */
                 retcode = JIM_SIGNAL;
@@ -10274,7 +10275,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
     }
 
     /* Check if there are too nested calls */
-    if (interp->framePtr->level == interp->maxNestingDepth) {
+    if (interp->framePtr->level == interp->maxCallFrameDepth) {
         Jim_SetResultString(interp, "Too many nested calls. Infinite recursion?", -1);
         return JIM_ERR;
     }
