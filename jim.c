@@ -129,10 +129,7 @@ static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
-static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameObj, int linenr,
-    int argc, Jim_Obj *const *argv);
-static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
-    Jim_Obj *fileNameObj, int linenr);
+static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *const *argv);
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr);
 static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
@@ -3090,7 +3087,8 @@ typedef struct ScriptObj
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
     Jim_Obj *fileNameObj;
-    int line;                   /* Line number of the first line */
+    int firstline;              /* Line number of the first line */
+    int linenr;                 /* Line number of the current line */
 } ScriptObj;
 
 void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -3275,7 +3273,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             count++;
         }
     }
-    linenr = script->line = tokenlist->list[0].line;
+    linenr = script->firstline = tokenlist->list[0].line;
 
     token = script->token = Jim_Alloc(sizeof(ScriptToken) * count);
 
@@ -3425,7 +3423,6 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
     script = Jim_Alloc(sizeof(*script));
     memset(script, 0, sizeof(*script));
     script->inUse = 1;
-    script->line = line;
     if (objPtr->typePtr == &sourceObjType) {
         script->fileNameObj = objPtr->internalRep.sourceValue.fileNameObj;
     }
@@ -3796,8 +3793,6 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newNa
  * Command object
  * ---------------------------------------------------------------------------*/
 
-static int SetCommandFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
-
 static const Jim_ObjType commandObjType = {
     "command",
     NULL,
@@ -3805,26 +3800,6 @@ static const Jim_ObjType commandObjType = {
     NULL,
     JIM_TYPE_REFERENCES,
 };
-
-int SetCommandFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
-{
-    Jim_HashEntry *he;
-    const char *cmdName;
-
-    /* Get the string representation */
-    cmdName = Jim_String(objPtr);
-    /* Lookup this name into the commands hash table */
-    he = Jim_FindHashEntry(&interp->commands, cmdName);
-    if (he == NULL)
-        return JIM_ERR;
-
-    /* Free the old internal repr and set the new one. */
-    Jim_FreeIntRep(interp, objPtr);
-    objPtr->typePtr = &commandObjType;
-    objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
-    objPtr->internalRep.cmdValue.cmdPtr = (void *)he->u.val;
-    return JIM_OK;
-}
 
 /* This function returns the command structure for the command name
  * stored in objPtr. It tries to specialize the objPtr to contain
@@ -3838,14 +3813,25 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
 
-    if ((objPtr->typePtr != &commandObjType ||
-            objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch) &&
-        SetCommandFromAny(interp, objPtr) == JIM_ERR) {
-        if (flags & JIM_ERRMSG) {
-            Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
+    if (objPtr->typePtr != &commandObjType || 
+            objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch) {
+
+        /* Not cached or out of date, so lookup */
+        Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, Jim_String(objPtr));
+        if (he == NULL) {
+            if (flags & JIM_ERRMSG) {
+                Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
+            }
+            return NULL;
         }
-        return NULL;
+
+        /* Free the old internal repr and set the new one. */
+        Jim_FreeIntRep(interp, objPtr);
+        objPtr->typePtr = &commandObjType;
+        objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
+        objPtr->internalRep.cmdValue.cmdPtr = (void *)he->u.val;
     }
+
     cmd = objPtr->internalRep.cmdValue.cmdPtr;
     while (cmd->u.proc.upcall) {
         cmd = cmd->prevCmd;
@@ -4982,9 +4968,6 @@ int Jim_Collect(Jim_Interp *interp)
                 objv[0] = refPtr->finalizerCmdNamePtr;
                 objv[1] = Jim_NewStringObjNoAlloc(interp, refstr, 32);
                 objv[2] = refPtr->objPtr;
-                Jim_IncrRefCount(objv[0]);
-                Jim_IncrRefCount(objv[1]);
-                Jim_IncrRefCount(objv[2]);
 
                 /* Drop the reference itself */
                 Jim_DeleteHashEntry(&interp->references, refId);
@@ -4995,10 +4978,6 @@ int Jim_Collect(Jim_Interp *interp)
                 Jim_EvalObjVector(interp, 3, objv);
                 Jim_SetResult(interp, oldResult);
                 Jim_DecrRefCount(interp, oldResult);
-
-                Jim_DecrRefCount(interp, objv[0]);
-                Jim_DecrRefCount(interp, objv[1]);
-                Jim_DecrRefCount(interp, objv[2]);
             }
             else {
                 Jim_DeleteHashEntry(&interp->references, refId);
@@ -9363,7 +9342,7 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, int pos, int strLen
                          * put it to 10 and try once more. This should catch the
                          * case where %i begin to parse a number prefix (e.g.
                          * '0x' but no further digits follows. This will be
-                         * handled as a ZERO followed by a char 'x' by Tcl */
+                         * handled as a ZERO followed by a char 'x' by Tcl) */
                         w = strtoull(tok, &endp, 10);
                     }
 
@@ -9634,11 +9613,9 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #define JIM_EVAL_SINTV_LEN 8    /* static interpolation vector length */
 
 /* Handle calls to the [unknown] command */
-static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Obj *fileNameObj,
-    int linenr)
+static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj **v, *sv[JIM_EVAL_SARGV_LEN];
-    int retCode;
+    int retcode;
 
     /* If JimUnknown() is recursively called too many times...
      * done here
@@ -9647,42 +9624,30 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Ob
         return JIM_ERR;
     }
 
-    /* If the [unknown] command does not exists returns
-     * just now */
-    if (Jim_GetCommand(interp, interp->unknown, JIM_NONE) == NULL)
-        return JIM_ERR;
-
     /* The object interp->unknown just contains
      * the "unknown" string, it is used in order to
      * avoid to lookup the unknown command every time
-     * but instread to cache the result. */
-    if (argc + 1 <= JIM_EVAL_SARGV_LEN)
-        v = sv;
-    else
-        v = Jim_Alloc(sizeof(Jim_Obj *) * (argc + 1));
-    /* Make a copy of the arguments vector, but shifted on
-     * the right of one position. The command name of the
-     * command will be instead the first argument of the
-     * [unknown] call. */
-    memcpy(v + 1, argv, sizeof(Jim_Obj *) * argc);
-    v[0] = interp->unknown;
-    /* Call it */
+     * but instead to cache the result. */
+
+    /* If the [unknown] command does not exist ... */
+    if (Jim_GetCommand(interp, interp->unknown, JIM_NONE) == NULL)
+        return JIM_ERR;
+
     interp->unknown_called++;
-    retCode = JimEvalObjVector(interp, argc + 1, v, fileNameObj, linenr);
+    /* XXX: Are we losing fileNameObj and linenr? */
+    retcode = Jim_EvalObjPrefix(interp, interp->unknown, argc, argv);
     interp->unknown_called--;
 
-    /* Clean up */
-    if (v != sv)
-        Jim_Free(v);
-    return retCode;
+    return retcode;
 }
 
-static int JimInvokeCommand(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *fileNameObj, int linenr, int objc, Jim_Obj *const *objv)
+static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
+    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
 
     if (cmdPtr == NULL) {
-        return JimUnknown(interp, objc, objv, fileNameObj, linenr);
+        return JimUnknown(interp, objc, objv);
     }
     if (interp->evalDepth == interp->maxEvalDepth) {
         Jim_SetResultString(interp, "Infinite eval recursion", -1);
@@ -9694,7 +9659,7 @@ static int JimInvokeCommand(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *fileNa
     JimIncrCmdRefCount(cmdPtr);
     Jim_SetEmptyResult(interp);
     if (cmdPtr->isproc) {
-        retcode = JimCallProcedure(interp, cmdPtr, fileNameObj, linenr, objc, objv);
+        retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
     }
     else {
         interp->cmdPrivData = cmdPtr->u.native.privData;
@@ -9715,19 +9680,15 @@ static int JimInvokeCommand(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *fileNa
  * list object generated by the UpdateStringOfList is made
  * in a way that ensures that every list element is a different
  * command argument. */
-static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
-    Jim_Obj *fileNameObj, int linenr)
+int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int i, retcode;
-    Jim_Cmd *cmdPtr;
 
     /* Incr refcount of arguments. */
     for (i = 0; i < objc; i++)
         Jim_IncrRefCount(objv[i]);
 
-    /* Command lookup */
-    cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
-    retcode = JimInvokeCommand(interp, cmdPtr, fileNameObj, linenr, objc, objv);
+    retcode = JimInvokeCommand(interp, objc, objv);
 
     /* Decr refcount of arguments and return the retcode */
     for (i = 0; i < objc; i++)
@@ -9736,40 +9697,32 @@ static int JimEvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv,
     return retcode;
 }
 
-int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
-{
-    return JimEvalObjVector(interp, objc, objv, interp->emptyObj, 1);
-}
-
 /**
  * Invokes 'prefix' as a command with the objv array as arguments.
  */
 int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix, int objc, Jim_Obj *const *objv)
 {
-    int i;
     int ret;
     Jim_Obj **nargv = Jim_Alloc((objc + 1) * sizeof(*nargv));
 
     nargv[0] = prefix;
-    for (i = 0; i < objc; i++) {
-        nargv[i + 1] = objv[i];
-    }
+    memcpy(&nargv[1], &objv[0], sizeof(nargv[0]) * objc);
     ret = Jim_EvalObjVector(interp, objc + 1, nargv);
     Jim_Free(nargv);
     return ret;
 }
 
-static void JimAddErrorToStack(Jim_Interp *interp, int retcode, Jim_Obj *fileNameObj, int line)
+static void JimAddErrorToStack(Jim_Interp *interp, int retcode, ScriptObj *script)
 {
     int rc = retcode;
 
     if (rc == JIM_ERR && !interp->errorFlag) {
         /* This is the first error, so save the file/line information and reset the stack */
         interp->errorFlag = 1;
-        Jim_IncrRefCount(fileNameObj);
+        Jim_IncrRefCount(script->fileNameObj);
         Jim_DecrRefCount(interp, interp->errorFileNameObj);
-        interp->errorFileNameObj = fileNameObj;
-        interp->errorLine = line;
+        interp->errorFileNameObj = script->fileNameObj;
+        interp->errorLine = script->linenr;
 
         JimResetStackTrace(interp);
         /* Always add a level where the error first occurs */
@@ -9780,13 +9733,13 @@ static void JimAddErrorToStack(Jim_Interp *interp, int retcode, Jim_Obj *fileNam
     if (rc == JIM_ERR && interp->addStackTrace > 0) {
         /* Add the stack info for the current level */
 
-        JimAppendStackTrace(interp, Jim_String(interp->errorProc), fileNameObj, line);
+        JimAppendStackTrace(interp, Jim_String(interp->errorProc), script->fileNameObj, script->linenr);
 
         /* Note: if we didn't have a filename for this level,
          * don't clear the addStackTrace flag
          * so we can pick it up at the next level
          */
-        if (Jim_Length(fileNameObj)) {
+        if (Jim_Length(script->fileNameObj)) {
             interp->addStackTrace = 0;
         }
 
@@ -9940,20 +9893,19 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
 }
 
 
-/* If listPtr is a list, call JimEvalObjVector() with the given source info.
- * Otherwise eval with Jim_EvalObj()
+/* listPtr *must* be a list.
+ * The contents of the list is evaluated with the first element as the command and
+ * the remaining elements as the arguments.
  */
-static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *fileNameObj, int linenr)
+static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
 {
     int retcode = JIM_OK;
 
-    JimPanic((!Jim_IsList(listPtr), "JimEvalObjList() called without list arg"));
-
     if (listPtr->internalRep.listValue.len) {
         Jim_IncrRefCount(listPtr);
-        retcode = JimEvalObjVector(interp,
+        retcode = JimInvokeCommand(interp,
             listPtr->internalRep.listValue.len,
-            listPtr->internalRep.listValue.ele, fileNameObj, linenr);
+            listPtr->internalRep.listValue.ele);
         Jim_DecrRefCount(interp, listPtr);
     }
     return retcode;
@@ -9966,14 +9918,12 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     ScriptToken *token;
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL;
-    int linenr = 0;
-
-    interp->errorFlag = 0;
+    Jim_Obj *prevScriptObj;
 
     /* If the object is of type "list", with no string rep we can call
      * a specialized version of Jim_EvalObj() */
     if (Jim_IsList(scriptObjPtr) && scriptObjPtr->bytes == NULL) {
-        return JimEvalObjList(interp, scriptObjPtr, interp->emptyObj, 1);
+        return JimEvalObjList(interp, scriptObjPtr);
     }
 
     Jim_IncrRefCount(scriptObjPtr);     /* Make sure it's shared. */
@@ -9982,6 +9932,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     /* Reset the interpreter result. This is useful to
      * return the empty result in the case of empty program. */
     Jim_SetEmptyResult(interp);
+
+    token = script->token;
 
 #ifdef JIM_OPTIMIZATION
     /* Check for one of the following common scripts used by for, while
@@ -9994,12 +9946,12 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         return JIM_OK;
     }
     if (script->len == 3
-        && script->token[1].objPtr->typePtr == &commandObjType
-        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->isproc == 0
-        && script->token[1].objPtr->internalRep.cmdValue.cmdPtr->u.native.cmdProc == Jim_IncrCoreCommand
-        && script->token[2].objPtr->typePtr == &variableObjType) {
+        && token[1].objPtr->typePtr == &commandObjType
+        && token[1].objPtr->internalRep.cmdValue.cmdPtr->isproc == 0
+        && token[1].objPtr->internalRep.cmdValue.cmdPtr->u.native.cmdProc == Jim_IncrCoreCommand
+        && token[2].objPtr->typePtr == &variableObjType) {
 
-        Jim_Obj *objPtr = Jim_GetVariable(interp, script->token[2].objPtr, JIM_NONE);
+        Jim_Obj *objPtr = Jim_GetVariable(interp, token[2].objPtr, JIM_NONE);
 
         if (objPtr && !Jim_IsShared(objPtr) && objPtr->typePtr == &intObjType) {
             JimWideValue(objPtr)++;
@@ -10022,7 +9974,11 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
      * inUse field of the script internal rep structure. */
     script->inUse++;
 
-    token = script->token;
+    /* Stash the current script */
+    prevScriptObj = interp->currentScriptObj;
+    interp->currentScriptObj = scriptObjPtr;
+
+    interp->errorFlag = 0;
     argv = sargv;
 
     /* Execute every command sequentially until the end of the script
@@ -10031,11 +9987,10 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     for (i = 0; i < script->len && retcode == JIM_OK; ) {
         int argc;
         int j;
-        Jim_Cmd *cmd;
 
         /* First token of the line is always JIM_TT_LINE */
         argc = token[i].objPtr->internalRep.scriptLineValue.argc;
-        linenr = token[i].objPtr->internalRep.scriptLineValue.line;
+        script->linenr = token[i].objPtr->internalRep.scriptLineValue.line;
 
         /* Allocate the arguments vector if required */
         if (argc > JIM_EVAL_SARGV_LEN)
@@ -10146,9 +10101,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         }
 
         if (retcode == JIM_OK && argc) {
-            /* Lookup the command to call */
-            cmd = Jim_GetCommand(interp, argv[0], JIM_ERRMSG);
-            retcode = JimInvokeCommand(interp, cmd, script->fileNameObj, linenr, argc, argv);
+            /* Invoke the command */
+            retcode = JimInvokeCommand(interp, argc, argv);
             if (interp->signal_level && interp->sigmask) {
                 /* Check for a signal after each command */
                 retcode = JIM_SIGNAL;
@@ -10167,7 +10121,10 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     }
 
     /* Possibly add to the error stack trace */
-    JimAddErrorToStack(interp, retcode, script->fileNameObj, linenr);
+    JimAddErrorToStack(interp, retcode, script);
+
+    /* Restore the current script */
+    interp->currentScriptObj = prevScriptObj;
 
     /* Note that we don't have to decrement inUse, because the
      * following code transfers our use of the reference again to
@@ -10260,12 +10217,12 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
  *
  * This can be fixed just implementing callframes caching
  * in JimCreateCallFrame() and JimFreeCallFrame(). */
-static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameObj, int linenr, int argc,
-    Jim_Obj *const *argv)
+static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *const *argv)
 {
     Jim_CallFrame *callFramePtr;
     int i, d, retcode, optargs;
     Jim_Stack *localCommands;
+    ScriptObj *script;
 
     /* Check arity */
     if (argc - 1 < cmd->u.proc.reqArity ||
@@ -10287,8 +10244,12 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, Jim_Obj *fileNameO
     callFramePtr->procArgsObjPtr = cmd->u.proc.argListObjPtr;
     callFramePtr->procBodyObjPtr = cmd->u.proc.bodyObjPtr;
     callFramePtr->staticVars = cmd->u.proc.staticVars;
-    callFramePtr->fileNameObj = fileNameObj;
-    callFramePtr->line = linenr;
+
+    /* Remember where we were called from. */
+    script = Jim_GetScript(interp, interp->currentScriptObj);
+    callFramePtr->fileNameObj = script->fileNameObj;
+    callFramePtr->line = script->linenr;
+
     Jim_IncrRefCount(cmd->u.proc.argListObjPtr);
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
     interp->framePtr = callFramePtr;
@@ -10358,7 +10319,9 @@ badargset:
 
         Jim_IncrRefCount(resultScriptObjPtr);
         /* Result must be a list */
-        retcode = JimEvalObjList(interp, resultScriptObjPtr, fileNameObj, linenr);
+        JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
+
+        retcode = JimEvalObjList(interp, resultScriptObjPtr);
         if (retcode == JIM_RETURN) {
             /* If the result of the tailcall invokes 'return', push
              * it up to the caller
@@ -12527,17 +12490,18 @@ static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int retcode;
     Jim_Obj *cmdList;
-    Jim_Obj *prefixObj = Jim_CmdPrivData(interp);
+    Jim_Obj *prefixListObj = Jim_CmdPrivData(interp);
     Jim_Obj *saveRewriteNameObj = interp->rewriteNameObj;
 
     interp->rewriteNameObj = argv[0];
-    interp->rewriteNameCount = Jim_ListLength(interp, prefixObj);
+    interp->rewriteNameCount = Jim_ListLength(interp, prefixListObj);
 
-    cmdList = Jim_DuplicateObj(interp, prefixObj);
+    /* prefixListObj is a list to which the args need to be appended */
+    cmdList = Jim_DuplicateObj(interp, prefixListObj);
     ListInsertElements(cmdList, -1, argc - 1, argv + 1);
     Jim_IncrRefCount(cmdList);
 
-    retcode = JimEvalObjList(interp, cmdList, interp->emptyObj, 1);
+    retcode = JimEvalObjList(interp, cmdList);
 
     Jim_DecrRefCount(interp, cmdList);
     interp->rewriteNameObj = saveRewriteNameObj;
@@ -12547,13 +12511,13 @@ static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static void JimAliasCmdDelete(Jim_Interp *interp, void *privData)
 {
-    Jim_Obj *prefixObj = privData;
-    Jim_DecrRefCount(interp, prefixObj);
+    Jim_Obj *prefixListObj = privData;
+    Jim_DecrRefCount(interp, prefixListObj);
 }
 
 static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *prefixObj;
+    Jim_Obj *prefixListObj;
     const char *newname;
 
     if (argc < 3) {
@@ -12561,8 +12525,8 @@ static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
 
-    prefixObj = Jim_NewListObj(interp, argv + 2, argc - 2);
-    Jim_IncrRefCount(prefixObj);
+    prefixListObj = Jim_NewListObj(interp, argv + 2, argc - 2);
+    Jim_IncrRefCount(prefixListObj);
     newname = Jim_String(argv[1]);
     if (newname[0] == ':' && newname[1] == ':') {
         newname += 2;
@@ -12570,7 +12534,7 @@ static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     Jim_SetResult(interp, argv[1]);
 
-    return Jim_CreateCommand(interp, newname, JimAliasCmd, prefixObj, JimAliasCmdDelete);
+    return Jim_CreateCommand(interp, newname, JimAliasCmd, prefixListObj, JimAliasCmdDelete);
 }
 
 /* [proc] */
@@ -13729,7 +13693,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 else if (argv[2]->typePtr == &scriptObjType) {
                     ScriptObj *script = Jim_GetScript(interp, argv[2]);
                     fileNameObj = script->fileNameObj;
-                    line = script->line;
+                    line = script->firstline;
                 }
                 else {
                     fileNameObj = interp->emptyObj;
