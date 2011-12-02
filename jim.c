@@ -13952,13 +13952,14 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
+    int result;
 
     static const char * const options[] = {
-        "-command", "-proc", "-var", NULL
+        "-command", "-proc", "-alias", "-var", NULL
     };
     enum
     {
-        OPT_COMMAND, OPT_PROC, OPT_VAR
+        OPT_COMMAND, OPT_PROC, OPT_ALIAS, OPT_VAR
     };
     int option;
 
@@ -13977,19 +13978,33 @@ static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         return JIM_ERR;
     }
 
-    /* Test for the the most common commands first, just in case it makes a difference */
-    switch (option) {
-        case OPT_VAR:
-            Jim_SetResultBool(interp, Jim_GetVariable(interp, objPtr, 0) != NULL);
-            break;
+    if (option == OPT_VAR) {
+        result = Jim_GetVariable(interp, objPtr, 0) != NULL;
+    }
+    else {
+        /* Now different kinds of commands */
+        Jim_Cmd *cmd = Jim_GetCommand(interp, objPtr, JIM_NONE);
 
-        case OPT_COMMAND:
-        case OPT_PROC: {
-            Jim_Cmd *cmd = Jim_GetCommand(interp, objPtr, JIM_NONE);
-            Jim_SetResultBool(interp, cmd != NULL && (option == OPT_COMMAND || cmd->isproc));
-            break;
+        if (cmd) {
+            switch (option) {
+            case OPT_COMMAND:
+                result = 1;
+                break;
+
+            case OPT_ALIAS:
+                result = cmd->isproc == 0 && cmd->u.native.cmdProc == JimAliasCmd;
+                break;
+
+            case OPT_PROC:
+                result = cmd->isproc;
+                break;
+            }
+        }
+        else {
+            result = 0;
         }
     }
+    Jim_SetResultBool(interp, result);
     return JIM_OK;
 }
 
