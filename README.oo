@@ -7,7 +7,7 @@ Date: 1 Nov 2010 09:18:40
 OVERVIEW
 --------
 The pure-Tcl oo package leverages Jim's unique strengths
-to provide support for Object Oriented programming. 
+to provide support for Object Oriented programming.
 
 The oo package can be statically linked with Jim or installed
 as a separate Tcl package and loaded with:

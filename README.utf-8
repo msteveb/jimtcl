@@ -12,7 +12,7 @@ nulls, however it has had no support for multi-byte character encodings.
 In some fields, such as when dealing with the web, or other user-generated content,
 support for multi-byte character encodings is necessary.
 In these cases it would be very useful for Jim Tcl to be able to process strings
-as multi-byte character strings rather than simply binary bytes. 
+as multi-byte character strings rather than simply binary bytes.
 
 Supporting multiple character encodings and translation between those encodings
 is beyond the scope of Jim Tcl. Therefore, Jim has been enhanced to add support

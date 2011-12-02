@@ -24,7 +24,7 @@ can be used to perform operations on the database. A real example:
 
     . set db [sqlite.open test.db]
     sqlite.handle0
-    . $db query "SELECT * from tbl1" 
+    . $db query "SELECT * from tbl1"
     {one hello! two 10} {one goodbye two 20}
 
 In the second line the handle is used as a command name, followed
@@ -64,7 +64,7 @@ Specification of query results
 
 In one of the above examples, the following query was used:
 
-    . $db query "SELECT * from tbl1" 
+    . $db query "SELECT * from tbl1"
     {one hello! two 10} {one goodbye two 20}
 
 As you can see the result of a query is a list of lists. Every

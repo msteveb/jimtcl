@@ -896,6 +896,11 @@ Add <tt>build-jim-ext</tt> for easy separate building of loadable modules (exten
 <a href="#_local"><strong><tt>local</tt></strong></a> now works with any command, not just procs
 </p>
 </li>
+<li>
+<p>
+Add <a href="#_info"><strong><tt>info</tt></strong></a> <tt>alias</tt> to access the target of an alias
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -2142,7 +2147,7 @@ among several arguments.  For example, the command</p></div>
 <pre><tt>expr $a + $b</tt></pre>
 </div></div>
 <div class="paragraph"><p>results in three arguments being passed to <a href="#_expr"><strong><tt>expr</tt></strong></a>:  <tt>$a</tt>,
-<tt>\</tt>+, and <tt>$b</tt>.  In addition, if the expression isn&#8217;t in braces
++, and <tt>$b</tt>.  In addition, if the expression isn&#8217;t in braces
 then the Tcl interpreter will perform variable and command substitution
 immediately (it will happen in the command parser rather than in
 the expression parser).  In many cases the expression is being
@@ -2154,7 +2159,7 @@ evaluated, rather than once and for all at the beginning.  For example,
 the command</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>for {set i 1} $i&lt;=10 {incr i} {...}        +** WRONG **+</tt></pre>
+<pre><tt>for {set i 1} $i&lt;=10 {incr i} {...}        ** WRONG **</tt></pre>
 </div></div>
 <div class="paragraph"><p>is probably intended to iterate over all values of <tt>i</tt> from 1 to 10.
 After each iteration of the body of the loop, <a href="#_for"><strong><tt>for</tt></strong></a> will pass
@@ -2168,7 +2173,7 @@ becomes greater than 10.  In the above case the loop will never
 terminate.  Instead, the expression should be placed in braces:</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>for {set i 1} {$i&lt;=10} {incr i} {...}      +** RIGHT **+</tt></pre>
+<pre><tt>for {set i 1} {$i&lt;=10} {incr i} {...}      ** RIGHT **</tt></pre>
 </div></div>
 <div class="paragraph"><p>This causes the substitution of <em>i</em>
 to be delayed; it will be re-done each time the expression is
@@ -2281,7 +2286,7 @@ Supported character classes: <tt>[:alnum:]</tt>, <tt>[:digit:]</tt> and <tt>[:sp
 </li>
 <li>
 <p>
-Supported shorthand character classes: <tt>\w = +[:alnum:]</tt>, <tt>\d</tt> = <tt>[:digit:],</tt> <tt>\s</tt> = <tt>[:space:]</tt>
+Supported shorthand character classes: <tt>\w</tt> = <tt>[:alnum:]</tt>, <tt>\d</tt> = <tt>[:digit:],</tt> <tt>\s</tt> = <tt>[:space:]</tt>
 </p>
 </li>
 <li>
@@ -3139,7 +3144,7 @@ be an integer.</p></div>
 <div class="sect2">
 <h3 id="_alias">alias</h3>
 <div class="paragraph"><p><tt><strong>alias</strong> <em>name args...</em></tt></p></div>
-<div class="paragraph"><p>Creates a single word alias (<a href="#_proc"><strong><tt>proc</tt></strong></a>) for one or more words. For example,
+<div class="paragraph"><p>Creates a single word alias (command) for one or more words. For example,
 the following creates an alias for the command <a href="#_info"><strong><tt>info</tt></strong></a> <tt>exists</tt>.</p></div>
 <div class="literalblock">
 <div class="content">
@@ -3149,7 +3154,7 @@ if {[e var]} {
 }</tt></pre>
 </div></div>
 <div class="paragraph"><p><a href="#_alias"><strong><tt>alias</tt></strong></a> returns <tt><em>name</em></tt>, allowing it to be used with <a href="#_local"><strong><tt>local</tt></strong></a>.</p></div>
-<div class="paragraph"><p>See also <a href="#_proc"><strong><tt>proc</tt></strong></a>, <a href="#_curry"><strong><tt>curry</tt></strong></a>, <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, <a href="#_local"><strong><tt>local</tt></strong></a>.</p></div>
+<div class="paragraph"><p>See also <a href="#_proc"><strong><tt>proc</tt></strong></a>, <a href="#_curry"><strong><tt>curry</tt></strong></a>, <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, <a href="#_local"><strong><tt>local</tt></strong></a>, <a href="#_info"><strong><tt>info</tt></strong></a> <tt>alias</tt></p></div>
 </div>
 <div class="sect2">
 <h3 id="_append">append</h3>
@@ -4376,6 +4381,15 @@ The legal <tt><em>option</em></tt>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
+<tt><strong>info alias</strong> <em>command</em></tt>
+</dt>
+<dd>
+<p>
+    <tt><em>command</em></tt> must be an alias created with <a href="#_alias"><strong><tt>alias</tt></strong></a>. In which case the target
+    command and arguments, as passed to <a href="#_alias"><strong><tt>alias</tt></strong></a> are returned.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>info body</strong> <em>procname</em></tt>
 </dt>
 <dd>
@@ -4694,9 +4708,9 @@ a=1,b=2</tt></pre>
 </div>
 <div class="sect2">
 <h3 id="_local">local</h3>
-<div class="paragraph"><p><tt><strong>local</strong> <em>args</em></tt></p></div>
-<div class="paragraph"><p>Executes it&#8217;s arguments as a single command (per <a href="#_eval"><strong><tt>eval</tt></strong></a>) and considers the return
-value to be a command name, which is marked as having local scope.
+<div class="paragraph"><p><tt><strong>local</strong> <em>cmd ?arg...?</em></tt></p></div>
+<div class="paragraph"><p>First, <a href="#_local"><strong><tt>local</tt></strong></a> evaluates <tt><em>cmd</em></tt> with the given arguments. The return value must
+be the name of an existing command, which is marked as having local scope.
 This means that when the current procedure exits, the specified
 command is deleted. This can be useful with <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, local procedures or
 to automatically close a filehandle.</p></div>
@@ -4937,7 +4951,7 @@ a b a b a b</tt></pre>
 <h3 id="_lsearch">lsearch</h3>
 <div class="paragraph"><p><tt><strong>lsearch</strong> <em>?options? list pattern</em></tt></p></div>
 <div class="paragraph"><p>This command searches the elements <tt><em>list</em></tt> to see if one of them matches <tt><em>pattern</em></tt>. If so, the
-command returns the index of the first matching element (unless the options -all, -inline or -bool are
+command returns the index of the first matching element (unless the options <tt>-all</tt>, <tt>-inline</tt> or <tt>-bool</tt> are
 specified.) If not, the command returns -1. The option arguments indicates how the elements of
 the list are to be matched against pattern and must have one of the values below:</p></div>
 <div class="paragraph"><p><strong>Note</strong> that this command is different from Tcl in that default match type is <tt>-exact</tt> rather than <tt>-glob</tt>.</p></div>
@@ -4987,7 +5001,7 @@ the list are to be matched against pattern and must have one of the values below
 <p>
     The matching value is returned instead of its index (or an empty string if no value
     matches). If <tt>-all</tt> is also specified, then the result of the command is the list of all
-    values that matched. The <tt>-inline</tt> and +-bool' options are mutually exclusive.
+    values that matched. The <tt>-inline</tt> and <tt>-bool</tt> options are mutually exclusive.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5062,7 +5076,7 @@ It may have any of the following values:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>r\</tt>+
+<tt>r</tt>+
 </dt>
 <dd>
 <p>
@@ -5080,7 +5094,7 @@ It may have any of the following values:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>w\</tt>+
+<tt>w</tt>+
 </dt>
 <dd>
 <p>
@@ -5098,7 +5112,7 @@ It may have any of the following values:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>a\</tt>+
+<tt>a</tt>+
 </dt>
 <dd>
 <p>
@@ -5364,8 +5378,8 @@ in the substitution with the portion of <tt><em>string</em></tt> that
 matched <tt><em>exp</em></tt>.</p></div>
 <div class="paragraph"><p>If <tt><em>subSpec</em></tt> contains a <tt>\n</tt>, where <tt><em>n</em></tt> is a digit
 between 1 and 9, then it is replaced in the substitution with
-the portion of <tt><em>string</em></tt> that matched the <tt><em>'+n</tt></em>'<tt>-th
-parenthesized subexpression of +<em>exp</em></tt>.
+the portion of <tt><em>string</em></tt> that matched the <tt><em>n</em></tt>'-th
+parenthesized subexpression of <tt><em>exp</em></tt>.
 Additional backslashes may be used in <tt><em>subSpec</em></tt> to prevent special
 interpretation of <tt>&amp;</tt> or <tt>\0</tt> or <tt>\n</tt> or
 backslash.</p></div>
@@ -5443,7 +5457,7 @@ no longer accessible.</p></div>
 <div class="paragraph"><p>The finalizer is invoked as:</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>+finalizer 'reference string'+</tt></pre>
+<pre><tt>finalizer reference string</tt></pre>
 </div></div>
 <div class="paragraph"><p>See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.</p></div>
 </div>
@@ -6362,9 +6376,9 @@ the current call frame. This is similar to <em>exec</em> in Bourne Shell.</p></d
 </div></div>
 <div class="literalblock">
 <div class="content">
-<pre><tt>return [uplevel 1 a b c]</tt></pre>
+<pre><tt>return [uplevel 1 [list a b c]]</tt></pre>
 </div></div>
-<div class="paragraph"><p><a href="#_tailcall"><strong><tt>tailcall</tt></strong></a> is useful for a dispatch mechanism:</p></div>
+<div class="paragraph"><p><a href="#_tailcall"><strong><tt>tailcall</tt></strong></a> is useful as a dispatch mechanism:</p></div>
 <div class="literalblock">
 <div class="content">
 <pre><tt>proc a {cmd args} {
@@ -7763,7 +7777,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-11-29 08:56:55 EST
+Last updated 2011-12-02 20:53:56 EST
 </div>
 </div>
 </body>

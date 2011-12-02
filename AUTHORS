@@ -29,13 +29,13 @@ Also the following ideas are due to the following authors:
   current-iteartion result, providing in one command the power of
   [map] and [filter] together.
 
- 
-ChangeLog committers to be identified. Tentative list:  
- 
+
+ChangeLog committers to be identified. Tentative list:
+
 antirez - Salvatore Sanfilippo <antirez@gmail.com>
-patthoyts - Pat Thoyts <patthoyts@users.sf.net> 
+patthoyts - Pat Thoyts <patthoyts@users.sf.net>
 oharboe - Øyvind Harboe - soyvind.harboe@zylin.com
-Andrew Lunn <andrew@lunn.ch> 
+Andrew Lunn <andrew@lunn.ch>
 Duane Ellis <openocd@duaneellis.com>
 Uwe Klein <uklein@klein-messgeraete.de>
 Clemens Hintze ml-jim@qiao.in-berlin.de aka chi

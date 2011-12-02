@@ -3540,7 +3540,7 @@ static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
      */
     Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, name);
     if (he) {
-        /* There was an old cmd with the same name, 
+        /* There was an old cmd with the same name,
          * so this requires a 'proc epoch' update. */
 
         /* If a procedure with the same name didn't exist there is no need
@@ -3813,7 +3813,7 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
 
-    if (objPtr->typePtr != &commandObjType || 
+    if (objPtr->typePtr != &commandObjType ||
             objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch) {
 
         /* Not cached or out of date, so lookup */

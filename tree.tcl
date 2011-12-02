@@ -29,11 +29,11 @@ package require oo
 # $pt get <nodename> <key>
 #
 #   Returns the value associated with the given key
-# 
+#
 # $pt getall <nodename>
 #
 #   Returns the entire attribute dictionary associated with the given key
-# 
+#
 # $pt depth <nodename>
 #
 #   Returns the depth of the given node. The depth of "root" is 0.
@@ -41,19 +41,19 @@ package require oo
 # $pt parent <nodename>
 #
 #   Returns the name of the parent node, or "" for the root node.
-# 
+#
 # $pt numchildren <nodename>
 #
 #   Returns the number of child nodes.
-# 
+#
 # $pt children <nodename>
 #
 #   Returns a list of the child nodes.
-# 
+#
 # $pt next <nodename>
 #
 #   Returns the next sibling node, or "" if none.
-# 
+#
 # $pt insert <nodename> ?index?
 #
 #   Add a new child node to the given node.

@@ -19,7 +19,7 @@ proc curry {args} {
 # Returns the given argument.
 # Useful with 'local' as follows:
 #   proc a {} {...}
-#   local function a 
+#   local function a
 #
 #   set x [lambda ...]
 #   local function $x

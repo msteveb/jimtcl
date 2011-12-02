@@ -104,7 +104,7 @@ proc fileevent {args} {
 
 # Second, option argument is a glob pattern
 # Third, optional argument is a "putter" function
-# 
+#
 proc parray {arrayname {pattern *} {puts puts}} {
 	upvar $arrayname a
 

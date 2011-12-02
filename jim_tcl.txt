@@ -872,7 +872,7 @@ among several arguments.  For example, the command
     expr $a + $b
 
 results in three arguments being passed to `expr`:  +$a+,
-+\++, and +$b+.  In addition, if the expression isn't in braces
+\+, and +$b+.  In addition, if the expression isn't in braces
 then the Tcl interpreter will perform variable and command substitution
 immediately (it will happen in the command parser rather than in
 the expression parser).  In many cases the expression is being
@@ -883,7 +883,7 @@ the variable or command substitutions each time the expression is
 evaluated, rather than once and for all at the beginning.  For example,
 the command
 
-    for {set i 1} $i<=10 {incr i} {...}        +** WRONG **+
+    for {set i 1} $i<=10 {incr i} {...}        ** WRONG **
 
 is probably intended to iterate over all values of +i+ from 1 to 10.
 After each iteration of the body of the loop, `for` will pass
@@ -896,7 +896,7 @@ which will always evaluate to 1, even though +i+ eventually
 becomes greater than 10.  In the above case the loop will never
 terminate.  Instead, the expression should be placed in braces:
 
-    for {set i 1} {$i<=10} {incr i} {...}      +** RIGHT **+
+    for {set i 1} {$i<=10} {incr i} {...}      ** RIGHT **
 
 This causes the substitution of 'i'
 to be delayed; it will be re-done each time the expression is
@@ -1000,7 +1000,7 @@ and POSIX are highlighted below.
 
 1. UTF-8 strings and patterns are both supported
 2. Supported character classes: +[:alnum:]+, +[:digit:]+ and +[:space:]+
-3. Supported shorthand character classes: +{backslash}w = +[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}s+ = +[:space:]+
+3. Supported shorthand character classes: +{backslash}w+ = +[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}s+ = +[:space:]+
 4. Character classes apply to ASCII characters only
 5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
@@ -2781,10 +2781,10 @@ ments than variables, a list of unassigned elements is returned.
 
 local
 ~~~~~
-+*local* 'args'+
++*local* 'cmd ?arg\...?'+
 
-Executes it's arguments as a single command (per `eval`) and considers the return
-value to be a command name, which is marked as having local scope.
+First, `local` evaluates +'cmd'+ with the given arguments. The return value must
+be the name of an existing command, which is marked as having local scope.
 This means that when the current procedure exits, the specified
 command is deleted. This can be useful with `lambda`, local procedures or
 to automatically close a filehandle.
@@ -3046,7 +3046,7 @@ lsearch
 +*lsearch* '?options? list pattern'+
 
 This command searches the elements +'list'+ to see if one of them matches +'pattern'+. If so, the
-command returns the index of the first matching element (unless the options -all, -inline or -bool are
+command returns the index of the first matching element (unless the options +-all+, +-inline+ or +-bool+ are
 specified.) If not, the command returns -1. The option arguments indicates how the elements of
 the list are to be matched against pattern and must have one of the values below:
 
@@ -3073,7 +3073,7 @@ the list are to be matched against pattern and must have one of the values below
 +'-inline'+::
     The matching value is returned instead of its index (or an empty string if no value
     matches). If +-all+ is also specified, then the result of the command is the list of all
-    values that matched. The +-inline+ and +-bool' options are mutually exclusive.
+    values that matched. The +-inline+ and +-bool+ options are mutually exclusive.
 
 +'-bool'+::
     Changes the result to '1' if a match was found, or '0' otherwise. If +-all+ is also specified,
@@ -3133,7 +3133,7 @@ It may have any of the following values:
 +r+::
     Open the file for reading only; the file must already exist.
 
-+r\++::
++r++::
     Open the file for both reading and writing; the file must
     already exist.
 
@@ -3141,7 +3141,7 @@ It may have any of the following values:
     Open the file for writing only. Truncate it if it exists. If it doesn't
     exist, create a new file.
 
-+w\++::
++w++::
     Open the file for reading and writing. Truncate it if it exists.
     If it doesn't exist, create a new file.
 
@@ -3149,7 +3149,7 @@ It may have any of the following values:
     Open the file for writing only. The file must already exist, and the file
     is positioned so that new data is appended to the file.
 
-+a\++::
++a++::
     Open the file for reading and writing. If the file doesn't
     exist, create a new empty file. Set the initial access position
     to the end of the file.
@@ -3417,7 +3417,7 @@ matched +'exp'+.
 
 If +'subSpec'+ contains a +{backslash}n+, where +'n'+ is a digit
 between 1 and 9, then it is replaced in the substitution with
-the portion of +'string'+ that matched the +''+n+''+-th
+the portion of +'string'+ that matched the +'n'+\'-th
 parenthesized subexpression of +'exp'+.
 Additional backslashes may be used in +'subSpec'+ to prevent special
 interpretation of +&+ or +{backslash}0+ or +{backslash}n+ or
@@ -3472,7 +3472,7 @@ no longer accessible.
 
 The finalizer is invoked as:
 
-  +finalizer 'reference string'+
+  finalizer reference string
 
 See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
 
@@ -4061,9 +4061,9 @@ The following are identical except the first immediately replaces the current ca
 
   tailcall a b c
 
-  return [uplevel 1 a b c]
+  return [uplevel 1 [list a b c]]
 
-`tailcall` is useful for a dispatch mechanism:
+`tailcall` is useful as a dispatch mechanism:
 
   proc a {cmd args} {
     tailcall sub_$cmd {*}$args
