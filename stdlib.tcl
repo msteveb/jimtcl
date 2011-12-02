@@ -1,7 +1,6 @@
 # Creates an anonymous procedure
 proc lambda {arglist args} {
-	set name [ref {} function lambda.finalizer]
-	tailcall proc $name $arglist {*}$args
+	tailcall proc [ref {} function lambda.finalizer] $arglist {*}$args
 }
 
 proc lambda.finalizer {name val} {
@@ -10,10 +9,7 @@ proc lambda.finalizer {name val} {
 
 # Like alias, but creates and returns an anonyous procedure
 proc curry {args} {
-	set prefix $args
-	lambda args prefix {
-		tailcall {*}$prefix {*}$args
-	}
+	alias [ref {} function lambda.finalizer] {*}$args
 }
 
 # Returns the given argument.
