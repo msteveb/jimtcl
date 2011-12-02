@@ -10239,7 +10239,7 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
             }
             else {
                 /* We have plain args */
-                Jim_AppendString(interp, argmsg, "?argument ...?", -1);
+                Jim_AppendString(interp, argmsg, "?arg...?", -1);
             }
         }
         else {
