@@ -5715,6 +5715,9 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_FreeHashTable(&i->packages);
     Jim_Free(i->prngState);
     Jim_FreeHashTable(&i->assocData);
+    if (i->traceCmdObj) {
+        Jim_DecrRefCount(i, i->traceCmdObj);
+    }
 
     /* Check that the live object list is empty, otherwise
      * there is a memory leak. */
@@ -10492,6 +10495,45 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #define JIM_EVAL_SARGV_LEN 8    /* static arguments vector length */
 #define JIM_EVAL_SINTV_LEN 8    /* static interpolation vector length */
 
+static int JimTraceCallback(Jim_Interp *interp, const char *type, int argc, Jim_Obj *const *argv)
+{
+    JimPanic((interp->traceCmdObj == NULL, "xtrace invoked with no object"));
+
+    int ret;
+    Jim_Obj *nargv[7];
+    Jim_Obj *traceCmdObj = interp->traceCmdObj;
+    Jim_Obj *resultObj = Jim_GetResult(interp);
+    /* Where were we called from? */
+    ScriptObj *script = JimGetScript(interp, interp->currentScriptObj);
+
+    nargv[0] = traceCmdObj;
+    nargv[1] = Jim_NewStringObj(interp, type, -1);
+    nargv[2] = script->fileNameObj;
+    nargv[3] = Jim_NewIntObj(interp, script->linenr);
+    nargv[4] = resultObj;
+    nargv[5] = argv[0];
+    nargv[6] = Jim_NewListObj(interp, argv + 1, argc - 1);
+
+    /* Remove the trace while executing the trace callback */
+    interp->traceCmdObj = NULL;
+    /* Invoke the callback */
+    Jim_IncrRefCount(resultObj);
+    ret = Jim_EvalObjVector(interp, 7, nargv);
+    Jim_DecrRefCount(interp, resultObj);
+
+    if (ret == JIM_OK || ret == JIM_RETURN) {
+        /* Reinstall the trace callback */
+        interp->traceCmdObj = traceCmdObj;
+        Jim_SetEmptyResult(interp);
+        ret = JIM_OK;
+    }
+    else {
+        /* No more tracing */
+        Jim_DecrRefCount(interp, traceCmdObj);
+    }
+    return ret;
+}
+
 /* Handle calls to the [unknown] command */
 static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -10553,14 +10595,17 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 
 tailcall:
 
-    /* Call it -- Make sure result is an empty object. */
-    Jim_SetEmptyResult(interp);
-    if (cmdPtr->isproc) {
-        retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
-    }
-    else {
-        interp->cmdPrivData = cmdPtr->u.native.privData;
-        retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
+    if (!interp->traceCmdObj ||
+        (retcode = JimTraceCallback(interp, "cmd", objc, objv)) == JIM_OK) {
+        /* Call it -- Make sure result is an empty object. */
+        Jim_SetEmptyResult(interp);
+        if (cmdPtr->isproc) {
+            retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
+        }
+        else {
+            interp->cmdPrivData = cmdPtr->u.native.privData;
+            retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
+        }
     }
 
     if (tailcallObj) {
@@ -11295,8 +11340,11 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
         }
     }
 
-    /* Eval the body */
-    retcode = Jim_EvalObj(interp, cmd->u.proc.bodyObjPtr);
+    if (interp->traceCmdObj == NULL ||
+        (retcode = JimTraceCallback(interp, "proc", argc, argv)) == JIM_OK) {
+        /* Eval the body */
+        retcode = Jim_EvalObj(interp, cmd->u.proc.bodyObjPtr);
+    }
 
 badargset:
 
@@ -13574,6 +13622,27 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_ERR;
 }
 
+/* [xtrace] */
+static int Jim_XtraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "callback");
+        return JIM_ERR;
+    }
+
+    if (interp->traceCmdObj) {
+        Jim_DecrRefCount(interp, interp->traceCmdObj);
+        interp->traceCmdObj = NULL;
+    }
+
+    if (Jim_Length(argv[1])) {
+        /* Install the new execution trace callback */
+        interp->traceCmdObj = argv[1];
+        Jim_IncrRefCount(interp->traceCmdObj);
+    }
+    return JIM_OK;
+}
+
 /* [local] */
 static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -15835,6 +15904,7 @@ static const struct {
     {"break", Jim_BreakCoreCommand},
     {"continue", Jim_ContinueCoreCommand},
     {"proc", Jim_ProcCoreCommand},
+    {"xtrace", Jim_XtraceCoreCommand},
     {"concat", Jim_ConcatCoreCommand},
     {"return", Jim_ReturnCoreCommand},
     {"upvar", Jim_UpvarCoreCommand},

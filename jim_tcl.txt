@@ -58,7 +58,8 @@ Changes since 0.80
 2. Many commands now accept "safe" integer expressions rather than simple integers:
    `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
 3. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
-4. `loop` can now omit start value
+4. `loop` can now omit the start value
+5. Add the `xtrace` command for execution trace support
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4728,6 +4729,28 @@ commands may be executed inside +'body'+ to cause immediate
 termination of the `while` command.
 
 The `while` command always returns an empty string.
+
+xtrace
+~~~~~~
++*xtrace* 'command'+
+
+Install an execution trace callback command. This is useful for implementing a debugger
+or tracing tool. On each command invocation, the given command is invoked as:
+
+----
+    command proc|cmd filename line result command arglist
+----
+
++'proc'+ or +'cmd'+ indicates whether a command or a proc body is being executed.
++'filename'+ and +'line'+ indicate the location where the command was invoked.
++'result'+ is the current interpreter result (from the previous command).
++'command'+ and +'arglist'+ indicate the command being executed.
+
+While the callback is executing, any further execution traces are temporarily disabled.
+If the callback returns +JIM_OK+ or +JIM_RETURN+, the execution trace is reinstalled. Otherwise
+the execution trace is removed.
+
+If +*xtrace*+ is called with an empty argument (""), any existing callback is removed.
 
 OPTIONAL-EXTENSIONS
 -------------------

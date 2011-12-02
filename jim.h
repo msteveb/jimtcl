@@ -133,7 +133,7 @@ extern "C" {
 #define JIM_SIGNAL 5
 #define JIM_EXIT 6
 /* The following are internal codes and should never been seen/used */
-#define JIM_EVAL 7
+#define JIM_EVAL 7      /* tailcall */
 
 #define JIM_MAX_CALLFRAME_DEPTH 1000 /* default max nesting depth for procs */
 #define JIM_MAX_EVAL_DEPTH 2000 /* default max nesting depth for eval */
@@ -567,6 +567,7 @@ typedef struct Jim_Interp {
     Jim_Obj *errorProc; /* Name of last procedure which returned an error */
     Jim_Obj *unknown; /* Unknown command cache */
     Jim_Obj *defer; /* "jim::defer" */
+    Jim_Obj *traceCmdObj; /* If non-null, execution trace command to invoke */
     int unknown_called; /* The unknown command has been invoked */
     int errorFlag; /* Set if an error occurred during execution. */
     void *cmdPrivData; /* Used to pass the private data pointer to
