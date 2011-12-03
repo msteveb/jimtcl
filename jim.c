@@ -9960,6 +9960,12 @@ static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
     return retcode;
 }
 
+int Jim_EvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
+{
+    SetListFromAny(interp, listPtr);
+    return JimEvalObjList(interp, listPtr);
+}
+
 int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 {
     int i;
