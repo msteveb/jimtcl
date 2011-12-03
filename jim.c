@@ -302,11 +302,6 @@ static int JimGlobMatch(const char *pattern, const char *string, int nocase)
     return 0;
 }
 
-static int JimStringMatch(Jim_Interp *interp, Jim_Obj *patternObj, const char *string, int nocase)
-{
-    return JimGlobMatch(Jim_String(patternObj), string, nocase);
-}
-
 /**
  * string comparison works on binary data.
  *
@@ -326,17 +321,17 @@ static int JimStringCompare(const char *s1, int l1, const char *s2, int l2)
 }
 
 /**
- * No-case version.
+ * Compare null terminated strings, up to a maximum of 'maxchars' characters,
+ * (or end of string if 'maxchars' is -1).
  *
- * If maxchars is -1, compares to end of string.
- * Otherwise compares at most 'maxchars' characters.
+ * Returns -1, 0, 1 for s1 < s2, s1 == s2, s1 > s2 respectively.
  */
-static int JimStringCompareNoCase(const char *s1, const char *s2, int maxchars)
+static int JimStringCompareLen(const char *s1, const char *s2, int maxchars, int nocase)
 {
     while (*s1 && *s2 && maxchars) {
         int c1, c2;
-        s1 += utf8_tounicode_case(s1, &c1, 1);
-        s2 += utf8_tounicode_case(s2, &c2, 1);
+        s1 += utf8_tounicode_case(s1, &c1, nocase);
+        s2 += utf8_tounicode_case(s2, &c2, nocase);
         if (c1 != c2) {
             return JimSign(c1 - c2);
         }
@@ -2434,21 +2429,31 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr)
 
 int Jim_StringMatchObj(Jim_Interp *interp, Jim_Obj *patternObjPtr, Jim_Obj *objPtr, int nocase)
 {
-    return JimStringMatch(interp, patternObjPtr, Jim_String(objPtr), nocase);
+    return JimGlobMatch(Jim_String(patternObjPtr), Jim_String(objPtr), nocase);
 }
 
 int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
 {
-    const char *s1, *s2;
     int l1, l2;
-
-    s1 = Jim_GetString(firstObjPtr, &l1);
-    s2 = Jim_GetString(secondObjPtr, &l2);
+    const char *s1 = Jim_GetString(firstObjPtr, &l1);
+    const char *s2 = Jim_GetString(secondObjPtr, &l2);
 
     if (nocase) {
-        return JimStringCompareNoCase(s1, s2, -1);
+        /* Do a character compare for nocase */
+        return JimStringCompareLen(s1, s2, -1, nocase);
     }
     return JimStringCompare(s1, l1, s2, l2);
+}
+
+/**
+ * Like Jim_StringCompareObj() except compares to a maximum of the length of firstObjPtr.
+ */
+int Jim_StringCompareLenObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
+{
+    const char *s1 = Jim_String(firstObjPtr);
+    const char *s2 = Jim_String(secondObjPtr);
+
+    return JimStringCompareLen(s1, s2, Jim_Utf8Length(interp, firstObjPtr), nocase);
 }
 
 /* Convert a range, as returned by Jim_GetRange(), into
@@ -6241,20 +6246,27 @@ void Jim_ListInsertElements(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     ListInsertElements(listPtr, idx, objc, objVec);
 }
 
-int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPtrPtr, int flags)
+Jim_Obj *Jim_ListGetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx)
 {
     SetListFromAny(interp, listPtr);
     if ((idx >= 0 && idx >= listPtr->internalRep.listValue.len) ||
         (idx < 0 && (-idx - 1) >= listPtr->internalRep.listValue.len)) {
-        if (flags & JIM_ERRMSG) {
-            Jim_SetResultString(interp, "list index out of range", -1);
-        }
-        *objPtrPtr = NULL;
-        return JIM_ERR;
+        return NULL;
     }
     if (idx < 0)
         idx = listPtr->internalRep.listValue.len + idx;
-    *objPtrPtr = listPtr->internalRep.listValue.ele[idx];
+    return listPtr->internalRep.listValue.ele[idx];
+}
+
+int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPtrPtr, int flags)
+{
+    *objPtrPtr = Jim_ListGetIndex(interp, listPtr, idx);
+    if (*objPtrPtr == NULL) {
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResultString(interp, "list index out of range", -1);
+        }
+        return JIM_ERR;
+    }
     return JIM_OK;
 }
 
@@ -10771,7 +10783,7 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
     else {
         Jim_HashTableIterator *htiter = Jim_GetHashTableIterator(ht);
         while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-            if (patternObjPtr == NULL || JimStringMatch(interp, patternObjPtr, he->key, 0)) {
+            if (patternObjPtr == NULL || JimGlobMatch(Jim_String(patternObjPtr), he->key, 0)) {
                 callback(interp, listObjPtr, he, type);
             }
         }
@@ -11890,7 +11902,7 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         Jim_ListIndex(interp, argv[0], i, &objPtr, JIM_NONE);
         switch (opt_match) {
             case OPT_EXACT:
-                eq = Jim_StringCompareObj(interp, objPtr, argv[1], opt_nocase) == 0;
+                eq = Jim_StringCompareObj(interp, argv[1], objPtr, opt_nocase) == 0;
                 break;
 
             case OPT_GLOB:
@@ -12834,12 +12846,7 @@ static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
 
             if (strLen >= kl && kl) {
                 int rc;
-                if (nocase) {
-                    rc = JimStringCompareNoCase(str, k, kl);
-                }
-                else {
-                    rc = JimStringCompare(str, kl, k, kl);
-                }
+                rc = JimStringCompareLen(str, k, kl, nocase);
                 if (rc == 0) {
                     if (noMatchStart) {
                         Jim_AppendString(interp, resultObjPtr, noMatchStart, str - noMatchStart);

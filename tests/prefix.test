@@ -1,0 +1,149 @@
+# Commands covered:  tcl::prefix
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright (c) 2001 by Kevin B. Kenny.  All rights reserved.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+
+needs cmd tcl::prefix prefix
+
+test string-26.1 {tcl::prefix, too few args} -body {
+    tcl::prefix match a
+} -returnCodes 1 -match glob -result {wrong # args: should be "tcl::prefix match ?options*? table string"}
+test string-26.2 {tcl::prefix, bad args} -body {
+    tcl::prefix match a b c
+} -returnCodes 1 -result {bad option "a": must be -error, -exact, or -message}
+test string-26.2.1 {tcl::prefix, empty table} -body {
+    tcl::prefix match {} foo
+} -returnCodes 1 -result {bad option "foo": no valid options}
+
+
+
+test string-26.3.1 {tcl::prefix, bad args} -body {
+    tcl::prefix match -error "x" -exact str1 str2
+} -returnCodes 1 -match glob -result *
+test string-26.3.2 {tcl::prefix, bad args} -body {
+    tcl::prefix match -error str1 str2
+} -returnCodes 1 -result {missing error options}
+test string-26.4 {tcl::prefix, bad args} -body {
+    tcl::prefix match -message str1 str2
+} -returnCodes 1 -result {missing message}
+test string-26.5 {tcl::prefix} {
+    tcl::prefix match {apa bepa cepa depa} cepa
+} cepa
+test string-26.6 {tcl::prefix} {
+    tcl::prefix match {apa bepa cepa depa} be
+} bepa
+test string-26.7 {tcl::prefix} -body {
+    tcl::prefix match -exact {apa bepa cepa depa} be
+} -returnCodes 1 -result {bad option "be": must be apa, bepa, cepa, or depa}
+test string-26.8 {tcl::prefix} -body {
+    tcl::prefix match -message switch {apa bear bepa depa} be
+} -returnCodes 1 -result {ambiguous switch "be": must be apa, bear, bepa, or depa}
+test string-26.9 {tcl::prefix} -body {
+    tcl::prefix match -error {} {apa bepa bear depa} be
+} -returnCodes 0 -result {}
+test string-26.10 {tcl::prefix} -body {
+    tcl::prefix match -error {-level 1} {apa bear bepa depa} be
+} -returnCodes 2 -result {ambiguous option "be": must be apa, bear, bepa, or depa}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test string-27.1 {tcl::prefix all, too few args} -body {
+    tcl::prefix all a
+} -returnCodes 1 -result {wrong # args: should be "tcl::prefix all table string"}
+test string-27.2 {tcl::prefix all, bad args} -body {
+    tcl::prefix all a b c
+} -returnCodes 1 -result {wrong # args: should be "tcl::prefix all table string"}
+
+
+
+test string-27.4 {tcl::prefix all} {
+    tcl::prefix all {apa bepa cepa depa} c
+} cepa
+test string-27.5 {tcl::prefix all} {
+    tcl::prefix all {apa bepa cepa depa} cepa
+} cepa
+test string-27.6 {tcl::prefix all} {
+    tcl::prefix all {apa bepa cepa depa} cepax
+} {}
+test string-27.7 {tcl::prefix all} {
+    tcl::prefix all {apa aska appa} a
+} {apa aska appa}
+test string-27.8 {tcl::prefix all} {
+    tcl::prefix all {apa aska appa} ap
+} {apa appa}
+test string-27.9 {tcl::prefix all} {
+    tcl::prefix all {apa aska appa} p
+} {}
+test string-27.10 {tcl::prefix all} {
+    tcl::prefix all {apa aska appa} {}
+} {apa aska appa}
+
+test string-28.1 {tcl::prefix longest, too few args} -body {
+    tcl::prefix longest a
+} -returnCodes 1 -result {wrong # args: should be "tcl::prefix longest table string"}
+test string-28.2 {tcl::prefix longest, bad args} -body {
+    tcl::prefix longest a b c
+} -returnCodes 1 -result {wrong # args: should be "tcl::prefix longest table string"}
+
+
+
+test string-28.4 {tcl::prefix longest} {
+    tcl::prefix longest {apa bepa cepa depa} c
+} cepa
+test string-28.5 {tcl::prefix longest} {
+    tcl::prefix longest {apa bepa cepa depa} cepa
+} cepa
+test string-28.6 {tcl::prefix longest} {
+    tcl::prefix longest {apa bepa cepa depa} cepax
+} {}
+test string-28.7 {tcl::prefix longest} {
+    tcl::prefix longest {apa aska appa} a
+} a
+test string-28.8 {tcl::prefix longest} {
+    tcl::prefix longest {apa aska appa} ap
+} ap
+test string-28.9 {tcl::prefix longest} {
+    tcl::prefix longest {apa bska appa} a
+} ap
+test string-28.10 {tcl::prefix longest} {
+    tcl::prefix longest {apa bska appa} {}
+} {}
+test string-28.11 {tcl::prefix longest} {
+    tcl::prefix longest {{} bska appa} {}
+} {}
+test string-28.12 {tcl::prefix longest} {
+    tcl::prefix longest {apa {} appa} {}
+} {}
+test string-28.13 {tcl::prefix longest} {
+    # Test UTF8 handling
+    tcl::prefix longest {ax\x90 bep ax\x91} a
+} ax
+
+testreport

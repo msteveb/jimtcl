@@ -44,6 +44,7 @@ options {
         readline  - Interface to libreadline
         rlprompt  - Tcl wrapper around the readline extension
         mk        - Interface to Metakit
+        tclprefix - Support for the tcl::prefix command
         sqlite    - Interface to sqlite
         sqlite3   - Interface to sqlite3
         win32     - Interface to win32
@@ -210,6 +211,7 @@ dict set extdb attrs {
     stdlib    { tcl static }
     syslog    { optional }
     tclcompat { tcl static }
+    tclprefix { optional full }
     tree      { tcl optional full }
     win32     { optional }
 }
