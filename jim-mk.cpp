@@ -1111,25 +1111,25 @@ static const jim_subcmd_type cursor_command_table[] = {
         cursor_cmd_get,
         1, -1,
         0,
-        "Get the whole record or a specific property at the cursor"
+        /*"Get the whole record or a specific property at the cursor"*/
     },
     {   "set", "cur [dict | ?-type? field value ?...?]",
         cursor_cmd_set,
         1, -1,
         0,
-        "Update the record at the cursor"
+        /*"Update the record at the cursor"*/
     },
     {   "insert", "cur ?count?",
         cursor_cmd_insert,
         1, 2,
         0,
-        "Insert a specified number of empty rows at the cursor (default 1)"
+        /*"Insert a specified number of empty rows at the cursor (default 1)"*/
     },
     {   "remove", "cur ?count?",
         cursor_cmd_remove,
         1, 2,
         0,
-        "Remove a specified number of rows at the cursor (default 1)"
+        /*"Remove a specified number of rows at the cursor (default 1)"*/
     },
 
     /* Attributes */
@@ -1138,7 +1138,7 @@ static const jim_subcmd_type cursor_command_table[] = {
         cursor_cmd_view,
         1, 1,
         0,
-        "Get the view the cursor points into"
+        /*"Get the view the cursor points into"*/
     },
 
     /* Positioning */
@@ -1147,25 +1147,25 @@ static const jim_subcmd_type cursor_command_table[] = {
         cursor_cmd_tell,
         1, 2,
         0,
-        "Get the position of the cursor"
+        /*"Get the position of the cursor"*/
     },
     {   "validfor", "?command? cur",
         cursor_cmd_validfor,
         1, 2,
         0,
-        "Checks if the cursor is valid for get (default), set or insert commands"
+        /*"Checks if the cursor is valid for get (default), set or insert commands"*/
     },
     {   "seek", "curVar index",
         cursor_cmd_seek,
         2, 2,
         0,
-        "Seek to the specified index in the view"
+        /*"Seek to the specified index in the view"*/
     },
     {   "incr", "curVar ?offset?",
         cursor_cmd_incr,
         1, 2,
         0,
-        "Move the cursor offset records from its current position (default 1)"
+        /*"Move the cursor offset records from its current position (default 1)"*/
     },
 
     { 0 }
@@ -1583,25 +1583,25 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_copy,
         0, 0,
         0,
-        "Create a copy of the view with exactly the same data"
+        /*"Create a copy of the view with exactly the same data"*/
     },
     {   "clone", "",
         view_cmd_clone,
         0, 0,
         0,
-        "Create an empty view with the same properties as this one"
+        /*"Create an empty view with the same properties as this one"*/
     },
     {   "unique", "",
         view_cmd_unique,
         0, 0,
         0,
-        "Derived view without any duplicate rows (read-only, no change notifications)"
+        /*"Derived view without any duplicate rows (read-only, no change notifications)"*/
     },
     {   "blocked", "",
         view_cmd_blocked,
         0, 0,
         0,
-        "Build a scalable \"blocked\" out of a view with a single subview property called _B"
+        /*"Build a scalable \"blocked\" out of a view with a single subview property called _B"*/
     },
 
     /* Binary operations */
@@ -1610,7 +1610,6 @@ static const jim_subcmd_type view_command_table[] = {
     {   #name, "otherView",     \
         view_cmd_##name,        \
         1, 1, 0,                \
-        descr                   \
     }
 
     BINOP(pair, "Pairwise concatenation of two views"),
@@ -1636,19 +1635,19 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_project,
         1, -1,
         0,
-        "View projection: only the specified properties, in the specified order"
+        /*"View projection: only the specified properties, in the specified order"*/
     },
     {   "without", "prop ?prop ...?",
         view_cmd_without,
         1, -1,
         0,
-        "View projection: remove the specified properties"
+        /*"View projection: remove the specified properties"*/
     },
     {   "range", "first last ?step?",
         view_cmd_range,
         2, 3,
         0,
-        "Range or slice of the view (read-write, no change notifications)"
+        /*"Range or slice of the view (read-write, no change notifications)"*/
     },
 
     /* Ordering */
@@ -1657,19 +1656,19 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_sort,
         0, -1,
         0,
-        "Derived view sorted on the specified properties (in order), or on all properties"
+        /*"Derived view sorted on the specified properties (in order), or on all properties"*/
     },
     {   "ordered", "prop ?prop ...?",
         view_cmd_ordered,
         1, -1,
         0,
-        "Consider the underlying view ordered on the specified properties"
+        /*"Consider the underlying view ordered on the specified properties"*/
     },
     {   "hash", "hashView prop ?prop ...?",
         view_cmd_hash,
         2, -1,
         0,
-        "Mapped view maintaining a hash table on the key consisting of the specified properties"
+        /*"Mapped view maintaining a hash table on the key consisting of the specified properties"*/
     },
 
     /* Relational operations */
@@ -1678,19 +1677,19 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_join,
         2, -1,
         0,
-        "Relational join with view on the specified properties"
+        /*"Relational join with view on the specified properties"*/
     },
     {   "group", "subviewName prop ?prop ...?",
         view_cmd_group,
         1, -1,
         0,
-        "Group rows with equal specified properties, move all other properties into subview"
+        /*"Group rows with equal specified properties, move all other properties into subview"*/
     },
     {   "flatten", "subviewProp",
         view_cmd_flatten,
         1, 1,
         0,
-        "Flatten the specified subview; the inverse of group"
+        /*"Flatten the specified subview; the inverse of group"*/
     },
 
     /* Attributes */
@@ -1699,25 +1698,25 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_properties,
         0, 0,
         0,
-        "List the properties in this view"
+        /*"List the properties in this view"*/
     },
     {   "size", "",
         view_cmd_size,
         0, 0,
         0,
-        "Return the number of records in the view"
+        /*"Return the number of records in the view"*/
     },
     {   "resize", "newSize",
         view_cmd_resize,
         1, 1,
         0,
-        "Set the number of records in the view"
+        /*"Set the number of records in the view"*/
     },
     {   "type", "?prop?",
         view_cmd_type,
         0, 1,
         0,
-        "Return the type of an existing property, or of all properties"
+        /*"Return the type of an existing property, or of all properties"*/
     },
 
     /* Lifetime management */
@@ -1726,19 +1725,19 @@ static const jim_subcmd_type view_command_table[] = {
         view_cmd_pin,
         0, 0,
         JIM_MODFLAG_FULLARGV,
-        "Marks the view as persistent"
+        /*"Marks the view as persistent"*/
     },
     {   "as", "varName",
         view_cmd_as,
         1, 1,
         JIM_MODFLAG_FULLARGV,
-        "Marks the view as persistent and assigns it to the given variable"
+        /*"Marks the view as persistent and assigns it to the given variable"*/
     },
     {   "destroy", "",
         view_cmd_destroy,
         0, 0,
         JIM_MODFLAG_FULLARGV,
-        "Destroys the view explicitly"
+        /*"Destroys the view explicitly"*/
     },
 
     { 0 }
@@ -2052,13 +2051,13 @@ static const jim_subcmd_type storage_command_table[] = {
         storage_cmd_autocommit,
         0, 1,
         0,
-        "Query or modify the auto-commit option of this storage"
+        /*"Query or modify the auto-commit option of this storage"*/
     },
     {   "readonly", "",
         storage_cmd_readonly,
         0, 0,
         0,
-        "Returns the read-only status of this storage"
+        /*"Returns the read-only status of this storage"*/
     },
 
     /* Views */
@@ -2067,19 +2066,19 @@ static const jim_subcmd_type storage_command_table[] = {
         storage_cmd_views,
         0, 0,
         0,
-        "Returns the list of views stored here"
+        /*"Returns the list of views stored here"*/
     },
     {   "view", "viewName",
         storage_cmd_view,
         1, -1,
         0,
-        "Retrieve the view specified by viewName"
+        /*"Retrieve the view specified by viewName"*/
     },
     {   "structure", "?viewName? ?description?",
         storage_cmd_structure,
         0, 2,
         0,
-        "Query or modify the structure of this storage"
+        /*"Query or modify the structure of this storage"*/
     },
 
     /* Store operations */
@@ -2088,19 +2087,19 @@ static const jim_subcmd_type storage_command_table[] = {
         storage_cmd_commit,
         0, 0,
         0,
-        "Commit the changes to disk"
+        /*"Commit the changes to disk"*/
     },
     {   "rollback", "",
         storage_cmd_rollback,
         0, 0,
         0,
-        "Revert to the saved state"
+        /*"Revert to the saved state"*/
     },
     {   "close", "",
         storage_cmd_close,
         0, 0,
         JIM_MODFLAG_FULLARGV,
-        "Close this storage"
+        /*"Close this storage"*/
     },
 
     { 0 }
