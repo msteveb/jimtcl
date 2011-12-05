@@ -157,10 +157,6 @@ tclprefix.so: jim-tclprefix.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-tclprefix.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-tclprefix.o $(SH_LIBJIM) @LDLIBS_tclprefix@
 
-sqlite.so: jim-sqlite.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite.o $(SH_LIBJIM) @LDLIBS_sqlite@
-
 sqlite3.so: jim-sqlite3.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite3.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite3.o $(SH_LIBJIM) @LDLIBS_sqlite3@

@@ -17,12 +17,12 @@ Basic usage
 The Sqlite extension exports an Object Based interface for databases. In order
 to open a database use:
 
-  set f [sqlite.open dbname]
+  set f [sqlite3.open dbname]
 
-The [sqlite.open] command returns a db handle, that is a command name that
+The [sqlite3.open] command returns a db handle, that is a command name that
 can be used to perform operations on the database. A real example:
 
-    . set db [sqlite.open test.db]
+    . set db [sqlite3.open test.db]
     sqlite.handle0
     . $db query "SELECT * from tbl1"
     {one hello! two 10} {one goodbye two 20}
@@ -101,7 +101,7 @@ For default this extension will use the empty string, but it is possible
 to specify a different string for the NULL value.
 
 In the above example there were two rows in the 'tbl1' table. Now
-we can add usign the "sqlite" command line client another one with
+we can add using the "sqlite" command line client another one with
 a NULL value:
 
     sqlite> INSERT INTO tbl1 VALUES(NULL,30);
@@ -163,8 +163,8 @@ In-memory DBs are used just like regular databases, just the name used to
 open the database is :memory:. That's an example that does not use the
 filesystem at all to create and work with the db.
 
-  package require sqlite
-  set db [sqlite.open :memory:]
+  package require sqlite3
+  set db [sqlite3.open :memory:]
   $db query {CREATE TABLE plays (id, author, title)}
   $db query {INSERT INTO plays (id, author, title) VALUES (1, 'Goethe', 'Faust');}
   $db query {INSERT INTO plays (id, author, title) VALUES (2, 'Shakespeare', 'Hamlet');}

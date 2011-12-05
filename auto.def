@@ -46,7 +46,6 @@ options {
         rlprompt  - Tcl wrapper around the readline extension
         mk        - Interface to Metakit
         tclprefix - Support for the tcl::prefix command
-        sqlite    - Interface to sqlite
         sqlite3   - Interface to sqlite3
         win32     - Interface to win32
     }
