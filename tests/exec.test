@@ -407,14 +407,16 @@ test exec-11.4 {commands in background} {
 
 exec sleep 3
 
-test exec-12.1 {reaping background processes} {
+test exec-12.1 {reaping background processes} -body {
     for {set i 0} {$i < 20} {incr i} {
 		exec echo foo > exec.tmp1 &
     }
     exec sleep 1
     catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg
     lindex $msg 0
-} 0
+} -cleanup {
+    file delete exec.tmp1
+} -result 0
 
 # Redirecting standard error separately from standard output
 
@@ -457,26 +459,27 @@ test exec-15.6 {standard error redirection} {
 	    >& gorp.file 2> gorp.file2 | echo biz baz
     list [exec cat gorp.file] [exec cat gorp.file2]
 } {{biz baz} {foo bar}}
-test exec-15.7 {combine standard output/standard error} {
-    exec sh -c "echo foo bar 1>&2" > gorp.file 2>@1 
+test exec-15.7 {combine standard output/standard error} -body {
+    exec sh -c "echo foo bar 1>&2" > gorp.file 2>@1
     exec cat gorp.file
-} {foo bar}
+} -cleanup {
+    file delete gorp.file gorp.file2
+} -result {foo bar}
 
-test exec-16.1 {flush output before exec} {
+test exec-16.1 {flush output before exec} -body {
     set f [open gorp.file w]
     puts $f "First line"
     exec echo "Second line" >@ $f
     puts $f "Third line"
     close $f
     exec cat gorp.file
-} {First line
+} -cleanup {
+    file delete gorp.file
+} -result {First line
 Second line
 Third line}
 
 # cleanup
-file delete script gorp.file gorp.file2
 file delete echo cat wc sh sleep exit
-file delete err
 
 testreport
-
