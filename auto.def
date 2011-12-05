@@ -26,6 +26,7 @@ options {
         exec      - Tcl-compatible exec command
         file      - Tcl-compatible file command
         glob      - Tcl-compatible glob command
+        history   - Tcl access to interactive history
         readdir   - Required for glob
         package   - Package management with the package command
         load      - Load binary extensions at runtime with load or package
@@ -195,6 +196,7 @@ dict set extdb attrs {
     exec      { static }
     file      {}
     glob      { tcl }
+    history   {}
     load      { static }
     mk        { cpp optional }
     oo        { tcl optional full }
