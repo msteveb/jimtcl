@@ -15,6 +15,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd tcl::prefix prefix
+testConstraint namespace [expr {[info commands namespace] ne ""}]
 
 test string-26.1 {tcl::prefix, too few args} -body {
     tcl::prefix match a
@@ -145,5 +146,11 @@ test string-28.13 {tcl::prefix longest} {
     # Test UTF8 handling
     tcl::prefix longest {ax\x90 bep ax\x91} a
 } ax
+
+test string-29.1 {tcl::prefix from another namespace} namespace {
+    namespace eval abc {
+        tcl::prefix longest {apa bepa cepa depa} cepa
+    }
+} cepa
 
 testreport
