@@ -11358,7 +11358,6 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         ScriptObj *incrScript;
         ExprByteCode *expr;
         jim_wide stop, currentVal;
-        unsigned jim_wide procEpoch;
         Jim_Obj *objPtr;
         int cmpOffset;
 
@@ -11411,7 +11410,6 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         }
 
         /* Initialization */
-        procEpoch = interp->procEpoch;
         varNamePtr = expr->token[0].objPtr;
         Jim_IncrRefCount(varNamePtr);
 
@@ -11441,11 +11439,6 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
             retval = Jim_EvalObj(interp, argv[4]);
             if (retval == JIM_OK || retval == JIM_CONTINUE) {
                 retval = JIM_OK;
-                /* If there was a change in procedures/command continue
-                 * with the usual [for] command implementation */
-                if (procEpoch != interp->procEpoch) {
-                    goto evalnext;
-                }
 
                 objPtr = Jim_GetVariable(interp, varNamePtr, JIM_ERRMSG);
 
