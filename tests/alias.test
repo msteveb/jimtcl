@@ -40,7 +40,7 @@ test alias-1.8 "Replace proc with alias" {
 test alias-1.9 "error message from alias" -body {
 	alias newstring string
 	newstring match
-} -returnCodes error -result {wrong # args: should be "newstring match ?-nocase? pattern string"}
+} -returnCodes error -result {wrong # args: should be "string match ?-nocase? pattern string"}
 
 test alias-1.10 "info alias" {
 	alias x info exists

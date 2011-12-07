@@ -558,8 +558,6 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
-    Jim_Obj *rewriteNameObj; /* Replaces the name of the current command for error reporting */
-    int rewriteNameCount; /* How many elements of the current command name to replace */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.

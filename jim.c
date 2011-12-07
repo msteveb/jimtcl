@@ -10241,10 +10241,6 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
     Jim_Obj *argmsg = Jim_NewStringObj(interp, "", 0);
     int i;
 
-    if (interp->rewriteNameObj) {
-        procNameObj = interp->rewriteNameObj;
-    }
-
     for (i = 0; i < cmd->u.proc.argListLen; i++) {
         Jim_AppendString(interp, argmsg, " ", 1);
 
@@ -10730,17 +10726,8 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
 void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *msg)
 {
     Jim_Obj *objPtr;
-    Jim_Obj *listObjPtr;
+    Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
 
-    if (interp->rewriteNameObj) {
-        argc -= interp->rewriteNameCount;
-        argv += interp->rewriteNameCount;
-        listObjPtr = Jim_NewListObj(interp, &interp->rewriteNameObj, 1);
-        ListInsertElements(listObjPtr, -1, argc, argv);
-    }
-    else {
-        listObjPtr = Jim_NewListObj(interp, argv, argc);
-    }
     if (*msg) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, msg, -1));
     }
@@ -12623,25 +12610,14 @@ static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 
 static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int retcode;
     Jim_Obj *cmdList;
     Jim_Obj *prefixListObj = Jim_CmdPrivData(interp);
-    Jim_Obj *saveRewriteNameObj = interp->rewriteNameObj;
-
-    interp->rewriteNameObj = argv[0];
-    interp->rewriteNameCount = Jim_ListLength(interp, prefixListObj);
 
     /* prefixListObj is a list to which the args need to be appended */
     cmdList = Jim_DuplicateObj(interp, prefixListObj);
     ListInsertElements(cmdList, -1, argc - 1, argv + 1);
-    Jim_IncrRefCount(cmdList);
 
-    retcode = JimEvalObjList(interp, cmdList);
-
-    Jim_DecrRefCount(interp, cmdList);
-    interp->rewriteNameObj = saveRewriteNameObj;
-
-    return retcode;
+    return JimEvalObjList(interp, cmdList);
 }
 
 static void JimAliasCmdDelete(Jim_Interp *interp, void *privData)
