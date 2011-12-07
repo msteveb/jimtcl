@@ -1132,7 +1132,10 @@ nextline:
 			if (*s == '\0') {
 				break;
 			}
-			s += utf8_charlen(*s);
+			else {
+				int c;
+				s += utf8_tounicode(s, &c);
+			}
 		}
 
 	/* Failure. */
