@@ -129,6 +129,10 @@ test utf8-7.3 {Upper, lower for titlecase utf-8} {
 	list [string toupper \u01c5] [string tolower \u01c5]
 } "\u01c4 \u01c6"
 
+test utf8-7.4 {Case folding may change encoded length} {
+	list [string bytelength \u0131] [string bytelength [string toupper \u0131]]
+} {2 1}
+
 test utf8-8.1 {Chars outside the BMP} jim {
 	string length \u{12000}\u{13000}
 } 2

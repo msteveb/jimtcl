@@ -2614,9 +2614,15 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     str = Jim_GetString(strObjPtr, &len);
 
+#ifdef JIM_UTF8
+    /* Case mapping can change the utf-8 length of the string.
+     * But at worst it will be by one extra byte per char
+     */
+    len *= 2;
+#endif
     buf = Jim_Alloc(len + 1);
     JimStrCopyUpperLower(buf, str, 0);
-    return Jim_NewStringObjNoAlloc(interp, buf, len);
+    return Jim_NewStringObjNoAlloc(interp, buf, -1);
 }
 
 static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
@@ -2631,9 +2637,15 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     str = Jim_GetString(strObjPtr, &len);
 
+#ifdef JIM_UTF8
+    /* Case mapping can change the utf-8 length of the string.
+     * But at worst it will be by one extra byte per char
+     */
+    len *= 2;
+#endif
     buf = Jim_Alloc(len + 1);
     JimStrCopyUpperLower(buf, str, 1);
-    return Jim_NewStringObjNoAlloc(interp, buf, len);
+    return Jim_NewStringObjNoAlloc(interp, buf, -1);
 }
 
 static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
@@ -2647,6 +2659,12 @@ static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
     if (len == 0) {
         return strObjPtr;
     }
+#ifdef JIM_UTF8
+    /* Case mapping can change the utf-8 length of the string.
+     * But at worst it will be by one extra byte per char
+     */
+    len *= 2;
+#endif
     buf = p = Jim_Alloc(len + 1);
 
     str += utf8_tounicode(str, &c);
@@ -2654,7 +2672,7 @@ static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
 
     JimStrCopyUpperLower(p, str, 0);
 
-    return Jim_NewStringObjNoAlloc(interp, buf, len);
+    return Jim_NewStringObjNoAlloc(interp, buf, -1);
 }
 
 /* Similar to memchr() except searches a UTF-8 string 'str' of byte length 'len'
