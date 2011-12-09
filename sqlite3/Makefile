@@ -6,7 +6,7 @@ SQLITE3_OPTS := -DSQLITE_OMIT_LOAD_EXTENSION=1 -DSQLITE_THREADSAFE=0 -DSQLITE_DE
 	-DSQLITE_ENABLE_STAT3 -DSQLITE_ENABLE_LOCKING_STYLE=0 -DSQLITE_OMIT_INCRBLOB
 
 sqlite3.so: jim-sqlite3.c sqlite3.c
-	./build-ext -o $@ -I.. -L.. $(SQLITE3_OPTS) $(BUILDOPTS) $^
+	./build-ext -Wall -o $@ -I.. -L.. $(SQLITE3_OPTS) $(BUILDOPTS) $^
 
 clean:
 	rm -f *.o *.so

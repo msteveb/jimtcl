@@ -27,6 +27,7 @@
 */
 #include <jim.h>
 #include <jim-config.h>
+#include <jim-eventloop.h>
 #include <errno.h>
 
 /*
