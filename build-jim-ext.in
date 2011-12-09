@@ -12,6 +12,16 @@ proc usage {{msg {}}} {
 	exit 1
 }
 
+proc readfile {filename {default_value ""}} {
+	set result $default_value
+	catch {
+		set f [open $filename]
+		set result [$f read -nonewline]
+		$f close
+	}
+	return $result
+}
+
 set linker "@CC@"
 set testmod 1
 set install 0
@@ -101,11 +111,19 @@ lappend includepaths -I@prefix@/include
 
 set CPPFLAGS "-D_GNU_SOURCE"
 
-if {"@JIM_STATICLIB@" eq "1" && !$static} {
-	puts stderr "Warning: libjim is static. Dynamic module may not work on some platforms.\n"
-	set ljim ""
-} else {
-	set ljim -ljim
+set ljim ""
+set shobj_cflags ""
+set shobj_ldflags ""
+if {!$static} {
+	set shobj_cflags "@SHOBJ_CFLAGS@"
+	if {"@JIM_STATICLIB@" eq "1"} {
+		puts stderr "Warning: libjim is static. Dynamic module may not work on some platforms.\n"
+		set shobj_ldflags "@SHOBJ_LDFLAGS@"
+	} else {
+		# If shared, link against the shared libjim to resolve symbols
+		set ljim -ljim
+		set shobj_ldflags "@SHOBJ_LDFLAGS_R@"
+	}
 }
 
 set objs {}
@@ -116,25 +134,34 @@ foreach source $sources {
 	} else {
 		set compiler "@CXX@"
 	}
-	if {$static} {
-		set shobj_cflags ""
-	} else {
-		set shobj_cflags "@SHOBJ_CFLAGS@"
-	}
 	set compile "$compiler @CFLAGS@ $CPPFLAGS $shobj_cflags $includepaths $opts -c -o $obj $source"
 	puts "Compile: $obj"
 	lappend objs $obj
+	flush stdout
 	set rc [catch {
-		exec {*}$compile
 		if {$verbose} {
+			puts $compile
+		}
+		exec 2>jimerr.out {*}$compile
+	} msg]
+
+	set errmsg [readfile jimerr.out]
+	file delete jimerr.out
+
+	if {$rc} {
+		if {!$verbose} {
 			puts stderr $compile
 		}
-	} msg]
-	if {$rc} {
-		puts stderr $compile
 		puts stderr $msg
+		if {$errmsg ne ""} {
+			puts stderr $errmsg
+		}
 		file delete {*}$objs
 		exit 1
+	} else {
+		if {$errmsg ne ""} {
+			puts $errmsg
+		}
 	}
 }
 
@@ -165,15 +192,18 @@ if {$static} {
 	# Add the standard location after any user lib paths
 	lappend libpaths -L@prefix@/lib
 
-	set link "$linker @CFLAGS@ @LDFLAGS@ @SHOBJ_LDFLAGS@ $libpaths $opts -o $target $objs $ljim @LIBS@ $libs"
+	set link "$linker @CFLAGS@ @LDFLAGS@ $shobj_ldflags $libpaths $opts -o $target $objs $ljim @LIBS@ $libs"
 
 	puts "Link:    $target"
 	set rc [catch {
-		exec {*}$link
 		if {$verbose} {
 			puts stderr $link
 		}
+		exec 2>jimerr.out {*}$link
 	} msg]
+
+	set errmsg [readfile jimerr.out]
+	file delete jimerr.out
 
 	if {!$keep} {
 		file delete {*}$objs
@@ -183,7 +213,13 @@ if {$static} {
 		file delete $target
 		puts stderr $link
 		puts stderr $msg
+		if {$errmsg ne ""} {
+			puts stderr $errmsg
+		}
 		exit 1
+	}
+	if {$errmsg ne ""} {
+		puts $errmsg
 	}
 
 	if {$testmod} {

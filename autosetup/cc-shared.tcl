@@ -9,7 +9,8 @@
 ## SH_CFLAGS         Flags to use compiling sources destined for a shared library
 ## SH_LDFLAGS        Flags to use linking a shared library
 ## SHOBJ_CFLAGS      Flags to use compiling sources destined for a shared object
-## SHOBJ_LDFLAGS     Flags to use linking a shared object
+## SHOBJ_LDFLAGS     Flags to use linking a shared object, undefined symbols allowed
+## SHOBJ_LDFLAGS_R   - as above, but all symbols must be resolved
 ## SH_LINKFLAGS      Flags to use linking an executable which will load shared objects
 ## LD_LIBRARY_PATH   Environment variable which specifies path to shared libraries
 
@@ -27,11 +28,13 @@ switch -glob -- [get-define host] {
 		define SH_LDFLAGS "-dynamiclib"
 		define SHOBJ_CFLAGS "-dynamic -fno-common"
 		define SHOBJ_LDFLAGS "-bundle -undefined dynamic_lookup"
+		define SHOBJ_LDFLAGS_R "-bundle"
 		define LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 	}
 	*-*-ming* {
 		define SH_LDFLAGS -shared
 		define SHOBJ_LDFLAGS -shared
+		define SHOBJ_LDFLAGS_R -shared
 	}
 	*-*-cygwin {
 		define SH_LDFLAGS -shared
@@ -68,4 +71,8 @@ switch -glob -- [get-define host] {
 		define SHOBJ_CFLAGS -fpic
 		define SHOBJ_LDFLAGS -shared
 	}
+}
+
+if {![is-defined SHOBJ_LDFLAGS_R]} {
+	define SHOBJ_LDFLAGS_R [get-define SHOBJ_LDFLAGS]
 }
