@@ -144,7 +144,7 @@ test util-5.7 {Tcl_StringMatch: UTF-8} {
 test util-5.8 {Tcl_StringMatch} {
     Wrapper_Tcl_StringMatch a?c abc
 } 1
-test util-5.9 {Tcl_StringMatch: UTF-8} {
+test util-5.9 {Tcl_StringMatch: UTF-8} utf8 {
     # skip one character in string
     Wrapper_Tcl_StringMatch a?c a\u4e4fc
 } 1
@@ -157,7 +157,7 @@ test util-5.11 {Tcl_StringMatch} {
 test util-5.12 {Tcl_StringMatch} {
     Wrapper_Tcl_StringMatch {[abc]bc} abc
 } 1
-test util-5.13 {Tcl_StringMatch: UTF-8} {
+test util-5.13 {Tcl_StringMatch: UTF-8} utf8 {
     # string += Tcl_UtfToUniChar(string, &ch);
     Wrapper_Tcl_StringMatch "\[\u4e4fxy\]bc" "\u4e4fbc"
 } 1
@@ -174,7 +174,7 @@ test util-5.15 {Tcl_StringMatch} {
 test util-5.16 {Tcl_StringMatch} {
     Wrapper_Tcl_StringMatch {a[abc]c} abc
 } 1
-test util-5.17 {Tcl_StringMatch: UTF-8} {
+test util-5.17 {Tcl_StringMatch: UTF-8} utf8 {
     # pattern += Tcl_UtfToUniChar(pattern, &endChar);
     # get 1 UTF-8 character
     Wrapper_Tcl_StringMatch "a\[a\u4e4fc]c" "a\u4e4fc"
@@ -198,10 +198,10 @@ test util-5.21 {Tcl_StringMatch} {
 test util-5.22 {Tcl_StringMatch: UTF-8 range} {
     Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "0"
 } 0
-test util-5.23 {Tcl_StringMatch: UTF-8 range} {
+test util-5.23 {Tcl_StringMatch: UTF-8 range} utf8 {
     Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "\u4e33"
 } 1
-test util-5.24 {Tcl_StringMatch: UTF-8 range} {
+test util-5.24 {Tcl_StringMatch: UTF-8 range} utf8 {
     Wrapper_Tcl_StringMatch "\[\u4e00-\u4e4f]" "\uff08"
 } 0
 test util-5.25 {Tcl_StringMatch} {
@@ -258,7 +258,7 @@ test util-5.41 {Tcl_StringMatch: skip correct number of ']'} {
 test util-5.42 {Tcl_StringMatch: skip correct number of ']'} {
     Wrapper_Tcl_StringMatch {[A-]]x} \ue1x
 } 0
-test util-5.43 {Tcl_StringMatch: skip correct number of ']'} {
+test util-5.43 {Tcl_StringMatch: skip correct number of ']'} utf8 {
     Wrapper_Tcl_StringMatch \[A-]\ue1]x \ue1x
 } 1
 test util-5.44 {Tcl_StringMatch: skip correct number of ']'} {
