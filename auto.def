@@ -14,7 +14,7 @@ options {
     maintainer      => {enable the [debug] command and JimPanic}
     full            => "Enable some optional features: ipv6, math, utf8, binary, oo, tree"
     with-jim-shared shared => "build a shared library instead of a static library"
-    jim-regexp      => "use the built-in (Tcl-compatible) regexp, even if POSIX regex is available"
+    jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
     with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
         Specify additional jim extensions to include.
         These are enabled by default:
@@ -184,13 +184,12 @@ define JIM_INSTALL [opt-bool install-jim]
 # tcl=Pure Tcl extension
 # static=Can't be built as a module
 # optional=Not selected by default
-# full=Select if the --full option is set
 # cpp=Is a C++ extension
 global extdb
 dict set extdb attrs {
     aio       { static }
     array     {}
-    binary    { tcl optional full }
+    binary    { tcl }
     clock     {}
     eventloop { static }
     exec      { static }
@@ -199,8 +198,8 @@ dict set extdb attrs {
     history   {}
     load      { static }
     mk        { cpp optional }
-    oo        { tcl optional full }
-    pack      { optional full }
+    oo        { tcl }
+    pack      {}
     package   { static }
     posix     {}
     readdir   {}
@@ -211,10 +210,10 @@ dict set extdb attrs {
     signal    { static }
     sqlite3   { optional }
     stdlib    { tcl static }
-    syslog    { optional }
+    syslog    {}
     tclcompat { tcl static }
-    tclprefix { optional full }
-    tree      { tcl optional full }
+    tclprefix {}
+    tree      { tcl }
     win32     { optional }
 }
 
@@ -261,7 +260,6 @@ global withinfo
 set withinfo(without) [join [opt-val {without-ext with-out-jim-ext}]]
 set withinfo(ext) [join [opt-val {with-ext with-jim-ext}]]
 set withinfo(mod) [join [opt-val {with-mod with-jim-extmod}]]
-set withinfo(full) [opt-bool full]
 set withinfo(nodefault) 0
 if {$withinfo(without) eq "default"} {
     set withinfo(without) {}
