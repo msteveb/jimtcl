@@ -1,0 +1,99 @@
+# Commands covered:  apply
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright (c) 2005-2006 Miguel Sofer
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+
+needs cmd apply
+needs cmd namespace
+
+# Tests for runtime errors in the lambda expression
+
+# Note: Jim doesn't have the concept of non-existent namespaces
+
+test apply-3.1 {non-existing namespace} -constraints tcl -body {
+    apply [list x {set x 1} ::NONEXIST::FOR::SURE] x
+} -returnCodes error -result {namespace "::NONEXIST::FOR::SURE" not found}
+test apply-3.2 {non-existing namespace} -constraints tcl -body {
+    namespace eval ::NONEXIST::FOR::SURE {}
+    set lambda [list x {set x 1} ::NONEXIST::FOR::SURE]
+    apply $lambda x
+    namespace delete ::NONEXIST
+    apply $lambda x
+} -returnCodes error -result {namespace "::NONEXIST::FOR::SURE" not found}
+test apply-3.3 {non-existing namespace} -constraints tcl -body {
+    apply [list x {set x 1} NONEXIST::FOR::SURE] x
+} -returnCodes error -result {namespace "::NONEXIST::FOR::SURE" not found}
+test apply-3.4 {non-existing namespace} -constraints tcl -body {
+    namespace eval ::NONEXIST::FOR::SURE {}
+    set lambda [list x {set x 1} NONEXIST::FOR::SURE]
+    apply $lambda x
+    namespace delete ::NONEXIST
+    apply $lambda x
+} -returnCodes error -result {namespace "::NONEXIST::FOR::SURE" not found}
+
+# Tests for correct namespace scope
+
+namespace eval ::testApply {
+    proc testApply args {return testApply}
+}
+
+test apply-7.1 {namespace access} {
+    set ::testApply::x 0
+    set body {set x 1; set x}
+    list [apply [list args $body ::testApply]] $::testApply::x
+} {1 0}
+test apply-7.2 {namespace access} {
+    set ::testApply::x 0
+    set body {variable x; set x}
+    list [apply [list args $body ::testApply]] $::testApply::x
+} {0 0}
+test apply-7.3 {namespace access} {
+    set ::testApply::x 0
+    set body {variable x; set x 1}
+    list [apply [list args $body ::testApply]] $::testApply::x
+} {1 1}
+test apply-7.4 {namespace access} {
+    set ::testApply::x 0
+    set body {testApply}
+    apply [list args $body ::testApply]
+} testApply
+test apply-7.5 {namespace access} {
+    set ::testApply::x 0
+    set body {set x 1; set x}
+    list [apply [list args $body testApply]] $::testApply::x
+} {1 0}
+test apply-7.6 {namespace access} {
+    set ::testApply::x 0
+    set body {variable x; set x}
+    list [apply [list args $body testApply]] $::testApply::x
+} {0 0}
+test apply-7.7 {namespace access} {
+    set ::testApply::x 0
+    set body {variable x; set x 1}
+    list [apply [list args $body testApply]] $::testApply::x
+} {1 1}
+test apply-7.8 {namespace access} {
+    set ::testApply::x 0
+    set body {testApply}
+    apply [list args $body testApply]
+} testApply
+
+namespace delete testApply
+
+testreport
+
+# Local Variables:
+# mode: tcl
+# fill-column: 78
+# End:

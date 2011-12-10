@@ -3588,9 +3588,32 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 
 #ifdef jim_ext_namespace
 /**
- * Qualifies 'name' with the current namespace if necessary and
- * returns the "unscoped" name (that is, without the leading ::).
- * The object stored in *objPtrPtr should be decremented after use.
+ * Returns the "unscoped" version of the given namespace.
+ * That is, the fully qualfied name without the leading ::
+ * The returned value is either nsObj, or an object with a zero ref count.
+ */
+static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
+{
+    const char *name = Jim_String(nsObj);
+    if (name[0] == ':' && name[1] == ':') {
+        /* This command is being defined in the global namespace */
+        while (*++name == ':') {
+        }
+        nsObj = Jim_NewStringObj(interp, name, -1);
+    }
+    else if (Jim_Length(interp->framePtr->nsObj)) {
+        /* This command is being defined in a non-global namespace */
+        nsObj = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
+        Jim_AppendStrings(interp, nsObj, "::", name, NULL);
+    }
+    return nsObj;
+}
+
+/**
+ * An efficient version of JimQualifyNameObj() where the name is
+ * available (and needed) as a 'const char *'.
+ * Avoids creating an object if not necessary.
+ * The object stored in *objPtrPtr should be disposed of with JimFreeQualifiedName() after use.
  */
 static const char *JimQualifyName(Jim_Interp *interp, const char *name, Jim_Obj **objPtrPtr)
 {
@@ -3611,7 +3634,9 @@ static const char *JimQualifyName(Jim_Interp *interp, const char *name, Jim_Obj 
     *objPtrPtr = objPtr;
     return name;
 }
+
     #define JimFreeQualifiedName(INTERP, OBJ) Jim_DecrRefCount((INTERP), (OBJ))
+
 #else
     /* We can be more efficient in the no-namespace case */
     #define JimQualifyName(INTERP, NAME, DUMMY) (((NAME)[0] == ':' && (NAME)[1] == ':') ? (NAME) + 2 : (NAME))
@@ -3754,18 +3779,12 @@ static void JimUpdateProcNamespace(Jim_Interp *interp, Jim_Cmd *cmdPtr, const ch
 #endif
 }
 
-static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdNameObj,
-    Jim_Obj *argListObjPtr, Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr)
+static Jim_Cmd *JimCreateProcedureCmd(Jim_Interp *interp, Jim_Obj *argListObjPtr,
+    Jim_Obj *staticsListObjPtr, Jim_Obj *bodyObjPtr, Jim_Obj *nsObj)
 {
     Jim_Cmd *cmdPtr;
     int argListLen;
     int i;
-    Jim_Obj *qualifiedCmdNameObj;
-    const char *cmdname;
-
-    if (JimValidName(interp, "procedure", cmdNameObj) != JIM_OK) {
-        return JIM_ERR;
-    }
 
     argListLen = Jim_ListLength(interp, argListObjPtr);
 
@@ -3779,7 +3798,7 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdNameObj,
     cmdPtr->u.proc.bodyObjPtr = bodyObjPtr;
     cmdPtr->u.proc.argsPos = -1;
     cmdPtr->u.proc.arglist = (struct Jim_ProcArg *)(cmdPtr + 1);
-    cmdPtr->u.proc.nsObj = interp->emptyObj;
+    cmdPtr->u.proc.nsObj = nsObj ? nsObj : interp->emptyObj;
     Jim_IncrRefCount(argListObjPtr);
     Jim_IncrRefCount(bodyObjPtr);
     Jim_IncrRefCount(cmdPtr->u.proc.nsObj);
@@ -3805,7 +3824,7 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdNameObj,
             Jim_SetResultString(interp, "argument with no name", -1);
 err:
             JimDecrCmdRefCount(interp, cmdPtr);
-            return JIM_ERR;
+            return NULL;
         }
         if (len > 2) {
             Jim_SetResultFormatted(interp, "too many fields in argument specifier \"%#s\"", argPtr);
@@ -3844,19 +3863,7 @@ err:
         cmdPtr->u.proc.arglist[i].defaultObjPtr = defaultObjPtr;
     }
 
-    /* Add the new command */
-    cmdname = JimQualifyName(interp, Jim_String(cmdNameObj), &qualifiedCmdNameObj);
-
-    JimCreateCommand(interp, cmdname, cmdPtr);
-
-    /* Calculate and set the namespace for this proc */
-    JimUpdateProcNamespace(interp, cmdPtr, cmdname);
-
-    JimFreeQualifiedName(interp, qualifiedCmdNameObj);
-
-    /* Unlike Tcl, set the name of the proc as the result */
-    Jim_SetResult(interp, cmdNameObj);
-    return JIM_OK;
+    return cmdPtr;
 }
 
 int Jim_DeleteCommand(Jim_Interp *interp, const char *name)
@@ -12839,17 +12846,41 @@ static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 /* [proc] */
 static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    Jim_Cmd *cmd;
+
     if (argc != 4 && argc != 5) {
         Jim_WrongNumArgs(interp, 1, argv, "name arglist ?statics? body");
         return JIM_ERR;
     }
 
+    if (JimValidName(interp, "procedure", argv[1]) != JIM_OK) {
+        return JIM_ERR;
+    }
+
     if (argc == 4) {
-        return JimCreateProcedure(interp, argv[1], argv[2], NULL, argv[3]);
+        cmd = JimCreateProcedureCmd(interp, argv[2], NULL, argv[3], NULL);
     }
     else {
-        return JimCreateProcedure(interp, argv[1], argv[2], argv[3], argv[4]);
+        cmd = JimCreateProcedureCmd(interp, argv[2], argv[3], argv[4], NULL);
     }
+
+    if (cmd) {
+        /* Add the new command */
+        Jim_Obj *qualifiedCmdNameObj;
+        const char *cmdname = JimQualifyName(interp, Jim_String(argv[1]), &qualifiedCmdNameObj);
+
+        JimCreateCommand(interp, cmdname, cmd);
+
+        /* Calculate and set the namespace for this proc */
+        JimUpdateProcNamespace(interp, cmd, cmdname);
+
+        JimFreeQualifiedName(interp, qualifiedCmdNameObj);
+
+        /* Unlike Tcl, set the name of the proc as the result */
+        Jim_SetResult(interp, argv[1]);
+        return JIM_OK;
+    }
+    return JIM_ERR;
 }
 
 /* [local] */
@@ -12910,6 +12941,59 @@ static int Jim_UpcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         return retcode;
     }
 }
+
+/* [apply] */
+static int Jim_ApplyCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "lambdaExpr ?arg ...?");
+        return JIM_ERR;
+    }
+    else {
+        int ret;
+        Jim_Cmd *cmd;
+        Jim_Obj *argListObjPtr;
+        Jim_Obj *bodyObjPtr;
+        Jim_Obj *nsObj = NULL;
+        Jim_Obj **nargv;
+
+        int len = Jim_ListLength(interp, argv[1]);
+        if (len != 2 && len != 3) {
+            Jim_SetResultFormatted(interp, "can't interpret \"%#s\" as a lambda expression", argv[1]);
+            return JIM_ERR;
+        }
+
+        if (len == 3) {
+#ifdef jim_ext_namespace
+            /* Need to canonicalise the given namespace. */
+            nsObj = JimQualifyNameObj(interp, Jim_ListGetIndex(interp, argv[1], 2));
+#else
+            Jim_SetResultString(interp, "namespaces not enabled", -1);
+            return JIM_ERR;
+#endif
+        }
+        argListObjPtr = Jim_ListGetIndex(interp, argv[1], 0);
+        bodyObjPtr = Jim_ListGetIndex(interp, argv[1], 1);
+
+        cmd = JimCreateProcedureCmd(interp, argListObjPtr, NULL, bodyObjPtr, nsObj);
+
+        if (cmd) {
+            /* Create a new argv array with a dummy argv[0], for error messages */
+            nargv = Jim_Alloc((argc - 2 + 1) * sizeof(*nargv));
+            nargv[0] = Jim_NewStringObj(interp, "apply lambdaExpr", -1);
+            Jim_IncrRefCount(nargv[0]);
+            memcpy(&nargv[1], argv + 2, (argc - 2) * sizeof(*nargv));
+            ret = JimCallProcedure(interp, cmd, argc - 2 + 1, nargv);
+            Jim_DecrRefCount(interp, nargv[0]);
+            Jim_Free(nargv);
+
+            JimDecrCmdRefCount(interp, cmd);
+            return ret;
+        }
+        return JIM_ERR;
+    }
+}
+
 
 /* [concat] */
 static int Jim_ConcatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -14744,6 +14828,7 @@ static const struct {
     {"tailcall", Jim_TailcallCoreCommand},
     {"local", Jim_LocalCoreCommand},
     {"upcall", Jim_UpcallCoreCommand},
+    {"apply", Jim_ApplyCoreCommand},
     {NULL, NULL},
 };
 

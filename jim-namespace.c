@@ -96,11 +96,13 @@ int Jim_CreateNamespaceVariable(Jim_Interp *interp, Jim_Obj *varNameObj, Jim_Obj
 {
     int rc;
     Jim_IncrRefCount(varNameObj);
+    Jim_IncrRefCount(targetNameObj);
 
     /* push non-namespace vars if in namespace eval? */
     rc  = Jim_SetVariableLink(interp, varNameObj, targetNameObj, interp->topFramePtr);
 
     Jim_DecrRefCount(interp, varNameObj);
+    Jim_DecrRefCount(interp, targetNameObj);
 
     return rc;
 }
