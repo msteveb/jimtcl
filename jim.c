@@ -3616,7 +3616,6 @@ static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
             Jim_DeleteHashEntry(&interp->commands, name);
         }
 
-        //printf("%s:%d add %s\n", __FILE__, __LINE__, cmdname);
         Jim_AddHashEntry(&interp->commands, name, cmd);
     }
     return JIM_OK;
