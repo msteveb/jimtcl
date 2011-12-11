@@ -3802,13 +3802,13 @@ static int JimCreateProcedure(Jim_Interp *interp, Jim_Obj *cmdNameObj,
         Jim_ListIndex(interp, argListObjPtr, i, &argPtr, JIM_NONE);
         len = Jim_ListLength(interp, argPtr);
         if (len == 0) {
-            Jim_SetResultString(interp, "procedure has argument with no name", -1);
+            Jim_SetResultString(interp, "argument with no name", -1);
 err:
             JimDecrCmdRefCount(interp, cmdPtr);
             return JIM_ERR;
         }
         if (len > 2) {
-            Jim_SetResultString(interp, "procedure has argument with too many fields", -1);
+            Jim_SetResultFormatted(interp, "too many fields in argument specifier \"%#s\"", argPtr);
             goto err;
         }
 
@@ -3826,7 +3826,7 @@ err:
 
         if (Jim_CompareStringImmediate(interp, nameObjPtr, "args")) {
             if (cmdPtr->u.proc.argsPos >= 0) {
-                Jim_SetResultString(interp, "procedure has 'args' specified more than once", -1);
+                Jim_SetResultString(interp, "'args' specified more than once", -1);
                 goto err;
             }
             cmdPtr->u.proc.argsPos = i;
