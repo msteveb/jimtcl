@@ -208,7 +208,7 @@ test dict-23.2 {dict unset command} -returnCodes error -body {
     dict unset dictVar a
 } -cleanup {
     unset dictVar
-} -result {invalid dictionary value: must be a list with an even number of elements}
+} -result {missing value to go with key}
 
 test dict-23.3 {dict unset command} -setup {
     unset -nocomplain dictVar
@@ -225,6 +225,6 @@ test dict-23.4 {dict unset command: write failure} -setup {
     dict unset dictVar a
 } -returnCodes error -cleanup {
     unset dictVar
-} -result {invalid dictionary value: must be a list with an even number of elements}
+} -result {missing value to go with key}
 
 testreport

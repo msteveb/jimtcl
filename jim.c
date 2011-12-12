@@ -6732,8 +6732,7 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     /* For simplicity, convert a non-list object to a list and then to a dict */
     listlen = Jim_ListLength(interp, objPtr);
     if (listlen % 2) {
-        Jim_SetResultString(interp,
-            "invalid dictionary value: must be a list with an even number of elements", -1);
+        Jim_SetResultString(interp, "missing value to go with key", -1);
         return JIM_ERR;
     }
     else {
@@ -6846,7 +6845,7 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
     ht = dictPtr->internalRep.ptr;
     if ((he = Jim_FindHashEntry(ht, keyPtr)) == NULL) {
         if (flags & JIM_ERRMSG) {
-            Jim_SetResultFormatted(interp, "key \"%#s\" not found in dictionary", keyPtr);
+            Jim_SetResultFormatted(interp, "key \"%#s\" not known in dictionary", keyPtr);
         }
         return JIM_ERR;
     }
@@ -10420,7 +10419,11 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
                 Jim_AppendString(interp, argmsg, "?", 1);
             }
             else {
-                Jim_AppendObj(interp, argmsg, cmd->u.proc.arglist[i].nameObjPtr);
+                const char *arg = Jim_String(cmd->u.proc.arglist[i].nameObjPtr);
+                if (*arg == '&') {
+                    arg++;
+                }
+                Jim_AppendString(interp, argmsg, arg, -1);
             }
         }
     }

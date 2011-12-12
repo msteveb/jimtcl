@@ -19,7 +19,7 @@ test tree-1.3 "Access invalid node" {
 	list [catch {
 		$pt depth bogus
 	} msg] $msg
-} {1 {key "bogus" not found in dictionary}}
+} {1 {key "bogus" not known in dictionary}}
 
 test tree-1.4 "Set key/value" {
 	$pt set root key value
