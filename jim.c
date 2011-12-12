@@ -14243,7 +14243,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
-    int result;
+    int result = 0;
 
     static const char * const options[] = {
         "-command", "-proc", "-alias", "-var", NULL
@@ -14290,9 +14290,6 @@ static int Jim_ExistsCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                 result = cmd->isproc;
                 break;
             }
-        }
-        else {
-            result = 0;
         }
     }
     Jim_SetResultBool(interp, result);

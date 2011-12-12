@@ -156,7 +156,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
             }
             else if (Jim_ListLength(interp, argv[2])) {
                 const char *longeststr = NULL;
-                int longestlen;
+                int longestlen = 0;
 
                 stringObj = argv[3];
 
