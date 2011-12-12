@@ -12,16 +12,18 @@ set c 0
 
 while {[gets $f buf] >= 0} {
 	if {[string match "~~*" $buf]} {
-		if {[string match "*:*" $prev]} {
+		if {[string match "*: *" $prev]} {
 			incr c
 			set target cmd_$c
 			set lines [linsert $lines end-1 "\[\[$target\]\]"]
+			set prevlist [split $prev ":, "]
 		} else {
-			set target _$prev
+			set target _[string map {:: _} $prev]
+			set prevlist [list $prev]
 		}
-		foreach cmd [split $prev ":,"] {
+		foreach cmd $prevlist {
 			set cmd [string trim $cmd]
-			if {[regexp {^[a-z.]+$} $cmd]} {
+			if {[regexp {^[a-z.:]+$} $cmd]} {
 				lappend commands [list $cmd $target]
 				set cdict($cmd) $target
 			}
