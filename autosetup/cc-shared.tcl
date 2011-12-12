@@ -52,6 +52,14 @@ switch -glob -- [get-define host] {
 		define SHOBJ_LDFLAGS -b
 		define LD_LIBRARY_PATH SHLIB_PATH
 	}
+	sparc* {
+		# sparc has a very small GOT table limit, so use -fPIC
+		define SH_LINKFLAGS -rdynamic
+		define SH_CFLAGS -fPIC
+		define SH_LDFLAGS -shared
+		define SHOBJ_CFLAGS -fPIC
+		define SHOBJ_LDFLAGS -shared
+	}
 	* {
 		# Generic Unix settings
 		define SH_LINKFLAGS -rdynamic
