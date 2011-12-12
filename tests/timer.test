@@ -23,38 +23,38 @@ test timer-1.1 {Tcl_CreateTimerHandler procedure} {
 	after cancel $i
     }
     set x ""
-    foreach i {100 200 1000 50 150} {
+    foreach i {20 40 200 10 30} {
 	after $i lappend x $i
     }
-    after 210
+    after 50
     update
     set x
-} {50 100 150 200}
+} {10 20 30 40}
 
 test timer-2.1 {Tcl_DeleteTimerHandler procedure} {
     foreach i [after info] {
 	after cancel $i
     }
     set x ""
-    foreach i {100 200 300 50 150} {
+    foreach i {20 40 60 10 30} {
 	after $i lappend x $i
     }
-    after cancel lappend x 150
-    after cancel lappend x 50
-    after 210
+    after cancel lappend x 60
+    after cancel lappend x 10
+    after 50
     update
     set x
-} {100 200}
+} {20 30 40}
 
 # No tests for Tcl_ServiceTimer or ResetTimer, since it is already tested
 # above.
 
 test timer-3.1 {TimerHandlerEventProc procedure: event masks} {
     set x start
-    after 100 { set x fired }
+    after 20 { set x fired }
     update idletasks
     set result $x
-    after 200
+    after 40
     update
     lappend result $x
 } {start fired}
@@ -62,42 +62,42 @@ test timer-3.2 {TimerHandlerEventProc procedure: multiple timers} {
     foreach i [after info] {
 	after cancel $i
     }
-    foreach i {200 600 1000} {
+    foreach i {40 120 200} {
 	after $i lappend x $i
     }
-    after 210
+    after 50
     set result ""
     set x ""
     update
     lappend result $x
-    after 400
+    after 80
     update
     lappend result $x
-    after 400
+    after 80
     update
     lappend result $x
-} {200 {200 600} {200 600 1000}}
+} {40 {40 120} {40 120 200}}
 test timer-3.3 {TimerHandlerEventProc procedure: reentrant timer deletion} {
     foreach i [after info] {
 	after cancel $i
     }
     set x {}
-    after 100 lappend x 100
-    set i [after 300 lappend x 300]
-    after 200 after cancel $i
-    after 400
+    after 20 lappend x 20
+    set i [after 60 lappend x 60]
+    after 40 after cancel $i
+    after 80
     update
     set x
-} 100
+} 20
 test timer-3.4 {TimerHandlerEventProc procedure: all expired timers fire} {
     foreach i [after info] {
 	after cancel $i
     }
     set x {}
-    after 100 lappend x a
-    after 200 lappend x b
-    after 300 lappend x c
-    after 310
+    after 20 lappend x a
+    after 40 lappend x b
+    after 60 lappend x c
+    after 70
     vwait x
     set x
 } {a b c}
@@ -106,8 +106,8 @@ test timer-3.5 {TimerHandlerEventProc procedure: reentrantly added timers don't 
 	after cancel $i
     }
     set x {}
-    after 100 {lappend x a; after 0 lappend x b}
-    after 100
+    after 20 {lappend x a; after 0 lappend x b}
+    after 20
     vwait x
     set x
 } a
@@ -116,8 +116,8 @@ test timer-3.6 {TimerHandlerEventProc procedure: reentrantly added timers don't 
 	after cancel $i
     }
     set x {}
-    after 100 {lappend x a; after 100 lappend x b; after 100}
-    after 100
+    after 20 {lappend x a; after 20 lappend x b; after 20}
+    after 20
     vwait x
     set result $x
     vwait x
@@ -181,21 +181,21 @@ test timer-6.3 {Tcl_AfterCmd procedure, basics} jim {
 } {1 {bad argument "gorp": must be cancel, idle, or info}}
 test timer-6.4 {Tcl_AfterCmd procedure, ms argument} {
     set x before
-    after 400 {set x after}
-    after 200
+    after 80 {set x after}
+    after 40
     update
     set y $x
-    after 400
+    after 80
     update
     list $y $x
 } {before after}
 test timer-6.5 {Tcl_AfterCmd procedure, ms argument} {
     set x before
-    after 300 {set x after}
-    after 200
+    after 60 {set x after}
+    after 40
     update
     set y $x
-    after 200
+    after 40
     update
     list $y $x
 } {before after}
@@ -213,9 +213,9 @@ test timer-6.9 {Tcl_AfterCmd procedure, cancel option} {
 	after cancel $i
     }
     set x before
-    set y [after 100 set x after]
+    set y [after 20 set x after]
     after cancel $y
-    after 200
+    after 40
     update
     set x
 } {before}
@@ -224,9 +224,9 @@ test timer-6.10 {Tcl_AfterCmd procedure, cancel option} {
 	after cancel $i
     }
     set x before
-    after 100 set x after
+    after 20 set x after
     after cancel set x after
-    after 200
+    after 40
     update
     set x
 } {before}
@@ -235,14 +235,14 @@ test timer-6.11 {Tcl_AfterCmd procedure, cancel option} {
 	after cancel $i
     }
     set x before
-    after 100 set x after
-    set id [after 300 set x after]
+    after 20 set x after
+    set id [after 60 set x after]
     after cancel $id
-    after 200
+    after 40
     update
     set y $x
     set x cleared
-    after 200
+    after 40
     update
     list $y $x
 } {after cleared}
@@ -277,7 +277,7 @@ test timer-6.14 {Tcl_AfterCmd procedure, cancel option, cancel during handler, u
 	after cancel $i
     }
     set id [
-	after 100 {
+	after 20 {
 	    set x done
 	    after cancel $id
 	}
@@ -301,8 +301,6 @@ test timer-6.18 {Tcl_AfterCmd procedure, idle option} {
     update idletasks
     list $y $x
 } {before after}
-set event1 [after idle event 1]
-set event2 [after 1000 event 2]
 
 test timer-6.23 {Tcl_AfterCmd procedure, no option, script with NULL} {
     foreach i [after info] {
@@ -410,7 +408,7 @@ test timer-8.1 {AfterProc procedure} {
     set x before
     proc foo {} {
 	set x untouched
-	after 100 {set x after}
+	after 20 {set x after}
 	after 200
 	update
 	return $x
@@ -423,7 +421,7 @@ test timer-8.2 {AfterProc procedure} {
 	set ::x $msg
     }
     set x empty
-    after 100 {error "After error"}
+    after 20 {error "After error"}
     after 200
     set y $x
     update

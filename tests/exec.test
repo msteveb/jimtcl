@@ -17,88 +17,21 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
 
-set f [open echo w]
-puts $f {
-    puts -nonewline [lindex $argv 0]
-    foreach str [lrange $argv 1 end] {
-	puts -nonewline " $str"
+# Sleep which supports fractions of a second
+if {[info commands sleep] eq {}} {
+    proc sleep {n} {
+	after [expr {int($n * 1000)}]
     }
-    puts {}
-    exit
 }
-close $f
 
-set f [open cat w]
+set f [open sleepx w]
+puts $f "#![info nameofexecutable]"
 puts $f {
-    if {$argv == {}} {
-	set argv -
-    }
-    foreach name $argv {
-	if {$name == "-"} {
-	    set f stdin
-	} elseif {[catch {open $name r} f] != 0} {
-	    puts stderr $f
-	    continue
-	}
-	while {[eof $f] == 0} {
-	    puts -nonewline [read $f]
-	}
-	if {$f != "stdin"} {
-	    close $f
-	}
-    }
-    exit
+    set seconds [lindex $argv 0]
+    after [expr {int($seconds * 1000)}]
 }
 close $f
-
-set f [open wc w]
-puts $f {
-    set data [read stdin]
-    set lines [regsub -all "\n" $data {} dummy]
-    set words [regsub -all "\[^ \t\n]+" $data {} dummy]
-    set chars [string length $data]
-    puts [format "%8.d%8.d%8.d" $lines $words $chars]
-    exit
-}
-close $f
-
-set f [open sh w]
-puts $f {
-    if {[lindex $argv 0] != "-c"} {
-	error "sh: unexpected arguments $argv"
-    }
-    set cmd [lindex $argv 1]
-    lappend cmd ";"
-
-    set newcmd {}
-    
-    foreach arg $cmd {
-	if {$arg == ";"} {
-	    eval exec >@stdout 2>@stderr [list [info nameofexecutable]] $newcmd
-	    set newcmd {}
-	    continue
-	}
-	if {$arg == "1>&2"} {
-	    set arg >@stderr
-	}
-	lappend newcmd $arg
-    }
-    exit
-}
-close $f
-
-set f [open sleep w]
-puts $f {
-    after [expr $argv*100]
-    exit
-}
-close $f
-
-set f [open exit w]
-puts $f {
-    exit $argv
-}
-close $f
+catch {exec chmod +x sleepx}
 
 # Basic operations.
 
@@ -303,7 +236,7 @@ test exec-9.2 {commands returning errors} {
     catch {exec echo foo | foo123} msg
 } {1}
 test exec-9.3 {commands returning errors} {
-    list [catch {exec sleep 1 | false | sleep 1} msg]
+    list [catch {exec ./sleepx 0.1 | false | ./sleepx 0.1} msg]
 } {1}
 test exec-9.4 {commands returning errors} jim {
     list [catch {exec false | echo "foo bar"} msg] $msg
@@ -317,7 +250,7 @@ test exec-9.6 {commands returning errors} jim {
 test exec-9.7 {commands returning errors} jim {
     # Note: Use sleep here to ensure the order
     list [catch {exec sh -c "echo error msg 1 1>&2" \
-		     | sh -c "sleep 1; echo error msg 2 1>&2"} msg] $msg
+		     | sh -c "sleep 0.1; echo error msg 2 1>&2"} msg] $msg
 } {0 {error msg 1
 error msg 2}}
 
@@ -389,29 +322,29 @@ close $f
 # Commands in background.
 
 test exec-11.1 {commands in background} {
-    set x [lindex [time {exec sleep 2 &}] 0]
+    set x [lindex [time {exec ./sleepx 0.2 &}] 0]
     expr $x<1000000
 } 1
 test exec-11.2 {commands in background} {
     list [catch {exec echo a &b} msg] $msg
 } {0 {a &b}}
 test exec-11.3 {commands in background} {
-    llength [exec sleep 1 &]
+    llength [exec ./sleepx 0.1 &]
 } 1
 test exec-11.4 {commands in background} {
-    llength [exec sleep 1 | sleep 1 | sleep 1 &]
+    llength [exec ./sleepx 0.1 | ./sleepx 0.1 | ./sleepx 0.1 &]
 } 3
 
 # Make sure that background commands are properly reaped when
 # they eventually die.
 
-exec sleep 3
+exec ./sleepx 0.3
 
 test exec-12.1 {reaping background processes} -body {
     for {set i 0} {$i < 20} {incr i} {
 		exec echo foo > exec.tmp1 &
     }
-    exec sleep 1
+    exec ./sleepx 0.1
     catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg
     lindex $msg 0
 } -cleanup {
@@ -479,7 +412,6 @@ test exec-16.1 {flush output before exec} -body {
 Second line
 Third line}
 
-# cleanup
-file delete echo cat wc sh sleep exit
+file delete sleepx
 
 testreport
