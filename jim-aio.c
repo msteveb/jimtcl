@@ -1037,9 +1037,11 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 
     if (fh == NULL) {
         JimAioSetError(interp, filename);
+#if !defined(JIM_ANSIC)
         if (fd >= 0) {
             close(fd);
         }
+#endif
         Jim_DecrRefCount(interp, filename);
         return JIM_ERR;
     }
