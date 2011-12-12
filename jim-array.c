@@ -151,6 +151,16 @@ static int array_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int array_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
+    if (objPtr) {
+        return Jim_DictInfo(interp, objPtr);
+    }
+	Jim_SetResultFormatted(interp, "\"%#s\" isn't an array", argv[0], NULL);
+	return JIM_ERR;
+}
+
 static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int i;
@@ -221,6 +231,13 @@ static const jim_subcmd_type array_command_table[] = {
                 1,
                 1,
                 /* Description: Number of elements in array */
+        },
+        {       "stat",
+                "arrayName",
+                array_cmd_stat,
+                1,
+                1,
+                /* Description: Print statistics about an array */
         },
         {       "unset",
                 "arrayName ?pattern?",

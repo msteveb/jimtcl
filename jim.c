@@ -14125,17 +14125,61 @@ int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
     return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
 }
 
+int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+	Jim_HashTable *ht;
+    unsigned int i;
+
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+	ht = (Jim_HashTable *)objPtr->internalRep.ptr;
+
+	/* Note that this uses internal knowledge of the hash table */
+	printf("%d entries in table, %d buckets\n", ht->used, ht->size);
+
+    for (i = 0; i < ht->size; i++) {
+        Jim_HashEntry *he = he = ht->table[i];
+
+		if (he) {
+			printf("%d: ", i);
+
+			while (he) {
+				printf(" %s", Jim_String(he->key));
+				he = he->next;
+			}
+			printf("\n");
+		}
+    }
+	return JIM_OK;
+}
+
+static int Jim_EvalEnsemble(Jim_Interp *interp, const char *basecmd, const char *subcmd, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *prefixObj = Jim_NewStringObj(interp, basecmd, -1);
+
+    Jim_AppendString(interp, prefixObj, " ", 1);
+    Jim_AppendString(interp, prefixObj, subcmd, -1);
+
+    return Jim_EvalObjPrefix(interp, prefixObj, argc, argv);
+}
+
 /* [dict] */
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
     int option;
     static const char * const options[] = {
-        "create", "get", "set", "unset", "exists", "keys", "merge", "size", "with", NULL
+        "create", "get", "set", "unset", "exists", "keys", "size", "info",
+        "merge", "with", "append", "lappend", "incr", "remove", "values", "for",
+        "replace", "update", NULL
     };
     enum
     {
-        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXIST, OPT_KEYS, OPT_MERGE, OPT_SIZE, OPT_WITH,
+        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXISTS, OPT_KEYS, OPT_SIZE, OPT_INFO,
+        OPT_MERGE, OPT_WITH, OPT_APPEND, OPT_LAPPEND, OPT_INCR, OPT_REMOVE, OPT_VALUES, OPT_FOR,
+        OPT_REPLACE, OPT_UPDATE,
     };
 
     if (argc < 2) {
@@ -14150,7 +14194,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     switch (option) {
         case OPT_GET:
             if (argc < 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName ?key ...?");
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?key ...?");
                 return JIM_ERR;
             }
             if (Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3, &objPtr,
@@ -14167,67 +14211,64 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
             return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 4, argv[argc - 1], JIM_ERRMSG);
 
-        case OPT_EXIST:
-            if (argc < 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName ?key ...?");
+        case OPT_EXISTS:
+            if (argc < 4) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary key ?key ...?");
                 return JIM_ERR;
             }
-            Jim_SetResultBool(interp, Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3,
-                    &objPtr, JIM_ERRMSG) == JIM_OK);
-            return JIM_OK;
+            else {
+                int rc = Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3, &objPtr, JIM_ERRMSG);
+                if (rc < 0) {
+                    return JIM_ERR;
+                }
+                Jim_SetResultBool(interp,  rc == JIM_OK);
+                return JIM_OK;
+            }
 
         case OPT_UNSET:
             if (argc < 4) {
                 Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...?");
                 return JIM_ERR;
             }
-            return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL, JIM_NONE);
+            if (Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL, 0) != JIM_OK) {
+                return JIM_ERR;
+            }
+            return JIM_OK;
 
         case OPT_KEYS:
             if (argc != 3 && argc != 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?pattern?");
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?pattern?");
                 return JIM_ERR;
             }
             return Jim_DictKeys(interp, argv[2], argc == 4 ? argv[3] : NULL);
 
-        case OPT_SIZE: {
-            int size;
-
+        case OPT_SIZE:
             if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictVar");
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary");
                 return JIM_ERR;
             }
-
-            size = Jim_DictSize(interp, argv[2]);
-            if (size < 0) {
+            else if (Jim_DictSize(interp, argv[2]) < 0) {
                 return JIM_ERR;
             }
-            Jim_SetResultInt(interp, size);
+            Jim_SetResultInt(interp, Jim_DictSize(interp, argv[2]));
             return JIM_OK;
-        }
 
         case OPT_MERGE:
             if (argc == 2) {
                 return JIM_OK;
             }
-            else if (SetDictFromAny(interp, argv[2]) != JIM_OK) {
+            if (Jim_DictSize(interp, argv[2]) < 0) {
                 return JIM_ERR;
             }
-            else {
-                return Jim_EvalPrefix(interp, "dict merge", argc - 2, argv + 2);
-            }
+            /* Handle as ensemble */
+            break;
 
-        case OPT_WITH:
-            if (argc < 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?key ...? script");
-                return JIM_ERR;
+        case OPT_UPDATE:
+            if (argc < 6 || argc % 2) {
+                /* Better error message */
+                argc = 2;
             }
-            else if (Jim_GetVariable(interp, argv[2], JIM_ERRMSG) == NULL) {
-                return JIM_ERR;
-            }
-            else {
-                return Jim_EvalPrefix(interp, "dict with", argc - 2, argv + 2);
-            }
+            break;
 
         case OPT_CREATE:
             if (argc % 2) {
@@ -14237,8 +14278,16 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             objPtr = Jim_NewDictObj(interp, argv + 2, argc - 2);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
+
+        case OPT_INFO:
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary");
+                return JIM_ERR;
+            }
+			return Jim_DictInfo(interp, argv[2]);
     }
-    return JIM_ERR;
+    /* Handle command as an ensemble */
+    return Jim_EvalEnsemble(interp, "dict", options[option], argc - 2, argv + 2);
 }
 
 /* [subst] */
@@ -14300,7 +14349,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     { INFO_BODY, INFO_STATICS, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
         INFO_FRAME, INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
         INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
-        INFO_RETURNCODES, INFO_REFERENCES, INFO_ALIAS
+        INFO_RETURNCODES, INFO_REFERENCES, INFO_ALIAS,
     };
 
 #ifdef jim_ext_namespace

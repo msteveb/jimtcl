@@ -93,21 +93,42 @@ proc {info nameofexecutable} {} {
 }
 
 # Script-based implementation of 'dict with'
-proc {dict with} {dictVar args script} {
-	upvar $dictVar dict
+proc {dict with} {&dictVar {args key} script} {
 	set keys {}
-	foreach {n v} [dict get $dict {*}$args] {
+	foreach {n v} [dict get $dictVar {*}$key] {
 		upvar $n var_$n
 		set var_$n $v
 		lappend keys $n
 	}
 	catch {uplevel 1 $script} msg opts
-	if {[info exists dict] && [dict exists $dict {*}$args]} {
+	if {[info exists dictVar] && ([llength $key] == 0 || [dict exists $dictVar {*}$key])} {
 		foreach n $keys {
 			if {[info exists var_$n]} {
-				dict set dict {*}$args $n [set var_$n]
+				dict set dictVar {*}$key $n [set var_$n]
 			} else {
-				dict unset dict {*}$args $n
+				dict unset dictVar {*}$key $n
+			}
+		}
+	}
+	return {*}$opts $msg
+}
+
+# Script-based implementation of 'dict update'
+proc {dict update} {&varName args script} {
+	set keys {}
+	foreach {n v} $args {
+		upvar $v var_$v
+		if {[dict exists $varName $n]} {
+			set var_$v [dict get $varName $n]
+		}
+	}
+	catch {uplevel 1 $script} msg opts
+	if {[info exists varName]} {
+		foreach {n v} $args {
+			if {[info exists var_$v]} {
+				dict set varName $n [set var_$v]
+			} else {
+				dict unset varName $n
 			}
 		}
 	}
@@ -125,4 +146,63 @@ proc {dict merge} {dict args} {
 		}
 	}
 	return $dict
+}
+
+proc {dict replace} {dictionary {args {key value}}} {
+	if {[llength ${key value}] % 2} {
+		tailcall {dict replace}
+	}
+	tailcall dict merge $dictionary ${key value}
+}
+
+# Script-based implementation of 'dict lappend'
+proc {dict lappend} {varName key {args value}} {
+	upvar $varName dict
+	if {[exists dict] && [dict exists $dict $key]} {
+		set list [dict get $dict $key]
+	}
+	lappend list {*}$value
+	dict set dict $key $list
+}
+
+# Script-based implementation of 'dict append'
+proc {dict append} {varName key {args value}} {
+	upvar $varName dict
+	if {[exists dict] && [dict exists $dict $key]} {
+		set str [dict get $dict $key]
+	}
+	append str {*}$value
+	dict set dict $key $str
+}
+
+# Script-based implementation of 'dict incr'
+proc {dict incr} {varName key {increment 1}} {
+	upvar $varName dict
+	if {[exists dict] && [dict exists $dict $key]} {
+		set value [dict get $dict $key]
+	}
+	incr value $increment
+	dict set dict $key $value
+}
+
+# Script-based implementation of 'dict remove'
+proc {dict remove} {dictionary {args key}} {
+	foreach k $key {
+		dict unset dictionary $k
+	}
+	return $dictionary
+}
+
+# Script-based implementation of 'dict values'
+proc {dict values} {dictionary {pattern *}} {
+	dict keys [lreverse $dictionary] $pattern
+}
+
+# Script-based implementation of 'dict for'
+proc {dict for} {vars dictionary script} {
+	if {[llength $vars] != 2} {
+		return -code error "must have exactly two variable names"
+	}
+	dict size $dictionary
+	tailcall foreach $vars $dictionary $script
 }

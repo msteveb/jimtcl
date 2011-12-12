@@ -60,6 +60,7 @@ Changes between 0.74 and 0.75
 5. Add support for half-close with `aio close` ?r|w?
 6. Add `socket pair` for a bidirectional pipe
 7. Add --random-hash to randomise hash tables for greater security
+8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1969,6 +1970,8 @@ command.  The legal +'options'+ are:
     `dict with` will continue to exist after the command finishes (unless
     explicitly unset). Note that changes to the contents of +'dictionaryName'+
     only happen when +'script'+ terminates.
+
++*dict for, values, incr, append, lappend, update, info, replace*+ to be documented...
 
 env
 ~~~
