@@ -736,7 +736,7 @@ Jim Tcl(n) Manual Page
 <h2>NAME</h2>
 <div class="sectionbody">
 <p>Jim Tcl v0.73 -
-   overview of the Jim tool command language facilities
+   reference manual for the Jim Tcl scripting language
 </p>
 </div>
 </div>
@@ -782,15 +782,11 @@ jimsh --version</tt></pre>
 <div class="sect1">
 <h2 id="_introduction">INTRODUCTION</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Jim is a reimplementation of Tcl, combining some features from
-earlier, smaller versions of Tcl (6.x) as well as more modern
-features from later versions of Tcl (7.x, 8.x). It also has some some
-entirely new features not available in any version of Tcl.</p></div>
-<div class="paragraph"><p>This version is about double the size of "tinytcl" (6.8), depending upon
-the features selected, but is significantly faster and has many new features.</p></div>
-<div class="paragraph"><p>Note that most of this man page is the original 6.8 Tcl man page, with
-changes made for differences with Jim.</p></div>
-<div class="paragraph"><p>The major differences with Tcl 8.5/8.6 are:</p></div>
+<div class="paragraph"><p>Jim Tcl is a small footprint reimplementation of the Tcl scripting language.
+The core language engine is compatible with Tcl 8.5+, while implementing
+a significant subset of the Tcl 8.6 command set, plus additional features
+available only in Jim Tcl.</p></div>
+<div class="paragraph"><p>Some notable differences with Tcl 8.5/8.6 are:</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
@@ -824,7 +820,7 @@ Builtin dictionary type (<a href="#_dict"><strong><tt>dict</tt></strong></a>) wi
 </li>
 <li>
 <p>
-<a href="#cmd_1"><strong><tt>os.fork</tt></strong></a>, <a href="#cmd_1"><strong><tt>os.wait</tt></strong></a>, <a href="#cmd_1"><strong><tt>os.uptime</tt></strong></a>, <a href="#_rand"><strong><tt>rand</tt></strong></a>
+Operating system features: <a href="#cmd_1"><strong><tt>os.fork</tt></strong></a>, <a href="#cmd_1"><strong><tt>os.wait</tt></strong></a>, <a href="#cmd_1"><strong><tt>os.uptime</tt></strong></a>, <a href="#_signal"><strong><tt>signal</tt></strong></a>, <a href="#_alarm"><strong><tt>alarm</tt></strong></a>, <a href="#_sleep"><strong><tt>sleep</tt></strong></a>
 </p>
 </li>
 <li>
@@ -839,7 +835,7 @@ Support for "static" variables in procedures
 </li>
 <li>
 <p>
-Namespaces, threads and coroutines are not support
+Threads and coroutines are not supported
 </p>
 </li>
 <li>
@@ -849,12 +845,27 @@ Command and variable traces are not supported
 </li>
 <li>
 <p>
-Direct command line editing rather than the <tt>history</tt> command
+Built-in command line editing
 </p>
 </li>
 <li>
 <p>
 Expression shorthand syntax: <tt>$(&#8230;)</tt>
+</p>
+</li>
+<li>
+<p>
+Modular build allows many features to be omitted or built as dynamic, loadable modules
+</p>
+</li>
+<li>
+<p>
+Highly suitable for use in an embedded environment
+</p>
+</li>
+<li>
+<p>
+Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 </p>
 </li>
 </ol></div>
@@ -899,6 +910,36 @@ Add <tt>build-jim-ext</tt> for easy separate building of loadable modules (exten
 <li>
 <p>
 Add <a href="#_info"><strong><tt>info</tt></strong></a> <tt>alias</tt> to access the target of an alias
+</p>
+</li>
+<li>
+<p>
+UTF-8 encoding past the basic multilingual plane (BMP) is supported
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_tcl_prefix"><strong><tt>tcl::prefix</tt></strong></a>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_history"><strong><tt>history</tt></strong></a>
+</p>
+</li>
+<li>
+<p>
+Most extensions are now enabled by default
+</p>
+</li>
+<li>
+<p>
+Add support for namespaces and the <a href="#_namespace"><strong><tt>namespace</tt></strong></a> command
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_apply"><strong><tt>apply</tt></strong></a>
 </p>
 </li>
 </ol></div>
@@ -1158,9 +1199,9 @@ those commands and prints the results.</p></div>
 <div class="literalblock">
 <div class="content">
 <pre><tt>$ jimsh
-Welcome to Jim version 0.71, Copyright (c) 2005-8 Salvatore Sanfilippo
+Welcome to Jim version 0.73, Copyright (c) 2005-8 Salvatore Sanfilippo
 . info version
-0.71
+0.73
 . lsort [info commands p*]
 package parray pid popen proc puts pwd
 . foreach i {a b c} {
@@ -1609,7 +1650,7 @@ sequence is replaced by the given character:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>\'ddd'</tt>
+<tt>\ddd</tt>
 </dt>
 <dd>
 <p>
@@ -1618,12 +1659,21 @@ sequence is replaced by the given character:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt>\'unnnn'</tt>
+<tt>\unnnn</tt>
+</dt>
+<dt class="hdlist1">
+<tt>\u{nnn}</tt>
+</dt>
+<dt class="hdlist1">
+<tt>\Unnnnnnnn</tt>
 </dt>
 <dd>
 <p>
-    The hex digits <tt><em>nnnn</em></tt> (between one and four of them) give a unicode codepoint.
-    The UTF-8 encoding of the codepoint is inserted.
+    The UTF-8 encoding of the unicode codepoint represented by the hex digits, <tt><em>nnnn</em></tt>, is inserted.
+    The <em>u</em> form allows for one to four hex digits.
+    The <em>U</em> form allows for one to eight hex digits.
+    The <em>u{nnn}</em> form allows for one to eight hex digits, but makes it easier to insert
+    characters UTF-8 characters which are followed by a hex digit.
 </p>
 </dd>
 </dl></div>
@@ -2608,8 +2658,8 @@ is no variable with the same name in the enclosing scope). However <tt><em>b</em
 has an initialiser, so it is initialised to 2.</p></div>
 <div class="paragraph"><p>Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.</p></div>
-<div class="paragraph"><p>See the <a href="#_proc"><strong><tt>proc</tt></strong></a> command for information on
-how to define procedures and what happens when they are invoked.</p></div>
+<div class="paragraph"><p>See the <a href="#_proc"><strong><tt>proc</tt></strong></a> command for information on how to define procedures
+and what happens when they are invoked. See also NAMESPACES.</p></div>
 </div>
 </div>
 </div>
@@ -2769,6 +2819,18 @@ jim&gt; dict set a 3 T three
 </div>
 </div>
 <div class="sect1">
+<h2 id="_namespaces">NAMESPACES</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Tcl added namespaces as a mechanism avoiding name clashes, especially in applications
+including a number of 3rd party components. While there is less need for namespaces
+in Jim Tcl (which does not strive to support large applications), it is convenient to
+provide a subset of the support for namespaces to easy porting code from Tcl.</p></div>
+<div class="paragraph"><p>Jim Tcl currently supports "light-weight" namespaces which should be adequate for most
+purposes. This feature is currently experimental. See README.namespaces for more information
+and the documentation of the <a href="#_namespace"><strong><tt>namespace</tt></strong></a> command.</p></div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_garbage_collection_references_lambda">GARBAGE COLLECTION, REFERENCES, LAMBDA</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>Unlike Tcl, Jim has some sophisticated support for functional programming.
@@ -2872,8 +2934,9 @@ characters can take a variable number of bytes. Thus the addition of
 while <a href="#_string"><strong><tt>string</tt></strong></a> <tt>length</tt> returns the number of characters.</p></div>
 <div class="paragraph"><p>If UTF-8 support is not enabled, all commands treat bytes as characters
 and <a href="#_string"><strong><tt>string</tt></strong></a> <tt>bytelength</tt> returns the same value as <a href="#_string"><strong><tt>string</tt></strong></a> <tt>length</tt>.</p></div>
-<div class="paragraph"><p>Note that even if UTF-8 support is not enabled, the <tt>\uNNNN</tt> syntax
+<div class="paragraph"><p>Note that even if UTF-8 support is not enabled, the <tt>\uNNNN</tt> and related syntax
 is still available to embed UTF-8 sequences.</p></div>
+<div class="paragraph"><p>Jim Tcl supports all currently defined unicode codepoints. That is 21 bits, up to +<em>U+1FFFFF</em>.</p></div>
 <div class="sect2">
 <h3 id="_string_matching">String Matching</h3>
 <div class="paragraph"><p>Commands such as <a href="#_string"><strong><tt>string</tt></strong></a> <tt>match</tt>, <a href="#_lsearch"><strong><tt>lsearch</tt></strong></a> <tt>-glob</tt>, <a href="#_array"><strong><tt>array</tt></strong></a> <tt>names</tt> and others use string
@@ -2918,10 +2981,11 @@ will return 0, even though the string may be considered to be alphabetic.</p></d
 <div class="sect2">
 <h3 id="_case_mapping_and_conversion">Case Mapping and Conversion</h3>
 <div class="paragraph"><p>Jim provides a simplified unicode case mapping. This means that case conversion
-and comparison will not increase or decrease the number of characters in a string.</p></div>
+and comparison will not increase or decrease the number of characters in a string.
+(Although it may change the number of bytes).</p></div>
 <div class="paragraph"><p><a href="#_string"><strong><tt>string</tt></strong></a> <tt>toupper</tt> will convert any lowercase letters to their uppercase equivalent.
 Any character which is not a letter or has no uppercase equivalent is left unchanged.
-Similarly for <a href="#_string"><strong><tt>string</tt></strong></a> <tt>tolower</tt>.</p></div>
+Similarly for <a href="#_string"><strong><tt>string</tt></strong></a> <tt>tolower</tt> and <a href="#_string"><strong><tt>string</tt></strong></a> <tt>totitle</tt>.</p></div>
 <div class="paragraph"><p>Commands which perform case insensitive matches, such as <a href="#_string"><strong><tt>string</tt></strong></a> <tt>compare -nocase</tt>
 and <a href="#_lsearch"><strong><tt>lsearch</tt></strong></a> <tt>-nocase</tt> fold both strings to uppercase before comparison.</p></div>
 </div>
@@ -2983,11 +3047,12 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_alarm"><strong><tt>alarm</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_alias"><strong><tt>alias</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_append"><strong><tt>append</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_apply"><strong><tt>apply</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_array"><strong><tt>array</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_binary"><strong><tt>binary</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_break"><strong><tt>break</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_break"><strong><tt>break</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_case"><strong><tt>case</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_catch"><strong><tt>catch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_cd"><strong><tt>cd</tt></strong></a></p></td>
@@ -2995,9 +3060,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_clock"><strong><tt>clock</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_close"><strong><tt>close</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_collect"><strong><tt>collect</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_concat"><strong><tt>concat</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_concat"><strong><tt>concat</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_continue"><strong><tt>continue</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_curry"><strong><tt>curry</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_dict"><strong><tt>dict</tt></strong></a></p></td>
@@ -3005,9 +3070,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_eof"><strong><tt>eof</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_error"><strong><tt>error</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eval"><strong><tt>eval</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>eventloop</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>eventloop</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exec"><strong><tt>exec</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exists"><strong><tt>exists</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exit"><strong><tt>exit</tt></strong></a></p></td>
@@ -3015,9 +3080,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_fconfigure"><strong><tt>fconfigure</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_file"><strong><tt>file</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_finalize"><strong><tt>finalize</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_flush"><strong><tt>flush</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_flush"><strong><tt>flush</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_for"><strong><tt>for</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_foreach"><strong><tt>foreach</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_format"><strong><tt>format</tt></strong></a></p></td>
@@ -3025,107 +3090,106 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_gets"><strong><tt>gets</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_glob"><strong><tt>glob</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_global"><strong><tt>global</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_if"><strong><tt>if</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_history"><strong><tt>history</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_if"><strong><tt>if</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_incr"><strong><tt>incr</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_info"><strong><tt>info</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_join"><strong><tt>join</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_kill"><strong><tt>kill</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><tt>lambda</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lappend"><strong><tt>lappend</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><tt>lassign</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><tt>lindex</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><tt>lassign</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><tt>lindex</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_linsert"><strong><tt>linsert</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_list"><strong><tt>list</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_llength"><strong><tt>llength</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lmap"><strong><tt>lmap</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load"><strong><tt>load</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_local"><strong><tt>local</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_loop"><strong><tt>loop</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><tt>lrange</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_loop"><strong><tt>loop</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><tt>lrange</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat"><strong><tt>lrepeat</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreplace"><strong><tt>lreplace</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreverse"><strong><tt>lreverse</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><tt>lsearch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset"><strong><tt>lset</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><tt>lsort</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>oo</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_open"><strong><tt>open</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_namespace"><strong><tt>namespace</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>oo</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_open"><strong><tt>open</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.fork</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.gethostname</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.getids</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.uptime</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>os.wait</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>pack</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>pack</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package"><strong><tt>package</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_pid"><strong><tt>pid</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><tt>posix</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><tt>proc</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts"><strong><tt>puts</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><tt>pwd</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><tt>rand</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_range"><strong><tt>range</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read"><strong><tt>read</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_ref"><strong><tt>ref</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><tt>regexp</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><tt>regsub</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename"><strong><tt>rename</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return"><strong><tt>return</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><tt>scan</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_seek"><strong><tt>seek</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set"><strong><tt>set</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_setref"><strong><tt>setref</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><tt>signal</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><tt>sleep</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket"><strong><tt>socket</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source"><strong><tt>source</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><tt>split</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><tt>stackdump</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><tt>stacktrace</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_string"><strong><tt>string</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><tt>subst</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><tt>super</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_switch"><strong><tt>switch</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><tt>syslog</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><tt>tailcall</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tell"><strong><tt>tell</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_throw"><strong><tt>throw</tt></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><tt>tailcall</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><tt>tcl::prefix</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tell"><strong><tt>tell</tt></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_throw"><strong><tt>throw</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><tt>time</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><tt>tree</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><tt>try</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><tt>unknown</tt></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><tt>unpack</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><tt>unset</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><tt>upcall</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>update</tt></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><tt>uplevel</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><tt>upvar</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><tt>vwait</tt></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><tt>while</tt></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 </tr>
 </tbody>
 </table>
@@ -3154,7 +3218,7 @@ if {[e var]} {
 }</tt></pre>
 </div></div>
 <div class="paragraph"><p><a href="#_alias"><strong><tt>alias</tt></strong></a> returns <tt><em>name</em></tt>, allowing it to be used with <a href="#_local"><strong><tt>local</tt></strong></a>.</p></div>
-<div class="paragraph"><p>See also <a href="#_proc"><strong><tt>proc</tt></strong></a>, <a href="#_curry"><strong><tt>curry</tt></strong></a>, <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, <a href="#_local"><strong><tt>local</tt></strong></a>, <a href="#_info"><strong><tt>info</tt></strong></a> <tt>alias</tt></p></div>
+<div class="paragraph"><p>See also <a href="#_proc"><strong><tt>proc</tt></strong></a>, <a href="#_curry"><strong><tt>curry</tt></strong></a>, <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, <a href="#_local"><strong><tt>local</tt></strong></a>, <a href="#_info"><strong><tt>info</tt></strong></a> <tt>alias</tt>, <a href="#_exists"><strong><tt>exists</tt></strong></a> <tt>-alias</tt></p></div>
 </div>
 <div class="sect2">
 <h3 id="_append">append</h3>
@@ -3167,6 +3231,15 @@ it is given a value equal to the concatenation of all the
 variables incrementally.
 For example, "<a href="#_append"><strong><tt>append</tt></strong></a> <tt>a $b</tt>" is much more efficient than
 "<a href="#_set"><strong><tt>set</tt></strong></a> <tt>a $a$b</tt>" if <tt>$a</tt> is long.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_apply">apply</h3>
+<div class="paragraph"><p><tt><strong>apply</strong> <em>lambdaExpr ?arg1 arg2 ...?</em></tt></p></div>
+<div class="paragraph"><p>The command <a href="#_apply"><strong><tt>apply</tt></strong></a> provides for anonymous procedure calls,
+similar to <a href="#_lambda"><strong><tt>lambda</tt></strong></a>, but without command name being created, even temporarily.</p></div>
+<div class="paragraph"><p>The function  <tt><em>lambdaExpr</em></tt> is a two element list <tt>{args body}</tt>
+or a three element list <tt>{args body namespace}</tt>. The first element
+args specifies the formal arguments, in the same form as the <a href="#_proc"><strong><tt>proc</tt></strong></a> and <a href="#_lambda"><strong><tt>lambda</tt></strong></a> commands.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_array">array</h3>
@@ -3878,9 +3951,9 @@ this variable is unset, in which case the original environment is used).</p></di
 </div>
 <div class="sect2">
 <h3 id="_exists">exists</h3>
-<div class="paragraph"><p><tt><strong>exists ?-var|-proc|-command?</strong> <em>name</em></tt></p></div>
-<div class="paragraph"><p>Checks the existence of the given variable, procedure or command
-respectively and returns 1 if it exists or 0 if not.  This command
+<div class="paragraph"><p><tt><strong>exists ?-var|-proc|-command|-alias?</strong> <em>name</em></tt></p></div>
+<div class="paragraph"><p>Checks the existence of the given variable, procedure, command
+or alias respectively and returns 1 if it exists or 0 if not.  This command
 provides a more simplified/convenient version of <a href="#_info"><strong><tt>info</tt></strong></a> <tt>exists</tt>,
 <a href="#_info"><strong><tt>info</tt></strong></a> <tt>procs</tt> and <a href="#_info"><strong><tt>info</tt></strong></a> <tt>commands</tt>.</p></div>
 <div class="paragraph"><p>If the type is omitted, a type of <em>-var</em> is used. The type may be abbreviated.</p></div>
@@ -4386,7 +4459,7 @@ The legal <tt><em>option</em></tt>'s (which may be abbreviated) are:
 <dd>
 <p>
     <tt><em>command</em></tt> must be an alias created with <a href="#_alias"><strong><tt>alias</tt></strong></a>. In which case the target
-    command and arguments, as passed to <a href="#_alias"><strong><tt>alias</tt></strong></a> are returned.
+    command and arguments, as passed to <a href="#_alias"><strong><tt>alias</tt></strong></a> are returned. See <a href="#_exists"><strong><tt>exists</tt></strong></a> <tt>-alias</tt>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4957,7 +5030,7 @@ the list are to be matched against pattern and must have one of the values below
 <div class="paragraph"><p><strong>Note</strong> that this command is different from Tcl in that default match type is <tt>-exact</tt> rather than <tt>-glob</tt>.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt><em>-exact</em></tt>
+<tt><strong>-exact</strong></tt>
 </dt>
 <dd>
 <p>
@@ -4966,7 +5039,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-glob</em></tt>
+<tt><strong>-glob</strong></tt>
 </dt>
 <dd>
 <p>
@@ -4975,7 +5048,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-regexp</em></tt>
+<tt><strong>-regexp</strong></tt>
 </dt>
 <dd>
 <p>
@@ -4984,7 +5057,17 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-all</em></tt>
+<tt><strong>-command</strong> <em>cmdname</em></tt>
+</dt>
+<dd>
+<p>
+    <tt><em>cmdname</em></tt> is a command which is used to match the pattern against each element of the
+    list. It is invoked as <tt><em>cmdname</em> ?<strong>-nocase</strong>? <em>pattern listvalue</em></tt> and should return 1
+    for a match, or 0 for no match.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>-all</strong></tt>
 </dt>
 <dd>
 <p>
@@ -4995,7 +5078,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-inline</em></tt>
+<tt><strong>-inline</strong></tt>
 </dt>
 <dd>
 <p>
@@ -5005,7 +5088,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-bool</em></tt>
+<tt><strong>-bool</strong></tt>
 </dt>
 <dd>
 <p>
@@ -5015,7 +5098,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-not</em></tt>
+<tt><strong>-not</strong></tt>
 </dt>
 <dd>
 <p>
@@ -5027,7 +5110,7 @@ the list are to be matched against pattern and must have one of the values below
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><em>-nocase</em></tt>
+<tt><strong>-nocase</strong></tt>
 </dt>
 <dd>
 <p>
@@ -7372,6 +7455,209 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 </dd>
 </dl></div>
 </div>
+<div class="sect2">
+<h3 id="_tcl_prefix">tcl::prefix</h3>
+<div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <em>tcl::prefix</em> command
+(<a href="http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm</a>) for matching strings against a table
+of possible values (typically commands or options).</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>tcl::prefix all</strong> <em>table string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns a list of all elements in <tt><em>table</em></tt> that begin with the prefix <tt><em>string</em></tt>.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>tcl::prefix longest</strong> <em>table string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the longest common prefix of all elements in <tt><em>table</em></tt> that begin with the prefix <tt><em>string</em></tt>.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>tcl::prefix match</strong> <em>?options? table string</em></tt>
+</dt>
+<dd>
+<p>
+    If <tt><em>string</em></tt> equals one element in <tt><em>table</em></tt> or is a prefix to
+    exactly one element, the matched element is returned. If not, the
+    result depends on the <tt>-error</tt> option.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>-exact</tt>
+</dt>
+<dd>
+<p>
+        Accept only exact matches.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>-message <em>string</em></tt>
+</dt>
+<dd>
+<p>
+        Use <tt><em>string</em></tt> in the error message at a mismatch. Default is "option".
+</p>
+</dd>
+<dt class="hdlist1">
+<tt>-error <em>options</em></tt>
+</dt>
+<dd>
+<p>
+        The options are used when no match is found. If <tt><em>options</em></tt> is
+        empty, no error is generated and an empty string is returned.
+        Otherwise the options are used as return options when
+        generating the error message. The default corresponds to
+        setting <tt>-level 0</tt>.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_history">history</h3>
+<div class="paragraph"><p>The optional history extension provides script access to the command line editing
+and history support available in <em>jimsh</em>. See <em>examples/jtclsh.tcl</em> for an example.
+Note: if line editing support is not available, <a href="#_history"><strong><tt>history</tt></strong></a> <tt>getline</tt> acts like <a href="#_gets"><strong><tt>gets</tt></strong></a> and
+the remaining subcommands do nothing.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>history load</strong> <em>filename</em></tt>
+</dt>
+<dd>
+<p>
+    Load history from a (text) file. If the file does not exist or is not readable,
+    it is ignored.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>history getline</strong> <em>prompt ?varname?</em></tt>
+</dt>
+<dd>
+<p>
+    Displays the given prompt and allows a line to be entered. Similarly to <a href="#_gets"><strong><tt>gets</tt></strong></a>,
+    if <tt><em>varname</em></tt> is given, it receives the line and the length of the line is returned,
+    or -1 on EOF. If <tt><em>varname</em></tt> is not given, the line is returned directly.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>history add</strong> <em>line</em></tt>
+</dt>
+<dd>
+<p>
+    Adds the given line to the history buffer.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>history save</strong> <em>filename</em></tt>
+</dt>
+<dd>
+<p>
+    Saves the current history buffer to the given file.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>history show</strong></tt>
+</dt>
+<dd>
+<p>
+    Displays the current history buffer to standard output.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_namespace">namespace</h3>
+<div class="paragraph"><p>Provides namespace-related functions. See also: <a href="http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm</a></p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt><strong>namespace code</strong> <em>script</em></tt>
+</dt>
+<dd>
+<p>
+    Captures the current namespace context for later execution of
+    the script <tt><em>script</em></tt>. It returns a new script in which script has
+    been wrapped in a <tt><strong>namespace inscope</strong></tt> command.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace current</strong></tt>
+</dt>
+<dd>
+<p>
+    Returns the fully-qualified name for the current namespace.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace delete</strong> <em>?namespace &#8230;?</em></tt>
+</dt>
+<dd>
+<p>
+    Deletes all commands and variables with the given namespace prefixes.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace eval</strong> <em>namespace arg ?arg&#8230;?</em></tt>
+</dt>
+<dd>
+<p>
+    Activates a namespace called <tt><em>namespace</em></tt> and evaluates some code in that context.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace origin</strong> <em>command</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the fully-qualified name of the original command to which the imported command <tt><em>command</em></tt> refers.
+</p>
+</dd>
+<dt class="hdlist1">
++<strong>namespace parent</strong> ?namespace?
+</dt>
+<dd>
+<p>
+    Returns the fully-qualified name of the parent namespace for namespace <tt><em>namespace</em></tt>, if given, otherwise
+    for the current namespace.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace qualifiers</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns any leading namespace qualifiers for <tt><em>string</em></tt>
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace tail</strong> <em>string</em></tt>
+</dt>
+<dd>
+<p>
+    Returns the simple name at the end of a qualified string.
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace upvar</strong> <em>namespace ?arg&#8230;?</em></tt>
+</dt>
+<dd>
+<p>
+    This command arranges for zero or more local variables in the current procedure to refer to variables in <tt><em>namespace</em></tt>
+</p>
+</dd>
+<dt class="hdlist1">
+<tt><strong>namespace which</strong> <em>?-command|-variable? name</em></tt>
+</dt>
+<dd>
+<p>
+    Looks up <tt><em>name</em></tt> as either a command (the default) or variable and returns its fully-qualified name.
+</p>
+</dd>
+</dl></div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -7777,7 +8063,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-12-02 20:53:56 EST
+Last updated 2011-12-14 07:33:13 EST
 </div>
 </div>
 </body>
