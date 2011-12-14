@@ -12,6 +12,9 @@ int dlclose(void *handle);
 void *dlsym(void *handle, const char *symbol);
 char *dlerror(void);
 
+/* MS CRT always uses three digits after 'e' */
+#define JIM_SPRINTF_DOUBLE_NEEDS_FIX
+
 #ifdef _MSC_VER
 /* These are msvc vs gcc */
 

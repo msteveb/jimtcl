@@ -125,32 +125,32 @@ test format-3.1 {Tcl_FormatObjCmd: character formatting} utf8 {
 test format-3.2 {Tcl_FormatObjCmd: international character formatting} utf8 {
     format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 0xa2 0x4e4e 0x25a 0xc3 0xff08 0 3 0x6575 -4 0x4e4f
 } "|\ua2|\u4e4e|\u25a|\uc3|\uff08     |     \0|  \u6575|\u4e4f   |"
-test format-4.1 {e and f formats} {
+test format-4.1 {e and f formats} -body {
     format "%e %e %e %e" 34.2e12 68.514 -.125 -16000. .000053
-} {3.420000e+13 6.851400e+01 -1.250000e-01 -1.600000e+04}
-test format-4.2 {e and f formats} {
+} -match regexp -result {3.420000e\+0?13 6.851400e\+0?01 -1.250000e-0?01 -1.600000e\+0?04}
+test format-4.2 {e and f formats} -body {
     format "%20e %20e %20e %20e" 34.2e12 68.514 -.125 -16000. .000053
-} {        3.420000e+13         6.851400e+01        -1.250000e-01        -1.600000e+04}
-if {!$roundOffBug} {
-    test format-4.3 {e and f formats} {
-	format "%.1e %.1e %.1e %.1e" 34.2e12 68.514 -.126 -16000. .000053
-    } {3.4e+13 6.9e+01 -1.3e-01 -1.6e+04}
-    test format-4.4 {e and f formats} {
-	format "%020e %020e %020e %020e" 34.2e12 68.514 -.126 -16000. .000053
-    } {000000003.420000e+13 000000006.851400e+01 -00000001.260000e-01 -00000001.600000e+04}
-    test format-4.5 {e and f formats} {
-	format "%7.1e %7.1e %7.1e %7.1e" 34.2e12 68.514 -.126 -16000. .000053
-    } {3.4e+13 6.9e+01 -1.3e-01 -1.6e+04}
-    test format-4.6 {e and f formats} {
-	format "%f %f %f %f" 34.2e12 68.514 -.125 -16000. .000053
-    } {34200000000000.000000 68.514000 -0.125000 -16000.000000}
-}
+} -match regexp -result {(        3.420000e\+13         6.851400e\+01        -1.250000e-01        -1.600000e\+04|       3.420000e\+013        6.851400e\+001       -1.250000e-001       -1.600000e\+004)}
+
+test format-4.3 {e and f formats} -body {
+    format "%.1e %.1e %.1e %.1e" 34.2e12 68.514 -.126 -16000. .000053
+} -match regexp -result {3.4e\+0?13 6.9e\+0?01 -1.3e-0?01 -1.6e\+0?04}
+test format-4.4 {e and f formats} -body {
+    format "%020e %020e %020e %020e" 34.2e12 68.514 -.126 -16000. .000053
+} -match regexp -result {(000000003.420000e\+13 000000006.851400e\+01 -00000001.260000e-01 -00000001.600000e\+04|00000003.420000e\+013 00000006.851400e\+001 -0000001.260000e-001 -0000001.600000e\+004)}
+
+test format-4.5 {e and f formats} -body {
+    format "%7.1e %7.1e %7.1e %7.1e" 34.2e12 68.514 -.126 -16000. .000053
+} -match regexp -result {3.4e\+0?13 6.9e\+0?01 -1.3e-0?01 -1.6e\+0?04}
+test format-4.6 {e and f formats} {
+    format "%f %f %f %f" 34.2e12 68.514 -.125 -16000. .000053
+} {34200000000000.000000 68.514000 -0.125000 -16000.000000}
 test format-4.7 {e and f formats} {
     format "%.4f %.4f %.4f %.4f %.4f" 34.2e12 68.514 -.125 -16000. .000053
 } {34200000000000.0000 68.5140 -0.1250 -16000.0000 0.0001}
-test format-4.8 {e and f formats} {
+test format-4.8 {e and f formats} -body {
     format "%.4e %.5e %.6e" -9.99996 -9.99996 9.99996
-} {-1.0000e+01 -9.99996e+00 9.999960e+00}
+} -match regexp -result {\-1.0000e\+0?01 -9.99996e\+0?00 9.999960e\+0?00}
 test format-4.9 {e and f formats} {
     format "%.4f %.5f %.6f" -9.99996 -9.99996 9.99996
 } {-10.0000 -9.99996 9.999960}
@@ -160,9 +160,9 @@ test format-4.10 {e and f formats} {
 test format-4.11 {e and f formats} {
     format "%-020f %020f" -9.99996 -9.99996 9.99996
 } {-9.999960            -000000000009.999960}
-test format-4.12 {e and f formats} {
+test format-4.12 {e and f formats} -body {
     format "%.0e %#.0e" -9.99996 -9.99996 9.99996
-} {-1e+01 -1.e+01}
+} -match regexp -result {\-1e\+0?01 -1.e\+0?01}
 test format-4.13 {e and f formats} {
     format "%.0f %#.0f" -9.99996 -9.99996 9.99996
 } {-10 -10.}
@@ -176,12 +176,12 @@ test format-4.16 {e and f formats} {
     format "%3.1f %3.1f %3.1f %3.1f" 0.0 0.1 0.01 0.001
 } {0.0 0.1 0.0 0.0}
 
-test format-5.1 {g-format} {
+test format-5.1 {g-format} -body {
     format "%.3g" 12341.0
-} {1.23e+04}
-test format-5.2 {g-format} {
+} -match regexp -result {1.23e\+0?04}
+test format-5.2 {g-format} -body {
     format "%.3G" 1234.12345
-} {1.23E+03}
+} -match regexp -result {1.23E\+0?03}
 test format-5.3 {g-format} {
     format "%.3g" 123.412345
 } {123}
@@ -206,12 +206,12 @@ test format-5.9 {g-format} {
 test format-5.10 {g-format} {
     format "%.3g" .00012341
 } {0.000123}
-test format-5.11 {g-format} {
+test format-5.11 {g-format} -body {
     format "%.3g" .00001234
-} {1.23e-05}
-test format-5.12 {g-format} {
+} -match regexp -result {1.23e-0?05}
+test format-5.12 {g-format} -body {
     format "%.4g" 9999.6
-} {1e+04}
+} -match regexp -result {1e\+0?04}
 test format-5.13 {g-format} {
     format "%.4g" 999.96
 } {1000}
@@ -227,31 +227,31 @@ test format-5.16 {g-format} {
 test format-5.17 {g-format} {
     format "%.3g" .001
 } {0.001}
-test format-5.18 {g-format} {
+test format-5.18 {g-format} -body {
     format "%.3g" .00001
-} {1e-05}
-test format-5.19 {g-format} {
+} -match regexp -result {1e-0?05}
+test format-5.19 {g-format} -body {
     format "%#.3g" 1234.0
-} {1.23e+03}
-test format-5.20 {g-format} {
+} -match regexp -result {1.23e\+0?03}
+test format-5.20 {g-format} -body {
     format "%#.3G" 9999.5
-} {1.00E+04}
+} -match regexp -result {1.00E\+0?04}
 
-test format-6.1 {floating-point zeroes} {
+test format-6.1 {floating-point zeroes} -body {
     format "%e %f %g" 0.0 0.0 0.0 0.0
-} {0.000000e+00 0.000000 0}
-test format-6.2 {floating-point zeroes} {
+} -match regexp -result {0.000000e\+0?00 0.000000 0}
+test format-6.2 {floating-point zeroes} -body {
     format "%.4e %.4f %.4g" 0.0 0.0 0.0 0.0
-} {0.0000e+00 0.0000 0}
-test format-6.3 {floating-point zeroes} {
+} -match regexp -result {0.0000e\+0?00 0.0000 0}
+test format-6.3 {floating-point zeroes} -body {
     format "%#.4e %#.4f %#.4g" 0.0 0.0 0.0 0.0
-} {0.0000e+00 0.0000 0.000}
-test format-6.4 {floating-point zeroes} {
+} -match regexp -result {0.0000e\+0?00 0.0000 0.000}
+test format-6.4 {floating-point zeroes} -body {
     format "%.0e %.0f %.0g" 0.0 0.0 0.0 0.0
-} {0e+00 0 0}
-test format-6.5 {floating-point zeroes} {
+} -match regexp -result {0e\+0?00 0 0}
+test format-6.5 {floating-point zeroes} -body {
     format "%#.0e %#.0f %#.0g" 0.0 0.0 0.0 0.0
-} {0.e+00 0. 0.}
+} -match regexp -result {0.e\+0?00 0. 0.}
 test format-6.6 {floating-point zeroes} {
     format "%3.0f %3.0f %3.0f %3.0f" 0.0 0.0 0.0 0.0
 } {  0   0   0   0}

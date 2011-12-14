@@ -452,33 +452,40 @@ int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
 int Jim_DoubleToString(char *buf, double doubleValue)
 {
     int len;
-    char *buf0 = buf;
+    int i;
 
     len = sprintf(buf, "%.12g", doubleValue);
 
-    /* Add a final ".0" if it's a number. But not
-     * for NaN or InF */
-    while (*buf) {
-        if (*buf == '.' || isalpha(UCHAR(*buf))) {
-            /* inf -> Inf, nan -> Nan */
-            if (*buf == 'i' || *buf == 'n') {
-                *buf = toupper(UCHAR(*buf));
+    /* Add a final ".0" if necessary */
+    for (i = 0; i < len; i++) {
+        if (buf[i] == '.' || buf[i] == 'e') {
+#if defined(JIM_SPRINTF_DOUBLE_NEEDS_FIX)
+            /* If 'buf' ends in e-0nn or e+0nn, remove
+             * the 0 after the + or - and reduce the length by 1
+             */
+            char *e = strchr(buf, 'e');
+            if (e && (e[1] == '-' || e[1] == '+') && e[2] == '0') {
+                /* Move it up */
+                e += 2;
+                memmove(e, e + 1, len - (e - buf));
+                return len - 1;
             }
-            if (*buf == 'I') {
-                /* Infinity -> Inf */
-                buf[3] = '\0';
-                len = buf - buf0 + 3;
-            }
+#endif
             return len;
         }
-        buf++;
+        /* inf or Infinity -> Inf, nan -> Nan */
+        if (buf[i] == 'i' || buf[i] == 'I' || buf[i] == 'n' || buf[i] == 'N') {
+            buf[i] = toupper(UCHAR(buf[i]));
+            buf[i + 3] = 0;
+            return i + 3;
+        }
     }
 
-    *buf++ = '.';
-    *buf++ = '0';
-    *buf = '\0';
+    buf[i++] = '.';
+    buf[i++] = '0';
+    buf[i] = '\0';
 
-    return len + 2;
+    return i;
 }
 
 int Jim_StringToDouble(const char *str, double *doublePtr)
