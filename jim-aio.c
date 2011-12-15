@@ -298,6 +298,30 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     Jim_Free(af);
 }
 
+static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
+{
+    if (!ferror(af->fp)) {
+        return JIM_OK;
+    }
+    clearerr(af->fp);
+    /* EAGAIN and similar are not error conditions. Just treat them like eof */
+    if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
+        return JIM_OK;
+    }
+#ifdef ECONNRESET
+    if (errno == ECONNRESET) {
+        return JIM_OK;
+    }
+#endif
+#ifdef ECONNABORTED
+    if (errno != ECONNABORTED) {
+        return JIM_OK;
+    }
+#endif
+    JimAioSetError(interp, af->filename);
+    return JIM_ERR;
+}
+
 static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -347,15 +371,9 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
     }
     /* Check for error conditions */
-    if (ferror(af->fp)) {
-        clearerr(af->fp);
-        /* eof and EAGAIN are not error conditions */
-        if (!feof(af->fp) && errno != EAGAIN) {
-            /* I/O error */
-            Jim_FreeNewObj(interp, objPtr);
-            JimAioSetError(interp, af->filename);
-            return JIM_ERR;
-        }
+    if (JimCheckStreamError(interp, af)) {
+        Jim_FreeNewObj(interp, objPtr);
+        return JIM_ERR;
     }
     if (nonewline) {
         int len;
@@ -443,11 +461,9 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
     }
-    if (ferror(af->fp) && errno != EAGAIN && errno != EINTR) {
+    if (JimCheckStreamError(interp, af)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
-        JimAioSetError(interp, af->filename);
-        clearerr(af->fp);
         return JIM_ERR;
     }
 
