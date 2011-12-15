@@ -411,7 +411,7 @@ static SqlFunc *findSqlFunc(SqliteDb *pDb, const char *zName){
   int i;
   pNew = (SqlFunc*)Jim_Alloc( sizeof(*pNew) + strlen30(zName) + 1 );
   pNew->zName = (char*)&pNew[1];
-  for(i=0; zName[i]; i++){ pNew->zName[i] = tolower(zName[i]); }
+  for(i=0; zName[i]; i++){ pNew->zName[i] = tolower((unsigned)zName[i]); }
   pNew->zName[i] = 0;
   for(p=pDb->pFunc; p; p=p->pNext){ 
     if( strcmp(p->zName, pNew->zName)==0 ){
@@ -1008,7 +1008,7 @@ static int dbPrepareAndBind(
   *ppPreStmt = 0;
 
   /* Trim spaces from the start of zSql and calculate the remaining length. */
-  while( isspace(zSql[0]) ){ zSql++; }
+  while( isspace((unsigned)zSql[0]) ){ zSql++; }
   nSql = strlen30(zSql);
 
   for(pPreStmt = pDb->stmtList; pPreStmt; pPreStmt=pPreStmt->pNext){
