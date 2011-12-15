@@ -31,7 +31,8 @@ puts $f {
     after [expr {int($seconds * 1000)}]
 }
 close $f
-catch {exec chmod +x sleepx}
+#catch {exec chmod +x sleepx}
+set sleepx [list [info nameofexecutable] sleepx]
 
 # Basic operations.
 
@@ -236,7 +237,7 @@ test exec-9.2 {commands returning errors} {
     catch {exec echo foo | foo123} msg
 } {1}
 test exec-9.3 {commands returning errors} {
-    list [catch {exec ./sleepx 0.1 | false | ./sleepx 0.1} msg]
+    list [catch {exec {*}$sleepx 0.1 | false | {*}$sleepx 0.1} msg]
 } {1}
 test exec-9.4 {commands returning errors} jim {
     list [catch {exec false | echo "foo bar"} msg] $msg
@@ -322,29 +323,29 @@ close $f
 # Commands in background.
 
 test exec-11.1 {commands in background} {
-    set x [lindex [time {exec ./sleepx 0.2 &}] 0]
+    set x [lindex [time {exec {*}$sleepx 0.2 &}] 0]
     expr $x<1000000
 } 1
 test exec-11.2 {commands in background} {
     list [catch {exec echo a &b} msg] $msg
 } {0 {a &b}}
 test exec-11.3 {commands in background} {
-    llength [exec ./sleepx 0.1 &]
+    llength [exec {*}$sleepx 0.1 &]
 } 1
 test exec-11.4 {commands in background} {
-    llength [exec ./sleepx 0.1 | ./sleepx 0.1 | ./sleepx 0.1 &]
+    llength [exec {*}$sleepx 0.1 | {*}$sleepx 0.1 | {*}$sleepx 0.1 &]
 } 3
 
 # Make sure that background commands are properly reaped when
 # they eventually die.
 
-exec ./sleepx 0.3
+exec {*}$sleepx 0.3
 
 test exec-12.1 {reaping background processes} -body {
     for {set i 0} {$i < 20} {incr i} {
 		exec echo foo > exec.tmp1 &
     }
-    exec ./sleepx 0.1
+    exec {*}$sleepx 0.1
     catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg
     lindex $msg 0
 } -cleanup {

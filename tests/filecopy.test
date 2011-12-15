@@ -55,9 +55,9 @@ test filecopy-2.3 "Source doesn't exist (-force)" {
 	list [catch {file copy -force missing tempfile} msg] $msg
 } {1 {missing: No such file or directory}}
 
-test filecopy-2.4 "Can't write to target (-force)" {
-	list [catch {file copy -force testio.in tempdir} msg] $msg
-} {1 {tempdir: Is a directory}}
+test filecopy-2.4 "Can't write to target (-force)" -body {
+	file copy -force testio.in tempdir
+} -returnCodes error -match glob -result {tempdir: *}
 
 test filecopy-2.5 "Source doesn't exist and can't write to target (-force)" {
 	list [catch {file copy -force missing tempdir} msg] $msg
