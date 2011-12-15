@@ -14,6 +14,7 @@ jimsh
 *.exe
 libjim.a
 *.so
+*.dll
 *.o
 configure.gnu
 jimsh0

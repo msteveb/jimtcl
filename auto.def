@@ -103,15 +103,19 @@ switch -glob -- $host_os {
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM windows
         define TCL_PLATFORM_PATH_SEPARATOR {;}
-	define LIBSOEXT dll
     }
     default {
         # Note that cygwin is considered a unix platform
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM unix
         define TCL_PLATFORM_PATH_SEPARATOR :
-	define LIBSOEXT so
     }
+}
+
+if {[have-feature windows]} {
+    define LIBSOEXT dll
+} else {
+    define LIBSOEXT so
 }
 
 # Find some tools
