@@ -139,6 +139,10 @@ int Jim_execInit(Jim_Interp *interp)
     #define JimDupFd dup
     #define JimFdOpenForRead(FD) fdopen((FD), "r")
     #define JimOpenForRead(NAME) open((NAME), O_RDONLY, 0)
+
+    #ifndef HAVE_EXECVPE
+        #define execvpe(ARG0, ARGV, ENV) execvp(ARG0, ARGV)
+    #endif
 #endif
 
 static const char *JimStrError(void);
@@ -983,7 +987,7 @@ badargs:
                 close(i);
             }
 
-            execvp(arg_array[firstArg], &arg_array[firstArg]);
+            execvpe(arg_array[firstArg], &arg_array[firstArg], Jim_GetEnviron());
 
             /* Need to prep an error message before vfork(), just in case */
             fprintf(stderr, "couldn't exec \"%s\"", arg_array[firstArg]);
