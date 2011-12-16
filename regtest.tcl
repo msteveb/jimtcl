@@ -196,6 +196,14 @@ catch {
 } msg
 puts "TEST 27 PASSED"
 
+# REGTEST 28
+# 16 Dec 2011 - ref count problem with finalizers
+catch {
+    ref x x [list dummy]
+    collect
+}
+puts "TEST 28 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

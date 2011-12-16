@@ -5173,6 +5173,8 @@ int Jim_Collect(Jim_Interp *interp)
                 objv[2] = refPtr->objPtr;
 
                 /* Drop the reference itself */
+                /* Avoid the finaliser being freed here */
+                Jim_IncrRefCount(objv[0]);
                 Jim_DeleteHashEntry(&interp->references, refId);
 
                 /* Call the finalizer. Errors ignored. */
@@ -5181,6 +5183,8 @@ int Jim_Collect(Jim_Interp *interp)
                 Jim_EvalObjVector(interp, 3, objv);
                 Jim_SetResult(interp, oldResult);
                 Jim_DecrRefCount(interp, oldResult);
+
+                Jim_DecrRefCount(interp, objv[0]);
             }
             else {
                 Jim_DeleteHashEntry(&interp->references, refId);
