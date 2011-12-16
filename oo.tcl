@@ -28,7 +28,7 @@ proc class {classname {baseclasses {}} classvars} {
 	# It simply dispatches 'classname cmd' to a procedure named {classname cmd}
 	# with a nice message if the class procedure doesn't exist
 	proc $classname {{cmd new} args} classname {
-		if {![exists -proc "$classname $cmd"]} {
+		if {![exists -command "$classname $cmd"]} {
 			return -code error "$classname, unknown command \"$cmd\": should be [join [$classname methods] ", "]"
 		}
 		tailcall "$classname $cmd" {*}$args
@@ -42,7 +42,7 @@ proc class {classname {baseclasses {}} classvars} {
 		# Store the classname in both the ref value and tag, for debugging
 		# ref tag (for debugging)
 		proc [ref $classname $classname "$classname finalize"] {method args} {classname instvars} {
-			if {![exists -proc "$classname $method"]} {
+			if {![exists -command "$classname $method"]} {
 				return -code error "$classname, unknown method \"$method\": should be [join [$classname methods] ", "]"
 			}
 			"$classname $method" {*}$args
