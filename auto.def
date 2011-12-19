@@ -254,12 +254,14 @@ dict set extdb info {
 proc check-metakit {} {
     set found 0
     msg-checking "Checking for Metakit..."
-    if {[cctest -lang c++ -includes mk4.h -libs -lmk4 -code {c4_Storage dummy();}]} {
-        msg-result ok
-        define lib_mk -lmk4
-        incr found
-    } else {
-        msg-result "not found"
+    cc-with {-lang c++} {
+        if {[cctest -includes mk4.h -libs -lmk4 -code {c4_Storage dummy();}]} {
+            msg-result ok
+            define lib_mk -lmk4
+            incr found
+        } else {
+            msg-result "not found"
+        }
     }
     return $found
 }
