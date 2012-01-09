@@ -51,7 +51,7 @@ OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o ut
 
 JIMSH := jimsh@EXEEXT@
 
-all: $(JIMSH) @C_EXT_SHOBJS@ build-jim-ext
+all: $(JIMSH) @C_EXT_SHOBJS@
 
 # Create C extensions from pure Tcl extensions
 .SUFFIXES: .tcl
@@ -181,10 +181,10 @@ Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) Tcl.html _*.c build-jim-ext
+	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) Tcl.html _*.c
 
 distclean: clean
-	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@
+	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@ build-jim-ext
 
 ship: Tcl.html
 	cp $< Tcl_shipped.html
