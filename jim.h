@@ -217,6 +217,7 @@ typedef struct Jim_HashTable {
     unsigned int sizemask;
     unsigned int used;
     unsigned int collisions;
+    unsigned int uniq;
     void *privdata;
 } Jim_HashTable;
 
@@ -257,7 +258,7 @@ typedef struct Jim_HashTableIterator {
         (ht)->type->keyCompare((ht)->privdata, key1, key2) : \
         (key1) == (key2))
 
-#define Jim_HashKey(ht, key) (ht)->type->hashFunction(key)
+#define Jim_HashKey(ht, key) ((ht)->type->hashFunction(key) + (ht)->uniq)
 
 #define Jim_GetHashEntryKey(he) ((he)->key)
 #define Jim_GetHashEntryVal(he) ((he)->val)

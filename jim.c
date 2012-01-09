@@ -766,8 +766,7 @@ unsigned int Jim_GenHashFunction(const unsigned char *buf, int len)
 
 /* ----------------------------- API implementation ------------------------- */
 
-/* reset a hashtable already initialized with ht_init().
- * NOTE: This function should only called by ht_destroy(). */
+/* reset a hashtable already initialized */
 static void JimResetHashTable(Jim_HashTable *ht)
 {
     ht->table = NULL;
@@ -775,6 +774,14 @@ static void JimResetHashTable(Jim_HashTable *ht)
     ht->sizemask = 0;
     ht->used = 0;
     ht->collisions = 0;
+#ifdef JIM_RANDOMISE_HASH
+    /* This is initialised to a random value to avoid a hash collision attack.
+     * See: n.runs-SA-2011.004
+     */
+    ht->uniq = (rand() ^ time(NULL) ^ clock());
+#else
+    ht->uniq = 0;
+#endif
 }
 
 static void JimInitHashTableIterator(Jim_HashTable *ht, Jim_HashTableIterator *iter)
@@ -820,6 +827,8 @@ void Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
     n.size = realsize;
     n.sizemask = realsize - 1;
     n.table = Jim_Alloc(realsize * sizeof(Jim_HashEntry *));
+    /* Keep the same 'uniq' as the original */
+    n.uniq = ht->uniq;
 
     /* Initialize all the pointers to NULL */
     memset(n.table, 0, realsize * sizeof(Jim_HashEntry *));

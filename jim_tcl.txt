@@ -59,6 +59,7 @@ Changes between 0.74 and 0.75
 4. `lsort` now supports '-unique' and '-real'
 5. Add support for half-close with `aio close` ?r|w?
 6. Add `socket pair` for a bidirectional pipe
+7. Add --random-hash to randomise hash tables for greater security
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
