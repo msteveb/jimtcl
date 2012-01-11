@@ -103,6 +103,11 @@ static int JimHistorySubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, history_command_table, argc, argv), argc, argv);
 }
 
+static void JimHistoryDelProc(Jim_Interp *interp, void *privData)
+{
+    Jim_Free(privData);
+}
+
 int Jim_historyInit(Jim_Interp *interp)
 {
     void **history;
