@@ -3822,7 +3822,6 @@ static Jim_Cmd *JimCreateProcedureCmd(Jim_Interp *interp, Jim_Obj *argListObjPtr
         Jim_Obj *nameObjPtr;
         Jim_Obj *defaultObjPtr;
         int len;
-        int n = 1;
 
         /* Examine a parameter */
         Jim_ListIndex(interp, argListObjPtr, i, &argPtr, JIM_NONE);
@@ -3859,10 +3858,10 @@ err:
         }
         else {
             if (len == 2) {
-                cmdPtr->u.proc.optArity += n;
+                cmdPtr->u.proc.optArity++;
             }
             else {
-                cmdPtr->u.proc.reqArity += n;
+                cmdPtr->u.proc.reqArity++;
             }
         }
 

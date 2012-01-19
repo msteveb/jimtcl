@@ -41,7 +41,8 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         const char *pkgname;
         int pkgnamelen;
         char initsym[40];
-        int (*onload) (Jim_Interp *);
+        typedef int jim_module_init_func_type(Jim_Interp *);
+        jim_module_init_func_type *onload;
 
         pt = strrchr(pathName, '/');
         if (pt) {
@@ -59,7 +60,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         }
         snprintf(initsym, sizeof(initsym), "Jim_%.*sInit", pkgnamelen, pkgname);
 
-        if ((onload = dlsym(handle, initsym)) == NULL) {
+        if ((onload = (jim_module_init_func_type *)dlsym(handle, initsym)) == NULL) {
             Jim_SetResultFormatted(interp,
                 "No %s symbol found in extension %s", initsym, pathName);
         }

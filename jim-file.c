@@ -430,14 +430,16 @@ static int mkdir_all(char *path)
 
     while (ok--) {
         /* Must have failed the first time, so recursively make the parent and try again */
-        char *slash = strrchr(path, '/');
+        {
+            char *slash = strrchr(path, '/');
 
-        if (slash && slash != path) {
-            *slash = 0;
-            if (mkdir_all(path) != 0) {
-                return -1;
+            if (slash && slash != path) {
+                *slash = 0;
+                if (mkdir_all(path) != 0) {
+                    return -1;
+                }
+                *slash = '/';
             }
-            *slash = '/';
         }
       first:
         if (MKDIR_DEFAULT(path) == 0) {

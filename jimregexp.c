@@ -1095,8 +1095,7 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 			goto nextline;
 		}
 		while (1) {
-			int ret = regtry(preg, string);
-			if (ret) {
+			if (regtry(preg, string)) {
 				return REG_NOERROR;
 			}
 			if (*string) {
