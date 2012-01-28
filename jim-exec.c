@@ -255,12 +255,11 @@ static char **JimBuildEnv(Jim_Interp *interp)
     if (num % 2) {
         num--;
     }
-    size = Jim_Length(objPtr);
     /* We need one \0 and one equal sign for each element.
      * A list has at least one space for each element except the first.
-     * We only need one extra char for the extra null terminator.
+     * We need one extra char for the extra null terminator and one for the equal sign.
      */
-    size++;
+    size = Jim_Length(objPtr) + 2;
 
     envptr = Jim_Alloc(sizeof(*envptr) * (num / 2 + 1) + size);
     envdata = (char *)&envptr[num / 2 + 1];
