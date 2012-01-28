@@ -61,10 +61,10 @@ proc glob {args} {
 		# Avoid regexp for dependency reasons.
 		# XXX: Doesn't handle backslashed braces
 		if {[set fb [string first "\{" $pattern]] < 0} {
-			return $pattern
+			return [list $pattern]
 		}
 		if {[set nb [string first "\}" $pattern $fb]] < 0} {
-			return $pattern
+			return [list $pattern]
 		}
 		set before [string range $pattern 0 $fb-1]
 		set braced [string range $pattern $fb+1 $nb-1]
