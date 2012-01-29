@@ -328,7 +328,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr;
     int nonewline = 0;
-    int neededLen = -1;         /* -1 is "read as much as possible" */
+    jim_wide neededLen = -1;         /* -1 is "read as much as possible" */
 
     if (argc && Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
         nonewline = 1;
@@ -336,15 +336,12 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         argc--;
     }
     if (argc == 1) {
-        jim_wide wideValue;
-
-        if (Jim_GetWide(interp, argv[0], &wideValue) != JIM_OK)
+        if (Jim_GetWide(interp, argv[0], &neededLen) != JIM_OK)
             return JIM_ERR;
-        if (wideValue < 0) {
+        if (neededLen < 0) {
             Jim_SetResultString(interp, "invalid parameter: negative len", -1);
             return JIM_ERR;
         }
-        neededLen = (int)wideValue;
     }
     else if (argc) {
         return -1;
@@ -391,8 +388,8 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    long count = 0;
-    long maxlen = LONG_MAX;
+    jim_wide count = 0;
+    jim_wide maxlen = LLONG_MAX;
     FILE *outfh = Jim_AioFilehandle(interp, argv[0]);
 
     if (outfh == NULL) {
@@ -400,7 +397,7 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc == 2) {
-        if (Jim_GetLong(interp, argv[1], &maxlen) != JIM_OK) {
+        if (Jim_GetWide(interp, argv[1], &maxlen) != JIM_OK) {
             return JIM_ERR;
         }
     }
