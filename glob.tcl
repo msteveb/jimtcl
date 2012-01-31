@@ -31,7 +31,7 @@ proc glob {args} {
 		}
 
 		# If the pattern isn't actually a pattern...
-		if {[string match {*[*?]*} $pattern]} {
+		if {[string match {*[[*?]*} $pattern]} {
 			# Use -nocomplain here to return nothing if $dir is not a directory
 			set files [readdir -nocomplain $dir]
 		} elseif {[file isdir $dir] && [file exists $dir/$pattern]} {
