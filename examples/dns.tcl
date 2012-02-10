@@ -3,8 +3,10 @@
 # Modified for Jim Tcl to:
 # - use udp transport by default
 # - use sendto/recvfrom
-# - remove use of namespaces
+# - don't try to determine local nameservers
 # - remove support for dns uris and finding local nameservers
+# - remove logging calls
+#   (both of these in order to remove dependencies on tcllib)
 
 # Based on:
 
@@ -44,29 +46,42 @@
 package require binary
 package require namespace
 
-set dns::version 1.3.3
-set dns::rcsid {$Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $}
+namespace eval ::dns {
+    variable version 1.3.3-jim2
+    variable rcsid {$Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $}
 
-array set dns::options {
-    port       53
-    timeout    30000
-    protocol   udp
-    search     {}
-    nameserver {localhost}
-    loglevel   warn
-}
+    namespace export configure resolve name address cname \
+        status reset wait cleanup errorcode
 
-array set dns::types {
-    A 1  NS 2  MD 3  MF 4  CNAME 5  SOA 6  MB 7  MG 8  MR 9
-    NULL 10  WKS 11  PTR 12  HINFO 13  MINFO 14  MX 15  TXT 16
-    SPF 16 AAAA 28 SRV 33 IXFR 251 AXFR 252  MAILB 253  MAILA 254
-    ANY 255 * 255
-}
+    variable options
+    if {![info exists options]} {
+        array set options {
+            port       53
+            timeout    30000
+            protocol   udp
+            search     {}
+            nameserver {localhost}
+            loglevel   warn
+        }
+        #variable log [logger::init dns]
+        #${log}::setlevel $options(loglevel)
+    }
 
-array set dns::classes { IN 1  CS 2  CH  3  HS 4  * 255}
+    variable types
+    array set types { 
+        A 1  NS 2  MD 3  MF 4  CNAME 5  SOA 6  MB 7  MG 8  MR 9 
+        NULL 10  WKS 11  PTR 12  HINFO 13  MINFO 14  MX 15  TXT 16
+        SPF 16 AAAA 28 SRV 33 IXFR 251 AXFR 252  MAILB 253  MAILA 254
+        ANY 255 * 255
+    } 
 
-if {![info exists dns::uid]} {
-    set dns::uid 0
+    variable classes
+    array set classes { IN 1  CS 2  CH  3  HS 4  * 255}
+
+    variable uid
+    if {![info exists uid]} {
+        set uid 0
+    }
 }
 
 # -------------------------------------------------------------------------
@@ -75,7 +90,7 @@ if {![info exists dns::uid]} {
 #  Configure the DNS package. In particular the local nameserver will need
 #  to be set. With no options, returns a list of all current settings.
 #
-proc dns::configure {args} {
+proc ::dns::configure {args} {
     variable options
     variable log
 
@@ -91,67 +106,67 @@ proc dns::configure {args} {
     if {[llength $args] == 1} {
         set cget 1
     }
-
+   
     while {[string match -* [lindex $args 0]]} {
         switch -glob -- [lindex $args 0] {
             -n* -
             -ser* {
                 if {$cget} {
-                    return $options(nameserver)
+                    return $options(nameserver) 
                 } else {
-                    set options(nameserver) [dns::Pop args 1]
+                    set options(nameserver) [Pop args 1] 
                 }
             }
-            -po*  {
+            -po*  { 
                 if {$cget} {
                     return $options(port)
                 } else {
-                    set options(port) [dns::Pop args 1]
+                    set options(port) [Pop args 1] 
                 }
             }
-            -ti*  {
+            -ti*  { 
                 if {$cget} {
                     return $options(timeout)
                 } else {
-                    set options(timeout) [dns::Pop args 1]
+                    set options(timeout) [Pop args 1]
                 }
             }
             -pr*  {
                 if {$cget} {
                     return $options(protocol)
                 } else {
-                    set proto [string tolower [dns::Pop args 1]]
+                    set proto [string tolower [Pop args 1]]
                     if {[string compare udp $proto] == 0 \
                             && [string compare tcp $proto] == 0} {
                         return -code error "invalid protocol \"$proto\":\
                             protocol must be either \"udp\" or \"tcp\""
                     }
-                    set options(protocol) $proto
+                    set options(protocol) $proto 
                 }
             }
-            -sea* {
+            -sea* { 
                 if {$cget} {
                     return $options(search)
                 } else {
-                    set options(search) [dns::Pop args 1]
+                    set options(search) [Pop args 1] 
                 }
             }
             -log* {
                 if {$cget} {
                     return $options(loglevel)
                 } else {
-                    set options(loglevel) [dns::Pop args 1]
+                    set options(loglevel) [Pop args 1]
                     ${log}::setlevel $options(loglevel)
                 }
             }
-            --    { dns::Pop args ; break }
+            --    { Pop args ; break }
             default {
                 set opts [join [lsort [array names options]] ", -"]
                 return -code error "bad option [lindex $args 0]:\
                         must be one of -$opts"
             }
         }
-        dns::Pop args
+        Pop args
     }
 
     return
@@ -163,17 +178,18 @@ proc dns::configure {args} {
 #  Create a DNS query and send to the specified name server. Returns a token
 #  to be used to obtain any further information about this query.
 #
-proc dns::resolve {query args} {
+proc ::dns::resolve {query args} {
     variable uid
     variable options
     variable log
 
     # get a guaranteed unique and non-present token id.
     set id [incr uid]
-    while {[info exists [set token ::dns::$id]]} {
+    while {[info exists [set token [namespace current]::$id]]} {
         set id [incr uid]
     }
     # FRINK: nocheck
+    variable $token
     upvar 0 $token state
 
     # Setup token/state defaults.
@@ -191,28 +207,30 @@ proc dns::resolve {query args} {
     set state(-search)     $options(search);    # domain search list
     set state(-protocol)   $options(protocol);  # which protocol udp/tcp
 
+    # Support for DNS URL's removed
+
     while {[string match -* [lindex $args 0]]} {
         switch -glob -- [lindex $args 0] {
             -n* - ns -
-            -ser* { set state(-nameserver) [dns::Pop args 1] }
-            -po*  { set state(-port) [dns::Pop args 1] }
-            -ti*  { set state(-timeout) [dns::Pop args 1] }
-            -co*  { set state(-command) [dns::Pop args 1] }
-            -cl*  { set state(-class) [dns::Pop args 1] }
-            -ty*  { set state(-type) [dns::Pop args 1] }
-            -pr*  { set state(-protocol) [dns::Pop args 1] }
-            -sea* { set state(-search) [dns::Pop args 1] }
-            -re*  { set state(-recurse) [dns::Pop args 1] }
+            -ser* { set state(-nameserver) [Pop args 1] }
+            -po*  { set state(-port) [Pop args 1] }
+            -ti*  { set state(-timeout) [Pop args 1] }
+            -co*  { set state(-command) [Pop args 1] }
+            -cl*  { set state(-class) [Pop args 1] }
+            -ty*  { set state(-type) [Pop args 1] }
+            -pr*  { set state(-protocol) [Pop args 1] }
+            -sea* { set state(-search) [Pop args 1] }
+            -re*  { set state(-recurse) [Pop args 1] }
             -inv* { set state(opcode) 1 }
             -status {set state(opcode) 2}
-            -data { set state(qdata) [dns::Pop args 1] }
+            -data { set state(qdata) [Pop args 1] }
             default {
                 set opts [join [lsort [array names state -*]] ", "]
                 return -code error "bad option [lindex $args 0]: \
                         must be $opts"
             }
         }
-        dns::Pop args
+        Pop args
     }
 
     if {$state(-nameserver) == {}} {
@@ -220,25 +238,25 @@ proc dns::resolve {query args} {
     }
 
     # Check for reverse lookups
-#    if {[regexp {^(?:\d{0,3}\.){3}\d{0,3}$} $state(query)]} {
-#        set addr [lreverse [split $state(query) .]]
-#        lappend addr in-addr arpa
-#        set state(query) [join $addr .]
-#        set state(-type) PTR
-#    }
-
-    dns::BuildMessage $token
-
-    if {$state(-protocol) == "tcp"} {
-        dns::TcpTransmit $token
-        if {$state(-command) == {}} {
-            dns::wait $token
-        }
-    } else {
-        dns::UdpTransmit $token
-        dns::wait $token
+    if {[regexp {^(?:\d{0,3}\.){3}\d{0,3}$} $state(query)]} {
+        set addr [lreverse [split $state(query) .]]
+        lappend addr in-addr arpa
+        set state(query) [join $addr .]
+        set state(-type) PTR
     }
 
+    BuildMessage $token
+    
+    if {$state(-protocol) == "tcp"} {
+        TcpTransmit $token
+        if {$state(-command) == {}} {
+            wait $token
+        }
+    } else {
+        UdpTransmit $token
+        wait $token
+    }
+    
     return $token
 }
 
@@ -247,10 +265,10 @@ proc dns::resolve {query args} {
 # Description:
 #  Return a list of domain names returned as results for the last query.
 #
-proc dns::name {token} {
+proc ::dns::name {token} {
     set r {}
-    dns::Flags $token flags
-    array set reply [dns::Decode $token]
+    Flags $token flags
+    array set reply [Decode $token]
 
     switch -exact -- $flags(opcode) {
         0 {
@@ -288,9 +306,9 @@ proc dns::name {token} {
 # Description:
 #  Return a list of the IP addresses returned for this query.
 #
-proc dns::address {token} {
+proc ::dns::address {token} {
     set r {}
-    array set reply [dns::Decode $token]
+    array set reply [Decode $token]
     foreach answer $reply(AN) {
         array set AN $answer
 
@@ -311,9 +329,9 @@ proc dns::address {token} {
 # Description:
 #  Return a list of all CNAME results returned for this query.
 #
-proc dns::cname {token} {
+proc ::dns::cname {token} {
     set r {}
-    array set reply [dns::Decode $token]
+    array set reply [Decode $token]
     foreach answer $reply(AN) {
         array set AN $answer
 
@@ -329,8 +347,8 @@ proc dns::cname {token} {
 # Description:
 #   Return the decoded answer records. This can be used for more complex
 #   queries where the answer isn't supported byb cname/address/name.
-proc dns::result {token args} {
-    array set reply [eval [linsert $args 0 dns::Decode $token]]
+proc ::dns::result {token args} {
+    array set reply [eval [linsert $args 0 Decode $token]]
     return $reply(AN)
 }
 
@@ -339,7 +357,7 @@ proc dns::result {token args} {
 # Description:
 #  Get the status of the request.
 #
-proc dns::status {token} {
+proc ::dns::status {token} {
     upvar #0 $token state
     return $state(status)
 }
@@ -347,7 +365,7 @@ proc dns::status {token} {
 # Description:
 #  Get the error message. Empty if no error.
 #
-proc dns::error {token} {
+proc ::dns::error {token} {
     upvar #0 $token state
     if {[info exists state(error)]} {
 	return $state(error)
@@ -358,9 +376,9 @@ proc dns::error {token} {
 # Description
 #  Get the error code. This is 0 for a successful transaction.
 #
-proc dns::errorcode {token} {
+proc ::dns::errorcode {token} {
     upvar #0 $token state
-    set flags [dns::Flags $token]
+    set flags [Flags $token]
     set ndx [lsearch -exact $flags errorcode]
     incr ndx
     return [lindex $flags $ndx]
@@ -369,20 +387,20 @@ proc dns::errorcode {token} {
 # Description:
 #  Reset a connection with optional reason.
 #
-proc dns::reset {token {why reset} {errormsg {}}} {
+proc ::dns::reset {token {why reset} {errormsg {}}} {
     upvar #0 $token state
     set state(status) $why
     if {[string length $errormsg] > 0 && ![info exists state(error)]} {
         set state(error) $errormsg
     }
     catch {fileevent $state(sock) readable {}}
-    dns::Finish $token
+    Finish $token
 }
 
 # Description:
 #  Wait for a request to complete and return the status.
 #
-proc dns::wait {token} {
+proc ::dns::wait {token} {
     upvar #0 $token state
 
     if {$state(status) == "connect"} {
@@ -395,7 +413,7 @@ proc dns::wait {token} {
 # Description:
 #  Remove any state associated with this token.
 #
-proc dns::cleanup {token} {
+proc ::dns::cleanup {token} {
     upvar #0 $token state
     if {[info exists state]} {
         catch {close $state(sock)}
@@ -409,7 +427,7 @@ proc dns::cleanup {token} {
 # Description:
 #  Dump the raw data of the request and reply packets.
 #
-proc dns::dump {args} {
+proc ::dns::dump {args} {
     if {[llength $args] == 1} {
         set type -reply
         set token [lindex $args 0]
@@ -424,7 +442,7 @@ proc dns::dump {args} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
-
+    
     set result {}
     switch -glob -- $type {
         -qu*    -
@@ -446,7 +464,7 @@ proc dns::dump {args} {
 # Description:
 #  Perform a hex dump of binary data.
 #
-proc dns::DumpMessage {data} {
+proc ::dns::DumpMessage {data} {
     set result {}
     binary scan $data c* r
     foreach c $r {
@@ -460,7 +478,7 @@ proc dns::DumpMessage {data} {
 # Description:
 #  Contruct a DNS query packet.
 #
-proc dns::BuildMessage {token} {
+proc ::dns::BuildMessage {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -487,7 +505,7 @@ proc dns::BuildMessage {token} {
 
 
     # Pack the query: QNAME QTYPE QCLASS
-    set qsection [dns::PackName $state(query)]
+    set qsection [PackName $state(query)]
     append qsection [binary format SS \
                          $types($state(-type))\
                          $classes($state(-class))]
@@ -507,7 +525,7 @@ proc dns::BuildMessage {token} {
             append state(request) $qsection $nsdata
         }
         1 {
-            # IQUERY
+            # IQUERY            
             set state(request) [binary format SSSSSS $state(id) \
                 [expr {($state(opcode) << 11) | ($state(-recurse) << 8)}] \
                 0 $qdcount 0 0 0]
@@ -537,7 +555,7 @@ proc dns::BuildMessage {token} {
 }
 
 # Pack a human readable dns name into a DNS resource record format.
-proc dns::PackName {name} {
+proc ::dns::PackName {name} {
     set data ""
     foreach part [split [string trim $name .] .] {
         set len [string length $part]
@@ -548,7 +566,7 @@ proc dns::PackName {name} {
 }
 
 # Pack a character string - byte length prefixed
-proc dns::PackString {text} {
+proc ::dns::PackString {text} {
     set len [string length $text]
     set data [binary format ca$len $len $text]
     return $data
@@ -558,18 +576,18 @@ proc dns::PackString {text} {
 # of each type.
 # eg: PackRecord name wiki.tcl.tk type MX class IN rdata {10 mail.example.com}
 #
-proc dns::PackRecord {args} {
+proc ::dns::PackRecord {args} {
     variable types
     variable classes
     array set rr {name "" type A class IN ttl 0 rdlength 0 rdata ""}
     array set rr $args
-    set data [dns::PackName $rr(name)]
+    set data [PackName $rr(name)]
 
     switch -exact -- $rr(type) {
         CNAME - MB - MD - MF - MG - MR - NS - PTR {
-            set rr(rdata) [dns::PackName $rr(rdata)]
+            set rr(rdata) [PackName $rr(rdata)] 
         }
-        HINFO {
+        HINFO { 
             array set r {CPU {} OS {}}
             array set r $rr(rdata)
             set rr(rdata) [PackString $r(CPU)]
@@ -584,7 +602,7 @@ proc dns::PackRecord {args} {
         MX {
             foreach {pref exch} $rr(rdata) break
             set rr(rdata) [binary format S $pref]
-            append rr(rdata) [dns::PackName $exch]
+            append rr(rdata) [PackName $exch]
         }
         TXT {
             set str $rr(rdata)
@@ -594,14 +612,14 @@ proc dns::PackRecord {args} {
                 set s [string range $str $n [incr n 253]]
                 append rr(rdata) [PackString $s]
             }
-        }
+        }          
         NULL {}
         SOA {
             array set r {MNAME {} RNAME {}
                 SERIAL 0 REFRESH 0 RETRY 0 EXPIRE 0 MINIMUM 0}
             array set r $rr(rdata)
-            set rr(rdata) [dns::PackName $r(MNAME)]
-            append rr(rdata) [dns::PackName $r(RNAME)]
+            set rr(rdata) [PackName $r(MNAME)]
+            append rr(rdata) [PackName $r(RNAME)]
             append rr(rdata) [binary format IIIII $r(SERIAL) \
                                   $r(REFRESH) $r(RETRY) $r(EXPIRE) $r(MINIMUM)]
         }
@@ -619,7 +637,7 @@ proc dns::PackRecord {args} {
 # Description:
 #  Transmit a DNS request over a tcp connection.
 #
-proc dns::TcpTransmit {token} {
+proc ::dns::TcpTransmit {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -627,42 +645,43 @@ proc dns::TcpTransmit {token} {
     # setup the timeout
     if {$state(-timeout) > 0} {
         set state(after) [after $state(-timeout) \
-                              [list dns::reset \
+                              [list [namespace origin reset] \
                                    $token timeout\
                                    "operation timed out"]]
     }
 
+    # Jim Tcl has no async connect ...
+
     set s [socket stream $state(-nameserver):$state(-port)]
-    fileevent $s writable [list dns::TcpConnected $token $s]
+    fileevent $s writable [list [namespace origin TcpConnected] $token $s]
     set state(sock) $s
     set state(status) connect
 
     return $token
 }
 
-proc dns::TcpConnected {token s} {
+proc ::dns::TcpConnected {token s} {
     variable $token
     upvar 0 $token state
 
     fileevent $s writable {}
 
+    # Jim Tcl has no async connect ...
 #    if {[catch {fconfigure $s -peername}]} {
 #	# TCP connection failed
-#        dns::Finish $token "can't connect to server"
+#        Finish $token "can't connect to server"
 #	return
 #    }
 
-#    fconfigure $s -blocking 0 -translation binary -buffering none
-    $s ndelay 1
+    fconfigure $s -blocking 0 -translation binary -buffering none
 
     # For TCP the message must be prefixed with a 16bit length field.
     set req [binary format S [string length $state(request)]]
     append req $state(request)
 
     puts -nonewline $s $req
-    $s flush
 
-    fileevent $s readable [list dns::TcpEvent $token]
+    fileevent $s readable [list [namespace current]::TcpEvent $token]
 }
 
 # -------------------------------------------------------------------------
@@ -674,7 +693,7 @@ proc dns::TcpConnected {token s} {
 #  As yet I have been unable to test this myself and the tcludp package
 #  cannot do this.
 #
-proc dns::UdpTransmit {token} {
+proc ::dns::UdpTransmit {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -682,19 +701,18 @@ proc dns::UdpTransmit {token} {
     # setup the timeout
     if {$state(-timeout) > 0} {
         set state(after) [after $state(-timeout) \
-                              [list dns::reset \
+                              [list [namespace origin reset] \
                                    $token timeout\
                                   "operation timed out"]]
     }
-
+    
     set state(sock) [socket dgram]
-
     #fconfigure $state(sock) -translation binary -buffering none
     set state(status) connect
     $state(sock) sendto $state(request) $state(-nameserver):$state(-port)
-
-    fileevent $state(sock) readable [list dns::UdpEvent $token]
-
+    
+    fileevent $state(sock) readable [list [namespace current]::UdpEvent $token]
+    
     return $token
 }
 
@@ -703,7 +721,7 @@ proc dns::UdpTransmit {token} {
 # Description:
 #  Tidy up after a tcp transaction.
 #
-proc dns::Finish {token {errormsg ""}} {
+proc ::dns::Finish {token {errormsg ""}} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -733,12 +751,12 @@ proc dns::Finish {token {errormsg ""}} {
 # Description:
 #  Handle end-of-file on a tcp connection.
 #
-proc dns::Eof {token} {
+proc ::dns::Eof {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
     set state(status) eof
-    dns::Finish $token
+    Finish $token
 }
 
 # -------------------------------------------------------------------------
@@ -746,7 +764,7 @@ proc dns::Eof {token} {
 # Description:
 #  Process a DNS reply packet (protocol independent)
 #
-proc dns::Receive {token} {
+proc ::dns::Receive {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -757,15 +775,15 @@ proc dns::Receive {token} {
     switch -- $status {
         0 {
             set state(status) ok
-            dns::Finish $token
+            Finish $token 
         }
-        1 { dns::Finish $token "Format error - unable to interpret the query." }
-        2 { dns::Finish $token "Server failure - internal server error." }
-        3 { dns::Finish $token "Name Error - domain does not exist" }
-        4 { dns::Finish $token "Not implemented - the query type is not available." }
-        5 { dns::Finish $token "Refused - your request has been refused by the server." }
+        1 { Finish $token "Format error - unable to interpret the query." }
+        2 { Finish $token "Server failure - internal server error." }
+        3 { Finish $token "Name Error - domain does not exist" }
+        4 { Finish $token "Not implemented - the query type is not available." }
+        5 { Finish $token "Refused - your request has been refused by the server." }
         default {
-            dns::Finish $token "unrecognised error code: $err"
+            Finish $token "unrecognised error code: $err"
         }
     }
 }
@@ -775,7 +793,7 @@ proc dns::Receive {token} {
 # Description:
 #  file event handler for tcp socket. Wait for the reply data.
 #
-proc dns::TcpEvent {token} {
+proc ::dns::TcpEvent {token} {
     variable log
     # FRINK: nocheck
     variable $token
@@ -790,16 +808,16 @@ proc dns::TcpEvent {token} {
     set status [catch {read $state(sock)} result]
     if {$status != 0} {
         ${log}::debug "Event error: $result"
-        dns::Finish $token "error reading data: $result"
+        Finish $token "error reading data: $result"
     } elseif { [string length $result] >= 0 } {
         if {[catch {
             # Handle incomplete reads - check the size and keep reading.
             if {![info exists state(size)]} {
                 binary scan $result S state(size)
-                set result [string range $result 2 end]
+                set result [string range $result 2 end]            
             }
             append state(reply) $result
-
+            
             # check the length and flags and chop off the tcp length prefix.
             if {[string length $state(reply)] >= $state(size)} {
                 binary scan $result S id
@@ -808,14 +826,14 @@ proc dns::TcpEvent {token} {
                     ${log}::error "received packed with incorrect id"
                 }
                 # bug #1158037 - doing this causes problems > 65535 requests!
-                #Receive dns::$id
-                dns::Receive $token
+                #Receive [namespace current]::$id
+                Receive $token
             } else {
                 ${log}::debug "Incomplete tcp read:\
                    [string length $state(reply)] should be $state(size)"
             }
         } err]} {
-            dns::Finish $token "Event error: $err"
+            Finish $token "Event error: $err"
         }
     } elseif { [eof $state(sock)] } {
         Eof $token
@@ -823,7 +841,7 @@ proc dns::TcpEvent {token} {
         ${log}::debug "Event blocked"
     } else {
         ${log}::critical "Event error: this can't happen!"
-        dns::Finish $token "Event error: this can't happen!"
+        Finish $token "Event error: this can't happen!"
     }
 }
 
@@ -831,7 +849,7 @@ proc dns::TcpEvent {token} {
 
 # Description:
 #  file event handler for udp sockets.
-proc dns::UdpEvent {token} {
+proc ::dns::UdpEvent {token} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
@@ -846,17 +864,17 @@ proc dns::UdpEvent {token} {
         ${log}::error "received packed with incorrect id"
     }
     # bug #1158037 - doing this causes problems > 65535 requests!
-    #dns::Receive dns::$id
-    dns::Receive $token
+    #Receive [namespace current]::$id
+    Receive $token
 }
-
+    
 # -------------------------------------------------------------------------
 
-proc dns::Flags {token {varname {}}} {
+proc ::dns::Flags {token {varname {}}} {
     # FRINK: nocheck
     variable $token
     upvar 0 $token state
-
+    
     if {$varname != {}} {
         upvar $varname flags
     }
@@ -882,7 +900,7 @@ proc dns::Flags {token {varname {}}} {
 # Description:
 #  Decode a DNS packet (either query or response).
 #
-proc dns::Decode {token args} {
+proc ::dns::Decode {token args} {
     variable log
     # FRINK: nocheck
     variable $token
@@ -898,7 +916,7 @@ proc dns::Decode {token args} {
                     must be -rdata"
             }
         }
-        dns::Pop args
+        Pop args
     }
 
     if {$opts(-query)} {
@@ -930,24 +948,24 @@ proc dns::Decode {token args} {
               NA: $nAN\
               NS: $nNS\
               AR: $nAR"
-    #puts $info
+    #${log}::debug $info
 
     set ndx 12
     set r {}
-    set QD [dns::ReadQuestion $nQD $state(reply) ndx]
+    set QD [ReadQuestion $nQD $state(reply) ndx]
     lappend r QD $QD
-    set AN [dns::ReadAnswer $nAN $state(reply) ndx $opts(-rdata)]
+    set AN [ReadAnswer $nAN $state(reply) ndx $opts(-rdata)]
     lappend r AN $AN
-    set NS [dns::ReadAnswer $nNS $state(reply) ndx $opts(-rdata)]
+    set NS [ReadAnswer $nNS $state(reply) ndx $opts(-rdata)]
     lappend r NS $NS
-    set AR [dns::ReadAnswer $nAR $state(reply) ndx $opts(-rdata)]
+    set AR [ReadAnswer $nAR $state(reply) ndx $opts(-rdata)]
     lappend r AR $AR
     return $r
 }
 
 # -------------------------------------------------------------------------
 
-proc dns::Expand {data} {
+proc ::dns::Expand {data} {
     set r {}
     binary scan $data c* d
     foreach c $d {
@@ -961,20 +979,26 @@ proc dns::Expand {data} {
 # Description:
 #  Pop the nth element off a list. Used in options processing.
 #
-proc dns::Pop {&list {nth 0}} {
-    set r [lindex $list $nth]
-    set list [lreplace $list $nth $nth]
+proc ::dns::Pop {varname {nth 0}} {
+    upvar $varname args
+    set r [lindex $args $nth]
+    set args [lreplace $args $nth $nth]
     return $r
 }
 
 # -------------------------------------------------------------------------
 
-proc dns::KeyOf {&array value {default {}}} {
-    try {
-        dict get [lreverse $array] $value
-    } on error msg {
-        return $default
+proc ::dns::KeyOf {arrayname value {default {}}} {
+    upvar $arrayname array
+    set lst [array get array]
+    set ndx [lsearch -exact $lst $value]
+    if {$ndx != -1} {
+        incr ndx -1
+        set r [lindex $lst $ndx]
+    } else {
+        set r $default
     }
+    return $r
 }
 
 
@@ -982,7 +1006,7 @@ proc dns::KeyOf {&array value {default {}}} {
 # Read the question section from a DNS message. This always starts at index
 # 12 of a message but may be of variable length.
 #
-proc dns::ReadQuestion {nitems data indexvar} {
+proc ::dns::ReadQuestion {nitems data indexvar} {
     variable types
     variable classes
     upvar $indexvar index
@@ -990,9 +1014,9 @@ proc dns::ReadQuestion {nitems data indexvar} {
 
     for {set cn 0} {$cn < $nitems} {incr cn} {
         set r {}
-        lappend r name [dns::ReadName data $index offset]
+        lappend r name [ReadName data $index offset]
         incr index $offset
-
+        
         # Read off QTYPE and QCLASS for this query.
         set ndx $index
         incr index 3
@@ -1000,18 +1024,18 @@ proc dns::ReadQuestion {nitems data indexvar} {
         set qtype [expr {$qtype & 0xFFFF}]
         set qclass [expr {$qclass & 0xFFFF}]
         incr index
-        lappend r type [dns::KeyOf types $qtype $qtype] \
-                  class [dns::KeyOf classes $qclass $qclass]
+        lappend r type [KeyOf types $qtype $qtype] \
+                  class [KeyOf classes $qclass $qclass]
         lappend result $r
     }
     return $result
 }
-
+        
 # -------------------------------------------------------------------------
 
-# Read an answer section from a DNS message.
+# Read an answer section from a DNS message. 
 #
-proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
+proc ::dns::ReadAnswer {nitems data indexvar {raw 0}} {
     variable types
     variable classes
     upvar $indexvar index
@@ -1019,17 +1043,17 @@ proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
 
     for {set cn 0} {$cn < $nitems} {incr cn} {
         set r {}
-        lappend r name [dns::ReadName data $index offset]
+        lappend r name [ReadName data $index offset]
         incr index $offset
-
+        
         # Read off TYPE, CLASS, TTL and RDLENGTH
         binary scan [string range $data $index end] SSIS type class ttl rdlength
 
         set type [expr {$type & 0xFFFF}]
-        set type [dns::KeyOf types $type $type]
+        set type [KeyOf types $type $type]
 
         set class [expr {$class & 0xFFFF}]
-        set class [dns::KeyOf classes $class $class]
+        set class [KeyOf classes $class $class]
 
         set ttl [expr {$ttl & 0xFFFFFFFF}]
         set rdlength [expr {$rdlength & 0xFFFF}]
@@ -1039,17 +1063,17 @@ proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
         if {! $raw} {
             switch -- $type {
                 A {
-                    set rdata [join [dns::Expand $rdata] .]
+                    set rdata [join [Expand $rdata] .]
                 }
                 AAAA {
                     set rdata [ip::contract [ip::ToString $rdata]]
                 }
                 NS - CNAME - PTR {
-                    set rdata [dns::ReadName data $index off]
+                    set rdata [ReadName data $index off] 
                 }
                 MX {
                     binary scan $rdata S preference
-                    set exchange [dns::ReadName data [expr {$index + 2}] off]
+                    set exchange [ReadName data [expr {$index + 2}] off]
                     set rdata [list $preference $exchange]
                 }
                 SRV {
@@ -1060,7 +1084,7 @@ proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
                     incr x $off
                     lappend rdata port [ReadUShort data $x off]
                     incr x $off
-                    lappend rdata target [dns::ReadName data $x off]
+                    lappend rdata target [ReadName data $x off]
                     incr x $off
                 }
                 TXT {
@@ -1068,9 +1092,9 @@ proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
                 }
                 SOA {
                     set x $index
-                    set rdata [list MNAME [dns::ReadName data $x off]]
-                    incr x $off
-                    lappend rdata RNAME [dns::ReadName data $x off]
+                    set rdata [list MNAME [ReadName data $x off]]
+                    incr x $off 
+                    lappend rdata RNAME [ReadName data $x off]
                     incr x $off
                     lappend rdata SERIAL [ReadULong data $x off]
                     incr x $off
@@ -1095,10 +1119,10 @@ proc dns::ReadAnswer {nitems data indexvar {raw 0}} {
 
 
 # Read a 32bit integer from a DNS packet. These are compatible with
-# the ReadName proc. Additionally - ReadULong takes measures to ensure
+# the ReadName proc. Additionally - ReadULong takes measures to ensure 
 # the unsignedness of the value obtained.
 #
-proc dns::ReadLong {datavar index usedvar} {
+proc ::dns::ReadLong {datavar index usedvar} {
     upvar $datavar data
     upvar $usedvar used
     set r {}
@@ -1109,7 +1133,7 @@ proc dns::ReadLong {datavar index usedvar} {
     return $r
 }
 
-proc dns::ReadULong {datavar index usedvar} {
+proc ::dns::ReadULong {datavar index usedvar} {
     upvar $datavar data
     upvar $usedvar used
     set r {}
@@ -1117,13 +1141,13 @@ proc dns::ReadULong {datavar index usedvar} {
     if {[binary scan $data @${index}cccc b1 b2 b3 b4]} {
         set used 4
         # This gets us an unsigned value.
-        set r [expr {($b4 & 0xFF) + (($b3 & 0xFF) << 8)
-                     + (($b2 & 0xFF) << 16) + ($b1 << 24)}]
+        set r [expr {($b4 & 0xFF) + (($b3 & 0xFF) << 8) 
+                     + (($b2 & 0xFF) << 16) + ($b1 << 24)}] 
     }
     return $r
 }
 
-proc dns::ReadUShort {datavar index usedvar} {
+proc ::dns::ReadUShort {datavar index usedvar} {
     upvar $datavar data
     upvar $usedvar used
     set r {}
@@ -1131,16 +1155,16 @@ proc dns::ReadUShort {datavar index usedvar} {
     if {[binary scan [string range $data $index end] cc b1 b2]} {
         set used 2
         # This gets us an unsigned value.
-        set r [expr {(($b2 & 0xff) + (($b1 & 0xff) << 8)) & 0xffff}]
+        set r [expr {(($b2 & 0xff) + (($b1 & 0xff) << 8)) & 0xffff}] 
     }
     return $r
 }
 
-# Read off the NAME or QNAME element. This reads off each label in turn,
+# Read off the NAME or QNAME element. This reads off each label in turn, 
 # dereferencing pointer labels until we have finished. The length of data
 # used is passed back using the usedvar variable.
 #
-proc dns::ReadName {datavar index usedvar} {
+proc ::dns::ReadName {datavar index usedvar} {
     upvar $datavar data
     upvar $usedvar used
     set startindex $index
@@ -1148,18 +1172,18 @@ proc dns::ReadName {datavar index usedvar} {
     set r {}
     set len 1
     set max [string length $data]
-
+    
     while {$len != 0 && $index < $max} {
         # Read the label length (and preread the pointer offset)
         binary scan [string range $data $index end] cc len lenb
         set len [expr {$len & 0xFF}]
         incr index
-
+        
         if {$len != 0} {
             if {[expr {$len & 0xc0}]} {
                 binary scan [binary format cc [expr {$len & 0x3f}] [expr {$lenb & 0xff}]] S offset
                 incr index
-                lappend r [dns::ReadName data $offset junk]
+                lappend r [ReadName data $offset junk]
                 set len 0
             } else {
                 lappend r [string range $data $index [expr {$index + $len - 1}]]
@@ -1171,7 +1195,7 @@ proc dns::ReadName {datavar index usedvar} {
     return [join $r .]
 }
 
-proc dns::ReadString {datavar index length} {
+proc ::dns::ReadString {datavar index length} {
     upvar $datavar data
     set startindex $index
 
@@ -1193,7 +1217,8 @@ proc dns::ReadString {datavar index length} {
 
 # -------------------------------------------------------------------------
 
-catch {dns::configure -nameserver [lindex [dns::nameservers] 0]}
+
+package provide dns $dns::version
 
 # -------------------------------------------------------------------------
 # Local Variables:
