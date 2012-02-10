@@ -40,7 +40,7 @@ if {[info commands stdout] ne ""} {
 		foreach {n v} $args {
 			switch -glob -- $n {
 				-bl* {
-					$f ndelay $v
+					$f ndelay $(!$v)
 				}
 				-bu* {
 					$f buffering $v
