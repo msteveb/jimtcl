@@ -68,5 +68,9 @@ lappend mapping @INSERTINDEX@ [join $index \n]
 
 # Output the result
 foreach line $lines {
-	puts [string map $mapping $line]
+	if {[string first ` $line] >= 0} {
+		puts [string map $mapping $line]
+	} else {
+		puts $line
+	}
 }
