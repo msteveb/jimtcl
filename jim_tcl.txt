@@ -4778,18 +4778,13 @@ of possible values (typically commands or options).
     exactly one element, the matched element is returned. If not, the
     result depends on the +-error+ option.
 
-    +-exact+::
-        Accept only exact matches.
-
-    +-message 'string'+::
-        Use +'string'+ in the error message at a mismatch. Default is "option".
-
-    +-error 'options'+::
-        The options are used when no match is found. If +'options'+ is
-        empty, no error is generated and an empty string is returned.
-        Otherwise the options are used as return options when
-        generating the error message. The default corresponds to
-        setting +-level 0+.
+    * +*-exact*+ Accept only exact matches.
+    * +*-message* 'string'+ Use +'string'+ in the error message at a mismatch. Default is "option".
+    * +*-error* 'options'+ The options are used when no match is found. If +'options'+ is
+      empty, no error is generated and an empty string is returned.
+      Otherwise the options are used as return options when
+      generating the error message. The default corresponds to
+      setting +-level 0+.
 
 history
 ~~~~~~~
@@ -4837,7 +4832,7 @@ Provides namespace-related functions. See also: http://www.tcl.tk/man/tcl8.6/Tcl
 +*namespace origin* 'command'+::
     Returns the fully-qualified name of the original command to which the imported command +'command'+ refers.
 
-+*namespace parent* ?namespace?::
++*namespace parent* ?namespace?+::
     Returns the fully-qualified name of the parent namespace for namespace +'namespace'+, if given, otherwise
     for the current namespace.
 
