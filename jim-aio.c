@@ -389,7 +389,7 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     jim_wide count = 0;
-    jim_wide maxlen = LLONG_MAX;
+    jim_wide maxlen = JIM_WIDE_MAX;
     FILE *outfh = Jim_AioFilehandle(interp, argv[0]);
 
     if (outfh == NULL) {
