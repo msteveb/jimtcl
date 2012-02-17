@@ -168,5 +168,11 @@ test subst-12.2 {lone $} {
     subst -novar {${a}}
 } {${a}}
 
+test subst-12.3 {variable inside [] with -noc} {
+    set a 1
+    subst -noc {x[join $a]y}
+} {x[join 1]y}
+
+
 # cleanup
 testreport

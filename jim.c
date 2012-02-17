@@ -10775,11 +10775,36 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 /* -----------------------------------------------------------------------------
  * Subst
  * ---------------------------------------------------------------------------*/
-static int JimParseSubstStr(struct JimParserCtx *pc)
+static void JimParseSubst(struct JimParserCtx *pc, int flags)
 {
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (pc->len && *pc->p != '$' && *pc->p != '[') {
+
+    if (pc->len == 0) {
+        pc->tend = pc->p;
+        pc->tt = JIM_TT_EOL;
+        pc->eof = 1;
+        return;
+    }
+    if (*pc->p == '[' && !(flags & JIM_SUBST_NOCMD)) {
+        JimParseCmd(pc);
+        return;
+    }
+    if (*pc->p == '$' && !(flags & JIM_SUBST_NOVAR)) {
+        if (JimParseVar(pc) == JIM_OK) {
+            return;
+        }
+        /* Not a var, so treat as a string */
+        pc->tstart = pc->p;
+        flags |= JIM_SUBST_NOVAR;
+    }
+    while (pc->len) {
+        if (*pc->p == '$' && !(flags & JIM_SUBST_NOVAR)) {
+            break;
+        }
+        if (*pc->p == '[' && !(flags & JIM_SUBST_NOCMD)) {
+            break;
+        }
         if (*pc->p == '\\' && pc->len > 1) {
             pc->p++;
             pc->len--;
@@ -10788,61 +10813,7 @@ static int JimParseSubstStr(struct JimParserCtx *pc)
         pc->len--;
     }
     pc->tend = pc->p - 1;
-    pc->tt = JIM_TT_ESC;
-    return JIM_OK;
-}
-
-static int JimParseSubst(struct JimParserCtx *pc, int flags)
-{
-    int retval;
-
-    if (pc->len == 0) {
-        pc->tstart = pc->tend = pc->p;
-        pc->tline = pc->linenr;
-        pc->tt = JIM_TT_EOL;
-        pc->eof = 1;
-        return JIM_OK;
-    }
-    switch (*pc->p) {
-        case '[':
-            retval = JimParseCmd(pc);
-            if (flags & JIM_SUBST_NOCMD) {
-                pc->tstart--;
-                pc->tend++;
-                pc->tt = (flags & JIM_SUBST_NOESC) ? JIM_TT_STR : JIM_TT_ESC;
-            }
-            return retval;
-            break;
-        case '$':
-            if (JimParseVar(pc) == JIM_ERR) {
-                pc->tstart = pc->tend = pc->p++;
-                pc->len--;
-                pc->tline = pc->linenr;
-                pc->tt = JIM_TT_STR;
-            }
-            else {
-                if (flags & JIM_SUBST_NOVAR) {
-                    pc->tstart--;
-                    if (flags & JIM_SUBST_NOESC)
-                        pc->tt = JIM_TT_STR;
-                    else
-                        pc->tt = JIM_TT_ESC;
-                    if (*pc->tstart == '{') {
-                        pc->tstart--;
-                        if (*(pc->tend + 1))
-                            pc->tend++;
-                    }
-                }
-            }
-            break;
-        default:
-            retval = JimParseSubstStr(pc);
-            if (flags & JIM_SUBST_NOESC)
-                pc->tt = JIM_TT_STR;
-            return retval;
-            break;
-    }
-    return JIM_OK;
+    pc->tt = (flags & JIM_SUBST_NOESC) ? JIM_TT_STR : JIM_TT_ESC;
 }
 
 /* The subst object type reuses most of the data structures and functions
