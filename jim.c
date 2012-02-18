@@ -2122,25 +2122,6 @@ void Jim_InvalidateStringRep(Jim_Obj *objPtr)
     objPtr->bytes = NULL;
 }
 
-#define Jim_SetStringRep(o, b, l) \
-    do { (o)->bytes = b; (o)->length = l; } while (0)
-
-/* Set the initial string representation for an object.
- * Does not try to free an old one. */
-void Jim_InitStringRep(Jim_Obj *objPtr, const char *bytes, int length)
-{
-    if (length == 0) {
-        objPtr->bytes = JimEmptyStringRep;
-        objPtr->length = 0;
-    }
-    else {
-        objPtr->bytes = Jim_Alloc(length + 1);
-        objPtr->length = length;
-        memcpy(objPtr->bytes, bytes, length);
-        objPtr->bytes[length] = '\0';
-    }
-}
-
 /* Duplicate an object. The returned object has refcount = 0. */
 Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -2151,8 +2132,18 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
         /* Object does not have a valid string representation. */
         dupPtr->bytes = NULL;
     }
+    else if (objPtr->length == 0) {
+        /* Zero length, so don't even bother with the type-specific dup, since all zero length objects look the same */
+        dupPtr->bytes = JimEmptyStringRep;
+        dupPtr->length = 0;
+        dupPtr->typePtr = NULL;
+        return dupPtr;
+    }
     else {
-        Jim_InitStringRep(dupPtr, objPtr->bytes, objPtr->length);
+        dupPtr->bytes = Jim_Alloc(objPtr->length + 1);
+        dupPtr->length = objPtr->length;
+        /* Copy the null byte too */
+        memcpy(dupPtr->bytes, objPtr->bytes, objPtr->length + 1);
     }
 
     /* By default, the new object has the same type as the old object */
@@ -2348,9 +2339,8 @@ Jim_Obj *Jim_NewStringObjNoAlloc(Jim_Interp *interp, char *s, int len)
 {
     Jim_Obj *objPtr = Jim_NewObj(interp);
 
-    if (len == -1)
-        len = strlen(s);
-    Jim_SetStringRep(objPtr, s, len);
+    objPtr->bytes = s;
+    objPtr->length = len == -1 ? strlen(s) : len;
     objPtr->typePtr = NULL;
     return objPtr;
 }
