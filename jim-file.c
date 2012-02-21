@@ -267,12 +267,13 @@ static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
     if (realpath(path, newname)) {
         Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, newname, -1));
+        return JIM_OK;
     }
     else {
         Jim_Free(newname);
-        Jim_SetResult(interp, argv[0]);
+        Jim_SetResultFormatted(interp, "can't normalize \"%#s\": %s", argv[0], strerror(errno));
+        return JIM_ERR;
     }
-    return JIM_OK;
 #else
     Jim_SetResultString(interp, "Not implemented", -1);
     return JIM_ERR;
