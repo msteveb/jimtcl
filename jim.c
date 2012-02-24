@@ -6083,8 +6083,10 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 
-#if 0
-    /* Optimise dict -> list. XXX: Is it worth it?  */
+    /* Optimise dict -> list. Note that this may only save a little time, but
+     * it also preserves any source location of the dict elements
+     * which can be very useful
+     */
     if (Jim_IsDict(objPtr)) {
         Jim_Obj **listObjPtrPtr;
         int len;
@@ -6104,7 +6106,6 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
         return JIM_OK;
     }
-#endif
 
     /* Try to preserve information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
