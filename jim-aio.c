@@ -511,6 +511,18 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_ERR;
 }
 
+static int aio_cmd_isatty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+#ifdef HAVE_ISATTY
+    AioFile *af = Jim_CmdPrivData(interp);
+    Jim_SetResultInt(interp, isatty(fileno(af->fp)));
+#else
+    Jim_SetResultInt(interp, 0);
+#endif
+
+    return JIM_OK;
+}
+
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -861,6 +873,13 @@ static const jim_subcmd_type aio_command_table[] = {
         1,
         2,
         /* Description: Write the string, with newline unless -nonewline */
+    },
+    {   "isatty",
+        NULL,
+        aio_cmd_isatty,
+        0,
+        0,
+        /* Description: Is the file descriptor a tty? */
     },
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
     {   "recvfrom",

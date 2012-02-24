@@ -80,6 +80,7 @@ cat <<EOF
 #define TCL_PLATFORM_PATH_SEPARATOR ":"
 #define HAVE_VFORK
 #define HAVE_WAITPID
+#define HAVE_ISATTY
 #define HAVE_SYS_TIME_H
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
