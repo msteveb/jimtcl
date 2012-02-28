@@ -6130,16 +6130,18 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->internalRep.listValue.ele = NULL;
 
     /* Convert into a list */
-    JimParserInit(&parser, str, strLen, linenr);
-    while (!parser.eof) {
-        Jim_Obj *elementPtr;
+    if (strLen) {
+        JimParserInit(&parser, str, strLen, linenr);
+        while (!parser.eof) {
+            Jim_Obj *elementPtr;
 
-        JimParseList(&parser);
-        if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
-            continue;
-        elementPtr = JimParserGetTokenObj(interp, &parser);
-        JimSetSourceInfo(interp, elementPtr, fileNameObj, parser.tline);
-        ListAppendElement(objPtr, elementPtr);
+            JimParseList(&parser);
+            if (parser.tt != JIM_TT_STR && parser.tt != JIM_TT_ESC)
+                continue;
+            elementPtr = JimParserGetTokenObj(interp, &parser);
+            JimSetSourceInfo(interp, elementPtr, fileNameObj, parser.tline);
+            ListAppendElement(objPtr, elementPtr);
+        }
     }
     Jim_DecrRefCount(interp, fileNameObj);
     return JIM_OK;
