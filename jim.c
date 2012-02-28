@@ -10500,6 +10500,11 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
         return JIM_ERR;
     }
 
+    if (Jim_Length(cmd->u.proc.bodyObjPtr) == 0) {
+        /* Optimise for procedure with no body - useful for optional debugging */
+        return JIM_OK;
+    }
+
     /* Check if there are too nested calls */
     if (interp->framePtr->level == interp->maxCallFrameDepth) {
         Jim_SetResultString(interp, "Too many nested calls. Infinite recursion?", -1);
