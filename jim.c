@@ -127,6 +127,7 @@ static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim
 static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands);
 static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
+static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
 static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *const *argv);
@@ -6197,7 +6198,7 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         int len;
         int i;
 
-        Jim_DictPairs(interp, objPtr, &listObjPtrPtr, &len);
+        listObjPtrPtr = JimDictPairs(objPtr, &len);
         for (i = 0; i < len; i++) {
             Jim_IncrRefCount(listObjPtrPtr[i]);
         }
