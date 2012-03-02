@@ -440,11 +440,107 @@ static int JimCheckConversion(const char *str, const char *endptr)
     return JIM_OK;
 }
 
+/* Parses the front of a number to determine it's sign and base 
+ * Returns the index to start parsing according to the given base
+ */
+static int JimNumberBase(const char *str, int *base, int *sign)
+{
+    int i = 0;
+
+    *base = 10;
+
+    while (isspace(UCHAR(str[i]))) {
+        i++;
+    }
+
+    if (str[i] == '-') {
+        *sign = -1;
+        i++;
+    }
+    else {
+        if (str[i] == '+') {
+            i++;
+        }
+        *sign = 1;
+    }
+
+    if (str[i] != '0') {
+        /* base 10 */
+        return 0;
+    }
+
+    /* We have 0<x>, so see if we can convert it */
+    switch (str[i + 1]) {
+        case 'x': case 'X': *base = 16; break;
+        case 'o': case 'O': *base = 8; break;
+        case 'b': case 'B': *base = 2; break;
+        default: return 0;
+    }
+    i += 2;
+    /* Ensure that (e.g.) 0x-5 fails to parse */
+    if (str[i] != '-' && str[i] != '+' && !isspace(UCHAR(str[i]))) {
+        /* Parse according to this base */
+        return i;
+    }
+    /* Parse as base 10 */
+    return 10;
+}
+
+/* Converts a number as per strtol(..., 0) except leading zeros do *not*
+ * imply octal. Instead, decimal is assumed unless the number begins with 0x, 0o or 0b
+ */
+static long jim_strtol(const char *str, char **endptr)
+{
+    int sign;
+    int base;
+    int i = JimNumberBase(str, &base, &sign);
+
+    if (base != 10) {
+        long value = strtol(str + i, endptr, base);
+        if (endptr == NULL || *endptr != str + i) {
+            return value * sign;
+        }
+    }
+
+    /* Can just do a regular base-10 conversion */
+    return strtol(str, endptr, 10);
+}
+
+
+/* Converts a number as per strtoull(..., 0) except leading zeros do *not*
+ * imply octal. Instead, decimal is assumed unless the number begins with 0x, 0o or 0b
+ */
+static unsigned long long jim_strtoull(const char *str, char **endptr)
+{
+#ifdef HAVE_LONG_LONG
+    int sign;
+    int base;
+    int i = JimNumberBase(str, &base, &sign);
+
+    if (base != 10) {
+        long value = strtoull(str + i, endptr, base);
+        if (endptr == NULL || *endptr != str + i) {
+            return value * sign;
+        }
+    }
+
+    /* Can just do a regular base-10 conversion */
+    return strtoull(str, endptr, 10);
+#else
+    return (unsigned long)jim_strtol(str, endptr);
+#endif
+}
+
 int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
 {
     char *endptr;
 
-    *widePtr = strtoull(str, &endptr, base);
+    if (base) {
+        *widePtr = strtoull(str, &endptr, base);
+    }
+    else {
+        *widePtr = jim_strtoull(str, &endptr);
+    }
 
     return JimCheckConversion(str, endptr);
 }
@@ -5390,7 +5486,7 @@ Jim_CallFrame *Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr)
         if (str[0] == '#') {
             char *endptr;
 
-            level = strtol(str + 1, &endptr, 0);
+            level = jim_strtol(str + 1, &endptr);
             if (str[1] == '\0' || endptr[0] != '\0') {
                 level = -1;
             }
@@ -7031,7 +7127,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         idx = 0;
     }
     else {
-        idx = strtol(str, &endptr, 0);
+        idx = jim_strtol(str, &endptr);
 
         if (endptr == str) {
             goto badindex;
@@ -7043,7 +7139,7 @@ int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     if (*str == '+' || *str == '-') {
         int sign = (*str == '+' ? 1 : -1);
 
-        idx += sign * strtol(++str, &endptr, 0);
+        idx += sign * jim_strtol(++str, &endptr);
         if (str == endptr || *endptr) {
             goto badindex;
         }
@@ -8147,28 +8243,53 @@ singlechar:
 static int JimParseExprNumber(struct JimParserCtx *pc)
 {
     int allowdot = 1;
-    int allowhex = 0;
+    int base = 10;
 
     /* Assume an integer for now */
     pc->tt = JIM_TT_EXPR_INT;
     pc->tstart = pc->p;
     pc->tline = pc->linenr;
-    while (isdigit(UCHAR(*pc->p))
-        || (allowhex && isxdigit(UCHAR(*pc->p)))
-        || (allowdot && *pc->p == '.')
-        || (pc->p - pc->tstart == 1 && *pc->tstart == '0' && (*pc->p == 'x' || *pc->p == 'X'))
-        ) {
-        if ((*pc->p == 'x') || (*pc->p == 'X')) {
-            allowhex = 1;
-            allowdot = 0;
+
+    /* Parse initial 0<x> */
+    if (pc->p[0] == '0') {
+        switch (pc->p[1]) {
+            case 'x':
+            case 'X':
+                base = 16;
+                allowdot = 0;
+                pc->p += 2;
+                pc->len -= 2;
+                break;
+            case 'o':
+            case 'O':
+                base = 8;
+                allowdot = 0;
+                pc->p += 2;
+                pc->len -= 2;
+                break;
+            case 'b':
+            case 'B':
+                base = 2;
+                allowdot = 0;
+                pc->p += 2;
+                pc->len -= 2;
+                break;
         }
+    }
+
+    while (isdigit(UCHAR(*pc->p))
+        || (base == 16 && isxdigit(UCHAR(*pc->p)))
+        || (base == 8 && *pc->p >= '0' && *pc->p <= '7')
+        || (base == 2 && (*pc->p == '0' || *pc->p == '1'))
+        || (allowdot && *pc->p == '.')
+        ) {
         if (*pc->p == '.') {
             allowdot = 0;
             pc->tt = JIM_TT_EXPR_DOUBLE;
         }
         pc->p++;
         pc->len--;
-        if (!allowhex && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+'
+        if (base == 10 && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+'
                 || isdigit(UCHAR(pc->p[1])))) {
             pc->p += 2;
             pc->len -= 2;
@@ -8677,8 +8798,9 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             case JIM_TT_DICTSUGAR:
             case JIM_TT_EXPRSUGAR:
             case JIM_TT_CMD:
-                token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
                 token->type = t->type;
+strexpr:
+                token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
                 if (t->type == JIM_TT_CMD) {
                     /* Only commands need source info */
                     JimSetSourceInfo(interp, token->objPtr, fileNameObj, t->line);
@@ -8687,15 +8809,24 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                 break;
 
             case JIM_TT_EXPR_INT:
-                token->objPtr = Jim_NewIntObj(interp, strtoull(t->token, NULL, 0));
-                token->type = t->type;
-                expr->len++;
-                break;
-
             case JIM_TT_EXPR_DOUBLE:
-                token->objPtr = Jim_NewDoubleObj(interp, strtod(t->token, NULL));
-                token->type = t->type;
-                expr->len++;
+                {
+                    char *endptr;
+                    if (t->type == JIM_TT_EXPR_INT) {
+                        token->objPtr = Jim_NewIntObj(interp, jim_strtoull(t->token, &endptr));
+                    }
+                    else {
+                        token->objPtr = Jim_NewDoubleObj(interp, strtod(t->token, &endptr));
+                    }
+                    if (endptr != t->token + t->len) {
+                        /* Conversion failed, so just store it as a string */
+                        Jim_FreeNewObj(interp, token->objPtr);
+                        token->type = JIM_TT_STR;
+                        goto strexpr;
+                    }
+                    token->type = t->type;
+                    expr->len++;
+                }
                 break;
 
             case JIM_TT_SUBEXPR_START:
@@ -9561,14 +9692,11 @@ static int ScanOneEntry(Jim_Interp *interp, const char *str, int pos, int strLen
                         : descr->type == 'x' ? 16 : descr->type == 'i' ? 0 : 10;
 
                     /* Try to scan a number with the given base */
-                    w = strtoull(tok, &endp, base);
-                    if (endp == tok && base == 0) {
-                        /* If scanning failed, and base was undetermined, simply
-                         * put it to 10 and try once more. This should catch the
-                         * case where %i begin to parse a number prefix (e.g.
-                         * '0x' but no further digits follows. This will be
-                         * handled as a ZERO followed by a char 'x' by Tcl) */
-                        w = strtoull(tok, &endp, 10);
+                    if (base == 0) {
+                        w = jim_strtoull(tok, &endp);
+                    }
+                    else {
+                        w = strtoull(tok, &endp, base);
                     }
 
                     if (endp != tok) {

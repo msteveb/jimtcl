@@ -336,7 +336,7 @@ test string-6.57 {string is integer, false} {
 } 0
 test string-6.58 {string is integer, false on bad octal} {
     list [string is integer  036963]
-} 0
+} 1
 test string-6.59 {string is integer, false on bad hex} {
     list [string is integer  0X345XYZ]
 } 0
