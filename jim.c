@@ -2994,7 +2994,7 @@ void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 
 void DupSourceInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
-    dupPtr->internalRep = srcPtr->internalRep;
+    dupPtr->internalRep.sourceValue = srcPtr->internalRep.sourceValue;
     Jim_IncrRefCount(dupPtr->internalRep.sourceValue.fileNameObj);
 }
 
@@ -3002,7 +3002,7 @@ static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
     Jim_Obj *fileNameObj, int lineNumber)
 {
     JimPanic((Jim_IsShared(objPtr), "JimSetSourceInfo called with shared object"));
-    JimPanic((objPtr->typePtr != NULL, "JimSetSourceInfo called with typePtr != NULL"));
+    JimPanic((objPtr->typePtr == &sourceObjType, "JimSetSourceInfo called with non-source object"));
     Jim_IncrRefCount(fileNameObj);
     objPtr->internalRep.sourceValue.fileNameObj = fileNameObj;
     objPtr->internalRep.sourceValue.lineNumber = lineNumber;
@@ -3499,9 +3499,12 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
 
 ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    struct ScriptObj *script = Jim_GetIntRepPtr(objPtr);
+    if (objPtr == interp->emptyObj) {
+        /* Avoid converting emptyObj to a script. use nullScriptObj instead. */
+        objPtr = interp->nullScriptObj;
+    }
 
-    if (objPtr->typePtr != &scriptObjType || script->substFlags) {
+    if (objPtr->typePtr != &scriptObjType || ((struct ScriptObj *)Jim_GetIntRepPtr(objPtr))->substFlags) {
         SetScriptFromAny(interp, objPtr, NULL);
     }
     return (ScriptObj *) Jim_GetIntRepPtr(objPtr);
@@ -5256,12 +5259,14 @@ Jim_Interp *Jim_CreateInterp(void)
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
     i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
+    i->nullScriptObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->errorFileNameObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
     Jim_IncrRefCount(i->unknown);
     Jim_IncrRefCount(i->currentScriptObj);
+    Jim_IncrRefCount(i->nullScriptObj);
     Jim_IncrRefCount(i->errorProc);
     Jim_IncrRefCount(i->trueObj);
     Jim_IncrRefCount(i->falseObj);
@@ -5295,6 +5300,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->unknown);
     Jim_DecrRefCount(i, i->errorFileNameObj);
     Jim_DecrRefCount(i, i->currentScriptObj);
+    Jim_DecrRefCount(i, i->nullScriptObj);
     Jim_FreeHashTable(&i->commands);
 #ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);

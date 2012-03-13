@@ -204,6 +204,12 @@ catch {
 }
 puts "TEST 28 PASSED"
 
+# REGTEST 29
+# Reference counting problem at exit
+set x [lindex {} 0]
+info source $x
+eval $x
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
