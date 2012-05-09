@@ -13949,7 +13949,6 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     int cmd;
     Jim_Obj *objPtr;
     int mode = 0;
-    int nons = 0;
 
     static const char * const commands[] = {
         "body", "statics", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
@@ -13964,15 +13963,20 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         INFO_RETURNCODES, INFO_REFERENCES, INFO_ALIAS
     };
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
-        return JIM_ERR;
-    }
+#ifdef jim_ext_namespace
+    int nons = 0;
+
     if (argc > 2 && Jim_CompareStringImmediate(interp, argv[1], "-nons")) {
         /* This is for internal use only */
         argc--;
         argv++;
         nons = 1;
+    }
+#endif
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
+        return JIM_ERR;
     }
     if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV)
         != JIM_OK) {

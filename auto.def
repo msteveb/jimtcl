@@ -36,6 +36,7 @@ options {
         stdlib    - Built-in commands including lassign, lambda, alias
         syslog    - System logging with syslog
         tclcompat - Tcl compatible read, gets, puts, parray, case, ...
+        namespace - Tcl compatible namespace support
 
         These are disabled by default:
 
