@@ -238,7 +238,7 @@ dict set extdb info {
     namespace { dep nshelper }
     posix    { check {[have-feature waitpid]} }
     readdir  { check {[have-feature opendir]} }
-    readline { check {[cc-check-function-in-lib readline readline]} }
+    readline { check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
     rlprompt { dep readline }
     tree     { dep oo }
     sdl      { check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
