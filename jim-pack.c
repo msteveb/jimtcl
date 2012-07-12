@@ -190,6 +190,87 @@ static void JimSetBitsIntLittleEndian(unsigned char *bitvec, jim_wide value, int
     }
 }
 
+/* Copied from jim.c */
+static int JimIsBigEndian(void)
+{
+    union {
+        unsigned short s;
+        unsigned char c[2];
+    } uval = {0x0102};
+
+    return uval.c[0] == 1;
+}
+
+/**
+ * Binary conversion of jim_wide integer to float 
+ *
+ * Considers the least significant bits of
+ * jim_wide 'value' as a IEEE float.
+ *
+ * Should work for both little- and big-endian platforms.
+ */
+static float JimIntToFloat(jim_wide value)
+{
+    int offs;
+
+    /* Skip offs to get to least significant bytes */
+    offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(float)) : 0;
+
+    return *(float *)((unsigned char *) &value + offs);
+}
+
+/**
+ * Binary conversion of jim_wide integer to double
+ *
+ * Double precision version of JimIntToFloat
+ */
+static double JimIntToDouble(jim_wide value)
+{
+    int offs;
+
+    /* Skip offs to get to least significant bytes */
+    offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(double)) : 0;
+
+    return *(double *)((unsigned char *) &value + offs);
+}
+
+/**
+ * Binary conversion of float to jim_wide integer
+ *
+ * Considers the bits of IEEE float 'value' as integer.
+ * The integer is zero-extended to jim_wide.
+ *
+ * Should work for both little- and big-endian platforms.
+ */
+static jim_wide JimFloatToInt(float value)
+{
+    int offs;
+    jim_wide val = 0;
+
+    /* Skip offs to get to least significant bytes */
+    offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(float)) : 0;
+
+    *(float *)((unsigned char *) &val + offs) = value;
+    return val;
+}
+
+/**
+ * Binary conversion of double to jim_wide integer
+ *
+ * Double precision version of JimFloatToInt
+ */
+static jim_wide JimDoubleToInt(double value)
+{
+    int offs;
+    jim_wide val = 0;
+
+    /* Skip offs to get to least significant bytes */
+    offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(double)) : 0;
+
+    *(double *)((unsigned char *) &val + offs) = value;
+    return val;
+}
+
 /**
  * [unpack]
  *
