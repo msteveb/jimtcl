@@ -212,11 +212,13 @@ static int JimIsBigEndian(void)
 static float JimIntToFloat(jim_wide value)
 {
     int offs;
+    float val;
 
     /* Skip offs to get to least significant bytes */
     offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(float)) : 0;
 
-    return *(float *)((unsigned char *) &value + offs);
+    memcpy(&val, (unsigned char *) &value + offs, sizeof(float));
+    return val;
 }
 
 /**
@@ -227,11 +229,13 @@ static float JimIntToFloat(jim_wide value)
 static double JimIntToDouble(jim_wide value)
 {
     int offs;
+    double val;
 
     /* Skip offs to get to least significant bytes */
     offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(double)) : 0;
 
-    return *(double *)((unsigned char *) &value + offs);
+    memcpy(&val, (unsigned char *) &value + offs, sizeof(double));
+    return val;
 }
 
 /**
@@ -250,7 +254,7 @@ static jim_wide JimFloatToInt(float value)
     /* Skip offs to get to least significant bytes */
     offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(float)) : 0;
 
-    *(float *)((unsigned char *) &val + offs) = value;
+    memcpy((unsigned char *) &val + offs, &value, sizeof(float));
     return val;
 }
 
@@ -267,14 +271,14 @@ static jim_wide JimDoubleToInt(double value)
     /* Skip offs to get to least significant bytes */
     offs = JimIsBigEndian() ? (sizeof(jim_wide) - sizeof(double)) : 0;
 
-    *(double *)((unsigned char *) &val + offs) = value;
+    memcpy((unsigned char *) &val + offs, &value, sizeof(double));
     return val;
 }
 
 /**
  * [unpack]
  *
- * Usage: unpack binvalue -intbe|-intle|-uintbe|-uintle|-str bitpos bitwidth
+ * Usage: unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
  *
  * Unpacks bits from $binvalue at bit position $bitpos and with $bitwidth.
  * Interprets the value according to the type and returns it.
@@ -282,13 +286,15 @@ static jim_wide JimDoubleToInt(double value)
 static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int option;
-    static const char * const options[] = { "-intbe", "-intle", "-uintbe", "-uintle", "-str", NULL };
-    enum { OPT_INTBE, OPT_INTLE, OPT_UINTBE, OPT_UINTLE, OPT_STR, };
+    static const char * const options[] = { "-intbe", "-intle", "-uintbe", "-uintle", 
+	    "-floatbe", "-floatle", "-str", NULL };
+    enum { OPT_INTBE, OPT_INTLE, OPT_UINTBE, OPT_UINTLE, OPT_FLOATBE, OPT_FLOATLE, OPT_STR, };
     jim_wide pos;
     jim_wide width;
 
     if (argc != 5) {
-        Jim_WrongNumArgs(interp, 1, argv, "binvalue -intbe|-intle|-uintbe|-uintle|-str bitpos bitwidth");
+        Jim_WrongNumArgs(interp, 1, argv,
+                "binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth");
         return JIM_ERR;
     }
     if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
@@ -333,7 +339,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (pos + width > len * 8) {
                 width = len * 8 - pos;
             }
-            if (option == OPT_INTBE || option == OPT_UINTBE) {
+            if (option == OPT_INTBE || option == OPT_UINTBE || option == OPT_FLOATBE) {
                 result = JimBitIntBigEndian(str, pos, width);
             }
             else {
@@ -342,8 +348,23 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (option == OPT_INTBE || option == OPT_INTLE) {
                 result = JimSignExtend(result, width);
             }
+
         }
-        Jim_SetResultInt(interp, result);
+
+        if (option == OPT_FLOATBE || option == OPT_FLOATLE) {
+            double fresult = 0.0;
+            if (width == 32) { 
+                fresult = (double) JimIntToFloat(result);
+            } else if (width == 64) {
+                fresult = JimIntToDouble(result);
+            } else {
+                Jim_SetResultFormatted(interp, "float field has bad bitwidth: %#s", argv[4]);
+                return JIM_ERR;
+            }
+            Jim_SetResult(interp, Jim_NewDoubleObj(interp, fresult));
+        } else {
+            Jim_SetResultInt(interp, result);
+        }
         return JIM_OK;
     }
 }
@@ -351,7 +372,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 /**
  * [pack]
  *
- * Usage: pack varname value -intle|-intbe|-str width ?bitoffset?
+ * Usage: pack varname value -intbe|-intle|-floatle|-floatbe|-str width ?bitoffset?
  *
  * Packs the binary representation of 'value' into the variable of the given name.
  * The value is packed according to the given type, width and bitoffset.
@@ -361,30 +382,39 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int option;
-    static const char * const options[] = { "-intle", "-intbe", "-str", NULL };
-    enum { OPT_LE, OPT_BE, OPT_STR };
+    static const char * const options[] = { "-intle", "-intbe", "-floatle", "-floatbe",
+        "-str", NULL };
+    enum { OPT_LE, OPT_BE, OPT_FLOATLE, OPT_FLOATBE, OPT_STR };
     jim_wide pos = 0;
     jim_wide width;
     jim_wide value;
+    double fvalue;
     Jim_Obj *stringObjPtr;
     int len;
     int freeobj = 0;
 
     if (argc != 5 && argc != 6) {
-        Jim_WrongNumArgs(interp, 1, argv, "varName value -intle|-intbe|-str bitwidth ?bitoffset?");
+        Jim_WrongNumArgs(interp, 1, argv,
+                "varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?");
         return JIM_ERR;
     }
     if (Jim_GetEnum(interp, argv[3], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
     }
-    if (option != OPT_STR && Jim_GetWide(interp, argv[2], &value) != JIM_OK) {
+    if ((option == OPT_LE || option == OPT_BE) &&
+            Jim_GetWide(interp, argv[2], &value) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if ((option == OPT_FLOATLE || option == OPT_FLOATBE) &&
+            Jim_GetDouble(interp, argv[2], &fvalue) != JIM_OK) {
         return JIM_ERR;
     }
     if (Jim_GetWide(interp, argv[4], &width) != JIM_OK) {
         return JIM_ERR;
     }
-    if (width <= 0 || (option == OPT_STR && width % 8) || (option != OPT_STR && width > sizeof(jim_wide) * 8)) {
-        Jim_SetResultFormatted(interp, "bad bitwidth: %#s", argv[5]);
+    if (width <= 0 || (option == OPT_STR && width % 8) || (option != OPT_STR && width > sizeof(jim_wide) * 8) ||
+       ((option == OPT_FLOATLE || option == OPT_FLOATBE) && width != 32 && width != 64)) {
+        Jim_SetResultFormatted(interp, "bad bitwidth: %#s", argv[4]);
         return JIM_ERR;
     }
     if (argc == 6) {
@@ -423,10 +453,15 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
     Jim_AppendString(interp, stringObjPtr, "", 0);
 
-    if (option == OPT_BE) {
+    /* Convert floating point to integer if necessary */
+    if (option == OPT_FLOATLE || option == OPT_FLOATBE) {
+        value = (width == 32) ? JimFloatToInt((float)fvalue) : JimDoubleToInt(fvalue);
+    }
+
+    if (option == OPT_BE || option == OPT_FLOATBE) {
         JimSetBitsIntBigEndian((unsigned char *)stringObjPtr->bytes, value, pos, width);
     }
-    else if (option == OPT_LE) {
+    else if (option == OPT_LE || option == OPT_FLOATLE) {
         JimSetBitsIntLittleEndian((unsigned char *)stringObjPtr->bytes, value, pos, width);
     }
     else {
