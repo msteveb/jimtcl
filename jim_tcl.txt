@@ -4658,21 +4658,22 @@ pack: pack, unpack
 ~~~~~~~~~~~~~~~~~~
 The optional 'pack' extension provides commands to encode and decode binary strings.
 
-+*pack* 'varName value' *-intle|-intbe|-str* 'bitwidth ?bitoffset?'+::
++*pack* 'varName value' *-intle|-intbe|-floatle|-floatbe|-str* 'bitwidth ?bitoffset?'+::
     Packs the binary representation of +'value'+ into the variable
     +'varName'+. The value is packed according to the given type
-    (integer/string, big-endian/little-endian), width and bit offset.
+    (integer/floating point/string, big-endian/little-endian), width and bit offset.
     The variable is created if necessary (like `append`).
     Ihe variable is expanded if necessary.
 
-+*unpack* 'binvalue' *-intbe|-intle|-uintbe|-uintle|-str* 'bitpos bitwidth'+::
++*unpack* 'binvalue' *-intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str* 'bitpos bitwidth'+::
     Unpacks bits from +'binvalue'+ at bit position +'bitpos'+ and with +'bitwidth'+.
-    Interprets the value according to the type (integer/string, big-endian/little-endian
+    Interprets the value according to the type (integer/floating point/string, big-endian/little-endian
     and signed/unsigned) and returns it. For integer types, +'bitwidth'+
-    may be up to the size of a Jim Tcl integer (typically 64 bits). For the string type,
-    both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
-    access outside the length of the value will return 0 for integer types or the empty string
-    for the string type.
+    may be up to the size of a Jim Tcl integer (typically 64 bits). For floating point types,
+    +'bitwidth'+ may be 32 bits (for single precision numbers) or 64 bits (for double precision).
+    For the string type, both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
+    access outside the length of the value will return 0 for integer types, 0.0 for floating point types
+    or the empty string for the string type.
 
 binary
 ~~~~~~
