@@ -14,7 +14,8 @@ proc binary {cmd args} {
 proc "binary format" {formatString args} {
 	set bitoffset 0
 	set result {}
-	foreach {conv t u n} [regexp -all -inline {([a-zA-Z@])(u)?([*0-9]*)} $formatString] {
+	# This RE is too unreliable...
+	foreach {conv t u n} [regexp -all -inline {([^[:space:]])(u)?([*0-9]*)} $formatString] {
 		if {$t in {a A}} {
 			set value [binary.nextarg args]
 			set sn [string bytelength $value]
@@ -116,7 +117,8 @@ proc "binary scan" {value formatString {args varName}} {
 	# Throws an error if no more args
 	set bitoffset 0
 	set count 0
-	foreach {conv t u n} [regexp -all -inline {([a-zA-Z@])(u)?([*0-9]*)} $formatString] {
+	# This RE is too unreliable...
+	foreach {conv t u n} [regexp -all -inline {([^[:space:]])(u)?([*0-9]*)} $formatString] {
 		set rembytes $([string bytelength $value] - $bitoffset / 8)
 		if {$t in {a A}} {
 			if {$n eq "*"} {
