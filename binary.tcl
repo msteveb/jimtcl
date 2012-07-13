@@ -125,7 +125,7 @@ proc "binary scan" {value formatString {args varName}} {
 				set n 1
 			}
 			if {$n > $rembytes} {
-				continue
+				break
 			}
 
 			set var [binary.nextarg varName]
@@ -148,7 +148,7 @@ proc "binary scan" {value formatString {args varName}} {
 				}
 			}
 			if {$n * $size > $rembytes * 8} {
-				continue
+				break
 			}
 
 			if {$type ne "int"} {
