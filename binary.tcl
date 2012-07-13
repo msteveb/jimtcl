@@ -69,6 +69,30 @@ proc "binary format" {formatString args} {
 			if {$bitoffset % 8} {
 				set bitoffset [pack result 0 -int$endian $(8 - $bitoffset % 8) $bitoffset]
 			}
+		} elseif {[binary.floatinfo $t] ne ""} {
+			# A floating point type
+			lassign [binary.floatinfo $t] endian size
+			set value [binary.nextarg args]
+
+			set vn [llength $value]
+			if {$n eq "*"} {
+				set n $vn
+			} elseif {$n eq ""} {
+				set n 1
+				set value [list $value]
+			} elseif {$vn < $n} {
+				return -code error "number of elements in list does not match count"
+			} elseif {$vn > $n} {
+				# Need to truncate the list
+				set value [lrange $value 0 $n-1]
+			}
+
+			if {$endian eq "host"} {
+				set endian $($::tcl_platform(byteOrder) eq "bigEndian" ? "be" : "le")
+			}
+			foreach v $value {
+				set bitoffset [pack result $v -float$endian $size $bitoffset]
+			}
 		} elseif {$t eq "x"} {
 			if {$n eq "*"} {
 				return -code error {cannot use "*" in format string with "x"}
@@ -174,6 +198,32 @@ proc "binary scan" {value formatString {args varName}} {
 			if {$bitoffset % 8} {
 				incr bitoffset $(8 - ($bitoffset % 8))
 			}
+		} elseif {[binary.floatinfo $t] ne ""} {
+			# An integer type
+			lassign [binary.floatinfo $t] endian size
+			set var [binary.nextarg varName]
+
+			if {$n eq "*"} {
+				set n $($rembytes * 8 / $size)
+			} else {
+				if {$n eq ""} {
+					set n 1
+				}
+			}
+			if {$n * $size > $rembytes * 8} {
+				break
+			}
+
+			if {$endian eq "host"} {
+				set endian $($::tcl_platform(byteOrder) eq "bigEndian" ? "be" : "le")
+			}
+
+			set result {}
+			loop i 0 $n {
+				set v [unpack $value -float$endian $bitoffset $size]
+				lappend result $v
+				incr bitoffset $size
+			}
 		} elseif {$t eq "x"} {
 			# Skip bytes
 			if {$n eq "*"} {
@@ -248,6 +298,21 @@ proc binary.intinfo {type} {
 		H {hex be 4 0x}
 		b {bin le 1}
 		B {bin be 1}
+	}
+	if {[exists info($type)]} {
+		return $info($type)
+	}
+	return ""
+}
+
+proc binary.floatinfo {type} {
+	set info {
+		r {le 32}
+		R {be 32}
+		f {host 32}
+		q {le 64}
+		Q {be 64}
+		d {host 64}
 	}
 	if {[exists info($type)]} {
 		return $info($type)

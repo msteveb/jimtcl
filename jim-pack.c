@@ -455,6 +455,10 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Convert floating point to integer if necessary */
     if (option == OPT_FLOATLE || option == OPT_FLOATBE) {
+        /* Note that the following is slightly incompatible with Tcl behaviour.
+         * In Tcl floating overflow gives FLT_MAX (cf. test binary-13.13).
+         * In Jim Tcl it gives Infinity. This behavior may change.
+         */
         value = (width == 32) ? JimFloatToInt((float)fvalue) : JimDoubleToInt(fvalue);
     }
 
