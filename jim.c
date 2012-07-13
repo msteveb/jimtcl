@@ -605,9 +605,11 @@ int Jim_DoubleToString(char *buf, double doubleValue)
 #endif
             return len;
         }
-        /* inf or Infinity -> Inf, nan -> Nan */
+        /* inf or Infinity -> Inf, nan -> NaN */
         if (buf[i] == 'i' || buf[i] == 'I' || buf[i] == 'n' || buf[i] == 'N') {
             buf[i] = toupper(UCHAR(buf[i]));
+            if (buf[i] == 'n' || buf[i] == 'N')
+                buf[i+2] = toupper(UCHAR(buf[i+2]));
             buf[i + 3] = 0;
             return i + 3;
         }
