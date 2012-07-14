@@ -1627,7 +1627,7 @@ test binary-45.2 {Tcl_BinaryObjCmd: combined wide int handling} {
     set x
 } {66 64 0 0 0 0 127 -1 -1 -1 65 76}
 
-# NB: tests binary-46.* fail, as 'binary' doesn't support UTF-8 chars.
+# NB: tests binary-46.* fail as Jim Tcl doesn't truncate Unicode chars to ISO-8859-1.
 
 test binary-47.1 {Tcl_BinaryObjCmd: number cache reference count handling} {
     # This test is only reliable when memory debugging is turned on,
