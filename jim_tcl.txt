@@ -4682,7 +4682,9 @@ commands based on the low-level `pack` and `unpack` commands.
 
 See the Tcl documentation at: http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm
 
-Note that packing and unpacking of floating point values is not supported.
+Packing and unpacking of floating point values is supported as an experimental feature.
+Note that 'binary format' with f/r/R specifiers (single-precision float) uses the value of Infinity
+ in case of overflow.
 
 oo: class, super
 ~~~~~~~~~~~~~~~~

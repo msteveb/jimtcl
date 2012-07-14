@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.5" />
+<meta name="generator" content="AsciiDoc 8.6.6" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Shared CSS for AsciiDoc xhtml11 and html5 backends */
@@ -179,7 +179,7 @@ div.quoteblock, div.verseblock {
   margin-left: 1.0em;
   margin-right: 10%;
   border-left: 5px solid #f0f0f0;
-  color: #777777;
+  color: #888;
 }
 
 div.quoteblock > div.attribution {
@@ -514,24 +514,29 @@ th.tableblock.valign-middle, td.tableblock.valign-middle {
 th.tableblock.valign-bottom, td.tableblock.valign-bottom {
   vertical-align: bottom;
 }
-/* Overrides for manpage documents */
-h1 {
+
+
+/*
+ * manpage specific
+ *
+ * */
+
+body.manpage h1 {
   padding-top: 0.5em;
   padding-bottom: 0.5em;
   border-top: 2px solid silver;
   border-bottom: 2px solid silver;
 }
-h2 {
+body.manpage h2 {
   border-style: none;
 }
-div.sectionbody {
+body.manpage div.sectionbody {
   margin-left: 3em;
 }
 
 @media print {
-  div#toc { display: none; }
+  body.manpage div#toc { display: none; }
 }
-
 </style>
 <script type="text/javascript">
 /*<![CDATA[*/
@@ -605,7 +610,7 @@ toc: function (toclevels) {
   var i;
   for (i = 0; i < toc.childNodes.length; i++) {
     var entry = toc.childNodes[i];
-    if (entry.nodeName == 'DIV'
+    if (entry.nodeName == 'div'
      && entry.getAttribute("class")
      && entry.getAttribute("class").match(/^toclevel/))
       tocEntriesToRemove.push(entry);
@@ -651,7 +656,7 @@ footnotes: function () {
   var entriesToRemove = [];
   for (i = 0; i < noteholder.childNodes.length; i++) {
     var entry = noteholder.childNodes[i];
-    if (entry.nodeName == 'DIV' && entry.getAttribute("class") == "footnote")
+    if (entry.nodeName == 'div' && entry.getAttribute("class") == "footnote")
       entriesToRemove.push(entry);
   }
   for (i = 0; i < entriesToRemove.length; i++) {
@@ -7256,29 +7261,30 @@ uucp, local0-local7</tt></pre>
 <div class="paragraph"><p>The optional <em>pack</em> extension provides commands to encode and decode binary strings.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt><strong>pack</strong> <em>varName value</em> <strong>-intle|-intbe|-str</strong> <em>bitwidth ?bitoffset?</em></tt>
+<tt><strong>pack</strong> <em>varName value</em> <strong>-intle|-intbe|-floatle|-floatbe|-str</strong> <em>bitwidth ?bitoffset?</em></tt>
 </dt>
 <dd>
 <p>
     Packs the binary representation of <tt><em>value</em></tt> into the variable
     <tt><em>varName</em></tt>. The value is packed according to the given type
-    (integer/string, big-endian/little-endian), width and bit offset.
+    (integer/floating point/string, big-endian/little-endian), width and bit offset.
     The variable is created if necessary (like <a href="#_append"><strong><tt>append</tt></strong></a>).
     Ihe variable is expanded if necessary.
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><strong>unpack</strong> <em>binvalue</em> <strong>-intbe|-intle|-uintbe|-uintle|-str</strong> <em>bitpos bitwidth</em></tt>
+<tt><strong>unpack</strong> <em>binvalue</em> <strong>-intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str</strong> <em>bitpos bitwidth</em></tt>
 </dt>
 <dd>
 <p>
     Unpacks bits from <tt><em>binvalue</em></tt> at bit position <tt><em>bitpos</em></tt> and with <tt><em>bitwidth</em></tt>.
-    Interprets the value according to the type (integer/string, big-endian/little-endian
+    Interprets the value according to the type (integer/floating point/string, big-endian/little-endian
     and signed/unsigned) and returns it. For integer types, <tt><em>bitwidth</em></tt>
-    may be up to the size of a Jim Tcl integer (typically 64 bits). For the string type,
-    both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
-    access outside the length of the value will return 0 for integer types or the empty string
-    for the string type.
+    may be up to the size of a Jim Tcl integer (typically 64 bits). For floating point types,
+    <tt><em>bitwidth</em></tt> may be 32 bits (for single precision numbers) or 64 bits (for double precision).
+    For the string type, both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
+    access outside the length of the value will return 0 for integer types, 0.0 for floating point types
+    or the empty string for the string type.
 </p>
 </dd>
 </dl></div>
@@ -7288,7 +7294,9 @@ uucp, local0-local7</tt></pre>
 <div class="paragraph"><p>The optional, pure-Tcl <em>binary</em> extension provides the Tcl-compatible <a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>scan</tt> and <a href="#_binary"><strong><tt>binary</tt></strong></a> <tt>format</tt>
 commands based on the low-level <a href="#cmd_3"><strong><tt>pack</tt></strong></a> and <a href="#cmd_3"><strong><tt>unpack</tt></strong></a> commands.</p></div>
 <div class="paragraph"><p>See the Tcl documentation at: <a href="http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm">http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm</a></p></div>
-<div class="paragraph"><p>Note that packing and unpacking of floating point values is not supported.</p></div>
+<div class="paragraph"><p>Packing and unpacking of floating point values is supported as an experimental feature.
+Note that <em>binary format</em> with f/r/R specifiers (single-precision float) uses the value of Infinity
+ in case of overflow.</p></div>
 </div>
 <div class="sect2">
 <h3 id="cmd_4">oo: class, super</h3>
@@ -7486,34 +7494,27 @@ of possible values (typically commands or options).</p></div>
     exactly one element, the matched element is returned. If not, the
     result depends on the <tt>-error</tt> option.
 </p>
-</dd>
-<dt class="hdlist1">
-<tt>-exact</tt>
-</dt>
-<dd>
+<div class="ulist"><ul>
+<li>
 <p>
-        Accept only exact matches.
+<tt><strong>-exact</strong></tt> Accept only exact matches.
 </p>
-</dd>
-<dt class="hdlist1">
-<tt>-message <em>string</em></tt>
-</dt>
-<dd>
+</li>
+<li>
 <p>
-        Use <tt><em>string</em></tt> in the error message at a mismatch. Default is "option".
+<tt><strong>-message</strong> <em>string</em></tt> Use <tt><em>string</em></tt> in the error message at a mismatch. Default is "option".
 </p>
-</dd>
-<dt class="hdlist1">
-<tt>-error <em>options</em></tt>
-</dt>
-<dd>
+</li>
+<li>
 <p>
-        The options are used when no match is found. If <tt><em>options</em></tt> is
-        empty, no error is generated and an empty string is returned.
-        Otherwise the options are used as return options when
-        generating the error message. The default corresponds to
-        setting <tt>-level 0</tt>.
+<tt><strong>-error</strong> <em>options</em></tt> The options are used when no match is found. If <tt><em>options</em></tt> is
+      empty, no error is generated and an empty string is returned.
+      Otherwise the options are used as return options when
+      generating the error message. The default corresponds to
+      setting <tt>-level 0</tt>.
 </p>
+</li>
+</ul></div>
 </dd>
 </dl></div>
 </div>
@@ -7616,7 +7617,7 @@ the remaining subcommands do nothing.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-+<strong>namespace parent</strong> ?namespace?
+<tt><strong>namespace parent</strong> ?namespace?</tt>
 </dt>
 <dd>
 <p>
@@ -8063,7 +8064,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2011-12-14 07:33:13 EST
+Last updated 2012-07-14 15:57:30 MSK
 </div>
 </div>
 </body>
