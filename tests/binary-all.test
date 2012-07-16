@@ -1517,7 +1517,7 @@ test binary-39.10 {ScanNumber: no sign extension} {
     list [binary scan \x01\x01\x01\x02\x81\x01\x01\x01\x01\x82\x01\x01\x01\x01\x82\x01\x01\x01\x01\x81 Iu5 arg1] $arg1
 } {1 {16843010 2164326657 25297153 16876033 16843137}}
 
-test binary-40.3 {ScanNumber: NaN} \
+test binary-40.3 {ScanNumber: NaN} -constraints {maxCompatibility} \
     -body {
 	catch {unset arg1}
 	list [binary scan \xff\xff\xff\xff f1 arg1] $arg1
@@ -1525,7 +1525,7 @@ test binary-40.3 {ScanNumber: NaN} \
     -match glob \
     -result {1 -NaN*}
 
-test binary-40.4 {ScanNumber: NaN} \
+test binary-40.4 {ScanNumber: NaN} -constraints {maxCompatibility} \
     -body {
 	catch {unset arg1}
 	list [binary scan \xff\xff\xff\xff\xff\xff\xff\xff d arg1] $arg1
@@ -2359,7 +2359,7 @@ test binary-62.6 {infinity} ieeeFloatingPoint {
 
 # scan/format Not-a-Number
 
-test binary-63.1 {NaN} ieeeFloatingPoint {
+test binary-63.1 {NaN} {ieeeFloatingPoint maxCompatibility} {
     binary scan [binary format q NaN] w w
     format 0x%016lx [expr {$w & 0xfff3ffffffffffff}]
 } 0x7ff0000000000000
