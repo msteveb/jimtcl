@@ -6185,11 +6185,11 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 
-    /* Optimise dict -> list. Note that this may only save a little time, but
+    /* Optimise dict -> list for unshared object. Note that this may only save a little time, but
      * it also preserves any source location of the dict elements
      * which can be very useful
      */
-    if (Jim_IsDict(objPtr)) {
+    if (Jim_IsDict(objPtr) && !Jim_IsShared(objPtr)) {
         Jim_Obj **listObjPtrPtr;
         int len;
         int i;
