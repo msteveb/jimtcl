@@ -13828,7 +13828,7 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     htiter = Jim_GetHashTableIterator(&interp->references);
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
-        char buf[JIM_REFERENCE_SPACE];
+        char buf[JIM_REFERENCE_SPACE + 1];
         Jim_Reference *refPtr = he->u.val;
         const unsigned long *refId = he->key;
 
