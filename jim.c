@@ -5264,7 +5264,7 @@ int Jim_Collect(Jim_Interp *interp)
                 JimFormatReference(refstr, refPtr, *refId);
 
                 objv[0] = refPtr->finalizerCmdNamePtr;
-                objv[1] = Jim_NewStringObjNoAlloc(interp, refstr, 32);
+                objv[1] = Jim_NewStringObjNoAlloc(interp, refstr, JIM_REFERENCE_SPACE);
                 objv[2] = refPtr->objPtr;
 
                 /* Drop the reference itself */
