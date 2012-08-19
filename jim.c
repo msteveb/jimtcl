@@ -13830,7 +13830,7 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while ((he = Jim_NextHashEntry(htiter)) != NULL) {
         char buf[JIM_REFERENCE_SPACE];
         Jim_Reference *refPtr = he->u.val;
-        const jim_wide *refId = he->key;
+        const unsigned long *refId = he->key;
 
         JimFormatReference(buf, refPtr, *refId);
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, buf, -1));
