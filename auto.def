@@ -2,7 +2,7 @@
 #
 
 # Note: modules which support options *must* be included before 'options'
-use cc cc-shared cc-db
+use cc cc-shared cc-db cc-lib
 use local
 
 options {
@@ -89,6 +89,9 @@ if {[cc-check-functions sysinfo]} {
         cc-check-members "struct sysinfo.uptime"
     }
 }
+
+cc-check-lfs
+cc-check-functions fseeko ftello
 
 define TCL_LIBRARY [get-define prefix]/lib/jim
 
@@ -329,7 +332,7 @@ define TCL_EXTS [suffix .tcl $extinfo(module-tcl)]
 define EXTRA_OBJS $extra_objs
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -none *
-make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_*}
+make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*}
 make-template Makefile.in
 make-template build-jim-ext.in
 
