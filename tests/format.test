@@ -67,6 +67,9 @@ test format-1.10 {integer formatting} {
 test format-1.11 {integer formatting} {
     format "%-#20o %#-20o %#-20o %#-20o" 6 34 16923 -12 -1
 } {06                   042                  041033               01777777777777777777764}
+test format-1.12 {no sign extend large 32 bit values} {
+    format %x 0xa0000000
+} {a0000000}
 
 test format-2.1 {string formatting} {
     format "%s %s %c %s" abcd {This is a very long test string.} 120 x

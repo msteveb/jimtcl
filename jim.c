@@ -510,7 +510,7 @@ static long jim_strtol(const char *str, char **endptr)
 /* Converts a number as per strtoull(..., 0) except leading zeros do *not*
  * imply octal. Instead, decimal is assumed unless the number begins with 0x, 0o or 0b
  */
-static unsigned long long jim_strtoull(const char *str, char **endptr)
+static jim_wide jim_strtoull(const char *str, char **endptr)
 {
 #ifdef HAVE_LONG_LONG
     int sign;
@@ -518,7 +518,7 @@ static unsigned long long jim_strtoull(const char *str, char **endptr)
     int i = JimNumberBase(str, &base, &sign);
 
     if (base != 10) {
-        long value = strtoull(str + i, endptr, base);
+        jim_wide value = strtoull(str + i, endptr, base);
         if (endptr == NULL || *endptr != str + i) {
             return value * sign;
         }
