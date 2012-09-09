@@ -68,6 +68,15 @@ options {
 
 cc-check-types "long long"
 
+define CCOPTS ""
+define CXXOPTS ""
+if {[cctest -cflags -fno-unwind-tables]} {
+    define-append CCOPTS -fno-unwind-tables
+}
+if {[cctest -cflags -fno-asynchronous-unwind-tables]} {
+    define-append CCOPTS -fno-asynchronous-unwind-tables
+}
+
 cc-check-includes sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h dirent.h crt_externs.h
 
