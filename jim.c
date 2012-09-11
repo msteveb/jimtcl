@@ -13259,6 +13259,9 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     static const char * const nocase_options[] = {
         "-nocase", NULL
     };
+    static const char * const nocase_length_options[] = {
+        "-nocase", "-length", NULL
+    };
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
@@ -13286,23 +13289,54 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 
         case OPT_COMPARE:
         case OPT_EQUAL:
-            if (argc != 4 &&
-                (argc != 5 ||
-                    Jim_GetEnum(interp, argv[2], nocase_options, &opt_case, NULL,
-                        JIM_ENUM_ABBREV) != JIM_OK)) {
-                Jim_WrongNumArgs(interp, 2, argv, "?-nocase? string1 string2");
-                return JIM_ERR;
+            {
+                /* n is the number of remaining option args */
+                long opt_length = -1;
+                int n = argc - 4;
+                int i = 2;
+                while (n > 0) {
+                    int subopt;
+                    if (Jim_GetEnum(interp, argv[i++], nocase_length_options, &subopt, NULL,
+                            JIM_ENUM_ABBREV) != JIM_OK) {
+badcompareargs:
+                        Jim_WrongNumArgs(interp, 2, argv, "?-nocase? ?-length int? string1 string2");
+                        return JIM_ERR;
+                    }
+                    if (subopt == 0) {
+                        /* -nocase */
+                        opt_case = 0;
+                        n--;
+                    }
+                    else {
+                        /* -length */
+                        if (n < 2) {
+                            goto badcompareargs;
+                        }
+                        if (Jim_GetLong(interp, argv[i++], &opt_length) != JIM_OK) {
+                            return JIM_ERR;
+                        }
+                        n -= 2;
+                    }
+                }
+                if (n) {
+                    goto badcompareargs;
+                }
+                argv += argc - 2;
+                if (opt_length < 0 && option != OPT_COMPARE && opt_case) {
+                    /* Fast version - [string equal], case sensitive, no length */
+                    Jim_SetResultBool(interp, Jim_StringEqObj(argv[0], argv[1]));
+                }
+                else {
+                    if (opt_length >= 0) {
+                        n = JimStringCompareLen(Jim_String(argv[0]), Jim_String(argv[1]), opt_length, !opt_case);
+                    }
+                    else {
+                        n = Jim_StringCompareObj(interp, argv[0], argv[1], !opt_case);
+                    }
+                    Jim_SetResultInt(interp, option == OPT_COMPARE ? n : n == 0);
+                }
+                return JIM_OK;
             }
-            if (opt_case == 0) {
-                argv++;
-            }
-            if (option == OPT_COMPARE || !opt_case) {
-                Jim_SetResultInt(interp, Jim_StringCompareObj(interp, argv[2], argv[3], !opt_case));
-            }
-            else {
-                Jim_SetResultBool(interp, Jim_StringEqObj(argv[2], argv[3]));
-            }
-            return JIM_OK;
 
         case OPT_MATCH:
             if (argc != 4 &&

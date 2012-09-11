@@ -3783,15 +3783,19 @@ The legal options (which may be abbreviated) are:
     Like `string range` except works on bytes rather than characters.
     These commands are identical if UTF-8 support is not enabled.
 
-+*string compare ?-nocase?* 'string1 string2'+::
++*string compare ?-nocase?* ?*-length* 'len? string1 string2'+::
     Perform a character-by-character comparison of strings +'string1'+ and
     +'string2'+ in the same way as the C 'strcmp' procedure.  Return
     -1, 0, or 1, depending on whether +'string1'+ is lexicographically
-    less than, equal to, or greater than +'string2'+.
+    less than, equal to, or greater than +'string2'+. If +-length+
+    is specified, then only the first +'len'+ characters are used
+    in the comparison.  If +'len'+ is negative, it is ignored.
     Performs a case-insensitive comparison if +-nocase+ is specified.
 
-+*string equal ?-nocase?* 'string1 string2'+::
-    Returns 1 if the strings are equal, or 0 otherwise.
++*string equal ?-nocase?* '?*-length* len?' 'string1 string2'+::
+    Returns 1 if the strings are equal, or 0 otherwise. If +-length+
+    is specified, then only the first +'len'+ characters are used
+    in the comparison.  If +'len'+ is negative, it is ignored.
     Performs a case-insensitive comparison if +-nocase+ is specified.
 
 +*string first* 'string1 string2 ?firstIndex?'+::
