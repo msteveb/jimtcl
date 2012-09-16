@@ -38,13 +38,14 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 
+#include "jimautoconf.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 
 #include "jim.h"
-#include "jimautoconf.h"
 
 #if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
@@ -64,6 +65,13 @@
 
 #define AIO_CMD_LEN 32      /* e.g. aio.handleXXXXXX */
 #define AIO_BUF_LEN 256     /* Can keep this small and rely on stdio buffering */
+
+#ifndef HAVE_FTELLO
+    #define ftello ftell
+#endif
+#ifndef HAVE_FSEEKO
+    #define fseeko fseek
+#endif
 
 #define AIO_KEEPOPEN 1
 
@@ -671,7 +679,7 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     int orig = SEEK_SET;
-    long offset;
+    jim_wide offset;
 
     if (argc == 2) {
         if (Jim_CompareStringImmediate(interp, argv[1], "start"))
@@ -684,10 +692,10 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return -1;
         }
     }
-    if (Jim_GetLong(interp, argv[0], &offset) != JIM_OK) {
+    if (Jim_GetWide(interp, argv[0], &offset) != JIM_OK) {
         return JIM_ERR;
     }
-    if (fseek(af->fp, offset, orig) == -1) {
+    if (fseeko(af->fp, offset, orig) == -1) {
         JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }
@@ -698,7 +706,7 @@ static int aio_cmd_tell(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    Jim_SetResultInt(interp, ftell(af->fp));
+    Jim_SetResultInt(interp, ftello(af->fp));
     return JIM_OK;
 }
 

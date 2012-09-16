@@ -375,7 +375,7 @@ test expr-old-23.8 {double quotes} {
 # Numbers in various bases.
 
 test expr-old-24.1 {numbers in different bases} {expr 0x20} 32
-test expr-old-24.2 {numbers in different bases} {expr 015} 13
+test expr-old-24.2 {numbers in different bases} {expr 015} 15
 
 # Conversions between various data types.
 

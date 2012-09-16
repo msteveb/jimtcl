@@ -247,11 +247,11 @@ test scan-4.40.2 {Tcl_ScanObjCmd, base-16 integer scanning} {
 test scan-4.41 {Tcl_ScanObjCmd, base-unknown integer scanning} {
     set x {}
     list [scan {10 010 0x10} {%i%i%i} x y z] $x $y $z
-} {3 10 8 16}
+} {3 10 10 16}
 test scan-4.42 {Tcl_ScanObjCmd, base-unknown integer scanning} {
     set x {}
     list [scan {10 010 0X10} {%i%i%i} x y z] $x $y $z
-} {3 10 8 16}
+} {3 10 10 16}
 test scan-4.43 {Tcl_ScanObjCmd, integer scanning, odd cases} {
     set x {}
     list [scan {+ } {%i} x] $x

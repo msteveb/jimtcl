@@ -159,9 +159,9 @@ test set-1.22 {TclCompileSetCmd: doing assignment, large int} {
 
 test set-1.23 {TclCompileSetCmd: doing assignment, formatted int != int} {
     set i 25
-    set i 000012345     ;# an octal literal == 5349 decimal
+    set i 000012345     ;# a decimal literal == 5349 decimal
     list $i [incr i]
-} {000012345 5350}
+} {000012345 12346}
 
 ################################################################################
 # LIST
@@ -1268,8 +1268,8 @@ test incr-1.22 {TclCompileIncrCmd: increment given, large int} {
 } 200005
 test incr-1.23 {TclCompileIncrCmd: increment given, formatted int != int} {
     set i 25
-    incr i 000012345     ;# an octal literal
-} 5374
+    incr i 000012345     ;# a decimal literal
+} 12370
 test incr-1.24 {TclCompileIncrCmd: increment given, formatted int != int} {
     set i 25
     catch {incr i 1a} msg
@@ -1488,7 +1488,7 @@ test incr-2.23 {incr command (not compiled): increment given, formatted int != i
     set z incr
     set i 25
     $z i 000012345     ;# an octal literal
-} 5374
+} 12370
 test incr-2.24 {incr command (not compiled): increment given, formatted int != int} {
     set z incr
     set i 25

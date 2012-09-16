@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.73 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.74 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,6 +52,10 @@ Some notable differences with Tcl 8.5/8.6 are:
 RECENT CHANGES
 --------------
 
+Changes between 0.73 and 0.74
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Numbers with leading zeros are treated as decimal, not octal
+
 Changes between 0.72 and 0.73
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Built-in regexp now support non-capturing parentheses: (?:...)
@@ -95,20 +99,6 @@ Changes between 0.70 and 0.71
 10. `binary format` and `binary scan` are now (optionally) supported
 11. Add `string byterange`
 12. Built-in regexp now support non-greedy repetition (*?, +?, ??)
-
-Changes between 0.63 and 0.70
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. +platform_tcl()+ settings are now automatically determined
-2. Add aio `$handle filename`
-3. Add `info channels`
-4. The 'bio' extension is gone. Now `aio` supports 'copyto'.
-5. Add `exists` command
-6. Add the pure-Tcl 'oo' extension
-7. The `exec` command now only uses vfork(), not fork()
-8. Unit test framework is less verbose and more Tcl-compatible
-9. Optional UTF-8 support
-10. Optional built-in regexp engine for better Tcl compatibility and UTF-8 support
-11. Command line editing in interactive mode, e.g. 'jimsh'
 
 TCL INTRODUCTION
 -----------------
@@ -671,9 +661,9 @@ White space may be used between the operands and operators and
 parentheses; it is ignored by the expression processor.
 Where possible, operands are interpreted as integer values.
 
-Integer values may be specified in decimal (the normal case), in octal (if the
-first character of the operand is '0'), or in hexadecimal (if the first
-two characters of the operand are '0x').
+Integer values may be specified in decimal (the normal case) or in
+hexadecimal (if the first two characters of the operand are '0x').
+Note that Jim Tcl does *not* treat numbers with leading zeros as octal.
 
 If an operand does not have one of the integer formats given
 above, then it is treated as a floating-point number if that is
@@ -3793,15 +3783,19 @@ The legal options (which may be abbreviated) are:
     Like `string range` except works on bytes rather than characters.
     These commands are identical if UTF-8 support is not enabled.
 
-+*string compare ?-nocase?* 'string1 string2'+::
++*string compare ?-nocase?* ?*-length* 'len? string1 string2'+::
     Perform a character-by-character comparison of strings +'string1'+ and
     +'string2'+ in the same way as the C 'strcmp' procedure.  Return
     -1, 0, or 1, depending on whether +'string1'+ is lexicographically
-    less than, equal to, or greater than +'string2'+.
+    less than, equal to, or greater than +'string2'+. If +-length+
+    is specified, then only the first +'len'+ characters are used
+    in the comparison.  If +'len'+ is negative, it is ignored.
     Performs a case-insensitive comparison if +-nocase+ is specified.
 
-+*string equal ?-nocase?* 'string1 string2'+::
-    Returns 1 if the strings are equal, or 0 otherwise.
++*string equal ?-nocase?* '?*-length* len?' 'string1 string2'+::
+    Returns 1 if the strings are equal, or 0 otherwise. If +-length+
+    is specified, then only the first +'len'+ characters are used
+    in the comparison.  If +'len'+ is negative, it is ignored.
     Performs a case-insensitive comparison if +-nocase+ is specified.
 
 +*string first* 'string1 string2 ?firstIndex?'+::
@@ -4928,6 +4922,20 @@ The following global variables are set by jimsh.
 
 CHANGES IN PREVIOUS RELEASES
 ----------------------------
+
+=== In v0.70 ===
+
+1. +platform_tcl()+ settings are now automatically determined
+2. Add aio `$handle filename`
+3. Add `info channels`
+4. The 'bio' extension is gone. Now `aio` supports 'copyto'.
+5. Add `exists` command
+6. Add the pure-Tcl 'oo' extension
+7. The `exec` command now only uses vfork(), not fork()
+8. Unit test framework is less verbose and more Tcl-compatible
+9. Optional UTF-8 support
+10. Optional built-in regexp engine for better Tcl compatibility and UTF-8 support
+11. Command line editing in interactive mode, e.g. 'jimsh'
 
 === In v0.63 ===
 

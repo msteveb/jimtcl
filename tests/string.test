@@ -30,7 +30,6 @@ test string-2.1 {string compare, too few args} {
 test string-2.2 {string compare, bad args} {
     list [catch {string compare a b c} msg]
 } {1}
-if {0} {
 test string-2.3 {string compare, bad args} {
     list [catch {string compare -length -nocase str1 str2} msg]
 } {1}
@@ -40,7 +39,6 @@ test string-2.4 {string compare, too many args} {
 test string-2.5 {string compare with length unspecified} {
     list [catch {string compare -length 10 10} msg]
 } {1}
-}
 test string-2.6 {string compare} {
     string compare abcde abdef
 } -1
@@ -50,14 +48,12 @@ test string-2.7 {string compare, shortest method name} {
 test string-2.8 {string compare} {
     string compare abcde abcde
 } 0
-if {0} {
 test string-2.9 {string compare with length} {
     string compare -length 2 abcde abxyz
 } 0
 test string-2.10 {string compare with special index} {
     list [catch {string compare -length end-3 abcde abxyz} msg]
 } {1}
-}
 test string-2.12 {string compare, high bit} {
     # This test will fail if the underlying comparaison
     # is using signed chars instead of unsigned chars.
@@ -76,7 +72,6 @@ test string-2.14 {string compare -nocase} {
 test string-2.15 {string compare -nocase} {
     string compare -nocase abcde abcde
 } 0
-if {0} {
 test string-2.16 {string compare -nocase with length} {
     string compare -length 2 -nocase abcde Abxyz
 } 0
@@ -97,7 +92,6 @@ test string-2.20 {string compare -len unicode} {
 test string-2.21 {string compare -nocase with special index} {
     list [catch {string compare -nocase -length end-3 Abcde abxyz} msg]
 } {1}
-}
 test string-2.22 {string compare, null strings} {
     string compare "" ""
 } 0
@@ -116,14 +110,12 @@ test string-2.26 {string compare -nocase, null strings} {
 test string-2.27 {string compare -nocase, null strings} {
     string compare -nocase foo ""
 } 1
-if {0} {
 test string-2.28 {string equal with length, unequal strings} {
     string compare -length 2 abc abde
 } 0
 test string-2.29 {string equal with length, unequal strings} {
     string compare -length 2 ab abde
 } 0
-}
 # only need a few tests on equal, since it uses the same code as
 # string compare, but just modifies the return output
 test string-3.1 {string equal} {
@@ -135,9 +127,8 @@ test string-3.2 {string equal} {
 test string-3.3 {string equal} {
     string equal abcde abcde
 } 1
-if {0} {
-test string-3.4 {string equal -nocase} {
-    string equal -nocase \334\334\334\334\374\374\374\374 \334\334\334\334\334\334\334\334
+test string-3.4 {string equal -nocase} utf8 {
+    string equal -nocase \u00dc\u00dc\u00dc\u00dc\u00fc\u00fc\u00fc\u00fc \u00dc\u00dc\u00dc\u00dc\u00dc\u00dc\u00dc\u00dc
 } 1
 test string-3.5 {string equal -nocase} {
     string equal -nocase abcde abdef
@@ -151,7 +142,6 @@ test string-3.7 {string equal -nocase} {
 test string-3.8 {string equal with length, unequal strings} {
     string equal -length 2 abc abde
 } 1
-}
 test string-4.1 {string first, too few args} {
     list [catch {string first a} msg]
 } {1}
@@ -334,13 +324,16 @@ test string-6.56 {string is integer, false} {
 test string-6.57 {string is integer, false} {
     list [string is integer  "    "]
 } 0
-test string-6.58 {string is integer, false on bad octal} {
+test string-6.58 {string is integer, false on bad octal} jim {
+    list [string is integer  036963]
+} 1
+test string-6.59 {string is integer, false on bad octal} tcl {
     list [string is integer  036963]
 } 0
-test string-6.59 {string is integer, false on bad hex} {
+test string-6.60 {string is integer, false on bad hex} {
     list [string is integer  0X345XYZ]
 } 0
-test string-6.60 {string is lower, true} {
+test string-6.61 {string is lower, true} {
     string is lower abc
 } 1
 test string-6.62 {string is lower, false} {
