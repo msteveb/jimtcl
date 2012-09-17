@@ -2515,7 +2515,7 @@ for reading.
 
 glob
 ~~~~
-+*glob* ?*-nocomplain*? 'pattern ?pattern \...?'+
++*glob* ?*-nocomplain*? ?*-directory* 'dir'? ?*--*? 'pattern ?pattern \...?'+
 
 This command performs filename globbing, using csh rules.  The returned
 value from `glob` is the list of expanded filenames.
@@ -2524,6 +2524,11 @@ If +-nocomplain+ is specified as the first argument then an empty
 list may be returned;  otherwise an error is returned if the expanded
 list is empty.  The +-nocomplain+ argument must be provided
 exactly: an abbreviation will not be accepted.
+
+If +-directory+ is given, the +'dir'+ is understood to contain a
+directory name to search in. This allows globbing inside directories
+whose names may contain glob-sensitive characters. The returned names
+are specified relative to this directory.
 
 global
 ~~~~~~
