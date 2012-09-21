@@ -1,0 +1,131 @@
+# Test the glob command
+
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd glob
+
+# Fake the bare minimum that glob.tcl needs:
+# [readdir], [file isdir] and [file exists]
+local proc file {cmd args} {
+	if {$cmd in {isdir exists}} {
+		lassign [fslookup [lindex $args 0]] type contents
+		if {$cmd eq "isdir" && $type eq "dir"} {
+			return 1
+		} elseif {$type ne "none"} {
+			return 1
+		}
+		return 0
+	}
+	tailcall upcall file $cmd {*}$args
+}
+
+local proc readdir {{-nocomplain {}} dir} {
+	lassign [fslookup $dir] type contents
+	if {$type ne "dir"} {
+		if {${-nocomplain} eq ""} {
+			return {}
+		}
+		return -code error "No such file or directory"
+	}
+	dict keys $contents
+}
+
+local proc fslookup {path} {
+	set type dir
+	set dict $::FAKEFS
+	foreach p [split $path /] {
+		if {$p in {. {}}} {
+			continue
+		}
+		if {![dict exists $dict $p] || $type ne "dir"} {
+			return none
+		}
+		lassign [dict get $dict $p] type dict
+	}
+	list $type $dict
+}
+
+# Creates the representation of a filesystem in a dictionary - for testing
+local proc makefakefs {fs} {
+	set fakefs {}
+	foreach {type name contents} $fs {
+		switch -glob -- $type {
+			f* {
+				set fakefs($name) [list file $contents]
+			}
+			d* {
+				set fakefs($name) [list dir [makefakefs $contents]]
+			}
+			default {
+				error "Unknown fs type: $type"
+			}
+		}
+	}
+	return $fakefs
+}
+
+# Create a fake filesystem for testing the glob command
+set ::FAKEFS [makefakefs {
+	file abc {This is the contents of abc}
+	dir def {
+		file ghi {This file is inside def}
+		dir jkl
+	}
+	dir tmp {
+		file "open{brace" {}
+		file "close}brace" {}
+		file "open\[bracket" {}
+		file "close\]bracket" {}
+	}
+}]
+
+test glob-1.1 {Simple} {
+	lsort [glob *]
+} {abc def tmp}
+
+test glob-1.2 {Simple} {
+	lsort [glob a*]
+} {abc}
+
+test glob-1.3 {Simple} -returnCodes error -body {
+	lsort [glob x*]
+} -result {no files matched glob patterns}
+
+test glob-1.4 {Simple} -returnCodes error -body {
+	lsort [glob]
+} -result {wrong # args: should be "glob ?options? pattern ?pattern ...?"}
+
+test glob-1.5 {Simple} -returnCodes ok -body {
+	lsort [glob -nocomplain x*]
+} -result {}
+
+test glob-2.1 {Braces} -returnCodes ok -body {
+	lsort [glob "{a,d}*"]
+} -result {abc def}
+
+test glob-2.2 {Files containing braces and brackets} -returnCodes ok -body {
+	lsort [glob tmp/*]
+} -result {tmp/close\]bracket tmp/close\}brace {tmp/open[bracket} tmp/open\{brace}
+
+test glob-2.3 {Glob match files open bracket} -returnCodes ok -body {
+	lsort [glob {tmp/*\[*}]
+} -result [list tmp/open\[bracket]
+
+test glob-2.4 {Glob match files close bracket} -returnCodes ok -body {
+	lsort [glob {tmp/*\]*}]
+} -result [list tmp/close\]bracket]
+
+test glob-2.5 {Glob match files containing braced brackets} -returnCodes ok -body {
+	lsort [glob {tmp/*{\[,]}*}]
+} -result [list tmp/close\]bracket tmp/open\[bracket]
+
+test glob-3.1 {Directory option} -returnCodes ok -body {
+	lsort [glob -dir tmp *]
+} -result [list close\]bracket close\}brace open\[bracket open\{brace]
+
+test glob-3.2 {Directory option} -returnCodes ok -body {
+	lsort [glob -dir tmp *close*]
+} -result [list close\]bracket close\}brace]
+
+testreport
