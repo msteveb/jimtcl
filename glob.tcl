@@ -116,35 +116,47 @@ proc glob {args} {
 	set nocomplain 0
 	set base ""
 
-	while {[llength $args] > 0} {
-		switch -glob -- [set switch [lindex $args 0]] {
-			-directory {
-				if {[llength $args] < 2} {
-					return -code error "missing argument to \"$switch\""
-				}
-				set base [lindex $args 1]
-				set args [lrange $args 1 end]
+	set n 0
+	foreach arg $args {
+		if {[info exists param]} {
+			set $param $arg
+			unset param
+			incr n
+			continue
+		}
+		switch -glob -- $arg {
+			-d* {
+				set switch $arg
+				set param base
 			}
-			-nocomplain {
+			-n* {
 				set nocomplain 1
 			}
-			-tails {
+			-t* {
 				# Ignored for Tcl compatibility
 			}
 
 			-* {
 				return -code error "bad option \"$switch\": must be -directory, -nocomplain, -tails, or --"
 			}
-			-- -
+			-- {
+				incr n
+				break
+			}
 			*  {
 				break
 			}
 		}
-		set args [lrange $args 1 end]
+		incr n
 	}
-	if {[llength $args] < 1} {
+	if {[info exists param]} {
+		return -code error "missing argument to \"$switch\""
+	}
+	if {[llength $args] <= $n} {
 		return -code error "wrong # args: should be \"glob ?options? pattern ?pattern ...?\""
 	}
+
+	set args [lrange $args $n end]
 
 	set result {}
 	foreach pattern $args {
@@ -163,7 +175,7 @@ proc glob {args} {
 				lappend result $name
 			}
 		}
-	}	
+	}
 
 	if {!$nocomplain && [llength $result] == 0} {
 		return -code error "no files matched glob patterns"
