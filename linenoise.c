@@ -694,7 +694,7 @@ static void refreshLine(const char *prompt, struct current *current)
         n++;
     }
 
-    while (n >= current->cols) {
+    while (n >= current->cols && pos > 0) {
         b = utf8_tounicode(buf, &ch);
         if (ch < ' ') {
             n--;
