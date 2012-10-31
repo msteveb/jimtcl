@@ -56,10 +56,6 @@
  * flickering effect with some slow terminal, but the lesser sequences
  * the more compatible.
  *
- * CHA (Cursor Horizontal Absolute)
- *    Sequence: ESC [ n G
- *    Effect: moves cursor to column n (1 based)
- *
  * EL (Erase Line)
  *    Sequence: ESC [ n K
  *    Effect: if n is 0 or missing, clear from cursor to end of line
@@ -69,6 +65,10 @@
  * CUF (CUrsor Forward)
  *    Sequence: ESC [ n C
  *    Effect: moves cursor forward of n chars
+ *
+ * CR (Carriage Return)
+ *    Sequence: \r
+ *    Effect: moves cursor to column 1
  *
  * The following are used to clear the screen: ESC [ H ESC [ 2 J
  * This is actually composed of two sequences:
@@ -289,7 +289,7 @@ static void clearScreen(struct current *current)
 
 static void cursorToLeft(struct current *current)
 {
-    fd_printf(current->fd, "\x1b[1G");
+    fd_printf(current->fd, "\r");
 }
 
 static int outputChars(struct current *current, const char *buf, int len)
@@ -299,7 +299,7 @@ static int outputChars(struct current *current, const char *buf, int len)
 
 static void outputControlChar(struct current *current, char ch)
 {
-    fd_printf(current->fd, "\033[7m^%c\033[0m", ch);
+    fd_printf(current->fd, "\x1b[7m^%c\x1b[0m", ch);
 }
 
 static void eraseEol(struct current *current)
@@ -309,7 +309,7 @@ static void eraseEol(struct current *current)
 
 static void setCursorPos(struct current *current, int x)
 {
-    fd_printf(current->fd, "\x1b[1G\x1b[%dC", x);
+    fd_printf(current->fd, "\r\x1b[%dC", x);
 }
 
 /**
@@ -388,8 +388,8 @@ static int getWindowSize(struct current *current)
     if (current->cols == 0) {
         current->cols = 80;
 
-        /* Move cursor far right and report cursor position */
-        fd_printf(current->fd, "\x1b[999G" "\x1b[6n");
+        /* Move cursor far right and report cursor position, then back to the left */
+        fd_printf(current->fd, "\x1b[999C" "\x1b[6n");
 
         /* Parse the response: ESC [ rows ; cols R */
         if (fd_read_char(current->fd, 100) == 0x1b && fd_read_char(current->fd, 100) == '[') {
