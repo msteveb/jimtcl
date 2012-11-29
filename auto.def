@@ -248,7 +248,7 @@ dict set extdb info {
                libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
              }
     signal   { check {[have-feature sigaction] && [have-feature vfork]} }
-    sqlite3  { check {[cc-check-function-in-lib sqlite3_open sqlite3]} libdep lib_sqlite3_open }
+    sqlite3  { check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }
