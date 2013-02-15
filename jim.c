@@ -2673,7 +2673,7 @@ Jim_Obj *JimStringReplaceObj(Jim_Interp *interp,
         return NULL;
     }
 
-    if (last <= first) {
+    if (last < first) {
         return strObjPtr;
     }
 
@@ -13401,7 +13401,7 @@ badcompareargs:
                 Jim_Obj *objPtr;
 
                 if (argc != 5 && argc != 6) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string first last ?newstring?");
+                    Jim_WrongNumArgs(interp, 2, argv, "string first last ?string?");
                     return JIM_ERR;
                 }
                 objPtr = JimStringReplaceObj(interp, argv[2], argv[3], argv[4], argc == 6 ? argv[5] : NULL);
