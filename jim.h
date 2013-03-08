@@ -285,10 +285,10 @@ typedef struct Jim_HashTableIterator {
  * The refcount of a freed object is always -1.
  * ---------------------------------------------------------------------------*/
 typedef struct Jim_Obj {
-    int refCount; /* reference count */
     char *bytes; /* string representation buffer. NULL = no string repr. */
-    int length; /* number of bytes in 'bytes', not including the null term. */
     const struct Jim_ObjType *typePtr; /* object type. */
+    int refCount; /* reference count */
+    int length; /* number of bytes in 'bytes', not including the null term. */
     /* Internal representation union */
     union {
         /* integer number type */
