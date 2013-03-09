@@ -7378,6 +7378,7 @@ typedef struct Jim_ExprOperator
     int arity;
     int (*funcop) (Jim_Interp *interp, struct JimExprState * e);
     int lazy;
+    unsigned char namelen;
 } Jim_ExprOperator;
 
 static void ExprPush(struct JimExprState *e, Jim_Obj *obj)
@@ -8077,91 +8078,96 @@ enum
 
 /* name - precedence - arity - opcode
  *
- * This array *must* be kept in sync with the JIM_EXPROP enum
+ * This array *must* be kept in sync with the JIM_EXPROP enum.
+ *
+ * The following macro pre-computes the string length at compile time.
  */
+#define OPRINIT(a, b, c, d, e) {a, b, c, d, e, sizeof(a) - 1}
+
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
-    {"*", 200, 2, JimExprOpBin, LAZY_NONE},
-    {"/", 200, 2, JimExprOpBin, LAZY_NONE},
-    {"%", 200, 2, JimExprOpIntBin, LAZY_NONE},
+    OPRINIT("*", 200, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("/", 200, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("%", 200, 2, JimExprOpIntBin, LAZY_NONE),
 
-    {"-", 100, 2, JimExprOpBin, LAZY_NONE},
-    {"+", 100, 2, JimExprOpBin, LAZY_NONE},
+    OPRINIT("-", 100, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("+", 100, 2, JimExprOpBin, LAZY_NONE),
 
-    {"<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    {">>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    OPRINIT("<<", 90, 2, JimExprOpIntBin, LAZY_NONE),
+    OPRINIT(">>", 90, 2, JimExprOpIntBin, LAZY_NONE),
 
-    {"<<<", 90, 2, JimExprOpIntBin, LAZY_NONE},
-    {">>>", 90, 2, JimExprOpIntBin, LAZY_NONE},
+    OPRINIT("<<<", 90, 2, JimExprOpIntBin, LAZY_NONE),
+    OPRINIT(">>>", 90, 2, JimExprOpIntBin, LAZY_NONE),
 
-    {"<", 80, 2, JimExprOpBin, LAZY_NONE},
-    {">", 80, 2, JimExprOpBin, LAZY_NONE},
-    {"<=", 80, 2, JimExprOpBin, LAZY_NONE},
-    {">=", 80, 2, JimExprOpBin, LAZY_NONE},
+    OPRINIT("<", 80, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT(">", 80, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("<=", 80, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT(">=", 80, 2, JimExprOpBin, LAZY_NONE),
 
-    {"==", 70, 2, JimExprOpBin, LAZY_NONE},
-    {"!=", 70, 2, JimExprOpBin, LAZY_NONE},
+    OPRINIT("==", 70, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("!=", 70, 2, JimExprOpBin, LAZY_NONE),
 
-    {"&", 50, 2, JimExprOpIntBin, LAZY_NONE},
-    {"^", 49, 2, JimExprOpIntBin, LAZY_NONE},
-    {"|", 48, 2, JimExprOpIntBin, LAZY_NONE},
+    OPRINIT("&", 50, 2, JimExprOpIntBin, LAZY_NONE),
+    OPRINIT("^", 49, 2, JimExprOpIntBin, LAZY_NONE),
+    OPRINIT("|", 48, 2, JimExprOpIntBin, LAZY_NONE),
 
-    {"&&", 10, 2, NULL, LAZY_OP},
-    {NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT},
-    {NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+    OPRINIT("&&", 10, 2, NULL, LAZY_OP),
+    OPRINIT(NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT),
+    OPRINIT(NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT),
 
-    {"||", 9, 2, NULL, LAZY_OP},
-    {NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT},
-    {NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT},
+    OPRINIT("||", 9, 2, NULL, LAZY_OP),
+    OPRINIT(NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT),
+    OPRINIT(NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT),
 
-    {"?", 5, 2, JimExprOpNull, LAZY_OP},
-    {NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT},
-    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+    OPRINIT("?", 5, 2, JimExprOpNull, LAZY_OP),
+    OPRINIT(NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT),
+    OPRINIT(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
 
-    {":", 5, 2, JimExprOpNull, LAZY_OP},
-    {NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT},
-    {NULL, 5, 2, JimExprOpNull, LAZY_RIGHT},
+    OPRINIT(":", 5, 2, JimExprOpNull, LAZY_OP),
+    OPRINIT(NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT),
+    OPRINIT(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
 
-    {"**", 250, 2, JimExprOpBin, LAZY_NONE},
+    OPRINIT("**", 250, 2, JimExprOpBin, LAZY_NONE),
 
-    {"eq", 60, 2, JimExprOpStrBin, LAZY_NONE},
-    {"ne", 60, 2, JimExprOpStrBin, LAZY_NONE},
+    OPRINIT("eq", 60, 2, JimExprOpStrBin, LAZY_NONE),
+    OPRINIT("ne", 60, 2, JimExprOpStrBin, LAZY_NONE),
 
-    {"in", 55, 2, JimExprOpStrBin, LAZY_NONE},
-    {"ni", 55, 2, JimExprOpStrBin, LAZY_NONE},
+    OPRINIT("in", 55, 2, JimExprOpStrBin, LAZY_NONE),
+    OPRINIT("ni", 55, 2, JimExprOpStrBin, LAZY_NONE),
 
-    {"!", 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    {"~", 300, 1, JimExprOpIntUnary, LAZY_NONE},
-    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
-    {NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE},
+    OPRINIT("!", 300, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("~", 300, 1, JimExprOpIntUnary, LAZY_NONE),
+    OPRINIT(NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT(NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE),
 
 
 
-    {"int", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    {"abs", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    {"double", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    {"round", 400, 1, JimExprOpNumUnary, LAZY_NONE},
-    {"rand", 400, 0, JimExprOpNone, LAZY_NONE},
-    {"srand", 400, 1, JimExprOpIntUnary, LAZY_NONE},
+    OPRINIT("int", 400, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("abs", 400, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("double", 400, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("round", 400, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("rand", 400, 0, JimExprOpNone, LAZY_NONE),
+    OPRINIT("srand", 400, 1, JimExprOpIntUnary, LAZY_NONE),
 
 #ifdef JIM_MATH_FUNCTIONS
-    {"sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE},
-    {"pow", 400, 2, JimExprOpBin, LAZY_NONE},
+    OPRINIT("sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("pow", 400, 2, JimExprOpBin, LAZY_NONE),
 #endif
 };
+#undef OPRINIT
 
 #define JIM_EXPR_OPERATORS_NUM \
     (sizeof(Jim_ExprOperators)/sizeof(struct Jim_ExprOperator))
@@ -8331,16 +8337,14 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
 
     /* Try to get the longest match. */
     for (i = 0; i < (signed)JIM_EXPR_OPERATORS_NUM; i++) {
-        const char *opname;
-        int oplen;
+        const char * const opname = Jim_ExprOperators[i].name;
+        const int oplen = Jim_ExprOperators[i].namelen;
 
-        opname = Jim_ExprOperators[i].name;
-        if (opname == NULL) {
+        if (opname == NULL || opname[0] != pc->p[0]) {
             continue;
         }
-        oplen = strlen(opname);
 
-        if (strncmp(opname, pc->p, oplen) == 0 && oplen > bestLen) {
+        if (oplen > bestLen && strncmp(opname, pc->p, oplen) == 0) {
             bestIdx = i + JIM_TT_EXPR_OP;
             bestLen = oplen;
         }
