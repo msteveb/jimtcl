@@ -7374,10 +7374,10 @@ struct JimExprState
 typedef struct Jim_ExprOperator
 {
     const char *name;
-    int precedence;
-    int arity;
     int (*funcop) (Jim_Interp *interp, struct JimExprState * e);
-    int lazy;
+    unsigned char precedence;
+    unsigned char arity;
+    unsigned char lazy;
     unsigned char namelen;
 } Jim_ExprOperator;
 
@@ -8082,12 +8082,12 @@ enum
  *
  * The following macro pre-computes the string length at compile time.
  */
-#define OPRINIT(a, b, c, d, e) {a, b, c, d, e, sizeof(a) - 1}
+#define OPRINIT(N, P, A, F, L) {N, F, P, A, L, sizeof(N) - 1}
 
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
-    OPRINIT("*", 200, 2, JimExprOpBin, LAZY_NONE),
-    OPRINIT("/", 200, 2, JimExprOpBin, LAZY_NONE),
-    OPRINIT("%", 200, 2, JimExprOpIntBin, LAZY_NONE),
+    OPRINIT("*", 110, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("/", 110, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("%", 110, 2, JimExprOpIntBin, LAZY_NONE),
 
     OPRINIT("-", 100, 2, JimExprOpBin, LAZY_NONE),
     OPRINIT("+", 100, 2, JimExprOpBin, LAZY_NONE),
@@ -8134,37 +8134,37 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     OPRINIT("in", 55, 2, JimExprOpStrBin, LAZY_NONE),
     OPRINIT("ni", 55, 2, JimExprOpStrBin, LAZY_NONE),
 
-    OPRINIT("!", 300, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT("~", 300, 1, JimExprOpIntUnary, LAZY_NONE),
-    OPRINIT(NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT(NULL, 300, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("!", 150, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("~", 150, 1, JimExprOpIntUnary, LAZY_NONE),
+    OPRINIT(NULL, 150, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT(NULL, 150, 1, JimExprOpNumUnary, LAZY_NONE),
 
 
 
-    OPRINIT("int", 400, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT("abs", 400, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT("double", 400, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT("round", 400, 1, JimExprOpNumUnary, LAZY_NONE),
-    OPRINIT("rand", 400, 0, JimExprOpNone, LAZY_NONE),
-    OPRINIT("srand", 400, 1, JimExprOpIntUnary, LAZY_NONE),
+    OPRINIT("int", 200, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("abs", 200, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("double", 200, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("round", 200, 1, JimExprOpNumUnary, LAZY_NONE),
+    OPRINIT("rand", 200, 0, JimExprOpNone, LAZY_NONE),
+    OPRINIT("srand", 200, 1, JimExprOpIntUnary, LAZY_NONE),
 
 #ifdef JIM_MATH_FUNCTIONS
-    OPRINIT("sin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("cos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("tan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("asin", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("acos", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("atan", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("sinh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("cosh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("tanh", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("ceil", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("floor", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("exp", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("log", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("log10", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("sqrt", 400, 1, JimExprOpDoubleUnary, LAZY_NONE),
-    OPRINIT("pow", 400, 2, JimExprOpBin, LAZY_NONE),
+    OPRINIT("sin", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("cos", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("tan", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("asin", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("acos", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("atan", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("sinh", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("cosh", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("tanh", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("ceil", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("floor", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("exp", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("log", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("log10", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("sqrt", 200, 1, JimExprOpDoubleUnary, LAZY_NONE),
+    OPRINIT("pow", 200, 2, JimExprOpBin, LAZY_NONE),
 #endif
 };
 #undef OPRINIT
