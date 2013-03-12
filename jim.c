@@ -8423,8 +8423,8 @@ static const Jim_ObjType exprObjType = {
 /* Expr bytecode structure */
 typedef struct ExprByteCode
 {
-    int len;                    /* Length as number of tokens. */
     ScriptToken *token;         /* Tokens array. */
+    int len;                    /* Length as number of tokens. */
     int inUse;                  /* Used for sharing. */
 } ExprByteCode;
 
