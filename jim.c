@@ -6444,10 +6444,18 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     Jim_Obj **point;
 
     if (requiredLen > listPtr->internalRep.listValue.maxLen) {
-        listPtr->internalRep.listValue.maxLen = requiredLen * 2;
+        if (requiredLen < 2) {
+            /* Don't do allocations of under 4 pointers. */
+            requiredLen = 4;
+        }
+        else {
+            requiredLen *= 2;
+        }
 
         listPtr->internalRep.listValue.ele = Jim_Realloc(listPtr->internalRep.listValue.ele,
-            sizeof(Jim_Obj *) * listPtr->internalRep.listValue.maxLen);
+            sizeof(Jim_Obj *) * requiredLen);
+
+        listPtr->internalRep.listValue.maxLen = requiredLen;
     }
     if (idx < 0) {
         idx = currentLen;
