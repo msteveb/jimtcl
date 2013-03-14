@@ -412,9 +412,44 @@ static int JimStringLastUtf8(const char *s1, int l1, const char *s2, int l2)
 
 int Jim_WideToString(char *buf, jim_wide wideValue)
 {
-    const char *fmt = "%" JIM_WIDE_MODIFIER;
+    char tmp[32];
+    int num = 0;
+    int negative = 0;
+    int i, pos = 0;
 
-    return sprintf(buf, fmt, wideValue);
+    if (wideValue < 0) {
+        negative = 1;
+        wideValue = -wideValue;
+    }
+
+    if (!wideValue) {
+        tmp[0] = '0';
+        num = 1;
+    }
+
+    while (wideValue) {
+        tmp[num] = '0' + abs(wideValue % 10);
+        wideValue /= 10;
+        num++;
+    }
+
+    for (i = 0, pos = num - 1; i < pos; i++, pos--) {
+        char a = tmp[i];
+        tmp[i] = tmp[pos];
+        tmp[pos] = a;
+    }
+
+    pos = 0;
+    if (negative) {
+        buf[0] = '-';
+        pos = 1;
+        num++;
+    }
+
+    memcpy(buf + pos, tmp, num);
+    buf[num] = 0;
+
+    return num;
 }
 
 /**
