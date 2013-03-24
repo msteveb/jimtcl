@@ -9329,12 +9329,12 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 
 typedef struct ScanFmtPartDescr
 {
-    char type;                  /* Type of conversion (e.g. c, d, f) */
-    char modifier;              /* Modify type (e.g. l - long, h - short */
-    size_t width;               /* Maximal width of input to be converted */
-    int pos;                    /* -1 - no assign, 0 - natural pos, >0 - XPG3 pos */
     char *arg;                  /* Specification of a CHARSET conversion */
     char *prefix;               /* Prefix to be scanned literally before conversion */
+    size_t width;               /* Maximal width of input to be converted */
+    int pos;                    /* -1 - no assign, 0 - natural pos, >0 - XPG3 pos */
+    char type;                  /* Type of conversion (e.g. c, d, f) */
+    char modifier;              /* Modify type (e.g. l - long, h - short */
 } ScanFmtPartDescr;
 
 /* The ScanFmtStringObj will hold the internal representation of a scanformat
