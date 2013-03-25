@@ -740,6 +740,14 @@ static void JimResetHashTable(Jim_HashTable *ht)
     ht->collisions = 0;
 }
 
+static void JimInitHashTableIterator(Jim_HashTable *ht, Jim_HashTableIterator *iter)
+{
+    iter->ht = ht;
+    iter->index = -1;
+    iter->entry = NULL;
+    iter->nextEntry = NULL;
+}
+
 /* Initialize the hash table */
 int Jim_InitHashTable(Jim_HashTable *ht, const Jim_HashTableType *type, void *privDataPtr)
 {
@@ -930,11 +938,7 @@ Jim_HashEntry *Jim_FindHashEntry(Jim_HashTable *ht, const void *key)
 Jim_HashTableIterator *Jim_GetHashTableIterator(Jim_HashTable *ht)
 {
     Jim_HashTableIterator *iter = Jim_Alloc(sizeof(*iter));
-
-    iter->ht = ht;
-    iter->index = -1;
-    iter->entry = NULL;
-    iter->nextEntry = NULL;
+    JimInitHashTableIterator(ht, iter);
     return iter;
 }
 
@@ -5170,7 +5174,7 @@ int Jim_Collect(Jim_Interp *interp)
     int collected = 0;
 #ifndef JIM_BOOTSTRAP
     Jim_HashTable marks;
-    Jim_HashTableIterator *htiter;
+    Jim_HashTableIterator htiter;
     Jim_HashEntry *he;
     Jim_Obj *objPtr;
 
@@ -5242,8 +5246,8 @@ int Jim_Collect(Jim_Interp *interp)
 
     /* Run the references hash table to destroy every reference that
      * is not referenced outside (not present in the mark HT). */
-    htiter = Jim_GetHashTableIterator(&interp->references);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+    JimInitHashTableIterator(&interp->references, &htiter);
+    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
         const unsigned long *refId;
         Jim_Reference *refPtr;
 
@@ -5290,7 +5294,6 @@ int Jim_Collect(Jim_Interp *interp)
             }
         }
     }
-    Jim_FreeHashTableIterator(htiter);
     Jim_FreeHashTable(&marks);
     interp->lastCollectId = interp->referenceNextId;
     interp->lastCollectTime = time(NULL);
@@ -6766,7 +6769,7 @@ void FreeDictInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     Jim_HashTable *ht, *dupHt;
-    Jim_HashTableIterator *htiter;
+    Jim_HashTableIterator htiter;
     Jim_HashEntry *he;
 
     /* Create a new hash table */
@@ -6776,8 +6779,8 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     if (ht->size != 0)
         Jim_ExpandHashTable(dupHt, ht->size);
     /* Copy every element from the source to the dup hash table */
-    htiter = Jim_GetHashTableIterator(ht);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+    JimInitHashTableIterator(ht, &htiter);
+    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
         const Jim_Obj *keyObjPtr = he->key;
         Jim_Obj *valObjPtr = he->u.val;
 
@@ -6785,7 +6788,6 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
         Jim_IncrRefCount(valObjPtr);
         Jim_AddHashEntry(dupHt, keyObjPtr, valObjPtr);
     }
-    Jim_FreeHashTableIterator(htiter);
 
     dupPtr->internalRep.ptr = dupHt;
     dupPtr->typePtr = &dictObjType;
@@ -6794,7 +6796,7 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len)
 {
     Jim_HashTable *ht;
-    Jim_HashTableIterator *htiter;
+    Jim_HashTableIterator htiter;
     Jim_HashEntry *he;
     Jim_Obj **objv;
     int i;
@@ -6803,14 +6805,13 @@ static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len)
 
     /* Turn the hash table into a flat vector of Jim_Objects. */
     objv = Jim_Alloc((ht->used * 2) * sizeof(Jim_Obj *));
-    htiter = Jim_GetHashTableIterator(ht);
+    JimInitHashTableIterator(ht, &htiter);
     i = 0;
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
         objv[i++] = (Jim_Obj *)he->key;
         objv[i++] = he->u.val;
     }
     *len = i;
-    Jim_FreeHashTableIterator(htiter);
     return objv;
 }
 
@@ -11092,13 +11093,13 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
         }
     }
     else {
-        Jim_HashTableIterator *htiter = Jim_GetHashTableIterator(ht);
-        while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+        Jim_HashTableIterator htiter;
+        JimInitHashTableIterator(ht, &htiter);
+        while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
             if (patternObjPtr == NULL || JimGlobMatch(Jim_String(patternObjPtr), he->key, 0)) {
                 callback(interp, listObjPtr, he, type);
             }
         }
-        Jim_FreeHashTableIterator(htiter);
     }
     return listObjPtr;
 }
@@ -13860,13 +13861,13 @@ static int Jim_FinalizeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *listObjPtr;
-    Jim_HashTableIterator *htiter;
+    Jim_HashTableIterator htiter;
     Jim_HashEntry *he;
 
     listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
-    htiter = Jim_GetHashTableIterator(&interp->references);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+    JimInitHashTableIterator(&interp->references, &htiter);
+    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
         char buf[JIM_REFERENCE_SPACE + 1];
         Jim_Reference *refPtr = he->u.val;
         const unsigned long *refId = he->key;
@@ -13874,7 +13875,6 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         JimFormatReference(buf, refPtr, *refId);
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, buf, -1));
     }
-    Jim_FreeHashTableIterator(htiter);
     Jim_SetResult(interp, listObjPtr);
     return JIM_OK;
 }
@@ -13917,13 +13917,13 @@ static Jim_Obj *JimDictPatternMatch(Jim_Interp *interp, Jim_HashTable *ht, Jim_O
     Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
     /* Check for the non-pattern case. We can do this much more efficiently. */
-    Jim_HashTableIterator *htiter = Jim_GetHashTableIterator(ht);
-    while ((he = Jim_NextHashEntry(htiter)) != NULL) {
+    Jim_HashTableIterator htiter;
+    JimInitHashTableIterator(ht, &htiter);
+    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
         if (patternObjPtr == NULL || JimGlobMatch(Jim_String(patternObjPtr), Jim_String((Jim_Obj *)he->key), 0)) {
             callback(interp, listObjPtr, he, type);
         }
     }
-    Jim_FreeHashTableIterator(htiter);
 
     return listObjPtr;
 }
