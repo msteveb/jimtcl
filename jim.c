@@ -5947,7 +5947,7 @@ void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 #define JIM_ELESTR_SIMPLE 0
 #define JIM_ELESTR_BRACE 1
 #define JIM_ELESTR_QUOTE 2
-static int ListElementQuotingType(const char *s, int len)
+static unsigned char ListElementQuotingType(const char *s, int len)
 {
     int i, level, blevel, trySimple = 1;
 
@@ -6100,13 +6100,19 @@ static int BackslashQuoteString(const char *s, char *q)
 
 static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
 {
+    #define STATIC_QUOTING_LEN 32
     int i, bufLen, realLength;
     const char *strRep;
     char *p;
-    int *quotingType;
+    unsigned char *quotingType, staticQuoting[STATIC_QUOTING_LEN];
 
-    /* (Over) Estimate the space needed. */
-    quotingType = Jim_Alloc(sizeof(int) * objc + 1);
+    /* Estimate the space needed. */
+    if (objc > STATIC_QUOTING_LEN) {
+        quotingType = Jim_Alloc(objc);
+    }
+    else {
+        quotingType = staticQuoting;
+    }
     bufLen = 0;
     for (i = 0; i < objc; i++) {
         int len;
@@ -6172,7 +6178,10 @@ static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
     }
     *p = '\0';                  /* nul term. */
     objPtr->length = realLength;
-    Jim_Free(quotingType);
+
+    if (quotingType != staticQuoting) {
+        Jim_Free(quotingType);
+    }
 }
 
 static void UpdateStringOfList(struct Jim_Obj *objPtr)
