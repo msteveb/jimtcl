@@ -100,6 +100,9 @@
 #define JIM_DEBUG_PANIC
 #endif
 
+/* Maximum size of an integer */
+#define JIM_INTEGER_SPACE 24
+
 const char *jim_tt_name(int type);
 
 #ifdef JIM_DEBUG_PANIC
@@ -410,46 +413,36 @@ static int JimStringLastUtf8(const char *s1, int l1, const char *s2, int l2)
 }
 #endif
 
-int Jim_WideToString(char *buf, jim_wide wideValue)
+static int JimWideToString(char *buf, jim_wide wideValue)
 {
-    char tmp[32];
-    int num = 0;
-    int negative = 0;
-    int i, pos = 0;
+    int pos = 0;
 
-    if (wideValue < 0) {
-        negative = 1;
-        wideValue = -wideValue;
+    if (wideValue == 0) {
+        buf[pos++] = '0';
     }
+    else {
+        char tmp[JIM_INTEGER_SPACE];
+        int num = 0;
+        int i;
 
-    if (!wideValue) {
-        tmp[0] = '0';
-        num = 1;
+        if (wideValue < 0) {
+            buf[pos++] = '-';
+            wideValue = -wideValue;
+        }
+
+        while (wideValue) {
+            /* Note: abs() here because of LLONG_MIN */
+            tmp[num++] = '0' + abs(wideValue % 10);
+            wideValue /= 10;
+        }
+
+        for (i = 0; i < num; i++) {
+            buf[pos++] = tmp[num - i - 1];
+        }
     }
+    buf[pos] = 0;
 
-    while (wideValue) {
-        tmp[num] = '0' + abs(wideValue % 10);
-        wideValue /= 10;
-        num++;
-    }
-
-    for (i = 0, pos = num - 1; i < pos; i++, pos--) {
-        char a = tmp[i];
-        tmp[i] = tmp[pos];
-        tmp[pos] = a;
-    }
-
-    pos = 0;
-    if (negative) {
-        buf[0] = '-';
-        pos = 1;
-        num++;
-    }
-
-    memcpy(buf + pos, tmp, num);
-    buf[num] = 0;
-
-    return num;
+    return pos;
 }
 
 /**
@@ -5706,8 +5699,6 @@ int Jim_GetExitCode(Jim_Interp *interp)
 /* -----------------------------------------------------------------------------
  * Integer object
  * ---------------------------------------------------------------------------*/
-#define JIM_INTEGER_SPACE 24
-
 static void UpdateStringOfInt(struct Jim_Obj *objPtr);
 static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
 
@@ -5733,12 +5724,12 @@ static const Jim_ObjType coercedDoubleObjType = {
 };
 
 
-void UpdateStringOfInt(struct Jim_Obj *objPtr)
+static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 {
     int len;
     char buf[JIM_INTEGER_SPACE + 1];
 
-    len = Jim_WideToString(buf, JimWideValue(objPtr));
+    len = JimWideToString(buf, JimWideValue(objPtr));
     objPtr->bytes = Jim_Alloc(len + 1);
     memcpy(objPtr->bytes, buf, len + 1);
     objPtr->length = len;
