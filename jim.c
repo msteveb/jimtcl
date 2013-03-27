@@ -427,17 +427,17 @@ static int JimWideToString(char *buf, jim_wide wideValue)
 
         if (wideValue < 0) {
             buf[pos++] = '-';
-            wideValue = -wideValue;
+            tmp[num++] = -(wideValue % 10);
+            wideValue /= -10;
         }
 
         while (wideValue) {
-            /* Note: abs() here because of LLONG_MIN */
-            tmp[num++] = '0' + abs(wideValue % 10);
+            tmp[num++] = wideValue % 10;
             wideValue /= 10;
         }
 
         for (i = 0; i < num; i++) {
-            buf[pos++] = tmp[num - i - 1];
+            buf[pos++] = '0' + tmp[num - i - 1];
         }
     }
     buf[pos] = 0;
