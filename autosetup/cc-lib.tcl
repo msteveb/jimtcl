@@ -75,3 +75,87 @@ proc cc-check-endian {} {
 	}
 	return $rc
 }
+
+# @cc-check-flags flag ?...?
+#
+# Checks whether the given C/C++ compiler flags can be used. Defines feature
+# names prefixed with 'HAVE_CFLAG' and 'HAVE_CXXFLAG' respectively, and
+# appends working flags to '-cflags' and 'CFLAGS' or 'CXXFLAGS'.
+proc cc-check-flags {args} {
+    set result 1
+    array set opts [cc-get-settings]
+    switch -exact -- $opts(-lang) {
+        c++ {
+            set lang C++
+            set prefix CXXFLAG
+        }
+        c {
+            set lang C
+            set prefix CFLAG
+        }
+        default {
+            autosetup-error "cc-check-flags failed with unknown language: $opts(-lang)"
+        }
+    }
+    foreach flag $args {
+        msg-checking "Checking whether the $lang compiler accepts $flag..."
+        if {[cctest -cflags $flag]} {
+            msg-result yes
+            define-feature $prefix$flag
+            cc-with [list -cflags [list $flag]]
+            define-append ${prefix}S $flag
+        } else {
+            msg-result no
+            set result 0
+        }
+    }
+    return $result
+}
+
+# @cc-check-standards ver ?...?
+#
+# Checks whether the C/C++ compiler accepts one of the specified '-std=$ver'
+# options, and appends the first working one to '-cflags' and 'CFLAGS' or
+# 'CXXFLAGS'.
+proc cc-check-standards {args} {
+    array set opts [cc-get-settings]
+    foreach std $args {
+        if {[cc-check-flags -std=$std]} {
+            return $std
+        }
+    }
+    return ""
+}
+
+# Checks whether $keyword is usable as alignof
+proc cctest_alignof {keyword} {
+    msg-checking "Checking for $keyword..."
+    if {[cctest -code [subst -nobackslashes {
+        printf("minimum alignment is %d == %d\n", ${keyword}(char), ${keyword}('x'));
+    }]]} then {
+        msg-result ok
+        define-feature $keyword
+    } else {
+        msg-result "not found"
+    }
+}
+
+# @cc-check-c11
+#
+# Checks for several C11/C++11 extensions and their alternatives. Currently
+# checks for '_Static_assert', '_Alignof', '__alignof__', '__alignof'.
+proc cc-check-c11 {} {
+    msg-checking "Checking for _Static_assert..."
+    if {[cctest -code {
+        _Static_assert(1, "static assertions are available");
+    }]} then {
+        msg-result ok
+        define-feature _Static_assert
+    } else {
+        msg-result "not found"
+    }
+
+    cctest_alignof _Alignof
+    cctest_alignof __alignof__
+    cctest_alignof __alignof
+}
