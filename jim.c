@@ -427,7 +427,9 @@ static int JimWideToString(char *buf, jim_wide wideValue)
 
         if (wideValue < 0) {
             buf[pos++] = '-';
-            tmp[num++] = abs(wideValue % 10);
+            /* -106 % 10 may be -6 or 4! */
+            i = wideValue % 10;
+            tmp[num++] = (i > 0) ? (10 - i) : -i;
             wideValue /= -10;
         }
 
