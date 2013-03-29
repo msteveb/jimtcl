@@ -98,7 +98,7 @@ uninstall:
 test: $(JIMSH)
 	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh
 
-$(OBJS): Makefile
+$(OBJS): Makefile $(wildcard *.h)
 
 @if JIM_UTF8
 # Generate the unicode case mapping
