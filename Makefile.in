@@ -62,11 +62,19 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 
 docs: Tcl.html
 
+@if JIM_DOCS
+install-docs: docs
+	mkdir -p $(DESTDIR)$(prefix)/doc/jim
+	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
+@else
+install-docs:
+@endif
+
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
 
 @if JIM_INSTALL
-install: all docs @TCL_EXTS@ install-exec
+install: all @TCL_EXTS@ install-exec install-docs
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
 	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)$(prefix)/lib/jim
@@ -75,8 +83,6 @@ install: all docs @TCL_EXTS@ install-exec
 	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-signal.h \
 		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
 	cp jim-config.h $(DESTDIR)$(prefix)/include
-	mkdir -p $(DESTDIR)$(prefix)/doc/jim
-	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp build-jim-ext $(DESTDIR)$(prefix)/bin
 
