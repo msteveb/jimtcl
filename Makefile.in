@@ -69,7 +69,8 @@ $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 install: all docs @TCL_EXTS@ install-exec
 	mkdir -p $(DESTDIR)$(prefix)/lib/jim
 	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
-	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@ $(DESTDIR)$(prefix)/lib/jim
+	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)$(prefix)/lib/jim
+	for i in @TCL_EXTS@; do cp @srcdir@/$$i $(DESTDIR)$(prefix)/lib/jim; done
 	mkdir -p $(DESTDIR)$(prefix)/include
 	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-signal.h \
 		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
