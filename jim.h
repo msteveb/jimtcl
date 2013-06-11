@@ -690,8 +690,6 @@ JIM_EXPORT Jim_HashEntry * Jim_NextHashEntry
 JIM_EXPORT Jim_Obj * Jim_NewObj (Jim_Interp *interp);
 JIM_EXPORT void Jim_FreeObj (Jim_Interp *interp, Jim_Obj *objPtr);
 JIM_EXPORT void Jim_InvalidateStringRep (Jim_Obj *objPtr);
-JIM_EXPORT void Jim_InitStringRep (Jim_Obj *objPtr, const char *bytes,
-        int length);
 JIM_EXPORT Jim_Obj * Jim_DuplicateObj (Jim_Interp *interp,
         Jim_Obj *objPtr);
 JIM_EXPORT const char * Jim_GetString(Jim_Obj *objPtr,
