@@ -56,12 +56,8 @@ main(int argc, char **argv)
 	/* And initialise any static extensions */
 	Jim_InitStaticExtensions(interp);
 
-
-	/* Create some empty object */
-	obj =  Jim_NewObj(interp);
-
-	/* Name the object */
-	Jim_InitStringRep(obj, OBJ_DESC, strlen(OBJ_DESC)) ;
+	/* Create a string object */
+	obj = Jim_NewStringObj(interp, OBJ_DESC, strlen(OBJ_DESC));
 
 	/* Obtain internal representation of an object */
 	obj_desc = Jim_GetString(obj, &obj_size);
