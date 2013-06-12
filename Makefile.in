@@ -56,9 +56,8 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 # Create C extensions from pure Tcl extensions
 .SUFFIXES: .tcl
 .tcl.o:
-	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c || ( rm _$*.c; exit 1)
-	$(CC) $(CFLAGS) -c -o $@ _$*.c || ( rm _$*.c; exit 1)
-	@rm -f _$*.c
+	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
+	$(CC) $(CFLAGS) -c -o $@ _$*.c
 
 docs: Tcl.html
 
