@@ -74,28 +74,28 @@ $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 
 @if JIM_INSTALL
 install: all @TCL_EXTS@ install-exec install-docs
-	mkdir -p $(DESTDIR)$(prefix)/lib/jim
-	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
-	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)$(prefix)/lib/jim
-	for i in @TCL_EXTS@; do cp @srcdir@/$$i $(DESTDIR)$(prefix)/lib/jim; done
-	mkdir -p $(DESTDIR)$(prefix)/include
+	mkdir -p $(DESTDIR)@libdir@/jim
+	cp $(LIBJIM) $(DESTDIR)@libdir@
+	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)@libdir@/jim
+	for i in @TCL_EXTS@; do cp @srcdir@/$$i $(DESTDIR)@libdir@/jim; done
+	mkdir -p $(DESTDIR)@includedir@
 	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-signal.h \
-		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
-	cp jim-config.h $(DESTDIR)$(prefix)/include
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp build-jim-ext $(DESTDIR)$(prefix)/bin
+		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)@includedir@
+	cp jim-config.h $(DESTDIR)@includedir@
+	mkdir -p $(DESTDIR)@bindir@
+	cp build-jim-ext $(DESTDIR)@bindir@
 
 install-exec: all
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
+	mkdir -p $(DESTDIR)@bindir@
+	cp $(JIMSH) $(DESTDIR)@bindir@
 
 uninstall:
-	rm -f $(DESTDIR)$(prefix)/bin/$(JIMSH)
-	rm -f $(DESTDIR)$(prefix)/bin/build-jim-ext
-	rm -f $(DESTDIR)$(prefix)/lib/$(LIBJIM)
-	for i in README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@; do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
-	rm -f $(DESTDIR)$(prefix)/include/jim*.h
-	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
+	rm -f $(DESTDIR)@bindir@/$(JIMSH)
+	rm -f $(DESTDIR)@bindir@/build-jim-ext
+	rm -f $(DESTDIR)@libdir@/$(LIBJIM)
+	for i in README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@; do rm -f $(DESTDIR)@libdir@/jim/$$i; done
+	rm -f $(DESTDIR)@includedir@/jim*.h
+	rm -f $(DESTDIR)@datadir@/doc/jim/Tcl.html
 @else
 install install-exec: all
 uninstall:
