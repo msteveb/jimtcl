@@ -567,15 +567,18 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Obj *currValue;
         currValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,
-         * or if was unset and now is set (or the contrary). */
+         * or if was unset and now is set (or the contrary)
+         * or if a signal was caught
+         */
         if ((oldValue && !currValue) ||
             (!oldValue && currValue) ||
-            (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue)))
+            (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue)) ||
+            Jim_CheckSignal(interp)) {
             break;
+        }
     }
     if (oldValue)
         Jim_DecrRefCount(interp, oldValue);
-
 
     if (rc == -2) {
         return JIM_ERR;

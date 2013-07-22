@@ -10516,8 +10516,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         if (retcode == JIM_OK && argc) {
             /* Invoke the command */
             retcode = JimInvokeCommand(interp, argc, argv);
-            if (interp->signal_level && interp->sigmask) {
-                /* Check for a signal after each command */
+            /* Check for a signal after each command */
+            if (Jim_CheckSignal(interp)) {
                 retcode = JIM_SIGNAL;
             }
         }
@@ -13679,6 +13679,15 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_EXIT;
 }
 
+/**
+ * Returns 1 if a signal has been received while
+ * in a catch -signal {} clause.
+ */
+int Jim_CheckSignal(Jim_Interp *interp)
+{
+    return interp->signal_level && interp->sigmask;
+}
+
 /* [catch] */
 static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -13750,7 +13759,7 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
 
     interp->signal_level += sig;
-    if (interp->signal_level && interp->sigmask) {
+    if (Jim_CheckSignal(interp)) {
         /* If a signal is set, don't even try to execute the body */
         exitCode = JIM_SIGNAL;
     }
