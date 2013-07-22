@@ -13679,15 +13679,6 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_EXIT;
 }
 
-/**
- * Returns 1 if a signal has been received while
- * in a catch -signal {} clause.
- */
-int Jim_CheckSignal(Jim_Interp *interp)
-{
-    return interp->signal_level && interp->sigmask;
-}
-
 /* [catch] */
 static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {

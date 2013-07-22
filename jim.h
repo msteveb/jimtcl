@@ -908,6 +908,11 @@ JIM_EXPORT void Jim_HistoryShow(void);
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 JIM_EXPORT int Jim_CheckSignal(Jim_Interp *interp);
+/**
+ * Returns 1 if a signal has been received while
+ * in a catch -signal {} clause.
+ */
+#define Jim_CheckSignal(i) ((i)->signal_level && (i)->sigmask)
 
 /* jim-load.c */
 JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
