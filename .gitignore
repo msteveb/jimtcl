@@ -13,7 +13,7 @@ jim-oo.c
 jimsh
 *.exe
 libjim.a
-*.so
+*.so.*
 *.dll
 *.o
 configure.gnu

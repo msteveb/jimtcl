@@ -33,7 +33,7 @@ VPATH := @srcdir@
 @if JIM_STATICLIB
 LIBJIM := libjim.a
 @else
-LIBJIM := libjim.@LIBSOEXT@
+LIBJIM := libjim.@LIBSOEXT@.0.74
 SH_LIBJIM := $(LIBJIM)
 CC += $(SH_CFLAGS)
 CXX += $(SH_CFLAGS)
