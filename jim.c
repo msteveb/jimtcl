@@ -514,7 +514,8 @@ static int JimNumberBase(const char *str, int *base, int *sign)
         return i;
     }
     /* Parse as base 10 */
-    return 10;
+    *base = 10;
+    return 0;
 }
 
 /* Converts a number as per strtol(..., 0) except leading zeros do *not*
