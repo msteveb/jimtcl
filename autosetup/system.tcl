@@ -217,7 +217,8 @@ if {$host eq ""} {
 }
 define cross [get-env CROSS $cross]
 
-set prefix [opt-val prefix /usr/local]
+# Do "define defaultprefix myvalue" to set the default prefix *before* the first "use"
+set prefix [opt-val prefix [get-define defaultprefix /usr/local]]
 
 # These are for compatibility with autoconf
 define target [get-define host]
@@ -254,7 +255,7 @@ define SHELL [get-env SHELL [find-an-executable sh bash ksh]]
 
 # Windows vs. non-Windows
 switch -glob -- [get-define host] {
-	*-*-ming* - *-*-cygwin {
+	*-*-ming* - *-*-cygwin - *-*-msys {
 		define-feature windows
 		define EXEEXT .exe
 	}

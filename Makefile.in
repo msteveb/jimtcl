@@ -8,7 +8,7 @@ STRIP = @STRIP@
 # Configuration
 
 SH_CFLAGS ?= @SH_CFLAGS@
-SH_LDFLAGS ?= @SH_LDFLAGS@
+SH_LDFLAGS ?= @SH_LDFLAGS@ @SH_SOPREFIX@libjim.@LIBSOEXT@.0.74
 SHOBJ_CFLAGS ?= @SHOBJ_CFLAGS@
 @if JIM_STATICLIB
 SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
@@ -33,7 +33,7 @@ VPATH := @srcdir@
 @if JIM_STATICLIB
 LIBJIM := libjim.a
 @else
-LIBJIM := libjim.@LIBSOEXT@
+LIBJIM := libjim.@LIBSOEXT@.0.74
 SH_LIBJIM := $(LIBJIM)
 CC += $(SH_CFLAGS)
 CXX += $(SH_CFLAGS)
@@ -56,40 +56,46 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 # Create C extensions from pure Tcl extensions
 .SUFFIXES: .tcl
 .tcl.o:
-	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c || ( rm _$*.c; exit 1)
-	$(CC) $(CFLAGS) -c -o $@ _$*.c || ( rm _$*.c; exit 1)
-	@rm -f _$*.c
+	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
+	$(CC) $(CFLAGS) -c -o $@ _$*.c
 
 docs: Tcl.html
+
+@if JIM_DOCS
+install-docs: docs
+	mkdir -p $(DESTDIR)$(prefix)/doc/jim
+	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
+@else
+install-docs:
+@endif
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS)
 
 @if JIM_INSTALL
-install: all docs @TCL_EXTS@ install-exec
-	mkdir -p $(DESTDIR)$(prefix)/lib/jim
-	cp $(LIBJIM) $(DESTDIR)$(prefix)/lib
-	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@ $(DESTDIR)$(prefix)/lib/jim
-	mkdir -p $(DESTDIR)$(prefix)/include
+install: all @TCL_EXTS@ install-exec install-docs
+	mkdir -p $(DESTDIR)@libdir@/jim
+	cp $(LIBJIM) $(DESTDIR)@libdir@
+	cp @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)@libdir@/jim
+	for i in @TCL_EXTS@; do cp @srcdir@/$$i $(DESTDIR)@libdir@/jim; done
+	mkdir -p $(DESTDIR)@includedir@
 	cp @srcdir@/jim.h @srcdir@/jim-eventloop.h @srcdir@/jim-signal.h \
-		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)$(prefix)/include
-	cp jim-config.h $(DESTDIR)$(prefix)/include
-	mkdir -p $(DESTDIR)$(prefix)/doc/jim
-	cp Tcl.html $(DESTDIR)$(prefix)/doc/jim
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp build-jim-ext $(DESTDIR)$(prefix)/bin
+		@srcdir@/jim-subcmd.h @srcdir@/jim-win32compat.h $(DESTDIR)@includedir@
+	cp jim-config.h $(DESTDIR)@includedir@
+	mkdir -p $(DESTDIR)@bindir@
+	cp build-jim-ext $(DESTDIR)@bindir@
 
 install-exec: all
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp $(JIMSH) $(DESTDIR)$(prefix)/bin
+	mkdir -p $(DESTDIR)@bindir@
+	cp $(JIMSH) $(DESTDIR)@bindir@
 
 uninstall:
-	rm -f $(DESTDIR)$(prefix)/bin/$(JIMSH)
-	rm -f $(DESTDIR)$(prefix)/bin/build-jim-ext
-	rm -f $(DESTDIR)$(prefix)/lib/$(LIBJIM)
-	for i in README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@; do rm -f $(DESTDIR)$(prefix)/lib/jim/$$i; done
-	rm -f $(DESTDIR)$(prefix)/include/jim*.h
-	rm -f $(DESTDIR)$(prefix)/doc/jim/Tcl.html
+	rm -f $(DESTDIR)@bindir@/$(JIMSH)
+	rm -f $(DESTDIR)@bindir@/build-jim-ext
+	rm -f $(DESTDIR)@libdir@/$(LIBJIM)
+	for i in README.extensions @C_EXT_SHOBJS@ @TCL_EXTS@; do rm -f $(DESTDIR)@libdir@/jim/$$i; done
+	rm -f $(DESTDIR)@includedir@/jim*.h
+	rm -f $(DESTDIR)@datadir@/doc/jim/Tcl.html
 @else
 install install-exec: all
 uninstall:
@@ -98,7 +104,7 @@ uninstall:
 test: $(JIMSH)
 	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh
 
-$(OBJS): Makefile
+$(OBJS): Makefile $(wildcard *.h)
 
 @if JIM_UTF8
 # Generate the unicode case mapping

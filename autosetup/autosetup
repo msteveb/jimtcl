@@ -5,7 +5,7 @@
 # \
 dir=`dirname "$0"`; exec "`$dir/find-tclsh`" "$0" "$@"
 
-set autosetup(version) 0.6.4
+set autosetup(version) 0.6.5
 
 # Can be set to 1 to debug early-init problems
 set autosetup(debug) 0
@@ -87,7 +87,7 @@ proc main {argv} {
 		reference:=text => "display the autosetup command reference. 'text', 'wiki', 'asciidoc' or 'markdown'"
 		debug        => "display debugging output as autosetup runs"
 		install:=.   => "install autosetup to the current or given directory (in the 'autosetup/' subdirectory)"
-		force init   => "create an initial 'configure' script if none exists"
+		force init:=help   => "create initial auto.def, etc.  Use --init=help for known types"
 		# Undocumented options
 		option-checking=1
 		nopager
@@ -119,6 +119,11 @@ proc main {argv} {
 		use local
 	}
 
+	# Now any auto-load modules
+	foreach file [glob -nocomplain $autosetup(libdir)/*.auto $autosetup(libdir)/*/*.auto] {
+		automf_load source $file
+	}
+
 	if {[opt-val help] ne ""} {
 		incr autosetup(showhelp)
 		use help
@@ -130,9 +135,9 @@ proc main {argv} {
 		autosetup_reference [opt-val {manual ref reference}]
 	}
 
-	if {[opt-bool init]} {
+	if {[opt-val init] ne ""} {
 		use init
-		autosetup_init
+		autosetup_init [opt-val init]
 	}
 
 	if {[opt-val install] ne ""} {
@@ -143,7 +148,7 @@ proc main {argv} {
 	if {![file exists $autosetup(autodef)]} {
 		# Check for invalid option first
 		options {}
-		user-error "No auto.def found in $autosetup(srcdir)"
+		user-error "No auto.def found in \"$autosetup(srcdir)\" (use [file tail $::autosetup(exe)] --init to create one)"
 	}
 
 	# Parse extra arguments into autosetup(cmdline)
@@ -167,6 +172,7 @@ proc main {argv} {
 	# Log how we were invoked
 	configlog "Invoked as: [getenv WRAPPER $::argv0] [quote-argv $autosetup(argv)]"
 
+	# Note that auto.def is *not* loaded in the global scope
 	source $autosetup(autodef)
 
 	# Could warn here if options {} was not specified
@@ -174,7 +180,11 @@ proc main {argv} {
 	show-notices
 
 	if {$autosetup(debug)} {
-		parray define
+		msg-result "Writing all defines to config.log"
+		configlog "================ defines ======================"
+		foreach n [lsort [array names define]] {
+			configlog "define $n $define($n)"
+		}
 	}
 
 	exit 0
@@ -421,6 +431,10 @@ proc options {optlist} {
 proc config_guess {} {
 	if {[file-isexec $::autosetup(dir)/config.guess]} {
 		exec-with-stderr sh $::autosetup(dir)/config.guess
+		if {[catch {exec-with-stderr sh $::autosetup(dir)/config.guess} alias]} {
+			user-error $alias
+		}
+		return $alias
 	} else {
 		configlog "No config.guess, so using uname"
 		string tolower [exec uname -p]-unknown-[exec uname -s][exec uname -r]
@@ -429,10 +443,11 @@ proc config_guess {} {
 
 proc config_sub {alias} {
 	if {[file-isexec $::autosetup(dir)/config.sub]} {
-		exec-with-stderr sh $::autosetup(dir)/config.sub $alias
-	} else {
-		return $alias
+		if {[catch {exec-with-stderr sh $::autosetup(dir)/config.sub $alias} alias]} {
+			user-error $alias
+		}
 	}
+	return $alias
 }
 
 # @define name ?value=1?
@@ -754,8 +769,13 @@ proc user-notice {msg} {
 
 # Incorrect usage in the auto.def file. Identify the location.
 proc autosetup-error {msg} {
+	autosetup-full-error [error-location $msg]
+}
+
+# Like autosetup-error, except $msg is the full error message.
+proc autosetup-full-error {msg} {
 	show-notices
-	puts stderr [error-location $msg]
+	puts stderr $msg
 	exit 1
 }
 
@@ -865,7 +885,14 @@ proc autosetup_add_dep {filename} {
 # @use module ...
 #
 # Load the given library modules.
-# e.g. use cc cc-shared
+# e.g. 'use cc cc-shared'
+#
+# Note that module 'X' is implemented in either 'autosetup/X.tcl'
+# or 'autosetup/X/init.tcl'
+#
+# The latter form is useful for a complex module which requires additional
+# support file. In this form, '$::usedir' is set to the module directory
+# when it is loaded.
 #
 proc use {args} {
 	foreach m $args {
@@ -874,17 +901,33 @@ proc use {args} {
 		}
 		set ::libmodule($m) 1
 		if {[info exists ::modsource($m)]} {
-			uplevel #0 eval $::modsource($m)
+			automf_load eval $::modsource($m)
 		} else {
-			set source $::autosetup(libdir)/${m}.tcl
-			if {[file exists $source]} {
-				uplevel #0 [list source $source]
+			set sources [list $::autosetup(libdir)/${m}.tcl $::autosetup(libdir)/${m}/init.tcl]
+			set found 0
+			foreach source $sources {
+				if {[file exists $source]} {
+					incr found
+					break
+				}
+			}
+			if {$found} {
+				# For the convenience of the "use" source, point to the directory
+				# it is being loaded from
+				set ::usedir [file dirname $source]
+				automf_load source $source
 				autosetup_add_dep $source
 			} else {
-				puts "Looking for $source"
 				autosetup-error "use: No such module: $m"
 			}
 		}
+	}
+}
+
+# Load module source in the global scope by executing the given command
+proc automf_load {args} {
+	if {[catch [list uplevel #0 $args] msg opts] ni {0 2 3}} {
+		autosetup-full-error [error-dump $msg $opts]
 	}
 }
 
@@ -1146,9 +1189,9 @@ proc autosetup_help {what} {
 # If not already paged and stdout is a tty, pipe the output through the pager
 # This is done by reinvoking autosetup with --nopager added
 proc use_pager {} {
-    if {![opt-bool nopager] && [getenv PAGER ""] ne "" && ![string match "not a tty" [exec tty]]} {
+    if {![opt-bool nopager] && [getenv PAGER ""] ne "" && [isatty? stdin] && [isatty? stdout]} {
         catch {
-            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv | [getenv PAGER] >@stdout <@stdin 2>/dev/null
+            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv |& [getenv PAGER] >@stdout <@stdin
         }
         exit 0
     }
@@ -1278,55 +1321,56 @@ set modsource(init) {
 
 # Module to help create auto.def and configure
 
-proc autosetup_init {} {
-	set create_configure 1
-	if {[file exists configure]} {
-		if {!$::autosetup(force)} {
-			# Could this be an autosetup configure?
-			if {![string match "*\nWRAPPER=*" [readfile configure]]} {
-				puts "I see configure, but not created by autosetup, so I won't overwrite it."
-				puts "Use autosetup --init --force to overwrite."
-				set create_configure 0
-			}
-		} else {
-			puts "I will overwrite the existing configure because you used --force."
+proc autosetup_init {type} {
+	set help 0
+	if {$type in {? help}} {
+		incr help
+	} elseif {![dict exists $::autosetup(inittypes) $type]} {
+		puts "Unknown type, --init=$type"
+		incr help
+	}
+	if {$help} {
+		puts "Use one of the following types (e.g. --init=make)\n"
+		foreach type [lsort [dict keys $::autosetup(inittypes)]] {
+			lassign [dict get $::autosetup(inittypes) $type] desc
+			# XXX: Use the options-show code to wrap the description
+			puts [format "%-10s %s" $type $desc]
 		}
-	} else {
-		puts "I don't see configure, so I will create it."
+		exit 0
 	}
-	if {$create_configure} {
-		if {!$::autosetup(installed)} {
-			user-notice "Warning: Initialising from the development version of autosetup"
+	lassign [dict get $::autosetup(inittypes) $type] desc script
 
-			writefile configure "#!/bin/sh\nWRAPPER=\"\$0\" exec $::autosetup(dir)/autosetup \"\$@\"\n"
-		} else {
-			writefile configure \
-{#!/bin/sh
-dir="`dirname "$0"`/autosetup"
-WRAPPER="$0" exec "`$dir/find-tclsh`" "$dir/autosetup" "$@"
-}
-		}
-		catch {exec chmod 755 configure}
-	}
-	if {![file exists auto.def]} {
-		puts "I don't see auto.def, so I will create a default one."
-		writefile auto.def {# Initial auto.def created by 'autosetup --init'
+	puts "Initialising $type: $desc\n"
 
-use cc
+	# All initialisations happens in the top level srcdir
+	cd $::autosetup(srcdir)
 
-# Add any user options here
-options {
-}
-
-make-config-header config.h
-make-template Makefile.in
-}
-	}
-	if {![file exists Makefile.in]} {
-		puts "Note: I don't see Makefile.in. You will probably need to create one."
-	}
+	uplevel #0 $script
 
 	exit 0
+}
+
+proc autosetup_add_init_type {type desc script} {
+	dict set ::autosetup(inittypes) $type [list $desc $script]
+}
+
+# This is for in creating build-system init scripts
+#
+# If the file doesn't exist, create it containing $contents
+# If the file does exist, only overwrite if --force is specified.
+#
+proc autosetup_check_create {filename contents} {
+	if {[file exists $filename]} {
+		if {!$::autosetup(force)} {
+			puts "I see $filename already exists."
+			return
+		} else {
+			puts "I will overwrite the existing $filename because you used --force."
+		}
+	} else {
+		puts "I don't see $filename, so I will create it."
+	}
+	writefile $filename $contents
 }
 }
 
@@ -1345,7 +1389,7 @@ proc autosetup_install {dir} {
 
 		set f [open autosetup/autosetup w]
 
-		set publicmodules {}
+		set publicmodules $::autosetup(libdir)/default.auto
 
 		# First the main script, but only up until "CUT HERE"
 		set in [open $::autosetup(dir)/autosetup]
@@ -1393,9 +1437,34 @@ proc autosetup_install {dir} {
 		user-error "Failed to install autosetup: $error"
 	}
 	puts "Installed [autosetup_version] to autosetup/"
-	catch {exec [info nameofexecutable] autosetup/autosetup --init >@stdout 2>@stderr}
+
+	# Now create 'configure' if necessary
+	autosetup_create_configure
 
 	exit 0
+}
+
+proc autosetup_create_configure {} {
+	if {[file exists configure]} {
+		if {!$::autosetup(force)} {
+			# Could this be an autosetup configure?
+			if {![string match "*\nWRAPPER=*" [readfile configure]]} {
+				puts "I see configure, but not created by autosetup, so I won't overwrite it."
+				puts "Remove it or use --force to overwrite."
+				return
+			}
+		} else {
+			puts "I will overwrite the existing configure because you used --force."
+		}
+	} else {
+		puts "I don't see configure, so I will create it."
+	}
+	writefile configure \
+{#!/bin/sh
+dir="`dirname "$0"`/autosetup"
+WRAPPER="$0"; export WRAPPER; exec "`$dir/find-tclsh`" "$dir/autosetup" "$@"
+}
+	catch {exec chmod 755 configure}
 }
 
 # Append the contents of $file to filehandle $f
@@ -1541,15 +1610,28 @@ if {$autosetup(istcl)} {
 		}
 		return -code error "environment variable \"$name\" does not exist"
 	}
-} elseif {$autosetup(iswin)} {
-	# On Windows, backslash convert all environment variables
-	# (Assume that Tcl does this for us)
-	proc getenv {name args} {
-		string map {\\ /} [env $name {*}$args]
+	proc isatty? {channel} {
+		dict exists [fconfigure $channel] -xchar
 	}
 } else {
-	# Jim on unix is simple
-	alias getenv env
+	if {$autosetup(iswin)} {
+		# On Windows, backslash convert all environment variables
+		# (Assume that Tcl does this for us)
+		proc getenv {name args} {
+			string map {\\ /} [env $name {*}$args]
+		}
+	} else {
+		# Jim on unix is simple
+		alias getenv env
+	}
+	proc isatty? {channel} {
+		set tty 0
+		catch {
+			# isatty is a recent addition to Jim Tcl
+			set tty [$channel isatty]
+		}
+		return $tty
+	}
 }
 
 # In case 'file normalize' doesn't exist
@@ -1598,46 +1680,42 @@ proc error-location {msg} {
 	return $msg
 }
 
-# Similar to error-location, but called when user code generates an error
-# In this case we want to show the stack trace in user code, but not in autosetup code
-# (unless --debug is enabled)
+# If everything is working properly, the only errors which occur
+# should be generated in user code (e.g. auto.def).
+# By default, we only want to show the error location in user code.
+# We use [info frame] to achieve this, but it works differently on Tcl and Jim.
+#
+# This is designed to be called for incorrect usage in auto.def, via autosetup-error
 #
 proc error-stacktrace {msg} {
-	if {$::autosetup(istcl)} {
-		if {[regexp {file "([^ ]*)" line ([0-9]*)} $::errorInfo dummy file line]} {
-			return "[relative-path $file]:$line $msg\n$::errorInfo"
-		}
-		return $::errorInfo
-	} else {
-		# Prepend a live stacktrace to the error stacktrace, omitting the current level
-		set stacktrace [concat [info stacktrace] [lrange [stacktrace] 3 end]]
-
-		if {!$::autosetup(debug)} {
-			# Omit any levels from autosetup or with no file
-			set newstacktrace {}
-			foreach {p f l} $stacktrace {
-				if {[string match "*autosetup" $f] || $f eq ""} {
-					#puts "Skipping $p $f:$l"
-					continue
-				}
-				lappend newstacktrace $p $f $l
-			}
-			set stacktrace $newstacktrace
-		}
-
-		# Convert filenames to relative paths
-		set newstacktrace {}
-		foreach {p f l} $stacktrace {
-			lappend newstacktrace $p [relative-path $f] $l
-		}
-		lassign $newstacktrace p f l
-		if {$f ne ""} {
-			set prefix "$f:$l: "
+	if {$::autosetup(debug)} {
+		return -code error $msg
+	}
+	# Search back through the stack trace for the first error in a .def file
+	for {set i 1} {$i < [info level]} {incr i} {
+		if {$::autosetup(istcl)} {
+			array set info [info frame -$i]
 		} else {
-			set prefix ""
+			lassign [info frame -$i] info(caller) info(file) info(line)
 		}
+		if {[string match *.def $info(file)]} {
+			return "[relative-path $info(file)]:$info(line): Error: $msg"
+		}
+		#puts "Skipping $info(file):$info(line)"
+	}
+	return $msg
+}
 
-		return "${prefix}Error: $msg\n[stackdump $newstacktrace]"
+# Given the return from [catch {...} msg opts], returns an appropriate
+# error message. A nice one for Jim and a less-nice one for Tcl.
+#
+# This is designed for developer errors, e.g. in module code
+#
+proc error-dump {msg opts} {
+	if {$::autosetup(istcl)} {
+		return "Error: [dict get $opts -errorinfo]"
+	} else {
+		return "Error: $msg\n[stackdump $opts(-errorinfo)]"
 	}
 }
 }

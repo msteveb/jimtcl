@@ -1392,7 +1392,7 @@ static char **JimSaveEnv(char **env)
 
 static void JimRestoreEnv(char **env)
 {
-    JimFreeEnv(env, NULL);
+    JimFreeEnv(env, Jim_GetEnviron());
 }
 
 static Jim_Obj *

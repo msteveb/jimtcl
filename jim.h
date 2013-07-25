@@ -128,7 +128,7 @@ extern "C" {
 /* Jim version numbering: every version of jim is marked with a
  * successive integer number. This is version 0. The first
  * stable version will be 1, then 2, 3, and so on. */
-#define JIM_VERSION 73
+#define JIM_VERSION 74
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -285,10 +285,10 @@ typedef struct Jim_HashTableIterator {
  * The refcount of a freed object is always -1.
  * ---------------------------------------------------------------------------*/
 typedef struct Jim_Obj {
-    int refCount; /* reference count */
     char *bytes; /* string representation buffer. NULL = no string repr. */
-    int length; /* number of bytes in 'bytes', not including the null term. */
     const struct Jim_ObjType *typePtr; /* object type. */
+    int refCount; /* reference count */
+    int length; /* number of bytes in 'bytes', not including the null term. */
     /* Internal representation union */
     union {
         /* integer number type */
@@ -690,8 +690,6 @@ JIM_EXPORT Jim_HashEntry * Jim_NextHashEntry
 JIM_EXPORT Jim_Obj * Jim_NewObj (Jim_Interp *interp);
 JIM_EXPORT void Jim_FreeObj (Jim_Interp *interp, Jim_Obj *objPtr);
 JIM_EXPORT void Jim_InvalidateStringRep (Jim_Obj *objPtr);
-JIM_EXPORT void Jim_InitStringRep (Jim_Obj *objPtr, const char *bytes,
-        int length);
 JIM_EXPORT Jim_Obj * Jim_DuplicateObj (Jim_Interp *interp,
         Jim_Obj *objPtr);
 JIM_EXPORT const char * Jim_GetString(Jim_Obj *objPtr,
@@ -909,6 +907,12 @@ JIM_EXPORT void Jim_HistoryShow(void);
 /* Misc */
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
+JIM_EXPORT int Jim_CheckSignal(Jim_Interp *interp);
+/**
+ * Returns 1 if a signal has been received while
+ * in a catch -signal {} clause.
+ */
+#define Jim_CheckSignal(i) ((i)->signal_level && (i)->sigmask)
 
 /* jim-load.c */
 JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);

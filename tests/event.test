@@ -14,6 +14,7 @@ source [file dirname [info script]]/testing.tcl
 needs cmd after eventloop
 testConstraint socket [expr {[info commands socket] ne ""}]
 testConstraint exec [expr {[info commands exec] ne ""}]
+testConstraint signal [expr {[info commands signal] ne ""}]
 
 test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} jim {
     catch {rename bgerror {}}
@@ -188,5 +189,15 @@ test event-12.4 {Tcl_UpdateCmd procedure} {
 foreach i [after info] {
     after cancel $i
 }
+
+test event-13.1 "vwait/signal" signal {
+    signal handle ALRM
+    list [catch -signal {
+        alarm 0.1
+        # This is just to prevent the vwait from exiting immediately
+        stdin readable { puts "stdin is readable" }
+        vwait forever
+    } msg] $msg
+} {5 SIGALRM}
 
 testreport

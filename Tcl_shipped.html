@@ -882,6 +882,26 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 Numbers with leading zeros are treated as decimal, not octal
 </p>
 </li>
+<li>
+<p>
+Add <a href="#_aio"><strong><code>aio</code></strong></a> <code>isatty</code>
+</p>
+</li>
+<li>
+<p>
+Add LFS (64 bit) support for <a href="#_aio"><strong><code>aio</code></strong></a> <code>seek</code>, <a href="#_aio"><strong><code>aio</code></strong></a> <code>tell</code>, <a href="#_aio"><strong><code>aio</code></strong></a> <code>copyto</code>, <a href="#_file"><strong><code>file</code></strong></a> <code>copy</code>
+</p>
+</li>
+<li>
+<p>
+<a href="#_string"><strong><code>string</code></strong></a> <code>compare</code> and <a href="#_string"><strong><code>string</code></strong></a> <code>equal</code> now support <em>-length</em>
+</p>
+</li>
+<li>
+<p>
+<a href="#_glob"><strong><code>glob</code></strong></a> now supports <em>-directory</em>
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -4330,13 +4350,17 @@ for reading.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_glob">glob</h3>
-<div class="paragraph"><p><code><strong>glob</strong> ?<strong>-nocomplain</strong>? <em>pattern ?pattern ...?</em></code></p></div>
+<div class="paragraph"><p><code><strong>glob</strong> ?<strong>-nocomplain</strong>? ?<strong>-directory</strong> <em>dir</em>? ?<strong>--</strong>? <em>pattern ?pattern ...?</em></code></p></div>
 <div class="paragraph"><p>This command performs filename globbing, using csh rules.  The returned
 value from <a href="#_glob"><strong><code>glob</code></strong></a> is the list of expanded filenames.</p></div>
 <div class="paragraph"><p>If <code>-nocomplain</code> is specified as the first argument then an empty
 list may be returned;  otherwise an error is returned if the expanded
 list is empty.  The <code>-nocomplain</code> argument must be provided
 exactly: an abbreviation will not be accepted.</p></div>
+<div class="paragraph"><p>If <code>-directory</code> is given, the <code><em>dir</em></code> is understood to contain a
+directory name to search in. This allows globbing inside directories
+whose names may contain glob-sensitive characters. The returned names
+are specified relative to this directory.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_global">global</h3>
@@ -6725,27 +6749,27 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 <h3 id="_aio">aio</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<code>$handle <strong>read ?-nonewline?</strong> <em>?len?</em></code>
+<code>$handle <strong>accept</strong></code>
 </dt>
 <dd>
 <p>
-    Read and return bytes from the stream. To eof if no len.
+    Server socket only: Accept a connection and return stream
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>gets</strong> <em>?var?</em></code>
+<code>$handle <strong>buffering none|line|full</strong></code>
 </dt>
 <dd>
 <p>
-    Read one line and return it or store it in the var
+    Sets the buffering mode of the stream.
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>puts ?-nonewline?</strong> <em>str</em></code>
+<code>$handle <strong>close</strong></code>
 </dt>
 <dd>
 <p>
-    Write the string, with newline unless -nonewline
+    Closes the stream
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6759,11 +6783,11 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>flush</strong></code>
+<code>$handle <strong>eof</strong></code>
 </dt>
 <dd>
 <p>
-    Flush the stream
+    Returns 1 if stream is at eof
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6776,45 +6800,27 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>eof</strong></code>
+<code>$handle <strong>flush</strong></code>
 </dt>
 <dd>
 <p>
-    Returns 1 if stream is at eof
+    Flush the stream
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>close</strong></code>
+<code>$handle <strong>gets</strong> <em>?var?</em></code>
 </dt>
 <dd>
 <p>
-    Closes the stream
+    Read one line and return it or store it in the var
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>seek</strong> <em>offset</em> <strong>?start|current|end?</strong></code>
+<code>$handle <strong>isatty</strong></code>
 </dt>
 <dd>
 <p>
-    Seeks in the stream (default <em>current</em>)
-</p>
-</dd>
-<dt class="hdlist1">
-<code>$handle <strong>tell</strong></code>
-</dt>
-<dd>
-<p>
-    Returns the current seek position
-</p>
-</dd>
-<dt class="hdlist1">
-<code>$handle <strong>filename</strong></code>
-</dt>
-<dd>
-<p>
-    Returns the original filename used when opening the file.
-    If the handle was returned from <a href="#_socket"><strong><code>socket</code></strong></a>, the type of the
-    handle is returned instead.
+    Returns 1 if the stream is a tty device.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6828,19 +6834,38 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>buffering none|line|full</strong></code>
+<code>$handle <strong>puts ?-nonewline?</strong> <em>str</em></code>
 </dt>
 <dd>
 <p>
-    Sets the buffering mode of the stream.
+    Write the string, with newline unless -nonewline
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>accept</strong></code>
+<code>$handle <strong>read ?-nonewline?</strong> <em>?len?</em></code>
 </dt>
 <dd>
 <p>
-    Server socket only: Accept a connection and return stream
+    Read and return bytes from the stream. To eof if no len.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>recvfrom</strong> <em>maxlen ?addrvar?</em></code>
+</dt>
+<dd>
+<p>
+    Receives a message from the handle via recvfrom(2) and returns it.
+    At most <code><em>maxlen</em></code> bytes are read.
+    If <code><em>addrvar</em></code> is specified, the sending address of the message is stored in
+    the named variable in the form <em>addr:port</em>. See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>seek</strong> <em>offset</em> <strong>?start|current|end?</strong></code>
+</dt>
+<dd>
+<p>
+    Seeks in the stream (default <em>current</em>)
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6855,14 +6880,11 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>recvfrom</strong> <em>maxlen ?addrvar?</em></code>
+<code>$handle <strong>tell</strong></code>
 </dt>
 <dd>
 <p>
-    Receives a message from the handle via recvfrom(2) and returns it.
-    At most <code><em>maxlen</em></code> bytes are read.
-    If <code><em>addrvar</em></code> is specified, the sending address of the message is stored in
-    the named variable in the form <em>addr:port</em>. See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
+    Returns the current seek position
 </p>
 </dd>
 </dl></div>
@@ -8073,7 +8095,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2012-09-11 11:21:08 EST
+Last updated 2013-07-22 11:07:02 EST
 </div>
 </div>
 </body>

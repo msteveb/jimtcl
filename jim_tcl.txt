@@ -55,6 +55,10 @@ RECENT CHANGES
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Numbers with leading zeros are treated as decimal, not octal
+2. Add `aio isatty`
+3. Add LFS (64 bit) support for `aio seek`, `aio tell`, `aio copyto`, `file copy`
+4. `string compare` and `string equal` now support '-length'
+5. `glob` now supports '-directory'
 
 Changes between 0.72 and 0.73
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2515,7 +2519,7 @@ for reading.
 
 glob
 ~~~~
-+*glob* ?*-nocomplain*? 'pattern ?pattern \...?'+
++*glob* ?*-nocomplain*? ?*-directory* 'dir'? ?*--*? 'pattern ?pattern \...?'+
 
 This command performs filename globbing, using csh rules.  The returned
 value from `glob` is the list of expanded filenames.
@@ -2524,6 +2528,11 @@ If +-nocomplain+ is specified as the first argument then an empty
 list may be returned;  otherwise an error is returned if the expanded
 list is empty.  The +-nocomplain+ argument must be provided
 exactly: an abbreviation will not be accepted.
+
+If +-directory+ is given, the +'dir'+ is understood to contain a
+directory name to search in. This allows globbing inside directories
+whose names may contain glob-sensitive characters. The returned names
+are specified relative to this directory.
 
 global
 ~~~~~~
@@ -4399,54 +4408,55 @@ See `open` and `socket` for commands which return an I/O handle.
 
 aio
 ~~~
-+$handle *read ?-nonewline?* '?len?'+::
-    Read and return bytes from the stream. To eof if no len.
++$handle *accept*+::
+    Server socket only: Accept a connection and return stream
 
-+$handle *gets* '?var?'+::
-    Read one line and return it or store it in the var
++$handle *buffering none|line|full*+::
+    Sets the buffering mode of the stream.
 
-+$handle *puts ?-nonewline?* 'str'+::
-    Write the string, with newline unless -nonewline
++$handle *close*+::
+    Closes the stream
 
 +$handle *copyto* 'tofd ?size?'+::
     Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
     that many bytes will be copied. Otherwise copying continues until the end
     of the input file. Returns the number of bytes actually copied.
 
-+$handle *flush*+::
-    Flush the stream
++$handle *eof*+::
+    Returns 1 if stream is at eof
 
 +$handle *filename*+::
     Returns the original filename associated with the handle.
     Handles returned by `socket` give the socket type instead of a filename.
 
-+$handle *eof*+::
-    Returns 1 if stream is at eof
++$handle *flush*+::
+    Flush the stream
 
-+$handle *close*+::
-    Closes the stream
++$handle *gets* '?var?'+::
+    Read one line and return it or store it in the var
 
-+$handle *seek* 'offset' *?start|current|end?*+::
-    Seeks in the stream (default 'current')
-
-+$handle *tell*+::
-    Returns the current seek position
-
-+$handle *filename*+::
-    Returns the original filename used when opening the file.
-    If the handle was returned from `socket`, the type of the
-    handle is returned instead.
++$handle *isatty*+::
+    Returns 1 if the stream is a tty device.
 
 +$handle *ndelay ?0|1?*+::
     Set O_NDELAY (if arg). Returns current/new setting.
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
 
-+$handle *buffering none|line|full*+::
-    Sets the buffering mode of the stream.
++$handle *puts ?-nonewline?* 'str'+::
+    Write the string, with newline unless -nonewline
 
-+$handle *accept*+::
-    Server socket only: Accept a connection and return stream
++$handle *read ?-nonewline?* '?len?'+::
+    Read and return bytes from the stream. To eof if no len.
+
++$handle *recvfrom* 'maxlen ?addrvar?'+::
+    Receives a message from the handle via recvfrom(2) and returns it.
+    At most +'maxlen'+ bytes are read.
+    If +'addrvar'+ is specified, the sending address of the message is stored in
+    the named variable in the form 'addr:port'. See `socket` for details.
+
++$handle *seek* 'offset' *?start|current|end?*+::
+    Seeks in the stream (default 'current')
 
 +$handle *sendto* 'str ?hostname:?port'+::
     Sends the string, +'str'+, to the given address via the socket using sendto(2).
@@ -4454,11 +4464,8 @@ aio
     ways for other handle types.
     Returns the number of bytes written.
 
-+$handle *recvfrom* 'maxlen ?addrvar?'+::
-    Receives a message from the handle via recvfrom(2) and returns it.
-    At most +'maxlen'+ bytes are read.
-    If +'addrvar'+ is specified, the sending address of the message is stored in
-    the named variable in the form 'addr:port'. See `socket` for details.
++$handle *tell*+::
+    Returns the current seek position
 
 fconfigure
 ~~~~~~~~~~

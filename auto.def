@@ -15,6 +15,7 @@ options {
     full            => "Enable some optional features: ipv6, math, utf8, binary, oo, tree"
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
+    docs=1          => "don't build or install the documentation"
     with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
         Specify additional jim extensions to include.
         These are enabled by default:
@@ -188,6 +189,7 @@ if {[opt-bool shared with-jim-shared]} {
     define JIM_STATICLIB
 }
 define JIM_INSTALL [opt-bool install-jim]
+define JIM_DOCS [opt-bool docs]
 
 # Attributes of the extensions
 # tcl=Pure Tcl extension
@@ -248,7 +250,7 @@ dict set extdb info {
                libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
              }
     signal   { check {[have-feature sigaction] && [have-feature vfork]} }
-    sqlite3  { check {[cc-check-function-in-lib sqlite3_open sqlite3]} libdep lib_sqlite3_open }
+    sqlite3  { check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }

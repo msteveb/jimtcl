@@ -124,8 +124,8 @@ static Jim_Obj *JimSqliteFormatQuery(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
                 Jim_AppendString(interp, resObjPtr, "%", 1);
                 break;
             default:
-                spec[1] = *fmt;
-                spec[2] = '\0';
+                spec[0] = *fmt;
+                spec[1] = '\0';
                 Jim_FreeNewObj(interp, resObjPtr);
                 Jim_SetResultFormatted(interp,
                     "bad field specifier \"%s\", only %%s and %%%% are valid", spec);
@@ -193,7 +193,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         query = Jim_GetString(objPtr, &len);
         Jim_IncrRefCount(objPtr);
         /* Compile the query into VM code */
-        if (sqlite3_prepare(sh->db, query, len, &stmt, &tail) != SQLITE_OK) {
+        if (sqlite3_prepare_v2(sh->db, query, len, &stmt, &tail) != SQLITE_OK) {
             Jim_DecrRefCount(interp, objPtr);
             Jim_SetResultString(interp, sqlite3_errmsg(sh->db), -1);
             Jim_Free(nullstr);

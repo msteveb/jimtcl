@@ -199,7 +199,9 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *path = Jim_String(argv[0]);
     const char *p = strrchr(path, '/');
 
-    if (!p) {
+    if (!p && path[0] == '.' && path[1] == '.' && path[2] == '\0') {
+        Jim_SetResultString(interp, "..", -1);
+    } else if (!p) {
         Jim_SetResultString(interp, ".", -1);
     }
     else if (p == path) {

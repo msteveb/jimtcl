@@ -16,6 +16,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
+needs cmd after eventloop
 
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {

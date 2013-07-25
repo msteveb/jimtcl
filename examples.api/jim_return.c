@@ -45,15 +45,11 @@
 static int
 CountCharsFunc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-	const char *str;
-	int len;
-
 	if (argc != 2) {
 		Jim_WrongNumArgs(interp, 1, argv, "string");
 		return (JIM_ERR);
 	}
-	str = Jim_GetString(argv[1], &len);
-	Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)len));
+	Jim_SetResult(interp, Jim_NewIntObj(interp, Jim_Length(argv[1])));
 	return (JIM_OK);
 }
 
