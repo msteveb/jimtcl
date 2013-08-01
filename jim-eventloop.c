@@ -160,25 +160,28 @@ void Jim_CreateFileHandler(Jim_Interp *interp, FILE * handle, int mask,
     eventLoop->fileEventHead = fe;
 }
 
-void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle)
+/**
+ * Removes all event handlers for 'handle' that match 'mask'.
+ */
+void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle, int mask)
 {
-    Jim_FileEvent *fe, *prev = NULL;
+    Jim_FileEvent *fe, *next, *prev = NULL;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
-    fe = eventLoop->fileEventHead;
-    while (fe) {
-        if (fe->handle == handle) {
+    for (fe = eventLoop->fileEventHead; fe; fe = next) {
+        if (fe->handle == handle && (fe->mask & mask)) {
+            /* Remove this entry from the list */
             if (prev == NULL)
-                eventLoop->fileEventHead = fe->next;
+                next = eventLoop->fileEventHead = fe->next;
             else
-                prev->next = fe->next;
+                next = prev->next = fe->next;
             if (fe->finalizerProc)
                 fe->finalizerProc(interp, fe->clientData);
             Jim_Free(fe);
-            return;
+            continue;
         }
         prev = fe;
-        fe = fe->next;
+        next = fe->next;
     }
 }
 
@@ -448,7 +451,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 if (mask) {
                     if (fe->fileProc(interp, fe->clientData, mask) != JIM_OK) {
                         /* Remove the element on handler error */
-                        Jim_DeleteFileHandler(interp, fe->handle);
+                        Jim_DeleteFileHandler(interp, fe->handle, mask);
                     }
                     processed++;
                     /* After an event is processed our file event list

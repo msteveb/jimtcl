@@ -292,16 +292,8 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     Jim_DecrRefCount(interp, af->filename);
 
 #ifdef jim_ext_eventloop
-    /* remove existing EventHandlers */
-    if (af->rEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
-    if (af->wEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
-    if (af->eEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
+    /* remove all existing EventHandlers */
+    Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
     Jim_Free(af);
 }
@@ -810,7 +802,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
 
     if (*scriptHandlerObj) {
         /* Delete old handler */
-        Jim_DeleteFileHandler(interp, af->fp);
+        Jim_DeleteFileHandler(interp, af->fp, mask);
         *scriptHandlerObj = NULL;
     }
 
