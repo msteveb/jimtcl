@@ -775,23 +775,22 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef jim_ext_eventloop
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 {
-    Jim_Obj *objPtr = clientData;
+    Jim_Obj **objPtrPtr = clientData;
 
-    Jim_DecrRefCount(interp, objPtr);
+    Jim_DecrRefCount(interp, *objPtrPtr);
+    *objPtrPtr = NULL;
 }
 
 static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
 {
-    Jim_Obj *objPtr = clientData;
+    Jim_Obj **objPtrPtr = clientData;
 
-    return Jim_EvalObjBackground(interp, objPtr);
+    return Jim_EvalObjBackground(interp, *objPtrPtr);
 }
 
 static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Obj **scriptHandlerObj,
     int argc, Jim_Obj * const *argv)
 {
-    int scriptlen = 0;
-
     if (argc == 0) {
         /* Return current script */
         if (*scriptHandlerObj) {
@@ -803,12 +802,10 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
     if (*scriptHandlerObj) {
         /* Delete old handler */
         Jim_DeleteFileHandler(interp, af->fp, mask);
-        *scriptHandlerObj = NULL;
     }
 
     /* Now possibly add the new script(s) */
-    Jim_GetString(argv[0], &scriptlen);
-    if (scriptlen == 0) {
+    if (Jim_Length(argv[0]) == 0) {
         /* Empty script, so done */
         return JIM_OK;
     }
@@ -818,7 +815,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
     *scriptHandlerObj = argv[0];
 
     Jim_CreateFileHandler(interp, af->fp, mask,
-        JimAioFileEventHandler, *scriptHandlerObj, JimAioFileEventFinalizer);
+        JimAioFileEventHandler, scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
 }
