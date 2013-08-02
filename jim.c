@@ -99,6 +99,10 @@
 #define JIM_DEBUG_COMMAND
 #define JIM_DEBUG_PANIC
 #endif
+/* Enable this (in conjunction with valgrind) to help debug
+ * reference counting issues
+ */
+/*#define JIM_DISABLE_OBJECT_POOL*/
 
 /* Maximum size of an integer */
 #define JIM_INTEGER_SPACE 24
@@ -2235,6 +2239,9 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         objPtr->nextObjPtr->prevObjPtr = objPtr->prevObjPtr;
     if (interp->liveList == objPtr)
         interp->liveList = objPtr->nextObjPtr;
+#ifdef JIM_DISABLE_OBJECT_POOL
+    Jim_Free(objPtr);
+#else
     /* Link the object into the free objects list */
     objPtr->prevObjPtr = NULL;
     objPtr->nextObjPtr = interp->freeList;
@@ -2242,6 +2249,7 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         interp->freeList->prevObjPtr = objPtr;
     interp->freeList = objPtr;
     objPtr->refCount = -1;
+#endif
 }
 
 /* Invalidate the string representation of an object. */
