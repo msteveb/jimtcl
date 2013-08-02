@@ -5621,13 +5621,7 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
      */
     len = Jim_ListLength(interp, interp->stackTrace);
     if (len >= 3) {
-        Jim_Obj *filenameObj;
-
-        Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj, JIM_NONE);
-
-        Jim_GetString(filenameObj, &len);
-
-        if (!Jim_Length(filenameObj)) {
+        if (Jim_Length(Jim_ListGetIndex(interp, interp->stackTrace, len - 2)) == 0) {
             interp->addStackTrace = 1;
         }
     }
@@ -5657,10 +5651,11 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
         int len = Jim_ListLength(interp, interp->stackTrace);
 
         if (len >= 3) {
-            Jim_Obj *objPtr;
-            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &objPtr, JIM_NONE) == JIM_OK && Jim_Length(objPtr)) {
+            Jim_Obj *objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 3);
+            if (Jim_Length(objPtr)) {
                 /* Yes, the previous level had procname */
-                if (Jim_ListIndex(interp, interp->stackTrace, len - 2, &objPtr, JIM_NONE) == JIM_OK && !Jim_Length(objPtr)) {
+                objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 2);
+                if (Jim_Length(objPtr) == 0) {
                     /* But no filename, so merge the new info with that frame */
                     ListSetIndex(interp, interp->stackTrace, len - 2, fileNameObj, 0);
                     ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);

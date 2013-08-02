@@ -242,8 +242,7 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
 
 static jim_wide JimParseAfterId(Jim_Obj *idObj)
 {
-    int len;
-    const char *tok = Jim_GetString(idObj, &len);
+    const char *tok = Jim_String(idObj);
     jim_wide id;
 
     if (strncmp(tok, "after#", 6) == 0 && Jim_StringToWide(tok + 6, &id, 10) == JIM_OK) {
@@ -557,9 +556,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     else {
         /* If a result was left, it is an error */
-        int len;
-        Jim_GetString(interp->result, &len);
-        if (len) {
+        if (Jim_Length(Jim_GetResult(interp))) {
             return JIM_ERR;
         }
     }

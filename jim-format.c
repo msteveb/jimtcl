@@ -75,7 +75,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 
     span = format = Jim_GetString(fmtObjPtr, &formatLen);
     formatEnd = format + formatLen;
-    resultPtr = Jim_NewStringObj(interp, "", 0);
+    resultPtr = Jim_NewEmptyStringObj(interp);
 
     while (format != formatEnd) {
 	char *end;
