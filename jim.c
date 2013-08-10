@@ -5358,7 +5358,7 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
 }
 #endif
 
-static int JimIsBigEndian(void)
+int Jim_IsBigEndian(void)
 {
     union {
         unsigned short s;
@@ -5420,7 +5420,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
     Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
     Jim_SetVariableStrWithStr(i, "tcl_platform(pathSeparator)", TCL_PLATFORM_PATH_SEPARATOR);
-    Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", JimIsBigEndian() ? "bigEndian" : "littleEndian");
+    Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", Jim_IsBigEndian() ? "bigEndian" : "littleEndian");
     Jim_SetVariableStrWithStr(i, "tcl_platform(threaded)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));
     Jim_SetVariableStr(i, "tcl_platform(wordSize)", Jim_NewIntObj(i, sizeof(jim_wide)));

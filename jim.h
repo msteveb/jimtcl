@@ -857,12 +857,6 @@ JIM_EXPORT void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr,
         double doubleValue);
 JIM_EXPORT Jim_Obj * Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue);
 
-/* shared strings */
-JIM_EXPORT const char * Jim_GetSharedString (Jim_Interp *interp,
-        const char *str);
-JIM_EXPORT void Jim_ReleaseSharedString (Jim_Interp *interp,
-        const char *str);
-
 /* commands utilities */
 JIM_EXPORT void Jim_WrongNumArgs (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
@@ -907,7 +901,7 @@ JIM_EXPORT void Jim_HistoryShow(void);
 /* Misc */
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
-JIM_EXPORT int Jim_CheckSignal(Jim_Interp *interp);
+JIM_EXPORT int Jim_IsBigEndian(void);
 /**
  * Returns 1 if a signal has been received while
  * in a catch -signal {} clause.
