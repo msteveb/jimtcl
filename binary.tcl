@@ -77,7 +77,7 @@ proc "binary format" {formatString args} {
 					return -code error "bad field specifier \"$t\""
 				}
 
-				# A scalar type
+				# A scalar (integer or float) type
 				lassign $::binary::scalarinfo($t) type convtype size prefix
 				set value [binary::nextarg args]
 
@@ -191,7 +191,7 @@ proc "binary scan" {value formatString {args varName}} {
 				if {![info exists ::binary::scalarinfo($t)} {
 					return -code error "bad field specifier \"$t\""
 				}
-				# A scalar float type
+				# A scalar (integer or float) type
 				lassign $::binary::scalarinfo($t) type convtype size prefix
 				set var [binary::nextarg varName]
 
@@ -258,13 +258,21 @@ set binary::scalarinfo {
 	H {hex be 4 0x}
 	b {bin le 1}
 	B {bin be 1}
+	r {float fle 32}
+	R {float fbe 32}
+	f {float fhost 32}
+	q {float fle 64}
+	Q {float fbe 64}
+	d {float fhost 64}
 }
 set binary::convtype {
 	be intbe
 	le intle
+	fbe floatbe
+	fle floatle
 }
 if {$::tcl_platform(byteOrder) eq "bigEndian"} {
-	array set binary::convtype {host intbe}
+	array set binary::convtype {host intbe fhost floatbe}
 } else {
-	array set binary::convtype {host intle}
+	array set binary::convtype {host intle fhost floatle}
 }

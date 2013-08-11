@@ -53,7 +53,7 @@ RECENT CHANGES
 --------------
 Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Bug fixes
+1. `binary`, `pack` and `unpack` now support floating point
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4686,7 +4686,6 @@ commands based on the low-level `pack` and `unpack` commands.
 
 See the Tcl documentation at: http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm
 
-Packing and unpacking of floating point values is supported as an experimental feature.
 Note that 'binary format' with f/r/R specifiers (single-precision float) uses the value of Infinity
  in case of overflow.
 
