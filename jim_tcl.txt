@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.74 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.75 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -51,6 +51,9 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.74 and 0.75
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Bug fixes
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
