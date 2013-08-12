@@ -387,63 +387,51 @@ static int fd_read(struct current *current)
 #endif
 }
 
-static int countColorControlChars(const char* prompt, int plen)
+static int countColorControlChars(const char* prompt)
 {
     /* ANSI color control sequences have the form:
-     * "\x1b" "[" [0-9;]+ "m"
+     * "\x1b" "[" [0-9;]* "m"
      * We parse them with a simple state machine.
      */
 
     enum {
         search_esc,
         expect_bracket,
-        expect_inner,
         expect_trail
     } state = search_esc;
-    int len, found = 0;
+    int len = 0, found = 0;
     char ch;
 
     /* XXX: Strictly we should be checking utf8 chars rather than
      *      bytes in case of the extremely unlikely scenario where
      *      an ANSI sequence is part of a utf8 sequence.
      */
-    for (; plen ; plen--, prompt++) {
-        ch = *prompt;
-
+    while ((ch = *prompt++) != 0) {
         switch (state) {
         case search_esc:
-            len = 0;
             if (ch == '\x1b') {
                 state = expect_bracket;
-                len++;
             }
             break;
         case expect_bracket:
             if (ch == '[') {
-                state = expect_inner;
-                len++;
-            } else {
-                state = search_esc;
-            }
-            break;
-        case expect_inner:
-            if (ch >= '0' && ch <= '9') {
-                len++;
                 state = expect_trail;
-            } else {
-                state = search_esc;
+                /* 3 for "\e[ ... m" */
+                len = 3;
+                break;
             }
+            state = search_esc;
             break;
         case expect_trail:
-            if (ch == 'm') {
+            if ((ch == ';') || ((ch >= '0' && ch <= '9'))) {
+                /* 0-9, or semicolon */
                 len++;
-                found += len;
-                state = search_esc;
-            } else if ((ch != ';') && ((ch < '0') || (ch > '9'))) {
-                state = search_esc;
+                break;
             }
-            /* 0-9, or semicolon */
-            len++;
+            if (ch == 'm') {
+                found += len;
+            }
+            state = search_esc;
             break;
         }
     }
@@ -703,7 +691,7 @@ static int fd_read(struct current *current)
     return -1;
 }
 
-static int countColorControlChars(char* prompt, int plen)
+static int countColorControlChars(const char* prompt)
 {
     /* For windows we assume that there are no embedded ansi color
      * control sequences.
@@ -776,7 +764,7 @@ static void refreshLine(const char *prompt, struct current *current)
     /* Scan the prompt for embedded ansi color control sequences and
      * discount them as characters/columns.
      */
-    pchars -= countColorControlChars(prompt, plen);
+    pchars -= countColorControlChars(prompt);
 
     /* Account for a line which is too long to fit in the window.
      * Note that control chars require an extra column
