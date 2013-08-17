@@ -13062,6 +13062,11 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     int retcode;
 
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "cmd ?args ...?");
+        return JIM_ERR;
+    }
+
     /* Evaluate the arguments with 'local' in force */
     interp->local++;
     retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
