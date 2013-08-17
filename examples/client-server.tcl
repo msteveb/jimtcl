@@ -34,8 +34,8 @@ if {[os.fork] == 0} {
 		$f writable {}
 	}
 
-	$f readable [list onread $f]
 	$f writable [list onwrite $f]
+	$f readable [list onread $f]
 
 	alarm 10
 	catch -signal {

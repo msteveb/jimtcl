@@ -67,7 +67,7 @@ JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
-        FILE *handle);
+        FILE *handle, int mask);
 JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,

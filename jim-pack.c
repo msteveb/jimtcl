@@ -475,7 +475,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (width > Jim_Length(argv[2])) {
             width = Jim_Length(argv[2]);
         }
-        memcpy(stringObjPtr->bytes + pos, Jim_GetString(argv[2], NULL), width);
+        memcpy(stringObjPtr->bytes + pos, Jim_String(argv[2]), width);
         /* No padding is needed since the string is already extended */
     }
 

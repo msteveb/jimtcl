@@ -99,6 +99,10 @@
 #define JIM_DEBUG_COMMAND
 #define JIM_DEBUG_PANIC
 #endif
+/* Enable this (in conjunction with valgrind) to help debug
+ * reference counting issues
+ */
+/*#define JIM_DISABLE_OBJECT_POOL*/
 
 /* Maximum size of an integer */
 #define JIM_INTEGER_SPACE 24
@@ -2237,6 +2241,9 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         objPtr->nextObjPtr->prevObjPtr = objPtr->prevObjPtr;
     if (interp->liveList == objPtr)
         interp->liveList = objPtr->nextObjPtr;
+#ifdef JIM_DISABLE_OBJECT_POOL
+    Jim_Free(objPtr);
+#else
     /* Link the object into the free objects list */
     objPtr->prevObjPtr = NULL;
     objPtr->nextObjPtr = interp->freeList;
@@ -2244,6 +2251,7 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         interp->freeList->prevObjPtr = objPtr;
     interp->freeList = objPtr;
     objPtr->refCount = -1;
+#endif
 }
 
 /* Invalidate the string representation of an object. */
@@ -5615,13 +5623,7 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
      */
     len = Jim_ListLength(interp, interp->stackTrace);
     if (len >= 3) {
-        Jim_Obj *filenameObj;
-
-        Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj, JIM_NONE);
-
-        Jim_GetString(filenameObj, &len);
-
-        if (!Jim_Length(filenameObj)) {
+        if (Jim_Length(Jim_ListGetIndex(interp, interp->stackTrace, len - 2)) == 0) {
             interp->addStackTrace = 1;
         }
     }
@@ -5651,10 +5653,11 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
         int len = Jim_ListLength(interp, interp->stackTrace);
 
         if (len >= 3) {
-            Jim_Obj *objPtr;
-            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &objPtr, JIM_NONE) == JIM_OK && Jim_Length(objPtr)) {
+            Jim_Obj *objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 3);
+            if (Jim_Length(objPtr)) {
                 /* Yes, the previous level had procname */
-                if (Jim_ListIndex(interp, interp->stackTrace, len - 2, &objPtr, JIM_NONE) == JIM_OK && !Jim_Length(objPtr)) {
+                objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 2);
+                if (Jim_Length(objPtr) == 0) {
                     /* But no filename, so merge the new info with that frame */
                     ListSetIndex(interp, interp->stackTrace, len - 2, fileNameObj, 0);
                     ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);

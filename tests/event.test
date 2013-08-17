@@ -195,7 +195,7 @@ test event-13.1 "vwait/signal" signal {
     list [catch -signal {
         alarm 0.1
         # This is just to prevent the vwait from exiting immediately
-        stdin readable { puts "stdin is readable" }
+        stdin readable { format test }
         vwait forever
     } msg] $msg
 } {5 SIGALRM}
