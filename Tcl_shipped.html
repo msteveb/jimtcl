@@ -532,7 +532,6 @@ body.manpage div.sectionbody {
   body.manpage div#toc { display: none; }
 }
 
-
 </style>
 <script type="text/javascript">
 /*<![CDATA[*/
@@ -7233,29 +7232,30 @@ uucp, local0-local7</code></pre>
 <div class="paragraph"><p>The optional <em>pack</em> extension provides commands to encode and decode binary strings.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<code><strong>pack</strong> <em>varName value</em> <strong>-intle|-intbe|-str</strong> <em>bitwidth ?bitoffset?</em></code>
+<code><strong>pack</strong> <em>varName value</em> <strong>-intle|-intbe|-floatle|-floatbe|-str</strong> <em>bitwidth ?bitoffset?</em></code>
 </dt>
 <dd>
 <p>
     Packs the binary representation of <code><em>value</em></code> into the variable
     <code><em>varName</em></code>. The value is packed according to the given type
-    (integer/string, big-endian/little-endian), width and bit offset.
+    (integer/floating point/string, big-endian/little-endian), width and bit offset.
     The variable is created if necessary (like <a href="#_append"><strong><code>append</code></strong></a>).
     Ihe variable is expanded if necessary.
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>unpack</strong> <em>binvalue</em> <strong>-intbe|-intle|-uintbe|-uintle|-str</strong> <em>bitpos bitwidth</em></code>
+<code><strong>unpack</strong> <em>binvalue</em> <strong>-intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str</strong> <em>bitpos bitwidth</em></code>
 </dt>
 <dd>
 <p>
     Unpacks bits from <code><em>binvalue</em></code> at bit position <code><em>bitpos</em></code> and with <code><em>bitwidth</em></code>.
-    Interprets the value according to the type (integer/string, big-endian/little-endian
+    Interprets the value according to the type (integer/floating point/string, big-endian/little-endian
     and signed/unsigned) and returns it. For integer types, <code><em>bitwidth</em></code>
-    may be up to the size of a Jim Tcl integer (typically 64 bits). For the string type,
-    both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
-    access outside the length of the value will return 0 for integer types or the empty string
-    for the string type.
+    may be up to the size of a Jim Tcl integer (typically 64 bits). For floating point types,
+    <tt><em>bitwidth</em></tt> may be 32 bits (for single precision numbers) or 64 bits (for double precision).
+    For the string type, both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
+    access outside the length of the value will return 0 for integer types, 0.0 for floating point types
+    or the empty string for the string type.
 </p>
 </dd>
 </dl></div>
@@ -7265,7 +7265,9 @@ uucp, local0-local7</code></pre>
 <div class="paragraph"><p>The optional, pure-Tcl <em>binary</em> extension provides the Tcl-compatible <a href="#_binary"><strong><code>binary</code></strong></a> <code>scan</code> and <a href="#_binary"><strong><code>binary</code></strong></a> <code>format</code>
 commands based on the low-level <a href="#cmd_3"><strong><code>pack</code></strong></a> and <a href="#cmd_3"><strong><code>unpack</code></strong></a> commands.</p></div>
 <div class="paragraph"><p>See the Tcl documentation at: <a href="http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm">http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm</a></p></div>
-<div class="paragraph"><p>Note that packing and unpacking of floating point values is not supported.</p></div>
+<div class="paragraph"><p>Packing and unpacking of floating point values is supported as an experimental feature.
+Note that <em>binary format</em> with f/r/R specifiers (single-precision float) uses the value of Infinity
+ in case of overflow.</p></div>
 </div>
 <div class="sect2">
 <h3 id="cmd_4">oo: class, super</h3>

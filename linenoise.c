@@ -133,11 +133,6 @@
 #include <sys/types.h>
 
 #include "linenoise.h"
-
-#include "jim-config.h"
-#ifdef JIM_UTF8
-#define USE_UTF8
-#endif
 #include "utf8.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
