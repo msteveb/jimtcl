@@ -1,6 +1,8 @@
 # vim:se syn=tcl:
 #
 
+define JIM_VERSION 75
+
 # Note: modules which support options *must* be included before 'options'
 use cc cc-shared cc-db cc-lib
 use local
@@ -117,12 +119,6 @@ switch -glob -- $host_os {
     }
 }
 
-if {[have-feature windows]} {
-    define LIBSOEXT dll
-} else {
-    define LIBSOEXT so
-}
-
 # Find some tools
 cc-check-tools ar ranlib strip
 define tclsh [info nameofexecutable]
@@ -188,6 +184,7 @@ if {[opt-bool shared with-jim-shared]} {
     msg-result "Building static library"
     define JIM_STATICLIB
 }
+define LIBSOEXT [format [get-define SH_SOEXTVER] [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]]
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 
@@ -333,7 +330,7 @@ define C_EXT_SHOBJS [suffix .so $extinfo(module-c)]
 define TCL_EXTS [suffix .tcl $extinfo(module-tcl)]
 define EXTRA_OBJS $extra_objs
 
-make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -none *
+make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*}
 make-template Makefile.in
 make-template build-jim-ext.in

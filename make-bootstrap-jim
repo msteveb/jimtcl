@@ -87,6 +87,9 @@ cat <<EOF
 #endif
 EOF
 
+# get JIM_VERSION from auto.def
+sed -n -e 's/^\(define JIM_VERSION.*\)/#\1/p' auto.def
+
 outputsource()
 {
         sed -e '/#include.*jim/d' -e '/#include.*utf8/d' \
