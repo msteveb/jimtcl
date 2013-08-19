@@ -152,7 +152,7 @@ static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     pidtype **pidArrayPtr, fdtype *inPipePtr, fdtype *outPipePtr, fdtype *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr);
 static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, fdtype errorId);
-static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents);
+static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents, int len);
 static fdtype JimOpenForWrite(const char *filename, int append);
 static int JimRewindFd(fdtype fd);
 
@@ -609,6 +609,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
     const char *input = NULL;   /* Describes input for pipeline, depending
                                  * on "inputFile".  NULL means take input
                                  * from stdin/pipe. */
+    int input_len = 0;          /* Length of input, if relevant */
 
 #define FILE_NAME   0           /* input/output: filename */
 #define FILE_APPEND 1           /* output only:  filename, append */
@@ -693,6 +694,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
             input = arg + 1;
             if (*input == '<') {
                 inputFile = FILE_TEXT;
+                input_len = Jim_Length(argv[i]) - 2;
                 input++;
             }
             else if (*input == '@') {
@@ -701,7 +703,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
             }
 
             if (!*input && ++i < argc) {
-                input = Jim_String(argv[i]);
+                input = Jim_GetString(argv[i], &input_len);
             }
         }
         else if (arg[0] == '>') {
@@ -787,7 +789,7 @@ badargs:
              * Immediate data in command.  Create temporary file and
              * put data into file.
              */
-            inputId = JimCreateTemp(interp, input);
+            inputId = JimCreateTemp(interp, input, input_len);
             if (inputId == JIM_BAD_FD) {
                 goto error;
             }
@@ -900,7 +902,7 @@ badargs:
          * to complete before reading stderr, and processes couldn't complete
          * because stderr was backed up.
          */
-        errorId = JimCreateTemp(interp, NULL);
+        errorId = JimCreateTemp(interp, NULL, 0);
         if (errorId == JIM_BAD_FD) {
             goto error;
         }
@@ -1323,7 +1325,7 @@ static pidtype JimWaitPid(pidtype pid, int *status, int nohang)
     return pid;
 }
 
-static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents)
+static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
     char name[MAX_PATH];
     HANDLE handle;
@@ -1347,7 +1349,7 @@ static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents)
             goto error;
         }
 
-        if (fwrite(contents, strlen(contents), 1, fh) != 1) {
+        if (fwrite(contents, len, 1, fh) != 1) {
             fclose(fh);
             goto error;
         }
@@ -1592,7 +1594,7 @@ static int JimRewindFd(int fd)
     return lseek(fd, 0L, SEEK_SET);
 }
 
-static int JimCreateTemp(Jim_Interp *interp, const char *contents)
+static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
     char inName[] = "/tmp/tcl.tmp.XXXXXX";
 
@@ -1603,8 +1605,7 @@ static int JimCreateTemp(Jim_Interp *interp, const char *contents)
     }
     unlink(inName);
     if (contents) {
-        int length = strlen(contents);
-        if (write(fd, contents, length) != length) {
+        if (write(fd, contents, len) != len) {
             Jim_SetResultErrno(interp, "couldn't write temp file");
             close(fd);
             return -1;

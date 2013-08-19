@@ -78,6 +78,9 @@ test exec-2.6 {redirecting input from immediate source, with UTF} {
     # occur before writing out the temp file.
     exec cat << "\uE9\uE0\uFC\uF1"
 } "\uE9\uE0\uFC\uF1"
+test exec-2.7 {redirecting input from immediate source with nulls} {
+    exec cat << "Sample\0text"
+} "Sample\0text"
 
 # I/O redirection: output to file.
 
