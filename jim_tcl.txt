@@ -4461,9 +4461,9 @@ aio
 +$handle *seek* 'offset' *?start|current|end?*+::
     Seeks in the stream (default 'current')
 
-+$handle *sendto* 'str ?hostname:?port'+::
++$handle *sendto* 'str ?addr:?port'+::
     Sends the string, +'str'+, to the given address via the socket using sendto(2).
-    This is intended for udp sockets and may give an error or behave in unintended
+    This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
 
@@ -4561,7 +4561,7 @@ Various socket types may be created.
     A unix domain socket server.
 
 +*socket ?-ipv6? stream* 'addr:port'+::
-    A TCP socket client.
+    A TCP socket client. (See the forms for +'addr'+ below)
 
 +*socket ?-ipv6? stream.server* '?addr:?port'+::
     A TCP socket server (+'addr'+ defaults to +0.0.0.0+ for IPv4 or +[::]+ for IPv6).

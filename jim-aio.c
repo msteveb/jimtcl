@@ -561,10 +561,14 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
         else
 #endif
-        {
+        if (sa.sa.sa_family == PF_INET) {
             /* Allow 7 for :65535\0 */
             inet_ntop(sa.sa.sa_family, &sa.sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
             snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa.sin.sin_port));
+        }
+        else {
+            /* recvfrom still works on unix domain sockets, etc */
+            addrbuf[0] = 0;
         }
 
         if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, addrbuf, -1)) != JIM_OK) {
