@@ -641,6 +641,13 @@ test binary-20.9 {Tcl_BinaryObjCmd: scan} -setup {
     list [binary scan abc a arg1(a)] $arg1(a)
 } -result {1 a}
 
+# As soon as a conversion runs out of bytes, scan should stop
+test binary-20.10 {Tcl_BinaryObjCmd: scan, too few bytes} -setup {
+    unset -nocomplain arg1 arg2
+} -body {
+    list [binary scan abc a5a2 arg1 arg2] [info exists arg1] [info exists arg2]
+} -result {0 0 0}
+
 test binary-21.1 {Tcl_BinaryObjCmd: scan} -returnCodes error -body {
     binary scan abc A
 } -result {not enough arguments for all format specifiers}
@@ -751,6 +758,14 @@ test binary-22.11 {Tcl_BinaryObjCmd: scan} -setup {
     set arg2 bar
     list [binary scan \x07\x87\x05 b5b* arg1 arg2] $arg1 $arg2
 } -result {2 11100 1110000110100000}
+
+# As soon as a conversion runs out of bytes, scan should stop
+test binary-20.12 {Tcl_BinaryObjCmd: scan, too few bytes} {
+    unset -nocomplain arg1 arg2
+    set arg1 foo
+    set arg2 bar
+    list [binary scan \x52 b14b8 arg1 arg2] $arg1 $arg2
+} {0 foo bar}
 
 test binary-23.1 {Tcl_BinaryObjCmd: scan} -returnCodes error -body {
     binary scan abc B
