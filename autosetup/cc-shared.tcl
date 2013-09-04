@@ -96,6 +96,15 @@ switch -glob -- [get-define host] {
 		define SH_LINKFLAGS -Wl,+s
 		define LD_LIBRARY_PATH SHLIB_PATH
 	}
+	*-*-haiku {
+		define SHOBJ_CFLAGS ""
+		define SHOBJ_LDFLAGS -shared
+		define SH_CFLAGS ""
+		define SH_LDFLAGS -shared
+		define SH_LINKFLAGS ""
+		define SH_SOPREFIX ""
+		define LD_LIBRARY_PATH LIBRARY_PATH
+	}
 }
 
 if {![is-defined SHOBJ_LDFLAGS_R]} {
