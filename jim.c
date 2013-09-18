@@ -2970,6 +2970,15 @@ static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *t
     return strObjPtr;
 }
 
+/* Some platforms don't have isascii - need a non-macro version */
+#ifdef HAVE_ISASCII
+#define jim_isascii isascii
+#else
+static int jim_isascii(int c)
+{
+    return !(c & ~0x7f);
+}
+#endif
 
 static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass, int strict)
 {
@@ -3017,7 +3026,7 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
 
         case STR_IS_ALPHA: isclassfunc = isalpha; break;
         case STR_IS_ALNUM: isclassfunc = isalnum; break;
-        case STR_IS_ASCII: isclassfunc = isascii; break;
+        case STR_IS_ASCII: isclassfunc = jim_isascii; break;
         case STR_IS_DIGIT: isclassfunc = isdigit; break;
         case STR_IS_LOWER: isclassfunc = islower; break;
         case STR_IS_UPPER: isclassfunc = isupper; break;

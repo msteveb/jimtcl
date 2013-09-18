@@ -248,6 +248,12 @@ test string-6.12 {string is alnum, true} {
 test string-6.15 {string is alpha, true} {
     string is alpha abc
 } 1
+test string-6.16 {string is ascii, true} {
+    string is ascii abc123
+} 1
+test string-6.17 {string is ascii, false} {
+    string is ascii 0123Ü567
+} 0
 test string-6.24 {string is digit, true} {
     string is digit 0123456789
 } 1

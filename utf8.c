@@ -178,6 +178,11 @@ static int utf8_map_case(const struct casemap *mapping, int num, int ch)
     return ch;
 }
 
+/* Some platforms don't have isascii */
+#ifndef isascii
+#define isascii(C) (!((C) & ~0x7f))
+#endif
+
 int utf8_upper(int ch)
 {
     if (isascii(ch)) {
