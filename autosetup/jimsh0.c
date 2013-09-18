@@ -44,6 +44,7 @@
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
 #endif
+#define JIM_VERSION 75
 #ifndef JIM_WIN32COMPAT_H
 #define JIM_WIN32COMPAT_H
 
@@ -186,8 +187,6 @@ extern "C" {
 
 #define UCHAR(c) ((unsigned char)(c))
 
-
-#define JIM_VERSION 74
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -835,12 +834,6 @@ JIM_EXPORT void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr,
 JIM_EXPORT Jim_Obj * Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue);
 
 
-JIM_EXPORT const char * Jim_GetSharedString (Jim_Interp *interp,
-        const char *str);
-JIM_EXPORT void Jim_ReleaseSharedString (Jim_Interp *interp,
-        const char *str);
-
-
 JIM_EXPORT void Jim_WrongNumArgs (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
 JIM_EXPORT int Jim_GetEnum (Jim_Interp *interp, Jim_Obj *objPtr,
@@ -877,7 +870,7 @@ JIM_EXPORT void Jim_HistoryShow(void);
 
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
-JIM_EXPORT int Jim_CheckSignal(Jim_Interp *interp);
+JIM_EXPORT int Jim_IsBigEndian(void);
 #define Jim_CheckSignal(i) ((i)->signal_level && (i)->sigmask)
 
 
@@ -1777,15 +1770,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
 #ifdef jim_ext_eventloop
     
-    if (af->rEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
-    if (af->wEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
-    if (af->eEvent) {
-        Jim_DeleteFileHandler(interp, af->fp);
-    }
+    Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
     Jim_Free(af);
 }
@@ -2149,23 +2134,22 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef jim_ext_eventloop
 static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
 {
-    Jim_Obj *objPtr = clientData;
+    Jim_Obj **objPtrPtr = clientData;
 
-    Jim_DecrRefCount(interp, objPtr);
+    Jim_DecrRefCount(interp, *objPtrPtr);
+    *objPtrPtr = NULL;
 }
 
 static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
 {
-    Jim_Obj *objPtr = clientData;
+    Jim_Obj **objPtrPtr = clientData;
 
-    return Jim_EvalObjBackground(interp, objPtr);
+    return Jim_EvalObjBackground(interp, *objPtrPtr);
 }
 
 static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Obj **scriptHandlerObj,
     int argc, Jim_Obj * const *argv)
 {
-    int scriptlen = 0;
-
     if (argc == 0) {
         
         if (*scriptHandlerObj) {
@@ -2176,13 +2160,11 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
 
     if (*scriptHandlerObj) {
         
-        Jim_DeleteFileHandler(interp, af->fp);
-        *scriptHandlerObj = NULL;
+        Jim_DeleteFileHandler(interp, af->fp, mask);
     }
 
     
-    Jim_GetString(argv[0], &scriptlen);
-    if (scriptlen == 0) {
+    if (Jim_Length(argv[0]) == 0) {
         
         return JIM_OK;
     }
@@ -2192,7 +2174,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
     *scriptHandlerObj = argv[0];
 
     Jim_CreateFileHandler(interp, af->fp, mask,
-        JimAioFileEventHandler, *scriptHandlerObj, JimAioFileEventFinalizer);
+        JimAioFileEventHandler, scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
 }
@@ -4007,7 +3989,7 @@ static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     pidtype **pidArrayPtr, fdtype *inPipePtr, fdtype *outPipePtr, fdtype *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr);
 static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, fdtype errorId);
-static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents);
+static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents, int len);
 static fdtype JimOpenForWrite(const char *filename, int append);
 static int JimRewindFd(fdtype fd);
 
@@ -4349,6 +4331,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
     const char *input = NULL;   /* Describes input for pipeline, depending
                                  * on "inputFile".  NULL means take input
                                  * from stdin/pipe. */
+    int input_len = 0;          
 
 #define FILE_NAME   0           
 #define FILE_APPEND 1           
@@ -4414,6 +4397,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
             input = arg + 1;
             if (*input == '<') {
                 inputFile = FILE_TEXT;
+                input_len = Jim_Length(argv[i]) - 2;
                 input++;
             }
             else if (*input == '@') {
@@ -4422,7 +4406,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
             }
 
             if (!*input && ++i < argc) {
-                input = Jim_String(argv[i]);
+                input = Jim_GetString(argv[i], &input_len);
             }
         }
         else if (arg[0] == '>') {
@@ -4500,7 +4484,7 @@ badargs:
 
     if (input != NULL) {
         if (inputFile == FILE_TEXT) {
-            inputId = JimCreateTemp(interp, input);
+            inputId = JimCreateTemp(interp, input, input_len);
             if (inputId == JIM_BAD_FD) {
                 goto error;
             }
@@ -4589,7 +4573,7 @@ badargs:
         }
     }
     else if (errFilePtr != NULL) {
-        errorId = JimCreateTemp(interp, NULL);
+        errorId = JimCreateTemp(interp, NULL, 0);
         if (errorId == JIM_BAD_FD) {
             goto error;
         }
@@ -4955,7 +4939,7 @@ static pidtype JimWaitPid(pidtype pid, int *status, int nohang)
     return pid;
 }
 
-static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents)
+static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
     char name[MAX_PATH];
     HANDLE handle;
@@ -4979,7 +4963,7 @@ static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents)
             goto error;
         }
 
-        if (fwrite(contents, strlen(contents), 1, fh) != 1) {
+        if (fwrite(contents, len, 1, fh) != 1) {
             fclose(fh);
             goto error;
         }
@@ -5198,7 +5182,7 @@ static int JimRewindFd(int fd)
     return lseek(fd, 0L, SEEK_SET);
 }
 
-static int JimCreateTemp(Jim_Interp *interp, const char *contents)
+static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
     char inName[] = "/tmp/tcl.tmp.XXXXXX";
 
@@ -5209,8 +5193,7 @@ static int JimCreateTemp(Jim_Interp *interp, const char *contents)
     }
     unlink(inName);
     if (contents) {
-        int length = strlen(contents);
-        if (write(fd, contents, length) != length) {
+        if (write(fd, contents, len) != len) {
             Jim_SetResultErrno(interp, "couldn't write temp file");
             close(fd);
             return -1;
@@ -5674,6 +5657,7 @@ return JIM_OK;
 #endif
 
 
+
 #define JIM_INTEGER_SPACE 24
 
 const char *jim_tt_name(int type);
@@ -6112,6 +6096,8 @@ int Jim_DoubleToString(char *buf, double doubleValue)
         
         if (buf[i] == 'i' || buf[i] == 'I' || buf[i] == 'n' || buf[i] == 'N') {
             buf[i] = toupper(UCHAR(buf[i]));
+            if (buf[i] == 'n' || buf[i] == 'N')
+                buf[i+2] = toupper(UCHAR(buf[i+2]));
             buf[i + 3] = 0;
             return i + 3;
         }
@@ -7584,6 +7570,9 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         objPtr->nextObjPtr->prevObjPtr = objPtr->prevObjPtr;
     if (interp->liveList == objPtr)
         interp->liveList = objPtr->nextObjPtr;
+#ifdef JIM_DISABLE_OBJECT_POOL
+    Jim_Free(objPtr);
+#else
     
     objPtr->prevObjPtr = NULL;
     objPtr->nextObjPtr = interp->freeList;
@@ -7591,6 +7580,7 @@ void Jim_FreeObj(Jim_Interp *interp, Jim_Obj *objPtr)
         interp->freeList->prevObjPtr = objPtr;
     interp->freeList = objPtr;
     objPtr->refCount = -1;
+#endif
 }
 
 
@@ -8248,6 +8238,15 @@ static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *t
 }
 
 
+#ifdef HAVE_ISASCII
+#define jim_isascii isascii
+#else
+static int jim_isascii(int c)
+{
+    return !(c & ~0x7f);
+}
+#endif
+
 static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass, int strict)
 {
     static const char * const strclassnames[] = {
@@ -8294,7 +8293,7 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
 
         case STR_IS_ALPHA: isclassfunc = isalpha; break;
         case STR_IS_ALNUM: isclassfunc = isalnum; break;
-        case STR_IS_ASCII: isclassfunc = isascii; break;
+        case STR_IS_ASCII: isclassfunc = jim_isascii; break;
         case STR_IS_DIGIT: isclassfunc = isdigit; break;
         case STR_IS_LOWER: isclassfunc = islower; break;
         case STR_IS_UPPER: isclassfunc = isupper; break;
@@ -10216,7 +10215,7 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
 }
 #endif
 
-static int JimIsBigEndian(void)
+int Jim_IsBigEndian(void)
 {
     union {
         unsigned short s;
@@ -10272,7 +10271,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
     Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
     Jim_SetVariableStrWithStr(i, "tcl_platform(pathSeparator)", TCL_PLATFORM_PATH_SEPARATOR);
-    Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", JimIsBigEndian() ? "bigEndian" : "littleEndian");
+    Jim_SetVariableStrWithStr(i, "tcl_platform(byteOrder)", Jim_IsBigEndian() ? "bigEndian" : "littleEndian");
     Jim_SetVariableStrWithStr(i, "tcl_platform(threaded)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));
     Jim_SetVariableStr(i, "tcl_platform(wordSize)", Jim_NewIntObj(i, sizeof(jim_wide)));
@@ -10452,13 +10451,7 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 
     len = Jim_ListLength(interp, interp->stackTrace);
     if (len >= 3) {
-        Jim_Obj *filenameObj;
-
-        Jim_ListIndex(interp, interp->stackTrace, len - 2, &filenameObj, JIM_NONE);
-
-        Jim_GetString(filenameObj, &len);
-
-        if (!Jim_Length(filenameObj)) {
+        if (Jim_Length(Jim_ListGetIndex(interp, interp->stackTrace, len - 2)) == 0) {
             interp->addStackTrace = 1;
         }
     }
@@ -10488,10 +10481,11 @@ static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
         int len = Jim_ListLength(interp, interp->stackTrace);
 
         if (len >= 3) {
-            Jim_Obj *objPtr;
-            if (Jim_ListIndex(interp, interp->stackTrace, len - 3, &objPtr, JIM_NONE) == JIM_OK && Jim_Length(objPtr)) {
+            Jim_Obj *objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 3);
+            if (Jim_Length(objPtr)) {
                 
-                if (Jim_ListIndex(interp, interp->stackTrace, len - 2, &objPtr, JIM_NONE) == JIM_OK && !Jim_Length(objPtr)) {
+                objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 2);
+                if (Jim_Length(objPtr) == 0) {
                     
                     ListSetIndex(interp, interp->stackTrace, len - 2, fileNameObj, 0);
                     ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);
@@ -17162,6 +17156,11 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     int retcode;
 
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "cmd ?args ...?");
+        return JIM_ERR;
+    }
+
     
     interp->local++;
     retcode = Jim_EvalObjVector(interp, argc - 1, argv + 1);
@@ -19555,7 +19554,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 
     span = format = Jim_GetString(fmtObjPtr, &formatLen);
     formatEnd = format + formatLen;
-    resultPtr = Jim_NewStringObj(interp, "", 0);
+    resultPtr = Jim_NewEmptyStringObj(interp);
 
     while (format != formatEnd) {
 	char *end;
