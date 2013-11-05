@@ -210,6 +210,10 @@ set x [lindex {} 0]
 info source $x
 eval $x
 
+# REGTEST 30
+# non-UTF8 string tolower 
+string tolower "/mod/video/h\303\203\302\244xan_ witchcraft through the ages_20131101_0110.t"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

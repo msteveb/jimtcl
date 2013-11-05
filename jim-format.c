@@ -302,7 +302,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 		goto error;
 	    }
 	    /* Just store the value in the 'spec' buffer */
-	    formatted_bytes = utf8_fromunicode(spec, code);
+	    formatted_bytes = utf8_getchars(spec, code);
 	    formatted_buf = spec;
 	    formatted_chars = 1;
 	    break;

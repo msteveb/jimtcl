@@ -717,16 +717,6 @@ static int getWindowSize(struct current *current)
 }
 #endif
 
-static int utf8_getchars(char *buf, int c)
-{
-#ifdef USE_UTF8
-    return utf8_fromunicode(buf, c);
-#else
-    *buf = c;
-    return 1;
-#endif
-}
-
 /**
  * Returns the unicode character at the given offset,
  * or -1 if none.

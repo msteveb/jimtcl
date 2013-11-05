@@ -2744,7 +2744,7 @@ static void JimStrCopyUpperLower(char *dest, const char *str, int uc)
     while (*str) {
         int c;
         str += utf8_tounicode(str, &c);
-        dest += utf8_fromunicode(dest, uc ? utf8_upper(c) : utf8_lower(c));
+        dest += utf8_getchars(dest, uc ? utf8_upper(c) : utf8_lower(c));
     }
     *dest = 0;
 }
@@ -2813,7 +2813,7 @@ static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
     buf = p = Jim_Alloc(len + 1);
 
     str += utf8_tounicode(str, &c);
-    p += utf8_fromunicode(p, utf8_title(c));
+    p += utf8_getchars(p, utf8_title(c));
 
     JimStrCopyUpperLower(p, str, 0);
 
