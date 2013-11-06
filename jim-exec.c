@@ -943,6 +943,11 @@ badargs:
             outputId = pipeIds[1];
         }
 
+        /* Need to do this befor vfork() */
+        if (pipe_dup_err) {
+            errorId = outputId;
+        }
+
         /* Now fork the child */
 
 #ifdef __MINGW32__
@@ -961,11 +966,6 @@ badargs:
          */
         if (table->info == NULL) {
             (void)signal(SIGPIPE, SIG_IGN);
-        }
-
-        /* Need to do this befor vfork() */
-        if (pipe_dup_err) {
-            errorId = outputId;
         }
 
         /*
@@ -1480,14 +1480,12 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
     PROCESS_INFORMATION procInfo;
     HANDLE hProcess, h;
     char execPath[MAX_PATH];
-    char *originalName;
     pidtype pid = JIM_BAD_PID;
     Jim_Obj *cmdLineObj;
 
     if (JimWinFindExecutable(argv[0], execPath) < 0) {
         return JIM_BAD_PID;
     }
-    originalName = argv[0];
     argv[0] = execPath;
 
     hProcess = GetCurrentProcess();
