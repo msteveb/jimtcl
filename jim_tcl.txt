@@ -54,6 +54,7 @@ RECENT CHANGES
 Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `binary`, `pack` and `unpack` now support floating point
+2. `file copy` '-force' handles source and target as the same file
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

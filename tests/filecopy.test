@@ -63,6 +63,11 @@ test filecopy-2.5 "Source doesn't exist and can't write to target (-force)" {
 	list [catch {file copy -force missing tempdir} msg] $msg
 } {1 {missing: No such file or directory}}
 
+test filecopy-2.6 "Source and target identical (-force)" {
+	file copy -force tempfile tempfile
+	file size tempfile
+} 16
+
 file delete tempfile
 exec rm -rf tempdir
 

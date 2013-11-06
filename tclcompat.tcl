@@ -130,9 +130,16 @@ proc {file copy} {{force {}} source target} {
 
 		set in [open $source]
 
-		if {$force eq "" && [file exists $target]} {
-			$in close
-			error "error copying \"$source\" to \"$target\": file already exists"
+		if {[file exists $target]} {
+			if {$force eq ""} {
+				error "error copying \"$source\" to \"$target\": file already exists"
+			}
+			# If source and target are the same, nothing to do
+			file stat $source ss
+			file stat $target ts
+			if {$ss(dev) == $ts(dev) && $ss(ino) == $ts(ino)} {
+				return
+			}
 		}
 		set out [open $target w]
 		$in copyto $out
