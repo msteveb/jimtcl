@@ -61,7 +61,12 @@ typedef struct DIR {
 DIR *opendir(const char *name);
 int closedir(DIR *dir);
 struct dirent *readdir(DIR *dir);
-#endif /* _MSC_VER */
+
+#elif defined(__MINGW32__)
+
+#define strtod __strtod
+
+#endif
 
 #endif /* WIN32 */
 
