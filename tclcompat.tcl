@@ -135,9 +135,14 @@ proc {file copy} {{force {}} source target} {
 				error "error copying \"$source\" to \"$target\": file already exists"
 			}
 			# If source and target are the same, nothing to do
+			if {$source eq $target} {
+				return
+			}
+			# Hard linked, or case-insensitive filesystem
+			# Note: mingw returns ino=0 for every file :-(
 			file stat $source ss
 			file stat $target ts
-			if {$ss(dev) == $ts(dev) && $ss(ino) == $ts(ino)} {
+			if {$ss(dev) == $ts(dev) && $ss(ino) == $ts(ino) && $ss(ino)} {
 				return
 			}
 		}
