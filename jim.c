@@ -1729,6 +1729,11 @@ static int JimParseStr(struct JimParserCtx *pc)
                     pc->p++;
                     pc->len--;
                 }
+				else if (pc->len == 1) {
+					/* End of script with trailing backslash */
+					pc->missing = '\\';
+					pc->missingline = pc->tline;
+				}
                 break;
             case '(':
                 /* If the following token is not '$' just keep going */
@@ -2050,6 +2055,7 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
  * '{' on scripts incomplete missing one or more '}' to be balanced.
  * '[' on scripts incomplete missing one or more ']' to be balanced.
  * '"' on scripts incomplete missing a '"' char.
+ * '\\' on scripts with a trailing backslash.
  *
  * If the script is complete, 1 is returned, otherwise 0.
  */
@@ -3613,7 +3619,8 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
             parser.tline);
     }
-    if (result && parser.missing != ' ') {
+	/* Note that we accept a trailing backslash without error */
+    if (result && parser.missing != ' ' && parser.missing != '\\') {
         ScriptTokenListFree(&tokenlist);
         result->missing = parser.missing;
         result->line = parser.missingline;
