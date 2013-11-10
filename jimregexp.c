@@ -743,27 +743,73 @@ static int regatom(regex_t *preg, int *flagp)
 					reg_addrange(preg, start, end);
 					continue;
 				}
-				if (start == '[') {
-					if (strncmp(pattern, ":alpha:]", 8) == 0) {
-						if ((preg->cflags & REG_ICASE) == 0) {
-							reg_addrange(preg, 'a', 'z');
+				if (start == '[' && pattern[0] == ':') {
+					static const char *character_class[] = {
+						":alpha:", ":alnum:", ":space:", ":blank:", ":upper:", ":lower:",
+						":digit:", ":xdigit:", ":cntrl:", ":graph:", ":print:", ":punct:",
+					};
+					enum {
+						CC_ALPHA, CC_ALNUM, CC_SPACE, CC_BLANK, CC_UPPER, CC_LOWER,
+						CC_DIGIT, CC_XDIGIT, CC_CNTRL, CC_GRAPH, CC_PRINT, CC_PUNCT,
+						CC_NUM
+					};
+					int i;
+
+					for (i = 0; i < CC_NUM; i++) {
+						int n = strlen(character_class[i]);
+						if (strncmp(pattern, character_class[i], n) == 0) {
+							/* Found a character class */
+							pattern += n + 1;
+							break;
 						}
-						reg_addrange(preg, 'A', 'Z');
-						pattern += 8;
-						continue;
 					}
-					if (strncmp(pattern, ":alnum:]", 8) == 0) {
-						if ((preg->cflags & REG_ICASE) == 0) {
-							reg_addrange(preg, 'a', 'z');
+					if (i != CC_NUM) {
+						switch (i) {
+							case CC_ALNUM:
+								reg_addrange(preg, '0', '9');
+								/* Fall through */
+							case CC_ALPHA:
+								if ((preg->cflags & REG_ICASE) == 0) {
+									reg_addrange(preg, 'a', 'z');
+								}
+								reg_addrange(preg, 'A', 'Z');
+								break;
+							case CC_SPACE:
+								reg_addrange_str(preg, " \t\r\n\f\v");
+								break;
+							case CC_BLANK:
+								reg_addrange_str(preg, " \t");
+								break;
+							case CC_UPPER:
+								reg_addrange(preg, 'A', 'Z');
+								break;
+							case CC_LOWER:
+								reg_addrange(preg, 'a', 'z');
+								break;
+							case CC_XDIGIT:
+								reg_addrange(preg, 'a', 'f');
+								reg_addrange(preg, 'A', 'F');
+								/* Fall through */
+							case CC_DIGIT:
+								reg_addrange(preg, '0', '9');
+								break;
+							case CC_CNTRL:
+								reg_addrange(preg, 0, 31);
+								reg_addrange(preg, 127, 127);
+								break;
+							case CC_PRINT:
+								reg_addrange(preg, ' ', '~');
+								break;
+							case CC_GRAPH:
+								reg_addrange(preg, '!', '~');
+								break;
+							case CC_PUNCT:
+								reg_addrange(preg, '!', '/');
+								reg_addrange(preg, ':', '@');
+								reg_addrange(preg, '[', '`');
+								reg_addrange(preg, '{', '~');
+								break;
 						}
-						reg_addrange(preg, 'A', 'Z');
-						reg_addrange(preg, '0', '9');
-						pattern += 8;
-						continue;
-					}
-					if (strncmp(pattern, ":space:]", 8) == 0) {
-						reg_addrange_str(preg, " \t\r\n\f\v");
-						pattern += 8;
 						continue;
 					}
 				}
