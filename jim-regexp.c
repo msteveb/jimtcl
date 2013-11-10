@@ -137,7 +137,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (argc < 3) {
       wrongNumArgs:
         Jim_WrongNumArgs(interp, 1, argv,
-            "?switches? exp string ?matchVar? ?subMatchVar subMatchVar ...?");
+            "?-switch ...? exp string ?matchVar? ?subMatchVar ...?");
         return JIM_ERR;
     }
 
@@ -366,7 +366,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (argc < 4) {
       wrongNumArgs:
         Jim_WrongNumArgs(interp, 1, argv,
-            "?switches? exp string subSpec ?varName?");
+            "?-switch ...? exp string subSpec ?varName?");
         return JIM_ERR;
     }
 

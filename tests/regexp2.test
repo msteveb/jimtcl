@@ -495,36 +495,36 @@ test regexpComp-10.3 {newline sensitivity in regsub} {
 #    }
 #} "1 {da\nb123\nxb}"
 
-#test regexpComp-11.1 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub a b} msg] $msg
-#    }
-#} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
-#test regexpComp-11.2 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub -nocase a b} msg] $msg
-#    }
-#} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
-#test regexpComp-11.3 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub -nocase -all a b} msg] $msg
-#    }
-#} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
-#test regexpComp-11.4 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub a b c d e f} msg] $msg
-#    }
-#} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+test regexpComp-11.1 {regsub errors} {
+    evalInProc {
+	list [catch {regsub a b} msg] $msg
+    }
+} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+test regexpComp-11.2 {regsub errors} {
+    evalInProc {
+	list [catch {regsub -nocase a b} msg] $msg
+    }
+} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+test regexpComp-11.3 {regsub errors} {
+    evalInProc {
+	list [catch {regsub -nocase -all a b} msg] $msg
+    }
+} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+test regexpComp-11.4 {regsub errors} {
+    evalInProc {
+	list [catch {regsub a b c d e f} msg] $msg
+    }
+} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
 #test regexpComp-11.5 {regsub errors} {
 #    evalInProc {
 #	list [catch {regsub -gorp a b c} msg] $msg
 #    }
 #} {1 {bad switch "-gorp": must be -all, -nocase, -expanded, -line, -linestop, -lineanchor, -start, or --}}
-#test regexpComp-11.6 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub -nocase a( b c d} msg] $msg
-#    }
-#} {1 {couldn't compile regular expression pattern: parentheses () not balanced}}
+test regexpComp-11.6 {regsub errors} {
+    evalInProc {
+	list [catch {regsub -nocase a( b c d} msg] $msg
+    }
+} {1 {couldn't compile regular expression pattern: parentheses () not balanced}}
 test regexpComp-11.7 {regsub errors} {
     evalInProc {
 	catch {unset f1}
