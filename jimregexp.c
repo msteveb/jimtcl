@@ -797,7 +797,8 @@ static int regatom(regex_t *preg, int *flagp)
 		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
 		return 0;
 	case '\\':
-		switch (*preg->regparse++) {
+		ch = *preg->regparse++;
+		switch (ch) {
 		case '\0':
 			preg->err = REG_ERR_TRAILING_BACKSLASH;
 			return 0;
@@ -810,13 +811,15 @@ static int regatom(regex_t *preg, int *flagp)
 			ret = regnode(preg, WORDZ);
 			break;
 		case 'd':
-			ret = regnode(preg, ANYOF);
+		case 'D':
+			ret = regnode(preg, ch == 'd' ? ANYOF : ANYBUT);
 			reg_addrange(preg, '0', '9');
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		case 'w':
-			ret = regnode(preg, ANYOF);
+		case 'W':
+			ret = regnode(preg, ch == 'w' ? ANYOF : ANYBUT);
 			if ((preg->cflags & REG_ICASE) == 0) {
 				reg_addrange(preg, 'a', 'z');
 			}
@@ -827,7 +830,8 @@ static int regatom(regex_t *preg, int *flagp)
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		case 's':
-			ret = regnode(preg, ANYOF);
+		case 'S':
+			ret = regnode(preg, ch == 's' ? ANYOF : ANYBUT);
 			reg_addrange_str(preg," \t\r\n\f\v");
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
@@ -865,7 +869,7 @@ static int regatom(regex_t *preg, int *flagp)
 					/* Non-trailing backslash.
 					 * Is this a special escape, or a regular escape?
 					 */
-					if (strchr("<>mMwds", preg->regparse[n])) {
+					if (strchr("<>mMwWdDsS", preg->regparse[n])) {
 						/* A special escape. All done with EXACTLY */
 						break;
 					}

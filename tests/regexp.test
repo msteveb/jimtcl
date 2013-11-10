@@ -519,6 +519,9 @@ test regexp-17.6 {regexp -inline no matches} {
 test regexp-17.7 {regexp -inline, no matchvars allowed} {
     list [catch {regexp -inline b abc match} msg] $msg
 } {1 {regexp match variables not allowed when using -inline}}
+test regexp-17.8 {\W, \S and \D} regexp_are {
+    regexp -inline {(\W+)(\D+)(\S+)} " #!word  abc 13123  "
+} {{ #!word  abc 13123} { #!} {word  abc } 13123}
 
 test regexp-18.1 {regexp -all} {
     regexp -all b bbbbb
