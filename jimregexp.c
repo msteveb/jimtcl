@@ -98,9 +98,10 @@
 #define	REPMIN	11	/* max,min	Match this (simple) thing [min,max] times, minimal match. */
 #define	REPX	12	/* max,min	Match this (complex) thing [min,max] times. */
 #define	REPXMIN	13	/* max,min	Match this (complex) thing [min,max] times, minimal match. */
-
-#define	WORDA	15	/* no	Match "" at wordchar, where prev is nonword */
-#define	WORDZ	16	/* no	Match "" at nonwordchar, where prev is word */
+#define	BOLX	14	/* no	Match "" at beginning of input. */
+#define	EOLX	15	/* no	Match "" at end of input. */
+#define	WORDA	16	/* no	Match "" at wordchar, where prev is nonword */
+#define	WORDZ	17	/* no	Match "" at nonwordchar, where prev is word */
 
 #define	OPENNC 	1000	/* no	Non-capturing parentheses - must be OPEN-1 */
 #define	OPEN   	1001	/* no	Mark this point in input as start of #n. */
@@ -802,6 +803,12 @@ static int regatom(regex_t *preg, int *flagp)
 		case '\0':
 			preg->err = REG_ERR_TRAILING_BACKSLASH;
 			return 0;
+		case 'A':
+			ret = regnode(preg, BOLX);
+			break;
+		case 'Z':
+			ret = regnode(preg, EOLX);
+			break;
 		case '<':
 		case 'm':
 			ret = regnode(preg, WORDA);
@@ -869,7 +876,7 @@ static int regatom(regex_t *preg, int *flagp)
 					/* Non-trailing backslash.
 					 * Is this a special escape, or a regular escape?
 					 */
-					if (strchr("<>mMwWdDsS", preg->regparse[n])) {
+					if (strchr("<>mMwWdDsSAZ", preg->regparse[n])) {
 						/* A special escape. All done with EXACTLY */
 						break;
 					}
@@ -1377,9 +1384,21 @@ static int regmatch(regex_t *preg, int prog)
 		n = reg_utf8_tounicode_case(preg->reginput, &c, (preg->cflags & REG_ICASE));
 
 		switch (OP(preg, scan)) {
-		case BOL:
-			if (preg->reginput != preg->regbol)
+		case BOLX:
+			if ((preg->eflags & REG_NOTBOL)) {
 				return(0);
+			}
+			/* Fall through */
+		case BOL:
+			if (preg->reginput != preg->regbol) {
+				return(0);
+			}
+			break;
+		case EOLX:
+			if (c != 0) {
+				/* For EOLX, only match real end of line, not newline */
+				return 0;
+			}
 			break;
 		case EOL:
 			if (!reg_iseol(preg, c)) {
@@ -1717,6 +1736,10 @@ static const char *regprop( int op )
 		return "BOL";
 	case EOL:
 		return "EOL";
+	case BOLX:
+		return "BOLX";
+	case EOLX:
+		return "EOLX";
 	case ANY:
 		return "ANY";
 	case ANYOF:
