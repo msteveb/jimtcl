@@ -1665,10 +1665,10 @@ static void regdump(regex_t *preg)
 			while (preg->program[s]) {
 				int len = preg->program[s++];
 				int first = preg->program[s++];
-				buf[utf8_setunicode(buf, first)] = 0;
+				buf[utf8_getchars(buf, first)] = 0;
 				printf("%s", buf);
 				if (len > 1) {
-					buf[utf8_setunicode(buf, first + len - 1)] = 0;
+					buf[utf8_getchars(buf, first + len - 1)] = 0;
 					printf("-%s", buf);
 				}
 			}
@@ -1678,7 +1678,7 @@ static void regdump(regex_t *preg)
 			/* Literal string, where present. */
 
 			while (preg->program[s]) {
-				buf[utf8_setunicode(buf, preg->program[s])] = 0;
+				buf[utf8_getchars(buf, preg->program[s])] = 0;
 				printf("%s", buf);
 				s++;
 			}
@@ -1690,7 +1690,7 @@ static void regdump(regex_t *preg)
 	if (op == END) {
 		/* Header fields of interest. */
 		if (preg->regstart) {
-			buf[utf8_setunicode(buf, preg->regstart)] = 0;
+			buf[utf8_getchars(buf, preg->regstart)] = 0;
 			printf("start '%s' ", buf);
 		}
 		if (preg->reganch)
