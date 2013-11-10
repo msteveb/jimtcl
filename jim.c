@@ -475,7 +475,7 @@ static int JimCheckConversion(const char *str, const char *endptr)
     return JIM_OK;
 }
 
-/* Parses the front of a number to determine it's sign and base 
+/* Parses the front of a number to determine it's sign and base
  * Returns the index to start parsing according to the given base
  */
 static int JimNumberBase(const char *str, int *base, int *sign)
@@ -6402,6 +6402,7 @@ struct lsort_info {
     int order;
     int index;
     int indexed;
+	int unique;
     int (*subfn)(Jim_Obj **, Jim_Obj **);
 };
 
@@ -6479,6 +6480,35 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     return JimSign(ret) * sort_info->order;
 }
 
+/* Remove duplicate elements from the (sorted) list in-place, according to the
+ * comparison function, comp.
+ *
+ * Note that the last unique value is kept, not the first
+ */
+static void ListRemoveDuplicates(Jim_Obj *listObjPtr, int (*comp)(Jim_Obj **lhs, Jim_Obj **rhs))
+{
+	int src;
+	int dst = 0;
+	Jim_Obj **ele = listObjPtr->internalRep.listValue.ele;
+
+	for (src = 1; src < listObjPtr->internalRep.listValue.len; src++) {
+		if (comp(&ele[dst], &ele[src]) == 0) {
+			/* Match, so replace the dest with the current source */
+			Jim_DecrRefCount(sort_info->interp, ele[dst]);
+		}
+		else {
+			/* No match, so keep the current source and move to the next destination */
+			dst++;
+		}
+		ele[dst] = ele[src];
+	}
+	/* At end of list, keep the final element */
+	ele[++dst] = ele[src];
+
+	/* Set the new length */
+	listObjPtr->internalRep.listValue.len = dst;
+}
+
 /* Sort a list *in place*. MUST be called with non-shared objects. */
 static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsort_info *info)
 {
@@ -6529,6 +6559,11 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     if ((rc = setjmp(info->jmpbuf)) == 0) {
         qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
     }
+
+	if (info->unique && len > 1) {
+		ListRemoveDuplicates(listObjPtr, fn);
+	}
+
     Jim_InvalidateStringRep(listObjPtr);
     sort_info = prev_info;
 
@@ -12533,10 +12568,10 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
     static const char * const options[] = {
-        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", NULL
+        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", "-unique", NULL
     };
     enum
-    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX };
+    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX, OPT_UNIQUE };
     Jim_Obj *resObj;
     int i;
     int retCode;
@@ -12551,13 +12586,14 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
     info.type = JIM_LSORT_ASCII;
     info.order = 1;
     info.indexed = 0;
+    info.unique = 0;
     info.command = NULL;
     info.interp = interp;
 
     for (i = 1; i < (argc - 1); i++) {
         int option;
 
-        if (Jim_GetEnum(interp, argv[i], options, &option, NULL, JIM_ERRMSG)
+        if (Jim_GetEnum(interp, argv[i], options, &option, NULL, JIM_ENUM_ABBREV | JIM_ERRMSG)
             != JIM_OK)
             return JIM_ERR;
         switch (option) {
@@ -12578,6 +12614,9 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
                 break;
             case OPT_DECREASING:
                 info.order = -1;
+                break;
+            case OPT_UNIQUE:
+                info.unique = 1;
                 break;
             case OPT_COMMAND:
                 if (i >= (argc - 2)) {

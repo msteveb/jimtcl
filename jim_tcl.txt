@@ -56,6 +56,7 @@ Changes between 0.74 and 0.75
 1. `binary`, `pack` and `unpack` now support floating point
 2. `file copy` '-force' handles source and target as the same file
 3. `format` now supports +%b+ for binary conversion
+3. `lsort` now supports '-unique' and '-real'
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3136,7 +3137,7 @@ the list are to be matched against pattern and must have one of the values below
 
 lsort
 ~~~~~
-+*lsort* ?*-index* 'listindex'? ?*-nocase!-integer|-real|-command* 'cmdname'? ?*-decreasing*|*-increasing*? 'list'+
++*lsort* ?*-index* 'listindex'? ?*-nocase!-integer|-real|-command* 'cmdname'? ?*-unique*? ?*-decreasing*|*-increasing*? 'list'+
 
 Sort the elements of +'list'+, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.
@@ -3155,6 +3156,10 @@ than, equal to, or greater than +'$value2'+, respectively.
 
 If +-decreasing+ is specified, the resulting list is in the opposite
 order to what it would be otherwise. +-increasing+ is the default.
+
+If +-unique+ is specified, then only the last set of duplicate elements found in the list will be retained.
+Note that duplicates are determined relative to the comparison used in the sort. Thus if +-index 0+ is used,
++{1 a}+ and +{1 b}+ would be considered duplicates and only the second element, +{1 b}+, would be retained.
 
 If +-index 'listindex'+ is specified, each element of the list is treated as a list and
 the given index is extracted from the list for comparison. The list index may
