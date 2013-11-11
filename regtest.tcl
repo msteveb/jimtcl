@@ -1,3 +1,6 @@
+# These regression tests all provoked crashes at some point.
+# Thus they are kept separate from the regular test suite in tests/
+
 # REGTEST 1
 # 27Jan2005 - SIGSEGV for bug on Jim_DuplicateObj().
 
@@ -209,10 +212,12 @@ puts "TEST 28 PASSED"
 set x [lindex {} 0]
 info source $x
 eval $x
+puts "TEST 29 PASSED"
 
 # REGTEST 30
 # non-UTF8 string tolower 
 string tolower "/mod/video/h\303\203\302\244xan_ witchcraft through the ages_20131101_0110.t"
+puts "TEST 30 PASSED"
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 
