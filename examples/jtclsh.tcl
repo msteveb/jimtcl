@@ -8,29 +8,51 @@ package require history
 
 set histfile [env HOME]/.jtclsh
 history load $histfile
-while 1 {
-	if {[history getline "jim> " cmd] < 0} {
-		break
+set prefix ""
+while {1} {
+	# Read a complete line (script)
+	set prompt "${prefix}jim> "
+	set cmd {}
+	while {1} {
+		if {[history getline $prompt line] < 0} {
+			exit 0
+		}
+		if {$cmd ne ""} {
+			append cmd \n
+		}
+		append cmd $line
+		if {[info complete $cmd char]} {
+			break
+		}
+		set prompt "$char> "
 	}
+
 	if {$cmd eq "h"} {
 		history show
 		continue
 	}
+
 	# Don't bother adding single char commands to the history
 	if {[string length $cmd] > 1} {
 		history add $cmd
 		history save $histfile
 	}
-	# jimsh also does:
-	# - check for a complete command: [info complete]
-	# - handle other non-error return codes and changes the prompt: [info returncodes]
-	# - displays the complete error message: [errorInfo]
+
+	# Evaluate the script and display the error
 	try {
 		set result [eval $cmd]
-		if {$result ne {}} {
-			puts $result
+		set prefix ""
+	} on {error return break continue signal} {result opts} {
+		set rcname [info returncodes $opts(-code)]
+		if {$rcname eq "ok" } {
+			# Note: return set -code to 0
+			set rcname return
+		} elseif {$rcname eq "error"} {
+			set result [errorInfo $result]
 		}
-	} on error msg {
-		puts $msg
+		set prefix "\[$rcname\] "
+	}
+	if {$result ne {}} {
+		puts $result
 	}
 }
