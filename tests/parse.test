@@ -320,4 +320,19 @@ test parse-1.63 "unquoted dollar sign" {
 	set x x$
 } {x$}
 
+test parse-1.64 "backslash in comment" {
+	set x 0
+	# comment \
+	incr x
+	incr x
+} 1
+
+test parse-1.65 "double backslash in comment" {
+	set x 0
+	# comment \\
+	incr x
+	incr x
+} 2
+
+
 testreport

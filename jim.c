@@ -1732,7 +1732,6 @@ static int JimParseStr(struct JimParserCtx *pc)
 				else if (pc->len == 1) {
 					/* End of script with trailing backslash */
 					pc->missing = '\\';
-					pc->missingline = pc->tline;
 				}
                 break;
             case '(':
@@ -1794,13 +1793,22 @@ static int JimParseStr(struct JimParserCtx *pc)
 static int JimParseComment(struct JimParserCtx *pc)
 {
     while (*pc->p) {
-        if (*pc->p == '\n') {
+        if (*pc->p == '\\') {
+			pc->p++;
+			pc->len--;
+			if (pc->len == 0) {
+				pc->missing = '\\';
+				return JIM_OK;
+			}
+			if (*pc->p == '\n') {
+				pc->linenr++;
+			}
+		}
+		else if (*pc->p == '\n') {
+            pc->p++;
+            pc->len--;
             pc->linenr++;
-            if (*(pc->p - 1) != '\\') {
-                pc->p++;
-                pc->len--;
-                return JIM_OK;
-            }
+			break;
         }
         pc->p++;
         pc->len--;
