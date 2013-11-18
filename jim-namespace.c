@@ -269,6 +269,10 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_SetResult(interp, Jim_NamespaceQualifiers(interp, argv[2]));
             return JIM_OK;
 
+		case OPT_IMPORT:
+		case OPT_EXPORT:
+            return JIM_OK;
+
         case OPT_TAIL:
             if (argc != 3) {
                 Jim_WrongNumArgs(interp, 2, argv, "string");
@@ -309,9 +313,6 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     Jim_SetResult(interp, objPtr);
                 }
             }
-            return JIM_OK;
-
-        default:
             return JIM_OK;
     }
 
