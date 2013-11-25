@@ -492,6 +492,22 @@ for {set i 290} {$i < 400} {incr i} {
     append b "x"
 }
 
+test format-16.1 {format %b} {
+    format %b 0
+} {0}
+
+test format-16.2 {format %b} {
+    format %b 1
+} {1}
+
+test format-16.3 {format %b} {
+    format %b 0xf
+} {1111}
+
+test format-16.4 {format %b} {
+    format %b 1234567
+} {100101101011010000111}
+
 # cleanup
 catch {unset a}
 catch {unset b}

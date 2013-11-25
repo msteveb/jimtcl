@@ -55,6 +55,7 @@ Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `binary`, `pack` and `unpack` now support floating point
 2. `file copy` '-force' handles source and target as the same file
+3. `format` now supports +%b+ for binary conversion
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2471,7 +2472,9 @@ before passing it to 'sprintf' for formatting.
 
 The only unusual conversion is for +%c+; in this case the argument
 must be a decimal string, which will then be converted to the corresponding
-ASCII character value.
+ASCII (or UTF-8) character value.
+
+In addition, Jim Tcl provides basic support for conversion to binary with +%b+.
 
 `format` does backslash substitution on its +'formatString'+
 argument, so backslash sequences in +'formatString'+ will be handled

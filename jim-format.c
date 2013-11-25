@@ -307,6 +307,42 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
 	    formatted_chars = 1;
 	    break;
 	}
+	case 'b': {
+		unsigned jim_wide w;
+		int length;
+		int i;
+		int j;
+
+		if (Jim_GetWide(interp, objv[objIndex], (jim_wide *)&w) != JIM_OK) {
+		    goto error;
+		}
+		length = sizeof(w) * 8;
+
+		/* XXX: width and precision not yet implemented for binary
+		 *      also flags in 'spec', e.g. #, 0, -
+		 */
+
+		/* Increase the size of the buffer if needed */
+		if (num_buffer_size < length + 1) {
+		    num_buffer_size = length + 1;
+		    num_buffer = Jim_Realloc(num_buffer, num_buffer_size);
+		}
+
+		j = 0;
+		for (i = length; i > 0; ) {
+			i--;
+		    if (w & ((unsigned jim_wide)1 << i)) {
+				num_buffer[j++] = '1';
+			}
+			else if (j || i == 0) {
+				num_buffer[j++] = '0';
+			}
+		}
+		num_buffer[j] = 0;
+		formatted_chars = formatted_bytes = j;
+		formatted_buf = num_buffer;
+		break;
+	}
 
 	case 'e':
 	case 'E':
