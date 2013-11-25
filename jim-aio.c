@@ -667,6 +667,26 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+	if (argc == 3) {
+#ifdef HAVE_SHUTDOWN
+		static const char * const options[] = { "r", "w", NULL };
+		enum { OPT_R, OPT_W, };
+		int option;
+		AioFile *af = Jim_CmdPrivData(interp);
+
+		if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
+			return JIM_ERR;
+		}
+		if (shutdown(af->fd, option == OPT_R ? SHUT_RD : SHUT_WR) == 0) {
+			return JIM_OK;
+		}
+		JimAioSetError(interp, NULL);
+#else
+		Jim_SetResultString(interp, "async close not supported", -1);
+#endif
+		return JIM_ERR;
+	}
+
     return Jim_DeleteCommand(interp, Jim_String(argv[0]));
 }
 
@@ -926,12 +946,12 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Returns 1 if stream is at eof */
     },
     {   "close",
-        NULL,
+        "?r(ead)|w(rite)?",
         aio_cmd_close,
         0,
-        0,
+        1,
         JIM_MODFLAG_FULLARGV,
-        /* Description: Closes the stream */
+        /* Description: Closes the stream. */
     },
     {   "seek",
         "offset ?start|current|end",

@@ -56,7 +56,8 @@ Changes between 0.74 and 0.75
 1. `binary`, `pack` and `unpack` now support floating point
 2. `file copy` '-force' handles source and target as the same file
 3. `format` now supports +%b+ for binary conversion
-3. `lsort` now supports '-unique' and '-real'
+4. `lsort` now supports '-unique' and '-real'
+5. Add support for half-close with `aio close` ?r|w?
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4426,8 +4427,9 @@ aio
 +$handle *buffering none|line|full*+::
     Sets the buffering mode of the stream.
 
-+$handle *close*+::
-    Closes the stream
++$handle *close* ?r(ead)|w(rite)?+::
+    Closes the stream. 
+	The  two-argument form is a "half-close" on a socket. See the +shutdown(2)+ man page.
 
 +$handle *copyto* 'tofd ?size?'+::
     Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
