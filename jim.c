@@ -6103,11 +6103,11 @@ static unsigned char ListElementQuotingType(const char *s, int len)
  * scenario.
  * Returns the length of the result.
  */
-static int BackslashQuoteString(const char *s, char *q)
+static int BackslashQuoteString(const char *s, int len, char *q)
 {
     char *p = q;
 
-    while (*s) {
+    while (len--) {
         switch (*s) {
             case ' ':
             case '$':
@@ -6223,7 +6223,7 @@ static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
                     *p++ = '\\';
                     realLength++;
                 }
-                qlen = BackslashQuoteString(strRep, p);
+                qlen = BackslashQuoteString(strRep, len, p);
                 p += qlen;
                 realLength += qlen;
                 break;

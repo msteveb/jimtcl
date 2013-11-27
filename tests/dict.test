@@ -230,4 +230,12 @@ test dict-23.4 {dict unset command: write failure} -setup {
 test dict-24.1 {dict/list shimmering - Bug 3004007} {set l [list p 1 p 2 q 3];dict get $l q;set l} {p 1 p 2 q 3}
 test dict-24.2 {dict/list shimmering - Bug 3004007} {set l [list p 1 p 2 q 3];dict get $l q;llength $l} 6
 
+test dict-24.3 {dict/list shimmering with embedded nulls} {
+	# Must be a string containing embedded nulls that would be double quoted in string form
+	set binary_value 1\000\\
+	set dictVar [dict create value $binary_value]
+	lassign $dictVar k v
+	string length $v
+} {3}
+
 testreport
