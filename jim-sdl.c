@@ -228,7 +228,7 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     jss->screen = screen;
     sprintf(buf, "sdl.surface%ld", screenId);
     Jim_CreateCommand(interp, buf, JimSdlHandlerCommand, jss, JimSdlDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
     return JIM_OK;
 }
 

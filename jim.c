@@ -3775,6 +3775,22 @@ static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
     return nsObj;
 }
 
+Jim_Obj *Jim_MakeGlobalNamespaceName(Jim_Interp *interp, Jim_Obj *nameObjPtr)
+{
+	Jim_Obj *resultObj;
+
+    const char *name = Jim_String(nameObjPtr);
+    if (name[0] == ':' && name[1] == ':') {
+		return nameObjPtr;
+	}
+	Jim_IncrRefCount(nameObjPtr);
+	resultObj = Jim_NewStringObj(interp, "::", -1);
+	Jim_AppendObj(interp, resultObj, nameObjPtr);
+	Jim_DecrRefCount(interp, nameObjPtr);
+
+	return resultObj;
+}
+
 /**
  * An efficient version of JimQualifyNameObj() where the name is
  * available (and needed) as a 'const char *'.
@@ -3807,6 +3823,11 @@ static const char *JimQualifyName(Jim_Interp *interp, const char *name, Jim_Obj 
     /* We can be more efficient in the no-namespace case */
     #define JimQualifyName(INTERP, NAME, DUMMY) (((NAME)[0] == ':' && (NAME)[1] == ':') ? (NAME) + 2 : (NAME))
     #define JimFreeQualifiedName(INTERP, DUMMY) (void)(DUMMY)
+
+Jim_Obj *Jim_MakeGlobalNamespaceName(Jim_Interp *interp, Jim_Obj *nameObjPtr)
+{
+	return nameObjPtr;
+}
 #endif
 
 static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)

@@ -760,9 +760,8 @@ JIM_EXPORT int Jim_SetVariableStrWithStr (Jim_Interp *interp,
 JIM_EXPORT int Jim_SetVariableLink (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
-JIM_EXPORT int Jim_CreateNamespaceVariable(Jim_Interp *interp,
-        Jim_Obj *varNameObj, Jim_Obj *targetNameObj);
-JIM_EXPORT int Jim_DiscardNamespaceVars(Jim_Interp *interp);
+JIM_EXPORT Jim_Obj * Jim_MakeGlobalNamespaceName(Jim_Interp *interp,
+        Jim_Obj *nameObjPtr);
 JIM_EXPORT Jim_Obj * Jim_GetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariable (Jim_Interp *interp,

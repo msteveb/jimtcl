@@ -3486,5 +3486,16 @@ test regression-1.1 {lrange bug with negative indexes of type int} {
     lrange {a b c} 0 [- 0 1]
 } {}
 
+test regression-1.2 {open/close from non-global namespace} {
+	proc a::b {} {
+		set f [open $::argv0]
+		$f close
+		return $f
+	}
+	set f [a::b]
+	rename a::b ""
+	expr {$f in [info channels]}
+} {0}
+
 
 testreport

@@ -286,7 +286,9 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     sh->db = db;
     snprintf(buf, sizeof(buf), "sqlite.handle%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimSqliteHandlerCommand, sh, JimSqliteDelProc);
-    Jim_SetResultString(interp, buf, -1);
+
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
+
     return JIM_OK;
 }
 

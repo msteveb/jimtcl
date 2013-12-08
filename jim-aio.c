@@ -667,8 +667,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_DeleteCommand(interp, Jim_String(argv[0]));
-    return JIM_OK;
+    return Jim_DeleteCommand(interp, Jim_String(argv[0]));
 }
 
 static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1098,7 +1097,10 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
-    Jim_SetResultString(interp, buf, -1);
+	/* Note that the command must use the global namespace, even if
+	 * the current namespace is something different
+	 */
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
 }
