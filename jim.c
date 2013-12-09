@@ -6396,6 +6396,7 @@ struct lsort_info {
         JIM_LSORT_ASCII,
         JIM_LSORT_NOCASE,
         JIM_LSORT_INTEGER,
+        JIM_LSORT_REAL,
         JIM_LSORT_COMMAND
     } type;
     int order;
@@ -6438,6 +6439,23 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     }
 
     return JimSign(lhs - rhs) * sort_info->order;
+}
+
+static int ListSortReal(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    double lhs = 0, rhs = 0;
+
+    if (Jim_GetDouble(sort_info->interp, *lhsObj, &lhs) != JIM_OK ||
+        Jim_GetDouble(sort_info->interp, *rhsObj, &rhs) != JIM_OK) {
+        longjmp(sort_info->jmpbuf, JIM_ERR);
+    }
+	if (lhs == rhs) {
+		return 0;
+	}
+	if (lhs > rhs) {
+		return sort_info->order;
+	}
+	return -sort_info->order;
 }
 
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
@@ -6490,6 +6508,9 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
             break;
         case JIM_LSORT_INTEGER:
             fn = ListSortInteger;
+            break;
+        case JIM_LSORT_REAL:
+            fn = ListSortReal;
             break;
         case JIM_LSORT_COMMAND:
             fn = ListSortCommand;
@@ -12512,10 +12533,10 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
     static const char * const options[] = {
-        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-index", NULL
+        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", NULL
     };
     enum
-    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_INDEX };
+    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX };
     Jim_Obj *resObj;
     int i;
     int retCode;
@@ -12548,6 +12569,9 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
                 break;
             case OPT_INTEGER:
                 info.type = JIM_LSORT_INTEGER;
+                break;
+            case OPT_REAL:
+                info.type = JIM_LSORT_REAL;
                 break;
             case OPT_INCREASING:
                 info.order = 1;

@@ -3136,7 +3136,7 @@ the list are to be matched against pattern and must have one of the values below
 
 lsort
 ~~~~~
-+*lsort* ?*-index* 'listindex'? ?*-nocase*!*-integer*|*-command* 'cmdname'? ?*-decreasing*|*-increasing*? 'list'+
++*lsort* ?*-index* 'listindex'? ?*-nocase!-integer|-real|-command* 'cmdname'? ?*-decreasing*|*-increasing*? 'list'+
 
 Sort the elements of +'list'+, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.
@@ -3144,6 +3144,8 @@ By default, ASCII (or UTF-8) sorting is used, with the result in increasing orde
 If +-nocase+ is specified, comparisons are case-insenstive.
 
 If +-integer+ is specified, numeric sorting is used.
+
+If +-real+ is specified, floating point number sorting is used.
 
 If +-command 'cmdname'+ is specified, +'cmdname'+ is treated as a command
 name. For each comparison, +'cmdname $value1 $value2+' is called which
