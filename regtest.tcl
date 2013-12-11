@@ -219,6 +219,11 @@ puts "TEST 29 PASSED"
 string tolower "/mod/video/h\303\203\302\244xan_ witchcraft through the ages_20131101_0110.t"
 puts "TEST 30 PASSED"
 
+# REGTEST 31
+# infinite lsort -unique with error
+catch {lsort -unique -real {foo 42.0}}
+puts "TEST 31 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -6558,13 +6558,13 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
 
     if ((rc = setjmp(info->jmpbuf)) == 0) {
         qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
-    }
 
-	if (info->unique && len > 1) {
-		ListRemoveDuplicates(listObjPtr, fn);
+		if (info->unique && len > 1) {
+			ListRemoveDuplicates(listObjPtr, fn);
+		}
+
+		Jim_InvalidateStringRep(listObjPtr);
 	}
-
-    Jim_InvalidateStringRep(listObjPtr);
     sort_info = prev_info;
 
     return rc;
