@@ -41,6 +41,7 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 #define JIM_OPTIMIZATION        /* comment to avoid optimizations and reduce size */
+#define _GNU_SOURCE             /* Mostly just for environ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +114,12 @@ static void JimPanicDump(int fail_condition, const char *fmt, ...);
 #define JimPanic(X) JimPanicDump X
 #else
 #define JimPanic(X)
+#endif
+
+#ifdef JIM_OPTIMIZATION
+#define JIM_IF_OPTIM(X) X
+#else
+#define JIM_IF_OPTIM(X)
 #endif
 
 /* -----------------------------------------------------------------------------
@@ -11907,16 +11914,16 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
         if (retval == JIM_OK || retval == JIM_CONTINUE) {
             /* increment */
-          evalnext:
+JIM_IF_OPTIM(evalnext:)
             retval = Jim_EvalObj(interp, argv[3]);
             if (retval == JIM_OK || retval == JIM_CONTINUE) {
                 /* test */
-              testcond:
+JIM_IF_OPTIM(testcond:)
                 retval = Jim_GetBoolFromExpr(interp, argv[2], &boolean);
             }
         }
     }
-  out:
+JIM_IF_OPTIM(out:)
     if (stopVarNamePtr) {
         Jim_DecrRefCount(interp, stopVarNamePtr);
     }

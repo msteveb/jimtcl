@@ -27,8 +27,8 @@ exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 docdir = @docdir@
 
-CC += -D_GNU_SOURCE -Wall $(OPTIM) -I.
-CXX += -D_GNU_SOURCE -Wall $(OPTIM) -I.
+CC += -Wall $(OPTIM) -I.
+CXX += -Wall $(OPTIM) -I.
 @if srcdir != .
 CFLAGS += -I@srcdir@
 CXXFLAGS += -I@srcdir@

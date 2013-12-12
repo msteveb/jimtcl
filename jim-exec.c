@@ -20,6 +20,7 @@
  * express or implied warranty.
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <ctype.h>
 
