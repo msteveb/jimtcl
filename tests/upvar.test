@@ -142,7 +142,7 @@ test upvar-3.5 {unsetting array elements with upvar} {
 	set a(1) first
 	set a(2) second
 	p2
-	array names a
+	lsort [array names a]
     }
     proc p2 {} {upvar a(0) x; unset x}
     p1
@@ -153,7 +153,7 @@ test upvar-3.6 {unsetting then resetting array elements with upvar} {
 	set a(1) first
 	set a(2) second
 	p2
-	list [array names a] [catch {set a(0)} msg] $msg
+	list [lsort [array names a]] [catch {set a(0)} msg] $msg
     }
     proc p2 {} {upvar a(0) x; unset x; set x 12345}
     p1

@@ -531,7 +531,13 @@ test lset-1.1 "lset with bad var" {
 test dict-1.1 "dict to string" {
 	set a [dict create abc \\ def \"]
 	set x x$a
-} "xabc \\\\ def {\"}"
+	# The order of keys in the dictionary is random
+	if {$x eq "xabc \\\\ def {\"}" || $x eq "xdef {\"} abc \\\\"} {
+		return ok
+	} else {
+		return "failed: \"$x\""
+	}
+} ok
 
 test channels-1.1 {info channels} {
 	lsort [info channels]
@@ -557,7 +563,7 @@ test eval-list-1.1 {Lost string rep with list} {
 test info-statics-1.1 {info statics commands} {
 	set x 1
 	proc a {} {x {y 2}} {}
-	info statics a
-} {x 1 y 2}
+	lsort [info statics a]
+} {1 2 x y}
 
 testreport

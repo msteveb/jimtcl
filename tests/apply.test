@@ -89,7 +89,7 @@ test apply-6.3 {info level} tcl {
 
 set applyBody {
     set res {}
-    foreach v [info locals] {
+    foreach v [lsort [info locals]] {
 	if {$v eq "res"} continue
 	lappend res [list $v [set $v]]
     }
@@ -101,10 +101,10 @@ test apply-8.1 {args treatment} {
 } {{args {1 2 3}}}
 test apply-8.2 {args treatment} {
     apply [list {x args} $applyBody] 1 2
-} {{x 1} {args 2}}
+} {{args 2} {x 1}}
 test apply-8.3 {args treatment} {
     apply [list {x args} $applyBody] 1 2 3
-} {{x 1} {args {2 3}}}
+} {{args {2 3}} {x 1}}
 test apply-8.4 {default values} {
     apply [list {{x 1} {y 2}} $applyBody] 
 } {{x 1} {y 2}}
@@ -122,10 +122,10 @@ test apply-8.8 {default values} {
 } {{x 1} {y 3}}
 test apply-8.9 {default values} {
     apply [list {x {y 2} args} $applyBody] 1
-} {{x 1} {y 2} {args {}}}
+} {{args {}} {x 1} {y 2}}
 test apply-8.10 {default values} {
     apply [list {x {y 2} args} $applyBody] 1 3
-} {{x 1} {y 3} {args {}}}
+} {{args {}} {x 1} {y 3}}
 
 ::tcltest::cleanupTests
 return

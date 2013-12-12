@@ -1,6 +1,7 @@
 # Common code
 set testinfo(verbose) 0
 set testinfo(numpass) 0
+set testinfo(stoponerror) 0
 set testinfo(numfail) 0
 set testinfo(numskip) 0
 set testinfo(numtests) 0
@@ -11,6 +12,9 @@ set bindir [file dirname [info nameofexecutable]]
 
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
 	incr testinfo(verbose)
+}
+if {[lsearch $argv "-stoponerror"] >= 0 || [info exists env(stoponerror)]} {
+	incr testinfo(stoponerror)
 }
 
 proc needs {type what {packages {}}} {
@@ -194,6 +198,9 @@ proc test {id descr args} {
 	puts ""
 	incr ::testinfo(numfail)
 	lappend ::testinfo(failed) [list $id $descr $source $expected $result]
+	if {$::testinfo(stoponerror)} {
+		exit 1
+	}
 }
 
 proc ::tcltest::cleanupTests {} {
