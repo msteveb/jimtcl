@@ -57,7 +57,9 @@
 #define usleep(US) msleep((US) / 1000)
 #endif
 #else
+#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
+#endif
 
 #ifndef HAVE_USLEEP
 /* XXX: Implement this in terms of select() or nanosleep() */
