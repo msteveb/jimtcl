@@ -417,40 +417,6 @@ static int JimStringLastUtf8(const char *s1, int l1, const char *s2, int l2)
 }
 #endif
 
-static int JimWideToString(char *buf, jim_wide wideValue)
-{
-    int pos = 0;
-
-    if (wideValue == 0) {
-        buf[pos++] = '0';
-    }
-    else {
-        char tmp[JIM_INTEGER_SPACE];
-        int num = 0;
-        int i;
-
-        if (wideValue < 0) {
-            buf[pos++] = '-';
-            /* -106 % 10 may be -6 or 4! */
-            i = wideValue % 10;
-            tmp[num++] = (i > 0) ? (10 - i) : -i;
-            wideValue /= -10;
-        }
-
-        while (wideValue) {
-            tmp[num++] = wideValue % 10;
-            wideValue /= 10;
-        }
-
-        for (i = 0; i < num; i++) {
-            buf[pos++] = '0' + tmp[num - i - 1];
-        }
-    }
-    buf[pos] = 0;
-
-    return pos;
-}
-
 /**
  * After an strtol()/strtod()-like conversion,
  * check whether something was converted and that
@@ -5076,15 +5042,10 @@ static const Jim_ObjType referenceObjType = {
 
 void UpdateStringOfReference(struct Jim_Obj *objPtr)
 {
-    int len;
     char buf[JIM_REFERENCE_SPACE + 1];
-    Jim_Reference *refPtr;
 
-    refPtr = objPtr->internalRep.refValue.refPtr;
-    len = JimFormatReference(buf, refPtr, objPtr->internalRep.refValue.id);
-    objPtr->bytes = Jim_Alloc(len + 1);
-    memcpy(objPtr->bytes, buf, len + 1);
-    objPtr->length = len;
+    JimFormatReference(buf, objPtr->internalRep.refValue.refPtr, objPtr->internalRep.refValue.id);
+    JimSetStringBytes(objPtr, buf);
 }
 
 /* returns true if 'c' is a valid reference tag character.
@@ -5767,13 +5728,38 @@ static const Jim_ObjType coercedDoubleObjType = {
 
 static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 {
-    int len;
     char buf[JIM_INTEGER_SPACE + 1];
+    jim_wide wideValue = JimWideValue(objPtr);
+    int pos = 0;
 
-    len = JimWideToString(buf, JimWideValue(objPtr));
-    objPtr->bytes = Jim_Alloc(len + 1);
-    memcpy(objPtr->bytes, buf, len + 1);
-    objPtr->length = len;
+    if (wideValue == 0) {
+        buf[pos++] = '0';
+    }
+    else {
+        char tmp[JIM_INTEGER_SPACE];
+        int num = 0;
+        int i;
+
+        if (wideValue < 0) {
+            buf[pos++] = '-';
+            /* -106 % 10 may be -6 or 4! */
+            i = wideValue % 10;
+            tmp[num++] = (i > 0) ? (10 - i) : -i;
+            wideValue /= -10;
+        }
+
+        while (wideValue) {
+            tmp[num++] = wideValue % 10;
+            wideValue /= 10;
+        }
+
+        for (i = 0; i < num; i++) {
+            buf[pos++] = '0' + tmp[num - i - 1];
+        }
+    }
+    buf[pos] = 0;
+
+    JimSetStringBytes(objPtr, buf);
 }
 
 int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
@@ -9566,10 +9552,7 @@ void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 
 void UpdateStringOfScanFmt(Jim_Obj *objPtr)
 {
-    char *bytes = ((ScanFmtStringObj *) objPtr->internalRep.ptr)->stringRep;
-
-    objPtr->bytes = Jim_StrDup(bytes);
-    objPtr->length = strlen(bytes);
+    JimSetStringBytes(objPtr, ((ScanFmtStringObj *) objPtr->internalRep.ptr)->stringRep);
 }
 
 /* SetScanFmtFromAny will parse a given string and create the internal
