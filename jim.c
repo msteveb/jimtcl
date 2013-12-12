@@ -581,47 +581,6 @@ int Jim_StringToWide(const char *str, jim_wide * widePtr, int base)
     return JimCheckConversion(str, endptr);
 }
 
-int Jim_DoubleToString(char *buf, double doubleValue)
-{
-    int len;
-    int i;
-
-    len = sprintf(buf, "%.12g", doubleValue);
-
-    /* Add a final ".0" if necessary */
-    for (i = 0; i < len; i++) {
-        if (buf[i] == '.' || buf[i] == 'e') {
-#if defined(JIM_SPRINTF_DOUBLE_NEEDS_FIX)
-            /* If 'buf' ends in e-0nn or e+0nn, remove
-             * the 0 after the + or - and reduce the length by 1
-             */
-            char *e = strchr(buf, 'e');
-            if (e && (e[1] == '-' || e[1] == '+') && e[2] == '0') {
-                /* Move it up */
-                e += 2;
-                memmove(e, e + 1, len - (e - buf));
-                return len - 1;
-            }
-#endif
-            return len;
-        }
-        /* inf or Infinity -> Inf, nan -> NaN */
-        if (buf[i] == 'i' || buf[i] == 'I' || buf[i] == 'n' || buf[i] == 'N') {
-            buf[i] = toupper(UCHAR(buf[i]));
-            if (buf[i] == 'n' || buf[i] == 'N')
-                buf[i+2] = toupper(UCHAR(buf[i+2]));
-            buf[i + 3] = 0;
-            return i + 3;
-        }
-    }
-
-    buf[i++] = '.';
-    buf[i++] = '0';
-    buf[i] = '\0';
-
-    return i;
-}
-
 int Jim_StringToDouble(const char *str, double *doublePtr)
 {
     char *endptr;
@@ -2359,6 +2318,12 @@ const char *Jim_String(Jim_Obj *objPtr)
         objPtr->typePtr->updateStringProc(objPtr);
     }
     return objPtr->bytes;
+}
+
+static void JimSetStringBytes(Jim_Obj *objPtr, const char *str)
+{
+    objPtr->bytes = Jim_StrDup(str);
+    objPtr->length = strlen(str);
 }
 
 static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -5906,15 +5871,61 @@ static const Jim_ObjType doubleObjType = {
     JIM_TYPE_NONE,
 };
 
+#ifndef HAVE_ISNAN
+#undef isnan
+#define isnan(X) ((X) != (X))
+#endif
+#ifndef HAVE_ISINF
+#undef isinf
+#define isinf(X) (1.0 / (X) == 0.0)
+#endif
+
 void UpdateStringOfDouble(struct Jim_Obj *objPtr)
 {
-    int len;
-    char buf[JIM_DOUBLE_SPACE + 1];
+    double value = objPtr->internalRep.doubleValue;
 
-    len = Jim_DoubleToString(buf, objPtr->internalRep.doubleValue);
-    objPtr->bytes = Jim_Alloc(len + 1);
-    memcpy(objPtr->bytes, buf, len + 1);
-    objPtr->length = len;
+    if (isnan(value)) {
+        JimSetStringBytes(objPtr, "NaN");
+        return;
+    }
+    if (isinf(value)) {
+        if (value < 0) {
+            JimSetStringBytes(objPtr, "-Inf");
+        }
+        else {
+            JimSetStringBytes(objPtr, "Inf");
+        }
+        return;
+    }
+    {
+        char buf[JIM_DOUBLE_SPACE + 1];
+        int i;
+        int len = sprintf(buf, "%.12g", value);
+
+        /* Add a final ".0" if necessary */
+        for (i = 0; i < len; i++) {
+            if (buf[i] == '.' || buf[i] == 'e') {
+#if defined(JIM_SPRINTF_DOUBLE_NEEDS_FIX)
+                /* If 'buf' ends in e-0nn or e+0nn, remove
+                 * the 0 after the + or - and reduce the length by 1
+                 */
+                char *e = strchr(buf, 'e');
+                if (e && (e[1] == '-' || e[1] == '+') && e[2] == '0') {
+                    /* Move it up */
+                    e += 2;
+                    memmove(e, e + 1, len - (e - buf));
+                }
+#endif
+                break;
+            }
+        }
+        if (buf[i] == '\0') {
+            buf[i++] = '.';
+            buf[i++] = '0';
+            buf[i] = '\0';
+        }
+        JimSetStringBytes(objPtr, buf);
+    }
 }
 
 int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -7255,19 +7266,20 @@ static const Jim_ObjType indexObjType = {
 
 void UpdateStringOfIndex(struct Jim_Obj *objPtr)
 {
-    int len;
-    char buf[JIM_INTEGER_SPACE + 1];
-
-    if (objPtr->internalRep.intValue >= 0)
-        len = sprintf(buf, "%d", objPtr->internalRep.intValue);
-    else if (objPtr->internalRep.intValue == -1)
-        len = sprintf(buf, "end");
-    else {
-        len = sprintf(buf, "end%d", objPtr->internalRep.intValue + 1);
+    if (objPtr->internalRep.intValue == -1) {
+        JimSetStringBytes(objPtr, "end");
     }
-    objPtr->bytes = Jim_Alloc(len + 1);
-    memcpy(objPtr->bytes, buf, len + 1);
-    objPtr->length = len;
+    else {
+        char buf[JIM_INTEGER_SPACE + 1];
+        if (objPtr->internalRep.intValue >= 0) {
+            sprintf(buf, "%d", objPtr->internalRep.intValue);
+        }
+        else {
+            /* Must be <= -2 */
+            sprintf(buf, "end%d", objPtr->internalRep.intValue + 1);
+        }
+        JimSetStringBytes(objPtr, buf);
+    }
 }
 
 int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
