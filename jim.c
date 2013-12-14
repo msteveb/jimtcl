@@ -1077,7 +1077,7 @@ static unsigned int JimStringCopyHTHashFunction(const void *key)
 
 static void *JimStringCopyHTDup(void *privdata, const void *key)
 {
-    return strdup(key);
+    return Jim_StrDup(key);
 }
 
 static int JimStringCopyHTKeyCompare(void *privdata, const void *key1, const void *key2)
