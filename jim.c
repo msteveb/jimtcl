@@ -4153,6 +4153,17 @@ static const Jim_ObjType commandObjType = {
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
+	Jim_Obj *nsObj;
+	
+	/* one-off special name resolution */
+	if (interp->resolveNsObj) {
+		nsObj = interp->resolveNsObj;
+		interp->resolveNsObj = NULL;
+	}
+	else {
+		nsObj = interp->framePtr->nsObj;
+	}
+	Jim_IncrRefCount(nsObj);
 
     /* In order to be valid, the proc epoch must match and
      * the lookup must have occurred in the same namespace
@@ -4160,7 +4171,7 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     if (objPtr->typePtr != &commandObjType ||
             objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
 #ifdef jim_ext_namespace
-            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
+            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, nsObj)
 #endif
         ) {
         /* Not cached or out of date, so lookup */
@@ -4174,9 +4185,9 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
             }
         }
 #ifdef jim_ext_namespace
-        else if (Jim_Length(interp->framePtr->nsObj)) {
+        else if (Jim_Length(nsObj)) {
             /* This command is being defined in a non-global namespace */
-            Jim_Obj *nameObj = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
+            Jim_Obj *nameObj = Jim_DuplicateObj(interp, nsObj);
             Jim_AppendStrings(interp, nameObj, "::", name, NULL);
             he = Jim_FindHashEntry(&interp->commands, Jim_String(nameObj));
             Jim_FreeNewObj(interp, nameObj);
@@ -4192,7 +4203,8 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
             if (flags & JIM_ERRMSG) {
                 Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
             }
-            return NULL;
+			cmd = NULL;
+			goto out;
         }
 #ifdef jim_ext_namespace
 found:
@@ -4204,8 +4216,8 @@ found:
         objPtr->typePtr = &commandObjType;
         objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
         objPtr->internalRep.cmdValue.cmdPtr = cmd;
-        objPtr->internalRep.cmdValue.nsObj = interp->framePtr->nsObj;
-        Jim_IncrRefCount(interp->framePtr->nsObj);
+        objPtr->internalRep.cmdValue.nsObj = nsObj;
+        Jim_IncrRefCount(nsObj);
     }
     else {
         cmd = objPtr->internalRep.cmdValue.cmdPtr;
@@ -4213,6 +4225,8 @@ found:
     while (cmd->u.proc.upcall) {
         cmd = cmd->prevCmd;
     }
+out:
+	Jim_DecrRefCount(interp, nsObj);
     return cmd;
 }
 
@@ -5480,6 +5494,13 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_CallFrame *cf = i->framePtr, *prevcf, *nextcf;
     Jim_Obj *objPtr, *nextObjPtr;
 
+    /* Free the call frames list - must be done before i->commands is destroyed */
+    while (cf) {
+        prevcf = cf->parent;
+        JimFreeCallFrame(i, cf, JIM_FCF_NONE);
+        cf = prevcf;
+    }
+
     Jim_DecrRefCount(i, i->emptyObj);
     Jim_DecrRefCount(i, i->trueObj);
     Jim_DecrRefCount(i, i->falseObj);
@@ -5498,12 +5519,6 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_Free(i->prngState);
     Jim_FreeHashTable(&i->assocData);
 
-    /* Free the call frames list */
-    while (cf) {
-        prevcf = cf->parent;
-        JimFreeCallFrame(i, cf, JIM_FCF_NONE);
-        cf = prevcf;
-    }
     /* Check that the live object list is empty, otherwise
      * there is a memory leak. */
     if (i->liveList != NULL) {
@@ -10785,7 +10800,6 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
 {
     Jim_CallFrame *callFramePtr;
     int i, d, retcode, optargs;
-    Jim_Stack *localCommands;
     ScriptObj *script;
 
     /* Check arity */
@@ -10869,12 +10883,37 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
     retcode = Jim_EvalObj(interp, cmd->u.proc.bodyObjPtr);
 
 badargset:
-    /* Destroy the callframe */
-    /* But first remove the local commands */
-    localCommands = callFramePtr->localCommands;
-    callFramePtr->localCommands = NULL;
 
-    interp->framePtr = interp->framePtr->parent;
+	interp->framePtr = interp->framePtr->parent;
+
+	/* Handle the JIM_EVAL return code */
+    if (retcode == JIM_EVAL) {
+		/* We need to do resolution of the tailcall command
+		 * (i.e. the very next command resolution)
+		 * in the current namespace, but everything after that needs
+		 * to be done in the normal namespace.
+		 */
+		interp->resolveNsObj = callFramePtr->nsObj;
+
+		do {
+			Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
+
+			Jim_IncrRefCount(resultScriptObjPtr);
+			/* Result must be a list */
+			JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
+
+			retcode = JimEvalObjList(interp, resultScriptObjPtr);
+			if (retcode == JIM_RETURN) {
+				/* If the result of the tailcall invokes 'return', push
+				 * it up to the caller
+				 */
+				interp->returnLevel++;
+			}
+			Jim_DecrRefCount(interp, resultScriptObjPtr);
+		} while (retcode == JIM_EVAL);
+	}
+
+	/* Need to do this after tailcall in case of tailcall to a local proc */
     if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
     }
@@ -10882,23 +10921,6 @@ badargset:
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
     }
 
-    /* Handle the JIM_EVAL return code */
-    while (retcode == JIM_EVAL) {
-        Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
-
-        Jim_IncrRefCount(resultScriptObjPtr);
-        /* Result must be a list */
-        JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
-
-        retcode = JimEvalObjList(interp, resultScriptObjPtr);
-        if (retcode == JIM_RETURN) {
-            /* If the result of the tailcall invokes 'return', push
-             * it up to the caller
-             */
-            interp->returnLevel++;
-        }
-        Jim_DecrRefCount(interp, resultScriptObjPtr);
-    }
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
         if (--interp->returnLevel <= 0) {
@@ -10913,9 +10935,6 @@ badargset:
         interp->errorProc = argv[0];
         Jim_IncrRefCount(interp->errorProc);
     }
-
-    /* Finally delete local procs */
-    JimDeleteLocalProcs(interp, localCommands);
 
     return retcode;
 }

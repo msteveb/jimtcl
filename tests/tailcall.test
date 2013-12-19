@@ -58,4 +58,16 @@ test tailcall-1.6 {tailcall pass through return} {
 	b
 } {ok}
 
+test tailcall-1.7 {tailcall with namespaces} {
+	proc a::b {} {
+		proc c {} {
+			return 1
+		}
+		set d [local lambda {} { c }]
+		# $d should resolve in namespace 'a', not ""
+		tailcall $d
+	}
+	a::b
+} 1
+
 testreport

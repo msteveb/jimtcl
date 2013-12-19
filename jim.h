@@ -523,6 +523,7 @@ typedef struct Jim_Interp {
     int (*signal_set_result)(struct Jim_Interp *interp, jim_wide sigmask); /* Set a result for the sigmask */
     Jim_CallFrame *framePtr; /* Pointer to the current call frame */
     Jim_CallFrame *topFramePtr; /* toplevel/global frame pointer. */
+    Jim_Obj *resolveNsObj; /* If not NULL, resolve the next command in this namespace - for tailcall */
     struct Jim_HashTable commands; /* Commands hash table */
     unsigned long procEpoch; /* Incremented every time the result
                 of procedures names lookup caching
