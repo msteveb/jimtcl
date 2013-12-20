@@ -78,6 +78,8 @@ Changes between 0.74 and 0.75
 7. Add '--random-hash' to randomise hash tables for greater security
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 9. `file stat` no longer requires the variable name
+10. Add support for `file link`
+11. Add new 'interp' module
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4989,6 +4991,28 @@ Provides namespace-related functions. See also: http://www.tcl.tk/man/tcl8.6/Tcl
 
 +*namespace which* '?-command|-variable? name'+::
     Looks up +'name'+ as either a command (the default) or variable and returns its fully-qualified name.
+
+interp
+~~~~~~
+The optional 'interp' command allows sub-interpreters to be created where commands may be run
+independently (but synchronously) of the main interpreter.
+
++*interp*+::
+    Creates and returns a new interpreter object (command).
+	The created interpeter contains any built-in commands along with static extensions,
+	but does not include any dynamically loaded commands (package require, load).
+	These must be reloaded in the child interpreter if required.
+
++*$interp delete*+::
+    Deletes the interpeter object.
+
++*$interp eval* 'script' ...+::
+	Evaluates a script in the context for the child interpreter, in the same way as 'eval'.
+
++*$interp alias* 'alias childcmd parentcmd ?arg ...?'+::
+	Similar to 'alias', but creates a command, +'childcmd'+, in the child interpreter that is an
+	alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments. 
+	The alias may be deleted in the child with 'rename'.
 
 [[BuiltinVariables]]
 BUILT-IN VARIABLES
