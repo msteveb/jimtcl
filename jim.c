@@ -13876,6 +13876,8 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     else {
         exitCode = Jim_EvalObj(interp, argv[0]);
+		/* Don't want any caught error included in a later stack trace */
+		interp->errorFlag = 0;
     }
     interp->signal_level -= sig;
 
