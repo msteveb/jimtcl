@@ -4091,17 +4091,6 @@ static const Jim_ObjType commandObjType = {
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
-    Jim_Obj *nsObj;
-
-    /* one-off special name resolution */
-    if (interp->resolveNsObj) {
-        nsObj = interp->resolveNsObj;
-        interp->resolveNsObj = NULL;
-    }
-    else {
-        nsObj = interp->framePtr->nsObj;
-    }
-    Jim_IncrRefCount(nsObj);
 
     /* In order to be valid, the proc epoch must match and
      * the lookup must have occurred in the same namespace
@@ -4109,7 +4098,7 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     if (objPtr->typePtr != &commandObjType ||
             objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
 #ifdef jim_ext_namespace
-            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, nsObj)
+            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
 #endif
         ) {
         /* Not cached or out of date, so lookup */
@@ -4123,9 +4112,9 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
             }
         }
 #ifdef jim_ext_namespace
-        else if (Jim_Length(nsObj)) {
+        else if (Jim_Length(interp->framePtr->nsObj)) {
             /* This command is being defined in a non-global namespace */
-            Jim_Obj *nameObj = Jim_DuplicateObj(interp, nsObj);
+            Jim_Obj *nameObj = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
             Jim_AppendStrings(interp, nameObj, "::", name, NULL);
             he = Jim_FindHashEntry(&interp->commands, Jim_String(nameObj));
             Jim_FreeNewObj(interp, nameObj);
@@ -4141,8 +4130,7 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
             if (flags & JIM_ERRMSG) {
                 Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
             }
-            cmd = NULL;
-            goto out;
+            return NULL;
         }
 #ifdef jim_ext_namespace
 found:
@@ -4154,8 +4142,8 @@ found:
         objPtr->typePtr = &commandObjType;
         objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
         objPtr->internalRep.cmdValue.cmdPtr = cmd;
-        objPtr->internalRep.cmdValue.nsObj = nsObj;
-        Jim_IncrRefCount(nsObj);
+        objPtr->internalRep.cmdValue.nsObj = interp->framePtr->nsObj;
+        Jim_IncrRefCount(interp->framePtr->nsObj);
     }
     else {
         cmd = objPtr->internalRep.cmdValue.cmdPtr;
@@ -4163,8 +4151,6 @@ found:
     while (cmd->u.proc.upcall) {
         cmd = cmd->prevCmd;
     }
-out:
-    Jim_DecrRefCount(interp, nsObj);
     return cmd;
 }
 
@@ -4837,7 +4823,7 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     }
     else {
         cf = Jim_Alloc(sizeof(*cf));
-        cf->vars.table = NULL;
+        Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     }
 
     cf->id = interp->callFrameEpoch++;
@@ -4850,11 +4836,12 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     cf->next = NULL;
     cf->staticVars = NULL;
     cf->localCommands = NULL;
-
+    cf->tailcall = 0;
+    cf->tailcallObj = NULL;
+    cf->tailcallCmd = NULL;
     cf->nsObj = nsObj;
     Jim_IncrRefCount(nsObj);
-    if (cf->vars.table == NULL)
-        Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
+
     return cf;
 }
 
@@ -10154,19 +10141,29 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
-    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
+    Jim_Cmd *cmdPtr;
 
-    if (cmdPtr == NULL) {
-        return JimUnknown(interp, objc, objv);
+    if (interp->framePtr->tailcallCmd) {
+        /* Special tailcall command was pre-resolved */
+        cmdPtr = interp->framePtr->tailcallCmd;
+        interp->framePtr->tailcallCmd = NULL;
     }
+    else {
+        cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
+        if (cmdPtr == NULL) {
+            return JimUnknown(interp, objc, objv);
+        }
+        JimIncrCmdRefCount(cmdPtr);
+    }
+
     if (interp->evalDepth == interp->maxEvalDepth) {
         Jim_SetResultString(interp, "Infinite eval recursion", -1);
-        return JIM_ERR;
+        retcode = JIM_ERR;
+        goto out;
     }
     interp->evalDepth++;
 
     /* Call it -- Make sure result is an empty object. */
-    JimIncrCmdRefCount(cmdPtr);
     Jim_SetEmptyResult(interp);
     if (cmdPtr->isproc) {
         retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
@@ -10175,8 +10172,10 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         interp->cmdPrivData = cmdPtr->u.native.privData;
         retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
     }
-    JimDecrCmdRefCount(interp, cmdPtr);
     interp->evalDepth--;
+
+out:
+    JimDecrCmdRefCount(interp, cmdPtr);
 
     return retcode;
 }
@@ -10865,41 +10864,44 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
 
 badargset:
 
+    /* Free the callframe */
     interp->framePtr = interp->framePtr->parent;
 
-    /* Handle the JIM_EVAL return code */
-    if (retcode == JIM_EVAL) {
-        /* We need to do resolution of the tailcall command
-         * (i.e. the very next command resolution)
-         * in the current namespace, but everything after that needs
-         * to be done in the normal namespace.
-         */
-        interp->resolveNsObj = callFramePtr->nsObj;
-
-        do {
-            Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
-
-            Jim_IncrRefCount(resultScriptObjPtr);
-            /* Result must be a list */
-            JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
-
-            retcode = JimEvalObjList(interp, resultScriptObjPtr);
-            if (retcode == JIM_RETURN) {
-                /* If the result of the tailcall invokes 'return', push
-                 * it up to the caller
-                 */
-                interp->returnLevel++;
-            }
-            Jim_DecrRefCount(interp, resultScriptObjPtr);
-        } while (retcode == JIM_EVAL);
-    }
-
-    /* Need to do this after tailcall in case of tailcall to a local proc */
     if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
     }
     else {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
+    }
+
+    if (interp->framePtr->tailcallObj) {
+        /* If a tailcall is already being executed, merge this tailcall with that one */
+        if (interp->framePtr->tailcall++ == 0) {
+            /* No current tailcall in this frame, so invoke the tailcall command */
+            do {
+                Jim_Obj *tailcallObj = interp->framePtr->tailcallObj;
+
+                interp->framePtr->tailcallObj = NULL;
+
+                if (retcode == JIM_EVAL) {
+                    retcode = Jim_EvalObjList(interp, tailcallObj);
+                    if (retcode == JIM_RETURN) {
+                        /* If the result of the tailcall is 'return', push
+                         * it up to the caller
+                         */
+                        interp->returnLevel++;
+                    }
+                }
+                Jim_DecrRefCount(interp, tailcallObj);
+            } while (interp->framePtr->tailcallObj);
+
+            /* If the tailcall chain finished early, may need to manually discard the command */
+            if (interp->framePtr->tailcallCmd) {
+                JimDecrCmdRefCount(interp, interp->framePtr->tailcallCmd);
+                interp->framePtr->tailcallCmd = NULL;
+            }
+        }
+        interp->framePtr->tailcall--;
     }
 
     /* Handle the JIM_RETURN return code */
@@ -12933,7 +12935,7 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     if (argc >= 2) {
         int retcode;
         Jim_CallFrame *savedCallFrame, *targetCallFrame;
-        Jim_Obj *objPtr;
+        int savedTailcall;
         const char *str;
 
         /* Save the old callframe pointer */
@@ -12942,7 +12944,7 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         /* Lookup the target frame pointer */
         str = Jim_String(argv[1]);
         if ((str[0] >= '0' && str[0] <= '9') || str[0] == '#') {
-            targetCallFrame =Jim_GetCallFrameByLevel(interp, argv[1]);
+            targetCallFrame = Jim_GetCallFrameByLevel(interp, argv[1]);
             argc--;
             argv++;
         }
@@ -12953,21 +12955,21 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
             return JIM_ERR;
         }
         if (argc < 2) {
-            argv--;
-            Jim_WrongNumArgs(interp, 1, argv, "?level? command ?arg ...?");
+            Jim_WrongNumArgs(interp, 1, argv - 1, "?level? command ?arg ...?");
             return JIM_ERR;
         }
         /* Eval the code in the target callframe. */
         interp->framePtr = targetCallFrame;
+        /* Can't merge tailcalls across upcall */
+        savedTailcall = interp->framePtr->tailcall;
+        interp->framePtr->tailcall = 0;
         if (argc == 2) {
             retcode = Jim_EvalObj(interp, argv[1]);
         }
         else {
-            objPtr = Jim_ConcatObj(interp, argc - 1, argv + 1);
-            Jim_IncrRefCount(objPtr);
-            retcode = Jim_EvalObj(interp, objPtr);
-            Jim_DecrRefCount(interp, objPtr);
+            retcode = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc - 1, argv + 1));
         }
+        interp->framePtr->tailcall = savedTailcall;
         interp->framePtr = savedCallFrame;
         return retcode;
     }
@@ -13082,8 +13084,35 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 /* [tailcall] */
 static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_SetResult(interp, Jim_NewListObj(interp, argv + 1, argc - 1));
-    return JIM_EVAL;
+    if (interp->framePtr->level == 0) {
+        Jim_SetResultString(interp, "tailcall can only be called from a proc or lambda", -1);
+        return JIM_ERR;
+    }
+    else if (argc >= 2) {
+        /* Need to resolve the tailcall command in the current context */
+        Jim_CallFrame *cf = interp->framePtr->parent;
+
+        Jim_Cmd *cmdPtr = Jim_GetCommand(interp, argv[1], JIM_ERRMSG);
+        if (cmdPtr == NULL) {
+            return JIM_ERR;
+        }
+
+        JimPanic((cf->tailcallCmd != NULL, "Already have a tailcallCmd"));
+
+        /* And stash this pre-resolved command */
+        JimIncrCmdRefCount(cmdPtr);
+        cf->tailcallCmd = cmdPtr;
+
+        /* And stash the command list */
+        JimPanic((cf->tailcallObj != NULL, "Already have a tailcallobj"));
+
+        cf->tailcallObj = Jim_NewListObj(interp, argv + 1, argc - 1);
+        Jim_IncrRefCount(cf->tailcallObj);
+
+        /* When the stack unwinds to the previous proc, the stashed command will be evaluated */
+        return JIM_EVAL;
+    }
+    return JIM_OK;
 }
 
 static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

@@ -443,6 +443,9 @@ typedef struct Jim_CallFrame {
     Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
     int line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
+    int tailcall;            /* non-zero if a tailcall is being evaluated at this level */
+    struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
+    struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
 } Jim_CallFrame;
 
 /* The var structure. It just holds the pointer of the referenced
@@ -524,7 +527,6 @@ typedef struct Jim_Interp {
     int (*signal_set_result)(struct Jim_Interp *interp, jim_wide sigmask); /* Set a result for the sigmask */
     Jim_CallFrame *framePtr; /* Pointer to the current call frame */
     Jim_CallFrame *topFramePtr; /* toplevel/global frame pointer. */
-    Jim_Obj *resolveNsObj; /* If not NULL, resolve the next command in this namespace - for tailcall */
     struct Jim_HashTable commands; /* Commands hash table */
     unsigned long procEpoch; /* Incremented every time the result
                 of procedures names lookup caching

@@ -1,3 +1,5 @@
+# vim:se syntax=tcl:
+
 source [file dirname [info script]]/testing.tcl
 
 needs cmd tailcall
@@ -58,7 +60,7 @@ test tailcall-1.6 {tailcall pass through return} {
 	b
 } {ok}
 
-test tailcall-1.7 {tailcall with namespaces} {
+test tailcall-1.7 {tailcall with namespaces} jim {
 	proc a::b {} {
 		proc c {} {
 			return 1
@@ -68,6 +70,46 @@ test tailcall-1.7 {tailcall with namespaces} {
 		tailcall $d
 	}
 	a::b
+} 1
+
+test tailcall-1.8 {tailcall with local} jim {
+	proc a {} {
+		tailcall [local proc b {} { return c }]
+	}
+	a
+} {c}
+
+test tailcall-1.9 {tailcall with large number of invocations} {
+	proc a {n} {
+		if {$n == 0} {
+			return 1
+		}
+		incr n -1
+		tailcall a $n
+	}
+	a 1000
+} 1
+
+test tailcall-1.10 {tailcall through uplevel} {
+	proc a {} { tailcall b }
+	proc b {} { uplevel 1 c }
+	proc c {} { tailcall d }
+	proc d {} { return [info level] }
+	a
+} 1
+
+test tailcall-1.11 {chained tailcall} {
+	proc a {} { b }
+	proc b {} { tailcall tailcall c }
+	proc c {} { return [info level] }
+	a
+} 1
+
+test tailcall-1.12 {uplevel tailcall} {
+	proc a {} { b }
+	proc b {} { uplevel 1 tailcall c }
+	proc c {} { return [info level] }
+	a
 } 1
 
 testreport
