@@ -224,6 +224,15 @@ puts "TEST 30 PASSED"
 catch {lsort -unique -real {foo 42.0}}
 puts "TEST 31 PASSED"
 
+# REGTEST 32
+# return -code eval should only used by tailcall, but this incorrect usage
+# should not crash the interpreter
+proc a {} { tailcall b }
+proc b {} { return -code eval c }
+proc c {} {}
+a
+puts "TEST 32 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
