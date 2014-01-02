@@ -1,4 +1,3 @@
-
 /* Jim - A small embeddable Tcl interpreter
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
@@ -670,25 +669,25 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-	if (argc == 3) {
+    if (argc == 3) {
 #ifdef HAVE_SHUTDOWN
-		static const char * const options[] = { "r", "w", NULL };
-		enum { OPT_R, OPT_W, };
-		int option;
-		AioFile *af = Jim_CmdPrivData(interp);
+        static const char * const options[] = { "r", "w", NULL };
+        enum { OPT_R, OPT_W, };
+        int option;
+        AioFile *af = Jim_CmdPrivData(interp);
 
-		if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
-			return JIM_ERR;
-		}
-		if (shutdown(af->fd, option == OPT_R ? SHUT_RD : SHUT_WR) == 0) {
-			return JIM_OK;
-		}
-		JimAioSetError(interp, NULL);
+        if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
+            return JIM_ERR;
+        }
+        if (shutdown(af->fd, option == OPT_R ? SHUT_RD : SHUT_WR) == 0) {
+            return JIM_OK;
+        }
+        JimAioSetError(interp, NULL);
 #else
-		Jim_SetResultString(interp, "async close not supported", -1);
+        Jim_SetResultString(interp, "async close not supported", -1);
 #endif
-		return JIM_ERR;
-	}
+        return JIM_ERR;
+    }
 
     return Jim_DeleteCommand(interp, Jim_String(argv[0]));
 }
@@ -1120,9 +1119,9 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
-	/* Note that the command must use the global namespace, even if
-	 * the current namespace is something different
-	 */
+    /* Note that the command must use the global namespace, even if
+     * the current namespace is something different
+     */
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
@@ -1131,22 +1130,22 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode[2])
 {
-	if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0]) == JIM_OK) {
-		Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
-		Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+    if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0]) == JIM_OK) {
+        Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
+        Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
 
-		if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1]) == JIM_OK) {
-			Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-			Jim_SetResult(interp, objPtr);
-			return JIM_OK;
-		}
-	}
+        if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1]) == JIM_OK) {
+            Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
+            Jim_SetResult(interp, objPtr);
+            return JIM_OK;
+        }
+    }
 
-	/* Can only be here if fdopen() failed */
-	close(p[0]);
-	close(p[1]);
-	JimAioSetError(interp, NULL);
-	return JIM_ERR;
+    /* Can only be here if fdopen() failed */
+    close(p[0]);
+    close(p[1]);
+    JimAioSetError(interp, NULL);
+    return JIM_ERR;
 }
 
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
@@ -1372,20 +1371,20 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 #if defined(HAVE_SOCKETPAIR) && defined(HAVE_SYS_UN_H)
         case SOCK_STREAM_SOCKETPAIR:
-			{
+            {
                 int p[2];
-				static const char *mode[2] = { "r+", "r+" };
+                static const char *mode[2] = { "r+", "r+" };
 
                 if (argc != 2 || ipv6) {
                     goto wrongargs;
                 }
 
-				if (socketpair(PF_UNIX, SOCK_STREAM, 0, p) < 0) {
-					JimAioSetError(interp, NULL);
-					return JIM_ERR;
-				}
-				return JimMakeChannelPair(interp, p, argv[1], "aio.sockpair%ld", PF_UNIX, mode);
-			}
+                if (socketpair(PF_UNIX, SOCK_STREAM, 0, p) < 0) {
+                    JimAioSetError(interp, NULL);
+                    return JIM_ERR;
+                }
+                return JimMakeChannelPair(interp, p, argv[1], "aio.sockpair%ld", PF_UNIX, mode);
+            }
             break;
 #endif
 
@@ -1393,19 +1392,19 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         case SOCK_STREAM_PIPE:
             {
                 int p[2];
-				static const char *mode[2] = { "r", "w" };
+                static const char *mode[2] = { "r", "w" };
 
                 if (argc != 2 || ipv6) {
                     goto wrongargs;
                 }
 
-				if (pipe(p) < 0) {
-					JimAioSetError(interp, NULL);
-					return JIM_ERR;
-				}
+                if (pipe(p) < 0) {
+                    JimAioSetError(interp, NULL);
+                    return JIM_ERR;
+                }
 
-				return JimMakeChannelPair(interp, p, argv[1], "aio.pipe%ld", 0, mode);
-			}
+                return JimMakeChannelPair(interp, p, argv[1], "aio.pipe%ld", 0, mode);
+            }
             break;
 #endif
 

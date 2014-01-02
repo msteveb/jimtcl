@@ -19,7 +19,7 @@ char *Jim_HistoryGetline(const char *prompt)
 #ifdef USE_LINENOISE
     return linenoise(prompt);
 #else
-	int len;
+    int len;
     char *line = malloc(MAX_LINE_LEN);
 
     fputs(prompt, stdout);
@@ -29,10 +29,10 @@ char *Jim_HistoryGetline(const char *prompt)
         free(line);
         return NULL;
     }
-	len = strlen(line);
-	if (len && line[len - 1] == '\n') {
-		line[len - 1] = '\0';
-	}
+    len = strlen(line);
+    if (len && line[len - 1] == '\n') {
+        line[len - 1] = '\0';
+    }
     return line;
 #endif
 }

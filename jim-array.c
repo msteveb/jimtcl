@@ -1,4 +1,3 @@
-
 /*
  * Implements the array command for jim
  *
@@ -157,8 +156,8 @@ static int array_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (objPtr) {
         return Jim_DictInfo(interp, objPtr);
     }
-	Jim_SetResultFormatted(interp, "\"%#s\" isn't an array", argv[0], NULL);
-	return JIM_ERR;
+    Jim_SetResultFormatted(interp, "\"%#s\" isn't an array", argv[0], NULL);
+    return JIM_ERR;
 }
 
 static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

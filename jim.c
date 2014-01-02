@@ -1,4 +1,3 @@
-
 /* Jim - A small embeddable Tcl interpreter
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
@@ -1662,10 +1661,10 @@ static int JimParseStr(struct JimParserCtx *pc)
                     pc->p++;
                     pc->len--;
                 }
-				else if (pc->len == 1) {
-					/* End of script with trailing backslash */
-					pc->missing = '\\';
-				}
+                else if (pc->len == 1) {
+                    /* End of script with trailing backslash */
+                    pc->missing = '\\';
+                }
                 break;
             case '(':
                 /* If the following token is not '$' just keep going */
@@ -1727,21 +1726,21 @@ static int JimParseComment(struct JimParserCtx *pc)
 {
     while (*pc->p) {
         if (*pc->p == '\\') {
-			pc->p++;
-			pc->len--;
-			if (pc->len == 0) {
-				pc->missing = '\\';
-				return JIM_OK;
-			}
-			if (*pc->p == '\n') {
-				pc->linenr++;
-			}
-		}
-		else if (*pc->p == '\n') {
+            pc->p++;
+            pc->len--;
+            if (pc->len == 0) {
+                pc->missing = '\\';
+                return JIM_OK;
+            }
+            if (*pc->p == '\n') {
+                pc->linenr++;
+            }
+        }
+        else if (*pc->p == '\n') {
             pc->p++;
             pc->len--;
             pc->linenr++;
-			break;
+            break;
         }
         pc->p++;
         pc->len--;
@@ -3566,7 +3565,7 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
         ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
             parser.tline);
     }
-	/* Note that we accept a trailing backslash without error */
+    /* Note that we accept a trailing backslash without error */
     if (result && parser.missing != ' ' && parser.missing != '\\') {
         ScriptTokenListFree(&tokenlist);
         result->missing = parser.missing;
@@ -3716,18 +3715,18 @@ static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
 
 Jim_Obj *Jim_MakeGlobalNamespaceName(Jim_Interp *interp, Jim_Obj *nameObjPtr)
 {
-	Jim_Obj *resultObj;
+    Jim_Obj *resultObj;
 
     const char *name = Jim_String(nameObjPtr);
     if (name[0] == ':' && name[1] == ':') {
-		return nameObjPtr;
-	}
-	Jim_IncrRefCount(nameObjPtr);
-	resultObj = Jim_NewStringObj(interp, "::", -1);
-	Jim_AppendObj(interp, resultObj, nameObjPtr);
-	Jim_DecrRefCount(interp, nameObjPtr);
+        return nameObjPtr;
+    }
+    Jim_IncrRefCount(nameObjPtr);
+    resultObj = Jim_NewStringObj(interp, "::", -1);
+    Jim_AppendObj(interp, resultObj, nameObjPtr);
+    Jim_DecrRefCount(interp, nameObjPtr);
 
-	return resultObj;
+    return resultObj;
 }
 
 /**
@@ -3765,7 +3764,7 @@ static const char *JimQualifyName(Jim_Interp *interp, const char *name, Jim_Obj 
 
 Jim_Obj *Jim_MakeGlobalNamespaceName(Jim_Interp *interp, Jim_Obj *nameObjPtr)
 {
-	return nameObjPtr;
+    return nameObjPtr;
 }
 #endif
 
@@ -4092,17 +4091,17 @@ static const Jim_ObjType commandObjType = {
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     Jim_Cmd *cmd;
-	Jim_Obj *nsObj;
-	
-	/* one-off special name resolution */
-	if (interp->resolveNsObj) {
-		nsObj = interp->resolveNsObj;
-		interp->resolveNsObj = NULL;
-	}
-	else {
-		nsObj = interp->framePtr->nsObj;
-	}
-	Jim_IncrRefCount(nsObj);
+    Jim_Obj *nsObj;
+
+    /* one-off special name resolution */
+    if (interp->resolveNsObj) {
+        nsObj = interp->resolveNsObj;
+        interp->resolveNsObj = NULL;
+    }
+    else {
+        nsObj = interp->framePtr->nsObj;
+    }
+    Jim_IncrRefCount(nsObj);
 
     /* In order to be valid, the proc epoch must match and
      * the lookup must have occurred in the same namespace
@@ -4142,8 +4141,8 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
             if (flags & JIM_ERRMSG) {
                 Jim_SetResultFormatted(interp, "invalid command name \"%#s\"", objPtr);
             }
-			cmd = NULL;
-			goto out;
+            cmd = NULL;
+            goto out;
         }
 #ifdef jim_ext_namespace
 found:
@@ -4165,7 +4164,7 @@ found:
         cmd = cmd->prevCmd;
     }
 out:
-	Jim_DecrRefCount(interp, nsObj);
+    Jim_DecrRefCount(interp, nsObj);
     return cmd;
 }
 
@@ -6422,7 +6421,7 @@ struct lsort_info {
     int order;
     int index;
     int indexed;
-	int unique;
+    int unique;
     int (*subfn)(Jim_Obj **, Jim_Obj **);
 };
 
@@ -6470,13 +6469,13 @@ static int ListSortReal(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
         Jim_GetDouble(sort_info->interp, *rhsObj, &rhs) != JIM_OK) {
         longjmp(sort_info->jmpbuf, JIM_ERR);
     }
-	if (lhs == rhs) {
-		return 0;
-	}
-	if (lhs > rhs) {
-		return sort_info->order;
-	}
-	return -sort_info->order;
+    if (lhs == rhs) {
+        return 0;
+    }
+    if (lhs > rhs) {
+        return sort_info->order;
+    }
+    return -sort_info->order;
 }
 
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
@@ -6507,26 +6506,26 @@ static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
  */
 static void ListRemoveDuplicates(Jim_Obj *listObjPtr, int (*comp)(Jim_Obj **lhs, Jim_Obj **rhs))
 {
-	int src;
-	int dst = 0;
-	Jim_Obj **ele = listObjPtr->internalRep.listValue.ele;
+    int src;
+    int dst = 0;
+    Jim_Obj **ele = listObjPtr->internalRep.listValue.ele;
 
-	for (src = 1; src < listObjPtr->internalRep.listValue.len; src++) {
-		if (comp(&ele[dst], &ele[src]) == 0) {
-			/* Match, so replace the dest with the current source */
-			Jim_DecrRefCount(sort_info->interp, ele[dst]);
-		}
-		else {
-			/* No match, so keep the current source and move to the next destination */
-			dst++;
-		}
-		ele[dst] = ele[src];
-	}
-	/* At end of list, keep the final element */
-	ele[++dst] = ele[src];
+    for (src = 1; src < listObjPtr->internalRep.listValue.len; src++) {
+        if (comp(&ele[dst], &ele[src]) == 0) {
+            /* Match, so replace the dest with the current source */
+            Jim_DecrRefCount(sort_info->interp, ele[dst]);
+        }
+        else {
+            /* No match, so keep the current source and move to the next destination */
+            dst++;
+        }
+        ele[dst] = ele[src];
+    }
+    /* At end of list, keep the final element */
+    ele[++dst] = ele[src];
 
-	/* Set the new length */
-	listObjPtr->internalRep.listValue.len = dst;
+    /* Set the new length */
+    listObjPtr->internalRep.listValue.len = dst;
 }
 
 /* Sort a list *in place*. MUST be called with non-shared objects. */
@@ -6579,12 +6578,12 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     if ((rc = setjmp(info->jmpbuf)) == 0) {
         qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
 
-		if (info->unique && len > 1) {
-			ListRemoveDuplicates(listObjPtr, fn);
-		}
+        if (info->unique && len > 1) {
+            ListRemoveDuplicates(listObjPtr, fn);
+        }
 
-		Jim_InvalidateStringRep(listObjPtr);
-	}
+        Jim_InvalidateStringRep(listObjPtr);
+    }
     sort_info = prev_info;
 
     return rc;
@@ -10866,36 +10865,36 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
 
 badargset:
 
-	interp->framePtr = interp->framePtr->parent;
+    interp->framePtr = interp->framePtr->parent;
 
-	/* Handle the JIM_EVAL return code */
+    /* Handle the JIM_EVAL return code */
     if (retcode == JIM_EVAL) {
-		/* We need to do resolution of the tailcall command
-		 * (i.e. the very next command resolution)
-		 * in the current namespace, but everything after that needs
-		 * to be done in the normal namespace.
-		 */
-		interp->resolveNsObj = callFramePtr->nsObj;
+        /* We need to do resolution of the tailcall command
+         * (i.e. the very next command resolution)
+         * in the current namespace, but everything after that needs
+         * to be done in the normal namespace.
+         */
+        interp->resolveNsObj = callFramePtr->nsObj;
 
-		do {
-			Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
+        do {
+            Jim_Obj *resultScriptObjPtr = Jim_GetResult(interp);
 
-			Jim_IncrRefCount(resultScriptObjPtr);
-			/* Result must be a list */
-			JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
+            Jim_IncrRefCount(resultScriptObjPtr);
+            /* Result must be a list */
+            JimPanic((!Jim_IsList(resultScriptObjPtr), "tailcall (JIM_EVAL) returned non-list"));
 
-			retcode = JimEvalObjList(interp, resultScriptObjPtr);
-			if (retcode == JIM_RETURN) {
-				/* If the result of the tailcall invokes 'return', push
-				 * it up to the caller
-				 */
-				interp->returnLevel++;
-			}
-			Jim_DecrRefCount(interp, resultScriptObjPtr);
-		} while (retcode == JIM_EVAL);
-	}
+            retcode = JimEvalObjList(interp, resultScriptObjPtr);
+            if (retcode == JIM_RETURN) {
+                /* If the result of the tailcall invokes 'return', push
+                 * it up to the caller
+                 */
+                interp->returnLevel++;
+            }
+            Jim_DecrRefCount(interp, resultScriptObjPtr);
+        } while (retcode == JIM_EVAL);
+    }
 
-	/* Need to do this after tailcall in case of tailcall to a local proc */
+    /* Need to do this after tailcall in case of tailcall to a local proc */
     if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
         JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
     }
@@ -11225,7 +11224,7 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
 typedef void JimHashtableIteratorCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr,
     Jim_HashEntry *he, int type);
 
-#define JimTrivialMatch(pattern)	(strpbrk((pattern), "*[?\\") == NULL)
+#define JimTrivialMatch(pattern)    (strpbrk((pattern), "*[?\\") == NULL)
 
 /**
  * For each key of the hash table 'ht' (with string keys) which matches the glob pattern (all if NULL),
@@ -13876,8 +13875,8 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     else {
         exitCode = Jim_EvalObj(interp, argv[0]);
-		/* Don't want any caught error included in a later stack trace */
-		interp->errorFlag = 0;
+        /* Don't want any caught error included in a later stack trace */
+        interp->errorFlag = 0;
     }
     interp->signal_level -= sig;
 
@@ -14124,32 +14123,32 @@ int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
 
 int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-	Jim_HashTable *ht;
+    Jim_HashTable *ht;
     unsigned int i;
 
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
 
-	ht = (Jim_HashTable *)objPtr->internalRep.ptr;
+    ht = (Jim_HashTable *)objPtr->internalRep.ptr;
 
-	/* Note that this uses internal knowledge of the hash table */
-	printf("%d entries in table, %d buckets\n", ht->used, ht->size);
+    /* Note that this uses internal knowledge of the hash table */
+    printf("%d entries in table, %d buckets\n", ht->used, ht->size);
 
     for (i = 0; i < ht->size; i++) {
         Jim_HashEntry *he = he = ht->table[i];
 
-		if (he) {
-			printf("%d: ", i);
+        if (he) {
+            printf("%d: ", i);
 
-			while (he) {
-				printf(" %s", Jim_String(he->key));
-				he = he->next;
-			}
-			printf("\n");
-		}
+            while (he) {
+                printf(" %s", Jim_String(he->key));
+                he = he->next;
+            }
+            printf("\n");
+        }
     }
-	return JIM_OK;
+    return JIM_OK;
 }
 
 static int Jim_EvalEnsemble(Jim_Interp *interp, const char *basecmd, const char *subcmd, int argc, Jim_Obj *const *argv)
@@ -14281,7 +14280,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "dictionary");
                 return JIM_ERR;
             }
-			return Jim_DictInfo(interp, argv[2]);
+            return Jim_DictInfo(interp, argv[2]);
     }
     /* Handle command as an ensemble */
     return Jim_EvalEnsemble(interp, "dict", options[option], argc - 2, argv + 2);

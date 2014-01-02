@@ -1500,7 +1500,7 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
     ZeroMemory(&startInfo, sizeof(startInfo));
     startInfo.cb = sizeof(startInfo);
     startInfo.dwFlags   = STARTF_USESTDHANDLES;
-    startInfo.hStdInput	= INVALID_HANDLE_VALUE;
+    startInfo.hStdInput = INVALID_HANDLE_VALUE;
     startInfo.hStdOutput= INVALID_HANDLE_VALUE;
     startInfo.hStdError = INVALID_HANDLE_VALUE;
 
