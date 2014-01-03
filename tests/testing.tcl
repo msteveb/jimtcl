@@ -74,6 +74,7 @@ lappend auto_path $testdir $bindir [file dirname [pwd]]
 # For Jim, this is reasonable compatible tcltest
 proc makeFile {contents name} {
 	set f [open $name w]
+	stdout puts "About to 'puts $f $contents'"
 	puts $f $contents
 	close $f
 	return $name
@@ -81,6 +82,23 @@ proc makeFile {contents name} {
 
 proc removeFile {name} {
 	file delete $name
+}
+
+# In case tclcompat is not selected
+if {![exists -proc puts]} {
+	proc puts {{-nonewline {}} {chan stdout} msg} {
+		if {${-nonewline} ni {-nonewline {}}} {
+			${-nonewline} puts $msg
+		} else {
+			$chan puts {*}${-nonewline} $msg
+		}
+	}
+	proc close {chan args} {
+		$chan close {*}$args
+	}
+	proc fileevent {args} {
+		{*}$args
+	}
 }
 
 proc script_source {script} {
