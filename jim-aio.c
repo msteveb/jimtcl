@@ -670,7 +670,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc == 3) {
-#ifdef HAVE_SHUTDOWN
+#if !defined(JIM_ANSIC) && defined(HAVE_SHUTDOWN)
         static const char * const options[] = { "r", "w", NULL };
         enum { OPT_R, OPT_W, };
         int option;
