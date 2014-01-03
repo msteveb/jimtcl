@@ -20,6 +20,8 @@
     #define RTLD_LOCAL 0
 #endif
 
+static void JimFreeLoadHandles(Jim_Interp *interp, void *data);
+
 /**
  * Note that Jim_LoadLibrary() requires a path to an existing file.
  *
@@ -66,11 +68,13 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         }
         else if (onload(interp) != JIM_ERR) {
             /* Add this handle to the stack of handles to be freed */
-            if (!interp->loadHandles) {
-                interp->loadHandles = Jim_Alloc(sizeof(*interp->loadHandles));
-                Jim_InitStack(interp->loadHandles);
+            Jim_Stack *loadHandles = Jim_GetAssocData(interp, "load::handles");
+            if (loadHandles == NULL) {
+                loadHandles = Jim_Alloc(sizeof(*loadHandles));
+                Jim_InitStack(loadHandles);
+                Jim_SetAssocData(interp, "load::handles", JimFreeLoadHandles, loadHandles);
             }
-            Jim_StackPush(interp->loadHandles, handle);
+            Jim_StackPush(loadHandles, handle);
 
             Jim_SetEmptyResult(interp);
 
@@ -88,11 +92,13 @@ static void JimFreeOneLoadHandle(void *handle)
     dlclose(handle);
 }
 
-void Jim_FreeLoadHandles(Jim_Interp *interp)
+static void JimFreeLoadHandles(Jim_Interp *interp, void *data)
 {
-    if (interp->loadHandles) {
-        Jim_FreeStackElements(interp->loadHandles, JimFreeOneLoadHandle);
-        Jim_Free(interp->loadHandles);
+    Jim_Stack *handles = data;
+
+    if (handles) {
+        Jim_FreeStackElements(handles, JimFreeOneLoadHandle);
+        Jim_Free(handles);
     }
 }
 

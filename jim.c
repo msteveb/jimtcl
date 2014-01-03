@@ -5484,9 +5484,6 @@ void Jim_FreeInterp(Jim_Interp *i)
         Jim_Free(cf);
         cf = nextcf;
     }
-#ifdef jim_ext_load
-    Jim_FreeLoadHandles(i);
-#endif
 
     /* Free the interpreter structure. */
     Jim_Free(i);
