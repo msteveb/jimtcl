@@ -193,14 +193,14 @@ proc popen {cmd {mode r}} {
 }
 
 # A wrapper around 'pid' which can return the pids for 'popen'
-local proc pid {{chan {}}} {
-	if {$chan eq ""} {
+local proc pid {{channelId {}}} {
+	if {$channelId eq ""} {
 		tailcall upcall pid
 	}
-	if {[catch {$chan tell}]} {
-		return -code error "can not find channel named \"$chan\""
+	if {[catch {$channelId tell}]} {
+		return -code error "can not find channel named \"$channelId\""
 	}
-	if {[catch {$chan pid} pids]} {
+	if {[catch {$channelId pid} pids]} {
 		return ""
 	}
 	return $pids

@@ -42,9 +42,9 @@ test pid-1.3 {pid command} socket {
     close $f
     set pids
 } {}
-test pid-1.4 {pid command} jim {
+test pid-1.4 {pid command} {
     list [catch {pid a b} msg] $msg
-} {1 {wrong # args: should be "pid ?chan?"}}
+} {1 {wrong # args: should be "pid ?channelId?"}}
 test pid-1.5 {pid command} {
     list [catch {pid gorp} msg] $msg
 } {1 {can not find channel named "gorp"}}
