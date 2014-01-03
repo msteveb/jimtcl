@@ -56,47 +56,6 @@ if {[info commands stdout] ne ""} {
 	}
 }
 
-# case var ?in? pattern action ?pattern action ...?
-proc case {var args} {
-	# Skip dummy parameter
-	if {[lindex $args 0] eq "in"} {
-		set args [lrange $args 1 end]
-	}
-
-	# Check for single arg form
-	if {[llength $args] == 1} {
-		set args [lindex $args 0]
-	}
-
-	# Check for odd number of args
-	if {[llength $args] % 2 != 0} {
-		return -code error "extra case pattern with no body"
-	}
-
-	# Internal function to match a value agains a list of patterns
-	local proc case.checker {value pattern} {
-		string match $pattern $value
-	}
-
-	foreach {value action} $args {
-		if {$value eq "default"} {
-			set do_action $action
-			continue
-		} elseif {[lsearch -bool -command case.checker $value $var]} {
-			set do_action $action
-			break
-		}
-	}
-
-	if {[info exists do_action]} {
-		set rc [catch [list uplevel 1 $do_action] result opts]
-		if {$rc} {
-			incr opts(-level)
-		}
-		return {*}$opts $result
-	}
-}
-
 # fileevent isn't needed in Jim, but provide it for compatibility
 proc fileevent {args} {
 	tailcall {*}$args
