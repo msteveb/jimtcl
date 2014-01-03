@@ -806,25 +806,28 @@ int Jim_AddHashEntry(Jim_HashTable *ht, const void *key, void *val)
     return JIM_OK;
 }
 
-/* Special, efficient version of Jim_AddHashEntry() for dictionaries */
-static void JimDictReplaceHashEntry(Jim_Interp *interp, Jim_HashTable *ht, Jim_Obj *keyObjPtr, Jim_Obj *valObjPtr)
+/* Add an element, discarding the old if the key already exists */
+int Jim_ReplaceHashEntry(Jim_HashTable *ht, const void *key, void *val)
 {
+    int existed;
     Jim_HashEntry *entry;
 
-    Jim_IncrRefCount(keyObjPtr);
-    Jim_IncrRefCount(valObjPtr);
-
-    /* Find the existing element, or a new slot */
-    entry = JimInsertHashEntry(ht, keyObjPtr, 1);
+    /* Get the index of the new element, or -1 if
+     * the element already exists. */
+    entry = JimInsertHashEntry(ht, key, 1);
     if (entry->key) {
-        /* Already exists, so replace the entry */
-        Jim_DecrRefCount(interp, (Jim_Obj *)entry->key);
-        Jim_DecrRefCount(interp, (Jim_Obj *)entry->u.val);
+        /* It already exists, so replace the value */
+        Jim_FreeEntryVal(ht, entry);
+        existed = 1;
     }
+    else {
+        /* Doesn't exist, so set the key */
+        Jim_SetHashKey(ht, entry, key);
+        existed = 0;
+    }
+    Jim_SetHashVal(ht, entry, val);
 
-    /* Set the hash entry fields. */
-    entry->key = keyObjPtr;
-    entry->u.val = valObjPtr;
+    return existed;
 }
 
 /* Search and remove an element */
@@ -958,11 +961,9 @@ static unsigned int JimHashTableNextPower(unsigned int size)
     }
 }
 
-/* Finds a free slot that can be populated with
+/* Returns the index of a free slot that can be populated with
  * an hash entry for the given 'key'.
- * Returns NULL if not found and stores the index in *idx.
- * Returns the hash entry if found and stores the index in *idx.
- */
+ * If the key already exists, -1 is returned. */
 static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int replace)
 {
     unsigned int h;
@@ -981,7 +982,7 @@ static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int
         he = he->next;
     }
 
-    /* Not found, so allocate a new entry, hook it in and set key = NULL */
+    /* Allocates the memory and stores key */
     he = Jim_Alloc(sizeof(*he));
     he->next = ht->table[h];
     ht->table[h] = he;
@@ -6939,7 +6940,12 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     /* Copy every element from the source to the dup hash table */
     JimInitHashTableIterator(ht, &htiter);
     while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-        JimDictReplaceHashEntry(interp, dupHt, (Jim_Obj *)he->key, he->u.val);
+        const Jim_Obj *keyObjPtr = he->key;
+        Jim_Obj *valObjPtr = he->u.val;
+
+        Jim_IncrRefCount((Jim_Obj *)keyObjPtr); /* ATTENTION: const cast */
+        Jim_IncrRefCount(valObjPtr);
+        Jim_AddHashEntry(dupHt, keyObjPtr, valObjPtr);
     }
 
     dupPtr->internalRep.ptr = dupHt;
@@ -7013,7 +7019,18 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             Jim_ListIndex(interp, objPtr, i, &keyObjPtr, JIM_NONE);
             Jim_ListIndex(interp, objPtr, i + 1, &valObjPtr, JIM_NONE);
 
-            JimDictReplaceHashEntry(interp, ht, keyObjPtr, valObjPtr);
+            Jim_IncrRefCount(keyObjPtr);
+            Jim_IncrRefCount(valObjPtr);
+
+            if (Jim_AddHashEntry(ht, keyObjPtr, valObjPtr) != JIM_OK) {
+                Jim_HashEntry *he;
+
+                he = Jim_FindHashEntry(ht, keyObjPtr);
+                Jim_DecrRefCount(interp, keyObjPtr);
+                /* ATTENTION: const cast */
+                Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
+                he->u.val = valObjPtr;
+            }
         }
 
         Jim_FreeIntRep(interp, objPtr);
@@ -7040,7 +7057,12 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
     if (valueObjPtr == NULL) {  /* unset */
         return Jim_DeleteHashEntry(ht, keyObjPtr);
     }
-    JimDictReplaceHashEntry(interp, ht, keyObjPtr, valueObjPtr);
+    Jim_IncrRefCount(keyObjPtr);
+    Jim_IncrRefCount(valueObjPtr);
+    if (Jim_ReplaceHashEntry(ht, keyObjPtr, valueObjPtr)) {
+        /* Value existed, so need to decrement key ref count */
+        Jim_DecrRefCount(interp, keyObjPtr);
+    }
     return JIM_OK;
 }
 
