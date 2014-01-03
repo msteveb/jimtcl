@@ -231,7 +231,6 @@ static void JimTrimTrailingNewline(Jim_Interp *interp)
  */
 static char **JimBuildEnv(Jim_Interp *interp)
 {
-#if defined(jim_ext_tclcompat)
     int i;
     int size;
     int num;
@@ -283,9 +282,6 @@ static char **JimBuildEnv(Jim_Interp *interp)
     *envdata = 0;
 
     return envptr;
-#else
-    return Jim_GetEnviron();
-#endif
 }
 
 /**
@@ -295,11 +291,9 @@ static char **JimBuildEnv(Jim_Interp *interp)
  */
 static void JimFreeEnv(char **env, char **original_environ)
 {
-#ifdef jim_ext_tclcompat
     if (env != original_environ) {
         Jim_Free(env);
     }
-#endif
 }
 
 /*
