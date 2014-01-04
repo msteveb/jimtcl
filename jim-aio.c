@@ -114,9 +114,6 @@ typedef struct AioFile
     int type;
     int OpenFlags;              /* AIO_KEEPOPEN? keep FILE* */
     int fd;
-#ifdef O_NDELAY
-    int flags;
-#endif
     Jim_Obj *rEvent;
     Jim_Obj *wEvent;
     Jim_Obj *eEvent;
@@ -740,7 +737,7 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    int fmode = af->flags;
+    int fmode = fcntl(af->fd, F_GETFL);
 
     if (argc) {
         long nb;
@@ -755,7 +752,6 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             fmode &= ~O_NDELAY;
         }
         fcntl(af->fd, F_SETFL, fmode);
-        af->flags = fmode;
     }
     Jim_SetResultInt(interp, (fmode & O_NONBLOCK) ? 1 : 0);
     return JIM_OK;
@@ -1112,9 +1108,6 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     }
 #endif
     af->OpenFlags = OpenFlags;
-#ifdef O_NDELAY
-    af->flags = fcntl(af->fd, F_GETFL);
-#endif
     af->addr_family = family;
     snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
