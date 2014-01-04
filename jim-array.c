@@ -61,29 +61,25 @@ static int array_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
+    Jim_Obj *patternObj;
 
     if (!objPtr) {
         return JIM_OK;
     }
 
-    if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
-        /* Optimise the "all" case */
-        if (Jim_IsList(objPtr)) {
-            if (Jim_ListLength(interp, objPtr) % 2 != 0) {
-                /* A list with an odd number of elements */
-                return JIM_ERR;
-            }
+    patternObj = (argc == 1) ? NULL : argv[1];
+
+    /* Optimise the "all" case */
+    if (patternObj == NULL || Jim_CompareStringImmediate(interp, patternObj, "*")) {
+        if (Jim_IsList(objPtr) && Jim_ListLength(interp, objPtr) % 2 == 0) {
+            /* A list with an even number of elements */
+            Jim_SetResult(interp, objPtr);
+            return JIM_OK;
         }
-        else if (Jim_DictSize(interp, objPtr) < 0) {
-            /* Can't be converted to a dictionary */
-            return JIM_ERR;
-        }
-        Jim_SetResult(interp, objPtr);
-        return JIM_OK;
     }
 
     /* Return a list of keys and values where the keys match the pattern */
-    return Jim_DictValues(interp, objPtr, argv[1]);
+    return Jim_DictValues(interp, objPtr, patternObj);
 }
 
 static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
