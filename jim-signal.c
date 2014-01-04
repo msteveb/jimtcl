@@ -436,12 +436,9 @@ static int Jim_SleepCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         ret = Jim_GetDouble(interp, argv[1], &t);
         if (ret == JIM_OK) {
 #ifdef HAVE_USLEEP
-            if (t < 1) {
-                usleep(t * 1e6);
-            }
-            else
+            usleep((int)((t - (int)t) * 1e6));
 #endif
-                sleep(t);
+            sleep(t);
         }
     }
 
