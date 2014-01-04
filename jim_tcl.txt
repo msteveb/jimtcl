@@ -4558,13 +4558,15 @@ Time-based execution is also available via the eventloop API.
 
 Scripts are executed at the global scope. If an error occurs during a handler script,
 an attempt is made to call (the user-defined command) `bgerror` with the details of the error.
-If the `bgerror` commands does not exist, it is printed to stderr instead.
+If the `bgerror` command does not exist, the error message details are printed to stderr instead.
 
 If a file event handler script generates an error, the handler is automatically removed
 to prevent infinite errors. (A time event handler is always removed after execution).
 
-+*bgerror* 'error'+::
-    Called when an event handler script generates an error.
++*bgerror* 'msg'+::
+    Called when an event handler script generates an error. Note that the normal command resolution
+	rules are used for bgerror. First the name is resolved in the current namespace, then in the
+	global scope.
 
 socket
 ~~~~~~
