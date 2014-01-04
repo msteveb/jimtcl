@@ -1067,33 +1067,32 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     char buf[AIO_CMD_LEN];
     int OpenFlags = 0;
 
-    if (filename == NULL) {
+    if (fh) {
         filename = Jim_NewStringObj(interp, hdlfmt, -1);
+        OpenFlags = AIO_KEEPOPEN;
     }
 
     Jim_IncrRefCount(filename);
 
     if (fh == NULL) {
-        if (fd < 0) {
-            fh = fopen(Jim_String(filename), mode);
-        }
-        else {
-            fh = fdopen(fd, mode);
-        }
-    }
-    else {
-        OpenFlags = AIO_KEEPOPEN;
-    }
-
-    if (fh == NULL) {
-        JimAioSetError(interp, filename);
 #if !defined(JIM_ANSIC)
         if (fd >= 0) {
-            close(fd);
+            fh = fdopen(fd, mode);
         }
+        else
 #endif
-        Jim_DecrRefCount(interp, filename);
-        return JIM_ERR;
+            fh = fopen(Jim_String(filename), mode);
+
+        if (fh == NULL) {
+            JimAioSetError(interp, filename);
+#if !defined(JIM_ANSIC)
+            if (fd >= 0) {
+                close(fd);
+            }
+#endif
+            Jim_DecrRefCount(interp, filename);
+            return JIM_ERR;
+        }
     }
 
     /* Create the file command */
