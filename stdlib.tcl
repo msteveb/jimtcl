@@ -24,45 +24,47 @@ proc function {value} {
 	return $value
 }
 
-# Returns a list of proc filename line ...
+# Returns a live stack trace as a list of proc filename line ...
 # with 3 entries for each stack frame (proc),
 # (deepest level first)
-proc stacktrace {} {
+proc stacktrace {{skip 0}} {
 	set trace {}
-	foreach level [range 1 [info level]] {
-		lassign [info frame -$level] p f l
-		lappend trace $p $f $l
+	incr skip
+	foreach level [range $skip [info level]] {
+		lappend trace {*}[info frame -$level]
 	}
 	return $trace
 }
 
 # Returns a human-readable version of a stack trace
 proc stackdump {stacktrace} {
-	set result {}
-	set count 0
+	set lines {}
 	foreach {l f p} [lreverse $stacktrace] {
-		if {$count} {
-			append result \n
-		}
-		incr count
+		set line {}
 		if {$p ne ""} {
-			append result "in procedure '$p' "
+			append line "in procedure '$p' "
 			if {$f ne ""} {
-				append result "called "
+				append line "called "
 			}
 		}
 		if {$f ne ""} {
-			append result "at file \"$f\", line $l"
+			append line "at file \"$f\", line $l"
+		}
+		if {$line ne ""} {
+			lappend lines $line
 		}
 	}
-	return $result
+	join $lines \n
 }
 
 # Sort of replacement for $::errorInfo
 # Usage: errorInfo error ?stacktrace?
 proc errorInfo {msg {stacktrace ""}} {
 	if {$stacktrace eq ""} {
+		# By default add the stack backtrace and the live stacktrace
 		set stacktrace [info stacktrace]
+		# omit the procedure 'errorInfo' from the stack
+		lappend stacktrace {*}[stacktrace 1]
 	}
 	lassign $stacktrace p f l
 	if {$f ne ""} {
