@@ -53,9 +53,6 @@
 #include <windows.h>
 #include <winsock.h>
 #define msleep Sleep
-#ifndef HAVE_USLEEP
-#define usleep(US) msleep((US) / 1000)
-#endif
 #else
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -63,9 +60,11 @@
 
 #ifndef HAVE_USLEEP
 /* XXX: Implement this in terms of select() or nanosleep() */
-#define usleep(US)
-#endif
+#define msleep(MS) sleep((MS) / 1000)
+#warning "sub-second sleep not supported"
+#else
 #define msleep(MS) sleep((MS) / 1000); usleep(((MS) % 1000) * 1000);
+#endif
 #endif
 
 /* --- */
@@ -87,8 +86,7 @@ typedef struct Jim_TimeEvent
     jim_wide id;                /* time event identifier. */
     int mode;                   /* restart, repetitive .. UK */
     long initialms;             /* initial relativ timer value UK */
-    long when_sec;              /* seconds */
-    long when_ms;               /* milliseconds */
+    jim_wide when;              /* milliseconds */
     Jim_TimeProc *timeProc;
     Jim_EventFinalizerProc *finalizerProc;
     void *clientData;
@@ -98,9 +96,10 @@ typedef struct Jim_TimeEvent
 /* Per-interp stucture containing the state of the event loop */
 typedef struct Jim_EventLoop
 {
-    jim_wide timeEventNextId;
     Jim_FileEvent *fileEventHead;
     Jim_TimeEvent *timeEventHead;
+    jim_wide timeEventNextId;   /* highest event id created, starting at 1 */
+    time_t timeBase;
     int suppress_bgerror; /* bgerror returned break, so don't call it again */
 } Jim_EventLoop;
 
@@ -171,73 +170,66 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle, int mask)
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
     for (fe = eventLoop->fileEventHead; fe; fe = next) {
+        next = fe->next;
         if (fe->handle == handle && (fe->mask & mask)) {
             /* Remove this entry from the list */
             if (prev == NULL)
-                next = eventLoop->fileEventHead = fe->next;
+                eventLoop->fileEventHead = next;
             else
-                next = prev->next = fe->next;
+                prev->next = next;
             if (fe->finalizerProc)
                 fe->finalizerProc(interp, fe->clientData);
             Jim_Free(fe);
             continue;
         }
         prev = fe;
-        next = fe->next;
     }
 }
 
-static void JimGetTime(long *seconds, long *milliseconds)
+/**
+ * Returns the time since interp creation in milliseconds.
+ */
+static jim_wide JimGetTime(Jim_EventLoop *eventLoop)
 {
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
-    *seconds = tv.tv_sec;
-    *milliseconds = tv.tv_usec / 1000;
+
+    return (jim_wide)(tv.tv_sec - eventLoop->timeBase) * 1000 + tv.tv_usec / 1000;
 }
 
 jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
     Jim_TimeProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
-    jim_wide id = eventLoop->timeEventNextId++;
+    jim_wide id = ++eventLoop->timeEventNextId;
     Jim_TimeEvent *te, *e, *prev;
-    long cur_sec, cur_ms;
-
-    JimGetTime(&cur_sec, &cur_ms);
 
     te = Jim_Alloc(sizeof(*te));
     te->id = id;
     te->mode = 0;
     te->initialms = milliseconds;
-    te->when_sec = cur_sec + milliseconds / 1000;
-    te->when_ms = cur_ms + milliseconds % 1000;
-    if (te->when_ms >= 1000) {
-        te->when_sec++;
-        te->when_ms -= 1000;
-    }
+    te->when = JimGetTime(eventLoop) + milliseconds;
     te->timeProc = proc;
     te->finalizerProc = finalizerProc;
     te->clientData = clientData;
 
     /* Add to the appropriate place in the list */
-    if (eventLoop->timeEventHead) {
-        prev = NULL;
-        for (e = eventLoop->timeEventHead; e; e = e->next) {
-            if (te->when_sec < e->when_sec || (te->when_sec == e->when_sec && te->when_ms < e->when_ms)) {
-                break;
-            }
-            prev = e;
+    prev = NULL;
+    for (e = eventLoop->timeEventHead; e; e = e->next) {
+        if (te->when < e->when) {
+            break;
         }
-        if (prev) {
-            te->next = prev->next;
-            prev->next = te;
-            return id;
-        }
+        prev = e;
     }
-
-    te->next = eventLoop->timeEventHead;
-    eventLoop->timeEventHead = te;
+    if (prev) {
+        te->next = prev->next;
+        prev->next = te;
+    }
+    else {
+        te->next = eventLoop->timeEventHead;
+        eventLoop->timeEventHead = te;
+    }
 
     return id;
 }
@@ -310,19 +302,15 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
     Jim_TimeEvent *te;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
-    if (id >= eventLoop->timeEventNextId) {
+    if (id > eventLoop->timeEventNextId) {
         return -2;              /* wrong event ID */
     }
 
     te = Jim_RemoveTimeHandler(eventLoop, id);
     if (te) {
         jim_wide remain;
-        long cur_sec, cur_ms;
 
-        JimGetTime(&cur_sec, &cur_ms);
-
-        remain = (te->when_sec - cur_sec) * 1000;
-        remain += (te->when_ms - cur_ms);
+        remain = te->when - JimGetTime(eventLoop);
         remain = (remain < 0) ? 0 : remain;
 
         Jim_FreeTimeHandler(interp, te);
@@ -378,14 +366,12 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         /* The nearest timer is always at the head of the list */
         if (eventLoop->timeEventHead) {
             Jim_TimeEvent *shortest = eventLoop->timeEventHead;
-            long now_sec, now_ms;
 
             /* Calculate the time missing for the nearest
              * timer to fire. */
-            JimGetTime(&now_sec, &now_ms);
-            sleep_ms = 1000 * (shortest->when_sec - now_sec) + (shortest->when_ms - now_ms);
+            sleep_ms = shortest->when - JimGetTime(eventLoop);
             if (sleep_ms < 0) {
-                sleep_ms = 1;
+                sleep_ms = 0;
             }
         }
         else {
@@ -434,7 +420,6 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 Jim_SetResultString(interp, "non-waitable filehandle", -1);
                 return -2;
             }
-            /* XXX: What about EINTR? */
         }
         else if (retval > 0) {
             fe = eventLoop->fileEventHead;
@@ -478,17 +463,15 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
     /* Check time events */
     te = eventLoop->timeEventHead;
-    maxId = eventLoop->timeEventNextId - 1;
+    maxId = eventLoop->timeEventNextId;
     while (te) {
-        long now_sec, now_ms;
         jim_wide id;
 
         if (te->id > maxId) {
             te = te->next;
             continue;
         }
-        JimGetTime(&now_sec, &now_ms);
-        if (now_sec > te->when_sec || (now_sec == te->when_sec && now_ms >= te->when_ms)) {
+        if (JimGetTime(eventLoop) >= te->when) {
             id = te->id;
             /* Remove from the list before executing */
             Jim_RemoveTimeHandler(eventLoop, id);
@@ -688,12 +671,12 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 jim_wide remain = 0;
 
                 id = JimParseAfterId(argv[2]);
-                if (id < 0) {
+                if (id <= 0) {
                     /* Not an event id, so search by script */
                     Jim_Obj *scriptObj = Jim_ConcatObj(interp, argc - 2, argv + 2);
                     id = JimFindAfterByScript(eventLoop, scriptObj);
                     Jim_FreeNewObj(interp, scriptObj);
-                    if (id < 0) {
+                    if (id <= 0) {
                         /* Not found */
                         break;
                     }
@@ -751,10 +734,8 @@ int Jim_eventloopInit(Jim_Interp *interp)
         return JIM_ERR;
 
     eventLoop = Jim_Alloc(sizeof(*eventLoop));
-    eventLoop->fileEventHead = NULL;
-    eventLoop->timeEventHead = NULL;
-    eventLoop->timeEventNextId = 1;
-    eventLoop->suppress_bgerror = 0;
+    memset(eventLoop, 0, sizeof(*eventLoop));
+
     Jim_SetAssocData(interp, "eventloop", JimELAssocDataDeleProc, eventLoop);
 
     Jim_CreateCommand(interp, "vwait", JimELVwaitCommand, eventLoop, NULL);
