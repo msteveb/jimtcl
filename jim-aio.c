@@ -1038,7 +1038,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     if (*filename == '|') {
         Jim_Obj *evalObj[3];
 
-        evalObj[0] = Jim_NewStringObj(interp, "popen", -1);
+        evalObj[0] = Jim_NewStringObj(interp, "::popen", -1);
         evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
         evalObj[2] = Jim_NewStringObj(interp, mode, -1);
 
