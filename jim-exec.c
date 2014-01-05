@@ -166,6 +166,10 @@ static const char *JimStrError(void)
     return strerror(JimErrno());
 }
 
+/*
+ * If the last character of 'objPtr' is a newline, then remove
+ * the newline character.
+ */
 static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
 {
     int len;
@@ -201,23 +205,6 @@ static int JimAppendStreamToString(Jim_Interp *interp, fdtype fd, Jim_Obj *strOb
     Jim_RemoveTrailingNewline(strObj);
     fclose(fh);
     return JIM_OK;
-}
-
-/*
- * If the last character of the result is a newline, then remove
- * the newline character (the newline would just confuse things).
- *
- * Note: Ideally we could do this by just reducing the length of stringrep
- *       by 1, but there is no API for this :-(
- */
-static void JimTrimTrailingNewline(Jim_Interp *interp)
-{
-    int len;
-    const char *p = Jim_GetString(Jim_GetResult(interp), &len);
-
-    if (len > 0 && p[len - 1] == '\n') {
-        Jim_SetResultString(interp, p, len - 1);
-    }
 }
 
 /**
@@ -1133,7 +1120,7 @@ static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, 
         }
     }
 
-    JimTrimTrailingNewline(interp);
+    Jim_RemoveTrailingNewline(Jim_GetResult(interp));
 
     return result;
 }
