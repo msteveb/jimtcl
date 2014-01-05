@@ -452,22 +452,28 @@ static void JimReapDetachedPids(struct WaitInfoTable *table)
 {
     struct WaitInfo *waitPtr;
     int count;
+    int dest;
 
     if (!table) {
         return;
     }
 
-    for (waitPtr = table->info, count = table->used; count > 0; waitPtr++, count--) {
+    waitPtr = table->info;
+    dest = 0;
+    for (count = table->used; count > 0; waitPtr++, count--) {
         if (waitPtr->flags & WI_DETACHED) {
             int status;
             pidtype pid = JimWaitPid(waitPtr->pid, &status, WNOHANG);
-            if (pid != JIM_BAD_PID) {
-                if (waitPtr != &table->info[table->used - 1]) {
-                    *waitPtr = table->info[table->used - 1];
-                }
+            if (pid == waitPtr->pid) {
+                /* Process has exited, so remove it from the table */
                 table->used--;
+                continue;
             }
         }
+        if (waitPtr != &table->info[dest]) {
+            table->info[dest] = *waitPtr;
+        }
+        dest++;
     }
 }
 
