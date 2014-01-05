@@ -945,17 +945,6 @@ badargs:
         }
 #else
         /*
-         * Disable SIGPIPE signals:  if they were allowed, this process
-         * might go away unexpectedly if children misbehave.  This code
-         * can potentially interfere with other application code that
-         * expects to handle SIGPIPEs;  what's really needed is an
-         * arbiter for signals to allow them to be "shared".
-         */
-        if (table->info == NULL) {
-            (void)signal(SIGPIPE, SIG_IGN);
-        }
-
-        /*
          * Make a new process and enter it into the table if the fork
          * is successful.
          */
@@ -975,10 +964,13 @@ badargs:
                 close(i);
             }
 
+            /* Restore SIGPIPE behaviour */
+            (void)signal(SIGPIPE, SIG_DFL);
+
             execvpe(arg_array[firstArg], &arg_array[firstArg], Jim_GetEnviron());
 
             /* Need to prep an error message before vfork(), just in case */
-            fprintf(stderr, "couldn't exec \"%s\"", arg_array[firstArg]);
+            fprintf(stderr, "couldn't exec \"%s\"\n", arg_array[firstArg]);
             _exit(127);
         }
 #endif
@@ -1135,6 +1127,21 @@ int Jim_execInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
         return JIM_ERR;
+
+#ifdef SIGPIPE
+    /*
+     * Disable SIGPIPE signals:  if they were allowed, this process
+     * might go away unexpectedly if children misbehave.  This code
+     * can potentially interfere with other application code that
+     * expects to handle SIGPIPEs.
+     *
+     * By doing this in the init function, applications can override
+     * this later. Note that child processes have SIGPIPE restored
+     * to the default after vfork().
+     */
+    (void)signal(SIGPIPE, SIG_IGN);
+#endif
+
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, JimAllocWaitInfoTable(), JimFreeWaitInfoTable);
     return JIM_OK;
 }
