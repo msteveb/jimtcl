@@ -61,6 +61,7 @@ Changes between 0.74 and 0.75
 6. Add `socket pair` for a bidirectional pipe
 7. Add --random-hash to randomise hash tables for greater security
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
+9. `file stat` no longer requires the variable name
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2336,12 +2337,9 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     If the file doesn't exist or its size cannot be queried then an
     error is generated.
 
-+*file stat* 'name varName'+::
-    Invoke the 'stat' kernel call on +'name'+, and use the
-    variable given by +'varName'+ to hold information returned from
-    the kernel call.
-    +'varName'+ is treated as an array variable,
-    and the following elements of that variable are set: 'atime',
++*file stat* 'name ?varName?'+::
+    Invoke the 'stat' kernel call on +'name'+, and return the result
+	as a dictionary with the following keys: 'atime',
     'ctime', 'dev', 'gid', 'ino', 'mode', 'mtime',
     'nlink', 'size', 'type', 'uid'.
     Each element except 'type' is a decimal string with the value of
@@ -2349,7 +2347,8 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     manual entry for 'stat' for details on the meanings of the values.
     The 'type' element gives the type of the file in the same form
     returned by the command `file type`.
-    This command returns an empty string.
+	If +'varName'+ is specified, it is taken to be the name of an array
+	variable and the values are also stored into the array.
 
 +*file tail* 'name'+::
     Return all of the characters in +'name'+ after the last slash.

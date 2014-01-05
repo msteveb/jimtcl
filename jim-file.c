@@ -142,54 +142,57 @@ static const char *JimGetFileType(int mode)
  *
  *----------------------------------------------------------------------
  */
-
-static int set_array_int_value(Jim_Interp *interp, Jim_Obj *container, const char *key,
-    jim_wide value)
+static void AppendStatElement(Jim_Interp *interp, Jim_Obj *listObj, const char *key, int value)
 {
-    Jim_Obj *nameobj = Jim_NewStringObj(interp, key, -1);
-    Jim_Obj *valobj = Jim_NewWideObj(interp, value);
-
-    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj, JIM_ERRMSG) != JIM_OK) {
-        Jim_FreeObj(interp, nameobj);
-        Jim_FreeObj(interp, valobj);
-        return JIM_ERR;
-    }
-    return JIM_OK;
-}
-
-static int set_array_string_value(Jim_Interp *interp, Jim_Obj *container, const char *key,
-    const char *value)
-{
-    Jim_Obj *nameobj = Jim_NewStringObj(interp, key, -1);
-    Jim_Obj *valobj = Jim_NewStringObj(interp, value, -1);
-
-    if (Jim_SetDictKeysVector(interp, container, &nameobj, 1, valobj, JIM_ERRMSG) != JIM_OK) {
-        Jim_FreeObj(interp, nameobj);
-        Jim_FreeObj(interp, valobj);
-        return JIM_ERR;
-    }
-    return JIM_OK;
+    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, key, -1));
+    Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, value));
 }
 
 static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat *sb)
 {
-    if (set_array_int_value(interp, varName, "dev", sb->st_dev) != JIM_OK) {
-        Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variable isn't array", varName);
-        return JIM_ERR;
+    /* Just use a list to store the data */
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+
+    AppendStatElement(interp, listObj, "dev", sb->st_dev);
+    AppendStatElement(interp, listObj, "ino", sb->st_ino);
+    AppendStatElement(interp, listObj, "mode", sb->st_mode);
+    AppendStatElement(interp, listObj, "nlink", sb->st_nlink);
+    AppendStatElement(interp, listObj, "uid", sb->st_uid);
+    AppendStatElement(interp, listObj, "gid", sb->st_gid);
+    AppendStatElement(interp, listObj, "size", sb->st_size);
+    AppendStatElement(interp, listObj, "atime", sb->st_atime);
+    AppendStatElement(interp, listObj, "mtime", sb->st_mtime);
+    AppendStatElement(interp, listObj, "ctime", sb->st_ctime);
+    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "type", -1));
+    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, JimGetFileType((int)sb->st_mode), -1));
+
+    /* Was a variable specified? */
+    if (varName) {
+        Jim_Obj *objPtr = Jim_GetVariable(interp, varName, JIM_NONE);
+        if (objPtr) {
+            if (Jim_DictSize(interp, objPtr) < 0) {
+                /* This message matches the one from Tcl */
+                Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variable isn't array", varName);
+                Jim_FreeNewObj(interp, listObj);
+                return JIM_ERR;
+            }
+
+            if (Jim_IsShared(objPtr))
+                objPtr = Jim_DuplicateObj(interp, objPtr);
+
+            /* Just cheat here and append as a list and convert to a dict */
+            Jim_ListAppendList(interp, objPtr, listObj);
+            Jim_DictSize(interp, objPtr);
+            Jim_InvalidateStringRep(objPtr);
+
+            Jim_FreeNewObj(interp, listObj);
+            listObj = objPtr;
+        }
+        Jim_SetVariable(interp, varName, listObj);
     }
-    set_array_int_value(interp, varName, "ino", sb->st_ino);
-    set_array_int_value(interp, varName, "mode", sb->st_mode);
-    set_array_int_value(interp, varName, "nlink", sb->st_nlink);
-    set_array_int_value(interp, varName, "uid", sb->st_uid);
-    set_array_int_value(interp, varName, "gid", sb->st_gid);
-    set_array_int_value(interp, varName, "size", sb->st_size);
-    set_array_int_value(interp, varName, "atime", sb->st_atime);
-    set_array_int_value(interp, varName, "mtime", sb->st_mtime);
-    set_array_int_value(interp, varName, "ctime", sb->st_ctime);
-    set_array_string_value(interp, varName, "type", JimGetFileType((int)sb->st_mode));
 
     /* And also return the value */
-    Jim_SetResult(interp, Jim_GetVariable(interp, varName, 0));
+    Jim_SetResult(interp, listObj);
 
     return JIM_OK;
 }
@@ -553,10 +556,7 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
     return JIM_OK;
 }
 
-#ifndef HAVE_LSTAT
-#define lstat stat
-#endif
-
+#ifdef HAVE_LSTAT
 static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
     const char *path = Jim_String(filename);
@@ -567,6 +567,9 @@ static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
     }
     return JIM_OK;
 }
+#else
+#define file_lstat file_stat
+#endif
 
 static int file_cmd_atime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -695,6 +698,7 @@ static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef HAVE_LSTAT
 static int file_cmd_lstat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct stat sb;
@@ -702,8 +706,11 @@ static int file_cmd_lstat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_lstat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
-    return StoreStatData(interp, argv[1], &sb);
+    return StoreStatData(interp, argc == 2 ? argv[1] : NULL, &sb);
 }
+#else
+#define file_cmd_lstat file_cmd_stat
+#endif
 
 static int file_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -712,7 +719,7 @@ static int file_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
     }
-    return StoreStatData(interp, argv[1], &sb);
+    return StoreStatData(interp, argc == 2 ? argv[1] : NULL, &sb);
 }
 
 static const jim_subcmd_type file_command_table[] = {
@@ -854,18 +861,18 @@ static const jim_subcmd_type file_command_table[] = {
         /* Description: Size of file */
     },
     {   "stat",
-        "name var",
+        "name ?var?",
         file_cmd_stat,
+        1,
         2,
-        2,
-        /* Description: Stores results of stat in var array */
+        /* Description: Returns results of stat, and may store in var array */
     },
     {   "lstat",
-        "name var",
+        "name ?var?",
         file_cmd_lstat,
+        1,
         2,
-        2,
-        /* Description: Stores results of lstat in var array */
+        /* Description: Returns results of lstat, and may store in var array */
     },
     {   "type",
         "name",
