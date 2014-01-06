@@ -1,4 +1,3 @@
-
 /*
  * jim-signal.c
  *
@@ -458,22 +457,22 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc == 2) {
-        signame = "SIGTERM";
+        sig = SIGTERM;
         pidObj = argv[1];
     }
     else {
         signame = Jim_String(argv[1]);
         pidObj = argv[2];
-    }
 
-    /* Special 'kill -0 pid' to determine if a pid exists */
-    if (strcmp(signame, "-0") == 0 || strcmp(signame, "0") == 0) {
-        sig = 0;
-    }
-    else {
-        sig = find_signal_by_name(interp, signame);
-        if (sig < 0) {
-            return JIM_ERR;
+        /* Special 'kill -0 pid' to determine if a pid exists */
+        if (strcmp(signame, "-0") == 0 || strcmp(signame, "0") == 0) {
+            sig = 0;
+        }
+        else {
+            sig = find_signal_by_name(interp, signame);
+            if (sig < 0) {
+                return JIM_ERR;
+            }
         }
     }
 
