@@ -44,7 +44,10 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     t = seconds;
 
-    strftime(buf, sizeof(buf), format, localtime(&t));
+    if (strftime(buf, sizeof(buf), format, localtime(&t)) == 0) {
+        Jim_SetResultString(interp, "format string too long", -1);
+        return JIM_ERR;
+    }
 
     Jim_SetResultString(interp, buf, -1);
 
