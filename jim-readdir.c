@@ -1,4 +1,3 @@
-
 /*
  * Tcl readdir command.
  *
@@ -92,24 +91,25 @@ int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, strerror(errno), -1);
         return JIM_ERR;
     }
-    Jim_SetResultString(interp, strerror(errno), -1);
+    else {
+        Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
 
-    Jim_SetResult(interp, Jim_NewListObj(interp, NULL, 0));
-
-    while ((entryPtr = readdir(dirPtr)) != NULL) {
-        if (entryPtr->d_name[0] == '.') {
-            if (entryPtr->d_name[1] == '\0') {
-                continue;
+        while ((entryPtr = readdir(dirPtr)) != NULL) {
+            if (entryPtr->d_name[0] == '.') {
+                if (entryPtr->d_name[1] == '\0') {
+                    continue;
+                }
+                if ((entryPtr->d_name[1] == '.') && (entryPtr->d_name[2] == '\0'))
+                    continue;
             }
-            if ((entryPtr->d_name[1] == '.') && (entryPtr->d_name[2] == '\0'))
-                continue;
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, entryPtr->d_name, -1));
         }
-        Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp,
-                entryPtr->d_name, -1));
-    }
-    closedir(dirPtr);
+        closedir(dirPtr);
 
-    return JIM_OK;
+        Jim_SetResult(interp, listObj);
+
+        return JIM_OK;
+    }
 }
 
 int Jim_readdirInit(Jim_Interp *interp)
