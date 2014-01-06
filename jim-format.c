@@ -59,10 +59,10 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
     const char *span, *format, *formatEnd, *msg;
     int numBytes = 0, objIndex = 0, gotXpg = 0, gotSequential = 0;
     static const char * const mixedXPG =
-        "cannot mix \"%\" and \"%n$\" conversion specifiers";
+            "cannot mix \"%\" and \"%n$\" conversion specifiers";
     static const char * const badIndex[2] = {
-    "not enough arguments for all format specifiers",
-    "\"%n$\" argument index out of range"
+        "not enough arguments for all format specifiers",
+        "\"%n$\" argument index out of range"
     };
     int formatLen;
     Jim_Obj *resultPtr;
@@ -78,382 +78,382 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
     resultPtr = Jim_NewEmptyStringObj(interp);
 
     while (format != formatEnd) {
-    char *end;
-    int gotMinus, sawFlag;
-    int gotPrecision, useShort;
-    long width, precision;
-    int newXpg;
-    int ch;
-    int step;
-    int doubleType;
-    char pad = ' ';
-    char spec[2*JIM_INTEGER_SPACE + 12];
-    char *p;
+        char *end;
+        int gotMinus, sawFlag;
+        int gotPrecision, useShort;
+        long width, precision;
+        int newXpg;
+        int ch;
+        int step;
+        int doubleType;
+        char pad = ' ';
+        char spec[2*JIM_INTEGER_SPACE + 12];
+        char *p;
 
-    int formatted_chars;
-    int formatted_bytes;
-    const char *formatted_buf;
+        int formatted_chars;
+        int formatted_bytes;
+        const char *formatted_buf;
 
-    step = utf8_tounicode(format, &ch);
-    format += step;
-    if (ch != '%') {
-        numBytes += step;
-        continue;
-    }
-    if (numBytes) {
-        Jim_AppendString(interp, resultPtr, span, numBytes);
-        numBytes = 0;
-    }
-
-    /*
-     * Saw a % : process the format specifier.
-     *
-     * Step 0. Handle special case of escaped format marker (i.e., %%).
-     */
-
-    step = utf8_tounicode(format, &ch);
-    if (ch == '%') {
-        span = format;
-        numBytes = step;
+        step = utf8_tounicode(format, &ch);
         format += step;
-        continue;
-    }
-
-    /*
-     * Step 1. XPG3 position specifier
-     */
-
-    newXpg = 0;
-    if (isdigit(ch)) {
-        int position = strtoul(format, &end, 10);
-        if (*end == '$') {
-        newXpg = 1;
-        objIndex = position - 1;
-        format = end + 1;
-        step = utf8_tounicode(format, &ch);
+        if (ch != '%') {
+            numBytes += step;
+            continue;
         }
-    }
-    if (newXpg) {
-        if (gotSequential) {
-        msg = mixedXPG;
-        goto errorMsg;
-        }
-        gotXpg = 1;
-    } else {
-        if (gotXpg) {
-        msg = mixedXPG;
-        goto errorMsg;
-        }
-        gotSequential = 1;
-    }
-    if ((objIndex < 0) || (objIndex >= objc)) {
-        msg = badIndex[gotXpg];
-        goto errorMsg;
-    }
-
-    /*
-     * Step 2. Set of flags. Also build up the sprintf spec.
-     */
-    p = spec;
-    *p++ = '%';
-
-    gotMinus = 0;
-    sawFlag = 1;
-    do {
-        switch (ch) {
-        case '-':
-        gotMinus = 1;
-        break;
-        case '0':
-        pad = ch;
-        break;
-        case ' ':
-        case '+':
-        case '#':
-        break;
-        default:
-        sawFlag = 0;
-        continue;
-        }
-        *p++ = ch;
-        format += step;
-        step = utf8_tounicode(format, &ch);
-    } while (sawFlag);
-
-    /*
-     * Step 3. Minimum field width.
-     */
-
-    width = 0;
-    if (isdigit(ch)) {
-        width = strtoul(format, &end, 10);
-        format = end;
-        step = utf8_tounicode(format, &ch);
-    } else if (ch == '*') {
-        if (objIndex >= objc - 1) {
-        msg = badIndex[gotXpg];
-        goto errorMsg;
-        }
-        if (Jim_GetLong(interp, objv[objIndex], &width) != JIM_OK) {
-        goto error;
-        }
-        if (width < 0) {
-        width = -width;
-        if (!gotMinus) {
-            *p++ = '-';
-            gotMinus = 1;
-        }
-        }
-        objIndex++;
-        format += step;
-        step = utf8_tounicode(format, &ch);
-    }
-
-    /*
-     * Step 4. Precision.
-     */
-
-    gotPrecision = precision = 0;
-    if (ch == '.') {
-        gotPrecision = 1;
-        format += step;
-        step = utf8_tounicode(format, &ch);
-    }
-    if (isdigit(ch)) {
-        precision = strtoul(format, &end, 10);
-        format = end;
-        step = utf8_tounicode(format, &ch);
-    } else if (ch == '*') {
-        if (objIndex >= objc - 1) {
-        msg = badIndex[gotXpg];
-        goto errorMsg;
-        }
-        if (Jim_GetLong(interp, objv[objIndex], &precision) != JIM_OK) {
-        goto error;
+        if (numBytes) {
+            Jim_AppendString(interp, resultPtr, span, numBytes);
+            numBytes = 0;
         }
 
         /*
-         * TODO: Check this truncation logic.
+         * Saw a % : process the format specifier.
+         *
+         * Step 0. Handle special case of escaped format marker (i.e., %%).
          */
 
-        if (precision < 0) {
-        precision = 0;
-        }
-        objIndex++;
-        format += step;
         step = utf8_tounicode(format, &ch);
-    }
-
-    /*
-     * Step 5. Length modifier.
-     */
-
-    useShort = 0;
-    if (ch == 'h') {
-        useShort = 1;
-        format += step;
-        step = utf8_tounicode(format, &ch);
-    } else if (ch == 'l') {
-        /* Just for compatibility. All non-short integers are wide. */
-        format += step;
-        step = utf8_tounicode(format, &ch);
-        if (ch == 'l') {
-        format += step;
-        step = utf8_tounicode(format, &ch);
+        if (ch == '%') {
+            span = format;
+            numBytes = step;
+            format += step;
+            continue;
         }
-    }
 
-    format += step;
-    span = format;
-
-    /*
-     * Step 6. The actual conversion character.
-     */
-
-    if (ch == 'i') {
-        ch = 'd';
-    }
-
-    doubleType = 0;
-
-    /* Each valid conversion will set:
-     * formatted_buf   - the result to be added
-     * formatted_chars - the length of formatted_buf in characters
-     * formatted_bytes - the length of formatted_buf in bytes
-     */
-    switch (ch) {
-    case '\0':
-        msg = "format string ended in middle of field specifier";
-        goto errorMsg;
-    case 's': {
-        formatted_buf = Jim_GetString(objv[objIndex], &formatted_bytes);
-        formatted_chars = Jim_Utf8Length(interp, objv[objIndex]);
-        if (gotPrecision && (precision < formatted_chars)) {
-        /* Need to build a (null terminated) truncated string */
-        formatted_chars = precision;
-        formatted_bytes = utf8_index(formatted_buf, precision);
-        }
-        break;
-    }
-    case 'c': {
-        jim_wide code;
-
-        if (Jim_GetWide(interp, objv[objIndex], &code) != JIM_OK) {
-        goto error;
-        }
-        /* Just store the value in the 'spec' buffer */
-        formatted_bytes = utf8_getchars(spec, code);
-        formatted_buf = spec;
-        formatted_chars = 1;
-        break;
-    }
-    case 'b': {
-        unsigned jim_wide w;
-        int length;
-        int i;
-        int j;
-
-        if (Jim_GetWide(interp, objv[objIndex], (jim_wide *)&w) != JIM_OK) {
-            goto error;
-        }
-        length = sizeof(w) * 8;
-
-        /* XXX: width and precision not yet implemented for binary
-         *      also flags in 'spec', e.g. #, 0, -
+        /*
+         * Step 1. XPG3 position specifier
          */
 
-        /* Increase the size of the buffer if needed */
-        if (num_buffer_size < length + 1) {
-            num_buffer_size = length + 1;
-            num_buffer = Jim_Realloc(num_buffer, num_buffer_size);
-        }
-
-        j = 0;
-        for (i = length; i > 0; ) {
-            i--;
-            if (w & ((unsigned jim_wide)1 << i)) {
-                num_buffer[j++] = '1';
-            }
-            else if (j || i == 0) {
-                num_buffer[j++] = '0';
+        newXpg = 0;
+        if (isdigit(ch)) {
+            int position = strtoul(format, &end, 10);
+            if (*end == '$') {
+                newXpg = 1;
+                objIndex = position - 1;
+                format = end + 1;
+                step = utf8_tounicode(format, &ch);
             }
         }
-        num_buffer[j] = 0;
-        formatted_chars = formatted_bytes = j;
-        formatted_buf = num_buffer;
-        break;
-    }
-
-    case 'e':
-    case 'E':
-    case 'f':
-    case 'g':
-    case 'G':
-        doubleType = 1;
-        /* fall through */
-    case 'd':
-    case 'u':
-    case 'o':
-    case 'x':
-    case 'X': {
-        jim_wide w;
-        double d;
-        int length;
-
-        /* Fill in the width and precision */
-        if (width) {
-        p += sprintf(p, "%ld", width);
+        if (newXpg) {
+            if (gotSequential) {
+                msg = mixedXPG;
+                goto errorMsg;
+            }
+            gotXpg = 1;
+        } else {
+            if (gotXpg) {
+                msg = mixedXPG;
+                goto errorMsg;
+            }
+            gotSequential = 1;
         }
-        if (gotPrecision) {
-        p += sprintf(p, ".%ld", precision);
+        if ((objIndex < 0) || (objIndex >= objc)) {
+            msg = badIndex[gotXpg];
+            goto errorMsg;
         }
 
-        /* Now the modifier, and get the actual value here */
-        if (doubleType) {
-        if (Jim_GetDouble(interp, objv[objIndex], &d) != JIM_OK) {
-            goto error;
+        /*
+         * Step 2. Set of flags. Also build up the sprintf spec.
+         */
+        p = spec;
+        *p++ = '%';
+
+        gotMinus = 0;
+        sawFlag = 1;
+        do {
+            switch (ch) {
+            case '-':
+                gotMinus = 1;
+                break;
+            case '0':
+                pad = ch;
+                break;
+            case ' ':
+            case '+':
+            case '#':
+                break;
+            default:
+                sawFlag = 0;
+                continue;
+            }
+            *p++ = ch;
+            format += step;
+            step = utf8_tounicode(format, &ch);
+        } while (sawFlag);
+
+        /*
+         * Step 3. Minimum field width.
+         */
+
+        width = 0;
+        if (isdigit(ch)) {
+            width = strtoul(format, &end, 10);
+            format = end;
+            step = utf8_tounicode(format, &ch);
+        } else if (ch == '*') {
+            if (objIndex >= objc - 1) {
+                msg = badIndex[gotXpg];
+                goto errorMsg;
+            }
+            if (Jim_GetLong(interp, objv[objIndex], &width) != JIM_OK) {
+                goto error;
+            }
+            if (width < 0) {
+                width = -width;
+                if (!gotMinus) {
+                    *p++ = '-';
+                    gotMinus = 1;
+                }
+            }
+            objIndex++;
+            format += step;
+            step = utf8_tounicode(format, &ch);
         }
-        length = MAX_FLOAT_WIDTH;
+
+        /*
+         * Step 4. Precision.
+         */
+
+        gotPrecision = precision = 0;
+        if (ch == '.') {
+            gotPrecision = 1;
+            format += step;
+            step = utf8_tounicode(format, &ch);
         }
-        else {
-        if (Jim_GetWide(interp, objv[objIndex], &w) != JIM_OK) {
-            goto error;
+        if (isdigit(ch)) {
+            precision = strtoul(format, &end, 10);
+            format = end;
+            step = utf8_tounicode(format, &ch);
+        } else if (ch == '*') {
+            if (objIndex >= objc - 1) {
+                msg = badIndex[gotXpg];
+                goto errorMsg;
+            }
+            if (Jim_GetLong(interp, objv[objIndex], &precision) != JIM_OK) {
+                goto error;
+            }
+
+            /*
+             * TODO: Check this truncation logic.
+             */
+
+            if (precision < 0) {
+                precision = 0;
+            }
+            objIndex++;
+            format += step;
+            step = utf8_tounicode(format, &ch);
         }
-        length = JIM_INTEGER_SPACE;
-        if (useShort) {
-            *p++ = 'h';
-            if (ch == 'd') {
-            w = (short)w;
+
+        /*
+         * Step 5. Length modifier.
+         */
+
+        useShort = 0;
+        if (ch == 'h') {
+            useShort = 1;
+            format += step;
+            step = utf8_tounicode(format, &ch);
+        } else if (ch == 'l') {
+            /* Just for compatibility. All non-short integers are wide. */
+            format += step;
+            step = utf8_tounicode(format, &ch);
+            if (ch == 'l') {
+                format += step;
+                step = utf8_tounicode(format, &ch);
+            }
+        }
+
+        format += step;
+        span = format;
+
+        /*
+         * Step 6. The actual conversion character.
+         */
+
+        if (ch == 'i') {
+            ch = 'd';
+        }
+
+        doubleType = 0;
+
+        /* Each valid conversion will set:
+         * formatted_buf   - the result to be added
+         * formatted_chars - the length of formatted_buf in characters
+         * formatted_bytes - the length of formatted_buf in bytes
+         */
+        switch (ch) {
+        case '\0':
+            msg = "format string ended in middle of field specifier";
+            goto errorMsg;
+        case 's': {
+            formatted_buf = Jim_GetString(objv[objIndex], &formatted_bytes);
+            formatted_chars = Jim_Utf8Length(interp, objv[objIndex]);
+            if (gotPrecision && (precision < formatted_chars)) {
+                /* Need to build a (null terminated) truncated string */
+                formatted_chars = precision;
+                formatted_bytes = utf8_index(formatted_buf, precision);
+            }
+            break;
+        }
+        case 'c': {
+            jim_wide code;
+
+            if (Jim_GetWide(interp, objv[objIndex], &code) != JIM_OK) {
+                goto error;
+            }
+            /* Just store the value in the 'spec' buffer */
+            formatted_bytes = utf8_getchars(spec, code);
+            formatted_buf = spec;
+            formatted_chars = 1;
+            break;
+        }
+        case 'b': {
+                unsigned jim_wide w;
+                int length;
+                int i;
+                int j;
+
+                if (Jim_GetWide(interp, objv[objIndex], (jim_wide *)&w) != JIM_OK) {
+                    goto error;
+                }
+                length = sizeof(w) * 8;
+
+                /* XXX: width and precision not yet implemented for binary
+                 *      also flags in 'spec', e.g. #, 0, -
+                 */
+
+                /* Increase the size of the buffer if needed */
+                if (num_buffer_size < length + 1) {
+                    num_buffer_size = length + 1;
+                    num_buffer = Jim_Realloc(num_buffer, num_buffer_size);
+                }
+
+                j = 0;
+                for (i = length; i > 0; ) {
+                        i--;
+                    if (w & ((unsigned jim_wide)1 << i)) {
+                                num_buffer[j++] = '1';
+                        }
+                        else if (j || i == 0) {
+                                num_buffer[j++] = '0';
+                        }
+                }
+                num_buffer[j] = 0;
+                formatted_chars = formatted_bytes = j;
+                formatted_buf = num_buffer;
+                break;
+        }
+
+        case 'e':
+        case 'E':
+        case 'f':
+        case 'g':
+        case 'G':
+            doubleType = 1;
+            /* fall through */
+        case 'd':
+        case 'u':
+        case 'o':
+        case 'x':
+        case 'X': {
+            jim_wide w;
+            double d;
+            int length;
+
+            /* Fill in the width and precision */
+            if (width) {
+                p += sprintf(p, "%ld", width);
+            }
+            if (gotPrecision) {
+                p += sprintf(p, ".%ld", precision);
+            }
+
+            /* Now the modifier, and get the actual value here */
+            if (doubleType) {
+                if (Jim_GetDouble(interp, objv[objIndex], &d) != JIM_OK) {
+                    goto error;
+                }
+                length = MAX_FLOAT_WIDTH;
             }
             else {
-            w = (unsigned short)w;
-            }
-        }
-        else {
-            *p++ = 'l';
+                if (Jim_GetWide(interp, objv[objIndex], &w) != JIM_OK) {
+                    goto error;
+                }
+                length = JIM_INTEGER_SPACE;
+                if (useShort) {
+                    *p++ = 'h';
+                    if (ch == 'd') {
+                        w = (short)w;
+                    }
+                    else {
+                        w = (unsigned short)w;
+                    }
+                }
+                else {
+                    *p++ = 'l';
 #ifdef HAVE_LONG_LONG
-            if (sizeof(long long) == sizeof(jim_wide)) {
-            *p++ = 'l';
-            }
+                    if (sizeof(long long) == sizeof(jim_wide)) {
+                        *p++ = 'l';
+                    }
 #endif
+                }
+            }
+
+            *p++ = (char) ch;
+            *p = '\0';
+
+            /* Adjust length for width and precision */
+            if (width > length) {
+                length = width;
+            }
+            if (gotPrecision) {
+                length += precision;
+            }
+
+            /* Increase the size of the buffer if needed */
+            if (num_buffer_size < length + 1) {
+                num_buffer_size = length + 1;
+                num_buffer = Jim_Realloc(num_buffer, num_buffer_size);
+            }
+
+            if (doubleType) {
+                snprintf(num_buffer, length + 1, spec, d);
+            }
+            else {
+                formatted_bytes = snprintf(num_buffer, length + 1, spec, w);
+            }
+            formatted_chars = formatted_bytes = strlen(num_buffer);
+            formatted_buf = num_buffer;
+            break;
+        }
+
+        default: {
+            /* Just reuse the 'spec' buffer */
+            spec[0] = ch;
+            spec[1] = '\0';
+            Jim_SetResultFormatted(interp, "bad field specifier \"%s\"", spec);
+            goto error;
         }
         }
 
-        *p++ = (char) ch;
-        *p = '\0';
-
-        /* Adjust length for width and precision */
-        if (width > length) {
-        length = width;
-        }
-        if (gotPrecision) {
-        length += precision;
+        if (!gotMinus) {
+            while (formatted_chars < width) {
+                Jim_AppendString(interp, resultPtr, &pad, 1);
+                formatted_chars++;
+            }
         }
 
-        /* Increase the size of the buffer if needed */
-        if (num_buffer_size < length + 1) {
-        num_buffer_size = length + 1;
-        num_buffer = Jim_Realloc(num_buffer, num_buffer_size);
-        }
+        Jim_AppendString(interp, resultPtr, formatted_buf, formatted_bytes);
 
-        if (doubleType) {
-        snprintf(num_buffer, length + 1, spec, d);
-        }
-        else {
-        formatted_bytes = snprintf(num_buffer, length + 1, spec, w);
-        }
-        formatted_chars = formatted_bytes = strlen(num_buffer);
-        formatted_buf = num_buffer;
-        break;
-    }
-
-    default: {
-        /* Just reuse the 'spec' buffer */
-        spec[0] = ch;
-        spec[1] = '\0';
-        Jim_SetResultFormatted(interp, "bad field specifier \"%s\"", spec);
-        goto error;
-    }
-    }
-
-    if (!gotMinus) {
         while (formatted_chars < width) {
-        Jim_AppendString(interp, resultPtr, &pad, 1);
-        formatted_chars++;
+            Jim_AppendString(interp, resultPtr, &pad, 1);
+            formatted_chars++;
         }
-    }
 
-    Jim_AppendString(interp, resultPtr, formatted_buf, formatted_bytes);
-
-    while (formatted_chars < width) {
-        Jim_AppendString(interp, resultPtr, &pad, 1);
-        formatted_chars++;
-    }
-
-    objIndex += gotSequential;
+        objIndex += gotSequential;
     }
     if (numBytes) {
-    Jim_AppendString(interp, resultPtr, span, numBytes);
+        Jim_AppendString(interp, resultPtr, span, numBytes);
     }
 
     Jim_Free(num_buffer);
