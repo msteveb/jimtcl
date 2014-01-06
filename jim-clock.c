@@ -29,7 +29,7 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     time_t t;
     long seconds;
 
-    const char *format = "%a %b  %d %H:%M:%S %Z %Y";
+    const char *format = "%a %b %d %H:%M:%S %Z %Y";
 
     if (argc == 2 || (argc == 3 && !Jim_CompareStringImmediate(interp, argv[1], "-format"))) {
         return -1;
