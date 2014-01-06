@@ -133,6 +133,12 @@ test namespace-1.27 {can create commands with null names} {
 	ns1:: x
 } {x}
 
+test namespace-1.28 {namespace variable with array element syntax} -body {
+	namespace eval ns1 {
+		variable x(3) y
+	}
+} -returnCodes error -result {can't define "x(3)": name refers to an element in an array}
+
 unset -nocomplain ns1::x ns1::y
 
 # -----------------------------------------------------------------------

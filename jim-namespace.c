@@ -100,6 +100,10 @@ int Jim_CreateNamespaceVariable(Jim_Interp *interp, Jim_Obj *varNameObj, Jim_Obj
 
     /* push non-namespace vars if in namespace eval? */
     rc  = Jim_SetVariableLink(interp, varNameObj, targetNameObj, interp->topFramePtr);
+    if (rc == JIM_ERR) {
+        /* This is the only reason the link can fail */
+        Jim_SetResultFormatted(interp, "can't define \"%#s\": name refers to an element in an array", varNameObj);
+    }
 
     Jim_DecrRefCount(interp, varNameObj);
     Jim_DecrRefCount(interp, targetNameObj);
@@ -160,23 +164,16 @@ static int JimVariableCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Obj *targetNameObj;
         Jim_Obj *localNameObj;
 
-#if 0
-        /* XXX should we give an error on dict sugar syntax? */
-        if (JimValidName(interp, "variable", argv[1]) != JIM_OK) {
-            return JIM_ERR;
-        }
-#endif
-
         targetNameObj = JimCanonicalNamespace(interp, interp->framePtr->nsObj, argv[1]);
 
         localNameObj = Jim_NamespaceTail(interp, argv[1]);
         Jim_IncrRefCount(localNameObj);
         if (interp->framePtr->level != 0 || Jim_Length(interp->framePtr->nsObj) != 0) {
-            Jim_CreateNamespaceVariable(interp, localNameObj, targetNameObj);
+            retcode = Jim_CreateNamespaceVariable(interp, localNameObj, targetNameObj);
         }
 
         /* Set the variable via the local name */
-        if (argc > 2) {
+        if (retcode == JIM_OK && argc > 2) {
             retcode = Jim_SetVariable(interp, localNameObj, argv[2]);
         }
         Jim_DecrRefCount(interp, localNameObj);
@@ -184,7 +181,9 @@ static int JimVariableCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return retcode;
 }
 
-/* XXX: Temporary */
+/* Used to invoke script-based helpers.
+ * It would be ideal if ensembles were supported in the core
+ */
 static int Jim_EvalEnsemble(Jim_Interp *interp, const char *basecmd, const char *subcmd, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *prefixObj = Jim_NewStringObj(interp, basecmd, -1);
