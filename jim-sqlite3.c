@@ -38,19 +38,13 @@
 
 #include <jim.h>
 
-typedef struct JimSqliteHandle
-{
-    sqlite3 *db;
-} JimSqliteHandle;
-
 static void JimSqliteDelProc(Jim_Interp *interp, void *privData)
 {
-    JimSqliteHandle *sh = privData;
+    sqlite3 *db = privData;
 
     JIM_NOTUSED(interp);
 
-    sqlite3_close(sh->db);
-    Jim_Free(sh);
+    sqlite3_close(db);
 }
 
 static char *JimSqliteQuoteString(const char *str, int len, int *newLenPtr)
@@ -141,7 +135,7 @@ static Jim_Obj *JimSqliteFormatQuery(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
  * C command. */
 static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    JimSqliteHandle *sh = Jim_CmdPrivData(interp);
+    sqlite3 *db = Jim_CmdPrivData(interp);
     int option;
     static const char * const options[] = {
         "close", "query", "lastid", "changes", NULL
@@ -170,34 +164,33 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         sqlite3_stmt *stmt;
         const char *query, *tail;
         int columns, rows, len;
-        char *nullstr;
+        int retcode = JIM_ERR;
+        Jim_Obj *nullStrObj;
 
         if (argc >= 4 && Jim_CompareStringImmediate(interp, argv[2], "-null")) {
-            nullstr = Jim_StrDup(Jim_String(argv[3]));
+            nullStrObj = argv[3];
             argv += 2;
             argc -= 2;
         }
         else {
-            nullstr = Jim_StrDup("");
+            nullStrObj = Jim_NewEmptyStringObj(interp);
         }
+        Jim_IncrRefCount(nullStrObj);
         if (argc < 3) {
             Jim_WrongNumArgs(interp, 2, argv, "query ?args?");
-            Jim_Free(nullstr);
-            return JIM_ERR;
+            goto err;
         }
         objPtr = JimSqliteFormatQuery(interp, argv[2], argc - 3, argv + 3);
         if (objPtr == NULL) {
-            Jim_Free(nullstr);
             return JIM_ERR;
         }
         query = Jim_GetString(objPtr, &len);
         Jim_IncrRefCount(objPtr);
         /* Compile the query into VM code */
-        if (sqlite3_prepare_v2(sh->db, query, len, &stmt, &tail) != SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, query, len, &stmt, &tail) != SQLITE_OK) {
             Jim_DecrRefCount(interp, objPtr);
-            Jim_SetResultString(interp, sqlite3_errmsg(sh->db), -1);
-            Jim_Free(nullstr);
-            return JIM_ERR;
+            Jim_SetResultString(interp, sqlite3_errmsg(db), -1);
+            goto err;
         }
         Jim_DecrRefCount(interp, objPtr);       /* query no longer needed. */
         /* Build a list of rows (that are lists in turn) */
@@ -216,7 +209,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
                     Jim_NewStringObj(interp, sqlite3_column_name(stmt, i), -1));
                 switch (sqlite3_column_type(stmt, i)) {
                     case SQLITE_NULL:
-                        vObj = Jim_NewStringObj(interp, nullstr, -1);
+                        vObj = nullStrObj;
                         break;
                     case SQLITE_INTEGER:
                         vObj = Jim_NewIntObj(interp, sqlite3_column_int(stmt, i));
@@ -236,21 +229,25 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
             rows++;
         }
         /* Finalize */
-        Jim_Free(nullstr);
         if (sqlite3_finalize(stmt) != SQLITE_OK) {
-            Jim_DecrRefCount(interp, rowsListPtr);
-            Jim_SetResultString(interp, sqlite3_errmsg(sh->db), -1);
-            return JIM_ERR;
+            Jim_SetResultString(interp, sqlite3_errmsg(db), -1);
         }
-        Jim_SetResult(interp, rowsListPtr);
+        else {
+            Jim_SetResult(interp, rowsListPtr);
+            retcode = JIM_OK;
+        }
         Jim_DecrRefCount(interp, rowsListPtr);
+err:
+        Jim_DecrRefCount(interp, nullStrObj);
+
+        return retcode;
     }
     else if (option == OPT_LASTID) {
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        Jim_SetResult(interp, Jim_NewIntObj(interp, sqlite3_last_insert_rowid(sh->db)));
+        Jim_SetResult(interp, Jim_NewIntObj(interp, sqlite3_last_insert_rowid(db)));
         return JIM_OK;
     }
     else if (option == OPT_CHANGES) {
@@ -258,7 +255,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        Jim_SetResult(interp, Jim_NewIntObj(interp, sqlite3_changes(sh->db)));
+        Jim_SetResult(interp, Jim_NewIntObj(interp, sqlite3_changes(db)));
         return JIM_OK;
     }
     return JIM_OK;
@@ -267,7 +264,6 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     sqlite3 *db;
-    JimSqliteHandle *sh;
     char buf[60];
     int r;
 
@@ -282,10 +278,8 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     /* Create the file command */
-    sh = Jim_Alloc(sizeof(*sh));
-    sh->db = db;
     snprintf(buf, sizeof(buf), "sqlite.handle%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimSqliteHandlerCommand, sh, JimSqliteDelProc);
+    Jim_CreateCommand(interp, buf, JimSqliteHandlerCommand, db, JimSqliteDelProc);
 
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
