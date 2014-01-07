@@ -1,4 +1,6 @@
 /*
+ * vi:se ts=8:
+ *
  * regcomp and regexec -- regsub and regerror are elsewhere
  *
  *	Copyright (c) 1986 by University of Toronto.
@@ -61,6 +63,9 @@
 
 #if !defined(HAVE_REGCOMP) || defined(JIM_REGEXP)
 
+/* An arbitrary limit, but this seems enough. Must be less than 1000. */
+#define REG_MAX_PAREN 100
+
 /*
  * Structure for regexp "program".  This is essentially a linear encoding
  * of a nondeterministic finite-state machine (aka syntax charts or
@@ -77,10 +82,7 @@
  * to the thing following the set of BRANCHes.)  The opcodes are:
  */
 
-/* This *MUST* be less than (255-20-1)/2=117 */
-#define REG_MAX_PAREN 100
-
-/* definition	number	opnd?	meaning */
+/* definition		number	opnd?	meaning */
 #define	END	0	/* no	End of program. */
 #define	BOL	1	/* no	Match "" at beginning of line. */
 #define	EOL	2	/* no	Match "" at end of line. */
@@ -91,23 +93,27 @@
 #define	BACK	7	/* no	Match "", "next" ptr points backward. */
 #define	EXACTLY	8	/* str	Match this string. */
 #define	NOTHING	9	/* no	Match empty string. */
-#define	REP		10	/* max,min	Match this (simple) thing [min,max] times. */
-#define	REPMIN	11	/* max,min	Match this (simple) thing [min,max] times, mininal match. */
+#define	REP	10	/* max,min	Match this (simple) thing [min,max] times. */
+#define	REPMIN	11	/* max,min	Match this (simple) thing [min,max] times, minimal match. */
 #define	REPX	12	/* max,min	Match this (complex) thing [min,max] times. */
 #define	REPXMIN	13	/* max,min	Match this (complex) thing [min,max] times, minimal match. */
 
 #define	WORDA	15	/* no	Match "" at wordchar, where prev is nonword */
 #define	WORDZ	16	/* no	Match "" at nonwordchar, where prev is word */
-#define	OPENNC	19	/* no	Non-capturing parentheses - must be OPEN-1 */
-#define	OPEN	20	/* no	Mark this point in input as start of #n. */
+
+#define	OPENNC 	1000	/* no	Non-capturing parentheses - must be OPEN-1 */
+#define	OPEN   	1001	/* no	Mark this point in input as start of #n. */
 			/*	OPEN+1 is number 1, etc. */
-#define	CLOSE	(OPEN+REG_MAX_PAREN+1)	/* no	Analogous to OPEN. */
+
+/* must not be any other opts between OPEN and CLOSE */
+
+#define	CLOSENC	2000 	/* no	Non-capturing parentheses - must be CLOSE-1 */
+#define	CLOSE	2001 	/* no	Analogous to OPEN. */
 #define	CLOSE_END	(CLOSE+REG_MAX_PAREN)
-#define	CLOSENC	(CLOSE-1)	/* no	Non-capturing parentheses - must be CLOSE-1 */
 
 /*
- * The first byte of the regexp internal "program" is actually this magic
- * number; the start node begins in the second byte.
+ * The first word of the regexp internal "program" is actually this magic
+ * number; the start node begins in the second word.
  */
 #define	REG_MAGIC	0xFADED00D
 
@@ -125,23 +131,22 @@
  * BACK		Normal "next" pointers all implicitly point forward; BACK
  *		exists to make loop structures possible.
  *
- * STAR,PLUS	'?', and complex '*' and '+', are implemented as circular
- *		BRANCH structures using BACK.  Simple cases (one character
- *		per match) are implemented with STAR and PLUS for speed
- *		and to minimize recursive plunges.
+ * REP,REPX	Repeated matches ('?', '*', '+' and {min,max}) are implemented
+ *              as either simple repeats (REP) or complex repeats (REPX).
+ *              These opcodes include a "min" and "max" count after the opcode.
+ *		This is followed by a fourth "current count" word that is
+ *		only used by REPX, as it implements a recursive match.
+ *		REPMIN and REPXMIN are identical except they implement minimal repeats.
  *
  * OPEN,CLOSE	...are numbered at compile time.
  */
 
 /*
- * A node is one char of opcode followed by two chars of "next" pointer.
- * "Next" pointers are stored as two 8-bit pieces, high order first.  The
- * value is a positive offset from the opcode of the node containing it.
+ * A node is one word of opcode followed by one word of "next" pointer.
+ * The "next" pointer value is a positive offset from the opcode of the node
+ * containing it.
  * An operand, if any, simply follows the node.  (Note that much of the
  * code generation knows about this implicit relationship.)
- *
- * Using two bytes for the "next" pointer is vast overkill for most things,
- * but allows patterns to get big without disasters.
  */
 #define	OP(preg, p)	(preg->program[p])
 #define	NEXT(preg, p)	(preg->program[p + 1])
@@ -158,14 +163,14 @@
 
 #define	FAIL(R,M)	{ (R)->err = (M); return (M); }
 #define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?' || (c) == '{')
-#define	META	"^$.[()|?{+*"
+#define	META		"^$.[()|?{+*"
 
 /*
  * Flags to be passed up and down.
  */
-#define	HASWIDTH	01	/* Known never to match null string. */
-#define	SIMPLE		02	/* Simple enough to be STAR/PLUS operand. */
-#define	SPSTART		04	/* Starts with * or +. */
+#define	HASWIDTH	1	/* Known never to match null string. */
+#define	SIMPLE		2	/* Simple enough to be STAR/PLUS operand. */
+#define	SPSTART		4	/* Starts with * or +. */
 #define	WORST		0	/* Worst case. */
 
 #define MAX_REP_COUNT 1000000
@@ -181,9 +186,9 @@ static int regnode(regex_t *preg, int op );
 static int regnext(regex_t *preg, int p );
 static void regc(regex_t *preg, int b );
 static int reginsert(regex_t *preg, int op, int size, int opnd );
-static void regtail_(regex_t *preg, int p, int val, int line );
+static void regtail(regex_t *preg, int p, int val);
 static void regoptail(regex_t *preg, int p, int val );
-#define regtail(PREG, P, VAL) regtail_(PREG, P, VAL, __LINE__)
+static int regopsize(regex_t *preg, int p );
 
 static int reg_range_find(const int *string, int c);
 static const char *str_find(const char *string, int c, int nocase);
@@ -242,9 +247,6 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 	/* First pass: determine size, legality. */
 	preg->cflags = cflags;
 	preg->regparse = exp;
-	/* XXX: For now, start unallocated */
-	preg->program = NULL;
-	preg->proglen = 0;
 
 	/* Allocate space. */
 	preg->proglen = (strlen(exp) + 1) * 5;
@@ -928,6 +930,7 @@ static int regnode(regex_t *preg, int op)
 {
 	reg_grow(preg, 2);
 
+	/* The OP followed by a next pointer */
 	preg->program[preg->p++] = op;
 	preg->program[preg->p++] = 0;
 
@@ -969,7 +972,7 @@ static int reginsert(regex_t *preg, int op, int size, int opnd )
 /*
  - regtail - set the next-pointer at the end of a node chain
  */
-static void regtail_(regex_t *preg, int p, int val, int line )
+static void regtail(regex_t *preg, int p, int val)
 {
 	int scan;
 	int temp;
@@ -1043,33 +1046,13 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 	preg->nmatch = nmatch;
 	preg->start = string;	/* All offsets are computed from here */
 
-	/* Must clear out the embedded repeat counts */
-	for (scan = OPERAND(1); scan != 0; ) {
-		switch (OP(preg, scan)) {
-		case REP:
-		case REPMIN:
-		case REPX:
-		case REPXMIN:
+	/* Must clear out the embedded repeat counts of REPX and REPXMIN opcodes */
+	for (scan = OPERAND(1); scan != 0; scan += regopsize(preg, scan)) {
+		int op = OP(preg, scan);
+		if (op == END)
+			break;
+		if (op == REPX || op == REPXMIN)
 			preg->program[scan + 4] = 0;
-			scan += 5;
-			break;
-
-		case ANYOF:
-		case ANYBUT:
-		case EXACTLY:
-			scan += 2;
-			while (preg->program[scan++]) {
-			}
-			break;
-
-		case END:
-			scan = 0;
-			break;
-
-		default:
-			scan += 2;
-			break;
-		}
 	}
 
 	/* If there is a "must appear" string, look for it. */
@@ -1369,6 +1352,7 @@ static int regmatch(regex_t *preg, int prog)
 {
 	int scan;	/* Current node. */
 	int next;		/* Next node. */
+	const char *save;
 
 	scan = prog;
 
@@ -1457,23 +1441,20 @@ static int regmatch(regex_t *preg, int prog)
 			break;
 		case BACK:
 			break;
-		case BRANCH: {
-				const char *save;
-
-				if (OP(preg, next) != BRANCH)		/* No choice. */
-					next = OPERAND(scan);	/* Avoid recursion. */
-				else {
-					do {
-						save = preg->reginput;
-						if (regmatch(preg, OPERAND(scan))) {
-							return(1);
-						}
-						preg->reginput = save;
-						scan = regnext(preg, scan);
-					} while (scan != 0 && OP(preg, scan) == BRANCH);
-					return(0);
-					/* NOTREACHED */
-				}
+		case BRANCH:
+			if (OP(preg, next) != BRANCH)		/* No choice. */
+				next = OPERAND(scan);	/* Avoid recursion. */
+			else {
+				do {
+					save = preg->reginput;
+					if (regmatch(preg, OPERAND(scan))) {
+						return(1);
+					}
+					preg->reginput = save;
+					scan = regnext(preg, scan);
+				} while (scan != 0 && OP(preg, scan) == BRANCH);
+				return(0);
+				/* NOTREACHED */
 			}
 			break;
 		case REP:
@@ -1485,44 +1466,31 @@ static int regmatch(regex_t *preg, int prog)
 			return regmatchrepeat(preg, scan, OP(preg, scan) == REPXMIN);
 
 		case END:
-			return(1);	/* Success! */
-			break;
+			return 1;	/* Success! */
 
 		case OPENNC:
 		case CLOSENC:
-			if (regmatch(preg, next)) {
-				return 1;
-			}
-			return 0;
+			return regmatch(preg, next);
 
 		default:
 			if (OP(preg, scan) >= OPEN+1 && OP(preg, scan) < CLOSE_END) {
-				const char *save;
-
 				save = preg->reginput;
-
 				if (regmatch(preg, next)) {
-					int no;
-					/*
-					 * Don't set startp if some later
-					 * invocation of the same parentheses
-					 * already has.
-					 */
 					if (OP(preg, scan) < CLOSE) {
-						no = OP(preg, scan) - OPEN;
+						int no = OP(preg, scan) - OPEN;
 						if (no < preg->nmatch && preg->pmatch[no].rm_so == -1) {
 							preg->pmatch[no].rm_so = save - preg->start;
 						}
 					}
 					else {
-						no = OP(preg, scan) - CLOSE;
+						int no = OP(preg, scan) - CLOSE;
 						if (no < preg->nmatch && preg->pmatch[no].rm_eo == -1) {
 							preg->pmatch[no].rm_eo = save - preg->start;
 						}
 					}
 					return(1);
-				} else
-					return(0);
+				}
+				return(0);
 			}
 			return REG_ERR_INTERNAL;
 		}
@@ -1614,6 +1582,31 @@ static int regnext(regex_t *preg, int p )
 		return(p-offset);
 	else
 		return(p+offset);
+}
+
+/*
+ - regopsize - returns the size of opcode + operands at 'p' in words
+ */
+static int regopsize(regex_t *preg, int p )
+{
+	/* Almost all opcodes are 2 words, but some are more */
+	switch (OP(preg, p)) {
+		case REP:
+		case REPMIN:
+		case REPX:
+		case REPXMIN:
+			return 5;
+
+		case ANYOF:
+		case ANYBUT:
+		case EXACTLY: {
+			int s = p + 2;
+			while (preg->program[s++]) {
+			}
+			return s - p;
+		}
+	}
+	return 2;
 }
 
 #if defined(DEBUG) && !defined(JIM_BOOTSTRAP)
