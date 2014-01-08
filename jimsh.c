@@ -59,6 +59,12 @@ static void JimSetArgv(Jim_Interp *interp, int argc, char *const argv[])
     Jim_SetVariableStr(interp, "argc", Jim_NewIntObj(interp, argc));
 }
 
+static void JimPrintErrorMessage(Jim_Interp *interp)
+{
+    Jim_MakeErrorMessage(interp);
+    fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
+}
+
 int main(int argc, char *const argv[])
 {
     int retcode;
@@ -75,8 +81,7 @@ int main(int argc, char *const argv[])
 
     /* Register static extensions */
     if (Jim_InitStaticExtensions(interp) != JIM_OK) {
-        Jim_MakeErrorMessage(interp);
-        fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
+        JimPrintErrorMessage(interp);
     }
 
     Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
@@ -85,8 +90,7 @@ int main(int argc, char *const argv[])
 
     if (argc == 1) {
         if (retcode == JIM_ERR) {
-            Jim_MakeErrorMessage(interp);
-            fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
+            JimPrintErrorMessage(interp);
         }
         if (retcode != JIM_EXIT) {
             JimSetArgv(interp, 0, NULL);
@@ -107,8 +111,7 @@ int main(int argc, char *const argv[])
             retcode = Jim_EvalFile(interp, argv[1]);
         }
         if (retcode == JIM_ERR) {
-            Jim_MakeErrorMessage(interp);
-            fprintf(stderr, "%s\n", Jim_String(Jim_GetResult(interp)));
+            JimPrintErrorMessage(interp);
         }
     }
     if (retcode == JIM_EXIT) {
