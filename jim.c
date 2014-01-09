@@ -9241,6 +9241,20 @@ static ExprByteCode *JimGetExpression(Jim_Interp *interp, Jim_Obj *objPtr)
     return (ExprByteCode *) Jim_GetIntRepPtr(objPtr);
 }
 
+#ifdef JIM_OPTIMIZATION
+static Jim_Obj *JimExprIntValOrVar(Jim_Interp *interp, const ScriptToken *token)
+{
+    if (token->type == JIM_TT_EXPR_INT)
+        return token->objPtr;
+    else if (token->type == JIM_TT_VAR)
+        return Jim_GetVariable(interp, token->objPtr, JIM_NONE);
+    else if (token->type == JIM_TT_DICTSUGAR)
+        return JimExpandDictSugar(interp, token->objPtr);
+    else
+        return NULL;
+}
+#endif
+
 /* -----------------------------------------------------------------------------
  * Expressions evaluation.
  * Jim uses a specialized stack-based virtual machine for expressions,
@@ -9292,29 +9306,20 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
 
         switch (expr->len) {
             case 1:
-                if (expr->token[0].type == JIM_TT_EXPR_INT) {
-                    *exprResultPtrPtr = expr->token[0].objPtr;
-                    Jim_IncrRefCount(*exprResultPtrPtr);
+                objPtr = JimExprIntValOrVar(interp, &expr->token[0]);
+                if (objPtr) {
+                    Jim_IncrRefCount(objPtr);
+                    *exprResultPtrPtr = objPtr;
                     return JIM_OK;
-                }
-                if (expr->token[0].type == JIM_TT_VAR) {
-                    objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_ERRMSG);
-                    if (objPtr) {
-                        *exprResultPtrPtr = objPtr;
-                        Jim_IncrRefCount(*exprResultPtrPtr);
-                        return JIM_OK;
-                    }
                 }
                 break;
 
             case 2:
-                if (expr->token[1].type == JIM_EXPROP_NOT && expr->token[0].type == JIM_TT_VAR) {
-                    jim_wide wideValue;
+                if (expr->token[1].type == JIM_EXPROP_NOT) {
+                    objPtr = JimExprIntValOrVar(interp, &expr->token[0]);
 
-                    objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
-                    if (objPtr && JimIsWide(objPtr)
-                        && Jim_GetWide(interp, objPtr, &wideValue) == JIM_OK) {
-                        *exprResultPtrPtr = wideValue ? interp->falseObj : interp->trueObj;
+                    if (objPtr && JimIsWide(objPtr)) {
+                        *exprResultPtrPtr = JimWideValue(objPtr) ? interp->falseObj : interp->trueObj;
                         Jim_IncrRefCount(*exprResultPtrPtr);
                         return JIM_OK;
                     }
@@ -9322,68 +9327,44 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr, Jim_Obj **exprRe
                 break;
 
             case 3:
-                if (expr->token[0].type == JIM_TT_VAR && (expr->token[1].type == JIM_TT_EXPR_INT
-                        || expr->token[1].type == JIM_TT_VAR)) {
-                    switch (expr->token[2].type) {
-                        case JIM_EXPROP_LT:
-                        case JIM_EXPROP_LTE:
-                        case JIM_EXPROP_GT:
-                        case JIM_EXPROP_GTE:
-                        case JIM_EXPROP_NUMEQ:
-                        case JIM_EXPROP_NUMNE:{
-                                /* optimise ok */
-                                jim_wide wideValueA;
-                                jim_wide wideValueB;
-
-                                objPtr = Jim_GetVariable(interp, expr->token[0].objPtr, JIM_NONE);
-                                if (objPtr && JimIsWide(objPtr)
-                                    && Jim_GetWide(interp, objPtr, &wideValueA) == JIM_OK) {
-                                    if (expr->token[1].type == JIM_TT_VAR) {
-                                        objPtr =
-                                            Jim_GetVariable(interp, expr->token[1].objPtr,
-                                            JIM_NONE);
-                                    }
-                                    else {
-                                        objPtr = expr->token[1].objPtr;
-                                    }
-                                    if (objPtr && JimIsWide(objPtr)
-                                        && Jim_GetWide(interp, objPtr, &wideValueB) == JIM_OK) {
-                                        int cmpRes;
-
-                                        switch (expr->token[2].type) {
-                                            case JIM_EXPROP_LT:
-                                                cmpRes = wideValueA < wideValueB;
-                                                break;
-                                            case JIM_EXPROP_LTE:
-                                                cmpRes = wideValueA <= wideValueB;
-                                                break;
-                                            case JIM_EXPROP_GT:
-                                                cmpRes = wideValueA > wideValueB;
-                                                break;
-                                            case JIM_EXPROP_GTE:
-                                                cmpRes = wideValueA >= wideValueB;
-                                                break;
-                                            case JIM_EXPROP_NUMEQ:
-                                                cmpRes = wideValueA == wideValueB;
-                                                break;
-                                            case JIM_EXPROP_NUMNE:
-                                                cmpRes = wideValueA != wideValueB;
-                                                break;
-                                            default:   /*notreached */
-                                                cmpRes = 0;
-                                        }
-                                        *exprResultPtrPtr =
-                                            cmpRes ? interp->trueObj : interp->falseObj;
-                                        Jim_IncrRefCount(*exprResultPtrPtr);
-                                        return JIM_OK;
-                                    }
-                                }
-                            }
+                objPtr = JimExprIntValOrVar(interp, &expr->token[0]);
+                if (objPtr && JimIsWide(objPtr)) {
+                    Jim_Obj *objPtr2 = JimExprIntValOrVar(interp, &expr->token[1]);
+                    if (objPtr2 && JimIsWide(objPtr2)) {
+                        jim_wide wideValueA = JimWideValue(objPtr);
+                        jim_wide wideValueB = JimWideValue(objPtr2);
+                        int cmpRes;
+                        switch (expr->token[2].type) {
+                            case JIM_EXPROP_LT:
+                                cmpRes = wideValueA < wideValueB;
+                                break;
+                            case JIM_EXPROP_LTE:
+                                cmpRes = wideValueA <= wideValueB;
+                                break;
+                            case JIM_EXPROP_GT:
+                                cmpRes = wideValueA > wideValueB;
+                                break;
+                            case JIM_EXPROP_GTE:
+                                cmpRes = wideValueA >= wideValueB;
+                                break;
+                            case JIM_EXPROP_NUMEQ:
+                                cmpRes = wideValueA == wideValueB;
+                                break;
+                            case JIM_EXPROP_NUMNE:
+                                cmpRes = wideValueA != wideValueB;
+                                break;
+                            default:
+                                goto noopt;
+                        }
+                        *exprResultPtrPtr = cmpRes ? interp->trueObj : interp->falseObj;
+                        Jim_IncrRefCount(*exprResultPtrPtr);
+                        return JIM_OK;
                     }
                 }
                 break;
         }
     }
+noopt:
 #endif
 
     /* In order to avoid that the internal repr gets freed due to
