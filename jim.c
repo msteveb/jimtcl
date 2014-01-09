@@ -109,7 +109,7 @@
 const char *jim_tt_name(int type);
 
 #ifdef JIM_DEBUG_PANIC
-static void JimPanicDump(int panic_condition, const char *fmt, ...);
+static void JimPanicDump(int fail_condition, const char *fmt, ...);
 #define JimPanic(X) JimPanicDump X
 #else
 #define JimPanic(X)
@@ -309,7 +309,9 @@ static int JimGlobMatch(const char *pattern, const char *string, int nocase)
 }
 
 /**
- * string comparison works on binary data.
+ * string comparison. Works on binary data.
+ *
+ * Returns -1, 0 or 1
  *
  * Note that the lengths are byte lengths, not char lengths.
  */
@@ -331,6 +333,8 @@ static int JimStringCompare(const char *s1, int l1, const char *s2, int l2)
  * (or end of string if 'maxchars' is -1).
  *
  * Returns -1, 0, 1 for s1 < s2, s1 == s2, s1 > s2 respectively.
+ *
+ * Note: does not support embedded nulls.
  */
 static int JimStringCompareLen(const char *s1, const char *s2, int maxchars, int nocase)
 {
@@ -645,7 +649,7 @@ char *Jim_StrDupLen(const char *s, int l)
  * Time related functions
  * ---------------------------------------------------------------------------*/
 
-/* Returns microseconds of CPU used since start. */
+/* Returns current time in microseconds */
 static jim_wide JimClock(void)
 {
     struct timeval tv;
@@ -962,7 +966,7 @@ static unsigned int JimHashTableNextPower(unsigned int size)
 }
 
 /* Returns the index of a free slot that can be populated with
- * an hash entry for the given 'key'.
+ * a hash entry for the given 'key'.
  * If the key already exists, -1 is returned. */
 static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int replace)
 {
@@ -1104,18 +1108,18 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
 }
 
 /* -----------------------------------------------------------------------------
- * Parser
+ * Tcl Parser
  * ---------------------------------------------------------------------------*/
 
 /* Token types */
-#define JIM_TT_NONE    0           /* No token returned */
+#define JIM_TT_NONE    0          /* No token returned */
 #define JIM_TT_STR     1          /* simple string */
 #define JIM_TT_ESC     2          /* string that needs escape chars conversion */
 #define JIM_TT_VAR     3          /* var substitution */
 #define JIM_TT_DICTSUGAR   4      /* Syntax sugar for [dict get], $foo(bar) */
 #define JIM_TT_CMD     5          /* command substitution */
 /* Note: Keep these three together for TOKEN_IS_SEP() */
-#define JIM_TT_SEP     6          /* word separator. arg is # of tokens. -ve if {*} */
+#define JIM_TT_SEP     6          /* word separator (white space) */
 #define JIM_TT_EOL     7          /* line separator */
 #define JIM_TT_EOF     8          /* end of script */
 
@@ -2249,9 +2253,10 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
     return dupPtr;
 }
 
-/* Return the string representation for objPtr. If the object
- * string representation is invalid, calls the method to create
- * a new one starting from the internal representation of the object. */
+/* Return the string representation for objPtr. If the object's
+ * string representation is invalid, calls the updateStringProc method to create
+ * a new one from the internal representation of the object.
+ */
 const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 {
     if (objPtr->bytes == NULL) {
@@ -2337,10 +2342,9 @@ static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *d
     /* This is a bit subtle: the only caller of this function
      * should be Jim_DuplicateObj(), that will copy the
      * string representaion. After the copy, the duplicated
-     * object will not have more room in teh buffer than
+     * object will not have more room in the buffer than
      * srcPtr->length bytes. So we just set it to length. */
     dupPtr->internalRep.strValue.maxLength = srcPtr->length;
-
     dupPtr->internalRep.strValue.charLength = srcPtr->internalRep.strValue.charLength;
 }
 
@@ -2394,14 +2398,13 @@ Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
     /* Alloc/Set the string rep. */
     if (len == 0) {
         objPtr->bytes = JimEmptyStringRep;
-        objPtr->length = 0;
     }
     else {
         objPtr->bytes = Jim_Alloc(len + 1);
-        objPtr->length = len;
         memcpy(objPtr->bytes, s, len);
         objPtr->bytes[len] = '\0';
     }
+    objPtr->length = len;
 
     /* No typePtr field for the vanilla string object. */
     objPtr->typePtr = NULL;
@@ -2435,12 +2438,12 @@ Jim_Obj *Jim_NewStringObjNoAlloc(Jim_Interp *interp, char *s, int len)
     Jim_Obj *objPtr = Jim_NewObj(interp);
 
     objPtr->bytes = s;
-    objPtr->length = len == -1 ? strlen(s) : len;
+    objPtr->length = (len == -1) ? strlen(s) : len;
     objPtr->typePtr = NULL;
     return objPtr;
 }
 
-/* Low-level string append. Use it only against objects
+/* Low-level string append. Use it only against unshared objects
  * of type "string". */
 static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
 {
@@ -2466,6 +2469,7 @@ static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
     }
     memcpy(objPtr->bytes + objPtr->length, str, len);
     objPtr->bytes[objPtr->length + len] = '\0';
+
     if (objPtr->internalRep.strValue.charLength >= 0) {
         /* Update the utf-8 char length */
         objPtr->internalRep.strValue.charLength += utf8_strlen(objPtr->bytes + objPtr->length, len);
@@ -2473,7 +2477,9 @@ static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
     objPtr->length += len;
 }
 
-/* Higher level API to append strings to objects. */
+/* Higher level API to append strings to objects.
+ * Object must not be unshared for each of these.
+ */
 void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str, int len)
 {
     JimPanic((Jim_IsShared(objPtr), "Jim_AppendString called with shared object"));
@@ -2484,9 +2490,7 @@ void Jim_AppendString(Jim_Interp *interp, Jim_Obj *objPtr, const char *str, int 
 void Jim_AppendObj(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *appendObjPtr)
 {
     int len;
-    const char *str;
-
-    str = Jim_GetString(appendObjPtr, &len);
+    const char *str = Jim_GetString(appendObjPtr, &len);
     Jim_AppendString(interp, objPtr, str, len);
 }
 
@@ -2497,7 +2501,7 @@ void Jim_AppendStrings(Jim_Interp *interp, Jim_Obj *objPtr, ...)
     SetStringFromAny(interp, objPtr);
     va_start(ap, objPtr);
     while (1) {
-        char *s = va_arg(ap, char *);
+        const char *s = va_arg(ap, const char *);
 
         if (s == NULL)
             break;
@@ -2520,11 +2524,17 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr)
     return JimStringCompare(aStr, aLen, bStr, bLen) == 0;
 }
 
+/**
+ * Note. Does not support embedded nulls in either the pattern or the object.
+ */
 int Jim_StringMatchObj(Jim_Interp *interp, Jim_Obj *patternObjPtr, Jim_Obj *objPtr, int nocase)
 {
     return JimGlobMatch(Jim_String(patternObjPtr), Jim_String(objPtr), nocase);
 }
 
+/*
+ * Note: does not support embedded nulls for the nocase option.
+ */
 int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
 {
     int l1, l2;
@@ -2540,6 +2550,8 @@ int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *seco
 
 /**
  * Like Jim_StringCompareObj() except compares to a maximum of the length of firstObjPtr.
+ *
+ * Note: does not support embedded nulls
  */
 int Jim_StringCompareLenObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
 {
@@ -2552,7 +2564,7 @@ int Jim_StringCompareLenObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *s
 /* Convert a range, as returned by Jim_GetRange(), into
  * an absolute index into an object of the specified length.
  * This function may return negative values, or values
- * bigger or equal to the length of the list if the index
+ * greater than or equal to the length of the list if the index
  * is out of range. */
 static int JimRelToAbsIndex(int len, int idx)
 {
@@ -2561,12 +2573,11 @@ static int JimRelToAbsIndex(int len, int idx)
     return idx;
 }
 
-/* Convert a pair of index  (*firstPtr, *lastPtr) as normalized by JimRelToAbsIndex(),
- * into form suitable for implementation of commands like [string range] and [lrange].
+/* Convert a pair of indexes (*firstPtr, *lastPtr) as normalized by JimRelToAbsIndex(),
+ * into a form suitable for implementation of commands like [string range] and [lrange].
  *
  * The resulting range is guaranteed to address valid elements of
  * the structure.
- *
  */
 static void JimRelToAbsRange(int len, int *firstPtr, int *lastPtr, int *rangeLenPtr)
 {
@@ -2692,6 +2703,9 @@ Jim_Obj *JimStringReplaceObj(Jim_Interp *interp,
     return objPtr;
 }
 
+/**
+ * Note: does not support embedded nulls.
+ */
 static void JimStrCopyUpperLower(char *dest, const char *str, int uc)
 {
     while (*str) {
@@ -2702,6 +2716,9 @@ static void JimStrCopyUpperLower(char *dest, const char *str, int uc)
     *dest = 0;
 }
 
+/**
+ * Note: does not support embedded nulls.
+ */
 static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
     char *buf;
@@ -2723,6 +2740,9 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
     return Jim_NewStringObjNoAlloc(interp, buf, -1);
 }
 
+/**
+ * Note: does not support embedded nulls.
+ */
 static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
     char *buf;
@@ -2746,6 +2766,9 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     return Jim_NewStringObjNoAlloc(interp, buf, -1);
 }
 
+/**
+ * Note: does not support embedded nulls.
+ */
 static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
 {
     char *buf, *p;
@@ -2891,6 +2914,7 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
         return Jim_NewEmptyStringObj(interp);
     }
     if (nontrim == strObjPtr->bytes + len) {
+        /* All non-trim, so return the original object */
         return strObjPtr;
     }
 
@@ -2914,10 +2938,10 @@ static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *t
     /* Now trim right */
     strObjPtr = JimStringTrimRight(interp, objPtr, trimcharsObjPtr);
 
-    if (objPtr != strObjPtr) {
-        /* Note that we don't want this object to be leaked */
-        Jim_IncrRefCount(objPtr);
-        Jim_DecrRefCount(interp, objPtr);
+    /* Note: refCount check is needed since objPtr may be emptyObj */
+    if (objPtr != strObjPtr && objPtr->refCount == 0) {
+        /* We don't want this object to be leaked */
+        Jim_FreeNewObj(interp, objPtr);
     }
 
     return strObjPtr;
@@ -2958,7 +2982,7 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
 
     str = Jim_GetString(strObjPtr, &len);
     if (len == 0) {
-        Jim_SetResultInt(interp, !strict);
+        Jim_SetResultBool(interp, !strict);
         return JIM_OK;
     }
 
@@ -2966,14 +2990,14 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
         case STR_IS_INTEGER:
             {
                 jim_wide w;
-                Jim_SetResultInt(interp, JimGetWideNoErr(interp, strObjPtr, &w) == JIM_OK);
+                Jim_SetResultBool(interp, JimGetWideNoErr(interp, strObjPtr, &w) == JIM_OK);
                 return JIM_OK;
             }
 
         case STR_IS_DOUBLE:
             {
                 double d;
-                Jim_SetResultInt(interp, Jim_GetDouble(interp, strObjPtr, &d) == JIM_OK && errno != ERANGE);
+                Jim_SetResultBool(interp, Jim_GetDouble(interp, strObjPtr, &d) == JIM_OK && errno != ERANGE);
                 return JIM_OK;
             }
 
@@ -2995,11 +3019,11 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
 
     for (i = 0; i < len; i++) {
         if (!isclassfunc(str[i])) {
-            Jim_SetResultInt(interp, 0);
+            Jim_SetResultBool(interp, 0);
             return JIM_OK;
         }
     }
-    Jim_SetResultInt(interp, 1);
+    Jim_SetResultBool(interp, 1);
     return JIM_OK;
 }
 
@@ -3007,13 +3031,13 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
  * Compared String Object
  * ---------------------------------------------------------------------------*/
 
-/* This is strange object that allows to compare a C literal string
- * with a Jim object in very short time if the same comparison is done
+/* This is strange object that allows comparison of a C literal string
+ * with a Jim object in a very short time if the same comparison is done
  * multiple times. For example every time the [if] command is executed,
- * Jim has to check if a given argument is "else". This comparions if
- * the code has no errors are true most of the times, so we can cache
- * inside the object the pointer of the string of the last matching
- * comparison. Because most C compilers perform literal sharing,
+ * Jim has to check if a given argument is "else".
+ * If the code has no errors, this comparison is true most of the time,
+ * so we can cache the pointer of the string of the last matching
+ * comparison inside the object. Because most C compilers perform literal sharing,
  * so that: char *x = "foo", char *y = "foo", will lead to x == y,
  * this works pretty well even if comparisons are at different places
  * inside the C code. */
@@ -3033,13 +3057,15 @@ static const Jim_ObjType comparedStringObjType = {
  * Note: this isn't binary safe, but it hardly needs to be.*/
 int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, const char *str)
 {
-    if (objPtr->typePtr == &comparedStringObjType && objPtr->internalRep.ptr == str)
+    if (objPtr->typePtr == &comparedStringObjType && objPtr->internalRep.ptr == str) {
         return 1;
+    }
     else {
         const char *objStr = Jim_String(objPtr);
 
         if (strcmp(str, objStr) != 0)
             return 0;
+
         if (objPtr->typePtr != &comparedStringObjType) {
             Jim_FreeIntRep(interp, objPtr);
             objPtr->typePtr = &comparedStringObjType;
@@ -3062,22 +3088,20 @@ static int qsortCompareStringPointers(const void *a, const void *b)
  * Source Object
  *
  * This object is just a string from the language point of view, but
- * in the internal representation it contains the filename and line number
- * where this given token was read. This information is used by
+ * the internal representation contains the filename and line number
+ * where this token was read. This information is used by
  * Jim_EvalObj() if the object passed happens to be of type "source".
  *
- * This allows to propagate the information about line numbers and file
- * names and give error messages with absolute line numbers.
+ * This allows propagation of the information about line numbers and file
+ * names and gives error messages with absolute line numbers.
  *
- * Note that this object uses shared strings for filenames, and the
- * pointer to the filename together with the line number is taken into
- * the space for the "inline" internal representation of the Jim_Object,
- * so there is almost memory zero-overhead.
+ * Note that this object uses the internal representation of the Jim_Object,
+ * so there is almost no memory overhead. (One Jim_Obj for each filename).
  *
  * Also the object will be converted to something else if the given
  * token it represents in the source file is not something to be
  * evaluated (not a script), and will be specialized in some other way,
- * so the time overhead is also null.
+ * so the time overhead is also almost zero.
  * ---------------------------------------------------------------------------*/
 
 static void FreeSourceInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -3114,15 +3138,18 @@ static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
 }
 
 /* -----------------------------------------------------------------------------
- * Script Object
- * ---------------------------------------------------------------------------*/
-
+ * ScriptLine Object
+ *
+ * This object is used only in the Script internal represenation.
+ * For each line of the script, it holds the number of tokens on the line
+ * and the source line number.
+ */
 static const Jim_ObjType scriptLineObjType = {
     "scriptline",
     NULL,
     NULL,
     NULL,
-    0,
+    JIM_NONE,
 };
 
 static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
@@ -3143,8 +3170,12 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
     return objPtr;
 }
 
-#define JIM_CMDSTRUCT_EXPAND -1
-
+/* -----------------------------------------------------------------------------
+ * Script Object
+ *
+ * This object holds the parsed internal representation of a script.
+ * This representation is help within an allocated ScriptObj (see below)
+ */
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct JimParseResult *result);
@@ -3157,13 +3188,14 @@ static const Jim_ObjType scriptObjType = {
     JIM_TYPE_REFERENCES,
 };
 
-/* The ScriptToken structure represents every token into a scriptObj.
- * Every token contains an associated Jim_Obj that can be specialized
- * by commands operating on it. */
+/* Each token of a script is represented by a ScriptToken.
+ * The ScriptToken contains a type and a Jim_Obj. The Jim_Obj
+ * can be specialized by commands operating on it.
+ */
 typedef struct ScriptToken
 {
-    int type;
     Jim_Obj *objPtr;
+    int type;
 } ScriptToken;
 
 /* This is the script object internal representation. An array of
@@ -3175,7 +3207,7 @@ typedef struct ScriptToken
  * puts hello
  * set $i $x$y [foo]BAR
  *
- * will produce a ScriptObj with the following Tokens:
+ * will produce a ScriptObj with the following ScriptToken's:
  *
  * LIN 2
  * ESC puts
@@ -3225,25 +3257,25 @@ typedef struct ScriptToken
  * and "subst" objects. In the second case, the there are no LIN and WRD
  * tokens. Instead SEP and EOL tokens are added as-is.
  * In addition, the field 'substFlags' is used to represent the flags used to turn
- * the string into the internal representation used to perform the
- * substitution. If this flags are not what the application requires
+ * the string into the internal representation.
+ * If these flags do not match what the application requires,
  * the scriptObj is created again. For example the script:
  *
  * subst -nocommands $string
  * subst -novariables $string
  *
- * Will recreate the internal representation of the $string object
+ * Will (re)create the internal representation of the $string object
  * two times.
  */
 typedef struct ScriptObj
 {
-    int len;                    /* Length as number of tokens. */
     ScriptToken *token;         /* Tokens array. */
+    Jim_Obj *fileNameObj;       /* Filename */
+    int len;                    /* Length of token[] */
     int substFlags;             /* flags used for the compilation of "subst" objects */
     int inUse;                  /* Used to share a ScriptObj. Currently
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
-    Jim_Obj *fileNameObj;
     int firstline;              /* Line number of the first line */
     int linenr;                 /* Line number of the current line */
 } ScriptObj;
@@ -3253,8 +3285,7 @@ void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     int i;
     struct ScriptObj *script = (void *)objPtr->internalRep.ptr;
 
-    script->inUse--;
-    if (script->inUse != 0)
+    if (--script->inUse != 0)
         return;
     for (i = 0; i < script->len; i++) {
         Jim_DecrRefCount(interp, script->token[i].objPtr);
@@ -3269,12 +3300,14 @@ void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     JIM_NOTUSED(interp);
     JIM_NOTUSED(srcPtr);
 
-    /* Just returns an simple string. */
+    /* Just return a simple string. We don't try to preserve the source info
+     * since in practice scripts are never duplicated
+     */
     dupPtr->typePtr = NULL;
 }
 
-/* A simple parser token.
- * All the simple tokens for the script point into the same script string rep.
+/* A simple parse token.
+ * As the script is parsed, the created tokens point into the script string rep.
  */
 typedef struct
 {
@@ -3342,7 +3375,7 @@ static void ScriptAddToken(ParseTokenList *tokenlist, const char *token, int len
     t->line = line;
 }
 
-/* Counts the number of adjoining non-separator.
+/* Counts the number of adjoining non-separator tokens.
  *
  * Returns -ve if the first token is the expansion
  * operator (in which case the count doesn't include
@@ -3379,15 +3412,15 @@ static Jim_Obj *JimMakeScriptObj(Jim_Interp *interp, const ParseToken *t)
     Jim_Obj *objPtr;
 
     if (t->type == JIM_TT_ESC && memchr(t->token, '\\', t->len) != NULL) {
-        /* Convert the backlash escapes . */
+        /* Convert backlash escapes. The result will never be longer than the original */
         int len = t->len;
         char *str = Jim_Alloc(len + 1);
         len = JimEscape(str, t->token, len);
         objPtr = Jim_NewStringObjNoAlloc(interp, str, len);
     }
     else {
-        /* REVIST: Strictly, JIM_TT_STR should replace <backslash><newline><whitespace>
-         *         with a single space. This is currently not done.
+        /* XXX: For strict Tcl compatibility, JIM_TT_STR should replace <backslash><newline><whitespace>
+         *         with a single space.
          */
         objPtr = Jim_NewStringObj(interp, t->token, t->len);
     }
@@ -3463,7 +3496,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             continue;
         }
         else if (wordtokens != 1) {
-            /* More than 1, or {expand}, so insert a WORD token */
+            /* More than 1, or {*}, so insert a WORD token */
             token->type = JIM_TT_WORD;
             token->objPtr = Jim_NewIntObj(interp, wordtokens);
             Jim_IncrRefCount(token->objPtr);
@@ -3490,7 +3523,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             token->objPtr = JimMakeScriptObj(interp, t);
             Jim_IncrRefCount(token->objPtr);
 
-            /* Every object is initially a string, but the
+            /* Every object is initially a string of type 'source', but the
              * internal type may be specialized during execution of the
              * script. */
             JimSetSourceInfo(interp, token->objPtr, script->fileNameObj, t->line);
@@ -3504,7 +3537,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 
     script->len = token - script->token;
 
-    assert(script->len < count);
+    JimPanic((script->len >= count, "allocated script array is too short"));
 
 #ifdef DEBUG_SHOW_SCRIPT
     printf("==== Script (%s) ====\n", Jim_String(script->fileNameObj));
@@ -3577,7 +3610,7 @@ static int SetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, struct J
     /* Add a final EOF token */
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
 
-    /* Create the "real" script tokens from the initial token list */
+    /* Create the "real" script tokens from the parsed tokens */
     script = Jim_Alloc(sizeof(*script));
     memset(script, 0, sizeof(*script));
     script->inUse = 1;
@@ -3651,7 +3684,7 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
 
 /* Variables HashTable Type.
  *
- * Keys are dynamic allocated strings, Values are Jim_Var structures.
+ * Keys are dynamically allocated strings, Values are Jim_Var structures.
  */
 
 /* Variables HashTable Type.
@@ -3674,7 +3707,8 @@ static const Jim_HashTableType JimVariablesHashTableType = {
 
 /* Commands HashTable Type.
  *
- * Keys are dynamic allocated strings, Values are Jim_Cmd structures. */
+ * Keys are dynamic allocated strings, Values are Jim_Cmd structures.
+ */
 static void JimCommandsHT_ValDestructor(void *interp, void *val)
 {
     JimDecrCmdRefCount(interp, val);
@@ -4821,25 +4855,28 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     if (interp->freeFramesList) {
         cf = interp->freeFramesList;
         interp->freeFramesList = cf->next;
+
+        cf->argv = NULL;
+        cf->argc = 0;
+        cf->procArgsObjPtr = NULL;
+        cf->procBodyObjPtr = NULL;
+        cf->next = NULL;
+        cf->staticVars = NULL;
+        cf->localCommands = NULL;
+        cf->tailcall = 0;
+        cf->tailcallObj = NULL;
+        cf->tailcallCmd = NULL;
     }
     else {
         cf = Jim_Alloc(sizeof(*cf));
+        memset(cf, 0, sizeof(*cf));
+
         Jim_InitHashTable(&cf->vars, &JimVariablesHashTableType, interp);
     }
 
     cf->id = interp->callFrameEpoch++;
     cf->parent = parent;
     cf->level = parent ? parent->level + 1 : 0;
-    cf->argv = NULL;
-    cf->argc = 0;
-    cf->procArgsObjPtr = NULL;
-    cf->procBodyObjPtr = NULL;
-    cf->next = NULL;
-    cf->staticVars = NULL;
-    cf->localCommands = NULL;
-    cf->tailcall = 0;
-    cf->tailcallObj = NULL;
-    cf->tailcallCmd = NULL;
     cf->nsObj = nsObj;
     Jim_IncrRefCount(nsObj);
 
@@ -5300,19 +5337,16 @@ int Jim_Collect(Jim_Interp *interp)
                  * since that will free refPtr, and hence refPtr->objPtr
                  */
 
-                /* Call the finalizer. Errors ignored. */
+                /* Call the finalizer. Errors ignored. (should we use bgerror?) */
                 oldResult = interp->result;
                 Jim_IncrRefCount(oldResult);
                 Jim_EvalObjVector(interp, 3, objv);
                 Jim_SetResult(interp, oldResult);
                 Jim_DecrRefCount(interp, oldResult);
-                Jim_DeleteHashEntry(&interp->references, refId);
 
                 Jim_DecrRefCount(interp, objv[0]);
             }
-            else {
-                Jim_DeleteHashEntry(&interp->references, refId);
-            }
+            Jim_DeleteHashEntry(&interp->references, refId);
         }
     }
     Jim_FreeHashTable(&marks);
