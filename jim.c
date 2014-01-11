@@ -5476,11 +5476,13 @@ void Jim_FreeInterp(Jim_Interp *i)
 
     /* Check that the live object list is empty, otherwise
      * there is a memory leak. */
+#ifdef JIM_MAINTAINER
     if (i->liveList != NULL) {
-        objPtr = i->liveList;
-
         printf(JIM_NL "-------------------------------------" JIM_NL);
         printf("Objects still in the free list:" JIM_NL);
+
+        objPtr = i->liveList;
+
         while (objPtr) {
             const char *type = objPtr->typePtr ? objPtr->typePtr->name : "string";
 
@@ -5502,6 +5504,8 @@ void Jim_FreeInterp(Jim_Interp *i)
         printf("-------------------------------------" JIM_NL JIM_NL);
         JimPanic((1, "Live list non empty freeing the interpreter! Leak?"));
     }
+#endif
+
     /* Free all the freed objects. */
     objPtr = i->freeList;
     while (objPtr) {
