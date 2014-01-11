@@ -820,16 +820,28 @@ int Jim_ReplaceHashEntry(Jim_HashTable *ht, const void *key, void *val)
      * the element already exists. */
     entry = JimInsertHashEntry(ht, key, 1);
     if (entry->key) {
-        /* It already exists, so replace the value */
-        Jim_FreeEntryVal(ht, entry);
+        /* It already exists, so only replace the value.
+         * Note if both a destructor and a duplicate function exist,
+         * need to dup before destroy. perhaps they are the same
+         * reference counted object
+         */
+        if (ht->type->valDestructor && ht->type->valDup) {
+            void *newval = ht->type->valDup(ht->privdata, val);
+            ht->type->valDestructor(ht->privdata, entry->u.val);
+            entry->u.val = newval;
+        }
+        else {
+            Jim_FreeEntryVal(ht, entry);
+            Jim_SetHashVal(ht, entry, val);
+        }
         existed = 1;
     }
     else {
         /* Doesn't exist, so set the key */
         Jim_SetHashKey(ht, entry, key);
+        Jim_SetHashVal(ht, entry, val);
         existed = 0;
     }
-    Jim_SetHashVal(ht, entry, val);
 
     return existed;
 }
