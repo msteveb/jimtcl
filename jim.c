@@ -127,7 +127,7 @@ static char JimEmptyStringRep[] = "";
  * Required prototypes of not exported functions
  * ---------------------------------------------------------------------------*/
 static void JimChangeCallFrameId(Jim_Interp *interp, Jim_CallFrame *cf);
-static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags);
+static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim_Obj *newObjPtr,
     int flags);
 static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands);
@@ -877,7 +877,7 @@ int Jim_DeleteHashEntry(Jim_HashTable *ht, const void *key)
     return JIM_ERR;             /* not found */
 }
 
-/* Destroy an entire hash table */
+/* Destroy an entire hash table and leave it ready for reuse */
 int Jim_FreeHashTable(Jim_HashTable *ht)
 {
     unsigned int i;
@@ -4942,16 +4942,18 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
 }
 
 
-#define JIM_FCF_NONE 0          /* no flags */
-#define JIM_FCF_NOHT 1          /* don't free the hash table */
-static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
-{
+#define JIM_FCF_FULL 0          /* Always free the vars hash table */
+#define JIM_FCF_REUSE 1         /* Reuse the vars hash table if possible */
+static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action)
+ {
+    JimDeleteLocalProcs(interp, cf->localCommands);
+
     if (cf->procArgsObjPtr)
         Jim_DecrRefCount(interp, cf->procArgsObjPtr);
     if (cf->procBodyObjPtr)
         Jim_DecrRefCount(interp, cf->procBodyObjPtr);
     Jim_DecrRefCount(interp, cf->nsObj);
-    if (!(flags & JIM_FCF_NOHT))
+    if (action == JIM_FCF_FULL || cf->vars.size != JIM_HT_INITIAL_SIZE)
         Jim_FreeHashTable(&cf->vars);
     else {
         int i;
@@ -4973,12 +4975,8 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int flags)
         }
         cf->vars.used = 0;
     }
-
-    JimDeleteLocalProcs(interp, cf->localCommands);
-
     cf->next = interp->freeFramesList;
     interp->freeFramesList = cf;
-
 }
 
 
@@ -5464,7 +5462,8 @@ void Jim_FreeInterp(Jim_Interp *i)
     /* Free the call frames list - must be done before i->commands is destroyed */
     while (cf) {
         prevcf = cf->parent;
-        JimFreeCallFrame(i, cf, JIM_FCF_NONE);
+        JimFreeCallFrame(i, cf, JIM_FCF_FULL);
+        Jim_Free(cf);
         cf = prevcf;
     }
 
@@ -5524,15 +5523,6 @@ void Jim_FreeInterp(Jim_Interp *i)
         nextObjPtr = objPtr->nextObjPtr;
         Jim_Free(objPtr);
         objPtr = nextObjPtr;
-    }
-    /* Free cached CallFrame structures */
-    cf = i->freeFramesList;
-    while (cf) {
-        nextcf = cf->next;
-        if (cf->vars.table != NULL)
-            Jim_Free(cf->vars.table);
-        Jim_Free(cf);
-        cf = nextcf;
     }
 
     /* Free the interpreter structure. */
@@ -10801,12 +10791,7 @@ int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj)
 
     /* Destroy the callframe */
     interp->framePtr = interp->framePtr->parent;
-    if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
-        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
-    }
-    else {
-        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
-    }
+    JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
 
     return retcode;
 }
@@ -10910,13 +10895,7 @@ badargset:
 
     /* Free the callframe */
     interp->framePtr = interp->framePtr->parent;
-
-    if (callFramePtr->vars.size != JIM_HT_INITIAL_SIZE) {
-        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NONE);
-    }
-    else {
-        JimFreeCallFrame(interp, callFramePtr, JIM_FCF_NOHT);
-    }
+    JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
 
     if (interp->framePtr->tailcallObj) {
         /* If a tailcall is already being executed, merge this tailcall with that one */
