@@ -2524,16 +2524,16 @@ void Jim_AppendStrings(Jim_Interp *interp, Jim_Obj *objPtr, ...)
 
 int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr)
 {
-    const char *aStr, *bStr;
-    int aLen, bLen;
-
-    if (aObjPtr == bObjPtr)
+    if (aObjPtr == bObjPtr) {
         return 1;
-    aStr = Jim_GetString(aObjPtr, &aLen);
-    bStr = Jim_GetString(bObjPtr, &bLen);
-    if (aLen != bLen)
-        return 0;
-    return JimStringCompare(aStr, aLen, bStr, bLen) == 0;
+    }
+    else {
+        int Alen, Blen;
+        const char *sA = Jim_GetString(aObjPtr, &Alen);
+        const char *sB = Jim_GetString(bObjPtr, &Blen);
+
+        return Alen == Blen && memcmp(sA, sB, Alen) == 0;
+    }
 }
 
 /**
@@ -8072,19 +8072,12 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprState *e)
 
     switch (e->opcode) {
         case JIM_EXPROP_STREQ:
-        case JIM_EXPROP_STRNE: {
-            int Alen, Blen;
-            const char *sA = Jim_GetString(A, &Alen);
-            const char *sB = Jim_GetString(B, &Blen);
-
-            if (e->opcode == JIM_EXPROP_STREQ) {
-                wC = (Alen == Blen && memcmp(sA, sB, Alen) == 0);
-            }
-            else {
-                wC = (Alen != Blen || memcmp(sA, sB, Alen) != 0);
+        case JIM_EXPROP_STRNE:
+            wC = Jim_StringEqObj(A, B);
+            if (e->opcode == JIM_EXPROP_STRNE) {
+                wC = !wC;
             }
             break;
-        }
         case JIM_EXPROP_STRIN:
             wC = JimSearchList(interp, B, A);
             break;
