@@ -8360,9 +8360,12 @@ static int JimParseExpression(struct JimParserCtx *pc)
         pc->len--;
     }
 
+    /* Common case */
+    pc->tline = pc->linenr;
+    pc->tstart = pc->p;
+
     if (pc->len == 0) {
-        pc->tstart = pc->tend = pc->p;
-        pc->tline = pc->linenr;
+        pc->tend = pc->p;
         pc->tt = JIM_TT_EOL;
         pc->eof = 1;
         return JIM_OK;
@@ -8377,8 +8380,7 @@ static int JimParseExpression(struct JimParserCtx *pc)
         case ',':
             pc->tt = JIM_TT_SUBEXPR_COMMA;
 singlechar:
-            pc->tstart = pc->tend = pc->p;
-            pc->tline = pc->linenr;
+            pc->tend = pc->p;
             pc->p++;
             pc->len--;
             break;
@@ -8428,61 +8430,25 @@ singlechar:
 
 static int JimParseExprNumber(struct JimParserCtx *pc)
 {
-    int allowdot = 1;
-    int base = 10;
+    char *end;
 
     /* Assume an integer for now */
     pc->tt = JIM_TT_EXPR_INT;
-    pc->tstart = pc->p;
-    pc->tline = pc->linenr;
 
-    /* Parse initial 0<x> */
-    if (pc->p[0] == '0') {
-        switch (pc->p[1]) {
-            case 'x':
-            case 'X':
-                base = 16;
-                allowdot = 0;
-                pc->p += 2;
-                pc->len -= 2;
-                break;
-            case 'o':
-            case 'O':
-                base = 8;
-                allowdot = 0;
-                pc->p += 2;
-                pc->len -= 2;
-                break;
-            case 'b':
-            case 'B':
-                base = 2;
-                allowdot = 0;
-                pc->p += 2;
-                pc->len -= 2;
-                break;
-        }
-    }
-
-    while (isdigit(UCHAR(*pc->p))
-        || (base == 16 && isxdigit(UCHAR(*pc->p)))
-        || (base == 8 && *pc->p >= '0' && *pc->p <= '7')
-        || (base == 2 && (*pc->p == '0' || *pc->p == '1'))
-        || (allowdot && *pc->p == '.')
-        ) {
-        if (*pc->p == '.') {
-            allowdot = 0;
+    jim_strtoull(pc->p, (char **)&pc->p);
+    /* Tried as an integer, but perhaps it parses as a double */
+    if (strchr("eENnIi.", *pc->p) || pc->p == pc->tstart) {
+        strtod(pc->tstart, &end);
+        if (end == pc->tstart)
+            return JIM_ERR;
+        if (end > pc->p) {
+            /* Yes, double captured more chars */
             pc->tt = JIM_TT_EXPR_DOUBLE;
-        }
-        pc->p++;
-        pc->len--;
-        if (base == 10 && (*pc->p == 'e' || *pc->p == 'E') && (pc->p[1] == '-' || pc->p[1] == '+'
-                || isdigit(UCHAR(pc->p[1])))) {
-            pc->p += 2;
-            pc->len -= 2;
-            pc->tt = JIM_TT_EXPR_DOUBLE;
+            pc->p = end;
         }
     }
     pc->tend = pc->p - 1;
+    pc->len -= (pc->p - pc->tstart);
     return JIM_OK;
 }
 
@@ -8495,11 +8461,9 @@ static int JimParseExprIrrational(struct JimParserCtx *pc)
         int len = strlen(*token);
 
         if (strncmp(*token, pc->p, len) == 0) {
-            pc->tstart = pc->p;
             pc->tend = pc->p + len - 1;
             pc->p += len;
             pc->len -= len;
-            pc->tline = pc->linenr;
             pc->tt = JIM_TT_EXPR_DOUBLE;
             return JIM_OK;
         }
@@ -8543,11 +8507,9 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
             return JIM_ERR;
         }
     }
-    pc->tstart = pc->p;
     pc->tend = pc->p + bestLen - 1;
     pc->p += bestLen;
     pc->len -= bestLen;
-    pc->tline = pc->linenr;
 
     pc->tt = bestIdx;
     return JIM_OK;
