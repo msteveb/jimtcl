@@ -6938,6 +6938,12 @@ static int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *k
     return Jim_StringEqObj((Jim_Obj *)key1, (Jim_Obj *)key2);
 }
 
+static void *JimObjectHTKeyValDup(void *privdata, const void *val)
+{
+    Jim_IncrRefCount((Jim_Obj *)val);
+    return (void *)val;
+}
+
 static void JimObjectHTKeyValDestructor(void *interp, void *val)
 {
     Jim_DecrRefCount(interp, (Jim_Obj *)val);
@@ -6945,8 +6951,8 @@ static void JimObjectHTKeyValDestructor(void *interp, void *val)
 
 static const Jim_HashTableType JimDictHashTableType = {
     JimObjectHTHashFunction,    /* hash function */
-    NULL,                       /* key dup */
-    NULL,                       /* val dup */
+    JimObjectHTKeyValDup,       /* key dup */
+    JimObjectHTKeyValDup,       /* val dup */
     JimObjectHTKeyCompare,      /* key compare */
     JimObjectHTKeyValDestructor,    /* key destructor */
     JimObjectHTKeyValDestructor /* val destructor */
@@ -6987,12 +6993,7 @@ void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     /* Copy every element from the source to the dup hash table */
     JimInitHashTableIterator(ht, &htiter);
     while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-        const Jim_Obj *keyObjPtr = he->key;
-        Jim_Obj *valObjPtr = he->u.val;
-
-        Jim_IncrRefCount((Jim_Obj *)keyObjPtr); /* ATTENTION: const cast */
-        Jim_IncrRefCount(valObjPtr);
-        Jim_AddHashEntry(dupHt, keyObjPtr, valObjPtr);
+        Jim_AddHashEntry(dupHt, he->key, he->u.val);
     }
 
     dupPtr->internalRep.ptr = dupHt;
@@ -7066,18 +7067,7 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             Jim_ListIndex(interp, objPtr, i, &keyObjPtr, JIM_NONE);
             Jim_ListIndex(interp, objPtr, i + 1, &valObjPtr, JIM_NONE);
 
-            Jim_IncrRefCount(keyObjPtr);
-            Jim_IncrRefCount(valObjPtr);
-
-            if (Jim_AddHashEntry(ht, keyObjPtr, valObjPtr) != JIM_OK) {
-                Jim_HashEntry *he;
-
-                he = Jim_FindHashEntry(ht, keyObjPtr);
-                Jim_DecrRefCount(interp, keyObjPtr);
-                /* ATTENTION: const cast */
-                Jim_DecrRefCount(interp, (Jim_Obj *)he->u.val);
-                he->u.val = valObjPtr;
-            }
+            Jim_ReplaceHashEntry(ht, keyObjPtr, valObjPtr);
         }
 
         Jim_FreeIntRep(interp, objPtr);
@@ -7104,12 +7094,7 @@ static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
     if (valueObjPtr == NULL) {  /* unset */
         return Jim_DeleteHashEntry(ht, keyObjPtr);
     }
-    Jim_IncrRefCount(keyObjPtr);
-    Jim_IncrRefCount(valueObjPtr);
-    if (Jim_ReplaceHashEntry(ht, keyObjPtr, valueObjPtr)) {
-        /* Value existed, so need to decrement key ref count */
-        Jim_DecrRefCount(interp, keyObjPtr);
-    }
+    Jim_ReplaceHashEntry(ht, keyObjPtr, valueObjPtr);
     return JIM_OK;
 }
 
@@ -10192,6 +10177,15 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
     Jim_Cmd *cmdPtr;
+
+#if 0
+    printf("invoke");
+    int j;
+    for (j = 0; j < objc; j++) {
+        printf(" '%s'", Jim_String(objv[j]));
+    }
+    printf("\n");
+#endif
 
     if (interp->framePtr->tailcallCmd) {
         /* Special tailcall command was pre-resolved */
