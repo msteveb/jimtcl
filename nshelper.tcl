@@ -1,3 +1,9 @@
+# Implements script-based implementations of various namespace
+# subcommands
+#
+# (c) 2011 Steve Bennett <steveb@workware.net.au>
+#
+
 proc {namespace delete} {args} {
 	foreach name $args {
 		if {$name ni {:: ""}} {

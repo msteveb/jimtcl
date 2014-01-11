@@ -1,4 +1,3 @@
-
 /* Syslog interface for tcl
  * Copyright Victor Wagner <vitus@ice.ru> at
  * http://www.ice.ru/~vitus/works/tcl.html#syslog

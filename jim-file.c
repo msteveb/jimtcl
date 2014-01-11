@@ -351,10 +351,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_access(Jim_Interp *interp, Jim_Obj *filename, int mode)
 {
-    const char *path = Jim_String(filename);
-    int rc = access(path, mode);
-
-    Jim_SetResultBool(interp, rc != -1);
+    Jim_SetResultBool(interp, access(Jim_String(filename), mode) != -1);
 
     return JIM_OK;
 }
@@ -374,9 +371,7 @@ static int file_cmd_executable(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #ifdef X_OK
     return file_access(interp, argv[0], X_OK);
 #else
-    /* XXX: X_OK doesn't work under Windows.
-     * In any case, may need to add .exe, etc. so just lie!
-     */
+    /* If no X_OK, just assume true. */
     Jim_SetResultBool(interp, 1);
     return JIM_OK;
 #endif
@@ -930,11 +925,11 @@ static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const int cwd_len = 2048;
-    char *cwd = malloc(cwd_len);
+    char *cwd = Jim_Alloc(MAXPATHLEN);
 
-    if (getcwd(cwd, cwd_len) == NULL) {
+    if (getcwd(cwd, MAXPATHLEN) == NULL) {
         Jim_SetResultString(interp, "Failed to get pwd", -1);
+        Jim_Free(cwd);
         return JIM_ERR;
     }
 #if defined(__MINGW32__) || defined(_MSC_VER)
@@ -949,7 +944,7 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     Jim_SetResultString(interp, cwd, -1);
 
-    free(cwd);
+    Jim_Free(cwd);
     return JIM_OK;
 }
 

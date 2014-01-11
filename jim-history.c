@@ -11,7 +11,7 @@ static int history_cmd_getline(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     Jim_Obj *objPtr;
     char *line = Jim_HistoryGetline(Jim_String(argv[0]));
 
-    /* On EOF returns -1 if varName was specified, or the empty string. */
+    /* On EOF returns -1 if varName was specified; otherwise the empty string. */
     if (line == NULL) {
         if (argc == 2) {
             Jim_SetResultInt(interp, -1);

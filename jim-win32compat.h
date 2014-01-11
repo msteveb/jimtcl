@@ -3,6 +3,10 @@
 
 /* Compatibility for Windows (mingw and msvc, not cygwin */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Note that at this point we don't yet have access to jimautoconf.h */
 #if defined(_WIN32) || defined(WIN32)
 
@@ -69,5 +73,9 @@ struct dirent *readdir(DIR *dir);
 #endif
 
 #endif /* WIN32 */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

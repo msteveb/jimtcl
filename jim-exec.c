@@ -81,6 +81,7 @@ int Jim_execInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
         return JIM_ERR;
+
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
     return JIM_OK;
 }
@@ -239,6 +240,7 @@ static char **JimBuildEnv(Jim_Interp *interp)
     /* Calculate the required size */
     num = Jim_ListLength(interp, objPtr);
     if (num % 2) {
+        /* Silently drop the last element if not a valid dictionary */
         num--;
     }
     /* We need one \0 and one equal sign for each element.
@@ -284,10 +286,10 @@ static void JimFreeEnv(char **env, char **original_environ)
 }
 
 /*
- * Create error messages for unusual process exits.  An
- * extra newline gets appended to each error message, but
- * it gets removed below (in the same fashion that an
- * extra newline in the command's output is removed).
+ * Create and store an appropriate value for the global variable $::errorCode
+ * Based on pid and waitStatus.
+ *
+ * Returns JIM_OK for a normal exit with code 0, otherwise returns JIM_ERR.
  */
 static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus)
 {
@@ -343,15 +345,15 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus)
 
 struct WaitInfo
 {
-    pidtype pid;                    /* Process id of child. */
+    pidtype pid;                /* Process id of child. */
     int status;                 /* Status returned when child exited or suspended. */
     int flags;                  /* Various flag bits;  see below for definitions. */
 };
 
 struct WaitInfoTable {
-    struct WaitInfo *info;
-    int size;
-    int used;
+    struct WaitInfo *info;      /* Table of outstanding processes */
+    int size;                   /* Size of the allocated table */
+    int used;                   /* Number of entries in use */
 };
 
 /*
@@ -388,15 +390,13 @@ static struct WaitInfoTable *JimAllocWaitInfoTable(void)
  */
 static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    fdtype outputId;               /* File id for output pipe.  -1
-                                 * means command overrode. */
-    fdtype errorId;                /* File id for temporary file
-                                 * containing error output. */
+    fdtype outputId;    /* File id for output pipe. -1 means command overrode. */
+    fdtype errorId;     /* File id for temporary file containing error output. */
     pidtype *pidPtr;
     int numPids, result;
 
     /*
-     * See if the command is to be run in background;  if so, create
+     * See if the command is to be run in the background; if so, create
      * the command, detach it, and return.
      */
     if (argc > 1 && Jim_CompareStringImmediate(interp, argv[argc - 1], "&")) {
@@ -507,24 +507,11 @@ static pidtype JimWaitForProcess(struct WaitInfoTable *table, pidtype pid, int *
     return JIM_BAD_PID;
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * JimDetachPids --
- *
- *  This procedure is called to indicate that one or more child
- *  processes have been placed in background and are no longer
- *  cared about.  These children can be cleaned up with JimReapDetachedPids().
- *
- * Results:
- *  None.
- *
- * Side effects:
- *  None.
- *
- *----------------------------------------------------------------------
+/**
+ * Indicates that one or more child processes have been placed in
+ * background and are no longer cared about.
+ * These children can be cleaned up with JimReapDetachedPids().
  */
-
 static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr)
 {
     int j;

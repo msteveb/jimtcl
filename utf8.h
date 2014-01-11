@@ -1,5 +1,10 @@
 #ifndef UTF8_UTIL_H
 #define UTF8_UTIL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * UTF-8 utility functions
  *
@@ -122,6 +127,10 @@ int utf8_title(int uc);
 int utf8_lower(int uc);
 #endif /* JIM_BOOTSTRAP */
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

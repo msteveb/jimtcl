@@ -51,17 +51,18 @@
  * precedence is structured in regular expressions.  Serious changes in
  * regular-expression syntax might require a total rethink.
  */
+
+#include "jimautoconf.h"
+
+#if defined(JIM_REGEXP)
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "jim.h"
-#include "jimautoconf.h"
 #include "jimregexp.h"
 #include "utf8.h"
-
-#if !defined(HAVE_REGCOMP) || defined(JIM_REGEXP)
 
 /* An arbitrary limit, but this seems enough. Must be less than 1000. */
 #define REG_MAX_PAREN 100

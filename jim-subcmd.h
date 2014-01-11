@@ -20,12 +20,12 @@ extern "C" {
  * Returns JIM_OK if OK, JIM_ERR (etc.) on error, break, continue, etc.
  * Returns -1 if invalid args.
  */
-typedef int tclmod_cmd_function(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
+typedef int jim_subcmd_function(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
 typedef struct {
 	const char *cmd;				/* Name of the (sub)command */
 	const char *args;				/* Textual description of allowed args */
-	tclmod_cmd_function *function;	/* Function implementing the subcommand */
+	jim_subcmd_function *function;	/* Function implementing the subcommand */
 	short minargs;					/* Minimum required arguments */
 	short maxargs;					/* Maximum allowed arguments or -1 if no limit */
 	unsigned short flags;			/* JIM_MODFLAG_... plus custom flags */

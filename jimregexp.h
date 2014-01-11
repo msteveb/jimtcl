@@ -1,26 +1,16 @@
 #ifndef JIMREGEXP_H
 #define JIMREGEXP_H
 
-#ifndef _JIMAUTOCONF_H
-#error Need jimautoconf.h
+/** regexp(3)-compatible regular expression implementation for Jim.
+ *
+ * See jimregexp.c for details
+ */
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#if defined(HAVE_REGCOMP) && !defined(JIM_REGEXP)
-/* Use POSIX regex */
-#include <regex.h>
-
-#else
-
 #include <stdlib.h>
-
-/*
- * Definitions etc. for regexp(3) routines.
- *
- * Caveat:  this is V8 regexp(3) [actually, a reimplementation thereof],
- * not the System V one.
- *
- * 11/04/02 (seiwald) - const-ing for string literals
- */
 
 typedef struct {
 	int rm_so;
@@ -112,6 +102,8 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_size);
 void regfree(regex_t *preg);
 
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -36,19 +36,17 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
-/* ------ USAGE -------
- *
- * In order to use this file from other extensions include it in every
- * file where you need to call the eventloop API, also in the init
- * function of your extension call Jim_ImportEventloopAPI(interp)
- * after the Jim_InitExtension() call.
- *
- * See the UDP extension as example.
- */
 
+/* ------ USAGE -------
+ * See jim-aio.c as an example of an event provider.
+ */
 
 #ifndef __JIM_EVENTLOOP_H__
 #define __JIM_EVENTLOOP_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 
@@ -83,5 +81,9 @@ JIM_EXPORT int Jim_ProcessEvents (Jim_Interp *interp, int flags);
 JIM_EXPORT int Jim_EvalObjBackground (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 
 int Jim_eventloopInit(Jim_Interp *interp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __JIM_EVENTLOOP_H__ */

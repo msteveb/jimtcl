@@ -87,7 +87,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
 #endif
 
-    printf("Welcome to Jim version %d.%d" JIM_NL,
+    printf("Welcome to Jim version %d.%d\n",
         JIM_VERSION / 100, JIM_VERSION % 100);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, "1");
 

@@ -140,26 +140,23 @@ extern "C" {
 
 /* Some function get an integer argument with flags to change
  * the behaviour. */
-#define JIM_NONE 0    /* no flags set */
-#define JIM_ERRMSG 1    /* set an error message in the interpreter. */
 
-#define JIM_UNSHARED 4 /* Flag to Jim_GetVariable() */
-#define JIM_MUSTEXIST 8    /* Flag to Jim_SetDictKeysVector() - fail if non-existent */
+/* Starting from 1 << 20 flags are reserved for private uses of
+ * different calls. This way the same 'flags' argument may be used
+ * to pass both global flags and private flags. */
+#define JIM_PRIV_FLAG_SHIFT 20
 
-/* Internal flags */
-#define JIM_GLOBAL_ONLY 0x100
+#define JIM_NONE 0              /* no flags set */
+#define JIM_ERRMSG 1            /* set an error message in the interpreter. */
+#define JIM_ENUM_ABBREV 2       /* Jim_GetEnum() - Allow unambiguous abbreviation */
+#define JIM_UNSHARED 4          /* Jim_GetVariable() - return unshared object */
+#define JIM_MUSTEXIST 8         /* Jim_SetDictKeysVector() - fail if non-existent */
 
 /* Flags for Jim_SubstObj() */
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
 #define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substition object */
-
-/* Unused arguments generate annoying warnings... */
-#define JIM_NOTUSED(V) ((void) V)
-
-/* Flags for Jim_GetEnum() */
-#define JIM_ENUM_ABBREV 2    /* Allow unambiguous abbreviation */
 
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
@@ -168,12 +165,8 @@ extern "C" {
 /* Filesystem related */
 #define JIM_PATH_LEN 1024
 
-/* Newline, some embedded system may need -DJIM_CRLF */
-#ifdef JIM_CRLF
-#define JIM_NL "\r\n"
-#else
-#define JIM_NL "\n"
-#endif
+/* Unused arguments generate annoying warnings... */
+#define JIM_NOTUSED(V) ((void) V)
 
 #define JIM_LIBPATH "auto_path"
 #define JIM_INTERACTIVE "tcl_interactive"
@@ -213,18 +206,18 @@ typedef struct Jim_HashTableType {
 typedef struct Jim_HashTable {
     Jim_HashEntry **table;
     const Jim_HashTableType *type;
+    void *privdata;
     unsigned int size;
     unsigned int sizemask;
     unsigned int used;
     unsigned int collisions;
     unsigned int uniq;
-    void *privdata;
 } Jim_HashTable;
 
 typedef struct Jim_HashTableIterator {
     Jim_HashTable *ht;
-    int index;
     Jim_HashEntry *entry, *nextEntry;
+    int index;
 } Jim_HashTableIterator;
 
 /* This is the initial size of every hash table */
@@ -237,9 +230,9 @@ typedef struct Jim_HashTableIterator {
 
 #define Jim_SetHashVal(ht, entry, _val_) do { \
     if ((ht)->type->valDup) \
-        entry->u.val = (ht)->type->valDup((ht)->privdata, _val_); \
+        (entry)->u.val = (ht)->type->valDup((ht)->privdata, (_val_)); \
     else \
-        entry->u.val = (_val_); \
+        (entry)->u.val = (_val_); \
 } while(0)
 
 #define Jim_FreeEntryKey(ht, entry) \
@@ -248,14 +241,14 @@ typedef struct Jim_HashTableIterator {
 
 #define Jim_SetHashKey(ht, entry, _key_) do { \
     if ((ht)->type->keyDup) \
-        entry->key = (ht)->type->keyDup((ht)->privdata, _key_); \
+        (entry)->key = (ht)->type->keyDup((ht)->privdata, (_key_)); \
     else \
-        entry->key = (void *)(_key_); \
+        (entry)->key = (void *)(_key_); \
 } while(0)
 
 #define Jim_CompareHashKeys(ht, key1, key2) \
     (((ht)->type->keyCompare) ? \
-        (ht)->type->keyCompare((ht)->privdata, key1, key2) : \
+        (ht)->type->keyCompare((ht)->privdata, (key1), (key2)) : \
         (key1) == (key2))
 
 #define Jim_HashKey(ht, key) ((ht)->type->hashFunction(key) + (ht)->uniq)
@@ -302,15 +295,15 @@ typedef struct Jim_Obj {
         } twoPtrValue;
         /* Variable object */
         struct {
-            unsigned long callFrameId; /* for caching */
             struct Jim_Var *varPtr;
+            unsigned long callFrameId; /* for caching */
             int global; /* If the variable name is globally scoped with :: */
         } varValue;
         /* Command object */
         struct {
-            unsigned long procEpoch; /* for caching */
             struct Jim_Obj *nsObj;
             struct Jim_Cmd *cmdPtr;
+            unsigned long procEpoch; /* for caching */
         } cmdValue;
         /* List object */
         struct {
@@ -340,8 +333,8 @@ typedef struct Jim_Obj {
         } dictSubstValue;
         /* Regular expression pattern */
         struct {
-            unsigned flags;
             void *compre;       /* really an allocated (regex_t *) */
+            unsigned flags;
         } regexpValue;
         struct {
             int line;
@@ -385,17 +378,18 @@ typedef struct Jim_Obj {
     (o)->internalRep.ptr = (p)
 
 /* The object type structure.
- * There are four methods.
+ * There are three methods.
  *
- * - FreeIntRep is used to free the internal representation of the object.
+ * - freeIntRepProc is used to free the internal representation of the object.
  *   Can be NULL if there is nothing to free.
- * - DupIntRep is used to duplicate the internal representation of the object.
+ *
+ * - dupIntRepProc is used to duplicate the internal representation of the object.
  *   If NULL, when an object is duplicated, the internalRep union is
  *   directly copied from an object to another.
  *   Note that it's up to the caller to free the old internal repr of the
  *   object before to call the Dup method.
- * - UpdateString is used to create the string from the internal repr.
- * - setFromAny is used to convert the current object into one of this type.
+ *
+ * - updateStringProc is used to create the string from the internal repr.
  */
 
 struct Jim_Interp;
@@ -461,13 +455,13 @@ typedef struct Jim_Var {
 } Jim_Var;
 
 /* The cmd structure. */
-typedef int (*Jim_CmdProc)(struct Jim_Interp *interp, int argc,
+typedef int Jim_CmdProc(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
-typedef void (*Jim_DelCmdProc)(struct Jim_Interp *interp, void *privData);
+typedef void Jim_DelCmdProc(struct Jim_Interp *interp, void *privData);
 
 
 
-/* A command is implemented in C if funcPtr is != NULL, otherwise
+/* A command is implemented in C if isproc is 0, otherwise
  * it's a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyoObjPtr. */
 typedef struct Jim_Cmd {
@@ -477,8 +471,8 @@ typedef struct Jim_Cmd {
     union {
         struct {
             /* native (C) command */
-            Jim_CmdProc cmdProc; /* The command implementation */
-            Jim_DelCmdProc delProc; /* Called when the command is deleted if != NULL */
+            Jim_CmdProc *cmdProc; /* The command implementation */
+            Jim_DelCmdProc *delProc; /* Called when the command is deleted if != NULL */
             void *privData; /* command-private data available via Jim_CmdPrivData() */
         } native;
         struct {
@@ -605,20 +599,7 @@ typedef struct Jim_Reference {
  * Exported API prototypes.
  * ---------------------------------------------------------------------------*/
 
-/* Macros that are common for extensions and core. */
 #define Jim_NewEmptyStringObj(i) Jim_NewStringObj(i, "", 0)
-
-/* The core includes real prototypes, extensions instead
- * include a global function pointer for every function exported.
- * Once the extension calls Jim_InitExtension(), the global
- * functon pointers are set to the value of the STUB table
- * contained in the Jim_Interp structure.
- *
- * This makes Jim able to load extensions even if it is statically
- * linked itself, and to load extensions compiled with different
- * versions of Jim (as long as the API is still compatible.) */
-
-/* Macros are common for core and extensions */
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
 #define JIM_EXPORT
@@ -901,6 +882,7 @@ JIM_EXPORT void Jim_HistoryShow(void);
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
 JIM_EXPORT int Jim_IsBigEndian(void);
+
 /**
  * Returns 1 if a signal has been received while
  * in a catch -signal {} clause.
@@ -913,7 +895,6 @@ JIM_EXPORT void Jim_FreeLoadHandles(Jim_Interp *interp);
 
 /* jim-aio.c */
 JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
-
 
 /* type inspection - avoid where possible */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);

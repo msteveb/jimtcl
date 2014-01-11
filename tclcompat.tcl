@@ -1,12 +1,14 @@
-# (c) 2008 Steve Bennett <steveb@workware.net.au>
-#
 # Loads some Tcl-compatible features.
 # I/O commands, case, lassign, parray, errorInfo, ::tcl_platform, ::env
 # try, throw, file copy, file delete -force
+#
+# (c) 2008 Steve Bennett <steveb@workware.net.au>
+
 
 # Set up the ::env array
 set env [env]
 
+# Provide Tcl-compatible I/O commands
 if {[info commands stdout] ne ""} {
 	# Tcl-compatible I/O commands
 	foreach p {gets flush close eof seek tell} {

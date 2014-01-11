@@ -45,7 +45,6 @@
 #include <jim.h>
 #include "utf8.h"
 
-#define JIM_UTF_MAX 3
 #define JIM_INTEGER_SPACE 24
 #define MAX_FLOAT_WIDTH 320
 

@@ -1,6 +1,5 @@
-
 /*
- * tcl_clock.c
+ * jim-clock.c
  *
  * Implements the clock command
  */

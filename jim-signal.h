@@ -1,24 +1,26 @@
 #ifndef JIM_SIGNAL_H
 #define JIM_SIGNAL_H
 
-/*
- *----------------------------------------------------------------------
- *
- * Tcl_SignalId --
- *
- *      Return a textual identifier for a signal number.
- *
- * Results:
- *      This procedure returns a machine-readable textual identifier
- *      that corresponds to sig.  The identifier is the same as the
- *      #define name in signal.h.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Returns the canonical name for the given signal,
+ * e.g. "SIGTERM", "SIGINT"
  */
 const char *Jim_SignalId(int sig);
+
+/**
+ * If available, returns a short description of the given signal.
+ * e.g. "Terminated", "Interrupted"
+ * 
+ * Otherwise returns the same as Jim_SignalId()
+ */
 const char *Jim_SignalName(int sig);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

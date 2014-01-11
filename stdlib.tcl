@@ -1,3 +1,5 @@
+# Implements script-based standard commands for Jim Tcl
+
 # Creates an anonymous procedure
 proc lambda {arglist args} {
 	tailcall proc [ref {} function lambda.finalizer] $arglist {*}$args

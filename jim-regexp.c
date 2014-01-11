@@ -49,8 +49,12 @@
 #include <string.h>
 
 #include "jimautoconf.h"
+#if defined(JIM_REGEXP)
+    #include "jimregexp.h"
+#else
+    #include <regex.h>
+#endif
 #include "jim.h"
-#include "jimregexp.h"
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {

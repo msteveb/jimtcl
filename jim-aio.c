@@ -54,7 +54,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <unistd.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -112,7 +111,7 @@ typedef struct AioFile
     FILE *fp;
     Jim_Obj *filename;
     int type;
-    int OpenFlags;              /* AIO_KEEPOPEN? keep FILE* */
+    int openFlags;              /* AIO_KEEPOPEN? keep FILE* */
     int fd;
     Jim_Obj *rEvent;
     Jim_Obj *wEvent;
@@ -284,7 +283,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
 
-    if (!(af->OpenFlags & AIO_KEEPOPEN)) {
+    if (!(af->openFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
 
@@ -1023,26 +1022,26 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     const char *mode;
-    const char *filename;
 
-    if (argc != 2 && argc != 3) {
+    if (argc != 2 && argc != 3)
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
-        return JIM_ERR;
-    }
 
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
-    filename = Jim_String(argv[1]);
 
 #ifdef jim_ext_tclcompat
-    /* If the filename starts with '|', use popen instead */
-    if (*filename == '|') {
-        Jim_Obj *evalObj[3];
+    {
+        const char *filename = Jim_String(argv[1]);
 
-        evalObj[0] = Jim_NewStringObj(interp, "::popen", -1);
-        evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
-        evalObj[2] = Jim_NewStringObj(interp, mode, -1);
+        /* If the filename starts with '|', use popen instead */
+        if (*filename == '|') {
+            Jim_Obj *evalObj[3];
 
-        return Jim_EvalObjVector(interp, 3, evalObj);
+            evalObj[0] = Jim_NewStringObj(interp, "::popen", -1);
+            evalObj[1] = Jim_NewStringObj(interp, filename + 1, -1);
+            evalObj[2] = Jim_NewStringObj(interp, mode, -1);
+
+            return Jim_EvalObjVector(interp, 3, evalObj);
+        }
     }
 #endif
     return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode);
@@ -1051,8 +1050,8 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 /**
  * Creates a channel for fh/fd/filename.
  *
- * If fh is not NULL, uses that as the channel (and set AIO_KEEPOPEN).
- * Otherwise, if fd is >= 0, uses that as the chanel.
+ * If fh is not NULL, uses that as the channel (and sets AIO_KEEPOPEN).
+ * Otherwise, if fd is >= 0, uses that as the channel.
  * Otherwise opens 'filename' with mode 'mode'.
  *
  * hdlfmt is a sprintf format for the filehandle. Anything with %ld at the end will do.
@@ -1065,11 +1064,11 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 {
     AioFile *af;
     char buf[AIO_CMD_LEN];
-    int OpenFlags = 0;
+    int openFlags = 0;
 
     if (fh) {
         filename = Jim_NewStringObj(interp, hdlfmt, -1);
-        OpenFlags = AIO_KEEPOPEN;
+        openFlags = AIO_KEEPOPEN;
     }
 
     Jim_IncrRefCount(filename);
@@ -1102,11 +1101,11 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     af->fd = fileno(fh);
     af->filename = filename;
 #ifdef FD_CLOEXEC
-    if ((OpenFlags & AIO_KEEPOPEN) == 0) {
+    if ((openFlags & AIO_KEEPOPEN) == 0) {
         fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     }
 #endif
-    af->OpenFlags = OpenFlags;
+    af->openFlags = openFlags;
     af->addr_family = family;
     snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
@@ -1413,6 +1412,7 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
     Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
 
+    /* XXX: There ought to be a supported API for this */
     if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
         return ((AioFile *) cmdPtr->u.native.privData)->fp;
     }

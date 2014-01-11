@@ -1,3 +1,10 @@
+/*
+ * Makes it easy to support "ensembles". i.e. commands with subcommands
+ * like [string] and [array]
+ *
+ * (c) 2008 Steve Bennett <steveb@workware.net.au>
+ *
+ */
 #include <stdio.h>
 #include <string.h>
 

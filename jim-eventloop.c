@@ -1,4 +1,3 @@
-
 /* Jim - A small embeddable Tcl interpreter
  *
  * Copyright 2005 Salvatore Sanfilippo <antirez@invece.org>
@@ -84,8 +83,7 @@ typedef struct Jim_FileEvent
 typedef struct Jim_TimeEvent
 {
     jim_wide id;                /* time event identifier. */
-    int mode;                   /* restart, repetitive .. UK */
-    long initialms;             /* initial relativ timer value UK */
+    long initialms;             /* initial relative timer value */
     jim_wide when;              /* milliseconds */
     Jim_TimeProc *timeProc;
     Jim_EventFinalizerProc *finalizerProc;
@@ -207,7 +205,6 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
 
     te = Jim_Alloc(sizeof(*te));
     te->id = id;
-    te->mode = 0;
     te->initialms = milliseconds;
     te->when = JimGetTime(eventLoop) + milliseconds;
     te->timeProc = proc;
@@ -323,17 +320,16 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
 
 /* Process every pending time event, then every pending file event
  * (that may be registered by time event callbacks just processed).
- * Without special flags the function sleeps until some file event
- * fires, or when the next time event occurrs (if any).
+ * The behaviour depends upon the setting of flags:
  *
  * If flags is 0, the function does nothing and returns.
- * if flags has JIM_ALL_EVENTS set, all the kind of events are processed.
+ * if flags has JIM_ALL_EVENTS set, all event types are processed.
  * if flags has JIM_FILE_EVENTS set, file events are processed.
  * if flags has JIM_TIME_EVENTS set, time events are processed.
- * if flags has JIM_DONT_WAIT set the function returns ASAP until all
- * the events that's possible to process without to wait are processed.
+ * if flags has JIM_DONT_WAIT set, the function returns as soon as all
+ * the events that are possible to process without waiting are processed.
  *
- * The function returns the number of events processed or -1 if
+ * Returns the number of events processed or -1 if
  * there are no matching handlers, or -2 on error.
  */
 int Jim_ProcessEvents(Jim_Interp *interp, int flags)
