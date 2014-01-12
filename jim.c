@@ -4740,24 +4740,13 @@ static Jim_Obj *JimDictExpandArrayVariable(Jim_Interp *interp, Jim_Obj *varObjPt
 
     ret = Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_NONE);
     if (ret != JIM_OK) {
-        resObjPtr = NULL;
-        if (ret < 0) {
-            Jim_SetResultFormatted(interp,
-                "can't read \"%#s(%#s)\": variable isn't array", varObjPtr, keyObjPtr);
-        }
-        else {
-            Jim_SetResultFormatted(interp,
-                "can't read \"%#s(%#s)\": no such element in array", varObjPtr, keyObjPtr);
-        }
+        Jim_SetResultFormatted(interp,
+            "can't read \"%#s(%#s)\": %s array", varObjPtr, keyObjPtr,
+            ret < 0 ? "variable isn't" : "no such element in");
     }
     else if ((flags & JIM_UNSHARED) && Jim_IsShared(dictObjPtr)) {
-        dictObjPtr = Jim_DuplicateObj(interp, dictObjPtr);
-        if (Jim_SetVariable(interp, varObjPtr, dictObjPtr) != JIM_OK) {
-            /* This can probably never happen */
-            JimPanic((1, "SetVariable failed for JIM_UNSHARED"));
-        }
-        /* We know that the key exists. Get the result in the now-unshared dictionary */
-        Jim_DictKey(interp, dictObjPtr, keyObjPtr, &resObjPtr, JIM_NONE);
+        /* Update the variable to have an unshared copy */
+        Jim_SetVariable(interp, varObjPtr, Jim_DuplicateObj(interp, dictObjPtr));
     }
 
     return resObjPtr;
@@ -5456,7 +5445,7 @@ Jim_Interp *Jim_CreateInterp(void)
 
 void Jim_FreeInterp(Jim_Interp *i)
 {
-    Jim_CallFrame *cf = i->framePtr, *prevcf, *nextcf;
+    Jim_CallFrame *cf = i->framePtr, *prevcf;
     Jim_Obj *objPtr, *nextObjPtr;
 
     /* Free the call frames list - must be done before i->commands is destroyed */
@@ -7122,7 +7111,9 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
 }
 
 /* Return the value associated to the specified dict key
- * Note: Returns JIM_OK if OK, JIM_ERR if entry not found or -1 if can't create dict value
+ * Returns JIM_OK if OK, JIM_ERR if entry not found or -1 if can't create dict value
+ *
+ * Sets *objPtrPtr to non-NULL only upon success.
  */
 int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
     Jim_Obj **objPtrPtr, int flags)

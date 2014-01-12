@@ -68,21 +68,21 @@ test array-1.11 "array unset - all" {
 	list [array size b] [array exists b]
 } {0 0}
 
-test array-1.12 "array set to invalid variable" {
+test array-1.12 "array set to invalid variable" -body {
 	unset -nocomplain a b
 	set a 1
-	catch {array set a(1) {b c}}
-} {1}
+	array set a(1) {b c}
+} -returnCodes error -result {can't set "a(1)": variable isn't array}
 
-test array-1.13 "unset missing array element" {
+test array-1.13 "unset missing array element" -body {
 	unset -nocomplain a
 	set a(1) one
-	catch {unset a(2)}
-} 1
+	unset a(2)
+} -returnCodes error -result {can't unset "a(2)": no such element in array}
 
-test array-1.14 "access array via unset var" {
+test array-1.14 "access array via unset var" -body {
 	unset -nocomplain b
-	catch {expr {$a($b) + 4}}
-} 1
+	expr {$a($b) + 4}
+} -returnCodes error -result {can't read "b": no such variable}
 
 testreport
