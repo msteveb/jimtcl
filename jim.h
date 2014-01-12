@@ -261,7 +261,7 @@ typedef struct Jim_HashTableIterator {
 #define Jim_HashKey(ht, key) ((ht)->type->hashFunction(key) + (ht)->uniq)
 
 #define Jim_GetHashEntryKey(he) ((he)->key)
-#define Jim_GetHashEntryVal(he) ((he)->val)
+#define Jim_GetHashEntryVal(he) ((he)->u.val)
 #define Jim_GetHashTableCollisions(ht) ((ht)->collisions)
 #define Jim_GetHashTableSize(ht) ((ht)->size)
 #define Jim_GetHashTableUsed(ht) ((ht)->used)
