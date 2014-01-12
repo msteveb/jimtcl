@@ -8,7 +8,7 @@ proc bench {title script} {
 
     set failed [catch {time $script} res]
     if {$failed} {
-        if {!$batchmode} {puts "$Title - This test can't run on this interpreter"}
+        if {!$batchmode} {puts "$Title - This test can't run on this interpreter ($res)"}
         lappend benchmarks $title F
     } else {
         set t [expr [lindex $res 0] / 1000]
@@ -174,6 +174,13 @@ proc ary_dict n {
     }
 }
 
+proc ary_static n {
+    for {set i 0} {$i < $n} {incr i} {
+        set a(b) $i
+        set a(c) $i
+    }
+}
+
 ### REPEAT #####################################################################
 
 proc repeat {n body} {
@@ -255,50 +262,36 @@ proc dyncode_list {} {
 
 ### PI DIGITS ##################################################################
 
-proc pi_digits {} {
-    set N 300
-    set LEN [expr {10*$N/3}]
-    set result ""
-
-    set a [string repeat " 2" $LEN]
-    set nines 0
-    set predigit 0
-    set nines {}
-
-    set i0 [expr {$LEN+1}]
-    set quot0 [expr {2*$LEN+1}]
-    for {set j 0} {$j<$N} {incr j} {
-        set q 0
-        set i $i0
-        set quot $quot0
-        set pos -1
-        foreach apos $a {
-            set x [expr {10*$apos + $q * [incr i -1]}]
-            lset a [incr pos] [expr {$x % [incr quot -2]}]
-            set q [expr {$x / $quot}]
-        }
-        lset a end [expr {$q % 10}]
-        set q [expr {$q / 10}]
-        if {$q < 8} {
-            append result $predigit $nines
-            set nines {}
-            set predigit $q
-        } elseif {$q == 9} {
-            append nines 9
-        } else {
-            append result [expr {$predigit+1}][string map {9 0} $nines]
-            set nines {}
-            set predigit 0
-        }
-    }
-    #puts $result$predigit
+proc pi_digits {N} {
+ set n [expr {$N * 3}]
+ set e 0
+ set f {}
+ for { set b 0 } { $b <= $n } { incr b } {
+     lappend f 2000
+ }
+ for { set c $n } { $c > 0 } { incr c -14 } {
+     set d 0
+     set g [expr { $c * 2 }]
+     set b $c
+     while 1 {
+         incr d [expr { [lindex $f $b] * 10000 }]
+         lset f $b [expr {$d % [incr g -1]}]
+         set d [expr { $d / $g }]
+         incr g -1
+         if { [incr b -1] == 0 } break
+         set d [expr { $d * $b }]
+     }
+     append result [string range 0000[expr { $e + $d / 10000 }] end-3 end]
+     set e [expr { $d % 10000 }]
+ }
+ #puts $result
 }
 
 ### EXPAND #####################################################################
 
 proc expand {} {
+    set a [list a b c d e f]
     for {set i 0} {$i < 100000} {incr i} {
-        set a [list a b c d e f]
         lappend b {*}$a
     }
 }
@@ -525,8 +518,8 @@ proc commonsub_test {} {
 ### MANDEL #####################################################################
 
 proc mandel {xres yres infx infy supx supy} {
-    set incremx [expr {double($supx-$infx)/$xres}]
-    set incremy [expr {double($supy-$infy)/$yres}]
+    set incremx [expr {(0.0+$supx-$infx)/$xres}]
+    set incremy [expr {(0.0+$supy-$infy)/$yres}]
 
     for {set j 0} {$j < $yres} {incr j} {
 	set cim [expr {$infy+$incremy*$j}]
@@ -565,13 +558,14 @@ bench {sieve} {sieve 10}
 bench {sieve [dict]} {sieve_dict 10}
 bench {ary} {ary 100000}
 bench {ary [dict]} {ary_dict 100000}
+bench {ary [static]} {ary_static 1000000}
 bench {repeat} {use_repeat}
 bench {upvar} {upvartest}
 bench {nested loops} {nestedloops}
 bench {rotate} {rotate 100000}
 bench {dynamic code} {dyncode}
 bench {dynamic code (list)} {dyncode_list}
-bench {PI digits} {pi_digits}
+bench {PI digits} {pi_digits 300}
 bench {expand} {expand}
 bench {wiki.tcl.tk/8566} {commonsub_test}
 bench {mandel} {mandel 60 60 -2 -1.5 1 1.5}
