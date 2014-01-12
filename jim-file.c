@@ -174,21 +174,23 @@ static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat
 
     /* Was a variable specified? */
     if (varName) {
-        Jim_Obj *objPtr = Jim_GetVariable(interp, varName, JIM_NONE);
+        Jim_Obj *objPtr;
+        objPtr = Jim_GetVariable(interp, varName, JIM_NONE);
+
         if (objPtr) {
-            if (Jim_DictSize(interp, objPtr) < 0) {
+            Jim_Obj *objv[2];
+
+            objv[0] = objPtr;
+            objv[1] = listObj;
+
+            objPtr = Jim_DictMerge(interp, 2, objv);
+            if (objPtr == NULL) {
                 /* This message matches the one from Tcl */
                 Jim_SetResultFormatted(interp, "can't set \"%#s(dev)\": variable isn't array", varName);
                 Jim_FreeNewObj(interp, listObj);
                 return JIM_ERR;
             }
 
-            if (Jim_IsShared(objPtr))
-                objPtr = Jim_DuplicateObj(interp, objPtr);
-
-            /* Just cheat here and append as a list and convert to a dict */
-            Jim_ListAppendList(interp, objPtr, listObj);
-            Jim_DictSize(interp, objPtr);
             Jim_InvalidateStringRep(objPtr);
 
             Jim_FreeNewObj(interp, listObj);
