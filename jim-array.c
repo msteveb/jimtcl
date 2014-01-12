@@ -174,6 +174,9 @@ static int array_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         /* Doesn't exist, so just set the list directly */
         return Jim_SetVariable(interp, argv[0], listObj);
     }
+    else if (Jim_DictSize(interp, dictObj) < 0) {
+        return JIM_ERR;
+    }
 
     if (Jim_IsShared(dictObj)) {
         dictObj = Jim_DuplicateObj(interp, dictObj);
