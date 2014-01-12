@@ -130,19 +130,6 @@ proc {dict update} {&varName args script} {
 	return {*}$opts $msg
 }
 
-# Script-based implementation of 'dict merge'
-# This won't get called in the trivial case of no args
-proc {dict merge} {dict args} {
-	foreach d $args {
-		# Check for a valid dict
-		dict size $d
-		foreach {k v} $d {
-			dict set dict $k $v
-		}
-	}
-	return $dict
-}
-
 proc {dict replace} {dictionary {args {key value}}} {
 	if {[llength ${key value}] % 2} {
 		tailcall {dict replace}

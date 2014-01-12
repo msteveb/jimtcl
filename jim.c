@@ -7247,8 +7247,10 @@ int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
         }
         return JIM_ERR;
     }
-    *objPtrPtr = he->u.val;
-    return JIM_OK;
+    else {
+        *objPtrPtr = Jim_GetHashEntryVal(he);
+        return JIM_OK;
+    }
 }
 
 /* Return an allocated array of key/value pairs for the dictionary. Stores the length in *len */
@@ -14329,6 +14331,33 @@ int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
     return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
 }
 
+/**
+ * Must be called with at least one object.
+ * Returns the new dictionary, or NULL on error.
+ */
+Jim_Obj *Jim_DictMerge(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
+{
+    Jim_Obj *objPtr = Jim_NewDictObj(interp, NULL, 0);
+    int i;
+
+    for (i = 0; i < objc; i++) {
+        Jim_HashTable *ht;
+        Jim_HashTableIterator htiter;
+        Jim_HashEntry *he;
+
+        if (SetDictFromAny(interp, objv[i]) != JIM_OK) {
+            Jim_FreeNewObj(interp, objPtr);
+            return NULL;
+        }
+        ht = objv[i]->internalRep.ptr;
+        JimInitHashTableIterator(ht, &htiter);
+        while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
+            Jim_ReplaceHashEntry(objPtr->internalRep.ptr, Jim_GetHashEntryKey(he), Jim_GetHashEntryVal(he));
+        }
+    }
+    return objPtr;
+}
+
 int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_HashTable *ht;
@@ -14461,11 +14490,12 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             if (argc == 2) {
                 return JIM_OK;
             }
-            if (Jim_DictSize(interp, argv[2]) < 0) {
+            objPtr = Jim_DictMerge(interp, argc - 2, argv + 2);
+            if (objPtr == NULL) {
                 return JIM_ERR;
             }
-            /* Handle as ensemble */
-            break;
+            Jim_SetResult(interp, objPtr);
+            return JIM_OK;
 
         case OPT_UPDATE:
             if (argc < 6 || argc % 2) {
