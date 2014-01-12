@@ -8450,16 +8450,16 @@ static int JimParseExprNumber(struct JimParserCtx *pc)
 
 static int JimParseExprIrrational(struct JimParserCtx *pc)
 {
-    const char *Tokens[] = { "NaN", "nan", "NAN", "Inf", "inf", "INF", NULL };
-    const char **token;
+    const char *irrationals[] = { "NaN", "nan", "NAN", "Inf", "inf", "INF", NULL };
+    int i;
 
-    for (token = Tokens; *token != NULL; token++) {
-        int len = strlen(*token);
+    for (i = 0; irrationals[i]; i++) {
+        const char *irr = irrationals[i];
 
-        if (strncmp(*token, pc->p, len) == 0) {
-            pc->tend = pc->p + len - 1;
-            pc->p += len;
-            pc->len -= len;
+        if (strncmp(irr, pc->p, 3) == 0) {
+            pc->p += 3;
+            pc->len -= 3;
+            pc->tend = pc->p - 1;
             pc->tt = JIM_TT_EXPR_DOUBLE;
             return JIM_OK;
         }
