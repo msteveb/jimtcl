@@ -110,7 +110,7 @@ install install-exec: all
 uninstall:
 @endif
 
-test: $(JIMSH)
+test check: $(JIMSH)
 	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh
 
 $(OBJS): Makefile $(wildcard *.h)
