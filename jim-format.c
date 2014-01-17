@@ -381,7 +381,6 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
                 }
                 length = JIM_INTEGER_SPACE;
                 if (useShort) {
-                    *p++ = 'h';
                     if (ch == 'd') {
                         w = (short)w;
                     }
@@ -389,14 +388,12 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
                         w = (unsigned short)w;
                     }
                 }
-                else {
-                    *p++ = 'l';
+                *p++ = 'l';
 #ifdef HAVE_LONG_LONG
-                    if (sizeof(long long) == sizeof(jim_wide)) {
-                        *p++ = 'l';
-                    }
-#endif
+                if (sizeof(long long) == sizeof(jim_wide)) {
+                    *p++ = 'l';
                 }
+#endif
             }
 
             *p++ = (char) ch;
