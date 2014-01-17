@@ -8429,7 +8429,10 @@ static int JimParseExprNumber(struct JimParserCtx *pc)
     jim_strtoull(pc->p, (char **)&pc->p);
     /* Tried as an integer, but perhaps it parses as a double */
     if (strchr("eENnIi.", *pc->p) || pc->p == pc->tstart) {
-        strtod(pc->tstart, &end);
+        /* Some stupid compilers insist they are cleverer that
+         * we are. Even a (void) cast doesn't prevent this warning!
+         */
+        if (strtod(pc->tstart, &end)) { /* nothing */ }
         if (end == pc->tstart)
             return JIM_ERR;
         if (end > pc->p) {
