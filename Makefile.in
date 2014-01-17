@@ -196,7 +196,7 @@ Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
 clean:
-	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) Tcl.html _*.c
+	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@ build-jim-ext
