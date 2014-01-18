@@ -237,5 +237,16 @@ test dict-24.3 {dict/list shimmering with embedded nulls} {
 	lassign $dictVar k v
 	string length $v
 } {3}
+test dict-24.4 {dict/list shimmering with lappend and foreach} {
+	set a [list 1 2 3 4]
+
+	foreach b $a {
+		# convert to dict
+		dict size $a
+		# append to list
+		lappend a x y
+	}
+	llength $a
+} 12
 
 testreport

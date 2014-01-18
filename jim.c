@@ -6313,11 +6313,11 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 
-    /* Optimise dict -> list for unshared object. Note that this may only save a little time, but
+    /* Optimise dict -> list for object with no string rep. Note that this may only save a little time, but
      * it also preserves any source location of the dict elements
      * which can be very useful
      */
-    if (Jim_IsDict(objPtr) && !Jim_IsShared(objPtr)) {
+    if (Jim_IsDict(objPtr) && objPtr->bytes == NULL) {
         Jim_Obj **listObjPtrPtr;
         int len;
         int i;
@@ -7020,10 +7020,12 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 
-    /* Get the string representation. Do this first so we don't
-     * change order in case of fast conversion to dict.
-     */
-    Jim_String(objPtr);
+    if (Jim_IsList(objPtr) && Jim_IsShared(objPtr)) {
+        /* A shared list, so get the string representation now to avoid
+         * changing the order in case of fast conversion to dict.
+         */
+        Jim_String(objPtr);
+    }
 
     /* For simplicity, convert a non-list object to a list and then to a dict */
     listlen = Jim_ListLength(interp, objPtr);
