@@ -230,7 +230,7 @@ puts "TEST 31 PASSED"
 proc a {} { tailcall b }
 proc b {} { return -code eval c }
 proc c {} {}
-a
+catch -eval a
 puts "TEST 32 PASSED"
 
 # TAKE THE FOLLOWING puts AS LAST LINE
