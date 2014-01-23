@@ -1023,8 +1023,10 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 {
     const char *mode;
 
-    if (argc != 2 && argc != 3)
+    if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
+        return JIM_ERR;
+    }
 
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
 
