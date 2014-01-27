@@ -5439,15 +5439,14 @@ Jim_Interp *Jim_CreateInterp(void)
 
 void Jim_FreeInterp(Jim_Interp *i)
 {
-    Jim_CallFrame *cf = i->framePtr, *prevcf;
+    Jim_CallFrame *cf, *cfx;
+
     Jim_Obj *objPtr, *nextObjPtr;
 
-    /* Free the call frames list - must be done before i->commands is destroyed */
-    while (cf) {
-        prevcf = cf->parent;
+    /* Free the active call frames list - must be done before i->commands is destroyed */
+    for (cf = i->framePtr; cf; cf = cfx) {
+        cfx = cf->parent;
         JimFreeCallFrame(i, cf, JIM_FCF_FULL);
-        Jim_Free(cf);
-        cf = prevcf;
     }
 
     Jim_DecrRefCount(i, i->emptyObj);
@@ -5505,6 +5504,14 @@ void Jim_FreeInterp(Jim_Interp *i)
         nextObjPtr = objPtr->nextObjPtr;
         Jim_Free(objPtr);
         objPtr = nextObjPtr;
+    }
+
+    /* Free the free call frames list */
+    for (cf = i->freeFramesList; cf; cf = cfx) {
+        cfx = cf->next;
+        if (cf->vars.table)
+            Jim_FreeHashTable(&cf->vars);
+        Jim_Free(cf);
     }
 
     /* Free the interpreter structure. */
