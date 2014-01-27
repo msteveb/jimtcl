@@ -238,7 +238,7 @@ if {$static} {
 	set rc [catch {
 		if {$testmod} {
 			puts "Test:    load $target"
-			load $target
+			load ./$target
 		}
 		if {$install} {
 			set dest [env DESTDIR ""]@prefix@/lib/jim
