@@ -9,7 +9,7 @@
 #define R_OK 4
 #endif
 
-/* All Tcl packages have a fixed, dummy version */
+/* All packages have a fixed, dummy version */
 static const char *package_version_1 = "1.0";
 
 /* -----------------------------------------------------------------------------
@@ -157,14 +157,13 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
  *      The package must not already be provided in the interpreter.
  *
  * Results:
- *      Returns JIM_OK and sets the results to the version (defaults to "1.0")
+ *      Returns JIM_OK and sets results as "1.0" (the given version is ignored)
  *
  *----------------------------------------------------------------------
  */
 static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_PackageProvide(interp, Jim_String(argv[0]),
-        argc > 1 ? Jim_String(argv[1]) : package_version_1, JIM_ERRMSG);
+    return Jim_PackageProvide(interp, Jim_String(argv[0]), package_version_1, JIM_ERRMSG);
 }
 
 /*
