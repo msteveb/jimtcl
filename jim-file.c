@@ -142,7 +142,7 @@ static const char *JimGetFileType(int mode)
  *
  *----------------------------------------------------------------------
  */
-static void AppendStatElement(Jim_Interp *interp, Jim_Obj *listObj, const char *key, int value)
+static void AppendStatElement(Jim_Interp *interp, Jim_Obj *listObj, const char *key, jim_wide value)
 {
     Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, key, -1));
     Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, value));
