@@ -3141,7 +3141,7 @@ static void JimSetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
     Jim_Obj *fileNameObj, int lineNumber)
 {
     JimPanic((Jim_IsShared(objPtr), "JimSetSourceInfo called with shared object"));
-    JimPanic((objPtr->typePtr == &sourceObjType, "JimSetSourceInfo called with non-source object"));
+    JimPanic((objPtr->typePtr != NULL, "JimSetSourceInfo called with typed object"));
     Jim_IncrRefCount(fileNameObj);
     objPtr->internalRep.sourceValue.fileNameObj = fileNameObj;
     objPtr->internalRep.sourceValue.lineNumber = lineNumber;
@@ -10340,6 +10340,11 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
         objPtr->internalRep.dictSubstValue.indexObjPtr = intv[2];
         Jim_IncrRefCount(intv[2]);
     }
+    else if (tokens && intv[0] && intv[0]->typePtr == &sourceObjType) {
+        /* The first interpolated token is source, so preserve the source info */
+        JimSetSourceInfo(interp, objPtr, intv[0]->internalRep.sourceValue.fileNameObj, intv[0]->internalRep.sourceValue.lineNumber);
+    }
+
 
     s = objPtr->bytes = Jim_Alloc(totlen + 1);
     objPtr->length = totlen;
