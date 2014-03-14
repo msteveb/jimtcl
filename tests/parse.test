@@ -153,9 +153,9 @@ test parse-1.28 "nested dict sugar" {
 set dq {"}
 set script "set x ${dq}hello"
 
-test parse-1.29 "missing quote" jim {
+test parse-1.29 "missing quote" -constraints jim -body {
 	eval $script
-} hello
+} -returnCodes error -match glob -result {missing quote}
 
 test parse-1.30 "missing quote" {
 	info complete $script

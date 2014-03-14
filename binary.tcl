@@ -73,7 +73,7 @@ proc "binary format" {formatString args} {
 				}
 			}
 			default {
-				if {![info exists ::binary::scalarinfo($t)} {
+				if {![info exists ::binary::scalarinfo($t)]} {
 					return -code error "bad field specifier \"$t\""
 				}
 
@@ -188,7 +188,7 @@ proc "binary scan" {value formatString {args varName}} {
 				continue
 			}
 			default {
-				if {![info exists ::binary::scalarinfo($t)} {
+				if {![info exists ::binary::scalarinfo($t)]} {
 					return -code error "bad field specifier \"$t\""
 				}
 				# A scalar (integer or float) type
