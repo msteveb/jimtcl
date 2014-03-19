@@ -3620,6 +3620,7 @@ static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
  * of the script.
  *
  * On parse error, sets an error message and returns JIM_ERR
+ * (Note: the object is still converted to a script, even if an error occurs)
  */
 static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
@@ -3629,6 +3630,7 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct ScriptObj *script;
     ParseTokenList tokenlist;
     int line = 1;
+    int retcode = JIM_OK;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
@@ -3645,10 +3647,7 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             parser.tline);
     }
 
-    if (JimParseCheckMissing(interp, parser.missing.ch) == JIM_ERR) {
-        ScriptTokenListFree(&tokenlist);
-        return JIM_ERR;
-    }
+    retcode = JimParseCheckMissing(interp, parser.missing.ch);
 
     /* Add a final EOF token */
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
@@ -3663,6 +3662,7 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     else {
         script->fileNameObj = interp->emptyObj;
     }
+    script->linenr = parser.missing.line;
     Jim_IncrRefCount(script->fileNameObj);
 
     ScriptObjAddTokens(interp, script, &tokenlist);
@@ -3675,7 +3675,7 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
 
-    return JIM_OK;
+    return retcode;
 }
 
 /**
@@ -3683,6 +3683,7 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
  * an error message in the interp result.
  *
  * Otherwise returns a parsed script object.
+ * (Note: the object is still converted to a script, even if an error occurs)
  */
 ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -11019,6 +11020,8 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 
     /* Now check the script for unmatched braces, etc. */
     if (Jim_GetScript(interp, scriptObjPtr) == NULL) {
+        /* EvalFile changes context, so add a stack frame here */
+        JimAddErrorToStack(interp, JIM_ERR, (ScriptObj *)Jim_GetIntRepPtr(scriptObjPtr));
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_ERR;
     }
