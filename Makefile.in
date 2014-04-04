@@ -25,8 +25,8 @@ LDLIBS += @LDLIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 
-CC += -D_GNU_SOURCE -Wall $(OPTIM) -I.
-CXX += -D_GNU_SOURCE -Wall $(OPTIM) -I.
+CFLAGS += -D_GNU_SOURCE -Wall $(OPTIM) -I.
+CXXFLAGS += -D_GNU_SOURCE -Wall $(OPTIM) -I.
 @if srcdir != .
 CFLAGS += -I@srcdir@
 CXXFLAGS += -I@srcdir@
