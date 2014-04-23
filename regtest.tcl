@@ -233,6 +233,11 @@ proc c {} {}
 catch -eval a
 puts "TEST 32 PASSED"
 
+# REGTEST 33
+# unset array variable which doesn't exist
+array unset blahblah abc
+puts "TEST 33 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

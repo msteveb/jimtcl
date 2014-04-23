@@ -109,6 +109,11 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
 
+    if (objPtr == NULL) {
+        /* Doesn't exist, so nothing to do */
+        return JIM_OK;
+    }
+
     if (Jim_DictPairs(interp, objPtr, &dictValuesObj, &len) != JIM_OK) {
         return JIM_ERR;
     }
