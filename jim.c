@@ -14147,7 +14147,7 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
     printf("%d entries in table, %d buckets\n", ht->used, ht->size);
 
     for (i = 0; i < ht->size; i++) {
-        Jim_HashEntry *he = he = ht->table[i];
+        Jim_HashEntry *he = ht->table[i];
 
         if (he) {
             printf("%d: ", i);
