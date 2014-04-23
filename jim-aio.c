@@ -283,16 +283,17 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
 
-    if (!(af->openFlags & AIO_KEEPOPEN)) {
-        fclose(af->fp);
-    }
-
     Jim_DecrRefCount(interp, af->filename);
 
 #ifdef jim_ext_eventloop
     /* remove all existing EventHandlers */
     Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
+
+    if (!(af->openFlags & AIO_KEEPOPEN)) {
+        fclose(af->fp);
+    }
+
     Jim_Free(af);
 }
 
