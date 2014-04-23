@@ -498,6 +498,7 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     fd = mkstemp(filename);
     if (fd < 0) {
         Jim_SetResultString(interp, "Failed to create tempfile", -1);
+        Jim_Free(filename);
         return JIM_ERR;
     }
     close(fd);
