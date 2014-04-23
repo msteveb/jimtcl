@@ -654,6 +654,7 @@ static int reg_decode_escape(const char *s, int *ch)
 			if ((n = parse_hex(s, 8, ch)) > 0) {
 				s += n;
 			}
+			break;
 		case 'x':
 			if ((n = parse_hex(s, 2, ch)) > 0) {
 				s += n;
