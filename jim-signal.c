@@ -193,8 +193,7 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
 
     /* Catch all the signals we care about */
     if (action != SIGNAL_ACTION_DEFAULT) {
-        sa.sa_flags = 0;
-        sigemptyset(&sa.sa_mask);
+        memset(&sa, 0, sizeof(sa));
         if (action == SIGNAL_ACTION_HANDLE) {
             sa.sa_handler = signal_handler;
         }
