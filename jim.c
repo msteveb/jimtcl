@@ -11873,7 +11873,7 @@ static int JimListIterDone(Jim_Interp *interp, Jim_ListIter *iter)
 /* foreach + lmap implementation. */
 static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int doMap)
 {
-    int result = JIM_ERR;
+    int result = JIM_OK;
     int i, numargs;
     Jim_ListIter twoiters[2];   /* Avoid allocation for a single list */
     Jim_ListIter *iters;
@@ -11896,9 +11896,12 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     for (i = 0; i < numargs; i++) {
         JimListIterInit(&iters[i], argv[i + 1]);
         if (i % 2 == 0 && JimListIterDone(interp, &iters[i])) {
-            Jim_SetResultString(interp, "foreach varlist is empty", -1);
-            return JIM_ERR;
+            result = JIM_ERR;
         }
+    }
+    if (result != JIM_OK) {
+        Jim_SetResultString(interp, "foreach varlist is empty", -1);
+        return result;
     }
 
     if (doMap) {
