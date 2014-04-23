@@ -15395,6 +15395,8 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     buf = Jim_Alloc(len + 1);
     len = snprintf(buf, len + 1, format, params[0], params[1], params[2], params[3], params[4]);
 
+    va_end(args);
+
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, len));
 }
 
