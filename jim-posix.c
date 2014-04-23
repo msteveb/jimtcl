@@ -187,6 +187,7 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *co
     buf = Jim_Alloc(JIM_HOST_NAME_MAX);
     if (gethostname(buf, JIM_HOST_NAME_MAX) == -1) {
         Jim_PosixSetError(interp);
+        Jim_Free(buf);
         rc = JIM_ERR;
     }
     else {
