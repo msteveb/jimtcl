@@ -446,7 +446,6 @@ static int regpiece(regex_t *preg, int *flagp)
 	char op;
 	int next;
 	int flags;
-	int chain = 0;
 	int min;
 	int max;
 
@@ -529,7 +528,7 @@ static int regpiece(regex_t *preg, int *flagp)
 		return 0;
 	}
 
-	return chain ? chain : ret;
+	return ret;
 }
 
 /**
