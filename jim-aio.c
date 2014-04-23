@@ -751,7 +751,7 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else {
             fmode &= ~O_NDELAY;
         }
-        fcntl(af->fd, F_SETFL, fmode);
+        (void)fcntl(af->fd, F_SETFL, fmode);
     }
     Jim_SetResultInt(interp, (fmode & O_NONBLOCK) ? 1 : 0);
     return JIM_OK;
@@ -1105,7 +1105,7 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     af->filename = filename;
 #ifdef FD_CLOEXEC
     if ((openFlags & AIO_KEEPOPEN) == 0) {
-        fcntl(af->fd, F_SETFD, FD_CLOEXEC);
+        (void)fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     }
 #endif
     af->openFlags = openFlags;
