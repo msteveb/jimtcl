@@ -489,6 +489,7 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int fd;
     char *filename;
     const char *template = "/tmp/tcl.tmp.XXXXXX";
+    mode_t mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
 
     if (argc >= 1) {
         template = Jim_String(argv[0]);
@@ -496,6 +497,7 @@ static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     filename = Jim_StrDup(template);
 
     fd = mkstemp(filename);
+    umask(mask);
     if (fd < 0) {
         Jim_SetResultString(interp, "Failed to create tempfile", -1);
         Jim_Free(filename);
