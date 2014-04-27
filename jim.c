@@ -7393,10 +7393,13 @@ int Jim_GetIndex(Jim_Interp *interp, Jim_Obj *objPtr, int *indexPtr)
     if (objPtr->typePtr == &intObjType) {
         jim_wide val = JimWideValue(objPtr);
 
-        if (!(val < LONG_MIN) && !(val > LONG_MAX)) {
-            *indexPtr = (val < 0) ? -INT_MAX : (long)val;;
-            return JIM_OK;
-        }
+        if (val < 0)
+            *indexPtr = -INT_MAX;
+        else if (val > INT_MAX)
+            *indexPtr = INT_MAX;
+        else
+            *indexPtr = (int)val;
+        return JIM_OK;
     }
     if (objPtr->typePtr != &indexObjType && SetIndexFromAny(interp, objPtr) == JIM_ERR)
         return JIM_ERR;
