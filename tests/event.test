@@ -122,10 +122,10 @@ test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {jim
     set x 0
     set y 0
     set z 0
-    fileevent $s2 readable { incr z }
+    fileevent $s2 writable { incr z }
     vwait z
     fileevent $f1 writable { incr x; if { $y == 3 } { set z done } }
-    fileevent $s2 readable { incr y; if { $x == 3 } { set z done } }
+    fileevent $s2 writable { incr y; if { $x == 3 } { set z done } }
     vwait z
     close $f1
     close $s2
