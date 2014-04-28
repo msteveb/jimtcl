@@ -238,6 +238,14 @@ puts "TEST 32 PASSED"
 array unset blahblah abc
 puts "TEST 33 PASSED"
 
+# REGTEST 34
+# onexception and writable conflict
+stdout onexception {incr x}
+stdout writable {incr y}
+stdout onexception {}
+stdout writable {}
+
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
