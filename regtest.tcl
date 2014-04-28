@@ -240,11 +240,11 @@ puts "TEST 33 PASSED"
 
 # REGTEST 34
 # onexception and writable conflict
-stdout onexception {incr x}
-stdout writable {incr y}
-stdout onexception {}
-stdout writable {}
-
+set f [open [info nameofexecutable]]
+$f onexception {incr x}
+$f writable {incr y}
+$f close
+puts "TEST 34 PASSED"
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 
