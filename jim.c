@@ -5793,8 +5793,11 @@ static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 
         if (wideValue < 0) {
             buf[pos++] = '-';
-            /* -106 % 10 may be -6 or 4! */
             i = wideValue % 10;
+            /* C89 is implementation defined as to whether (-106 % 10) is -6 or 4,
+             * whereas C99 is always -6
+             * coverity[dead_error_line]
+             */
             tmp[num++] = (i > 0) ? (10 - i) : -i;
             wideValue /= -10;
         }
