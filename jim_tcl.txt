@@ -4714,7 +4714,7 @@ oo: class, super
 ~~~~~~~~~~~~~~~~
 The optional, pure-Tcl 'oo' extension provides object-oriented (OO) support for Jim Tcl.
 
-See the online documentation (http://jim.berlios.de/documentation/oo/) for more details.
+See the online documentation (http://jim.tcl.tk/index.html/doc/www/www/documentation/oo/) for more details.
 
 +*class* 'classname ?baseclasses? classvars'+::
     Create a new class, +'classname'+, with the given dictionary

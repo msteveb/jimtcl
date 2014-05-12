@@ -22,16 +22,16 @@ most recent copy of Jim Tcl. This can be done with following command:
 After entering newly created directory you can easily correct/fix/modify
 files. Once finished, patch can be easily generated:
 
-	git diff > my_patch_fixing_x_y.patch
+        git diff > my_patch_fixing_x_y.patch
 
 If working without Git system, you'll have to backup files first, modify
 the original files and obtain a patch manually:
 
-	cp jim.c jim.c.ORIGINAL
+        cp jim.c jim.c.ORIGINAL
 
-	[...] <- modifications go here
+        [...] <- modifications go here
 
-	diff -u jim.c.ORIGINAL jim.c > my_patch_fixing_z.patch
+        diff -u jim.c.ORIGINAL jim.c > my_patch_fixing_z.patch
 
 Bigger changes
 ==============
@@ -81,13 +81,13 @@ Review, testing and publishing
 Notification of work that can be considered finished is more than welcome on
 Jim-devel mailing list:
 
-        https://lists.berlios.de/mailman/listinfo/jim-devel
+        http://jim.tcl.tk:8080/cgi-bin/mailman/listinfo/jim-devel
 
 Patches prepared with the procedures presented abore are welcome. Before
 submitting patches, you can verify that your changes didn't bring any
 regressions to the Jim. In order to do so, sample regression tests have
 been implemented. You can execute them by typing:
 
-	make test
+        make test
 
 All tests should succeed.
