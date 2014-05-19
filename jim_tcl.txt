@@ -12,9 +12,10 @@ SYNOPSIS
 
 or
 
-  jimsh [<scriptfile>]
+  jimsh [<scriptfile>|-]
   jimsh -e '<immediate-script>'
   jimsh --version
+  jimsh --help
 
 
 .Quick Index
@@ -54,6 +55,9 @@ RECENT CHANGES
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add serial/tty support with `aio tty`
+2. Add support for 'jimsh -'
+3. Add hidden '-commands' option to many commands
+4. Add scriptable autocompletion support in interactive mode with `tcl::autocomplete`
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -199,6 +203,10 @@ It may be invoked in interactive mode as:
 or to process the Tcl script in a file with:
 
   jimsh filename
+
+or to process the Tcl script from standard input:
+
+  jimsh -
 
 It may also be invoked to execute an immediate script with:
 
@@ -4948,7 +4956,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 
 tcl::prefix
 ~~~~~~~~~~~
-The optional tclprefix extension provides the Tcl8.6-compatible 'tcl::prefix' command
+The optional tclprefix extension provides the Tcl8.6-compatible `tcl::prefix` command
 (http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm) for matching strings against a table
 of possible values (typically commands or options).
 
@@ -4970,6 +4978,19 @@ of possible values (typically commands or options).
       Otherwise the options are used as return options when
       generating the error message. The default corresponds to
       setting +-level 0+.
+
+tcl::autocomplete
+~~~~~~~~~~~~~~~~~
+Scriptable command line completion is supported in the interactive shell, 'jimsh', through
+the `tcl::autocomplete` callback. A simple implementation is provided, however this may
+be replaced with a custom command instead if desired.
+
+In the interactive shell, press <TAB> to activate command line completion.
+
++*tcl::autocomplete* 'commandline'+::
+	This command is called with the current command line when the user presses <TAB>.
+	The command should return a list of all possible command lines that match the current command line.
+	For example if +*pr*+ is the current command line, the list +*{prefix proc}*+ may be returned.
 
 history
 ~~~~~~~

@@ -63,9 +63,8 @@ proc fileevent {args} {
 	tailcall {*}$args
 }
 
-# Second, option argument is a glob pattern
+# Second, optional argument is a glob pattern
 # Third, optional argument is a "putter" function
-#
 proc parray {arrayname {pattern *} {puts puts}} {
 	upvar $arrayname a
 
@@ -172,14 +171,9 @@ local proc pid {{channelId {}}} {
 # Usage: try ?catchopts? script ?onclause ...? ?finallyclause?
 #
 # Where:
-#   onclause is:       on codes {?resultvar? ?optsvar?} script
-#
-#   codes is: a list of return codes (ok, error, etc. or integers), or * for any
-#
-#   finallyclause is:  finally script
-#
-#
-# Where onclause is: on codes {?resultvar? ?optsvar?}
+#        onclause is: on codes {?resultvar? ?optsvar?} script
+#           codes is: a list of return codes (ok, error, etc. or integers), or * for any
+#   finallyclause is: finally script
 proc try {args} {
 	set catchopts {}
 	while {[string match -* [lindex $args 0]]} {

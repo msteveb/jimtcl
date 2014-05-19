@@ -78,12 +78,41 @@ void Jim_HistoryShow(void)
 #endif
 }
 
+#ifdef USE_LINENOISE
+struct JimCompletionInfo {
+    Jim_Interp *interp;
+    Jim_Obj *command;
+};
+
+void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void *userdata)
+{
+    struct JimCompletionInfo *info = (struct JimCompletionInfo *)userdata;
+    Jim_Obj *objv[2];
+
+    objv[0] = info->command;
+    objv[1] = Jim_NewStringObj(info->interp, prefix, -1);
+
+    int ret = Jim_EvalObjVector(info->interp, 2, objv);
+
+    /* XXX: Consider how best to handle errors here. bgerror? */
+    if (ret == JIM_OK) {
+        int i;
+        Jim_Obj *listObj = Jim_GetResult(info->interp);
+        int len = Jim_ListLength(info->interp, listObj);
+        for (i = 0; i < len; i++) {
+            linenoiseAddCompletion(comp, Jim_String(Jim_ListGetIndex(info->interp, listObj, i)));
+        }
+    }
+}
+#endif
+
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
     int retcode = JIM_OK;
     char *history_file = NULL;
 #ifdef USE_LINENOISE
     const char *home;
+    struct JimCompletionInfo compinfo;
 
     home = getenv("HOME");
     if (home && isatty(STDIN_FILENO)) {
@@ -92,6 +121,13 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         snprintf(history_file, history_len, "%s/.jim_history", home);
         Jim_HistoryLoad(history_file);
     }
+
+    compinfo.interp = interp;
+    compinfo.command = Jim_NewStringObj(interp, "tcl::autocomplete", -1);
+    Jim_IncrRefCount(compinfo.command);
+
+    /* Register a callback function for tab-completion. */
+    linenoiseSetCompletionCallback(JimCompletionCallback, &compinfo);
 #endif
 
     printf("Welcome to Jim version %d.%d\n",
@@ -173,5 +209,11 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
   out:
     Jim_Free(history_file);
+
+#ifdef USE_LINENOISE
+    Jim_DecrRefCount(interp, compinfo.command);
+    linenoiseSetCompletionCallback(NULL, NULL);
+#endif
+
     return retcode;
 }

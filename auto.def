@@ -233,7 +233,6 @@ if {[opt-bool-or-full lineedit]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
-        define-append CCOPTS -DNO_COMPLETION
         define-append PARSE_UNIDATA_FLAGS -width
         lappend extra_objs linenoise.o
     }
