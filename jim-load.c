@@ -98,6 +98,7 @@ static void JimFreeLoadHandles(Jim_Interp *interp, void *data)
 
     if (handles) {
         Jim_FreeStackElements(handles, JimFreeOneLoadHandle);
+        Jim_FreeStack(handles);
         Jim_Free(handles);
     }
 }
