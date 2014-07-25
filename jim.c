@@ -12229,8 +12229,8 @@ static int Jim_LindexCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int i;
     int idx;
 
-    if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "list index ?...?");
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "list ?index ...?");
         return JIM_ERR;
     }
     objPtr = argv[1];

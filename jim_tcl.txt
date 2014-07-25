@@ -2881,7 +2881,7 @@ affect the loop count.
 
 lindex
 ~~~~~~
-+*lindex* 'list index'+
++*lindex* 'list ?index ...?'+
 
 Treats +'list'+ as a Tcl list and returns element +'index'+ from it
 (0 refers to the first element of the list).
@@ -2891,8 +2891,14 @@ In extracting the element, +'lindex'+ observes the same rules concerning
 braces and quotes and backslashes as the Tcl command interpreter; however,
 variable substitution and command substitution do not occur.
 
+If no index values are given, simply returns +'list'+
+
 If +'index'+ is negative or greater than or equal to the number of elements
-in +'value'+, then an empty string is returned.
+in +'list'+, then an empty string is returned.
+
+If additional index arguments are supplied, then each argument is
+used in turn to select an element from the previous indexing
+operation, allowing the script to select elements from sublists.
 
 linsert
 ~~~~~~~

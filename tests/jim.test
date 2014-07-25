@@ -1539,9 +1539,9 @@ set minus -
 
 # Tests of Tcl_LindexObjCmd, NOT COMPILED
 
-#test lindex-1.1 {wrong # args} {
-#    list [catch {eval $lindex} result] $result
-#} "1 {wrong # args: should be \"lindex list ?index...?\"}"
+test lindex-1.1 {wrong # args} {
+    list [catch {eval $lindex} result] $result
+} "1 {wrong # args: should be \"lindex list ?index ...?\"}"
 
 # Indices that are lists or convertible to lists
 
@@ -1833,6 +1833,10 @@ test lindex-16.3 {data reuse} {
     } result
     set result
 } {}
+
+test lindex-17.1 {no index} {
+    lindex {a b c}
+} {a b c}
 
 catch { unset lindex}
 catch { unset minus }
