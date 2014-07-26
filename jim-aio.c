@@ -622,6 +622,30 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
+    if (argc > 0) {
+        /* INET6_ADDRSTRLEN is 46. Add some for [] and port */
+        char addrbuf[60];
+
+#if IPV6
+        if (sa.sa.sa_family == PF_INET6) {
+            addrbuf[0] = '[';
+            /* Allow 9 for []:65535\0 */
+            inet_ntop(sa.sa.sa_family, &sa.sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
+            snprintf(addrbuf + strlen(addrbuf), 8, "]:%d", ntohs(sa.sin.sin_port));
+        }
+        else
+#endif
+        if (sa.sa.sa_family == PF_INET) {
+            /* Allow 7 for :65535\0 */
+            inet_ntop(sa.sa.sa_family, &sa.sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
+            snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa.sin.sin_port));
+        }
+
+        if (Jim_SetVariable(interp, argv[0], Jim_NewStringObj(interp, addrbuf, -1)) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
     /* Create the file command */
     return JimMakeChannel(interp, NULL, sock, Jim_NewStringObj(interp, "accept", -1),
         "aio.sockstream%ld", af->addr_family, "r+");
@@ -915,10 +939,10 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Send 'str' to the given address (dgram only) */
     },
     {   "accept",
-        NULL,
+        "?addrvar?",
         aio_cmd_accept,
         0,
-        0,
+        1,
         /* Description: Server socket only: Accept a connection and return stream */
     },
     {   "listen",
