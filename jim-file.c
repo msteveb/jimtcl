@@ -483,32 +483,17 @@ static int file_cmd_mkdir(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#ifdef HAVE_MKSTEMP
 static int file_cmd_tempfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int fd;
-    char *filename;
-    const char *template = "/tmp/tcl.tmp.XXXXXX";
-    mode_t mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
+    int fd = Jim_MakeTempFile(interp, (argc >= 1) ? Jim_String(argv[0]) : NULL);
 
-    if (argc >= 1) {
-        template = Jim_String(argv[0]);
-    }
-    filename = Jim_StrDup(template);
-
-    fd = mkstemp(filename);
-    umask(mask);
     if (fd < 0) {
-        Jim_SetResultString(interp, "Failed to create tempfile", -1);
-        Jim_Free(filename);
         return JIM_ERR;
     }
     close(fd);
 
-    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, filename, -1));
     return JIM_OK;
 }
-#endif
 
 static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -826,7 +811,6 @@ static const jim_subcmd_type file_command_table[] = {
         -1,
         /* Description: Creates the directories */
     },
-#ifdef HAVE_MKSTEMP
     {   "tempfile",
         "?template?",
         file_cmd_tempfile,
@@ -834,7 +818,6 @@ static const jim_subcmd_type file_command_table[] = {
         1,
         /* Description: Creates a temporary filename */
     },
-#endif
     {   "rename",
         "?-force? source dest",
         file_cmd_rename,

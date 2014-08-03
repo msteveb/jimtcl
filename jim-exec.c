@@ -1576,15 +1576,13 @@ static int JimRewindFd(int fd)
 
 static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
-    char inName[] = "/tmp/tcl.tmp.XXXXXX";
-    mode_t mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
-    int fd = mkstemp(inName);
-    umask(mask);
+    int fd = Jim_MakeTempFile(interp, NULL);
+
     if (fd == JIM_BAD_FD) {
         Jim_SetResultErrno(interp, "couldn't create temp file");
         return -1;
     }
-    unlink(inName);
+    unlink(Jim_String(Jim_GetResult(interp)));
     if (contents) {
         if (write(fd, contents, len) != len) {
             Jim_SetResultErrno(interp, "couldn't write temp file");

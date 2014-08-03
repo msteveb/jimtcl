@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #include "jim.h"
@@ -1410,6 +1411,54 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode);
 }
 #endif /* JIM_BOOTSTRAP */
+
+/**
+ * Returns the file descriptor of a writable, newly created temp file
+ * or -1 on error.
+ * 
+ * On success, leaves the filename in the interpreter result, otherwise
+ * leaves an error message.
+ */
+int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
+{
+#ifdef HAVE_MKSTEMP
+    int fd;
+    mode_t mask;
+    Jim_Obj *filenameObj;
+
+    if (template == NULL) {
+        const char *tmpdir = getenv("TMPDIR");
+        if (tmpdir == NULL || *tmpdir == '\0' || access(tmpdir, W_OK) != 0) {
+            tmpdir = "/tmp/";
+        }
+        filenameObj = Jim_NewStringObj(interp, tmpdir, -1);
+        if (tmpdir[0] && tmpdir[strlen(tmpdir) - 1] != '/') {
+            Jim_AppendString(interp, filenameObj, "/", 1);
+        }
+        Jim_AppendString(interp, filenameObj, "tcl.tmp.XXXXXX", -1);
+    }
+    else {
+        filenameObj = Jim_NewStringObj(interp, template, -1);
+    }
+
+    mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
+
+    /* Update the template name directly with the filename */
+    fd = mkstemp(filenameObj->bytes);
+    umask(mask);
+    if (fd < 0) {
+        Jim_SetResultString(interp, "Failed to create tempfile", -1);
+        Jim_FreeNewObj(interp, filenameObj);
+        return -1;
+    }
+
+    Jim_SetResult(interp, filenameObj);
+    return fd;
+#else
+    Jim_SetResultString(interp, "tempfile not supported", -1);
+    return -1;
+#endif
+}
 
 FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
