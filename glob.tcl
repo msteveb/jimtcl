@@ -9,6 +9,11 @@ package require readdir
 
 # Return a list of all entries in $dir that match the pattern.
 proc glob.globdir {dir pattern} {
+	if {[file exists $dir/$pattern]} {
+		# Simple case
+		return $pattern
+	}
+
 	set result {}
 	set files [readdir $dir]
 	lappend files . ..
