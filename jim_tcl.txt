@@ -4431,14 +4431,16 @@ See `open` and `socket` for commands which return an I/O handle.
 
 aio
 ~~~
-+$handle *accept*+::
-    Server socket only: Accept a connection and return stream
++$handle *accept* ?addrvar?+::
+    Server socket only: Accept a connection and return stream.
+    If +'addrvar'+ is specified, the address of the connected client is stored
+    in the named variable in the form 'addr:port'. See `socket` for details.
 
 +$handle *buffering none|line|full*+::
     Sets the buffering mode of the stream.
 
 +$handle *close* ?r(ead)|w(rite)?+::
-    Closes the stream. 
+    Closes the stream.
 	The  two-argument form is a "half-close" on a socket. See the +shutdown(2)+ man page.
 
 +$handle *copyto* 'tofd ?size?'+::
