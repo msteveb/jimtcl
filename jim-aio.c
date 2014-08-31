@@ -266,6 +266,37 @@ static int JimParseDomainAddress(Jim_Interp *interp, const char *path, struct so
     return JIM_OK;
 }
 #endif
+
+/**
+ * Format that address in 'sa' as a string and store in variable 'varObjPtr'
+ */
+static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const union sockaddr_any *sa)
+{
+    /* INET6_ADDRSTRLEN is 46. Add some for [] and port */
+    char addrbuf[60];
+
+#if IPV6
+    if (sa->sa.sa_family == PF_INET6) {
+        addrbuf[0] = '[';
+        /* Allow 9 for []:65535\0 */
+        inet_ntop(sa->sa.sa_family, &sa->sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
+        snprintf(addrbuf + strlen(addrbuf), 8, "]:%d", ntohs(sa->sin.sin_port));
+    }
+    else
+#endif
+    if (sa->sa.sa_family == PF_INET) {
+        /* Allow 7 for :65535\0 */
+        inet_ntop(sa->sa.sa_family, &sa->sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
+        snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa->sin.sin_port));
+    }
+    else {
+        /* recvfrom still works on unix domain sockets, etc */
+        addrbuf[0] = 0;
+    }
+
+    return Jim_SetVariable(interp, varObjPtr, Jim_NewStringObj(interp, addrbuf, -1));
+}
+
 #endif /* JIM_BOOTSTRAP */
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
@@ -549,31 +580,7 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
 
     if (argc > 1) {
-        /* INET6_ADDRSTRLEN is 46. Add some for [] and port */
-        char addrbuf[60];
-
-#if IPV6
-        if (sa.sa.sa_family == PF_INET6) {
-            addrbuf[0] = '[';
-            /* Allow 9 for []:65535\0 */
-            inet_ntop(sa.sa.sa_family, &sa.sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
-            snprintf(addrbuf + strlen(addrbuf), 8, "]:%d", ntohs(sa.sin.sin_port));
-        }
-        else
-#endif
-        if (sa.sa.sa_family == PF_INET) {
-            /* Allow 7 for :65535\0 */
-            inet_ntop(sa.sa.sa_family, &sa.sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
-            snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa.sin.sin_port));
-        }
-        else {
-            /* recvfrom still works on unix domain sockets, etc */
-            addrbuf[0] = 0;
-        }
-
-        if (Jim_SetVariable(interp, argv[1], Jim_NewStringObj(interp, addrbuf, -1)) != JIM_OK) {
-            return JIM_ERR;
-        }
+        return JimFormatIpAddress(interp, argv[1], &sa);
     }
 
     return JIM_OK;
@@ -624,25 +631,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc > 0) {
-        /* INET6_ADDRSTRLEN is 46. Add some for [] and port */
-        char addrbuf[60];
-
-#if IPV6
-        if (sa.sa.sa_family == PF_INET6) {
-            addrbuf[0] = '[';
-            /* Allow 9 for []:65535\0 */
-            inet_ntop(sa.sa.sa_family, &sa.sin6.sin6_addr, addrbuf + 1, sizeof(addrbuf) - 9);
-            snprintf(addrbuf + strlen(addrbuf), 8, "]:%d", ntohs(sa.sin.sin_port));
-        }
-        else
-#endif
-        if (sa.sa.sa_family == PF_INET) {
-            /* Allow 7 for :65535\0 */
-            inet_ntop(sa.sa.sa_family, &sa.sin.sin_addr, addrbuf, sizeof(addrbuf) - 7);
-            snprintf(addrbuf + strlen(addrbuf), 7, ":%d", ntohs(sa.sin.sin_port));
-        }
-
-        if (Jim_SetVariable(interp, argv[0], Jim_NewStringObj(interp, addrbuf, -1)) != JIM_OK) {
+        if (JimFormatIpAddress(interp, argv[0], &sa) != JIM_OK) {
             return JIM_ERR;
         }
     }
