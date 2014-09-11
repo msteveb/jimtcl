@@ -55,12 +55,21 @@ proc check-extension-status {ext required} {
 
     array set depinfo {m 0 y 0 n 0}
 
+    # Stash the current value of LIBS
+    set LIBS [get-define LIBS]
+
     # Check direct dependencies
     if [ext-get $ext check 1] {
         # "check" conditions are met
     } else {
         # not met
         incr depinfo(n)
+    }
+
+    if {$ext in $withinfo(mod)} {
+        # This is a module, so ignore LIBS
+        # LDLIBS_$ext will contain the appropriate libs for this module
+        define LIBS $LIBS
     }
 
     if {$depinfo(n) == 0} {
