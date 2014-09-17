@@ -81,6 +81,7 @@ cat <<EOF
 #define HAVE_VFORK
 #define HAVE_WAITPID
 #define HAVE_ISATTY
+#define HAVE_MKSTEMP
 #define HAVE_SYS_TIME_H
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
