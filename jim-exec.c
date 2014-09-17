@@ -1578,18 +1578,16 @@ static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
 {
     int fd = Jim_MakeTempFile(interp, NULL);
 
-    if (fd == JIM_BAD_FD) {
-        Jim_SetResultErrno(interp, "couldn't create temp file");
-        return -1;
-    }
-    unlink(Jim_String(Jim_GetResult(interp)));
-    if (contents) {
-        if (write(fd, contents, len) != len) {
-            Jim_SetResultErrno(interp, "couldn't write temp file");
-            close(fd);
-            return -1;
+    if (fd != JIM_BAD_FD) {
+        unlink(Jim_String(Jim_GetResult(interp)));
+        if (contents) {
+            if (write(fd, contents, len) != len) {
+                Jim_SetResultErrno(interp, "couldn't write temp file");
+                close(fd);
+                return -1;
+            }
+            lseek(fd, 0L, SEEK_SET);
         }
-        lseek(fd, 0L, SEEK_SET);
     }
     return fd;
 }

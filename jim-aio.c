@@ -1460,7 +1460,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
     fd = mkstemp(filenameObj->bytes);
     umask(mask);
     if (fd < 0) {
-        Jim_SetResultString(interp, "Failed to create tempfile", -1);
+        JimAioSetError(interp, filenameObj);
         Jim_FreeNewObj(interp, filenameObj);
         return -1;
     }
@@ -1468,7 +1468,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
     Jim_SetResult(interp, filenameObj);
     return fd;
 #else
-    Jim_SetResultString(interp, "tempfile not supported", -1);
+    Jim_SetResultString(interp, "platform has no tempfile support", -1);
     return -1;
 #endif
 }
