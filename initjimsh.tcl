@@ -6,8 +6,8 @@ proc _jimsh_init {} {
 
 	# Add to the standard auto_path
 	lappend p {*}[split [env JIMLIB {}] $::tcl_platform(pathSeparator)]
-	lappend p {*}$::auto_path
 	lappend p [file dirname [info nameofexecutable]]
+	lappend p {*}$::auto_path
 	set ::auto_path $p
 
 	if {$::tcl_interactive && [env HOME {}] ne ""} {
