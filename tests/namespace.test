@@ -482,8 +482,29 @@ test namespace-12.1 {namespace import} {
 } {a}
 
 test namespace-12.2 {namespace import recursive} -body {
-	namespace import *
+	namespace eval test_ns_scope1 {
+            namespace import [namespace current]::*
+        }
 } -returnCodes error -match glob -result {import pattern "*" tries to import from namespace "*" into itself}
+
+test namespace-12.3 {namespace import loop} -setup {
+    namespace eval one {
+	namespace export cmd
+	proc cmd {} {}
+    }
+    namespace eval two namespace export cmd
+    namespace eval two \
+	    [list namespace import [namespace current]::one::cmd]
+    namespace eval three namespace export cmd
+    namespace eval three \
+	    [list namespace import [namespace current]::two::cmd]
+} -body {
+    namespace eval two [list namespace import -force \
+	    [namespace current]::three::cmd]
+    namespace origin two::cmd
+} -cleanup {
+    namespace delete one two three
+} -returnCodes error -match glob -result {import pattern * would create a loop*}
 
 foreach cmd [info commands test_ns_*] {
     rename $cmd ""

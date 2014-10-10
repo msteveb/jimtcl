@@ -66,7 +66,19 @@ proc {namespace import} {args} {
 			if {[namespace qualifiers $cmd] eq $current} {
 				return -code error "import pattern \"$pattern\" tries to import from namespace \"$current\" into itself"
 			}
-			alias ${current}::[namespace tail $cmd] $cmd
+			# What if this alias would create a loop?
+			# follow the target alias chain to see if we are creating a loop
+			set newcmd ${current}::[namespace tail $cmd]
+
+			set alias $cmd
+			while {[exists -alias $alias]} {
+				set alias [info alias $alias]
+				if {$alias eq $newcmd} {
+					return -code error "import pattern \"$pattern\" would create a loop"
+				}
+			}
+
+			alias $newcmd $cmd
 		}
 	}
 }
