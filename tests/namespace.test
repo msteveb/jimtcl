@@ -470,6 +470,21 @@ test namespace-11.1 {command caching} {
 	lappend result [ns1::cmd2]
 } {ns1 global}
 
+test namespace-12.1 {namespace import} {
+	namespace eval test_ns_scope1 {
+		proc a {} { return a }
+		namespace export a
+	}
+	namespace eval test_ns_scope2 {
+		namespace import ::test_ns_scope1::a
+		a
+	}
+} {a}
+
+test namespace-12.2 {namespace import recursive} -body {
+	namespace import *
+} -returnCodes error -match glob -result {import pattern "*" tries to import from namespace "*" into itself}
+
 foreach cmd [info commands test_ns_*] {
     rename $cmd ""
 }

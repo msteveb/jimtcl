@@ -63,6 +63,9 @@ proc {namespace import} {args} {
 
 	foreach pattern $args {
 		foreach cmd [info commands [namespace canon $current $pattern]] {
+			if {[namespace qualifiers $cmd] eq $current} {
+				return -code error "import pattern \"$pattern\" tries to import from namespace \"$current\" into itself"
+			}
 			alias ${current}::[namespace tail $cmd] $cmd
 		}
 	}
