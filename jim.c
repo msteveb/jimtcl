@@ -2294,6 +2294,7 @@ const char *Jim_String(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
+        JimPanic((objPtr->typePtr == NULL, "UpdateStringProc called against typeless value."));
         JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
         objPtr->typePtr->updateStringProc(objPtr);
     }
@@ -10426,6 +10427,8 @@ static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
 {
     int retcode = JIM_OK;
 
+    JimPanic((Jim_IsList(listPtr) == 0, "JimEvalObjList() invoked on non-list."));
+
     if (listPtr->internalRep.listValue.len) {
         Jim_IncrRefCount(listPtr);
         retcode = JimInvokeCommand(interp,
@@ -13114,7 +13117,7 @@ static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* prefixListObj is a list to which the args need to be appended */
     cmdList = Jim_DuplicateObj(interp, prefixListObj);
-    ListInsertElements(cmdList, -1, argc - 1, argv + 1);
+    Jim_ListInsertElements(interp, cmdList, Jim_ListLength(interp, cmdList), argc - 1, argv + 1);
 
     return JimEvalObjList(interp, cmdList);
 }
