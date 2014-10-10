@@ -6005,7 +6005,7 @@ static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     else {
         /* Try to convert into a double */
         if (Jim_StringToDouble(str, &doubleValue) != JIM_OK) {
-            Jim_SetResultFormatted(interp, "expected number but got \"%#s\"", objPtr);
+            Jim_SetResultFormatted(interp, "expected floating-point number but got \"%#s\"", objPtr);
             return JIM_ERR;
         }
         /* Free the old internal repr and set the new one. */

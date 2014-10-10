@@ -421,7 +421,7 @@ test binary-13.1 {Tcl_BinaryObjCmd: format} {
 } {1 {not enough arguments for all format specifiers}}
 test binary-13.2 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format f blat} msg] $msg
-} {1 {expected number but got "blat"}}
+} {1 {expected floating-point number but got "blat"}}
 test binary-13.3 {Tcl_BinaryObjCmd: format} {
     binary format f0 1.6
 } {}
@@ -467,7 +467,7 @@ test binary-13.16 {Tcl_BinaryObjCmd: format} {
 test binary-13.17 {Tcl_BinaryObjCmd: format} {
     set a {1.6 3.4}
     list [catch {binary format f $a} msg] $msg
-} [list 1 "expected number but got \"1.6 3.4\""]
+} [list 1 "expected floating-point number but got \"1.6 3.4\""]
 test binary-13.18 {Tcl_BinaryObjCmd: format} bigEndian {
     set a {1.6 3.4}
     binary format f1 $a
@@ -482,7 +482,7 @@ test binary-14.1 {Tcl_BinaryObjCmd: format} {
 } {1 {not enough arguments for all format specifiers}}
 test binary-14.2 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format d blat} msg] $msg
-} {1 {expected number but got "blat"}}
+} {1 {expected floating-point number but got "blat"}}
 test binary-14.3 {Tcl_BinaryObjCmd: format} {
     binary format d0 1.6
 } {}
@@ -516,7 +516,7 @@ test binary-14.14 {Tcl_BinaryObjCmd: format} {
 test binary-14.15 {Tcl_BinaryObjCmd: format} {
     set a {1.6 3.4}
     list [catch {binary format d $a} msg] $msg
-} [list 1 "expected number but got \"1.6 3.4\""]
+} [list 1 "expected floating-point number but got \"1.6 3.4\""]
 test binary-14.16 {Tcl_BinaryObjCmd: format} bigEndian {
     set a {1.6 3.4}
     binary format d1 $a
@@ -1806,7 +1806,7 @@ test binary-51.1 {Tcl_BinaryObjCmd: format} {
 } {1 {not enough arguments for all format specifiers}}
 test binary-51.2 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format q blat} msg] $msg
-} {1 {expected number but got "blat"}}
+} {1 {expected floating-point number but got "blat"}}
 test binary-51.3 {Tcl_BinaryObjCmd: format} {
     binary format q0 1.6
 } {}
@@ -1840,7 +1840,7 @@ test binary-51.14 {Tcl_BinaryObjCmd: format} {
 test binary-51.15 {Tcl_BinaryObjCmd: format} {
     set a {1.6 3.4}
     list [catch {binary format q $a} msg] $msg
-} [list 1 "expected number but got \"1.6 3.4\""]
+} [list 1 "expected floating-point number but got \"1.6 3.4\""]
 test binary-51.16 {Tcl_BinaryObjCmd: format} {} {
     set a {1.6 3.4}
     binary format Q1 $a
@@ -1856,7 +1856,7 @@ test binary-53.1 {Tcl_BinaryObjCmd: format} {
 } {1 {not enough arguments for all format specifiers}}
 test binary-53.2 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format r blat} msg] $msg
-} {1 {expected number but got "blat"}}
+} {1 {expected floating-point number but got "blat"}}
 test binary-53.3 {Tcl_BinaryObjCmd: format} {
     binary format f0 1.6
 } {}
@@ -1902,7 +1902,7 @@ test binary-53.16 {Tcl_BinaryObjCmd: format} {
 test binary-53.17 {Tcl_BinaryObjCmd: format} {
     set a {1.6 3.4}
     list [catch {binary format r $a} msg] $msg
-} [list 1 "expected number but got \"1.6 3.4\""]
+} [list 1 "expected floating-point number but got \"1.6 3.4\""]
 test binary-53.18 {Tcl_BinaryObjCmd: format} {} {
     set a {1.6 3.4}
     binary format R1 $a
@@ -2397,7 +2397,7 @@ test binary-63.4 {NaN} {ieeeFloatingPoint notImplemented} {
 # Make sure TclParseNumber() rejects invalid nan-hex formats [Bug 3402540]
 test binary-63.5 {NaN} -constraints {ieeeFloatingPoint} -body {
     binary format q Nan(
-} -returnCodes error -match glob -result {expected number*}
+} -returnCodes error -match glob -result {expected floating-point number*}
 test binary-63.6 {NaN} -constraints {ieeeFloatingPoint notImplemented} -body {
     binary format q Nan()
 } -returnCodes error -match glob -result {expected floating-point number*}

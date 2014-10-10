@@ -329,7 +329,7 @@ test format-8.15 {error conditions} {
 test format-8.16 {error conditions} jim {
     catch {format %f 2.1z} msg
     set msg
-} {expected number but got "2.1z"}
+} {expected floating-point number but got "2.1z"}
 test format-8.17 {error conditions} {
     catch {format ab%}
 } 1

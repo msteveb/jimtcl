@@ -181,7 +181,7 @@ test lsort-3.19 {SortCompare procedure, -decreasing option} {
 } {100 35 0x20 30 023 21 8}
 test lsort-3.20 {SortCompare procedure, -real option} -body {
     lsort -real {6...4 3}
-} -returnCodes error -result {expected number but got "6...4"}
+} -returnCodes error -result {expected floating-point number but got "6...4"}
 test lsort-3.21 {lsort, unique sort} {
     lsort -integer -unique {3 1 2 3 1 4 3}
 } {1 2 3 4}
