@@ -7549,6 +7549,7 @@ enum
     /* Functions */
     JIM_EXPROP_FUNC_FIRST,      /* 59 */
     JIM_EXPROP_FUNC_INT = JIM_EXPROP_FUNC_FIRST,
+    JIM_EXPROP_FUNC_WIDE,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
     JIM_EXPROP_FUNC_ROUND,
@@ -7556,7 +7557,7 @@ enum
     JIM_EXPROP_FUNC_SRAND,
 
     /* math functions from libm */
-    JIM_EXPROP_FUNC_SIN,        /* 64 */
+    JIM_EXPROP_FUNC_SIN,        /* 65 */
     JIM_EXPROP_FUNC_COS,
     JIM_EXPROP_FUNC_TAN,
     JIM_EXPROP_FUNC_ASIN,
@@ -7615,6 +7616,7 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
     if ((A->typePtr != &doubleObjType || A->bytes) && JimGetWideNoErr(interp, A, &wA) == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_FUNC_INT:
+            case JIM_EXPROP_FUNC_WIDE:
             case JIM_EXPROP_FUNC_ROUND:
             case JIM_EXPROP_UNARYPLUS:
                 wC = wA;
@@ -7639,6 +7641,7 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
     else if ((rc = Jim_GetDouble(interp, A, &dA)) == JIM_OK) {
         switch (e->opcode) {
             case JIM_EXPROP_FUNC_INT:
+            case JIM_EXPROP_FUNC_WIDE:
                 wC = dA;
                 break;
             case JIM_EXPROP_FUNC_ROUND:
@@ -8333,6 +8336,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
 
     OPRINIT("int", 200, 1, JimExprOpNumUnary),
+    OPRINIT("wide", 200, 1, JimExprOpNumUnary),
     OPRINIT("abs", 200, 1, JimExprOpNumUnary),
     OPRINIT("double", 200, 1, JimExprOpNumUnary),
     OPRINIT("round", 200, 1, JimExprOpNumUnary),
@@ -12653,7 +12657,7 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int i;
 
     if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "varName ?value ...?");
         return JIM_ERR;
     }
     if (argc == 2) {
@@ -12906,7 +12910,7 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     int rc;
 
     if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "script ?...?");
+        Jim_WrongNumArgs(interp, 1, argv, "arg ?arg ...?");
         return JIM_ERR;
     }
 
