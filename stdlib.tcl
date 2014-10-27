@@ -79,21 +79,12 @@ proc errorInfo {msg {stacktrace ""}} {
 	string trim $result
 }
 
-# Finds the current executable by searching along the path
-# Returns the empty string if not found.
+# Needs to be set up by the container app (e.g. jimsh)
+# Returns the empty string if unknown
 proc {info nameofexecutable} {} {
-	if {[info exists ::jim_argv0]} {
-		if {[string match "*/*" $::jim_argv0]} {
-			return [file join [pwd] $::jim_argv0]
-		}
-		foreach path [split [env PATH ""] $::tcl_platform(pathSeparator)] {
-			set exec [file join [pwd] [string map {\\ /} $path] $::jim_argv0]
-			if {[file executable $exec]} {
-				return $exec
-			}
-		}
+	if {[exists ::jim::exe]} {
+		return $::jim::exe
 	}
-	return ""
 }
 
 # Script-based implementation of 'dict with'

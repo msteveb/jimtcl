@@ -84,7 +84,7 @@ int main(int argc, char *const argv[])
         JimPrintErrorMessage(interp);
     }
 
-    Jim_SetVariableStrWithStr(interp, "jim_argv0", argv[0]);
+    Jim_SetVariableStrWithStr(interp, "jim::argv0", argv[0]);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, argc == 1 ? "1" : "0");
     retcode = Jim_initjimshInit(interp);
 
