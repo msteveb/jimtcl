@@ -6,22 +6,25 @@ proc _jimsh_init {} {
 	global jim::exe jim::argv0 tcl_interactive auto_path tcl_platform
 
 	# Stash the result of [info nameofexecutable] now, before a possible [cd]
-	if {[string match "*/*" $jim::argv0]} {
-		set jim::exe [file join [pwd] $jim::argv0]
-	} else {
-		set jim::exe ""
-		foreach path [split [env PATH ""] $tcl_platform(pathSeparator)] {
-			set exec [file join [pwd] [string map {\\ /} $path] $jim::argv0]
-			if {[file executable $exec]} {
-				set jim::exe $exec
-				break
+	if {[exists jim::argv0]} {
+		if {[string match "*/*" $jim::argv0]} {
+			set jim::exe [file join [pwd] $jim::argv0]
+		} else {
+			foreach path [split [env PATH ""] $tcl_platform(pathSeparator)] {
+				set exec [file join [pwd] [string map {\\ /} $path] $jim::argv0]
+				if {[file executable $exec]} {
+					set jim::exe $exec
+					break
+				}
 			}
 		}
 	}
 
 	# Add to the standard auto_path
 	lappend p {*}[split [env JIMLIB {}] $tcl_platform(pathSeparator)]
-	lappend p [file dirname $jim::exe]
+	if {[exists jim::exe]} {
+		lappend p [file dirname $jim::exe]
+	}
 	lappend p {*}$auto_path
 	set auto_path $p
 
