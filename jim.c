@@ -13444,13 +13444,13 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int option;
     static const char * const options[] = {
         "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range", "replace",
-        "map", "repeat", "reverse", "index", "first", "last",
+        "map", "repeat", "reverse", "index", "first", "last", "cat",
         "trim", "trimleft", "trimright", "tolower", "toupper", "totitle", NULL
     };
     enum
     {
         OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE, OPT_REPLACE,
-        OPT_MAP, OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST,
+        OPT_MAP, OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST, OPT_CAT,
         OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER, OPT_TOTITLE
     };
     static const char * const nocase_options[] = {
@@ -13483,6 +13483,25 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             }
             Jim_SetResultInt(interp, len);
             return JIM_OK;
+
+        case OPT_CAT:{
+                Jim_Obj *objPtr;
+                if (argc == 3) {
+                    /* optimise the one-arg case */
+                    objPtr = argv[2];
+                }
+                else {
+                    int i;
+
+                    objPtr = Jim_NewStringObj(interp, "", 0);
+
+                    for (i = 2; i < argc; i++) {
+                        Jim_AppendObj(interp, objPtr, argv[i]);
+                    }
+                }
+                Jim_SetResult(interp, objPtr);
+                return JIM_OK;
+            }
 
         case OPT_COMPARE:
         case OPT_EQUAL:

@@ -3815,6 +3815,9 @@ The legal options (which may be abbreviated) are:
     Like `string range` except works on bytes rather than characters.
     These commands are identical if UTF-8 support is not enabled.
 
++*string cat '?string1 string2 \...?'+::
+    Concatenates the given strings into a single string.
+
 +*string compare ?-nocase?* ?*-length* 'len? string1 string2'+::
     Perform a character-by-character comparison of strings +'string1'+ and
     +'string2'+ in the same way as the C 'strcmp' procedure.  Return

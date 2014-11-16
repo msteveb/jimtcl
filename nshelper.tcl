@@ -130,7 +130,7 @@ proc {namespace info} {cmd {pattern *}} {
 		}
 	}
 	if {$global} {
-		set result [lmap p $result { set p $prefix$p }]
+		set result [lmap p $result { string cat $prefix $p }]
 	}
 	return $result
 }

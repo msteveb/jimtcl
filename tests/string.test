@@ -43,7 +43,7 @@ test string-2.6 {string compare} {
     string compare abcde abdef
 } -1
 test string-2.7 {string compare, shortest method name} {
-    string c abcde ABCDE
+    string co abcde ABCDE
 } 1
 test string-2.8 {string compare} {
     string compare abcde abcde
@@ -67,7 +67,7 @@ test string-2.13 {string compare -nocase} {
     string compare -nocase abcde abdef
 } -1
 test string-2.14 {string compare -nocase} {
-    string c -nocase abcde ABCDE
+    string co -nocase abcde ABCDE
 } 0
 test string-2.15 {string compare -nocase} {
     string compare -nocase abcde abcde
@@ -906,5 +906,22 @@ test string-21.4 {string trim utf-8} {
 test string-22.1 {string replace} {
     string replace //test.net/path/path2?query=url?otherquery 21 end
 } {//test.net/path/path2}
+
+test string-23.1 {string cat} {
+    string cat
+} {}
+
+test string-23.2 {string cat} {
+    string cat abc
+} {abc}
+
+test string-23.3 {string cat} {
+    string cat abc def
+} {abcdef}
+
+test string-23.4 {string cat} {
+    set abc 123
+    string cat $abc (def)
+} {123(def)}
 
 testreport

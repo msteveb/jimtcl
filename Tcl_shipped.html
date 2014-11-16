@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.6" />
+<meta name="generator" content="AsciiDoc 8.6.9" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Shared CSS for AsciiDoc xhtml11 and html5 backends */
@@ -581,7 +581,7 @@ toc: function (toclevels) {
 
   function tocEntries(el, toclevels) {
     var result = new Array;
-    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
+    var re = new RegExp('[hH]([1-'+(toclevels+1)+'])');
     // Function that scans the DOM tree for header elements (the DOM2
     // nodeIterator API would be a better technique but not supported by all
     // browsers).
@@ -610,7 +610,7 @@ toc: function (toclevels) {
   var i;
   for (i = 0; i < toc.childNodes.length; i++) {
     var entry = toc.childNodes[i];
-    if (entry.nodeName == 'div'
+    if (entry.nodeName.toLowerCase() == 'div'
      && entry.getAttribute("class")
      && entry.getAttribute("class").match(/^toclevel/))
       tocEntriesToRemove.push(entry);
@@ -656,7 +656,7 @@ footnotes: function () {
   var entriesToRemove = [];
   for (i = 0; i < noteholder.childNodes.length; i++) {
     var entry = noteholder.childNodes[i];
-    if (entry.nodeName == 'div' && entry.getAttribute("class") == "footnote")
+    if (entry.nodeName.toLowerCase() == 'div' && entry.getAttribute("class") == "footnote")
       entriesToRemove.push(entry);
   }
   for (i = 0; i < entriesToRemove.length; i++) {
@@ -4869,15 +4869,19 @@ affect the loop count.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_lindex">lindex</h3>
-<div class="paragraph"><p><tt><strong>lindex</strong> <em>list index</em></tt></p></div>
+<div class="paragraph"><p><tt><strong>lindex</strong> <em>list ?index &#8230;?</em></tt></p></div>
 <div class="paragraph"><p>Treats <tt><em>list</em></tt> as a Tcl list and returns element <tt><em>index</em></tt> from it
 (0 refers to the first element of the list).
 See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for <tt><em>index</em></tt>.</p></div>
 <div class="paragraph"><p>In extracting the element, <tt><em>lindex</em></tt> observes the same rules concerning
 braces and quotes and backslashes as the Tcl command interpreter; however,
 variable substitution and command substitution do not occur.</p></div>
+<div class="paragraph"><p>If no index values are given, simply returns <tt><em>list</em></tt></p></div>
 <div class="paragraph"><p>If <tt><em>index</em></tt> is negative or greater than or equal to the number of elements
-in <tt><em>value</em></tt>, then an empty string is returned.</p></div>
+in <tt><em>list</em></tt>, then an empty string is returned.</p></div>
+<div class="paragraph"><p>If additional index arguments are supplied, then each argument is
+used in turn to select an element from the previous indexing
+operation, allowing the script to select elements from sublists.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_linsert">linsert</h3>
@@ -5876,6 +5880,14 @@ The legal options (which may be abbreviated) are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<tt>*string cat <em>?string1 string2 ...?</em></tt>
+</dt>
+<dd>
+<p>
+    Concatenates the given strings into a single string.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt><strong>string compare ?-nocase?</strong> ?<strong>-length</strong> <em>len? string1 string2</em></tt>
 </dt>
 <dd>
@@ -6806,11 +6818,13 @@ uid 1000 euid 1000 gid 100 egid 100</tt></pre>
 <h3 id="_aio">aio</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>$handle <strong>accept</strong></tt>
+<tt>$handle <strong>accept</strong> ?addrvar?</tt>
 </dt>
 <dd>
 <p>
-    Server socket only: Accept a connection and return stream
+    Server socket only: Accept a connection and return stream.
+    If <tt><em>addrvar</em></tt> is specified, the address of the connected client is stored
+    in the named variable in the form <em>addr:port</em>. See <a href="#_socket"><strong><tt>socket</tt></strong></a> for details.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7820,7 +7834,7 @@ tcl_platform(pathSeparator) = :</tt></pre>
 </p>
 </dd>
 <dt class="hdlist1">
-<tt><strong>jim_argv0</strong></tt>
+<tt><strong>jim::argv0</strong></tt>
 </dt>
 <dd>
 <p>
@@ -8163,7 +8177,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</tt></pr
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2014-05-12 11:24:57 EST
+Last updated 2014-11-17 12:21:34 EST
 </div>
 </div>
 </body>
