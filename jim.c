@@ -1160,7 +1160,7 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
  * Results of missing quotes, braces, etc. from parsing.
  */
 struct JimParseMissing {
-    int ch;             /* At end of parse, ' ' if complete, '{' if braces incomplete, '"' if quotes incomplete */
+    int ch;             /* At end of parse, ' ' if complete or '{', '[', '"', '\\' , '{' if incomplete */
     int line;           /* Line number starting the missing token */
 };
 
@@ -3188,7 +3188,7 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
  */
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
-static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
+static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 static int JimParseCheckMissing(Jim_Interp *interp, int ch);
 
 static const Jim_ObjType scriptObjType = {
@@ -3288,7 +3288,8 @@ typedef struct ScriptObj
                                    only used by Jim_EvalObj() as protection against
                                    shimmering of the currently evaluated object. */
     int firstline;              /* Line number of the first line */
-    int linenr;                 /* Line number of the current line */
+    int linenr;                 /* Error line number, if any */
+    int missing;                /* Missing char if script failed to parse, or ' ' if OK */
 } ScriptObj;
 
 void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
@@ -3623,7 +3624,7 @@ static void SubstObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
  * On parse error, sets an error message and returns JIM_ERR
  * (Note: the object is still converted to a script, even if an error occurs)
  */
-static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     int scriptTextLen;
     const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
@@ -3631,7 +3632,6 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     struct ScriptObj *script;
     ParseTokenList tokenlist;
     int line = 1;
-    int retcode = JIM_OK;
 
     /* Try to get information about filename / line number */
     if (objPtr->typePtr == &sourceObjType) {
@@ -3648,8 +3648,6 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             parser.tline);
     }
 
-    retcode = JimParseCheckMissing(interp, parser.missing.ch);
-
     /* Add a final EOF token */
     ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
 
@@ -3663,8 +3661,9 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     else {
         script->fileNameObj = interp->emptyObj;
     }
-    script->linenr = parser.missing.line;
     Jim_IncrRefCount(script->fileNameObj);
+    script->missing = parser.missing.ch;
+    script->linenr = parser.missing.line;
 
     ScriptObjAddTokens(interp, script, &tokenlist);
 
@@ -3675,9 +3674,9 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     Jim_FreeIntRep(interp, objPtr);
     Jim_SetIntRepPtr(objPtr, script);
     objPtr->typePtr = &scriptObjType;
-
-    return retcode;
 }
+
+static void JimAddErrorToStack(Jim_Interp *interp, int retcode, ScriptObj *script);
 
 /**
  * Returns NULL if the script failed to parse and leaves
@@ -3686,19 +3685,28 @@ static int JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
  * Otherwise returns a parsed script object.
  * (Note: the object is still converted to a script, even if an error occurs)
  */
-ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr)
+ScriptObj *Jim_GetScript(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
+    ScriptObj *script;
+
     if (objPtr == interp->emptyObj) {
         /* Avoid converting emptyObj to a script. use nullScriptObj instead. */
         objPtr = interp->nullScriptObj;
     }
 
     if (objPtr->typePtr != &scriptObjType || ((struct ScriptObj *)Jim_GetIntRepPtr(objPtr))->substFlags) {
-        if (JimSetScriptFromAny(interp, objPtr) == JIM_ERR) {
-            return NULL;
-        }
+        JimSetScriptFromAny(interp, objPtr);
     }
-    return (ScriptObj *) Jim_GetIntRepPtr(objPtr);
+
+    script = (ScriptObj *)Jim_GetIntRepPtr(objPtr);
+
+    if (JimParseCheckMissing(interp, script->missing)) {
+        if ((flags & JIM_ERRMSG)) {
+            JimAddErrorToStack(interp, JIM_ERR, script);
+        }
+        return NULL;
+    }
+    return script;
 }
 
 /* -----------------------------------------------------------------------------
@@ -10465,7 +10473,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     }
 
     Jim_IncrRefCount(scriptObjPtr);     /* Make sure it's shared. */
-    script = Jim_GetScript(interp, scriptObjPtr);
+    script = Jim_GetScript(interp, scriptObjPtr, JIM_ERRMSG);
     if (script == NULL) {
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_ERR;
@@ -10831,7 +10839,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
     callFramePtr->staticVars = cmd->u.proc.staticVars;
 
     /* Remember where we were called from. */
-    script = Jim_GetScript(interp, interp->currentScriptObj);
+    script = Jim_GetScript(interp, interp->currentScriptObj, JIM_NONE);
     callFramePtr->fileNameObj = script->fileNameObj;
     callFramePtr->line = script->linenr;
 
@@ -11032,9 +11040,8 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     Jim_IncrRefCount(scriptObjPtr);
 
     /* Now check the script for unmatched braces, etc. */
-    if (Jim_GetScript(interp, scriptObjPtr) == NULL) {
-        /* EvalFile changes context, so add a stack frame here */
-        JimAddErrorToStack(interp, JIM_ERR, (ScriptObj *)Jim_GetIntRepPtr(scriptObjPtr));
+    /* EvalFile changes context, so add a stack frame here */
+    if (Jim_GetScript(interp, scriptObjPtr, JIM_ERRMSG) == NULL) {
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_ERR;
     }
@@ -11646,7 +11653,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
         /* Do it only if there aren't shared arguments */
         expr = JimGetExpression(interp, argv[2]);
-        incrScript = Jim_GetScript(interp, argv[3]);
+        incrScript = Jim_GetScript(interp, argv[3], JIM_NONE);
 
         /* Ensure proper lengths to start */
         if (incrScript == NULL || incrScript->len != 3 || !expr || expr->len != 3) {
@@ -12812,7 +12819,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_WrongNumArgs(interp, 2, argv, "script");
             return JIM_ERR;
         }
-        script = Jim_GetScript(interp, argv[2]);
+        script = Jim_GetScript(interp, argv[2], JIM_NONE);
         if (script == NULL)
             return JIM_ERR;
         Jim_SetResultInt(interp, script->len);
@@ -14491,7 +14498,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "");
                 return JIM_ERR;
             }
-            Jim_SetResult(interp, Jim_GetScript(interp, interp->currentScriptObj)->fileNameObj);
+            Jim_SetResult(interp, Jim_GetScript(interp, interp->currentScriptObj, JIM_NONE)->fileNameObj);
             break;
 
         case INFO_SOURCE:{
@@ -14516,7 +14523,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                         line = argv[2]->internalRep.sourceValue.lineNumber;
                     }
                     else if (argv[2]->typePtr == &scriptObjType) {
-                        ScriptObj *script = Jim_GetScript(interp, argv[2]);
+                        ScriptObj *script = Jim_GetScript(interp, argv[2], JIM_NONE);
                         fileNameObj = script->fileNameObj;
                         line = script->firstline;
                     }
