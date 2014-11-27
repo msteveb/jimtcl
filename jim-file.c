@@ -528,6 +528,44 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#if defined(HAVE_LINK) && defined(HAVE_SYMLINK)
+static int file_cmd_link(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int ret;
+    const char *source;
+    const char *dest;
+    static const char * const options[] = { "-hard", "-symbolic", NULL };
+    enum { OPT_HARD, OPT_SYMBOLIC, };
+    int option = OPT_HARD;
+
+    if (argc == 3) {
+        if (Jim_GetEnum(interp, argv[0], options, &option, NULL, JIM_ENUM_ABBREV | JIM_ERRMSG) != JIM_OK) {
+            return JIM_ERR;
+        }
+        argv++;
+        argc--;
+    }
+
+    dest = Jim_String(argv[0]);
+    source = Jim_String(argv[1]);
+
+    if (option == OPT_HARD) {
+        ret = link(source, dest);
+    }
+    else {
+        ret = symlink(source, dest);
+    }
+
+    if (ret != 0) {
+        Jim_SetResultFormatted(interp, "error linking \"%#s\" to \"%#s\": %s", argv[0], argv[1],
+            strerror(errno));
+        return JIM_ERR;
+    }
+
+    return JIM_OK;
+}
+#endif
+
 static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 {
     const char *path = Jim_String(filename);
@@ -825,6 +863,15 @@ static const jim_subcmd_type file_command_table[] = {
         3,
         /* Description: Renames a file */
     },
+#if defined(HAVE_LINK) && defined(HAVE_SYMLINK)
+    {   "link",
+        "?-symbolic|-hard? newname target",
+        file_cmd_link,
+        2,
+        3,
+        /* Description: Creates a hard or soft link */
+    },
+#endif
 #if defined(HAVE_READLINK)
     {   "readlink",
         "name",

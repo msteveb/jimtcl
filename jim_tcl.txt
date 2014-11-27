@@ -2243,11 +2243,12 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     Copies file +'source'+ to file +'target'+. The source file must exist.
     The target file must not exist, unless +-force+ is specified.
 
-+*file delete ?-force?* 'name\...'+::
++*file delete ?-force? ?--?* 'name\...'+::
     Deletes file or directory +'name'+. If the file or directory doesn't exist, nothing happens.
     If it can't be deleted, an error is generated. Non-empty directories will not be deleted
     unless the +-force+ options is given. In this case no errors will be generated, even
-    if the file/directory can't be deleted.
+    if the file/directory can't be deleted. Use +'--'+ if there is any possibility of
+	the first name being +'-force'+.
 
 +*file dirname* 'name'+::
     Return all of the characters in +'name'+ up to but not including
@@ -2280,6 +2281,12 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     Joins multiple path components. Note that if any components is
     an absolute path, the preceding components are ignored.
     Thus +"`file` join /tmp /root"+ returns +"/root"+.
+
++*file link* ?*-hard|-symbolic*? 'newname target'+::
+    Creates a hard link (default) or symbolic link from +'newname'+ to +'target'+.
+	Note that the sense of this command is the opposite of `file rename` and `file copy`
+	and also of `ln`, but this is compatible with Tcl.
+    An error is returned if +'target'+ doesn't exist or +'newname'+ already exists.
 
 +*file lstat* 'name varName'+::
     Same as 'stat' option (see below) except uses the +'lstat'+
@@ -2324,8 +2331,10 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     an error is returned.  On systems that don't support symbolic links
     this option is undefined.
 
-+*file rename* 'oldname' 'newname'+::
++*file rename* ?*-force*? 'oldname' 'newname'+::
     Renames the file from the old name to the new name.
+	If +'newname'+ already exists, an error is returned unless +'-force'+ is
+	specified.
 
 +*file rootname* 'name'+::
     Return all of the characters in +'name'+ up to but not including
