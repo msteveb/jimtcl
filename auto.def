@@ -66,6 +66,10 @@ options {
     install-jim=1
 }
 
+# Save the user-specified LIBS
+# We add detected libs to LDLIBS explicitly
+set LIBS [get-define LIBS]
+
 cc-check-types "long long"
 
 define CCOPTS ""
@@ -342,6 +346,9 @@ define TCL_EXT_OBJS [suffix .o $extinfo(static-tcl)]
 define C_EXT_SHOBJS [suffix .so $extinfo(module-c)]
 define TCL_EXTS [suffix .tcl $extinfo(module-tcl)]
 define EXTRA_OBJS $extra_objs
+
+# Restore the user-specified LIBS
+define LIBS $LIBS
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*}
