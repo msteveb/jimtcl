@@ -59,9 +59,12 @@ Changes between 0.74 and 0.75
 4. `lsort` now supports '-unique' and '-real'
 5. Add support for half-close with `aio close` ?r|w?
 6. Add `socket pair` for a bidirectional pipe
-7. Add --random-hash to randomise hash tables for greater security
+7. Add '--random-hash' to randomise hash tables for greater security
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 9. `file stat` no longer requires the variable name
+10. Add support for `file link`
+11. `glob` now supports the '--tails' option
+12. Add support for `string cat`
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2541,7 +2544,7 @@ for reading.
 
 glob
 ~~~~
-+*glob* ?*-nocomplain*? ?*-directory* 'dir'? ?*--*? 'pattern ?pattern \...?'+
++*glob* ?*-nocomplain*? ?*-directory* 'dir'? ?*-tails*? ?*--*? 'pattern ?pattern \...?'+
 
 This command performs filename globbing, using csh rules.  The returned
 value from `glob` is the list of expanded filenames.
@@ -2554,7 +2557,10 @@ exactly: an abbreviation will not be accepted.
 If +-directory+ is given, the +'dir'+ is understood to contain a
 directory name to search in. This allows globbing inside directories
 whose names may contain glob-sensitive characters. The returned names
-are specified relative to this directory.
+include the directory name unless +'-tails'+ is specified.
+
+If +'-tails'+ is specified, along with +-directory+, the returned names
+are relative to the given directory.
 
 global
 ~~~~~~
@@ -3824,7 +3830,7 @@ The legal options (which may be abbreviated) are:
     Like `string range` except works on bytes rather than characters.
     These commands are identical if UTF-8 support is not enabled.
 
-+*string cat '?string1 string2 \...?'+::
++*string cat* '?string1 string2 \...?'+::
     Concatenates the given strings into a single string.
 
 +*string compare ?-nocase?* ?*-length* 'len? string1 string2'+::
