@@ -90,7 +90,7 @@ test glob-1.2 {Simple} {
 
 test glob-1.3 {Simple} -returnCodes error -body {
 	lsort [glob x*]
-} -result {no files matched glob patterns}
+} -result {no files matched glob pattern "x*"}
 
 test glob-1.4 {Simple} -returnCodes error -body {
 	lsort [glob]
@@ -121,11 +121,11 @@ test glob-2.5 {Glob match files containing braced brackets} -returnCodes ok -bod
 } -result [list tmp/close\]bracket tmp/open\[bracket]
 
 test glob-3.1 {Directory option} -returnCodes ok -body {
-	lsort [glob -dir tmp *]
+	lsort [glob -dir tmp -tails *]
 } -result [list close\]bracket close\}brace open\[bracket open\{brace]
 
 test glob-3.2 {Directory option} -returnCodes ok -body {
-	lsort [glob -dir tmp *close*]
+	lsort [glob -dir tmp -tails *close*]
 } -result [list close\]bracket close\}brace]
 
 testreport
