@@ -74,11 +74,26 @@ if {[catch {info version}]} {
 lappend auto_path $testdir $bindir [file dirname [pwd]]
 
 # For Jim, this is reasonable compatible tcltest
-proc makeFile {contents name} {
-	set f [open $name w]
-	stdout puts "About to 'puts $f $contents'"
+proc makeFile {contents name {dir {}}} {
+	if {$dir eq ""} {
+		set filename $name
+	} else {
+		set filename $dir/$name
+	}
+	set f [open $filename w]
 	puts $f $contents
 	close $f
+	return $filename
+}
+
+proc makeDirectory {name} {
+	file mkdir $name
+	return $name
+}
+
+proc temporaryDirectory {} {
+	set name [format "%s/tcltmp-%04x" [env TMPDIR /tmp] [rand 65536]]
+	file mkdir $name
 	return $name
 }
 
@@ -128,8 +143,16 @@ proc package-or-skip {name} {
 	}
 }
 
-proc testConstraint {constraint bool} {
-	set ::tcltest::testConstraints($constraint) $bool
+proc testConstraint {constraint {bool {}}} {
+	if {$bool eq ""} {
+		if {[info exists ::tcltest::testConstraints($constraint)]} {
+			return $::tcltest::testConstraints($constraint)
+		}
+		return -code error "unknown constraint: $c"
+		return 1
+	} else {
+		set ::tcltest::testConstraints($constraint) $bool
+	}
 }
 
 testConstraint {utf8} [expr {[string length "\xc2\xb5"] == 1}]
@@ -163,10 +186,7 @@ proc test {id descr args} {
 	}
 
 	foreach c $a(-constraints) {
-		if {[info exists ::tcltest::testConstraints($c)]} {
-			if {$::tcltest::testConstraints($c)} {
-				continue
-			}
+		if {![testConstraint $c]} {
 			incr ::testinfo(numskip)
 			if {$::testinfo(verbose)} {
 				puts "SKIP"
