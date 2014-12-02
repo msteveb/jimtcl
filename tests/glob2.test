@@ -22,30 +22,6 @@ testConstraint unixOrPc 1
 proc touch filename {catch {close [open $filename w]}}
 global env
 
-test filename-4.19 {Tcl_SplitPath} -setup {
-    set oldDir [pwd]
-    cd [temporaryDirectory]
-} -body {
-    file mkdir tildetmp
-    set nastydir [file join tildetmp ./~tilde]
-    file mkdir $nastydir
-    set norm [file normalize $nastydir]
-    cd tildetmp
-    cd ./~tilde
-    glob -nocomplain *
-    set idx [string first tildetmp $norm]
-    set norm [string range $norm $idx end]
-    # fix path away so all platforms are the same
-    regsub {(.*):$} $norm {\1} norm
-    regsub -all ":" $norm "/" norm
-    # make sure we can delete the directory we created
-    cd $oldDir
-    file delete -force $nastydir
-    return $norm
-} -cleanup {
-    cd $oldDir
-    catch {file delete -force [file join [temporaryDirectory] tildetmp]}
-} -result {tildetmp/~tilde}
 
 test filename-11.2 {Tcl_GlobCmd} -returnCodes error -body {
     glob -gorp
@@ -99,18 +75,9 @@ test filename-11.16 {Tcl_GlobCmd} {
 } {globTest}
 set globname "globTest"
 set horribleglobname "glob\[\{Test"
-test filename-11.17 {Tcl_GlobCmd} {unix} {
+test filename-11.17 {Tcl_GlobCmd} {
     lsort [glob -directory $globname *]
 } [lsort [list [file join $globname a1] [file join $globname a2]\
-	[file join $globname a3]\
-	[file join $globname "weird name.c"]\
-	[file join $globname x,z1.c]\
-	[file join $globname x1.c]\
-	[file join $globname y1.c] [file join $globname z1.c]]]
-test filename-11.17.1 {Tcl_GlobCmd} {win} {
-    lsort [glob -directory $globname *]
-} [lsort [list [file join $globname a1] [file join $globname a2]\
-	[file join $globname .1]\
 	[file join $globname a3]\
 	[file join $globname "weird name.c"]\
 	[file join $globname x,z1.c]\
@@ -123,18 +90,9 @@ if {[file exists $horribleglobname]} {
 }
 file rename globTest $horribleglobname
 set globname $horribleglobname
-test filename-11.22 {Tcl_GlobCmd} {unix} {
+test filename-11.22 {Tcl_GlobCmd} {
     lsort [glob -dir $globname *]
 } [lsort [list [file join $globname a1] [file join $globname a2]\
-	[file join $globname a3]\
-	[file join $globname "weird name.c"]\
-	[file join $globname x,z1.c]\
-	[file join $globname x1.c]\
-	[file join $globname y1.c] [file join $globname z1.c]]]
-test filename-11.22.1 {Tcl_GlobCmd} {win} {
-    lsort [glob -dir $globname *]
-} [lsort [list [file join $globname a1] [file join $globname a2]\
-	[file join $globname .1]\
 	[file join $globname a3]\
 	[file join $globname "weird name.c"]\
 	[file join $globname x,z1.c]\
@@ -208,12 +166,9 @@ test filename-14.5 {asterisks, question marks, and brackets} -setup {
     file rename [file join globTestContext globTest] globTest
     file delete globTestContext
 } -result {globTest/a1/b1/x2.c globTest/a1/b2/y2.c}
-test filename-14.7 {asterisks, question marks, and brackets} {unix} {
+test filename-14.7 {asterisks, question marks, and brackets} {
     lsort [glob globTest/*]
 } {globTest/a1 globTest/a2 globTest/a3 {globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}
-test filename-14.7.1 {asterisks, question marks, and brackets} {win} {
-    lsort [glob globTest/*]
-} {globTest/.1 globTest/a1 globTest/a2 globTest/a3 {globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}
 test filename-14.9 {asterisks, question marks, and brackets} {unixOrPc} {
     lsort [glob globTest/.*]
 } {globTest/. globTest/.. globTest/.1}
@@ -244,15 +199,9 @@ test filename-14.21 {asterisks, question marks, and brackets} -body {
 test filename-14.22 {asterisks, question marks, and brackets} -body {
     glob goo/* x*z foo?q
 } -returnCodes error -result {no files matched glob patterns "goo/* x*z foo?q"}
-test filename-14.23 {slash globbing} {unix} {
+test filename-14.23 {slash globbing} {
     glob /
 } /
-test filename-14.23.2 {slash globbing} {win} {
-    glob /
-} [file norm /]
-test filename-14.24 {slash globbing} {win} {
-    glob {\\}
-} [file norm /]
 
 test filename-14.31 {Bug 2918610} -setup {
     file mkdir foo
@@ -272,19 +221,6 @@ test filename-14.31 {Bug 2918610} -setup {
 
 unset globname
 
-
-test filename-17.3 {Bug 2571597} win {
-    set p /a
-    file pathtype $p
-    file normalize $p
-    file pathtype $p
-} volumerelative
-
-test fileName-18.1 {windows - split ADS name correctly} {win} {
-    # bug 1194458
-    set x [file split c:/c:d]
-    list $x [file join {*}$x]
-} {{c:/ ./c:d} c:/c:d}
 
 test fileName-19.1 {ensure that [Bug 1325099] stays fixed} {
     # Any non-crashing result is OK
