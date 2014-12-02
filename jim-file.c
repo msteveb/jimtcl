@@ -71,6 +71,12 @@
 # define MAXPATHLEN JIM_PATH_LEN
 # endif
 
+#if defined(__MINGW32__) || defined(_MSC_VER)
+#define ISWINDOWS 1
+#else
+#define ISWINDOWS 0
+#endif
+
 /*
  *----------------------------------------------------------------------
  *
@@ -210,12 +216,10 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
     }
-#if defined(__MINGW32__) || defined(_MSC_VER)
-    else if (p[-1] == ':') {
+    else if (ISWINDOWS && p[-1] == ':') {
         /* z:/dir => z:/ */
         Jim_SetResultString(interp, path, p - path + 1);
     }
-#endif
     else {
         Jim_SetResultString(interp, path, p - path);
     }
@@ -302,12 +306,10 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             /* Absolute component, so go back to the start */
             last = newname;
         }
-#if defined(__MINGW32__) || defined(_MSC_VER)
-        else if (strchr(part, ':')) {
-            /* Absolute compontent on mingw, so go back to the start */
+        else if (ISWINDOWS && strchr(part, ':')) {
+            /* Absolute component on mingw, so go back to the start */
             last = newname;
         }
-#endif
         else if (part[0] == '.') {
             if (part[1] == '/') {
                 part += 2;
@@ -336,7 +338,10 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         /* Remove a slash if needed */
         if (last > newname + 1 && last[-1] == '/') {
-            *--last = 0;
+            /* but on on Windows, leave the trailing slash on "c:/ " */
+            if (!ISWINDOWS || !(last > newname + 2 && last[-2] == ':')) {
+                *--last = 0;
+            }
         }
     }
 
@@ -965,15 +970,13 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Free(cwd);
         return JIM_ERR;
     }
-#if defined(__MINGW32__) || defined(_MSC_VER)
-    {
-        /* Try to keep backlashes out of paths */
+    else if (ISWINDOWS) {
+        /* Try to keep backslashes out of paths */
         char *p = cwd;
         while ((p = strchr(p, '\\')) != NULL) {
             *p++ = '/';
         }
     }
-#endif
 
     Jim_SetResultString(interp, cwd, -1);
 
