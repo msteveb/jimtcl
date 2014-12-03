@@ -65,6 +65,7 @@ Changes between 0.74 and 0.75
 10. Add support for `file link`
 11. `glob` now supports the '--tails' option
 12. Add support for `string cat`
+13. Allow `info source` to add source info
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2735,10 +2736,12 @@ The legal +'option'+'s (which may be abbreviated) are:
     of the innermost file being processed.  Otherwise the command returns an
     empty string.
 
-+*info source* 'script'+::
-    Returns the original source location of the given script as a list of
++*info source* 'script ?filename line?'+::
+    With a single argument, returns the original source location of the given script as a list of
     +{filename linenumber}+. If the source location can't be determined, the
-    list +{{} 0}+ is returned.
+    list +{{} 0}+ is returned. If +'filename'+ and +'line'+ are given, returns a copy
+	of +'script'+ with the associate source information. This can be useful to produce
+	useful messages from `eval`, etc. if the original source information may be lost.
 
 +*info stacktrace*+::
     After an error is caught with `catch`, returns the stack trace as a list

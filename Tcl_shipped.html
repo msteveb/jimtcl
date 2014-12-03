@@ -940,6 +940,11 @@ Add support for <a href="#_file"><strong><code>file</code></strong></a> <code>li
 Add support for <a href="#_string"><strong><code>string</code></strong></a> <code>cat</code>
 </p>
 </li>
+<li>
+<p>
+Allow <a href="#_info"><strong><code>info</code></strong></a> <code>source</code> to add source info
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -4696,13 +4701,15 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>info source</strong> <em>script</em></code>
+<code><strong>info source</strong> <em>script ?filename line?</em></code>
 </dt>
 <dd>
 <p>
-    Returns the original source location of the given script as a list of
+    With a single argument, returns the original source location of the given script as a list of
     <code>{filename linenumber}</code>. If the source location can&#8217;t be determined, the
-    list <code>{{} 0}</code> is returned.
+    list <code>{{} 0}</code> is returned. If <code><em>filename</em></code> and <code><em>line</em></code> are given, returns a copy
+        of <code><em>script</em></code> with the associate source information. This can be useful to produce
+        useful messages from <a href="#_eval"><strong><code>eval</code></strong></a>, etc. if the original source information may be lost.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -8206,7 +8213,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2014-11-28 15:35:57 AEST
+Last updated 2014-12-09 12:46:16 AEST
 </div>
 </div>
 </body>

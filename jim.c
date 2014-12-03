@@ -14495,30 +14495,39 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             break;
 
         case INFO_SOURCE:{
-                int line;
+                jim_wide line;
                 Jim_Obj *resObjPtr;
                 Jim_Obj *fileNameObj;
 
-                if (argc != 3) {
-                    Jim_WrongNumArgs(interp, 2, argv, "source");
+                if (argc != 3 && argc != 5) {
+                    Jim_WrongNumArgs(interp, 2, argv, "source ?filename line?");
                     return JIM_ERR;
                 }
-                if (argv[2]->typePtr == &sourceObjType) {
-                    fileNameObj = argv[2]->internalRep.sourceValue.fileNameObj;
-                    line = argv[2]->internalRep.sourceValue.lineNumber;
-                }
-                else if (argv[2]->typePtr == &scriptObjType) {
-                    ScriptObj *script = Jim_GetScript(interp, argv[2]);
-                    fileNameObj = script->fileNameObj;
-                    line = script->firstline;
+                if (argc == 5) {
+                    if (Jim_GetWide(interp, argv[4], &line) != JIM_OK) {
+                        return JIM_ERR;
+                    }
+                    resObjPtr = Jim_NewStringObj(interp, Jim_String(argv[2]), Jim_Length(argv[2]));
+                    JimSetSourceInfo(interp, resObjPtr, argv[3], line);
                 }
                 else {
-                    fileNameObj = interp->emptyObj;
-                    line = 1;
+                    if (argv[2]->typePtr == &sourceObjType) {
+                        fileNameObj = argv[2]->internalRep.sourceValue.fileNameObj;
+                        line = argv[2]->internalRep.sourceValue.lineNumber;
+                    }
+                    else if (argv[2]->typePtr == &scriptObjType) {
+                        ScriptObj *script = Jim_GetScript(interp, argv[2]);
+                        fileNameObj = script->fileNameObj;
+                        line = script->firstline;
+                    }
+                    else {
+                        fileNameObj = interp->emptyObj;
+                        line = 1;
+                    }
+                    resObjPtr = Jim_NewListObj(interp, NULL, 0);
+                    Jim_ListAppendElement(interp, resObjPtr, fileNameObj);
+                    Jim_ListAppendElement(interp, resObjPtr, Jim_NewIntObj(interp, line));
                 }
-                resObjPtr = Jim_NewListObj(interp, NULL, 0);
-                Jim_ListAppendElement(interp, resObjPtr, fileNameObj);
-                Jim_ListAppendElement(interp, resObjPtr, Jim_NewIntObj(interp, line));
                 Jim_SetResult(interp, resObjPtr);
                 break;
             }
