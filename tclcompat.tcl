@@ -89,7 +89,7 @@ proc {file copy} {{force {}} source target} {
 			error "bad option \"$force\": should be -force"
 		}
 
-		set in [open $source]
+		set in [open $source rb]
 
 		if {[file exists $target]} {
 			if {$force eq ""} {
@@ -107,7 +107,7 @@ proc {file copy} {{force {}} source target} {
 				return
 			}
 		}
-		set out [open $target w]
+		set out [open $target wb]
 		$in copyto $out
 		$out close
 	} on error {msg opts} {
