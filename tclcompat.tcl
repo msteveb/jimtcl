@@ -193,7 +193,7 @@ proc try {args} {
 		return -code error {wrong # args: should be "try ?options? script ?argument ...?"}
 	}
 	set args [lassign $args script]
-	set code [catch -eval {*}$catchopts [list uplevel 1 $script] msg opts]
+	set code [catch -eval {*}$catchopts {uplevel 1 $script} msg opts]
 
 	set handled 0
 
@@ -211,12 +211,12 @@ proc try {args} {
 						set hopts $opts
 					}
 					# Override any body result
-					set code [catch [list uplevel 1 $script] msg opts]
+					set code [catch {uplevel 1 $script} msg opts]
 					incr handled
 				}
 			} \
 			finally {
-				set finalcode [catch [list uplevel 1 $codes] finalmsg finalopts]
+				set finalcode [catch {uplevel 1 $codes} finalmsg finalopts]
 				if {$finalcode} {
 					# Override any body or handler result
 					set code $finalcode
