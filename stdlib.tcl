@@ -70,7 +70,7 @@ proc errorInfo {msg {stacktrace ""}} {
 	}
 	lassign $stacktrace p f l
 	if {$f ne ""} {
-		set result "Runtime Error: $f:$l: "
+		set result "$f:$l: Error: "
 	}
 	append result "$msg\n"
 	append result [stackdump $stacktrace]
