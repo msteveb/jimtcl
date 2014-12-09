@@ -1135,6 +1135,10 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     return JIM_OK;
 }
 
+#if defined(HAVE_PIPE) || (defined(HAVE_SOCKETPAIR) && defined(HAVE_SYS_UN_H))
+/**
+ * Create a pair of channels. e.g. from pipe() or socketpair()
+ */
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode[2])
 {
@@ -1155,6 +1159,7 @@ static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     JimAioSetError(interp, NULL);
     return JIM_ERR;
 }
+#endif
 
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 
