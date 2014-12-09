@@ -35,7 +35,6 @@ proc glob.globdir {dir pattern} {
 # alternatives inside the given pattern, prepending the unprocessed
 # part of the pattern. Does _not_ handle escaped braces or commas.
 proc glob.explode {pattern} {
-	set orig $pattern
 	set oldexp {}
 	set newexp {""}
 
@@ -122,7 +121,6 @@ proc glob {args} {
 	set nocomplain 0
 	set base ""
 	set tails 0
-	set complain ""
 
 	set n 0
 	foreach arg $args {
