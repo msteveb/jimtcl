@@ -12,7 +12,12 @@
 #include <jim-subcmd.h>
 #include <jim-signal.h>
 
-#define MAX_SIGNALS (sizeof(jim_wide) * 8)
+#define MAX_SIGNALS_WIDE (sizeof(jim_wide) * 8)
+#if defined(NSIG)
+    #define MAX_SIGNALS ((NSIG < MAX_SIGNALS_WIDE) ? NSIG : MAX_SIGNALS_WIDE)
+#else
+    #define MAX_SIGNALS MAX_SIGNALS_WIDE
+#endif
 
 static jim_wide *sigloc;
 static jim_wide sigsblocked;
