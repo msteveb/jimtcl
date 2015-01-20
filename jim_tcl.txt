@@ -1003,13 +1003,14 @@ See REG_EXTENDED in the documentation.
 
 Using the system-supported POSIX regular expressions will typically
 make for the smallest code size, but some features such as UTF-8
-and +{backslash}w+, +{backslash}d+, +{backslash}s+ are not supported.
+and +{backslash}w+, +{backslash}d+, +{backslash}s+ are not supported, and null characters
+in strings are not supported.
 
 See regex(3) and regex(7) for full details.
 
 Jim built-in Regular Expressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The Jim built-in regulare expression engine may be selected with +./configure --with-jim-regexp+
+The Jim built-in regular expression engine may be selected with +./configure --with-jim-regexp+
 or it will be selected automatically if UTF-8 support is enabled.
 
 This engine supports UTF-8 as well as some +ARE+ features. The differences with both Tcl 7.x/8.x
@@ -1023,6 +1024,7 @@ and POSIX are highlighted below.
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
 7. Support for the +?+ non-greedy quantifier. e.g. +*?+
 8. Support for non-capuring parentheses +(?:...)+
+9. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
 
 COMMAND RESULTS
 ---------------

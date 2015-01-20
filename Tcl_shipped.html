@@ -2357,12 +2357,13 @@ Extended Regular Expressions (<code>ERE</code>) rather than Basic Regular Expres
 See REG_EXTENDED in the documentation.</p></div>
 <div class="paragraph"><p>Using the system-supported POSIX regular expressions will typically
 make for the smallest code size, but some features such as UTF-8
-and <code>\w</code>, <code>\d</code>, <code>\s</code> are not supported.</p></div>
+and <code>\w</code>, <code>\d</code>, <code>\s</code> are not supported, and null characters
+in strings are not supported.</p></div>
 <div class="paragraph"><p>See regex(3) and regex(7) for full details.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_jim_built_in_regular_expressions">Jim built-in Regular Expressions</h3>
-<div class="paragraph"><p>The Jim built-in regulare expression engine may be selected with <code>./configure --with-jim-regexp</code>
+<div class="paragraph"><p>The Jim built-in regular expression engine may be selected with <code>./configure --with-jim-regexp</code>
 or it will be selected automatically if UTF-8 support is enabled.</p></div>
 <div class="paragraph"><p>This engine supports UTF-8 as well as some <code>ARE</code> features. The differences with both Tcl 7.x/8.x
 and POSIX are highlighted below.</p></div>
@@ -2405,6 +2406,11 @@ Support for the <code>?</code> non-greedy quantifier. e.g. <code>*?</code>
 <li>
 <p>
 Support for non-capuring parentheses <code>(?:&#8230;)</code>
+</p>
+</li>
+<li>
+<p>
+Jim Tcl considers that both patterns and strings end at a null character (<code>\x00</code>)
 </p>
 </li>
 </ol></div>
@@ -8213,7 +8219,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2014-12-09 12:46:16 AEST
+Last updated 2015-01-21 12:09:01 AEST
 </div>
 </div>
 </body>
