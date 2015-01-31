@@ -1,7 +1,7 @@
 # vim:se syn=tcl:
 #
 
-define JIM_VERSION 75
+define JIM_VERSION 76
 
 # Note: modules which support options *must* be included before 'options'
 use cc cc-shared cc-db cc-lib

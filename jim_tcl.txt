@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.75 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.76 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -51,6 +51,13 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.75 and 0.76
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Add support for `file link`
+2. `glob` now supports the '--tails' option
+3. Add support for `string cat`
+4. Allow `info source` to add source info
+
 Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `binary`, `pack` and `unpack` now support floating point
@@ -62,10 +69,6 @@ Changes between 0.74 and 0.75
 7. Add '--random-hash' to randomise hash tables for greater security
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 9. `file stat` no longer requires the variable name
-10. Add support for `file link`
-11. `glob` now supports the '--tails' option
-12. Add support for `string cat`
-13. Allow `info source` to add source info
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
