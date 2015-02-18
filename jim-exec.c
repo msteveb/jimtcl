@@ -153,7 +153,7 @@ static void JimRestoreEnv(char **env);
 static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
     pidtype **pidArrayPtr, fdtype *inPipePtr, fdtype *outPipePtr, fdtype *errFilePtr);
 static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr);
-static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, fdtype errorId);
+static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, int child_siginfo);
 static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents, int len);
 static fdtype JimOpenForWrite(const char *filename, int append);
 static int JimRewindFd(fdtype fd);
@@ -185,28 +185,30 @@ static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
 
 /**
  * Read from 'fd', append the data to strObj and close 'fd'.
- * Returns JIM_OK if OK, or JIM_ERR on error.
+ * Returns 1 if data was added, 0 if not, or -1 on error.
  */
 static int JimAppendStreamToString(Jim_Interp *interp, fdtype fd, Jim_Obj *strObj)
 {
     char buf[256];
     FILE *fh = JimFdOpenForRead(fd);
+    int ret = 0;
+
     if (fh == NULL) {
-        return JIM_ERR;
+        return -1;
     }
 
     while (1) {
         int retval = fread(buf, 1, sizeof(buf), fh);
         if (retval > 0) {
+            ret = 1;
             Jim_AppendString(interp, strObj, buf, retval);
         }
         if (retval != sizeof(buf)) {
             break;
         }
     }
-    Jim_RemoveTrailingNewline(strObj);
     fclose(fh);
-    return JIM_OK;
+    return ret;
 }
 
 /**
@@ -286,27 +288,42 @@ static void JimFreeEnv(char **env, char **original_environ)
     }
 }
 
+#ifndef jim_ext_signal
+/* Implement trivial Jim_SignalId() and Jim_SignalName(), just good enough for JimCheckWaitStatus() */
+const char *Jim_SignalId(int sig)
+{
+    static char buf[10];
+    snprintf(buf, sizeof(buf), "%d", sig);
+    return buf;
+}
+
+const char *Jim_SignalName(int sig)
+{
+    return Jim_SignalId(sig);
+}
+#endif
+
 /*
  * Create and store an appropriate value for the global variable $::errorCode
  * Based on pid and waitStatus.
  *
  * Returns JIM_OK for a normal exit with code 0, otherwise returns JIM_ERR.
+ *
+ * Note that $::errorCode is left unchanged for a normal exit.
  */
-static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus)
+static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, int child_siginfo)
 {
-    Jim_Obj *errorCode = Jim_NewListObj(interp, NULL, 0);
-    int rc = JIM_ERR;
+    Jim_Obj *errorCode;
+
+    if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
+        return JIM_OK;
+    }
+    errorCode = Jim_NewListObj(interp, NULL, 0);
 
     if (WIFEXITED(waitStatus)) {
-        if (WEXITSTATUS(waitStatus) == 0) {
-            Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "NONE", -1));
-            rc = JIM_OK;
-        }
-        else {
-            Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
-            Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
-            Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WEXITSTATUS(waitStatus)));
-        }
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WEXITSTATUS(waitStatus)));
     }
     else {
         const char *type;
@@ -323,20 +340,19 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus)
 
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, type, -1));
 
-#ifdef jim_ext_signal
-        Jim_SetResultFormatted(interp, "child %s by signal %s", action, Jim_SignalId(WTERMSIG(waitStatus)));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
+        /* Append the message to the result with a newline.
+         * The last newline will be stripped later
+         */
+        if (child_siginfo) {
+            Jim_SetResultFormatted(interp, "%#schild %s by signal %s\n", Jim_GetResult(interp), action, Jim_SignalId(WTERMSIG(waitStatus)));
+        }
         Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalName(WTERMSIG(waitStatus)), -1));
-#else
-        Jim_SetResultFormatted(interp, "child %s by signal %d", action, WTERMSIG(waitStatus));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WTERMSIG(waitStatus)));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WTERMSIG(waitStatus)));
-#endif
     }
     Jim_SetGlobalVariableStr(interp, "errorCode", errorCode);
-    return rc;
+
+    return JIM_ERR;
 }
 
 /*
@@ -395,6 +411,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     fdtype errorId;     /* File id for temporary file containing error output. */
     pidtype *pidPtr;
     int numPids, result;
+    int child_siginfo = 1;
 
     /*
      * See if the command is to be run in the background; if so, create
@@ -437,15 +454,38 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     result = JIM_OK;
     if (outputId != JIM_BAD_FD) {
-        result = JimAppendStreamToString(interp, outputId, Jim_GetResult(interp));
-        if (result < 0) {
+        if (JimAppendStreamToString(interp, outputId, Jim_GetResult(interp)) < 0) {
+            result = JIM_ERR;
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
     }
 
-    if (JimCleanupChildren(interp, numPids, pidPtr, errorId) != JIM_OK) {
+    /*
+     * Read the child's error output (if any) and put it into the result.
+     *
+     * Note that unlike Tcl, the presence of stderr output does not cause
+     * exec to return an error.
+     */
+    if (errorId != JIM_BAD_FD) {
+        int ret;
+        JimRewindFd(errorId);
+        ret = JimAppendStreamToString(interp, errorId, Jim_GetResult(interp));
+        if (ret < 0) {
+            Jim_SetResultErrno(interp, "error reading from error pipe");
+            result = JIM_ERR;
+        }
+        else if (ret > 0) {
+            child_siginfo = 0;
+        }
+    }
+
+    if (JimCleanupChildren(interp, numPids, pidPtr, child_siginfo) != JIM_OK) {
         result = JIM_ERR;
     }
+
+    /* Finally remove any trailing newline from the result */
+    Jim_RemoveTrailingNewline(Jim_GetResult(interp));
+
     return result;
 }
 
@@ -1067,46 +1107,31 @@ badargs:
  *
  * Results:
  *  The return value is a standard Tcl result.  If anything at
- *  weird happened with the child processes, JIM_ERROR is returned
+ *  weird happened with the child processes, JIM_ERR is returned
  *  and a message is left in interp->result.
  *
  * Side effects:
- *  If the last character of interp->result is a newline, then it
- *  is removed.  File errorId gets closed, and pidPtr is freed
- *  back to the storage allocator.
+ *  pidPtr is freed
  *
  *----------------------------------------------------------------------
  */
 
-static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, fdtype errorId)
+static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, int child_siginfo)
 {
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
     int result = JIM_OK;
     int i;
 
+    /* Now check the return status of each child */
     for (i = 0; i < numPids; i++) {
         int waitStatus = 0;
         if (JimWaitForProcess(table, pidPtr[i], &waitStatus) != JIM_BAD_PID) {
-            if (JimCheckWaitStatus(interp, pidPtr[i], waitStatus) != JIM_OK) {
+            if (JimCheckWaitStatus(interp, pidPtr[i], waitStatus, child_siginfo) != JIM_OK) {
                 result = JIM_ERR;
             }
         }
     }
     Jim_Free(pidPtr);
-
-    /*
-     * Read the standard error file.  If there's anything there,
-     * then add the file's contents to the result
-     * string.
-     */
-    if (errorId != JIM_BAD_FD) {
-        JimRewindFd(errorId);
-        if (JimAppendStreamToString(interp, errorId, Jim_GetResult(interp)) != JIM_OK) {
-            result = JIM_ERR;
-        }
-    }
-
-    Jim_RemoveTrailingNewline(Jim_GetResult(interp));
 
     return result;
 }

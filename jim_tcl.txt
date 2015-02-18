@@ -2071,18 +2071,23 @@ both standard output and standard error).
 
 Under normal conditions the result of the `exec` command
 consists of the standard output produced by the last command
-in the pipeline.
-
-If any of the commands in the pipeline exit abnormally or
-are killed or suspended, then `exec` will return an error
-and the error message will include the pipeline's output followed by
-error messages describing the abnormal terminations.
+in the pipeline followed by the standard error output.
 
 If any of the commands writes to its standard error file,
-then `exec` will return an error, and the error message
-will include the pipeline's output, followed by messages
-about abnormal terminations (if any), followed by the standard error
-output.
+then this will be included in the result after the standard output
+of the last command.
+
+Note that unlike Tcl, data written to standard error does not cause
+`exec` to return an error.
+
+If any of the commands in the pipeline exit abnormally or
+are killed or suspended, then `exec` will return an error.
+If no standard error output was produced, or is redirected,
+the error message will include the normal result, as above,
+followed by error messages describing the abnormal terminations.
+
+If any standard error output was produced, these abnormal termination
+messages are suppressed.
 
 If the last character of the result or error message
 is a newline then that character is deleted from the result
