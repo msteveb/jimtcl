@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.76 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.76+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -51,6 +51,10 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.76 and 0.77
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Add support for `aio sync`
+
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add support for `file link`
@@ -2262,7 +2266,7 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     If it can't be deleted, an error is generated. Non-empty directories will not be deleted
     unless the +-force+ options is given. In this case no errors will be generated, even
     if the file/directory can't be deleted. Use +'--'+ if there is any possibility of
-	the first name being +'-force'+.
+    the first name being +'-force'+.
 
 +*file dirname* 'name'+::
     Return all of the characters in +'name'+ up to but not including
@@ -2298,8 +2302,8 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
 
 +*file link* ?*-hard|-symbolic*? 'newname target'+::
     Creates a hard link (default) or symbolic link from +'newname'+ to +'target'+.
-	Note that the sense of this command is the opposite of `file rename` and `file copy`
-	and also of `ln`, but this is compatible with Tcl.
+    Note that the sense of this command is the opposite of `file rename` and `file copy`
+    and also of `ln`, but this is compatible with Tcl.
     An error is returned if +'target'+ doesn't exist or +'newname'+ already exists.
 
 +*file lstat* 'name varName'+::
@@ -2347,8 +2351,8 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
 
 +*file rename* ?*-force*? 'oldname' 'newname'+::
     Renames the file from the old name to the new name.
-	If +'newname'+ already exists, an error is returned unless +'-force'+ is
-	specified.
+    If +'newname'+ already exists, an error is returned unless +'-force'+ is
+    specified.
 
 +*file rootname* 'name'+::
     Return all of the characters in +'name'+ up to but not including
@@ -2362,7 +2366,7 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
 
 +*file stat* 'name ?varName?'+::
     Invoke the 'stat' kernel call on +'name'+, and return the result
-	as a dictionary with the following keys: 'atime',
+    as a dictionary with the following keys: 'atime',
     'ctime', 'dev', 'gid', 'ino', 'mode', 'mtime',
     'nlink', 'size', 'type', 'uid'.
     Each element except 'type' is a decimal string with the value of
@@ -2370,8 +2374,8 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     manual entry for 'stat' for details on the meanings of the values.
     The 'type' element gives the type of the file in the same form
     returned by the command `file type`.
-	If +'varName'+ is specified, it is taken to be the name of an array
-	variable and the values are also stored into the array.
+    If +'varName'+ is specified, it is taken to be the name of an array
+    variable and the values are also stored into the array.
 
 +*file tail* 'name'+::
     Return all of the characters in +'name'+ after the last slash.
@@ -2750,8 +2754,8 @@ The legal +'option'+'s (which may be abbreviated) are:
     With a single argument, returns the original source location of the given script as a list of
     +{filename linenumber}+. If the source location can't be determined, the
     list +{{} 0}+ is returned. If +'filename'+ and +'line'+ are given, returns a copy
-	of +'script'+ with the associate source information. This can be useful to produce
-	useful messages from `eval`, etc. if the original source information may be lost.
+    of +'script'+ with the associate source information. This can be useful to produce
+    useful messages from `eval`, etc. if the original source information may be lost.
 
 +*info stacktrace*+::
     After an error is caught with `catch`, returns the stack trace as a list
@@ -4472,7 +4476,7 @@ aio
 
 +$handle *close* ?r(ead)|w(rite)?+::
     Closes the stream.
-	The  two-argument form is a "half-close" on a socket. See the +shutdown(2)+ man page.
+    The  two-argument form is a "half-close" on a socket. See the +shutdown(2)+ man page.
 
 +$handle *copyto* 'tofd ?size?'+::
     Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
@@ -4520,6 +4524,10 @@ aio
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
+
++$handle *sync*+::
+    Flush the stream, then fsync(2) to commit any changes to storage.
+    Only available on platforms that support fsync(2).
 
 +$handle *tell*+::
     Returns the current seek position
@@ -4603,8 +4611,8 @@ to prevent infinite errors. (A time event handler is always removed after execut
 
 +*bgerror* 'msg'+::
     Called when an event handler script generates an error. Note that the normal command resolution
-	rules are used for bgerror. First the name is resolved in the current namespace, then in the
-	global scope.
+    rules are used for bgerror. First the name is resolved in the current namespace, then in the
+    global scope.
 
 socket
 ~~~~~~

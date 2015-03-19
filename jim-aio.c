@@ -772,6 +772,17 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
+#ifdef HAVE_FSYNC
+static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    fflush(af->fp);
+    fsync(af->fd);
+    return JIM_OK;
+}
+#endif
+
 static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -993,6 +1004,15 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         1,
         /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
+    },
+#endif
+#ifdef HAVE_FSYNC
+    {   "sync",
+        NULL,
+        aio_cmd_sync,
+        0,
+        0,
+        /* Description: Flush and fsync() the stream */
     },
 #endif
     {   "buffering",
