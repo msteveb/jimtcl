@@ -4,5 +4,9 @@ if {[catch {info version}]} {
 	source [file dirname [info script]]/../tcltest.tcl
 } else {
 	# Jim
+	if {[exists env(TOPSRCDIR)]} {
+		set auto_path [list $env(TOPSRCDIR) {*}$auto_path]
+	}
+
 	package require tcltest
 }
