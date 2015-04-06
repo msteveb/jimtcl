@@ -9,9 +9,6 @@ set testinfo(numskip) 0
 set testinfo(numtests) 0
 set testinfo(failed) {}
 
-set testdir [file dirname $::argv0]
-set bindir [file dirname [info nameofexecutable]]
-
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
 	incr testinfo(verbose)
 }
@@ -71,7 +68,13 @@ if {[catch {info version}]} {
 	return
 }
 
-lappend auto_path $testdir $bindir [file dirname [pwd]]
+# Add some search paths for packages
+if {[exists argv0]} {
+	# The directory containing the original script
+	lappend auto_path [file dirname $argv0]
+}
+# The directory containing the jimsh executable
+lappend auto_path [file dirname [info nameofexecutable]]
 
 # For Jim, this is reasonable compatible tcltest
 proc makeFile {contents name {dir {}}} {

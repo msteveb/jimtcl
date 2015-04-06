@@ -5,7 +5,7 @@ needs cmd file
 needs cmd exec
 needs cmd parray tclcompat
 
-cd $testdir
+cd [file dirname [info script]]
 
 file mkdir tempdir
 

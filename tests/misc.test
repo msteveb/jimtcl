@@ -45,7 +45,7 @@ test regr-1.5 "lassign with empty list" {
 
 test io-1.1 "Read last line with no newline" {
 	set lines 0
-	set f [open $testdir/testio.in]
+	set f [open [file dirname [info script]]/testio.in]
 	while {[gets $f buf] >= 0} {
 		incr lines
 	}
