@@ -18,7 +18,8 @@ options {
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
     docs=1          => "don't build or install the documentation"
-    random-hash		=> "randomise hash tables. more secure but hash table results are not predicable"
+    docdir:path     => "path to install docs (if built)"
+    random-hash	    => "randomise hash tables. more secure but hash table results are not predicable"
     with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
         Specify additional jim extensions to include.
         These are enabled by default:
@@ -204,6 +205,11 @@ define LIBSOEXT [format [get-define SH_SOEXTVER] [format %.2f [expr {[get-define
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
+if {[opt-val docdir] ne ""} {
+    define docdir [opt-val docdir]
+} else {
+    define docdir {${prefix}/docs/jim}
+}
 
 # Attributes of the extensions
 # tcl=Pure Tcl extension

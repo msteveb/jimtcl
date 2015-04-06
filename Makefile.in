@@ -25,6 +25,7 @@ LDLIBS += @LDLIBS@
 LIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
+docdir = @docdir@
 
 CC += -D_GNU_SOURCE -Wall $(OPTIM) -I.
 CXX += -D_GNU_SOURCE -Wall $(OPTIM) -I.
@@ -73,8 +74,8 @@ docs: Tcl.html
 
 @if JIM_DOCS
 install-docs: docs
-	$(INSTALL_DATA_DIR) $(DESTDIR)$(prefix)/doc/jim
-	$(INSTALL_DATA) Tcl.html $(DESTDIR)$(prefix)/doc/jim
+	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) Tcl.html $(DESTDIR)$(docdir)
 @else
 install-docs:
 @endif
