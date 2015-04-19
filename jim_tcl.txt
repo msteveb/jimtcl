@@ -752,7 +752,6 @@ of precedence:
     * +'double()'+ converts the numeric argument to floating point.
     * +'round()'+ converts the numeric argument to the closest integer value.
     * +'abs()'+ takes the absolute value of the numeric argument.
-    * +'rand()'+ takes the absolute value of the numeric argument.
     * +'rand()'+ returns a pseudo-random floating-point value in the range (0,1).
     * +'srand()'+ takes an integer argument to (re)seed the random number generator. Returns the first random number from that seed.
 
