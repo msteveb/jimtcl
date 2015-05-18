@@ -738,7 +738,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.76 -
+<p>Jim Tcl v0.76+ -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -877,6 +877,16 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_76_and_0_77">Changes between 0.76 and 0.77</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Add support for <a href="#_aio"><strong><code>aio</code></strong></a> <code>sync</code>
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_75_and_0_76">Changes between 0.75 and 0.76</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -2005,11 +2015,6 @@ of precedence:</p></div>
 <li>
 <p>
 <code><em>abs()</em></code> takes the absolute value of the numeric argument.
-</p>
-</li>
-<li>
-<p>
-<code><em>rand()</em></code> takes the absolute value of the numeric argument.
 </p>
 </li>
 <li>
@@ -3811,16 +3816,19 @@ to be piped into standard input of the next command (or <code>|&amp;</code> for
 both standard output and standard error).</p></div>
 <div class="paragraph"><p>Under normal conditions the result of the <a href="#_exec"><strong><code>exec</code></strong></a> command
 consists of the standard output produced by the last command
-in the pipeline.</p></div>
-<div class="paragraph"><p>If any of the commands in the pipeline exit abnormally or
-are killed or suspended, then <a href="#_exec"><strong><code>exec</code></strong></a> will return an error
-and the error message will include the pipeline&#8217;s output followed by
-error messages describing the abnormal terminations.</p></div>
+in the pipeline followed by the standard error output.</p></div>
 <div class="paragraph"><p>If any of the commands writes to its standard error file,
-then <a href="#_exec"><strong><code>exec</code></strong></a> will return an error, and the error message
-will include the pipeline&#8217;s output, followed by messages
-about abnormal terminations (if any), followed by the standard error
-output.</p></div>
+then this will be included in the result after the standard output
+of the last command.</p></div>
+<div class="paragraph"><p>Note that unlike Tcl, data written to standard error does not cause
+<a href="#_exec"><strong><code>exec</code></strong></a> to return an error.</p></div>
+<div class="paragraph"><p>If any of the commands in the pipeline exit abnormally or
+are killed or suspended, then <a href="#_exec"><strong><code>exec</code></strong></a> will return an error.
+If no standard error output was produced, or is redirected,
+the error message will include the normal result, as above,
+followed by error messages describing the abnormal terminations.</p></div>
+<div class="paragraph"><p>If any standard error output was produced, these abnormal termination
+messages are suppressed.</p></div>
 <div class="paragraph"><p>If the last character of the result or error message
 is a newline then that character is deleted from the result
 or error message for consistency with normal
@@ -4072,7 +4080,7 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
     If it can&#8217;t be deleted, an error is generated. Non-empty directories will not be deleted
     unless the <code>-force</code> options is given. In this case no errors will be generated, even
     if the file/directory can&#8217;t be deleted. Use <code><em>--</em></code> if there is any possibility of
-        the first name being <code><em>-force</em></code>.
+    the first name being <code><em>-force</em></code>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4148,8 +4156,8 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
 <dd>
 <p>
     Creates a hard link (default) or symbolic link from <code><em>newname</em></code> to <code><em>target</em></code>.
-        Note that the sense of this command is the opposite of <a href="#_file"><strong><code>file</code></strong></a> <code>rename</code> and <a href="#_file"><strong><code>file</code></strong></a> <code>copy</code>
-        and also of <code>ln</code>, but this is compatible with Tcl.
+    Note that the sense of this command is the opposite of <a href="#_file"><strong><code>file</code></strong></a> <code>rename</code> and <a href="#_file"><strong><code>file</code></strong></a> <code>copy</code>
+    and also of <code>ln</code>, but this is compatible with Tcl.
     An error is returned if <code><em>target</em></code> doesn&#8217;t exist or <code><em>newname</em></code> already exists.
 </p>
 </dd>
@@ -4237,8 +4245,8 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
 <dd>
 <p>
     Renames the file from the old name to the new name.
-        If <code><em>newname</em></code> already exists, an error is returned unless <code><em>-force</em></code> is
-        specified.
+    If <code><em>newname</em></code> already exists, an error is returned unless <code><em>-force</em></code> is
+    specified.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4267,7 +4275,7 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
 <dd>
 <p>
     Invoke the <em>stat</em> kernel call on <code><em>name</em></code>, and return the result
-        as a dictionary with the following keys: <em>atime</em>,
+    as a dictionary with the following keys: <em>atime</em>,
     <em>ctime</em>, <em>dev</em>, <em>gid</em>, <em>ino</em>, <em>mode</em>, <em>mtime</em>,
     <em>nlink</em>, <em>size</em>, <em>type</em>, <em>uid</em>.
     Each element except <em>type</em> is a decimal string with the value of
@@ -4275,8 +4283,8 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
     manual entry for <em>stat</em> for details on the meanings of the values.
     The <em>type</em> element gives the type of the file in the same form
     returned by the command <a href="#_file"><strong><code>file</code></strong></a> <code>type</code>.
-        If <code><em>varName</em></code> is specified, it is taken to be the name of an array
-        variable and the values are also stored into the array.
+    If <code><em>varName</em></code> is specified, it is taken to be the name of an array
+    variable and the values are also stored into the array.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4719,8 +4727,8 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
     With a single argument, returns the original source location of the given script as a list of
     <code>{filename linenumber}</code>. If the source location can&#8217;t be determined, the
     list <code>{{} 0}</code> is returned. If <code><em>filename</em></code> and <code><em>line</em></code> are given, returns a copy
-        of <code><em>script</em></code> with the associate source information. This can be useful to produce
-        useful messages from <a href="#_eval"><strong><code>eval</code></strong></a>, etc. if the original source information may be lost.
+    of <code><em>script</em></code> with the associate source information. This can be useful to produce
+    useful messages from <a href="#_eval"><strong><code>eval</code></strong></a>, etc. if the original source information may be lost.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4846,8 +4854,8 @@ For example,</p></div>
 <div class="paragraph"><p><code><strong>lassign</strong> <em>list varName ?varName ...?</em></code></p></div>
 <div class="paragraph"><p>This command treats the value <code><em>list</em></code> as a list and assigns successive elements from that list to
 the variables given by the <code><em>varName</em></code> arguments in order. If there are more variable names than
-list elements, the remaining variables are set to the empty string. If there are more list ele-
-ments than variables, a list of unassigned elements is returned.</p></div>
+list elements, the remaining variables are set to the empty string. If there are more list elements
+than variables, a list of unassigned elements is returned.</p></div>
 <div class="literalblock">
 <div class="content">
 <pre><code>jim&gt; lassign {1 2 3} a b; puts a=$a,b=$b
@@ -6888,7 +6896,7 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 <dd>
 <p>
     Closes the stream.
-        The  two-argument form is a "half-close" on a socket. See the <code>shutdown(2)</code> man page.
+    The  two-argument form is a "half-close" on a socket. See the <code>shutdown(2)</code> man page.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6996,6 +7004,15 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>sync</strong></code>
+</dt>
+<dd>
+<p>
+    Flush the stream, then fsync(2) to commit any changes to storage.
+    Only available on platforms that support fsync(2).
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7163,8 +7180,8 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     Called when an event handler script generates an error. Note that the normal command resolution
-        rules are used for bgerror. First the name is resolved in the current namespace, then in the
-        global scope.
+    rules are used for bgerror. First the name is resolved in the current namespace, then in the
+    global scope.
 </p>
 </dd>
 </dl></div>
@@ -8224,7 +8241,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2015-01-31 14:05:26 AEST
+Last updated 2015-05-18 19:52:58 AEST
 </div>
 </div>
 </body>

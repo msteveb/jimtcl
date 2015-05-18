@@ -2848,8 +2848,8 @@ lassign
 
 This command treats the value +'list'+ as a list and assigns successive elements from that list to
 the variables given by the +'varName'+ arguments in order. If there are more variable names than
-list elements, the remaining variables are set to the empty string. If there are more list ele-
-ments than variables, a list of unassigned elements is returned.
+list elements, the remaining variables are set to the empty string. If there are more list elements
+than variables, a list of unassigned elements is returned.
 
     jim> lassign {1 2 3} a b; puts a=$a,b=$b
     3
