@@ -4916,7 +4916,6 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
         cf->next = NULL;
         cf->staticVars = NULL;
         cf->localCommands = NULL;
-        cf->tailcall = 0;
         cf->tailcallObj = NULL;
         cf->tailcallCmd = NULL;
     }
@@ -10900,34 +10899,30 @@ badargset:
     interp->framePtr = interp->framePtr->parent;
     JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
 
+    /* Now chain any tailcalls in the parent frame */
     if (interp->framePtr->tailcallObj) {
-        /* If a tailcall is already being executed, merge this tailcall with that one */
-        if (interp->framePtr->tailcall++ == 0) {
-            /* No current tailcall in this frame, so invoke the tailcall command */
-            do {
-                Jim_Obj *tailcallObj = interp->framePtr->tailcallObj;
+        do {
+            Jim_Obj *tailcallObj = interp->framePtr->tailcallObj;
 
-                interp->framePtr->tailcallObj = NULL;
+            interp->framePtr->tailcallObj = NULL;
 
-                if (retcode == JIM_EVAL) {
-                    retcode = Jim_EvalObjList(interp, tailcallObj);
-                    if (retcode == JIM_RETURN) {
-                        /* If the result of the tailcall is 'return', push
-                         * it up to the caller
-                         */
-                        interp->returnLevel++;
-                    }
+            if (retcode == JIM_EVAL) {
+                retcode = Jim_EvalObjList(interp, tailcallObj);
+                if (retcode == JIM_RETURN) {
+                    /* If the result of the tailcall is 'return', push
+                     * it up to the caller
+                     */
+                    interp->returnLevel++;
                 }
-                Jim_DecrRefCount(interp, tailcallObj);
-            } while (interp->framePtr->tailcallObj);
-
-            /* If the tailcall chain finished early, may need to manually discard the command */
-            if (interp->framePtr->tailcallCmd) {
-                JimDecrCmdRefCount(interp, interp->framePtr->tailcallCmd);
-                interp->framePtr->tailcallCmd = NULL;
             }
+            Jim_DecrRefCount(interp, tailcallObj);
+        } while (interp->framePtr->tailcallObj);
+
+        /* If the tailcall chain finished early, may need to manually discard the command */
+        if (interp->framePtr->tailcallCmd) {
+            JimDecrCmdRefCount(interp, interp->framePtr->tailcallCmd);
+            interp->framePtr->tailcallCmd = NULL;
         }
-        interp->framePtr->tailcall--;
     }
 
     /* Handle the JIM_RETURN return code */
@@ -12936,7 +12931,6 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     if (argc >= 2) {
         int retcode;
         Jim_CallFrame *savedCallFrame, *targetCallFrame;
-        int savedTailcall;
         const char *str;
 
         /* Save the old callframe pointer */
@@ -12961,16 +12955,12 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         }
         /* Eval the code in the target callframe. */
         interp->framePtr = targetCallFrame;
-        /* Can't merge tailcalls across upcall */
-        savedTailcall = interp->framePtr->tailcall;
-        interp->framePtr->tailcall = 0;
         if (argc == 2) {
             retcode = Jim_EvalObj(interp, argv[1]);
         }
         else {
             retcode = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc - 1, argv + 1));
         }
-        interp->framePtr->tailcall = savedTailcall;
         interp->framePtr = savedCallFrame;
         return retcode;
     }

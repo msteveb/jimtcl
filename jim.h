@@ -437,7 +437,6 @@ typedef struct Jim_CallFrame {
     Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
     int line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
-    int tailcall;            /* non-zero if a tailcall is being evaluated at this level */
     struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
 } Jim_CallFrame;
