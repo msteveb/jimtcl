@@ -2336,7 +2336,7 @@ arguments. Support for this feature is also available in Jim.</p></div>
 <pre><code>set cmd {ls -l}
 exec $cmd</code></pre>
 </div></div>
-<div class="paragraph"><p>This will attempt to exec the a command named "ls -l", which will clearly not
+<div class="paragraph"><p>This will attempt to exec a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
 it can be solved much more easily with <code>{*}</code>.</p></div>
 <div class="literalblock">
@@ -3643,7 +3643,7 @@ command.  The legal <code><em>options</em></code> are:</p></div>
     dict get with the remaining arguments as second (and possibly
     subsequent) arguments. This facilitates lookups in nested dictionaries.
     If no keys are provided, dict would return a list containing pairs
-    of elements in a man- ner similar to array get. That is, the first
+    of elements in a manner similar to array get. That is, the first
     element of each pair would be the key and the second element would
     be the value for that key.  It is an error to attempt to retrieve
     a value for a key that is not present in the dictionary.
@@ -5209,10 +5209,10 @@ the list are to be matched against pattern and must have one of the values below
 </div>
 <div class="sect2">
 <h3 id="_lsort">lsort</h3>
-<div class="paragraph"><p><code><strong>lsort</strong> ?<strong>-index</strong> <em>listindex</em>? ?<strong>-nocase!-integer|-real|-command</strong> <em>cmdname</em>? ?<strong>-unique</strong>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></code></p></div>
+<div class="paragraph"><p><code><strong>lsort</strong> ?<strong>-index</strong> <em>listindex</em>? ?<strong>-nocase|-integer|-real|-command</strong> <em>cmdname</em>? ?<strong>-unique</strong>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></code></p></div>
 <div class="paragraph"><p>Sort the elements of <code><em>list</em></code>, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.</p></div>
-<div class="paragraph"><p>If <code>-nocase</code> is specified, comparisons are case-insenstive.</p></div>
+<div class="paragraph"><p>If <code>-nocase</code> is specified, comparisons are case-insensitive.</p></div>
 <div class="paragraph"><p>If <code>-integer</code> is specified, numeric sorting is used.</p></div>
 <div class="paragraph"><p>If <code>-real</code> is specified, floating point number sorting is used.</p></div>
 <div class="paragraph"><p>If <code>-command <em>cmdname</em></code> is specified, <code><em>cmdname</em></code> is treated as a command
@@ -5324,7 +5324,7 @@ as the first statement, although it is not required.</p></div>
 <div class="paragraph"><p>Searches for the package with the given <code><em>name</em></code> by examining each path
 in <em>$::auto_path</em> and trying to load <em>$path/$name.so</em> as a dynamic extension,
 or <em>$path/$name.tcl</em> as a script package.</p></div>
-<div class="paragraph"><p>The first such file which is found is considered to provide the the package.
+<div class="paragraph"><p>The first such file which is found is considered to provide the package.
 (The version number is ignored).</p></div>
 <div class="paragraph"><p>If <em>$name.so</em> exists, it is loaded with the <a href="#_load"><strong><code>load</code></strong></a> command,
 otherwise if <em>$name.tcl</em> exists it is loaded with the <a href="#_source"><strong><code>source</code></strong></a> command.</p></div>
@@ -5466,7 +5466,7 @@ string otherwise.</p></div>
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
     either REs or strings. With this flag, <code>[<sup></code> bracket expressions
-    and <code>.</code> never match newline, a <code></sup></code> anchor matches the null
+    and <code>.</code> never match newline, an <code></sup></code> anchor matches the null
     string after any newline in the string in addition to its normal
     function, and the <code>$</code> anchor matches the null string before any
     newline in the string in addition to its normal function.
@@ -5593,7 +5593,7 @@ backslashes.</p></div>
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
     either REs or strings.  With this flag, <code>[<sup></code> bracket expressions
-    and <code>.</code> never match newline, a <code></sup></code> anchor matches the null
+    and <code>.</code> never match newline, an <code></sup></code> anchor matches the null
     string after any newline in the string in addition to its normal
     function, and the <code>$</code> anchor matches the null string before any
     newline in the string in addition to its normal function.
@@ -7083,7 +7083,7 @@ handler is removed.</p></div>
 </dt>
 <dd>
 <p>
-    Sets or returns the script for when when oob data received.
+    Sets or returns the script for when oob data received.
 </p>
 </dd>
 </dl></div>
@@ -7110,7 +7110,7 @@ handler is removed.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>after</strong> <em>ms</em>|<strong>idle</strong> script ?script ...?'</code>
+<code><strong>after</strong> <em>ms</em>|<strong>idle</strong> <em>script ?script ...?</em></code>
 </dt>
 <dd>
 <p>
@@ -7387,7 +7387,7 @@ uucp, local0-local7</code></pre>
     <code><em>varName</em></code>. The value is packed according to the given type
     (integer/floating point/string, big-endian/little-endian), width and bit offset.
     The variable is created if necessary (like <a href="#_append"><strong><code>append</code></strong></a>).
-    Ihe variable is expanded if necessary.
+    The variable is expanded if necessary.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7446,7 +7446,7 @@ commands based on the low-level <a href="#cmd_3"><strong><code>pack</code></stro
 <div class="sect2">
 <h3 id="_tree">tree</h3>
 <div class="paragraph"><p>The optional, pure-Tcl <em>tree</em> extension implements an OO, general purpose tree structure
-similar to that provided by tcllib ::struct::tree (<a href="http://tcllib.sourceforge.net/doc/struct_tree.html">http://tcllib.sourceforge.net/doc/struct_tree.html</a>)</p></div>
+similar to that provided by tcllib ::struct::tree (<a href="http://core.tcl.tk/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html">http://core.tcl.tk/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html</a>)</p></div>
 <div class="paragraph"><p>A tree is a collection of nodes, where each node (except the root node) has a single parent
 and zero or more child nodes (ordered), as well as zero or more attribute/value pairs.</p></div>
 <div class="dlist"><dl>
@@ -7464,7 +7464,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 </dt>
 <dd>
 <p>
-    Destroy the tree and all it&#8217;s nodes. (Note that the the tree will also
+    Destroy the tree and all it&#8217;s nodes. (Note that the tree will also
     be automatically garbage collected once it goes out of scope).
 </p>
 </dd>
@@ -8241,7 +8241,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2015-05-18 19:52:58 AEST
+Last updated 2015-06-21 15:28:27 EEST
 </div>
 </div>
 </body>
