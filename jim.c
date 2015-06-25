@@ -2289,7 +2289,7 @@ int Jim_Length(Jim_Obj *objPtr)
     return objPtr->length;
 }
 
-/* Just returns the length of the object's string rep */
+/* Just returns the string of the object's string rep */
 const char *Jim_String(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
