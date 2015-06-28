@@ -3792,7 +3792,7 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 #ifdef jim_ext_namespace
 /**
  * Returns the "unscoped" version of the given namespace.
- * That is, the fully qualfied name without the leading ::
+ * That is, the fully qualified name without the leading ::
  * The returned value is either nsObj, or an object with a zero ref count.
  */
 static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
@@ -4276,7 +4276,7 @@ static const Jim_ObjType variableObjType = {
 /**
  * Check that the name does not contain embedded nulls.
  *
- * Variable and procedure names are maniplated as null terminated strings, so
+ * Variable and procedure names are manipulated as null terminated strings, so
  * don't allow names with embedded nulls.
  */
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr)
@@ -4707,7 +4707,7 @@ int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 
 /* Given a variable name for [dict] operation syntax sugar,
  * this function returns two objects, the first with the name
- * of the variable to set, and the second with the rispective key.
+ * of the variable to set, and the second with the respective key.
  * For example "foo(bar)" will return objects with string repr. of
  * "foo" and "bar".
  *
@@ -5833,7 +5833,7 @@ static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     const char *str;
 
     if (objPtr->typePtr == &coercedDoubleObjType) {
-        /* Simple switcheroo */
+        /* Simple switch */
         objPtr->typePtr = &intObjType;
         return JIM_OK;
     }
@@ -6908,7 +6908,7 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
                 if (objLen)
                     *p++ = ' ';
                 else {
-                    /* Drop the space calcuated for this
+                    /* Drop the space calculated for this
                      * element that is instead null. */
                     len--;
                 }
@@ -7108,7 +7108,7 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 /* Dict object API */
 
 /* Add an element to a dict. objPtr must be of the "dict" type.
- * The higer-level exported function is Jim_DictAddElement().
+ * The higher-level exported function is Jim_DictAddElement().
  * If an element with the specified key already exists, the value
  * associated is replaced with the new one.
  *
