@@ -122,7 +122,7 @@ void Jim_FreeLoadHandles(Jim_Interp *interp)
 static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "libaryFile");
+        Jim_WrongNumArgs(interp, 1, argv, "libraryFile");
         return JIM_ERR;
     }
     return Jim_LoadLibrary(interp, Jim_String(argv[1]));
