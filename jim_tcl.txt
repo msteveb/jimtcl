@@ -1029,7 +1029,7 @@ and POSIX are highlighted below.
 5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
 7. Support for the +?+ non-greedy quantifier. e.g. +*?+
-8. Support for non-capuring parentheses +(?:...)+
+8. Support for non-capturing parentheses +(?:...)+
 9. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
 
 COMMAND RESULTS
@@ -1371,8 +1371,8 @@ Jim Tcl currently supports "light-weight" namespaces which should be adequate fo
 purposes. This feature is currently experimental. See README.namespaces for more information
 and the documentation of the `namespace` command.
 
-GARBAGE COLLECTION, REFERENCES, LAMBDA
---------------------------------------
+GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION
+-----------------------------------------------
 Unlike Tcl, Jim has some sophisticated support for functional programming.
 These are described briefly below.
 
@@ -1437,9 +1437,9 @@ The finalizer for a reference may be examined or changed with the `finalize` com
     jim> finalize $r newf
     newf
 
-Lambda
-~~~~~~
-Jim provides a garbage collected lambda function. This is a procedure
+Lambda Function
+~~~~~~~~~~~~~~~
+Jim provides a garbage collected `lambda` function. This is a procedure
 which is able to create an anonymous procedure.  Consider:
 
     jim> set f [lambda {a} {{x 0}} { incr x $a }]
@@ -1854,7 +1854,7 @@ collect
 Normally reference garbage collection is automatically performed periodically.
 However it may be run immediately with the `collect` command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 concat
 ~~~~~~
@@ -2415,7 +2415,7 @@ the empty string to remove the current finalizer.
 The reference must be a valid reference create with the `ref`
 command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 flush
 ~~~~~
@@ -2521,7 +2521,7 @@ getref
 Returns the string associated with +'reference'+. The reference must
 be a valid reference create with the `ref` command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 gets
 ~~~~
@@ -2817,7 +2817,7 @@ The `lambda` command is identical to `proc`, except rather than
 creating a named procedure, it creates an anonymous procedure and returns
 the name of the procedure.
 
-See `proc` and GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See `proc` and GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 lappend
 ~~~~~~~
@@ -3565,7 +3565,7 @@ The finalizer is invoked as:
 
   finalizer reference string
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 rename
 ~~~~~~
@@ -3686,7 +3686,7 @@ Store a new string in +'reference'+, replacing the existing string.
 The reference must be a valid reference create with the `ref`
 command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA for more detail.
+See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
 
 signal
 ~~~~~~
