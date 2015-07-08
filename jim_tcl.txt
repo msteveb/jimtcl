@@ -128,7 +128,8 @@ Changes between 0.70 and 0.71
 
 TCL INTRODUCTION
 -----------------
-Tcl stands for 'tool command language' and is pronounced 'tickle.'
+Tcl stands for 'tool command language' and is pronounced
+'http://www.oxforddictionaries.com/definition/american_english/tickle[tickle]'.
 It is actually two things: a language and a library.
 
 First, Tcl is a simple textual language, intended primarily for
