@@ -4295,7 +4295,7 @@ static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPt
 
 /* This method should be called only by the variable API.
  * It returns JIM_OK on success (variable already exists),
- * JIM_ERR if it does not exists, JIM_DICT_SUGAR if it's not
+ * JIM_ERR if it does not exist, JIM_DICT_SUGAR if it's not
  * a variable name, but syntax glue for [dict] i.e. the last
  * character is ')' */
 static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
@@ -12438,7 +12438,7 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     }
     listObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
     if (!listObjPtr) {
-        /* Create the list if it does not exists */
+        /* Create the list if it does not exist */
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
             Jim_FreeNewObj(interp, listObjPtr);
