@@ -128,7 +128,8 @@ Changes between 0.70 and 0.71
 
 TCL INTRODUCTION
 -----------------
-Tcl stands for 'tool command language' and is pronounced 'tickle.'
+Tcl stands for 'tool command language' and is pronounced
+'http://www.oxforddictionaries.com/definition/american_english/tickle[tickle]'.
 It is actually two things: a language and a library.
 
 First, Tcl is a simple textual language, intended primarily for
@@ -1826,6 +1827,15 @@ clock
 ~~~~~
 +*clock seconds*+::
     Returns the current time as seconds since the epoch.
+
++*clock clicks*+::
+    Returns the current time in `clicks'.
+
++*clock microseconds*+::
+    Returns the current time in microseconds.
+
++*clock milliseconds*+::
+    Returns the current time in milliseconds.
 
 +*clock format* 'seconds' ?*-format* 'format?'+::
     Format the given time (seconds since the epoch) according to the given
