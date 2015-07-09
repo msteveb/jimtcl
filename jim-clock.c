@@ -27,15 +27,43 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[100];
     time_t t;
     long seconds;
-
     const char *format = "%a %b %d %H:%M:%S %Z %Y";
+    size_t len = 0;
+    int option;
+    int i;
 
-    if (argc == 2 || (argc == 3 && !Jim_CompareStringImmediate(interp, argv[1], "-format"))) {
+    static const char * const options[] = {
+        "-format", "-timezone", NULL
+    };
+    enum {
+        OPT_FORMAT, OPT_TIMEZONE
+    };
+
+    if (!(argc % 2)) {
         return -1;
     }
 
-    if (argc == 3) {
-        format = Jim_String(argv[2]);
+    for (i = 1; i < argc; i += 2) {
+        if (Jim_GetEnum(interp, argv[i], options, &option, NULL, JIM_ERRMSG)
+                != JIM_OK) {
+            return JIM_ERR;
+        }
+
+        const char *opt = Jim_String(argv[i + 1]);
+        len = (size_t)Jim_Length(argv[i + 1]);
+
+        switch (option) {
+        case OPT_FORMAT:
+            if (len) {
+                format = opt;
+            }
+            break;
+        case OPT_TIMEZONE:
+            if (len) {
+                setenv("TZ", opt, 1);
+            }
+            break;
+        }
     }
 
     if (Jim_GetLong(interp, argv[0], &seconds) != JIM_OK) {
@@ -139,10 +167,10 @@ static const jim_subcmd_type clock_command_table[] = {
         /* Description: Returns the current time in milliseconds */
     },
     {   "format",
-        "seconds ?-format format?",
+        "seconds ?-format format? ?-timezone zoneName?",
         clock_cmd_format,
         1,
-        3,
+        5,
         /* Description: Format the given time */
     },
 #ifdef HAVE_STRPTIME
