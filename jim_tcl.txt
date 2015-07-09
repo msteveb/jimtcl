@@ -1827,7 +1827,7 @@ clock
 +*clock seconds*+::
     Returns the current time as seconds since the epoch.
 
-+*clock format* 'seconds' ?*-format* 'format?'+::
++*clock format* 'seconds' ?*-format* 'format'? ?*-timezone* 'zoneName'?+::
     Format the given time (seconds since the epoch) according to the given
     format. See strftime(3) for supported formats.
     If no format is supplied, "%c" is used.
