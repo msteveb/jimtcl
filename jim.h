@@ -410,7 +410,7 @@ typedef struct Jim_ObjType {
 
 /* Jim_ObjType flags */
 #define JIM_TYPE_NONE 0        /* No flags */
-#define JIM_TYPE_REFERENCES 1    /* The object may contain referneces. */
+#define JIM_TYPE_REFERENCES 1    /* The object may contain references. */
 
 /* Starting from 1 << 20 flags are reserved for private uses of
  * different calls. This way the same 'flags' argument may be used
