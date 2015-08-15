@@ -734,14 +734,12 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 {
     char buf[32];
     static const char * const type_names[] = {
-        "short", "ushort", "int", "uint", "long", "ulong", "pointer", "string",
-        "void",
+        "short", "ushort", "int", "uint", "long", "ulong", "pointer", "void",
         NULL
     };
     ffi_type *types[] = {
         &ffi_type_sshort, &ffi_type_ushort, &ffi_type_sint, &ffi_type_uint,
-        &ffi_type_slong, &ffi_type_ulong, &ffi_type_pointer, &ffi_type_pointer,
-        &ffi_type_void
+        &ffi_type_slong, &ffi_type_ulong, &ffi_type_pointer, &ffi_type_void
     };
     struct ffi_func *f;
     void *h = Jim_CmdPrivData(interp);
@@ -773,6 +771,13 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
     f->atypes = Jim_Alloc(sizeof(char *) * nargs);
     for (i = 3; i < argc; ++i) {
         if (Jim_GetEnum(interp, argv[i], type_names, &j, "ffi type", JIM_ERRMSG) != JIM_OK) {
+            Jim_Free(f->atypes);
+            Jim_Free(f);
+            return JIM_ERR;
+        }
+
+        if (types[j] == &ffi_type_void) {
+            Jim_SetResultString(interp, "the type of a function argument cannot be void", -1);
             Jim_Free(f->atypes);
             Jim_Free(f);
             return JIM_ERR;
