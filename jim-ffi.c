@@ -334,11 +334,7 @@ static void Jim_NewChar(Jim_Interp *interp, const char val)
 
 static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
-    char buf[2];
-
-    buf[0] = (char) var->val.uc;
-    buf[1] = '\0';
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResultInt(interp, (jim_wide) var->val.uc);
 }
 
 static void Jim_NewUchar(Jim_Interp *interp, const jim_wide val)
