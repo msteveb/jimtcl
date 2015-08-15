@@ -28,8 +28,8 @@ proc types_example {} {
 	puts [$count_ptr value]
 
 	# strings are created using "ffi.string copy" or "ffi.string at"; the latter
-	# is also used to strings (i.e the return value of a C function that returns
-	# a char *) and dereference pointers
+	# is also used to read strings (i.e the return value of a C function that
+	# returns a char *) and dereference pointers
 	set s [ffi.string copy "this is a string"]
 	puts [$s value]
 }
@@ -56,11 +56,10 @@ proc functions_example {} {
 	# prototype: sprintf()
 	set sprintf_ptr [$::libc int sprintf pointer pointer pointer int]
 
+	# "ffi.buffer" is a quick, efficient way to allocate buffers with a given
+	# size
 	set buf [ffi.buffer 32]
-	set fmt [ffi.string copy "%s %d"]
-	set arg1 [ffi.string copy "aha"]
-	set arg2 [ffi.int 1337]
-	$sprintf_ptr [[ffi.int] address] "[$buf address] [$fmt address] [$arg1 address] [$arg2 address]"
+	$sprintf_ptr [[ffi.int] address] "[$buf address] [[ffi.string copy "%s %d"] address] [[ffi.string copy "aha"] address] [[ffi.int 1337] address]"
 
 	# print the output buffer (the first argument)
 	puts [$buf value]

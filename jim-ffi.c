@@ -33,6 +33,7 @@
  */
 
 #include <inttypes.h>
+#include <stdint.h>
 #include <limits.h>
 #include <dlfcn.h>
 #include <string.h>
@@ -44,6 +45,7 @@
 struct ffi_var {
     union {
         void *vp;
+
         unsigned long ul;
         long l;
         unsigned int ui;
@@ -52,6 +54,18 @@ struct ffi_var {
         short s;
         unsigned char uc;
         char c;
+
+        uint64_t ui64;
+        int64_t i64;
+        uint32_t ui32;
+        int32_t i32;
+        uint16_t ui16;
+        int16_t i16;
+        uint8_t ui8;
+        int8_t i8;
+
+        float f;
+        double d;
     } val;
     ffi_type *type;
     void (*to_str)(Jim_Interp *, const struct ffi_var *);
@@ -145,6 +159,199 @@ static struct ffi_var *Jim_NewIntBase(Jim_Interp *interp, const char *name)
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return var;
+}
+
+/* {u,}int8 methods */
+
+static void Jim_Int8ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.i8);
+}
+
+static void Jim_NewInt8(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "int8");
+
+    var->val.i8 = (int8_t) val;
+    var->type = &ffi_type_sint8;
+    var->to_str = Jim_Int8ToStr;
+    var->addr = &var->val.i8;
+}
+
+static void Jim_Uint8ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.ui8);
+}
+
+static void Jim_NewUint8(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "uint8");
+
+    var->val.ui8 = (uint8_t) val;
+    var->type = &ffi_type_uint8;
+    var->to_str = Jim_Uint8ToStr;
+    var->addr = &var->val.ui8;
+}
+
+/* {u,}int16 methods */
+
+static void Jim_Int16ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.i16);
+}
+
+static void Jim_NewInt16(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "int16");
+
+    var->val.i16 = (int16_t) val;
+    var->type = &ffi_type_sint16;
+    var->to_str = Jim_Int16ToStr;
+    var->addr = &var->val.i16;
+}
+
+static void Jim_Uint16ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.ui16);
+}
+
+static void Jim_NewUint16(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "uint16");
+
+    var->val.ui16 = (uint16_t) val;
+    var->type = &ffi_type_uint16;
+    var->to_str = Jim_Uint16ToStr;
+    var->addr = &var->val.ui16;
+}
+
+/* {u,}int32 methods */
+
+static void Jim_Int32ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.i32);
+}
+
+static void Jim_NewInt32(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "int32");
+
+    var->val.i32 = (int32_t) val;
+    var->type = &ffi_type_sint32;
+    var->to_str = Jim_Int32ToStr;
+    var->addr = &var->val.i32;
+}
+
+static void Jim_Uint32ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.ui32);
+}
+
+static void Jim_NewUint32(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "uint32");
+
+    var->val.ui32 = (uint32_t) val;
+    var->type = &ffi_type_uint32;
+    var->to_str = Jim_Uint32ToStr;
+    var->addr = &var->val.ui32;
+}
+
+
+/* {u,}int64 methods */
+
+#if INT64_MAX <= JIM_WIDE_MAX
+
+static void Jim_Int64ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.i64);
+}
+
+static void Jim_NewInt64(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "int64");
+
+    var->val.i64 = (int64_t) val;
+    var->type = &ffi_type_sint64;
+    var->to_str = Jim_Int64ToStr;
+    var->addr = &var->val.i64;
+}
+
+static void Jim_Uint64ToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    Jim_SetResultInt(interp, (jim_wide) var->val.ui64);
+}
+
+static void Jim_NewUint64(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "uint64");
+
+    var->val.ui64 = (uint64_t) val;
+    var->type = &ffi_type_uint64;
+    var->to_str = Jim_Uint64ToStr;
+    var->addr = &var->val.ui64;
+}
+
+#endif
+
+/* char methods */
+
+static void Jim_CharToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    char buf[2];
+
+    buf[0] = var->val.c;
+    buf[1] = '\0';
+    Jim_SetResultString(interp, buf, -1);
+}
+
+static void Jim_NewChar(Jim_Interp *interp, const char val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "char");
+
+    var->val.c = val;
+    var->type = &ffi_type_schar;
+    var->to_str = Jim_CharToStr;
+    var->addr = &var->val.c;
+}
+
+static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    char buf[2];
+
+    buf[0] = (char) var->val.uc;
+    buf[1] = '\0';
+    Jim_SetResultString(interp, buf, -1);
+}
+
+static void Jim_NewUchar(Jim_Interp *interp, const jim_wide val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "uchar");
+
+    var->val.uc = (unsigned char) val;
+    var->type = &ffi_type_uchar;
+    var->to_str = Jim_UcharToStr;
+    var->addr = &var->val.uc;
 }
 
 /* short methods */
@@ -255,6 +462,50 @@ static void Jim_NewUlong(Jim_Interp *interp, const jim_wide val)
     var->addr = &var->val.ul;
 }
 
+/* float methods */
+
+static void Jim_FloatToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    char buf[JIM_DOUBLE_SPACE + 1];
+
+    sprintf(buf, "%.12g", (double) var->val.f);
+    Jim_SetResultString(interp, buf, -1);
+}
+
+static void Jim_NewFloat(Jim_Interp *interp, const double val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "float");
+
+    var->val.f = (float) val;
+    var->type = &ffi_type_float;
+    var->to_str = Jim_FloatToStr;
+    var->addr = &var->val.f;
+}
+
+/* double methods */
+
+static void Jim_DoubleToStr(Jim_Interp *interp, const struct ffi_var *var)
+{
+    char buf[JIM_DOUBLE_SPACE + 1];
+
+    sprintf(buf, "%.12g", var->val.d);
+    Jim_SetResultString(interp, buf, -1);
+}
+
+static void Jim_NewDouble(Jim_Interp *interp, const double val)
+{
+    struct ffi_var *var;
+
+    var = Jim_NewIntBase(interp, "double");
+
+    var->val.d = (double) val;
+    var->type = &ffi_type_double;
+    var->to_str = Jim_DoubleToStr;
+    var->addr = &var->val.d;
+}
+
 /* pointer methods */
 
 static void Jim_PointerToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -320,8 +571,8 @@ static void Jim_NewBuffer(Jim_Interp *interp, void *p)
 static int JimIntBaseCmd(Jim_Interp *interp,
                          int argc,
                          Jim_Obj *const *argv,
-                         const long min,
-                         const long max,
+                         const jim_wide min,
+                         const jim_wide max,
                          void (*new_obj)(Jim_Interp *, const jim_wide))
 {
     jim_wide val;
@@ -352,10 +603,88 @@ static int JimIntBaseCmd(Jim_Interp *interp,
 static int JimUintBaseCmd(Jim_Interp *interp,
                           int argc,
                           Jim_Obj *const *argv,
-                          const long max,
+                          const jim_wide max,
                           void (*new_obj)(Jim_Interp *, const jim_wide))
 {
     return JimIntBaseCmd(interp, argc, argv, 0, max, new_obj);
+}
+
+static int JimInt8Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimIntBaseCmd(interp, argc, argv, INT8_MIN, INT8_MAX, Jim_NewInt8);
+}
+
+static int JimUint8Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimUintBaseCmd(interp, argc, argv, UINT8_MAX, Jim_NewUint8);
+}
+
+static int JimInt16Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimIntBaseCmd(interp, argc, argv, INT16_MIN, INT16_MAX, Jim_NewInt16);
+}
+
+static int JimUint16Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimUintBaseCmd(interp, argc, argv, UINT16_MAX, Jim_NewUint16);
+}
+
+static int JimInt32Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimIntBaseCmd(interp, argc, argv, INT32_MIN, INT32_MAX, Jim_NewInt32);
+}
+
+static int JimUint32Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimUintBaseCmd(interp, argc, argv, UINT32_MAX, Jim_NewUint32);
+}
+
+#if INT64_MAX <= JIM_WIDE_MAX
+
+static int JimInt64Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimIntBaseCmd(interp, argc, argv, INT64_MIN, INT64_MAX, Jim_NewInt64);
+}
+
+static int JimUint64Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimUintBaseCmd(interp, argc, argv, UINT64_MAX, Jim_NewUint64);
+}
+
+#endif
+
+static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    const char *s;
+    int len;
+    char c;
+
+    switch (argc) {
+    case 1:
+        break;
+
+    case 2:
+        s = Jim_GetString(argv[1], &len);
+        if (len != 1) {
+            Jim_SetResultFormatted(interp, "bad character: %#s", argv[1]);
+            return JIM_ERR;
+        }
+
+        c = s[0];
+        break;
+
+    default:
+        Jim_WrongNumArgs(interp, 1, argv, "val");
+        return JIM_ERR;
+    }
+
+    Jim_NewChar(interp, c);
+    return JIM_OK;
+}
+
+static int JimUcharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimUintBaseCmd(interp, argc, argv, UCHAR_MAX, Jim_NewUchar);
 }
 
 static int JimShortCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -386,6 +715,45 @@ static int JimLongCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimUlongCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     return JimUintBaseCmd(interp, argc, argv, ULONG_MAX, Jim_NewUlong);
+}
+
+/* float commands */
+
+static int JimFloatBaseCmd(Jim_Interp *interp,
+                           int argc,
+                           Jim_Obj *const *argv,
+                           void (*new_obj)(Jim_Interp *, const double))
+{
+    double val;
+
+    switch (argc) {
+    case 1:
+        break;
+
+    case 2:
+        if (Jim_GetDouble(interp, argv[1], &val) != JIM_OK) {
+            Jim_SetResultFormatted(interp, "invalid double value: %#s", argv[1]);
+            return JIM_ERR;
+        }
+        break;
+
+    default:
+        Jim_WrongNumArgs(interp, 1, argv, "val");
+        return JIM_ERR;
+    }
+
+    new_obj(interp, val);
+    return JIM_OK;
+}
+
+static int JimFloatCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimFloatBaseCmd(interp, argc, argv, Jim_NewFloat);
+}
+
+static int JimDoubleCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimFloatBaseCmd(interp, argc, argv, Jim_NewDouble);
 }
 
 /* pointer commands */
@@ -495,6 +863,7 @@ static int JimBufferCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 /* misc. commands */
+
 static void Jim_VoidToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
@@ -577,20 +946,46 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 
         p = s->buf + off;
 
-        if (s->type.elements[memb] == &ffi_type_sshort) {
-            Jim_NewShort(interp, (jim_wide) (*((short *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_ushort) {
-            Jim_NewUshort(interp, (jim_wide) (*((unsigned short *) p)));
-        } if (s->type.elements[memb] == &ffi_type_sint) {
-            Jim_NewInt(interp, (jim_wide) (*((int *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_uint) {
-            Jim_NewUint(interp, (jim_wide) (*((unsigned int *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_slong) {
-            Jim_NewLong(interp, (jim_wide) (*((long *) p)));
+        if (s->type.elements[memb] == &ffi_type_pointer) {
+            Jim_NewPointer(interp, p);
         } else if (s->type.elements[memb] == &ffi_type_ulong) {
             Jim_NewUlong(interp, (jim_wide) (*((unsigned long *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_pointer) {
-            Jim_NewPointer(interp, p);
+        } else if (s->type.elements[memb] == &ffi_type_slong) {
+            Jim_NewLong(interp, (jim_wide) (*((long *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_uint) {
+            Jim_NewUint(interp, (jim_wide) (*((unsigned int *) p)));
+        } if (s->type.elements[memb] == &ffi_type_sint) {
+            Jim_NewInt(interp, (jim_wide) (*((int *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_ushort) {
+            Jim_NewUshort(interp, (jim_wide) (*((unsigned short *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_sshort) {
+            Jim_NewShort(interp, (jim_wide) (*((short *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_uchar) {
+            Jim_NewUchar(interp, (jim_wide) (*((unsigned char *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_schar) {
+            Jim_NewChar(interp, (*((char *) p)));
+#if INT64_MAX <= JIM_WIDE_MAX
+        } else if (s->type.elements[memb] == &ffi_type_uint64) {
+            Jim_NewUint64(interp, (jim_wide) (*((uint64_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_sint64) {
+            Jim_NewInt64(interp, (jim_wide) (*((int64_t *) p)));
+#endif
+        } else if (s->type.elements[memb] == &ffi_type_uint32) {
+            Jim_NewUint32(interp, (jim_wide) (*((uint32_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_sint32) {
+            Jim_NewInt32(interp, (jim_wide) (*((int32_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_uint16) {
+            Jim_NewUint16(interp, (jim_wide) (*((uint16_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_sint16) {
+            Jim_NewInt16(interp, (jim_wide) (*((int16_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_uint8) {
+            Jim_NewUint8(interp, (jim_wide) (*((uint8_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_sint8) {
+            Jim_NewInt8(interp, (jim_wide) (*((int8_t *) p)));
+        } else if (s->type.elements[memb] == &ffi_type_float) {
+            Jim_NewFloat(interp, (*((double *) p)));
+        } else {
+            Jim_NewDouble(interp, (*((double *) p)));
         }
 
         return JIM_OK;
@@ -611,11 +1006,24 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     static const char * const type_names[] = {
-        "short", "ushort", "int", "uint", "long", "ulong", "pointer",  NULL
+        "char", "uchar", "short", "ushort", "int", "uint", "long", "ulong",
+        "pointer", "double", "float", "int8", "uint8", "int16", "uint16",
+        "int32", "uint32",
+#if INT64_MAX <= JIM_WIDE_MAX
+        "int64", "uint64",
+#endif
+        NULL
     };
     ffi_type *types[] = {
-        &ffi_type_sshort, &ffi_type_ushort, &ffi_type_sint, &ffi_type_uint,
-        &ffi_type_slong, &ffi_type_ulong, &ffi_type_pointer
+        &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
+        &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
+        &ffi_type_pointer, &ffi_type_double, &ffi_type_float, &ffi_type_sint8,
+        &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16, &ffi_type_sint32,
+#if INT64_MAX <= JIM_WIDE_MAX
+        &ffi_type_uint32, &ffi_type_sint64, &ffi_type_uint64
+#else
+        &ffi_type_uint32
+#endif
     };
     char buf[32];
     struct ffi_struct *s;
@@ -734,12 +1142,25 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 {
     char buf[32];
     static const char * const type_names[] = {
-        "short", "ushort", "int", "uint", "long", "ulong", "pointer", "void",
+        "char", "uchar", "short", "ushort", "int", "uint", "long", "ulong",
+        "pointer", "void", "double", "float" "int8", "uint8", "int16", "uint16",
+        "int32", "uint32",
+#if INT64_MAX <= JIM_WIDE_MAX
+        "int64", "uint64",
+#endif
         NULL
     };
     ffi_type *types[] = {
-        &ffi_type_sshort, &ffi_type_ushort, &ffi_type_sint, &ffi_type_uint,
-        &ffi_type_slong, &ffi_type_ulong, &ffi_type_pointer, &ffi_type_void
+        &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
+        &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
+        &ffi_type_pointer, &ffi_type_void, &ffi_type_double, &ffi_type_float,
+        &ffi_type_sint8, &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16,
+        &ffi_type_sint32,
+#if INT64_MAX <= JIM_WIDE_MAX
+        &ffi_type_uint32, &ffi_type_sint64, &ffi_type_uint64
+#else
+        &ffi_type_uint32
+#endif
     };
     struct ffi_func *f;
     void *h = Jim_CmdPrivData(interp);
@@ -834,12 +1255,28 @@ int Jim_ffiInit(Jim_Interp *interp)
     if (Jim_PackageProvide(interp, "ffi", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
+    Jim_CreateCommand(interp, "ffi.int8", JimInt8Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.uint8", JimUint8Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.int16", JimInt16Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.uint16", JimUint16Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.int32", JimInt32Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.uint32", JimUint32Cmd, 0, 0);
+#if INT64_MAX <= JIM_WIDE_MAX
+    Jim_CreateCommand(interp, "ffi.int64", JimInt64Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.uint64", JimUint64Cmd, 0, 0);
+#endif
+
+    Jim_CreateCommand(interp, "ffi.char", JimCharCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.uchar", JimUcharCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.short", JimShortCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.ushort", JimUshortCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.int", JimIntCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.uint", JimUintCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.long", JimLongCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.ulong", JimUlongCmd, 0, 0);
+
+    Jim_CreateCommand(interp, "ffi.float", JimFloatCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi.double", JimDoubleCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi.pointer", JimPointerCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.string", JimStringCmd, 0, 0);

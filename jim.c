@@ -5909,8 +5909,6 @@ Jim_Obj *Jim_NewIntObj(Jim_Interp *interp, jim_wide wideValue)
 /* -----------------------------------------------------------------------------
  * Double object
  * ---------------------------------------------------------------------------*/
-#define JIM_DOUBLE_SPACE 30
-
 static void UpdateStringOfDouble(struct Jim_Obj *objPtr);
 static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
 
