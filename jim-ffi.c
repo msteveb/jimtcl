@@ -269,7 +269,6 @@ static void Jim_NewUint32(Jim_Interp *interp, const jim_wide val)
     var->addr = &var->val.ui32;
 }
 
-
 /* {u,}int64 methods */
 
 #if INT64_MAX <= JIM_WIDE_MAX
