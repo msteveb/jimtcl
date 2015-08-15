@@ -18,7 +18,7 @@ set arg2 [ffi.int 1337]
 set ret [ffi.int]
 
 # call sprintf() - variables must be passed as pointers
-$sprintf [$ret pointer] "[$buf pointer] [$fmt pointer] [$arg1 pointer] [$arg2 pointer]"
+$sprintf [$ret address] "[$buf address] [$fmt address] [$arg1 address] [$arg2 address]"
 
 # print the output buffer (the first argument)
 puts [$buf value]

@@ -102,10 +102,10 @@ static void Jim_NewPointer(Jim_Interp *interp, void *p)
 static int JimVarHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char buf[32];
-    static const char * const options[] = { "value", "pointer", NULL };
+    static const char * const options[] = { "value", "address", NULL };
     struct ffi_var *var = Jim_CmdPrivData(interp);
     int option;
-    enum { OPT_VALUE, OPT_POINTER };
+    enum { OPT_VALUE, OPT_ADDRESS };
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
@@ -121,7 +121,7 @@ static int JimVarHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         var->to_str(interp, var);
         return JIM_OK;
 
-    case OPT_POINTER:
+    case OPT_ADDRESS:
         sprintf(buf, "%p", var->addr);
         Jim_SetResultString(interp, buf, -1);
         return JIM_OK;
