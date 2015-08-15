@@ -115,7 +115,7 @@ proc structs_example {} {
 	puts [ffi.string at [$out value] 24]
 
 	# ... and again: this time with a zeroed struct tm
-	set now_broken [ffi.struct "[string repeat \x01 [expr $struct_tm_size - 1]]]" int int int int int int int int int long pointer]
+	set now_broken [ffi.struct "[string repeat \x00 [expr $struct_tm_size - 1]]]" int int int int int int int int int long pointer]
 	set now_broken_ptr [ffi.pointer [$now_broken address]]
 	$asctime_ptr [$out address] [$now_broken_ptr address]
 	puts [ffi.string at [$out value] 24]
