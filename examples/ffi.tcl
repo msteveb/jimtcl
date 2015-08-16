@@ -78,6 +78,13 @@ proc constants_example {} {
 	# ::one is 1 (int), useful for functions that accept an int that acts as a
 	# boolean (i.e setsockopt())
 	puts [$::one value]
+
+	# make sure:
+	# 1) you don't modify these globals by mistake: don't pass them to functions
+	#    unless they don't modify them (i.e they're const parameters)
+	# 2) you use them whenever possible, instead of redefining them: this
+	#    improves efficiency (think of it - why create a new NULL pointer object
+	#    if you already have one?) and improves code clarity
 }
 
 proc pointers_example {} {
