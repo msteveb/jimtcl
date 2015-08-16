@@ -317,7 +317,7 @@ static void Jim_CharToStr(Jim_Interp *interp, const struct ffi_var *var)
 
     buf[0] = var->val.c;
     buf[1] = '\0';
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResultString(interp, buf, 1);
 }
 
 static void Jim_NewChar(Jim_Interp *interp, const char val)
