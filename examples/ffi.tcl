@@ -65,7 +65,7 @@ proc functions_example {} {
 
 proc constants_example {} {
 	# ::main is the the main executable handle (see dlopen(3)) - on some
-	# platforms, the loader resolves symbols recursively, so ther's no need to
+	# platforms, the loader resolves symbols recursively, so there's no need to
 	# load obtain a libc handle
 	set exit_ptr [$::main void exit int]
 
