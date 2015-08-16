@@ -127,6 +127,9 @@ switch -glob -- $host_os {
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM windows
         define TCL_PLATFORM_PATH_SEPARATOR {;}
+        if {[cc-check-function-in-lib socket ws2_32]} {
+             define-append LDLIBS [get-define lib_socket]
+        }
     }
     default {
         # Note that cygwin is considered a unix platform

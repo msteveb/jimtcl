@@ -50,6 +50,11 @@
 
 #include "jim.h"
 
+#ifdef __MINGW32__
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#else
 #if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -60,6 +65,7 @@
 #endif
 #else
 #define JIM_ANSIC
+#endif
 #endif
 
 #include "jim-eventloop.h"
@@ -533,11 +539,25 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     wdata = Jim_GetString(strObj, &wlen);
+#ifdef __MINGW32__
+    errno = 0;
+#endif
     if (fwrite(wdata, 1, wlen, af->fp) == (unsigned)wlen) {
         if (argc == 2 || putc('\n', af->fp) != EOF) {
             return JIM_OK;
         }
     }
+#ifdef __MINGW32__
+    /* fwrite() doesn't seem to work with sockets, so we fall back to good ol' send() */
+    if (errno == 0) {
+        SOCKET sock = _get_osfhandle(fileno(af->fp));
+        if (send(sock, wdata, wlen, 0) == (unsigned)wlen) {
+            if (argc == 2 || send(sock, "\n", 1, 0) == 1) {
+                return JIM_OK;
+            }
+        }
+    }
+#endif
     JimAioSetError(interp, af->filename);
     return JIM_ERR;
 }
@@ -620,12 +640,21 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+#ifdef __MINGW32__
+    SOCKET sock;
+#else
     int sock;
+#endif
     union sockaddr_any sa;
     socklen_t addrlen = sizeof(sa);
 
+#ifdef __MINGW32__
+    sock = accept(_get_osfhandle(af->fd), &sa.sa, &addrlen);
+    if (sock == INVALID_SOCKET) {
+#else
     sock = accept(af->fd, &sa.sa, &addrlen);
     if (sock < 0) {
+#endif
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
@@ -637,8 +666,12 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Create the file command */
-    return JimMakeChannel(interp, NULL, sock, Jim_NewStringObj(interp, "accept", -1),
-        "aio.sockstream%ld", af->addr_family, "r+");
+#ifdef __MINGW32__
+    return JimMakeChannel(interp, NULL, _open_osfhandle(sock, 0),
+#else
+    return JimMakeChannel(interp, NULL, sock,
+#endif
+        Jim_NewStringObj(interp, "accept", -1), "aio.sockstream%ld", af->addr_family, "r+");
 }
 
 static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1209,7 +1242,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         SOCK_STREAM_SOCKETPAIR,
     };
     int socktype;
+#ifdef __MINGW32__
+    SOCKET sock;
+#else
     int sock;
+#endif
     const char *hostportarg = NULL;
     int res;
     int on = 1;
@@ -1446,7 +1483,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
     }
 
+#ifdef __MINGW32__
+    return JimMakeChannel(interp, NULL, _open_osfhandle(sock, 0), argv[1], hdlfmt, family, mode);
+#else
     return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode);
+#endif
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -1512,6 +1553,14 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 
 int Jim_aioInit(Jim_Interp *interp)
 {
+#ifdef __MINGW32__
+    WSADATA data;
+
+    if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
+        return JIM_ERR;
+    }
+#endif
+
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
