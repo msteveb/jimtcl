@@ -1,8 +1,5 @@
 package require ffi
 
-# load the C libary
-set libc [ffi.dlopen libc.so.6]
-
 proc sizeof_example {} {
 	puts [[ffi.int] size]
 	puts [[ffi.long] size]
@@ -38,7 +35,8 @@ proc functions_example {} {
 	# functions are accessed through the return value of "ffi.dlopen" - the
 	# first argument is the return value type, the second is the function symbol
 	# name and the rest are argument types
-	set puts_ptr [$::libc int puts pointer]
+	set libc [ffi.dlopen libc.so.6]
+	set puts_ptr [$libc int puts pointer]
 
 	# functions are called by using the function object as the command; the
 	# return value object and the parameters must be passed using their
@@ -54,7 +52,7 @@ proc functions_example {} {
 
 	# let's do this again - this time, with a function with a more complex
 	# prototype: sprintf()
-	set sprintf_ptr [$::libc int sprintf pointer pointer pointer int]
+	set sprintf_ptr [$libc int sprintf pointer pointer pointer int]
 
 	# "ffi.buffer" is a quick, efficient way to allocate buffers with a given
 	# size
@@ -65,20 +63,37 @@ proc functions_example {} {
 	puts [$buf value]
 }
 
+proc constants_example {} {
+	# $::main is the the main executable handle (see dlopen(3)) - on some
+	# platforms, the loader resolves symbols recursively, so ther's no need to
+	# load obtain a libc handle
+	set exit_ptr [$::main void exit int]
+
+	# ::null (a global) is a NULL pointer
+	puts [$::null value]
+
+	# ::zero is 0 (int), useful for functions that accept flags
+	puts [$::zero value]
+
+	# ::one is 1 (int), useful for functions that accept an int that acts as a
+	# boolean (i.e setsockopt())
+	puts [$::one value]
+}
+
 proc pointers_example {} {
 	# call time() to get the current time
-	set time_ptr [$::libc void time pointer]
+	set time_ptr [$::main void time pointer]
 	set now [ffi.int]
 	$time_ptr [[ffi.void] address] [[ffi.pointer [$now address]] address]
 
 	# call gmtime(), which returns a struct tm pointer
-	set gmtime_ptr [$::libc pointer gmtime pointer]
+	set gmtime_ptr [$::main pointer gmtime pointer]
 	set now_ptr [ffi.pointer [$now address]]
 	set now_broken [ffi.pointer]
 	$gmtime_ptr [$now_broken address] [$now_ptr address]
 
 	# call asctime() and pass the struct tm pointer
-	set asctime_ptr [$::libc pointer asctime pointer]
+	set asctime_ptr [$::main pointer asctime pointer]
 	set now_broken_ptr [ffi.pointer [$now_broken value]]
 	set out [ffi.pointer]
 	$asctime_ptr [$out address] [$now_broken_ptr address]
@@ -89,11 +104,11 @@ proc pointers_example {} {
 
 proc structs_example {} {
 	# locate asctime()
-	set asctime_ptr [$::libc pointer asctime pointer]
+	set asctime_ptr [$::main pointer asctime pointer]
 
 	# create a struct tm and initialize it with January 30th 1992, 2:10 AM;
 	# structs are initialized using their raw value
-	set now_broken [ffi.struct "[[ffi.int 0] raw][[ffi.int 10] raw][[ffi.int 2] raw][[ffi.int 30] raw][[ffi.int 0] raw][[ffi.int 92] raw][[ffi.int 0] raw][[ffi.int 30] raw][[ffi.int 0] raw][[ffi.long 0] raw][[ffi.pointer 0] raw]" int int int int int int int int int long pointer]
+	set now_broken [ffi.struct "[$::zero raw][[ffi.int 10] raw][[ffi.int 2] raw][[ffi.int 30] raw][$::zero raw][[ffi.int 92] raw][$::zero raw][[ffi.int 30] raw][$::zero raw][[ffi.long 0] raw][$::null raw]" int int int int int int int int int long pointer]
 	set struct_tm_size [$now_broken size]
 
 	# for demonstration purposes, read tm_year (the 6th member of struct tm),
@@ -123,5 +138,6 @@ proc structs_example {} {
 sizeof_example
 types_example
 functions_example
+constants_example
 pointers_example
 structs_example
