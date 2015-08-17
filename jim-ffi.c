@@ -156,7 +156,7 @@ static struct ffi_var *Jim_NewIntBase(Jim_Interp *interp, const char *name)
 
     sprintf(buf, "ffi.%s%ld", name, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimVarHandlerCommand, var, JimVarDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return var;
 }
@@ -548,7 +548,7 @@ static void Jim_NewPointer(Jim_Interp *interp, void *p)
     var = Jim_Alloc(sizeof(*var));
 
     Jim_NewPointerBase(interp, var, p, buf, JimVarDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 }
 
 /* buffer methods */
@@ -576,7 +576,7 @@ static void Jim_NewBuffer(Jim_Interp *interp, void *p)
 
     sprintf(buf, "ffi.buffer%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimVarHandlerCommand, var, JimBufferDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     var->val.vp = p;
     var->type = &ffi_type_pointer;
@@ -904,7 +904,7 @@ static int JimVoidCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     sprintf(buf, "ffi.void%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimVarHandlerCommand, var, JimVarDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
 }
@@ -1054,6 +1054,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     raw = Jim_GetString(argv[1], &len);
+
     s = Jim_Alloc(sizeof(*s));
     s->nmemb = argc - 1;
     s->type.elements = Jim_Alloc(sizeof(ffi_type *) * (1 + s->nmemb));
@@ -1094,7 +1095,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     sprintf(buf, "ffi.struct%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimStructHandlerCommand, s, JimStructDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
 }
@@ -1232,7 +1233,7 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 
     sprintf(buf, "ffi.function%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimFunctionHandlerCommand, f, JimFunctionDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
 }
@@ -1255,7 +1256,7 @@ static int JimDlopenCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     sprintf(buf, "ffi.library%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimLibraryHandlerCommand, h, JimLibraryDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
 }
@@ -1272,9 +1273,8 @@ int Jim_ffiInit(Jim_Interp *interp)
     void *self;
 
     self = dlopen(NULL, RTLD_LAZY);
-    if (self == NULL) {
+    if (self == NULL)
         return JIM_ERR;
-    }
 
     if (Jim_PackageProvide(interp, "ffi", "1.0", JIM_ERRMSG)) {
         return JIM_ERR;
