@@ -477,8 +477,16 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (1) {
         buf[AIO_BUF_LEN - 1] = '_';
-        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
+        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL) {
+#ifdef __MINGW32__
+            int len = recv(_get_osfhandle(fileno(af->fp)), buf, AIO_BUF_LEN - 1, 0);
+            if (len <= 0)
+                break;
+            buf[len] = '\0';
+#else
             break;
+#endif
+        }
 
         if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n') {
             Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN - 1);
@@ -1288,7 +1296,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (argc == 2) {
                 /* No address, so an unconnected dgram socket */
                 sock = socket(family, SOCK_DGRAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
@@ -1313,7 +1325,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 sock = socket(family, (socktype == SOCK_DGRAM_CLIENT) ? SOCK_DGRAM : SOCK_STREAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
@@ -1345,7 +1361,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 sock = socket(family, (socktype == SOCK_DGRAM_SERVER) ? SOCK_DGRAM : SOCK_STREAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
