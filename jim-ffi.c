@@ -84,6 +84,7 @@ struct ffi_func {
     ffi_type *rtype;
     ffi_type **atypes;
     void *p;
+    int nargs;
 };
 
 /* variable methods */
@@ -1115,15 +1116,20 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 {
     struct ffi_func *f = Jim_CmdPrivData(interp);
     void **args, *ret;
-    int nargs, i;
+    int i, nargs;
     const char *s;
 
-    if (argc != 3) {
+    if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "ret ?args ...?");
         return JIM_ERR;
     }
 
-    nargs = Jim_ListLength(interp, argv[2]);
+    nargs = argc - 2;
+    if (nargs != f->nargs) {
+        Jim_SetResultString(interp, "received the wrong number of arguments", -1);
+        return JIM_ERR;
+    }
+
     args = Jim_Alloc(sizeof(void *) * nargs);
 
     s = Jim_String(argv[1]);
@@ -1133,7 +1139,7 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     }
 
     for (i = 0; i < nargs; ++i) {
-        s = Jim_String(Jim_ListGetIndex(interp, argv[2], i));
+        s = Jim_String(argv[2 + i]);
         if (sscanf(s, "%p", &args[i]) != 1) {
             Jim_Free(args);
             Jim_SetResultFormatted(interp, "bad pointer: %s", s);
@@ -1183,7 +1189,7 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
     struct ffi_func *f;
     void *h = Jim_CmdPrivData(interp);
     const char *sym;
-    int i, j, nargs;
+    int i, j;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "rtype name ?argtypes ...?");
@@ -1205,9 +1211,9 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
     }
 
     f->rtype = types[i];
-    nargs = argc - 3;
+    f->nargs = argc - 3;
 
-    f->atypes = Jim_Alloc(sizeof(char *) * nargs);
+    f->atypes = Jim_Alloc(sizeof(char *) * f->nargs);
     for (i = 3; i < argc; ++i) {
         if (Jim_GetEnum(interp, argv[i], type_names, &j, "ffi type", JIM_ERRMSG) != JIM_OK) {
             Jim_Free(f->atypes);
@@ -1225,7 +1231,7 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
         f->atypes[i - 3] = types[j];
     }
 
-    if (ffi_prep_cif(&f->cif, FFI_DEFAULT_ABI, nargs, f->rtype, f->atypes) != FFI_OK) {
+    if (ffi_prep_cif(&f->cif, FFI_DEFAULT_ABI, f->nargs, f->rtype, f->atypes) != FFI_OK) {
         Jim_Free(f->atypes);
         Jim_Free(f);
         return JIM_ERR;
