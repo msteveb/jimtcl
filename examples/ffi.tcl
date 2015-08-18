@@ -57,7 +57,7 @@ proc functions_example {} {
 	# "ffi.buffer" is a quick, efficient way to allocate buffers with a given
 	# size
 	set buf [ffi.buffer 32]
-	$sprintf_ptr [[ffi.int] address] "[$buf address] [[ffi.string copy "%s %d"] address] [[ffi.string copy "aha"] address] [[ffi.int 1337] address]"
+	$sprintf_ptr [[ffi.int] address] [$buf address] [[ffi.string copy "%s %d"] address] [[ffi.string copy "aha"] address] [[ffi.int 1337] address]
 
 	# print the output buffer (the first argument)
 	puts [$buf value]
@@ -142,9 +142,80 @@ proc structs_example {} {
 	puts [ffi.string at [$out value] 24]
 }
 
+proc sockets_example {} {
+	# this is a fairly complex, non-trivial example; it may not work on
+	# architectures other than x86, because of the size and alignment of struct
+	# sockaddr_in, socklen_t, etc'
+
+	set AF_INET 2
+	set SOCK_STREAM 1
+	set INADDR_LOOPBACK 0x7F000001
+
+	set socket_ptr [$::main int socket int int int]
+	set htons_ptr [$::main uint16 htons uint16]
+	set htonl_ptr [$::main uint32 htonl uint32]
+	set bind_ptr [$::main int bind int pointer uint32]
+	set listen_ptr [$::main int listen int int]
+	set accept_ptr [$::main int accept int pointer pointer]
+	set send_ptr [$::main int send int pointer uint int]
+	set close_ptr [$::main int close int]
+
+	set ret [ffi.int]
+
+	# format a struct sockaddr_in structure (127.0.0.1:9000)
+	set port [ffi.uint16]
+	$htons_ptr [$port address] [[ffi.uint16 9000] address]
+	set addr [ffi.uint32]
+	$htonl_ptr [$addr address] [[ffi.uint32 $INADDR_LOOPBACK] address]
+	set listen_addr [ffi.struct "[[ffi.ushort $AF_INET] raw][$port raw][$addr raw][[ffi.uint64] raw]" ushort uint16 uint32 uint64]
+
+	# create a socket
+	set s [ffi.int]
+	$socket_ptr [$s address] [[ffi.int $AF_INET] address] [[ffi.int $SOCK_STREAM] address] [$::zero address]
+	if {[$s value] < 0} {
+		return
+	}
+
+	try {
+		# start listening
+		$bind_ptr [$ret address] [$s address] [[ffi.pointer [$listen_addr address]] address] [[ffi.int [$listen_addr size]] address]
+		if {[$ret value] < 0} {
+			throw error "failed to bind the socket"
+		}
+
+		$listen_ptr [$ret address] [$s address] [[ffi.int 5] address]
+		if {[$ret value] < 0} {
+			throw error "failed to listen"
+		}
+
+		# accept a client
+		set client_addr [ffi.struct "[[ffi.ushort] raw][[ffi.uint16] raw][[ffi.uint32] raw][[ffi.uint64] raw]" ushort uint16 uint32 uint64]
+		set c [ffi.int]
+		puts "waiting for a client on port 9000"
+		$accept_ptr [$c address] [$s address] [[ffi.pointer [$client_addr address]] address] [[ffi.pointer [[ffi.int [$client_addr size]] address]] address]
+		if {[$c value] < 0} {
+			throw error "failed to accept a client"
+		}
+
+		try {
+			# send something
+			$send_ptr [[ffi.int] address] [$c address] [[ffi.string copy hello] address] [[ffi.uint 5] address] [$::zero address]
+		} finally {
+			$close_ptr [[ffi.int] address] [$c address]
+		}
+	} on error {msg opts} {
+		puts "Error: $msg"
+	} finally {
+		# pay attention: correct error handling is crucial when working with
+		# file descriptors directly
+		$close_ptr [[ffi.int] address] [$s address]
+	}
+}
+
 sizeof_example
 types_example
 functions_example
 constants_example
 pointers_example
 structs_example
+sockets_example
