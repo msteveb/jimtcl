@@ -1,9 +1,35 @@
 package require ffi
 
 proc sizeof_example {} {
-	puts [[ffi.int] size]
-	puts [[ffi.long] size]
+	# pointers; see ffi.buffer and ffi.string later
 	puts [[ffi.pointer] size]
+
+	# standard types
+	puts [[ffi.ulong] size]
+	puts [[ffi.long] size]
+	puts [[ffi.uint] size]
+	puts [[ffi.int] size]
+	puts [[ffi.ushort] size]
+	puts [[ffi.short] size]
+	puts [[ffi.uchar] size]
+	puts [[ffi.char] size]
+
+	# fixed-width types ({u,}int64 may be missing on pure 32-bit architectures)
+	# puts [[ffi.uint64] size]
+	# puts [[ffi.int64] size]
+	puts [[ffi.uint32] size]
+	puts [[ffi.int32] size]
+	puts [[ffi.uint16] size]
+	puts [[ffi.int16] size]
+	puts [[ffi.uint8] size]
+	puts [[ffi.int8] size]
+
+	# floating-point types
+	puts [[ffi.float] size]
+	puts [[ffi.double] size]
+
+	# misc. types
+	puts [[ffi.void] size]
 }
 
 proc types_example {} {
@@ -24,7 +50,7 @@ proc types_example {} {
 	set count_ptr [ffi.pointer [$count address]]
 	puts [$count_ptr value]
 
-	# strings are created using "ffi.string copy" or "ffi.string at"; the latter
+	# strings are created using ffi.string copy or ffi.string at; the latter
 	# is also used to read strings (i.e the return value of a C function that
 	# returns a char *) and dereference pointers
 	set s [ffi.string copy "this is a string"]
@@ -32,9 +58,9 @@ proc types_example {} {
 }
 
 proc functions_example {} {
-	# functions are accessed through the return value of "ffi.dlopen" - the
-	# first argument is the return value type, the second is the function symbol
-	# name and the rest are argument types
+	# functions are accessed through the return value of ffi.dlopen - the first
+	# argument is the return value type, the second is the function symbol name
+	# and the rest are argument types
 	set libc [ffi.dlopen libc.so.6]
 	set puts_ptr [$libc int puts pointer]
 
@@ -54,8 +80,7 @@ proc functions_example {} {
 	# prototype: sprintf()
 	set sprintf_ptr [$libc int sprintf pointer pointer pointer int]
 
-	# "ffi.buffer" is a quick, efficient way to allocate buffers with a given
-	# size
+	# ffi.buffer is a quick, efficient way to allocate buffers with a given size
 	set buf [ffi.buffer 32]
 	$sprintf_ptr [[ffi.int] address] [$buf address] [[ffi.string copy "%s %d"] address] [[ffi.string copy "aha"] address] [[ffi.int 1337] address]
 
@@ -197,12 +222,11 @@ proc sockets_example {} {
 			throw error "failed to accept a client"
 		}
 
-		try {
-			# send something
-			$send_ptr [[ffi.int] address] [$c address] [[ffi.string copy hello] address] [[ffi.uint 5] address] [$::zero address]
-		} finally {
-			$close_ptr [[ffi.int] address] [$c address]
-		}
+		# send something
+		$send_ptr [[ffi.int] address] [$c address] [[ffi.string copy hello\n] address] [[ffi.uint 6] address] [$::zero address]
+
+		# disconnect the client
+		$close_ptr [[ffi.int] address] [$c address]
 	} on error {msg opts} {
 		puts "Error: $msg"
 	} finally {
