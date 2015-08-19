@@ -1500,14 +1500,15 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
 
 FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 {
-    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
+    AioFile *af;
+    af = Jim_GetCmdPrivData(interp, command, JimAioSubCmdProc, JIM_ERRMSG);
 
-    /* XXX: There ought to be a supported API for this */
-    if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
-        return ((AioFile *) cmdPtr->u.native.privData)->fp;
+    if (af == NULL) {
+        Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
+        return NULL;
     }
-    Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
-    return NULL;
+
+    return af->fp;
 }
 
 int Jim_aioInit(Jim_Interp *interp)
