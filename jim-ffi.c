@@ -1351,28 +1351,16 @@ int Jim_ffiInit(Jim_Interp *interp)
         return JIM_ERR;
     }
 
-    null_var.val.vp = NULL;
-    null_var.type = &ffi_type_pointer;
-    null_var.to_str = Jim_PointerToStr;
-    null_var.addr = &null_var.val.vp;
     Jim_NewPointerBase(interp, &null_var, NULL, buf, NULL);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "null", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
         return JIM_ERR;
     }
 
-    zero_var.val.i = 0;
-    zero_var.type = &ffi_type_sint;
-    zero_var.to_str = Jim_IntToStr;
-    zero_var.addr = &zero_var.val.i;
     Jim_NewIntNoAlloc(interp, &zero_var, 0, buf);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "zero", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
         return JIM_ERR;
     }
 
-    one_var.val.i = 1;
-    one_var.type = &ffi_type_sint;
-    one_var.to_str = Jim_IntToStr;
-    one_var.addr = &one_var.val.i;
     Jim_NewIntNoAlloc(interp, &one_var, 0, buf);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "one", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
         return JIM_ERR;
