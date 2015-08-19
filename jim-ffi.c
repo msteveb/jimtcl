@@ -43,6 +43,7 @@
 #include <jim.h>
 
 struct ffi_var {
+    size_t size;
     union {
         void *vp;
 
@@ -127,11 +128,11 @@ static int JimVarHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_OK;
 
     case OPT_SIZE:
-        if (var->type->size > INT_MAX) {
+        if (var->size > INT_MAX) {
             Jim_SetResultFormatted(interp, "bad variable size for: %#s", argv[1]);
             return JIM_ERR;
         }
-        Jim_SetResultInt(interp, (int) var->type->size);
+        Jim_SetResultInt(interp, (int) var->size);
         return JIM_OK;
 
     case OPT_RAW:
@@ -139,7 +140,7 @@ static int JimVarHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             Jim_SetResultFormatted(interp, "bad variable size for: %#s", argv[1]);
             return JIM_ERR;
         }
-        Jim_SetResultString(interp, (char *) var->addr, (int) var->type->size);
+        Jim_SetResultString(interp, (char *) var->addr, (int) var->size);
         return JIM_OK;
     }
 
@@ -179,6 +180,7 @@ static void Jim_NewInt8(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sint8;
     var->to_str = Jim_Int8ToStr;
     var->addr = &var->val.i8;
+    var->size = sizeof(var->val.i8);
 }
 
 static void Jim_Uint8ToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -196,6 +198,7 @@ static void Jim_NewUint8(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uint8;
     var->to_str = Jim_Uint8ToStr;
     var->addr = &var->val.ui8;
+    var->size = sizeof(var->val.ui8);
 }
 
 /* {u,}int16 methods */
@@ -215,6 +218,7 @@ static void Jim_NewInt16(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sint16;
     var->to_str = Jim_Int16ToStr;
     var->addr = &var->val.i16;
+    var->size = sizeof(var->val.i16);
 }
 
 static void Jim_Uint16ToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -232,6 +236,7 @@ static void Jim_NewUint16(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uint16;
     var->to_str = Jim_Uint16ToStr;
     var->addr = &var->val.ui16;
+    var->size = sizeof(var->val.ui16);
 }
 
 /* {u,}int32 methods */
@@ -251,6 +256,7 @@ static void Jim_NewInt32(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sint32;
     var->to_str = Jim_Int32ToStr;
     var->addr = &var->val.i32;
+    var->size = sizeof(var->val.i32);
 }
 
 static void Jim_Uint32ToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -268,6 +274,7 @@ static void Jim_NewUint32(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uint32;
     var->to_str = Jim_Uint32ToStr;
     var->addr = &var->val.ui32;
+    var->size = sizeof(var->val.ui32);
 }
 
 /* {u,}int64 methods */
@@ -289,6 +296,7 @@ static void Jim_NewInt64(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sint64;
     var->to_str = Jim_Int64ToStr;
     var->addr = &var->val.i64;
+    var->size = sizeof(var->val.i64);
 }
 
 static void Jim_Uint64ToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -306,6 +314,7 @@ static void Jim_NewUint64(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uint64;
     var->to_str = Jim_Uint64ToStr;
     var->addr = &var->val.ui64;
+    var->size = sizeof(var->val.ui64);
 }
 
 #endif
@@ -331,6 +340,7 @@ static void Jim_NewChar(Jim_Interp *interp, const char val)
     var->type = &ffi_type_schar;
     var->to_str = Jim_CharToStr;
     var->addr = &var->val.c;
+    var->size = sizeof(var->val.c);
 }
 
 static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -348,6 +358,7 @@ static void Jim_NewUchar(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uchar;
     var->to_str = Jim_UcharToStr;
     var->addr = &var->val.uc;
+    var->size = sizeof(var->val.uc);
 }
 
 /* short methods */
@@ -367,6 +378,7 @@ static void Jim_NewShort(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sshort;
     var->to_str = Jim_ShortToStr;
     var->addr = &var->val.s;
+    var->size = sizeof(var->val.s);
 }
 
 static void Jim_UshortToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -384,6 +396,7 @@ static void Jim_NewUshort(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_ushort;
     var->to_str = Jim_UshortToStr;
     var->addr = &var->val.us;
+    var->size = sizeof(var->val.us);
 }
 
 /* int methods */
@@ -405,6 +418,7 @@ static void Jim_NewIntNoAlloc(Jim_Interp *interp,
     var->type = &ffi_type_sint;
     var->to_str = Jim_IntToStr;
     var->addr = &var->val.i;
+    var->size = sizeof(var->val.i);
 }
 
 static void Jim_NewInt(Jim_Interp *interp, const jim_wide val)
@@ -417,6 +431,7 @@ static void Jim_NewInt(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_sint;
     var->to_str = Jim_IntToStr;
     var->addr = &var->val.i;
+    var->size = sizeof(var->val.i);
 }
 
 static void Jim_UintToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -434,6 +449,7 @@ static void Jim_NewUint(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_uint;
     var->to_str = Jim_UintToStr;
     var->addr = &var->val.ui;
+    var->size = sizeof(var->val.ui);
 }
 
 /* long methods */
@@ -453,6 +469,7 @@ static void Jim_NewLong(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_slong;
     var->to_str = Jim_LongToStr;
     var->addr = &var->val.l;
+    var->size = sizeof(var->val.l);
 }
 
 static void Jim_UlongToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -470,6 +487,7 @@ static void Jim_NewUlong(Jim_Interp *interp, const jim_wide val)
     var->type = &ffi_type_ulong;
     var->to_str = Jim_UlongToStr;
     var->addr = &var->val.ul;
+    var->size = sizeof(var->val.ul);
 }
 
 /* float methods */
@@ -492,6 +510,7 @@ static void Jim_NewFloat(Jim_Interp *interp, const double val)
     var->type = &ffi_type_float;
     var->to_str = Jim_FloatToStr;
     var->addr = &var->val.f;
+    var->size = sizeof(var->val.f);
 }
 
 /* double methods */
@@ -514,6 +533,7 @@ static void Jim_NewDouble(Jim_Interp *interp, const double val)
     var->type = &ffi_type_double;
     var->to_str = Jim_DoubleToStr;
     var->addr = &var->val.d;
+    var->size = sizeof(var->val.d);
 }
 
 /* pointer methods */
@@ -539,6 +559,7 @@ static void Jim_NewPointerBase(Jim_Interp *interp,
     var->type = &ffi_type_pointer;
     var->to_str = Jim_PointerToStr;
     var->addr = &var->val.vp;
+    var->size = sizeof(var->val.vp);
 }
 
 static void Jim_NewPointer(Jim_Interp *interp, void *p)
@@ -568,7 +589,7 @@ static void Jim_BufferToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultString(interp, var->val.vp, -1);
 }
 
-static void Jim_NewBuffer(Jim_Interp *interp, void *p)
+static void Jim_NewBuffer(Jim_Interp *interp, void *p, const size_t size)
 {
     char buf[32];
     struct ffi_var *var;
@@ -583,6 +604,7 @@ static void Jim_NewBuffer(Jim_Interp *interp, void *p)
     var->type = &ffi_type_pointer;
     var->to_str = Jim_BufferToStr;
     var->addr = &var->val.vp;
+    var->size = size;
 }
 
 /* int commands */
@@ -804,9 +826,9 @@ static int JimPointerCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     static const char * const options[] = { "at", "copy", NULL };
-    const char *s;
+    char *s;
     jim_wide addr;
-    long size;
+    long llen;
     int option, len;
     enum { OPT_AT, OPT_COPY };
 
@@ -825,11 +847,11 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
-        s = Jim_GetString(argv[2], &len);
-        Jim_NewBuffer(interp, (void *) Jim_StrDupLen(s, len));
+        s = (char *) Jim_GetString(argv[2], &len);
+        Jim_NewBuffer(interp, (void *) Jim_StrDupLen(s, len), (size_t) len);
     } else {
         if ((argc != 3) && (argc != 4)) {
-            Jim_WrongNumArgs(interp, 1, argv, "at addr ?size?");
+            Jim_WrongNumArgs(interp, 1, argv, "at addr ?len?");
             return JIM_ERR;
         }
 
@@ -838,20 +860,23 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
+        s = (char *) (uintptr_t) addr;
+
         if (argc == 3) {
-            Jim_SetResultString(interp, (char *) (uintptr_t) addr, -1);
+            Jim_SetResultString(interp, s, -1);
         } else {
-            if (Jim_GetLong(interp, argv[3], &size) != JIM_OK) {
+            if (Jim_GetLong(interp, argv[3], &llen) != JIM_OK) {
                 Jim_SetResultFormatted(interp, "invalid size: %#s", argv[3]);
                 return JIM_ERR;
             }
 
-            if ((size < 0) || (size > INT_MAX)) {
+            if ((llen < 0) || (llen > (INT_MAX - 1))) {
                 Jim_SetResultFormatted(interp, "bad size: %#s", argv[3]);
                 return JIM_ERR;
             }
 
-            Jim_SetResultString(interp, (char *) (uintptr_t) addr, (int) size);
+            s[llen] = '\0';
+            Jim_SetResultString(interp, s, (int) (llen + 1));
         }
     }
 
@@ -877,7 +902,7 @@ static int JimBufferCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    Jim_NewBuffer(interp, Jim_Alloc((int) len));
+    Jim_NewBuffer(interp, Jim_Alloc((int) len), (size_t) len);
     return JIM_OK;
 }
 
@@ -902,6 +927,7 @@ static int JimVoidCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     var->type = &ffi_type_void;
     var->to_str = Jim_VoidToStr;
     var->addr = NULL;
+    var->size = 0;
 
     sprintf(buf, "ffi.void%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimVarHandlerCommand, var, JimVarDelProc);
