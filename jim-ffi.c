@@ -542,8 +542,12 @@ static void Jim_PointerToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     char buf[32];
 
-    sprintf(buf, "%p", var->val.vp);
-    Jim_SetResultString(interp, buf, -1);
+    if (var->val.vp == NULL) {
+        Jim_SetResultString(interp, "0x0", -1);
+    } else {
+        sprintf(buf, "%p", var->val.vp);
+        Jim_SetResultString(interp, buf, -1);
+    }
 }
 
 static void Jim_NewPointerBase(Jim_Interp *interp,
