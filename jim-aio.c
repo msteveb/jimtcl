@@ -311,19 +311,17 @@ static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
     const char *s;
 #else
     char *s;
-    int alloc = 0;
+    int err, alloc = 0;
 
-    /* try errno (which gets modified by FILE * functions, etc') first, then
-     * fall back to WSAGetLastError() (which gets modified by socket
-     * functions, i.e recv()) */
-    if (errno != 0) {
-#endif
-        s = strerror(errno);
-#ifdef __MINGW32__
-    } else {
+    /* try WSAGetLastError() (which gets modified by socket
+     * functions, i.e recv()) first, then fall back to errno (which gets
+     * modified by FILE * functions, etc') */
+    err = WSAGetLastError();
+    if (err != 0) {
+        WSASetLastError(0);
         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
                           NULL,
-                          WSAGetLastError(),
+                          err,
                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                           (LPTSTR)&s,
                           0,
@@ -331,6 +329,10 @@ static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
             return;
         }
         alloc = 1;
+    } else {
+#endif
+        s = strerror(errno);
+#ifdef __MINGW32__
     }
 #endif
 
@@ -520,13 +522,22 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while (1) {
         buf[AIO_BUF_LEN - 1] = '_';
         if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL) {
-#ifdef __MINGW32__
-            int len = recv(_get_osfhandle(fileno(af->fp)), buf, AIO_BUF_LEN - 1, 0);
-            if (len <= 0)
-                break;
-            buf[len] = '\0';
-#else
+#ifndef __MINGW32__
             break;
+#else
+            int len = recv(_get_osfhandle(fileno(af->fp)), buf, AIO_BUF_LEN - 1, 0);
+            if (len == SOCKET_ERROR) {
+                /* for non-socket streams, we want to use errno to describe the error */
+                if (WSAGetLastError() == WSAENOTSOCK) {
+                    WSASetLastError(0);
+                }
+                break;
+            }
+            if (len == 0) {
+                break;
+            }
+
+            buf[len] = '\0';
 #endif
         }
 
@@ -601,9 +612,16 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* fwrite() doesn't seem to work with sockets, so we fall back to good ol' send() */
     if (errno == 0) {
         SOCKET sock = _get_osfhandle(fileno(af->fp));
-        if (send(sock, wdata, wlen, 0) == (unsigned)wlen) {
+        int out = send(sock, wdata, wlen, 0);
+        if (out == wlen) {
             if (argc == 2 || send(sock, "\n", 1, 0) == 1) {
                 return JIM_OK;
+            }
+        }
+        if (out == SOCKET_ERROR) {
+            /* we want to use errno if af is not a socket */
+            if (WSAGetLastError() == WSAENOTSOCK) {
+                WSASetLastError(0);
             }
         }
     }
