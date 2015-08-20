@@ -1309,8 +1309,9 @@ int Jim_ffiInit(Jim_Interp *interp)
     void *self;
 
     self = dlopen(NULL, RTLD_LAZY);
-    if (self == NULL)
+    if (self == NULL) {
         return JIM_ERR;
+    }
 
     if (Jim_PackageProvide(interp, "ffi", "1.0", JIM_ERRMSG)) {
         return JIM_ERR;
