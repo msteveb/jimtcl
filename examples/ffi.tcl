@@ -82,7 +82,7 @@ proc functions_example {} {
 
 	# let's do this again - this time, with a function with a more complex
 	# prototype: sprintf()
-	set sprintf_func [ffi.function int [$libc dlsym puts] pointer pointer pointer int]
+	set sprintf_func [ffi.function int [$libc dlsym sprintf] pointer pointer pointer int]
 
 	# ffi.buffer is a quick, efficient way to allocate buffers with a given size
 	set buf [ffi.buffer 32]
