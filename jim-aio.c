@@ -223,7 +223,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
     }
 
     {
-#ifdef HAVE_GETADDRINFO
+#if defined(__MINGW32__) || defined(HAVE_GETADDRINFO)
         struct addrinfo req;
         struct addrinfo *ai;
         memset(&req, '\0', sizeof(req));
@@ -307,12 +307,45 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
+#ifndef __MINGW32__
+    const char *s;
+#else
+    char *s;
+    int alloc = 0;
+
+    /* try errno (which gets modified by FILE * functions, etc') first, then
+     * fall back to WSAGetLastError() (which gets modified by socket
+     * functions, i.e recv()) */
+    if (errno != 0) {
+#endif
+        s = strerror(errno);
+#ifdef __MINGW32__
+    } else {
+        if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                          NULL,
+                          WSAGetLastError(),
+                          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                          (LPTSTR)&s,
+                          0,
+                          NULL) == 0) {
+            return;
+        }
+        alloc = 1;
+    }
+#endif
+
     if (name) {
-        Jim_SetResultFormatted(interp, "%#s: %s", name, strerror(errno));
+        Jim_SetResultFormatted(interp, "%#s: %s", name, s);
     }
     else {
-        Jim_SetResultString(interp, strerror(errno), -1);
+        Jim_SetResultString(interp, s, -1);
     }
+
+#ifdef __MINGW32__
+    if (alloc) {
+        LocalFree(s);
+    }
+#endif
 }
 
 static void JimAioDelProc(Jim_Interp *interp, void *privData)
@@ -337,6 +370,8 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
 static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
 {
+    int err;
+
     if (!ferror(af->fp)) {
         return JIM_OK;
     }
@@ -345,13 +380,20 @@ static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
     if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
         return JIM_OK;
     }
+
+#ifdef __MINGW32__
+    err = WSAGetLastError();
+#else
+    err = errno;
+#endif
+
 #ifdef ECONNRESET
-    if (errno == ECONNRESET) {
+    if (err == ECONNRESET) {
         return JIM_OK;
     }
 #endif
 #ifdef ECONNABORTED
-    if (errno != ECONNABORTED) {
+    if (err != ECONNABORTED) {
         return JIM_OK;
     }
 #endif
