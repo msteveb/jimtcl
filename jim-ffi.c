@@ -43,6 +43,8 @@
 #include <jim.h>
 
 struct ffi_var {
+    /* may be different than the libffi type size - i.e the size of a buffer
+     * object is its actual size, not the size of a pointer */
     size_t size;
     union {
         void *vp;
@@ -70,13 +72,14 @@ struct ffi_var {
     } val;
     ffi_type *type;
     void (*to_str)(Jim_Interp *, const struct ffi_var *);
-    void *addr;
+    void *addr; /* points to the val member that holds the value */
 };
 
 struct ffi_struct {
     ffi_type type;
     int size;
     int nmemb;
+    int *offs;
     unsigned char *buf;
 };
 
@@ -85,8 +88,15 @@ struct ffi_func {
     ffi_type *rtype;
     ffi_type **atypes;
     void *p;
-    int nargs;
+    int nargs; /* used to verify of the number of arguments, when called */
 };
+
+/* constants */
+
+static struct ffi_var null_var;
+static struct ffi_var zero_var;
+static struct ffi_var one_var;
+static Jim_Obj *main_obj;
 
 /* variable methods */
 
@@ -325,6 +335,7 @@ static void Jim_CharToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     char buf[2];
 
+    /* char objects are represented as Tcl strings of length 1 */
     buf[0] = var->val.c;
     buf[1] = '\0';
     Jim_SetResultString(interp, buf, 1);
@@ -345,6 +356,7 @@ static void Jim_NewChar(Jim_Interp *interp, const char val)
 
 static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
+    /* uchar objects are represented as Tcl integers */
     Jim_SetResultInt(interp, (jim_wide) var->val.uc);
 }
 
@@ -406,6 +418,8 @@ static void Jim_IntToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide) var->val.i);
 }
 
+/* needed for statically-allocated int objects - we use it for global
+ * constants */
 static void Jim_NewIntNoAlloc(Jim_Interp *interp,
                               struct ffi_var *var,
                               const jim_wide val,
@@ -542,6 +556,8 @@ static void Jim_PointerToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     char buf[32];
 
+    /* sprintf() may represent NULL as "(nil)", which isn't a valid integer we
+     * can use later (e.g during a function call) */
     if (var->val.vp == NULL) {
         Jim_SetResultString(interp, "0x0", -1);
     } else {
@@ -550,11 +566,12 @@ static void Jim_PointerToStr(Jim_Interp *interp, const struct ffi_var *var)
     }
 }
 
-static void Jim_NewPointerBase(Jim_Interp *interp,
-                               struct ffi_var *var,
-                               void *p,
-                               char *buf,
-                               void (*del)(Jim_Interp *, void *))
+/* like Jim_NewIntNoAlloc, this one is used for constants */
+static void Jim_NewPointerNoAlloc(Jim_Interp *interp,
+                                  struct ffi_var *var,
+                                  void *p,
+                                  char *buf,
+                                  void (*del)(Jim_Interp *, void *))
 {
     sprintf(buf, "ffi.pointer%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimVarHandlerCommand, var, del);
@@ -573,7 +590,7 @@ static void Jim_NewPointer(Jim_Interp *interp, void *p)
 
     var = Jim_Alloc(sizeof(*var));
 
-    Jim_NewPointerBase(interp, var, p, buf, JimVarDelProc);
+    Jim_NewPointerNoAlloc(interp, var, p, buf, JimVarDelProc);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 }
 
@@ -584,12 +601,14 @@ static void JimBufferDelProc(Jim_Interp *interp, void *privData)
     struct ffi_var *var = privData;
 
     JIM_NOTUSED(interp);
+    /* the buffer itself needs to be freed */
     Jim_Free(var->val.vp);
     JimVarDelProc(interp, privData);
 }
 
 static void Jim_BufferToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
+    /* dangerous - we assume the string is null-terminated */
     Jim_SetResultString(interp, var->val.vp, -1);
 }
 
@@ -608,6 +627,8 @@ static void Jim_NewBuffer(Jim_Interp *interp, void *p, const size_t size)
     var->type = &ffi_type_pointer;
     var->to_str = Jim_BufferToStr;
     var->addr = &var->val.vp;
+    /* the size of a buffer object is not determined by the value (i.e pointer)
+     * size */
     var->size = size;
 }
 
@@ -851,6 +872,7 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
+        /* in "copy" mode, copy the string into a new buffer object */
         s = (char *) Jim_GetString(argv[2], &len);
         Jim_NewBuffer(interp, (void *) Jim_StrDupLen(s, len), (size_t) len);
     } else {
@@ -866,6 +888,8 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         s = (char *) (uintptr_t) addr;
 
+        /* in "at" mode, if no length is specified, return the string and assume
+         *  it's terminated */
         if (argc == 3) {
             Jim_SetResultString(interp, s, -1);
         } else {
@@ -879,6 +903,7 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 return JIM_ERR;
             }
 
+            /* otherwise, terminate it first */
             s[llen] = '\0';
             Jim_SetResultString(interp, s, (int) (llen + 1));
         }
@@ -914,6 +939,7 @@ static int JimBufferCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static void Jim_VoidToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
+    /* void objects are represented as empty strings */
     Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
 }
 
@@ -948,8 +974,54 @@ static void JimStructDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
     Jim_Free(s->buf);
+    Jim_Free(s->offs);
     Jim_Free(s->type.elements);
     Jim_Free(s);
+}
+
+static void Jim_RawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
+{
+    if (type == &ffi_type_pointer) {
+        Jim_NewPointer(interp, p);
+    } else if (type == &ffi_type_ulong) {
+        Jim_NewUlong(interp, (jim_wide) (*((unsigned long *) p)));
+    } else if (type == &ffi_type_slong) {
+        Jim_NewLong(interp, (jim_wide) (*((long *) p)));
+    } else if (type == &ffi_type_uint) {
+        Jim_NewUint(interp, (jim_wide) (*((unsigned int *) p)));
+    } if (type == &ffi_type_sint) {
+        Jim_NewInt(interp, (jim_wide) (*((int *) p)));
+    } else if (type == &ffi_type_ushort) {
+        Jim_NewUshort(interp, (jim_wide) (*((unsigned short *) p)));
+    } else if (type == &ffi_type_sshort) {
+        Jim_NewShort(interp, (jim_wide) (*((short *) p)));
+    } else if (type == &ffi_type_uchar) {
+        Jim_NewUchar(interp, (jim_wide) (*((unsigned char *) p)));
+    } else if (type == &ffi_type_schar) {
+        Jim_NewChar(interp, (*((char *) p)));
+#if INT64_MAX <= JIM_WIDE_MAX
+    } else if (type == &ffi_type_uint64) {
+        Jim_NewUint64(interp, (jim_wide) (*((uint64_t *) p)));
+    } else if (type == &ffi_type_sint64) {
+        Jim_NewInt64(interp, (jim_wide) (*((int64_t *) p)));
+#endif
+    } else if (type == &ffi_type_uint32) {
+        Jim_NewUint32(interp, (jim_wide) (*((uint32_t *) p)));
+    } else if (type == &ffi_type_sint32) {
+        Jim_NewInt32(interp, (jim_wide) (*((int32_t *) p)));
+    } else if (type == &ffi_type_uint16) {
+        Jim_NewUint16(interp, (jim_wide) (*((uint16_t *) p)));
+    } else if (type == &ffi_type_sint16) {
+        Jim_NewInt16(interp, (jim_wide) (*((int16_t *) p)));
+    } else if (type == &ffi_type_uint8) {
+        Jim_NewUint8(interp, (jim_wide) (*((uint8_t *) p)));
+    } else if (type == &ffi_type_sint8) {
+        Jim_NewInt8(interp, (jim_wide) (*((int8_t *) p)));
+    } else if (type == &ffi_type_float) {
+        Jim_NewFloat(interp, (*((double *) p)));
+    } else { /* struct members cannot be of type void */
+        Jim_NewDouble(interp, (*((double *) p)));
+    }
 }
 
 static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -957,10 +1029,8 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     char buf[32];
     static const char * const options[] = { "member", "address", "size", NULL };
     struct ffi_struct *s = Jim_CmdPrivData(interp);
-    size_t off;
     long memb;
-    void *p;
-    int option, i;
+    int option;
     enum { OPT_MEMBER, OPT_ADDRESS, OPT_SIZE };
 
     if (argc < 2) {
@@ -988,55 +1058,10 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
             return JIM_ERR;
         }
 
-        off = 0;
-        for (i = 0; i < (int) memb; ++i) {
-            off += s->type.elements[i]->size;
-        }
-
-        p = s->buf + off;
-
-        if (s->type.elements[memb] == &ffi_type_pointer) {
-            Jim_NewPointer(interp, p);
-        } else if (s->type.elements[memb] == &ffi_type_ulong) {
-            Jim_NewUlong(interp, (jim_wide) (*((unsigned long *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_slong) {
-            Jim_NewLong(interp, (jim_wide) (*((long *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_uint) {
-            Jim_NewUint(interp, (jim_wide) (*((unsigned int *) p)));
-        } if (s->type.elements[memb] == &ffi_type_sint) {
-            Jim_NewInt(interp, (jim_wide) (*((int *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_ushort) {
-            Jim_NewUshort(interp, (jim_wide) (*((unsigned short *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_sshort) {
-            Jim_NewShort(interp, (jim_wide) (*((short *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_uchar) {
-            Jim_NewUchar(interp, (jim_wide) (*((unsigned char *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_schar) {
-            Jim_NewChar(interp, (*((char *) p)));
-#if INT64_MAX <= JIM_WIDE_MAX
-        } else if (s->type.elements[memb] == &ffi_type_uint64) {
-            Jim_NewUint64(interp, (jim_wide) (*((uint64_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_sint64) {
-            Jim_NewInt64(interp, (jim_wide) (*((int64_t *) p)));
-#endif
-        } else if (s->type.elements[memb] == &ffi_type_uint32) {
-            Jim_NewUint32(interp, (jim_wide) (*((uint32_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_sint32) {
-            Jim_NewInt32(interp, (jim_wide) (*((int32_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_uint16) {
-            Jim_NewUint16(interp, (jim_wide) (*((uint16_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_sint16) {
-            Jim_NewInt16(interp, (jim_wide) (*((int16_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_uint8) {
-            Jim_NewUint8(interp, (jim_wide) (*((uint8_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_sint8) {
-            Jim_NewInt8(interp, (jim_wide) (*((int8_t *) p)));
-        } else if (s->type.elements[memb] == &ffi_type_float) {
-            Jim_NewFloat(interp, (*((double *) p)));
-        } else {
-            Jim_NewDouble(interp, (*((double *) p)));
-        }
-
+        /* create a Tcl representation of the member value */
+        Jim_RawValueToObj(interp,
+                          s->buf + s->offs[memb],
+                          s->type.elements[memb]);
         return JIM_OK;
 
     case OPT_ADDRESS:
@@ -1077,7 +1102,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[32];
     struct ffi_struct *s;
     const char *raw;
-    int i, j, len;
+    int i, j, len, off;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "raw member ?member ...?");
@@ -1089,10 +1114,13 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     s = Jim_Alloc(sizeof(*s));
     s->nmemb = argc - 1;
     s->type.elements = Jim_Alloc(sizeof(ffi_type *) * (1 + s->nmemb));
-    s->size = 0;
+    s->offs = Jim_Alloc(sizeof(int) * s->nmemb);
 
+    s->size = 0;
+    off = 0;
     for (i = 2; i < argc; ++i) {
         if (Jim_GetEnum(interp, argv[i], type_names, &j, "ffi type", JIM_ERRMSG) != JIM_OK) {
+            Jim_Free(s->offs);
             Jim_Free(s->type.elements);
             Jim_Free(s);
             return JIM_ERR;
@@ -1100,23 +1128,30 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         s->type.elements[i - 2] = types[j];
 
         if (s->size >= (INT_MAX - types[j]->size)) {
-            Jim_SetResultString(interp, "bad struct size", -1);
+            Jim_Free(s->offs);
             Jim_Free(s->type.elements);
             Jim_Free(s);
+            Jim_SetResultString(interp, "bad struct size", -1);
             return JIM_ERR;
         }
         s->size += types[j]->size;
+        /* cache the member offset inside the raw struct */
+        s->offs[i - 2] = off;
+        off += s->size;
     }
 
+    /* if an initializer is specified, it must be the same size as the struct */
     if ((0 != len) && (size_t) len != s->size) {
-        Jim_SetResultFormatted(interp, "bad struct initializer: %#s", argv[1]);
+        Jim_Free(s->offs);
         Jim_Free(s->type.elements);
         Jim_Free(s);
+        Jim_SetResultFormatted(interp, "bad struct initializer: %#s", argv[1]);
         return JIM_ERR;
     }
 
     s->buf = Jim_Alloc(s->size);
     if (0 != len) {
+        /* copy the initializer */
         memcpy(s->buf, raw, (size_t) len);
     }
     s->type.size = 0;
@@ -1163,6 +1198,7 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     args = Jim_Alloc(sizeof(void *) * nargs);
 
     s = Jim_String(argv[1]);
+    /* see the comment Jim_PointerToStr() - NULL is a special case */
     if (sscanf(s, "%p", &ret) != 1) {
         Jim_SetResultFormatted(interp, "bad pointer: %s", s);
         return JIM_ERR;
@@ -1184,15 +1220,7 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     return JIM_OK;
 }
 
-/* library commands */
-
-static void JimLibraryDelProc(Jim_Interp *interp, void *privData)
-{
-    JIM_NOTUSED(interp);
-    dlclose(privData);
-}
-
-static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int JimFunctionCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char buf[32];
     static const char * const type_names[] = {
@@ -1217,12 +1245,11 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 #endif
     };
     struct ffi_func *f;
-    void *h = Jim_CmdPrivData(interp);
-    const char *sym;
+    const char *addr;
     int i, j;
 
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "rtype name ?argtypes ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "rtype addr ?argtypes ...?");
         return JIM_ERR;
     }
 
@@ -1232,11 +1259,15 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 
     f = Jim_Alloc(sizeof(*f));
 
-    sym = Jim_String(argv[2]);
-    f->p = dlsym(h, sym);
-    if (f->p == NULL) {
-        Jim_SetResultFormatted(interp, "failed to resolve %s", sym);
+    addr = Jim_String(argv[2]);
+    if (sscanf(addr, "%p", &f->p) != 1) {
         Jim_Free(f);
+        Jim_SetResultFormatted(interp, "invalid function address: %#s", argv[2]);
+        return JIM_ERR;
+    }
+    if (f->p == NULL) {
+        Jim_Free(f);
+        Jim_SetResultString(interp, "NULL function address", -1);
         return JIM_ERR;
     }
 
@@ -1252,9 +1283,9 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
         }
 
         if (types[j] == &ffi_type_void) {
-            Jim_SetResultString(interp, "the type of a function argument cannot be void", -1);
             Jim_Free(f->atypes);
             Jim_Free(f);
+            Jim_SetResultString(interp, "the type of a function argument cannot be void", -1);
             return JIM_ERR;
         }
 
@@ -1274,34 +1305,89 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
     return JIM_OK;
 }
 
+/* library commands */
+
+static void JimLibraryDelProc(Jim_Interp *interp, void *privData)
+{
+    JIM_NOTUSED(interp);
+    dlclose(privData);
+}
+
+static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    char buf[32];
+    static const char * const options[] = { "dlsym", "handle", NULL };
+    void *p = Jim_CmdPrivData(interp);
+    const char *sym;
+    int option;
+    enum { OPT_DLSYM, OPT_HANDLE };
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
+        return JIM_ERR;
+    }
+
+    if (Jim_GetEnum(interp, argv[1], options, &option, "ffi library method", JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    switch (option) {
+    case OPT_DLSYM:
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 1, argv, "dlsym symbol");
+            return JIM_ERR;
+        }
+
+        sym = Jim_String(argv[2]);
+        /* we reuse p, to avoid code duplication between the cases */
+        p = dlsym(p, sym);
+        if (p == NULL) {
+            Jim_SetResultFormatted(interp, "failed to resolve %s", sym);
+            return JIM_ERR;
+        }
+
+        /* fall through */
+
+    case OPT_HANDLE:
+        sprintf(buf, "%p", p);
+        Jim_SetResultString(interp, buf, -1);
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
 static int JimDlopenCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char buf[32];
+    const char *path;
     void *h;
+    int len;
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "path");
         return JIM_ERR;
     }
 
-    h = dlopen(Jim_String(argv[1]), RTLD_LAZY);
-    if (h == NULL) {
-        Jim_SetResultFormatted(interp, "failed to load %#s", argv[1]);
-        return JIM_ERR;
-    }
+    path = Jim_GetString(argv[1], &len);
 
-    sprintf(buf, "ffi.library%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimLibraryHandlerCommand, h, JimLibraryDelProc);
-    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
+    /* if no path is specified, return another reference to ::main */
+    if (len == 0) {
+        Jim_SetResult(interp, main_obj);
+    } else {
+        h = dlopen(path, RTLD_LAZY);
+        if (h == NULL) {
+            Jim_SetResultFormatted(interp, "failed to load %#s", argv[1]);
+            return JIM_ERR;
+        }
+
+        sprintf(buf, "ffi.library%ld", Jim_GetId(interp));
+        Jim_CreateCommand(interp, buf, JimLibraryHandlerCommand, h, JimLibraryDelProc);
+        Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
+    }
 
     return JIM_OK;
 }
-
-/* constants */
-
-static struct ffi_var null_var;
-static struct ffi_var zero_var;
-static struct ffi_var one_var;
 
 int Jim_ffiInit(Jim_Interp *interp)
 {
@@ -1349,14 +1435,16 @@ int Jim_ffiInit(Jim_Interp *interp)
 
     Jim_CreateCommand(interp, "ffi.struct", JimStructCmd, 0, 0);
 
+    Jim_CreateCommand(interp, "ffi.function", JimFunctionCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi.dlopen", JimDlopenCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi.handle0", JimLibraryHandlerCommand, self, JimLibraryDelProc);
-    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "main", -1)), Jim_NewStringObj(interp, "ffi.handle0", -1)) != JIM_OK) {
+    main_obj = Jim_NewStringObj(interp, "ffi.handle0", -1);
+    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "main", -1)), main_obj) != JIM_OK) {
         return JIM_ERR;
     }
 
-    Jim_NewPointerBase(interp, &null_var, NULL, buf, NULL);
+    Jim_NewPointerNoAlloc(interp, &null_var, NULL, buf, NULL);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "null", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
         return JIM_ERR;
     }
