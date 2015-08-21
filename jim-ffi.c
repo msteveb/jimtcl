@@ -1403,40 +1403,40 @@ int Jim_ffiInit(Jim_Interp *interp)
         return JIM_ERR;
     }
 
-    Jim_CreateCommand(interp, "ffi.pointer", JimPointerCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::pointer", JimPointerCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.ulong", JimUlongCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.long", JimLongCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.uint", JimUintCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.int", JimIntCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.ushort", JimUshortCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.short", JimShortCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.uchar", JimUcharCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.char", JimCharCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::ulong", JimUlongCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::long", JimLongCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uint", JimUintCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::int", JimIntCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::ushort", JimUshortCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::short", JimShortCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uchar", JimUcharCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::char", JimCharCmd, 0, 0);
 
 #if INT64_MAX <= JIM_WIDE_MAX
-    Jim_CreateCommand(interp, "ffi.uint64", JimUint64Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.int64", JimInt64Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uint64", JimUint64Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::int64", JimInt64Cmd, 0, 0);
 #endif
-    Jim_CreateCommand(interp, "ffi.uint32", JimUint32Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.int32", JimInt32Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.uint16", JimUint16Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.int16", JimInt16Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.uint8", JimUint8Cmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.int8", JimInt8Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uint32", JimUint32Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::int32", JimInt32Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uint16", JimUint16Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::int16", JimInt16Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::uint8", JimUint8Cmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::int8", JimInt8Cmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.float", JimFloatCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.double", JimDoubleCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::float", JimFloatCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::double", JimDoubleCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.string", JimStringCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.buffer", JimBufferCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::string", JimStringCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::buffer", JimBufferCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.void", JimVoidCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::void", JimVoidCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.struct", JimStructCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::struct", JimStructCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.function", JimFunctionCmd, 0, 0);
-    Jim_CreateCommand(interp, "ffi.dlopen", JimDlopenCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::function", JimFunctionCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::dlopen", JimDlopenCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi.handle0", JimLibraryHandlerCommand, self, JimLibraryDelProc);
     main_obj = Jim_NewStringObj(interp, "ffi.handle0", -1);
@@ -1454,7 +1454,7 @@ int Jim_ffiInit(Jim_Interp *interp)
         return JIM_ERR;
     }
 
-    Jim_NewIntNoAlloc(interp, &one_var, 0, buf);
+    Jim_NewIntNoAlloc(interp, &one_var, 1, buf);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "one", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
         return JIM_ERR;
     }
