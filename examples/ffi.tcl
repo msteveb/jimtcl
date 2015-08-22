@@ -173,6 +173,31 @@ proc structs_example {} {
 	puts [ffi::string at [$out value] 24]
 }
 
+proc cast_example {} {
+	# ffi::cast can be used to create an object with with the value at a given
+	# address
+	set errno_addr [$::main dlsym errno]
+	set errno [ffi::cast int $errno_addr]
+	puts "the value of errno before close() is [$errno value]"
+
+	# now, we call close() with an invalid file descriptor so it puts EBADF in
+	# errno
+	set close_func [ffi::function int [$::main dlsym close] int]
+	set ret [ffi::int]
+	$close_func [$ret address] [[ffi::int 0xFF] address]
+	puts "close() returned [$ret value]"
+
+	# we have to re-read errno!
+	set errno [ffi::cast int $errno_addr]
+
+	# call strerror() and pass the value of errno
+	set strerror_func [ffi::function pointer [$::main dlsym strerror] int]
+	set str [ffi::pointer]
+	$strerror_func [$str address] [[ffi::int [$errno value]] address]
+
+	puts "the error in errno after close() is: [ffi::string at [$str value]] ([$errno value])"
+}
+
 proc sockets_example {} {
 	# this is a fairly complex, non-trivial example; it may not work on
 	# architectures other than x86, because of the size and alignment of struct
@@ -248,4 +273,5 @@ functions_example
 constants_example
 pointers_example
 structs_example
+cast_example
 sockets_example

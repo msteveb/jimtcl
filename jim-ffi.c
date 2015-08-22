@@ -42,6 +42,16 @@
 
 #include <jim.h>
 
+#if INT64_MAX <= JIM_WIDE_MAX
+#define TYPE_NAMES "char", "uchar", "short", "ushort", "int", "uint", "long", \
+                   "ulong", "pointer", "double", "float", "int8", "uint8", \
+                   "int16", "uint16", "int32", "uint32", "int64", "uint64"
+#else
+#define TYPE_NAMES "char", "uchar", "short", "ushort", "int", "uint", "long", \
+                   "ulong", "pointer", "double", "float", "int8", "uint8", \
+                   "int16", "uint16", "int32", "uint32"
+#endif
+
 struct ffi_var {
     /* may be different than the libffi type size - i.e the size of a buffer
      * object is its actual size, not the size of a pointer */
@@ -92,6 +102,22 @@ struct ffi_func {
 };
 
 /* constants */
+
+static ffi_type *type_structs[] = {
+#if INT64_MAX <= JIM_WIDE_MAX
+    &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
+    &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
+    &ffi_type_pointer, &ffi_type_double, &ffi_type_float, &ffi_type_sint8,
+    &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16, &ffi_type_sint32,
+    &ffi_type_uint32, &ffi_type_sint64, &ffi_type_uint64, &ffi_type_void
+#else
+    &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
+    &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
+    &ffi_type_pointer, &ffi_type_double, &ffi_type_float, &ffi_type_sint8,
+    &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16, &ffi_type_sint32,
+    &ffi_type_uint32, &ffi_type_void
+#endif
+};
 
 static struct ffi_var null_var;
 static struct ffi_var zero_var;
@@ -649,6 +675,7 @@ static int JimIntBaseCmd(Jim_Interp *interp,
 
     case 2:
         if (Jim_GetWide(interp, argv[1], &val) != JIM_OK) {
+            Jim_SetResultFormatted(interp, "invalid integer value: %#s", argv[1]);
             return JIM_ERR;
         }
         if ((val < min) || (val > max)) {
@@ -982,23 +1009,9 @@ static void JimStructDelProc(Jim_Interp *interp, void *privData)
 static void Jim_RawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
 {
     if (type == &ffi_type_pointer) {
-        Jim_NewPointer(interp, p);
-    } else if (type == &ffi_type_ulong) {
-        Jim_NewUlong(interp, (jim_wide) (*((unsigned long *) p)));
-    } else if (type == &ffi_type_slong) {
-        Jim_NewLong(interp, (jim_wide) (*((long *) p)));
-    } else if (type == &ffi_type_uint) {
-        Jim_NewUint(interp, (jim_wide) (*((unsigned int *) p)));
-    } if (type == &ffi_type_sint) {
-        Jim_NewInt(interp, (jim_wide) (*((int *) p)));
-    } else if (type == &ffi_type_ushort) {
-        Jim_NewUshort(interp, (jim_wide) (*((unsigned short *) p)));
-    } else if (type == &ffi_type_sshort) {
-        Jim_NewShort(interp, (jim_wide) (*((short *) p)));
-    } else if (type == &ffi_type_uchar) {
-        Jim_NewUchar(interp, (jim_wide) (*((unsigned char *) p)));
-    } else if (type == &ffi_type_schar) {
-        Jim_NewChar(interp, (*((char *) p)));
+        Jim_NewPointer(interp, *((void **) p));
+    /* ffi_type_sint, ffi_type_slong, etc' are #defines of the fixed-width
+     * integer types */
 #if INT64_MAX <= JIM_WIDE_MAX
     } else if (type == &ffi_type_uint64) {
         Jim_NewUint64(interp, (jim_wide) (*((uint64_t *) p)));
@@ -1019,7 +1032,7 @@ static void Jim_RawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
         Jim_NewInt8(interp, (jim_wide) (*((int8_t *) p)));
     } else if (type == &ffi_type_float) {
         Jim_NewFloat(interp, (*((double *) p)));
-    } else { /* struct members cannot be of type void */
+    } else { /* raw values cannot be of type void */
         Jim_NewDouble(interp, (*((double *) p)));
     }
 }
@@ -1079,26 +1092,7 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 
 static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    static const char * const type_names[] = {
-        "char", "uchar", "short", "ushort", "int", "uint", "long", "ulong",
-        "pointer", "double", "float", "int8", "uint8", "int16", "uint16",
-        "int32", "uint32",
-#if INT64_MAX <= JIM_WIDE_MAX
-        "int64", "uint64",
-#endif
-        NULL
-    };
-    ffi_type *types[] = {
-        &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
-        &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
-        &ffi_type_pointer, &ffi_type_double, &ffi_type_float, &ffi_type_sint8,
-        &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16, &ffi_type_sint32,
-#if INT64_MAX <= JIM_WIDE_MAX
-        &ffi_type_uint32, &ffi_type_sint64, &ffi_type_uint64
-#else
-        &ffi_type_uint32
-#endif
-    };
+    static const char * const type_names[] = {TYPE_NAMES, NULL };
     char buf[32];
     struct ffi_struct *s;
     const char *raw;
@@ -1125,16 +1119,16 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_Free(s);
             return JIM_ERR;
         }
-        s->type.elements[i - 2] = types[j];
+        s->type.elements[i - 2] = type_structs[j];
 
-        if (s->size >= (INT_MAX - types[j]->size)) {
+        if (s->size >= (INT_MAX - type_structs[j]->size)) {
             Jim_Free(s->offs);
             Jim_Free(s->type.elements);
             Jim_Free(s);
             Jim_SetResultString(interp, "bad struct size", -1);
             return JIM_ERR;
         }
-        s->size += types[j]->size;
+        s->size += type_structs[j]->size;
         /* cache the member offset inside the raw struct */
         s->offs[i - 2] = off;
         off += s->size;
@@ -1223,27 +1217,8 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 static int JimFunctionCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char buf[32];
-    static const char * const type_names[] = {
-        "char", "uchar", "short", "ushort", "int", "uint", "long", "ulong",
-        "pointer", "void", "double", "float" "int8", "uint8", "int16", "uint16",
-        "int32", "uint32",
-#if INT64_MAX <= JIM_WIDE_MAX
-        "int64", "uint64",
-#endif
-        NULL
-    };
-    ffi_type *types[] = {
-        &ffi_type_schar, &ffi_type_uchar, &ffi_type_sshort, &ffi_type_ushort,
-        &ffi_type_sint, &ffi_type_uint, &ffi_type_slong, &ffi_type_ulong,
-        &ffi_type_pointer, &ffi_type_void, &ffi_type_double, &ffi_type_float,
-        &ffi_type_sint8, &ffi_type_uint8, &ffi_type_sint16, &ffi_type_uint16,
-        &ffi_type_sint32,
-#if INT64_MAX <= JIM_WIDE_MAX
-        &ffi_type_uint32, &ffi_type_sint64, &ffi_type_uint64
-#else
-        &ffi_type_uint32
-#endif
-    };
+    /* void is a legal type only for function return values */
+    static const char * const type_names[] = { TYPE_NAMES, "void", NULL };
     struct ffi_func *f;
     const char *addr;
     int i, j;
@@ -1271,7 +1246,7 @@ static int JimFunctionCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    f->rtype = types[i];
+    f->rtype = type_structs[i];
     f->nargs = argc - 3;
 
     f->atypes = Jim_Alloc(sizeof(char *) * f->nargs);
@@ -1282,14 +1257,14 @@ static int JimFunctionCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
-        if (types[j] == &ffi_type_void) {
+        if (type_structs[j] == &ffi_type_void) {
             Jim_Free(f->atypes);
             Jim_Free(f);
             Jim_SetResultString(interp, "the type of a function argument cannot be void", -1);
             return JIM_ERR;
         }
 
-        f->atypes[i - 3] = types[j];
+        f->atypes[i - 3] = type_structs[j];
     }
 
     if (ffi_prep_cif(&f->cif, FFI_DEFAULT_ABI, f->nargs, f->rtype, f->atypes) != FFI_OK) {
@@ -1389,6 +1364,40 @@ static int JimDlopenCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+/* misc. commands */
+
+static int JimCastCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    jim_wide addr;
+    static const char * const type_names[] = { TYPE_NAMES, NULL };
+    void *p;
+    int i;
+
+    if (argc != 3) {
+        Jim_WrongNumArgs(interp, 1, argv, "type addr");
+        return JIM_ERR;
+    }
+
+    if (Jim_GetEnum(interp, argv[1], type_names, &i, "ffi type", JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    if (Jim_GetWide(interp, argv[2], &addr) != JIM_OK) {
+        Jim_SetResultFormatted(interp, "invalid address: %#s", argv[2]);
+        return JIM_ERR;
+    }
+
+    p = (void *) (intptr_t) addr;
+    if (p == NULL) {
+        Jim_SetResultString(interp, "NULL variable address", -1);
+        return JIM_ERR;
+    }
+
+    Jim_RawValueToObj(interp, p, type_structs[i]);
+
+    return JIM_OK;
+}
+
 int Jim_ffiInit(Jim_Interp *interp)
 {
     char buf[32];
@@ -1437,6 +1446,8 @@ int Jim_ffiInit(Jim_Interp *interp)
 
     Jim_CreateCommand(interp, "ffi::function", JimFunctionCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi::dlopen", JimDlopenCmd, 0, 0);
+
+    Jim_CreateCommand(interp, "ffi::cast", JimCastCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi.handle0", JimLibraryHandlerCommand, self, JimLibraryDelProc);
     main_obj = Jim_NewStringObj(interp, "ffi.handle0", -1);
