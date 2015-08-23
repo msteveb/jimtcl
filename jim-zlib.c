@@ -74,6 +74,7 @@ static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     switch (argc) {
     case 3:
+        /* if no compression level is specified, use zlib's default */
         level = Z_DEFAULT_COMPRESSION;
         break;
 
@@ -110,6 +111,9 @@ static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     strm.next_in = (Bytef *)in;
     strm.avail_in = (uInt)len;
 
+    /* always compress in one pass - the return value holds the entire
+     * decompressed data anyway, so there's no reason to do chunked
+     * decompression */
     if (deflate(&strm, Z_FINISH) != Z_STREAM_END) {
         Jim_Free(strm.next_out);
         deflateEnd(&strm);
@@ -147,6 +151,9 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (Jim_GetLong(interp, argv[3], &bufsiz) != JIM_OK) {
             return JIM_ERR;
         }
+        if (bufsiz > INT_MAX) {
+            return JIM_ERR;
+        }
         break;
 
     default:
@@ -160,6 +167,9 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     in = Jim_GetString(argv[2], &inlen);
 
+    /* allocate a buffer - decompression is done in chunks, into this buffer;
+     * when the decompressed data size is given, decompression is faster because
+     * it's done in one pass, with less memcpy() overhead */
     buf = Jim_Alloc((int)bufsiz);
 
     out = Jim_NewEmptyStringObj(interp);
@@ -170,14 +180,14 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     do {
         do {
             strm.next_out = buf;
-            strm.avail_out =(uInt)bufsiz;
+            strm.avail_out = (uInt)bufsiz;
 
             ret = inflate(&strm, Z_NO_FLUSH);
             switch (ret) {
             case Z_OK:
             case Z_STREAM_END:
-                /* append each chunk */
-                Jim_AppendString(interp, out, buf, (int) (bufsiz - (long)strm.avail_out));
+                /* append each chunk to the output object */
+                Jim_AppendString(interp, out, buf, (int)(bufsiz - (long)strm.avail_out));
                 break;
 
             default:
@@ -189,6 +199,7 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
+    /* free memory used for decompression before we assign the return value */
     Jim_Free(buf);
     inflateEnd(&strm);
 
@@ -200,11 +211,9 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int JimZlibCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    static const char * const options[] = {
-        "crc32", "deflate", "inflate", NULL
-    };
+    static const char * const options[] = { "crc32", "deflate", "inflate", NULL };
     int option;
-    enum { OPT_CRC32, OPT_DEFLATE, OPT_INFLATE  };
+    enum { OPT_CRC32, OPT_DEFLATE, OPT_INFLATE };
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
