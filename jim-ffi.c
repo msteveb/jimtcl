@@ -540,13 +540,13 @@ static void Jim_FloatToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultString(interp, buf, -1);
 }
 
-static void Jim_NewFloat(Jim_Interp *interp, const double val)
+static void Jim_NewFloat(Jim_Interp *interp, const float val)
 {
     struct ffi_var *var;
 
     var = Jim_NewIntBase(interp, "float");
 
-    var->val.f = (float) val;
+    var->val.f = val;
     var->type = &ffi_type_float;
     var->to_str = Jim_FloatToStr;
     var->addr = &var->val.f;
@@ -815,16 +815,14 @@ static int JimUlongCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimFloatBaseCmd(Jim_Interp *interp,
                            int argc,
                            Jim_Obj *const *argv,
-                           void (*new_obj)(Jim_Interp *, const double))
+                           double *val)
 {
-    double val;
-
     switch (argc) {
     case 1:
         break;
 
     case 2:
-        if (Jim_GetDouble(interp, argv[1], &val) != JIM_OK) {
+        if (Jim_GetDouble(interp, argv[1], val) != JIM_OK) {
             Jim_SetResultFormatted(interp, "invalid double value: %#s", argv[1]);
             return JIM_ERR;
         }
@@ -835,18 +833,31 @@ static int JimFloatBaseCmd(Jim_Interp *interp,
         return JIM_ERR;
     }
 
-    new_obj(interp, val);
     return JIM_OK;
 }
 
 static int JimFloatCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return JimFloatBaseCmd(interp, argc, argv, Jim_NewFloat);
+    double val;
+
+    if (JimFloatBaseCmd(interp, argc, argv, &val) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    Jim_NewFloat(interp, (float) val);
+    return JIM_OK;
 }
 
 static int JimDoubleCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return JimFloatBaseCmd(interp, argc, argv, Jim_NewDouble);
+    double val;
+
+    if (JimFloatBaseCmd(interp, argc, argv, &val) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    Jim_NewDouble(interp, val);
+    return JIM_OK;
 }
 
 /* pointer commands */
@@ -1031,7 +1042,7 @@ static void Jim_RawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
     } else if (type == &ffi_type_sint8) {
         Jim_NewInt8(interp, (jim_wide) (*((int8_t *) p)));
     } else if (type == &ffi_type_float) {
-        Jim_NewFloat(interp, (*((double *) p)));
+        Jim_NewFloat(interp, (*((float *) p)));
     } else { /* raw values cannot be of type void */
         Jim_NewDouble(interp, (*((double *) p)));
     }
@@ -1208,8 +1219,10 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     }
 
     ffi_call(&f->cif, f->p, ret, args);
-
     Jim_Free(args);
+
+    /* use the return value address as the return value, to allow one-liners */
+    Jim_SetResult(interp, argv[1]);
 
     return JIM_OK;
 }

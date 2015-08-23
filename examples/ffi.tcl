@@ -1,10 +1,7 @@
 package require ffi
 
 proc sizeof_example {} {
-	# pointers; see ffi::buffer and ffi::string later
-	puts [[ffi::pointer] size]
-
-	# standard types
+	# standard types - those that begin with "u" are unsigned
 	puts [[ffi::ulong] size]
 	puts [[ffi::long] size]
 	puts [[ffi::uint] size]
@@ -28,26 +25,31 @@ proc sizeof_example {} {
 	puts [[ffi::float] size]
 	puts [[ffi::double] size]
 
+	# pointers; see ffi::buffer and ffi::string later
+	puts [[ffi::pointer] size]
+
 	# misc. types
 	puts [[ffi::void] size]
 }
 
 proc types_example {} {
-	# variables are created using ffi::int, ffi_uint, ffi::long and so on; they
+	# variables are created using ffi::int, ffi::uint, ffi::long and so on; they
 	# can be initialized by specifying a value
 	set count [ffi::int 12345678]
 	set uninit_count [ffi::int]
 
-	# "value" returns the value of a variable as a Tcl object and "address"
-	# returns its address (like the & operator in C)
+	# the value method returns the value of a variable as a Tcl object and
+	# the method address returns its address (like the & operator in C) in
+	# hexadecimal form
 	puts "integer with contents [$count value] is at [$count address]"
 	puts "the value of the uninitialized integer is [$uninit_count value]"
 
-	# the raw contents of a variable may be accessed using "raw"
+	# the raw contents of a variable may be accessed using the raw method
 	puts "the raw, [$count size] bytes form of [$count value] is [$count raw]"
 
 	# pointers are created by calling ffi::pointer with the address of a
-	# variable
+	# variable; that's the only pointer type (i.e there's no int * equivalent,
+	# see ffi:string at and ffi::cast)
 	set count_func [ffi::pointer [$count address]]
 	puts [$count_func value]
 
@@ -175,7 +177,8 @@ proc structs_example {} {
 
 proc cast_example {} {
 	# ffi::cast can be used to create an object with with the value at a given
-	# address
+	# address: it's equivalent to the * operator in C, after casting from void *
+	# to another pointer type (e.g int *)
 	set errno_addr [$::main dlsym errno]
 	set errno [ffi::cast int $errno_addr]
 	puts "the value of errno before close() is [$errno value]"
