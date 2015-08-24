@@ -36,6 +36,9 @@
 
 #include <jim.h>
 
+#define _PASTE(x) # x
+#define PASTE(x) _PASTE(x)
+
 static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     long init;
@@ -151,7 +154,8 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (Jim_GetLong(interp, argv[3], &bufsiz) != JIM_OK) {
             return JIM_ERR;
         }
-        if (bufsiz > INT_MAX) {
+        if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
+            Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
             return JIM_ERR;
         }
         break;
