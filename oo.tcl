@@ -9,16 +9,32 @@
 # methods and instance variables are inherited.
 # The *last* baseclass can be accessed directly with [super]
 # Later baseclasses take precedence if the same method exists in more than one
+
+
+
 proc class {classname {baseclasses {}} classvars} {
-	set baseclassvars {}
+
+	# Determine all base classes in tree
+	set allbaseclasses $baseclasses
 	foreach baseclass $baseclasses {
+		set allbaseclasses [concat $allbaseclasses ["$baseclass allclassesbelow"]]
+	}
+	# Remove duplicates from base class list
+	set allbaseclasses [lsort -unique $allbaseclasses]
+
+	set baseclassvars {}
+	foreach baseclass $allbaseclasses {
 		# Start by mapping all methods to the parent class
 		foreach method [$baseclass methods] { alias "$classname $method" "$baseclass $method" }
 		# Now import the base class classvars
 		set baseclassvars [dict merge $baseclassvars [$baseclass classvars]]
-		# The last baseclass will win here
-		proc "$classname baseclass" {} baseclass { return $baseclass }
 	}
+	
+	# Returns direct base classes
+	proc "$classname baseclasses" {} baseclasses { return $baseclasses }
+	
+	# Returns all base classes from all depths
+	proc "$classname allclassesbelow" {} allbaseclasses { return $allbaseclasses }
 
 	# Merge in the baseclass vars with lower precedence
 	set classvars [dict merge $baseclassvars $classvars]
@@ -84,9 +100,14 @@ proc class {classname {baseclasses {}} classvars} {
 	return $classname
 }
 
-# From within a method, invokes the given method on the base class.
-# Note that this will only call the last baseclass given
+# From within a method, invokes the given method on a base class.
 proc super {method args} {
+	# Look through all base classes
 	upvar self self
-	uplevel 2 [$self baseclass] $method {*}$args
+	foreach baseclass [$self allclassesbelow] {
+		# Check if baseclass has the requested method
+		if ([lsearch [$baseclass methods] $method]) {
+			return [uplevel 2 $baseclass $method {*}$args]
+		}
+	}
 }

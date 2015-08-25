@@ -1,0 +1,178 @@
+# This file contains a collection of tests for the procedures in the file
+# tclEvent.c, which includes the "update", and "vwait" Tcl
+# commands.  Sourcing this file into Tcl runs the tests and generates
+# output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1997 Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+
+package require oo
+
+# Test class inheritance
+#    1
+#   / \
+#  2   4
+#  |   |
+#  3   |
+#  |   |
+#   \ /
+#    5
+#    |
+#    6
+
+# ---------------------------------
+# Declaration of test classes
+# ---------------------------------
+
+class testclass1 {
+	name "abc"
+}
+testclass1 method getname {} {
+	return "name: $name"
+}
+
+class testclass2 {testclass1} {
+}
+
+class testclass3 {testclass2} {
+}
+
+class testclass4 {testclass1} {
+	number 1 
+}
+testclass4 method getnumber {} {
+	return "number: $number"
+}
+
+class testclass5 {testclass3 testclass4} {
+	name "override"
+}
+
+class testclass6 {testclass4} {
+}
+testclass6 method getnumber {} {
+	return "overridden number: $number"
+}
+testclass6 method getnamewithself {} {
+	return "name using this: [$self getnumber]"
+}
+testclass6 method getnamewithsuper {} {
+	return "name using super: [super getname]"
+}
+
+testclass6 method getname {} {
+	return "overridden inside overrider [super getname]"
+}
+	
+
+# ---------------------------------
+# TESTS
+# ---------------------------------
+	
+test oo-1.1 {Create object call method} {
+    set obj1 [testclass1 new]
+	
+	$obj1 getname
+} {name: abc}
+
+
+test oo-1.2 {Create object with modified initial value call method} {
+    set obj1 [testclass1 new { name "hello"}]
+	
+	$obj1 getname
+} {name: hello}
+
+
+test oo-1.3 {Create object without 'new' get variable} {
+	set obj1 [testclass1]
+	$obj1 get name
+} {abc}
+
+
+test oo-2.1 {Create object with baseclass call method} {
+	set obj1 [testclass2]
+	$obj1 getname
+} {name: abc}
+
+
+test oo-2.2 {Create object with baseclass get base variable} {
+	set obj1 [testclass2]
+	$obj1 get name
+} {abc}
+
+
+test oo-3.1 {Create object with multi-level baseclass get base variable} {
+	set obj1 [testclass3]
+	$obj1 get name
+} {abc}
+
+
+test oo-3.2 {Create object with multi-level baseclass call method} {
+	set obj1 [testclass3]
+	$obj1 getname
+} {name: abc}
+
+
+test oo-4.1 {Create object with multiple baseclass call methods} {
+	set obj1 [testclass5]
+	set val1 [$obj1 getname]
+	set val2 [$obj1 getnumber]
+	concat [list $val1] [list $val2]
+} {{name: override} {number: 1}}
+
+
+test oo-4.2 {Create object with multiple baseclass get variables} {
+	set obj1 [testclass5]
+	set val1 [$obj1 get name]
+	set val2 [$obj1 get number]
+	concat $val1 $val2
+} {override 1}
+
+
+test oo-4.3 {Create object with multiple baseclass set variables then call methods & get variables} {
+	set obj1 [testclass5 new { name "hello" number "4"}]
+	set val1 [$obj1 getname]
+	set val2 [$obj1 getnumber]
+	set val3 [$obj1 get name]
+	set val4 [$obj1 get number]
+	concat [list $val1] [list $val2] [list $val3] [list $val4]
+} {{name: hello} {number: 4} hello 4}
+
+
+test oo-5.1 {Create object override method} {
+	set obj1 [testclass6]
+	$obj1 getnumber
+} {overridden number: 1}
+
+
+test oo-6.1 {Usage of 'self'} {
+	set obj1 [testclass6]
+	$obj1 getnamewithself
+} {name using this: overridden number: 1}
+
+
+test oo-6.2 {Usage of 'super'} {
+	set obj1 [testclass6 new { name "xyz"}]
+	$obj1 getnamewithsuper
+} {name using super: name: xyz}
+
+
+test oo-6.3 {Call overridden method within overrider} {
+	set obj1 [testclass6]
+	$obj1 getname
+} {overridden inside overrider name: abc}
+
+
+test oo-7.1 {Ensure objects have their own values} {
+	set obj1 [testclass1 new { name "value1"}]
+	set obj2 [testclass1 new { name "value2"}]
+	concat [$obj1 getname] [$obj2 getname]
+} {name: value1 name: value2}
+
+
+testreport
