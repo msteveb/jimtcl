@@ -145,7 +145,7 @@ static int JimVarHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     enum { OPT_VALUE, OPT_ADDRESS, OPT_SIZE, OPT_RAW };
 
     if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
+        Jim_WrongNumArgs(interp, 1, argv, "method");
         return JIM_ERR;
     }
 
@@ -685,7 +685,7 @@ static int JimIntBaseCmd(Jim_Interp *interp,
         break;
 
     default:
-        Jim_WrongNumArgs(interp, 1, argv, "val");
+        Jim_WrongNumArgs(interp, 1, argv, "?val?");
         return JIM_ERR;
     }
 
@@ -767,7 +767,7 @@ static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         break;
 
     default:
-        Jim_WrongNumArgs(interp, 1, argv, "val");
+        Jim_WrongNumArgs(interp, 1, argv, "?val?");
         return JIM_ERR;
     }
 
@@ -829,7 +829,7 @@ static int JimFloatBaseCmd(Jim_Interp *interp,
         break;
 
     default:
-        Jim_WrongNumArgs(interp, 1, argv, "val");
+        Jim_WrongNumArgs(interp, 1, argv, "?val?");
         return JIM_ERR;
     }
 
@@ -877,7 +877,7 @@ static int JimPointerCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
 
         case 3:
-            Jim_WrongNumArgs(interp, 1, argv, "address");
+            Jim_WrongNumArgs(interp, 1, argv, "?address?");
             return JIM_ERR;
     }
 
@@ -936,7 +936,7 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 return JIM_ERR;
             }
 
-            if ((llen < 0) || (llen > (INT_MAX - 1))) {
+            if ((llen < 0) || (llen >= INT_MAX)) {
                 Jim_SetResultFormatted(interp, "bad size: %#s", argv[3]);
                 return JIM_ERR;
             }
@@ -1069,7 +1069,7 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     switch (option) {
     case OPT_MEMBER:
         if (argc != 3) {
-            Jim_WrongNumArgs(interp, 1, argv, "index");
+            Jim_WrongNumArgs(interp, 1, argv, "member index");
             return JIM_ERR;
         }
 
@@ -1089,6 +1089,11 @@ static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         return JIM_OK;
 
     case OPT_ADDRESS:
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 1, argv, "address");
+            return JIM_ERR;
+        }
+
         sprintf(buf, "%p", s->buf);
         Jim_SetResultString(interp, buf, -1);
         return JIM_OK;
@@ -1146,7 +1151,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* if an initializer is specified, it must be the same size as the struct */
-    if ((0 != len) && (size_t) len != s->size) {
+    if ((len != 0) && (s->size != (size_t) len)) {
         Jim_Free(s->offs);
         Jim_Free(s->type.elements);
         Jim_Free(s);
@@ -1155,7 +1160,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     s->buf = Jim_Alloc(s->size);
-    if (0 != len) {
+    if (len != 0) {
         /* copy the initializer */
         memcpy(s->buf, raw, (size_t) len);
     }
@@ -1305,7 +1310,7 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 {
     char buf[32];
     static const char * const options[] = { "dlsym", "handle", NULL };
-    void *p = Jim_CmdPrivData(interp);
+    void *p, *h = Jim_CmdPrivData(interp);
     const char *sym;
     int option;
     enum { OPT_DLSYM, OPT_HANDLE };
@@ -1327,17 +1332,24 @@ static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const
         }
 
         sym = Jim_String(argv[2]);
-        /* we reuse p, to avoid code duplication between the cases */
-        p = dlsym(p, sym);
+
+        p = dlsym(h, sym);
         if (p == NULL) {
             Jim_SetResultFormatted(interp, "failed to resolve %s", sym);
             return JIM_ERR;
         }
 
-        /* fall through */
+        sprintf(buf, "%p", p);
+        Jim_SetResultString(interp, buf, -1);
+        return JIM_OK;
 
     case OPT_HANDLE:
-        sprintf(buf, "%p", p);
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 1, argv, "handle");
+            return JIM_ERR;
+        }
+
+        sprintf(buf, "%p", h);
         Jim_SetResultString(interp, buf, -1);
         return JIM_OK;
     }
@@ -1421,7 +1433,7 @@ int Jim_ffiInit(Jim_Interp *interp)
         return JIM_ERR;
     }
 
-    if (Jim_PackageProvide(interp, "ffi", "1.0", JIM_ERRMSG)) {
+    if (Jim_PackageProvide(interp, "ffi", "1.0", JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
     }
 
