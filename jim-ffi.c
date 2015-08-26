@@ -1223,7 +1223,7 @@ static int JimFunctionHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
         }
     }
 
-    ffi_call(&f->cif, f->p, ret, args);
+    ffi_call(&f->cif, FFI_FN(f->p), ret, args);
     Jim_Free(args);
 
     /* use the return value address as the return value, to allow one-liners */
