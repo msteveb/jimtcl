@@ -151,7 +151,7 @@ proc testConstraint {constraint {bool {}}} {
 		if {[info exists ::tcltest::testConstraints($constraint)]} {
 			return $::tcltest::testConstraints($constraint)
 		}
-		return -code error "unknown constraint: $c"
+		return -code error "unknown constraint: $constraint"
 		return 1
 	} else {
 		set ::tcltest::testConstraints($constraint) $bool
