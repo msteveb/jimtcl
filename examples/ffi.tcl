@@ -51,7 +51,7 @@ proc types_example {} {
 	# variable; that's the only pointer type (i.e there's no int * equivalent,
 	# see ffi:string at and ffi::cast)
 	set count_func [ffi::pointer [$count address]]
-	puts [$count_func value]
+	puts "the pointer points to [$count_func value]"
 
 	# strings are created using ffi::string copy or ffi::string at; the latter
 	# is also used to read strings (i.e the return value of a C function that
@@ -63,6 +63,10 @@ proc types_example {} {
 proc functions_example {} {
 	# shared libraries are loaded using ffi::dlopen
 	set libc [ffi::dlopen libc.so.6]
+
+	# the handle method returns the handle (i.e return value of dlopen()) of a
+	# shared library
+	puts "the handle of libc.so.6 is [$libc handle]"
 
 	# functions are accessed through the dlsym method of a library and
 	# ffi::function; the first argument is the return value type, the second is
@@ -149,12 +153,15 @@ proc structs_example {} {
 	# create a struct tm and initialize it with January 30th 1992, 2:10 AM;
 	# structs are initialized using their raw value
 	set now_broken [ffi::struct "[$::zero raw][[ffi::int 10] raw][[ffi::int 2] raw][[ffi::int 30] raw][$::zero raw][[ffi::int 92] raw][$::zero raw][[ffi::int 30] raw][$::zero raw][[ffi::long 0] raw][$::null raw]" int int int int int int int int int long pointer]
+
+	# the size method returns the size of a struct (like sizeof())
 	set struct_tm_size [$now_broken size]
+	puts "the size of struct tm is $struct_tm_size bytes"
 
 	# for demonstration purposes, read tm_year (the 6th member of struct tm),
 	# using "member" and the zero-based member index
 	set tm_year 5
-	puts [[$now_broken member $tm_year] value]
+	puts "tm_year of the struct_tm at [$now_broken address] is [[$now_broken member $tm_year] value]"
 
 	# call asctime()
 	set now_broken_func [ffi::pointer [$now_broken address]]
@@ -168,11 +175,12 @@ proc structs_example {} {
 	$asctime_func [$out address] [$now_broken_func address]
 	puts [ffi::string at [$out value] 24]
 
-	# ... and again: this time with a zeroed struct tm
+	# ... and again: this time with a zeroed struct tm and without passing the
+	# string length to ffi::string at (so it guesses it using strlen())
 	set now_broken [ffi::struct "[string repeat \x00 [expr $struct_tm_size - 1]]]" int int int int int int int int int long pointer]
 	set now_broken_func [ffi::pointer [$now_broken address]]
 	$asctime_func [$out address] [$now_broken_func address]
-	puts [ffi::string at [$out value] 24]
+	puts [ffi::string at [$out value]]
 }
 
 proc cast_example {} {
