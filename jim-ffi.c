@@ -181,7 +181,7 @@ static int JimVariableRaw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct ffi_var *var = Jim_CmdPrivData(interp);
 
-    if (var->type->size > INT_MAX) {
+    if (var->size > INT_MAX) {
         Jim_SetResultFormatted(interp, "bad variable size for: %#s", argv[0]);
         return JIM_ERR;
     }
@@ -211,6 +211,7 @@ static const jim_subcmd_type variable_command_table[] = {
         JimVariableSize,
         0,
         0,
+        JIM_MODFLAG_FULLARGV
         /* Description: Returns the size of a variable */
     },
     {   "raw",
@@ -218,6 +219,7 @@ static const jim_subcmd_type variable_command_table[] = {
         JimVariableRaw,
         0,
         0,
+        JIM_MODFLAG_FULLARGV
         /* Description: Returns the raw value of a variable */
     }
 };
