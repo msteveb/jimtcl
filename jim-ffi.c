@@ -45,11 +45,11 @@
 
 #if INT64_MAX <= JIM_WIDE_MAX
 #define TYPE_NAMES "char", "uchar", "short", "ushort", "int", "uint", "long", \
-                   "ulong", "pointer", "double", "float", "int8", "uint8", \
+                   "ulong", "pointer", "double", "float", "int8", "uint8",    \
                    "int16", "uint16", "int32", "uint32", "int64", "uint64"
 #else
 #define TYPE_NAMES "char", "uchar", "short", "ushort", "int", "uint", "long", \
-                   "ulong", "pointer", "double", "float", "int8", "uint8", \
+                   "ulong", "pointer", "double", "float", "int8", "uint8",    \
                    "int16", "uint16", "int32", "uint32"
 #endif
 
@@ -230,9 +230,7 @@ static int JimVariableHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, variable_command_table, argc, argv), argc, argv);
 }
 
-/* common int methods */
-
-static struct ffi_var *Jim_NewIntBase(Jim_Interp *interp, const char *name)
+static struct ffi_var *Jim_NewVariableBase(Jim_Interp *interp, const char *name)
 {
     char buf[32];
     struct ffi_var *var;
@@ -246,6 +244,22 @@ static struct ffi_var *Jim_NewIntBase(Jim_Interp *interp, const char *name)
     return var;
 }
 
+/* common int methods */
+
+#define JIM_NEWINT(func_name, tcl_name, val_memb, c_type, ffi_type, to_str_func) \
+static void func_name(Jim_Interp *interp, const jim_wide val) \
+{                                                             \
+    struct ffi_var *var;                                      \
+                                                              \
+    var = Jim_NewVariableBase(interp, tcl_name);              \
+                                                              \
+    var->val.val_memb = (c_type)val;                          \
+    var->type = &(ffi_type);                                  \
+    var->to_str = to_str_func;                                \
+    var->addr = &var->val.val_memb;                           \
+    var->size = sizeof(var->val.val_memb);                    \
+}
+
 /* {u,}int8 methods */
 
 static void Jim_Int8ToStr(Jim_Interp *interp, const struct ffi_var *var)
@@ -253,36 +267,14 @@ static void Jim_Int8ToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.i8);
 }
 
-static void Jim_NewInt8(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "int8");
-
-    var->val.i8 = (int8_t)val;
-    var->type = &ffi_type_sint8;
-    var->to_str = Jim_Int8ToStr;
-    var->addr = &var->val.i8;
-    var->size = sizeof(var->val.i8);
-}
+JIM_NEWINT(Jim_NewInt8, "int8", i8, int8_t, ffi_type_sint8, Jim_Int8ToStr)
 
 static void Jim_Uint8ToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ui8);
 }
 
-static void Jim_NewUint8(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uint8");
-
-    var->val.ui8 = (uint8_t)val;
-    var->type = &ffi_type_uint8;
-    var->to_str = Jim_Uint8ToStr;
-    var->addr = &var->val.ui8;
-    var->size = sizeof(var->val.ui8);
-}
+JIM_NEWINT(Jim_NewUint8, "uint8", ui8, uint8_t, ffi_type_uint8, Jim_Uint8ToStr)
 
 /* {u,}int16 methods */
 
@@ -291,36 +283,14 @@ static void Jim_Int16ToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.i16);
 }
 
-static void Jim_NewInt16(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "int16");
-
-    var->val.i16 = (int16_t)val;
-    var->type = &ffi_type_sint16;
-    var->to_str = Jim_Int16ToStr;
-    var->addr = &var->val.i16;
-    var->size = sizeof(var->val.i16);
-}
+JIM_NEWINT(Jim_NewInt16, "int16", i16, int16_t, ffi_type_sint16, Jim_Int16ToStr)
 
 static void Jim_Uint16ToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ui16);
 }
 
-static void Jim_NewUint16(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uint16");
-
-    var->val.ui16 = (uint16_t)val;
-    var->type = &ffi_type_uint16;
-    var->to_str = Jim_Uint16ToStr;
-    var->addr = &var->val.ui16;
-    var->size = sizeof(var->val.ui16);
-}
+JIM_NEWINT(Jim_NewUint16, "uint16", ui16, uint16_t, ffi_type_uint16, Jim_Uint16ToStr)
 
 /* {u,}int32 methods */
 
@@ -329,36 +299,14 @@ static void Jim_Int32ToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.i32);
 }
 
-static void Jim_NewInt32(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "int32");
-
-    var->val.i32 = (int32_t)val;
-    var->type = &ffi_type_sint32;
-    var->to_str = Jim_Int32ToStr;
-    var->addr = &var->val.i32;
-    var->size = sizeof(var->val.i32);
-}
+JIM_NEWINT(Jim_NewInt32, "int32", i32, int32_t, ffi_type_sint32, Jim_Int32ToStr)
 
 static void Jim_Uint32ToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ui32);
 }
 
-static void Jim_NewUint32(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uint32");
-
-    var->val.ui32 = (uint32_t)val;
-    var->type = &ffi_type_uint32;
-    var->to_str = Jim_Uint32ToStr;
-    var->addr = &var->val.ui32;
-    var->size = sizeof(var->val.ui32);
-}
+JIM_NEWINT(Jim_NewUint32, "uint32", ui32, uint32_t, ffi_type_uint32, Jim_Uint32ToStr)
 
 /* {u,}int64 methods */
 
@@ -369,36 +317,14 @@ static void Jim_Int64ToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.i64);
 }
 
-static void Jim_NewInt64(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "int64");
-
-    var->val.i64 = (int64_t)val;
-    var->type = &ffi_type_sint64;
-    var->to_str = Jim_Int64ToStr;
-    var->addr = &var->val.i64;
-    var->size = sizeof(var->val.i64);
-}
+JIM_NEWINT(Jim_NewInt64, "int64", i64, int64_t, ffi_type_sint64, Jim_Int64ToStr)
 
 static void Jim_Uint64ToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ui64);
 }
 
-static void Jim_NewUint64(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uint64");
-
-    var->val.ui64 = (uint64_t)val;
-    var->type = &ffi_type_uint64;
-    var->to_str = Jim_Uint64ToStr;
-    var->addr = &var->val.ui64;
-    var->size = sizeof(var->val.ui64);
-}
+JIM_NEWINT(Jim_NewUint64, "uint64", ui64, uint64_t, ffi_type_uint64, Jim_Uint64ToStr)
 
 #endif
 
@@ -414,18 +340,7 @@ static void Jim_CharToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultString(interp, buf, 1);
 }
 
-static void Jim_NewChar(Jim_Interp *interp, const char val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "char");
-
-    var->val.c = val;
-    var->type = &ffi_type_schar;
-    var->to_str = Jim_CharToStr;
-    var->addr = &var->val.c;
-    var->size = sizeof(var->val.c);
-}
+JIM_NEWINT(Jim_NewChar, "char", c, char, ffi_type_schar, Jim_CharToStr)
 
 static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
@@ -433,18 +348,7 @@ static void Jim_UcharToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.uc);
 }
 
-static void Jim_NewUchar(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uchar");
-
-    var->val.uc = (unsigned char)val;
-    var->type = &ffi_type_uchar;
-    var->to_str = Jim_UcharToStr;
-    var->addr = &var->val.uc;
-    var->size = sizeof(var->val.uc);
-}
+JIM_NEWINT(Jim_NewUchar, "uchar", uc, unsigned char, ffi_type_uchar, Jim_UcharToStr)
 
 /* short methods */
 
@@ -453,36 +357,14 @@ static void Jim_ShortToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.s);
 }
 
-static void Jim_NewShort(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "short");
-
-    var->val.s = (short)val;
-    var->type = &ffi_type_sshort;
-    var->to_str = Jim_ShortToStr;
-    var->addr = &var->val.s;
-    var->size = sizeof(var->val.s);
-}
+JIM_NEWINT(Jim_NewShort, "short", s, short, ffi_type_sshort, Jim_ShortToStr)
 
 static void Jim_UshortToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.us);
 }
 
-static void Jim_NewUshort(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "ushort");
-
-    var->val.us = (unsigned short)val;
-    var->type = &ffi_type_ushort;
-    var->to_str = Jim_UshortToStr;
-    var->addr = &var->val.us;
-    var->size = sizeof(var->val.us);
-}
+JIM_NEWINT(Jim_NewUshort, "ushort", us, unsigned short, ffi_type_ushort, Jim_UshortToStr)
 
 /* int methods */
 
@@ -490,6 +372,8 @@ static void Jim_IntToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.i);
 }
+
+JIM_NEWINT(Jim_NewInt, "int", i, int, ffi_type_sint, Jim_IntToStr)
 
 /* needed for statically-allocated int objects - we use it for global
  * constants */
@@ -508,36 +392,12 @@ static void Jim_NewIntNoAlloc(Jim_Interp *interp,
     var->size = sizeof(var->val.i);
 }
 
-static void Jim_NewInt(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "int");
-
-    var->val.i = (int)val;
-    var->type = &ffi_type_sint;
-    var->to_str = Jim_IntToStr;
-    var->addr = &var->val.i;
-    var->size = sizeof(var->val.i);
-}
-
 static void Jim_UintToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ui);
 }
 
-static void Jim_NewUint(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "uint");
-
-    var->val.ui = (unsigned int)val;
-    var->type = &ffi_type_uint;
-    var->to_str = Jim_UintToStr;
-    var->addr = &var->val.ui;
-    var->size = sizeof(var->val.ui);
-}
+JIM_NEWINT(Jim_NewUint, "uint", ui, unsigned int, ffi_type_uint, Jim_UintToStr)
 
 /* long methods */
 
@@ -546,36 +406,14 @@ static void Jim_LongToStr(Jim_Interp *interp, const struct ffi_var *var)
     Jim_SetResultInt(interp, (jim_wide)var->val.l);
 }
 
-static void Jim_NewLong(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "long");
-
-    var->val.l = (long)val;
-    var->type = &ffi_type_slong;
-    var->to_str = Jim_LongToStr;
-    var->addr = &var->val.l;
-    var->size = sizeof(var->val.l);
-}
+JIM_NEWINT(Jim_NewLong, "long", l, long, ffi_type_slong, Jim_LongToStr)
 
 static void Jim_UlongToStr(Jim_Interp *interp, const struct ffi_var *var)
 {
     Jim_SetResultInt(interp, (jim_wide)var->val.ul);
 }
 
-static void Jim_NewUlong(Jim_Interp *interp, const jim_wide val)
-{
-    struct ffi_var *var;
-
-    var = Jim_NewIntBase(interp, "ulong");
-
-    var->val.ul = (unsigned long)val;
-    var->type = &ffi_type_ulong;
-    var->to_str = Jim_UlongToStr;
-    var->addr = &var->val.ul;
-    var->size = sizeof(var->val.ul);
-}
+JIM_NEWINT(Jim_NewUlong, "ulong", ul, unsigned long, ffi_type_ulong, Jim_UlongToStr)
 
 /* float methods */
 
@@ -591,7 +429,7 @@ static void Jim_NewFloat(Jim_Interp *interp, const float val)
 {
     struct ffi_var *var;
 
-    var = Jim_NewIntBase(interp, "float");
+    var = Jim_NewVariableBase(interp, "float");
 
     var->val.f = val;
     var->type = &ffi_type_float;
@@ -614,7 +452,7 @@ static void Jim_NewDouble(Jim_Interp *interp, const double val)
 {
     struct ffi_var *var;
 
-    var = Jim_NewIntBase(interp, "double");
+    var = Jim_NewVariableBase(interp, "double");
 
     var->val.d = (double)val;
     var->type = &ffi_type_double;
@@ -740,57 +578,30 @@ static int JimIntBaseCmd(Jim_Interp *interp,
     return JIM_OK;
 }
 
-static int JimUintBaseCmd(Jim_Interp *interp,
-                          int argc,
-                          Jim_Obj *const *argv,
-                          const jim_wide max,
-                          void (*new_obj)(Jim_Interp *, const jim_wide))
-{
-    return JimIntBaseCmd(interp, argc, argv, 0, max, new_obj);
+#define JIMINTCMD(func_name, min, max, new_func) \
+static int func_name(Jim_Interp *interp, int argc, Jim_Obj *const *argv) \
+{                                                                        \
+    return JimIntBaseCmd(interp, argc, argv, min, max, new_func);        \
 }
 
-static int JimInt8Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, INT8_MIN, INT8_MAX, Jim_NewInt8);
+#define JIMUINTCMD(func_name, max, new_func) \
+static int func_name(Jim_Interp *interp, int argc, Jim_Obj *const *argv) \
+{                                                                        \
+    return JimIntBaseCmd(interp, argc, argv, 0, max, new_func);          \
 }
 
-static int JimUint8Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UINT8_MAX, Jim_NewUint8);
-}
+JIMINTCMD(JimInt8Cmd, INT8_MIN, INT8_MAX, Jim_NewInt8)
+JIMUINTCMD(JimUint8Cmd, UINT8_MAX, Jim_NewUint8);
 
-static int JimInt16Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, INT16_MIN, INT16_MAX, Jim_NewInt16);
-}
+JIMINTCMD(JimInt16Cmd, INT16_MIN, INT16_MAX, Jim_NewInt16)
+JIMUINTCMD(JimUint16Cmd, UINT16_MAX, Jim_NewUint16);
 
-static int JimUint16Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UINT16_MAX, Jim_NewUint16);
-}
-
-static int JimInt32Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, INT32_MIN, INT32_MAX, Jim_NewInt32);
-}
-
-static int JimUint32Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UINT32_MAX, Jim_NewUint32);
-}
+JIMINTCMD(JimInt32Cmd, INT32_MIN, INT32_MAX, Jim_NewInt32)
+JIMUINTCMD(JimUint32Cmd, UINT32_MAX, Jim_NewUint32);
 
 #if INT64_MAX <= JIM_WIDE_MAX
-
-static int JimInt64Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, INT64_MIN, INT64_MAX, Jim_NewInt64);
-}
-
-static int JimUint64Cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UINT64_MAX, Jim_NewUint64);
-}
-
+JIMINTCMD(JimInt64Cmd, INT64_MIN, INT64_MAX, Jim_NewInt64)
+JIMUINTCMD(JimUint64Cmd, UINT64_MAX, Jim_NewUint64);
 #endif
 
 static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -822,40 +633,16 @@ static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int JimUcharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UCHAR_MAX, Jim_NewUchar);
-}
+JIMUINTCMD(JimUcharCmd, UCHAR_MAX, Jim_NewUchar);
 
-static int JimShortCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, SHRT_MIN, SHRT_MAX, Jim_NewShort);
-}
+JIMINTCMD(JimShortCmd, SHRT_MIN, SHRT_MAX, Jim_NewShort)
+JIMUINTCMD(JimUshortCmd, USHRT_MAX, Jim_NewUshort)
 
-static int JimUshortCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, USHRT_MAX, Jim_NewUshort);
-}
+JIMINTCMD(JimIntCmd, INT_MIN, INT_MAX, Jim_NewInt)
+JIMUINTCMD(JimUintCmd, UINT_MAX, Jim_NewUint)
 
-static int JimIntCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, INT_MIN, INT_MAX, Jim_NewInt);
-}
-
-static int JimUintCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, UINT_MAX, Jim_NewUint);
-}
-
-static int JimLongCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimIntBaseCmd(interp, argc, argv, LONG_MIN, LONG_MAX, Jim_NewLong);
-}
-
-static int JimUlongCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return JimUintBaseCmd(interp, argc, argv, ULONG_MAX, Jim_NewUlong);
-}
+JIMINTCMD(JimLongCmd, LONG_MIN, LONG_MAX, Jim_NewLong)
+JIMUINTCMD(JimUlongCmd, ULONG_MAX, Jim_NewUlong)
 
 /* float commands */
 

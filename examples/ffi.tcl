@@ -107,7 +107,7 @@ proc constants_example {} {
 	set exit_func [ffi::pointer void [$::main dlsym exit] int]
 
 	# ::null (a global) is a NULL pointer
-	puts "the value of :null is [$::null value]"
+	puts "the value of ::null is [$::null value]"
 
 	# ::zero is 0 (int), useful for functions that accept flags
 	puts "the value of ::zero is [$::zero value]"
