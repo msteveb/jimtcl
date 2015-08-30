@@ -945,9 +945,13 @@ static int JimStringAt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     s = (char *)(uintptr_t)addr;
+    if (s == NULL) {
+        Jim_SetResultString(interp, "NULL string address", -1);
+        return JIM_ERR;
+    }
 
     /* in "at" mode, if no length is specified, return the string and assume
-     *  it's terminated */
+     * it's terminated */
     if (argc == 1) {
         Jim_SetResultString(interp, s, -1);
     } else {
@@ -956,12 +960,14 @@ static int JimStringAt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
-        if ((len < 0) || (len >= INT_MAX)) {
+        /* we need to reserve room for the null byte, therefore INT_MAX is an
+         * invalid size too */
+        if ((len <= 0) || (len >= INT_MAX)) {
             Jim_SetResultFormatted(interp, "bad size: %#s", argv[1]);
             return JIM_ERR;
         }
 
-        /* otherwise, terminate it first */
+        /* terminate the string */
         s[len] = '\0';
         Jim_SetResultString(interp, s, (int)(len + 1));
     }

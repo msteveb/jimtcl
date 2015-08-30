@@ -209,6 +209,29 @@ proc cast_example {} {
 	puts "the error in errno after close() is: [ffi::string at [$str value]] ([$errno value])"
 }
 
+proc safety_example {} {
+	# ffi::string, ffi::function and ffi::cast throw an error upon attempt to
+	# dereference a NULL pointer, but all other memory and pointer operations
+	# are unsafe and may lead to crashes, as in C
+	try {
+		ffi::string at [$::null value]
+	} on error {msg opts} {
+		puts "Caught an exception: $msg"
+	}
+
+	try {
+		ffi::function void [$::null value]
+	} on error {msg opts} {
+		puts "Caught an exception: $msg"
+	}
+
+	try {
+		ffi::cast int [$::null value]
+	} on error {msg opts} {
+		puts "Caught an exception: $msg"
+	}
+}
+
 proc sockets_example {} {
 	# this is a fairly complex, non-trivial example; it may not work on
 	# architectures other than x86, because of the size and alignment of struct
@@ -285,4 +308,5 @@ constants_example
 pointers_example
 structs_example
 cast_example
+safety_example
 sockets_example
