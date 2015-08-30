@@ -221,7 +221,8 @@ static const jim_subcmd_type variable_command_table[] = {
         0,
         JIM_MODFLAG_FULLARGV
         /* Description: Returns the raw value of a variable */
-    }
+    },
+    { NULL }
 };
 
 static int JimVariableHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -994,7 +995,8 @@ static const jim_subcmd_type string_command_table[] = {
         1,
         1,
         /* Description: Creates a new string and initializes it with a given value */
-    }
+    },
+    { NULL }
 };
 
 static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1160,7 +1162,8 @@ static const jim_subcmd_type struct_command_table[] = {
         0,
         0,
         /* Description: Returns the size of a struct */
-    }
+    },
+    { NULL }
 };
 
 static int JimStructHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1414,7 +1417,8 @@ static const jim_subcmd_type library_command_table[] = {
         0,
         0,
         /* Description: Returns the library handle */
-    }
+    },
+    { NULL }
 };
 
 static int JimLibraryHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
