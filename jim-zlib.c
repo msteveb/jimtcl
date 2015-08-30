@@ -35,34 +35,29 @@
 #include <zlib.h>
 
 #include <jim.h>
+#include <jim-subcmd.h>
 
 #define _PASTE(x) # x
 #define PASTE(x) _PASTE(x)
 
 static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    char buf[sizeof(PASTE(UINT_MAX))];
     long init;
     const char *in;
     int len;
 
-    switch (argc) {
-    case 3:
+    if (argc == 1) {
         init = crc32(0L, Z_NULL, 0);
-        break;
-
-    case 4:
-        if (Jim_GetLong(interp, argv[3], &init) != JIM_OK) {
+    } else {
+        if (Jim_GetLong(interp, argv[1], &init) != JIM_OK) {
             return JIM_ERR;
         }
-        break;
-
-    default:
-        Jim_WrongNumArgs(interp, 1, argv, "string ?startValue?");
-        return JIM_ERR;
     }
 
-    in = Jim_GetString(argv[2], &len);
-    Jim_SetResultInt(interp, (int)crc32((uLong)init, (const Bytef *)in, (uInt) len));
+    in = Jim_GetString(argv[0], &len);
+    sprintf(buf, "%u", (unsigned int)(crc32((uLong)init, (const Bytef *)in, (uInt) len)));
+    Jim_SetResultString(interp, buf, -1);
 
     return JIM_OK;
 }
@@ -75,14 +70,11 @@ static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *in;
     int len;
 
-    switch (argc) {
-    case 3:
+    if (argc == 1) {
         /* if no compression level is specified, use zlib's default */
         level = Z_DEFAULT_COMPRESSION;
-        break;
-
-    case 4:
-        if (Jim_GetLong(interp, argv[3], &level) != JIM_OK) {
+    } else {
+        if (Jim_GetLong(interp, argv[1], &level) != JIM_OK) {
             return JIM_ERR;
         }
 
@@ -90,19 +82,13 @@ static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_SetResultString(interp, "level must be 0 to 9", -1);
             return JIM_ERR;
         }
-
-        break;
-
-    default:
-        Jim_WrongNumArgs(interp, 1, argv, "string ?level?");
-        return JIM_ERR;
     }
 
     if (deflateInit2(&strm, level, Z_DEFLATED, -MAX_WBITS, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY) != Z_OK) {
         return JIM_ERR;
     }
 
-    in = Jim_GetString(argv[2], &len);
+    in = Jim_GetString(argv[0], &len);
 
     strm.avail_out = deflateBound(&strm, (uLong)len);
     if (strm.avail_out > INT_MAX) {
@@ -143,33 +129,25 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *out;
     int inlen, ret;
 
-    switch (argc) {
-    case 3:
+    if (argc == 1) {
         /* use small 64K chunks if no size was specified, to reduce memory
          * consumption */
         bufsiz = 64 * 1024;
-        break;
-
-    case 4:
-        if (Jim_GetLong(interp, argv[3], &bufsiz) != JIM_OK) {
+    } else {
+        if (Jim_GetLong(interp, argv[1], &bufsiz) != JIM_OK) {
             return JIM_ERR;
         }
         if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
             Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
             return JIM_ERR;
         }
-        break;
-
-    default:
-        Jim_WrongNumArgs(interp, 1, argv, "data ?bufferSize?");
-        return JIM_ERR;
     }
 
     if (inflateInit2(&strm, -MAX_WBITS) != Z_OK) {
         return JIM_ERR;
     }
 
-    in = Jim_GetString(argv[2], &inlen);
+    in = Jim_GetString(argv[0], &inlen);
 
     /* allocate a buffer - decompression is done in chunks, into this buffer;
      * when the decompressed data size is given, decompression is faster because
@@ -213,33 +191,34 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static const jim_subcmd_type zlib_command_table[] = {
+    {   "crc32",
+        "string ?startValue?",
+        Jim_Crc32,
+        1,
+        2,
+        /* Description: Calculates the CRC32 checksum of a string */
+    },
+    {   "deflate",
+        "string ?level?",
+        Jim_Deflate,
+        1,
+        2,
+        /* Description: Compresses a string and outputs a raw, zlib-compressed stream */
+    },
+    {   "inflate",
+        "data ?bufferSize?",
+        Jim_Inflate,
+        1,
+        2,
+        /* Description: Decompresses a raw, zlib-compressed stream */
+    },
+    { NULL }
+};
+
 static int JimZlibCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    static const char * const options[] = { "crc32", "deflate", "inflate", NULL };
-    int option;
-    enum { OPT_CRC32, OPT_DEFLATE, OPT_INFLATE };
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
-        return JIM_ERR;
-    }
-
-    if (Jim_GetEnum(interp, argv[1], options, &option, "zlib method", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    switch (option) {
-    case OPT_CRC32:
-        return Jim_Crc32(interp, argc, argv);
-
-    case OPT_DEFLATE:
-        return Jim_Deflate(interp, argc, argv);
-
-    case OPT_INFLATE:
-        return Jim_Inflate(interp, argc, argv);
-    }
-
-    return JIM_ERR;
+    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, zlib_command_table, argc, argv), argc, argv);
 }
 
 int Jim_zlibInit(Jim_Interp *interp)
