@@ -13,8 +13,9 @@ options {
     references=1    => "disable support for references"
     math            => "include support for math functions"
     ipv6            => "include ipv6 support in the aio extension"
+    tls             => "include tls support in the aio extension"
     maintainer      => {enable the [debug] command and JimPanic}
-    full            => "Enable some optional features: ipv6, math, utf8, binary, oo, tree"
+    full            => "Enable some optional features: ipv6, tls, math, utf8, binary, oo, tree"
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
     docs=1          => "don't build or install the documentation"
@@ -184,6 +185,16 @@ if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
 }
+if {[opt-bool tls full]} {
+    if {[cc-check-includes ssl/ssl.h] && [cc-check-function-in-lib ssl_ctx_new axtls]} {
+        msg-result "Enabling TLS"
+        define JIM_TLS
+        define-append LDLIBS [get-define lib_ssl_ctx_new]
+    } else {
+        user-error "TLS support requires AxTLS"
+    }
+}
+
 if {[opt-bool lineedit full]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
         msg-result "Enabling line editing"
