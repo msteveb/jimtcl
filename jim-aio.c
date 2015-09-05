@@ -490,6 +490,7 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *objPtr;
 #if TLS
     uint8_t *out;
+    int status;
 #endif
     int len;
 
@@ -498,26 +499,35 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     objPtr = Jim_NewStringObj(interp, NULL, 0);
 #if TLS
     if (af->tls != NULL) {
-        while (1) {
-            len = ssl_read(af->tls, &out);
-            if (len <= 0) {
+        /* wait for the handshake to complete - ssl_read() returns 0 until
+         * then */
+        do {
+           len = ssl_read(af->tls, &out);
+            if (len < 0) {
                 af->tls_err = len;
-                JimAioSetError(interp, argv[0]);
-                break;
+                goto io_err;
+            }
+            if (len == 0) {
+                continue;
+            }
+        } while (len <= 0);
+
+        status = ssl_handshake_status(af->tls);
+        if (status != SSL_OK) {
+            af->tls_err = status;
+            goto io_err;
+        }
+
+        if (out[len - 1] == '\0' && out[len - 2] != '\n') {
+            Jim_AppendString(interp, objPtr, (const char*)out, len - 1);
+        }
+        else {
+            if (out[len - 1] == '\n') {
+                /* strip "\n" */
+                len--;
             }
 
-            if (out[len - 1] == '\0' && out[len - 2] != '\n') {
-                Jim_AppendString(interp, objPtr, (const char*)out, len - 1);
-            }
-            else {
-                if (out[len - 1] == '\n') {
-                    /* strip "\n" */
-                    len--;
-                }
-
-                Jim_AppendString(interp, objPtr, (const char*)out, len);
-                break;
-            }
+            Jim_AppendString(interp, objPtr, (const char*)out, len);
         }
     } else {
 #else
@@ -544,6 +554,9 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
         }
     }
+#if TLS
+io_err:
+#endif
     if (JimCheckStreamError(interp, af)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
@@ -968,10 +981,10 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 #if TLS
 static int aio_cmd_tls(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    uint8_t id[SSL_SESSION_ID_SIZE];
+    char buf[32];
     AioFile *af = Jim_CmdPrivData(interp);
     SSL *tls;
-    char buf[32];
-    uint8_t id[SSL_SESSION_ID_SIZE];
     int fd;
 
     fd = dup(af->fd);
@@ -979,14 +992,16 @@ static int aio_cmd_tls(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    tls = ssl_client_new((SSL_CTX*)Jim_GetAssocData(interp, "tls_ctx"), fd, id, sizeof(id));
-    if (tls == NULL) {
-        close(fd);
-        return JIM_ERR;
+    if (argc == 0) {
+        tls = ssl_client_new((SSL_CTX*)Jim_GetAssocData(interp, "tls_ctx"), fd, id, sizeof(id));
+    } else {
+        if (!Jim_CompareStringImmediate(interp, argv[0], "-server")) {
+            close(fd);
+            return JIM_ERR;
+        }
+        tls = ssl_server_new((SSL_CTX*)Jim_GetAssocData(interp, "tls_ctx"), fd);
     }
-
-    if (ssl_handshake_status(tls) != SSL_OK) {
-        ssl_free(tls);
+    if (tls == NULL) {
         close(fd);
         return JIM_ERR;
     }
@@ -1155,10 +1170,10 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #if TLS
     {   "tls",
-        NULL,
+        "?-server?",
         aio_cmd_tls,
         0,
-        0,
+        1,
         /* Description: Perform TLS handshake and create a TLS stream */
     },
 #endif
@@ -1647,7 +1662,7 @@ static void JimAioTlsDelProc(struct Jim_Interp *interp, void *privData)
     ssl_ctx_free((SSL_CTX *)privData);
 }
 
-static int tls_cmd_load_certs(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int tls_cmd_load_ca_certs(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (ssl_obj_load((SSL_CTX*)Jim_GetAssocData(interp, "tls_ctx"), SSL_OBJ_X509_CACERT, Jim_String(argv[0]), NULL) == SSL_OK) {
         return JIM_OK;
@@ -1656,13 +1671,30 @@ static int tls_cmd_load_certs(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     return JIM_ERR;
 }
 
+static int tls_cmd_load_cert(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (ssl_obj_load((SSL_CTX*)Jim_GetAssocData(interp, "tls_ctx"), SSL_OBJ_X509_CERT, Jim_String(argv[0]), NULL) == SSL_OK) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
+
 static const jim_subcmd_type tls_command_table[] = {
-    {   "load_certs",
+    {   "load_ca_certs",
+        "certs",
+        tls_cmd_load_ca_certs,
+        1,
+        1,
+        /* Description: Loads SSL CA certificates from a file. */
+    },
+    {   "load_cert",
         "cert",
-        tls_cmd_load_certs,
+        tls_cmd_load_cert,
         1,
         1,
-        /* Description: Loads SSL certificates from a file. */
+        /* Description: Loads a SSL certificate from a file. */
     },
     { NULL }
 };
