@@ -42,7 +42,6 @@
 
 static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    char buf[sizeof(PASTE(UINT_MAX))];
     long init;
     const char *in;
     int len;
@@ -56,8 +55,7 @@ static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     in = Jim_GetString(argv[0], &len);
-    sprintf(buf, "%u", (unsigned int)(crc32((uLong)init, (const Bytef *)in, (uInt) len)));
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResultInt(interp, crc32((uLong)init, (const Bytef *)in, (uInt)len) & 0xFFFFFFFF);
 
     return JIM_OK;
 }
