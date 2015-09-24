@@ -1072,7 +1072,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    ssl = SSL_new((SSL_CTX*)Jim_GetAssocData(interp, "ssl_ctx"));
+    ssl = SSL_new((SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx"));
     if (ssl == NULL) {
         fclose(fh);
         Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
@@ -1766,7 +1766,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
         return JIM_ERR;
     }
 
-    if (SSL_CTX_load_verify_locations((SSL_CTX*)Jim_GetAssocData(interp, "ssl_ctx"), NULL, Jim_String(argv[1])) != 1) {
+    if (SSL_CTX_load_verify_locations((SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx"), NULL, Jim_String(argv[1])) != 1) {
         Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
         return JIM_ERR;
     }
@@ -1776,7 +1776,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 
 static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
 {
-    SSL_CTX_free((SSL_CTX*)privData);
+    SSL_CTX_free((SSL_CTX *)privData);
 }
 #endif
 
