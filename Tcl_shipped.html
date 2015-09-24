@@ -885,6 +885,11 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 Add support for <a href="#_aio"><strong><code>aio</code></strong></a> <code>sync</code>
 </p>
 </li>
+<li>
+<p>
+Add SSL and TLS support in aio
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -7048,6 +7053,30 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
     Returns the current seek position
 </p>
 </dd>
+<dt class="hdlist1">
+<code>$handle <strong>ssl</strong> <strong>?-server cert priv?</strong></code>
+</dt>
+<dd>
+<p>
+    Initiates a SSL/TLS session and returns a new stream
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>verify</strong></code>
+</dt>
+<dd>
+<p>
+    Verifies the certificate of a SSL/TLS stream peer
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>load_ssl_certs</strong> <em>dir</em></code>
+</dt>
+<dd>
+<p>
+    Loads SSL/TLS CA certificates for use during verification
+</p>
+</dd>
 </dl></div>
 </div>
 <div class="sect2">
@@ -8267,7 +8296,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2015-07-09 08:26:33 EEST
+Last updated 2016-01-25 09:25:06 AEST
 </div>
 </div>
 </body>
