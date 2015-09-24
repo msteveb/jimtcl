@@ -1039,7 +1039,6 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     SSL *ssl;
-    FILE *fh;
     int fd;
     int server = 0;
 
@@ -1064,17 +1063,11 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 #endif
 
-    fh = fdopen(fd, "r+");
-    if (fh == NULL) {
+    ssl = SSL_new((SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx"));
+    if (ssl == NULL) {
 #if defined(HAVE_SOCKETPAIR)
         close(fd);
 #endif
-        return JIM_ERR;
-    }
-
-    ssl = SSL_new((SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx"));
-    if (ssl == NULL) {
-        fclose(fh);
         Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
         return JIM_ERR;
     }
@@ -1105,14 +1098,16 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    if (JimMakeChannel(interp, fh, -1, NULL, "aio.sslstream%ld", af->addr_family, "r+", ssl) != JIM_OK) {
+    if (JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+", ssl) != JIM_OK) {
         goto out;
     }
 
     return JIM_OK;
 
 out:
-    fclose(fh);
+#if defined(HAVE_SOCKETPAIR)
+    close(fd);
+#endif
     SSL_free(ssl);
     Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
     return JIM_ERR;
@@ -1363,8 +1358,12 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     int openFlags = 0;
 
     if (fh) {
-        filename = Jim_NewStringObj(interp, hdlfmt, -1);
         openFlags = AIO_KEEPOPEN;
+    }
+
+    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
+    if (!filename) {
+        filename = Jim_NewStringObj(interp, buf, -1);
     }
 
     Jim_IncrRefCount(filename);
@@ -1404,7 +1403,6 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     af->openFlags = openFlags;
     af->addr_family = family;
     af->ssl = ssl;
-    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     /* Note that the command must use the global namespace, even if
@@ -1777,6 +1775,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
 {
     SSL_CTX_free((SSL_CTX *)privData);
+    ERR_free_strings();
 }
 #endif
 
@@ -1793,11 +1792,14 @@ int Jim_aioInit(Jim_Interp *interp)
     SSL_load_error_strings();
     SSL_library_init();
     ssl_ctx = SSL_CTX_new(TLSv1_2_method());
-    if (ssl_ctx == NULL)
+    if (ssl_ctx == NULL) {
+        ERR_free_strings();
         return JIM_ERR;
+    }
 
     if (Jim_SetAssocData(interp, "ssl_ctx", JimAioSslContextDelProc, ssl_ctx) != JIM_OK) {
         SSL_CTX_free(ssl_ctx);
+        ERR_free_strings();
         return JIM_ERR;
     }
 
