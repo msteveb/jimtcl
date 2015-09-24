@@ -12,9 +12,10 @@ options {
     lineedit=1      => "disable line editing"
     references=1    => "disable support for references"
     math            => "include support for math functions"
+    ssl             => "include ssl/tls support in the aio extension"
     ipv6            => "include ipv6 support in the aio extension"
     maintainer      => {enable the [debug] command and JimPanic}
-    full            => "Enable some optional features: ipv6, math, utf8, binary, oo, tree"
+    full            => "Enable some optional features: ipv6, ssl, math, utf8, binary, oo, tree"
     with-jim-shared shared => "build a shared library instead of a static library"
     jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
     docs=1          => "don't build or install the documentation"
@@ -102,7 +103,7 @@ cc-check-functions ualarm lstat fork vfork system select execvpe
 cc-check-functions backtrace geteuid mkstemp realpath strptime isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
-cc-check-functions shutdown socketpair isinf isnan link symlink fsync
+cc-check-functions shutdown socketpair isinf isnan link symlink fsync dup
 
 if {[cc-check-functions sysinfo]} {
     cc-with {-includes sys/sysinfo.h} {
@@ -183,6 +184,15 @@ if {[opt-bool math full]} {
 if {[opt-bool ipv6 full]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
+}
+if {[opt-bool ssl full]} {
+    if {[cc-check-includes openssl/ssl.h] && [cc-check-function-in-lib ERR_error_string crypto] && [cc-check-function-in-lib TLSv1_2_method ssl]} {
+        msg-result "Enabling SSL"
+        define JIM_SSL
+        define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_TLSv1_2_method]
+    } elseif {[opt-bool ssl]} {
+        user-error "SSL support requires OpenSSL"
+    }
 }
 if {[opt-bool lineedit full]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {

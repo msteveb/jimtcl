@@ -62,6 +62,11 @@
 #define JIM_ANSIC
 #endif
 
+#if defined(JIM_SSL)
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
 #include "jim-eventloop.h"
 #include "jim-subcmd.h"
 
@@ -86,6 +91,8 @@
 #endif
 #endif
 
+#define JimCheckStreamError(interp, af) af->fops->error(af)
+
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
     struct sockaddr sa;
@@ -107,6 +114,17 @@ const char *inet_ntop(int af, const void *src, char *dst, int size)
 #endif
 #endif /* JIM_BOOTSTRAP */
 
+struct AioFile;
+
+typedef struct {
+    int (*writer)(struct AioFile *af, const char *buf, int len);
+    int (*reader)(struct AioFile *af, char *buf, int len);
+    const char *(*getline)(struct AioFile *af, char *buf, int len);
+    int (*error)(const struct AioFile *af);
+    const char *(*strerror)(struct AioFile *af);
+    int (*verify)(struct AioFile *af);
+} JimAioFopsType;
+
 typedef struct AioFile
 {
     FILE *fp;
@@ -118,11 +136,145 @@ typedef struct AioFile
     Jim_Obj *wEvent;
     Jim_Obj *eEvent;
     int addr_family;
+    void *ssl;
+    const JimAioFopsType *fops;
 } AioFile;
+
+static int stdio_writer(struct AioFile *af, const char *buf, int len)
+{
+    return fwrite(buf, 1, len, af->fp);
+}
+
+static int stdio_reader(struct AioFile *af, char *buf, int len)
+{
+    return fread(buf, 1, len, af->fp);
+}
+
+static const char *stdio_getline(struct AioFile *af, char *buf, int len)
+{
+    return fgets(buf, len, af->fp);
+}
+
+static int stdio_error(const AioFile *af)
+{
+    if (!ferror(af->fp)) {
+        return JIM_OK;
+    }
+    clearerr(af->fp);
+    /* EAGAIN and similar are not error conditions. Just treat them like eof */
+    if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
+        return JIM_OK;
+    }
+#ifdef ECONNRESET
+    if (errno == ECONNRESET) {
+        return JIM_OK;
+    }
+#endif
+#ifdef ECONNABORTED
+    if (errno != ECONNABORTED) {
+        return JIM_OK;
+    }
+#endif
+    return JIM_ERR;
+}
+
+static const char *stdio_strerror(struct AioFile *af)
+{
+    return strerror(errno);
+}
+
+static const JimAioFopsType stdio_fops = {
+    stdio_writer,
+    stdio_reader,
+    stdio_getline,
+    stdio_error,
+    stdio_strerror,
+    NULL
+};
+
+#if defined(JIM_SSL)
+
+static SSL_CTX *JimAioSslCtx(Jim_Interp *interp);
+
+static int ssl_writer(struct AioFile *af, const char *buf, int len)
+{
+    return SSL_write(af->ssl, buf, len);
+}
+
+static int ssl_reader(struct AioFile *af, char *buf, int len)
+{
+    return SSL_read(af->ssl, buf, len);
+}
+
+static const char *ssl_getline(struct AioFile *af, char *buf, int len)
+{
+    int i;
+    for (i = 0; i < len + 1; i++) {
+        if (SSL_read(af->ssl, &buf[i], 1) != 1) {
+            if (i == 0) {
+                return NULL;
+            }
+            break;
+        }
+        if (buf[i] == '\n') {
+            break;
+        }
+    }
+    buf[i] = '\0';
+    return buf;
+}
+
+static int ssl_error(const struct AioFile *af)
+{
+    if (ERR_peek_error() == 0) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
+static const char *ssl_strerror(struct AioFile *af)
+{
+    int err = ERR_get_error();
+
+    if (err) {
+        return ERR_error_string(err, NULL);
+    }
+
+    /* should not happen */
+    return "unknown SSL error";
+}
+
+static int ssl_verify(struct AioFile *af)
+{
+    X509 *cert;
+
+    cert = SSL_get_peer_certificate(af->ssl);
+    if (!cert) {
+        return JIM_ERR;
+    }
+    X509_free(cert);
+
+    if (SSL_get_verify_result(af->ssl) == X509_V_OK) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
+static const JimAioFopsType ssl_fops = {
+    ssl_writer,
+    ssl_reader,
+    ssl_getline,
+    ssl_error,
+    ssl_strerror,
+    ssl_verify
+};
+#endif
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
-    const char *hdlfmt, int family, const char *mode);
+    const char *hdlfmt, int family, const char *mode, void *ssl);
 
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
@@ -299,13 +451,23 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 
 #endif /* JIM_BOOTSTRAP */
 
+static const char *JimAioErrorString(AioFile *af)
+{
+    if (af && af->fops)
+        return af->fops->strerror(af);
+
+    return strerror(errno);
+}
+
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
+    AioFile *af = Jim_CmdPrivData(interp);
+
     if (name) {
-        Jim_SetResultFormatted(interp, "%#s: %s", name, strerror(errno));
+        Jim_SetResultFormatted(interp, "%#s: %s", name, JimAioErrorString(af));
     }
     else {
-        Jim_SetResultString(interp, strerror(errno), -1);
+        Jim_SetResultString(interp, JimAioErrorString(af), -1);
     }
 }
 
@@ -322,35 +484,17 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
 
+#if defined(JIM_SSL)
+    if (af->ssl != NULL) {
+        SSL_free(af->ssl);
+    }
+#endif
+
     if (!(af->openFlags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
 
     Jim_Free(af);
-}
-
-static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
-{
-    if (!ferror(af->fp)) {
-        return JIM_OK;
-    }
-    clearerr(af->fp);
-    /* EAGAIN and similar are not error conditions. Just treat them like eof */
-    if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
-        return JIM_OK;
-    }
-#ifdef ECONNRESET
-    if (errno == ECONNRESET) {
-        return JIM_OK;
-    }
-#endif
-#ifdef ECONNABORTED
-    if (errno != ECONNABORTED) {
-        return JIM_OK;
-    }
-#endif
-    JimAioSetError(interp, af->filename);
-    return JIM_ERR;
 }
 
 static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -388,7 +532,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else {
             readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
         }
-        retval = fread(buf, 1, readlen, af->fp);
+        retval = af->fops->reader(af, buf, readlen);
         if (retval > 0) {
             Jim_AppendString(interp, objPtr, buf, retval);
             if (neededLen != -1) {
@@ -416,14 +560,38 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+AioFile *Jim_AioFile(Jim_Interp *interp, Jim_Obj *command)
+{
+    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
+
+    /* XXX: There ought to be a supported API for this */
+    if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
+        return (AioFile *) cmdPtr->u.native.privData;
+    }
+    Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
+    return NULL;
+}
+
+FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
+{
+    AioFile *af;
+
+    af = Jim_AioFile(interp, command);
+    if (af == NULL) {
+        return NULL;
+    }
+
+    return af->fp;
+}
+
 static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     jim_wide count = 0;
     jim_wide maxlen = JIM_WIDE_MAX;
-    FILE *outfh = Jim_AioFilehandle(interp, argv[0]);
+    AioFile *outf = Jim_AioFile(interp, argv[0]);
 
-    if (outfh == NULL) {
+    if (outf->fp == NULL) {
         return JIM_ERR;
     }
 
@@ -434,23 +602,18 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     while (count < maxlen) {
-        int ch = fgetc(af->fp);
+        char ch;
 
-        if (ch == EOF || fputc(ch, outfh) == EOF) {
+        if (af->fops->reader(af, &ch, 1) != 1) {
+            break;
+        }
+        if (outf->fops->writer(outf, &ch, 1) != 1) {
             break;
         }
         count++;
     }
 
-    if (ferror(af->fp)) {
-        Jim_SetResultFormatted(interp, "error while reading: %s", strerror(errno));
-        clearerr(af->fp);
-        return JIM_ERR;
-    }
-
-    if (ferror(outfh)) {
-        Jim_SetResultFormatted(interp, "error while writing: %s", strerror(errno));
-        clearerr(outfh);
+    if (JimCheckStreamError(interp, af) || JimCheckStreamError(interp, outf)) {
         return JIM_ERR;
     }
 
@@ -471,7 +634,8 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (1) {
         buf[AIO_BUF_LEN - 1] = '_';
-        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
+
+        if (af->fops->getline(af, buf, AIO_BUF_LEN) == NULL)
             break;
 
         if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n') {
@@ -489,6 +653,7 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
     }
+
     if (JimCheckStreamError(interp, af)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
@@ -533,8 +698,8 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     wdata = Jim_GetString(strObj, &wlen);
-    if (fwrite(wdata, 1, wlen, af->fp) == (unsigned)wlen) {
-        if (argc == 2 || putc('\n', af->fp) != EOF) {
+    if (af->fops->writer(af, wdata, wlen) == wlen) {
+        if (argc == 2 || af->fops->writer(af, "\n", 1) == 1) {
             return JIM_OK;
         }
     }
@@ -638,7 +803,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Create the file command */
     return JimMakeChannel(interp, NULL, sock, Jim_NewStringObj(interp, "accept", -1),
-        "aio.sockstream%ld", af->addr_family, "r+");
+        "aio.sockstream%ld", af->addr_family, "r+", NULL);
 }
 
 static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -888,6 +1053,99 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 }
 #endif
 
+#if defined(JIM_SSL)
+static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    SSL *ssl;
+    SSL_CTX *ssl_ctx;
+    int fd, server = 0;
+
+    if (argc == 5) {
+        if (!Jim_CompareStringImmediate(interp, argv[2], "-server")) {
+            return JIM_ERR;
+        }
+        server = 1;
+    }
+    else if (argc != 2) {
+        Jim_WrongNumArgs(interp, 2, argv, "?-server cert priv?");
+        return JIM_ERR;
+    }
+
+    fd = fileno(af->fp);
+    /* XXX: Why HAVE_SOCKETPAIR? */
+#if defined(HAVE_SOCKETPAIR)
+    fd = dup(fd);
+    if (fd < 0) {
+        return JIM_ERR;
+    }
+#endif
+    ssl_ctx = JimAioSslCtx(interp);
+    if (ssl_ctx == NULL) {
+        return JIM_ERR;
+    }
+
+    ssl = SSL_new(ssl_ctx);
+    if (ssl == NULL) {
+#if defined(HAVE_SOCKETPAIR)
+        close(fd);
+#endif
+        Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
+        return JIM_ERR;
+    }
+
+    SSL_set_cipher_list(ssl, "ALL");
+
+    if (SSL_set_fd(ssl, fileno(af->fp)) == 0) {
+        goto out;
+    }
+
+    if (server) {
+        if (SSL_use_certificate_file(ssl, Jim_String(argv[3]), SSL_FILETYPE_PEM) != 1) {
+            goto out;
+        }
+
+        if (SSL_use_PrivateKey_file(ssl, Jim_String(argv[4]), SSL_FILETYPE_PEM) != 1) {
+            goto out;
+        }
+
+        if (SSL_accept(ssl) != 1) {
+            goto out;
+        }
+    }
+    else {
+        if (SSL_connect(ssl) != 1) {
+            goto out;
+        }
+    }
+
+    if (JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+", ssl) != JIM_OK) {
+        goto out;
+    }
+
+    return JIM_OK;
+
+out:
+#if defined(HAVE_SOCKETPAIR)
+    close(fd);
+#endif
+    SSL_free(ssl);
+    Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
+    return JIM_ERR;
+}
+
+static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    if (!af->fops->verify) {
+        return JIM_OK;
+    }
+
+    return af->fops->verify(af);
+}
+#endif
+
 static const jim_subcmd_type aio_command_table[] = {
     {   "read",
         "?-nonewline? ?len?",
@@ -1045,6 +1303,23 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Returns script, or invoke exception-script when oob data, {} to remove */
     },
 #endif
+#if defined(JIM_SSL)
+    {   "ssl",
+        "?-server cert priv?",
+        aio_cmd_ssl,
+        0,
+        3,
+        JIM_MODFLAG_FULLARGV
+        /* Description: Wraps a stream socket with SSL/TLS and returns a new channel */
+    },
+    {   "verify",
+        NULL,
+        aio_cmd_verify,
+        0,
+        0,
+        /* Description: Verifies the certificate of a SSL/TLS channel */
+    },
+#endif
     { NULL }
 };
 
@@ -1081,8 +1356,33 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         }
     }
 #endif
-    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode);
+    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode, NULL);
 }
+
+#if defined(JIM_SSL)
+static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
+{
+    SSL_CTX_free((SSL_CTX *)privData);
+    ERR_free_strings();
+}
+
+static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
+{
+    SSL_CTX *ssl_ctx = (SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx");
+    if (ssl_ctx == NULL) {
+        SSL_load_error_strings();
+        SSL_library_init();
+        ssl_ctx = SSL_CTX_new(TLSv1_2_method());
+        if (ssl_ctx && SSL_CTX_set_default_verify_paths(ssl_ctx)) {
+            SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
+            Jim_SetAssocData(interp, "ssl_ctx", JimAioSslContextDelProc, ssl_ctx);
+        } else {
+            Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
+        }
+    }
+    return ssl_ctx;
+}
+#endif
 
 /**
  * Creates a channel for fh/fd/filename.
@@ -1097,7 +1397,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
  * Creates the command and sets the name as the current result.
  */
 static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
-    const char *hdlfmt, int family, const char *mode)
+    const char *hdlfmt, int family, const char *mode, void *ssl)
 {
     AioFile *af;
     char buf[AIO_CMD_LEN];
@@ -1106,8 +1406,12 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
 
     if (fh) {
-        filename = Jim_NewStringObj(interp, hdlfmt, -1);
         openFlags = AIO_KEEPOPEN;
+    }
+
+    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
+    if (!filename) {
+        filename = Jim_NewStringObj(interp, buf, -1);
     }
 
     Jim_IncrRefCount(filename);
@@ -1146,6 +1450,14 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 #endif
     af->openFlags = openFlags;
     af->addr_family = family;
+    af->fops = &stdio_fops;
+    af->ssl = ssl;
+#if defined(JIM_SSL)
+    if (ssl) {
+        af->fops = &ssl_fops;
+    }
+#endif
+
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     /* Note that the command must use the global namespace, even if
@@ -1163,11 +1475,11 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode[2])
 {
-    if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0]) == JIM_OK) {
+    if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0], NULL) == JIM_OK) {
         Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
         Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
 
-        if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1]) == JIM_OK) {
+        if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1], NULL) == JIM_OK) {
             Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
@@ -1447,14 +1759,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
     }
 
-    return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode);
+    return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode, NULL);
 }
 #endif /* JIM_BOOTSTRAP */
 
 /**
  * Returns the file descriptor of a writable, newly created temp file
  * or -1 on error.
- * 
+ *
  * On success, leaves the filename in the interpreter result, otherwise
  * leaves an error message.
  */
@@ -1499,22 +1811,36 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
 #endif
 }
 
-FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
+#if defined(JIM_SSL)
+static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
+    SSL_CTX *ssl_ctx;
 
-    /* XXX: There ought to be a supported API for this */
-    if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
-        return ((AioFile *) cmdPtr->u.native.privData)->fp;
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "dir");
+        return JIM_ERR;
     }
-    Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
-    return NULL;
+
+    ssl_ctx = JimAioSslCtx(interp);
+    if (!ssl_ctx) {
+        return JIM_ERR;
+    }
+    if (SSL_CTX_load_verify_locations(ssl_ctx, NULL, Jim_String(argv[1])) == 1) {
+        return JIM_OK;
+    }
+    Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
+    return JIM_ERR;
 }
+#endif
 
 int Jim_aioInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
         return JIM_ERR;
+
+#if defined(JIM_SSL)
+    Jim_CreateCommand(interp, "load_ssl_certs", JimAioLoadSSLCertsCommand, NULL, NULL);
+#endif
 
     Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
 #ifndef JIM_ANSIC
@@ -1522,9 +1848,9 @@ int Jim_aioInit(Jim_Interp *interp)
 #endif
 
     /* Create filehandles for stdin, stdout and stderr */
-    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r");
-    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w");
-    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w");
+    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r", NULL);
+    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w", NULL);
+    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w", NULL);
 
     return JIM_OK;
 }
