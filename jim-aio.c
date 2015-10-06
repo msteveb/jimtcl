@@ -1103,6 +1103,8 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     char buf[AIO_CMD_LEN];
     int openFlags = 0;
 
+    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
+
     if (fh) {
         filename = Jim_NewStringObj(interp, hdlfmt, -1);
         openFlags = AIO_KEEPOPEN;
@@ -1144,7 +1146,6 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 #endif
     af->openFlags = openFlags;
     af->addr_family = family;
-    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     /* Note that the command must use the global namespace, even if
