@@ -366,7 +366,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
  * Packs the binary representation of 'value' into the variable of the given name.
  * The value is packed according to the given type, width and bitoffset.
  * The variable is created if necessary (like [append])
- * Ihe variable is expanded if necessary
+ * The variable is expanded if necessary
  */
 static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
