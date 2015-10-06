@@ -4253,6 +4253,20 @@ found:
     return cmd;
 }
 
+void *Jim_GetCmdPrivData(Jim_Interp *interp, Jim_Obj *objPtr,
+        Jim_CmdProc *cmdProc, int flags)
+{
+    Jim_Cmd *cmdPtr;
+    cmdPtr = Jim_GetCommand(interp, objPtr, flags);
+
+    if (cmdPtr == NULL || cmdPtr->isproc
+            || cmdPtr->u.native.cmdProc != cmdProc) {
+        return NULL;
+    }
+
+    return cmdPtr->u.native.privData;
+}
+
 /* -----------------------------------------------------------------------------
  * Variables
  * ---------------------------------------------------------------------------*/

@@ -734,6 +734,8 @@ JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         const char *oldName, const char *newName);
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
+JIM_EXPORT void * Jim_GetCmdPrivData (Jim_Interp *interp,
+        Jim_Obj *objPtr, Jim_CmdProc *cmdProc, int flags);
 JIM_EXPORT int Jim_SetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
 JIM_EXPORT int Jim_SetVariableStr (Jim_Interp *interp,
