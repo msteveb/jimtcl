@@ -39,7 +39,7 @@
  *--- Inline Header File Documentation ---
  *    [By Duane Ellis, openocd@duaneellis.com, 8/18/8]
  *
- * Belief is "Jim" would greatly benifit if Jim Internals where
+ * Belief is "Jim" would greatly benefit if Jim Internals where
  * documented in some way - form whatever, and perhaps - the package:
  * 'doxygen' is the correct approach to do that.
  *
@@ -156,7 +156,7 @@ extern "C" {
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
-#define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substition object */
+#define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substitution object */
 
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
@@ -362,7 +362,7 @@ typedef struct Jim_Obj {
  * can just call Jim_FreeNewObj. To call Jim_Free directly
  * seems too raw, the object handling may change and we want
  * that Jim_FreeNewObj() can be called only against objects
- * that are belived to have refcount == 0. */
+ * that are believed to have refcount == 0. */
 #define Jim_FreeNewObj Jim_FreeObj
 
 /* Free the internal representation of the object. */
@@ -446,7 +446,7 @@ typedef struct Jim_CallFrame {
  * to a variable of name store on objPtr living on the given callframe
  * (this happens when the [global] or [upvar] command is used).
  * The interp in order to always know how to free the Jim_Obj associated
- * with a given variable because In Jim objects memory managment is
+ * with a given variable because In Jim objects memory management is
  * bound to interpreters. */
 typedef struct Jim_Var {
     Jim_Obj *objPtr;
