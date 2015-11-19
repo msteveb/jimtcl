@@ -54,6 +54,7 @@ options {
         tclprefix - Support for the tcl::prefix command
         sqlite3   - Interface to sqlite3
         win32     - Interface to win32
+        interp    - Child interpreter support
     }
     with-out-jim-ext: {without-ext:"default|ext1 ext2 ..."} => {
         Specify jim extensions to exclude.
@@ -248,6 +249,7 @@ dict set extdb attrs {
     tclprefix {}
     tree      { tcl }
     win32     { optional }
+    interp    { optional }
 }
 
 # Additional information about certain extensions
@@ -274,6 +276,7 @@ dict set extdb info {
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }
+    interp   { }
 }
 
 # autosetup cc-check-function-in-library can't handle C++ libraries
