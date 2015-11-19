@@ -40,6 +40,10 @@
 #define _PASTE(x) # x
 #define PASTE(x) _PASTE(x)
 
+#define WBITS_GZIP (MAX_WBITS | 16)
+/* use small 64K chunks if no size was specified during decompression, to reduce memory consumption */
+#define DEF_DECOMPRESS_BUFSIZ (64 * 1024)
+
 static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     long init;
@@ -60,33 +64,19 @@ static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level, int wbits)
 {
     z_stream strm = {0};
-    long level;
     Bytef *buf;
-    const char *in;
-    int len;
 
-    if (argc == 1) {
-        /* if no compression level is specified, use zlib's default */
-        level = Z_DEFAULT_COMPRESSION;
-    } else {
-        if (Jim_GetLong(interp, argv[1], &level) != JIM_OK) {
-            return JIM_ERR;
-        }
-
-        if ((level < Z_NO_COMPRESSION) || (level > Z_BEST_COMPRESSION)) {
-            Jim_SetResultString(interp, "level must be 0 to 9", -1);
-            return JIM_ERR;
-        }
-    }
-
-    if (deflateInit2(&strm, level, Z_DEFLATED, -MAX_WBITS, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY) != Z_OK) {
+    if ((level != Z_DEFAULT_COMPRESSION) && ((level < Z_NO_COMPRESSION) || (level > Z_BEST_COMPRESSION))) {
+        Jim_SetResultString(interp, "level must be 0 to 9", -1);
         return JIM_ERR;
     }
 
-    in = Jim_GetString(argv[0], &len);
+    if (deflateInit2(&strm, level, Z_DEFLATED, wbits, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY) != Z_OK) {
+        return JIM_ERR;
+    }
 
     strm.avail_out = deflateBound(&strm, (uLong)len);
     if (strm.avail_out > INT_MAX) {
@@ -118,34 +108,64 @@ static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int Jim_Deflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    z_stream strm = {0};
-    long bufsiz;
-    void *buf;
+    long level = Z_DEFAULT_COMPRESSION;
     const char *in;
-    Jim_Obj *out;
-    int inlen, ret;
+    int len;
 
-    if (argc == 1) {
-        /* use small 64K chunks if no size was specified, to reduce memory
-         * consumption */
-        bufsiz = 64 * 1024;
-    } else {
-        if (Jim_GetLong(interp, argv[1], &bufsiz) != JIM_OK) {
-            return JIM_ERR;
-        }
-        if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
-            Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
+    if (argc != 1) {
+        if (Jim_GetLong(interp, argv[1], &level) != JIM_OK) {
             return JIM_ERR;
         }
     }
 
-    if (inflateInit2(&strm, -MAX_WBITS) != Z_OK) {
+    in = Jim_GetString(argv[0], &len);
+    return Jim_Compress(interp, in, len, level, -MAX_WBITS);
+}
+
+static int Jim_Gzip(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    long level = Z_DEFAULT_COMPRESSION;
+    const char *in;
+    int len;
+
+    if (argc == 3) {
+        if (!Jim_CompareStringImmediate(interp, argv[1], "-level")) {
+            Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
+            return JIM_ERR;
+        }
+
+        if (Jim_GetLong(interp, argv[2], &level) != JIM_OK) {
+            Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
+            return JIM_ERR;
+        }
+
+    }
+    else if (argc != 1) {
+        Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
         return JIM_ERR;
     }
 
-    in = Jim_GetString(argv[0], &inlen);
+    in = Jim_GetString(argv[0], &len);
+    return Jim_Compress(interp, in, len, level, WBITS_GZIP);
+}
+
+static int Jim_Decompress(Jim_Interp *interp, const char *in, int len, long bufsiz, int wbits)
+{
+    z_stream strm = {0};
+    void *buf;
+    Jim_Obj *out;
+    int ret;
+
+    if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
+        Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
+        return JIM_ERR;
+    }
+
+    if (inflateInit2(&strm, wbits) != Z_OK) {
+        return JIM_ERR;
+    }
 
     /* allocate a buffer - decompression is done in chunks, into this buffer;
      * when the decompressed data size is given, decompression is faster because
@@ -156,7 +176,7 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_IncrRefCount(out);
 
     strm.next_in = (Bytef*)in;
-    strm.avail_in = (uInt)inlen;
+    strm.avail_in = (uInt)len;
     do {
         do {
             strm.next_out = buf;
@@ -189,6 +209,54 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    long bufsiz = DEF_DECOMPRESS_BUFSIZ;
+    const char *in;
+    int len;
+
+    if (argc != 1) {
+        if (Jim_GetLong(interp, argv[1], &bufsiz) != JIM_OK) {
+            return JIM_ERR;
+        }
+
+        if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
+            Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
+            return JIM_ERR;
+        }
+    }
+
+    in = Jim_GetString(argv[0], &len);
+    return Jim_Decompress(interp, in, len, bufsiz, -MAX_WBITS);
+}
+
+static int Jim_Gunzip(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    long bufsiz = DEF_DECOMPRESS_BUFSIZ;
+    const char *in;
+    int len;
+
+    if (argc == 3) {
+        if (!Jim_CompareStringImmediate(interp, argv[1], "-buffersize")) {
+            Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
+            return JIM_ERR;
+        }
+
+        if (Jim_GetLong(interp, argv[2], &bufsiz) != JIM_OK) {
+            Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
+            return JIM_ERR;
+        }
+
+    }
+    else if (argc != 1) {
+        Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
+        return JIM_ERR;
+    }
+
+    in = Jim_GetString(argv[0], &len);
+    return Jim_Decompress(interp, in, len, bufsiz, WBITS_GZIP);
+}
+
 static const jim_subcmd_type zlib_command_table[] = {
     {   "crc32",
         "string ?startValue?",
@@ -204,12 +272,26 @@ static const jim_subcmd_type zlib_command_table[] = {
         2,
         /* Description: Compresses a string and outputs a raw, zlib-compressed stream */
     },
+    {   "gzip",
+        "data ?-level level?",
+        Jim_Gzip,
+        1,
+        3,
+        /* Description: Compresses a string and outputs a gzip-compressed stream */
+    },
     {   "inflate",
         "data ?bufferSize?",
         Jim_Inflate,
         1,
         2,
         /* Description: Decompresses a raw, zlib-compressed stream */
+    },
+    {   "gunzip",
+        "data ?-buffersize size?",
+        Jim_Gunzip,
+        1,
+        3,
+        /* Description: Decompresses a gzip-compressed stream */
     },
     { NULL }
 };
