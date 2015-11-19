@@ -191,7 +191,9 @@ if {[opt-bool ssl full]} {
         define JIM_SSL
         define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_SSL_connect]
     } else {
-        user-error "SSL support requires OpenSSL"
+        if {![opt-bool full]} {
+            user-error "SSL support requires OpenSSL"
+        }
     }
 }
 if {[opt-bool lineedit full]} {

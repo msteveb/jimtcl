@@ -1,0 +1,9 @@
+# Example of sending via a ssl encrypted, connected tcp socket
+
+set s [[socket stream 127.0.0.1:20000] ssl]
+
+foreach i [range 1 20] {
+	$s puts "1 << $i"
+
+	puts [$s gets]
+}
