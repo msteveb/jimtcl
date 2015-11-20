@@ -427,7 +427,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
         }
 #if defined(JIM_SSL)
-        if (af->ssl == NULL) {
+        if (af->ssl != NULL) {
             retval = SSL_read(af->ssl, buf, readlen);
         } else {
 #else
