@@ -60,11 +60,11 @@ static int array_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
+    Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_ERRMSG);
     Jim_Obj *patternObj;
 
     if (!objPtr) {
-        return JIM_OK;
+        return JIM_ERR;
     }
 
     patternObj = (argc == 1) ? NULL : argv[1];
@@ -84,10 +84,10 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_NONE);
+    Jim_Obj *objPtr = Jim_GetVariable(interp, argv[0], JIM_ERRMSG);
 
     if (!objPtr) {
-        return JIM_OK;
+        return JIM_ERR;
     }
 
     return Jim_DictKeys(interp, objPtr, argc == 1 ? NULL : argv[1]);
@@ -102,7 +102,7 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj **dictValuesObj;
 
     if (argc == 1 || Jim_CompareStringImmediate(interp, argv[1], "*")) {
-        /* Unset the whole array */
+        /* Unset the whole array - no error if it did not exist */
         Jim_UnsetVariable(interp, argv[0], JIM_NONE);
         return JIM_OK;
     }
