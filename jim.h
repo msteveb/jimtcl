@@ -499,6 +499,26 @@ typedef struct Jim_PrngState {
     unsigned int i, j;
 } Jim_PrngState;
 
+typedef enum {
+	JIM_LOG_NONE = 0,
+	JIM_LOG_ERROR,
+	JIM_LOG_WARNING,
+	JIM_LOG_INFO,
+	JIM_LOG_DEBUG1,
+	JIM_LOG_DEBUG2,
+	JIM_LOG_DEBUG3,
+} Jim_Log_Level;
+
+#define JIM_LOG_MAX_VALUE JIM_LOG_DEBUG3
+
+typedef struct {
+    void(*logFunction)(const char* logData, void* log_param); /* Function which will handle log output - allows redirection */
+    void* log_param;
+    Jim_Log_Level currentLogLevel;
+} Jim_log_details;
+
+extern Jim_log_details defaultLogging;
+
 /* -----------------------------------------------------------------------------
  * Jim interpreter structure.
  * Fields similar to the real Tcl interpreter structure have the same names.
@@ -558,6 +578,7 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
+    Jim_log_details logDetails; /* details of where logging data shall be sent */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -899,6 +920,25 @@ JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 /* type inspection - avoid where possible */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);
 JIM_EXPORT int Jim_IsList(Jim_Obj *objPtr);
+
+#ifndef JIM_LOGGING_DISABLE
+
+#define JIM_LOG_IS_LOG_LEVEL_IS_MET( interp, level )    ( ((struct Jim_Interp *)(interp))->logDetails.currentLogLevel >= ((Jim_Log_Level)(level)) )
+
+
+#define JIM_LOG( interp, level, ... )  JimLog( interp, level, __FUNCTION__, __VA_ARGS__)
+
+
+/* Do not use this directly - use JIM_LOG macro */
+void JimLog( struct Jim_Interp *interp, Jim_Log_Level level, const char* function, const char *fmt, ...);
+
+
+#else
+
+#define JIM_LOG_IS_LOG_LEVEL_IS_MET( log, level ) (0)
+#define JIM_LOG( interp, level, format, ... )
+
+#endif
 
 #ifdef __cplusplus
 }
