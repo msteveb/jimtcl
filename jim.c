@@ -122,6 +122,7 @@ static void JimPanicDump(int fail_condition, const char *fmt, ...);
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and doesn't try to free it. */
 static char JimEmptyStringRep[] = "";
+static const char* JimNewline = "\n";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -141,6 +142,8 @@ static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
 static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
+static void DefaultLogFunction(const char* logData, void* log_param);
+Jim_log_details defaultLogging = { DefaultLogFunction, NULL, JIM_LOG_NONE };
 
 
 /* Fast access to the int (wide) value of an object which is known to be of int type */
@@ -587,7 +590,7 @@ static void JimPanicDump(int condition, const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    fprintf(stderr, "\nJIM INTERPRETER PANIC: ");
+    JIM_LOG(interp, stderr, "\nJIM INTERPRETER PANIC: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n\n");
     va_end(ap);
@@ -3460,13 +3463,13 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
     int count;
     int linenr;
 
-#ifdef DEBUG_SHOW_SCRIPT_TOKENS
-    printf("==== Tokens ====\n");
-    for (i = 0; i < tokenlist->count; i++) {
-        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist->list[i].line, jim_tt_name(tokenlist->list[i].type),
-            tokenlist->list[i].len, tokenlist->list[i].token);
+    if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG3)) {
+        JIM_LOG(interp, JIM_LOG_DEBUG3, "==== Tokens ====");
+        for (i = 0; i < tokenlist->count; i++) {
+            JIM_LOG(interp, JIM_LOG_DEBUG3, "[%2d]@%d %s '%.*s'", i, tokenlist->list[i].line, jim_tt_name(tokenlist->list[i].type),
+                tokenlist->list[i].len, tokenlist->list[i].token);
+        }
     }
-#endif
 
     /* May need up to one extra script token for each EOL in the worst case */
     count = tokenlist->count;
@@ -3551,14 +3554,13 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 
     JimPanic((script->len >= count, "allocated script array is too short"));
 
-#ifdef DEBUG_SHOW_SCRIPT
-    printf("==== Script (%s) ====\n", Jim_String(script->fileNameObj));
-    for (i = 0; i < script->len; i++) {
-        const ScriptToken *t = &script->token[i];
-        printf("[%2d] %s %s\n", i, jim_tt_name(t->type), Jim_String(t->objPtr));
+    if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG3)) {
+        JIM_LOG(interp, JIM_LOG_DEBUG3, "==== Script (%s) ====", Jim_String(script->fileNameObj));
+        for (i = 0; i < script->len; i++) {
+            const ScriptToken *t = &script->token[i];
+            JIM_LOG(interp, JIM_LOG_DEBUG3, "[%2d] %s %s", i, jim_tt_name(t->type), Jim_String(t->objPtr));
+        }
     }
-#endif
-
 }
 
 /**
@@ -3756,7 +3758,11 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
  * Keys are dynamic allocated strings, Values are Jim_Var structures. */
 static void JimVariablesHTValDestructor(void *interp, void *val)
 {
-    Jim_DecrRefCount(interp, ((Jim_Var *)val)->objPtr);
+    Jim_Var *var = (Jim_Var *)val;
+
+	JIM_LOG(interp, JIM_LOG_DEBUG1, "Destroying hashtable %s", var->objPtr->bytes);
+
+    Jim_DecrRefCount(interp, var->objPtr);
     Jim_Free(val);
 }
 
@@ -4375,6 +4381,8 @@ static Jim_Var *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_O
     /* New variable to create */
     Jim_Var *var = Jim_Alloc(sizeof(*var));
 
+	JIM_LOG(interp, JIM_LOG_DEBUG1, "Creating variable %s", nameObjPtr->bytes);
+
     var->objPtr = valObjPtr;
     Jim_IncrRefCount(valObjPtr);
     var->linkFramePtr = NULL;
@@ -4414,6 +4422,11 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 {
     int err;
     Jim_Var *var;
+
+	if ( valObjPtr )
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Set %s to %s", nameObjPtr->bytes, valObjPtr->bytes );
+	else
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Unset %s", nameObjPtr->bytes );
 
     switch (SetVariableFromAny(interp, nameObjPtr)) {
         case JIM_DICT_SUGAR:
@@ -4748,6 +4761,11 @@ static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *valObjP
     int err;
 
     SetDictSubstFromAny(interp, objPtr);
+	if ( valObjPtr )
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Set %s to %s", objPtr->bytes, valObjPtr->bytes );
+	else
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Unset %s", objPtr->bytes );
+
 
     err = Jim_SetDictKeysVector(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr,
         &objPtr->internalRep.dictSubstValue.indexObjPtr, 1, valObjPtr, JIM_MUSTEXIST);
@@ -5302,10 +5320,11 @@ int Jim_Collect(Jim_Interp *interp)
              * Id is simple... */
             if (objPtr->typePtr == &referenceObjType) {
                 Jim_AddHashEntry(&marks, &objPtr->internalRep.refValue.id, NULL);
-#ifdef JIM_DEBUG_GC
-                printf("MARK (reference): %d refcount: %d\n",
-                    (int)objPtr->internalRep.refValue.id, objPtr->refCount);
-#endif
+
+                if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG1)) {
+                    JIM_LOG(interp, JIM_LOG_DEBUG1, "MARK (reference): %d refcount: %d",
+                        (int)objPtr->internalRep.refValue.id, objPtr->refCount);
+                }
                 objPtr = objPtr->nextObjPtr;
                 continue;
             }
@@ -5338,9 +5357,10 @@ int Jim_Collect(Jim_Interp *interp)
                 /* Ok, a reference for the given ID
                  * was found. Mark it. */
                 Jim_AddHashEntry(&marks, &id, NULL);
-#ifdef JIM_DEBUG_GC
-                printf("MARK: %d\n", (int)id);
-#endif
+                if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG1)) {
+                    JIM_LOG(interp, JIM_LOG_DEBUG1, "MARK: %d", (int)id);
+                }
+
                 p += JIM_REFERENCE_SPACE;
             }
         }
@@ -5358,9 +5378,10 @@ int Jim_Collect(Jim_Interp *interp)
         /* Check if in the mark phase we encountered
          * this reference. */
         if (Jim_FindHashEntry(&marks, refId) == NULL) {
-#ifdef JIM_DEBUG_GC
-            printf("COLLECTING %d\n", (int)*refId);
-#endif
+            if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG1)) {
+                JIM_LOG(interp, JIM_LOG_DEBUG1, "COLLECTING %d", (int)*refId);
+            }
+
             collected++;
             /* Drop the reference, but call the
              * finalizer first if registered. */
@@ -5429,6 +5450,45 @@ int Jim_IsBigEndian(void)
     return uval.c[0] == 1;
 }
 
+static void DefaultLogFunction(const char* logData, void* log_param)
+{
+	printf( "%s", logData );
+}
+
+void JimLog( struct Jim_Interp *interp, Jim_Log_Level level, const char* function, const char *format, ...) {
+
+	if ( JIM_LOG_IS_LOG_LEVEL_IS_MET( interp, level ) )
+	{
+		int len;
+		int function_prefix_length = strlen(function) + 2;
+		static const int JimNewlineLength = sizeof(JimNewline) - 1;
+
+		va_list args;
+		va_start(args, format);
+
+		/* Determine the length of the output string */
+		len = vsnprintf( NULL, 0, format, args ) + function_prefix_length + JimNewlineLength + interp->evalDepth + 1;
+		if (len > 0) {
+			char* newstring = (char*) malloc(len);
+			if (!newstring)
+				return;
+			memset( newstring, ' ', len );
+			/* Prefix function name into the log line, indented */
+			snprintf( &newstring[interp->evalDepth], function_prefix_length + 1, "%s: ", function);
+			/* Add the log detail */
+			vsnprintf( &newstring[interp->evalDepth+function_prefix_length], len - function_prefix_length, format, args);
+			/* Add a newline */
+			strncat( newstring, JimNewline, len );
+			newstring[len-1] = '\x00';
+
+			/* Send to the log function */
+			interp->logDetails.logFunction( newstring, interp->logDetails.log_param );
+			free(newstring);
+		}
+	    va_end(args);
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * Interpreter related functions
  * ---------------------------------------------------------------------------*/
@@ -5438,6 +5498,10 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
 
     memset(i, 0, sizeof(*i));
+
+    i->logDetails.logFunction     = defaultLogging.logFunction;
+    i->logDetails.log_param       = defaultLogging.log_param;
+    i->logDetails.currentLogLevel = defaultLogging.currentLogLevel;
 
     i->maxCallFrameDepth = JIM_MAX_CALLFRAME_DEPTH;
     i->maxEvalDepth = JIM_MAX_EVAL_DEPTH;
@@ -5485,6 +5549,8 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, "tcl_platform(threaded)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));
     Jim_SetVariableStr(i, "tcl_platform(wordSize)", Jim_NewIntObj(i, sizeof(jim_wide)));
+
+    JIM_LOG(i, JIM_LOG_DEBUG1, "==== Finished Interpreter Creation ====");
 
     return i;
 }
@@ -9158,16 +9224,14 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             parser.tline);
     }
 
-#ifdef DEBUG_SHOW_EXPR_TOKENS
-    {
+    if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG3)) {
         int i;
-        printf("==== Expr Tokens (%s) ====\n", Jim_String(fileNameObj));
+        JIM_LOG(interp, JIM_LOG_DEBUG3, "==== Expr Tokens (%s) ====", Jim_String(fileNameObj));
         for (i = 0; i < tokenlist.count; i++) {
-            printf("[%2d]@%d %s '%.*s'\n", i, tokenlist.list[i].line, jim_tt_name(tokenlist.list[i].type),
+            JIM_LOG(interp, JIM_LOG_DEBUG3, "[%2d]@%d %s '%.*s'", i, tokenlist.list[i].line, jim_tt_name(tokenlist.list[i].type),
                 tokenlist.list[i].len, tokenlist.list[i].token);
         }
     }
-#endif
 
     if (JimParseCheckMissing(interp, parser.missing.ch) == JIM_ERR) {
         ScriptTokenListFree(&tokenlist);
@@ -9185,18 +9249,16 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         goto err;
     }
 
-#ifdef DEBUG_SHOW_EXPR
-    {
+    if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG3)) {
         int i;
 
-        printf("==== Expr ====\n");
+        JIM_LOG(interp, JIM_LOG_DEBUG3, "==== Expr ====");
         for (i = 0; i < expr->len; i++) {
             ScriptToken *t = &expr->token[i];
 
-            printf("[%2d] %s '%s'\n", i, jim_tt_name(t->type), Jim_String(t->objPtr));
+            JIM_LOG(interp, JIM_LOG_DEBUG3, "[%2d] %s '%s'", i, jim_tt_name(t->type), Jim_String(t->objPtr));
         }
     }
-#endif
 
     /* Check program correctness. */
     if (ExprCheckCorrectness(expr) != JIM_OK) {
@@ -10173,12 +10235,14 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         /* Special tailcall command was pre-resolved */
         cmdPtr = interp->framePtr->tailcallCmd;
         interp->framePtr->tailcallCmd = NULL;
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Calling tailcall command" );
     }
     else {
         cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
         if (cmdPtr == NULL) {
             return JimUnknown(interp, objc, objv);
         }
+		JIM_LOG( interp, JIM_LOG_DEBUG1, "Calling command %s", objv[0]->bytes );
         JimIncrCmdRefCount(cmdPtr);
     }
 
@@ -11146,17 +11210,16 @@ static int SetSubstFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr, int flags
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
 
-#ifdef DEBUG_SHOW_SUBST
-    {
+    if (JIM_LOG_IS_LOG_LEVEL_IS_MET(interp, JIM_LOG_DEBUG3)) {
         int i;
 
-        printf("==== Subst ====\n");
+        JIM_LOG(interp, JIM_LOG_DEBUG3, "==== Subst ====");
         for (i = 0; i < script->len; i++) {
-            printf("[%2d] %s '%s'\n", i, jim_tt_name(script->token[i].type),
+            JIM_LOG(interp, JIM_LOG_DEBUG3, "[%2d] %s '%s'", i, jim_tt_name(script->token[i].type),
                 Jim_String(script->token[i].objPtr));
         }
     }
-#endif
+
 
     /* Free the old internal rep and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
