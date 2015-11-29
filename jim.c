@@ -3266,7 +3266,7 @@ typedef struct ScriptToken
  * -- the substFlags field of the structure --
  *
  * The scriptObj structure is used to represent both "script" objects
- * and "subst" objects. In the second case, the there are no LIN and WRD
+ * and "subst" objects. In the second case, there are no LIN and WRD
  * tokens. Instead SEP and EOL tokens are added as-is.
  * In addition, the field 'substFlags' is used to represent the flags used to turn
  * the string into the internal representation.
@@ -8722,7 +8722,7 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
     expr->len += 2;
     offset = (expr->len - leftindex) - 1;
 
-    /* Now we rely on the fact the the left and right version have opcodes
+    /* Now we rely on the fact that the left and right version have opcodes
      * 1 and 2 after the main opcode respectively
      */
     expr->token[leftindex + 1].type = t->type + 1;
@@ -14408,7 +14408,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     }
 
-    /* Test for the the most common commands first, just in case it makes a difference */
+    /* Test for the most common commands first, just in case it makes a difference */
     switch (cmd) {
         case INFO_EXISTS:
             if (argc != 3) {
