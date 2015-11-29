@@ -1685,6 +1685,7 @@ static int JimParseStr(struct JimParserCtx *pc)
                 if (pc->len > 1 && pc->p[1] != '$') {
                     break;
                 }
+                /* fall through */
             case ')':
                 /* Only need a separate ')' token if the previous was a var */
                 if (*pc->p == '(' || pc->tt == JIM_TT_VAR) {
@@ -6137,6 +6138,7 @@ static unsigned char ListElementQuotingType(const char *s, int len)
             case '\f':
             case '\v':
                 trySimple = 0;
+                /* fall through */
             case '{':
             case '}':
                 goto testbrace;
@@ -14440,8 +14442,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResultString(interp, "aio not enabled", -1);
             return JIM_ERR;
 #endif
+            /* fall through */
         case INFO_PROCS:
             mode++;             /* JIM_CMDLIST_PROCS */
+            /* fall through */
         case INFO_COMMANDS:
             /* mode 0 => JIM_CMDLIST_COMMANDS */
             if (argc != 2 && argc != 3) {
@@ -14460,8 +14464,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
         case INFO_VARS:
             mode++;             /* JIM_VARLIST_VARS */
+            /* fall through */
         case INFO_LOCALS:
             mode++;             /* JIM_VARLIST_LOCALS */
+            /* fall through */
         case INFO_GLOBALS:
             /* mode 0 => JIM_VARLIST_GLOBALS */
             if (argc != 2 && argc != 3) {
