@@ -405,6 +405,8 @@ static int JimIntBaseCmd(Jim_Interp *interp,
 
     switch (argc) {
     case 1:
+        /* always initialize integers with 0 if no value is specified */
+        val = 0;
         break;
 
     case 2:
@@ -457,6 +459,8 @@ static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     switch (argc) {
     case 1:
+        /* always initialize characters with '\0' if no value is specified */
+        c = '\0';
         break;
 
     case 2:
@@ -547,6 +551,8 @@ static int JimPointerCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     switch (argc) {
         case 1:
+            /* always initialize pointers with NULL if no value is specified */
+            val = (jim_wide)(intptr_t)NULL;
             break;
 
         case 2:
@@ -555,7 +561,7 @@ static int JimPointerCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
             break;
 
-        case 3:
+        default:
             Jim_WrongNumArgs(interp, 1, argv, "?address?");
             return JIM_ERR;
     }

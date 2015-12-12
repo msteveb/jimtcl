@@ -33,16 +33,16 @@ proc sizeof_example {} {
 }
 
 proc types_example {} {
-	# variables are created using ffi::int, ffi::uint, ffi::long and so on; they
-	# can be initialized by specifying a value
+	# variables are created using ffi::int, ffi::uint, ffi::long and so on; if
+	# no value is specified, variables are initialized with either 0, \0 or NULL
 	set count [ffi::int 12345678]
-	set uninit_count [ffi::int]
+	set zero_count [ffi::int]
 
 	# the value method returns the value of a variable as a Tcl object and
 	# the method address returns its address (like the & operator in C) in
 	# hexadecimal form
 	puts "integer with contents [$count value] is at [$count address]"
-	puts "the value of the uninitialized integer is [$uninit_count value]"
+	puts "the value of the integer created with no value is [$zero_count value]"
 
 	# the raw contents of a variable may be accessed using the raw method
 	puts "the raw, [$count size] bytes form of [$count value] is [$count raw]"
@@ -104,7 +104,7 @@ proc constants_example {} {
 	# ::main is the the main executable handle (see dlopen(3)) - on some
 	# platforms, the loader resolves symbols recursively, so there's no need to
 	# load obtain a libc handle
-	set exit_func [ffi::pointer void [$::main dlsym exit] int]
+	puts "exit() is at [$::main dlsym exit]"
 
 	# ::null (a global) is a NULL pointer
 	puts "the value of ::null is [$::null value]"
