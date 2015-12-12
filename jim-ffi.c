@@ -123,11 +123,6 @@ static ffi_type *type_structs[] = {
 #endif
 };
 
-static struct ffi_var null_var;
-static struct ffi_var zero_var;
-static struct ffi_var one_var;
-static Jim_Obj *main_obj;
-
 /* variable methods */
 
 static void JimVariableDelProc(Jim_Interp *interp, void *privData)
@@ -312,23 +307,6 @@ JIMNEWINT(JimNewUshort, ushort, us, unsigned short, ffi_type_ushort)
 JIMNEWINT(JimNewInt, int, i, int, ffi_type_sint)
 JIMNEWINT(JimNewUint, uint, ui, unsigned int, ffi_type_uint)
 
-/* needed for statically-allocated int objects - we use it for global
- * constants */
-static void JimNewIntNoAlloc(Jim_Interp *interp,
-                              struct ffi_var *var,
-                              const jim_wide val,
-                              char *buf)
-{
-    sprintf(buf, "ffi.int%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimVariableHandlerCommand, var, NULL);
-
-    var->val.i = (int)val;
-    var->type = &ffi_type_sint;
-    var->to_str = JimintToStr;
-    var->addr = &var->val.i;
-    var->size = sizeof(var->val.i);
-}
-
 JIMNEWINT(JimNewLong, long, l, long, ffi_type_slong)
 JIMNEWINT(JimNewUlong, ulong, ul, unsigned long, ffi_type_ulong)
 
@@ -361,23 +339,6 @@ static void JimPointerToStr(Jim_Interp *interp, const struct ffi_var *var)
         sprintf(buf, "%p", var->val.vp);
         Jim_SetResultString(interp, buf, -1);
     }
-}
-
-/* like JimNewIntNoAlloc, this one is used for constants */
-static void JimNewPointerNoAlloc(Jim_Interp *interp,
-                                 struct ffi_var *var,
-                                 void *p,
-                                 char *buf,
-                                 void (*del)(Jim_Interp *, void *))
-{
-    sprintf(buf, "ffi.pointer%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimVariableHandlerCommand, var, del);
-
-    var->val.vp = p;
-    var->type = &ffi_type_pointer;
-    var->to_str = JimPointerToStr;
-    var->addr = &var->val.vp;
-    var->size = sizeof(var->val.vp);
 }
 
 static void JimNewPointer(Jim_Interp *interp, void *p)
@@ -727,6 +688,58 @@ static int JimVoidCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     var->to_str = JimVoidToStr;
     var->addr = NULL;
     var->size = 0;
+
+    return JIM_OK;
+}
+
+/* constant commands */
+
+static struct ffi_var *JimNewConstantBase(Jim_Interp *interp, char *buf, const char *name)
+{
+    struct ffi_var *var;
+
+    var = Jim_Alloc(sizeof(*var));
+
+    sprintf(buf, "ffi.%s%ld", name, Jim_GetId(interp));
+    Jim_CreateCommand(interp, buf, JimVariableHandlerCommand, var, JimVariableDelProc);
+
+    return var;
+}
+
+static int JimNewConstantPointer(Jim_Interp *interp, void *p, const char *name)
+{
+    char buf[32];
+    struct ffi_var *var;
+
+    var = JimNewConstantBase(interp, buf, "pointer");
+    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, name, -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    var->val.vp = p;
+    var->type = &ffi_type_pointer;
+    var->to_str = JimPointerToStr;
+    var->addr = &var->val.vp;
+    var->size = sizeof(var->val.vp);
+
+    return JIM_OK;
+}
+
+static int JimNewConstantInt(Jim_Interp *interp, int val, const char *name)
+{
+    char buf[32];
+    struct ffi_var *var;
+
+    var = JimNewConstantBase(interp, buf, "int");
+    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, name, -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    var->val.i = (int)val;
+    var->type = &ffi_type_sint;
+    var->to_str = JimintToStr;
+    var->addr = &var->val.i;
+    var->size = sizeof(var->val.i);
 
     return JIM_OK;
 }
@@ -1119,7 +1132,7 @@ static int JimDlopenCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* if no path is specified, return another reference to ::main */
     if (len == 0) {
-        Jim_SetResult(interp, main_obj);
+        Jim_SetResult(interp, Jim_GetAssocData(interp, "ffi.main"));
     } else {
         h = dlopen(path, RTLD_LAZY);
         if (h == NULL) {
@@ -1171,8 +1184,8 @@ static int JimCastCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_ffiInit(Jim_Interp *interp)
 {
-    char buf[32];
     void *self;
+    Jim_Obj *main_obj;
 
     self = dlopen(NULL, RTLD_LAZY);
     if (self == NULL) {
@@ -1220,24 +1233,22 @@ int Jim_ffiInit(Jim_Interp *interp)
 
     Jim_CreateCommand(interp, "ffi::cast", JimCastCmd, 0, 0);
 
-    Jim_CreateCommand(interp, "ffi.handle0", JimLibraryHandlerCommand, self, JimLibraryDelProc);
-    main_obj = Jim_NewStringObj(interp, "ffi.handle0", -1);
+    Jim_CreateCommand(interp, "ffi.main", JimLibraryHandlerCommand, self, JimLibraryDelProc);
+    main_obj = Jim_NewStringObj(interp, "ffi.main", -1);
+    Jim_SetAssocData(interp, "ffi.main", NULL, main_obj);
     if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "main", -1)), main_obj) != JIM_OK) {
         return JIM_ERR;
     }
 
-    JimNewPointerNoAlloc(interp, &null_var, NULL, buf, NULL);
-    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "null", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+    if (JimNewConstantPointer(interp, NULL, "null") != JIM_OK) {
         return JIM_ERR;
     }
 
-    JimNewIntNoAlloc(interp, &zero_var, 0, buf);
-    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "zero", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+    if (JimNewConstantInt(interp, 0, "zero") != JIM_OK) {
         return JIM_ERR;
     }
 
-    JimNewIntNoAlloc(interp, &one_var, 1, buf);
-    if (Jim_SetVariable(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, "one", -1)), Jim_NewStringObj(interp, buf, -1)) != JIM_OK) {
+    if (JimNewConstantInt(interp, 1, "one") != JIM_OK) {
         return JIM_ERR;
     }
 
