@@ -92,7 +92,7 @@ proc functions_example {} {
 	set sprintf_func [ffi::function int [$libc dlsym sprintf] pointer pointer pointer int]
 
 	# ffi::buffer is a quick, efficient way to allocate buffers with a given
-	# size
+	# size and filled with null bytes
 	set buf [ffi::buffer 32]
 	$sprintf_func [[ffi::int] address] [$buf address] [[ffi::string copy "%s %d"] address] [[ffi::string copy "aha"] address] [[ffi::int 1337] address]
 

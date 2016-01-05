@@ -651,6 +651,7 @@ static int JimStringCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimBufferCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     long len;
+    void *p;
 
     if (argc != 2) {
         Jim_WrongNumArgs(interp, 1, argv, "len");
@@ -667,7 +668,9 @@ static int JimBufferCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    JimNewBuffer(interp, Jim_Alloc((int)len), (size_t)len);
+    p = Jim_Alloc((int)len);
+    memset(p, '\0', (size_t)len);
+    JimNewBuffer(interp, p, (size_t)len);
     return JIM_OK;
 }
 
