@@ -154,6 +154,10 @@ proc structs_example {} {
 	# structs are initialized using their raw value
 	set now_broken [ffi::struct "[$::zero raw][[ffi::int 10] raw][[ffi::int 2] raw][[ffi::int 30] raw][$::zero raw][[ffi::int 92] raw][$::zero raw][[ffi::int 30] raw][$::zero raw][[ffi::long 0] raw][$::null raw]" int int int int int int int int int long pointer]
 
+	# it is also possible to pass an empty string instead of an initializer - in
+	# this case, the struct is filled with zero bytes
+	set now_zero [ffi::struct "" int int int int int int int int int long pointer]
+
 	# the size method returns the size of a struct (like sizeof())
 	set struct_tm_size [$now_broken size]
 	puts "the size of struct tm is $struct_tm_size bytes"
@@ -181,6 +185,16 @@ proc structs_example {} {
 	set now_broken_func [ffi::pointer [$now_broken address]]
 	$asctime_func [$out address] [$now_broken_func address]
 	puts [ffi::string at [$out value]]
+}
+
+proc arrays_example {} {
+	# arrays are created almost like structs, using an initializer (or an empty
+	# string), the type of all elements and the array length
+	set numbers [ffi::array [[ffi::long 0x10] raw][[ffi::long 0x20] raw] long 2]
+
+	puts "the array length is [$numbers length]"
+	puts "the array size is [$numbers size] bytes"
+	puts "the first element in the array is [[$numbers member 0] value]"
 }
 
 proc cast_example {} {
@@ -307,6 +321,7 @@ functions_example
 constants_example
 pointers_example
 structs_example
+arrays_example
 cast_example
 safety_example
 sockets_example

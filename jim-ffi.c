@@ -92,7 +92,7 @@ struct ffi_var {
 struct ffi_struct {
     ffi_type type;
     int size;
-    int nmemb;
+    long nmemb;
     int *offs;
     unsigned char *buf;
 };
@@ -620,7 +620,7 @@ static int JimStringCopy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* in "copy" mode, copy the string into a new buffer object */
     s = (char *)Jim_GetString(argv[0], &len);
-    JimNewBuffer(interp, (void *)Jim_StrDupLen(s, len), (size_t) len);
+    JimNewBuffer(interp, (void *)Jim_StrDupLen(s, len), (size_t)len);
 
     return JIM_OK;
 }
@@ -766,7 +766,7 @@ static void JimStructDelProc(Jim_Interp *interp, void *privData)
 static void JimRawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
 {
     if (type == &ffi_type_pointer) {
-        JimNewPointer(interp, *((void **) p));
+        JimNewPointer(interp, *((void **)p));
     /* ffi_type_sint, ffi_type_slong, etc' are #defines of the fixed-width
      * integer types */
 #if INT64_MAX <= JIM_WIDE_MAX
@@ -837,6 +837,15 @@ static int JimStructSize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int JimStructLength(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    struct ffi_struct *s = Jim_CmdPrivData(interp);
+
+    Jim_SetResultInt(interp, s->nmemb);
+
+    return JIM_OK;
+}
+
 static const jim_subcmd_type struct_command_table[] = {
     {   "member",
         "index",
@@ -859,6 +868,13 @@ static const jim_subcmd_type struct_command_table[] = {
         0,
         /* Description: Returns the size of a struct */
     },
+    {   "length",
+        NULL,
+        JimStructLength,
+        0,
+        0,
+        /* Description: Returns the number of members in a struct */
+    },
     { NULL }
 };
 
@@ -873,14 +889,12 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[32];
     struct ffi_struct *s;
     const char *raw;
-    int i, j, len, off;
+    int i, j, len;
 
     if (argc < 3) {
         Jim_WrongNumArgs(interp, 1, argv, "raw member ?member ...?");
         return JIM_ERR;
     }
-
-    raw = Jim_GetString(argv[1], &len);
 
     s = Jim_Alloc(sizeof(*s));
     s->nmemb = argc - 1;
@@ -888,7 +902,6 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     s->offs = Jim_Alloc(sizeof(int) * s->nmemb);
 
     s->size = 0;
-    off = 0;
     for (i = 2; i < argc; ++i) {
         if (Jim_GetEnum(interp, argv[i], type_names, &j, "ffi type", JIM_ERRMSG) != JIM_OK) {
             Jim_Free(s->offs);
@@ -896,8 +909,11 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_Free(s);
             return JIM_ERR;
         }
-        s->type.elements[i - 2] = type_structs[j];
 
+        /* cache the member offset inside the raw struct */
+        s->offs[i - 2] = s->size;
+
+        s->size += type_structs[j]->size;
         if (s->size >= (INT_MAX - type_structs[j]->size)) {
             Jim_Free(s->offs);
             Jim_Free(s->type.elements);
@@ -905,15 +921,14 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_SetResultString(interp, "bad struct size", -1);
             return JIM_ERR;
         }
-        /* cache the member offset inside the raw struct */
-        s->offs[i - 2] = off;
-        off += type_structs[j]->size;
+
+        s->type.elements[i - 2] = type_structs[j];
     }
 
-    s->size += off;
+    raw = Jim_GetString(argv[1], &len);
 
     /* if an initializer is specified, it must be the same size as the struct */
-    if ((len != 0) && (s->size != (size_t) len)) {
+    if ((len != 0) && (s->size != (size_t)len)) {
         Jim_Free(s->offs);
         Jim_Free(s->type.elements);
         Jim_Free(s);
@@ -924,7 +939,7 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     s->buf = Jim_Alloc(s->size);
     if (len != 0) {
         /* copy the initializer */
-        memcpy(s->buf, raw, (size_t) len);
+        memcpy(s->buf, raw, (size_t)len);
     }
     s->type.size = 0;
     s->type.alignment = 0;
@@ -932,6 +947,83 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     s->type.elements[s->nmemb] = NULL;
 
     sprintf(buf, "ffi.struct%ld", Jim_GetId(interp));
+    Jim_CreateCommand(interp, buf, JimStructHandlerCommand, s, JimStructDelProc);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
+
+    return JIM_OK;
+}
+
+/* array commands */
+
+static int JimArrayCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    static const char * const type_names[] = {TYPE_NAMES, NULL };
+    char buf[32];
+    struct ffi_struct *s;
+    const char *raw;
+    int i, j, len;
+
+    if (argc != 4) {
+        Jim_WrongNumArgs(interp, 0, argv, "raw type len");
+        return JIM_ERR;
+    }
+
+    s = Jim_Alloc(sizeof(*s));
+
+    if (Jim_GetEnum(interp, argv[2], type_names, &i, "ffi type", JIM_ERRMSG) != JIM_OK) {
+        Jim_Free(s);
+        return JIM_ERR;
+    }
+
+    if (Jim_GetLong(interp, argv[3], &s->nmemb) != JIM_OK) {
+        Jim_Free(s);
+        return JIM_ERR;
+    }
+    if (s->nmemb > INT_MAX) {
+        Jim_SetResultString(interp, "bad array length", -1);
+        Jim_Free(s);
+        return JIM_ERR;
+    }
+
+    s->type.elements = Jim_Alloc(sizeof(ffi_type *) * (1 + s->nmemb));
+    s->offs = Jim_Alloc(sizeof(int) * s->nmemb);
+
+    s->size = 0;
+    for (j = 0; j < s->nmemb; ++j) {
+        s->offs[j] = s->size;
+
+        s->size += type_structs[i]->size;
+        if (s->size >= INT_MAX) {
+            Jim_Free(s->offs);
+            Jim_Free(s->type.elements);
+            Jim_Free(s);
+            Jim_SetResultString(interp, "bad array size", -1);
+            return JIM_ERR;
+        }
+
+        s->type.elements[j] = type_structs[i];
+    }
+
+    raw = Jim_GetString(argv[1], &len);
+
+    if ((len != 0) && (s->size != (size_t)len)) {
+        Jim_Free(s->offs);
+        Jim_Free(s->type.elements);
+        Jim_Free(s);
+        Jim_SetResultFormatted(interp, "bad array initializer: %#s", argv[1]);
+        return JIM_ERR;
+    }
+
+    s->buf = Jim_Alloc(s->size);
+    if (len != 0) {
+        memcpy(s->buf, raw, (size_t)len);
+    }
+    s->type.size = 0;
+    s->type.alignment = 0;
+    s->type.type = FFI_TYPE_STRUCT;
+    s->type.elements[s->nmemb] = NULL;
+
+    sprintf(buf, "ffi.array%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimStructHandlerCommand, s, JimStructDelProc);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
@@ -1233,6 +1325,7 @@ int Jim_ffiInit(Jim_Interp *interp)
     Jim_CreateCommand(interp, "ffi::void", JimVoidCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi::struct", JimStructCmd, 0, 0);
+    Jim_CreateCommand(interp, "ffi::array", JimArrayCmd, 0, 0);
 
     Jim_CreateCommand(interp, "ffi::function", JimFunctionCmd, 0, 0);
     Jim_CreateCommand(interp, "ffi::dlopen", JimDlopenCmd, 0, 0);
