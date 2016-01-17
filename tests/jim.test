@@ -3501,5 +3501,8 @@ test regression-1.2 {open/close from non-global namespace} {
 	expr {$f in [info channels]}
 } {0}
 
+test regression-1.3 {value of tcl_platform(engine)} {
+  set ::tcl_platform(engine)
+} {Jim}
 
 testreport
