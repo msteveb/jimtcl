@@ -4984,6 +4984,7 @@ The following global variables are set by jimsh.
     example of the contents of this array.
 
     tcl_platform(byteOrder)     = littleEndian
+    tcl_platform(engine)        = Jim
     tcl_platform(os)            = Darwin
     tcl_platform(platform)      = unix
     tcl_platform(pointerSize)   = 8
