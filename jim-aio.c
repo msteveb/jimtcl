@@ -1032,7 +1032,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         server = 1;
     }
     else if (argc != 2) {
-        Jim_WrongNumArgs(interp, 2, argv, "?-server? ?cert? ?priv?");
+        Jim_WrongNumArgs(interp, 2, argv, "?-server cert priv?");
         return JIM_ERR;
     }
 
@@ -1280,7 +1280,7 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #if defined(JIM_SSL)
     {   "ssl",
-        "?-server? ?cert? ?priv?",
+        "?-server cert priv?",
         aio_cmd_ssl,
         0,
         3,

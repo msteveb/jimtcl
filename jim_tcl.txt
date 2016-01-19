@@ -54,6 +54,7 @@ RECENT CHANGES
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add support for `aio sync`
+1. Add SSL and TLS support in aio
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4540,6 +4541,15 @@ aio
 
 +$handle *tell*+::
     Returns the current seek position
+
++$handle *ssl* *?-server cert priv?*+::
+    Initiates a SSL/TLS session and returns a new stream
+
++$handle *verify*+::
+    Verifies the certificate of a SSL/TLS stream peer
+
++*load_ssl_certs* 'dir'+::
+    Loads SSL/TLS CA certificates for use during verification
 
 fconfigure
 ~~~~~~~~~~
