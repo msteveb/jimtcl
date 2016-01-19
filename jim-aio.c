@@ -1018,20 +1018,33 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     AioFile *af = Jim_CmdPrivData(interp);
     SSL *ssl;
     SSL_CTX *ssl_ctx;
-    int fd;
-    int server = 0;
+    int fd, server = 0, check = 1;
 
-    if (argc == 5) {
+    if (argc == 3) {
+        if (!Jim_CompareStringImmediate(interp, argv[2], "-nocheck")) {
+            return JIM_ERR;
+        }
+        check = 0;
+    }
+    else if (argc == 5) {
         if (!Jim_CompareStringImmediate(interp, argv[2], "-server")) {
             return JIM_ERR;
         }
         server = 1;
     }
-    else {
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "?-server? ?cert? ?priv?");
+    else if (argc == 6) {
+        if (!Jim_CompareStringImmediate(interp, argv[2], "-server")) {
             return JIM_ERR;
         }
+        if (!Jim_CompareStringImmediate(interp, argv[3], "-nocheck")) {
+            return JIM_ERR;
+        }
+        server = 1;
+        check = 0;
+    }
+    else if (argc != 2) {
+        Jim_WrongNumArgs(interp, 2, argv, "?-server? ?-nocheck? ?cert? ?priv?");
+        return JIM_ERR;
     }
 
     fd = fileno(af->fp);
@@ -1057,18 +1070,20 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     SSL_set_cipher_list(ssl, "ALL");
-    SSL_set_verify(ssl, SSL_VERIFY_NONE, 0);
+    if (!check) {
+        SSL_set_verify(ssl, SSL_VERIFY_NONE, 0);
+    }
 
     if (SSL_set_fd(ssl, fileno(af->fp)) == 0) {
         goto out;
     }
 
     if (server) {
-        if (SSL_use_certificate_file(ssl, Jim_String(argv[3]), SSL_FILETYPE_PEM) != 1) {
+        if (SSL_use_certificate_file(ssl, Jim_String(argv[argc - 2]), SSL_FILETYPE_PEM) != 1) {
             goto out;
         }
 
-        if (SSL_use_PrivateKey_file(ssl, Jim_String(argv[4]), SSL_FILETYPE_PEM) != 1) {
+        if (SSL_use_PrivateKey_file(ssl, Jim_String(argv[argc - 1]), SSL_FILETYPE_PEM) != 1) {
             goto out;
         }
 
@@ -1080,6 +1095,10 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (SSL_connect(ssl) != 1) {
             goto out;
         }
+    }
+
+    if (check && (!SSL_get_peer_certificate(af->ssl) || (SSL_get_verify_result(af->ssl) != X509_V_OK))) {
+        goto out;
     }
 
     if (JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+", ssl) != JIM_OK) {
@@ -1101,7 +1120,7 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    if (af->ssl == NULL || SSL_get_verify_result(af->ssl) == X509_V_OK) {
+    if (af->ssl == NULL || (SSL_get_peer_certificate(af->ssl) && (SSL_get_verify_result(af->ssl) == X509_V_OK))) {
         return JIM_OK;
     }
 
@@ -1268,10 +1287,10 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #if defined(JIM_SSL)
     {   "ssl",
-        "?-server? ?cert? ?priv?",
+        "?-server? ?-nocheck? ?cert? ?priv?",
         aio_cmd_ssl,
         0,
-        3,
+        4,
         JIM_MODFLAG_FULLARGV
         /* Description: Wraps a stream socket with SSL/TLS and returns a new channel */
     },
@@ -1337,7 +1356,10 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
         SSL_library_init();
         ssl_ctx = SSL_CTX_new(TLSv1_2_method());
         if (ssl_ctx) {
+            SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
             Jim_SetAssocData(interp, "ssl_ctx", JimAioSslContextDelProc, ssl_ctx);
+        } else {
+            Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
         }
     }
     return ssl_ctx;
@@ -1780,7 +1802,10 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     }
 
     ssl_ctx = JimAioSslCtx(interp);
-    if (ssl_ctx && SSL_CTX_load_verify_locations(ssl_ctx, NULL, Jim_String(argv[1])) == 1) {
+    if (!ssl_ctx) {
+        return JIM_ERR;
+    }
+    if (SSL_CTX_load_verify_locations(ssl_ctx, NULL, Jim_String(argv[1])) == 1) {
         return JIM_OK;
     }
     Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
