@@ -186,10 +186,10 @@ if {[opt-bool ipv6 full]} {
     define JIM_IPV6
 }
 if {[opt-bool ssl full]} {
-    if {[cc-check-includes openssl/ssl.h] && [cc-check-function-in-lib ERR_error_string crypto] && [cc-check-function-in-lib SSL_connect ssl]} {
+    if {[cc-check-includes openssl/ssl.h] && [cc-check-function-in-lib ERR_error_string crypto] && [cc-check-function-in-lib TLSv1_2_method ssl]} {
         msg-result "Enabling SSL"
         define JIM_SSL
-        define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_SSL_connect]
+        define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_TLSv1_2_method]
     } else {
         if {![opt-bool full]} {
             user-error "SSL support requires OpenSSL"
