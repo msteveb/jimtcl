@@ -109,9 +109,10 @@ proc write-if-changed {file buf {script {}}} {
 # Each pattern of the form @define@ is replaced the the corresponding
 # define, if it exists, or left unchanged if not.
 # 
-# The special value @srcdir@ is subsituted with the relative
+# The special value @srcdir@ is substituted with the relative
 # path to the source directory from the directory where the output
-# file is created. Use @top_srcdir@ for the absolute path.
+# file is created, while the special value @top_srcdir@ is substituted
+# with the relative path to the top level source directory.
 #
 # Conditional sections may be specified as follows:
 ## @if name == value
@@ -153,8 +154,9 @@ proc make-template {template {out {}}} {
 	# Make sure the directory exists
 	file mkdir $outdir
 
-	# Set up srcdir to be relative to the target dir
+	# Set up srcdir and top_srcdir to be relative to the target dir
 	define srcdir [relative-path [file join $::autosetup(srcdir) $outdir] $outdir]
+	define top_srcdir [relative-path $::autosetup(srcdir) $outdir]
 
 	set mapping {}
 	foreach {n v} [array get ::define] {

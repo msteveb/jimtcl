@@ -818,7 +818,7 @@ proc realdir {dir} {
 proc realpath {path} {
 	while {1} {
 		if {[catch {
-			set path [file link $path]
+			set path [file readlink $path]
 		}]} {
 			# Not a link
 			break
@@ -1190,8 +1190,14 @@ proc autosetup_help {what} {
 # This is done by reinvoking autosetup with --nopager added
 proc use_pager {} {
     if {![opt-bool nopager] && [getenv PAGER ""] ne "" && [isatty? stdin] && [isatty? stdout]} {
-        catch {
-            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv |& [getenv PAGER] >@stdout <@stdin
+        if {[catch {
+            exec [info nameofexecutable] $::argv0 --nopager {*}$::argv |& {*}[getenv PAGER] >@stdout <@stdin 2>@stderr
+        } msg opts] == 1} {
+            if {[dict get $opts -errorcode] eq "NONE"} {
+                # an internal/exec error
+                puts stderr $msg
+                exit 1
+            }
         }
         exit 0
     }

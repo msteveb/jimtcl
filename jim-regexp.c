@@ -496,7 +496,10 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     continue;
                 }
                 else {
-                    Jim_AppendString(interp, resultObj, replace_str + j - 1, 2);
+                    /* If the replacement is a trailing backslash, just replace with a backslash, otherwise
+                     * with the literal backslash and the following character
+                     */
+                    Jim_AppendString(interp, resultObj, replace_str + j - 1, (j == replace_len) ? 1 : 2);
                     continue;
                 }
             }
