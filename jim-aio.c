@@ -377,8 +377,13 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 static const char *JimAioErrorString(AioFile *af)
 {
 #if defined(JIM_SSL)
+    int err;
+
     if (af && af->ssl) {
-        return ERR_error_string(ERR_get_error(), NULL);
+        err = ERR_get_error();
+        if (err) {
+            return ERR_error_string(err, NULL);
+        }
     }
 #endif
     return strerror(errno);
