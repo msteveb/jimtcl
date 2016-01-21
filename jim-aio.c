@@ -91,6 +91,9 @@
 #endif
 #endif
 
+#define JimCheckStreamError(interp, af) af->fops->error(af)
+#define JimAioErrorString(af) af->fops->strerror(af)
+
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
     struct sockaddr sa;
@@ -118,6 +121,9 @@ typedef struct {
     int (*writer)(struct AioFile *af, const char *buf, int len);
     int (*reader)(struct AioFile *af, char *buf, int len);
     const char *(*getline)(struct AioFile *af, char *buf, int len);
+    int (*error)(const struct AioFile *af);
+    const char *(*strerror)(struct AioFile *af);
+    int (*verify)(struct AioFile *af);
 } JimAioFopsType;
 
 typedef struct AioFile
@@ -150,10 +156,41 @@ static const char *stdio_getline(struct AioFile *af, char *buf, int len)
     return fgets(buf, len, af->fp);
 }
 
+static int stdio_error(const AioFile *af)
+{
+    if (!ferror(af->fp)) {
+        return JIM_OK;
+    }
+    clearerr(af->fp);
+    /* EAGAIN and similar are not error conditions. Just treat them like eof */
+    if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
+        return JIM_OK;
+    }
+#ifdef ECONNRESET
+    if (errno == ECONNRESET) {
+        return JIM_OK;
+    }
+#endif
+#ifdef ECONNABORTED
+    if (errno != ECONNABORTED) {
+        return JIM_OK;
+    }
+#endif
+    return JIM_ERR;
+}
+
+static const char *stdio_strerror(struct AioFile *af)
+{
+    return strerror(errno);
+}
+
 static const JimAioFopsType stdio_fops = {
     stdio_writer,
     stdio_reader,
     stdio_getline,
+    stdio_error,
+    stdio_strerror,
+    NULL
 };
 
 #if defined(JIM_SSL)
@@ -188,10 +225,51 @@ static const char *ssl_getline(struct AioFile *af, char *buf, int len)
     return buf;
 }
 
+static int ssl_error(const struct AioFile *af)
+{
+    if (ERR_peek_error() == 0) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
+static const char *ssl_strerror(struct AioFile *af)
+{
+    int err = ERR_get_error();
+
+    if (err) {
+        return ERR_error_string(err, NULL);
+    }
+
+    /* should not happen */
+    return "unknown SSL error";
+}
+
+static int ssl_verify(struct AioFile *af)
+{
+    X509 *cert;
+
+    cert = SSL_get_peer_certificate(af->ssl);
+    if (!cert) {
+        return JIM_ERR;
+    }
+    X509_free(cert);
+
+    if (SSL_get_verify_result(af->ssl) == X509_V_OK) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
 static const JimAioFopsType ssl_fops = {
     ssl_writer,
     ssl_reader,
     ssl_getline,
+    ssl_error,
+    ssl_strerror,
+    ssl_verify
 };
 #endif
 
@@ -374,21 +452,6 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 
 #endif /* JIM_BOOTSTRAP */
 
-static const char *JimAioErrorString(AioFile *af)
-{
-#if defined(JIM_SSL)
-    int err;
-
-    if (af && af->ssl) {
-        err = ERR_get_error();
-        if (err) {
-            return ERR_error_string(err, NULL);
-        }
-    }
-#endif
-    return strerror(errno);
-}
-
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -425,40 +488,6 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     }
 
     Jim_Free(af);
-}
-
-static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
-{
-#if defined(JIM_SSL)
-    if (af->ssl) {
-        if (ERR_peek_error() == 0) {
-            return JIM_OK;
-        }
-        /* XXX: For the ssl case, should we be looking for errors on the raw file? */
-        JimAioSetError(interp, af->filename);
-        return JIM_ERR;
-    }
-#endif
-    if (!ferror(af->fp)) {
-        return JIM_OK;
-    }
-    clearerr(af->fp);
-    /* EAGAIN and similar are not error conditions. Just treat them like eof */
-    if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
-        return JIM_OK;
-    }
-#ifdef ECONNRESET
-    if (errno == ECONNRESET) {
-        return JIM_OK;
-    }
-#endif
-#ifdef ECONNABORTED
-    if (errno != ECONNABORTED) {
-        return JIM_OK;
-    }
-#endif
-    JimAioSetError(interp, af->filename);
-    return JIM_ERR;
 }
 
 static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1101,23 +1130,12 @@ out:
 static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    X509 *cert;
 
-    if (!af->ssl) {
+    if (!af->fops->verify) {
         return JIM_OK;
     }
 
-    cert = SSL_get_peer_certificate(af->ssl);
-    if (!cert) {
-        return JIM_ERR;
-    }
-    X509_free(cert);
-
-    if (SSL_get_verify_result(af->ssl) == X509_V_OK) {
-        return JIM_OK;
-    }
-
-    return JIM_ERR;
+    return af->fops->verify(af);
 }
 #endif
 
