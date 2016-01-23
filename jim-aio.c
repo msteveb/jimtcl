@@ -92,7 +92,6 @@
 #endif
 
 #define JimCheckStreamError(interp, af) af->fops->error(af)
-#define JimAioErrorString(af) af->fops->strerror(af)
 
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
@@ -451,6 +450,14 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 }
 
 #endif /* JIM_BOOTSTRAP */
+
+static const char *JimAioErrorString(AioFile *af)
+{
+    if (af && af->fops)
+        return af->fops->strerror(af);
+
+    return strerror(errno);
+}
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
