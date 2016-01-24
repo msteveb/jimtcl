@@ -376,7 +376,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         }
     }
 
-#ifdef HAVE_SELECT
+#if defined(HAVE_SELECT) || defined(__MINGW32__)
     if (flags & JIM_FILE_EVENTS) {
         int retval;
         struct timeval tv, *tvp = NULL;
@@ -389,7 +389,11 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
         /* Check file events */
         while (fe != NULL) {
+#ifdef __MINGW32__
+            SOCKET fd = _get_osfhandle(fileno(fe->handle));
+#else
             int fd = fileno(fe->handle);
+#endif
 
             if (fe->mask & JIM_EVENT_READABLE)
                 FD_SET(fd, &rfds);
@@ -420,7 +424,11 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         else if (retval > 0) {
             fe = eventLoop->fileEventHead;
             while (fe != NULL) {
+#ifdef __MINGW32__
+                SOCKET fd = _get_osfhandle(fileno(fe->handle));
+#else
                 int fd = fileno(fe->handle);
+#endif
                 int mask = 0;
 
                 if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds))

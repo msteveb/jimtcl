@@ -50,6 +50,11 @@
 
 #include "jim.h"
 
+#ifdef __MINGW32__
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#else
 #if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -60,6 +65,7 @@
 #endif
 #else
 #define JIM_ANSIC
+#endif
 #endif
 
 #include "jim-eventloop.h"
@@ -217,7 +223,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
     }
 
     {
-#ifdef HAVE_GETADDRINFO
+#if defined(__MINGW32__) || defined(HAVE_GETADDRINFO)
         struct addrinfo req;
         struct addrinfo *ai;
         memset(&req, '\0', sizeof(req));
@@ -301,12 +307,47 @@ static int JimFormatIpAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, const unio
 
 static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 {
+#ifndef __MINGW32__
+    const char *s;
+#else
+    char *s;
+    int err, alloc = 0;
+
+    /* try WSAGetLastError() (which gets modified by socket
+     * functions, i.e recv()) first, then fall back to errno (which gets
+     * modified by FILE * functions, etc') */
+    err = WSAGetLastError();
+    if (err != 0) {
+        WSASetLastError(0);
+        if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                          NULL,
+                          err,
+                          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                          (LPTSTR)&s,
+                          0,
+                          NULL) == 0) {
+            return;
+        }
+        alloc = 1;
+    } else {
+#endif
+        s = strerror(errno);
+#ifdef __MINGW32__
+    }
+#endif
+
     if (name) {
-        Jim_SetResultFormatted(interp, "%#s: %s", name, strerror(errno));
+        Jim_SetResultFormatted(interp, "%#s: %s", name, s);
     }
     else {
-        Jim_SetResultString(interp, strerror(errno), -1);
+        Jim_SetResultString(interp, s, -1);
     }
+
+#ifdef __MINGW32__
+    if (alloc) {
+        LocalFree(s);
+    }
+#endif
 }
 
 static void JimAioDelProc(Jim_Interp *interp, void *privData)
@@ -331,6 +372,8 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
 static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
 {
+    int err;
+
     if (!ferror(af->fp)) {
         return JIM_OK;
     }
@@ -339,13 +382,20 @@ static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
     if (feof(af->fp) || errno == EAGAIN || errno == EINTR) {
         return JIM_OK;
     }
+
+#ifdef __MINGW32__
+    err = WSAGetLastError();
+#else
+    err = errno;
+#endif
+
 #ifdef ECONNRESET
-    if (errno == ECONNRESET) {
+    if (err == ECONNRESET) {
         return JIM_OK;
     }
 #endif
 #ifdef ECONNABORTED
-    if (errno != ECONNABORTED) {
+    if (err != ECONNABORTED) {
         return JIM_OK;
     }
 #endif
@@ -471,8 +521,25 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     objPtr = Jim_NewStringObj(interp, NULL, 0);
     while (1) {
         buf[AIO_BUF_LEN - 1] = '_';
-        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL)
+        if (fgets(buf, AIO_BUF_LEN, af->fp) == NULL) {
+#ifndef __MINGW32__
             break;
+#else
+            int len = recv(_get_osfhandle(fileno(af->fp)), buf, AIO_BUF_LEN - 1, 0);
+            if (len == SOCKET_ERROR) {
+                /* for non-socket streams, we want to use errno to describe the error */
+                if (WSAGetLastError() == WSAENOTSOCK) {
+                    WSASetLastError(0);
+                }
+                break;
+            }
+            if (len == 0) {
+                break;
+            }
+
+            buf[len] = '\0';
+#endif
+        }
 
         if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n') {
             Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN - 1);
@@ -533,11 +600,32 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     wdata = Jim_GetString(strObj, &wlen);
+#ifdef __MINGW32__
+    errno = 0;
+#endif
     if (fwrite(wdata, 1, wlen, af->fp) == (unsigned)wlen) {
         if (argc == 2 || putc('\n', af->fp) != EOF) {
             return JIM_OK;
         }
     }
+#ifdef __MINGW32__
+    /* fwrite() doesn't seem to work with sockets, so we fall back to good ol' send() */
+    if (errno == 0) {
+        SOCKET sock = _get_osfhandle(fileno(af->fp));
+        int out = send(sock, wdata, wlen, 0);
+        if (out == wlen) {
+            if (argc == 2 || send(sock, "\n", 1, 0) == 1) {
+                return JIM_OK;
+            }
+        }
+        if (out == SOCKET_ERROR) {
+            /* we want to use errno if af is not a socket */
+            if (WSAGetLastError() == WSAENOTSOCK) {
+                WSASetLastError(0);
+            }
+        }
+    }
+#endif
     JimAioSetError(interp, af->filename);
     return JIM_ERR;
 }
@@ -620,12 +708,21 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+#ifdef __MINGW32__
+    SOCKET sock;
+#else
     int sock;
+#endif
     union sockaddr_any sa;
     socklen_t addrlen = sizeof(sa);
 
+#ifdef __MINGW32__
+    sock = accept(_get_osfhandle(af->fd), &sa.sa, &addrlen);
+    if (sock == INVALID_SOCKET) {
+#else
     sock = accept(af->fd, &sa.sa, &addrlen);
     if (sock < 0) {
+#endif
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
@@ -637,8 +734,12 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Create the file command */
-    return JimMakeChannel(interp, NULL, sock, Jim_NewStringObj(interp, "accept", -1),
-        "aio.sockstream%ld", af->addr_family, "r+");
+#ifdef __MINGW32__
+    return JimMakeChannel(interp, NULL, _open_osfhandle(sock, 0),
+#else
+    return JimMakeChannel(interp, NULL, sock,
+#endif
+        Jim_NewStringObj(interp, "accept", -1), "aio.sockstream%ld", af->addr_family, "r+");
 }
 
 static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1210,7 +1311,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         SOCK_STREAM_SOCKETPAIR,
     };
     int socktype;
+#ifdef __MINGW32__
+    SOCKET sock;
+#else
     int sock;
+#endif
     const char *hostportarg = NULL;
     int res;
     int on = 1;
@@ -1252,7 +1357,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (argc == 2) {
                 /* No address, so an unconnected dgram socket */
                 sock = socket(family, SOCK_DGRAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
@@ -1277,7 +1386,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 sock = socket(family, (socktype == SOCK_DGRAM_CLIENT) ? SOCK_DGRAM : SOCK_STREAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
@@ -1309,7 +1422,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 sock = socket(family, (socktype == SOCK_DGRAM_SERVER) ? SOCK_DGRAM : SOCK_STREAM, 0);
+#ifdef __MINGW32__
+                if (sock == INVALID_SOCKET) {
+#else
                 if (sock < 0) {
+#endif
                     JimAioSetError(interp, NULL);
                     return JIM_ERR;
                 }
@@ -1447,7 +1564,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
     }
 
+#ifdef __MINGW32__
+    return JimMakeChannel(interp, NULL, _open_osfhandle(sock, 0), argv[1], hdlfmt, family, mode);
+#else
     return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode);
+#endif
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -1513,6 +1634,14 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
 
 int Jim_aioInit(Jim_Interp *interp)
 {
+#ifdef __MINGW32__
+    WSADATA data;
+
+    if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
+        return JIM_ERR;
+    }
+#endif
+
     if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
