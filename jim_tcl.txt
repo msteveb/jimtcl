@@ -54,7 +54,11 @@ RECENT CHANGES
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add support for `aio sync`
+<<<<<<< HEAD
 1. Add SSL and TLS support in aio
+=======
+2. Add SSL and TLS support in aio
+>>>>>>> b02b80186b74c0f41ce72ba530a83a0211c83f55
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

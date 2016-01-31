@@ -273,8 +273,8 @@ static const JimAioFopsType ssl_fops = {
 #endif
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
-static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
-    const char *hdlfmt, int family, const char *mode, void *ssl);
+static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
+    const char *hdlfmt, int family, const char *mode);
 
 #if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
@@ -803,7 +803,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Create the file command */
     return JimMakeChannel(interp, NULL, sock, Jim_NewStringObj(interp, "accept", -1),
-        "aio.sockstream%ld", af->addr_family, "r+", NULL);
+        "aio.sockstream%ld", af->addr_family, "r+") ? JIM_OK : JIM_ERR;
 }
 
 static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1119,9 +1119,13 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    if (JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+", ssl) != JIM_OK) {
+    af = JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+");
+    if (af == NULL) {
         goto out;
     }
+
+    af->ssl = ssl;
+    af->fops = &ssl_fops;
 
     return JIM_OK;
 
@@ -1366,7 +1370,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         }
     }
 #endif
-    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode, NULL);
+    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode) ? JIM_OK : JIM_ERR;
 }
 
 #if defined(JIM_SSL)
@@ -1405,9 +1409,10 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
  * mode is used for open or fdopen.
  *
  * Creates the command and sets the name as the current result.
+ * Returns the AioFile pointer on sucess or NULL on failure.
  */
-static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
-    const char *hdlfmt, int family, const char *mode, void *ssl)
+static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
+    const char *hdlfmt, int family, const char *mode)
 {
     AioFile *af;
     char buf[AIO_CMD_LEN];
@@ -1441,7 +1446,7 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
             }
 #endif
             Jim_DecrRefCount(interp, filename);
-            return JIM_ERR;
+            return NULL;
         }
     }
 
@@ -1459,12 +1464,7 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
     af->openFlags = openFlags;
     af->addr_family = family;
     af->fops = &stdio_fops;
-    af->ssl = ssl;
-#if defined(JIM_SSL)
-    if (ssl) {
-        af->fops = &ssl_fops;
-    }
-#endif
+    af->ssl = NULL;
 
     Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
@@ -1473,7 +1473,7 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
      */
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
-    return JIM_OK;
+    return af;
 }
 
 #if defined(HAVE_PIPE) || (defined(HAVE_SOCKETPAIR) && defined(HAVE_SYS_UN_H))
@@ -1483,11 +1483,11 @@ static int JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filenam
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode[2])
 {
-    if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0], NULL) == JIM_OK) {
+    if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0])) {
         Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
         Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
 
-        if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1], NULL) == JIM_OK) {
+        if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1])) {
             Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
@@ -1767,7 +1767,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
     }
 
-    return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode, NULL);
+    return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode) ? JIM_OK : JIM_ERR;
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -1856,9 +1856,9 @@ int Jim_aioInit(Jim_Interp *interp)
 #endif
 
     /* Create filehandles for stdin, stdout and stderr */
-    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r", NULL);
-    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w", NULL);
-    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w", NULL);
+    JimMakeChannel(interp, stdin, -1, NULL, "stdin", 0, "r");
+    JimMakeChannel(interp, stdout, -1, NULL, "stdout", 0, "w");
+    JimMakeChannel(interp, stderr, -1, NULL, "stderr", 0, "w");
 
     return JIM_OK;
 }
