@@ -1073,8 +1073,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     fd = fileno(af->fp);
-    /* XXX: Why HAVE_SOCKETPAIR? */
-#if defined(HAVE_SOCKETPAIR)
+#if defined(HAVE_DUP)
     fd = dup(fd);
     if (fd < 0) {
         return JIM_ERR;
@@ -1087,7 +1086,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     ssl = SSL_new(ssl_ctx);
     if (ssl == NULL) {
-#if defined(HAVE_SOCKETPAIR)
+#if defined(HAVE_DUP)
         close(fd);
 #endif
         Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
@@ -1130,7 +1129,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 
 out:
-#if defined(HAVE_SOCKETPAIR)
+#if defined(HAVE_DUP)
     close(fd);
 #endif
     SSL_free(ssl);
