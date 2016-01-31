@@ -1137,12 +1137,22 @@ out:
 static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+    int ret;
 
     if (!af->fops->verify) {
         return JIM_OK;
     }
 
-    return af->fops->verify(af);
+    ret = af->fops->verify(af);
+    if (ret != JIM_OK) {
+        if (JimCheckStreamError(interp, af)) {
+            JimAioSetError(interp, af->filename);
+        } else {
+            Jim_SetResultString(interp, "failed to verify the connection authenticity", -1);
+        }
+    }
+
+    return ret;
 }
 #endif
 
