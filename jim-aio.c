@@ -591,7 +591,7 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     jim_wide maxlen = JIM_WIDE_MAX;
     AioFile *outf = Jim_AioFile(interp, argv[0]);
 
-    if (outf->fp == NULL) {
+    if (outf == NULL) {
         return JIM_ERR;
     }
 
