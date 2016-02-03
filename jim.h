@@ -341,7 +341,7 @@ typedef struct Jim_Obj {
             int argc;
         } scriptLineValue;
     } internalRep;
-    /* This are 8 or 16 bytes more for every object
+    /* These fields add 8 or 16 bytes more for every object
      * but this is required for efficient garbage collection
      * of Jim references. */
     struct Jim_Obj *prevObjPtr; /* pointer to the prev object. */
@@ -412,11 +412,6 @@ typedef struct Jim_ObjType {
 #define JIM_TYPE_NONE 0        /* No flags */
 #define JIM_TYPE_REFERENCES 1    /* The object may contain references. */
 
-/* Starting from 1 << 20 flags are reserved for private uses of
- * different calls. This way the same 'flags' argument may be used
- * to pass both global flags and private flags. */
-#define JIM_PRIV_FLAG_SHIFT 20
-
 /* -----------------------------------------------------------------------------
  * Call frame, vars, commands structures
  * ---------------------------------------------------------------------------*/
@@ -443,10 +438,10 @@ typedef struct Jim_CallFrame {
 
 /* The var structure. It just holds the pointer of the referenced
  * object. If linkFramePtr is not NULL the variable is a link
- * to a variable of name store on objPtr living on the given callframe
+ * to a variable of name stored in objPtr living in the given callframe
  * (this happens when the [global] or [upvar] command is used).
  * The interp in order to always know how to free the Jim_Obj associated
- * with a given variable because In Jim objects memory management is
+ * with a given variable because in Jim objects memory management is
  * bound to interpreters. */
 typedef struct Jim_Var {
     Jim_Obj *objPtr;
@@ -461,8 +456,8 @@ typedef void Jim_DelCmdProc(struct Jim_Interp *interp, void *privData);
 
 
 /* A command is implemented in C if isproc is 0, otherwise
- * it's a Tcl procedure with the arglist and body represented by the
- * two objects referenced by arglistObjPtr and bodyoObjPtr. */
+ * it is a Tcl procedure with the arglist and body represented by the
+ * two objects referenced by arglistObjPtr and bodyObjPtr. */
 typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
     int isproc;          /* Is this a procedure? */
@@ -507,7 +502,7 @@ typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
     int errorLine; /* Error line where an error occurred. */
     Jim_Obj *errorFileNameObj; /* Error file where an error occurred. */
-    int addStackTrace; /* > 0 If a level should be added to the stack trace */
+    int addStackTrace; /* > 0 if a level should be added to the stack trace */
     int maxCallFrameDepth; /* Used for infinite loop detection. */
     int maxEvalDepth; /* Used for infinite loop detection. */
     int evalDepth;  /* Current eval depth */

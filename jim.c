@@ -3907,7 +3907,7 @@ static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
 
 
 int Jim_CreateCommand(Jim_Interp *interp, const char *cmdNameStr,
-    Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
+    Jim_CmdProc *cmdProc, void *privData, Jim_DelCmdProc *delProc)
 {
     Jim_Cmd *cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 
