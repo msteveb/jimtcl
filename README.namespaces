@@ -67,7 +67,7 @@ Variable resolution
 The variable command in Jim Tcl has the same syntax as Tcl, but is closer in behaviour to the global command.
 The variable command creates a link from a local variable to a namespace variable, possibly initialising it.
 
-For example, the following procedure uses 'variable' to initialse and access myvar.
+For example, the following procedure uses 'variable' to initialise and access myvar.
 
 proc ::test::myproc {} {
   variable myvar 4
@@ -89,7 +89,7 @@ And similarly, the following will only access local variables
 
 set x 3
 namespace eval ::test {
-	# This will incremement a local variable, not ::x
+	# This will increment a local variable, not ::x
 	incr x
 	# This will also increment a local variable
 	incr abc::def
