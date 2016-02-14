@@ -44,7 +44,7 @@ are prefixed with 'Account' and a space.
 
 PREDEFINED CLASS METHODS
 ------------------------
-Decaring a class pre-defines a number of "class" methods. i.e. those which don't
+Declaring a class pre-defines a number of "class" methods. i.e. those which don't
 require an object and simply return or manipulate properties of the class. These are:
 
   new ?instancevars?::
@@ -84,7 +84,7 @@ For example:
 
 PREDEFINED OBJECT METHODS
 -------------------------
-Decaring a class pre-defines a number of "object" methods. i.e. those which operate
+Declaring a class pre-defines a number of "object" methods. i.e. those which operate
 on a specific object.
 
   destroy::
@@ -122,7 +122,7 @@ For example:
 
 DECLARING METHODS
 -----------------
-In addition to the predefined methods, new methods may be decared, or existing
+In addition to the predefined methods, new methods may be declared, or existing
 methods redefined with the class method, method.
 
 Declaring a method is very similar to defining a proc, and the arglist

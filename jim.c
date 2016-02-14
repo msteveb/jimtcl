@@ -1685,6 +1685,7 @@ static int JimParseStr(struct JimParserCtx *pc)
                 if (pc->len > 1 && pc->p[1] != '$') {
                     break;
                 }
+                /* fall through */
             case ')':
                 /* Only need a separate ')' token if the previous was a var */
                 if (*pc->p == '(' || pc->tt == JIM_TT_VAR) {
@@ -3265,7 +3266,7 @@ typedef struct ScriptToken
  * -- the substFlags field of the structure --
  *
  * The scriptObj structure is used to represent both "script" objects
- * and "subst" objects. In the second case, the there are no LIN and WRD
+ * and "subst" objects. In the second case, there are no LIN and WRD
  * tokens. Instead SEP and EOL tokens are added as-is.
  * In addition, the field 'substFlags' is used to represent the flags used to turn
  * the string into the internal representation.
@@ -3906,7 +3907,7 @@ static int JimCreateCommand(Jim_Interp *interp, const char *name, Jim_Cmd *cmd)
 
 
 int Jim_CreateCommand(Jim_Interp *interp, const char *cmdNameStr,
-    Jim_CmdProc cmdProc, void *privData, Jim_DelCmdProc delProc)
+    Jim_CmdProc *cmdProc, void *privData, Jim_DelCmdProc *delProc)
 {
     Jim_Cmd *cmdPtr = Jim_Alloc(sizeof(*cmdPtr));
 
@@ -5478,6 +5479,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, JIM_LIBPATH, TCL_LIBRARY);
     Jim_SetVariableStrWithStr(i, JIM_INTERACTIVE, "0");
 
+    Jim_SetVariableStrWithStr(i, "tcl_platform(engine)", "Jim");
     Jim_SetVariableStrWithStr(i, "tcl_platform(os)", TCL_PLATFORM_OS);
     Jim_SetVariableStrWithStr(i, "tcl_platform(platform)", TCL_PLATFORM_PLATFORM);
     Jim_SetVariableStrWithStr(i, "tcl_platform(pathSeparator)", TCL_PLATFORM_PATH_SEPARATOR);
@@ -6135,6 +6137,7 @@ static unsigned char ListElementQuotingType(const char *s, int len)
             case '\f':
             case '\v':
                 trySimple = 0;
+                /* fall through */
             case '{':
             case '}':
                 goto testbrace;
@@ -8718,7 +8721,7 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
     expr->len += 2;
     offset = (expr->len - leftindex) - 1;
 
-    /* Now we rely on the fact the the left and right version have opcodes
+    /* Now we rely on the fact that the left and right version have opcodes
      * 1 and 2 after the main opcode respectively
      */
     expr->token[leftindex + 1].type = t->type + 1;
@@ -14404,7 +14407,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     }
 
-    /* Test for the the most common commands first, just in case it makes a difference */
+    /* Test for the most common commands first, just in case it makes a difference */
     switch (cmd) {
         case INFO_EXISTS:
             if (argc != 3) {
@@ -14438,8 +14441,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResultString(interp, "aio not enabled", -1);
             return JIM_ERR;
 #endif
+            /* fall through */
         case INFO_PROCS:
             mode++;             /* JIM_CMDLIST_PROCS */
+            /* fall through */
         case INFO_COMMANDS:
             /* mode 0 => JIM_CMDLIST_COMMANDS */
             if (argc != 2 && argc != 3) {
@@ -14458,8 +14463,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
         case INFO_VARS:
             mode++;             /* JIM_VARLIST_VARS */
+            /* fall through */
         case INFO_LOCALS:
             mode++;             /* JIM_VARLIST_LOCALS */
+            /* fall through */
         case INFO_GLOBALS:
             /* mode 0 => JIM_VARLIST_GLOBALS */
             if (argc != 2 && argc != 3) {

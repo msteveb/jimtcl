@@ -39,7 +39,7 @@ The query method has the following signature:
 
 The sql query may contain occurrences of "%s" that are substituted
 in the actual query with the following arguments, quoted in order
-to make sure that the query is correct even if this arguments contain
+to make sure that the query is correct even if these arguments contain
 "'" characters. So for example it is possible to write:
 
     . $db query "SELECT * from tbl1 WHERE one='%s'" hello!
@@ -120,7 +120,7 @@ the NULL value as a different string:
     . $db query -null <<NULL>> "SELECT * from tbl1"
     {one hello! two 10} {one goodbye two 20} {one <<NULL>> two 30}
 
-This way if the emtpy string has some semantical value for your
+This way if the empty string has some semantical value for your
 dataset you can change it.
 
 Finding the ID of the last inserted row
@@ -135,7 +135,7 @@ Number of rows changed by the most recent query
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is also very simple, there is just to use the 'changes' method
-without arugments.
+without arguments.
 
     . $db changes
     5

@@ -98,9 +98,10 @@
 #define	REPMIN	11	/* max,min	Match this (simple) thing [min,max] times, minimal match. */
 #define	REPX	12	/* max,min	Match this (complex) thing [min,max] times. */
 #define	REPXMIN	13	/* max,min	Match this (complex) thing [min,max] times, minimal match. */
-
-#define	WORDA	15	/* no	Match "" at wordchar, where prev is nonword */
-#define	WORDZ	16	/* no	Match "" at nonwordchar, where prev is word */
+#define	BOLX	14	/* no	Match "" at beginning of input. */
+#define	EOLX	15	/* no	Match "" at end of input. */
+#define	WORDA	16	/* no	Match "" at wordchar, where prev is nonword */
+#define	WORDZ	17	/* no	Match "" at nonwordchar, where prev is word */
 
 #define	OPENNC 	1000	/* no	Non-capturing parentheses - must be OPEN-1 */
 #define	OPEN   	1001	/* no	Mark this point in input as start of #n. */
@@ -742,27 +743,73 @@ static int regatom(regex_t *preg, int *flagp)
 					reg_addrange(preg, start, end);
 					continue;
 				}
-				if (start == '[') {
-					if (strncmp(pattern, ":alpha:]", 8) == 0) {
-						if ((preg->cflags & REG_ICASE) == 0) {
-							reg_addrange(preg, 'a', 'z');
+				if (start == '[' && pattern[0] == ':') {
+					static const char *character_class[] = {
+						":alpha:", ":alnum:", ":space:", ":blank:", ":upper:", ":lower:",
+						":digit:", ":xdigit:", ":cntrl:", ":graph:", ":print:", ":punct:",
+					};
+					enum {
+						CC_ALPHA, CC_ALNUM, CC_SPACE, CC_BLANK, CC_UPPER, CC_LOWER,
+						CC_DIGIT, CC_XDIGIT, CC_CNTRL, CC_GRAPH, CC_PRINT, CC_PUNCT,
+						CC_NUM
+					};
+					int i;
+
+					for (i = 0; i < CC_NUM; i++) {
+						int n = strlen(character_class[i]);
+						if (strncmp(pattern, character_class[i], n) == 0) {
+							/* Found a character class */
+							pattern += n + 1;
+							break;
 						}
-						reg_addrange(preg, 'A', 'Z');
-						pattern += 8;
-						continue;
 					}
-					if (strncmp(pattern, ":alnum:]", 8) == 0) {
-						if ((preg->cflags & REG_ICASE) == 0) {
-							reg_addrange(preg, 'a', 'z');
+					if (i != CC_NUM) {
+						switch (i) {
+							case CC_ALNUM:
+								reg_addrange(preg, '0', '9');
+								/* Fall through */
+							case CC_ALPHA:
+								if ((preg->cflags & REG_ICASE) == 0) {
+									reg_addrange(preg, 'a', 'z');
+								}
+								reg_addrange(preg, 'A', 'Z');
+								break;
+							case CC_SPACE:
+								reg_addrange_str(preg, " \t\r\n\f\v");
+								break;
+							case CC_BLANK:
+								reg_addrange_str(preg, " \t");
+								break;
+							case CC_UPPER:
+								reg_addrange(preg, 'A', 'Z');
+								break;
+							case CC_LOWER:
+								reg_addrange(preg, 'a', 'z');
+								break;
+							case CC_XDIGIT:
+								reg_addrange(preg, 'a', 'f');
+								reg_addrange(preg, 'A', 'F');
+								/* Fall through */
+							case CC_DIGIT:
+								reg_addrange(preg, '0', '9');
+								break;
+							case CC_CNTRL:
+								reg_addrange(preg, 0, 31);
+								reg_addrange(preg, 127, 127);
+								break;
+							case CC_PRINT:
+								reg_addrange(preg, ' ', '~');
+								break;
+							case CC_GRAPH:
+								reg_addrange(preg, '!', '~');
+								break;
+							case CC_PUNCT:
+								reg_addrange(preg, '!', '/');
+								reg_addrange(preg, ':', '@');
+								reg_addrange(preg, '[', '`');
+								reg_addrange(preg, '{', '~');
+								break;
 						}
-						reg_addrange(preg, 'A', 'Z');
-						reg_addrange(preg, '0', '9');
-						pattern += 8;
-						continue;
-					}
-					if (strncmp(pattern, ":space:]", 8) == 0) {
-						reg_addrange_str(preg, " \t\r\n\f\v");
-						pattern += 8;
 						continue;
 					}
 				}
@@ -797,10 +844,17 @@ static int regatom(regex_t *preg, int *flagp)
 		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
 		return 0;
 	case '\\':
-		switch (*preg->regparse++) {
+		ch = *preg->regparse++;
+		switch (ch) {
 		case '\0':
 			preg->err = REG_ERR_TRAILING_BACKSLASH;
 			return 0;
+		case 'A':
+			ret = regnode(preg, BOLX);
+			break;
+		case 'Z':
+			ret = regnode(preg, EOLX);
+			break;
 		case '<':
 		case 'm':
 			ret = regnode(preg, WORDA);
@@ -810,13 +864,15 @@ static int regatom(regex_t *preg, int *flagp)
 			ret = regnode(preg, WORDZ);
 			break;
 		case 'd':
-			ret = regnode(preg, ANYOF);
+		case 'D':
+			ret = regnode(preg, ch == 'd' ? ANYOF : ANYBUT);
 			reg_addrange(preg, '0', '9');
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		case 'w':
-			ret = regnode(preg, ANYOF);
+		case 'W':
+			ret = regnode(preg, ch == 'w' ? ANYOF : ANYBUT);
 			if ((preg->cflags & REG_ICASE) == 0) {
 				reg_addrange(preg, 'a', 'z');
 			}
@@ -827,7 +883,8 @@ static int regatom(regex_t *preg, int *flagp)
 			*flagp |= HASWIDTH|SIMPLE;
 			break;
 		case 's':
-			ret = regnode(preg, ANYOF);
+		case 'S':
+			ret = regnode(preg, ch == 's' ? ANYOF : ANYBUT);
 			reg_addrange_str(preg," \t\r\n\f\v");
 			regc(preg, '\0');
 			*flagp |= HASWIDTH|SIMPLE;
@@ -865,7 +922,7 @@ static int regatom(regex_t *preg, int *flagp)
 					/* Non-trailing backslash.
 					 * Is this a special escape, or a regular escape?
 					 */
-					if (strchr("<>mMwds", preg->regparse[n])) {
+					if (strchr("<>mMwWdDsSAZ", preg->regparse[n])) {
 						/* A special escape. All done with EXACTLY */
 						break;
 					}
@@ -1373,9 +1430,21 @@ static int regmatch(regex_t *preg, int prog)
 		n = reg_utf8_tounicode_case(preg->reginput, &c, (preg->cflags & REG_ICASE));
 
 		switch (OP(preg, scan)) {
-		case BOL:
-			if (preg->reginput != preg->regbol)
+		case BOLX:
+			if ((preg->eflags & REG_NOTBOL)) {
 				return(0);
+			}
+			/* Fall through */
+		case BOL:
+			if (preg->reginput != preg->regbol) {
+				return(0);
+			}
+			break;
+		case EOLX:
+			if (c != 0) {
+				/* For EOLX, only match real end of line, not newline */
+				return 0;
+			}
 			break;
 		case EOL:
 			if (!reg_iseol(preg, c)) {
@@ -1713,6 +1782,10 @@ static const char *regprop( int op )
 		return "BOL";
 	case EOL:
 		return "EOL";
+	case BOLX:
+		return "BOLX";
+	case EOLX:
+		return "EOLX";
 	case ANY:
 		return "ANY";
 	case ANYOF:
