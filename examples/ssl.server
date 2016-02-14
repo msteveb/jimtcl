@@ -1,0 +1,43 @@
+# Example of a ssl encrypted, tcp server which sends a response
+
+# Listen on port 20000. No host specified means 0.0.0.0
+set s [socket stream.server 20000]
+
+$s readable {
+	# Clean up children
+	os.wait -nohang 0
+	set sock [[$s accept addr] ssl -server certificate.pem key.pem]
+	puts "Client address: $addr"
+
+	# Make this server forking so we can accept multiple
+	# simultaneous connections
+	if {[os.fork] == 0} {
+		$s close
+
+		$sock buffering line
+
+		# Get the request (max 80 chars) - need the source address
+		while {[$sock gets buf] >= 0} {
+			if {$buf eq ""} {
+				break
+			}
+			set buf [string trim $buf]
+			puts -nonewline "read '$buf'"
+
+			try {
+				set result "$buf = [expr $buf]"
+			} on error {msg} {
+				set result "Error: $buf => $msg"
+			}
+
+			puts ", sending '$result'"
+
+			# Send the result back to where it came from
+			$sock puts $result
+		}
+	}
+
+	$sock close
+}
+
+vwait done
