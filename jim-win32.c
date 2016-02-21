@@ -58,6 +58,10 @@
     #define GetTickCount64 GetTickCount
 #endif
 
+#ifdef _MSC_VER
+#include <Lm.h>
+#endif
+
 static Jim_Obj *
 Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
 {
@@ -319,7 +323,20 @@ Win32_GetModuleFileName(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 static int
 Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 {
-    Jim_SetResult(interp, Jim_NewIntObj(interp, GetVersion()));
+    DWORD version = 0;
+#ifndef _MSC_VER
+    version = GetVersion();
+#else
+    /* GetVersion is deprecated - grab this via the NetWkstaGetInfo function instead */
+    LPBYTE pinfoRawData;
+    if (NERR_Success == NetWkstaGetInfo(NULL, 100, &pinfoRawData))
+    {
+        WKSTA_INFO_100 * pworkstationInfo = (WKSTA_INFO_100 *)pinfoRawData;
+        version = ((pworkstationInfo->wki100_ver_major & 0xff) << 8) | (pworkstationInfo->wki100_ver_minor & 0xff);
+        NetApiBufferFree(pinfoRawData);
+    }
+#endif /* _MSC_VER */
+    Jim_SetResult(interp, Jim_NewIntObj(interp, version));
     return JIM_OK;
 }
 
