@@ -148,13 +148,13 @@ Win32_FindWindow(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 static int
 Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 {
-    long hwnd;
+    jim_wide hwnd;
 
     if (objc != 2) {
         Jim_WrongNumArgs(interp, 1, objv, "?windowHandle?");
         return JIM_ERR;
     }
-    if (Jim_GetLong(interp, objv[1], &hwnd) != JIM_OK)
+    if (Jim_GetWide(interp, objv[1], &hwnd) != JIM_OK)
         return JIM_ERR;
     if (!CloseWindow((HWND)hwnd)) {
         Jim_SetResult(interp,
