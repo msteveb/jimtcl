@@ -721,8 +721,8 @@ JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, .
 /* commands */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
 JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
-        const char *cmdName, Jim_CmdProc cmdProc, void *privData,
-         Jim_DelCmdProc delProc);
+        const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
+         Jim_DelCmdProc *delProc);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         const char *cmdName);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
