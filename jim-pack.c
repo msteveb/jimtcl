@@ -376,8 +376,8 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     enum { OPT_LE, OPT_BE, OPT_FLOATLE, OPT_FLOATBE, OPT_STR };
     jim_wide pos = 0;
     jim_wide width;
-    jim_wide value;
-    double fvalue;
+    jim_wide value = 0;
+    double fvalue = 0.0;
     Jim_Obj *stringObjPtr;
     int len;
     int freeobj = 0;

@@ -15575,7 +15575,7 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     int len = strlen(format);
     int extra = 0;
     int n = 0;
-    const char *params[5];
+    const char *params[5] = { NULL, NULL, NULL, NULL, NULL };
     char *buf;
     va_list args;
     int i;
