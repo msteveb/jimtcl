@@ -6624,6 +6624,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
         default:
             fn = NULL;          /* avoid warning */
             JimPanic((1, "ListSort called with invalid sort type"));
+            return -1; /* Should not be run but keeps static analysers happy */
     }
 
     if (info->indexed) {
