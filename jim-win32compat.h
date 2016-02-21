@@ -53,10 +53,37 @@ char *dlerror(void);
 
 #include <io.h>
 
+#ifdef _MSC_VER
+#include <winsock2.h>
+#include <sys/types.h>
+#include <direct.h>
+
+#define STDIN_FILENO 0
+#define STDIN_LINENO 0
+
+#define strncasecmp _strnicmp
+#define ftello      ftell
+#define fseeko      fseek
+
+#define isatty(x)   _isatty(x)
+#define strdup(x)   _strdup(x)
+#define fileno(x)   _fileno(x)
+#define close(x)    _close(x)
+#define unlink(x)   _unlink(x)
+#define rmdir(x)    _rmdir(x)
+#define mkdir(x)    _mkdir(x)
+#define chdir(x)    _chdir(x)
+#define getcwd(x,y) _getcwd(x,y)
+#define access(x,y) _access(x,y)
+
+#else
+
 struct timeval {
 	long tv_sec;
 	long tv_usec;
 };
+
+#endif 
 
 int gettimeofday(struct timeval *tv, void *unused);
 
