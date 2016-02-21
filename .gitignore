@@ -19,3 +19,14 @@ libjim.a
 configure.gnu
 jimsh0
 build-jim-ext
+
+*.obj
+*.idb
+*.sbr
+*.sbr
+*.pdb
+*.bsc
+*.ilk
+*.ncb
+Debug/
+Release/

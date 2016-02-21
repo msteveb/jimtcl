@@ -1,0 +1,177 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1B3D0FB7-4471-4DD5-AE22-82939F1EACC0}</ProjectGuid>
+    <RootNamespace>JimTCL</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>14.0.24730.2</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>.\</OutDir>
+    <IntDir>Debug\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>jimsh</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>.\</OutDir>
+    <IntDir>Release\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>jimsh</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <PreBuildEvent>
+      <Message>Generating files</Message>
+      <Command>copy jimautoconf_win32.h jimautoconf.h
+copy jim-config_win32.h jim-config.h
+.\autosetup\jimsh0.exe make-load-static-exts.tcl aio array clock eventloop exec file history load namespace pack package win32 readdir regexp tclprefix binary glob nshelper oo stdlib tclcompat tree &gt;_load-static-exts.c
+.\autosetup\jimsh0.exe make-c-ext.tcl binary.tcl &gt;_binary.c
+.\autosetup\jimsh0.exe make-c-ext.tcl glob.tcl &gt;_glob.c
+.\autosetup\jimsh0.exe make-c-ext.tcl nshelper.tcl &gt;_nshelper.c
+.\autosetup\jimsh0.exe make-c-ext.tcl oo.tcl &gt;_oo.c
+.\autosetup\jimsh0.exe make-c-ext.tcl stdlib.tcl &gt;_stdlib.c
+.\autosetup\jimsh0.exe make-c-ext.tcl tclcompat.tcl &gt;_tclcompat.c
+.\autosetup\jimsh0.exe make-c-ext.tcl tree.tcl &gt;_tree.c
+.\autosetup\jimsh0.exe make-c-ext.tcl initjimsh.tcl &gt;_initjimsh.c
+</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader />
+      <BrowseInformation>true</BrowseInformation>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Ws2_32.lib;Netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <StackReserveSize>10485760</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PreBuildEvent>
+      <Message>Copying jimautoconf.h</Message>
+      <Command>copy jimautoconf_win32.h jimautoconf.h
+copy jim-config_win32.h jim-config.h
+.\autosetup\jimsh0.exe make-load-static-exts.tcl aio array clock eventloop exec file history load namespace pack package win32 readdir regexp tclprefix binary glob nshelper oo stdlib tclcompat tree &gt;_load-static-exts.c
+.\autosetup\jimsh0.exe make-c-ext.tcl binary.tcl &gt;_binary.c
+.\autosetup\jimsh0.exe make-c-ext.tcl glob.tcl &gt;_glob.c
+.\autosetup\jimsh0.exe make-c-ext.tcl nshelper.tcl &gt;_nshelper.c
+.\autosetup\jimsh0.exe make-c-ext.tcl oo.tcl &gt;_oo.c
+.\autosetup\jimsh0.exe make-c-ext.tcl stdlib.tcl &gt;_stdlib.c
+.\autosetup\jimsh0.exe make-c-ext.tcl tclcompat.tcl &gt;_tclcompat.c
+.\autosetup\jimsh0.exe make-c-ext.tcl tree.tcl &gt;_tree.c
+.\autosetup\jimsh0.exe make-c-ext.tcl initjimsh.tcl &gt;_initjimsh.c
+</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Ws2_32.lib;Netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+      <StackReserveSize>10485760</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="jim-config.h" />
+    <ClInclude Include="jim-eventloop.h" />
+    <ClInclude Include="jim-signal.h" />
+    <ClInclude Include="jim-subcmd.h" />
+    <ClInclude Include="jim-win32compat.h" />
+    <ClInclude Include="jim.h" />
+    <ClInclude Include="jimautoconf.h" />
+    <ClInclude Include="jimregexp.h" />
+    <ClInclude Include="linenoise.h" />
+    <ClInclude Include="utf8.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="jim-aio.c" />
+    <ClCompile Include="jim-array.c" />
+    <ClCompile Include="jim-clock.c" />
+    <ClCompile Include="jim-eventloop.c" />
+    <ClCompile Include="jim-exec.c" />
+    <ClCompile Include="jim-file.c" />
+    <ClCompile Include="jim-format.c" />
+    <ClCompile Include="jim-history.c" />
+    <ClCompile Include="jim-interactive.c" />
+    <ClCompile Include="jim-load.c" />
+    <ClCompile Include="jim-namespace.c" />
+    <ClCompile Include="jim-pack.c" />
+    <ClCompile Include="jim-package.c" />
+    <ClCompile Include="jim-readdir.c" />
+    <ClCompile Include="jim-regexp.c" />
+    <ClCompile Include="jim-subcmd.c" />
+    <ClCompile Include="jim-tclprefix.c" />
+    <ClCompile Include="jim-win32.c" />
+    <ClCompile Include="jim-win32compat.c" />
+    <ClCompile Include="jim.c" />
+    <ClCompile Include="jimregexp.c" />
+    <ClCompile Include="jimsh.c" />
+    <ClCompile Include="linenoise.c" />
+    <ClCompile Include="utf8.c" />
+    <ClCompile Include="_binary.c" />
+    <ClCompile Include="_glob.c" />
+    <ClCompile Include="_initjimsh.c" />
+    <ClCompile Include="_load-static-exts.c" />
+    <ClCompile Include="_nshelper.c" />
+    <ClCompile Include="_oo.c" />
+    <ClCompile Include="_stdlib.c" />
+    <ClCompile Include="_tclcompat.c" />
+    <ClCompile Include="_tree.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Tcl_shipped.html" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
