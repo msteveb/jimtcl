@@ -1055,6 +1055,10 @@ static void capture_chars(struct current *current, int pos, int n)
             free(current->capture);
             /* Include space for the null terminator */
             current->capture = (char *)malloc(nbytes + 1);
+            if (current->capture == NULL) {
+                /* Memory allocation failure */
+                return;
+            }
             memcpy(current->capture, current->buf + p1, nbytes);
             current->capture[nbytes] = '\0';
         }

@@ -975,8 +975,14 @@ static int regatom(regex_t *preg, int *flagp)
 static void reg_grow(regex_t *preg, int n)
 {
 	if (preg->p + n >= preg->proglen) {
-		preg->proglen = (preg->p + n) * 2;
-		preg->program = realloc(preg->program, preg->proglen * sizeof(int));
+        int proglen = (preg->p + n) * 2;
+        int* program = realloc(preg->program, proglen * sizeof(int));
+        if (program == NULL)
+        {
+            return;
+        }
+        preg->proglen = proglen;
+        preg->program = program;
 	}
 }
 
