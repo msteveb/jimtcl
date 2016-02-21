@@ -10139,7 +10139,7 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
         else if (descr->pos == 0)
             /* Otherwise append it to the result list if no XPG3 was given */
             Jim_ListAppendElement(interp, resultList, value);
-        else if (resultVec[descr->pos - 1] == emptyStr) {
+        else if ((resultVec != NULL) && (resultVec[descr->pos - 1] == emptyStr)) {
             /* But due to given XPG3, put the value into the corr. slot */
             Jim_DecrRefCount(interp, resultVec[descr->pos - 1]);
             Jim_IncrRefCount(value);
@@ -10195,6 +10195,9 @@ static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len)
     if (interp->prngState == NULL)
         JimPrngInit(interp);
     prng = interp->prngState;
+    if (prng == NULL) {
+        return;
+    }
     /* generates 'len' bytes of pseudo-random numbers */
     for (x = 0; x < len; x++) {
         prng->i = (prng->i + 1) & 0xff;
@@ -10217,6 +10220,9 @@ static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen)
     if (interp->prngState == NULL)
         JimPrngInit(interp);
     prng = interp->prngState;
+    if (prng == NULL) {
+        return;
+    }
 
     /* Set the sbox[i] with i */
     for (i = 0; i < 256; i++)
