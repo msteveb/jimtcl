@@ -51,6 +51,7 @@ static char *JimFindPackage(Jim_Interp *interp, Jim_Obj *prefixListObj, const ch
         /* Loadable modules are tried first */
 #ifdef jim_ext_load
         snprintf(buf, JIM_PATH_LEN, "%s/%s.so", prefix, pkgName);
+        buf[JIM_PATH_LEN - 1] = '\x0'; /* Force termination */
         if (access(buf, R_OK) == 0) {
             return buf;
         }
@@ -61,6 +62,7 @@ static char *JimFindPackage(Jim_Interp *interp, Jim_Obj *prefixListObj, const ch
         else {
             snprintf(buf, JIM_PATH_LEN, "%s/%s.tcl", prefix, pkgName);
         }
+        buf[JIM_PATH_LEN - 1] = '\x0'; /* Force termination */
 
         if (access(buf, R_OK) == 0) {
             return buf;
