@@ -418,7 +418,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
             else {
                 formatted_bytes = snprintf(num_buffer, length + 1, spec, w);
             }
-            formatted_chars = formatted_bytes = strlen(num_buffer);
+            formatted_chars = formatted_bytes = (int)strlen(num_buffer);
             formatted_buf = num_buffer;
             break;
         }

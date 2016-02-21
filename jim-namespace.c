@@ -126,7 +126,7 @@ Jim_Obj *Jim_NamespaceQualifiers(Jim_Interp *interp, Jim_Obj *ns)
     const char *name = Jim_String(ns);
     const char *pt = strrchr(name, ':');
     if (pt && pt != name && pt[-1] == ':') {
-        return Jim_NewStringObj(interp, name, pt - name - 1);
+        return Jim_NewStringObj(interp, name, (int)(pt - name - 1));
     }
     else {
         return interp->emptyObj;

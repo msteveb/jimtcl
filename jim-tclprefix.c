@@ -105,7 +105,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
             table[i] = NULL;
 
             ret = Jim_GetEnum(interp, stringObj, table, &i, messageObj ? Jim_String(messageObj) : NULL, flags);
-            Jim_Free(table);
+            Jim_Free((void*)table);
             if (ret == JIM_OK) {
                 Jim_ListIndex(interp, tableObj, i, &objPtr, JIM_NONE);
                 Jim_SetResult(interp, objPtr);

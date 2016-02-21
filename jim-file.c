@@ -218,10 +218,10 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     else if (ISWINDOWS && p[-1] == ':') {
         /* z:/dir => z:/ */
-        Jim_SetResultString(interp, path, p - path + 1);
+        Jim_SetResultString(interp, path, (int)(p - path + 1));
     }
     else {
-        Jim_SetResultString(interp, path, p - path);
+        Jim_SetResultString(interp, path, (int)(p - path));
     }
     return JIM_OK;
 }
@@ -236,7 +236,7 @@ static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResult(interp, argv[0]);
     }
     else {
-        Jim_SetResultString(interp, path, p - path);
+        Jim_SetResultString(interp, path, (int)(p - path));
     }
     return JIM_OK;
 }
@@ -349,7 +349,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Probably need to handle some special cases ... */
 
-    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, newname, last - newname));
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, newname, (int)(last - newname)));
 
     return JIM_OK;
 }

@@ -51,7 +51,7 @@
 #if defined(__MINGW32__)
 #include <windows.h>
 #include <winsock.h>
-#define msleep Sleep
+#define msleep(ms) Sleep( (DWORD)(ms))
 #else
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -205,7 +205,7 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide milliseconds,
 
     te = Jim_Alloc(sizeof(*te));
     te->id = id;
-    te->initialms = milliseconds;
+    te->initialms = (long)milliseconds;
     te->when = JimGetTime(eventLoop) + milliseconds;
     te->timeProc = proc;
     te->finalizerProc = finalizerProc;
@@ -402,7 +402,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
         if (sleep_ms >= 0) {
             tvp = &tv;
-            tvp->tv_sec = sleep_ms / 1000;
+            tvp->tv_sec = (long)sleep_ms / 1000;
             tvp->tv_usec = 1000 * (sleep_ms % 1000);
         }
 

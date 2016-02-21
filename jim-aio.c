@@ -534,9 +534,9 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             readlen = AIO_BUF_LEN;
         }
         else {
-            readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
+            readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : (int)neededLen);
         }
-        retval = af->fops->reader(af, buf, readlen);
+        retval = (int)af->fops->reader(af, buf, readlen);
         if (retval > 0) {
             Jim_AppendString(interp, objPtr, buf, retval);
             if (neededLen != -1) {
@@ -646,7 +646,7 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN - 1);
         }
         else {
-            len = strlen(buf);
+            len = (int)strlen(buf);
 
             if (len && (buf[len - 1] == '\n')) {
                 /* strip "\n" */
@@ -892,7 +892,7 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (Jim_GetWide(interp, argv[0], &offset) != JIM_OK) {
         return JIM_ERR;
     }
-    if (fseeko(af->fp, offset, orig) == -1) {
+    if (fseeko(af->fp, (off_t)offset, orig) == -1) {
         JimAioSetError(interp, af->filename);
         return JIM_ERR;
     }

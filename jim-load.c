@@ -55,10 +55,10 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         }
         pt = strchr(pkgname, '.');
         if (pt) {
-            pkgnamelen = pt - pkgname;
+            pkgnamelen = (int)(pt - pkgname);
         }
         else {
-            pkgnamelen = strlen(pkgname);
+            pkgnamelen = (int)strlen(pkgname);
         }
         snprintf(initsym, sizeof(initsym), "Jim_%.*sInit", pkgnamelen, pkgname);
 

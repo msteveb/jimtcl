@@ -251,7 +251,7 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 	preg->regparse = exp;
 
 	/* Allocate space. */
-	preg->proglen = (strlen(exp) + 1) * 5;
+	preg->proglen = (int)(strlen(exp) + 1) * 5;
 	preg->program = malloc(preg->proglen * sizeof(int));
 	if (preg->program == NULL)
 		FAIL(preg, REG_ERR_NOMEM);
@@ -298,7 +298,7 @@ int regcomp(regex_t *preg, const char *exp, int cflags)
 			for (; scan != 0; scan = regnext(preg, scan)) {
 				if (OP(preg, scan) == EXACTLY) {
 					int plen = str_int_len(preg->program + OPERAND(scan));
-					if (plen >= len) {
+					if (plen >= (int)len) {
 						longest = OPERAND(scan);
 						len = plen;
 					}
@@ -665,7 +665,7 @@ static int reg_decode_escape(const char *s, int *ch)
 			*ch = '\\';
 			break;
 	}
-	return s - s0;
+	return (int)(s - s0);
 }
 
 /*
@@ -1107,7 +1107,7 @@ int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmat
 
 	preg->eflags = eflags;
 	preg->pmatch = pmatch;
-	preg->nmatch = nmatch;
+	preg->nmatch = (int)nmatch;
 	preg->start = string;	/* All offsets are computed from here */
 
 	/* Must clear out the embedded repeat counts of REPX and REPXMIN opcodes */
@@ -1203,8 +1203,8 @@ static int regtry( regex_t *preg, const char *string )
 		preg->pmatch[i].rm_eo = -1;
 	}
 	if (regmatch(preg, 1)) {
-		preg->pmatch[0].rm_so = string - preg->start;
-		preg->pmatch[0].rm_eo = preg->reginput - preg->start;
+		preg->pmatch[0].rm_so = (int)(string - preg->start);
+		preg->pmatch[0].rm_eo = (int)(preg->reginput - preg->start);
 		return(1);
 	} else
 		return(0);
@@ -1231,7 +1231,7 @@ static int prefix_cmp(const int *prog, int proglen, const char *string, int noca
 		proglen--;
 	}
 	if (proglen == 0) {
-		return s - string;
+		return (int)(s - string);
 	}
 	return -1;
 }
@@ -1555,13 +1555,13 @@ static int regmatch(regex_t *preg, int prog)
 					if (OP(preg, scan) < CLOSE) {
 						int no = OP(preg, scan) - OPEN;
 						if (no < preg->nmatch && preg->pmatch[no].rm_so == -1) {
-							preg->pmatch[no].rm_so = save - preg->start;
+							preg->pmatch[no].rm_so = (int)(save - preg->start);
 						}
 					}
 					else {
 						int no = OP(preg, scan) - CLOSE;
 						if (no < preg->nmatch && preg->pmatch[no].rm_eo == -1) {
-							preg->pmatch[no].rm_eo = save - preg->start;
+							preg->pmatch[no].rm_eo = (int)(save - preg->start);
 						}
 					}
 					return(1);

@@ -161,7 +161,7 @@ static void JimSetBitsIntBigEndian(unsigned char *bitvec, jim_wide value, int po
 
     /* Common fast option */
     if (pos % 8 == 0 && width == 8) {
-        bitvec[pos / 8] = value;
+        bitvec[pos / 8] = (unsigned char)value;
         return;
     }
 
@@ -180,7 +180,7 @@ static void JimSetBitsIntLittleEndian(unsigned char *bitvec, jim_wide value, int
 
     /* Common fast option */
     if (pos % 8 == 0 && width == 8) {
-        bitvec[pos / 8] = value;
+        bitvec[pos / 8] = (unsigned char)value;
         return;
     }
 
@@ -310,7 +310,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (pos + width > len * 8) {
                 width = len * 8 - pos;
             }
-            Jim_SetResultString(interp, str + pos / 8, width / 8);
+            Jim_SetResultString(interp, str + pos / 8, (int)width / 8);
         }
         return JIM_OK;
     }
@@ -329,13 +329,13 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 width = len * 8 - pos;
             }
             if (option == OPT_INTBE || option == OPT_UINTBE || option == OPT_FLOATBE) {
-                result = JimBitIntBigEndian(str, pos, width);
+                result = JimBitIntBigEndian(str, (int)pos, (int)width);
             }
             else {
-                result = JimBitIntLittleEndian(str, pos, width);
+                result = JimBitIntLittleEndian(str, (int)pos, (int)width);
             }
             if (option == OPT_INTBE || option == OPT_INTLE) {
-                result = JimSignExtend(result, width);
+                result = JimSignExtend(result, (int)width);
             }
 
         }
@@ -452,10 +452,10 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (option == OPT_BE || option == OPT_FLOATBE) {
-        JimSetBitsIntBigEndian((unsigned char *)stringObjPtr->bytes, value, pos, width);
+        JimSetBitsIntBigEndian((unsigned char *)stringObjPtr->bytes, value, (int)pos, (int)width);
     }
     else if (option == OPT_LE || option == OPT_FLOATLE) {
-        JimSetBitsIntLittleEndian((unsigned char *)stringObjPtr->bytes, value, pos, width);
+        JimSetBitsIntLittleEndian((unsigned char *)stringObjPtr->bytes, value, (int)pos, (int)width);
     }
     else {
         pos /= 8;
@@ -464,7 +464,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (width > Jim_Length(argv[2])) {
             width = Jim_Length(argv[2]);
         }
-        memcpy(stringObjPtr->bytes + pos, Jim_String(argv[2]), width);
+        memcpy(stringObjPtr->bytes + pos, Jim_String(argv[2]), (size_t)width);
         /* No padding is needed since the string is already extended */
     }
 

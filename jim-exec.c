@@ -201,7 +201,7 @@ static int JimAppendStreamToString(Jim_Interp *interp, fdtype fd, Jim_Obj *strOb
     }
 
     while (1) {
-        int retval = fread(buf, 1, sizeof(buf), fh);
+        int retval = (int)fread(buf, 1, sizeof(buf), fh);
         if (retval > 0) {
             ret = 1;
             Jim_AppendString(interp, strObj, buf, retval);
@@ -1314,7 +1314,7 @@ static int JimReadFd(fdtype fd, char *buffer, size_t len)
 
 static FILE *JimFdOpenForRead(fdtype fd)
 {
-    return _fdopen(_open_osfhandle((int)fd, _O_RDONLY | _O_TEXT), "r");
+    return _fdopen(_open_osfhandle((intptr_t)fd, _O_RDONLY | _O_TEXT), "r");
 }
 
 static fdtype JimFileno(FILE *fh)
@@ -1340,7 +1340,7 @@ static fdtype JimOpenForWrite(const char *filename, int append)
 
 static FILE *JimFdOpenForWrite(fdtype fd)
 {
-    return _fdopen(_open_osfhandle((int)fd, _O_TEXT), "w");
+    return _fdopen(_open_osfhandle((intptr_t)fd, _O_TEXT), "w");
 }
 
 static pidtype JimWaitPid(pidtype pid, int *status, int nohang)
@@ -1461,7 +1461,7 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
         for (special = argv[i]; ; ) {
             if ((*special == '\\') && (special[1] == '\\' ||
                     special[1] == '"' || (quote && special[1] == '\0'))) {
-                Jim_AppendString(interp, strObj, start, special - start);
+                Jim_AppendString(interp, strObj, start, (int)(special - start));
                 start = special;
                 while (1) {
                     special++;
@@ -1471,14 +1471,14 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
                          * N * 2 + 1 backslashes then a quote.
                          */
 
-                        Jim_AppendString(interp, strObj, start, special - start);
+                        Jim_AppendString(interp, strObj, start, (int)(special - start));
                         break;
                     }
                     if (*special != '\\') {
                         break;
                     }
                 }
-                Jim_AppendString(interp, strObj, start, special - start);
+                Jim_AppendString(interp, strObj, start, (int)(special - start));
                 start = special;
             }
             if (*special == '"') {
@@ -1486,7 +1486,7 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
             Jim_AppendString(interp, strObj, "\"", 1);
         }
         else {
-            Jim_AppendString(interp, strObj, start, special - start);
+            Jim_AppendString(interp, strObj, start, (int)(special - start));
         }
                 Jim_AppendString(interp, strObj, "\\\"", 2);
                 start = special + 1;
@@ -1496,7 +1496,7 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
             }
             special++;
         }
-        Jim_AppendString(interp, strObj, start, special - start);
+        Jim_AppendString(interp, strObj, start, (int)(special - start));
         if (quote) {
             Jim_AppendString(interp, strObj, "\"", 1);
         }
