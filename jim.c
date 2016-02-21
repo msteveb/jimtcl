@@ -13876,10 +13876,10 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
 
         if (ignore) {
-            ignore_mask |= (1 << option);
+            ignore_mask |= ((jim_wide)1 << option);
         }
         else {
-            ignore_mask &= ~(1 << option);
+            ignore_mask &= (~((jim_wide)1 << option));
         }
     }
 
