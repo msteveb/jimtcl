@@ -5122,7 +5122,7 @@ static int JimFormatReference(char *buf, Jim_Reference *refPtr, unsigned long id
 {
     const char *fmt = "<reference.<%s>.%020lu>";
 
-    sprintf(buf, fmt, refPtr->tag, id);
+    snprintf(buf, JIM_REFERENCE_SPACE+1, fmt, refPtr->tag, id);
     return JIM_REFERENCE_SPACE;
 }
 
@@ -5977,7 +5977,7 @@ static void UpdateStringOfDouble(struct Jim_Obj *objPtr)
     {
         char buf[JIM_DOUBLE_SPACE + 1];
         int i;
-        int len = sprintf(buf, "%.12g", value);
+        int len = snprintf(buf, sizeof(buf), "%.12g", value);
 
         /* Add a final ".0" if necessary */
         for (i = 0; i < len; i++) {
@@ -7396,11 +7396,11 @@ static void UpdateStringOfIndex(struct Jim_Obj *objPtr)
     else {
         char buf[JIM_INTEGER_SPACE + 1];
         if (objPtr->internalRep.intValue >= 0) {
-            sprintf(buf, "%d", objPtr->internalRep.intValue);
+            snprintf(buf, sizeof(buf), "%d", objPtr->internalRep.intValue);
         }
         else {
             /* Must be <= -2 */
-            sprintf(buf, "end%d", objPtr->internalRep.intValue + 1);
+            snprintf(buf, sizeof(buf), "end%d", objPtr->internalRep.intValue + 1);
         }
         JimSetStringBytes(objPtr, buf);
     }
