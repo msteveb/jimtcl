@@ -129,6 +129,7 @@ static void JimPanicDump(int fail_condition, const char *fmt, ...);
 /* A shared empty string for the objects string representation.
  * Jim_InvalidateStringRep knows about it and doesn't try to free it. */
 static char JimEmptyStringRep[] = "";
+static const char* JimNewline = "\n";
 
 /* -----------------------------------------------------------------------------
  * Required prototypes of not exported functions
@@ -148,6 +149,8 @@ static int JimSign(jim_wide w);
 static int JimValidName(Jim_Interp *interp, const char *type, Jim_Obj *nameObjPtr);
 static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
+static void DefaultLogFunction(const char* logData, void* log_param);
+Jim_log_details defaultLogging = { DefaultLogFunction, NULL, JIM_LOG_NONE };
 
 
 /* Fast access to the int (wide) value of an object which is known to be of int type */
@@ -5454,7 +5457,90 @@ int Jim_IsBigEndian(void)
     return uval.c[0] == 1;
 }
 
-            newstring[interp->evalDepth + function_prefix_length] = 0;
+int Jim_SetLogLevel(Jim_Interp *interp, int logLevel)
+{
+    if ((logLevel < JIM_LOG_NONE) || (logLevel > JIM_LOG_MAX_VALUE)) {
+        Jim_SetResultFormatted(interp, "Invalid debug level value - valid range is %d (None) to %d (everything)\n", JIM_LOG_NONE, JIM_LOG_MAX_VALUE);
+        return JIM_ERR;
+    }
+    interp->logDetails.currentLogLevel = logLevel;
+    return JIM_OK;
+}
+
+void Jim_SetLogDetails(Jim_Interp *interp, Jim_log_details* logDetails)
+{
+    if (logDetails != NULL) {
+        interp->logDetails.currentLogLevel = logDetails->currentLogLevel;
+        interp->logDetails.logFunction     = logDetails->logFunction;
+        interp->logDetails.log_param       = logDetails->log_param;
+    }
+}
+
+/* [loglevel] */
+static int Jim_LogLevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc != 1 && argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "loglevel ?newValue?");
+        return JIM_ERR;
+    }
+    if (argc == 1) {
+        Jim_Obj *objPtr;
+        objPtr = Jim_NewIntObj(interp, interp->logDetails.currentLogLevel);
+        if (!objPtr)
+            return JIM_ERR;
+        Jim_SetResult(interp, objPtr);
+        return JIM_OK;
+    }
+    /* argc == 2 case. */
+    long newvalue = 0;
+    if (Jim_GetLong(interp, argv[1], &newvalue) != JIM_OK)
+        return JIM_ERR;
+    if (Jim_SetLogLevel(interp, newvalue) != JIM_OK)
+        return JIM_ERR;
+
+    Jim_SetResult(interp, argv[1]);
+    return JIM_OK;
+}
+
+static void DefaultLogFunction(const char* logData, void* log_param)
+{
+    printf( "%s", logData );
+}
+
+void JimLog( struct Jim_Interp *interp, Jim_Log_Level level, const char* function, const char *format, ...) {
+
+    if ( JIM_LOG_IS_LOG_LEVEL_IS_MET( interp, level ) )
+    {
+        int len;
+        int function_prefix_length = strlen(function) + 2;
+        static const int JimNewlineLength = sizeof(JimNewline) - 1;
+
+        va_list args;
+        va_start(args, format);
+
+        /* Determine the length of the output string */
+        len = vsnprintf( NULL, 0, format, args ) + function_prefix_length + JimNewlineLength + interp->evalDepth + 1;
+        if (len > 0) {
+            char* newstring = (char*) Jim_Alloc(len);
+            if (!newstring)
+                return;
+            memset( newstring, ' ', len );
+            /* Prefix function name into the log line, indented */
+            snprintf( &newstring[interp->evalDepth], function_prefix_length + 1, "%s: ", function);
+            /* Add the log detail */
+            vsnprintf( &newstring[interp->evalDepth+function_prefix_length], len - function_prefix_length, format, args);
+            /* Add a newline */
+            strncat( newstring, JimNewline, len );
+            newstring[len-1] = '\x00';
+
+            /* Send to the log function */
+            interp->logDetails.logFunction( newstring, interp->logDetails.log_param );
+            Jim_Free(newstring);
+        }
+        va_end(args);
+    }
+}
+
 /* -----------------------------------------------------------------------------
  * Interpreter related functions
  * ---------------------------------------------------------------------------*/
@@ -5464,6 +5550,10 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_Interp *i = Jim_Alloc(sizeof(*i));
 
     memset(i, 0, sizeof(*i));
+
+    i->logDetails.logFunction     = defaultLogging.logFunction;
+    i->logDetails.log_param       = defaultLogging.log_param;
+    i->logDetails.currentLogLevel = defaultLogging.currentLogLevel;
 
     i->maxCallFrameDepth = JIM_MAX_CALLFRAME_DEPTH;
     i->maxEvalDepth = JIM_MAX_EVAL_DEPTH;
@@ -15428,6 +15518,7 @@ static const struct {
     {"local", Jim_LocalCoreCommand},
     {"upcall", Jim_UpcallCoreCommand},
     {"apply", Jim_ApplyCoreCommand},
+    {"loglevel", Jim_LogLevelCoreCommand },
     {NULL, NULL},
 };
 
