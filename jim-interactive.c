@@ -113,6 +113,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             else {
                 snprintf(prompt, sizeof(prompt) - 3, "[%s] . ", retcodestr);
             }
+            prompt[sizeof(prompt) - 1] = '\x0'; /* Force termination */
         }
         else {
             strcpy(prompt, ". ");

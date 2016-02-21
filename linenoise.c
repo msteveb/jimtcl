@@ -1542,6 +1542,7 @@ char *linenoise(const char *prompt)
             return NULL;
         }
     }
+    buf[sizeof(buf) - 1] = '\x0'; /* Force termination */
     return strdup(buf);
 }
 
