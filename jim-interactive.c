@@ -5,7 +5,9 @@
 #include <jim.h>
 
 #ifdef USE_LINENOISE
-#include <unistd.h>
+#ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+#endif
 #include "linenoise.h"
 #else
 #define MAX_LINE_LEN 512
