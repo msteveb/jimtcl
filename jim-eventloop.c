@@ -42,15 +42,18 @@
 #include <jim-eventloop.h>
 
 /* POSIX includes */
-#include <sys/time.h>
 #include <sys/types.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
+#ifndef _MSC_VER
+#include <sys/time.h>
+#include <unistd.h>
+#endif
 
 #if defined(__MINGW32__)
 #include <windows.h>
 #include <winsock.h>
+#include <time.h>
 #define msleep(ms) Sleep( (DWORD)(ms))
 #else
 #ifdef HAVE_SYS_SELECT_H
