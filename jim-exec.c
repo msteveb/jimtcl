@@ -1599,13 +1599,13 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
 
     end:
     Jim_FreeNewObj(interp, cmdLineObj);
-    if (startInfo.hStdInput != JIM_BAD_FD) {
+    if ((startInfo.hStdInput != JIM_BAD_FD) && (startInfo.hStdInput != 0)) {
         CloseHandle(startInfo.hStdInput);
     }
-    if (startInfo.hStdOutput != JIM_BAD_FD) {
+    if ((startInfo.hStdOutput != JIM_BAD_FD) && (startInfo.hStdOutput != 0)) {
         CloseHandle(startInfo.hStdOutput);
     }
-    if (startInfo.hStdError != JIM_BAD_FD) {
+    if ((startInfo.hStdError != JIM_BAD_FD) && (startInfo.hStdError != 0)) {
         CloseHandle(startInfo.hStdError);
     }
     return pid;
