@@ -12,35 +12,38 @@ set b \\
 
 array set saveenv [array get env]
 
-test exec2-1.1 "Quoting - Result" {
+# Windows does not have these Linux utilities: printenv, sed and echo is not an executable file
+testConstraint posixUtilsAvailable [expr ! ( [catch { exec echo } fid] || [catch { exec printenv --help} fid] || [catch { exec sed --help} fid] ) ]
+
+test exec2-1.1 "Quoting - Result" -constraints {posixUtilsAvailable} -body  {
 	exec echo ${d}double quoted${d} ${s}single quoted${s} ${b}backslash quoted${b}
-} "\"double\ quoted\"\ 'single quoted'\ \\backslash\ quoted\\"
+} -result "\"double\ quoted\"\ 'single quoted'\ \\backslash\ quoted\\"
 
-test exec2-1.2 "Quoting - Word Grouping" {
+test exec2-1.2 "Quoting - Word Grouping" -constraints {posixUtilsAvailable} -body  {
 	string trim [exec echo ${d}double quoted${d} ${s}single quoted${s} ${b}backslash quoted${b} | wc -w]
-} {6}
+} -result {6}
 
-test exec2-2.1 "Add to exec environment" {
+test exec2-2.1 "Add to exec environment" -constraints {posixUtilsAvailable} -body {
 	set env(TESTENV) "the value"
 	exec printenv | sed -n -e /^TESTENV=/p
-} {TESTENV=the value}
+} -result {TESTENV=the value}
 
-test exec2-2.2 "Remove from exec environment" {
+test exec2-2.2 "Remove from exec environment" -constraints {posixUtilsAvailable} -body {
 	set env(TESTENV2) "new value"
 	unset env(TESTENV)
 	exec printenv | sed -n -e /^TESTENV=/p
-} {}
+} -result {}
 
 
-test exec2-2.3 "Remove all exec environment" {
+test exec2-2.3 "Remove all exec environment" -constraints {posixUtilsAvailable} -body {
 	array unset env *
 	exec printenv | sed -n -e /^TESTENV2=/p
-} {}
+} -result {}
 
-test exec2-2.4 "Remove all env var" {
+test exec2-2.4 "Remove all env var" -constraints {posixUtilsAvailable} -body {
 	unset -nocomplain env
 	exec printenv | sed -n -e /^TESTENV2=/p
-} {}
+} -result {}
 
 array set env [array get saveenv]
 
