@@ -188,9 +188,14 @@ test lsort-3.21 {lsort, unique sort} {
 test lsort-3.22 {lsort, unique sort with index} {
     # lsort -unique should return the last unique item
 	# Note that lsort is not guarunteed to be a stable sort, so
-	# allow for different 
-    lsort -int -unique {0 5 05 00 004 4}
-} {00 4 05}
+	# the resulting list is converted integers to allow 
+	# for different ordering of items that have the same value
+    set vallist {}
+	foreach val [lsort -int -unique {0 5 05 00 004 4}] {
+		lappend vallist [expr int($val)]
+	}
+	set vallist
+} {0 4 5}
 
 test lsort-4.26 {DefaultCompare procedure, signed characters} utf8 {
     set l [lsort [list "abc\u80" "abc"]]
