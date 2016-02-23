@@ -44,13 +44,22 @@ test filename-11.7 {Tcl_GlobCmd} -returnCodes error -body {
 test filename-11.8 {Tcl_GlobCmd} -body {
     glob -nocomplain -- -nocomplain
 } -result {}
+
+if {[info exists env(HOME)]} {
+	set home_name "HOME"
+} elseif {[info exists env(USERPROFILE)]} {
+	set home_name "USERPROFILE"
+} else {
+	error "Could not determine the home directory environment variable"
+}
+
 test filename-11.13 {Tcl_GlobCmd} tcl {
     file join [lindex [glob ~] 0]
-} [file join $env(HOME)]
+} [file join $env($home_name)]
 set oldpwd [pwd]
-set oldhome $env(HOME)
+set oldhome $env($home_name)
 cd [temporaryDirectory]
-set env(HOME) [pwd]
+set env($home_name) [pwd]
 file delete -force globTest
 file mkdir globTest/a1/b1
 file mkdir globTest/a1/b2
@@ -66,10 +75,10 @@ touch globTest/.1
 touch globTest/x,z1.c
 test filename-11.14 {Tcl_GlobCmd} tcl {
     glob ~/globTest
-} [list [file join $env(HOME) globTest]]
+} [list [file join $env($home_name) globTest]]
 test filename-11.15 {Tcl_GlobCmd} tcl {
     glob ~\\/globTest
-} [list [file join $env(HOME) globTest]]
+} [list [file join $env($home_name) globTest]]
 test filename-11.16 {Tcl_GlobCmd} {
     glob globTest
 } {globTest}
@@ -180,13 +189,13 @@ test filename-14.13 {asterisks, question marks, and brackets} {unixOrPc} {
 } {globTest/x1.c globTest/y1.c}
 test filename-14.17 {asterisks, question marks, and brackets} -constraints tcl -setup {
     global env
-    set temp $env(HOME)
+    set temp $env($home_name)
 } -body {
-    set env(HOME) [file join $env(HOME) globTest]
+    set env($home_name) [file join $env($home_name) globTest]
     glob ~/z*
 } -cleanup {
-    set env(HOME) $temp
-} -result [list [file join $env(HOME) globTest z1.c]]
+    set env($home_name) $temp
+} -result [list [file join $env($home_name) globTest z1.c]]
 test filename-14.18 {asterisks, question marks, and brackets} {unixOrPc} {
     lsort [glob globTest/*.c goo/*]
 } {{globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}
@@ -237,7 +246,7 @@ test fileName-20.1 {Bug 1750300} -setup {
     removeDirectory foo
 } -result 1
 test fileName-20.6 {Bug 2837800} -setup {
-    # Recall that we have $env(HOME) set so that references
+    # Recall that we have $env($home_name) set so that references
     # to ~ point to [temporaryDirectory]
     makeFile {} test ~
     set dd [makeDirectory isolate]
@@ -270,7 +279,7 @@ catch {file delete -force C:/globTest}
 cd [temporaryDirectory]
 file delete -force globTest
 cd $oldpwd
-set env(HOME) $oldhome
+set env($home_name) $oldhome
 catch {unset oldhome temp result globPreResult}
 ::tcltest::cleanupTests
 return
