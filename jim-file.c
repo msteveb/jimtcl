@@ -73,6 +73,8 @@
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 #define ISWINDOWS 1
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
 #define ISWINDOWS 0
 #endif
@@ -373,11 +375,22 @@ static int file_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_executable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#ifdef X_OK
+#if defined(_WIN32) || defined(WIN32)
+    DWORD BinaryType;
+    BOOL retval = GetBinaryType(Jim_String(argv[0]), &BinaryType);
+    Jim_SetResultBool(interp, (retval)? 1 : 0);
+    return JIM_OK;
+#elif defined( X_OK )
     return file_access(interp, argv[0], X_OK);
 #else
-    /* If no X_OK, just assume true. */
-    Jim_SetResultBool(interp, 1);
+    struct stat sb;
+    if ((stat(Jim_String(argv[0]), &sb) == 0) &&
+        (sb.st_mode & S_IXUSR)) {
+        Jim_SetResultBool(interp, 1);
+    }
+    else {
+        Jim_SetResultBool(interp, 0);
+    }
     return JIM_OK;
 #endif
 }
