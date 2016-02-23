@@ -10,11 +10,24 @@ proc _jimsh_init {} {
 		if {[string match "*/*" $jim::argv0]} {
 			set jim::exe [file join [pwd] $jim::argv0]
 		} else {
-			foreach path [split [env PATH ""] $tcl_platform(pathSeparator)] {
+			set pathlist [split [env PATH ""] $tcl_platform(pathSeparator)]
+			if { ! [catch { win32.GetVersion } fid] } {
+				# Windows searches current path first
+				set pathlist [concat "." $pathlist]
+			}
+			foreach path $pathlist {
 				set exec [file join [pwd] [string map {\\ /} $path] $jim::argv0]
 				if {[file executable $exec]} {
 					set jim::exe $exec
 					break
+				}
+				if { ! [catch { win32.GetVersion } fid] } {
+					# windows executable may not be invoked with extension
+					set exec "$exec.exe"
+					if {[file executable $exec]} {
+						set jim::exe $exec
+						break
+					}
 				}
 			}
 		}
