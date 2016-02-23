@@ -69,6 +69,6 @@ test filecopy-2.6 "Source and target identical (-force)" {
 } 16
 
 file delete tempfile
-exec rm -rf tempdir
+file delete --force tempdir
 
 testreport
