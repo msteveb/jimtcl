@@ -101,16 +101,14 @@
  * This could probably be made to work for the msvc compiler too.
  * This support based in part on work by Jon Griffiths.
  */
-
+#include "jim-config.h"
+#include "jim.h"
 #ifdef _WIN32 /* Windows platform, either MinGW or Visual Studio (MSVC) */
 #include <windows.h>
 #include <fcntl.h>
 #define USE_WINCONSOLE
 #ifdef __MINGW32__
 #define HAVE_UNISTD_H
-#else
-/* Microsoft headers don't like old POSIX names */
-#define strdup _strdup
 #endif
 #else
 #include <termios.h>
@@ -187,8 +185,8 @@ void linenoiseHistoryFree(void) {
         int j;
 
         for (j = 0; j < history_len; j++)
-            free(history[j]);
-        free(history);
+            Jim_Free(history[j]);
+        Jim_Free(history);
         history = NULL;
         history_len = 0;
     }
@@ -1051,9 +1049,9 @@ static void capture_chars(struct current *current, int pos, int n)
         int nbytes = utf8_index(current->buf + p1, n);
 
         if (nbytes) {
-            free(current->capture);
+            Jim_Free(current->capture);
             /* Include space for the null terminator */
-            current->capture = (char *)malloc(nbytes + 1);
+            current->capture = (char *)Jim_Alloc(nbytes + 1);
             if (current->capture == NULL) {
                 /* Memory allocation failure */
                 return;
@@ -1117,7 +1115,7 @@ static void beep() {
 static void freeCompletions(linenoiseCompletions *lc) {
     size_t i;
     for (i = 0; i < lc->len; i++)
-        free(lc->cvec[i]);
+        Jim_Free(lc->cvec[i]);
     free(lc->cvec);
 }
 
@@ -1186,7 +1184,7 @@ linenoiseCompletionCallback * linenoiseSetCompletionCallback(linenoiseCompletion
 }
 
 void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
-    lc->cvec = (char **)realloc(lc->cvec,sizeof(char*)*(lc->len+1));
+    lc->cvec = (char **)Jim_Realloc(lc->cvec,sizeof(char*)*(lc->len+1));
     lc->cvec[lc->len++] = strdup(str);
 }
 
@@ -1229,7 +1227,7 @@ process_char:
         switch(c) {
         case '\r':    /* enter */
             history_len--;
-            free(history[history_len]);
+            Jim_Free(history[history_len]);
             return current->len;
         case ctrl('C'):     /* ctrl-c */
             errno = EAGAIN;
@@ -1244,7 +1242,7 @@ process_char:
             if (current->len == 0) {
                 /* Empty line, so EOF */
                 history_len--;
-                free(history[history_len]);
+                Jim_Free(history[history_len]);
                 return -1;
             }
             /* Otherwise fall through to delete char to right of cursor */
@@ -1435,7 +1433,7 @@ history_navigation:
             if (history_len > 1) {
                 /* Update the current history entry before to
                  * overwrite it with tne next one. */
-                free(history[history_len - 1 - history_index]);
+                Jim_Free(history[history_len - 1 - history_index]);
                 history[history_len - 1 - history_index] = strdup(current->buf);
                 /* Show the new entry */
                 history_index += dir;
@@ -1536,7 +1534,7 @@ char *linenoise(const char *prompt)
         disableRawMode(&current);
         printf("\n");
 
-        free(current.capture);
+        Jim_Free(current.capture);
         if (count == -1) {
             return NULL;
         }
@@ -1551,7 +1549,7 @@ int linenoiseHistoryAdd(const char *line) {
 
     if (history_max_len == 0) return 0;
     if (history == NULL) {
-        history = (char **)malloc(sizeof(char*)*history_max_len);
+        history = (char **)Jim_Alloc(sizeof(char*)*history_max_len);
         if (history == NULL) return 0;
         memset(history,0,(sizeof(char*)*history_max_len));
     }
@@ -1564,7 +1562,7 @@ int linenoiseHistoryAdd(const char *line) {
     linecopy = strdup(line);
     if (!linecopy) return 0;
     if (history_len == history_max_len) {
-        free(history[0]);
+        Jim_Free(history[0]);
         memmove(history,history+1,sizeof(char*)*(history_max_len-1));
         history_len--;
     }
@@ -1584,19 +1582,19 @@ int linenoiseHistorySetMaxLen(int len) {
     if (history) {
         int tocopy = history_len;
 
-        newHistory = (char **)malloc(sizeof(char*)*len);
+        newHistory = (char **)Jim_Alloc(sizeof(char*)*len);
         if (newHistory == NULL) return 0;
 
         /* If we can't copy everything, free the elements we'll not use. */
         if (len < tocopy) {
             int j;
 
-            for (j = 0; j < tocopy-len; j++) free(history[j]);
+            for (j = 0; j < tocopy-len; j++) Jim_Free(history[j]);
             tocopy = len;
         }
         memset(newHistory,0,sizeof(char*)*len);
         memcpy(newHistory,history+(history_len-tocopy), sizeof(char*)*tocopy);
-        free(history);
+        Jim_Free(history);
         history = newHistory;
     }
     history_max_len = len;
