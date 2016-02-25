@@ -621,10 +621,27 @@ typedef struct Jim_Reference {
 
 /* Memory allocation */
 //#define LOG_HEAP       /* Enable to print heap allocations to stderr */
+//#define DEBUG_HEAP    /* Enable for heap corruption checking */
+#ifdef DEBUG_HEAP
+#define Jim_Alloc( size )         (Jim_Alloc_Debug(        size, __FILE__, __LINE__))
+#define Jim_Realloc( ptr, size )  (Jim_Realloc_Debug( ptr, size, __FILE__, __LINE__))
+#define Jim_Free( ptr )           (Jim_Free_Debug(    ptr,       __FILE__, __LINE__))
+#define Jim_StrDup( s )           (Jim_StrDup_Debug(  s,         __FILE__, __LINE__))
+JIM_EXPORT void *Jim_Alloc_Debug(int size, const char* file, int line);
+JIM_EXPORT void *Jim_Realloc_Debug(void *ptr, int size, const char* file, int line);
+JIM_EXPORT void Jim_Free_Debug(void *ptr, const char* file, int line);
+JIM_EXPORT char *Jim_StrDup_Debug(const char *s, const char* file, int line);
+JIM_EXPORT void Jim_CheckHeap(void);
+JIM_EXPORT void Jim_CheckHeapIsEmpy(void);
+#else
 JIM_EXPORT void *Jim_Alloc (int size);
 JIM_EXPORT void *Jim_Realloc(void *ptr, int size);
 JIM_EXPORT void Jim_Free (void *ptr);
 JIM_EXPORT char * Jim_StrDup (const char *s);
+#define Jim_CheckHeap()
+#define Jim_CheckHeapIsEmpy()
+#endif
+
 JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 
 /* environment */

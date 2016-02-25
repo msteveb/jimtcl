@@ -643,6 +643,191 @@ static void JimPanicDump(int condition, const char *fmt, ...)
 /* -----------------------------------------------------------------------------
  * Memory allocation
  * ---------------------------------------------------------------------------*/
+#ifdef DEBUG_HEAP
+
+#define GUARD_BYTE_COUNT (32)
+#define GUARD_VALUE (0xA5)
+#define INIT_VALUE (0xBB)
+#define FREE_VALUE (0xCC)
+
+typedef struct alloc_element {
+    unsigned long magic;
+    int size;
+    int total_size;
+    char* file;
+    int line;
+    int count_id;
+    struct alloc_element* next;
+    struct alloc_element* prev;
+} alloc_element_t;
+
+static int global_alloc_count_id = 0;
+static int global_alloc_count_id_break_on_usage = -1;
+static alloc_element_t*  allocation_top = NULL;
+
+#define ALLOC_MAGIC 0xf1b2c3d4
+#define DEAD_MAGIC  0xdeadd00d
+
+#if defined(_WIN32) || defined(WIN32)
+/* Windows */
+#define BREAKPOINT() DebugBreak()
+#else
+/* Linux */
+#include <signal.h>
+#define BREAKPOINT() raise(SIGINT)
+#endif /* if defined(_WIN32) || defined(WIN32) */
+
+void Jim_CheckHeap(void)
+{
+    int i;
+    alloc_element_t* current_element = allocation_top;
+    while (current_element != NULL) {
+        unsigned char* guard_ptr = (unsigned char*)(current_element + 1);
+        for (i = 0; i < GUARD_BYTE_COUNT; i++) {
+            if (guard_ptr[i] != GUARD_VALUE) {
+                BREAKPOINT(); /* Heap corruption - Header guard bytes overwritten - probably due to buffer overrun */
+                (void)current_element->file;  /* Check these variables for details of where allocation occurred */
+                (void)current_element->line;
+            }
+        }
+        guard_ptr = (unsigned char*)current_element + sizeof(alloc_element_t) + GUARD_BYTE_COUNT + current_element->size;
+        for (i = 0; i < GUARD_BYTE_COUNT; i++) {
+            if (guard_ptr[i] != GUARD_VALUE) {
+                BREAKPOINT(); /* Heap corruption - Footer guard bytes overwritten - probably due to buffer overrun */
+                (void)current_element->file;  /* Check these variables for details of where allocation occurred */
+                (void)current_element->line;
+            }
+        }
+        current_element = current_element->next;
+    }
+}
+
+
+void *Jim_Alloc_Debug(int size, const char* file, int line)
+{
+    int extra_head_space = sizeof(alloc_element_t) + GUARD_BYTE_COUNT;
+    int extra_foot_space = GUARD_BYTE_COUNT + strlen(file) + 1;
+    
+    Jim_CheckHeap();
+
+    alloc_element_t* header = (alloc_element_t*)malloc(size + extra_head_space + extra_foot_space);
+
+    if (header == NULL) {
+        return NULL;
+    }
+
+    if (global_alloc_count_id_break_on_usage == global_alloc_count_id) {
+        BREAKPOINT(); /* Usage of flaged allocation */
+    }
+
+    char* retval = ((char*)header) + extra_head_space;
+
+    header->magic = ALLOC_MAGIC;
+    header->size = size;
+    header->total_size = size + extra_head_space + extra_foot_space;
+    header->file = retval + size + GUARD_BYTE_COUNT;
+    header->line = line;
+    header->count_id = global_alloc_count_id;
+    global_alloc_count_id++;
+    strcpy(header->file, file);
+    memset(((char*)header) + sizeof(alloc_element_t), 0xA5, GUARD_BYTE_COUNT);
+    memset(retval + size, GUARD_VALUE, GUARD_BYTE_COUNT);
+
+    memset(retval, INIT_VALUE, size);
+
+    if (allocation_top != NULL) {
+        allocation_top->prev = header;
+    }
+    header->next = allocation_top;
+    header->prev = NULL;
+    allocation_top = header;
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Allocate 0x%x (%d bytes)\n", (ptrdiff_t)retval, size);
+#endif /* ifdef LOG_HEAP */
+    return retval;
+}
+
+void Jim_CheckHeapIsEmpy(void)
+{
+	Jim_CheckHeap();
+	if (allocation_top)
+		BREAKPOINT(); /* Usage of flaged allocation */
+}
+
+void *Jim_Realloc_Debug(void *ptr, int size, const char* file, int line)
+{
+    void * new_space = Jim_Alloc_Debug(size, file, line);
+    if (new_space == NULL) {
+        return NULL;
+    }
+    if (ptr != NULL) {
+        alloc_element_t* header = (alloc_element_t*)(((char*)ptr) - sizeof(alloc_element_t) - GUARD_BYTE_COUNT);
+        int copy_size = (size > header->size) ? header->size : size;
+        memcpy(new_space, ptr, copy_size);
+        Jim_Free_Debug(ptr, file, line);
+    }
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Re-allocate 0x%x => 0x%x (new size %d bytes)\n", (ptrdiff_t)ptr, (ptrdiff_t)new_space, size);
+#endif /* ifdef LOG_HEAP */
+    return new_space;
+}
+
+void Jim_Free_Debug(void *ptr, const char* file, int line)
+{
+    Jim_CheckHeap();
+    if (ptr == NULL) {
+        return;
+    }
+
+    alloc_element_t* header = (alloc_element_t*)(((char*)ptr) - sizeof(alloc_element_t) - GUARD_BYTE_COUNT);
+    
+
+    if (header->magic == DEAD_MAGIC) {
+        BREAKPOINT(); /* Double free attempted */
+    }
+    else if (header->magic != ALLOC_MAGIC) {
+        BREAKPOINT(); /* Either: 1) Attempted free of non-allocated block  2) Gross corruption overwrote magic number */
+    }
+
+    if (global_alloc_count_id_break_on_usage == header->count_id) {
+        BREAKPOINT(); /* Usage of flaged allocation */
+    }
+
+    if (header->next != NULL) {
+        header->next->prev = header->prev;
+    }
+    if (header->prev != NULL) {
+        header->prev->next = header->next;
+    }
+    if (allocation_top == header) {
+        allocation_top = header->next;
+    }
+    memset(header, FREE_VALUE, header->total_size);
+    header->magic = DEAD_MAGIC;
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Free 0x%x\n", (ptrdiff_t)ptr);
+#endif /* ifdef LOG_HEAP */
+    free(header);
+}
+
+
+char *Jim_StrDup_Debug(const char *s, const char* file, int line)
+{
+    if (s == NULL) {
+        return NULL;
+    }
+    void * new_space = Jim_Alloc_Debug(strlen(s)+1, file, line);
+    if (new_space == NULL) {
+        return NULL;
+    }
+    strcpy(new_space, s);
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] StrDup 0x%x => 0x%x\n", (ptrdiff_t)s, (ptrdiff_t)new_space);
+#endif /* ifdef LOG_HEAP */
+    return new_space;
+}
+
+#else /* ifdef DEBUG_HEAP */
 
 void *Jim_Alloc(int size)
 {
@@ -678,6 +863,8 @@ char *Jim_StrDup(const char *s)
 #endif /* ifdef LOG_HEAP */
     return retval;
 }
+#endif /* ifdef DEBUG_HEAP */
+
 
 char *Jim_StrDupLen(const char *s, int l)
 {

@@ -180,5 +180,6 @@ int main(int argc, char *const argv[])
         retcode = 0;
     }
     Jim_FreeInterp(interp);
+    Jim_CheckHeapIsEmpy();
     return retcode;
 }
