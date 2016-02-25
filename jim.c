@@ -646,22 +646,37 @@ static void JimPanicDump(int condition, const char *fmt, ...)
 
 void *Jim_Alloc(int size)
 {
-    return size ? malloc(size) : NULL;
+    void* retval = size ? malloc(size) : NULL;
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Allocate 0x%x (%d bytes)\n", (ptrdiff_t)retval, size);
+#endif /* ifdef LOG_HEAP */
+    return retval;
 }
 
 void Jim_Free(void *ptr)
 {
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Free 0x%x\n", (ptrdiff_t)ptr);
+#endif /* ifdef LOG_HEAP */
     free(ptr);
 }
 
 void *Jim_Realloc(void *ptr, int size)
 {
-    return realloc(ptr, size);
+    void* retval = realloc(ptr, size);
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] Re-allocate 0x%x => 0x%x (new size %d bytes)\n", (ptrdiff_t)ptr, (ptrdiff_t)retval, size);
+#endif /* ifdef LOG_HEAP */
+    return retval;
 }
 
 char *Jim_StrDup(const char *s)
 {
-    return strdup(s);
+    char * retval = strdup(s);
+#ifdef LOG_HEAP
+    fprintf(stderr, "[heap] StrDup 0x%x => 0x%x\n", (ptrdiff_t)s, (ptrdiff_t)retval);
+#endif /* ifdef LOG_HEAP */
+    return retval;
 }
 
 char *Jim_StrDupLen(const char *s, int l)

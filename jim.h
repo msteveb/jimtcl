@@ -620,6 +620,7 @@ typedef struct Jim_Reference {
 #define JIM_EXPORT
 
 /* Memory allocation */
+//#define LOG_HEAP       /* Enable to print heap allocations to stderr */
 JIM_EXPORT void *Jim_Alloc (int size);
 JIM_EXPORT void *Jim_Realloc(void *ptr, int size);
 JIM_EXPORT void Jim_Free (void *ptr);
