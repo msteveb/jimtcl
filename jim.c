@@ -1993,32 +1993,6 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
     return Jim_NewStringObjNoAlloc(interp, token, len);
 }
 
-/* Parses the given string to determine if it represents a complete script.
- *
- * This is useful for interactive shells implementation, for [info complete].
- *
- * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
- * '{' on scripts incomplete missing one or more '}' to be balanced.
- * '[' on scripts incomplete missing one or more ']' to be balanced.
- * '"' on scripts incomplete missing a '"' char.
- * '\\' on scripts with a trailing backslash.
- *
- * If the script is complete, 1 is returned, otherwise 0.
- */
-int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
-{
-    struct JimParserCtx parser;
-
-    JimParserInit(&parser, s, len, 1);
-    while (!parser.eof) {
-        JimParseScript(&parser);
-    }
-    if (stateCharPtr) {
-        *stateCharPtr = parser.missing.ch;
-    }
-    return parser.missing.ch == ' ';
-}
-
 /* -----------------------------------------------------------------------------
  * Tcl Lists parsing
  * ---------------------------------------------------------------------------*/
@@ -3180,8 +3154,6 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
  */
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
-static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
-static int JimParseCheckMissing(Jim_Interp *interp, int ch);
 
 static const Jim_ObjType scriptObjType = {
     "script",
@@ -3283,6 +3255,10 @@ typedef struct ScriptObj
     int linenr;                 /* Error line number, if any */
     int missing;                /* Missing char if script failed to parse, (or space or backslash if OK) */
 } ScriptObj;
+
+static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
+static int JimParseCheckMissing(Jim_Interp *interp, int ch);
+static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr);
 
 void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -3553,6 +3529,27 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 
 }
 
+/* Parses the given string object to determine if it represents a complete script.
+ *
+ * This is useful for interactive shells implementation, for [info complete].
+ *
+ * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
+ * '{' on scripts incomplete missing one or more '}' to be balanced.
+ * '[' on scripts incomplete missing one or more ']' to be balanced.
+ * '"' on scripts incomplete missing a '"' char.
+ * '\\' on scripts with a trailing backslash.
+ *
+ * If the script is complete, 1 is returned, otherwise 0.
+ */
+int Jim_ScriptIsComplete(Jim_Interp *interp, Jim_Obj *scriptObj, char *stateCharPtr)
+{
+    ScriptObj *script = JimGetScript(interp, scriptObj);
+    if (stateCharPtr) {
+        *stateCharPtr = script->missing;
+    }
+    return (script->missing == ' ');
+}
+
 /**
  * Sets an appropriate error message for a missing script/expression terminator.
  *
@@ -3675,7 +3672,7 @@ static void JimAddErrorToStack(Jim_Interp *interp, ScriptObj *script);
  * Note that if there is any possibility that the script is not valid,
  * call JimScriptValid() to check
  */
-ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
+static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     if (objPtr == interp->emptyObj) {
         /* Avoid converting emptyObj to a script. use nullScriptObj instead. */
@@ -14594,11 +14591,9 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             else {
-                int len;
-                const char *s = Jim_GetString(argv[2], &len);
                 char missing;
 
-                Jim_SetResultBool(interp, Jim_ScriptIsComplete(s, len, &missing));
+                Jim_SetResultBool(interp, Jim_ScriptIsComplete(interp, argv[2], &missing));
                 if (missing != ' ' && argc == 4) {
                     Jim_SetVariable(interp, argv[3], Jim_NewStringObj(interp, &missing, 1));
                 }

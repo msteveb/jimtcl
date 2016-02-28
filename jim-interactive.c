@@ -96,7 +96,6 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         const char *result;
         int reslen;
         char prompt[20];
-        const char *str;
 
         if (retcode != JIM_OK) {
             const char *retcodestr = Jim_ReturnCode(retcode);
@@ -116,7 +115,6 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         Jim_IncrRefCount(scriptObjPtr);
         while (1) {
             char state;
-            int len;
             char *line;
 
             line = Jim_HistoryGetline(prompt);
@@ -134,14 +132,13 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             }
             Jim_AppendString(interp, scriptObjPtr, line, -1);
             free(line);
-            str = Jim_GetString(scriptObjPtr, &len);
-            if (Jim_ScriptIsComplete(str, len, &state))
+            if (Jim_ScriptIsComplete(interp, scriptObjPtr, &state))
                 break;
 
             snprintf(prompt, sizeof(prompt), "%c> ", state);
         }
 #ifdef USE_LINENOISE
-        if (strcmp(str, "h") == 0) {
+        if (strcmp(Jim_String(scriptObjPtr), "h") == 0) {
             /* built-in history command */
             Jim_HistoryShow();
             Jim_DecrRefCount(interp, scriptObjPtr);
