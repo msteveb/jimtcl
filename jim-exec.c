@@ -103,6 +103,7 @@ int Jim_execInit(Jim_Interp *interp)
 
     typedef HANDLE fdtype;
     typedef HANDLE pidtype;
+    typedef ptrdiff_t pidintegertype;
     #define JIM_BAD_FD INVALID_HANDLE_VALUE
     #define JIM_BAD_PID INVALID_HANDLE_VALUE
     #define JimCloseFd CloseHandle
@@ -131,6 +132,7 @@ int Jim_execInit(Jim_Interp *interp)
 
     typedef int fdtype;
     typedef int pidtype;
+    typedef int pidintegertype;
     #define JimPipe pipe
     #define JimErrno() errno
     #define JIM_BAD_FD -1
@@ -324,7 +326,7 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, J
 
     if (WIFEXITED(waitStatus)) {
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (pidintegertype)pid));
         Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WEXITSTATUS(waitStatus)));
     }
     else {
@@ -349,7 +351,7 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, J
             Jim_AppendStrings(interp, errStrObj, "child ", action, " by signal ", Jim_SignalId(WTERMSIG(waitStatus)), "\n", NULL);
         }
 
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (pidintegertype)pid));
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalName(WTERMSIG(waitStatus)), -1));
     }
@@ -434,7 +436,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         /* The return value is a list of the pids */
         listObj = Jim_NewListObj(interp, NULL, 0);
         for (i = 0; i < numPids; i++) {
-            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, (long)pidPtr[i]));
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, (pidintegertype)pidPtr[i]));
         }
         Jim_SetResult(interp, listObj);
         JimDetachPids(interp, numPids, pidPtr);
