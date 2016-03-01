@@ -1922,6 +1922,11 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
         filenameObj = Jim_NewStringObj(interp, template, -1);
     }
 
+#if !defined(__MINGW32__)
+#else
+    /* MinGW does not have group/owner permissions */
+    mask = umask(S_IXUSR);
+#endif
     /* Update the template name directly with the filename */
     mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
     fd = mkstemp(filenameObj->bytes);
