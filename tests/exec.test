@@ -22,6 +22,9 @@ needs cmd after eventloop
 # Windows does not have these Linux utilities - also echo & cat are not executable files
 testConstraint posixUtilsAvailable [expr ! ( [catch { exec echo } fid] || [catch { exec cat --help} fid] || [catch { exec sh --help} fid] || [catch { exec ps --help} fid] || [catch { exec fgrep --help} fid] || [catch { exec wc --help} fid]) ]
 
+# Additionally Windows will fail the long commandline test - even on MinGW which does have the Linux utilities above
+testConstraint commandLengthLimit [expr ! [catch { win32.GetVersion } fid] ]
+
 
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {
@@ -229,7 +232,7 @@ set a [concat $a $a $a $a]
 set a [concat $a $a $a $a]
 set a [concat $a $a $a $a]
 set a [concat $a $a $a $a]
-test exec-8.1 {long input and output} -constraints {posixUtilsAvailable} -body {
+test exec-8.1 {long input and output} -constraints {posixUtilsAvailable commandLengthLimit} -body {
     exec cat << $a
 } -result $a
 
