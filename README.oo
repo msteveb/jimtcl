@@ -100,6 +100,18 @@ on a specific object.
 	the instance variables, and evaluate the body in that context.
 	This can be used for one-off evaluation to avoid declaring a method.
 
+RESERVED METHODS
+----------------
+The following methods are special
+
+  constructor::
+    If this method exists, it is invoked (with no arguments) after an object is created
+
+  unknown methodname ...::
+    If an undefined method is invoked, and this method exists, it is called with the methodname
+	and the original arguments
+
+
 CREATING OBJECTS
 ----------------
 An object is created with the 'new' method, or simply by using the classname shortcut.
@@ -119,6 +131,8 @@ For example:
   0
   . $b get balance
   1000
+
+If the 'constructor' method exists, it is invoked just after the object is created
 
 DECLARING METHODS
 -----------------
