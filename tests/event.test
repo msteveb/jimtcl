@@ -104,10 +104,8 @@ test event-10.1 {Tcl_Exit procedure} exec {
 
 test event-11.1 {Tcl_VwaitCmd procedure} -body {
     vwait
-} -returnCodes error -match glob -result {wrong # args: should be "vwait* name"}
-test event-11.2 {Tcl_VwaitCmd procedure} -body {
-    vwait a b
-} -returnCodes error -match glob -result {wrong # args: should be "vwait* name"}
+} -returnCodes error -result {wrong # args: should be "vwait ?-signal? name ?script?"}
+
 test event-11.3 {Tcl_VwaitCmd procedure} jim {
     catch {unset x}
     set x 1
@@ -270,5 +268,26 @@ test event-14.2 {IPv6 socket stream.server client address} {jim socket ipv6} {
     list [join [lrange [split $addr6 :] 0 end-1] :]
 } {{[::1]}}
 
+test event-15.1 {vwait with script} {jim} {
+    set x 0
+    set result {}
+
+    local proc waiter {} {&x &result} {
+        lappend result $x
+        after 10 waiter
+    }
+
+    after 10 waiter
+    vwait done_waiter [lambda {} {&x} {
+        # By using a lambda to capture a reference to x, we can
+        # avoid a global variable. (done_waiter is not used)
+        if {[incr x] >= 5} {
+            break
+        }
+    }]
+    # The vwait script iterates 5 times before break, so it will
+    # cancel the event loop before waiter sets done_waiter
+    list $x $result
+} {5 {0 1 2 3 4}}
 
 testreport
