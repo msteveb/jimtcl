@@ -3326,7 +3326,7 @@ proc
 The `proc` command creates a new Tcl command procedure, +'name'+.
 When the new command is invoked, the contents of +'body'+ will be executed.
 Tcl interpreter. +'args'+ specifies the formal arguments to the procedure.
-If specified, +'static'+, declares static variables which are bound to the
+If specified, +'statics'+, declares static variables which are bound to the
 procedure.
 
 See PROCEDURES for detailed information about Tcl procedures.
