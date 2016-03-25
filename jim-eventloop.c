@@ -564,19 +564,24 @@ static void JimELAssocDataDeleProc(Jim_Interp *interp, void *data)
 static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
-    Jim_Obj *oldValue;
+    Jim_Obj *oldValue = NULL;
+    Jim_Obj *scriptObjPtr = NULL;
     int rc;
     int signal = 0;
 
-    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "-signal")) {
+    if (argc > 2 && Jim_CompareStringImmediate(interp, argv[1], "-signal")) {
         signal++;
     }
 
-    if (argc - signal != 2) {
+    if (argc - signal == 3) {
+        scriptObjPtr = argv[2 + signal];
+    }
+    else if (argc - signal != 2) {
         return JIM_USAGE;
     }
 
     oldValue = Jim_GetGlobalVariable(interp, argv[1 + signal], JIM_NONE);
+
     if (oldValue) {
         Jim_IncrRefCount(oldValue);
     }
@@ -590,6 +595,8 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     eventLoop->suppress_bgerror = 0;
 
     while ((rc = Jim_ProcessEvents(interp, JIM_ALL_EVENTS)) >= 0) {
+        Jim_Obj *currValue;
+
         if (signal && interp->sigmask) {
             /* vwait -signal and handled signals were received, so transfer them
              * to ignored signals so that 'signal check -clear' will return them.
@@ -602,7 +609,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             interp->sigmask = 0;
             break;
         }
-        Jim_Obj *currValue;
+
         currValue = Jim_GetGlobalVariable(interp, argv[1 + signal], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,
          * or if was unset and now is set (or the contrary)
@@ -613,6 +620,16 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             (oldValue && currValue && !Jim_StringEqObj(oldValue, currValue)) ||
             Jim_CheckSignal(interp)) {
             break;
+        }
+        if (scriptObjPtr) {
+            /* Stop the loop if a provided script returns BREAK or ERR */
+            int retval = Jim_EvalObj(interp, scriptObjPtr);
+            if (retval == JIM_ERR || retval == JIM_BREAK) {
+                if (retval == JIM_ERR) {
+                    rc = -2;
+                }
+                break;
+            }
         }
     }
     if (oldValue)
@@ -785,7 +802,7 @@ int Jim_eventloopInit(Jim_Interp *interp)
 
     Jim_SetAssocData(interp, "eventloop", JimELAssocDataDeleProc, eventLoop);
 
-    Jim_RegisterCmd(interp, "vwait", "?-signal? name", 1, 2, JimELVwaitCommand, NULL, eventLoop, 0);
+    Jim_RegisterCmd(interp, "vwait", "?-signal? name ?script?", 1, 3, JimELVwaitCommand, NULL, eventLoop, 0);
     Jim_RegisterCmd(interp, "update", "?idletasks?", 0, 1, JimELUpdateCommand, NULL, eventLoop, 0);
     Jim_RegisterCmd(interp, "after", "option ?arg ...?", 1, -1, JimELAfterCommand, NULL, eventLoop, 0);
 
