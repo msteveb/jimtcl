@@ -5778,11 +5778,28 @@ static const Jim_ObjType coercedDoubleObjType = {
 };
 
 
+static int radix = 10;
+
+int Jim_RadixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    long int r;
+    if (Jim_GetLong(interp, argv[1], &r) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    if (r == 8 || r == 16 || r == 2 || r == 10) {
+    	radix = r;
+    } else {
+    	return JIM_ERR;
+    }
+    return JIM_OK;
+}
 static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 {
     char buf[JIM_INTEGER_SPACE + 1];
     jim_wide wideValue = JimWideValue(objPtr);
     int pos = 0;
+	const char *hex = "0123456789abcdef";
 
     if (wideValue == 0) {
         buf[pos++] = '0';
@@ -5794,22 +5811,39 @@ static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 
         if (wideValue < 0) {
             buf[pos++] = '-';
-            i = wideValue % 10;
+        }
+
+        if (radix == 16) {
+			buf[pos++] = '0';
+			buf[pos++] = 'x';
+		} else
+		if (radix == 8) {
+		    buf[pos++] = '0';
+			buf[pos++] = 'o';
+		} else
+		if (radix == 2) {
+			buf[pos++] = '0';
+			buf[pos++] = 'b';
+		}
+
+        if (wideValue < 0) {
+            i = wideValue % radix;
             /* C89 is implementation defined as to whether (-106 % 10) is -6 or 4,
              * whereas C99 is always -6
              * coverity[dead_error_line]
              */
-            tmp[num++] = (i > 0) ? (10 - i) : -i;
-            wideValue /= -10;
+            tmp[num++] = hex[(i > 0) ? (radix - i) : -i];
+            wideValue /= -radix;
         }
 
         while (wideValue) {
-            tmp[num++] = wideValue % 10;
-            wideValue /= 10;
+            tmp[num++] = hex[wideValue % radix];
+            wideValue /= radix;
         }
 
+        // reverse the string
         for (i = 0; i < num; i++) {
-            buf[pos++] = '0' + tmp[num - i - 1];
+            buf[pos++] = tmp[num - i - 1];
         }
     }
     buf[pos] = 0;
@@ -15243,6 +15277,7 @@ static const struct {
     {"local", Jim_LocalCoreCommand},
     {"upcall", Jim_UpcallCoreCommand},
     {"apply", Jim_ApplyCoreCommand},
+    {"radix", Jim_RadixCoreCommand},
     {NULL, NULL},
 };
 
