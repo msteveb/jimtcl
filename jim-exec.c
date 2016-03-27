@@ -453,23 +453,22 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     result = JIM_OK;
 
-    /* Wait for children to finish. Any abnormal results are appended to childErrObj */
-    childErrObj = Jim_NewStringObj(interp, "", 0);
-    Jim_IncrRefCount(childErrObj);
-    if (JimCleanupChildren(interp, numPids, pidPtr, childErrObj) != JIM_OK) {
-        result = JIM_ERR;
-    }
-
-    /*
-     * Start with an empty result
-     */
     errStrObj = Jim_NewStringObj(interp, "", 0);
 
+    /* Read from the output pipe until EOF */
     if (outputId != JIM_BAD_FD) {
         if (JimAppendStreamToString(interp, outputId, errStrObj) < 0) {
             result = JIM_ERR;
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
+    }
+
+    /* Now wait for children to finish. Any abnormal results are appended to childErrObj */
+    childErrObj = Jim_NewStringObj(interp, "", 0);
+    Jim_IncrRefCount(childErrObj);
+
+    if (JimCleanupChildren(interp, numPids, pidPtr, childErrObj) != JIM_OK) {
+        result = JIM_ERR;
     }
 
     /*

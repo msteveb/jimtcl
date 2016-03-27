@@ -218,14 +218,10 @@ test exec-7.2 {multiple I/O redirections} {
 
 # Long input to command and output from command.
 
-set a "0123456789 xxxxxxxxx abcdefghi ABCDEFGHIJK\n"
-set a [concat $a $a $a $a]
-set a [concat $a $a $a $a]
-set a [concat $a $a $a $a]
-set a [concat $a $a $a $a]
+set a [string repeat a 1000000]
 test exec-8.1 {long input and output} {
-    exec cat << $a
-} $a
+    string length [exec cat << $a]
+} 1000000
 
 # More than 20 arguments to exec.
 
