@@ -4788,7 +4788,9 @@ The optional 'zlib' extension provides a is a Tcl-compatible subset of the `zlib
     Compresses a buffer and adds a gzip header.
 
 +*gunzip* 'data' '?-buffersize size?'+::
-    Decompresses a gzip-compressed buffer. Decompression is chunked, with a default buffer size of 64K.
+    Decompresses a gzip-compressed buffer. Decompression is chunked, with a default, small buffer size of 64K
+    which guarantees lower memory footprint at the cost of speed. It is recommended to use a bigger size, on
+    systems without a severe memory constraint.
 
 binary
 ~~~~~~
