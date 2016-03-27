@@ -55,6 +55,7 @@ Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add support for `aio sync`
 2. Add SSL and TLS support in aio
+3. Added `zlib`
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4766,6 +4767,28 @@ The optional 'pack' extension provides commands to encode and decode binary stri
     For the string type, both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
     access outside the length of the value will return 0 for integer types, 0.0 for floating point types
     or the empty string for the string type.
+
+zlib
+~~~~
+The optional 'zlib' extension provides a is a Tcl-compatible subset of the `zlib` command.
+
++*crc32* 'data' '?startValue?'+::
+    Returns the CRC32 checksum of a buffer. Optionally, an initial value may be specified; this is most useful
+    for calculating the checksum of chunked data read from a stream (for instance, a pipe).
+
++*deflate* 'string' '?level?'+::
+    Compresses a buffer and outputs a raw, Deflate-compressed stream. Optionally, a compression level (1-9) may
+    be specified to choose the desired speed vs. compression rate ratio.
+
++*inflate* 'data' '?bufferSize?'+::
+    Decompresses a raw, Deflate-compressed stream. When the uncompressed data size is known and specified, memory
+    allocation is more efficient. Otherwise, decomperssion is chunked and therefore slower.
+
++*gzip* 'string' '?-level level?'+::
+    Compresses a buffer and adds a gzip header.
+
++*gunzip* 'data' '?-buffersize size?'+::
+    Decompresses a gzip-compressed buffer. Decompression is chunked, with a default buffer size of 64K.
 
 binary
 ~~~~~~

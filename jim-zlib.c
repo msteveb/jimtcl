@@ -194,6 +194,8 @@ static int Jim_Decompress(Jim_Interp *interp, const char *in, int len, long bufs
                 Jim_DecrRefCount(interp, out);
                 Jim_Free(buf);
                 inflateEnd(&strm);
+                if (strm.msg != NULL)
+                    Jim_SetResultString(interp, strm.msg, -1);
                 return JIM_ERR;
             }
         } while (strm.avail_out == 0);
@@ -259,7 +261,7 @@ static int Jim_Gunzip(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static const jim_subcmd_type zlib_command_table[] = {
     {   "crc32",
-        "string ?startValue?",
+        "data ?startValue?",
         Jim_Crc32,
         1,
         2,
