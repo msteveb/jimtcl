@@ -61,11 +61,11 @@ typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 #define JIM_EVENT_EXCEPTION 4
 
 JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
-        FILE *handle, int mask,
+        int fd, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
-        FILE *handle, int mask);
+        int fd, int mask);
 JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         jim_wide milliseconds,
         Jim_TimeProc *proc, void *clientData,

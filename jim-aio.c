@@ -481,7 +481,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
 #ifdef jim_ext_eventloop
     /* remove all existing EventHandlers */
-    Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
+    Jim_DeleteFileHandler(interp, af->fd, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
 
 #if defined(JIM_SSL)
@@ -1012,7 +1012,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
 
     if (*scriptHandlerObj) {
         /* Delete old handler */
-        Jim_DeleteFileHandler(interp, af->fp, mask);
+        Jim_DeleteFileHandler(interp, af->fd, mask);
     }
 
     /* Now possibly add the new script(s) */
@@ -1025,7 +1025,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
     Jim_IncrRefCount(argv[0]);
     *scriptHandlerObj = argv[0];
 
-    Jim_CreateFileHandler(interp, af->fp, mask,
+    Jim_CreateFileHandler(interp, af->fd, mask,
         JimAioFileEventHandler, scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
