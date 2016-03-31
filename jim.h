@@ -627,12 +627,20 @@ typedef struct Jim_Reference {
 #define Jim_NewEmptyStringObj(i) Jim_NewStringObj(i, "", 0)
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
-#define JIM_EXPORT
+#define JIM_EXPORT extern
 
 /* Memory allocation */
-JIM_EXPORT void *Jim_Alloc (int size);
-JIM_EXPORT void *Jim_Realloc(void *ptr, int size);
-JIM_EXPORT void Jim_Free (void *ptr);
+
+/* The default Jim Allocator can be replaced by assigning to Jim_Allocator.
+ * This function does malloc/realloc/free depending on the arguments.
+ * If size is 0, ptr is freed.
+ * Otherwise malloc or realloc is done depending on whether ptr is NULL.
+ */
+JIM_EXPORT void *(*Jim_Allocator)(void *ptr, size_t size);
+
+#define Jim_Free(P) Jim_Allocator((P), 0)
+#define Jim_Realloc(P, S) Jim_Allocator((P), (S))
+#define Jim_Alloc(S) Jim_Allocator(NULL, (S))
 JIM_EXPORT char * Jim_StrDup (const char *s);
 JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 
