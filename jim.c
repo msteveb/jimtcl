@@ -615,24 +615,25 @@ static void JimPanicDump(int condition, const char *fmt, ...)
  * Memory allocation
  * ---------------------------------------------------------------------------*/
 
-void *Jim_Alloc(int size)
+void *JimDefaultAllocator(void *ptr, size_t size)
 {
-    return size ? malloc(size) : NULL;
+    if (size == 0) {
+        free(ptr);
+        return NULL;
+    }
+    else if (ptr) {
+        return realloc(ptr, size);
+    }
+    else {
+        return malloc(size);
+    }
 }
 
-void Jim_Free(void *ptr)
-{
-    free(ptr);
-}
-
-void *Jim_Realloc(void *ptr, int size)
-{
-    return realloc(ptr, size);
-}
+void *(*Jim_Allocator)(void *ptr, size_t size) = JimDefaultAllocator;
 
 char *Jim_StrDup(const char *s)
 {
-    return strdup(s);
+    return Jim_StrDupLen(s, strlen(s));
 }
 
 char *Jim_StrDupLen(const char *s, int l)
