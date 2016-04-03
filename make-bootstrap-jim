@@ -44,7 +44,7 @@ cexts="aio readdir regexp file exec clock array"
 tclexts="bootstrap initjimsh glob stdlib tclcompat"
 
 # Note ordering
-allexts="bootstrap aio readdir glob regexp file exec clock array stdlib tclcompat"
+allexts="bootstrap aio readdir regexp file glob exec clock array stdlib tclcompat"
 
 echo "/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl.tk/ */"
 

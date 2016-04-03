@@ -192,7 +192,7 @@ static const JimAioFopsType stdio_fops = {
     NULL
 };
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 
 static SSL_CTX *JimAioSslCtx(Jim_Interp *interp);
 
@@ -270,7 +270,7 @@ static const JimAioFopsType ssl_fops = {
     ssl_strerror,
     ssl_verify
 };
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
@@ -1053,7 +1053,7 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 }
 #endif
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -1156,7 +1156,7 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     return ret;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 static const jim_subcmd_type aio_command_table[] = {
     {   "read",
@@ -1315,7 +1315,7 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Returns script, or invoke exception-script when oob data, {} to remove */
     },
 #endif
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
     {   "ssl",
         "?-server cert priv?",
         aio_cmd_ssl,
@@ -1331,7 +1331,7 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Verifies the certificate of a SSL/TLS channel */
     },
-#endif
+#endif /* JIM_BOOTSTRAP */
     { NULL }
 };
 
@@ -1371,7 +1371,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode) ? JIM_OK : JIM_ERR;
 }
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
 {
     SSL_CTX_free((SSL_CTX *)privData);
@@ -1394,7 +1394,7 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
     }
     return ssl_ctx;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 /**
  * Creates a channel for fh/fd/filename.
@@ -1824,7 +1824,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
 #endif
 }
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     SSL_CTX *ssl_ctx;
@@ -1844,7 +1844,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
     return JIM_ERR;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 int Jim_aioInit(Jim_Interp *interp)
 {
