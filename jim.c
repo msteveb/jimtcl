@@ -1151,11 +1151,6 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
 
 #define TOKEN_IS_SEP(type) (type >= JIM_TT_SEP && type <= JIM_TT_EOF)
 
-/* Parser states */
-#define JIM_PS_DEF 0            /* Default state */
-#define JIM_PS_QUOTE 1          /* Inside "" */
-#define JIM_PS_DICTSUGAR 2      /* Tokenising abc(def) into 4 separate tokens */
-
 /**
  * Results of missing quotes, braces, etc. from parsing.
  */
@@ -1176,7 +1171,7 @@ struct JimParserCtx
     int tline;                  /* Line number of the returned token */
     int tt;                     /* Token type */
     int eof;                    /* Non zero if EOF condition is true. */
-    int state;                  /* Parser state */
+    int inquote;                /* Parsing a quoted string */
     int comment;                /* Non zero if the next chars may be a comment. */
     struct JimParseMissing missing;   /* Details of any missing quotes, etc. */
 };
@@ -1206,7 +1201,7 @@ static void JimParserInit(struct JimParserCtx *pc, const char *prg, int len, int
     pc->tline = 0;
     pc->tt = JIM_TT_NONE;
     pc->eof = 0;
-    pc->state = JIM_PS_DEF;
+    pc->inquote = 0;
     pc->linenr = linenr;
     pc->comment = 1;
     pc->missing.ch = ' ';
@@ -1226,7 +1221,7 @@ static int JimParseScript(struct JimParserCtx *pc)
         }
         switch (*(pc->p)) {
             case '\\':
-                if (*(pc->p + 1) == '\n' && pc->state == JIM_PS_DEF) {
+                if (*(pc->p + 1) == '\n' && !pc->inquote) {
                     return JimParseSep(pc);
                 }
                 pc->comment = 0;
@@ -1235,14 +1230,14 @@ static int JimParseScript(struct JimParserCtx *pc)
             case '\t':
             case '\r':
             case '\f':
-                if (pc->state == JIM_PS_DEF)
+                if (!pc->inquote)
                     return JimParseSep(pc);
                 pc->comment = 0;
                 return JimParseStr(pc);
             case '\n':
             case ';':
                 pc->comment = 1;
-                if (pc->state == JIM_PS_DEF)
+                if (!pc->inquote)
                     return JimParseEol(pc);
                 return JimParseStr(pc);
             case '[':
@@ -1643,7 +1638,7 @@ static int JimParseStr(struct JimParserCtx *pc)
             return JimParseBrace(pc);
         }
         if (*pc->p == '"') {
-            pc->state = JIM_PS_QUOTE;
+            pc->inquote = 1;
             pc->p++;
             pc->len--;
             /* In case the end quote is missing */
@@ -1654,7 +1649,7 @@ static int JimParseStr(struct JimParserCtx *pc)
     pc->tline = pc->linenr;
     while (1) {
         if (pc->len == 0) {
-            if (pc->state == JIM_PS_QUOTE) {
+            if (pc->inquote) {
                 pc->missing.ch = '"';
             }
             pc->tend = pc->p - 1;
@@ -1663,7 +1658,7 @@ static int JimParseStr(struct JimParserCtx *pc)
         }
         switch (*pc->p) {
             case '\\':
-                if (pc->state == JIM_PS_DEF && *(pc->p + 1) == '\n') {
+                if (!pc->inquote && *(pc->p + 1) == '\n') {
                     pc->tend = pc->p - 1;
                     pc->tt = JIM_TT_ESC;
                     return JIM_OK;
@@ -1711,7 +1706,7 @@ static int JimParseStr(struct JimParserCtx *pc)
             case '\r':
             case '\f':
             case ';':
-                if (pc->state == JIM_PS_DEF) {
+                if (!pc->inquote) {
                     pc->tend = pc->p - 1;
                     pc->tt = JIM_TT_ESC;
                     return JIM_OK;
@@ -1721,12 +1716,12 @@ static int JimParseStr(struct JimParserCtx *pc)
                 }
                 break;
             case '"':
-                if (pc->state == JIM_PS_QUOTE) {
+                if (pc->inquote) {
                     pc->tend = pc->p - 1;
                     pc->tt = JIM_TT_ESC;
                     pc->p++;
                     pc->len--;
-                    pc->state = JIM_PS_DEF;
+                    pc->inquote = 0;
                     return JIM_OK;
                 }
                 break;
@@ -1785,17 +1780,13 @@ static int odigitval(int c)
 /* Perform Tcl escape substitution of 's', storing the result
  * string into 'dest'. The escaped string is guaranteed to
  * be the same length or shorted than the source string.
- * Slen is the length of the string at 's', if it's -1 the string
- * length will be calculated by the function.
+ * Slen is the length of the string at 's'.
  *
  * The function returns the length of the resulting string. */
 static int JimEscape(char *dest, const char *s, int slen)
 {
     char *p = dest;
     int i, len;
-
-    if (slen == -1)
-        slen = strlen(s);
 
     for (i = 0; i < slen; i++) {
         switch (s[i]) {
@@ -2000,32 +1991,6 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
     }
 
     return Jim_NewStringObjNoAlloc(interp, token, len);
-}
-
-/* Parses the given string to determine if it represents a complete script.
- *
- * This is useful for interactive shells implementation, for [info complete].
- *
- * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
- * '{' on scripts incomplete missing one or more '}' to be balanced.
- * '[' on scripts incomplete missing one or more ']' to be balanced.
- * '"' on scripts incomplete missing a '"' char.
- * '\\' on scripts with a trailing backslash.
- *
- * If the script is complete, 1 is returned, otherwise 0.
- */
-int Jim_ScriptIsComplete(const char *s, int len, char *stateCharPtr)
-{
-    struct JimParserCtx parser;
-
-    JimParserInit(&parser, s, len, 1);
-    while (!parser.eof) {
-        JimParseScript(&parser);
-    }
-    if (stateCharPtr) {
-        *stateCharPtr = parser.missing.ch;
-    }
-    return parser.missing.ch == ' ';
 }
 
 /* -----------------------------------------------------------------------------
@@ -3189,8 +3154,6 @@ static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
  */
 static void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
 static void DupScriptInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
-static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
-static int JimParseCheckMissing(Jim_Interp *interp, int ch);
 
 static const Jim_ObjType scriptObjType = {
     "script",
@@ -3292,6 +3255,10 @@ typedef struct ScriptObj
     int linenr;                 /* Error line number, if any */
     int missing;                /* Missing char if script failed to parse, (or space or backslash if OK) */
 } ScriptObj;
+
+static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
+static int JimParseCheckMissing(Jim_Interp *interp, int ch);
+static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr);
 
 void FreeScriptInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -3562,6 +3529,27 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
 
 }
 
+/* Parses the given string object to determine if it represents a complete script.
+ *
+ * This is useful for interactive shells implementation, for [info complete].
+ *
+ * If 'stateCharPtr' != NULL, the function stores ' ' on complete script,
+ * '{' on scripts incomplete missing one or more '}' to be balanced.
+ * '[' on scripts incomplete missing one or more ']' to be balanced.
+ * '"' on scripts incomplete missing a '"' char.
+ * '\\' on scripts with a trailing backslash.
+ *
+ * If the script is complete, 1 is returned, otherwise 0.
+ */
+int Jim_ScriptIsComplete(Jim_Interp *interp, Jim_Obj *scriptObj, char *stateCharPtr)
+{
+    ScriptObj *script = JimGetScript(interp, scriptObj);
+    if (stateCharPtr) {
+        *stateCharPtr = script->missing;
+    }
+    return (script->missing == ' ');
+}
+
 /**
  * Sets an appropriate error message for a missing script/expression terminator.
  *
@@ -3684,7 +3672,7 @@ static void JimAddErrorToStack(Jim_Interp *interp, ScriptObj *script);
  * Note that if there is any possibility that the script is not valid,
  * call JimScriptValid() to check
  */
-ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
+static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     if (objPtr == interp->emptyObj) {
         /* Avoid converting emptyObj to a script. use nullScriptObj instead. */
@@ -6634,6 +6622,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
         default:
             fn = NULL;          /* avoid warning */
             JimPanic((1, "ListSort called with invalid sort type"));
+            return -1; /* Should not be run but keeps static analysers happy */
     }
 
     if (info->indexed) {
@@ -12431,7 +12420,8 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *listObjPtr;
-    int shared, i;
+    int new_obj = 0;
+    int i;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "varName ?value value ...?");
@@ -12441,18 +12431,16 @@ static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     if (!listObjPtr) {
         /* Create the list if it does not exist */
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
-        if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, listObjPtr);
-            return JIM_ERR;
-        }
+        new_obj = 1;
     }
-    shared = Jim_IsShared(listObjPtr);
-    if (shared)
+    else if (Jim_IsShared(listObjPtr)) {
         listObjPtr = Jim_DuplicateObj(interp, listObjPtr);
+        new_obj = 1;
+    }
     for (i = 2; i < argc; i++)
         Jim_ListAppendElement(interp, listObjPtr, argv[i]);
     if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
-        if (shared)
+        if (new_obj)
             Jim_FreeNewObj(interp, listObjPtr);
         return JIM_ERR;
     }
@@ -12664,22 +12652,22 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
     }
     else {
-        int freeobj = 0;
+        int new_obj = 0;
         stringObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
         if (!stringObjPtr) {
             /* Create the string if it doesn't exist */
             stringObjPtr = Jim_NewEmptyStringObj(interp);
-            freeobj = 1;
+            new_obj = 1;
         }
         else if (Jim_IsShared(stringObjPtr)) {
-            freeobj = 1;
+            new_obj = 1;
             stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
         }
         for (i = 2; i < argc; i++) {
             Jim_AppendObj(interp, stringObjPtr, argv[i]);
         }
         if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
-            if (freeobj) {
+            if (new_obj) {
                 Jim_FreeNewObj(interp, stringObjPtr);
             }
             return JIM_ERR;
@@ -13887,10 +13875,10 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
 
         if (ignore) {
-            ignore_mask |= (1 << option);
+            ignore_mask |= ((jim_wide)1 << option);
         }
         else {
-            ignore_mask &= ~(1 << option);
+            ignore_mask &= (~((jim_wide)1 << option));
         }
     }
 
@@ -14602,11 +14590,9 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             else {
-                int len;
-                const char *s = Jim_GetString(argv[2], &len);
                 char missing;
 
-                Jim_SetResultBool(interp, Jim_ScriptIsComplete(s, len, &missing));
+                Jim_SetResultBool(interp, Jim_ScriptIsComplete(interp, argv[2], &missing));
                 if (missing != ' ' && argc == 4) {
                     Jim_SetVariable(interp, argv[3], Jim_NewStringObj(interp, &missing, 1));
                 }

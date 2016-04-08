@@ -348,7 +348,7 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, J
             Jim_AppendStrings(interp, errStrObj, "child ", action, " by signal ", Jim_SignalId(WTERMSIG(waitStatus)), "\n", NULL);
         }
 
-        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalName(WTERMSIG(waitStatus)), -1));
     }
@@ -453,23 +453,22 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     result = JIM_OK;
 
-    /* Wait for children to finish. Any abnormal results are appended to childErrObj */
-    childErrObj = Jim_NewStringObj(interp, "", 0);
-    Jim_IncrRefCount(childErrObj);
-    if (JimCleanupChildren(interp, numPids, pidPtr, childErrObj) != JIM_OK) {
-        result = JIM_ERR;
-    }
-
-    /*
-     * Start with an empty result
-     */
     errStrObj = Jim_NewStringObj(interp, "", 0);
 
+    /* Read from the output pipe until EOF */
     if (outputId != JIM_BAD_FD) {
         if (JimAppendStreamToString(interp, outputId, errStrObj) < 0) {
             result = JIM_ERR;
             Jim_SetResultErrno(interp, "error reading from output pipe");
         }
+    }
+
+    /* Now wait for children to finish. Any abnormal results are appended to childErrObj */
+    childErrObj = Jim_NewStringObj(interp, "", 0);
+    Jim_IncrRefCount(childErrObj);
+
+    if (JimCleanupChildren(interp, numPids, pidPtr, childErrObj) != JIM_OK) {
+        result = JIM_ERR;
     }
 
     /*
@@ -1397,8 +1396,7 @@ JimWinFindExecutable(const char *originalName, char fullPath[MAX_PATH])
     static char extensions[][5] = {".exe", "", ".bat"};
 
     for (i = 0; i < (int) (sizeof(extensions) / sizeof(extensions[0])); i++) {
-        lstrcpyn(fullPath, originalName, MAX_PATH - 5);
-        lstrcat(fullPath, extensions[i]);
+        snprintf(fullPath, MAX_PATH, "%s%s", originalName, extensions[i]);
 
         if (SearchPath(NULL, fullPath, NULL, MAX_PATH, fullPath, NULL) == 0) {
             continue;

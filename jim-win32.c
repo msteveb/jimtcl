@@ -322,7 +322,7 @@ Win32_GetVersion(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 static int
 Win32_GetTickCount(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 {
-    Jim_SetResult(interp, Jim_NewIntObj(interp, GetTickCount()));
+    Jim_SetResult(interp, Jim_NewIntObj(interp, GetTickCount64()));
     return JIM_OK;
 }
 

@@ -1,0 +1,122 @@
+# The file tests the jim-zlib.c file; based on tests/zlib.test from Tcl 8.6.
+#
+# This file contains a collection of tests for one or more of the Tcl built-in
+# commands. Sourcing this file into Tcl runs the tests and generates output
+# for errors. No output means no errors were found.
+#
+# Copyright (c) 1996-1998 by Sun Microsystems, Inc.
+# Copyright (c) 1998-1999 by Scriptics Corporation.
+#
+# See the file "license.terms" for information on usage and redistribution of
+# this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+source [file dirname [info script]]/testing.tcl
+
+needs cmd zlib
+
+test zlib-1.1 {zlib deflate usage 1} -returnCodes error -body {
+    zlib deflate
+} -result {wrong # args: should be "zlib deflate string ?level?"}
+
+test zlib-1.2 {zlib deflate usage 2} -returnCodes error -body {
+    zlib deflate a b
+} -result {expected integer but got "b"}
+
+test zlib-1.3 {zlib deflate usage 3} -returnCodes error -body {
+    zlib deflate a b c
+} -result {wrong # args: should be "zlib deflate string ?level?"}
+
+test zlib-1.4 {zlib inflate usage 1} -returnCodes error -body {
+    zlib inflate
+} -result {wrong # args: should be "zlib inflate data ?bufferSize?"}
+
+test zlib-1.5 {zlib inflate usage 2} -returnCodes error -body {
+    zlib inflate afdfdfdsfdsfsd
+} -result {invalid stored block lengths}
+
+test zlib-1.6 {zlib inflate usage 3} -returnCodes error -body {
+    zlib inflate afdfdfdsfdsfsd f
+} -result {expected integer but got "f"}
+
+test zlib-1.7 {zlib inflate usage 4} -returnCodes error -body {
+    zlib inflate afdfdfdsfdsfsd 0
+} -result {buffer size must be 0 to 2147483647}
+
+test zlib-2.1 {zlib deflate/inflate} {
+    zlib inflate [zlib deflate abcdefghijklm]
+} abcdefghijklm
+
+test zlib-2.2 {zlib deflate/inflate level and size known} {
+    zlib inflate [zlib deflate abcdefghijklm 9] 13
+} abcdefghijklm
+
+test zlib-2.3 {zlib deflate/inflate bad size} -returnCodes error -body {
+    zlib inflate [zlib deflate abcdefghijklm 9] 0
+} -result {buffer size must be 0 to 2147483647}
+
+test zlib-2.4 {zlib deflate/inflate wrong size} {
+    zlib inflate [zlib deflate abcdefghijklm] 6
+} abcdefghijklm
+
+test zlib-3.1 {zlib gunzip usage 1} -returnCodes error -body {
+    zlib gunzip
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
+
+test zlib-3.2 {zlib gunzip usage 2} -returnCodes error -body {
+    zlib gunzip aaa
+} -result {incorrect header check}
+
+test zlib-3.3 {zlib gunzip usage 3} -returnCodes error -body {
+    zlib gunzip aaa 4
+} -result {wrong # args: should be "data ?-buffersize size?"}
+
+test zlib-3.4 {zlib gunzip usage 4} -returnCodes error -body {
+    zlib gunzip aaa -buffersize
+} -result {wrong # args: should be "data ?-buffersize size?"}
+
+test zlib-3.5 {zlib gunzip usage 5} -returnCodes error -body {
+    zlib gunzip aaa -buffersize a
+} -result {wrong # args: should be "data ?-buffersize size?"}
+
+test zlib-3.6 {zlib gunzip usage 5} -returnCodes error -body {
+    zlib gunzip aaa -buffersize a
+} -result {wrong # args: should be "data ?-buffersize size?"}
+
+test zlib-3.7 {zlib gunzip usage 6} -returnCodes error -body {
+    zlib gunzip aaa -buffersize 0
+} -result {buffer size must be 0 to 2147483647}
+
+test zlib-3.8 {zlib gzip usage 1} -returnCodes error -body {
+    zlib gzip
+} -result {wrong # args: should be "zlib gzip data ?-level level?"}
+
+test zlib-3.9 {zlib gzip usage 2} -returnCodes error -body {
+    zlib gzip aa 9
+} -result {wrong # args: should be "data ?-level level?"}
+
+test zlib-3.10 {zlib gzip usage 3} -returnCodes error -body {
+    zlib gzip -level a
+} -result {wrong # args: should be "data ?-level level?"}
+
+test zlib-3.11 {zlib gzip usage 4} -returnCodes error -body {
+    zlib gzip -level 9 a
+} -result {wrong # args: should be "data ?-level level?"}
+
+test zlib-4.1 {zlib gzip/gunzip} {
+    zlib gunzip [zlib gzip abcdefghijklm]
+} abcdefghijklm
+
+test zlib-4.2 {zlib gzip/gunzip level and chunk size} {
+    zlib gunzip [zlib gzip abcdefghijklm -level 9] -buffersize 128
+} abcdefghijklm
+
+test zlib-5.1 {zlib crc32} {
+    format %x [expr {[zlib crc32 abcdeabcdeabcdeabcdeabcdeabcde] & 0xffffffff}]
+} 6f73e901
+
+test zlib-5.2 {zlib crc32} {
+    format %x [expr {[zlib crc32 abcdeabcdeabcdeabcdeabcdeabcde 42] & 0xffffffff}]
+} ce1c4914
+
+testreport

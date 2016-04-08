@@ -41,18 +41,26 @@ proc class {classname {baseclasses {}} classvars} {
 		# This is the object dispatcher for $classname.
 		# Store the classname in both the ref value and tag, for debugging
 		# ref tag (for debugging)
-		proc [ref $classname $classname "$classname finalize"] {method args} {classname instvars} {
+		set obj [ref $classname $classname "$classname finalize"]
+		proc $obj {method args} {classname instvars} {
 			if {![exists -command "$classname $method"]} {
-				return -code error "$classname, unknown method \"$method\": should be [join [$classname methods] ", "]"
+				if {![exists -command "$classname unknown"]} {
+					return -code error "$classname, unknown method \"$method\": should be [join [$classname methods] ", "]"
+				}
+				return ["$classname unknown" $method {*}$args]
 			}
 			"$classname $method" {*}$args
 		}
+		if {[exists -command "$classname constructor"]} {
+			$obj constructor
+		}
+		return $obj
 	}
 	# Finalizer to invoke destructor during garbage collection
 	proc "$classname finalize" {ref classname} { $ref destroy }
 	# Method creator
-	proc "$classname method" {method arglist body} classname {
-		proc "$classname $method" $arglist {body} {
+	proc "$classname method" {method arglist __body} classname {
+		proc "$classname $method" $arglist {__body} {
 			# Make sure this isn't incorrectly called without an object
 			if {![uplevel exists instvars]} {
 				return -code error -level 2 "\"[lindex [info level 0] 0]\" method called with no object"
@@ -60,9 +68,9 @@ proc class {classname {baseclasses {}} classvars} {
 			set self [lindex [info level -1] 0]
 			# Note that we can't use 'dict with' here because
 			# the dict isn't updated until the body completes.
-			foreach _ [$self vars] {upvar 1 instvars($_) $_}
-			unset _
-			eval $body
+			foreach __ [$self vars] {upvar 1 instvars($__) $__}
+			unset __
+			eval $__body
 		}
 	}
 	# Other simple class procs
@@ -77,9 +85,9 @@ proc class {classname {baseclasses {}} classvars} {
 	# Pre-defined some instance methods
 	$classname method destroy {} { rename $self "" }
 	$classname method get {var} { set $var }
-	$classname method eval {{locals {}} code} {
+	$classname method eval {{locals {}} __code} {
 		foreach var $locals { upvar 2 $var $var }
-		eval $code
+		eval $__code
 	}
 	return $classname
 }

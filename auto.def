@@ -55,6 +55,7 @@ options {
         tclprefix - Support for the tcl::prefix command
         sqlite3   - Interface to sqlite3
         ffi       - Native function interface
+        zlib      - Interface to zlib
         win32     - Interface to win32
     }
     with-out-jim-ext: {without-ext:"default|ext1 ext2 ..."} => {
@@ -254,6 +255,7 @@ dict set extdb attrs {
     signal    { static }
     sqlite3   { optional }
     ffi       { optional }
+    zlib      { optional }
     stdlib    { tcl static }
     syslog    {}
     tclcompat { tcl static }
@@ -284,6 +286,7 @@ dict set extdb info {
     signal   { check {[have-feature sigaction] && [have-feature vfork]} }
     sqlite3  { check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     ffi      { check {[cc-check-function-in-lib dlopen dl] && [cc-check-function-in-lib ffi_call ffi]} libdep {lib_dlopen lib_ffi_call} }
+    zlib     { check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }

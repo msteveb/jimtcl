@@ -6,9 +6,11 @@
 #include <signal.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 
 #include "jimautoconf.h"
+#ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+#endif
 #include <jim-subcmd.h>
 #include <jim-signal.h>
 

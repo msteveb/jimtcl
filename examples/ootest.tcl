@@ -13,6 +13,14 @@ puts "Account vars=[Account vars]"
 puts "Account methods=[Account methods]"
 puts ""
 
+# Create a constructor. This does validation, but it could
+# do other things
+Account method constructor {} {
+	if {$balance < 0} {
+		error "Can't initialise account with a -ve balance"
+	}
+}
+
 # Now flesh out the class with some methods
 # Could use 'Account method' here instead
 Account method deposit {amount} {
@@ -57,10 +65,17 @@ $a describe
 puts ""
 
 # Now create a new subclass
+# Could change the initial balance here too
 class CreditAccount Account {
 	limit -1000
-	balance -20
 }
+
+CreditAccount method constructor {} {
+	# Dummy constructor
+	# If desired, manually invoke the baseclass constructor
+	super constructor
+}
+
 # Override the 'withdraw' method to allow overdrawing
 CreditAccount method withdraw {amount} {
 	if {$balance - $amount < $limit} {error "Sorry $name, that would exceed your credit limit of [expr -$limit]"}
