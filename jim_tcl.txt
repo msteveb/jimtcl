@@ -4822,8 +4822,8 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 +*ffi::int64* '?val?'+::
 +*ffi::uint64* '?val?'+::
     Creates a new C99-style, portable fixed width integer. These types are especially useful for working
-    with binary data and network-related data structures. On pure 32-bit architectures, 'ff::int64' and
-    'ff::uint64' may be unsupported.
+    with binary data and network-related data structures. On pure 32-bit architectures, 'ffi::int64' and
+    'ffi::uint64' may be unsupported.
 
 +*ffi::pointer* '?val?'+::
     Creates a new C pointer. This 'ffi' type is used for all pointer types, including 'char *' and pointers
@@ -4861,11 +4861,13 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 
 +*ffi::string* 'at address ?len?'+::
     Copies the string at a given address to a newly-allocated C string. The string will be copied up to
-    the first '\0' byte, unless its size is specified.
+    the first '\0' byte, unless its size is specified. If the address is 'NULL', an error is generated.
+    In addition, this function can be used as a C to Tcl equivalent of 'memcpy()'.
 
 +*ffi::cast* 'type addr'+::
     Reads a C variable stored at a given address. The variable type should be one of the types supported
-    by 'ffi::struct'. This is useful for dereferencing arbitary pointers and elegant casting.
+    by 'ffi::struct'. If the address is 'NULL', an error is generated. This function is useful for dereferencing
+    arbitary pointers and elegant casting.
 
 +*ffi::struct* 'raw member ?member ...?+::
     Creates a new instance of a C struct. Optionally, the struct can be initialized with a initializer
