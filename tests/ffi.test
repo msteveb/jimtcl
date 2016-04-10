@@ -1,0 +1,220 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd ffi::int
+
+set third [expr 1.0 / 3]
+set float_digits 6
+set double_digits [expr $float_digits * 2]
+
+test ffi-int32-1.1 {int32 with no initial value} {
+    [ffi::int32] value
+} 0
+
+test ffi-int32-1.2 {int32 with initial value} {
+    [ffi::int32 1337] value
+} 1337
+
+test ffi-int32-1.3 {int32 with initial hex value} {
+    [ffi::int32 0x12345678] value
+} 305419896
+
+test ffi-int32-1.4 {int32 size} {
+    string bytelength [[ffi::int32] raw]
+} [[ffi::int32] size]
+
+test ffi-int32-1.5 {int32 overflow} -returnCodes error -body {
+    ffi::int32 0xFFFFFFFF
+} -result {bad integer value: 0xFFFFFFFF}
+
+test ffi-int32-1.6 {int32 underflow} -returnCodes error -body {
+    ffi::int32 -0x80000001
+} -result {bad integer value: -0x80000001}
+
+test ffi-uint32-2.1 {uint32 with no initial value} {
+    [ffi::uint32] value
+} 0
+
+test ffi-uint32-2.2 {uint32 with initial value} {
+    [ffi::uint32 1337] value
+} 1337
+
+test ffi-uint32-2.3 {uint32 with initial hex value} {
+    [ffi::uint32 0x12345678] value
+} 305419896
+
+test ffi-uint32-2.4 {uint32 size} {
+    string bytelength [[ffi::uint32] raw]
+} [[ffi::uint32] size]
+
+test ffi-uint32-2.5 {uint32 overflow} -returnCodes error -body {
+    ffi::uint32 0x100000000
+} -result {bad integer value: 0x100000000}
+
+test ffi-uint32-2.6 {uint32 with negative initial value} -returnCodes error -body {
+    ffi::uint32 -1
+} -result {bad integer value: -1}
+
+test ffi-float-3.1 {float with no initial value} {
+    [ffi::float] value
+} 0
+
+test ffi-float-3.2 {float with initial value} {
+    string range [[ffi::float $third] value] 0 $float_digits
+} [string range $third 0 $float_digits]
+
+test ffi-float-3.3 {float size} {
+    string bytelength [[ffi::float] raw]
+} [[ffi::float] size]
+
+test ffi-double-4.1 {double with no initial value} {
+    [ffi::double] value
+} 0
+
+test ffi-double-4.2 {double with initial value} {
+    string range [[ffi::double $third] value] 0 $double_digits
+} [string range $third 0 $double_digits]
+
+test ffi-double-4.3 {double size} {
+    string bytelength [[ffi::double] raw]
+} [[ffi::double] size]
+
+test ffi-double-4.4 {double precision} {
+	set third [expr 1.0 / 3]
+	set float_digits [llength [lsearch -all -exact [split [[ffi::float $third] value] ""] 3]]
+	set double_digits [llength [lsearch -all -exact [split [[ffi::double $third] value] ""] 3]]
+	expr $double_digits > $float_digits
+} 1
+
+test ffi-char-5.1 {char with no initial value} {
+    [ffi::char] value
+} \0
+
+test ffi-char-5.2 {char with initial value} {
+    [ffi::char x] value
+} x
+
+test ffi-char-5.3 {char with initial hex value} {
+    [ffi::char \x78] value
+} x
+
+test ffi-char-5.3 {char with initial escaped value} {
+    [ffi::char \n] value
+} \n
+
+test ffi-char-5.4 {char size} {
+    string bytelength [[ffi::char] raw]
+} [[ffi::char] size]
+
+test ffi-char-5.5 {char overflow} -returnCodes error -body {
+    ffi::char 0x100
+} -result {bad character: 0x100}
+
+test ffi-uchar-6.1 {uchar with no initial value} {
+    [ffi::uchar] value
+} 0
+
+test ffi-uchar-6.2 {uchar with initial value} {
+    [ffi::uchar 255] value
+} 255
+
+test ffi-uchar-6.3 {uchar with initial hex value} {
+    [ffi::uchar 0xFF] value
+} 255
+
+test ffi-uchar-6.3 {uchar size} {
+    string bytelength [[ffi::uchar] raw]
+} [[ffi::uchar] size]
+
+test ffi-uchar-6.5 {uchar overflow} -returnCodes error -body {
+    ffi::uchar 0x100
+} -result {bad integer value: 0x100}
+
+test ffi-cast-7.1 {cast of scalar} {
+    [ffi::cast int32 [[ffi::int32 0x12345678] address]] value
+} 305419896
+
+test ffi-cast-7.2 {cast of pointer} {
+    [ffi::cast int [[ffi::pointer 0x12345678] address]] value
+} 305419896
+
+test ffi-cast-7.3 {cast of null pointer} -returnCodes error -body {
+    ffi::cast int32 [$::null value]
+} -result {NULL variable address}
+
+test ffi-string-copy-8.1 {string copy} {
+    [ffi::string copy abcd] value
+} abcd
+
+test ffi-string-at-9.2 {string at} {
+    ffi::string at [[ffi::string copy abcd] start]
+} abcd
+
+test ffi-string-at-9.3 {string at with a null byte} {
+    ffi::string at [[ffi::string copy ab\0cd] start]
+} ab
+
+test ffi-string-at-9.4 {string at with length} {
+    ffi::string at [[ffi::string copy abcd] start] 3
+} abc
+
+test ffi-string-at-9.5 {string at with length and a null byte} {
+    ffi::string at [[ffi::string copy ab\0cd] start] 3
+} ab\0
+
+test ffi-string-at-9.6 {string at null pointer} -returnCodes error -body {
+    ffi::string at [$::null value] 3
+} -result {NULL string address}
+
+test ffi-array-10.1 {empty array} -returnCodes error -body {
+    ffi::array [[ffi::int 1] raw][[ffi::int 2] raw][[ffi::int 3] raw] int 0
+} -result {bad array length}
+
+test ffi-array-10.2 {array without initializer} {
+    [[ffi::array "" ulong 14] member 7] value
+} 0
+
+test ffi-array-10.3 {array length} {
+    [ffi::array "" ulong 14] length
+} 14
+
+test ffi-array-10.4 {array size} {
+    [ffi::array "" ulong 14] size
+} [expr [[ffi::ulong] size] * 14]
+
+test ffi-array-10.5 {bad array member index} -returnCodes error -body {
+    [ffi::array "" ulong 3] member 7
+} -result {bad member index: 7}
+
+test ffi-array-10.6 {array with initializer} {
+    [[ffi::array [[ffi::int 1] raw][[ffi::int 2] raw][[ffi::int 3] raw] int 3] member 1] value
+} 2
+
+test ffi-array-10.7 {bad array initializer} -returnCodes error -body {
+    ffi::array [[ffi::char a] raw][[ffi::char b] raw][[ffi::char c] raw] char 4
+} -result {bad array initializer: abc}
+
+test ffi-struct-11.1 {empty struct} -returnCodes error -body {
+    ffi::struct ""
+} -result {wrong # args: should be "ffi::struct raw member ?member ...?"}
+
+test ffi-struct-11.2 {struct without initializer} {
+    [[ffi::struct "" ulong ulong ulong ulong ulong ulong ulong] member 6] value
+} 0
+
+test ffi-struct-11.3 {struct size} {
+    [ffi::struct "" pointer pointer pointer] size
+} [expr [[ffi::pointer] size] * 3]
+
+test ffi-struct-11.4 {bad struct member index} -returnCodes error -body {
+    [ffi::struct "" ulong ulong ulong] member 7
+} -result {bad member index: 7}
+
+test ffi-struct-11.5 {struct with initializer} {
+    [[ffi::struct [[ffi::uchar 1] raw][[ffi::int 2] raw][[ffi::ulong 3] raw] uchar int ulong] member 1] value
+} 2
+
+test ffi-struct-11.6 {bad struct initializer} -returnCodes error -body {
+    ffi::struct [[ffi::char a] raw] char char
+} -result {bad struct initializer: a}
+
+testreport

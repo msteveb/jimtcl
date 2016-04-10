@@ -234,18 +234,18 @@ static struct ffi_var *JimNewVariableBase(Jim_Interp *interp, const char *name)
     return var;
 }
 
-#define JIMNEWSCALAR(func_name, tcl_name, val_memb, c_type, ffi_type)      \
-static void func_name(Jim_Interp *interp, const jim_wide val)              \
-{                                                                          \
-    struct ffi_var *var;                                                   \
-                                                                           \
-    var = JimNewVariableBase(interp, # tcl_name);                          \
-                                                                           \
-    var->val.val_memb = (c_type)val;                                       \
-    var->type = &ffi_type;                                                 \
-    var->to_str = TOSTR(tcl_name);                                         \
-    var->addr = &var->val.val_memb;                                        \
-    var->size = sizeof(var->val.val_memb);                                 \
+#define JIMNEWSCALAR(func_name, tcl_name, val_memb, c_type, ffi_type) \
+static void func_name(Jim_Interp *interp, const void *val)            \
+{                                                                     \
+    struct ffi_var *var;                                              \
+                                                                      \
+    var = JimNewVariableBase(interp, # tcl_name);                     \
+                                                                      \
+    var->val.val_memb = *((c_type *)val);                             \
+    var->type = &ffi_type;                                            \
+    var->to_str = TOSTR(tcl_name);                                    \
+    var->addr = &var->val.val_memb;                                   \
+    var->size = sizeof(var->val.val_memb);                            \
 }
 
 /* common integer methods */
@@ -312,18 +312,18 @@ JIMNEWINT(JimNewUlong, ulong, ul, unsigned long, ffi_type_ulong)
 
 /* float methods */
 
-#define JIMNEWFLOAT(func_name, tcl_name, val_memb, c_type, ffi_type)       \
+#define JIMNEWFLOAT(func_name, tcl_name, val_memb, c_type, ffi_type, fmt)  \
 static void TOSTR(tcl_name)(Jim_Interp *interp, const struct ffi_var *var) \
 {                                                                          \
     char buf[JIM_DOUBLE_SPACE + 1];                                        \
                                                                            \
-    sprintf(buf, "%.12g", (double) var->val.val_memb);                     \
+    sprintf(buf, fmt, (double)var->val.val_memb);                          \
     Jim_SetResultString(interp, buf, -1);                                  \
 }                                                                          \
 JIMNEWSCALAR(func_name, tcl_name, val_memb, c_type, ffi_type)
 
-JIMNEWFLOAT(JimNewFloat, float, f, float, ffi_type_float);
-JIMNEWFLOAT(JimNewDouble, double, d, double, ffi_type_double);
+JIMNEWFLOAT(JimNewFloat, float, f, float, ffi_type_float, "%.12g");
+JIMNEWFLOAT(JimNewDouble, double, d, double, ffi_type_double, "%.12g")
 
 /* pointer methods */
 
@@ -356,6 +356,62 @@ static void JimNewPointer(Jim_Interp *interp, void *p)
 
 /* buffer methods */
 
+static int JimBufferStart(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    char buf[32];
+    struct ffi_var *var = Jim_CmdPrivData(interp);
+
+    sprintf(buf, "%p", var->val.vp);
+    Jim_SetResultString(interp, buf, -1);
+
+    return JIM_OK;
+}
+
+static const jim_subcmd_type buffer_command_table[] = {
+    {   "value",
+        NULL,
+        JimVariableValue,
+        0,
+        0,
+        /* Description: Retrieves the value of a buffer */
+    },
+    {   "address",
+        NULL,
+        JimVariableAddress,
+        0,
+        0,
+        /* Description: Returns the address of a buffer */
+    },
+    {   "start",
+        NULL,
+        JimBufferStart,
+        0,
+        0,
+        /* Description: Returns the start address of a buffer */
+    },
+    {   "size",
+        NULL,
+        JimVariableSize,
+        0,
+        0,
+        JIM_MODFLAG_FULLARGV
+        /* Description: Returns the size of a buffer */
+    },
+    {   "raw",
+        NULL,
+        JimVariableValue,
+        0,
+        0,
+        /* Description: A synonym for value */
+    },
+    { NULL }
+};
+
+static int JimBufferHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, buffer_command_table, argc, argv), argc, argv);
+}
+
 static void JimBufferDelProc(Jim_Interp *interp, void *privData)
 {
     struct ffi_var *var = privData;
@@ -380,7 +436,7 @@ static void JimNewBuffer(Jim_Interp *interp, void *p, const size_t size)
     var = Jim_Alloc(sizeof(*var));
 
     sprintf(buf, "ffi.buffer%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimVariableHandlerCommand, var, JimBufferDelProc);
+    Jim_CreateCommand(interp, buf, JimBufferHandlerCommand, var, JimBufferDelProc);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     var->val.vp = p;
@@ -399,7 +455,7 @@ static int JimIntBaseCmd(Jim_Interp *interp,
                          Jim_Obj *const *argv,
                          const jim_wide min,
                          const jim_wide max,
-                         void (*new_obj)(Jim_Interp *, const jim_wide))
+                         void (*new_obj)(Jim_Interp *, const void *))
 {
     jim_wide val;
 
@@ -425,7 +481,7 @@ static int JimIntBaseCmd(Jim_Interp *interp,
         return JIM_ERR;
     }
 
-    new_obj(interp, val);
+    new_obj(interp, &val);
     return JIM_OK;
 }
 
@@ -438,17 +494,17 @@ static int func_name(Jim_Interp *interp, int argc, Jim_Obj *const *argv) \
 #define JIMUINTCMD(func_name, max, new_func) JIMINTCMD(func_name, 0, max, new_func)
 
 JIMINTCMD(JimInt8Cmd, INT8_MIN, INT8_MAX, JimNewInt8)
-JIMUINTCMD(JimUint8Cmd, UINT8_MAX, JimNewUint8);
+JIMUINTCMD(JimUint8Cmd, UINT8_MAX, JimNewUint8)
 
 JIMINTCMD(JimInt16Cmd, INT16_MIN, INT16_MAX, JimNewInt16)
-JIMUINTCMD(JimUint16Cmd, UINT16_MAX, JimNewUint16);
+JIMUINTCMD(JimUint16Cmd, UINT16_MAX, JimNewUint16)
 
 JIMINTCMD(JimInt32Cmd, INT32_MIN, INT32_MAX, JimNewInt32)
-JIMUINTCMD(JimUint32Cmd, UINT32_MAX, JimNewUint32);
+JIMUINTCMD(JimUint32Cmd, UINT32_MAX, JimNewUint32)
 
 #if INT64_MAX <= JIM_WIDE_MAX
 JIMINTCMD(JimInt64Cmd, INT64_MIN, INT64_MAX, JimNewInt64)
-JIMUINTCMD(JimUint64Cmd, UINT64_MAX, JimNewUint64);
+JIMUINTCMD(JimUint64Cmd, UINT64_MAX, JimNewUint64)
 #endif
 
 static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -482,7 +538,7 @@ static int JimCharCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-JIMUINTCMD(JimUcharCmd, UCHAR_MAX, JimNewUchar);
+JIMUINTCMD(JimUcharCmd, UCHAR_MAX, JimNewUchar)
 
 JIMINTCMD(JimShortCmd, SHRT_MIN, SHRT_MAX, JimNewShort)
 JIMUINTCMD(JimUshortCmd, USHRT_MAX, JimNewUshort)
@@ -521,25 +577,27 @@ static int JimFloatBaseCmd(Jim_Interp *interp,
 
 static int JimFloatCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    double val;
+    double dval = 0;
+    float val;
 
-    if (JimFloatBaseCmd(interp, argc, argv, &val) != JIM_OK) {
+    if (JimFloatBaseCmd(interp, argc, argv, &dval) != JIM_OK) {
         return JIM_ERR;
     }
 
-    JimNewFloat(interp, (float)val);
+    val = (float)dval;
+    JimNewFloat(interp, &val);
     return JIM_OK;
 }
 
 static int JimDoubleCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    double val;
+    double val = 0;
 
     if (JimFloatBaseCmd(interp, argc, argv, &val) != JIM_OK) {
         return JIM_ERR;
     }
 
-    JimNewDouble(interp, val);
+    JimNewDouble(interp, &val);
     return JIM_OK;
 }
 
@@ -607,7 +665,7 @@ static int JimStringAt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         /* terminate the string */
         s[len] = '\0';
-        Jim_SetResultString(interp, s, (int)(len + 1));
+        Jim_SetResultString(interp, s, (int)len);
     }
 
     return JIM_OK;
@@ -769,31 +827,31 @@ static void JimStructDelProc(Jim_Interp *interp, void *privData)
 static void JimRawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
 {
     if (type == &ffi_type_pointer) {
-        JimNewPointer(interp, *((void **)p));
+        JimNewPointer(interp, (*(void **)p));
     /* ffi_type_sint, ffi_type_slong, etc' are #defines of the fixed-width
      * integer types */
 #if INT64_MAX <= JIM_WIDE_MAX
     } else if (type == &ffi_type_uint64) {
-        JimNewUint64(interp, (jim_wide)(*((uint64_t *)p)));
+        JimNewUint64(interp, p);
     } else if (type == &ffi_type_sint64) {
-        JimNewInt64(interp, (jim_wide)(*((int64_t *)p)));
+        JimNewInt64(interp, p);
 #endif
     } else if (type == &ffi_type_uint32) {
-        JimNewUint32(interp, (jim_wide)(*((uint32_t *)p)));
+        JimNewUint32(interp, p);
     } else if (type == &ffi_type_sint32) {
-        JimNewInt32(interp, (jim_wide)(*((int32_t *)p)));
+        JimNewInt32(interp, p);
     } else if (type == &ffi_type_uint16) {
-        JimNewUint16(interp, (jim_wide)(*((uint16_t *)p)));
+        JimNewUint16(interp, p);
     } else if (type == &ffi_type_sint16) {
-        JimNewInt16(interp, (jim_wide)(*((int16_t *)p)));
+        JimNewInt16(interp, p);
     } else if (type == &ffi_type_uint8) {
-        JimNewUint8(interp, (jim_wide)(*((uint8_t *)p)));
+        JimNewUint8(interp, p);
     } else if (type == &ffi_type_sint8) {
-        JimNewInt8(interp, (jim_wide)(*((int8_t *)p)));
+        JimNewInt8(interp, p);
     } else if (type == &ffi_type_float) {
-        JimNewFloat(interp, (*((float *)p)));
+        JimNewFloat(interp, p);
     } else { /* raw values cannot be of type void */
-        JimNewDouble(interp, (*((double *)p)));
+        JimNewDouble(interp, p);
     }
 }
 
@@ -840,15 +898,6 @@ static int JimStructSize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int JimStructLength(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    struct ffi_struct *s = Jim_CmdPrivData(interp);
-
-    Jim_SetResultInt(interp, s->nmemb);
-
-    return JIM_OK;
-}
-
 static const jim_subcmd_type struct_command_table[] = {
     {   "member",
         "index",
@@ -870,13 +919,6 @@ static const jim_subcmd_type struct_command_table[] = {
         0,
         0,
         /* Description: Returns the size of a struct */
-    },
-    {   "length",
-        NULL,
-        JimStructLength,
-        0,
-        0,
-        /* Description: Returns the number of members in a struct */
     },
     { NULL }
 };
@@ -940,9 +982,12 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     s->buf = Jim_Alloc(s->size);
-    if (len != 0) {
+
+    if (len == 0) {
+        memset(s->buf, 0, s->size);
+    } else {
         /* copy the initializer */
-        memcpy(s->buf, raw, (size_t)len);
+        memcpy(s->buf, raw, s->size);
     }
     s->type.size = 0;
     s->type.alignment = 0;
@@ -957,6 +1002,52 @@ static int JimStructCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 /* array commands */
+
+static int JimArrayLength(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    struct ffi_struct *s = Jim_CmdPrivData(interp);
+
+    Jim_SetResultInt(interp, s->nmemb);
+
+    return JIM_OK;
+}
+
+static const jim_subcmd_type array_command_table[] = {
+    {   "member",
+        "index",
+        JimStructMember,
+        1,
+        1,
+        /* Description: Retrieves an array member */
+    },
+    {   "address",
+        NULL,
+        JimStructAddress,
+        0,
+        0,
+        /* Description: Returns the address of an array */
+    },
+    {   "size",
+        NULL,
+        JimStructSize,
+        0,
+        0,
+        /* Description: Returns the size of an array */
+    },
+    {   "length",
+        NULL,
+        JimArrayLength,
+        0,
+        0,
+        /* Description: Returns the number of members in an array */
+    },
+    { NULL }
+};
+
+static int JimArrayHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, array_command_table, argc, argv), argc, argv);
+}
 
 static int JimArrayCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -982,7 +1073,7 @@ static int JimArrayCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Free(s);
         return JIM_ERR;
     }
-    if (s->nmemb > INT_MAX) {
+    if ((s->nmemb <= 0) || (s->nmemb > INT_MAX)) {
         Jim_SetResultString(interp, "bad array length", -1);
         Jim_Free(s);
         return JIM_ERR;
@@ -1018,8 +1109,10 @@ static int JimArrayCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     s->buf = Jim_Alloc(s->size);
-    if (len != 0) {
-        memcpy(s->buf, raw, (size_t)len);
+    if (len == 0) {
+        memset(s->buf, 0, s->size);
+    } else {
+        memcpy(s->buf, raw, s->size);
     }
     s->type.size = 0;
     s->type.alignment = 0;
@@ -1027,7 +1120,7 @@ static int JimArrayCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     s->type.elements[s->nmemb] = NULL;
 
     sprintf(buf, "ffi.array%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimStructHandlerCommand, s, JimStructDelProc);
+    Jim_CreateCommand(interp, buf, JimArrayHandlerCommand, s, JimStructDelProc);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
     return JIM_OK;
