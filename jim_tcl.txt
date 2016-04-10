@@ -56,6 +56,7 @@ Changes between 0.76 and 0.77
 1. Add support for `aio sync`
 2. Add SSL and TLS support in aio
 3. Added `zlib`
+4. Added `ffi`
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4791,6 +4792,129 @@ The optional 'zlib' extension provides a is a Tcl-compatible subset of the `zlib
     Decompresses a gzip-compressed buffer. Decompression is chunked, with a default, small buffer size of 64K
     which guarantees lower memory footprint at the cost of speed. It is recommended to use a bigger size, on
     systems without a severe memory constraint.
+
+ffi
+~~~
+The optional 'ffi' extension provides an interface to C data types, C functions and raw memory operations. This
+extension can be used for writing new Tcl commands that wrap system calls that do not have a Tcl wrapper (e.g.
+'openat()'), rapid prototyping, quick development of Tcl bindings for C libraries and as an alternative to 'pack'.
+
++*ffi::char* '?val?'+::
+    Creates a new C char. Characters are treated as 1-length strings. If no initial value is specified,
+    the variable is initialized with '\0'.
+
++*ffi::uchar* '?val?'+::
++*ffi::short* '?val?'+::
++*ffi::ushort* '?val?'+::
++*ffi::int* '?val?'+::
++*ffi::uint* '?val?'+::
++*ffi::long* '?val?'+::
++*ffi::ulong* '?val?'+::
+    Creates a new C integer. Types that begin 'u' are unsigned, while the rest are signed. The integer
+    bit width is CPU- and ABI- dependent. If no initial value is specified, the variable is initialized with 0.
+
++*ffi::int8* '?val?'+::
++*ffi::uint8* '?val?'+::
++*ffi::int16* '?val?'+::
++*ffi::uint16* '?val?'+::
++*ffi::int32* '?val?'+::
++*ffi::uint32* '?val?'+::
++*ffi::int64* '?val?'+::
++*ffi::uint64* '?val?'+::
+    Creates a new C99-style, portable fixed width integer. These types are especially useful for working
+    with binary data and network-related data structures. On pure 32-bit architectures, 'ff::int64' and
+    'ff::uint64' may be unsupported.
+
++*ffi::pointer* '?val?'+::
+    Creates a new C pointer. This 'ffi' type is used for all pointer types, including 'char *' and pointers
+    to pointers. If no initial value is specified, the pointer is initialized with 'NULL'. Multiple levels
+    of pointers can be handled using 'ffi::cast'.
+
++*ffi::float* '?val?'+::
++*ffi::double* '?val?'+::
+    Creates a new C floating point scalar. If no initial value is specified, the variable is initialized
+    with 0.
+
++'variable' *value*+::
+    Returns the value of a C variable, as a Tcl string.
+
++'variable' *address*+::
+    Returns the address of a C variable, as a Tcl integer.
+
++'variable' *size*+::
+    Returns the size of a C variable, in bytes.
+
++'variable' *raw*+::
+    Returns the raw contents of a C variable, as a Tcl string.
+
++*ffi::void*+::
+    A special, dummy variable for 'void' function return values; see 'ffi::function'.
+
++*ffi::buffer* 'len'+::
+    Allocates a buffer and initializes it with with zero bytes.
+
++'buffer' *start*+::
+    Returns the starting address of a buffer.
+
++*ffi::string* 'copy value'+::
+    Allocates a buffer and copies a string into it.
+
++*ffi::string* 'at address ?len?'+::
+    Copies the string at a given address to a newly-allocated C string. The string will be copied up to
+    the first '\0' byte, unless its size is specified.
+
++*ffi::cast* 'type addr'+::
+    Reads a C variable stored at a given address. The variable type should be one of the types supported
+    by 'ffi::struct'. This is useful for dereferencing arbitary pointers and elegant casting.
+
++*ffi::struct* 'raw member ?member ...?+::
+    Creates a new instance of a C struct. Optionally, the struct can be initialized with a initializer
+    containing its raw contents. Otherwise, if the initializer is an empty string, the struct is initialized
+    with zero bytes. The struct member types should be among 'char', 'uchar', 'short', 'ushort', 'int', 'uint',
+    'long', 'ulong', 'pointer', 'double', 'float', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32',
+    'int64' and 'uint64'.
+
++'struct' *member* 'index'+::
+    Copies the value of a struct member (specified by zero-based index) and returns a new variable
+    object (e.g. 'ffi::int').
+
++*ffi::array* 'raw type len'+::
+    Creates a new C array. Arrays act like structs, where all members share the same type.
+
++'array' *length*+::
+    Returns the number of elements in an array.
+
++*ffi::dlopen* 'path'+::
+    Loads a shared object and returns its handle. If the shared object path is an empty string, the main
+    module (i.e. the +jimsh+ executable, when called via an interactive interpreter) handle is returned
+    instead.
+
++'handle' *handle*+::
+    Returns the handle (the return value of 'dlopen()') of a shared object.
+
++'handle' *dlsym* 'symbol'+::
+    Returns the address of a symbol exported by a shared object.
+
++*ffi::function* 'rtype addr ?argtypes ...?'+::
+    Creates a Tcl command, which calls a C function. The argument types should be among those supported
+    by 'ffi::struct', but additionally, the function return value type may be 'ffi::void'. When called,
+    the return value object and argument objects must be specified using their address.
+
++*ffi::main*+::
+    The main module handle. If possible, this constant should be used instead of calling 'ffi::dlopen'
+    with an empty path, to improve efficiency
+
++*::zero*+::
+    A constant 'ffi::int' with the value of 0. Instead of creating a new 'ffi::int' object, this
+    constant can be passed to functions that accept a zero 'const int', to improve effiency.
+
++*::one*+::
+    Similar to '::zero', but initialized with 1. It is useful for functions that accept an 'int' which
+    acts as a boolean (i.e. a non-zero value that means 'true'), such as 'setsockopt()'.
+
++*::null*+::
+    A constant 'NULL' pointer. Instead of creating a new 'ffi::pointer' object, this constant can be
+    used to pass a 'NULL' pointer to a function.
 
 binary
 ~~~~~~
