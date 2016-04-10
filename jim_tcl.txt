@@ -4770,7 +4770,7 @@ The optional 'pack' extension provides commands to encode and decode binary stri
 
 zlib
 ~~~~
-The optional 'zlib' extension provides a is a Tcl-compatible subset of the `zlib` command.
+The optional 'zlib' extension provides a Tcl-compatible subset of the `zlib` command.
 
 +*crc32* 'data' '?startValue?'+::
     Returns the CRC32 checksum of a buffer. Optionally, an initial value may be specified; this is most useful
