@@ -72,8 +72,10 @@ struct ffi_var {
         unsigned char uc;
         char c;
 
+#if INT64_MAX <= JIM_WIDE_MAX
         uint64_t ui64;
         int64_t i64;
+#endif
         uint32_t ui32;
         int32_t i32;
         uint16_t ui16;
