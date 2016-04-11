@@ -56,6 +56,7 @@ Changes between 0.76 and 0.77
 1. Add support for `aio sync`
 2. Add SSL and TLS support in aio
 3. Added `zlib`
+4. Add support for `aio lock` and `aio unlock`
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4511,6 +4512,14 @@ aio
 +$handle *isatty*+::
     Returns 1 if the stream is a tty device.
 
++$handle *lock*+::
+    Apply a POSIX lock to the open file associated with the handle using
+    lockf(3). Only available on platforms that support lockf(3).
+    The handle must be open for write access.
+    Returns 1 if the lock was successfully obtained, 0 otherwise.
+    An error occurs if the handle is not suitable for locking (e.g.
+    if it is not open for write)
+
 +$handle *ndelay ?0|1?*+::
     Set O_NDELAY (if arg). Returns current/new setting.
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
@@ -4546,6 +4555,10 @@ aio
 
 +$handle *ssl* *?-server cert priv?*+::
     Initiates a SSL/TLS session and returns a new stream
+
++$handle *unlock*+::
+    Release a POSIX lock previously acquired by `aio lock`. Only available
+    on platforms that support lockf(3).
 
 +$handle *verify*+::
     Verifies the certificate of a SSL/TLS stream peer
