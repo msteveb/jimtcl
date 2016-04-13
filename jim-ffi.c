@@ -852,6 +852,8 @@ static void JimRawValueToObj(Jim_Interp *interp, void *p, const ffi_type *type)
         JimNewInt8(interp, p);
     } else if (type == &ffi_type_float) {
         JimNewFloat(interp, p);
+    } else if (type == &ffi_type_double) {
+        JimNewDouble(interp, p);
     } else { /* raw values cannot be of type void */
         JimNewDouble(interp, p);
     }

@@ -4800,7 +4800,7 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 'openat()'), rapid prototyping, quick development of Tcl bindings for C libraries and as an alternative to 'pack'.
 
 +*ffi::char* '?val?'+::
-    Creates a new C char. Characters are treated as 1-length strings. If no initial value is specified,
+    Creates a new C 'char'. Characters are treated as 1-length strings. If no initial value is specified,
     the variable is initialized with '\0'.
 
 +*ffi::uchar* '?val?'+::
@@ -4828,7 +4828,7 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 +*ffi::pointer* '?val?'+::
     Creates a new C pointer. This 'ffi' type is used for all pointer types, including 'char *' and pointers
     to pointers. If no initial value is specified, the pointer is initialized with 'NULL'. Multiple levels
-    of pointers can be handled using 'ffi::cast'.
+    of pointers (for example, a 'char *' array) can be dereferenced using 'ffi::cast'.
 
 +*ffi::float* '?val?'+::
 +*ffi::double* '?val?'+::
@@ -4839,10 +4839,11 @@ extension can be used for writing new Tcl commands that wrap system calls that d
     Returns the value of a C variable, as a Tcl string.
 
 +'variable' *address*+::
-    Returns the address of a C variable, as a Tcl integer.
+    Returns the address of a C variable, as a Tcl integer. It can be passed to 'ffi::pointer' to create
+    a pointer to this variable.
 
 +'variable' *size*+::
-    Returns the size of a C variable, in bytes.
+    Returns the size of a C variable, in bytes; equivalent to 'sizeof()'.
 
 +'variable' *raw*+::
     Returns the raw contents of a C variable, as a Tcl string.
@@ -4862,12 +4863,14 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 +*ffi::string* 'at address ?len?'+::
     Copies the string at a given address to a newly-allocated C string. The string will be copied up to
     the first '\0' byte, unless its size is specified. If the address is 'NULL', an error is generated.
-    In addition, this function can be used as a C to Tcl equivalent of 'memcpy()'.
+    In addition, this function can be used as a C to Tcl equivalent of 'memcpy()'. For example, it can be
+    used to read the raw contents of a struct at a given address, for use as a 'ffi::struct' initializer.
 
 +*ffi::cast* 'type addr'+::
-    Reads a C variable stored at a given address. The variable type should be one of the types supported
-    by 'ffi::struct'. If the address is 'NULL', an error is generated. This function is useful for dereferencing
-    arbitary pointers and elegant casting.
+    Reads a C variable stored at a given address. The variable type should be one among 'int8', 'uint8',
+    'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float', 'double' and 'pointer'. If the address
+    is 'NULL', an error is generated. This function is useful for dereferencing arbitary pointers and
+    elegant casting.
 
 +*ffi::struct* 'raw member ?member ...?+::
     Creates a new instance of a C struct. Optionally, the struct can be initialized with a initializer
@@ -4889,7 +4892,7 @@ extension can be used for writing new Tcl commands that wrap system calls that d
 +*ffi::dlopen* 'path'+::
     Loads a shared object and returns its handle. If the shared object path is an empty string, the main
     module (i.e. the +jimsh+ executable, when called via an interactive interpreter) handle is returned
-    instead.
+    instead; see 'ffi::main'.
 
 +'handle' *handle*+::
     Returns the handle (the return value of 'dlopen()') of a shared object.
@@ -4898,9 +4901,9 @@ extension can be used for writing new Tcl commands that wrap system calls that d
     Returns the address of a symbol exported by a shared object.
 
 +*ffi::function* 'rtype addr ?argtypes ...?'+::
-    Creates a Tcl command, which calls a C function. The argument types should be among those supported
+    Creates a Tcl wrapper for a C function. The argument types should be among those supported
     by 'ffi::struct', but additionally, the function return value type may be 'ffi::void'. When called,
-    the return value object and argument objects must be specified using their address.
+    the return value object and argument objects must be specified using their addresses.
 
 +*ffi::main*+::
     The main module handle. If possible, this constant should be used instead of calling 'ffi::dlopen'
