@@ -7617,6 +7617,7 @@ enum
     JIM_EXPROP_FUNC_ASIN,
     JIM_EXPROP_FUNC_ACOS,
     JIM_EXPROP_FUNC_ATAN,
+    JIM_EXPROP_FUNC_ATAN2,
     JIM_EXPROP_FUNC_SINH,
     JIM_EXPROP_FUNC_COSH,
     JIM_EXPROP_FUNC_TANH,
@@ -7627,6 +7628,8 @@ enum
     JIM_EXPROP_FUNC_LOG10,
     JIM_EXPROP_FUNC_SQRT,
     JIM_EXPROP_FUNC_POW,
+    JIM_EXPROP_FUNC_HYPOT,
+    JIM_EXPROP_FUNC_FMOD,
 };
 
 struct JimExprState
@@ -7938,7 +7941,6 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprState *e)
 /* A binary operation on two ints or two doubles (or two strings for some ops) */
 static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
 {
-    int intresult = 1;
     int rc = JIM_OK;
     double dA, dB, dC = 0;
     jim_wide wA, wB, wC = 0;
@@ -7956,20 +7958,21 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
             case JIM_EXPROP_POW:
             case JIM_EXPROP_FUNC_POW:
                 wC = JimPowWide(wA, wB);
-                break;
+                goto intresult;
             case JIM_EXPROP_ADD:
                 wC = wA + wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_SUB:
                 wC = wA - wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_MUL:
                 wC = wA * wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_DIV:
                 if (wB == 0) {
                     Jim_SetResultString(interp, "Division by zero", -1);
                     rc = JIM_ERR;
+                    goto done;
                 }
                 else {
                     /*
@@ -7988,51 +7991,63 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
                     if (wA % wB < 0) {
                         wC--;
                     }
+                    goto intresult;
                 }
-                break;
             case JIM_EXPROP_LT:
                 wC = wA < wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_GT:
                 wC = wA > wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_LTE:
                 wC = wA <= wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_GTE:
                 wC = wA >= wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMEQ:
                 wC = wA == wB;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMNE:
                 wC = wA != wB;
-                break;
-            default:
-                abort();
+                goto intresult;
         }
     }
-    else if (Jim_GetDouble(interp, A, &dA) == JIM_OK && Jim_GetDouble(interp, B, &dB) == JIM_OK) {
-        intresult = 0;
+    if (Jim_GetDouble(interp, A, &dA) == JIM_OK && Jim_GetDouble(interp, B, &dB) == JIM_OK) {
         switch (e->opcode) {
+#ifndef JIM_MATH_FUNCTIONS
             case JIM_EXPROP_POW:
             case JIM_EXPROP_FUNC_POW:
-#ifdef JIM_MATH_FUNCTIONS
-                dC = pow(dA, dB);
-#else
+            case JIM_EXPROP_FUNC_ATAN2:
+            case JIM_EXPROP_FUNC_HYPOT:
+            case JIM_EXPROP_FUNC_FMOD:
                 Jim_SetResultString(interp, "unsupported", -1);
                 rc = JIM_ERR;
+                goto done;
+#else
+            case JIM_EXPROP_POW:
+            case JIM_EXPROP_FUNC_POW:
+                dC = pow(dA, dB);
+                goto doubleresult;
+            case JIM_EXPROP_FUNC_ATAN2:
+                dC = atan2(dA, dB);
+                goto doubleresult;
+            case JIM_EXPROP_FUNC_HYPOT:
+                dC = hypot(dA, dB);
+                goto doubleresult;
+            case JIM_EXPROP_FUNC_FMOD:
+                dC = fmod(dA, dB);
+                goto doubleresult;
 #endif
-                break;
             case JIM_EXPROP_ADD:
                 dC = dA + dB;
-                break;
+                goto doubleresult;
             case JIM_EXPROP_SUB:
                 dC = dA - dB;
-                break;
+                goto doubleresult;
             case JIM_EXPROP_MUL:
                 dC = dA * dB;
-                break;
+                goto doubleresult;
             case JIM_EXPROP_DIV:
                 if (dB == 0) {
 #ifdef INFINITY
@@ -8044,33 +8059,25 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
                 else {
                     dC = dA / dB;
                 }
-                break;
+                goto doubleresult;
             case JIM_EXPROP_LT:
                 wC = dA < dB;
-                intresult = 1;
-                break;
+                goto intresult;
             case JIM_EXPROP_GT:
                 wC = dA > dB;
-                intresult = 1;
-                break;
+                goto intresult;
             case JIM_EXPROP_LTE:
                 wC = dA <= dB;
-                intresult = 1;
-                break;
+                goto intresult;
             case JIM_EXPROP_GTE:
                 wC = dA >= dB;
-                intresult = 1;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMEQ:
                 wC = dA == dB;
-                intresult = 1;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMNE:
                 wC = dA != dB;
-                intresult = 1;
-                break;
-            default:
-                abort();
+                goto intresult;
         }
     }
     else {
@@ -8082,41 +8089,36 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
         switch (e->opcode) {
             case JIM_EXPROP_LT:
                 wC = i < 0;
-                break;
+                goto intresult;
             case JIM_EXPROP_GT:
                 wC = i > 0;
-                break;
+                goto intresult;
             case JIM_EXPROP_LTE:
                 wC = i <= 0;
-                break;
+                goto intresult;
             case JIM_EXPROP_GTE:
                 wC = i >= 0;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMEQ:
                 wC = i == 0;
-                break;
+                goto intresult;
             case JIM_EXPROP_NUMNE:
                 wC = i != 0;
-                break;
-            default:
-                rc = JIM_ERR;
-                break;
+                goto intresult;
         }
     }
-
-    if (rc == JIM_OK) {
-        if (intresult) {
-            ExprPush(e, Jim_NewIntObj(interp, wC));
-        }
-        else {
-            ExprPush(e, Jim_NewDoubleObj(interp, dC));
-        }
-    }
-
+    /* If we get here, it is an error */
+    rc = JIM_ERR;
+done:
     Jim_DecrRefCount(interp, A);
     Jim_DecrRefCount(interp, B);
-
     return rc;
+intresult:
+    ExprPush(e, Jim_NewIntObj(interp, wC));
+    goto done;
+doubleresult:
+    ExprPush(e, Jim_NewDoubleObj(interp, dC));
+    goto done;
 }
 
 static int JimSearchList(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *valObj)
@@ -8408,6 +8410,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     OPRINIT("asin", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("acos", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("atan", 200, 1, JimExprOpDoubleUnary),
+    OPRINIT("atan2", 200, 2, JimExprOpBin),
     OPRINIT("sinh", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("cosh", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("tanh", 200, 1, JimExprOpDoubleUnary),
@@ -8418,6 +8421,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     OPRINIT("log10", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("sqrt", 200, 1, JimExprOpDoubleUnary),
     OPRINIT("pow", 200, 2, JimExprOpBin),
+    OPRINIT("hypot", 200, 2, JimExprOpBin),
+    OPRINIT("fmod", 200, 2, JimExprOpBin),
 #endif
 };
 #undef OPRINIT
