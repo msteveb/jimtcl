@@ -8646,6 +8646,12 @@ const char *jim_tt_name(int type)
     if (type < JIM_TT_EXPR_OP) {
         return tt_names[type];
     }
+    else if (type == JIM_EXPROP_UNARYMINUS) {
+        return "-VE";
+    }
+    else if (type == JIM_EXPROP_UNARYPLUS) {
+        return "+VE";
+    }
     else {
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(type);
         static char buf[20];
@@ -8714,12 +8720,16 @@ static void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dup
     dupPtr->typePtr = NULL;
 }
 
-/* Check if an expr program looks correct. */
-static int ExprCheckCorrectness(ExprByteCode * expr)
+/* Check if an expr program looks correct
+ * Sets an error result on invalid
+ */
+static int ExprCheckCorrectness(Jim_Interp *interp, Jim_Obj *exprObjPtr, ExprByteCode * expr)
 {
     int i;
     int stacklen = 0;
     int ternary = 0;
+    int lasttt = JIM_TT_NONE;
+    const char *errmsg;
 
     /* Try to check if there are stack underflows,
      * and make sure at the end of the program there is
@@ -8727,8 +8737,10 @@ static int ExprCheckCorrectness(ExprByteCode * expr)
     for (i = 0; i < expr->len; i++) {
         ScriptToken *t = &expr->token[i];
         const struct Jim_ExprOperator *op = JimExprOperatorInfoByOpcode(t->type);
+        lasttt = t->type;
 
         stacklen -= op->arity;
+
         if (stacklen < 0) {
             break;
         }
@@ -8742,10 +8754,31 @@ static int ExprCheckCorrectness(ExprByteCode * expr)
         /* All operations and operands add one to the stack */
         stacklen++;
     }
-    if (stacklen != 1 || ternary != 0) {
-        return JIM_ERR;
+    if (stacklen == 1 && ternary == 0) {
+        return JIM_OK;
     }
-    return JIM_OK;
+
+    if (stacklen <= 0) {
+        /* Too few args */
+        if (lasttt >= JIM_EXPROP_FUNC_FIRST) {
+            errmsg = "too few arguments for math function";
+            Jim_SetResultString(interp, "too few arguments for math function", -1);
+        } else {
+            errmsg = "premature end of expression";
+        }
+    }
+    else if (stacklen > 1) {
+        if (lasttt >= JIM_EXPROP_FUNC_FIRST) {
+            errmsg = "too many arguments for math function";
+        } else {
+            errmsg = "extra tokens at end of expression";
+        }
+    }
+    else {
+        errmsg = "invalid ternary expression";
+    }
+    Jim_SetResultFormatted(interp, "syntax error in expression \"%#s\": %s", exprObjPtr, errmsg);
+    return JIM_ERR;
 }
 
 /* This procedure converts every occurrence of || and && opereators
@@ -9092,19 +9125,19 @@ strexpr:
 
             case JIM_TT_SUBEXPR_START:
                 Jim_StackPush(&stack, t);
-                prevtt = JIM_TT_NONE;
-                continue;
-
-            case JIM_TT_SUBEXPR_COMMA:
-                /* Simple approach. Comma is simply ignored */
-                continue;
+                break;
 
             case JIM_TT_SUBEXPR_END:
+            case JIM_TT_SUBEXPR_COMMA:
                 ok = 0;
                 while (Jim_StackLen(&stack)) {
                     ParseToken *tt = Jim_StackPop(&stack);
 
-                    if (tt->type == JIM_TT_SUBEXPR_START) {
+                    if (tt->type == JIM_TT_SUBEXPR_START || tt->type == JIM_TT_SUBEXPR_COMMA) {
+                        if (t->type == JIM_TT_SUBEXPR_COMMA) {
+                            /* Need to push back the previous START or COMMA in the case of comma */
+                            Jim_StackPush(&stack, tt);
+                        }
                         ok = 1;
                         break;
                     }
@@ -9119,14 +9152,13 @@ strexpr:
                 }
                 break;
 
-
             default:{
                     /* Must be an operator */
                     const struct Jim_ExprOperator *op;
                     ParseToken *tt;
 
                     /* Convert -/+ to unary minus or unary plus if necessary */
-                    if (prevtt == JIM_TT_NONE || prevtt >= JIM_TT_EXPR_OP) {
+                    if (prevtt == JIM_TT_NONE || prevtt == JIM_TT_SUBEXPR_START || prevtt == JIM_TT_SUBEXPR_COMMA || prevtt >= JIM_TT_EXPR_OP) {
                         if (t->type == JIM_EXPROP_SUB) {
                             t->type = JIM_EXPROP_UNARYMINUS;
                         }
@@ -9231,7 +9263,6 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     while (!parser.eof) {
         if (JimParseExpression(&parser) != JIM_OK) {
             ScriptTokenListFree(&tokenlist);
-          invalidexpr:
             Jim_SetResultFormatted(interp, "syntax error in expression: \"%#s\"", objPtr);
             expr = NULL;
             goto err;
@@ -9282,9 +9313,11 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 #endif
 
     /* Check program correctness. */
-    if (ExprCheckCorrectness(expr) != JIM_OK) {
+    if (ExprCheckCorrectness(interp, objPtr, expr) != JIM_OK) {
+        /* ExprCheckCorrectness set an error in this case */
         ExprFreeByteCode(interp, expr);
-        goto invalidexpr;
+        expr = NULL;
+        goto err;
     }
 
     rc = JIM_OK;

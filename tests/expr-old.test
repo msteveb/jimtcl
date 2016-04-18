@@ -384,7 +384,7 @@ test expr-old-23.8 {double quotes} {
 # Numbers in various bases.
 
 test expr-old-24.1 {numbers in different bases} {expr 0x20} 32
-test expr-old-24.2 {numbers in different bases} {expr 015} 15
+test expr-old-24.2 {numbers in different bases} {expr 0o015} 13
 
 # Conversions between various data types.
 
@@ -689,76 +689,80 @@ test expr-old-32.38 {math functions in expressions} {
 #test expr-old-32.40 {math functions in expressions} {
 #    list [catch {expr round(-1e60)} msg] $msg
 #} {1 {integer value too large to represent}}
-if {0} {
-test expr-old-32.41 {math functions in expressions} {
+test expr-old-32.41 {math functions in expressions} mathfunc {
     list [catch {expr pow(1.0 + 3.0 - 2, .8 * 5)} msg] $msg
 } {0 16.0}
-test expr-old-32.42 {math functions in expressions} {
+if {1} {
+test expr-old-32.42 {math functions in expressions} expr_hypot {
     list [catch {expr hypot(5*.8,3)} msg] $msg
 } {0 5.0}
+test expr-old-32.43 {math functions in expressions} mathfunc {
+    expr {pow(1.0 + 3.0, -2)}
+} {0.0625}
 test expr-old-32.45 {math functions in expressions} {
     expr (0 <= rand()) && (rand() < 1)
 } {1}
-test expr-old-32.46 {math functions in expressions} {
-    list [catch {expr rand(24)} msg] $msg
-} {1 {too many arguments for math function}}
-test expr-old-32.47 {math functions in expressions} {
-    list [catch {expr srand()} msg] $msg
+test expr-old-32.46 {math functions in expressions} -body {
+    expr rand(24)
+} -returnCodes error -match glob -result {*too many arguments for math function*}
+test expr-old-32.47 {math functions in expressions} -body {
+    expr srand()
+} -returnCodes error -match glob -result {*too few arguments for math function*}
 } {1 {too few arguments for math function}}
-test expr-old-32.48 {math functions in expressions} {
-    list [catch {expr srand(3.79)} msg] $msg
-} {1 {can't use floating-point value as argument to srand}}
-test expr-old-32.49 {math functions in expressions} {
-    list [catch {expr srand("")} msg] $msg
-} {1 {argument to math function didn't have numeric value}}
-test expr-old-32.50 {math functions in expressions} {
-    set result [expr round(srand(12345) * 1000)]
+test expr-old-32.48 {math functions in expressions} -body {
+    expr srand(3.79)
+} -returnCodes error -match glob -result *
+test expr-old-32.49 {math functions in expressions} -body {
+    expr srand("")
+} -returnCodes error -match glob -result *
+test expr-old-32.50 {math functions in expressions} mathfunc {
     for {set i 0} {$i < 10} {incr i} {
-	lappend result [expr round(rand() * 1000)]
+	lappend result [expr round(sin($i) * 1000)]
     }
     set result
-} {97 834 948 36 12 51 766 585 914 784 333}
-test expr-old-32.51 {math functions in expressions} {
-    list [catch {expr {srand([lindex "6ty" 0])}} msg] $msg
-} {1 {argument to math function didn't have numeric value}}
+} {0 841 909 141 -757 -959 -279 657 989 412}
+test expr-old-32.51 {math functions in expressions} -body {
+    expr {srand([lindex "6ty" 0])}
+} -returnCodes error -match glob -result *
 
-test expr-old-33.1 {conversions and fancy args to math functions} {
+test expr-old-33.1 {conversions and fancy args to math functions} expr_hypot {
     expr hypot ( 3 , 4 )
 } 5.0
-test expr-old-33.2 {conversions and fancy args to math functions} {
+test expr-old-33.2 {conversions and fancy args to math functions} expr_hypot {
     expr hypot ( (2.0+1.0) , 4 )
 } 5.0
-test expr-old-33.3 {conversions and fancy args to math functions} {
+test expr-old-33.3 {conversions and fancy args to math functions} expr_hypot {
     expr hypot ( 3 , (3.0 + 1.0) )
 } 5.0
-test expr-old-33.4 {conversions and fancy args to math functions} {
+test expr-old-33.4 {conversions and fancy args to math functions} mathfunc {
     format %.6g [expr cos(acos(0.1))]
 } 0.1
 
-test expr-old-34.1 {errors in math functions} {
-    list [catch {expr func_2(1.0)} msg] $msg
-} {1 {unknown math function "func_2"}}
-test expr-old-34.2 {errors in math functions} {
-    list [catch {expr func|(1.0)} msg] $msg
-} {1 {syntax error in expression "func|(1.0)"}}
-test expr-old-34.3 {errors in math functions} {
-    list [catch {expr {hypot("a b", 2.0)}} msg] $msg
-} {1 {argument to math function didn't have numeric value}}
-test expr-old-34.4 {errors in math functions} {
-    list [catch {expr hypot(1.0 2.0)} msg] $msg
-} {1 {syntax error in expression "hypot(1.0 2.0)"}}
-test expr-old-34.5 {errors in math functions} {
-    list [catch {expr hypot(1.0, 2.0} msg] $msg
-} {1 {syntax error in expression "hypot(1.0, 2.0"}}
-test expr-old-34.6 {errors in math functions} {
-    list [catch {expr hypot(1.0 ,} msg] $msg
-} {1 {syntax error in expression "hypot(1.0 ,"}}
-test expr-old-34.7 {errors in math functions} {
-    list [catch {expr hypot(1.0)} msg] $msg
-} {1 {too few arguments for math function}}
-test expr-old-34.8 {errors in math functions} {
-    list [catch {expr hypot(1.0, 2.0, 3.0)} msg] $msg
-} {1 {too many arguments for math function}}
+test expr-old-34.1 {errors in math functions} -body {
+    expr func_2(1.0)
+} -returnCodes error -match glob -result *
+test expr-old-34.2 {errors in math functions} -body {
+    expr {func|(1.0)}
+} -returnCodes error -match glob -result *
+test expr-old-34.3 {errors in math functions} -body {
+    expr {hypot("a b", 2.0)}
+} -returnCodes error -match glob -result *
+test expr-old-34.4 {errors in math functions} -constraints tcl -body {
+    expr {hypot(1.0 2.0)}
+} -returnCodes error -match glob -result *
+test expr-old-34.5 {errors in math functions} -body {
+    expr {hypot(1.0, 2.0}
+} -returnCodes error -match glob -result *
+test expr-old-34.6 {errors in math functions} -body {
+    expr {hypot(1.0 ,}
+} -returnCodes error -match glob -result *
+test expr-old-34.7 {errors in math functions} -constraints expr_hypot -body {
+    expr hypot(1.0)
+} -returnCodes error -match glob -result {*too few arguments for math function*}
+test expr-old-34.8 {errors in math functions} -constraints expr_hypot -body {
+    expr {hypot(1.0, 2.0, 3.0)}
+} -returnCodes error -match glob -result {*too many arguments for math function*}
+if 0 {
 test expr-old-34.9 {errors in math functions} {
     list [catch {expr acos(-2.0)} msg] $msg $errorCode
 } {1 {domain error: argument not in valid range} {ARITH DOMAIN {domain error: argument not in valid range}}}
@@ -783,11 +787,12 @@ test expr-old-34.15 {errors in math functions} {
 test expr-old-34.16 {errors in math functions} {
     list [catch {expr round(-1.0e30)} msg] $msg $errorCode
 } {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+}
 
-test expr-old-36.1 {ExprLooksLikeInt procedure} {
-    list [catch {expr 0289} msg] $msg
-} {1 {"0289" is an invalid octal number}}
-test expr-old-36.2 {ExprLooksLikeInt procedure} {
+test expr-old-36.1 {ExprLooksLikeInt procedure} -constraints tcl -body {
+    expr 0289
+} -returnCodes error -match glob -result *
+test expr-old-36.2 {ExprLooksLikeInt procedure} tcl {
     set x 0289
     list [catch {expr {$x+1}} msg] $msg
 } {1 {can't use invalid octal number as operand of "+"}}
@@ -806,7 +811,7 @@ test expr-old-36.6 {ExprLooksLikeInt procedure} {
     set x {	-22}
     list [catch {expr {$x+1}} msg] $msg
 } {0 -21}
-test expr-old-36.7 {ExprLooksLikeInt procedure} {
+test expr-old-36.7 {ExprLooksLikeInt procedure} tcl {
     list [catch {expr nan} msg] $msg
 } {1 {domain error: argument not in valid range}}
 test expr-old-36.8 {ExprLooksLikeInt procedure} {
@@ -815,10 +820,9 @@ test expr-old-36.8 {ExprLooksLikeInt procedure} {
 test expr-old-36.9 {ExprLooksLikeInt procedure} {
     list [catch {expr 24E1} msg] $msg
 } {0 240.0}
-}
-test expr-old-36.10 {ExprLooksLikeInt procedure} {
-    list [catch {expr 78e} msg] $msg
-} {1 {syntax error in expression: "78e"}}
+test expr-old-36.10 {ExprLooksLikeInt procedure} -constraints tcl -body {
+    expr 78e
+} -returnCodes error -match glob -result *
 
 # test for [Bug #542588]
 # XXX: Can't rely on overflow checking
