@@ -7740,7 +7740,11 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprState *e)
                 intresult = 0;
                 break;
             case JIM_EXPROP_FUNC_ABS:
+#ifdef JIM_MATH_FUNCTIONS
+                dC = fabs(dA);
+#else
                 dC = dA >= 0 ? dA : -dA;
+#endif
                 intresult = 0;
                 break;
             case JIM_EXPROP_UNARYMINUS:
