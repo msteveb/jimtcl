@@ -747,7 +747,7 @@ test expr-old-34.2 {errors in math functions} -body {
 test expr-old-34.3 {errors in math functions} -body {
     expr {hypot("a b", 2.0)}
 } -returnCodes error -match glob -result *
-test expr-old-34.4 {errors in math functions} -constraints tcl -body {
+test expr-old-34.4 {errors in math functions} -body {
     expr {hypot(1.0 2.0)}
 } -returnCodes error -match glob -result *
 test expr-old-34.5 {errors in math functions} -body {

@@ -1151,6 +1151,10 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
 #define JIM_TT_EXPR_OP        20
 
 #define TOKEN_IS_SEP(type) (type >= JIM_TT_SEP && type <= JIM_TT_EOF)
+/* Can this token start an expression? */
+#define TOKEN_IS_EXPR_START(type) (type == JIM_TT_NONE || type == JIM_TT_SUBEXPR_START || type == JIM_TT_SUBEXPR_COMMA)
+/* Is this token an expression operator? */
+#define TOKEN_IS_EXPR_OP(type) (type >= JIM_TT_EXPR_OP)
 
 /**
  * Results of missing quotes, braces, etc. from parsing.
@@ -9038,7 +9042,7 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
     }
 }
 
-static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, Jim_Obj *fileNameObj)
+static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, Jim_Obj *exprObjPtr, Jim_Obj *fileNameObj)
 {
     Jim_Stack stack;
     ExprByteCode *expr;
@@ -9084,112 +9088,109 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             break;
         }
 
-        switch (t->type) {
-            case JIM_TT_STR:
-            case JIM_TT_ESC:
-            case JIM_TT_VAR:
-            case JIM_TT_DICTSUGAR:
-            case JIM_TT_EXPRSUGAR:
-            case JIM_TT_CMD:
-            case JIM_TT_EXPR_BOOLEAN:
-                token->type = t->type;
-strexpr:
+        if (TOKEN_IS_EXPR_OP(t->type)) {
+            const struct Jim_ExprOperator *op;
+            ParseToken *tt;
+
+            /* Convert -/+ to unary minus or unary plus if necessary */
+            if (prevtt == JIM_TT_NONE || prevtt == JIM_TT_SUBEXPR_START || prevtt == JIM_TT_SUBEXPR_COMMA || prevtt >= JIM_TT_EXPR_OP) {
+                if (t->type == JIM_EXPROP_SUB) {
+                    t->type = JIM_EXPROP_UNARYMINUS;
+                }
+                else if (t->type == JIM_EXPROP_ADD) {
+                    t->type = JIM_EXPROP_UNARYPLUS;
+                }
+            }
+
+            op = JimExprOperatorInfoByOpcode(t->type);
+
+            /* Handle precedence */
+            while ((tt = Jim_StackPeek(&stack)) != NULL) {
+                const struct Jim_ExprOperator *tt_op =
+                    JimExprOperatorInfoByOpcode(tt->type);
+
+                /* Note that right-to-left associativity of ?: operator is handled later */
+
+                if (op->arity != 1 && tt_op->precedence >= op->precedence) {
+                    if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
+                        ok = 0;
+                        goto err;
+                    }
+                    Jim_StackPop(&stack);
+                }
+                else {
+                    break;
+                }
+            }
+            Jim_StackPush(&stack, t);
+        }
+        else if (t->type == JIM_TT_SUBEXPR_START) {
+            Jim_StackPush(&stack, t);
+        }
+        else if (t->type == JIM_TT_SUBEXPR_END || t->type == JIM_TT_SUBEXPR_COMMA) {
+            /* Reduce the expression back to the previous ( or , */
+            ok = 0;
+            while (Jim_StackLen(&stack)) {
+                ParseToken *tt = Jim_StackPop(&stack);
+
+                if (tt->type == JIM_TT_SUBEXPR_START || tt->type == JIM_TT_SUBEXPR_COMMA) {
+                    if (t->type == JIM_TT_SUBEXPR_COMMA) {
+                        /* Need to push back the previous START or COMMA in the case of comma */
+                        Jim_StackPush(&stack, tt);
+                    }
+                    ok = 1;
+                    break;
+                }
+                if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
+                    goto err;
+                }
+            }
+            if (!ok) {
+                Jim_SetResultFormatted(interp, "Unexpected close parenthesis in expression: \"%#s\"", exprObjPtr);
+                goto err;
+            }
+        }
+        else {
+            Jim_Obj *objPtr = NULL;
+
+            /* This is a simple non-operator term, so create and push the appropriate object */
+            token->type = t->type;
+
+            /* Two consecutive terms without an operator is invalid */
+            if (!TOKEN_IS_EXPR_START(prevtt) && !TOKEN_IS_EXPR_OP(prevtt)) {
+                Jim_SetResultFormatted(interp, "missing operator in expression: \"%#s\"", exprObjPtr);
+                ok = 0;
+                goto err;
+            }
+
+            /* Immediately create a double or int object? */
+            if (t->type == JIM_TT_EXPR_INT || t->type == JIM_TT_EXPR_DOUBLE) {
+                char *endptr;
+                if (t->type == JIM_TT_EXPR_INT) {
+                    objPtr = Jim_NewIntObj(interp, jim_strtoull(t->token, &endptr));
+                }
+                else {
+                    objPtr = Jim_NewDoubleObj(interp, strtod(t->token, &endptr));
+                }
+                if (endptr != t->token + t->len) {
+                    /* Conversion failed, so just store it as a string */
+                    Jim_FreeNewObj(interp, objPtr);
+                    objPtr = NULL;
+                }
+            }
+
+            if (objPtr) {
+                token->objPtr = objPtr;
+            }
+            else {
+                /* Everything else is stored a simple string term */
                 token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
                 if (t->type == JIM_TT_CMD) {
                     /* Only commands need source info */
                     JimSetSourceInfo(interp, token->objPtr, fileNameObj, t->line);
                 }
-                expr->len++;
-                break;
-
-            case JIM_TT_EXPR_INT:
-            case JIM_TT_EXPR_DOUBLE:
-                {
-                    char *endptr;
-                    if (t->type == JIM_TT_EXPR_INT) {
-                        token->objPtr = Jim_NewIntObj(interp, jim_strtoull(t->token, &endptr));
-                    }
-                    else {
-                        token->objPtr = Jim_NewDoubleObj(interp, strtod(t->token, &endptr));
-                    }
-                    if (endptr != t->token + t->len) {
-                        /* Conversion failed, so just store it as a string */
-                        Jim_FreeNewObj(interp, token->objPtr);
-                        token->type = JIM_TT_STR;
-                        goto strexpr;
-                    }
-                    token->type = t->type;
-                    expr->len++;
-                }
-                break;
-
-            case JIM_TT_SUBEXPR_START:
-                Jim_StackPush(&stack, t);
-                break;
-
-            case JIM_TT_SUBEXPR_END:
-            case JIM_TT_SUBEXPR_COMMA:
-                ok = 0;
-                while (Jim_StackLen(&stack)) {
-                    ParseToken *tt = Jim_StackPop(&stack);
-
-                    if (tt->type == JIM_TT_SUBEXPR_START || tt->type == JIM_TT_SUBEXPR_COMMA) {
-                        if (t->type == JIM_TT_SUBEXPR_COMMA) {
-                            /* Need to push back the previous START or COMMA in the case of comma */
-                            Jim_StackPush(&stack, tt);
-                        }
-                        ok = 1;
-                        break;
-                    }
-
-                    if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
-                        goto err;
-                    }
-                }
-                if (!ok) {
-                    Jim_SetResultString(interp, "Unexpected close parenthesis", -1);
-                    goto err;
-                }
-                break;
-
-            default:{
-                    /* Must be an operator */
-                    const struct Jim_ExprOperator *op;
-                    ParseToken *tt;
-
-                    /* Convert -/+ to unary minus or unary plus if necessary */
-                    if (prevtt == JIM_TT_NONE || prevtt == JIM_TT_SUBEXPR_START || prevtt == JIM_TT_SUBEXPR_COMMA || prevtt >= JIM_TT_EXPR_OP) {
-                        if (t->type == JIM_EXPROP_SUB) {
-                            t->type = JIM_EXPROP_UNARYMINUS;
-                        }
-                        else if (t->type == JIM_EXPROP_ADD) {
-                            t->type = JIM_EXPROP_UNARYPLUS;
-                        }
-                    }
-
-                    op = JimExprOperatorInfoByOpcode(t->type);
-
-                    /* Now handle precedence */
-                    while ((tt = Jim_StackPeek(&stack)) != NULL) {
-                        const struct Jim_ExprOperator *tt_op =
-                            JimExprOperatorInfoByOpcode(tt->type);
-
-                        /* Note that right-to-left associativity of ?: operator is handled later */
-
-                        if (op->arity != 1 && tt_op->precedence >= op->precedence) {
-                            if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
-                                ok = 0;
-                                goto err;
-                            }
-                            Jim_StackPop(&stack);
-                        }
-                        else {
-                            break;
-                        }
-                    }
-                    Jim_StackPush(&stack, t);
-                    break;
-                }
+            }
+            expr->len++;
         }
         prevtt = t->type;
     }
@@ -9290,7 +9291,7 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     }
 
     /* Now create the expression bytecode from the tokenlist */
-    expr = ExprCreateByteCode(interp, &tokenlist, fileNameObj);
+    expr = ExprCreateByteCode(interp, &tokenlist, objPtr, fileNameObj);
 
     /* No longer need the token list */
     ScriptTokenListFree(&tokenlist);
