@@ -563,12 +563,31 @@ int Jim_StringToDouble(const char *str, double *doublePtr)
 
 static jim_wide JimPowWide(jim_wide b, jim_wide e)
 {
-    jim_wide i, res = 1;
+    jim_wide res = 1;
 
-    if ((b == 0 && e != 0) || (e < 0))
-        return 0;
-    for (i = 0; i < e; i++) {
-        res *= b;
+    /* Special cases */
+    if (b == 1) {
+        /* 1 ^ any = 1 */
+        return 1;
+    }
+    if (e < 0) {
+        if (b != -1) {
+            return 0;
+        }
+        /* Only special case is -1 ^ -n
+         * -1^-1 = -1
+         * -1^-2 = 1
+         * i.e. same as +ve n
+         */
+        e = -e;
+    }
+    while (e)
+    {
+        if (e & 1) {
+            res *= b;
+        }
+        e >>= 1;
+        b *= b;
     }
     return res;
 }
@@ -7961,6 +7980,11 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprState *e)
         switch (e->opcode) {
             case JIM_EXPROP_POW:
             case JIM_EXPROP_FUNC_POW:
+                if (wA == 0 && wB < 0) {
+                    Jim_SetResultString(interp, "exponentiation of zero by negative power", -1);
+                    rc = JIM_ERR;
+                    goto done;
+                }
                 wC = JimPowWide(wA, wB);
                 goto intresult;
             case JIM_EXPROP_ADD:
@@ -8330,7 +8354,8 @@ enum
     LAZY_NONE,
     LAZY_OP,
     LAZY_LEFT,
-    LAZY_RIGHT
+    LAZY_RIGHT,
+    RIGHT_ASSOC, /* reuse this field for right associativity too */
 };
 
 /* name - precedence - arity - opcode
@@ -8339,8 +8364,8 @@ enum
  *
  * The following macros pre-compute the string length at compile time.
  */
-#define OPRINIT(N, P, A, F) {N, F, P, A, LAZY_NONE, sizeof(N) - 1}
-#define OPRINIT_LAZY(N, P, A, F, L) {N, F, P, A, L, sizeof(N) - 1}
+#define OPRINIT_ATTR(N, P, ARITY, F, ATTR) {N, F, P, ARITY, ATTR, sizeof(N) - 1}
+#define OPRINIT(N, P, ARITY, F) OPRINIT_ATTR(N, P, ARITY, F, LAZY_NONE)
 
 static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     OPRINIT("*", 110, 2, JimExprOpBin),
@@ -8368,23 +8393,24 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
     OPRINIT("^", 49, 2, JimExprOpIntBin),
     OPRINIT("|", 48, 2, JimExprOpIntBin),
 
-    OPRINIT_LAZY("&&", 10, 2, NULL, LAZY_OP),
-    OPRINIT_LAZY(NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT),
-    OPRINIT_LAZY(NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT),
+    OPRINIT_ATTR("&&", 10, 2, NULL, LAZY_OP),
+    OPRINIT_ATTR(NULL, 10, 2, JimExprOpAndLeft, LAZY_LEFT),
+    OPRINIT_ATTR(NULL, 10, 2, JimExprOpAndOrRight, LAZY_RIGHT),
 
-    OPRINIT_LAZY("||", 9, 2, NULL, LAZY_OP),
-    OPRINIT_LAZY(NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT),
-    OPRINIT_LAZY(NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT),
+    OPRINIT_ATTR("||", 9, 2, NULL, LAZY_OP),
+    OPRINIT_ATTR(NULL, 9, 2, JimExprOpOrLeft, LAZY_LEFT),
+    OPRINIT_ATTR(NULL, 9, 2, JimExprOpAndOrRight, LAZY_RIGHT),
 
-    OPRINIT_LAZY("?", 5, 2, JimExprOpNull, LAZY_OP),
-    OPRINIT_LAZY(NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT),
-    OPRINIT_LAZY(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
+    OPRINIT_ATTR("?", 5, 2, JimExprOpNull, LAZY_OP),
+    OPRINIT_ATTR(NULL, 5, 2, JimExprOpTernaryLeft, LAZY_LEFT),
+    OPRINIT_ATTR(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
 
-    OPRINIT_LAZY(":", 5, 2, JimExprOpNull, LAZY_OP),
-    OPRINIT_LAZY(NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT),
-    OPRINIT_LAZY(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
+    OPRINIT_ATTR(":", 5, 2, JimExprOpNull, LAZY_OP),
+    OPRINIT_ATTR(NULL, 5, 2, JimExprOpColonLeft, LAZY_LEFT),
+    OPRINIT_ATTR(NULL, 5, 2, JimExprOpNull, LAZY_RIGHT),
 
-    OPRINIT("**", 250, 2, JimExprOpBin),
+    /* Precedence is higher than * and / but lower than ! and ~, and right-associative */
+    OPRINIT_ATTR("**", 120, 2, JimExprOpBin, RIGHT_ASSOC),
 
     OPRINIT("eq", 60, 2, JimExprOpStrBin),
     OPRINIT("ne", 60, 2, JimExprOpStrBin),
@@ -9109,9 +9135,14 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
                 const struct Jim_ExprOperator *tt_op =
                     JimExprOperatorInfoByOpcode(tt->type);
 
-                /* Note that right-to-left associativity of ?: operator is handled later */
+                /* Note that right-to-left associativity of ?: operator is handled later.
+                 */
 
                 if (op->arity != 1 && tt_op->precedence >= op->precedence) {
+                    /* Don't reduce if right associative with equal precedence? */
+                    if (tt_op->precedence == op->precedence && tt_op->lazy == RIGHT_ASSOC) {
+                        break;
+                    }
                     if (ExprAddOperator(interp, expr, tt) != JIM_OK) {
                         ok = 0;
                         goto err;
