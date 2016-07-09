@@ -1143,8 +1143,9 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
 #define JIM_TT_SUBEXPR_COMMA  13
 #define JIM_TT_EXPR_INT       14
 #define JIM_TT_EXPR_DOUBLE    15
+#define JIM_TT_EXPR_BOOLEAN   16
 
-#define JIM_TT_EXPRSUGAR      16  /* $(expression) */
+#define JIM_TT_EXPRSUGAR      17  /* $(expression) */
 
 /* Operator token types start here */
 #define JIM_TT_EXPR_OP        20
@@ -2938,13 +2939,13 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
     static const char * const strclassnames[] = {
         "integer", "alpha", "alnum", "ascii", "digit",
         "double", "lower", "upper", "space", "xdigit",
-        "control", "print", "graph", "punct",
+        "control", "print", "graph", "punct", "boolean",
         NULL
     };
     enum {
         STR_IS_INTEGER, STR_IS_ALPHA, STR_IS_ALNUM, STR_IS_ASCII, STR_IS_DIGIT,
         STR_IS_DOUBLE, STR_IS_LOWER, STR_IS_UPPER, STR_IS_SPACE, STR_IS_XDIGIT,
-        STR_IS_CONTROL, STR_IS_PRINT, STR_IS_GRAPH, STR_IS_PUNCT
+        STR_IS_CONTROL, STR_IS_PRINT, STR_IS_GRAPH, STR_IS_PUNCT, STR_IS_BOOLEAN,
     };
     int strclass;
     int len;
@@ -2974,6 +2975,13 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
             {
                 double d;
                 Jim_SetResultBool(interp, Jim_GetDouble(interp, strObjPtr, &d) == JIM_OK && errno != ERANGE);
+                return JIM_OK;
+            }
+
+        case STR_IS_BOOLEAN:
+            {
+                int b;
+                Jim_SetResultBool(interp, Jim_GetBoolean(interp, strObjPtr, &b) == JIM_OK);
                 return JIM_OK;
             }
 
@@ -6046,6 +6054,49 @@ Jim_Obj *Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue)
 }
 
 /* -----------------------------------------------------------------------------
+ * Boolean conversion
+ * ---------------------------------------------------------------------------*/
+static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
+
+int Jim_GetBoolean(Jim_Interp *interp, Jim_Obj *objPtr, int * booleanPtr)
+{
+    if (objPtr->typePtr != &intObjType && SetBooleanFromAny(interp, objPtr, JIM_ERRMSG) == JIM_ERR)
+        return JIM_ERR;
+    *booleanPtr = (int) JimWideValue(objPtr);
+    return JIM_OK;
+}
+
+static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
+{
+    static const char * const falses[] = {
+        "0", "false", "no", "off", NULL
+    };
+    static const char * const trues[] = {
+        "1", "true", "yes", "on", NULL
+    };
+
+    int boolean;
+
+    int index;
+    if (Jim_GetEnum(interp, objPtr, falses, &index, NULL, 0) == JIM_OK) {
+        boolean = 0;
+    } else if (Jim_GetEnum(interp, objPtr, trues, &index, NULL, 0) == JIM_OK) {
+        boolean = 1;
+    } else {
+        if (flags & JIM_ERRMSG) {
+            Jim_SetResultFormatted(interp, "expected boolean but got \"%#s\"", objPtr);
+        }
+        return JIM_ERR;
+    }
+
+    /* Free the old internal repr and set the new one. */
+    Jim_FreeIntRep(interp, objPtr);
+    objPtr->typePtr = &intObjType;
+    objPtr->internalRep.wideValue = boolean;
+    return JIM_OK;
+}
+
+/* -----------------------------------------------------------------------------
  * List object
  * ---------------------------------------------------------------------------*/
 static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *const *elemVec);
@@ -7486,6 +7537,7 @@ int Jim_GetReturnCode(Jim_Interp *interp, Jim_Obj *objPtr, int *intPtr)
 static int JimParseExprOperator(struct JimParserCtx *pc);
 static int JimParseExprNumber(struct JimParserCtx *pc);
 static int JimParseExprIrrational(struct JimParserCtx *pc);
+static int JimParseExprBoolean(struct JimParserCtx *pc);
 
 /* Exrp's Stack machine operators opcodes. */
 
@@ -8117,12 +8169,16 @@ static int ExprBool(Jim_Interp *interp, Jim_Obj *obj)
 {
     long l;
     double d;
+    int b;
 
     if (Jim_GetLong(interp, obj, &l) == JIM_OK) {
         return l != 0;
     }
     if (Jim_GetDouble(interp, obj, &d) == JIM_OK) {
         return d != 0;
+    }
+    if (Jim_GetBoolean(interp, obj, &b) == JIM_OK) {
+        return b != 0;
     }
     return -1;
 }
@@ -8440,6 +8496,14 @@ singlechar:
         case 'n':
         case 'i':
             if (JimParseExprIrrational(pc) == JIM_ERR)
+                if (JimParseExprBoolean(pc) == JIM_ERR)
+                    return JimParseExprOperator(pc);
+            break;
+        case 't':
+        case 'f':
+        case 'o':
+        case 'y':
+            if (JimParseExprBoolean(pc) == JIM_ERR)
                 return JimParseExprOperator(pc);
             break;
         default:
@@ -8489,6 +8553,27 @@ static int JimParseExprIrrational(struct JimParserCtx *pc)
             pc->len -= 3;
             pc->tend = pc->p - 1;
             pc->tt = JIM_TT_EXPR_DOUBLE;
+            return JIM_OK;
+        }
+    }
+    return JIM_ERR;
+}
+
+static int JimParseExprBoolean(struct JimParserCtx *pc)
+{
+    const char *booleans[] = { "false", "no", "off", "true", "yes", "on", NULL };
+    const int lengths[] = { 5, 2, 3, 4, 3, 2, 0 };
+    int i;
+
+    for (i = 0; booleans[i]; i++) {
+        const char *boolean = booleans[i];
+        int length = lengths[i];
+
+        if (strncmp(boolean, pc->p, length) == 0) {
+            pc->p += length;
+            pc->len -= length;
+            pc->tend = pc->p - 1;
+            pc->tt = JIM_TT_EXPR_BOOLEAN;
             return JIM_OK;
         }
     }
@@ -8552,7 +8637,7 @@ const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", ",,,", "INT",
-            "DBL", "$()" };
+            "DBL", "BOO", "$()" };
     if (type < JIM_TT_EXPR_OP) {
         return tt_names[type];
     }
@@ -8968,6 +9053,7 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
             case JIM_TT_DICTSUGAR:
             case JIM_TT_EXPRSUGAR:
             case JIM_TT_CMD:
+            case JIM_TT_EXPR_BOOLEAN:
                 token->type = t->type;
 strexpr:
                 token->objPtr = Jim_NewStringObj(interp, t->token, t->len);
@@ -9367,6 +9453,7 @@ noopt:
         switch (expr->token[i].type) {
             case JIM_TT_EXPR_INT:
             case JIM_TT_EXPR_DOUBLE:
+            case JIM_TT_EXPR_BOOLEAN:
             case JIM_TT_STR:
                 ExprPush(&e, expr->token[i].objPtr);
                 break;
@@ -9439,6 +9526,7 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
     int retcode;
     jim_wide wideValue;
     double doubleValue;
+    int booleanValue;
     Jim_Obj *exprResultPtr;
 
     retcode = Jim_EvalExpression(interp, exprObjPtr, &exprResultPtr);
@@ -9447,8 +9535,14 @@ int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 
     if (JimGetWideNoErr(interp, exprResultPtr, &wideValue) != JIM_OK) {
         if (Jim_GetDouble(interp, exprResultPtr, &doubleValue) != JIM_OK) {
-            Jim_DecrRefCount(interp, exprResultPtr);
-            return JIM_ERR;
+            if (Jim_GetBoolean(interp, exprResultPtr, &booleanValue) != JIM_OK) {
+                Jim_DecrRefCount(interp, exprResultPtr);
+                return JIM_ERR;
+            } else {
+                Jim_DecrRefCount(interp, exprResultPtr);
+                *boolPtr = booleanValue;
+                return JIM_OK;
+            }
         }
         else {
             Jim_DecrRefCount(interp, exprResultPtr);
@@ -12843,6 +12937,9 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
                     break;
                 case JIM_TT_EXPR_DOUBLE:
                     type = "double";
+                    break;
+                case JIM_TT_EXPR_BOOLEAN:
+                    type = "boolean";
                     break;
                 case JIM_TT_CMD:
                     type = "command";

@@ -574,6 +574,42 @@ test expr-20.7 {handling of compile error in runtime case} {
     list [catch {expr + {[error foo]}} msg]
 } {1}
 
+test expr-21.1 {checking boolean 0} {
+  expr 0
+} 0
+test expr-21.2 {checking boolean 0} {
+  expr {0 || 0}
+} 0
+test expr-21.3 {checking boolean false} {
+  expr {0 || false}
+} 0
+test expr-21.4 {checking boolean no} {
+  expr {0 || no}
+} 0
+test expr-21.5 {checking boolean off} {
+  expr {0 || off}
+} 0
+test expr-21.6 {checking boolean 1} {
+  expr {0 || 1}
+} 1
+test expr-21.7 {checking boolean true} {
+  expr {0 || true}
+} 1
+test expr-21.8 {checking boolean yes} {
+  expr {0 || yes}
+} 1
+test expr-21.9 {checking boolean on} {
+  expr {0 || on}
+} 1
+test expr-21.7 {checking boolean mixed case} {
+  set res 0
+  try {
+    expr {0 || True}
+  } on error {msg} {
+    set res 1
+  }
+} 1
+
 # cleanup
 if {[info exists a]} {
     unset a

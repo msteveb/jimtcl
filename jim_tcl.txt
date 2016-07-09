@@ -56,6 +56,8 @@ Changes between 0.76 and 0.77
 1. Add support for `aio sync`
 2. Add SSL and TLS support in aio
 3. Added `zlib`
+4. Added support for boolean constants in `expr`
+5. `string is` now supports 'boolean' class
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -706,23 +708,29 @@ If no numeric interpretation is possible, then an operand is left
 as a string (and only a limited set of operators may be applied to
 it).
 
+String constants representing boolean constants
+(+'0'+, +'1'+, +'false'+, +'off'+, +'no'+, +'true'+, +'on'+, +'yes'+)
+are also recognized and can be used in logical operations.
+
 1. Operands may be specified in any of the following ways:
 
 2. As a numeric value, either integer or floating-point.
 
-3. As a Tcl variable, using standard '$' notation.
+3. As one of valid boolean constants
+
+4. As a Tcl variable, using standard '$' notation.
 The variable's value will be used as the operand.
 
-4. As a string enclosed in double-quotes.
+5. As a string enclosed in double-quotes.
 The expression parser will perform backslash, variable, and
 command substitutions on the information between the quotes,
 and use the resulting value as the operand
 
-5. As a string enclosed in braces.
+6. As a string enclosed in braces.
 The characters between the open brace and matching close brace
 will be used as the operand without any substitutions.
 
-6. As a Tcl command enclosed in brackets.
+7. As a Tcl command enclosed in brackets.
 The command will be executed and its result will be used as
 the operand.
 
@@ -860,7 +868,7 @@ In any case, overflow and underflow are generally not detected
 reliably for intermediate results.
 
 Conversion among internal representations for integer, floating-point,
-and string operands is done automatically as needed.
+string operands is done automatically as needed.
 For arithmetic computations, integers are used until some
 floating-point number is introduced, after which floating-point is used.
 For example,
@@ -3906,6 +3914,7 @@ The legal options (which may be abbreviated) are:
   +alnum+;;  Any alphabet or digit character.
   +alpha+;;  Any alphabet character.
   +ascii+;;  Any character with a value less than 128 (those that are in the 7-bit ascii range).
+  +boolean+;;  Any of the valid string formats for a boolean value in Tcl (0, false, no, off, 1, true, yes, on)
   +control+;; Any control character.
   +digit+;;  Any digit character.
   +double+;; Any of the valid forms for a double in Tcl, with optional surrounding whitespace.
@@ -3920,6 +3929,8 @@ The legal options (which may be abbreviated) are:
   +xdigit+;; Any hexadecimal digit character ([0-9A-Fa-f]).
  ::
     Note that string classification does +'not'+ respect UTF-8. See UTF-8 AND UNICODE
+ ::
+    Note that only +'lowercase'+ boolean values are recognized (Tcl accepts any case).
 
 +*string last* 'string1 string2 ?lastIndex?'+::
     Search +'string2'+ for a sequence of characters that exactly match

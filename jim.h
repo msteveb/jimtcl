@@ -816,6 +816,10 @@ JIM_EXPORT int Jim_EvalExpression (Jim_Interp *interp,
 JIM_EXPORT int Jim_GetBoolFromExpr (Jim_Interp *interp,
         Jim_Obj *exprObjPtr, int *boolPtr);
 
+/* boolean object */
+JIM_EXPORT int Jim_GetBoolean(Jim_Interp *interp, Jim_Obj *objPtr,
+        int *booleanPtr);
+
 /* integer object */
 JIM_EXPORT int Jim_GetWide (Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide *widePtr);
