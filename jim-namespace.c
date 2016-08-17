@@ -217,7 +217,7 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
-        return JIM_ERR;
+        return Jim_CheckShowCommands(interp, argv[1], options);
     }
 
     switch (option) {

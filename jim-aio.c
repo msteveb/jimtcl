@@ -1679,7 +1679,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socket type", JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
+        return Jim_CheckShowCommands(interp, argv[1], socktypes);
 
     Jim_SetEmptyResult(interp);
 

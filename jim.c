@@ -12879,7 +12879,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
+        return Jim_CheckShowCommands(interp, argv[1], options);
     if (option == OPT_REFCOUNT) {
         if (argc != 3) {
             Jim_WrongNumArgs(interp, 2, argv, "object");
@@ -13631,7 +13631,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     }
     if (Jim_GetEnum(interp, argv[1], options, &option, NULL,
             JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
-        return JIM_ERR;
+        return Jim_CheckShowCommands(interp, argv[1], options);
 
     switch (option) {
         case OPT_LENGTH:
@@ -14480,7 +14480,7 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     }
 
     if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
+        return Jim_CheckShowCommands(interp, argv[1], options);
     }
 
     switch (option) {
@@ -14667,9 +14667,8 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
         return JIM_ERR;
     }
-    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV)
-        != JIM_OK) {
-        return JIM_ERR;
+    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        return Jim_CheckShowCommands(interp, argv[1], commands);
     }
 
     /* Test for the most common commands first, just in case it makes a difference */
@@ -15544,34 +15543,72 @@ void Jim_MakeErrorMessage(Jim_Interp *interp)
     Jim_EvalObjVector(interp, 2, argv);
 }
 
-static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
-    const char *prefix, const char *const *tablePtr, const char *name)
+/*
+ * Given a null terminated array of strings, returns an allocated, sorted
+ * copy of the array.
+ */
+static char **JimSortStringTable(const char *const *tablePtr)
 {
     int count;
     char **tablePtrSorted;
-    int i;
 
+    /* Find the size of the table */
     for (count = 0; tablePtr[count]; count++) {
     }
+
+    /* Allocate one extra for the terminating NULL pointer */
+    tablePtrSorted = Jim_Alloc(sizeof(char *) * (count + 1));
+    memcpy(tablePtrSorted, tablePtr, sizeof(char *) * count);
+    qsort(tablePtrSorted, count, sizeof(char *), qsortCompareStringPointers);
+    tablePtrSorted[count] = NULL;
+
+    return tablePtrSorted;
+}
+
+static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
+    const char *prefix, const char *const *tablePtr, const char *name)
+{
+    char **tablePtrSorted;
+    int i;
 
     if (name == NULL) {
         name = "option";
     }
 
     Jim_SetResultFormatted(interp, "%s%s \"%s\": must be ", badtype, name, arg);
-    tablePtrSorted = Jim_Alloc(sizeof(char *) * count);
-    memcpy(tablePtrSorted, tablePtr, sizeof(char *) * count);
-    qsort(tablePtrSorted, count, sizeof(char *), qsortCompareStringPointers);
-    for (i = 0; i < count; i++) {
-        if (i + 1 == count && count > 1) {
+    tablePtrSorted = JimSortStringTable(tablePtr);
+    for (i = 0; tablePtrSorted[i]; i++) {
+        if (tablePtrSorted[i + 1] == NULL && i > 0) {
             Jim_AppendString(interp, Jim_GetResult(interp), "or ", -1);
         }
         Jim_AppendStrings(interp, Jim_GetResult(interp), prefix, tablePtrSorted[i], NULL);
-        if (i + 1 != count) {
+        if (tablePtrSorted[i + 1]) {
             Jim_AppendString(interp, Jim_GetResult(interp), ", ", -1);
         }
     }
     Jim_Free(tablePtrSorted);
+}
+
+
+/*
+ * If objPtr is "-commands" sets the Jim result as a sorted list of options in the table
+ * and returns JIM_OK.
+ *
+ * Otherwise returns JIM_ERR.
+ */
+int Jim_CheckShowCommands(Jim_Interp *interp, Jim_Obj *objPtr, const char *const *tablePtr)
+{
+    if (Jim_CompareStringImmediate(interp, objPtr, "-commands")) {
+        int i;
+        char **tablePtrSorted = JimSortStringTable(tablePtr);
+        Jim_SetResult(interp, Jim_NewListObj(interp, NULL, 0));
+        for (i = 0; tablePtrSorted[i]; i++) {
+            Jim_ListAppendElement(interp, Jim_GetResult(interp), Jim_NewStringObj(interp, tablePtrSorted[i], -1));
+        }
+        Jim_Free(tablePtrSorted);
+        return JIM_OK;
+    }
+    return JIM_ERR;
 }
 
 int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
