@@ -83,22 +83,21 @@ test expr-1.17 "Rotate left" jim {
 } {2}
 
 # This crashes older jim
-test expr-2.1 "bogus unarymin" {
-	catch {expr {unarymin 1}}
-	return 1
-} {1}
+test expr-2.1 "bogus unarymin" -body {
+	expr {unarymin 1}
+} -returnCodes error -match glob -result *
 
-test expr-2.2 "Ternary operator - missing colon" {
-	list [catch {expr {1 ? 2 3}} msg]
-} {1}
+test expr-2.2 "Ternary operator - missing colon" -body {
+	expr {1 ? 2 3}
+} -returnCodes error -match glob -result {missing operator*}
 
-test expr-2.3 "Ternary operator - missing third term" {
-	list [catch {expr {1 ? 2}} msg]
-} {1}
+test expr-2.3 "Ternary operator - missing third term" -body {
+	expr {1 ? 2}
+} -returnCodes error -match glob -result *
 
-test expr-2.4 "Ternary operator - missing question" {
-	list [catch {expr {1 : 2}} msg]
-} {1}
+test expr-2.4 "Ternary operator - missing question" -body {
+	expr {1 : 2}
+} -returnCodes error -match glob -result *
 
 test expr-3.1 "in, ni operators" {
 	set l {a b c d}

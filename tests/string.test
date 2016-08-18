@@ -232,10 +232,10 @@ test string-6.4 {string is, too many args} jim {
 } {1 {wrong # args: should be "string is class ?-strict? str"}}
 test string-6.5 {string is, class check} jim {
     list [catch {string is bogus str} msg] $msg
-} {1 {bad class "bogus": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
+} {1 {bad class "bogus": must be alnum, alpha, ascii, boolean, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
 test string-6.6 {string is, ambiguous class} jim {
     list [catch {string is al str} msg] $msg
-} {1 {ambiguous class "al": must be alnum, alpha, ascii, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
+} {1 {ambiguous class "al": must be alnum, alpha, ascii, boolean, control, digit, double, graph, integer, lower, print, punct, space, upper, or xdigit}}
 test string-6.10 {string is, ok on empty} {
     string is alpha {}
 } 1
@@ -389,7 +389,39 @@ test string-6.88 {string is punct} {
 test string-6.89 {string is xdigit} {
     list [string is xdigit  0123456789\u0061bcdefABCDEFg]
 } 0
-
+test string-6.90 {string is boolean, true} {
+    list [string is boolean 0]
+} 1
+test string-6.91 {string is boolean, true} {
+    list [string is boolean false]
+} 1
+test string-6.92 {string is boolean, true} {
+    list [string is boolean no]
+} 1
+test string-6.93 {string is boolean, true} {
+    list [string is boolean off]
+} 1
+test string-6.94 {string is boolean, true} {
+    list [string is boolean 1]
+} 1
+test string-6.95 {string is boolean, true} {
+    list [string is boolean true]
+} 1
+test string-6.96 {string is boolean, true} {
+    list [string is boolean yes]
+} 1
+test string-6.97 {string is boolean, true} {
+    list [string is boolean on]
+} 1
+test string-6.98 {string is boolean, not boolean string, false} {
+    list [string is boolean a]
+} 0
+test string-6.99 {string is boolean, special character, false} {
+    list [string is boolean -]
+} 0
+test string-6.10 {string is boolean, mixed case, false} {
+    list [string is boolean True]
+} 0
 test string-7.1 {string last, too few args} {
     list [catch {string last a} msg]
 } {1}

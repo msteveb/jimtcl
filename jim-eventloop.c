@@ -71,7 +71,7 @@
 /* File event structure */
 typedef struct Jim_FileEvent
 {
-    FILE *handle;
+    int fd;
     int mask;                   /* one of JIM_EVENT_(READABLE|WRITABLE|EXCEPTION) */
     Jim_FileProc *fileProc;
     Jim_EventFinalizerProc *finalizerProc;
@@ -143,14 +143,14 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 }
 
 
-void Jim_CreateFileHandler(Jim_Interp *interp, FILE * handle, int mask,
+void Jim_CreateFileHandler(Jim_Interp *interp, int fd, int mask,
     Jim_FileProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
     Jim_FileEvent *fe;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
     fe = Jim_Alloc(sizeof(*fe));
-    fe->handle = handle;
+    fe->fd = fd;
     fe->mask = mask;
     fe->fileProc = proc;
     fe->finalizerProc = finalizerProc;
@@ -162,14 +162,14 @@ void Jim_CreateFileHandler(Jim_Interp *interp, FILE * handle, int mask,
 /**
  * Removes all event handlers for 'handle' that match 'mask'.
  */
-void Jim_DeleteFileHandler(Jim_Interp *interp, FILE * handle, int mask)
+void Jim_DeleteFileHandler(Jim_Interp *interp, int fd, int mask)
 {
     Jim_FileEvent *fe, *next, *prev = NULL;
     Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
 
     for (fe = eventLoop->fileEventHead; fe; fe = next) {
         next = fe->next;
-        if (fe->handle == handle && (fe->mask & mask)) {
+        if (fe->fd == fd && (fe->mask & mask)) {
             /* Remove this entry from the list */
             if (prev == NULL)
                 eventLoop->fileEventHead = next;
@@ -389,16 +389,14 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
         /* Check file events */
         while (fe != NULL) {
-            int fd = fileno(fe->handle);
-
             if (fe->mask & JIM_EVENT_READABLE)
-                FD_SET(fd, &rfds);
+                FD_SET(fe->fd, &rfds);
             if (fe->mask & JIM_EVENT_WRITABLE)
-                FD_SET(fd, &wfds);
+                FD_SET(fe->fd, &wfds);
             if (fe->mask & JIM_EVENT_EXCEPTION)
-                FD_SET(fd, &efds);
-            if (maxfd < fd)
-                maxfd = fd;
+                FD_SET(fe->fd, &efds);
+            if (maxfd < fe->fd)
+                maxfd = fe->fd;
             fe = fe->next;
         }
 
@@ -420,8 +418,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
         else if (retval > 0) {
             fe = eventLoop->fileEventHead;
             while (fe != NULL) {
-                int fd = fileno(fe->handle);
                 int mask = 0;
+                int fd = fe->fd;
 
                 if ((fe->mask & JIM_EVENT_READABLE) && FD_ISSET(fd, &rfds))
                     mask |= JIM_EVENT_READABLE;
@@ -433,17 +431,18 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                 if (mask) {
                     if (fe->fileProc(interp, fe->clientData, mask) != JIM_OK) {
                         /* Remove the element on handler error */
-                        Jim_DeleteFileHandler(interp, fe->handle, mask);
+                        Jim_DeleteFileHandler(interp, fd, mask);
+                        /* At this point fe is no longer valid - it will be assigned below */
                     }
                     processed++;
                     /* After an event is processed our file event list
                      * may no longer be the same, so what we do
                      * is to clear the bit for this file descriptor and
                      * restart again from the head. */
-                    fe = eventLoop->fileEventHead;
                     FD_CLR(fd, &rfds);
                     FD_CLR(fd, &wfds);
                     FD_CLR(fd, &efds);
+                    fe = eventLoop->fileEventHead;
                 }
                 else {
                     fe = fe->next;

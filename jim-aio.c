@@ -39,6 +39,7 @@
 
 #include "jimautoconf.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -192,7 +193,7 @@ static const JimAioFopsType stdio_fops = {
     NULL
 };
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 
 static SSL_CTX *JimAioSslCtx(Jim_Interp *interp);
 
@@ -270,7 +271,7 @@ static const JimAioFopsType ssl_fops = {
     ssl_strerror,
     ssl_verify
 };
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
@@ -481,7 +482,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
 
 #ifdef jim_ext_eventloop
     /* remove all existing EventHandlers */
-    Jim_DeleteFileHandler(interp, af->fp, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
+    Jim_DeleteFileHandler(interp, af->fd, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE | JIM_EVENT_EXCEPTION);
 #endif
 
 #if defined(JIM_SSL)
@@ -1012,7 +1013,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
 
     if (*scriptHandlerObj) {
         /* Delete old handler */
-        Jim_DeleteFileHandler(interp, af->fp, mask);
+        Jim_DeleteFileHandler(interp, af->fd, mask);
     }
 
     /* Now possibly add the new script(s) */
@@ -1025,7 +1026,7 @@ static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Ob
     Jim_IncrRefCount(argv[0]);
     *scriptHandlerObj = argv[0];
 
-    Jim_CreateFileHandler(interp, af->fp, mask,
+    Jim_CreateFileHandler(interp, af->fd, mask,
         JimAioFileEventHandler, scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
@@ -1053,7 +1054,7 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 }
 #endif
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -1156,7 +1157,7 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     return ret;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 #ifdef HAVE_LOCKF
 static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1352,7 +1353,7 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Returns script, or invoke exception-script when oob data, {} to remove */
     },
 #endif
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
     {   "ssl",
         "?-server cert priv?",
         aio_cmd_ssl,
@@ -1368,8 +1369,8 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Verifies the certificate of a SSL/TLS channel */
     },
-#endif
-#ifdef HAVE_LOCKF
+#endif /* JIM_BOOTSTRAP */
+#if defined(HAVE_LOCKF) && !defined(JIM_BOOTSTRAP)
     {   "lock",
 	NULL,
         aio_cmd_lock,
@@ -1424,7 +1425,7 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode) ? JIM_OK : JIM_ERR;
 }
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
 {
     SSL_CTX_free((SSL_CTX *)privData);
@@ -1447,7 +1448,7 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
     }
     return ssl_ctx;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 /**
  * Creates a channel for fh/fd/filename.
@@ -1877,7 +1878,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
 #endif
 }
 
-#if defined(JIM_SSL)
+#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     SSL_CTX *ssl_ctx;
@@ -1897,7 +1898,7 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
     return JIM_ERR;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 int Jim_aioInit(Jim_Interp *interp)
 {
