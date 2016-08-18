@@ -112,6 +112,10 @@ if {[cc-check-functions sysinfo]} {
     }
 }
 
+cc-with {-includes fcntl.h} {
+    cc-check-types "struct flock"
+}
+
 cc-check-lfs
 cc-check-functions fseeko ftello
 

@@ -1159,10 +1159,16 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif /* JIM_BOOTSTRAP */
 
+#if defined(HAVE_STRUCT_FLOCK) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    struct flock fl = { F_WRLCK, SEEK_SET, 0, 0 };
+    struct flock fl;
+
+    fl.l_start = 0;
+    fl.l_len = 0;
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
 
     switch (fcntl(af->fd, F_SETLK, &fl))
     {
@@ -1190,11 +1196,16 @@ static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_unlock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    struct flock fl = { F_UNLCK, SEEK_SET, 0, 0 };
+    struct flock fl;
+    fl.l_start = 0;
+    fl.l_len = 0;
+    fl.l_type = F_UNLCK;
+    fl.l_whence = SEEK_SET;
 
     Jim_SetResultInt(interp, fcntl(af->fd, F_SETLK, &fl) == 0);
     return JIM_OK;
 }
+#endif /* JIM_BOOTSTRAP */
 
 static const jim_subcmd_type aio_command_table[] = {
     {   "read",
@@ -1370,8 +1381,9 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Verifies the certificate of a SSL/TLS channel */
     },
 #endif /* JIM_BOOTSTRAP */
+#if defined(HAVE_STRUCT_FLOCK) && !defined(JIM_BOOTSTRAP)
     {   "lock",
-	NULL,
+        NULL,
         aio_cmd_lock,
         0,
         0,
@@ -1384,6 +1396,7 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Relase a lock. */
     },
+#endif /* JIM_BOOTSTRAP */
     { NULL }
 };
 

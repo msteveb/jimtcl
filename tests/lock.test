@@ -10,6 +10,11 @@
 
 source [file dirname [info script]]/testing.tcl
 
+needs constraint jim
+# Really we want to check if locking is supported, but there
+# is no easy way to do that, so use the existence of os.wait as a proxy
+needs cmd os.wait
+
 set fh [open locktest.file w]
 
 test lock-1.1 {grab lock} {
@@ -29,32 +34,16 @@ test lock-1.4 {release lock again} {
 } 1
 
 test lock-1.5 {grab lock from sub-process} {
-	switch [set pid [os.fork]] {
-	    -1 { error "Fork error." }
-	    0 {
-		# Child process
-		$fh lock
-		sleep 2
-		puts $fh [$fh unlock]
-		exit
-	    }
-	    default {
-		sleep 1
-		set stat [$fh lock]
-		set stat
-	    }
-	}
+	# Run a child process that grabs the lock for 0.5 seconds
+	set pid [exec [info nameofexecutable] -e {set fh [open locktest.file r+]; $fh lock; sleep 0.5} >/dev/null &]
+	sleep 0.1
+	# Try to grab the lock - should fail
+	set stat [$fh lock]
+	sleep 0.5
+	set stat
 } 0
-
-# fcntl() allows unlock on non-held lock so unlock will always return 1
-#set x [os.wait $pid]
-#test lock-1.6 {check unlock in child process} {
-#	$fh seek 0 start
-#	$fh read 1
-#} 1
 
 $fh close
 file delete locktest.file
 
 testreport
-
