@@ -4525,7 +4525,7 @@ aio
 
 +$handle *lock*+::
     Apply a POSIX lock to the open file associated with the handle using
-    lockf(3). Only available on platforms that support lockf(3).
+    fcntl(2).
     The handle must be open for write access.
     Returns 1 if the lock was successfully obtained, 0 otherwise.
     An error occurs if the handle is not suitable for locking (e.g.
@@ -4568,8 +4568,7 @@ aio
     Initiates a SSL/TLS session and returns a new stream
 
 +$handle *unlock*+::
-    Release a POSIX lock previously acquired by `aio lock`. Only available
-    on platforms that support lockf(3).
+    Release a POSIX lock previously acquired by `aio lock`.
 
 +$handle *verify*+::
     Verifies the certificate of a SSL/TLS stream peer
