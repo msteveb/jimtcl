@@ -1159,6 +1159,43 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif /* JIM_BOOTSTRAP */
 
+static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    struct flock fl = { F_WRLCK, SEEK_SET, 0, 0 };
+
+    switch (fcntl(af->fd, F_SETLK, &fl))
+    {
+        case 0:
+            Jim_SetResultInt(interp, 1);
+            break;
+        case -1:
+            if (errno == EACCES || errno == EAGAIN)
+                Jim_SetResultInt(interp, 0);
+            else
+            {
+                Jim_SetResultFormatted(interp, "lock failed: %s",
+                    strerror(errno));
+                return JIM_ERR;
+            }
+            break;
+        default:
+            Jim_SetResultInt(interp, 0);
+            break;
+    }
+
+    return JIM_OK;
+}
+
+static int aio_cmd_unlock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    struct flock fl = { F_UNLCK, SEEK_SET, 0, 0 };
+
+    Jim_SetResultInt(interp, fcntl(af->fd, F_SETLK, &fl) == 0);
+    return JIM_OK;
+}
+
 static const jim_subcmd_type aio_command_table[] = {
     {   "read",
         "?-nonewline? ?len?",
@@ -1333,6 +1370,20 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Verifies the certificate of a SSL/TLS channel */
     },
 #endif /* JIM_BOOTSTRAP */
+    {   "lock",
+	NULL,
+        aio_cmd_lock,
+        0,
+        0,
+        /* Description: Attempt to get a lock. */
+    },
+    {   "unlock",
+        NULL,
+        aio_cmd_unlock,
+        0,
+        0,
+        /* Description: Relase a lock. */
+    },
     { NULL }
 };
 

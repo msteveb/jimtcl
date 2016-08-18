@@ -1,0 +1,60 @@
+# This test file covers POSIX file locking
+#
+# This file contains a collection of tests for one or more of the Tcl built-in
+# commands. Sourcing this file into Tcl runs the tests and generates output
+# for errors.  No output means no errors were found.
+#
+# Copyright (c) 2003-2009 Donal K. Fellows
+# See the file "license.terms" for information on usage and redistribution of
+# this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file dirname [info script]]/testing.tcl
+
+set fh [open locktest.file w]
+
+test lock-1.1 {grab lock} {
+	$fh lock
+} 1
+
+test lock-1.2 {grab lock again} {
+	$fh lock
+} 1
+
+test lock-1.j {release lock} {
+	$fh unlock
+} 1
+
+test lock-1.4 {release lock again} {
+	$fh unlock
+} 1
+
+test lock-1.5 {grab lock from sub-process} {
+	switch [set pid [os.fork]] {
+	    -1 { error "Fork error." }
+	    0 {
+		# Child process
+		$fh lock
+		sleep 2
+		puts $fh [$fh unlock]
+		exit
+	    }
+	    default {
+		sleep 1
+		set stat [$fh lock]
+		set stat
+	    }
+	}
+} 0
+
+# fcntl() allows unlock on non-held lock so unlock will always return 1
+#set x [os.wait $pid]
+#test lock-1.6 {check unlock in child process} {
+#	$fh seek 0 start
+#	$fh read 1
+#} 1
+
+$fh close
+file delete locktest.file
+
+testreport
+
