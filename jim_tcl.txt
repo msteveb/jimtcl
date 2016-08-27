@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.78 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.78+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,6 +52,10 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes since 0.78
+~~~~~~~~~~~~~~~~~~
+1. Add `file mtimeus` for high resolution file timestamps
+
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add serial/tty support with `aio tty`
@@ -2373,6 +2377,12 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     error is generated. If +'time'+ is given, sets the modification time
     of the file to the given value.
 
++*file mtimeus* 'name ?time_us?'+::
+    As for `file mtime` except the time value is in microseconds
+	since the epoch (see also `clock microseconds`).
+	Note that some platforms and some filesystems don't support high
+	resolution timestamps for files.
+
 +*file normalize* 'name'+::
     Return the normalized path of +'name'+. See 'realpath(3)'.
 
@@ -2410,7 +2420,7 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     Invoke the 'stat' kernel call on +'name'+, and return the result
     as a dictionary with the following keys: 'atime',
     'ctime', 'dev', 'gid', 'ino', 'mode', 'mtime',
-    'nlink', 'size', 'type', 'uid'.
+    'nlink', 'size', 'type', 'uid', 'mtimeus' (if supported - see `file mtimeus`)
     Each element except 'type' is a decimal string with the value of
     the corresponding field from the 'stat' return structure; see the
     manual entry for 'stat' for details on the meanings of the values.

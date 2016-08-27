@@ -77,6 +77,13 @@
 #define ISWINDOWS 0
 #endif
 
+/* extract nanosecond resolution mtime from struct stat */
+#if defined(HAVE_STRUCT_STAT_ST_MTIMESPEC)
+    #define STAT_MTIME_US(STAT) ((STAT).st_mtimespec.tv_sec * 1000000ll + (STAT).st_mtimespec.tv_nsec / 1000)
+#elif defined(HAVE_STRUCT_STAT_ST_MTIM)
+    #define STAT_MTIME_US(STAT) ((STAT).st_mtim.tv_sec * 1000000ll + (STAT).st_mtim.tv_nsec / 1000)
+#endif
+
 /*
  *----------------------------------------------------------------------
  *
@@ -169,6 +176,9 @@ static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat
     AppendStatElement(interp, listObj, "atime", sb->st_atime);
     AppendStatElement(interp, listObj, "mtime", sb->st_mtime);
     AppendStatElement(interp, listObj, "ctime", sb->st_ctime);
+#ifdef STAT_MTIME_US
+    AppendStatElement(interp, listObj, "mtimeus", STAT_MTIME_US(*sb));
+#endif
     Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "type", -1));
     Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, JimGetFileType((int)sb->st_mode), -1));
 
@@ -610,30 +620,38 @@ static int file_cmd_atime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+/**
+ * Set file atime/mtime to the given time in microseconds since the epoch.
+ */
+static int JimSetFileTimes(Jim_Interp *interp, const char *filename, jim_wide us)
+{
+#ifdef HAVE_UTIMES
+    struct timeval times[2];
+
+    times[1].tv_sec = times[0].tv_sec = us / 1000000;
+    times[1].tv_usec = times[0].tv_usec = us % 1000000;
+
+    if (utimes(filename, times) != 0) {
+        Jim_SetResultFormatted(interp, "can't set time on \"%s\": %s", filename, strerror(errno));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+#else
+    Jim_SetResultString(interp, "Not implemented", -1);
+    return JIM_ERR;
+#endif
+}
+
 static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     struct stat sb;
 
     if (argc == 2) {
-#ifdef HAVE_UTIMES
-        jim_wide newtime;
-        struct timeval times[2];
-
-        if (Jim_GetWide(interp, argv[1], &newtime) != JIM_OK) {
+        jim_wide secs;
+        if (Jim_GetWide(interp, argv[1], &secs) != JIM_OK) {
             return JIM_ERR;
         }
-
-        times[1].tv_sec = times[0].tv_sec = newtime;
-        times[1].tv_usec = times[0].tv_usec = 0;
-
-        if (utimes(Jim_String(argv[0]), times) != 0) {
-            Jim_SetResultFormatted(interp, "can't set time on \"%#s\": %s", argv[0], strerror(errno));
-            return JIM_ERR;
-        }
-#else
-        Jim_SetResultString(interp, "Not implemented", -1);
-        return JIM_ERR;
-#endif
+        return JimSetFileTimes(interp, Jim_String(argv[0]), secs * 1000000);
     }
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
@@ -641,6 +659,26 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResultInt(interp, sb.st_mtime);
     return JIM_OK;
 }
+
+#ifdef STAT_MTIME_US
+static int file_cmd_mtimeus(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    struct stat sb;
+
+    if (argc == 2) {
+        jim_wide us;
+        if (Jim_GetWide(interp, argv[1], &us) != JIM_OK) {
+            return JIM_ERR;
+        }
+        return JimSetFileTimes(interp, Jim_String(argv[0]), us);
+    }
+    if (file_stat(interp, argv[0], &sb) != JIM_OK) {
+        return JIM_ERR;
+    }
+    Jim_SetResultInt(interp, STAT_MTIME_US(sb));
+    return JIM_OK;
+}
+#endif
 
 static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -765,6 +803,15 @@ static const jim_subcmd_type file_command_table[] = {
         2,
         /* Description: Get or set last modification time */
     },
+#ifdef STAT_MTIME_US
+    {   "mtimeus",
+        "name ?time?",
+        file_cmd_mtimeus,
+        1,
+        2,
+        /* Description: Get or set last modification time in microseconds */
+    },
+#endif
     {   "copy",
         "?-force? source dest",
         file_cmd_copy,
