@@ -135,14 +135,22 @@ proc main {argv} {
 		autosetup_reference [opt-val {manual ref reference}]
 	}
 
-	if {[opt-val init] ne ""} {
-		use init
-		autosetup_init [opt-val init]
-	}
-
+	# Allow combining --install and --init
+	set earlyexit 0
 	if {[opt-val install] ne ""} {
 		use install
 		autosetup_install [opt-val install]
+		incr earlyexit
+	}
+
+	if {[opt-val init] ne ""} {
+		use init
+		autosetup_init [opt-val init]
+		incr earlyexit
+	}
+
+	if {$earlyexit} {
+		exit 0
 	}
 
 	if {![file exists $autosetup(autodef)]} {
@@ -163,11 +171,13 @@ proc main {argv} {
 
 	autosetup_add_dep $autosetup(autodef)
 
-	set cmd [file-normalize $autosetup(exe)]
+	define CONFIGURE_OPTS ""
 	foreach arg $autosetup(argv) {
-		append cmd " [quote-if-needed $arg]"
+		define-append CONFIGURE_OPTS [quote-if-needed $arg]
 	}
-	define AUTOREMAKE $cmd
+	define AUTOREMAKE [file-normalize $autosetup(exe)]
+	define-append AUTOREMAKE [get-define CONFIGURE_OPTS]
+
 
 	# Log how we were invoked
 	configlog "Invoked as: [getenv WRAPPER $::argv0] [quote-argv $autosetup(argv)]"
@@ -400,7 +410,7 @@ proc options-show {} {
 #
 # If the name:value form is used, the value must be provided with the option (as --name=myvalue).
 # If the name:=value form is used, the value is optional and the given value is used as the default
-# if is not provided.
+# if it is not provided.
 #
 # Undocumented options are also supported by omitting the "=> description.
 # These options are not displayed with --help and can be useful for internal options or as aliases.
@@ -459,6 +469,15 @@ proc config_sub {alias} {
 proc define {name {value 1}} {
 	set ::define($name) $value
 	#dputs "$name <= $value"
+}
+
+# @undefine name
+#
+# Undefine the named variable
+#
+proc undefine {name} {
+	unset -nocomplain ::define($name)
+	#dputs "$name <= <undef>"
 }
 
 # @define-append name value ...
@@ -548,7 +567,7 @@ proc env-is-set {name} {
 # @readfile filename ?default=""?
 #
 # Return the contents of the file, without the trailing newline.
-# If the doesn't exist or can't be read, returns $default.
+# If the file doesn't exist or can't be read, returns $default.
 #
 proc readfile {filename {default_value ""}} {
 	set result $default_value
@@ -1342,7 +1361,7 @@ proc autosetup_init {type} {
 			# XXX: Use the options-show code to wrap the description
 			puts [format "%-10s %s" $type $desc]
 		}
-		exit 0
+		return
 	}
 	lassign [dict get $::autosetup(inittypes) $type] desc script
 
@@ -1352,8 +1371,6 @@ proc autosetup_init {type} {
 	cd $::autosetup(srcdir)
 
 	uplevel #0 $script
-
-	exit 0
 }
 
 proc autosetup_add_init_type {type desc script} {
@@ -1395,7 +1412,7 @@ proc autosetup_install {dir} {
 
 		set f [open autosetup/autosetup w]
 
-		set publicmodules $::autosetup(libdir)/default.auto
+		set publicmodules [glob $::autosetup(libdir)/*.auto]
 
 		# First the main script, but only up until "CUT HERE"
 		set in [open $::autosetup(dir)/autosetup]
@@ -1446,8 +1463,6 @@ proc autosetup_install {dir} {
 
 	# Now create 'configure' if necessary
 	autosetup_create_configure
-
-	exit 0
 }
 
 proc autosetup_create_configure {} {

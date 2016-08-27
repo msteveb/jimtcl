@@ -16,7 +16,7 @@
 ## SHOBJ_LDFLAGS_R   - as above, but all symbols must be resolved
 ## SH_LINKFLAGS      Flags to use linking an executable which will load shared objects
 ## LD_LIBRARY_PATH   Environment variable which specifies path to shared libraries
-## STRIPLIBFLAGS     Arguments to strip to strip a dynamic library
+## STRIPLIBFLAGS     Arguments to strip a dynamic library
 
 module-options {}
 

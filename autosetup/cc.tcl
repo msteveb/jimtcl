@@ -164,7 +164,7 @@ proc cc-check-defines {args} {
 # @cc-check-decls name ...
 #
 # Checks that each given name is either a preprocessor symbol or rvalue
-# such as an enum. Note that the define used for a decl is HAVE_DECL_xxx
+# such as an enum. Note that the define used is HAVE_DECL_xxx
 # rather than HAVE_xxx
 proc cc-check-decls {args} {
 	set ret 1
@@ -203,7 +203,7 @@ proc cc-check-members {args} {
 
 # @cc-check-function-in-lib function libs ?otherlibs?
 #
-# Checks that the given given function can be found in one of the libs.
+# Checks that the given function can be found in one of the libs.
 #
 # First checks for no library required, then checks each of the libraries
 # in turn.
@@ -287,7 +287,7 @@ proc cc-check-tools {args} {
 # For example, when checking for "grep", the path is searched for
 # the executable, 'grep', and if found GREP is defined as "grep".
 #
-# It the executable is not found, the variable is defined as false.
+# If the executable is not found, the variable is defined as false.
 # Returns 1 if all programs were found, or 0 otherwise.
 #
 proc cc-check-progs {args} {
