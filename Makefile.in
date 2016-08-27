@@ -198,6 +198,10 @@ sdl.so: jim-sdl.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sdl.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sdl.o $(SH_LIBJIM) @LDLIBS_sdl@
 
+zlib.so: jim-zlib.c
+	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-zlib.o $> $^
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-zlib.o $(SH_LIBJIM) @LDLIBS_zlib@
+
 Tcl.html: jim_tcl.txt
 	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
 
