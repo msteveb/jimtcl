@@ -473,6 +473,29 @@ Win32_FreeLibrary(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
     return r;
 }
 
+/* win32.MessageBox message title ?type? */
+static int
+Win32_MessageBox(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
+{
+    int r;
+    const char *message, *title;
+    long int type = 0;
+
+    if (objc < 3 || objc > 4) {
+        Jim_WrongNumArgs(interp, 1, objv, "message title ?type?");
+        return JIM_ERR;
+    }
+    message = Jim_String(objv[1]);
+    title = Jim_String(objv[2]);
+    if (objc == 4) {
+        if (Jim_GetLong(interp, objv[3], &type) != JIM_OK)
+            return JIM_ERR;
+    }
+    r = (int) MessageBoxA(NULL, message, title, (int)type);
+    Jim_SetResultInt(interp, r);
+    return JIM_OK;
+}
+
 
 /* ---------------------------------------------------------------------- */
 
@@ -505,6 +528,7 @@ Jim_win32Init(Jim_Interp *interp)
     CMD(GetModuleHandle);
     CMD(LoadLibrary);
     CMD(FreeLibrary);
+    CMD(MessageBox);
 
     return JIM_OK;
 }
