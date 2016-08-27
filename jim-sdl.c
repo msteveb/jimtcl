@@ -36,8 +36,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <SDL/SDL.h>
-#include <SDL/SDL_gfxPrimitives.h>
+#include <SDL.h>
+#include <SDL_gfxPrimitives.h>
 
 #include <jim.h>
 

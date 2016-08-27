@@ -1,5 +1,3 @@
-# The complex extension checking is done here.
-
 global withinfo
 global extdb
 
@@ -58,12 +56,27 @@ proc check-extension-status {ext required} {
     # Stash the current value of LIBS
     set LIBS [get-define LIBS]
 
-    # Check direct dependencies
-    if [ext-get $ext check 1] {
-        # "check" conditions are met
-    } else {
-        # not met
-        incr depinfo(n)
+    set use_pkgconfig 0
+    set pkgconfig [ext-get $ext pkg-config]
+    if {$pkgconfig ne ""} {
+        # pkg-config support is optional, so explicitly initialse it here
+        if {[pkg-config-init 0]} {
+            lassign $pkgconfig pkg args
+
+            if {[pkg-config {*}$pkgconfig]} {
+                # Found via pkg-config so ignore check and libdep
+                set use_pkgconfig 1
+            }
+        }
+    }
+    if {!$use_pkgconfig} {
+        # Check direct dependencies
+        if [ext-get $ext check 1] {
+            # "check" conditions are met
+        } else {
+            # not met
+            incr depinfo(n)
+        }
     }
 
     if {$ext in $withinfo(mod)} {
@@ -104,8 +117,14 @@ proc check-extension-status {ext required} {
             user-error "Extension $ext can't be a module"
         } else {
             msg-result "Extension $ext...module"
-            foreach i [ext-get $ext libdep] {
-                define-append LDLIBS_$ext [get-define $i ""]
+            if {$use_pkgconfig} {
+                define-append LDLIBS_$ext [pkg-config-get $pkg LIBS]
+                define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
+                define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+            } else {
+                foreach i [ext-get $ext libdep] {
+                    define-append LDLIBS_$ext [get-define $i ""]
+                }
             }
         }
         return [ext-set-status $ext m]
@@ -122,8 +141,14 @@ proc check-extension-status {ext required} {
         # Could be selected, but isn't (yet)
         return [ext-set-status $ext x]
     }
-    foreach i [ext-get $ext libdep] {
-        define-append LDLIBS [get-define $i ""]
+    if {$use_pkgconfig} {
+        define-append LDLIBS [pkg-config-get $pkg LIBS]
+        define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
+        define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+    } else {
+        foreach i [ext-get $ext libdep] {
+            define-append LDLIBS [get-define $i ""]
+        }
     }
     return [ext-set-status $ext y]
 }

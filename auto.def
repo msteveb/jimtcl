@@ -4,7 +4,7 @@
 define JIM_VERSION 76
 
 # Note: modules which support options *must* be included before 'options'
-use cc cc-shared cc-db cc-lib
+use cc cc-shared cc-db cc-lib pkg-config
 use local
 
 options {
@@ -280,15 +280,15 @@ dict set extdb info {
     namespace { dep nshelper }
     posix    { check {[have-feature waitpid]} }
     readdir  { check {[have-feature opendir]} }
-    readline { check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
+    readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
     rlprompt { dep readline }
     tree     { dep oo }
-    sdl      { check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
+    sdl      { pkg-config SDL_gfx check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
                libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
              }
     signal   { check {[have-feature sigaction] && [have-feature vfork]} }
-    sqlite3  { check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
-    zlib     { check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
+    sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
+    zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }
