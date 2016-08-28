@@ -11,9 +11,8 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
-# Really we want to check if locking is supported, but there
-# is no easy way to do that, so use the existence of os.wait as a proxy
-needs cmd os.wait
+testConstraint aio.lock [expr {"lock" in [stdin -commands]}]
+needs constraint aio.lock
 
 set fh [open locktest.file w]
 
