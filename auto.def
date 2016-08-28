@@ -191,12 +191,26 @@ if {[opt-bool ipv6 full]} {
     define JIM_IPV6
 }
 if {[opt-bool ssl full]} {
-    if {[cc-check-includes openssl/ssl.h] && [cc-check-function-in-lib ERR_error_string crypto] && [cc-check-function-in-lib TLSv1_2_method ssl]} {
-        msg-result "Enabling SSL"
-        define JIM_SSL
-        define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_TLSv1_2_method]
-    } elseif {[opt-bool ssl]} {
-        user-error "SSL support requires OpenSSL"
+    if {[pkg-config-init 0]} {
+        foreach pkg {openssl libssl} {
+            if {[pkg-config $pkg]} {
+                define JIM_SSL
+                define-append LDLIBS [pkg-config-get $pkg LIBS]
+                define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
+                define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+                msg-result "Enabling SSL ($pkg)"
+                break
+            }
+        }
+    }
+    if {![is-defined JIM_SSL]} {
+        if {[cc-check-includes openssl/ssl.h] && [cc-check-function-in-lib ERR_error_string crypto] && [cc-check-function-in-lib TLSv1_2_method ssl]} {
+            msg-result "Enabling SSL"
+            define JIM_SSL
+            define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_TLSv1_2_method]
+        } elseif {[opt-bool ssl]} {
+            user-error "SSL support requires OpenSSL"
+        }
     }
 }
 if {[opt-bool lineedit full]} {
