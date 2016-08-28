@@ -37,7 +37,7 @@
 /* Apparently windows.h and cygwin don't mix, but we seem to get
  * away with it here. Use at your own risk under cygwin
  */
-#if defined(__CYGWIN__)
+#if defined(__CYGWIN__) || defined(__MINGW32__)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
@@ -53,6 +53,10 @@
 #pragma comment(lib, "advapi32")
 #pragma comment(lib, "psapi")
 #endif /* _MSC_VER >= 1000 */
+
+#if _WIN32_WINNT < 0x600
+    #define GetTickCount64 GetTickCount
+#endif
 
 static Jim_Obj *
 Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
