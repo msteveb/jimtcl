@@ -5,6 +5,6 @@ addons:
     packages:
       - libsqlite3-dev
 before_script:
-  - ./configure --with-ext="oo tree binary sqlite3" --enable-utf8 --ipv6 --disable-docs
+  - ./configure --full --with-ext="sqlite3 zlib" --disable-docs
 script:
   - make test
