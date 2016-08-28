@@ -37,12 +37,19 @@
 #include <jim.h>
 #include <jim-subcmd.h>
 
-#define _PASTE(x) # x
-#define PASTE(x) _PASTE(x)
-
 #define WBITS_GZIP (MAX_WBITS | 16)
 /* use small 64K chunks if no size was specified during decompression, to reduce memory consumption */
 #define DEF_DECOMPRESS_BUFSIZ (64 * 1024)
+
+static int JimZlibCheckBufSize(Jim_Interp *interp, jim_wide bufsiz)
+{
+    if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
+        Jim_SetResultString(interp, "buffer size must be 0 to ", -1);
+        Jim_AppendObj(interp, Jim_GetResult(interp), Jim_NewIntObj(interp, INT_MAX));
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
 
 static int Jim_Crc32(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -155,8 +162,7 @@ static int Jim_Decompress(Jim_Interp *interp, const char *in, int len, long bufs
     Jim_Obj *out;
     int ret;
 
-    if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
-        Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
+    if (JimZlibCheckBufSize(interp, bufsiz)) {
         return JIM_ERR;
     }
 
@@ -219,8 +225,7 @@ static int Jim_Inflate(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
 
-        if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
-            Jim_SetResultString(interp, "buffer size must be 0 to "PASTE(INT_MAX), -1);
+        if (JimZlibCheckBufSize(interp, bufsiz)) {
             return JIM_ERR;
         }
     }
