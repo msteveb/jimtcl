@@ -756,7 +756,7 @@ static int regatom(regex_t *preg, int *flagp)
 					int i;
 
 					for (i = 0; i < CC_NUM; i++) {
-						int n = strlen(character_class[i]);
+						n = strlen(character_class[i]);
 						if (strncmp(pattern, character_class[i], n) == 0) {
 							/* Found a character class */
 							pattern += n + 1;

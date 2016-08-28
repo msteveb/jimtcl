@@ -13564,13 +13564,13 @@ static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
     resultObjPtr = Jim_NewStringObj(interp, "", 0);
     while (strLen) {
         for (i = 0; i < numMaps; i += 2) {
-            Jim_Obj *objPtr;
+            Jim_Obj *eachObjPtr;
             const char *k;
             int kl;
 
-            objPtr = Jim_ListGetIndex(interp, mapListObjPtr, i);
-            k = Jim_String(objPtr);
-            kl = Jim_Utf8Length(interp, objPtr);
+            eachObjPtr = Jim_ListGetIndex(interp, mapListObjPtr, i);
+            k = Jim_String(eachObjPtr);
+            kl = Jim_Utf8Length(interp, eachObjPtr);
 
             if (strLen >= kl && kl) {
                 int rc;
@@ -13818,7 +13818,6 @@ badcompareargs:
         case OPT_REVERSE:{
                 char *buf, *p;
                 const char *str;
-                int len;
                 int i;
 
                 if (argc != 3) {
@@ -14750,9 +14749,8 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                         break;
                     case INFO_STATICS:
                         if (cmdPtr->u.proc.staticVars) {
-                            int mode = JIM_VARLIST_LOCALS | JIM_VARLIST_VALUES;
                             Jim_SetResult(interp, JimHashtablePatternMatch(interp, cmdPtr->u.proc.staticVars,
-                                NULL, JimVariablesMatch, mode));
+                                NULL, JimVariablesMatch, JIM_VARLIST_LOCALS | JIM_VARLIST_VALUES));
                         }
                         break;
                 }
