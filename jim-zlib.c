@@ -132,19 +132,16 @@ static int Jim_Gzip(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc == 3) {
         if (!Jim_CompareStringImmediate(interp, argv[1], "-level")) {
-            Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
-            return JIM_ERR;
+            return -1;
         }
 
         if (Jim_GetLong(interp, argv[2], &level) != JIM_OK) {
-            Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
-            return JIM_ERR;
+            return -1;
         }
 
     }
     else if (argc != 1) {
-        Jim_WrongNumArgs(interp, 0, argv, "data ?-level level?");
-        return JIM_ERR;
+        return -1;
     }
 
     in = Jim_GetString(argv[0], &len);
@@ -240,19 +237,16 @@ static int Jim_Gunzip(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc == 3) {
         if (!Jim_CompareStringImmediate(interp, argv[1], "-buffersize")) {
-            Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
-            return JIM_ERR;
+            return -1;
         }
 
         if (Jim_GetLong(interp, argv[2], &bufsiz) != JIM_OK) {
-            Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
-            return JIM_ERR;
+            return -1;
         }
 
     }
     else if (argc != 1) {
-        Jim_WrongNumArgs(interp, 0, argv, "data ?-buffersize size?");
-        return JIM_ERR;
+        return -1;
     }
 
     in = Jim_GetString(argv[0], &len);

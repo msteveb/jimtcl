@@ -69,19 +69,19 @@ test zlib-3.2 {zlib gunzip usage 2} -returnCodes error -body {
 
 test zlib-3.3 {zlib gunzip usage 3} -returnCodes error -body {
     zlib gunzip aaa 4
-} -result {wrong # args: should be "data ?-buffersize size?"}
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
 
 test zlib-3.4 {zlib gunzip usage 4} -returnCodes error -body {
     zlib gunzip aaa -buffersize
-} -result {wrong # args: should be "data ?-buffersize size?"}
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
 
 test zlib-3.5 {zlib gunzip usage 5} -returnCodes error -body {
     zlib gunzip aaa -buffersize a
-} -result {wrong # args: should be "data ?-buffersize size?"}
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
 
 test zlib-3.6 {zlib gunzip usage 5} -returnCodes error -body {
     zlib gunzip aaa -buffersize a
-} -result {wrong # args: should be "data ?-buffersize size?"}
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
 
 test zlib-3.7 {zlib gunzip usage 6} -returnCodes error -body {
     zlib gunzip aaa -buffersize 0
@@ -93,15 +93,15 @@ test zlib-3.8 {zlib gzip usage 1} -returnCodes error -body {
 
 test zlib-3.9 {zlib gzip usage 2} -returnCodes error -body {
     zlib gzip aa 9
-} -result {wrong # args: should be "data ?-level level?"}
+} -result {wrong # args: should be "zlib gzip data ?-level level?"}
 
 test zlib-3.10 {zlib gzip usage 3} -returnCodes error -body {
     zlib gzip -level a
-} -result {wrong # args: should be "data ?-level level?"}
+} -result {wrong # args: should be "zlib gzip data ?-level level?"}
 
 test zlib-3.11 {zlib gzip usage 4} -returnCodes error -body {
     zlib gzip -level 9 a
-} -result {wrong # args: should be "data ?-level level?"}
+} -result {wrong # args: should be "zlib gzip data ?-level level?"}
 
 test zlib-4.1 {zlib gzip/gunzip} {
     zlib gunzip [zlib gzip abcdefghijklm]

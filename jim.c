@@ -11363,7 +11363,11 @@ int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPt
 void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const char *msg)
 {
     Jim_Obj *objPtr;
-    Jim_Obj *listObjPtr = Jim_NewListObj(interp, argv, argc);
+    Jim_Obj *listObjPtr;
+
+    JimPanic((argc == 0, "Jim_WrongNumArgs() called with argc=0"));
+
+    listObjPtr = Jim_NewListObj(interp, argv, argc);
 
     if (*msg) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, msg, -1));
