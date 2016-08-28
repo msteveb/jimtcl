@@ -11,9 +11,10 @@
 # this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 source [file dirname [info script]]/testing.tcl
-source [file dirname [info script]]/testing.tcl
 
 needs cmd zlib
+
+testConstraint regexp [expr {[info commands regexp] eq {regexp}}]
 
 test zlib-1.1 {zlib deflate usage 1} -returnCodes error -body {
     zlib deflate
@@ -39,9 +40,10 @@ test zlib-1.6 {zlib inflate usage 3} -returnCodes error -body {
     zlib inflate afdfdfdsfdsfsd f
 } -result {expected integer but got "f"}
 
-test zlib-1.7 {zlib inflate usage 4} -returnCodes error -body {
+test zlib-1.7 {zlib inflate usage 4} \
+        -constraints regexp -returnCodes error -body {
     zlib inflate afdfdfdsfdsfsd 0
-} -result {buffer size must be 0 to 2147483647}
+} -match regexp -result {buffer size must be 0 to (2147483647|0x7fffffff)}
 
 test zlib-2.1 {zlib deflate/inflate} {
     zlib inflate [zlib deflate abcdefghijklm]
@@ -51,9 +53,10 @@ test zlib-2.2 {zlib deflate/inflate level and size known} {
     zlib inflate [zlib deflate abcdefghijklm 9] 13
 } abcdefghijklm
 
-test zlib-2.3 {zlib deflate/inflate bad size} -returnCodes error -body {
+test zlib-2.3 {zlib deflate/inflate bad size} \
+        -constraints regexp -returnCodes error -body {
     zlib inflate [zlib deflate abcdefghijklm 9] 0
-} -result {buffer size must be 0 to 2147483647}
+} -match regexp -result {buffer size must be 0 to (2147483647|0x7fffffff)}
 
 test zlib-2.4 {zlib deflate/inflate wrong size} {
     zlib inflate [zlib deflate abcdefghijklm] 6
@@ -83,9 +86,10 @@ test zlib-3.6 {zlib gunzip usage 5} -returnCodes error -body {
     zlib gunzip aaa -buffersize a
 } -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
 
-test zlib-3.7 {zlib gunzip usage 6} -returnCodes error -body {
+test zlib-3.7 {zlib gunzip usage 6} \
+        -constraints regexp -returnCodes error -body {
     zlib gunzip aaa -buffersize 0
-} -result {buffer size must be 0 to 2147483647}
+} -match regexp -result {buffer size must be 0 to (2147483647|0x7fffffff)}
 
 test zlib-3.8 {zlib gzip usage 1} -returnCodes error -body {
     zlib gzip

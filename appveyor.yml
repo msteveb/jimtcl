@@ -1,0 +1,11 @@
+version: "0.76.0.{build}"
+install:
+  - cmd: set MSYSTEM=MINGW32
+  - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc"
+build_script:
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --with-ext='oo tree binary tclprefix zlib'"
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make"
+test_script:
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make test"
+artifacts:
+  - path: jimsh.exe
