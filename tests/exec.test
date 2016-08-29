@@ -19,6 +19,8 @@ needs cmd exec
 needs cmd flush
 needs cmd after eventloop
 
+testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
+
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {
     proc sleep {n} {
@@ -342,9 +344,9 @@ test exec-11.4 {commands in background} {
 
 exec {*}$sleepx 0.3
 
-test exec-12.1 {reaping background processes} -body {
+test exec-12.1 {reaping background processes} -constraints unix -body {
     for {set i 0} {$i < 20} {incr i} {
-		exec echo foo > exec.tmp1 &
+        exec echo foo > exec.tmp1 &
     }
     exec {*}$sleepx 0.1
     catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg
