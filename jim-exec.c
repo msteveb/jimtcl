@@ -1323,13 +1323,13 @@ static fdtype JimFileno(FILE *fh)
 static fdtype JimOpenForRead(const char *filename)
 {
     return CreateFile(filename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        JimStdSecAttrs(), OPEN_EXISTING, 0, NULL);
+        JimStdSecAttrs(), OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 }
 
 static fdtype JimOpenForWrite(const char *filename, int append)
 {
     return CreateFile(filename, append ? FILE_APPEND_DATA : GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        JimStdSecAttrs(), append ? OPEN_ALWAYS : CREATE_ALWAYS, 0, (HANDLE) NULL);
+        JimStdSecAttrs(), append ? OPEN_ALWAYS : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, (HANDLE) NULL);
 }
 
 static FILE *JimFdOpenForWrite(fdtype fd)
