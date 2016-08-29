@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.76+ - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.77 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -59,27 +59,26 @@ Changes between 0.76 and 0.77
 4. Added support for boolean constants in `expr`
 5. `string is` now supports 'boolean' class
 6. Add support for `aio lock` and `aio unlock`
+7. Add new `interp` command
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Add support for `file link`
-2. `glob` now supports the '--tails' option
-3. Add support for `string cat`
-4. Allow `info source` to add source info
+1. `glob` now supports the +-tails+ option
+2. Add support for `string cat`
+3. Allow `info source` to add source info
 
 Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `binary`, `pack` and `unpack` now support floating point
-2. `file copy` '-force' handles source and target as the same file
+2. `file copy` +-force+ handles source and target as the same file
 3. `format` now supports +%b+ for binary conversion
-4. `lsort` now supports '-unique' and '-real'
-5. Add support for half-close with `aio close` ?r|w?
+4. `lsort` now supports +-unique+ and +-real+
+5. Add support for half-close with `aio close` +?r|w?+
 6. Add `socket pair` for a bidirectional pipe
 7. Add '--random-hash' to randomise hash tables for greater security
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 9. `file stat` no longer requires the variable name
 10. Add support for `file link`
-11. Add new 'interp' module
 
 Changes between 0.73 and 0.74
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1133,21 +1132,21 @@ argument specifiers:
 +name+::
     Required Argument - A simple argument name.
 
-+name default+::
++{name default}+::
     Optional Argument - A two-element list consisting of the
     argument name, followed by the default value, which will
     be used if the corresponding argument is not supplied.
 
 +&name+::
     Reference Argument - The caller is expected to pass the name of
-    an existing variable. An implicit `upvar 1 'origname' 'name'` is done
+    an existing variable. An implicit +`upvar` 1 origname name+ is done
     to make the variable available in the proc scope.
 
 +*args*+::
     Variable Argument - The special name +'args'+, which is
     assigned all remaining arguments (including none) as a list. The
     variable argument may only be specified once. Note that
-    the syntax +args newname+ may be used to retain the special
+    the syntax +{args newname}+ may be used to retain the special
     behaviour of +'args'+ with a different local name. In this case,
     the variable is named +'newname'+ rather than +'args'+.
 

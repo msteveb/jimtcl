@@ -738,7 +738,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.76+ -
+<p>Jim Tcl v0.77 -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -890,6 +890,31 @@ Add support for <a href="#_aio"><strong><code>aio</code></strong></a> <code>sync
 Add SSL and TLS support in aio
 </p>
 </li>
+<li>
+<p>
+Added <a href="#_zlib"><strong><code>zlib</code></strong></a>
+</p>
+</li>
+<li>
+<p>
+Added support for boolean constants in <a href="#_expr"><strong><code>expr</code></strong></a>
+</p>
+</li>
+<li>
+<p>
+<a href="#_string"><strong><code>string</code></strong></a> <code>is</code> now supports <em>boolean</em> class
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_aio"><strong><code>aio</code></strong></a> <code>lock</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>unlock</code>
+</p>
+</li>
+<li>
+<p>
+Add new <a href="#_interp"><strong><code>interp</code></strong></a> command
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -897,12 +922,7 @@ Add SSL and TLS support in aio
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-Add support for <a href="#_file"><strong><code>file</code></strong></a> <code>link</code>
-</p>
-</li>
-<li>
-<p>
-<a href="#_glob"><strong><code>glob</code></strong></a> now supports the <em>--tails</em> option
+<a href="#_glob"><strong><code>glob</code></strong></a> now supports the <code>-tails</code> option
 </p>
 </li>
 <li>
@@ -927,7 +947,7 @@ Allow <a href="#_info"><strong><code>info</code></strong></a> <code>source</code
 </li>
 <li>
 <p>
-<a href="#_file"><strong><code>file</code></strong></a> <code>copy</code> <em>-force</em> handles source and target as the same file
+<a href="#_file"><strong><code>file</code></strong></a> <code>copy</code> <code>-force</code> handles source and target as the same file
 </p>
 </li>
 <li>
@@ -937,12 +957,12 @@ Allow <a href="#_info"><strong><code>info</code></strong></a> <code>source</code
 </li>
 <li>
 <p>
-<a href="#_lsort"><strong><code>lsort</code></strong></a> now supports <em>-unique</em> and <em>-real</em>
+<a href="#_lsort"><strong><code>lsort</code></strong></a> now supports <code>-unique</code> and <code>-real</code>
 </p>
 </li>
 <li>
 <p>
-Add support for half-close with <a href="#_aio"><strong><code>aio</code></strong></a> <code>close</code> ?r|w?
+Add support for half-close with <a href="#_aio"><strong><code>aio</code></strong></a> <code>close</code> <code>?r|w?</code>
 </p>
 </li>
 <li>
@@ -963,6 +983,11 @@ Add <em>--random-hash</em> to randomise hash tables for greater security
 <li>
 <p>
 <a href="#_file"><strong><code>file</code></strong></a> <code>stat</code> no longer requires the variable name
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_file"><strong><code>file</code></strong></a> <code>link</code>
 </p>
 </li>
 </ol></div>
@@ -1933,6 +1958,9 @@ following are valid floating-point numbers:  2.1, 3., 6e4, 7.91e+16.</p></div>
 <div class="paragraph"><p>If no numeric interpretation is possible, then an operand is left
 as a string (and only a limited set of operators may be applied to
 it).</p></div>
+<div class="paragraph"><p>String constants representing boolean constants
+(<code><em>0</em></code>, <code><em>1</em></code>, <code><em>false</em></code>, <code><em>off</em></code>, <code><em>no</em></code>, <code><em>true</em></code>, <code><em>on</em></code>, <code><em>yes</em></code>)
+are also recognized and can be used in logical operations.</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
@@ -1942,6 +1970,11 @@ Operands may be specified in any of the following ways:
 <li>
 <p>
 As a numeric value, either integer or floating-point.
+</p>
+</li>
+<li>
+<p>
+As one of valid boolean constants
 </p>
 </li>
 <li>
@@ -2216,7 +2249,7 @@ be regarded as unreliable.
 In any case, overflow and underflow are generally not detected
 reliably for intermediate results.</p></div>
 <div class="paragraph"><p>Conversion among internal representations for integer, floating-point,
-and string operands is done automatically as needed.
+string operands is done automatically as needed.
 For arithmetic computations, integers are used until some
 floating-point number is introduced, after which floating-point is used.
 For example,</p></div>
@@ -2391,17 +2424,17 @@ UTF-8 strings and patterns are both supported
 </li>
 <li>
 <p>
-Supported character classes: <code>[:alnum:]</code>, <code>[:digit:]</code> and <code>[:space:]</code>
-</p>
-</li>
-<li>
-<p>
-Supported shorthand character classes: <code>\w</code> = <code>[:alnum:]</code>, <code>\d</code> = <code>[:digit:],</code> <code>\s</code> = <code>[:space:]</code>
+All Tcl character classes are supported (e.g. <code>[:alnum:]</code>, <code>[:digit:]</code>, <code>[:space:]</code>), but&#8230;
 </p>
 </li>
 <li>
 <p>
 Character classes apply to ASCII characters only
+</p>
+</li>
+<li>
+<p>
+Supported shorthand character classes: <code>\w</code> = <code>[:alnum:]</code>, <code>\W</code> = <code><sup>[:alnum:]</code>, <code>\d</code> = <code>[:digit:],</code> <code>\D</code> = <code></sup>[:digit:],</code> <code>\s</code> = <code>[:space:]</code>, + <code>\S</code> = <code>^[:space:]</code>
 </p>
 </li>
 <li>
@@ -2412,6 +2445,11 @@ Supported constraint escapes: <code>\m</code> = <code>\&lt;</code> = start of wo
 <li>
 <p>
 Backslash escapes may be used within regular expressions, such as <code>\n</code> = newline, <code>\uNNNN</code> = unicode
+</p>
+</li>
+<li>
+<p>
+Partially supported constraint escapes: <code>\A</code> = start of string, <code>\Z</code> = end of string
 </p>
 </li>
 <li>
@@ -2558,7 +2596,7 @@ argument specifiers:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>name default</code>
+<code>{name default}</code>
 </dt>
 <dd>
 <p>
@@ -2573,7 +2611,7 @@ argument specifiers:</p></div>
 <dd>
 <p>
     Reference Argument - The caller is expected to pass the name of
-    an existing variable. An implicit <a href="#_upvar"><strong><code>upvar</code></strong></a> <code>1 'origname' 'name'</code> is done
+    an existing variable. An implicit <code><a href="#_upvar"><strong><code>upvar</code></strong></a> 1 origname name</code> is done
     to make the variable available in the proc scope.
 </p>
 </dd>
@@ -2585,7 +2623,7 @@ argument specifiers:</p></div>
     Variable Argument - The special name <code><em>args</em></code>, which is
     assigned all remaining arguments (including none) as a list. The
     variable argument may only be specified once. Note that
-    the syntax <code>args newname</code> may be used to retain the special
+    the syntax <code>{args newname}</code> may be used to retain the special
     behaviour of <code><em>args</em></code> with a different local name. In this case,
     the variable is named <code><em>newname</em></code> rather than <code><em>args</em></code>.
 </p>
@@ -3161,12 +3199,13 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_if"><strong><code>if</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_incr"><strong><code>incr</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_info"><strong><code>info</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_interp"><strong><code>interp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_join"><strong><code>join</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_kill"><strong><code>kill</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><code>lambda</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lappend"><strong><code>lappend</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lappend"><strong><code>lappend</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><code>lassign</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><code>lindex</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_linsert"><strong><code>linsert</code></strong></a></p></td>
@@ -3174,9 +3213,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_llength"><strong><code>llength</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lmap"><strong><code>lmap</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load"><strong><code>load</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_local"><strong><code>local</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_local"><strong><code>local</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_loop"><strong><code>loop</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><code>lrange</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat"><strong><code>lrepeat</code></strong></a></p></td>
@@ -3184,9 +3223,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lreverse"><strong><code>lreverse</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><code>lsearch</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset"><strong><code>lset</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><code>lsort</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><code>lsort</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_namespace"><strong><code>namespace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>oo</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_open"><strong><code>open</code></strong></a></p></td>
@@ -3194,9 +3233,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.gethostname</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.getids</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.uptime</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.wait</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.wait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package"><strong><code>package</code></strong></a></p></td>
@@ -3204,9 +3243,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>posix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><code>proc</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts"><strong><code>puts</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><code>pwd</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><code>pwd</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><code>rand</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_range"><strong><code>range</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read"><strong><code>read</code></strong></a></p></td>
@@ -3214,9 +3253,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><code>regexp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><code>regsub</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename"><strong><code>rename</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_return"><strong><code>return</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_return"><strong><code>return</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><code>scan</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_seek"><strong><code>seek</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set"><strong><code>set</code></strong></a></p></td>
@@ -3224,9 +3263,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><code>signal</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><code>sleep</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket"><strong><code>socket</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_source"><strong><code>source</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_source"><strong><code>source</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><code>split</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><code>stackdump</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><code>stacktrace</code></strong></a></p></td>
@@ -3234,9 +3273,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><code>subst</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>super</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_switch"><strong><code>switch</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><code>syslog</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><code>syslog</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><code>tailcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
@@ -3244,9 +3283,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
@@ -3254,7 +3293,16 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><code>uplevel</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
 </tr>
 </tbody>
 </table>
@@ -5378,7 +5426,7 @@ the empty string is returned instead.</p></div>
 <div class="paragraph"><p>The <a href="#_proc"><strong><code>proc</code></strong></a> command creates a new Tcl command procedure, <code><em>name</em></code>.
 When the new command is invoked, the contents of <code><em>body</em></code> will be executed.
 Tcl interpreter. <code><em>args</em></code> specifies the formal arguments to the procedure.
-If specified, <code><em>static</em></code>, declares static variables which are bound to the
+If specified, <code><em>statics</em></code>, declares static variables which are bound to the
 procedure.</p></div>
 <div class="paragraph"><p>See PROCEDURES for detailed information about Tcl procedures.</p></div>
 <div class="paragraph"><p>The <a href="#_proc"><strong><code>proc</code></strong></a> command returns <code><em>name</em></code> (which is useful with <a href="#_local"><strong><code>local</code></strong></a>).</p></div>
@@ -6080,6 +6128,14 @@ Any character with a value less than 128 (those that are in the 7-bit ascii rang
 </p>
 </dd>
 <dt class="hdlist1">
+<code>boolean</code>
+</dt>
+<dd>
+<p>
+Any of the valid string formats for a boolean value in Tcl (0, false, no, off, 1, true, yes, on)
+</p>
+</dd>
+<dt class="hdlist1">
 <code>control</code>
 </dt>
 <dd>
@@ -6176,6 +6232,14 @@ Any hexadecimal digit character ([0-9A-Fa-f]).
 <dd>
 <p>
     Note that string classification does <code><em>not</em></code> respect UTF-8. See UTF-8 AND UNICODE
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    Note that only <code><em>lowercase</em></code> boolean values are recognized (Tcl accepts any case).
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6981,6 +7045,19 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>lock</strong></code>
+</dt>
+<dd>
+<p>
+    Apply a POSIX lock to the open file associated with the handle using
+    fcntl(2).
+    The handle must be open for write access.
+    Returns 1 if the lock was successfully obtained, 0 otherwise.
+    An error occurs if the handle is not suitable for locking (e.g.
+    if it is not open for write)
+</p>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>ndelay ?0|1?</strong></code>
 </dt>
 <dd>
@@ -7059,6 +7136,14 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 <dd>
 <p>
     Initiates a SSL/TLS session and returns a new stream
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>unlock</strong></code>
+</dt>
+<dd>
+<p>
+    Release a POSIX lock previously acquired by <a href="#_aio"><strong><code>aio</code></strong></a> <code>lock</code>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7203,7 +7288,7 @@ handler is removed.</p></div>
 </dt>
 <dd>
 <p>
-    A call to <a href="#cmd_2"><strong><code>vwait</code></strong></a> is enters the eventloop. <a href="#cmd_2"><strong><code>vwait</code></strong></a> processes
+    A call to <a href="#cmd_2"><strong><code>vwait</code></strong></a> enters the eventloop. <a href="#cmd_2"><strong><code>vwait</code></strong></a> processes
     events until the named (global) variable changes or all
     event handlers are removed. The variable need not exist
     beforehand.  If there are no event handlers defined, <a href="#cmd_2"><strong><code>vwait</code></strong></a>
@@ -7317,15 +7402,30 @@ to prevent infinite errors. (A time event handler is always removed after execut
 address.</p></div>
 <div class="paragraph"><p>The returned value is channel and may generally be used with the various file I/O
 commands (gets, puts, read, etc.), either as object-based syntax or Tcl-compatible syntax.</p></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>set f [socket stream www.google.com:80]
-aio.sockstream1
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+set f [socket stream www.google.com:80]
+    aio.sockstream1
+</p>
+</li>
+<li>
+<p>
 $f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+</p>
+</li>
+<li>
+<p>
 $f gets
-HTTP/1.0 302 Found
-$f close</code></pre>
-</div></div>
+    HTTP/1.0 302 Found
+</p>
+</li>
+<li>
+<p>
+$f close
+</p>
+</li>
+</ol></div>
 <div class="paragraph"><p>Server sockets, however support only <em>accept</em>, which is most useful in conjunction with
 the EVENTLOOP API.</p></div>
 <div class="literalblock">
@@ -7457,6 +7557,57 @@ uucp, local0-local7</code></pre>
     For the string type, both the width and the offset must be on a byte boundary (multiple of 8). Attempting to
     access outside the length of the value will return 0 for integer types, 0.0 for floating point types
     or the empty string for the string type.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_zlib">zlib</h3>
+<div class="paragraph"><p>The optional <em>zlib</em> extension provides a Tcl-compatible subset of the <a href="#_zlib"><strong><code>zlib</code></strong></a> command.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>crc32</strong> <em>data</em> <em>?startValue?</em></code>
+</dt>
+<dd>
+<p>
+    Returns the CRC32 checksum of a buffer. Optionally, an initial value may be specified; this is most useful
+    for calculating the checksum of chunked data read from a stream (for instance, a pipe).
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>deflate</strong> <em>string</em> <em>?level?</em></code>
+</dt>
+<dd>
+<p>
+    Compresses a buffer and outputs a raw, Deflate-compressed stream. Optionally, a compression level (1-9) may
+    be specified to choose the desired speed vs. compression rate ratio.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>inflate</strong> <em>data</em> <em>?bufferSize?</em></code>
+</dt>
+<dd>
+<p>
+    Decompresses a raw, Deflate-compressed stream. When the uncompressed data size is known and specified, memory
+    allocation is more efficient. Otherwise, decomperssion is chunked and therefore slower.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>gzip</strong> <em>string</em> <em>?-level level?</em></code>
+</dt>
+<dd>
+<p>
+    Compresses a buffer and adds a gzip header.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>gunzip</strong> <em>data</em> <em>?-buffersize size?</em></code>
+</dt>
+<dd>
+<p>
+    Decompresses a gzip-compressed buffer. Decompression is chunked, with a default, small buffer size of 64K
+    which guarantees lower memory footprint at the cost of speed. It is recommended to use a bigger size, on
+    systems without a severe memory constraint.
 </p>
 </dd>
 </dl></div>
@@ -7826,6 +7977,50 @@ the remaining subcommands do nothing.</p></div>
 <dd>
 <p>
     Looks up <code><em>name</em></code> as either a command (the default) or variable and returns its fully-qualified name.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_interp">interp</h3>
+<div class="paragraph"><p>The optional <em>interp</em> command allows sub-interpreters to be created where commands may be run
+independently (but synchronously) of the main interpreter.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>interp</strong></code>
+</dt>
+<dd>
+<p>
+    Creates and returns a new interpreter object (command).
+        The created interpeter contains any built-in commands along with static extensions,
+        but does not include any dynamically loaded commands (package require, load).
+        These must be reloaded in the child interpreter if required.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>$interp delete</strong></code>
+</dt>
+<dd>
+<p>
+    Deletes the interpeter object.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>$interp eval</strong> <em>script</em> &#8230;</code>
+</dt>
+<dd>
+<p>
+        Evaluates a script in the context for the child interpreter, in the same way as <em>eval</em>.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>$interp alias</strong> <em>alias childcmd parentcmd ?arg &#8230;?</em></code>
+</dt>
+<dd>
+<p>
+        Similar to <em>alias</em>, but creates a command, <code><em>childcmd</em></code>, in the child interpreter that is an
+        alias for <code><em>parentcmd</em></code> in the parent interpreter, with the given, fixed arguments.
+        The alias may be deleted in the child with <em>rename</em>.
 </p>
 </dd>
 </dl></div>
@@ -8296,7 +8491,7 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2016-01-25 09:25:06 AEST
+Last updated 2016-08-29 16:18:20 AEST
 </div>
 </div>
 </body>
