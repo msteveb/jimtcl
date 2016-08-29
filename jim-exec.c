@@ -1328,8 +1328,12 @@ static fdtype JimOpenForRead(const char *filename)
 
 static fdtype JimOpenForWrite(const char *filename, int append)
 {
-    return CreateFile(filename, append ? FILE_APPEND_DATA : GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+    fdtype fd = CreateFile(filename, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
         JimStdSecAttrs(), append ? OPEN_ALWAYS : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, (HANDLE) NULL);
+    if (append && fd != JIM_BAD_FD) {
+        SetFilePointer(fd, 0, NULL, FILE_END);
+    }
+    return fd;
 }
 
 static FILE *JimFdOpenForWrite(fdtype fd)
