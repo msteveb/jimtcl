@@ -5,12 +5,15 @@
 
 lappend auto_path .
 
+# In case interp is a module
+catch {package require interp}
+
 if {[info commands interp] eq ""} {
-	set rc 0
+	set rc 1
 	foreach script [lsort [glob *.test]] {
 		if {[catch {
 			exec [info nameofexecutable] $script >@stdout 2>@stderr
-			set rc 1
+			set rc 0
 		} msg opts]} {
 			puts "Failed: $script"
 		}
