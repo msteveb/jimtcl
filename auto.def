@@ -350,6 +350,9 @@ if {[have-feature windows]} {
         user-error "cygwin/mingw require --shared for dynamic modules"
     }
 }
+if {[have-feature termios.h]} {
+    lappend extra_objs jim-tty.o
+}
 
 if {[ext-get-status regexp] in {y m}} {
     if {![have-feature regcomp]} {
