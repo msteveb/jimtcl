@@ -231,6 +231,7 @@ if {[opt-bool-or-full ipv6]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
 }
+define-append PKG_CONFIG_REQUIRES ""
 if {[opt-bool-or-full ssl]} {
     if {[pkg-config-init 0]} {
         foreach pkg {openssl libssl} {
@@ -240,6 +241,7 @@ if {[opt-bool-or-full ssl]} {
                 define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
                 define-append CCOPTS [pkg-config-get $pkg CFLAGS]
                 msg-result "Enabling SSL ($pkg)"
+                define-append PKG_CONFIG_REQUIRES $pkg
                 break
             }
         }
@@ -272,7 +274,8 @@ if {[opt-bool shared with-jim-shared]} {
     msg-result "Building static library"
     define JIM_STATICLIB
 }
-define LIBSOEXT [format [get-define SH_SOEXTVER] [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]]
+define VERSION [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]
+define LIBSOEXT [format [get-define SH_SOEXTVER] [get-define VERSION]]
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
@@ -437,5 +440,6 @@ make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSI
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template build-jim-ext.in
+make-template jimtcl.pc.in
 
 catch {exec chmod +x build-jim-ext}

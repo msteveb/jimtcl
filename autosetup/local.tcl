@@ -121,6 +121,7 @@ proc check-extension-status {ext required} {
                 define-append LDLIBS_$ext [pkg-config-get $pkg LIBS]
                 define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
                 define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+                define-append PKG_CONFIG_REQUIRES $pkg
             } else {
                 foreach i [ext-get $ext libdep] {
                     define-append LDLIBS_$ext [get-define $i ""]
@@ -145,6 +146,7 @@ proc check-extension-status {ext required} {
         define-append LDLIBS [pkg-config-get $pkg LIBS]
         define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
         define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+        define-append PKG_CONFIG_REQUIRES $pkg
     } else {
         foreach i [ext-get $ext libdep] {
             define-append LDLIBS [get-define $i ""]

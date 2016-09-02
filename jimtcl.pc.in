@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: jimtcl
+URL: http://jim.tcl.tk/
+Description: The Jim Interpreter - A small-footprint implementation of the Tcl programming language.
+Version: @VERSION@
+Requires: @PKG_CONFIG_REQUIRES@
+Libs: -L${libdir} -ljim
+Libs.private: @LDLIBS@
+Cflags: -I${includedir} 
