@@ -172,6 +172,7 @@ set jimregexp 0
 if {[opt-bool utf8 full]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
+    define-append CCOPTS -DUSE_UTF8
     incr jimregexp
 } else {
     define JIM_UTF8 0
@@ -217,6 +218,7 @@ if {[opt-bool lineedit full]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
+        define-append CCOPTS -DNO_COMPLETION
         lappend extra_objs linenoise.o
     }
 }

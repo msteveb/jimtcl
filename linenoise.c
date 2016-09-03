@@ -133,11 +133,6 @@
 #include <sys/types.h>
 
 #include "linenoise.h"
-
-#include "jim-config.h"
-#ifdef JIM_UTF8
-#define USE_UTF8
-#endif
 #include "utf8.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -226,6 +221,7 @@ static int enableRawMode(struct current *current) {
     struct termios raw;
 
     current->fd = STDIN_FILENO;
+    current->cols = 0;
 
     if (!isatty(current->fd) || isUnsupportedTerm() ||
         tcgetattr(current->fd, &orig_termios) == -1) {
@@ -243,8 +239,8 @@ fatal:
     /* input modes: no break, no CR to NL, no parity check, no strip char,
      * no start/stop output control. */
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    /* output modes - disable post processing */
-    raw.c_oflag &= ~(OPOST);
+    /* output modes - actually, no need to disable post processing */
+    /*raw.c_oflag &= ~(OPOST);*/
     /* control modes - set 8 bit chars */
     raw.c_cflag |= (CS8);
     /* local modes - choing off, canonical off, no extended functions,
@@ -259,8 +255,6 @@ fatal:
         goto fatal;
     }
     rawmode = 1;
-
-    current->cols = 0;
     return 0;
 }
 
@@ -299,9 +293,9 @@ static void fd_printf(int fd, const char *format, ...)
     IGNORE_RC(write(fd, buf, n));
 }
 
-static void clearScreen(struct current *current)
+void linenoiseClearScreen(void)
 {
-    fd_printf(current->fd, "\x1b[H\x1b[2J");
+    fd_printf(STDOUT_FILENO, "\x1b[H\x1b[2J");
 }
 
 static void cursorToLeft(struct current *current)
@@ -326,7 +320,12 @@ static void eraseEol(struct current *current)
 
 static void setCursorPos(struct current *current, int x)
 {
-    fd_printf(current->fd, "\r\x1b[%dC", x);
+    if (x == 0) {
+        cursorToLeft(current);
+    }
+    else {
+        fd_printf(current->fd, "\r\x1b[%dC", x);
+    }
 }
 
 /**
@@ -439,6 +438,49 @@ static int countColorControlChars(const char* prompt)
     return found;
 }
 
+/**
+ * Stores the current cursor column in '*cols'.
+ * Returns 1 if OK, or 0 if failed to determine cursor pos.
+ */
+static int queryCursor(int fd, int* cols)
+{
+    /* control sequence - report cursor location */
+    fd_printf(fd, "\x1b[6n");
+
+    /* Parse the response: ESC [ rows ; cols R */
+    if (fd_read_char(fd, 100) == 0x1b &&
+        fd_read_char(fd, 100) == '[') {
+
+        int n = 0;
+        while (1) {
+            int ch = fd_read_char(fd, 100);
+            if (ch == ';') {
+                /* Ignore rows */
+                n = 0;
+            }
+            else if (ch == 'R') {
+                /* Got cols */
+                if (n != 0 && n < 1000) {
+                    *cols = n;
+                }
+                break;
+            }
+            else if (ch >= 0 && ch <= '9') {
+                n = n * 10 + ch - '0';
+            }
+            else {
+                break;
+            }
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * Updates current->cols with the current window size (width)
+ */
 static int getWindowSize(struct current *current)
 {
     struct winsize ws;
@@ -453,38 +495,46 @@ static int getWindowSize(struct current *current)
      * and reading back the cursor position.
      * Note that this is only done once per call to linenoise rather than
      * every time the line is refreshed for efficiency reasons.
+     *
+     * In more detail, we:
+     * (a) request current cursor position,
+     * (b) move cursor far right,
+     * (c) request cursor position again,
+     * (d) at last move back to the old position.
+     * This gives us the width without messing with the externally
+     * visible cursor position.
      */
+
     if (current->cols == 0) {
+        int here;
+
         current->cols = 80;
 
-        /* Move cursor far right and report cursor position, then back to the left */
-        fd_printf(current->fd, "\x1b[999C" "\x1b[6n");
+        /* (a) */
+        if (queryCursor (current->fd, &here)) {
+            /* (b) */
+            fd_printf(current->fd, "\x1b[999C");
 
-        /* Parse the response: ESC [ rows ; cols R */
-        if (fd_read_char(current->fd, 100) == 0x1b && fd_read_char(current->fd, 100) == '[') {
-            int n = 0;
-            while (1) {
-                int ch = fd_read_char(current->fd, 100);
-                if (ch == ';') {
-                    /* Ignore rows */
-                    n = 0;
-                }
-                else if (ch == 'R') {
-                    /* Got cols */
-                    if (n != 0 && n < 1000) {
-                        current->cols = n;
-                    }
-                    break;
-                }
-                else if (ch >= 0 && ch <= '9') {
-                    n = n * 10 + ch - '0';
-                }
-                else {
-                    break;
+            /* (c). Note: If (a) succeeded, then (c) should as well.
+             * For paranoia we still check and have a fallback action
+             * for (d) in case of failure..
+             */
+            if (!queryCursor (current->fd, &current->cols)) {
+                /* (d') Unable to get accurate position data, reset
+                 * the cursor to the far left. While this may not
+                 * restore the exact original position it should not
+                 * be too bad.
+                 */
+                fd_printf(current->fd, "\r");
+            } else {
+                /* (d) Reset the cursor back to the original location. */
+                if (current->cols > here) {
+                    fd_printf(current->fd, "\x1b[%dD", current->cols - here);
                 }
             }
-        }
+        } /* 1st query failed, doing nothing => default 80 */
     }
+
     return 0;
 }
 
@@ -582,23 +632,33 @@ static void disableRawMode(struct current *current)
     SetConsoleMode(current->inh, orig_consolemode);
 }
 
-static void clearScreen(struct current *current)
+void linenoiseClearScreen(void)
 {
-    COORD topleft = { 0, 0 };
-    DWORD n;
+    /* XXX: This is ugly. Should just have the caller pass a handle */
+    struct current current;
 
-    FillConsoleOutputCharacter(current->outh, ' ',
-        current->cols * current->rows, topleft, &n);
-    FillConsoleOutputAttribute(current->outh,
-        FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN,
-        current->cols * current->rows, topleft, &n);
-    SetConsoleCursorPosition(current->outh, topleft);
+    current.outh = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    if (getWindowSize(&current) == 0) {
+        COORD topleft = { 0, 0 };
+        DWORD n;
+
+        FillConsoleOutputCharacter(current.outh, ' ',
+            current.cols * current.rows, topleft, &n);
+        FillConsoleOutputAttribute(current.outh,
+            FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN,
+            current.cols * current.rows, topleft, &n);
+        SetConsoleCursorPosition(current.outh, topleft);
+    }
 }
 
 static void cursorToLeft(struct current *current)
 {
-    COORD pos = { 0, (SHORT)current->y };
+    COORD pos;
     DWORD n;
+
+    pos.X = 0;
+    pos.Y = (SHORT)current->y;
 
     FillConsoleOutputAttribute(current->outh,
         FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, current->cols, pos, &n);
@@ -607,18 +667,47 @@ static void cursorToLeft(struct current *current)
 
 static int outputChars(struct current *current, const char *buf, int len)
 {
-    COORD pos = { (SHORT)current->x, (SHORT)current->y };
+    COORD pos;
     DWORD n;
 
-    WriteConsoleOutputCharacter(current->outh, buf, len, pos, &n);
+    pos.Y = (SHORT)current->y;
+
+#ifdef USE_UTF8
+    while ( len > 0 ) {
+        int c, s;
+        wchar_t wc;
+
+        s = utf8_tounicode(buf, &c);
+
+        len -= s;
+        buf += s;
+
+        wc = (wchar_t)c;
+
+        pos.X = (SHORT)current->x;
+
+        /* fixed display utf8 character */
+        WriteConsoleOutputCharacterW(current->outh, &wc, 1, pos, &n);
+
+        current->x += utf8_width(c);
+    }
+#else
+    pos.X = (SHORT)current->x;
+
+    WriteConsoleOutputCharacterA(current->outh, buf, len, pos, &n);
     current->x += len;
+#endif
+
     return 0;
 }
 
 static void outputControlChar(struct current *current, char ch)
 {
-    COORD pos = { (SHORT)current->x, (SHORT)current->y };
+    COORD pos;
     DWORD n;
+
+    pos.X = (SHORT) current->x;
+    pos.Y = (SHORT) current->y;
 
     FillConsoleOutputAttribute(current->outh, BACKGROUND_INTENSITY, 2, pos, &n);
     outputChars(current, "^", 1);
@@ -627,15 +716,21 @@ static void outputControlChar(struct current *current, char ch)
 
 static void eraseEol(struct current *current)
 {
-    COORD pos = { (SHORT)current->x, (SHORT)current->y };
+    COORD pos;
     DWORD n;
+
+    pos.X = (SHORT) current->x;
+    pos.Y = (SHORT) current->y;
 
     FillConsoleOutputCharacter(current->outh, ' ', current->cols - current->x, pos, &n);
 }
 
 static void setCursorPos(struct current *current, int x)
 {
-    COORD pos = { (SHORT)x, (SHORT)current->y };
+    COORD pos;
+
+    pos.X = (SHORT)x;
+    pos.Y = (SHORT) current->y;
 
     SetConsoleCursorPosition(current->outh, pos);
     current->x = x;
@@ -679,6 +774,8 @@ static int fd_read(struct current *current)
                 }
             }
             /* Note that control characters are already translated in AsciiChar */
+            else if (k->wVirtualKeyCode == VK_CONTROL)
+                continue;
             else {
 #ifdef USE_UTF8
                 return k->uChar.UnicodeChar;
@@ -714,6 +811,18 @@ static int getWindowSize(struct current *current)
     current->y = info.dwCursorPosition.Y;
     current->x = info.dwCursorPosition.X;
     return 0;
+}
+#endif
+
+#ifndef utf8_getchars
+static int utf8_getchars(char *buf, int c)
+{
+#ifdef USE_UTF8
+    return utf8_fromunicode(buf, c);
+#else
+    *buf = c;
+    return 1;
+#endif
 }
 #endif
 
@@ -984,6 +1093,7 @@ static int insert_chars(struct current *current, int pos, const char *chars)
 
 #ifndef NO_COMPLETION
 static linenoiseCompletionCallback *completionCallback = NULL;
+static void *completionUserdata = NULL;
 
 static void beep() {
 #ifdef USE_TERMIOS
@@ -1003,7 +1113,7 @@ static int completeLine(struct current *current) {
     linenoiseCompletions lc = { 0, NULL };
     int c = 0;
 
-    completionCallback(current->buf,&lc);
+    completionCallback(current->buf,&lc,completionUserdata);
     if (lc.len == 0) {
         beep();
     } else {
@@ -1053,9 +1163,14 @@ static int completeLine(struct current *current) {
     return c; /* Return last read character */
 }
 
-/* Register a callback function to be called for tab-completion. */
-void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn) {
+/* Register a callback function to be called for tab-completion.
+   Returns the prior callback so that the caller may (if needed)
+   restore it when done. */
+linenoiseCompletionCallback * linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn, void *userdata) {
+    linenoiseCompletionCallback * old = completionCallback;
     completionCallback = fn;
+    completionUserdata = userdata;
+    return old;
 }
 
 void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
@@ -1349,7 +1464,7 @@ history_navigation:
             }
             break;
         case ctrl('L'): /* Ctrl+L, clear screen */
-            clearScreen(current);
+            linenoiseClearScreen();
             /* Force recalc of window size for serial terminals */
             current->cols = 0;
             refreshLine(current->prompt, current);

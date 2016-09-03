@@ -1,7 +1,7 @@
 /**
  * UTF-8 utility functions
  *
- * (c) 2010 Steve Bennett <steveb@workware.net.au>
+ * (c) 2010-2016 Steve Bennett <steveb@workware.net.au>
  *
  * See LICENCE for licence details.
  */
@@ -41,7 +41,7 @@ int utf8_fromunicode(char *p, unsigned uc)
     }
 }
 
-#if defined(JIM_UTF8) && !defined(JIM_BOOTSTRAP)
+#if defined(USE_UTF8) && !defined(JIM_BOOTSTRAP)
 int utf8_charlen(int c)
 {
     if ((c & 0x80) == 0) {
