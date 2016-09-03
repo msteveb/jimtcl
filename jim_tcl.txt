@@ -51,6 +51,10 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.77 and 0.78
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Add serial/tty support with `aio tty`
+
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add support for `aio sync`
@@ -4568,6 +4572,41 @@ aio
 +$handle *tell*+::
     Returns the current seek position
 
++$handle *tty* ?settings?+::
+	If no arguments are given, returns a dictionary containing the tty settings for the stream.
+	If arguments are given, they must either be a dictionary, or +setting value \...+
+	Abbrevations are supported for both settings and values, so the following is acceptable:
+	+$f tty parity e input c out raw+.
+    Only available on platforms that support termios(3). Supported settings are:
+
+    +*baud* 'rate'+;;
+        Baud rate. e.g. 115200
+
+    +*data 5|6|7|8*+;;
+        Number of data bits
+
+    +*stop 1|2*+;;
+        Number of stop bits
+
+    +*parity even|odd|none*+;;
+        Parity setting
+
+    +*handshake xonxoff|rtscts|none*+;;
+		Handshaking type
+
+    +*input raw|cooked*+;;
+		Input character processing. In raw mode, the usual key sequences such as ^C do
+		not generate signals.
+
+    +*output raw|cooked*+;;
+		Output character processing. Typically CR -> CRNL is disabled in raw mode.
+
+    +*vmin* 'numchars'+;;
+		Minimum number of characters to read.
+
+    +*vtime* 'time'+;;
+		Timeout for noncanonical read (units of 0.1 seconds)
+
 +$handle *ssl* *?-server cert priv?*+::
     Initiates a SSL/TLS session and returns a new stream
 
@@ -5013,7 +5052,7 @@ independently (but synchronously) of the main interpreter.
 
 +*$interp alias* 'alias childcmd parentcmd ?arg ...?'+::
 	Similar to 'alias', but creates a command, +'childcmd'+, in the child interpreter that is an
-	alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments. 
+	alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments.
 	The alias may be deleted in the child with 'rename'.
 
 [[BuiltinVariables]]
