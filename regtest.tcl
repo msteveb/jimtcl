@@ -252,6 +252,21 @@ $f writable {incr y}
 $f close
 puts "TEST 34 PASSED"
 
+# REGTEST 35
+# caching of command resolution after local proc deleted
+set result {}
+proc x {} { }
+proc p {n} {
+    if {$n in {2 3}} {
+        local proc x {} { }
+    }
+    x
+}
+foreach i {1 2 3 4} {
+    p $i
+}
+puts "TEST 35 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

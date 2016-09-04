@@ -4991,8 +4991,8 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
                 }
                 else {
                     Jim_DeleteHashEntry(ht, fqname);
-                    Jim_InterpIncrProcEpoch(interp);
                 }
+                Jim_InterpIncrProcEpoch(interp);
             }
             Jim_DecrRefCount(interp, cmdNameObj);
             JimFreeQualifiedName(interp, fqObjName);
