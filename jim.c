@@ -5045,7 +5045,7 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action)
 /* -----------------------------------------------------------------------------
  * References
  * ---------------------------------------------------------------------------*/
-#ifdef JIM_REFERENCES
+#if defined(JIM_REFERENCES) && !defined(JIM_BOOTSTRAP)
 
 /* References HashTable Type.
  *
@@ -5302,7 +5302,6 @@ static const Jim_HashTableType JimRefMarkHashTableType = {
 int Jim_Collect(Jim_Interp *interp)
 {
     int collected = 0;
-#ifndef JIM_BOOTSTRAP
     Jim_HashTable marks;
     Jim_HashTableIterator htiter;
     Jim_HashEntry *he;
@@ -5424,7 +5423,6 @@ int Jim_Collect(Jim_Interp *interp)
     Jim_FreeHashTable(&marks);
     interp->lastCollectId = interp->referenceNextId;
     interp->lastCollectTime = time(NULL);
-#endif /* JIM_BOOTSTRAP */
     return collected;
 }
 
@@ -5444,7 +5442,7 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
         Jim_Collect(interp);
     }
 }
-#endif
+#endif /* JIM_REFERENCES && !JIM_BOOTSTRAP */
 
 int Jim_IsBigEndian(void)
 {
@@ -13067,7 +13065,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     /* unreached */
-#endif /* JIM_BOOTSTRAP */
+#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
 #if !defined(JIM_DEBUG_COMMAND)
     Jim_SetResultString(interp, "unsupported", -1);
     return JIM_ERR;
@@ -14140,7 +14138,7 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
-#ifdef JIM_REFERENCES
+#if defined(JIM_REFERENCES) && !defined(JIM_BOOTSTRAP)
 
 /* [ref] */
 static int Jim_RefCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -14254,7 +14252,7 @@ static int JimInfoReferences(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, listObjPtr);
     return JIM_OK;
 }
-#endif
+#endif /* JIM_REFERENCES && !JIM_BOOTSTRAP */
 
 /* [rename] */
 static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
