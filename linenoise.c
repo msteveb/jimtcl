@@ -853,12 +853,14 @@ static void refreshLine(const char *prompt, struct current *current)
     int b;
     int ch;
     int n;
+    int width;
+    int bufwidth;
 
     /* Should intercept SIGWINCH. For now, just get the size every time */
     getWindowSize(current);
 
     plen = strlen(prompt);
-    pchars = utf8_strlen(prompt, plen);
+    pchars = utf8_strwidth(prompt, utf8_strlen(prompt, plen));
 
     /* Scan the prompt for embedded ansi color control sequences and
      * discount them as characters/columns.
@@ -872,7 +874,7 @@ static void refreshLine(const char *prompt, struct current *current)
     /* How many cols are required to the left of 'pos'?
      * The prompt, plus one extra for each control char
      */
-    n = pchars + utf8_strlen(buf, current->len);
+    n = pchars + utf8_strwidth(buf, utf8_strlen(buf, current->len));
     b = 0;
     for (i = 0; i < pos; i++) {
         b += utf8_tounicode(buf + b, &ch);
@@ -881,20 +883,21 @@ static void refreshLine(const char *prompt, struct current *current)
         }
     }
 
-    /* If too many are needed, strip chars off the front of 'buf'
-     * until it fits. Note that if the current char is a control character,
-     * we need one extra col.
-     */
+    /* Pluse one if the current char is a control character */
     if (current->pos < current->chars && get_char(current, current->pos) < ' ') {
         n++;
     }
 
+    /* If too many are needed, strip chars off the front of 'buf'
+     * until it fits. Note that if the current char is a control character,
+     * we need one extra col.
+     */
     while (n >= current->cols && pos > 0) {
         b = utf8_tounicode(buf, &ch);
         if (ch < ' ') {
             n--;
         }
-        n--;
+        n -= utf8_width(ch);
         buf += b;
         pos--;
         chars--;
@@ -911,13 +914,19 @@ static void refreshLine(const char *prompt, struct current *current)
      */
     b = 0; /* unwritted bytes */
     n = 0; /* How many control chars were written */
+    width = 0; /* current display width */
+    bufwidth = utf8_strwidth(buf, pos);
+
     for (i = 0; i < chars; i++) {
         int ch;
         int w = utf8_tounicode(buf + b, &ch);
         if (ch < ' ') {
             n++;
         }
-        if (pchars + i + n >= current->cols) {
+
+        width += utf8_width(ch);
+
+        if (pchars + width + n >= current->cols) {
             break;
         }
         if (ch < ' ') {
@@ -938,7 +947,7 @@ static void refreshLine(const char *prompt, struct current *current)
 
     /* Erase to right, move cursor to original position */
     eraseEol(current);
-    setCursorPos(current, pos + pchars + backup);
+    setCursorPos(current, bufwidth + pchars + backup);
 }
 
 static void set_current(struct current *current, const char *str)
