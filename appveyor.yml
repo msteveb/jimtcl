@@ -7,5 +7,8 @@ build_script:
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make"
 test_script:
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make test"
+after_build:
+  - cmd: copy jimsh.exe jimsh_debug.exe
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; strip jimsh.exe; 7z a jimsh.zip jimsh.exe jimsh_debug.exe /c/msys64/mingw32/bin/{libgcc_s_dw2-1.dll,libwinpthread-1.dll,libeay32.dll,ssleay32.dll}"
 artifacts:
-  - path: jimsh.exe
+  - path: jimsh.zip
