@@ -1,4 +1,4 @@
-version: "0.76.0.{build}"
+version: "0.77.0.{build}"
 install:
   - cmd: set MSYSTEM=MINGW32
   - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc"
