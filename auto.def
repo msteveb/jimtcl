@@ -173,6 +173,7 @@ if {[opt-bool utf8 full]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     define-append CCOPTS -DUSE_UTF8
+    define PARSE_UNIDATA_FLAGS ""
     incr jimregexp
 } else {
     define JIM_UTF8 0
@@ -219,6 +220,7 @@ if {[opt-bool lineedit full]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
         define-append CCOPTS -DNO_COMPLETION
+        define-append PARSE_UNIDATA_FLAGS -width
         lappend extra_objs linenoise.o
     }
 }
