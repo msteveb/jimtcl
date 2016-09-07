@@ -7,6 +7,7 @@
 #ifdef USE_LINENOISE
 #ifdef HAVE_UNISTD_H
     #include <unistd.h>
+    #include <sys/stat.h>
 #endif
 #include "linenoise.h"
 #else
@@ -56,7 +57,11 @@ void Jim_HistoryAdd(const char *line)
 void Jim_HistorySave(const char *filename)
 {
 #ifdef USE_LINENOISE
+    mode_t mask;
+    /* Just u=rw, but note that this is only effective for newly created files */
+    mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
     linenoiseHistorySave(filename);
+    mask = umask(mask);
 #endif
 }
 
