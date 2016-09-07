@@ -57,7 +57,7 @@ while {[gets $f buf] >= 0} {
 			set combining $codex
 		}
 		continue
-	} elseif {[exists combining]} {
+	} elseif {[info exists combining]} {
 		lappend map(combining) $combining $codex
 		unset combining
 	}
