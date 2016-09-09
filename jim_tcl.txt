@@ -3782,6 +3782,9 @@ Handle SIGHUP to reconfigure:
         # Received SIGHUP, so reconfigure
     }
 
+Note: signal handling is currently not supported in child interpreters.
+In these interpreters, the signal command does not exist.
+
 sleep
 ~~~~~
 +*sleep* 'seconds'+

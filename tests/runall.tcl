@@ -24,25 +24,33 @@ if {[info commands interp] eq ""} {
 	foreach script [lsort [glob *.test]] {
 		set ::argv0 $script
 
-		set i [interp]
+		if {$script eq "signal.test"} {
+			# special case, can't run this in a child interpeter
+			source $script
+			foreach var {pass fail skip tests} {
+				incr total($var) $testinfo(num$var)
+			}
+		} else {
+			set i [interp]
 
-		foreach var {argv0 auto_path} {
-			$i eval [list set $var [set ::$var]]
+			foreach var {argv0 auto_path} {
+				$i eval [list set $var [set ::$var]]
+			}
+
+			# Run the test
+			catch -exit {$i eval source $script} msg opts
+			if {[info returncode $opts(-code)] eq "error"} {
+				puts [format "%16s:   --- error ($msg)" $script]
+				incr total(fail)
+			}
+
+			# Extract the counts
+			foreach var {pass fail skip tests} {
+				incr total($var) [$i eval "set testinfo(num$var)"]
+			}
+			$i delete
 		}
 
-		# Run the test
-		catch -exit {$i eval source $script} msg opts
-		if {[info returncode $opts(-code)] eq "error"} {
-			puts [format "%16s:   --- error ($msg)" $script]
-			incr total(fail)
-		}
-
-		# Extract the counts
-		foreach var {pass fail skip tests} {
-			incr total($var) [$i eval "set testinfo(num$var)"]
-		}
-
-		$i delete
 		stdout flush
 	}
 	puts [string repeat = 73]

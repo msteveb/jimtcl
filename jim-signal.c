@@ -510,19 +510,23 @@ int Jim_signalInit(Jim_Interp *interp)
     if (Jim_PackageProvide(interp, "signal", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
-    signal_init_names();
+    Jim_CreateCommand(interp, "alarm", Jim_AlarmCmd, 0, 0);
+    Jim_CreateCommand(interp, "kill", Jim_KillCmd, 0, 0);
+    /* Sleep is slightly dubious here */
+    Jim_CreateCommand(interp, "sleep", Jim_SleepCmd, 0, 0);
 
     /* Teach the jim core how to set a result from a sigmask */
     interp->signal_set_result = signal_set_sigmask_result;
 
-    /* Make sure we know where to store the signals which occur */
-    sigloc = &interp->sigmask;
+    /* Currently only the top level interp supports signals */
+    if (!sigloc) {
+        signal_init_names();
 
-    Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, NULL);
-    Jim_CreateCommand(interp, "alarm", Jim_AlarmCmd, 0, 0);
-    Jim_CreateCommand(interp, "kill", Jim_KillCmd, 0, 0);
+        /* Make sure we know where to store the signals which occur */
+        sigloc = &interp->sigmask;
 
-    /* Sleep is slightly dubious here */
-    Jim_CreateCommand(interp, "sleep", Jim_SleepCmd, 0, 0);
+        Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, NULL);
+    }
+
     return JIM_OK;
 }
