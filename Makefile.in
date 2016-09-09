@@ -122,7 +122,7 @@ $(OBJS): Makefile $(wildcard *.h)
 utf8.o: _unicode_mapping.c
 
 _unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
-	@tclsh@ @srcdir@/parse-unidata.tcl @PARSE_UNIDATA_FLAGS@ @srcdir@/UnicodeData.txt >$@ || ( rm $@; exit 1)
+	@tclsh@ @srcdir@/parse-unidata.tcl @PARSE_UNIDATA_FLAGS@ @srcdir@/UnicodeData.txt @srcdir@/EastAsianWidth.txt >$@ || ( rm $@; exit 1)
 @endif
 
 _load-static-exts.c: @srcdir@/make-load-static-exts.tcl Makefile
