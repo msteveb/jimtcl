@@ -159,3 +159,33 @@ proc cc-check-c11 {} {
     cctest_alignof __alignof__
     cctest_alignof __alignof
 }
+
+# @cc-check-alloca
+#
+# The equivalent of the AC_FUNC_ALLOCA macro
+#
+# Checks for the existence of alloca
+# defines HAVE_ALLOCA and returns 1 if it exists
+proc cc-check-alloca {} {
+    cc-check-some-feature alloca {
+        cctest -includes alloca.h -code { alloca (2 * sizeof (int)); }
+    }
+}
+
+# @cc-signal-return-type
+#
+# The equivalent of the AC_TYPE_SIGNAL macro
+#
+# defines RETSIGTYPE to int or void
+proc cc-signal-return-type {} {
+    msg-checking "Checking return type of signal handlers..."
+    cc-with {-includes {sys/types.h signal.h}} {
+        if {[cctest -code {return *(signal (0, 0)) (0) == 1;}]} {
+                set type int
+        } else {
+                set type void
+        }
+        define RETSIGTYPE $type
+        msg-result $type
+    }
+}

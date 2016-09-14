@@ -49,7 +49,8 @@ proc cctest_type {type} {
 # Checks for the existence of the given type/structure member.
 # e.g. "struct stat.st_mtime"
 proc cctest_member {struct_member} {
-	lassign [split $struct_member .] struct member
+	# split at the first dot
+	regexp {^([^.]+)[.](.*)$} $struct_member -> struct member
 	cctest -code "static $struct _s; return sizeof(_s.$member);"
 }
 

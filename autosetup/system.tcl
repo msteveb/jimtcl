@@ -9,6 +9,16 @@
 # It also support the 'feature' naming convention, where searching
 # for a feature such as sys/type.h defines HAVE_SYS_TYPES_H
 #
+# It defines the following variables, based on --prefix unless overridden by the user:
+#
+## datadir
+## sysconfdir
+## sharedstatedir
+## localstatedir
+## infodir
+## mandir
+## includedir
+#
 module-options {
 	host:host-alias =>		{a complete or partial cpu-vendor-opsys for the system where
 							the application will run (defaults to the same value as --build)}
