@@ -74,12 +74,12 @@ void usage(const char* executable_name)
     printf("Without options: Interactive mode\n");
     printf("\n");
     printf("Options:\n");
-    printf("         --version  : prints the version string\n");
-    printf("         --help     : prints this text\n");
-    printf("         -e CMD     : executes command CMD\n");
-    printf("                      NOTE: all subsequent options will be passed as arguments to the command\n");
-    printf("         [filename] : executes the script contained in the named file\n");
-    printf("                      NOTE: all subsequent options will be passed to the script\n\n");
+    printf("      --version  : prints the version string\n");
+    printf("      --help     : prints this text\n");
+    printf("      -e CMD     : executes command CMD\n");
+    printf("                   NOTE: all subsequent options will be passed as arguments to the command\n");
+    printf("    [filename|-] : executes the script contained in the named file, or from stdin if \"-\"\n");
+    printf("                   NOTE: all subsequent options will be passed to the script\n\n");
 }
 
 int main(int argc, char *const argv[])
@@ -134,7 +134,11 @@ int main(int argc, char *const argv[])
         else {
             Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
             JimSetArgv(interp, argc - 2, argv + 2);
-            retcode = Jim_EvalFile(interp, argv[1]);
+            if (strcmp(argv[1], "-") == 0) {
+                retcode = Jim_Eval(interp, "eval [info source [stdin read] stdin 1]");
+            } else {
+                retcode = Jim_EvalFile(interp, argv[1]);
+            }
         }
         if (retcode == JIM_ERR) {
             JimPrintErrorMessage(interp);
