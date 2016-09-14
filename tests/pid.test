@@ -19,7 +19,7 @@ needs cmd pid posix
 needs cmd exec
 catch {package require regexp}
 testConstraint regexp [expr {[info commands regexp] ne {}}]
-testConstraint socket [expr {[info commands socket] ne {}}]
+testConstraint pipe [expr {[info commands pipe] ne {}}]
 testConstraint getpid [expr {[catch pid] == 0}]
 # This is a proxy for tcl || tclcompat
 testConstraint pidchan [expr {[info commands fconfigure] ne {}}]
@@ -29,7 +29,7 @@ file delete test1
 test pid-1.1 {pid command} {regexp getpid} {
     regexp {(^[0-9]+$)|(^0x[0-9a-fA-F]+$)} [pid]
 } 1
-test pid-1.2 {pid command} {regexp socket pidchan} {
+test pid-1.2 {pid command} {regexp pipe pidchan} {
     set f [open {| echo foo | cat >test1} w]
     set pids [pid $f]
     close $f
@@ -38,7 +38,7 @@ test pid-1.2 {pid command} {regexp socket pidchan} {
        [regexp {^[0-9]+$} [lindex $pids 1]] \
        [expr {[lindex $pids 0] == [lindex $pids 1]}]
 } {2 1 1 0}
-test pid-1.3 {pid command} {socket pidchan} {
+test pid-1.3 {pid command} {pipe pidchan} {
     set f [open test1 w]
     set pids [pid $f]
     close $f

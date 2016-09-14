@@ -120,7 +120,7 @@ proc {file copy} {{force {}} source target} {
 # 'open "|..." ?mode?" will invoke this wrapper around exec/pipe
 # Note that we return a lambda which also provides the 'pid' command
 proc popen {cmd {mode r}} {
-	lassign [socket pipe] r w
+	lassign [pipe] r w
 	try {
 		if {[string match "w*" $mode]} {
 			lappend cmd <@$r &
@@ -137,11 +137,26 @@ proc popen {cmd {mode r}} {
 			if {$cmd eq "pid"} {
 				return $pids
 			}
+			if {$cmd eq "getfd"} {
+				$f getfd
+			}
 			if {$cmd eq "close"} {
 				$f close
 				# And wait for the child processes to complete
-				foreach p $pids { os.wait $p }
-				return
+				set retopts {}
+				foreach p $pids {
+					lassign [wait $p] status - rc
+					if {$status eq "CHILDSTATUS"} {
+						if {$rc == 0} {
+							continue
+						}
+						set msg "child process exited abnormally"
+					} else {
+						set msg "child killed: received signal"
+					}
+					set retopts [list -code error -errorcode [list $status $p $rc] $msg]
+				}
+				return {*}$retopts
 			}
 			tailcall $f $cmd {*}$args
 		}

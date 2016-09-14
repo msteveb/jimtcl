@@ -51,7 +51,7 @@ JIMSH_CC := $(CXX) $(CXXFLAGS)
 JIMSH_CC := $(CC) $(CFLAGS)
 @endif
 
-OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o \
+OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o jimiocompat.o \
     @EXTRA_OBJS@ @C_EXT_OBJS@ @TCL_EXT_OBJS@
 
 JIMSH := jimsh@EXEEXT@

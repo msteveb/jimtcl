@@ -93,84 +93,24 @@ int Jim_execInit(Jim_Interp *interp)
 
 #include <errno.h>
 #include <signal.h>
+#include "jim-signal.h"
+#include "jimiocompat.h"
+#include <sys/stat.h>
 
-#if defined(__MINGW32__)
-    /* XXX: Should we use this implementation for cygwin too? msvc? */
-    #ifndef STRICT
-    #define STRICT
-    #endif
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-    #include <fcntl.h>
+struct WaitInfoTable;
 
-    typedef HANDLE fdtype;
-    typedef HANDLE pidtype;
-    #define JIM_BAD_FD INVALID_HANDLE_VALUE
-    #define JIM_BAD_PID INVALID_HANDLE_VALUE
-    #define JimCloseFd CloseHandle
-
-    #define WIFEXITED(STATUS) 1
-    #define WEXITSTATUS(STATUS) (STATUS)
-    #define WIFSIGNALED(STATUS) 0
-    #define WTERMSIG(STATUS) 0
-    #define WNOHANG 1
-
-    static fdtype JimFileno(FILE *fh);
-    static pidtype JimWaitPid(pidtype pid, int *status, int nohang);
-    static fdtype JimDupFd(fdtype infd);
-    static fdtype JimOpenForRead(const char *filename);
-    static FILE *JimFdOpenForRead(fdtype fd);
-    static int JimPipe(fdtype pipefd[2]);
-    static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char **env,
-        fdtype inputId, fdtype outputId, fdtype errorId);
-    static int JimErrno(void);
-#else
-    #include "jim-signal.h"
-    #include <unistd.h>
-    #include <fcntl.h>
-    #include <sys/wait.h>
-    #include <sys/stat.h>
-
-    typedef int fdtype;
-    typedef int pidtype;
-    #define JimPipe pipe
-    #define JimErrno() errno
-    #define JIM_BAD_FD -1
-    #define JIM_BAD_PID -1
-    #define JimFileno fileno
-    #define JimReadFd read
-    #define JimCloseFd close
-    #define JimWaitPid waitpid
-    #define JimDupFd dup
-    #define JimFdOpenForRead(FD) fdopen((FD), "r")
-    #define JimOpenForRead(NAME) open((NAME), O_RDONLY, 0)
-
-    #ifndef HAVE_EXECVPE
-        #define execvpe(ARG0, ARGV, ENV) execvp(ARG0, ARGV)
-    #endif
-#endif
-
-static const char *JimStrError(void);
 static char **JimOriginalEnviron(void);
 static char **JimSaveEnv(char **env);
 static void JimRestoreEnv(char **env);
 static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
-    pidtype **pidArrayPtr, fdtype *inPipePtr, fdtype *outPipePtr, fdtype *errFilePtr);
-static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr);
+    pidtype **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
+static void JimDetachPids(struct WaitInfoTable *table, int numPids, const pidtype *pidPtr);
 static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, Jim_Obj *errStrObj);
-static fdtype JimCreateTemp(Jim_Interp *interp, const char *contents, int len);
-static fdtype JimOpenForWrite(const char *filename, int append);
-static int JimRewindFd(fdtype fd);
+static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
-static void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
-{
-    Jim_SetResultFormatted(interp, "%s: %s", msg, JimStrError());
-}
-
-static const char *JimStrError(void)
-{
-    return strerror(JimErrno());
-}
+#if defined(__MINGW32__)
+static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, int inputId, int outputId, int errorId);
+#endif
 
 /*
  * If the last character of 'objPtr' is a newline, then remove
@@ -191,10 +131,10 @@ static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
  * Read from 'fd', append the data to strObj and close 'fd'.
  * Returns 1 if data was added, 0 if not, or -1 on error.
  */
-static int JimAppendStreamToString(Jim_Interp *interp, fdtype fd, Jim_Obj *strObj)
+static int JimAppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
 {
     char buf[256];
-    FILE *fh = JimFdOpenForRead(fd);
+    FILE *fh = fdopen(fd, "r");
     int ret = 0;
 
     if (fh == NULL) {
@@ -292,40 +232,16 @@ static void JimFreeEnv(char **env, char **original_environ)
     }
 }
 
-#ifndef jim_ext_signal
-/* Implement trivial Jim_SignalId() and Jim_SignalName(), just good enough for JimCheckWaitStatus() */
-const char *Jim_SignalId(int sig)
+static Jim_Obj *JimMakeErrorCode(Jim_Interp *interp, pidtype pid, int waitStatus, Jim_Obj *errStrObj)
 {
-    static char buf[10];
-    snprintf(buf, sizeof(buf), "%d", sig);
-    return buf;
-}
+    Jim_Obj *errorCode = Jim_NewListObj(interp, NULL, 0);
 
-const char *Jim_SignalName(int sig)
-{
-    return Jim_SignalId(sig);
-}
-#endif
-
-/*
- * Create and store an appropriate value for the global variable $::errorCode
- * Based on pid and waitStatus.
- *
- * Returns JIM_OK for a normal exit with code 0, otherwise returns JIM_ERR.
- *
- * Note that $::errorCode is left unchanged for a normal exit.
- * Details of any abnormal exit is appended to the errStrObj, unless it is NULL.
- */
-static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, Jim_Obj *errStrObj)
-{
-    Jim_Obj *errorCode;
-
-    if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
-        return JIM_OK;
+    if (pid == JIM_BAD_PID || pid == JIM_NO_PID) {
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "NONE", -1));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, -1));
     }
-    errorCode = Jim_NewListObj(interp, NULL, 0);
-
-    if (WIFEXITED(waitStatus)) {
+    else if (WIFEXITED(waitStatus)) {
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, "CHILDSTATUS", -1));
         Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
         Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, WEXITSTATUS(waitStatus)));
@@ -333,14 +249,17 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, J
     else {
         const char *type;
         const char *action;
+        const char *signame;
 
         if (WIFSIGNALED(waitStatus)) {
             type = "CHILDKILLED";
             action = "killed";
+            signame = Jim_SignalId(WTERMSIG(waitStatus));
         }
         else {
             type = "CHILDSUSP";
             action = "suspended";
+            signame = "none";
         }
 
         Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, type, -1));
@@ -353,17 +272,33 @@ static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, J
         }
 
         Jim_ListAppendElement(interp, errorCode, Jim_NewIntObj(interp, (long)pid));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalId(WTERMSIG(waitStatus)), -1));
-        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, Jim_SignalName(WTERMSIG(waitStatus)), -1));
+        Jim_ListAppendElement(interp, errorCode, Jim_NewStringObj(interp, signame, -1));
     }
-    Jim_SetGlobalVariableStr(interp, "errorCode", errorCode);
+    return errorCode;
+}
+
+/*
+ * Create and store an appropriate value for the global variable $::errorCode
+ * Based on pid and waitStatus.
+ *
+ * Returns JIM_OK for a normal exit with code 0, otherwise returns JIM_ERR.
+ *
+ * Note that $::errorCode is left unchanged for a normal exit.
+ * Details of any abnormal exit is appended to the errStrObj, unless it is NULL.
+ */
+static int JimCheckWaitStatus(Jim_Interp *interp, pidtype pid, int waitStatus, Jim_Obj *errStrObj)
+{
+    if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
+        return JIM_OK;
+    }
+    Jim_SetGlobalVariableStr(interp, "errorCode", JimMakeErrorCode(interp, pid, waitStatus, errStrObj));
 
     return JIM_ERR;
 }
 
 /*
- * Data structures of the following type are used by JimFork and
- * JimWaitPids to keep track of child processes.
+ * Data structures of the following type are used by exec and
+ * wait to keep track of child processes.
  */
 
 struct WaitInfo
@@ -373,10 +308,12 @@ struct WaitInfo
     int flags;                  /* Various flag bits;  see below for definitions. */
 };
 
+/* This table is shared by exec and os.wait */
 struct WaitInfoTable {
     struct WaitInfo *info;      /* Table of outstanding processes */
     int size;                   /* Size of the allocated table */
     int used;                   /* Number of entries in use */
+    int refcount;               /* Free the table once the refcount drops to 0 */
 };
 
 /*
@@ -395,8 +332,10 @@ static void JimFreeWaitInfoTable(struct Jim_Interp *interp, void *privData)
 {
     struct WaitInfoTable *table = privData;
 
-    Jim_Free(table->info);
-    Jim_Free(table);
+    if (--table->refcount == 0) {
+        Jim_Free(table->info);
+        Jim_Free(table);
+    }
 }
 
 static struct WaitInfoTable *JimAllocWaitInfoTable(void)
@@ -404,8 +343,31 @@ static struct WaitInfoTable *JimAllocWaitInfoTable(void)
     struct WaitInfoTable *table = Jim_Alloc(sizeof(*table));
     table->info = NULL;
     table->size = table->used = 0;
+    table->refcount = 1;
 
     return table;
+}
+
+/**
+ * Removes the given pid from the wait table.
+ *
+ * Returns 0 if OK or -1 if not found.
+ */
+static int JimWaitRemove(struct WaitInfoTable *table, pidtype pid)
+{
+    int i;
+
+    /* Find it in the table */
+    for (i = 0; i < table->used; i++) {
+        if (pid == table->info[i].pid) {
+            if (i != table->used - 1) {
+                table->info[i] = table->info[table->used - 1];
+            }
+            table->used--;
+            return 0;
+        }
+    }
+    return -1;
 }
 
 /*
@@ -413,13 +375,14 @@ static struct WaitInfoTable *JimAllocWaitInfoTable(void)
  */
 static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    fdtype outputId;    /* File id for output pipe. -1 means command overrode. */
-    fdtype errorId;     /* File id for temporary file containing error output. */
+    int outputId;    /* File id for output pipe. -1 means command overrode. */
+    int errorId;     /* File id for temporary file containing error output. */
     pidtype *pidPtr;
     int numPids, result;
     int child_siginfo = 1;
     Jim_Obj *childErrObj;
     Jim_Obj *errStrObj;
+    struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
     /*
      * See if the command is to be run in the background; if so, create
@@ -440,7 +403,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, (long)pidPtr[i]));
         }
         Jim_SetResult(interp, listObj);
-        JimDetachPids(interp, numPids, pidPtr);
+        JimDetachPids(table, numPids, pidPtr);
         Jim_Free(pidPtr);
         return JIM_OK;
     }
@@ -460,7 +423,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     errStrObj = Jim_NewStringObj(interp, "", 0);
 
     /* Read from the output pipe until EOF */
-    if (outputId != JIM_BAD_FD) {
+    if (outputId != -1) {
         if (JimAppendStreamToString(interp, outputId, errStrObj) < 0) {
             result = JIM_ERR;
             Jim_SetResultErrno(interp, "error reading from output pipe");
@@ -481,9 +444,9 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * Note that unlike Tcl, the presence of stderr output does not cause
      * exec to return an error.
      */
-    if (errorId != JIM_BAD_FD) {
+    if (errorId != -1) {
         int ret;
-        JimRewindFd(errorId);
+        lseek(errorId, 0, SEEK_SET);
         ret = JimAppendStreamToString(interp, errorId, errStrObj);
         if (ret < 0) {
             Jim_SetResultErrno(interp, "error reading from error pipe");
@@ -510,6 +473,65 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return result;
 }
 
+/**
+ * Does waitpid() on the given pid, and then removes the
+ * entry from the wait table.
+ *
+ * Returns the pid if OK and updates *statusPtr with the status,
+ * or JIM_BAD_PID if the pid was not in the table.
+ */
+static pidtype JimWaitForProcess(struct WaitInfoTable *table, pidtype pid, int *statusPtr)
+{
+    if (JimWaitRemove(table, pid) == 0) {
+         /* wait for it */
+         waitpid(pid, statusPtr, 0);
+         return pid;
+    }
+
+    /* Not found */
+    return JIM_BAD_PID;
+}
+
+/**
+ * Indicates that one or more child processes have been placed in
+ * background and are no longer cared about.
+ * These children can be cleaned up with JimReapDetachedPids().
+ */
+static void JimDetachPids(struct WaitInfoTable *table, int numPids, const pidtype *pidPtr)
+{
+    int j;
+
+    for (j = 0; j < numPids; j++) {
+        /* Find it in the table */
+        int i;
+        for (i = 0; i < table->used; i++) {
+            if (pidPtr[j] == table->info[i].pid) {
+                table->info[i].flags |= WI_DETACHED;
+                break;
+            }
+        }
+    }
+}
+
+/* Use 'name getfd' to get the file descriptor associated with channel 'name'
+ * Returns the file descriptor or -1 on error
+ */
+static int JimGetChannelFd(Jim_Interp *interp, const char *name)
+{
+    Jim_Obj *objv[2];
+
+    objv[0] = Jim_NewStringObj(interp, name, -1);
+    objv[1] = Jim_NewStringObj(interp, "getfd", -1);
+
+    if (Jim_EvalObjVector(interp, 2, objv) == JIM_OK) {
+        jim_wide fd;
+        if (Jim_GetWide(interp, Jim_GetResult(interp), &fd) == JIM_OK) {
+            return fd;
+        }
+    }
+    return -1;
+}
+
 static void JimReapDetachedPids(struct WaitInfoTable *table)
 {
     struct WaitInfo *waitPtr;
@@ -525,7 +547,7 @@ static void JimReapDetachedPids(struct WaitInfoTable *table)
     for (count = table->used; count > 0; waitPtr++, count--) {
         if (waitPtr->flags & WI_DETACHED) {
             int status;
-            pidtype pid = JimWaitPid(waitPtr->pid, &status, WNOHANG);
+            pidtype pid = waitpid(waitPtr->pid, &status, WNOHANG);
             if (pid == waitPtr->pid) {
                 /* Process has exited, so remove it from the table */
                 table->used--;
@@ -539,69 +561,78 @@ static void JimReapDetachedPids(struct WaitInfoTable *table)
     }
 }
 
-/**
- * Does waitpid() on the given pid, and then removes the
- * entry from the wait table.
+/*
+ * wait ?-nohang? ?pid?
  *
- * Returns the pid if OK and updates *statusPtr with the status,
- * or JIM_BAD_PID if the pid was not in the table.
+ * An interface to waitpid(2)
+ *
+ * Returns a 3 element list.
+ *
+ * If the process has not exited or doesn't exist, returns:
+ *
+ *   {NONE x x}
+ *
+ * If the process exited normally, returns:
+ *
+ *   {CHILDSTATUS <pid> <exit-status>}
+ *
+ * If the process terminated on a signal, returns:
+ *
+ *   {CHILDKILLED <pid> <signal>}
+ *
+ * Otherwise (core dump, stopped, continued, ...), returns:
+ *
+ *   {CHILDSUSP <pid> none}
+ *
+ * With no arguments, reaps any finished background processes started by exec ... &
  */
-static pidtype JimWaitForProcess(struct WaitInfoTable *table, pidtype pid, int *statusPtr)
+static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int i;
-
-    /* Find it in the table */
-    for (i = 0; i < table->used; i++) {
-        if (pid == table->info[i].pid) {
-            /* wait for it */
-            JimWaitPid(pid, statusPtr, 0);
-
-            /* Remove it from the table */
-            if (i != table->used - 1) {
-                table->info[i] = table->info[table->used - 1];
-            }
-            table->used--;
-            return pid;
-        }
-    }
-
-    /* Not found */
-    return JIM_BAD_PID;
-}
-
-/**
- * Indicates that one or more child processes have been placed in
- * background and are no longer cared about.
- * These children can be cleaned up with JimReapDetachedPids().
- */
-static void JimDetachPids(Jim_Interp *interp, int numPids, const pidtype *pidPtr)
-{
-    int j;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
+    int nohang = 0;
+    pidtype pid;
+    long pidarg;
+    int status;
+    Jim_Obj *errCodeObj;
 
-    for (j = 0; j < numPids; j++) {
-        /* Find it in the table */
-        int i;
-        for (i = 0; i < table->used; i++) {
-            if (pidPtr[j] == table->info[i].pid) {
-                table->info[i].flags |= WI_DETACHED;
-                break;
-            }
-        }
+    /* With no arguments, reap detached children */
+    if (argc == 1) {
+        JimReapDetachedPids(table);
+        return JIM_OK;
     }
+
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nohang")) {
+        nohang = 1;
+    }
+    if (argc != nohang + 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-nohang? ?pid?");
+        return JIM_ERR;
+    }
+    if (Jim_GetLong(interp, argv[nohang + 1], &pidarg) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    pid = waitpid((pidtype)pidarg, &status, nohang ? WNOHANG : 0);
+
+    errCodeObj = JimMakeErrorCode(interp, pid, status, NULL);
+
+    if (pid != JIM_BAD_PID && (WIFEXITED(status) || WIFSIGNALED(status))) {
+        /* The process has finished. Remove it from the wait table if it exists there */
+        JimWaitRemove(table, pid);
+    }
+    Jim_SetResult(interp, errCodeObj);
+    return JIM_OK;
 }
 
-static FILE *JimGetAioFilehandle(Jim_Interp *interp, const char *name)
+static int Jim_PidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    FILE *fh;
-    Jim_Obj *fhObj;
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
 
-    fhObj = Jim_NewStringObj(interp, name, -1);
-    Jim_IncrRefCount(fhObj);
-    fh = Jim_AioFilehandle(interp, fhObj);
-    Jim_DecrRefCount(interp, fhObj);
-
-    return fh;
+    Jim_SetResultInt(interp, (jim_wide)getpid());
+    return JIM_OK;
 }
 
 /*
@@ -634,7 +665,7 @@ static FILE *JimGetAioFilehandle(Jim_Interp *interp, const char *name)
  */
 static int
 JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **pidArrayPtr,
-    fdtype *inPipePtr, fdtype *outPipePtr, fdtype *errFilePtr)
+    int *inPipePtr, int *outPipePtr, int *errFilePtr)
 {
     pidtype *pidPtr = NULL;         /* Points to malloc-ed array holding all
                                  * the pids of child processes. */
@@ -671,23 +702,23 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
                                  * or NULL if output goes to stdout/pipe. */
     const char *error = NULL;   /* Holds name of stderr file to pipe to,
                                  * or NULL if stderr goes to stderr/pipe. */
-    fdtype inputId = JIM_BAD_FD;
+    int inputId = -1;
                                  /* Readable file id input to current command in
-                                 * pipeline (could be file or pipe).  JIM_BAD_FD
+                                 * pipeline (could be file or pipe).  -1
                                  * means use stdin. */
-    fdtype outputId = JIM_BAD_FD;
+    int outputId = -1;
                                  /* Writable file id for output from current
                                  * command in pipeline (could be file or pipe).
-                                 * JIM_BAD_FD means use stdout. */
-    fdtype errorId = JIM_BAD_FD;
+                                 * -1 means use stdout. */
+    int errorId = -1;
                                  /* Writable file id for all standard error
-                                 * output from all commands in pipeline.  JIM_BAD_FD
+                                 * output from all commands in pipeline.  -1
                                  * means use stderr. */
-    fdtype lastOutputId = JIM_BAD_FD;
+    int lastOutputId = -1;
                                  /* Write file id for output from last command
                                  * in pipeline (could be file or pipe).
                                  * -1 means use stdout. */
-    fdtype pipeIds[2];           /* File ids for pipe that's being created. */
+    int pipeIds[2];           /* File ids for pipe that's being created. */
     int firstArg, lastArg;      /* Indexes of first and last arguments in
                                  * current command. */
     int lastBar;
@@ -700,18 +731,16 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
     char **arg_array = Jim_Alloc(sizeof(*arg_array) * (argc + 1));
     int arg_count = 0;
 
-    JimReapDetachedPids(table);
-
     if (inPipePtr != NULL) {
-        *inPipePtr = JIM_BAD_FD;
+        *inPipePtr = -1;
     }
     if (outPipePtr != NULL) {
-        *outPipePtr = JIM_BAD_FD;
+        *outPipePtr = -1;
     }
     if (errFilePtr != NULL) {
-        *errFilePtr = JIM_BAD_FD;
+        *errFilePtr = -1;
     }
-    pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
+    pipeIds[0] = pipeIds[1] = -1;
 
     /*
      * First, scan through all the arguments to figure out the structure
@@ -825,39 +854,44 @@ badargs:
              * Immediate data in command.  Create temporary file and
              * put data into file.
              */
-            inputId = JimCreateTemp(interp, input, input_len);
-            if (inputId == JIM_BAD_FD) {
+            inputId = Jim_MakeTempFile(interp, NULL, 1);
+            if (inputId == -1) {
                 goto error;
             }
+            if (write(inputId, input, input_len) != input_len) {
+                Jim_SetResultErrno(interp, "couldn't write temp file");
+                close(inputId);
+                goto error;
+            }
+            lseek(inputId, 0L, SEEK_SET);
         }
         else if (inputFile == FILE_HANDLE) {
-            /* Should be a file descriptor */
-            FILE *fh = JimGetAioFilehandle(interp, input);
+            int fd = JimGetChannelFd(interp, input);
 
-            if (fh == NULL) {
+            if (fd < 0) {
                 goto error;
             }
-            inputId = JimDupFd(JimFileno(fh));
+            inputId = dup(fd);
         }
         else {
             /*
              * File redirection.  Just open the file.
              */
-            inputId = JimOpenForRead(input);
-            if (inputId == JIM_BAD_FD) {
-                Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", input, JimStrError());
+            inputId = Jim_OpenForRead(input);
+            if (inputId == -1) {
+                Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", input, strerror(Jim_Errno()));
                 goto error;
             }
         }
     }
     else if (inPipePtr != NULL) {
-        if (JimPipe(pipeIds) != 0) {
+        if (pipe(pipeIds) != 0) {
             Jim_SetResultErrno(interp, "couldn't create input pipe for command");
             goto error;
         }
         inputId = pipeIds[0];
         *inPipePtr = pipeIds[1];
-        pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
+        pipeIds[0] = pipeIds[1] = -1;
     }
 
     /*
@@ -866,20 +900,19 @@ badargs:
      */
     if (output != NULL) {
         if (outputFile == FILE_HANDLE) {
-            FILE *fh = JimGetAioFilehandle(interp, output);
-            if (fh == NULL) {
+            int fd = JimGetChannelFd(interp, output);
+            if (fd < 0) {
                 goto error;
             }
-            fflush(fh);
-            lastOutputId = JimDupFd(JimFileno(fh));
+            lastOutputId = dup(fd);
         }
         else {
             /*
              * Output is to go to a file.
              */
-            lastOutputId = JimOpenForWrite(output, outputFile == FILE_APPEND);
-            if (lastOutputId == JIM_BAD_FD) {
-                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", output, JimStrError());
+            lastOutputId = Jim_OpenForWrite(output, outputFile == FILE_APPEND);
+            if (lastOutputId == -1) {
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", output, strerror(Jim_Errno()));
                 goto error;
             }
         }
@@ -888,43 +921,42 @@ badargs:
         /*
          * Output is to go to a pipe.
          */
-        if (JimPipe(pipeIds) != 0) {
+        if (pipe(pipeIds) != 0) {
             Jim_SetResultErrno(interp, "couldn't create output pipe");
             goto error;
         }
         lastOutputId = pipeIds[1];
         *outPipePtr = pipeIds[0];
-        pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
+        pipeIds[0] = pipeIds[1] = -1;
     }
     /* If we are redirecting stderr with 2>filename or 2>@fileId, then we ignore errFilePtr */
     if (error != NULL) {
         if (errorFile == FILE_HANDLE) {
             if (strcmp(error, "1") == 0) {
                 /* Special 2>@1 */
-                if (lastOutputId != JIM_BAD_FD) {
-                    errorId = JimDupFd(lastOutputId);
+                if (lastOutputId != -1) {
+                    errorId = dup(lastOutputId);
                 }
                 else {
                     /* No redirection of stdout, so just use 2>@stdout */
                     error = "stdout";
                 }
             }
-            if (errorId == JIM_BAD_FD) {
-                FILE *fh = JimGetAioFilehandle(interp, error);
-                if (fh == NULL) {
+            if (errorId == -1) {
+                int fd = JimGetChannelFd(interp, error);
+                if (fd < 0) {
                     goto error;
                 }
-                fflush(fh);
-                errorId = JimDupFd(JimFileno(fh));
+                errorId = dup(fd);
             }
         }
         else {
             /*
              * Output is to go to a file.
              */
-            errorId = JimOpenForWrite(error, errorFile == FILE_APPEND);
-            if (errorId == JIM_BAD_FD) {
-                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", error, JimStrError());
+            errorId = Jim_OpenForWrite(error, errorFile == FILE_APPEND);
+            if (errorId == -1) {
+                Jim_SetResultFormatted(interp, "couldn't write file \"%s\": %s", error, strerror(Jim_Errno()));
                 goto error;
             }
         }
@@ -938,11 +970,11 @@ badargs:
          * to complete before reading stderr, and processes couldn't complete
          * because stderr was backed up.
          */
-        errorId = JimCreateTemp(interp, NULL, 0);
-        if (errorId == JIM_BAD_FD) {
+        errorId = Jim_MakeTempFile(interp, NULL, 1);
+        if (errorId == -1) {
             goto error;
         }
-        *errFilePtr = JimDupFd(errorId);
+        *errFilePtr = dup(errorId);
     }
 
     /*
@@ -956,7 +988,7 @@ badargs:
     }
     for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg + 1) {
         int pipe_dup_err = 0;
-        fdtype origErrorId = errorId;
+        int origErrorId = errorId;
 
         for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
             if (strcmp(arg_array[lastArg], "|") == 0) {
@@ -979,14 +1011,14 @@ badargs:
             outputId = lastOutputId;
         }
         else {
-            if (JimPipe(pipeIds) != 0) {
+            if (pipe(pipeIds) != 0) {
                 Jim_SetResultErrno(interp, "couldn't create pipe");
                 goto error;
             }
             outputId = pipeIds[1];
         }
 
-        /* Need to do this befor vfork() */
+        /* Need to do this before vfork() */
         if (pipe_dup_err) {
             errorId = outputId;
         }
@@ -1011,10 +1043,9 @@ badargs:
         }
         if (pid == 0) {
             /* Child */
-
-            if (inputId != -1) dup2(inputId, 0);
-            if (outputId != -1) dup2(outputId, 1);
-            if (errorId != -1) dup2(errorId, 2);
+            if (inputId != -1) dup2(inputId, fileno(stdin));
+            if (outputId != -1) dup2(outputId, fileno(stdout));
+            if (errorId != -1) dup2(errorId, fileno(stderr));
 
             for (i = 3; (i <= outputId) || (i <= inputId) || (i <= errorId); i++) {
                 close(i);
@@ -1025,7 +1056,6 @@ badargs:
 
             execvpe(arg_array[firstArg], &arg_array[firstArg], Jim_GetEnviron());
 
-            /* Need to prep an error message before vfork(), just in case */
             fprintf(stderr, "couldn't exec \"%s\"\n", arg_array[firstArg]);
 #ifdef JIM_MAINTAINER
             {
@@ -1063,15 +1093,15 @@ badargs:
          * this child, then set up the input for the next child.
          */
 
-        if (inputId != JIM_BAD_FD) {
-            JimCloseFd(inputId);
+        if (inputId != -1) {
+            close(inputId);
         }
-        if (outputId != JIM_BAD_FD) {
-            JimCloseFd(outputId);
-            outputId = JIM_BAD_FD;
+        if (outputId != -1) {
+            close(outputId);
+            outputId = -1;
         }
         inputId = pipeIds[0];
-        pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
+        pipeIds[0] = pipeIds[1] = -1;
     }
     *pidArrayPtr = pidPtr;
 
@@ -1080,14 +1110,14 @@ badargs:
      */
 
   cleanup:
-    if (inputId != JIM_BAD_FD) {
-        JimCloseFd(inputId);
+    if (inputId != -1) {
+        close(inputId);
     }
-    if (lastOutputId != JIM_BAD_FD) {
-        JimCloseFd(lastOutputId);
+    if (lastOutputId != -1) {
+        close(lastOutputId);
     }
-    if (errorId != JIM_BAD_FD) {
-        JimCloseFd(errorId);
+    if (errorId != -1) {
+        close(errorId);
     }
     Jim_Free(arg_array);
 
@@ -1102,28 +1132,28 @@ badargs:
      */
 
   error:
-    if ((inPipePtr != NULL) && (*inPipePtr != JIM_BAD_FD)) {
-        JimCloseFd(*inPipePtr);
-        *inPipePtr = JIM_BAD_FD;
+    if ((inPipePtr != NULL) && (*inPipePtr != -1)) {
+        close(*inPipePtr);
+        *inPipePtr = -1;
     }
-    if ((outPipePtr != NULL) && (*outPipePtr != JIM_BAD_FD)) {
-        JimCloseFd(*outPipePtr);
-        *outPipePtr = JIM_BAD_FD;
+    if ((outPipePtr != NULL) && (*outPipePtr != -1)) {
+        close(*outPipePtr);
+        *outPipePtr = -1;
     }
-    if ((errFilePtr != NULL) && (*errFilePtr != JIM_BAD_FD)) {
-        JimCloseFd(*errFilePtr);
-        *errFilePtr = JIM_BAD_FD;
+    if ((errFilePtr != NULL) && (*errFilePtr != -1)) {
+        close(*errFilePtr);
+        *errFilePtr = -1;
     }
-    if (pipeIds[0] != JIM_BAD_FD) {
-        JimCloseFd(pipeIds[0]);
+    if (pipeIds[0] != -1) {
+        close(pipeIds[0]);
     }
-    if (pipeIds[1] != JIM_BAD_FD) {
-        JimCloseFd(pipeIds[1]);
+    if (pipeIds[1] != -1) {
+        close(pipeIds[1]);
     }
     if (pidPtr != NULL) {
         for (i = 0; i < numPids; i++) {
             if (pidPtr[i] != JIM_BAD_PID) {
-                JimDetachPids(interp, 1, &pidPtr[i]);
+                JimDetachPids(table, 1, &pidPtr[i]);
             }
         }
         Jim_Free(pidPtr);
@@ -1174,6 +1204,7 @@ static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, 
 
 int Jim_execInit(Jim_Interp *interp)
 {
+    struct WaitInfoTable *waitinfo;
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
@@ -1191,226 +1222,17 @@ int Jim_execInit(Jim_Interp *interp)
     (void)signal(SIGPIPE, SIG_IGN);
 #endif
 
-    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, JimAllocWaitInfoTable(), JimFreeWaitInfoTable);
+    waitinfo = JimAllocWaitInfoTable();
+    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, waitinfo, JimFreeWaitInfoTable);
+    waitinfo->refcount++;
+    Jim_CreateCommand(interp, "wait", Jim_WaitCommand, waitinfo, JimFreeWaitInfoTable);
+    Jim_CreateCommand(interp, "pid", Jim_PidCommand, 0, 0);
+
     return JIM_OK;
 }
 
 #if defined(__MINGW32__)
 /* Windows-specific (mingw) implementation */
-
-static SECURITY_ATTRIBUTES *JimStdSecAttrs(void)
-{
-    static SECURITY_ATTRIBUTES secAtts;
-
-    secAtts.nLength = sizeof(SECURITY_ATTRIBUTES);
-    secAtts.lpSecurityDescriptor = NULL;
-    secAtts.bInheritHandle = TRUE;
-    return &secAtts;
-}
-
-static int JimErrno(void)
-{
-    switch (GetLastError()) {
-    case ERROR_FILE_NOT_FOUND: return ENOENT;
-    case ERROR_PATH_NOT_FOUND: return ENOENT;
-    case ERROR_TOO_MANY_OPEN_FILES: return EMFILE;
-    case ERROR_ACCESS_DENIED: return EACCES;
-    case ERROR_INVALID_HANDLE: return EBADF;
-    case ERROR_BAD_ENVIRONMENT: return E2BIG;
-    case ERROR_BAD_FORMAT: return ENOEXEC;
-    case ERROR_INVALID_ACCESS: return EACCES;
-    case ERROR_INVALID_DRIVE: return ENOENT;
-    case ERROR_CURRENT_DIRECTORY: return EACCES;
-    case ERROR_NOT_SAME_DEVICE: return EXDEV;
-    case ERROR_NO_MORE_FILES: return ENOENT;
-    case ERROR_WRITE_PROTECT: return EROFS;
-    case ERROR_BAD_UNIT: return ENXIO;
-    case ERROR_NOT_READY: return EBUSY;
-    case ERROR_BAD_COMMAND: return EIO;
-    case ERROR_CRC: return EIO;
-    case ERROR_BAD_LENGTH: return EIO;
-    case ERROR_SEEK: return EIO;
-    case ERROR_WRITE_FAULT: return EIO;
-    case ERROR_READ_FAULT: return EIO;
-    case ERROR_GEN_FAILURE: return EIO;
-    case ERROR_SHARING_VIOLATION: return EACCES;
-    case ERROR_LOCK_VIOLATION: return EACCES;
-    case ERROR_SHARING_BUFFER_EXCEEDED: return ENFILE;
-    case ERROR_HANDLE_DISK_FULL: return ENOSPC;
-    case ERROR_NOT_SUPPORTED: return ENODEV;
-    case ERROR_REM_NOT_LIST: return EBUSY;
-    case ERROR_DUP_NAME: return EEXIST;
-    case ERROR_BAD_NETPATH: return ENOENT;
-    case ERROR_NETWORK_BUSY: return EBUSY;
-    case ERROR_DEV_NOT_EXIST: return ENODEV;
-    case ERROR_TOO_MANY_CMDS: return EAGAIN;
-    case ERROR_ADAP_HDW_ERR: return EIO;
-    case ERROR_BAD_NET_RESP: return EIO;
-    case ERROR_UNEXP_NET_ERR: return EIO;
-    case ERROR_NETNAME_DELETED: return ENOENT;
-    case ERROR_NETWORK_ACCESS_DENIED: return EACCES;
-    case ERROR_BAD_DEV_TYPE: return ENODEV;
-    case ERROR_BAD_NET_NAME: return ENOENT;
-    case ERROR_TOO_MANY_NAMES: return ENFILE;
-    case ERROR_TOO_MANY_SESS: return EIO;
-    case ERROR_SHARING_PAUSED: return EAGAIN;
-    case ERROR_REDIR_PAUSED: return EAGAIN;
-    case ERROR_FILE_EXISTS: return EEXIST;
-    case ERROR_CANNOT_MAKE: return ENOSPC;
-    case ERROR_OUT_OF_STRUCTURES: return ENFILE;
-    case ERROR_ALREADY_ASSIGNED: return EEXIST;
-    case ERROR_INVALID_PASSWORD: return EPERM;
-    case ERROR_NET_WRITE_FAULT: return EIO;
-    case ERROR_NO_PROC_SLOTS: return EAGAIN;
-    case ERROR_DISK_CHANGE: return EXDEV;
-    case ERROR_BROKEN_PIPE: return EPIPE;
-    case ERROR_OPEN_FAILED: return ENOENT;
-    case ERROR_DISK_FULL: return ENOSPC;
-    case ERROR_NO_MORE_SEARCH_HANDLES: return EMFILE;
-    case ERROR_INVALID_TARGET_HANDLE: return EBADF;
-    case ERROR_INVALID_NAME: return ENOENT;
-    case ERROR_PROC_NOT_FOUND: return ESRCH;
-    case ERROR_WAIT_NO_CHILDREN: return ECHILD;
-    case ERROR_CHILD_NOT_COMPLETE: return ECHILD;
-    case ERROR_DIRECT_ACCESS_HANDLE: return EBADF;
-    case ERROR_SEEK_ON_DEVICE: return ESPIPE;
-    case ERROR_BUSY_DRIVE: return EAGAIN;
-    case ERROR_DIR_NOT_EMPTY: return EEXIST;
-    case ERROR_NOT_LOCKED: return EACCES;
-    case ERROR_BAD_PATHNAME: return ENOENT;
-    case ERROR_LOCK_FAILED: return EACCES;
-    case ERROR_ALREADY_EXISTS: return EEXIST;
-    case ERROR_FILENAME_EXCED_RANGE: return ENAMETOOLONG;
-    case ERROR_BAD_PIPE: return EPIPE;
-    case ERROR_PIPE_BUSY: return EAGAIN;
-    case ERROR_PIPE_NOT_CONNECTED: return EPIPE;
-    case ERROR_DIRECTORY: return ENOTDIR;
-    }
-    return EINVAL;
-}
-
-static int JimPipe(fdtype pipefd[2])
-{
-    if (CreatePipe(&pipefd[0], &pipefd[1], NULL, 0)) {
-        return 0;
-    }
-    return -1;
-}
-
-static fdtype JimDupFd(fdtype infd)
-{
-    fdtype dupfd;
-    pidtype pid = GetCurrentProcess();
-
-    if (DuplicateHandle(pid, infd, pid, &dupfd, 0, TRUE, DUPLICATE_SAME_ACCESS)) {
-        return dupfd;
-    }
-    return JIM_BAD_FD;
-}
-
-static int JimRewindFd(fdtype fd)
-{
-    return SetFilePointer(fd, 0, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER ? -1 : 0;
-}
-
-#if 0
-static int JimReadFd(fdtype fd, char *buffer, size_t len)
-{
-    DWORD num;
-
-    if (ReadFile(fd, buffer, len, &num, NULL)) {
-        return num;
-    }
-    if (GetLastError() == ERROR_HANDLE_EOF || GetLastError() == ERROR_BROKEN_PIPE) {
-        return 0;
-    }
-    return -1;
-}
-#endif
-
-static FILE *JimFdOpenForRead(fdtype fd)
-{
-    return _fdopen(_open_osfhandle((int)fd, _O_RDONLY | _O_TEXT), "r");
-}
-
-static fdtype JimFileno(FILE *fh)
-{
-    return (fdtype)_get_osfhandle(_fileno(fh));
-}
-
-static fdtype JimOpenForRead(const char *filename)
-{
-    return CreateFile(filename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        JimStdSecAttrs(), OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-}
-
-static fdtype JimOpenForWrite(const char *filename, int append)
-{
-    fdtype fd = CreateFile(filename, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        JimStdSecAttrs(), append ? OPEN_ALWAYS : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, (HANDLE) NULL);
-    if (append && fd != JIM_BAD_FD) {
-        SetFilePointer(fd, 0, NULL, FILE_END);
-    }
-    return fd;
-}
-
-static FILE *JimFdOpenForWrite(fdtype fd)
-{
-    return _fdopen(_open_osfhandle((int)fd, _O_TEXT), "w");
-}
-
-static pidtype JimWaitPid(pidtype pid, int *status, int nohang)
-{
-    DWORD ret = WaitForSingleObject(pid, nohang ? 0 : INFINITE);
-    if (ret == WAIT_TIMEOUT || ret == WAIT_FAILED) {
-        /* WAIT_TIMEOUT can only happend with WNOHANG */
-        return JIM_BAD_PID;
-    }
-    GetExitCodeProcess(pid, &ret);
-    *status = ret;
-    CloseHandle(pid);
-    return pid;
-}
-
-static HANDLE JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
-{
-    char name[MAX_PATH];
-    HANDLE handle;
-
-    if (!GetTempPath(MAX_PATH, name) || !GetTempFileName(name, "JIM", 0, name)) {
-        return JIM_BAD_FD;
-    }
-
-    handle = CreateFile(name, GENERIC_READ | GENERIC_WRITE, 0, JimStdSecAttrs(),
-            CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
-            NULL);
-
-    if (handle == INVALID_HANDLE_VALUE) {
-        goto error;
-    }
-
-    if (contents != NULL) {
-        /* Use fdopen() to get automatic text-mode translation */
-        FILE *fh = JimFdOpenForWrite(JimDupFd(handle));
-        if (fh == NULL) {
-            goto error;
-        }
-
-        if (fwrite(contents, len, 1, fh) != 1) {
-            fclose(fh);
-            goto error;
-        }
-        fseek(fh, 0, SEEK_SET);
-        fclose(fh);
-    }
-    return handle;
-
-  error:
-    Jim_SetResultErrno(interp, "failed to create temp file");
-    CloseHandle(handle);
-    DeleteFile(name);
-    return JIM_BAD_FD;
-}
 
 static int
 JimWinFindExecutable(const char *originalName, char fullPath[MAX_PATH])
@@ -1524,12 +1346,15 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
     return strObj;
 }
 
+/**
+ * Note that inputId, etc. are osf_handles.
+ */
 static pidtype
-JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, fdtype inputId, fdtype outputId, fdtype errorId)
+JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, int inputId, int outputId, int errorId)
 {
     STARTUPINFO startInfo;
     PROCESS_INFORMATION procInfo;
-    HANDLE hProcess, h;
+    HANDLE hProcess;
     char execPath[MAX_PATH];
     pidtype pid = JIM_BAD_PID;
     Jim_Obj *cmdLineObj;
@@ -1561,42 +1386,37 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, fdtype inputId, 
      * and stderr of the child process. The duplicate handles are set to
      * be inheritable, so the child process can use them.
      */
-    if (inputId == JIM_BAD_FD) {
-        if (CreatePipe(&startInfo.hStdInput, &h, JimStdSecAttrs(), 0) != FALSE) {
-            CloseHandle(h);
-        }
-    } else {
-        DuplicateHandle(hProcess, inputId, hProcess, &startInfo.hStdInput,
-                0, TRUE, DUPLICATE_SAME_ACCESS);
+    /*
+     * If stdin was not redirected, input should come from the parent's stdin
+     */
+    if (inputId == -1) {
+        inputId = _fileno(stdin);
     }
-    if (startInfo.hStdInput == JIM_BAD_FD) {
+    DuplicateHandle(hProcess, (HANDLE)_get_osfhandle(inputId), hProcess, &startInfo.hStdInput,
+            0, TRUE, DUPLICATE_SAME_ACCESS);
+    if (startInfo.hStdInput == INVALID_HANDLE_VALUE) {
         goto end;
     }
 
-    if (outputId == JIM_BAD_FD) {
-        startInfo.hStdOutput = CreateFile("NUL:", GENERIC_WRITE, 0,
-                JimStdSecAttrs(), OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    } else {
-        DuplicateHandle(hProcess, outputId, hProcess, &startInfo.hStdOutput,
-                0, TRUE, DUPLICATE_SAME_ACCESS);
+    /*
+     * If stdout was not redirected, output should go to the parent's stdout
+     */
+    if (outputId == -1) {
+        outputId = _fileno(stdout);
     }
-    if (startInfo.hStdOutput == JIM_BAD_FD) {
+    DuplicateHandle(hProcess, (HANDLE)_get_osfhandle(outputId), hProcess, &startInfo.hStdOutput,
+            0, TRUE, DUPLICATE_SAME_ACCESS);
+    if (startInfo.hStdOutput == INVALID_HANDLE_VALUE) {
         goto end;
     }
 
-    if (errorId == JIM_BAD_FD) {
-        /*
-         * If handle was not set, errors should be sent to an infinitely
-         * deep sink.
-         */
-
-        startInfo.hStdError = CreateFile("NUL:", GENERIC_WRITE, 0,
-                JimStdSecAttrs(), OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    } else {
-        DuplicateHandle(hProcess, errorId, hProcess, &startInfo.hStdError,
-                0, TRUE, DUPLICATE_SAME_ACCESS);
+    /* Ditto stderr */
+    if (errorId == -1) {
+        errorId = _fileno(stderr);
     }
-    if (startInfo.hStdError == JIM_BAD_FD) {
+    DuplicateHandle(hProcess, (HANDLE)_get_osfhandle(errorId), hProcess, &startInfo.hStdError,
+            0, TRUE, DUPLICATE_SAME_ACCESS);
+    if (startInfo.hStdError == INVALID_HANDLE_VALUE) {
         goto end;
     }
 
@@ -1636,46 +1456,19 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, fdtype inputId, 
 
     end:
     Jim_FreeNewObj(interp, cmdLineObj);
-    if (startInfo.hStdInput != JIM_BAD_FD) {
+    if (startInfo.hStdInput != INVALID_HANDLE_VALUE) {
         CloseHandle(startInfo.hStdInput);
     }
-    if (startInfo.hStdOutput != JIM_BAD_FD) {
+    if (startInfo.hStdOutput != INVALID_HANDLE_VALUE) {
         CloseHandle(startInfo.hStdOutput);
     }
-    if (startInfo.hStdError != JIM_BAD_FD) {
+    if (startInfo.hStdError != INVALID_HANDLE_VALUE) {
         CloseHandle(startInfo.hStdError);
     }
     return pid;
 }
+
 #else
-/* Unix-specific implementation */
-static int JimOpenForWrite(const char *filename, int append)
-{
-    return open(filename, O_WRONLY | O_CREAT | (append ? O_APPEND : O_TRUNC), 0666);
-}
-
-static int JimRewindFd(int fd)
-{
-    return lseek(fd, 0L, SEEK_SET);
-}
-
-static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
-{
-    int fd = Jim_MakeTempFile(interp, NULL);
-
-    if (fd != JIM_BAD_FD) {
-        unlink(Jim_String(Jim_GetResult(interp)));
-        if (contents) {
-            if (write(fd, contents, len) != len) {
-                Jim_SetResultErrno(interp, "couldn't write temp file");
-                close(fd);
-                return -1;
-            }
-            lseek(fd, 0L, SEEK_SET);
-        }
-    }
-    return fd;
-}
 
 static char **JimOriginalEnviron(void)
 {

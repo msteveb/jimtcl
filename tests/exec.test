@@ -17,26 +17,23 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
 needs cmd flush
-needs cmd after eventloop
 
 testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
 
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {
     proc sleep {n} {
-	after [expr {int($n * 1000)}]
+	exec {*}$::sleepx $n
     }
 }
 
 set f [open sleepx w]
-puts $f "#![info nameofexecutable]"
 puts $f {
-    set seconds [lindex $argv 0]
-    after [expr {int($seconds * 1000)}]
+    sleep "$@"
 }
 close $f
 #catch {exec chmod +x sleepx}
-set sleepx [list [info nameofexecutable] sleepx]
+set sleepx [list sh sleepx]
 
 # Basic operations.
 
@@ -415,6 +412,29 @@ test exec-16.1 {flush output before exec} -body {
 } -result {First line
 Second line
 Third line}
+
+test exec-17.1 {redirecting from command pipeline} -setup {
+    makeFile "abc\nghi\njkl" gorp.file
+} -body {
+    set f [open "|cat gorp.file | wc -l" r]
+    set result [lindex [exec cat <@$f] 0]
+    close $f
+    set result
+} -cleanup {
+    file delete gorp.file
+} -result {3}
+
+test exec-17.2 {redirecting to command pipeline} -setup {
+    makeFile "abc\nghi\njkl" gorp.file
+} -body {
+    set f [open "|wc -l >gorp2.file" w]
+    exec cat gorp.file >@$f
+    flush $f
+    close $f
+    lindex [exec cat gorp2.file] 0
+} -cleanup {
+    file delete gorp.file gorp2.file
+} -result {3}
 
 file delete sleepx
 

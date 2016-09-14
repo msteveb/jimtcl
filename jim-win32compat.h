@@ -67,11 +67,6 @@ DIR *opendir(const char *name);
 int closedir(DIR *dir);
 struct dirent *readdir(DIR *dir);
 
-#elif defined(__MINGW32__)
-
-#include <stdlib.h>
-#define strtod __strtod
-
 #endif
 
 #endif /* WIN32 */

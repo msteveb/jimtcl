@@ -62,6 +62,10 @@ Changes between 0.77 and 0.78
 6. Add scriptable autocompletion support with `history completion`
 7. Add support for `tree delete`
 8. Add support for `defer` and '$jim::defer'
+9. Renamed `os.wait` to `wait`, now more Tcl-compatible and compatible with `exec ... &`
+10. `pipe` is now a synonym for `socket pipe`
+11. Closing a pipe open with `open |...` now returns Tcl-like status
+12. It is now possible to used `exec` redirection with a pipe opened with `open |...`
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3403,6 +3407,10 @@ switch.
 Output to files is buffered internally by Tcl; the `flush`
 command may be used to force buffered characters to be output.
 
+pipe
+~~~~
+Creates a pair of `aio` channels and returns the handles as a list: +{read write}+
+
 pwd
 ~~~
 +*pwd*+
@@ -4459,6 +4467,35 @@ Although 'add2' could have been implemented using `uplevel`
 instead of `upvar`, `upvar` makes it simpler for 'add2'
 to access the variable in the caller's procedure frame.
 
+wait
+~~~~
++*wait*+
+
++*wait -nohang* 'pid'+
+
+With no arguments, cleans up any processes started by `exec ... &` that have completed
+(reaps zombie processes).
+
+With one or two arguments, waits for a process by id, either returned by `exec ... &`
+or by `os.fork` (if supported).
+
+Waits for the process to complete, unless +-nohang+ is specified, in which case returns
+immediately if the process is still running.
+
+Returns a list of 3 elements.
+
++{NONE x x}+ if the process does not exist or has already been waited for, or
+if -nohang is specified, and the process is still alive.
+
++{CHILDSTATUS <pid> <exit-status>}+ if the process exited normally.
+
++{CHILDKILLED <pid> <signal>}+ if the process terminated on a signal.
+
++{CHILDSUSP <pid> none}+ if the process terminated for some other reason.
+
+Note that on platforms supporting waitpid(2), +pid+ can also be given special values such
+as 0 or -1. See waitpid(2) for more detail.
+
 while
 ~~~~~
 +*while* 'test body'+
@@ -4484,25 +4521,12 @@ OPTIONAL-EXTENSIONS
 The following extensions may or may not be available depending upon
 what options were selected when Jim Tcl was built.
 
+
 [[cmd_1]]
-posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+posix: os.fork, os.gethostname, os.getids, os.uptime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +*os.fork*+::
     Invokes 'fork(2)' and returns the result.
-
-+*os.wait -nohang* 'pid'+::
-    Invokes waitpid(2), with WNOHANG if +-nohang+ is specified.
-    Returns a list of 3 elements.
-
-   {0 none 0} if -nohang is specified, and the process is still alive.
-
-   {-1 error <error-description>} if the process does not exist or has already been waited for.
-
-   {<pid> exit <exit-status>} if the process exited normally.
-
-   {<pid> signal <signal-number>} if the process terminated on a signal.
-
-   {<pid> other 0} otherwise (core dump, stopped, continued, etc.)
 
 +*os.gethostname*+::
     Invokes 'gethostname(3)' and returns the result.
@@ -4759,11 +4783,10 @@ Various socket types may be created.
     A UDP socket server.
 
 +*socket pipe*+::
-    A pipe. Note that unlike all other socket types, this command returns
-    a list of two channels: {read write}
+	A synonym for `pipe`
 
 +*socket pair*+::
-    A socketpair (see socketpair(2)). Like `socket pipe`, this command returns
+    A socketpair (see socketpair(2)). Like `pipe`, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
 
 This command creates a socket connected (client) or bound (server) to the given

@@ -52,6 +52,7 @@
 #endif
 
 #include "jim.h"
+#include "jimiocompat.h"
 
 #if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
@@ -62,6 +63,9 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#define HAVE_SOCKETS
+#elif defined (__MINGW32__)
+/* currently mingw32 doesn't support sockets, but has pipe, fdopen */
 #else
 #define JIM_ANSIC
 #endif
@@ -99,9 +103,15 @@
 #endif
 #endif
 
+#ifdef JIM_ANSIC
+/* no fdopen() with ANSIC, so can't support these */
+#undef HAVE_PIPE
+#undef HAVE_SOCKETPAIR
+#endif
+
 #define JimCheckStreamError(interp, af) af->fops->error(af)
 
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
     struct sockaddr sa;
     struct sockaddr_in sin;
@@ -284,7 +294,7 @@ static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode);
 
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, int *salen)
 {
 #if IPV6
@@ -591,6 +601,16 @@ FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
     return af->fp;
 }
 
+static int aio_cmd_getfd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    fflush(af->fp);
+    Jim_SetResultInt(interp, fileno(af->fp));
+
+    return JIM_OK;
+}
+
 static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -726,7 +746,7 @@ static int aio_cmd_isatty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -853,7 +873,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc == 3) {
-#if !defined(JIM_ANSIC) && defined(HAVE_SHUTDOWN)
+#if defined(HAVE_SOCKETS) && defined(HAVE_SHUTDOWN)
         static const char * const options[] = { "r", "w", NULL };
         enum { OPT_R, OPT_W, };
         int option;
@@ -944,7 +964,7 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 #define SOCKOPT_BOOL 0
 #define SOCKOPT_INT 1
 #define SOCKOPT_TIMEVAL 2   /* not currently supported */
@@ -1043,7 +1063,7 @@ static int aio_cmd_sockopt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResultFormatted(interp, "Unknown sockopt %#s", argv[0]);
     return JIM_ERR;
 }
-#endif
+#endif /* JIM_BOOTSTRAP */
 
 #ifdef HAVE_FSYNC
 static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1374,6 +1394,13 @@ static const jim_subcmd_type aio_command_table[] = {
         2,
         /* Description: Copy up to 'size' bytes to the given filehandle, or to eof if no size. */
     },
+    {   "getfd",
+        NULL,
+        aio_cmd_getfd,
+        0,
+        0,
+        /* Description: Internal command to return the underlying file descriptor. */
+    },
     {   "gets",
         "?var?",
         aio_cmd_gets,
@@ -1395,7 +1422,7 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Is the file descriptor a tty? */
     },
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
     {   "recvfrom",
         "len ?addrvar?",
         aio_cmd_recvfrom,
@@ -1423,6 +1450,13 @@ static const jim_subcmd_type aio_command_table[] = {
         1,
         1,
         /* Description: Set the listen backlog for server socket */
+    },
+    {   "sockopt",
+        "?opt 0|1?",
+        aio_cmd_sockopt,
+        0,
+        2,
+        /* Description: Return a dictionary of sockopts, or set the value of a sockopt */
     },
 #endif /* JIM_BOOTSTRAP */
     {   "flush",
@@ -1477,15 +1511,6 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
     },
 #endif
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
-    {   "sockopt",
-        "?opt 0|1?",
-        aio_cmd_sockopt,
-        0,
-        2,
-        /* Description: Return a dictionary of sockopts, or set the value of a sockopt */
-    },
-#endif
 #ifdef HAVE_FSYNC
     {   "sync",
         NULL,
@@ -1525,7 +1550,8 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Returns script, or invoke exception-script when oob data, {} to remove */
     },
 #endif
-#if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
+#if !defined(JIM_BOOTSTRAP)
+#if defined(JIM_SSL)
     {   "ssl",
         "?-server cert priv?",
         aio_cmd_ssl,
@@ -1541,8 +1567,8 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Verifies the certificate of a SSL/TLS channel */
     },
-#endif /* JIM_BOOTSTRAP */
-#if defined(HAVE_STRUCT_FLOCK) && !defined(JIM_BOOTSTRAP)
+#endif
+#if defined(HAVE_STRUCT_FLOCK)
     {   "lock",
         NULL,
         aio_cmd_lock,
@@ -1557,8 +1583,8 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Relase a lock. */
     },
-#endif /* JIM_BOOTSTRAP */
-#if defined(HAVE_TERMIOS_H) && !defined(JIM_BOOTSTRAP)
+#endif
+#if defined(HAVE_TERMIOS_H)
     {   "tty",
         "?baud rate? ?data bits? ?stop bits? ?parity even|odd|none? ?handshake xonxoff|rtscts|none? ?input raw|cooked? ?output raw|cooked? ?vmin n? ?vtime n?",
         aio_cmd_tty,
@@ -1566,6 +1592,7 @@ static const jim_subcmd_type aio_command_table[] = {
         -1,
         /* Description: Get or set tty settings - valid only on a tty */
     },
+#endif
 #endif /* JIM_BOOTSTRAP */
     { NULL }
 };
@@ -1665,17 +1692,17 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     Jim_IncrRefCount(filename);
 
     if (fh == NULL) {
-#if !defined(JIM_ANSIC)
         if (fd >= 0) {
+#ifndef JIM_ANSIC
             fh = fdopen(fd, mode);
+#endif
         }
         else
-#endif
             fh = fopen(Jim_String(filename), mode);
 
         if (fh == NULL) {
             JimAioSetError(interp, filename);
-#if !defined(JIM_ANSIC)
+#ifndef JIM_ANSIC
             if (fd >= 0) {
                 close(fd);
             }
@@ -1689,7 +1716,9 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     af = Jim_Alloc(sizeof(*af));
     memset(af, 0, sizeof(*af));
     af->fp = fh;
+#ifndef JIM_ANSIC
     af->fd = fileno(fh);
+#endif
     af->filename = filename;
 #ifdef FD_CLOEXEC
     if ((openFlags & AIO_KEEPOPEN) == 0) {
@@ -1721,7 +1750,6 @@ static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
     if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0])) {
         Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
         Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
-
         if (JimMakeChannel(interp, NULL, p[1], filename, hdlfmt, family, mode[1])) {
             Jim_ListAppendElement(interp, objPtr, Jim_GetResult(interp));
             Jim_SetResult(interp, objPtr);
@@ -1737,7 +1765,27 @@ static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
 }
 #endif
 
-#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#ifdef HAVE_PIPE
+static int JimAioPipeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int p[2];
+    static const char *mode[2] = { "r", "w" };
+
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
+
+    if (pipe(p) != 0) {
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+
+    return JimMakeChannelPair(interp, p, argv[0], "aio.pipe%ld", 0, mode);
+}
+#endif
+
+#if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 
 static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -1979,22 +2027,10 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 #if defined(HAVE_PIPE)
         case SOCK_STREAM_PIPE:
-            {
-                int p[2];
-                static const char *mode[2] = { "r", "w" };
-
-                if (argc != 2 || ipv6) {
-                    goto wrongargs;
-                }
-
-                if (pipe(p) < 0) {
-                    JimAioSetError(interp, NULL);
-                    return JIM_ERR;
-                }
-
-                return JimMakeChannelPair(interp, p, argv[1], "aio.pipe%ld", 0, mode);
+            if (argc != 2 || ipv6) {
+                goto wrongargs;
             }
-            break;
+            return JimAioPipeCommand(interp, 1, &argv[1]);
 #endif
 
         default:
@@ -2005,53 +2041,6 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JimMakeChannel(interp, NULL, sock, argv[1], hdlfmt, family, mode) ? JIM_OK : JIM_ERR;
 }
 #endif /* JIM_BOOTSTRAP */
-
-/**
- * Returns the file descriptor of a writable, newly created temp file
- * or -1 on error.
- *
- * On success, leaves the filename in the interpreter result, otherwise
- * leaves an error message.
- */
-int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template)
-{
-#ifdef HAVE_MKSTEMP
-    int fd;
-    mode_t mask;
-    Jim_Obj *filenameObj;
-
-    if (filename_template == NULL) {
-        const char *tmpdir = getenv("TMPDIR");
-        if (tmpdir == NULL || *tmpdir == '\0' || access(tmpdir, W_OK) != 0) {
-            tmpdir = "/tmp/";
-        }
-        filenameObj = Jim_NewStringObj(interp, tmpdir, -1);
-        if (tmpdir[0] && tmpdir[strlen(tmpdir) - 1] != '/') {
-            Jim_AppendString(interp, filenameObj, "/", 1);
-        }
-        Jim_AppendString(interp, filenameObj, "tcl.tmp.XXXXXX", -1);
-    }
-    else {
-        filenameObj = Jim_NewStringObj(interp, filename_template, -1);
-    }
-
-    /* Update the template name directly with the filename */
-    mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
-    fd = mkstemp(filenameObj->bytes);
-    umask(mask);
-    if (fd < 0) {
-        Jim_IncrRefCount(filenameObj);
-        Jim_SetResultFormatted(interp, "%#s: %s", filenameObj, strerror(errno));
-        return -1;
-    }
-
-    Jim_SetResult(interp, filenameObj);
-    return fd;
-#else
-    Jim_SetResultString(interp, "platform has no tempfile support", -1);
-    return -1;
-#endif
-}
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -2085,8 +2074,11 @@ int Jim_aioInit(Jim_Interp *interp)
 #endif
 
     Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
-#ifndef JIM_ANSIC
+#ifdef HAVE_SOCKETS
     Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);
+#endif
+#ifdef HAVE_PIPE
+    Jim_CreateCommand(interp, "pipe", JimAioPipeCommand, NULL, NULL);
 #endif
 
     /* Create filehandles for stdin, stdout and stderr */

@@ -354,7 +354,7 @@ dict set extdb info {
     sdl      { pkg-config SDL_gfx check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
                libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
              }
-    signal   { check {[have-feature sigaction] && [have-feature vfork]} }
+    signal   { check {[have-feature sigaction]} }
     sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
     syslog   { check {[have-feature syslog]} }
@@ -432,6 +432,11 @@ if {$jimregexp || [opt-bool jim-regexp]} {
     if {[ext-get-status regexp] eq "m" && [get-define JIM_STATICLIB] && [have-feature regcomp]} {
         user-error "Must use --shared with regexp module and built-in regexp"
     }
+}
+
+# poor-man's signals
+if {"signal" ni $extinfo(static-c)} {
+    lappend extra_objs jim-nosignal.o
 }
 
 if {[ext-get-status load] eq "n"} {

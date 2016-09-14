@@ -609,7 +609,7 @@ JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 /* environment */
 JIM_EXPORT char **Jim_GetEnviron(void);
 JIM_EXPORT void Jim_SetEnviron(char **env);
-JIM_EXPORT int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template);
+JIM_EXPORT int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unlink_file);
 
 /* evaluation */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);

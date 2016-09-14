@@ -44,4 +44,30 @@ test exec2-2.4 "Remove all env var" {
 
 array set env [array get saveenv]
 
+test exec2-3.1 "close pipeline return value" {
+	set f [open |false]
+	set rc [catch {close $f} msg opts]
+	lassign [dict get $opts -errorcode] status pid exitcode
+	list $rc $msg $status $exitcode
+} {1 {child process exited abnormally} CHILDSTATUS 1}
+
+test exec2-3.2 "close pipeline return value" -body {
+	set f [open "|echo abc | grep def | wc" ]
+	set rc [catch {close $f} msg opts]
+	lassign [dict get $opts -errorcode] status pid exitcode
+	list $rc $msg $status $exitcode
+} -match glob -result {1 {child killed*} CHILDKILLED SIGPIPE}
+
+
+test exec2-3.4 "wait for background task" {
+	set pid [exec sleep 0.1 &]
+	lassign [wait $pid] status newpid exitcode
+	if {$pid != $newpid} {
+		error "Got wrong pid from wait"
+	} else {
+		list $status $exitcode
+	}
+} {CHILDSTATUS 0}
+
+
 testreport

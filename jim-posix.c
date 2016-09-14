@@ -37,7 +37,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
-#include <signal.h>
 #include <errno.h>
 
 #include "jimautoconf.h"
@@ -71,88 +70,6 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 #endif
-
-/*
- * os.wait ?-nohang? pid
- *
- * An interface to waitpid(2)
- *
- * Returns a 3 element list.
- *
- * If -nohang is specified, and the process is still alive, returns
- *
- *   {0 none 0}
- *
- * If the process does not exist or has already been waited for, returns:
- *
- *   {-1 error <error-description>}
- *
- * If the process exited normally, returns:
- *
- *   {<pid> exit <exit-status>}
- *
- * If the process terminated on a signal, returns:
- *
- *   {<pid> signal <signal-number>}
- *
- * Otherwise (core dump, stopped, continued, ...), returns:
- *
- *   {<pid> other 0}
- */
-static int Jim_PosixWaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    int nohang = 0;
-    long pid;
-    int status;
-    Jim_Obj *listObj;
-    const char *type;
-    int value;
-
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-nohang")) {
-        nohang = 1;
-    }
-    if (argc != nohang + 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-nohang? pid");
-        return JIM_ERR;
-    }
-    if (Jim_GetLong(interp, argv[nohang + 1], &pid) != JIM_OK) {
-        return JIM_ERR;
-    }
-
-    pid = waitpid(pid, &status, nohang ? WNOHANG : 0);
-    listObj = Jim_NewListObj(interp, NULL, 0);
-    Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, pid));
-    if (pid < 0) {
-        type = "error";
-        value = errno;
-    }
-    else if (pid == 0) {
-        type = "none";
-        value = 0;
-    }
-    else if (WIFEXITED(status)) {
-        type = "exit";
-        value = WEXITSTATUS(status);
-    }
-    else if (WIFSIGNALED(status)) {
-        type = "signal";
-        value = WTERMSIG(status);
-    }
-    else {
-        type = "other";
-        value = 0;
-    }
-
-    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, type, -1));
-    if (pid < 0) {
-        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, strerror(value), -1));
-    }
-    else {
-        Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, value));
-    }
-    Jim_SetResult(interp, listObj);
-    return JIM_OK;
-}
 
 static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -218,17 +135,6 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     return JIM_OK;
 }
 
-static int Jim_PosixPidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-
-    Jim_SetResultInt(interp, getpid());
-    return JIM_OK;
-}
-
 int Jim_posixInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG))
@@ -237,10 +143,8 @@ int Jim_posixInit(Jim_Interp *interp)
 #ifdef HAVE_FORK
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
 #endif
-    Jim_CreateCommand(interp, "os.wait", Jim_PosixWaitCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);
     Jim_CreateCommand(interp, "os.uptime", Jim_PosixUptimeCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "pid", Jim_PosixPidCommand, NULL, NULL);
     return JIM_OK;
 }

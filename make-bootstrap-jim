@@ -115,7 +115,7 @@ outputsource()
 }
 
 # Now output header files, removing references to jim header files
-for i in jim-win32compat.h utf8.h jim.h jim-subcmd.h jimregexp.h ; do
+for i in jim-win32compat.h utf8.h jim.h jim-subcmd.h jimregexp.h jim-signal.h jimiocompat.h; do
 	outputsource $i
 done
 
@@ -129,7 +129,7 @@ done
 makeloadexts $allexts
 
 # And finally the core source code
-for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c jim-win32compat.c; do
+for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c jimiocompat.c jim-win32compat.c jim-nosignal.c; do
 	outputsource $i
 done
 echo "#ifndef JIM_BOOTSTRAP_LIB_ONLY"
