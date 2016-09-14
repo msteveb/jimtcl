@@ -169,7 +169,20 @@ if {[cctest -includes {sys/types.h sys/stat.h} -code {mkdir("/dummy");}]} {
 set extra_objs {}
 set jimregexp 0
 
-if {[opt-bool utf8 full]} {
+# Returns 1 if either the given option is enabled, or
+# --full is enabled and the option isn't explicitly disabled
+#
+proc opt-bool-or-full {opt} {
+    if {[opt-bool $opt]} {
+        return 1
+    }
+    if {[opt-bool full] && [opt-bool -nodefault $opt] != 0} {
+        return 1
+    }
+    return 0
+}
+
+if {[opt-bool-or-full utf8]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     define-append CCOPTS -DUSE_UTF8
@@ -182,17 +195,18 @@ if {[opt-bool maintainer]} {
     msg-result "Enabling maintainer settings"
     define JIM_MAINTAINER
 }
-if {[opt-bool math full]} {
+# If --math or --full and not --disable-math
+if {[opt-bool-or-full math]} {
     msg-result "Enabling math functions"
     define JIM_MATH_FUNCTIONS
     cc-check-function-in-lib sin m
     define-append LDLIBS [get-define lib_sin]
 }
-if {[opt-bool ipv6 full]} {
+if {[opt-bool-or-full ipv6]} {
     msg-result "Enabling IPv6"
     define JIM_IPV6
 }
-if {[opt-bool ssl full]} {
+if {[opt-bool-or-full ssl]} {
     if {[pkg-config-init 0]} {
         foreach pkg {openssl libssl} {
             if {[pkg-config $pkg]} {
@@ -215,7 +229,7 @@ if {[opt-bool ssl full]} {
         }
     }
 }
-if {[opt-bool lineedit full]} {
+if {[opt-bool-or-full lineedit]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
