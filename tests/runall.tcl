@@ -26,7 +26,9 @@ if {[info commands interp] eq ""} {
 
 		if {$script eq "signal.test"} {
 			# special case, can't run this in a child interpeter
-			source $script
+			catch -exit {
+				source $script
+			}
 			foreach var {pass fail skip tests} {
 				incr total($var) $testinfo(num$var)
 			}
