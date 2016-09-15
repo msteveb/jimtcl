@@ -95,14 +95,20 @@ proc makeDirectory {name} {
 	return $name
 }
 
-proc temporaryDirectory {} {
-	set name [format "%s/tcltmp-%04x" [env TMPDIR /tmp] [rand 65536]]
-	file mkdir $name
-	return $name
+proc temporaryDirectory {} {{dir {}}} {
+	if {$dir eq ""} {
+		set dir [file join [env TMPDIR /tmp] [format "tcltmp-%04x" [rand 65536]]]
+		file mkdir $dir
+	}
+	return $dir
 }
 
-proc removeFile {name} {
-	file delete $name
+proc removeFile {args} {
+	file delete -force {*}$args
+}
+
+proc removeDirectory {name} {
+	file delete -force $name
 }
 
 # In case tclcompat is not selected
@@ -199,9 +205,17 @@ proc test {id descr args} {
 		}
 	}
 
-	catch {uplevel 1 $a(-setup)}
+	if {[catch {uplevel 1 $a(-setup)} msg]} {
+		if {$::testinfo(verbose)} {
+			puts "-setup failed: $msg"
+		}
+	}
 	set rc [catch {uplevel 1 $a(-body)} result opts]
-	catch {uplevel 1 $a(-cleanup)}
+	if {[catch {uplevel 1 $a(-cleanup)} msg]} {
+		if {$::testinfo(verbose)} {
+			puts "-cleanup failed: $msg"
+		}
+	}
 
 	if {[info return $rc] ni $a(-returnCodes) && $rc ni $a(-returnCodes)} {
 		set ok 0
@@ -248,6 +262,7 @@ proc test {id descr args} {
 }
 
 proc ::tcltest::cleanupTests {} {
+	file delete [temporaryDirectory]
 	tailcall testreport
 }
 

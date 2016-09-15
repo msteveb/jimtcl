@@ -236,34 +236,6 @@ test fileName-20.1 {Bug 1750300} -setup {
     removeFile TAGS $d
     removeDirectory foo
 } -result 1
-test fileName-20.6 {Bug 2837800} -setup {
-    # Recall that we have $env(HOME) set so that references
-    # to ~ point to [temporaryDirectory]
-    makeFile {} test ~
-    set dd [makeDirectory isolate]
-    set d [makeDirectory ./~ $dd]
-    set savewd [pwd]
-    cd $dd
-} -body {
-    glob -nocomplain */test
-} -cleanup {
-    cd $savewd
-    removeDirectory ./~ $dd
-    removeDirectory isolate
-    removeFile test ~
-} -result {}
-test fileName-20.7 {Bug 2806250} -setup {
-    set savewd [pwd]
-    cd [temporaryDirectory]
-    set d [makeDirectory isolate]
-    makeFile {} ./~test $d
-} -body {
-    file exists [lindex [glob -nocomplain isolate/*] 0]
-} -cleanup {
-    removeFile ./~test $d
-    removeDirectory isolate
-    cd $savewd
-} -result 1
 
 # cleanup
 catch {file delete -force C:/globTest}
