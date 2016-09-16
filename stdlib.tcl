@@ -87,27 +87,6 @@ proc {info nameofexecutable} {} {
 	}
 }
 
-# Script-based implementation of 'dict with'
-proc {dict with} {&dictVar {args key} script} {
-	set keys {}
-	foreach {n v} [dict get $dictVar {*}$key] {
-		upvar $n var_$n
-		set var_$n $v
-		lappend keys $n
-	}
-	catch {uplevel 1 $script} msg opts
-	if {[info exists dictVar] && ([llength $key] == 0 || [dict exists $dictVar {*}$key])} {
-		foreach n $keys {
-			if {[info exists var_$n]} {
-				dict set dictVar {*}$key $n [set var_$n]
-			} else {
-				dict unset dictVar {*}$key $n
-			}
-		}
-	}
-	return {*}$opts $msg
-}
-
 # Script-based implementation of 'dict update'
 proc {dict update} {&varName args script} {
 	set keys {}

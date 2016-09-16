@@ -14340,6 +14340,10 @@ Jim_Obj *Jim_DictMerge(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     Jim_Obj *objPtr = Jim_NewDictObj(interp, NULL, 0);
     int i;
 
+    JimPanic((objc == 0, "Jim_DictMerge called with objc=0"));
+
+    /* Note that we don't optimise the trivial case of a single argument */
+
     for (i = 0; i < objc; i++) {
         Jim_HashTable *ht;
         Jim_HashTableIterator htiter;
@@ -14396,6 +14400,61 @@ static int Jim_EvalEnsemble(Jim_Interp *interp, const char *basecmd, const char 
     Jim_AppendString(interp, prefixObj, subcmd, -1);
 
     return Jim_EvalObjPrefix(interp, prefixObj, argc, argv);
+}
+
+/**
+ * Implements the [dict with] command
+ */
+static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const *keyv, int keyc, Jim_Obj *scriptObj)
+{
+    int i;
+    Jim_Obj *objPtr;
+    Jim_Obj *dictObj;
+    Jim_Obj **dictValues;
+    int len;
+    int ret = JIM_OK;
+
+    /* Open up the appropriate level of the dictionary */
+    dictObj = Jim_GetVariable(interp, dictVarName, JIM_ERRMSG);
+    if (dictObj == NULL || Jim_DictKeysVector(interp, dictObj, keyv, keyc, &objPtr, JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
+    }
+    /* Set the local variables */
+    if (Jim_DictPairs(interp, objPtr, &dictValues, &len) == JIM_ERR) {
+        return JIM_ERR;
+    }
+    for (i = 0; i < len; i += 2) {
+        if (Jim_SetVariable(interp, dictValues[i], dictValues[i + 1]) == JIM_ERR) {
+            Jim_Free(dictValues);
+            return JIM_ERR;
+        }
+    }
+
+    /* As an optimisation, if the script is empty, no need to evaluate it or update the dict */
+    if (Jim_Length(scriptObj)) {
+        ret = Jim_EvalObj(interp, scriptObj);
+
+        /* Now if the dictionary still exists, update it based on the local variables */
+        if (ret == JIM_OK && Jim_GetVariable(interp, dictVarName, 0) != NULL) {
+            /* We need a copy of keyv with one extra element at the end for Jim_SetDictKeysVector() */
+            Jim_Obj **newkeyv = Jim_Alloc(sizeof(*newkeyv) * (keyc + 1));
+            for (i = 0; i < keyc; i++) {
+                newkeyv[i] = keyv[i];
+            }
+
+            for (i = 0; i < len; i += 2) {
+                /* This will be NULL if the variable no longer exists, thus deleting the variable */
+                objPtr = Jim_GetVariable(interp, dictValues[i], 0);
+                newkeyv[keyc] = dictValues[i];
+                Jim_SetDictKeysVector(interp, dictVarName, newkeyv, keyc + 1, objPtr, 0);
+            }
+            Jim_Free(newkeyv);
+        }
+    }
+
+    Jim_Free(dictValues);
+
+    return ret;
 }
 
 /* [dict] */
@@ -14519,6 +14578,13 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             return Jim_DictInfo(interp, argv[2]);
+
+        case OPT_WITH:
+            if (argc < 4) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?key ...? script");
+                return JIM_ERR;
+            }
+            return JimDictWith(interp, argv[2], argv + 3, argc - 4, argv[argc - 1]);
     }
     /* Handle command as an ensemble */
     return Jim_EvalEnsemble(interp, "dict", options[option], argc - 2, argv + 2);
