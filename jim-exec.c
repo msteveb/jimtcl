@@ -1404,6 +1404,7 @@ JimWinFindExecutable(const char *originalName, char fullPath[MAX_PATH])
 
     for (i = 0; i < (int) (sizeof(extensions) / sizeof(extensions[0])); i++) {
         snprintf(fullPath, MAX_PATH, "%s%s", originalName, extensions[i]);
+        fullPath[MAX_PATH-1] = 0;
 
         if (SearchPath(NULL, fullPath, NULL, MAX_PATH, fullPath, NULL) == 0) {
             continue;

@@ -5454,6 +5454,7 @@ int Jim_IsBigEndian(void)
     return uval.c[0] == 1;
 }
 
+            newstring[interp->evalDepth + function_prefix_length] = 0;
 /* -----------------------------------------------------------------------------
  * Interpreter related functions
  * ---------------------------------------------------------------------------*/
