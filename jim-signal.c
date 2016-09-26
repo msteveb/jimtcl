@@ -23,7 +23,7 @@
 
 static jim_wide *sigloc;
 static jim_wide sigsblocked;
-static struct sigaction *sa_old;
+static struct sigaction sa_old[MAX_SIGNALS];
 static struct {
     int status;
     const char *name;
@@ -222,10 +222,6 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
                 case SIGNAL_ACTION_HANDLE:
                 case SIGNAL_ACTION_IGNORE:
                     if (siginfo[sig].status == SIGNAL_ACTION_DEFAULT) {
-                        if (!sa_old) {
-                            /* Allocate the structure the first time through */
-                            sa_old = Jim_Alloc(sizeof(*sa_old) * MAX_SIGNALS);
-                        }
                         sigaction(sig, &sa, &sa_old[sig]);
                     }
                     else {
@@ -235,9 +231,7 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
 
                 case SIGNAL_ACTION_DEFAULT:
                     /* Restore old handler */
-                    if (sa_old) {
-                        sigaction(sig, &sa_old[sig], 0);
-                    }
+                    sigaction(sig, &sa_old[sig], 0);
             }
             siginfo[sig].status = action;
         }
