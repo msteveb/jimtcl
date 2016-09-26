@@ -903,7 +903,7 @@ static char *local_getline(char *zPrompt, FILE *in){
   while( !eol ){
     if( n+100>nLine ){
       nLine = nLine*2 + 100;
-      zLine = realloc(zLine, nLine);
+      zLine = Jim_Realloc(zLine, nLine);
       if( zLine==0 ) return 0;
     }
     if( fgets(&zLine[n], nLine - n, in)==0 ){
@@ -922,7 +922,7 @@ static char *local_getline(char *zPrompt, FILE *in){
       eol = 1;
     }
   }
-  zLine = realloc( zLine, n+1 );
+  zLine = Jim_Realloc( zLine, n+1 );
   return zLine;
 }
 
