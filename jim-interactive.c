@@ -57,11 +57,16 @@ void Jim_HistoryAdd(const char *line)
 void Jim_HistorySave(const char *filename)
 {
 #ifdef USE_LINENOISE
+#ifndef _MSC_VER
     mode_t mask;
     /* Just u=rw, but note that this is only effective for newly created files */
     mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
     linenoiseHistorySave(filename);
     mask = umask(mask);
+#else /* ifndef _MSC_VER */
+    linenoiseHistorySave(filename);
+#endif /* ifndef _MSC_VER */
+
 #endif
 }
 
