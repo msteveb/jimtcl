@@ -1,14 +1,37 @@
 version: "0.77.0.{build}"
+
+# Setup mingw32 build environment
 install:
   - cmd: set MSYSTEM=MINGW32
   - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc"
-build_script:
+
+# Build on MSVC
+build:
+  project: C:\projects\jimtcl\JimTCL.sln
+  verbosity: normal
+
+# Save MSVC output then build on MinGW32 and archive all results
+after_build:
+  - cmd: copy jimsh.exe ..\jimsh_msvc.exe
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; git clean -xdf"
+  - cmd: copy ..\jimsh_msvc.exe jimsh_msvc.exe
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --full --with-ext='zlib' --disable-docs"
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make"
+  - cmd: copy jimsh.exe jimsh_mingw_debug.exe
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; strip jimsh.exe"
+  - cmd: copy jimsh.exe jimsh_mingw.exe
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; 7z a jimsh.zip jimsh_msvc.exe jimsh_mingw.exe jimsh_mingw_debug.exe /c/msys64/mingw32/bin/{libgcc_s_dw2-1.dll,libwinpthread-1.dll,libeay32.dll,ssleay32.dll}"
+
+# Test MSVC then MinGW32 builds
 test_script:
+  - cmd: echo "Testing MSVC build"
+  - cmd: copy jimsh_msvc.exe jimsh.exe 
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make test"
-after_build:
-  - cmd: copy jimsh.exe jimsh_debug.exe
-  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; strip jimsh.exe; 7z a jimsh.zip jimsh.exe jimsh_debug.exe /c/msys64/mingw32/bin/{libgcc_s_dw2-1.dll,libwinpthread-1.dll,libeay32.dll,ssleay32.dll}"
+  - cmd: echo "Testing MinGW32 build"
+  - cmd: copy jimsh_mingw.exe jimsh.exe 
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make test"
+
 artifacts:
   - path: jimsh.zip
+
+deploy: off
