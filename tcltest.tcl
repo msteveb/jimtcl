@@ -199,7 +199,7 @@ proc test {id descr args} {
 		if {![testConstraint $c]} {
 			incr ::testinfo(numskip)
 			if {$::testinfo(verbose)} {
-				puts "SKIP"
+				puts "SKIP $descr"
 			}
 			return
 		}
