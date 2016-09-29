@@ -508,6 +508,10 @@ test format-16.4 {format %b} {
     format %b 1234567
 } {100101101011010000111}
 
+test format-16.5 {format %b} {
+    list [catch {format %b badvalue} msg] $msg
+} {1 {expected integer but got "badvalue"}}
+
 # cleanup
 catch {unset a}
 catch {unset b}

@@ -20,6 +20,9 @@ testConstraint namespace [expr {[info commands namespace] ne ""}]
 test string-26.1 {tcl::prefix, too few args} -body {
     tcl::prefix match a
 } -returnCodes 1 -match glob -result {wrong # args: should be "tcl::prefix match ?options*? table string"}
+test string-26.1.1 {tcl::prefix, too few args} -body {
+    tcl::prefix
+} -returnCodes 1 -match glob -result {wrong # args: should be "tcl::prefix subcommand ?arg ...?"}
 test string-26.2 {tcl::prefix, bad args} -body {
     tcl::prefix match a b c
 } -returnCodes 1 -result {bad option "a": must be -error, -exact, or -message}
@@ -27,6 +30,9 @@ test string-26.2.1 {tcl::prefix, empty table} -body {
     tcl::prefix match {} foo
 } -returnCodes 1 -result {bad option "foo": no valid options}
 
+test string-26.2.2 {tcl::prefix, bad args} -body {
+    tcl::prefix badoption
+} -returnCodes 1 -result {bad option "badoption": must be all, longest, or match}
 
 
 test string-26.3.1 {tcl::prefix, bad args} -body {

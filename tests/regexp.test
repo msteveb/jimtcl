@@ -222,6 +222,10 @@ test regexp-6.8 {regexp errors} jim {
 test regexp-6.9 {regexp errors, -start bad int check} {
     list [catch {regexp -start bogus {^$} {}} msg] $msg
 } {1 {bad index "bogus": must be integer?[+-]integer? or end?[+-]integer?}}
+test regexp-6.10 {regexp errors, -start too few args} {
+    list [catch {regexp -all -start} msg] $msg
+} {1 {wrong # args: should be "regexp ?-switch ...? exp string ?matchVar? ?subMatchVar ...?"}}
+
 
 test regexp-7.1 {basic regsub operation} {
     list [regsub aa+ xaxaaaxaa 111&222 foo] $foo
@@ -388,6 +392,10 @@ test regexp-11.11 {regsub without final variable name returns value} {
 test regexp-11.12 {regsub without final variable name returns value} {
     regsub -all b(\[^d\]*)d abcdeabcfde {,&,\1,}
 } {a,bcd,c,ea,bcfd,cf,e}
+test regexp-11.13 {regsub errors, -start too few args} {
+    list [catch {regsub -all -nocase -nocase -start} msg] $msg
+} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+
 
 # This test crashes on the Mac unless you increase the Stack Space to about 1
 # Meg.  This is probably bigger than most users want... 
