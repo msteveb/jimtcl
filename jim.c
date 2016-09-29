@@ -3032,7 +3032,7 @@ static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass
     }
 
     for (i = 0; i < len; i++) {
-        if (!isclassfunc(str[i])) {
+        if (!isclassfunc(UCHAR(str[i]))) {
             Jim_SetResultBool(interp, 0);
             return JIM_OK;
         }
