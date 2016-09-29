@@ -41,18 +41,22 @@
 #include <jim.h>
 #include <jim-eventloop.h>
 
-/* POSIX includes */
-#include <sys/time.h>
-#include <sys/types.h>
+#include <time.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 
 #if defined(__MINGW32__)
 #include <windows.h>
 #include <winsock.h>
 #define msleep Sleep
 #else
+#include <sys/types.h>
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
