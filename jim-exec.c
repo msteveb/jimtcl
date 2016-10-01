@@ -1048,9 +1048,14 @@ badargs:
 
         if (inputId != JIM_BAD_FD) {
             JimCloseFd(inputId);
+            inputId = JIM_BAD_FD;
         }
         if (outputId != JIM_BAD_FD) {
             JimCloseFd(outputId);
+            if (outputId == lastOutputId) {
+                lastOutputId = JIM_BAD_FD;
+            }
+            outputId = JIM_BAD_FD;
         }
         inputId = pipeIds[0];
         pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
@@ -1064,12 +1069,15 @@ badargs:
   cleanup:
     if (inputId != JIM_BAD_FD) {
         JimCloseFd(inputId);
+        inputId = JIM_BAD_FD;
     }
     if (lastOutputId != JIM_BAD_FD) {
         JimCloseFd(lastOutputId);
+        lastOutputId = JIM_BAD_FD;
     }
     if (errorId != JIM_BAD_FD) {
         JimCloseFd(errorId);
+        errorId = JIM_BAD_FD;
     }
     Jim_Free(arg_array);
 
@@ -1402,6 +1410,7 @@ JimWinFindExecutable(const char *originalName, char fullPath[MAX_PATH])
 
     for (i = 0; i < (int) (sizeof(extensions) / sizeof(extensions[0])); i++) {
         snprintf(fullPath, MAX_PATH, "%s%s", originalName, extensions[i]);
+        fullPath[MAX_PATH-1] = 0;
 
         if (SearchPath(NULL, fullPath, NULL, MAX_PATH, fullPath, NULL) == 0) {
             continue;
