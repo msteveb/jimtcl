@@ -1051,6 +1051,7 @@ badargs:
         }
         if (outputId != JIM_BAD_FD) {
             JimCloseFd(outputId);
+            outputId = JIM_BAD_FD;
         }
         inputId = pipeIds[0];
         pipeIds[0] = pipeIds[1] = JIM_BAD_FD;
