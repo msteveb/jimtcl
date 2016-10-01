@@ -49,7 +49,6 @@ char *dlerror(void);
 #define JIM_WIDE_MODIFIER "I64d"
 #define strcasecmp _stricmp
 #define strtoull _strtoui64
-#define snprintf _snprintf
 
 #include <io.h>
 
