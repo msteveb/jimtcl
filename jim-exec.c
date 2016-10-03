@@ -1017,6 +1017,13 @@ badargs:
 
             /* Need to prep an error message before vfork(), just in case */
             fprintf(stderr, "couldn't exec \"%s\"\n", arg_array[firstArg]);
+#ifdef JIM_MAINTAINER
+            {
+                /* Keep valgrind happy */
+                static char *const false_argv[2] = {"false", NULL};
+                execvp(false_argv[0],false_argv);
+            }
+#endif
             _exit(127);
         }
 #endif
