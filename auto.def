@@ -408,6 +408,8 @@ define EXTRA_OBJS $extra_objs
 # Restore the user-specified LIBS
 define LIBS $LIBS
 
+cc-check-progs "md5sum"
+
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*}
 make-template Makefile.in
