@@ -754,9 +754,10 @@ Jim Tcl(n) Manual Page
 <div class="paragraph"><p>or</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><code>jimsh [&lt;scriptfile&gt;]
+<pre><code>jimsh [&lt;scriptfile&gt;|-]
 jimsh -e '&lt;immediate-script&gt;'
-jimsh --version</code></pre>
+jimsh --version
+jimsh --help</code></pre>
 </div></div>
 <div class="ulist"><div class="title">Quick Index</div><ul>
 <li>
@@ -877,6 +878,31 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_77_and_0_78">Changes between 0.77 and 0.78</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Add serial/tty support with <a href="#_aio"><strong><code>aio</code></strong></a> <code>tty</code>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>jimsh -</em>
+</p>
+</li>
+<li>
+<p>
+Add hidden <em>-commands</em> option to many commands
+</p>
+</li>
+<li>
+<p>
+Add scriptable autocompletion support in interactive mode with <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a>
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_76_and_0_77">Changes between 0.76 and 0.77</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -1275,6 +1301,11 @@ It may be invoked in interactive mode as:</p></div>
 <div class="literalblock">
 <div class="content">
 <pre><code>jimsh filename</code></pre>
+</div></div>
+<div class="paragraph"><p>or to process the Tcl script from standard input:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><code>jimsh -</code></pre>
 </div></div>
 <div class="paragraph"><p>It may also be invoked to execute an immediate script with:</p></div>
 <div class="literalblock">
@@ -3277,14 +3308,15 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><code>syslog</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><code>tailcall</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw"><strong><code>throw</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
@@ -3292,12 +3324,11 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>update</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><code>uplevel</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -5927,6 +5958,8 @@ while {1} {
     # Received SIGHUP, so reconfigure
 }</code></pre>
 </div></div>
+<div class="paragraph"><p>Note: signal handling is currently not supported in child interpreters.
+In these interpreters, the signal command does not exist.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_sleep">sleep</h3>
@@ -7131,6 +7164,93 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>tty</strong> ?settings?</code>
+</dt>
+<dd>
+<p>
+        If no arguments are given, returns a dictionary containing the tty settings for the stream.
+        If arguments are given, they must either be a dictionary, or <code>setting value ...</code>
+        Abbrevations are supported for both settings and values, so the following is acceptable:
+        <code>$f tty parity e input c out raw</code>.
+    Only available on platforms that support termios(3). Supported settings are:
+</p>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>baud</strong> <em>rate</em></code>
+</dt>
+<dd>
+<p>
+        Baud rate. e.g. 115200
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>data 5|6|7|8</strong></code>
+</dt>
+<dd>
+<p>
+        Number of data bits
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>stop 1|2</strong></code>
+</dt>
+<dd>
+<p>
+        Number of stop bits
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>parity even|odd|none</strong></code>
+</dt>
+<dd>
+<p>
+        Parity setting
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>handshake xonxoff|rtscts|none</strong></code>
+</dt>
+<dd>
+<p>
+                Handshaking type
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>input raw|cooked</strong></code>
+</dt>
+<dd>
+<p>
+                Input character processing. In raw mode, the usual key sequences such as ^C do
+                not generate signals.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>output raw|cooked</strong></code>
+</dt>
+<dd>
+<p>
+                Output character processing. Typically CR &#8594; CRNL is disabled in raw mode.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>vmin</strong> <em>numchars</em></code>
+</dt>
+<dd>
+<p>
+                Minimum number of characters to read.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>vtime</strong> <em>time</em></code>
+</dt>
+<dd>
+<p>
+                Timeout for noncanonical read (units of 0.1 seconds)
+</p>
+</dd>
+</dl></div>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>ssl</strong> <strong>?-server cert priv?</strong></code>
 </dt>
 <dd>
@@ -7787,7 +7907,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 </div>
 <div class="sect2">
 <h3 id="_tcl_prefix">tcl::prefix</h3>
-<div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <em>tcl::prefix</em> command
+<div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a> command
 (<a href="http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm</a>) for matching strings against a table
 of possible values (typically commands or options).</p></div>
 <div class="dlist"><dl>
@@ -7837,6 +7957,25 @@ of possible values (typically commands or options).</p></div>
 </p>
 </li>
 </ul></div>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="_tcl_autocomplete">tcl::autocomplete</h3>
+<div class="paragraph"><p>Scriptable command line completion is supported in the interactive shell, <em>jimsh</em>, through
+the <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a> callback. A simple implementation is provided, however this may
+be replaced with a custom command instead if desired.</p></div>
+<div class="paragraph"><p>In the interactive shell, press &lt;TAB&gt; to activate command line completion.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>tcl::autocomplete</strong> <em>commandline</em></code>
+</dt>
+<dd>
+<p>
+        This command is called with the current command line when the user presses &lt;TAB&gt;.
+        The command should return a list of all possible command lines that match the current command line.
+        For example if <code><strong>pr</strong></code> is the current command line, the list <code><strong>{prefix proc}</strong></code> may be returned.
+</p>
 </dd>
 </dl></div>
 </div>
@@ -8491,8 +8630,10 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2016-08-29 16:18:20 AEST
+Last updated
+ 2016-10-03 09:13:05 BST
 </div>
 </div>
 </body>
 </html>
+<!-- md5 491db0c332ae8df9751f6a14fff12a03  jim_tcl.txt -->
