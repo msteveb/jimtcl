@@ -209,7 +209,7 @@ clean:
 	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c
 
 distclean: clean
-	rm -f jimautoconf.h jim-config.h Makefile config.log autosetup/jimsh0@EXEEXT@ build-jim-ext
+	rm -f jimautoconf.h jim-config.h Makefile config.log @srcdir@/autosetup/jimsh0@EXEEXT@ build-jim-ext
 
 ship: Tcl.html
 	cp $< Tcl_shipped.html
