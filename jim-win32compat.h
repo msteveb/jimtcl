@@ -21,14 +21,6 @@ char *dlerror(void);
     #define JIM_SPRINTF_DOUBLE_NEEDS_FIX
 #endif
 
-/* MinGW does not have group/owner permissions */
-#ifndef S_IRWXG
-#define S_IRWXG 0
-#endif
-#ifndef S_IRWXO
-#define S_IRWXO 0
-#endif
-
 #ifdef _MSC_VER
 /* These are msvc vs gcc */
 

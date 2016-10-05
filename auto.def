@@ -104,7 +104,7 @@ cc-check-functions ualarm lstat fork vfork system select execvpe
 cc-check-functions backtrace geteuid mkstemp realpath strptime isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
-cc-check-functions shutdown socketpair isinf isnan link symlink fsync dup
+cc-check-functions shutdown socketpair isinf isnan link symlink fsync dup umask
 
 if {[cc-check-functions sysinfo]} {
     cc-with {-includes sys/sysinfo.h} {
@@ -164,6 +164,14 @@ if {[cctest -includes {sys/types.h sys/stat.h} -code {mkdir("/dummy");}]} {
     msg-result yes
 } else {
     msg-result no
+}
+
+cc-with {-includes sys/stat.h} {
+    foreach i {S_IXUSR S_IRWXG S_IRWXO} {
+        if {![cc-check-decls $i]} {
+            define $i 0
+        }
+    }
 }
 
 set extra_objs {}
@@ -409,7 +417,7 @@ define EXTRA_OBJS $extra_objs
 define LIBS $LIBS
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
-make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*}
+make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template build-jim-ext.in
 

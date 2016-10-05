@@ -74,6 +74,14 @@ cat <<EOF
 #define HAVE_SYS_TIME_H
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
+#define HAVE_UMASK
+#include <sys/stat.h>
+#ifndef S_IRWXG
+#define S_IRWXG 0
+#endif
+#ifndef S_IRWXO
+#define S_IRWXO 0
+#endif
 #else
 #define TCL_PLATFORM_OS "unknown"
 #define TCL_PLATFORM_PLATFORM "unix"
@@ -92,6 +100,7 @@ cat <<EOF
 #define HAVE_SYS_TIME_H
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
+#define HAVE_UMASK
 #endif
 EOF
 
