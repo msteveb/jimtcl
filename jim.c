@@ -12859,9 +12859,9 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 }
 
 /* [debug] */
+#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
     static const char * const options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc", "show",
@@ -13067,12 +13067,8 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     /* unreached */
-#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
-#if !defined(JIM_DEBUG_COMMAND)
-    Jim_SetResultString(interp, "unsupported", -1);
-    return JIM_ERR;
-#endif
 }
+#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
 
 /* [eval] */
 static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -15473,7 +15469,9 @@ static const struct {
     {"lreplace", Jim_LreplaceCoreCommand},
     {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
-    {"debug", Jim_DebugCoreCommand},
+#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
+	{"debug", Jim_DebugCoreCommand},
+#endif
     {"eval", Jim_EvalCoreCommand},
     {"uplevel", Jim_UplevelCoreCommand},
     {"expr", Jim_ExprCoreCommand},
