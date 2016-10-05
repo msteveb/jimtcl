@@ -126,7 +126,7 @@ test dict-3.18 {array set non-dict get command} -constraints jim -returnCodes er
 } -result {missing value to go with key}
 
 test dict-4.1 {dict replace command} {
-    dict replace {a b c d}
+    dict-sort [dict replace {a b c d}]
 } {a b c d}
 test dict-4.2 {dict replace command} {
     dict-sort [dict replace {a b c d} e f]
