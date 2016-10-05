@@ -55,6 +55,13 @@ proc tcl::autocomplete {prefix} {
 			}]
 		}
 	}
+	# Find matching files.
+	if {[string match "source *" $prefix]} {
+		set path [string range $prefix 7 end]
+		return [lmap p [glob -nocomplain "${path}*"] {
+			function "source $p"
+		}]
+	}
 	# Find matching commands, omitting results containing spaces
 	return [lmap p [lsort [info commands $prefix*]] {
 		if {[string match "* *" $p]} {
