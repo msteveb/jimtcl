@@ -12653,9 +12653,9 @@ static Jim_Obj *JimGetExprAsList(Jim_Interp *interp, struct JimExprNode *node)
 #endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
 
 /* [debug] */
+#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
     static const char * const options[] = {
         "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
         "exprbc", "show",
@@ -12711,6 +12711,11 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     else if (option == OPT_OBJECTS) {
         Jim_Obj *objPtr, *listObjPtr, *subListObjPtr;
 
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+
         /* Count the number of live objects. */
         objPtr = interp->liveList;
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
@@ -12757,13 +12762,17 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 #else
         charlen = len;
 #endif
-        printf("refcount: %d, type: %s\n", argv[2]->refCount, JimObjTypeName(argv[2]));
-        printf("chars (%d): <<%s>>\n", charlen, s);
-        printf("bytes (%d):", len);
+        char buf[256];
+        snprintf(buf, sizeof(buf), "refcount: %d, type: %s\n"
+            "chars (%d):",
+            argv[2]->refCount, JimObjTypeName(argv[2]), charlen);
+        Jim_SetResultFormatted(interp, "%s <<%s>>\n", buf, s);
+        snprintf(buf, sizeof(buf), "bytes (%d):", len);
+        Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
         while (len--) {
-            printf(" %02x", (unsigned char)*s++);
+            snprintf(buf, sizeof(buf), " %02x", (unsigned char)*s++);
+            Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
         }
-        printf("\n");
         return JIM_OK;
     }
     else if (option == OPT_SCRIPTLEN) {
@@ -12811,12 +12820,8 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     /* unreached */
-#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
-#if !defined(JIM_DEBUG_COMMAND)
-    Jim_SetResultString(interp, "unsupported", -1);
-    return JIM_ERR;
-#endif
 }
+#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
 
 /* [eval] */
 static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -15240,7 +15245,9 @@ static const struct {
     {"lreplace", Jim_LreplaceCoreCommand},
     {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
-    {"debug", Jim_DebugCoreCommand},
+#if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
+	{"debug", Jim_DebugCoreCommand},
+#endif
     {"eval", Jim_EvalCoreCommand},
     {"uplevel", Jim_UplevelCoreCommand},
     {"expr", Jim_ExprCoreCommand},

@@ -1,0 +1,109 @@
+source [file dirname [info script]]/testing.tcl
+needs cmd debug
+
+set x 0
+
+test debug-0.1 {debug too few args} -body {
+    debug
+} -returnCodes error -result {wrong # args: should be "debug subcommand ?...?"}
+
+test debug-0.2 {debug bad option} -body {
+    debug badoption
+} -returnCodes error -result {bad subcommand "badoption": must be exprbc, exprlen, invstr, objcount, objects, refcount, scriptlen, or show}
+
+test debug-1.1 {debug refcount too few args} -body {
+    debug refcount
+} -returnCodes error -result {wrong # args: should be "debug refcount object"}
+
+test debug-1.2 {debug refcount test} -body {
+    debug refcount x
+}  -result {2}
+
+test debug-1.3 {debug refcount too many args} -body {
+    debug refcount a b c
+} -returnCodes error -result {wrong # args: should be "debug refcount object"}
+
+test debug-2.1 {debug objcount} -body {
+    regexp {free \d+ used \d+} [debug objcount]
+} -result {1}
+
+test debug-2.2 {debug objcount too many args} -body {
+    debug objcount a b c
+} -returnCodes error -result {wrong # args: should be "debug objcount"}
+
+test debug-3.1 {debug objects} -body {
+    expr [llength [debug objects]] > 1000
+} -result {1}
+
+# does not currently check for too many args
+test debug-3.2 {debug objects too many args} -body {
+    debug objects a b c
+} -returnCodes error -result {wrong # args: should be "debug objects"}
+
+test debug-4.1 {debug invstr too few args} -body {
+    debug invstr
+} -returnCodes error -result {wrong # args: should be "debug invstr object"}
+
+test debug-4.2 {debug invstr} -body {
+    debug invstr x
+} -result {}
+
+test debug-4.3 {debug invstr too many args} -body {
+    debug invstr a b c
+} -returnCodes error -result {wrong # args: should be "debug invstr object"}
+
+test debug-5.1 {debug scriptlen too few args} -body {
+    debug scriptlen
+} -returnCodes error -result {wrong # args: should be "debug scriptlen script"}
+
+test debug-5.2 {debug scriptlen} -body {
+    debug scriptlen {puts "hello world"}
+} -result {3}
+
+test debug-5.3 {debug scriptlen too many args} -body {
+    debug scriptlen a b c
+} -returnCodes error -result {wrong # args: should be "debug scriptlen script"}
+
+test debug-6.1 {debug exprlen too few args} -body {
+    debug exprlen
+} -returnCodes error -result {wrong # args: should be "debug exprlen expression"}
+
+test debug-6.2 {debug exprlen} -body {
+    debug exprlen { $x + 10 }
+} -result {3}
+
+test debug-6.3 {debug exprlen too many args} -body {
+    debug exprlen a b c
+} -returnCodes error -result {wrong # args: should be "debug exprlen expression"}
+
+test debug-7.1 {debug exprbc too few args} -body {
+    debug exprbc
+} -returnCodes error -result {wrong # args: should be "debug exprbc expression"}
+
+test debug-7.2 {debug exprbc} -body {
+	set y [dict create]
+	dict set y z 1
+    debug exprbc { $x + 10 + 1.5 + true + [llength {{1} {2}}] + "5" + $y(z) + "\x33"}
+} -result {+ {+ {+ {+ {+ {+ {+ {VAR x} {INT 10}} {DBL 1.5}} {BOO true}} {CMD {llength {{1} {2}}}}} {STR 5}} {ARY y(z)}} {ESC {\x33}}}
+
+test debug-7.4 {debug exprbc too many args} -body {
+    debug exprbc a b c
+} -returnCodes error -result {wrong # args: should be "debug exprbc expression"}
+
+test debug-8.1 {debug show too few args} -body {
+    debug show
+} -returnCodes error -result {wrong # args: should be "debug show object"}
+
+test debug-8.1 {debug show} -body {
+	set x hello
+	lappend x there
+    debug show $x
+} -result {refcount: 2, type: list
+chars (11): <<hello there>>
+bytes (11): 68 65 6c 6c 6f 20 74 68 65 72 65}
+
+test debug-8.3 {debug show too many args} -body {
+    debug show a b c
+} -returnCodes error -result {wrong # args: should be "debug show object"}
+
+testreport
