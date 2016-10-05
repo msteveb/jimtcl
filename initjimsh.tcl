@@ -43,12 +43,15 @@ if {$tcl_platform(platform) eq "windows"} {
 	set jim::argv0 [string map {\\ /} $jim::argv0]
 }
 
+# Set a global variable here so that custom commands can be added post hoc
+set tcl::autocomplete_commands {info tcl::prefix socket namespace array clock file package string dict signal history}
+
 # Simple interactive command line completion callback
 # Explicitly knows about some commands that support "-commands"
 proc tcl::autocomplete {prefix} {
 	if {[string match "* " $prefix]} {
 		set cmd [string range $prefix 0 end-1]
-		if {$cmd in {info tcl::prefix socket namespace array clock file package string dict signal history} || [info channel $cmd] ne ""} {
+		if {$cmd in $::tcl::autocomplete_commands || [info channel $cmd] ne ""} {
 			# Add any results from -commands
 			return [lmap p [$cmd -commands] {
 				function "$cmd $p"
