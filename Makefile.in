@@ -113,7 +113,7 @@ uninstall:
 @endif
 
 test check: $(JIMSH)
-	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh TOPSRCDIR=@top_srcdir@
+	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh TOPSRCDIR=..
 
 $(OBJS): Makefile $(wildcard *.h)
 
