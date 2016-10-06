@@ -85,4 +85,50 @@ test array-1.14 "access array via unset var" -body {
 	expr {$a($b) + 4}
 } -returnCodes error -result {can't read "b": no such variable}
 
+test array-1.15 "array unset non-variable" -body {
+	array unset nonvariable 4
+} -result {}
+
+test array-1.16 "array names non-variable" -body {
+	array names nonvariable
+} -result {}
+
+test array-1.17 "array get non-variable" -body {
+	array get nonvariable
+} -result {}
+
+# This seems like incorrect behaviour, but it matches tclsh
+test array-1.18 "array size non-array" -body {
+	set x 1
+	array size x
+} -result {0}
+
+# This seems like incorrect behaviour, but it matches tclsh
+test array-1.19 "array unset non-array" -body {
+	set x 6
+	array unset x 4
+} -result {}
+
+test array-1.20 "array stat" -body {
+	set output [array stat a]
+	regexp "1 entries in table.*number of buckets with 1 entries: 1" $output
+} -result {1}
+
+test array-1.21 "array stat non-array" -body {
+	array stat badvariable
+} -returnCodes error -result {"badvariable" isn't an array}
+
+test array-1.22 "array set non-even args" -body {
+	array set x {
+	1 one
+	2 two
+	3
+}
+} -returnCodes error -result {list must have an even number of elements}
+
+test array-1.23 "array exists non-array" -body {
+	set x 4
+	array exists x
+} -result {0}
+
 testreport

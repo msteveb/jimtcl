@@ -54,7 +54,8 @@
 static int array_cmd_exists(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     /* Just a regular [info exists] */
-    Jim_SetResultInt(interp, Jim_GetVariable(interp, argv[0], 0) != 0);
+    Jim_Obj *dictObj = Jim_GetVariable(interp, argv[0], JIM_UNSHARED);
+    Jim_SetResultInt(interp, dictObj && Jim_DictSize(interp, dictObj) != -1);
     return JIM_OK;
 }
 
@@ -115,7 +116,9 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (Jim_DictPairs(interp, objPtr, &dictValuesObj, &len) != JIM_OK) {
-        return JIM_ERR;
+        /* Variable is not an array - tclsh ignores this and returns nothing - be compatible */
+        Jim_SetResultString(interp, "", -1);
+        return JIM_OK;
     }
 
     /* Create a new object with the values which don't match */
@@ -142,7 +145,9 @@ static int array_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (objPtr) {
         len = Jim_DictSize(interp, objPtr);
         if (len < 0) {
-            return JIM_ERR;
+            /* Variable is not an array - tclsh ignores this and returns 0 - be compatible */
+            Jim_SetResultInt(interp, 0);
+            return JIM_OK;
         }
     }
 
