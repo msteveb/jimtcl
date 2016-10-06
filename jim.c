@@ -14366,6 +14366,7 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_HashTable *ht;
     unsigned int i;
+    char buffer[100];
 
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
@@ -14374,21 +14375,31 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
     ht = (Jim_HashTable *)objPtr->internalRep.ptr;
 
     /* Note that this uses internal knowledge of the hash table */
-    printf("%d entries in table, %d buckets\n", ht->used, ht->size);
+    snprintf(buffer, sizeof(buffer), "%d entries in table, %d buckets\n", ht->used, ht->size);
+    Jim_Obj *output = Jim_NewStringObj(interp, buffer, -1);
 
+    int bucket_counts[11] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     for (i = 0; i < ht->size; i++) {
         Jim_HashEntry *he = ht->table[i];
-
-        if (he) {
-            printf("%d: ", i);
-
-            while (he) {
-                printf(" %s", Jim_String(he->key));
-                he = he->next;
-            }
-            printf("\n");
+        int entries = 0;
+        while (he) {
+            entries++;
+            he = he->next;
+        }
+        if (entries > 9) {
+            bucket_counts[10]++;
+        }
+        else {
+            bucket_counts[entries]++;
         }
     }
+    for (i = 0; i < 10; i++) {
+        snprintf(buffer, sizeof(buffer), "number of buckets with %d entries: %d\n", i, bucket_counts[i]);
+        Jim_AppendString(interp, output, buffer, -1);
+    }
+    snprintf(buffer, sizeof(buffer), "number of buckets with 10 or more entries: %d\n", bucket_counts[10]);
+    Jim_AppendString(interp, output, buffer, -1);
+    Jim_SetResult(interp, output);
     return JIM_OK;
 }
 
