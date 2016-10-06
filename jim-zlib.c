@@ -45,7 +45,9 @@ static int JimZlibCheckBufSize(Jim_Interp *interp, jim_wide bufsiz)
 {
     if ((bufsiz <= 0) || (bufsiz > INT_MAX)) {
         Jim_SetResultString(interp, "buffer size must be 0 to ", -1);
-        Jim_AppendObj(interp, Jim_GetResult(interp), Jim_NewIntObj(interp, INT_MAX));
+        Jim_Obj *intmax = Jim_NewIntObj(interp, INT_MAX);
+        Jim_AppendObj(interp, Jim_GetResult(interp), intmax);
+        Jim_FreeObj(interp, intmax);
         return JIM_ERR;
     }
     return JIM_OK;
