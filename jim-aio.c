@@ -1900,14 +1900,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
  * On success, leaves the filename in the interpreter result, otherwise
  * leaves an error message.
  */
-int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
+int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template)
 {
 #ifdef HAVE_MKSTEMP
     int fd;
     mode_t mask;
     Jim_Obj *filenameObj;
 
-    if (template == NULL) {
+    if (filename_template == NULL) {
         const char *tmpdir = getenv("TMPDIR");
         if (tmpdir == NULL || *tmpdir == '\0' || access(tmpdir, W_OK) != 0) {
             tmpdir = "/tmp/";
@@ -1919,7 +1919,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *template)
         Jim_AppendString(interp, filenameObj, "tcl.tmp.XXXXXX", -1);
     }
     else {
-        filenameObj = Jim_NewStringObj(interp, template, -1);
+        filenameObj = Jim_NewStringObj(interp, filename_template, -1);
     }
 
     /* Update the template name directly with the filename */
