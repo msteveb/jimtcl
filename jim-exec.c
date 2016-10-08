@@ -121,7 +121,7 @@ int Jim_execInit(Jim_Interp *interp)
     static fdtype JimOpenForRead(const char *filename);
     static FILE *JimFdOpenForRead(fdtype fd);
     static int JimPipe(fdtype pipefd[2]);
-    static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char *env,
+    static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char **env,
         fdtype inputId, fdtype outputId, fdtype errorId);
     static int JimErrno(void);
 #else
@@ -986,7 +986,7 @@ badargs:
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ ? save_environ[0] : NULL, inputId, outputId, errorId);
+        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
         if (pid == JIM_BAD_PID) {
             Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
             goto error;
@@ -1512,7 +1512,7 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
 }
 
 static pidtype
-JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, fdtype outputId, fdtype errorId)
+JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, fdtype inputId, fdtype outputId, fdtype errorId)
 {
     STARTUPINFO startInfo;
     PROCESS_INFORMATION procInfo;
@@ -1586,8 +1586,41 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
         goto end;
     }
 
-    if (!CreateProcess(NULL, (char *)Jim_String(cmdLineObj), NULL, NULL, TRUE,
-            0, env, NULL, &startInfo, &procInfo)) {
+    char* env2 = NULL;
+    if (env) {
+        /* CreateProcess requires a different environment format
+         * Variables must be in one block with a null at the end
+         * of each variable, and another null after the last
+         * terminating null
+         * Create new environment
+         */
+        unsigned long env_length = 0;
+        char** envptr = env;
+        /* Count total size of environment */
+        while (*envptr != NULL)
+        {
+            env_length += strlen(*envptr) + 1;
+            envptr++;
+        }
+        /* Allocate space for new environment block */
+        env2 = (char*)malloc(env_length + 1);
+        envptr = env;
+        char* env2ptr = env2;
+        /* Copy variables into new environment block */
+        while (*envptr != NULL)
+        {
+            strcpy(env2ptr, *envptr);
+            env2ptr += strlen(*envptr) + 1;
+            envptr++;
+        }
+        /* Add extra termination null */
+        *env2ptr = 0;
+    }
+
+    BOOL result = CreateProcess(NULL, (char *)Jim_String(cmdLineObj), NULL, NULL, TRUE,
+                                      0, env2, NULL, &startInfo, &procInfo);
+    free(env2);
+    if (!result) {
         goto end;
     }
 
