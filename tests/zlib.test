@@ -103,6 +103,10 @@ test zlib-3.11 {zlib gzip usage 4} -returnCodes error -body {
     zlib gzip -level 9 a
 } -result {wrong # args: should be "zlib gzip data ?-level level?"}
 
+test zlib-3.7 {zlib gunzip bad option} -returnCodes error -body {
+    zlib gunzip aaa -badoption
+} -result {wrong # args: should be "zlib gunzip data ?-buffersize size?"}
+
 test zlib-4.1 {zlib gzip/gunzip} {
     zlib gunzip [zlib gzip abcdefghijklm]
 } abcdefghijklm
@@ -111,6 +115,18 @@ test zlib-4.2 {zlib gzip/gunzip level and chunk size} {
     zlib gunzip [zlib gzip abcdefghijklm -level 9] -buffersize 128
 } abcdefghijklm
 
+test zlib-4.3 {zlib gzip/gunzip bad level } -body {
+    zlib gzip abcdefghijklm -level -5
+} -returnCodes error -result {level must be 0 to 9}
+
+test zlib-4.4 {zlib gzip/gunzip bad level } -body {
+    zlib gzip abcdefghijklm -level 10
+} -returnCodes error -result {level must be 0 to 9}
+
+test zlib-4.5 {zlib gzip/gunzip non-int level } -body {
+    zlib gzip abcdefghijklm -level "abc"
+} -returnCodes error -result {wrong # args: should be "zlib gzip data ?-level level?"}
+
 test zlib-5.1 {zlib crc32} {
     format %x [expr {[zlib crc32 abcdeabcdeabcdeabcdeabcdeabcde] & 0xffffffff}]
 } 6f73e901
@@ -118,5 +134,10 @@ test zlib-5.1 {zlib crc32} {
 test zlib-5.2 {zlib crc32} {
     format %x [expr {[zlib crc32 abcdeabcdeabcdeabcdeabcdeabcde 42] & 0xffffffff}]
 } ce1c4914
+
+test zlib-5.3 {zlib crc32 non-int arg} -body {
+    zlib crc32 abcdeabcdeabcdeabcdeabcdeabcde "abc"
+} -returnCodes error -result {expected integer but got "abc"}
+
 
 testreport
