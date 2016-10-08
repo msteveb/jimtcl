@@ -121,7 +121,7 @@ int Jim_execInit(Jim_Interp *interp)
     static fdtype JimOpenForRead(const char *filename);
     static FILE *JimFdOpenForRead(fdtype fd);
     static int JimPipe(fdtype pipefd[2]);
-    static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char *env,
+    static pidtype JimStartWinProcess(Jim_Interp *interp, char **argv, char **env,
         fdtype inputId, fdtype outputId, fdtype errorId);
     static int JimErrno(void);
 #else
@@ -151,6 +151,7 @@ int Jim_execInit(Jim_Interp *interp)
 #endif
 
 static const char *JimStrError(void);
+static char **JimOriginalEnviron(void);
 static char **JimSaveEnv(char **env);
 static void JimRestoreEnv(char **env);
 static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
@@ -235,7 +236,7 @@ static char **JimBuildEnv(Jim_Interp *interp)
     Jim_Obj *objPtr = Jim_GetGlobalVariableStr(interp, "env", JIM_NONE);
 
     if (!objPtr) {
-        return Jim_GetEnviron();
+        return JimOriginalEnviron();
     }
 
     /* We build the array as a single block consisting of the pointers followed by
@@ -986,7 +987,7 @@ badargs:
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ ? save_environ[0] : NULL, inputId, outputId, errorId);
+        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
         if (pid == JIM_BAD_PID) {
             Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
             goto error;
@@ -1435,6 +1436,11 @@ static void JimRestoreEnv(char **env)
     JimFreeEnv(env, Jim_GetEnviron());
 }
 
+static char **JimOriginalEnviron(void)
+{
+    return NULL;
+}
+
 static Jim_Obj *
 JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
 {
@@ -1512,7 +1518,7 @@ JimWinBuildCommandLine(Jim_Interp *interp, char **argv)
 }
 
 static pidtype
-JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, fdtype outputId, fdtype errorId)
+JimStartWinProcess(Jim_Interp *interp, char **argv, char **env, fdtype inputId, fdtype outputId, fdtype errorId)
 {
     STARTUPINFO startInfo;
     PROCESS_INFORMATION procInfo;
@@ -1520,6 +1526,7 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
     char execPath[MAX_PATH];
     pidtype pid = JIM_BAD_PID;
     Jim_Obj *cmdLineObj;
+    char *winenv;
 
     if (JimWinFindExecutable(argv[0], execPath) < 0) {
         return JIM_BAD_PID;
@@ -1586,8 +1593,23 @@ JimStartWinProcess(Jim_Interp *interp, char **argv, char *env, fdtype inputId, f
         goto end;
     }
 
+    /* If env is NULL, use the original environment.
+     * If env[0] is NULL, use an empty environment.
+     * Otherwise use the environment starting at env[0]
+     */
+    if (env == NULL) {
+        /* Use the original environment */
+        winenv = NULL;
+    }
+    else if (env[0] == NULL) {
+        winenv = (char *)"\0";
+    }
+    else {
+        winenv = env[0];
+    }
+
     if (!CreateProcess(NULL, (char *)Jim_String(cmdLineObj), NULL, NULL, TRUE,
-            0, env, NULL, &startInfo, &procInfo)) {
+            0, winenv, NULL, &startInfo, &procInfo)) {
         goto end;
     }
 
@@ -1646,6 +1668,11 @@ static int JimCreateTemp(Jim_Interp *interp, const char *contents, int len)
         }
     }
     return fd;
+}
+
+static char **JimOriginalEnviron(void)
+{
+    return Jim_GetEnviron();
 }
 
 static char **JimSaveEnv(char **env)
