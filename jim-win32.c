@@ -92,7 +92,7 @@ Win32ErrorObj(Jim_Interp *interp, const char * szPrefix, DWORD dwError)
 static int
 Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 {
-    int r;
+    HINSTANCE r;
     const char *verb, *file, *parm = NULL;
     char cwd[MAX_PATH + 1];
 
@@ -105,11 +105,11 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
     GetCurrentDirectoryA(MAX_PATH + 1, cwd);
     if (objc == 4)
         parm = Jim_String(objv[3]);
-    r = (int)ShellExecuteA(NULL, verb, file, parm, cwd, SW_SHOWNORMAL);
-    if (r < 33)
+    r = ShellExecuteA(NULL, verb, file, parm, cwd, SW_SHOWNORMAL);
+    if ((jim_wide)r < 33)
         Jim_SetResult(interp,
             Win32ErrorObj(interp, "ShellExecute", GetLastError()));
-    return (r < 33) ? JIM_ERR : JIM_OK;
+    return ((jim_wide)r < 33) ? JIM_ERR : JIM_OK;
 }
 
 
@@ -163,7 +163,7 @@ Win32_CloseWindow(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 static int
 Win32_GetActiveWindow(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 {
-    Jim_SetResult(interp, Jim_NewIntObj(interp, (DWORD)GetActiveWindow()));
+    Jim_SetResult(interp, Jim_NewIntObj(interp, (jim_wide)GetActiveWindow()));
     return JIM_OK;
 }
 
