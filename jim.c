@@ -10926,7 +10926,6 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
         }
     }
     Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s%#s\"", procNameObj, argmsg);
-    Jim_FreeNewObj(interp, argmsg);
 }
 
 #ifdef jim_ext_namespace
@@ -11382,9 +11381,7 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
     objPtr = Jim_ListJoin(interp, listObjPtr, " ", 1);
     Jim_DecrRefCount(interp, listObjPtr);
 
-    Jim_IncrRefCount(objPtr);
     Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s\"", objPtr);
-    Jim_DecrRefCount(interp, objPtr);
 }
 
 /**
@@ -15696,6 +15693,8 @@ int Jim_IsList(Jim_Obj *objPtr)
  * e.g. Jim_SetResultFormatted(interp, "Bad option \"%#s\" in proc \"%#s\"", optionObjPtr, procNamePtr);
  *
  * Note: We take advantage of the fact that printf has the same behaviour for both %s and %#s
+ *
+ * Note that any Jim_Obj parameters with zero ref count will be freed as a result of this call.
  */
 void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
 {
@@ -15704,6 +15703,8 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     int extra = 0;
     int n = 0;
     const char *params[5];
+    int nobjparam = 0;
+    Jim_Obj *objparam[5];
     char *buf;
     va_list args;
     int i;
@@ -15722,6 +15723,8 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
             Jim_Obj *objPtr = va_arg(args, Jim_Obj *);
 
             params[n] = Jim_GetString(objPtr, &l);
+            objparam[nobjparam++] = objPtr;
+            Jim_IncrRefCount(objPtr);
         }
         else {
             if (format[i] == '%') {
@@ -15740,6 +15743,10 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     va_end(args);
 
     Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, len));
+
+    for (i = 0; i < nobjparam; i++) {
+        Jim_DecrRefCount(interp, objparam[i]);
+    }
 }
 
 /* stubs */
