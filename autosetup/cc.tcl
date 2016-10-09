@@ -38,12 +38,12 @@ proc cc-check-something {name code} {
 # Checks for the existence of the given function by linking
 #
 proc cctest_function {function} {
-	cctest -link 1 -declare "extern void $function\(void);" -code "$function\();"
+	cctest -cflags "-fno-builtin" -link 1 -declare "extern void $function\(void);" -code "$function\();"
 }
 
 # Checks for the existence of the given type by compiling
 proc cctest_type {type} {
-	cctest -code "$type _x;"
+	cctest -code "$type _x; (void) _x;"
 }
 
 # Checks for the existence of the given type/structure member.
@@ -80,7 +80,7 @@ proc cc-check-sizeof {args} {
 		set size unknown
 		# Try the most common sizes first
 		foreach i {4 8 1 2 16 32} {
-			if {[cctest -code "static int _x\[sizeof($type) == $i ? 1 : -1\] = { 1 };"]} {
+			if {[cctest -code "static int _x\[sizeof($type) == $i ? 1 : -1\] = { 1 }; (void) _x;"]} {
 				set size $i
 				break
 			}

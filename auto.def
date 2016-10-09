@@ -148,7 +148,7 @@ define tclsh [info nameofexecutable]
 
 if {![cc-check-functions _NSGetEnviron]} {
     msg-checking "Checking environ declared in unistd.h..."
-    if {[cctest -cflags {-D_GNU_SOURCE -D_POSIX_SOURCE} -includes unistd.h -code {char **ep = environ;}]} {
+    if {[cctest -cflags {-D_GNU_SOURCE -D_POSIX_SOURCE} -includes unistd.h -code {char **ep = environ; (void)ep;}]} {
         define NO_ENVIRON_EXTERN
         msg-result "yes"
     } else {
