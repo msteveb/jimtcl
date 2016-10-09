@@ -70,16 +70,6 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
 	$(CC) $(CFLAGS) -c -o $@ _$*.c
 
-docs: Tcl.html
-
-@if JIM_DOCS
-install-docs: docs
-	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
-	$(INSTALL_DATA) Tcl.html $(DESTDIR)$(docdir)
-@else
-install-docs:
-@endif
-
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)
 
@@ -202,8 +192,31 @@ zlib.so: jim-zlib.c
 	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-zlib.o $> $^
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-zlib.o $(SH_LIBJIM) @LDLIBS_zlib@
 
+docs: Tcl.html
+
+@if INSTALL_DOCS == nodocs
+install-docs:
+@endif
+
+@if INSTALL_DOCS == docs
+install-docs: docs
+	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) Tcl.html $(DESTDIR)$(docdir)
+@endif
+
+@if INSTALL_DOCS == shipped
+install-docs:
+	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
+	@echo "Warning: asciidoc not available - installing Tcl_shipped.html"
+	$(INSTALL_DATA) Tcl_shipped.html $(DESTDIR)$(docdir)/Tcl.html
+@endif
+
 Tcl.html: jim_tcl.txt
-	@tclsh@ @srcdir@/make-index $> $^ | asciidoc -o $@ -d manpage - || cp @srcdir@/Tcl_shipped.html Tcl.html
+@if HAVE_ASCIIDOC
+	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ -o $@ -d manpage -
+@else
+	@echo "asciidoc is not available"; false
+@endif
 
 clean:
 	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c

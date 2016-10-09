@@ -146,6 +146,17 @@ switch -glob -- $host_os {
 cc-check-tools ar ranlib strip
 define tclsh [info nameofexecutable]
 
+if {[opt-bool docs]} {
+    if {[cc-check-progs asciidoc]} {
+        define INSTALL_DOCS docs
+        define HAVE_ASCIIDOC
+    } else {
+        define INSTALL_DOCS shipped
+    }
+} else {
+    define INSTALL_DOCS nodocs
+}
+
 if {![cc-check-functions _NSGetEnviron]} {
     msg-checking "Checking environ declared in unistd.h..."
     if {[cctest -cflags {-D_GNU_SOURCE -D_POSIX_SOURCE} -includes unistd.h -code {char **ep = environ;}]} {
