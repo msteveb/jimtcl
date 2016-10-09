@@ -294,7 +294,12 @@ test expr-9.10 {CompileRelationalExpr: error compiling relational arm} {
 test expr-10.1 {CompileShiftExpr: just add expr} {expr 4+-2} 2
 test expr-10.2 {CompileShiftExpr: just add expr} {expr 0xff-2} 253
 test expr-10.3 {CompileShiftExpr: just add expr} {expr -1--2} 1
-test expr-10.4 {CompileShiftExpr: just add expr} {expr 1-0123} -122
+
+# JimTCL specifically does not adhere to the octal default for numbers starting with zero
+test expr-10.4 {CompileShiftExpr: just add expr} -constraints jim -body {
+    expr 1-0123
+} -result {-122}
+
 test expr-10.5 {CompileShiftExpr: error in add expr} {
     catch {expr x+3} msg
 } {1}
@@ -316,7 +321,11 @@ test expr-10.11 {CompileShiftExpr: runtime error} {
 test expr-11.1 {CompileAddExpr: just multiply expr} {expr 4*-2} -8
 test expr-11.2 {CompileAddExpr: just multiply expr} {expr 0xff%2} 1
 test expr-11.3 {CompileAddExpr: just multiply expr} {expr -1/2} -1
-test expr-11.4 {CompileAddExpr: just multiply expr} {expr 7891%0123} 19
+# JimTCL specifically does not adhere to the octal default for numbers starting with zero
+test expr-11.4 {CompileAddExpr: just multiply expr} -constraints jim -body {
+    expr 7891%0123
+} -result {19}
+
 test expr-11.5 {CompileAddExpr: error in multiply expr} {
     catch {expr x*3} msg
 } {1}
@@ -367,7 +376,11 @@ test expr-12.11 {CompileMultiplyExpr: runtime error} {
 } {1}
 
 test expr-13.1 {CompileUnaryExpr: unary exprs} {expr -0xff} -255
-test expr-13.2 {CompileUnaryExpr: unary exprs} {expr +000123} 123
+# JimTCL specifically does not adhere to the octal default for numbers starting with zero
+test expr-13.2 {CompileUnaryExpr: unary exprs} -constraints jim -body {
+    expr +000123
+} -result {123}
+
 test expr-13.3 {CompileUnaryExpr: unary exprs} {expr +--++36} 36
 test expr-13.4 {CompileUnaryExpr: unary exprs} {expr !2} 0
 test expr-13.5 {CompileUnaryExpr: unary exprs} {expr +--+-62.0} -62.0
@@ -400,7 +413,11 @@ test expr-13.16 {CompileUnaryExpr: error in primary expr} {
 test expr-14.1 {CompilePrimaryExpr: literal primary} {expr 1} 1
 test expr-14.2 {CompilePrimaryExpr: literal primary} {expr 123} 123
 test expr-14.3 {CompilePrimaryExpr: literal primary} {expr 0xff} 255
-test expr-14.4 {CompilePrimaryExpr: literal primary} {expr 00010} 10
+# JimTCL specifically does not adhere to the octal default for numbers starting with zero
+test expr-14.4 {CompilePrimaryExpr: literal primary} -constraints jim -body {
+    expr 00010
+} -result {10}
+
 test expr-14.5 {CompilePrimaryExpr: literal primary} {expr 62.0} 62.0
 test expr-14.6 {CompilePrimaryExpr: literal primary} {
     expr 3.1400000
