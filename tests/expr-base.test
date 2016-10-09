@@ -7,7 +7,6 @@ set good_testcases {
 	8			8
 	00			0
 	07			7
-	08			8
 	0x5			5
 	0x0			0
 	0x00		0
@@ -23,6 +22,11 @@ foreach {str exp} $good_testcases {
 	test expr-base-1.[incr i] "expr conversion" [list expr [list $str]] $exp
 }
 
+# JimTCL specifically does not adhere to the octal default for numbers starting with zero
+test expr-base-2.1 {expr conversion jim specific} -constraints jim -body {
+    expr [list "08"]
+} -result {8}
+
 set bad_testcases {
 	{0x + 1}
 	x
@@ -34,6 +38,6 @@ set bad_testcases {
 
 set i 0
 foreach str $bad_testcases {
-	test expr-base-2.[incr i] "expr conversion failure" -returnCodes error -body [list expr $str] -match glob -result "*"
+	test expr-base-3.[incr i] "expr conversion failure" -returnCodes error -body [list expr $str] -match glob -result "*"
 }
 testreport
