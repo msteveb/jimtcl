@@ -73,6 +73,12 @@ options {
 # We add detected libs to LDLIBS explicitly
 set LIBS [get-define LIBS]
 
+# In case -Werror is passed in CFLAGS, set -Wno-error when doing checks
+# to prevent warnings from becoming errors
+if {"-Werror" in [get-define CFLAGS] && [cctest -cflags -Wno-error]} {
+    cc-with {-cflags -Wno-error}
+}
+
 cc-check-types "long long"
 
 define CCOPTS ""
