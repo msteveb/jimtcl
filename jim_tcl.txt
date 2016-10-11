@@ -1664,8 +1664,7 @@ command.  The legal +'options'+ (which may be abbreviated) are:
 
 +*array exists* 'arrayName'+::
     Returns 1 if arrayName is an array variable, 0 if there is
-    no variable by that name.  This command is essentially
-    identical to `info exists`
+    no variable by that name.
 
 +*array get* 'arrayName ?pattern?'+::
     Returns a list containing pairs of elements. The first
