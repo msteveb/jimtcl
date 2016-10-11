@@ -4,7 +4,10 @@ addons:
   apt:
     packages:
       - libsqlite3-dev
-before_script:
-  - ./configure --full --with-ext="sqlite3 zlib" --disable-docs
+      - valgrind
+      - lcov
+      - tcl
+      - asciidoc
+      - pkg-config
 script:
-  - make test
+  - ./tools/ci-test/ci-test.sh

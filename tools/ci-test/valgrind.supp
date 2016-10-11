@@ -1,0 +1,15 @@
+{
+   <old valgrind bug when trying to parse "infinity" from "interleaved"  https://lists.freedesktop.org/archives/gstreamer-commits/2015-April/086467.html>
+   Memcheck:Addr8
+   fun:__GI___strncasecmp_l
+   fun:____strtod_l_internal
+   fun:Jim_StringToDouble
+}
+
+{
+   <old zlib issue - see http://zlib.net/zlib_faq.html#faq36 >
+   Memcheck:Cond
+   fun:inflateReset2
+   fun:inflateInit2_
+}
+
