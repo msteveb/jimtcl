@@ -404,6 +404,25 @@ static const jim_subcmd_type signal_command_table[] = {
     { NULL }
 };
 
+/**
+ * Restore default signal handling.
+ */
+static void JimSignalCmdDelete(Jim_Interp *interp, void *privData)
+{
+    int i;
+    if (sa_old) {
+        for (i = 1; i < MAX_SIGNALS; i++) {
+            if (siginfo[i].status != SIGNAL_ACTION_DEFAULT) {
+                sigaction(i, &sa_old[i], 0);
+                siginfo[i].status = SIGNAL_ACTION_DEFAULT;
+            }
+        }
+    }
+    Jim_Free(sa_old);
+    sa_old = NULL;
+    sigloc = NULL;
+}
+
 static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int ret;
@@ -525,7 +544,7 @@ int Jim_signalInit(Jim_Interp *interp)
         /* Make sure we know where to store the signals which occur */
         sigloc = &interp->sigmask;
 
-        Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, NULL);
+        Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, JimSignalCmdDelete);
     }
 
     return JIM_OK;
