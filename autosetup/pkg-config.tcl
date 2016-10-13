@@ -37,7 +37,7 @@ proc pkg-config-init {{required 1}} {
 	define PKG_CONFIG [get-env PKG_CONFIG pkg-config]
 	msg-checking "Checking for pkg-config..."
 
-	try {
+	set result [catch {
 		set version [exec [get-define PKG_CONFIG] --version]
 		msg-result $version
 		define PKG_CONFIG_VERSION $version
@@ -72,8 +72,9 @@ proc pkg-config-init {{required 1}} {
 			set env(PKG_CONFIG_LIBDIR) $sysroot/usr/lib/pkgconfig:$sysroot/usr/share/pkgconfig
 			set env(PKG_CONFIG_SYSROOT_DIR) $sysroot
 		}
+	} msg]
 
-	} on error msg {
+	if {$result != 0} {
 		msg-result "[get-define PKG_CONFIG] (not found)"
 		if {$required} {
 			user-error "No usable pkg-config"
@@ -109,7 +110,7 @@ proc pkg-config {module args} {
 		return 0
 	}
 
-	try {
+	set result [catch {
 		set version [exec [get-define PKG_CONFIG] --modversion "$module $args"]
 		msg-result $version
 		set prefix [feature-define-name $module PKG_]
@@ -118,12 +119,14 @@ proc pkg-config {module args} {
 		define ${prefix}_LIBS [exec pkg-config --libs-only-l $module]
 		define ${prefix}_LDFLAGS [exec pkg-config --libs-only-L $module]
 		define ${prefix}_CFLAGS [exec pkg-config --cflags $module]
-		return 1
-	} on error msg {
+	} msg]
+
+	if {$result != 0} {
 		msg-result "not found"
 		configlog "pkg-config --modversion $module $args: $msg"
 		return 0
 	}
+	return 1
 }
 
 # @pkg-config-get module setting
