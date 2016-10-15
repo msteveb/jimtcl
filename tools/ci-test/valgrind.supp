@@ -1,0 +1,177 @@
+{
+   <old valgrind bug when trying to parse "infinity" from "interleaved"  https://lists.freedesktop.org/archives/gstreamer-commits/2015-April/086467.html>
+   Memcheck:Addr8
+   fun:__GI___strncasecmp_l
+   fun:____strtod_l_internal
+   fun:Jim_StringToDouble
+}
+
+{
+   <old zlib issue - see http://zlib.net/zlib_faq.html#faq36 >
+   Memcheck:Cond
+   fun:inflateReset2
+   fun:inflateInit2_
+}
+
+{
+   <SDL X11 leak1 -see http://stackoverflow.com/questions/24219887/big-memory-leak-in-sdl-init>
+   Memcheck:Leak
+   fun:*alloc
+   fun:_XlcDefaultMapModifiers
+   fun:XSetLocaleModifiers
+   ...
+   fun:SDL_VideoInit
+}
+{
+   <SDL X11 leak2>
+   Memcheck:Leak
+   fun:malloc
+   fun:_XimOpenIM
+   ...
+   fun:SDL_VideoInit
+}
+{
+   <SDL X11 leak3>
+   Memcheck:Leak
+   ...
+   fun:_XimSetICValueData
+   fun:_XimLocalCreateIC
+   fun:XCreateIC
+}
+{
+   <SDL X11 leak4>
+   Memcheck:Leak
+   ...
+   fun:_XlcCreateLC
+   fun:_XlcDefaultLoader
+   fun:_XOpenLC
+}
+{
+   <SDL X11 leak5>
+   Memcheck:Leak
+   ...
+   fun:_XOpenLC
+   fun:_XlcCurrentLC
+}
+{
+   <SDL X11 leak6>
+   Memcheck:Leak
+   ...
+   fun:_XOpenLC
+   fun:_XrmInitParseInfo
+}
+{
+   <SDL X11 leak7>
+   Memcheck:Leak
+   ...
+   fun:_XlcCreateLC
+   fun:_XlcDefaultLoader
+   fun:_XOpenLC
+}
+{
+   <SDL X11 leak8>
+   Memcheck:Leak
+    ...
+   fun:XrmGetStringDatabase
+   ...
+   fun:XGetDefault
+   fun:_XcursorGetDisplayInfo
+}
+{
+   <SDL X11 leak9>
+   Memcheck:Leak
+   ...
+   fun:_XNoticeCreateBitmap
+   fun:XCreatePixmap
+}
+
+
+
+{
+   <Dynamic linker leak1>
+   Memcheck:Leak
+   fun:*alloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+{
+   <Dynamic linker leak2>
+   Memcheck:Leak
+   fun:malloc
+   fun:strdup
+   fun:_dl_load_cache_lookup
+   fun:_dl_map_object
+}
+{
+   <Dynamic linker leak3>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+}
+
+
+{
+   <libcaca leaks from SDL 1>
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:newterm
+   fun:initscr
+   ...
+   fun:caca_create_display_with_driver
+}
+{
+   <libcaca leaks from SDL 2>
+   Memcheck:Leak
+   fun:*alloc
+   fun:start_color
+   ...
+   fun:caca_create_display_with_driver
+}
+{
+   <libcaca leaks from SDL 3>
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_add_to_try
+   fun:_nc_init_keytry
+   fun:_nc_keypad
+   ...
+   fun:caca_create_display_with_driver
+}
+{
+   <libcaca leaks from SDL 4>
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_doalloc
+   fun:_nc_tparm_analyze
+   ...
+   fun:mousemask
+   ...
+   fun:caca_create_display_with_driver
+}
+{
+   <libcaca leaks from SDL 5>
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   ...
+   obj:*libcaca.so.*
+}
+{
+   <libcaca leaks from SDL 6>
+   Memcheck:Leak
+   fun:*alloc
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC*
+   ...
+   fun:caca_create_display_with_driver
+}
+

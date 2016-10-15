@@ -9,6 +9,7 @@ addons:
       - tcl
       - asciidoc
       - pkg-config
+      - libsdl-gfx1.2-dev
 
 script:
   - ./tools/ci-test/ci-test.sh

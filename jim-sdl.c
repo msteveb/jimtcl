@@ -232,6 +232,11 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
+void Jim_sdlDel(struct Jim_Interp *interp, void *privData)
+{
+	SDL_Quit();
+}
+
 int Jim_sdlInit(Jim_Interp *interp)
 {
     if (Jim_PackageProvide(interp, "sdl", "1.0", JIM_ERRMSG))
@@ -241,7 +246,6 @@ int Jim_sdlInit(Jim_Interp *interp)
         JimSdlSetError(interp);
         return JIM_ERR;
     }
-    atexit(SDL_Quit);
-    Jim_CreateCommand(interp, "sdl.screen", JimSdlSurfaceCommand, NULL, NULL);
+    Jim_CreateCommand(interp, "sdl.screen", JimSdlSurfaceCommand, NULL, Jim_sdlDel);
     return JIM_OK;
 }

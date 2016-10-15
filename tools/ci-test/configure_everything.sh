@@ -63,7 +63,7 @@ PATH=$PATH_EXTRA$PATH \
                    --full \
                    --ssl \
                    --maintainer \
-                   --with-ext="sqlite3 zlib readline mk nshelper rlprompt" \
+                   --with-ext="sqlite3 zlib readline mk nshelper rlprompt sdl" \
                    --random-hash \
                    $PREFIX \
                    CFLAGS="--coverage \
