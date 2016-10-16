@@ -154,5 +154,9 @@ int main(int argc, char *const argv[])
         retcode = 0;
     }
     Jim_FreeInterp(interp);
+
+    fclose(stdin);
+    fclose(stdout);
+    fclose(stderr);
     return retcode;
 }

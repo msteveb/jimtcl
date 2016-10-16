@@ -34,7 +34,7 @@ $SRC_DIR/tools/ci-test/configure_everything.sh --generate-jimsh0 --prefix $INSTA
 make -j8 install ship Tcl.html readdir.so array.so clock.so file.so interp.so posix.so regexp.so syslog.so readline.so pack.so tclprefix.so sqlite3.so mk.so zlib.so
 
 # Run tests under Valgrind
-make -C $SRC_DIR/tests jimsh="valgrind --leak-check=full --show-reachable=yes --error-exitcode=1 --track-origins=yes --suppressions=$SRC_DIR/tools/ci-test/valgrind.supp $BUILD_DIR/jimsh" TOPSRCDIR=$SRC_DIR
+make -C $SRC_DIR/tests jimsh="valgrind --leak-check=full --show-reachable=yes --error-exitcode=1 --track-fds=yes --track-origins=yes --suppressions=$SRC_DIR/tools/ci-test/valgrind.supp $BUILD_DIR/jimsh" TOPSRCDIR=$SRC_DIR
 
 # Parse and display code coverage
 $SRC_DIR/tools/ci-test/coverage.sh --no-test
