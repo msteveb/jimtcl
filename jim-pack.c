@@ -68,7 +68,7 @@ static jim_wide JimBitIntBigEndian(const unsigned char *bitvec, int pos, int wid
     /* Aligned, byte extraction */
     if (pos % 8 == 0 && width % 8 == 0) {
         for (i = 0; i < width; i += 8) {
-            result = (result << 8) + bitvec[(pos + i) / 8];
+            result = ((unsigned jim_wide)result << 8) + bitvec[(pos + i) / 8];
         }
         return result;
     }
@@ -96,7 +96,7 @@ static jim_wide JimBitIntLittleEndian(const unsigned char *bitvec, int pos, int 
     /* Aligned, byte extraction */
     if (pos % 8 == 0 && width % 8 == 0) {
         for (i = 0; i < width; i += 8) {
-            result += (jim_wide)bitvec[(pos + i) / 8] << i;
+        	result += (unsigned jim_wide)bitvec[(pos + i) / 8] << i;
         }
         return result;
     }
@@ -166,7 +166,7 @@ static void JimSetBitsIntBigEndian(unsigned char *bitvec, jim_wide value, int po
     }
 
     for (i = 0; i < width; i++) {
-        int bit = !!(value & ((jim_wide)1 << i));
+        int bit = !!(value & ((unsigned jim_wide)1 << i));
         JimSetBitBigEndian(bitvec, pos + width - i - 1, bit);
     }
 }
@@ -185,7 +185,7 @@ static void JimSetBitsIntLittleEndian(unsigned char *bitvec, jim_wide value, int
     }
 
     for (i = 0; i < width; i++) {
-        int bit = !!(value & ((jim_wide)1 << i));
+        int bit = !!(value & ((unsigned jim_wide)1 << i));
         JimSetBitLittleEndian(bitvec, pos + i, bit);
     }
 }

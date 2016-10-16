@@ -96,25 +96,47 @@ expr 2**1**3
 } 2
 test expr-23.49 {INST_EXPON: optimize powers of 2} {
     set trouble {test powers of 2}
-    for {set tval 0} {$tval <= 63} {incr tval} {
-	set is [expr {2 ** $tval}]
-	set sb [expr {1 << $tval}]
-	if {$is != $sb} {
-	    append trouble \n "2**" $tval " is " $is " should be " $sb
-	}
-	if {$tval >= 1} {
-	    set is [expr {-2 ** $tval}]
-	    set sb [expr {1 << $tval}]
-	    if {$tval & 1} {
-		set sb [expr {-$sb}]
-	    }
-	    if {$is != $sb} {
-		append trouble \n "-2**" $tval " is " $is " should be " $sb
-	    }
-	}
+    for {set tval 0} {$tval <= 62} {incr tval} {
+		set is [expr {2 ** $tval}]
+		set sb [expr {1 << $tval}]
+		if {$is != $sb} {
+		    append trouble \n "2**" $tval " is " $is " should be " $sb
+		}
+		if {$tval >= 1} {
+		    set is [expr {-2 ** $tval}]
+		    set sb [expr {1 << $tval}]
+		    if {$tval & 1} {
+				set sb [expr {-$sb}]
+		    }
+		    if {$is != $sb} {
+				append trouble \n "-2**" $tval " is " $is " should be " $sb
+		    }
+		}
     }
     set trouble
 } {test powers of 2}
+
+# JimTCL only supports up to 63 bit integers (i.e. signed 64-bit)
+test expr-23.49.1 {INST_EXPON: optimize powers of 2} jim {
+    set trouble {test powers of 2}
+    # 2**63 and 1 << 63 overflow signed arithmetic == LLONG_MIN
+    set sb -9223372036854775808
+    set is [expr {2 ** 63}]
+    if { $is != $sb} {
+    	append trouble \n "2**63 is " $is " should be -9223372036854775808"
+	}
+    set is [expr {1 << 63}]
+    if { $is != $sb} {
+    	append trouble \n "1<<63 is " $is " should be -9223372036854775808"
+	}
+	# -2**63 == LLONG_MIN
+    set is [expr {-2 ** 63}]
+    if { $is != $sb} {
+    	append trouble \n "-2**63 is " $is " should be -9223372036854775808"
+	}
+    set trouble
+} {test powers of 2}
+
 test expr-23.50 {INST_EXPON: small powers of 32-bit integers} {
     set trouble {test small powers of 32-bit ints}
     for {set base 3} {$base <= 45} {incr base} {

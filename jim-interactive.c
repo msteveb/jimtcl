@@ -82,7 +82,7 @@ void Jim_HistorySave(const char *filename)
 #endif
     linenoiseHistorySave(filename);
 #ifdef HAVE_UMASK
-    mask = umask(mask);
+    umask(mask);
 #endif
 #endif
 }

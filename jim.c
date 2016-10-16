@@ -112,8 +112,13 @@
 const char *jim_tt_name(int type);
 
 #ifdef JIM_DEBUG_PANIC
+#ifndef __clang_analyzer__
 static void JimPanicDump(int fail_condition, const char *fmt, ...);
 #define JimPanic(X) JimPanicDump X
+#else /* ifdef __clang_analyzer__ */
+#define JimPanicDumpAnalyzer(fail_condition,...) assert(!(fail_condition))
+#define JimPanic(X) JimPanicDumpAnalyzer X
+#endif /* ifdef __clang_analyzer__ */
 #else
 #define JimPanic(X)
 #endif
@@ -388,7 +393,7 @@ static int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int id
 
     l1bytelen = utf8_index(s1, l1);
 
-    for (i = idx; i <= l2 - l1; i++) {
+    for (i = idx; (i <= l2 - l1) && (strlen(s2) >= l1bytelen); i++) {
         int c;
         if (memcmp(s2, s1, l1bytelen) == 0) {
             return i;
@@ -599,10 +604,10 @@ static jim_wide JimPowWide(jim_wide b, jim_wide e)
     while (e)
     {
         if (e & 1) {
-            res *= b;
+            res = (unsigned jim_wide)res * (unsigned jim_wide)b;
         }
         e >>= 1;
-        b *= b;
+        b = (unsigned jim_wide)b * (unsigned jim_wide)b;
     }
     return res;
 }
@@ -2273,6 +2278,7 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
+        JimPanic((objPtr->typePtr == NULL, "UpdateStringProc called against typeless value."));
         JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
         objPtr->typePtr->updateStringProc(objPtr);
     }
@@ -2286,6 +2292,7 @@ int Jim_Length(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
+        JimPanic((objPtr->typePtr == NULL, "UpdateStringProc called against typeless value."));
         JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
         objPtr->typePtr->updateStringProc(objPtr);
     }
@@ -2378,6 +2385,7 @@ static int SetStringFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         /* Get a fresh string representation. */
         if (objPtr->bytes == NULL) {
             /* Invalid string repr. Generate it. */
+            JimPanic((objPtr->typePtr == NULL, "UpdateStringProc called against typeless value."));
             JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
             objPtr->typePtr->updateStringProc(objPtr);
         }
@@ -2418,7 +2426,7 @@ Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
 
     /* Need to find out how many bytes the string requires */
     if (len == -1)
-        len = strlen(s);
+        len = (s == NULL)? 0 : strlen(s);
     /* Alloc/Set the string rep. */
     if (len == 0) {
         objPtr->bytes = JimEmptyStringRep;
@@ -2460,7 +2468,7 @@ Jim_Obj *Jim_NewStringObjNoAlloc(Jim_Interp *interp, char *s, int len)
     Jim_Obj *objPtr = Jim_NewObj(interp);
 
     objPtr->bytes = s;
-    objPtr->length = (len == -1) ? strlen(s) : len;
+    objPtr->length = (s == NULL)? 0 : (len == -1) ? strlen(s) : len;
     objPtr->typePtr = NULL;
     return objPtr;
 }
@@ -2470,6 +2478,8 @@ Jim_Obj *Jim_NewStringObjNoAlloc(Jim_Interp *interp, char *s, int len)
 static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
 {
     int needlen;
+
+    JimPanic((str == NULL, "StringAppendString called against Null string."));
 
     if (len == -1)
         len = strlen(str);
@@ -5841,7 +5851,11 @@ int Jim_SetAssocData(Jim_Interp *interp, const char *key, Jim_InterpDeleteProc *
 
     assocEntryPtr->delProc = delProc;
     assocEntryPtr->data = data;
-    return Jim_AddHashEntry(&interp->assocData, key, assocEntryPtr);
+    int retval = Jim_AddHashEntry(&interp->assocData, key, assocEntryPtr);
+    if (retval) {
+        Jim_Free(assocEntryPtr);
+    }
+    return retval;
 }
 
 void *Jim_GetAssocData(Jim_Interp *interp, const char *key)
@@ -6453,6 +6467,8 @@ static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
 
     /* Generate the string rep. */
     p = objPtr->bytes = Jim_Alloc(bufLen + 1);
+    JimPanic((p ==NULL, "String allocation failed"));
+
     realLength = 0;
     for (i = 0; i < objc; i++) {
         int len, qlen;
@@ -6766,6 +6782,10 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
 
     vector = listObjPtr->internalRep.listValue.ele;
     len = listObjPtr->internalRep.listValue.len;
+    if (len == 0) {
+    	return JIM_OK;
+    }
+
     switch (info->type) {
         case JIM_LSORT_ASCII:
             fn = ListSortString;
@@ -6795,6 +6815,8 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     }
 
     if ((rc = setjmp(info->jmpbuf)) == 0) {
+
+        JimPanic((vector == NULL, "ListSortElements null vector"));
         qsort(vector, len, sizeof(Jim_Obj *), (qsort_comparator *) fn);
 
         if (info->unique && len > 1) {
@@ -6843,12 +6865,17 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
         idx = currentLen;
     }
     point = listPtr->internalRep.listValue.ele + idx;
-    memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
-    for (i = 0; i < elemc; ++i) {
-        point[i] = elemVec[i];
-        Jim_IncrRefCount(point[i]);
+
+    if (elemc) {
+        JimPanic((point == NULL, "ListInsertElements null insertion point"));
+        memmove(point + elemc, point, (currentLen - idx) * sizeof(Jim_Obj *));
+
+		for (i = 0; i < elemc; ++i) {
+			point[i] = elemVec[i];
+			Jim_IncrRefCount(point[i]);
+		}
+		listPtr->internalRep.listValue.len += elemc;
     }
-    listPtr->internalRep.listValue.len += elemc;
 }
 
 /* Convenience call to ListInsertElements() to append a single element.
@@ -7037,8 +7064,10 @@ Jim_Obj *Jim_ConcatObj(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
             len += objc - 1;
         /* Create the string rep, and a string object holding it. */
         p = bytes = Jim_Alloc(len + 1);
+        JimPanic((p == NULL, "String allocation failed"));
         for (i = 0; i < objc; i++) {
             const char *s = Jim_GetString(objv[i], &objLen);
+            JimPanic((s == NULL, "Jim_GetString failed"));
 
             /* Remove leading space */
             while (objLen && isspace(UCHAR(*s))) {
@@ -7779,7 +7808,7 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
                 wC = wA >= 0 ? wA : -wA;
                 break;
             case JIM_EXPROP_UNARYMINUS:
-                wC = -wA;
+                wC = (wA == JIM_WIDE_MIN)? 0 : -wA;
                 break;
             case JIM_EXPROP_NOT:
                 wC = !wA;
@@ -7978,7 +8007,7 @@ static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprNode *node)
 
         switch (node->type) {
             case JIM_EXPROP_LSHIFT:
-                wC = wA << wB;
+                wC = (wB >63)? 0 : (unsigned jim_wide)wA << wB;
                 break;
             case JIM_EXPROP_RSHIFT:
                 wC = wA >> wB;
@@ -8091,7 +8120,7 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprNode *node)
                 wC = wA - wB;
                 goto intresult;
             case JIM_EXPROP_MUL:
-                wC = wA * wB;
+                wC = (unsigned jim_wide)wA * (unsigned jim_wide)wB;
                 goto intresult;
             case JIM_EXPROP_DIV:
                 if (wB == 0) {
@@ -9945,7 +9974,7 @@ Jim_Obj *Jim_ScanString(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *fmtObjP
         else if (descr->pos == 0)
             /* Otherwise append it to the result list if no XPG3 was given */
             Jim_ListAppendElement(interp, resultList, value);
-        else if (resultVec[descr->pos - 1] == emptyStr) {
+        else if (resultVec && resultVec[descr->pos - 1] == emptyStr) {
             /* But due to given XPG3, put the value into the corr. slot */
             Jim_DecrRefCount(interp, resultVec[descr->pos - 1]);
             Jim_IncrRefCount(value);
@@ -10297,6 +10326,7 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
             break;
     }
     if (objPtr) {
+        JimPanic((objPtrPtr == NULL, "JimSubstOneToken bad objPtrPtr argument."));
         *objPtrPtr = objPtr;
         return JIM_OK;
     }
@@ -11555,7 +11585,7 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     /* The general purpose implementation of while starts here */
     while (1) {
-        int boolean, retval;
+        int boolean = 0, retval;
 
         if ((retval = Jim_GetBoolFromExpr(interp, argv[1], &boolean)) != JIM_OK)
             return retval;
@@ -11845,6 +11875,7 @@ typedef struct {
  */
 static void JimListIterInit(Jim_ListIter *iter, Jim_Obj *objPtr)
 {
+    JimPanic((iter == NULL, "JimListIterInit bad iter argument."));
     iter->objPtr = objPtr;
     iter->idx = 0;
 }
@@ -11891,6 +11922,8 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     else {
         iters = Jim_Alloc(numargs * sizeof(*iters));
     }
+	memset(iters, 0, numargs * sizeof(*iters));
+
     for (i = 0; i < numargs; i++) {
         JimListIterInit(&iters[i], argv[i + 1]);
         if (i % 2 == 0 && JimListIterDone(interp, &iters[i])) {
@@ -11899,7 +11932,7 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     }
     if (result != JIM_OK) {
         Jim_SetResultString(interp, "foreach varlist is empty", -1);
-        return result;
+        goto err2;
     }
 
     if (doMap) {
@@ -11962,6 +11995,7 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     Jim_SetResult(interp, resultObj);
   err:
     Jim_DecrRefCount(interp, resultObj);
+  err2:
     if (numargs > 2) {
         Jim_Free(iters);
     }
@@ -15531,7 +15565,7 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     int len = strlen(format);
     int extra = 0;
     int n = 0;
-    const char *params[5];
+    const char *params[5] = {"","","","",""};
     int nobjparam = 0;
     Jim_Obj *objparam[5];
     char *buf;

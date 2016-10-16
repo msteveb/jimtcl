@@ -33,6 +33,7 @@
  */
 
 #include <zlib.h>
+#include <string.h>
 
 #include <jim.h>
 #include <jim-subcmd.h>
@@ -179,6 +180,7 @@ static int Jim_Decompress(Jim_Interp *interp, const char *in, int len, long bufs
      * when the decompressed data size is given, decompression is faster because
      * it's done in one pass, with less memcpy() overhead */
     buf = Jim_Alloc((int)bufsiz);
+    memset(buf, 0, bufsiz);
 
     out = Jim_NewEmptyStringObj(interp);
     Jim_IncrRefCount(out);

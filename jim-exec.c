@@ -841,7 +841,7 @@ badargs:
         return -1;
     }
 
-    /* Must do this before vfork(), so do it now */
+    /* Must do this before fork(), so do it now */
     save_environ = JimSaveEnv(JimBuildEnv(interp));
 
     /*
@@ -1036,7 +1036,7 @@ badargs:
          * Make a new process and enter it into the table if the fork
          * is successful.
          */
-        pid = vfork();
+        pid = fork();
         if (pid < 0) {
             Jim_SetResultErrno(interp, "couldn't fork child process");
             goto error;
@@ -1053,6 +1053,8 @@ badargs:
 
             /* Restore SIGPIPE behaviour */
             (void)signal(SIGPIPE, SIG_DFL);
+            if (arg_array[firstArg] == NULL)
+            	return -1;
 
             execvpe(arg_array[firstArg], &arg_array[firstArg], Jim_GetEnviron());
 
@@ -1098,7 +1100,6 @@ badargs:
         }
         if (outputId != -1) {
             close(outputId);
-            outputId = -1;
         }
         inputId = pipeIds[0];
         pipeIds[0] = pipeIds[1] = -1;

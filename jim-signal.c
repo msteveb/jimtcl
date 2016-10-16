@@ -30,7 +30,7 @@ static struct {
 } siginfo[MAX_SIGNALS];
 
 /* Make sure to do this as a wide, not int */
-#define sig_to_bit(SIG) ((jim_wide)1 << (SIG))
+#define sig_to_bit(SIG) ((unsigned jim_wide)1 << (SIG))
 
 static void signal_handler(int sig)
 {

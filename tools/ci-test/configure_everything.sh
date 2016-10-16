@@ -3,6 +3,10 @@
 # Abort on any errors
 set -e
 
+# Get path to source location
+SCRIPT=$(readlink -f "$0")
+SRC_DIR=$(dirname "$SCRIPT")/../..
+
 # Process options
 while [[ $# -gt 0 ]]
 do
@@ -18,11 +22,67 @@ do
             PREFIX="--prefix=$2"
             shift
         ;;
+        --clang)
+            CFLAGS="$CFLAGS -Qunused-arguments"
+            CC=clang
+            CXX=clang++
+        ;;
+        --clang-analyze)
+            WRAPPER_COMMAND="scan-build"
+        ;;
+        --clang-check-address)
+            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=address"
+            CC=clang
+            CXX=clang++
+        ;;
+        --clang-check-undefined)
+            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=undefined"
+            CC=clang
+            CXX=clang++
+        ;;
+        --clang-check-stack)
+            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=safe-stack"
+            CC=clang
+            CXX=clang++
+        ;;
+        --clang-check-thread)
+            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=thread"
+            CC=clang
+            CXX=clang++
+        ;;
+        --clang-check-memory)
+            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer"
+            # Leaks in dynamic loader during SDL startup cause segfaults - avoid SDL
+            NO_SDL=true
+            CC=clang
+            CXX=clang++
+        ;;
+# -fsanitize=dataflow seems to be broken on ubuntu
+#        --clang-check-dataflow)
+#            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=dataflow"
+#            CC=clang
+#            CXX=clang++
+#            NO_COVERAGE=true
+#        ;;
+# Requires -flto which seems to be broken on ubuntu
+#        --clang-check-cfi)
+#            CFLAGS="$CFLAGS -Qunused-arguments -fsanitize=cfi -fsanitize-cfi-cross-dso -flto"
+#            LDFLAGS="$LDFALGS -flto"
+#            CC=clang
+#            CXX=clang++
+#        ;;
         *)
             echo "Unknown option $1"
-            echo "options: --generate-jimsh0 : compile jimsh0 and use it for configuration"
-            echo "         --use-tclsh       : use tclsh for configuration (overridden by --generate-jimsh0)"
-            echo "         --prefix xxx      : configure prefix setting"
+            echo "options: --generate-jimsh0      : compile jimsh0 and use it for configuration"
+            echo "         --use-tclsh            : use tclsh for configuration (overridden by --generate-jimsh0)"
+            echo "         --prefix xxx           : configure prefix setting"
+            echo "         --clang                : build with clang"
+            echo "         --clang-analyze        : build for clang static analysis"
+            echo "         --clang-check-address  : build with clang address sanitizer"
+            echo "         --clang-check-memory   : build with clang memory sanitizer"
+            echo "         --clang-check-thread   : build with clang thread sanitizer"
+            echo "         --clang-check-undefined: build with clang undefined behavior sanitizer"
+            echo "         --clang-check-stack    : build with clang undefined safe-stack sanitizer"
             exit -1
         ;;
     esac
@@ -32,9 +92,6 @@ done
 # Print commands and abort on any errors
 set -ex
 
-# Get path to source location
-SCRIPT=$(readlink -f "$0")
-SRC_DIR=$(dirname "$SCRIPT")/../..
 
 
 if [ "$GENERATE_JIMSH0" == "true" ]; then
@@ -50,25 +107,38 @@ fi
 # Build MetaKit if needed
 $SRC_DIR/tools/ci-test/buildmk.sh
 
+# Build with code coverage arcs unless disabled
+if [ "$NO_COVERAGE" != "true" ]; then
+	CFLAGS="$CFLAGS --coverage"
+	LDFLAGS="$LDFLAGS --coverage"
+fi
+
+# Build with code coverage arcs unless disabled
+if [ "$NO_SDL" != "true" ]; then
+	SDL="sdl"
+fi
+
 # Configure with all extensions, maintainer mode,
 # code coverage arcs, all warnings enabled as errors
-
+CC=$CC CXX=$CXX LD=$LD\
 PATH=$PATH_EXTRA$PATH \
+$WRAPPER_COMMAND \
     $SRC_DIR/configure \
+                   --debug \
                    --full \
                    --ssl \
                    --maintainer \
-                   --with-ext="sqlite3 zlib readline mk nshelper rlprompt sdl" \
+                   --with-ext="sqlite3 zlib readline mk nshelper rlprompt $SDL" \
                    --random-hash \
                    $PREFIX \
-                   CFLAGS="--coverage \
+                   CFLAGS="$CFLAGS \
                            -g \
                            -O0 \
                            -Werror \
                            -Wall \
                            -I$SRC_DIR/mk/include \
                            -L$SRC_DIR/mk/lib" \
-                   LDFLAGS="--coverage \
+                   LDFLAGS="$LDFLAGS \
                             -Wl,-rpath,$SRC_DIR/mk/lib \
                            -L$SRC_DIR/mk/lib"
 
