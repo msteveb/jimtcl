@@ -11,11 +11,20 @@ if ! (echo "int main(void){c4_Storage dummy();}" | g++ -o /dev/null -xc++ --incl
 	METAKIT_FILENAME=$METAKIT_DIRNAME.tar.gz
 	METAKIT_URL=http://www.equi4.com/pub/mk/$METAKIT_FILENAME
 
+	# Fetch and untar
 	mkdir -p mk
 	cd mk
 	wget $METAKIT_URL
 	tar -zxvf $METAKIT_FILENAME
-	cd $METAKIT_DIRNAME/unix
+
+	# Metakit has a number of areas of poor code that cause
+    # warnings which can become errors with -Werror
+	# Patch these before building
+	cd $METAKIT_DIRNAME
+	patch -p1 < ../../tools/ci-test/mk_fixes_$METAKIT_VERSION.patch
+
+	# Build
+	cd unix
 	./configure --prefix=`pwd`/../..
 	make install
 fi

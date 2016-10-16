@@ -1,0 +1,201 @@
+diff -Naur a/include/mk4.inl b/include/mk4.inl
+--- a/include/mk4.inl	2007-03-09 15:58:53.000000000 +0000
++++ b/include/mk4.inl	2016-10-16 11:54:11.816744628 +0100
+@@ -283,8 +283,8 @@
+ 
+ d4_inline bool operator< (c4_Cursor a_, c4_Cursor b_)
+ {
+-  return a_._seq < b_._seq ||
+-	  a_._seq == b_._seq && a_._index < b_._index;
++  return (a_._seq < b_._seq) ||
++	  (a_._seq == b_._seq && a_._index < b_._index);
+ }
+ 
+ d4_inline bool operator> (c4_Cursor a_, c4_Cursor b_)
+diff -Naur a/src/column.cpp b/src/column.cpp
+--- a/src/column.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/column.cpp	2016-10-16 11:49:06.936744628 +0100
+@@ -1175,7 +1175,7 @@
+ 
+   _currWidth = (1 << l2bp1) >> 1;
+ 
+-  if (l2bp1 > 4 && (_mustFlip || Persist() != 0 && Strategy()._bytesFlipped))
++  if (l2bp1 > 4 && (_mustFlip || (Persist() != 0 && Strategy()._bytesFlipped)))
+     l2bp1 += 3;
+   // switch to the trailing entries for byte flipping
+ 
+diff -Naur a/src/custom.cpp b/src/custom.cpp
+--- a/src/custom.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/custom.cpp	2016-10-16 11:49:50.936744628 +0100
+@@ -761,7 +761,7 @@
+   c4_View v = _parent;
+   int r = _base.GetAt(row_);
+ 
+-  if (col_ >= _subPos)
++  if (col_ >= _subPos) {
+   if (col_ >= _subPos + _subWidth) {
+     col_ -= _subWidth - 1;
+   } else {
+@@ -776,6 +776,7 @@
+       return false;
+     // if subview doesn't have all properties
+   }
++  }
+ 
+   return v.GetItem(r, col_, buf_);
+ }
+diff -Naur a/src/derived.cpp b/src/derived.cpp
+--- a/src/derived.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/derived.cpp	2016-10-16 11:51:28.444744628 +0100
+@@ -291,14 +291,16 @@
+       int r = (int)_revMap.GetAt(nf_._index);
+ 
+       bool includeRow = r >= 0;
+-      if (!pass)
++      if (!pass) {
+       if (nf_._type == c4_Notifier::kSetAt) {
+         d4_assert(nf_._cursor != 0);
+         includeRow = Match(nf_._cursor->_index, *nf_._cursor->_seq);
+       }
+-       else
++       else {
+       // set just one property, and it's not in a row yet
+         includeRow = MatchOne(nf_._propId,  *nf_._bytes);
++      }
++      }
+ 
+       if (r >= 0 && !includeRow)
+         chg->StartRemoveAt(r, 1);
+@@ -359,14 +361,16 @@
+       int r = (int)_revMap.GetAt(nf_._index);
+ 
+       bool includeRow = r >= 0;
+-      if (!pass)
++      if (!pass) {
+       if (nf_._type == c4_Notifier::kSetAt) {
+         d4_assert(nf_._cursor != 0);
+         includeRow = Match(nf_._cursor->_index, *nf_._cursor->_seq);
+       }
+-       else
++       else {
+       // set just one property, and it's not in a row yet
+         includeRow = MatchOne(nf_._propId,  *nf_._bytes);
++       }
++      }
+ 
+       if (r >= 0 && !includeRow)
+         _rowMap.RemoveAt(r);
+diff -Naur a/src/viewx.cpp b/src/viewx.cpp
+--- a/src/viewx.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/viewx.cpp	2016-10-16 11:52:15.460744628 +0100
+@@ -694,7 +694,7 @@
+       offset = (offset << 8) + mark[j];
+ 
+     const bool isSkipTail = ((mark[0] & 0xF0) == 0x90 /* 2006-11-11 */ ||
+-                             mark[0] == 0x80 && count == 0) && offset > 0;
++                             (mark[0] == 0x80 && count == 0)) && offset > 0;
+     const bool isCommitTail = mark[0] == 0x80 && count > 0 && offset > 0;
+     const bool isHeader = (mark[0] == 'J' || mark[0] == 'L') && (mark[0] ^
+       mark[1]) == ('J' ^ 'L') && mark[2] == 0x1A && (mark[3] & 0x40) == 0;
+diff -Naur a/src/column.cpp b/src/column.cpp
+--- a/src/column.cpp	2016-10-16 12:12:31.828744628 +0100
++++ b/src/column.cpp	2016-10-16 12:14:18.152744628 +0100
+@@ -417,7 +417,7 @@
+   else if (_gap < pos_)
+   // move the gap up, ie. some bytes down
+     MoveGapUp(pos_);
+-  else if (_gap > pos_)
++  else if (_gap > pos_) {
+   // move the gap down, ie. some bytes up
+   if (_gap - pos_ > _size - _gap + fSegRest(pos_)) {
+     RemoveGap(); // it's faster to get rid of the gap instead
+@@ -425,6 +425,7 @@
+   } else
+   // normal case, move some bytes up
+     MoveGapDown(pos_);
++  }
+ 
+   d4_assert(_gap == pos_);
+ 
+diff -Naur a/src/format.cpp b/src/format.cpp
+--- a/src/format.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/format.cpp	2016-10-16 12:16:16.836744628 +0100
+@@ -331,7 +331,7 @@
+   // as is, and so do memos which have not been modified
+ 
+   int rows = _memos.GetSize() + 1; // avoids divide by zero
+-  return length_ > 10000 || length_ > 100 && length_ > 1000000 / rows;
++  return length_ > 10000 || (length_ > 100 && length_ > 1000000 / rows);
+ }
+ 
+ int c4_FormatB::ItemLenOffCol(int index_, t4_i32 &off_, c4_Column * &col_) {
+@@ -355,14 +355,16 @@
+     col = d4_new c4_Column(_data.Persist());
+     _memos.SetAt(index_, col);
+ 
+-    if (n > 0)
++    if (n > 0) {
+     if (_data.IsDirty()) {
+       c4_Bytes temp;
+       _data.FetchBytes(start, n, temp, true);
+       col->SetBuffer(n);
+       col->StoreBytes(0, temp);
+-    } else
++    } else {
+       col->SetLocation(_data.Position() + start, n);
++    }
++    }
+   }
+ 
+   return col;
+@@ -809,8 +811,8 @@
+   // both _sizeCol and _memoCol will be clean again when it has
+   // but be careful because dirty flag is only useful if size is nonzero
+   if (_recalc && !ar_.Serializing())
+-    _recalc = _sizeCol.ColSize() > 0 && _sizeCol.IsDirty() || _memoCol.ColSize()
+-      > 0 && _memoCol.IsDirty();
++    _recalc = (_sizeCol.ColSize() > 0 && _sizeCol.IsDirty()) || (_memoCol.ColSize()
++      > 0 && _memoCol.IsDirty());
+ }
+ 
+ /////////////////////////////////////////////////////////////////////////////
+diff -Naur a/src/remap.cpp b/src/remap.cpp
+--- a/src/remap.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/remap.cpp	2016-10-16 12:17:16.576744628 +0100
+@@ -238,7 +238,7 @@
+   /* We use ~hash_ instead of hash_, as degenerate hash functions, such
+   as for ints <sigh>, can have lots of leading zeros. It's not
+   really a performance risk, but better safe than sorry. */
+-  if (IsUnused(i) || Hash(i) == hash_ && KeySame(Row(i), cursor_))
++  if (IsUnused(i) || (Hash(i) == hash_ && KeySame(Row(i), cursor_)))
+     return i;
+ 
+   int freeslot = IsDummy(i) ? i :  - 1;
+@@ -1053,11 +1053,12 @@
+   int n = _map.GetSize();
+   while (--n >= 0) {
+     int v = _mapProp(_map[n]);
+-    if (v >= pos_)
++    if (v >= pos_) {
+       if (v < pos_ + count_)
+         _map.RemoveAt(n);
+       else
+         _mapProp(_map[n]) = v - count_;
++    }
+   }
+ 
+   return true;
+diff -Naur a/src/string.cpp b/src/string.cpp
+--- a/src/string.cpp	2007-03-09 15:58:53.000000000 +0000
++++ b/src/string.cpp	2016-10-16 12:17:41.616744628 +0100
+@@ -230,8 +230,8 @@
+ }
+ 
+ bool operator == (const c4_String &a, const c4_String &b) {
+-  return a._value == b._value || a.GetLength() == b.GetLength() && memcmp
+-    (a.Data(), b.Data(), a.GetLength()) == 0;
++  return a._value == b._value || (a.GetLength() == b.GetLength() && memcmp
++    (a.Data(), b.Data(), a.GetLength()) == 0);
+ }
+ 
+ int c4_String::Compare(const char *str)const {

@@ -52,11 +52,6 @@ $SRC_DIR/tools/ci-test/buildmk.sh
 
 # Configure with all extensions, maintainer mode,
 # code coverage arcs, all warnings enabled as errors
-# Note : -Wno-error=parentheses is requried because of the following
-#        warning in Metakit:
-#           mk4.inl: In function ‘bool operator<(c4_Cursor, c4_Cursor)’:
-#           mk4.inl:287:23: error: suggest parentheses around ‘&&’ within ‘||’ [-Werror=parentheses]
-#               a_._seq == b_._seq && a_._index < b_._index;
 
 PATH=$PATH_EXTRA$PATH \
     $SRC_DIR/configure \
@@ -69,7 +64,6 @@ PATH=$PATH_EXTRA$PATH \
                    CFLAGS="--coverage \
                            -g \
                            -O0 \
-                           -Wno-error=parentheses \
                            -Werror \
                            -Wall \
                            -I$SRC_DIR/mk/include \
