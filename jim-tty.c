@@ -311,9 +311,11 @@ badvalue:
                 }
                 if (p->value) {
                     tio.c_lflag |= (ECHO | ECHOE | ECHOK | ECHONL | ICANON | IEXTEN | ISIG | NOFLSH | TOSTOP);
+                    tio.c_iflag |= ICRNL;
                 }
                 else {
                     tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON | IEXTEN | ISIG | NOFLSH | TOSTOP);
+                    tio.c_iflag &= ~ICRNL;
                 }
                 break;
 
