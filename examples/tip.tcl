@@ -82,6 +82,11 @@ try {
 	return 1
 }
 
+if {[$f lock] == 0} {
+	puts "Device is in use: $device"
+	return 1
+}
+
 try {
 	$f tty {*}$settings
 } on error msg {
