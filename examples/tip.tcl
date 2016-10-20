@@ -105,13 +105,20 @@ stdin ndelay 1
 stdout tty output raw
 stdout buffering none
 
+set status ""
+
 # I/O loop
 
 set tilde 0
 
 $f readable {
 	set c [$f read]
-	stdout puts -nonewline $c
+	if {[$f eof]} {
+		set status "$device: disconnected"
+		incr done
+	} else {
+		stdout puts -nonewline $c
+	}
 }
 
 proc tilde_timeout {} {
@@ -150,4 +157,4 @@ vwait done
 stdin tty {*}$stdin_save
 stdout tty {*}$stdout_save
 
-puts ""
+puts $status
