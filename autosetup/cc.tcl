@@ -211,7 +211,7 @@ proc cc-check-members {args} {
 #
 # If the function is found, the feature is defined and lib_$function is defined
 # to -l$lib where the function was found, or "" if no library required.
-# In addition, -l$lib is added to the LIBS define.
+# In addition, -l$lib is prepended to the LIBS define.
 #
 # If additional libraries may be needed for linking, they should be specified
 # as $extralibs as "-lotherlib1 -lotherlib2".
@@ -233,7 +233,8 @@ proc cc-check-function-in-lib {function libs {otherlibs {}}} {
 					if {[cctest_function $function]} {
 						msg-result -l$lib
 						define lib_$function -l$lib
-						define-append LIBS -l$lib
+						# prepend to LIBS
+						define LIBS "-l$lib [get-define LIBS]"
 						incr found
 						break
 					}
@@ -499,13 +500,17 @@ proc cctest {args} {
 		}
 	}
 
-	if {!$opts(-link)} {
+	if {$opts(-link)} {
+		lappend cmdline {*}[get-define LDFLAGS]
+	} else {
 		set tmp conftest__.o
 		lappend cmdline -c
 	}
 	lappend cmdline {*}$opts(-cflags) {*}[get-define cc-default-debug ""]
-
 	lappend cmdline $src -o $tmp {*}$opts(-libs)
+	if {$opts(-link)} {
+		lappend cmdline {*}[get-define LIBS]
+	}
 
 	# At this point we have the complete command line and the
 	# complete source to be compiled. Get the result from cache if
