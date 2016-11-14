@@ -197,6 +197,7 @@ test dict-7.9 {dict values command} -returnCodes error -body {
 test dict-7.10 {dict values command} -returnCodes error -body {
     dict values a
 } -result {missing value to go with key}
+test dict-7.11 {dict values with duplicate values} {dict values {a b c b} b} {b b}
 
 test dict-8.1 {dict size command} {dict size {}} 0
 test dict-8.2 {dict size command} {dict size {a b}} 1

@@ -79,8 +79,7 @@ static int array_cmd_get(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    /* Return a list of keys and values where the keys match the pattern */
-    return Jim_DictValues(interp, objPtr, patternObj);
+    return Jim_DictMatchTypes(interp, objPtr, patternObj, JIM_DICTMATCH_KEYS, JIM_DICTMATCH_KEYS | JIM_DICTMATCH_VALUES);
 }
 
 static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -91,7 +90,7 @@ static int array_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_OK;
     }
 
-    return Jim_DictKeys(interp, objPtr, argc == 1 ? NULL : argv[1]);
+    return Jim_DictMatchTypes(interp, objPtr, argc == 1 ? NULL : argv[1], JIM_DICTMATCH_KEYS, JIM_DICTMATCH_KEYS);
 }
 
 static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

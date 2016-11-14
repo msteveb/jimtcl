@@ -14270,55 +14270,43 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     return Jim_RenameCommand(interp, Jim_String(argv[1]), Jim_String(argv[2]));
 }
 
-#define JIM_DICTMATCH_VALUES 0x0001
-
-typedef void JimDictMatchCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_HashEntry *he, int type);
-
-static void JimDictMatchKeys(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_HashEntry *he, int type)
-{
-    Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
-    if (type & JIM_DICTMATCH_VALUES) {
-        Jim_ListAppendElement(interp, listObjPtr, Jim_GetHashEntryVal(he));
-    }
-}
+#define JIM_DICTMATCH_KEYS 0x0001
+#define JIM_DICTMATCH_VALUES 0x002
 
 /**
- * Like JimHashtablePatternMatch, but for dictionaries.
+ * match_type must be one of JIM_DICTMATCH_KEYS or JIM_DICTMATCH_VALUES
+ * return_types should be either or both
  */
-static Jim_Obj *JimDictPatternMatch(Jim_Interp *interp, Jim_HashTable *ht, Jim_Obj *patternObjPtr,
-    JimDictMatchCallbackType *callback, int type)
+int Jim_DictMatchTypes(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj, int match_type, int return_types)
 {
     Jim_HashEntry *he;
-    Jim_Obj *listObjPtr = Jim_NewListObj(interp, NULL, 0);
-
-    /* Check for the non-pattern case. We can do this much more efficiently. */
+    Jim_Obj *listObjPtr;
     Jim_HashTableIterator htiter;
-    JimInitHashTableIterator(ht, &htiter);
+
+    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
+        return JIM_ERR;
+    }
+
+    listObjPtr = Jim_NewListObj(interp, NULL, 0);
+
+    JimInitHashTableIterator(objPtr->internalRep.ptr, &htiter);
     while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-        if (patternObjPtr == NULL || JimGlobMatch(Jim_String(patternObjPtr), Jim_String((Jim_Obj *)he->key), 0)) {
-            callback(interp, listObjPtr, he, type);
+        if (patternObj) {
+            Jim_Obj *matchObj = (match_type == JIM_DICTMATCH_KEYS) ? (Jim_Obj *)he->key : Jim_GetHashEntryVal(he);
+            if (!JimGlobMatch(Jim_String(patternObj), Jim_String(matchObj), 0)) {
+                /* no match */
+                continue;
+            }
+        }
+        if (return_types & JIM_DICTMATCH_KEYS) {
+            Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
+        }
+        if (return_types & JIM_DICTMATCH_VALUES) {
+            Jim_ListAppendElement(interp, listObjPtr, Jim_GetHashEntryVal(he));
         }
     }
 
-    return listObjPtr;
-}
-
-
-int Jim_DictKeys(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
-{
-    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
-        return JIM_ERR;
-    }
-    Jim_SetResult(interp, JimDictPatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, 0));
-    return JIM_OK;
-}
-
-int Jim_DictValues(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObjPtr)
-{
-    if (SetDictFromAny(interp, objPtr) != JIM_OK) {
-        return JIM_ERR;
-    }
-    Jim_SetResult(interp, JimDictPatternMatch(interp, objPtr->internalRep.ptr, patternObjPtr, JimDictMatchKeys, JIM_DICTMATCH_VALUES));
+    Jim_SetResult(interp, listObjPtr);
     return JIM_OK;
 }
 
@@ -14479,6 +14467,7 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
+    int types = JIM_DICTMATCH_KEYS;
     int option;
     static const char * const options[] = {
         "create", "get", "set", "unset", "exists", "keys", "size", "info",
@@ -14545,12 +14534,15 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
             return JIM_OK;
 
+        case OPT_VALUES:
+            types = JIM_DICTMATCH_VALUES;
+            /* fallthru */
         case OPT_KEYS:
             if (argc != 3 && argc != 4) {
                 Jim_WrongNumArgs(interp, 2, argv, "dictionary ?pattern?");
                 return JIM_ERR;
             }
-            return Jim_DictKeys(interp, argv[2], argc == 4 ? argv[3] : NULL);
+            return Jim_DictMatchTypes(interp, argv[2], argc == 4 ? argv[3] : NULL, types, types);
 
         case OPT_SIZE:
             if (argc != 3) {

@@ -154,11 +154,6 @@ proc {dict remove} {dictionary {args key}} {
 	return $dictionary
 }
 
-# Script-based implementation of 'dict values'
-proc {dict values} {dictionary {pattern *}} {
-	dict keys [lreverse $dictionary] $pattern
-}
-
 # Script-based implementation of 'dict for'
 proc {dict for} {vars dictionary script} {
 	if {[llength $vars] != 2} {
