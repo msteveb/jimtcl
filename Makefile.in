@@ -224,6 +224,7 @@ clean:
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log @srcdir@/autosetup/jimsh0@EXEEXT@ build-jim-ext
+	rm -f jimtcl.pc
 
 ship: Tcl.html
 	cp $< Tcl_shipped.html
