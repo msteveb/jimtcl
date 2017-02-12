@@ -178,7 +178,7 @@ static int stdio_error(const AioFile *af)
     }
 #endif
 #ifdef ECONNABORTED
-    if (errno != ECONNABORTED) {
+    if (errno == ECONNABORTED) {
         return JIM_OK;
     }
 #endif
