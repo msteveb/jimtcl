@@ -156,11 +156,11 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
             else if (Jim_ListLength(interp, argv[2])) {
                 const char *longeststr = NULL;
                 int longestlen = 0;
+                int i;
+                int listlen = Jim_ListLength(interp, argv[2]);
 
                 stringObj = argv[3];
 
-                int i;
-                int listlen = Jim_ListLength(interp, argv[2]);
                 for (i = 0; i < listlen; i++) {
                     Jim_Obj *valObj = Jim_ListGetIndex(interp, argv[2], i);
 

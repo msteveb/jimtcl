@@ -94,11 +94,12 @@ void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void 
 {
     struct JimCompletionInfo *info = (struct JimCompletionInfo *)userdata;
     Jim_Obj *objv[2];
+    int ret;
 
     objv[0] = info->command;
     objv[1] = Jim_NewStringObj(info->interp, prefix, -1);
 
-    int ret = Jim_EvalObjVector(info->interp, 2, objv);
+    ret = Jim_EvalObjVector(info->interp, 2, objv);
 
     /* XXX: Consider how best to handle errors here. bgerror? */
     if (ret == JIM_OK) {

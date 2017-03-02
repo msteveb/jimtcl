@@ -14356,6 +14356,8 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
     char buffer[100];
     int sum = 0;
     int nonzero_count = 0;
+    Jim_Obj *output;
+    int bucket_counts[11] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
@@ -14365,9 +14367,8 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
 
     /* Note that this uses internal knowledge of the hash table */
     snprintf(buffer, sizeof(buffer), "%d entries in table, %d buckets\n", ht->used, ht->size);
-    Jim_Obj *output = Jim_NewStringObj(interp, buffer, -1);
+    output = Jim_NewStringObj(interp, buffer, -1);
 
-    int bucket_counts[11] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     for (i = 0; i < ht->size; i++) {
         Jim_HashEntry *he = ht->table[i];
         int entries = 0;
