@@ -66,7 +66,7 @@ int utf8_strlen(const char *str, int bytelen)
     if (bytelen < 0) {
         bytelen = strlen(str);
     }
-    while (bytelen) {
+    while (bytelen > 0) {
         int c;
         int l = utf8_tounicode(str, &c);
         charlen++;
