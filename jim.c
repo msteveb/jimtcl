@@ -10557,7 +10557,8 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
 
     /* Fast path return for a single token */
     if (tokens == 1 && intv[0] && intv == sintv) {
-        Jim_DecrRefCount(interp, intv[0]);
+        /* Reverse the Jim_IncrRefCount() above, but don't free the object */
+        intv[0]->refCount--;
         return intv[0];
     }
 

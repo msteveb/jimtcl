@@ -277,6 +277,12 @@ puts "TEST 36 PASSED"
 catch {expr {1 : 2 ? 3}}
 puts "TEST 37 PASSED"
 
+# REGTEST 38
+# refcount with interpolation and expr
+set b(-1) 5
+set a $b($(-1))
+puts "TEST 38 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
