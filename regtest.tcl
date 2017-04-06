@@ -267,6 +267,11 @@ foreach i {1 2 3 4} {
 }
 puts "TEST 35 PASSED"
 
+# REGTEST 36
+# divide integer by integer zero
+catch {/ 1 0}
+puts "TEST 36 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -11635,8 +11635,13 @@ static int JimSubDivHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, i
         }
         if (op == JIM_EXPROP_SUB)
             res -= wideValue;
-        else
+        else {
+            if (wideValue == 0) {
+                Jim_SetResultString(interp, "Division by zero", -1);
+                return JIM_ERR;
+            }
             res /= wideValue;
+        }
     }
     Jim_SetResultInt(interp, res);
     return JIM_OK;
