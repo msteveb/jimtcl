@@ -8791,7 +8791,11 @@ static int ExprCheckCorrectness(Jim_Interp *interp, Jim_Obj *exprObjPtr, ExprByt
             ternary++;
         }
         else if (t->type == JIM_EXPROP_COLON || t->type == JIM_EXPROP_COLON_LEFT) {
-            ternary--;
+            if (--ternary < 0) {
+                /* got : without preceding ? */
+                stacklen = 1;
+                break;
+            }
         }
 
         /* All operations and operands add one to the stack */

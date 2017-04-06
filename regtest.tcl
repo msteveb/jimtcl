@@ -272,6 +272,11 @@ puts "TEST 35 PASSED"
 catch {/ 1 0}
 puts "TEST 36 PASSED"
 
+# REGTEST 37
+# ternary operator order
+catch {expr {1 : 2 ? 3}}
+puts "TEST 37 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
