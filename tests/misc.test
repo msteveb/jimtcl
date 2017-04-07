@@ -550,7 +550,7 @@ test lmap-1.1 {lmap} {
 test exprerr-1.1 {Error message with bad expr} {
 	catch {expr {5 ||}} msg
 	set msg
-} {Expression has bad operands to ||}
+} {syntax error in expression "5 ||": premature end of expression}
 
 test eval-list-1.1 {Lost string rep with list} {
 	set x {set y 1; incr y}

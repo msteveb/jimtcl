@@ -8865,15 +8865,16 @@ static int ExprAddLazyOperator(Jim_Interp *interp, ExprByteCode * expr, ParseTok
 
     arity = 1;
     while (arity) {
+        if (leftindex < 0) {
+            return JIM_ERR;
+        }
         ScriptToken *tt = &expr->token[leftindex];
 
         if (tt->type >= JIM_TT_EXPR_OP) {
             arity += JimExprOperatorInfoByOpcode(tt->type)->arity;
         }
         arity--;
-        if (--leftindex < 0) {
-            return JIM_ERR;
-        }
+        leftindex--;
     }
     leftindex++;
 
@@ -9032,7 +9033,7 @@ static int ExprTernaryGetMoveIndices(ExprByteCode *expr, int right_index, int *p
 *
 * Note: care has to be taken for nested ternary constructs!!!
 */
-static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
+static int ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
 {
     int i;
 
@@ -9049,6 +9050,9 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
         /* COLON_RIGHT found: get the indexes needed to move the tokens in the stack (if any) */
         if (ExprTernaryGetMoveIndices(expr, i, &prev_right_index, &prev_left_index) == 0) {
             continue;
+        }
+        if (prev_left_index < 0) {
+            return -1;
         }
 
         /*
@@ -9084,6 +9088,7 @@ static void ExprTernaryReorderExpression(Jim_Interp *interp, ExprByteCode *expr)
         /* Adjust for i-- in the loop */
         i++;
     }
+    return 0;
 }
 
 static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList *tokenlist, Jim_Obj *exprObjPtr, Jim_Obj *fileNameObj)
@@ -9260,7 +9265,10 @@ static ExprByteCode *ExprCreateByteCode(Jim_Interp *interp, const ParseTokenList
     }
 
     if (have_ternary) {
-        ExprTernaryReorderExpression(interp, expr);
+        if (ExprTernaryReorderExpression(interp, expr) != 0) {
+            ok = 0;
+            Jim_SetResultString(interp, "Invalid ternary expression", -1);
+        }
     }
 
   err:

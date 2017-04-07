@@ -283,6 +283,11 @@ set b(-1) 5
 set a $b($(-1))
 puts "TEST 38 PASSED"
 
+# REGTEST 39
+# invalid ternary expr
+catch {set a $(5?6,7?8:?9:10%11:12)}
+puts "TEST 39 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
