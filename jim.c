@@ -7691,6 +7691,7 @@ static void ExprPush(struct JimExprState *e, Jim_Obj *obj)
 
 static Jim_Obj *ExprPop(struct JimExprState *e)
 {
+    JimPanic((e->stacklen <= 0, "expr stack underflow"));
     return e->stack[--e->stacklen];
 }
 
