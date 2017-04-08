@@ -7513,7 +7513,7 @@ static const char * const jimReturnCodes[] = {
     NULL
 };
 
-#define jimReturnCodesSize (sizeof(jimReturnCodes)/sizeof(*jimReturnCodes))
+#define jimReturnCodesSize (sizeof(jimReturnCodes)/sizeof(*jimReturnCodes) - 1)
 
 static const Jim_ObjType returnCodeObjType = {
     "return-code",
