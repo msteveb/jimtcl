@@ -42,6 +42,19 @@ char *dlerror(void);
 #define strcasecmp _stricmp
 #define strtoull _strtoui64
 
+static inline struct tm *localtime_r(const time_t *clock, struct tm *result) {
+	if (0 != localtime_s(result, clock)) {
+		return NULL;
+	}
+	return result;
+}
+static inline struct tm *gmtime_r(const time_t *clock, struct tm *result) {
+	if (0 != gmtime_s(result, clock)) {
+		return NULL;
+	}
+	return result;
+}
+
 #include <io.h>
 
 struct timeval {

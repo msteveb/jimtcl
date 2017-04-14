@@ -562,6 +562,7 @@ typedef struct Jim_Interp {
 #define Jim_InterpIncrProcEpoch(i) (i)->procEpoch++
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
 #define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
+#define Jim_SetResultWide(i,wideval) Jim_SetResult(i, Jim_NewWideObj(i,wideval))
 /* Note: Using trueObj and falseObj here makes some things slower...*/
 #define Jim_SetResultBool(i,b) Jim_SetResultInt(i, b)
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)

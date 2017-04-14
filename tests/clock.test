@@ -1,0 +1,163 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd clock
+
+test clock-1.1 {format conversion of 2016-09-29 gmt} {
+    clock format 1475188030 \
+	-format {%b %B %c %d %j %m %x %y %Y} \
+	-gmt true
+} {Sep September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016}
+
+# This only compares month and year to avoid timezone issues since it is using -gmt=false
+test clock-1.2 {format conversion of 2016-09-10 local} {
+    clock format 1473508800 \
+	-format {%B %Y} \
+	-gmt false -locale dummy  -timezone dummy
+} {September 2016}
+
+test clock-2.1 {format too few args} {
+    list [catch {clock format} msg] $msg
+} {1 {wrong # args: should be "clock format clockval ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-2.2 {format too many args} {
+    list [catch {clock format 1475188030 abc} msg] $msg
+} {1 {Unknown trailing data "abc"}}
+
+test clock-2.3 {format bad args} {
+    list [catch {clock format 1475188030 -badarg 100} msg] $msg
+} {1 {bad option "-badarg": must be -format, -gmt, -locale, or -timezone}}
+
+test clock-2.4 {format bad args} {
+    list [catch {clock format 1475188030 -format} msg] $msg
+} {1 {wrong # args: should be "clock format clockval ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-2.5 {format bad args} {
+    list [catch {clock format 1475188030 -gmt} msg] $msg
+} {1 {wrong # args: should be "clock format clockval ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-2.6 {format bad args} {
+    list [catch {clock format 1475188030 -gmt badarg} msg] $msg
+} {1 {-gmt argument "badarg" is not a boolean value}}
+
+test clock-2.7 {format bad args} {
+    list [catch {clock format 1475188030 -locale} msg] $msg
+} {1 {wrong # args: should be "clock format clockval ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-2.8 {format bad args} {
+    list [catch {clock format 1475188030 -timezone} msg] $msg
+} {1 {wrong # args: should be "clock format clockval ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-2.9 {format bad args} {
+    list [catch {clock format badarg} msg] $msg
+} {1 {Could not parse 'seconds' field into a wide integer}}
+
+test clock-2.10 {format huge time} {
+    list [catch {clock format 0x7FFFFFFFFFFFFFFF} msg] $msg
+} {1 {Error converting numeric to time}}
+
+test clock-2.11 {format huge format} {
+    list [catch {clock format 1475188030 -format \
+"abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+} msg] $msg
+} {1 {format string too long}}
+
+
+test clock-3.1 {seconds} {
+    string is integer [clock seconds]
+} {1}
+
+test clock-3.2 {seconds} {
+    expr [clock seconds] > 1475188030
+} {1}
+
+test clock-3.3 {microseconds} {
+    string is integer [clock microseconds]
+} {1}
+
+test clock-3.4 {microseconds} {
+    expr [clock microseconds] > 1475188030000000
+} {1}
+
+test clock-3.5 {clicks} {
+    string is integer [clock clicks]
+} {1}
+
+test clock-3.6 {clicks} {
+    expr [clock clicks] > 1475188030000000
+} {1}
+
+test clock-3.7 {milliseconds} {
+    string is integer [clock milliseconds]
+} {1}
+
+test clock-3.8 {milliseconds} {
+    expr [clock milliseconds] > 1475188030000
+} {1}
+
+
+
+test clock-4.1 {scan conversion of 2016-09-29 gmt} {
+    clock scan "Sep September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" \
+	-format {%b %B %c %d %j %m %x %y %Y} \
+	-gmt true
+} {1475188030}
+
+test clock-4.2 {scan conversion of 2016-09-29 gmt} {
+    clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" \
+	-format {%B %c %d %j %m %x %y %Y} \
+	-gmt true -base 0 -locale dummy -timezone dummy
+} {1475188030}
+
+# This does a range comparison to avoid timezone issues since it is using -gmt=false
+test clock-4.2 {scan conversion of 2016-09-29 gmt} {
+    set val [clock scan "September Thu Sep 29 12:00:00 2016 29 273 09 09/29/16 16 2016" \
+	-format {%B %c %d %j %m %x %y %Y} \
+	-gmt false -base 0 -locale dummy -timezone dummy]
+	expr (($val >= 1475107200) && ($val <= 1475193600))
+} {1}
+
+test clock-5.1 {scan too few args} {
+    list [catch {clock scan} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.2 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -format} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.3 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -gmt} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.4 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -gmt badarg} msg] $msg
+} {1 {-gmt argument "badarg" is not a boolean value}}
+
+test clock-5.5 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -locale} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.6 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -timezone} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.7 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -base} msg] $msg
+} {1 {wrong # args: should be "clock scan string ?-base seconds? ?-format string? ?-gmt boolean? ?-locale LOCALE? ?-timezone ZONE?"}}
+
+test clock-5.8 {scan bad args} {
+    list [catch {clock scan "September Thu Sep 29 22:27:10 2016 29 273 09 09/29/16 16 2016" -base badint} msg] $msg
+} {1 {-base argument "badint" is not a wide integer}}
+
+test clock-5.9 {scan bad args} {
+    list [catch {clock scan "badstring" \
+	-format {%b %B %c %d %j %m %x %y %Y} \
+	-gmt true} msg] $msg
+} {1 {Failed to parse time according to format}}
+
+testreport
