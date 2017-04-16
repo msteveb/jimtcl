@@ -1,0 +1,52 @@
+source [file dirname [info script]]/testing.tcl
+
+if {[catch {clock scan 2000 -format %Y}]} {
+    testConstraint clockscan 0
+} else {
+    testConstraint clockscan 1
+}
+
+test clock-1.1 {clock usage} -body {
+    clock
+} -returnCodes error -match glob -result {wrong # args: should be "clock command ..."*}
+
+test clock-1.2 {clock usage} -body {
+    clock blah
+} -returnCodes error -match glob -result {clock, unknown command "blah": should be clicks, format, microseconds, milliseconds, scan, seconds}
+
+# clock format
+test clock-3.1 {clock format tests} {
+    set clockval 657687766
+    clock format $clockval -format {%a %b %d %I:%M:%S %p %Y} -gmt true
+} {Sun Nov 04 03:02:46 AM 1990}
+
+test clock-3.5 {clock format tests} -body {
+    clock format
+} -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
+
+test clock-3.6 {clock format tests} -body {
+    clock format foo
+} -returnCodes error -result {expected integer but got "foo"}
+
+test clock-3.8 {clock format tests} -body {
+    clock format a b c d e g
+} -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
+
+test clock-3.9 {clock format tests} {
+    set clockval -1
+    clock format $clockval -format "%a %b %d %I:%M:%S %p %Y" -gmt true
+} "Wed Dec 31 11:59:59 PM 1969"
+
+test clock-3.10 {clock format tests} -body {
+    clock format 123 -bad arg
+} -returnCodes error -result {bad option "-bad": must be -format, or -gmt}
+
+test clock-3.11 {clock format tests} {
+    clock format 123 -format "x"
+} x
+
+test clock-4.1 {clock scan tests} clockscan {
+    clock scan {Sun Nov 04 03:02:46 AM 1990} -format {%a %b %d %I:%M:%S %p %Y} -gmt true
+} 657687766
+
+testreport
