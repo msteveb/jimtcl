@@ -33,9 +33,9 @@ test clock-3.8 {clock format tests} -body {
 } -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
 
 test clock-3.9 {clock format tests} {
-    set clockval -1
+    set clockval 0
     clock format $clockval -format "%a %b %d %I:%M:%S %p %Y" -gmt true
-} "Wed Dec 31 11:59:59 PM 1969"
+} "Thu Jan 01 12:00:00 AM 1970"
 
 test clock-3.10 {clock format tests} -body {
     clock format 123 -bad arg

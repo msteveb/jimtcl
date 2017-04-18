@@ -72,12 +72,11 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     time_t t;
     jim_wide seconds;
     struct clock_options options = { 0, "%a %b %d %H:%M:%S %Z %Y" };
+    struct tm *tm;
 
     if (Jim_GetWide(interp, argv[0], &seconds) != JIM_OK) {
         return JIM_ERR;
     }
-    t = seconds;
-
     if (argc % 2 == 0) {
         return -1;
     }
@@ -85,8 +84,11 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    if (strftime(buf, sizeof(buf), options.format, options.gmt ? gmtime(&t) : localtime(&t)) == 0) {
-        Jim_SetResultString(interp, "format string too long", -1);
+    t = seconds;
+    tm = options.gmt ? gmtime(&t) : localtime(&t);
+
+    if (tm == NULL || strftime(buf, sizeof(buf), options.format, tm) == 0) {
+        Jim_SetResultString(interp, "format string too long or invalid time", -1);
         return JIM_ERR;
     }
 
