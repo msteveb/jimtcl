@@ -98,7 +98,7 @@ static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level,
      * decompressed data anyway, so there's no reason to do chunked
      * decompression */
     if (deflate(&strm, Z_FINISH) != Z_STREAM_END) {
-        Jim_Free(strm.next_out);
+        Jim_Free(buf);
         deflateEnd(&strm);
         return JIM_ERR;
     }
@@ -106,7 +106,7 @@ static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level,
     deflateEnd(&strm);
 
     if (strm.total_out > INT_MAX) {
-        Jim_Free(strm.next_out);
+        Jim_Free(buf);
         return JIM_ERR;
     }
 
