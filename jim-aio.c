@@ -56,6 +56,7 @@
 #if defined(HAVE_SYS_SOCKET_H) && defined(HAVE_SELECT) && defined(HAVE_NETINET_IN_H) && defined(HAVE_NETDB_H) && defined(HAVE_ARPA_INET_H)
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #ifdef HAVE_SYS_UN_H
@@ -943,6 +944,22 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
+#ifdef TCP_NODELAY
+static int aio_cmd_tcp_nodelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    int on;
+
+    if (Jim_GetBoolean(interp, argv[0], &on) != JIM_OK) {
+        return JIM_ERR;
+    }
+    setsockopt(af->fd, IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on));
+
+    return JIM_OK;
+}
+#endif
+
+
 #ifdef HAVE_FSYNC
 static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -1373,6 +1390,15 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         1,
         /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
+    },
+#endif
+#ifdef TCP_NODELAY
+    {   "tcp_nodelay",
+        "boolean",
+        aio_cmd_tcp_nodelay,
+        1,
+        1,
+        /* Description: Set TCP_NODELAY (Nagle's algorithm) */
     },
 #endif
 #ifdef HAVE_FSYNC

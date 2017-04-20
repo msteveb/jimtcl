@@ -4551,6 +4551,9 @@ aio
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
 
++$handle *tcp_nodelay* boolean+::
+    Enable or disable TCP_NODELAY (Nagle's) algorithm.
+
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
 
