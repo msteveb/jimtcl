@@ -944,7 +944,7 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
-#ifdef TCP_NODELAY
+#if defined(TCP_NODELAY) && !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_tcp_nodelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -1392,7 +1392,7 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
     },
 #endif
-#ifdef TCP_NODELAY
+#if defined(TCP_NODELAY) && !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
     {   "tcp_nodelay",
         "boolean",
         aio_cmd_tcp_nodelay,
