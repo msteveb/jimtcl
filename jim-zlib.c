@@ -85,6 +85,10 @@ static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level,
     }
 
     strm.avail_out = deflateBound(&strm, (uLong)len);
+
+    /* Some compression methods may need a little more space */
+    strm.avail_out += 100;
+
     if (strm.avail_out > INT_MAX) {
         deflateEnd(&strm);
         return JIM_ERR;
@@ -100,6 +104,7 @@ static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level,
     if (deflate(&strm, Z_FINISH) != Z_STREAM_END) {
         Jim_Free(buf);
         deflateEnd(&strm);
+        Jim_SetResultString(interp, "not enough output space", -1);
         return JIM_ERR;
     }
 
@@ -107,6 +112,7 @@ static int Jim_Compress(Jim_Interp *interp, const char *in, int len, long level,
 
     if (strm.total_out > INT_MAX) {
         Jim_Free(buf);
+        Jim_SetResultString(interp, "too much output", -1);
         return JIM_ERR;
     }
 
