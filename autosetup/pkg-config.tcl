@@ -3,15 +3,15 @@
 
 # @synopsis:
 #
-# The 'pkg-config' module allows package information to be found via pkg-config
+# The 'pkg-config' module allows package information to be found via 'pkg-config'.
 #
 # If not cross-compiling, the package path should be determined automatically
-# by pkg-config.
+# by 'pkg-config'.
 # If cross-compiling, the default package path is the compiler sysroot.
-# If the C compiler doesn't support -print-sysroot, the path can be supplied
-# by the --sysroot option or by defining SYSROOT.
+# If the C compiler doesn't support '-print-sysroot', the path can be supplied
+# by the '--sysroot' option or by defining 'SYSROOT'.
 #
-# PKG_CONFIG may be set to use an alternative to pkg-config
+# 'PKG_CONFIG' may be set to use an alternative to 'pkg-config'.
 
 use cc
 
@@ -21,12 +21,13 @@ module-options {
 
 # @pkg-config-init ?required?
 #
-# Initialises the pkg-config system. Unless required is set to 0,
-# it is a fatal error if the pkg-config
-# This command will normally be called automatically as required,
-# but it may be invoked explicitly if lack of pkg-config is acceptable.
+# Initialises the 'pkg-config' system. Unless '$required' is set to 0,
+# it is a fatal error if a usable 'pkg-config' is not found .
 #
-# Returns 1 if ok, or 0 if pkg-config not found/usable (only if required=0)
+# This command will normally be called automatically as required,
+# but it may be invoked explicitly if lack of 'pkg-config' is acceptable.
+#
+# Returns 1 if ok, or 0 if 'pkg-config' not found/usable (only if '$required' is 0).
 #
 proc pkg-config-init {{required 1}} {
 	if {[is-defined HAVE_PKG_CONFIG]} {
@@ -49,7 +50,7 @@ proc pkg-config-init {{required 1}} {
 		set found 1
 
 		if {[opt-val sysroot] ne ""} {
-			define SYSROOT [file-normalize [opt-val sysroot]]
+			define SYSROOT [file-normalize [lindex [opt-val sysroot] end]]
 			msg-result "Using specified sysroot [get-define SYSROOT]"
 		} elseif {[get-define build] ne [get-define host]} {
 			if {[catch {exec-with-stderr [get-define CC] -print-sysroot} result errinfo] == 0} {
@@ -83,17 +84,17 @@ proc pkg-config-init {{required 1}} {
 
 # @pkg-config module ?requirements?
 #
-# Use pkg-config to find the given module meeting the given requirements.
+# Use 'pkg-config' to find the given module meeting the given requirements.
 # e.g.
 #
 ## pkg-config pango >= 1.37.0
 #
-# If found, returns 1 and sets HAVE_PKG_PANGO to 1 along with:
+# If found, returns 1 and sets 'HAVE_PKG_PANGO' to 1 along with:
 #
 ## PKG_PANGO_VERSION to the found version
-## PKG_PANGO_LIBS to the required libs (--libs-only-l)
+## PKG_PANGO_LIBS    to the required libs (--libs-only-l)
 ## PKG_PANGO_LDFLAGS to the required linker flags (--libs-only-L)
-## PKG_PANGO_CFLAGS to the required compiler flags (--cflags)
+## PKG_PANGO_CFLAGS  to the required compiler flags (--cflags)
 #
 # If not found, returns 0.
 #
@@ -124,10 +125,10 @@ proc pkg-config {module args} {
 
 # @pkg-config-get module setting
 #
-# Convenience access to the results of pkg-config
+# Convenience access to the results of 'pkg-config'.
 #
-# For example, [pkg-config-get pango CFLAGS] returns
-# the value of PKG_PANGO_CFLAGS, or "" if not defined.
+# For example, '[pkg-config-get pango CFLAGS]' returns
+# the value of 'PKG_PANGO_CFLAGS', or '""' if not defined.
 proc pkg-config-get {module name} {
 	set prefix [feature-define-name $module PKG_]
 	get-define ${prefix}_${name} ""

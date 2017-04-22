@@ -17,9 +17,9 @@ define CONFIGURED
 
 # @make-tmake-settings outfile patterns ...
 #
-# Examines all defined variables which match the given patterns (defaults to "*")
+# Examines all defined variables which match the given patterns (defaults to '*')
 # and writes a tmake-compatible .conf file defining those variables.
-# For example, if ABC is "3 monkeys" and ABC matches a pattern, then the file will include:
+# For example, if 'ABC' is '"3 monkeys"' and 'ABC' matches a pattern, then the file will include:
 #
 ## define ABC {3 monkeys}
 #
@@ -27,7 +27,7 @@ define CONFIGURED
 #
 # Typical usage is:
 #
-# make-tmake-settings [get-env BUILDDIR objdir]/settings.conf {[A-Z]*}
+## make-tmake-settings [get-env BUILDDIR objdir]/settings.conf {[A-Z]*}
 proc make-tmake-settings {file args} {
 	file mkdir [file dirname $file]
 	set lines {}

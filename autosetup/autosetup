@@ -3,12 +3,12 @@
 # All rights reserved
 # vim:se syntax=tcl:
 # \
-dir=`dirname "$0"`; exec "`$dir/find-tclsh`" "$0" "$@"
+dir=`dirname "$0"`; exec "`$dir/autosetup-find-tclsh`" "$0" "$@"
 
-set autosetup(version) 0.6.6
+set autosetup(version) 0.6.7
 
 # Can be set to 1 to debug early-init problems
-set autosetup(debug) 0
+set autosetup(debug) [expr {"--debug" in $argv}]
 
 ##################################################################
 #
@@ -89,11 +89,13 @@ proc main {argv} {
 	#"=Core Options:"
 	options-add {
 		help:=local  => "display help and options. Optionally specify a module name, such as --help=system"
+		licence license => "display the autosetup license"
 		version      => "display the version of autosetup"
 		ref:=text manual:=text
 		reference:=text => "display the autosetup command reference. 'text', 'wiki', 'asciidoc' or 'markdown'"
 		debug        => "display debugging output as autosetup runs"
-		install:=.   => "install autosetup to the current or given directory (in the 'autosetup/' subdirectory)"
+		sysinstall:  => "install standalone autosetup to the given directory (e.g.: /usr/local)"
+		install:=.   => "install autosetup to the current or given directory"
 		force init:=help   => "create initial auto.def, etc.  Use --init=help for known types"
 		# Undocumented options
 		option-checking=1
@@ -110,7 +112,7 @@ proc main {argv} {
 
 	# autosetup --conf=alternate-auto.def
 	if {[opt-val conf] ne ""} {
-		set autosetup(autodef) [opt-val conf]
+		set autosetup(autodef) [lindex [opt-val conf] end]
 	}
 
 	# Debugging output (set this early)
@@ -126,36 +128,45 @@ proc main {argv} {
 	}
 
 	# Now any auto-load modules
-	foreach file [glob -nocomplain $autosetup(libdir)/*.auto $autosetup(libdir)/*/*.auto] {
-		automf_load source $file
-	}
+	autosetup_load_auto_modules
 
 	if {[opt-val help] ne ""} {
 		incr autosetup(showhelp)
 		use help
-		autosetup_help [opt-val help]
+		autosetup_help [lindex [opt-val help] end]
+	}
+
+	if {[opt-bool licence license]} {
+		use help
+		autosetup_show_license
+		exit 0
 	}
 
 	if {[opt-val {manual ref reference}] ne ""} {
 		use help
-		autosetup_reference [opt-val {manual ref reference}]
+		autosetup_reference [lindex [opt-val {manual ref reference}] end]
 	}
 
 	# Allow combining --install and --init
 	set earlyexit 0
 	if {[opt-val install] ne ""} {
 		use install
-		autosetup_install [opt-val install]
+		autosetup_install [lindex [opt-val install] end]
 		incr earlyexit
 	}
 
 	if {[opt-val init] ne ""} {
 		use init
-		autosetup_init [opt-val init]
+		autosetup_init [lindex [opt-val init] end]
 		incr earlyexit
 	}
 
 	if {$earlyexit} {
+		exit 0
+	}
+	if {[opt-val sysinstall] ne ""} {
+		use install
+		autosetup_install [lindex [opt-val sysinstall] end] 1
 		exit 0
 	}
 
@@ -212,10 +223,10 @@ proc main {argv} {
 # or disabled by the user, return 1 or 0 accordingly.
 #
 # If the option was specified more than once, the last value wins.
-# e.g. With --enable-foo --disable-foo, [opt-bool foo] will return 0
+# e.g. With '--enable-foo --disable-foo', '[opt-bool foo]' will return 0
 #
 # If no value was specified by the user, returns the default value for the
-# first option. If -nodefault is given, this behaviour changes and
+# first option. If '-nodefault' is given, this behaviour changes and
 # -1 is returned instead.
 #
 proc opt-bool {args} {
@@ -239,16 +250,16 @@ proc opt-bool {args} {
 	return [dict get $::autosetup(optdefault) [lindex $args 0]]
 }
 
-# @opt-val option-list ?default=""?
+# @opt-val optionlist ?default=""?
 #
-# Returns a list containing all the values given for the non-boolean options in 'option-list'.
+# Returns a list containing all the values given for the non-boolean options in '$optionlist'.
 # There will be one entry in the list for each option given by the user, including if the
 # same option was used multiple times.
 # If only a single value is required, use something like:
 #
 ## lindex [opt-val $names] end
 #
-# If no options were set, $default is returned (exactly, not as a list).
+# If no options were set, '$default' is returned (exactly, not as a list).
 #
 proc opt-val {names {default ""}} {
 	option-check-names {*}$names
@@ -465,31 +476,32 @@ proc options-show {} {
 	}
 }
 
-# @options options-spec
+# @options optionspec
 #
 # Specifies configuration-time options which may be selected by the user
-# and checked with opt-val and opt-bool. The format of options-spec follows.
+# and checked with 'opt-val' and 'opt-bool'. '$optionspec' contains a series
+# of options specifications separated by newlines, as follows:
 #
 # A boolean option is of the form:
 #
 ## name[=0|1]  => "Description of this boolean option"
 #
-# The default is name=0, meaning that the option is disabled by default.
-# If name=1 is used to make the option enabled by default, the description should reflect
+# The default is 'name=0', meaning that the option is disabled by default.
+# If 'name=1' is used to make the option enabled by default, the description should reflect
 # that with text like "Disable support for ...".
 #
 # An argument option (one which takes a parameter) is of the form:
 #
 ## name:[=]value  => "Description of this option"
 #
-# If the name:value form is used, the value must be provided with the option (as --name=myvalue).
-# If the name:=value form is used, the value is optional and the given value is used as the default
+# If the 'name:value' form is used, the value must be provided with the option (as '--name=myvalue').
+# If the 'name:=value' form is used, the value is optional and the given value is used as the default
 # if it is not provided.
 #
-# Undocumented options are also supported by omitting the "=> description.
-# These options are not displayed with --help and can be useful for internal options or as aliases.
+# Undocumented options are also supported by omitting the '=> description'.
+# These options are not displayed with '--help' and can be useful for internal options or as aliases.
 #
-# For example, --disable-lfs is an alias for --disable=largefile:
+# For example, '--disable-lfs' is an alias for '--disable=largefile':
 #
 ## lfs=1 largefile=1 => "Disable large file support"
 #
@@ -513,21 +525,20 @@ proc options {optlist} {
 }
 
 proc config_guess {} {
-	if {[file-isexec $::autosetup(dir)/config.guess]} {
-		exec-with-stderr sh $::autosetup(dir)/config.guess
-		if {[catch {exec-with-stderr sh $::autosetup(dir)/config.guess} alias]} {
+	if {[file-isexec $::autosetup(dir)/autosetup-config.guess]} {
+		if {[catch {exec-with-stderr sh $::autosetup(dir)/autosetup-config.guess} alias]} {
 			user-error $alias
 		}
 		return $alias
 	} else {
-		configlog "No config.guess, so using uname"
+		configlog "No autosetup-config.guess, so using uname"
 		string tolower [exec uname -p]-unknown-[exec uname -s][exec uname -r]
 	}
 }
 
 proc config_sub {alias} {
-	if {[file-isexec $::autosetup(dir)/config.sub]} {
-		if {[catch {exec-with-stderr sh $::autosetup(dir)/config.sub $alias} alias]} {
+	if {[file-isexec $::autosetup(dir)/autosetup-config.sub]} {
+		if {[catch {exec-with-stderr sh $::autosetup(dir)/autosetup-config.sub $alias} alias]} {
 			user-error $alias
 		}
 	}
@@ -538,7 +549,7 @@ proc config_sub {alias} {
 #
 # Defines the named variable to the given value.
 # These (name, value) pairs represent the results of the configuration check
-# and are available to be checked, modified and substituted.
+# and are available to be subsequently checked, modified and substituted.
 #
 proc define {name {value 1}} {
 	set ::define($name) $value
@@ -547,7 +558,7 @@ proc define {name {value 1}} {
 
 # @undefine name
 #
-# Undefine the named variable
+# Undefine the named variable.
 #
 proc undefine {name} {
 	unset -nocomplain ::define($name)
@@ -556,8 +567,8 @@ proc undefine {name} {
 
 # @define-append name value ...
 #
-# Appends the given value(s) to the given 'defined' variable.
-# If the variable is not defined or empty, it is set to $value.
+# Appends the given value(s) to the given "defined" variable.
+# If the variable is not defined or empty, it is set to '$value'.
 # Otherwise the value is appended, separated by a space.
 # Any extra values are similarly appended.
 # If any value is already contained in the variable (as a substring) it is omitted.
@@ -578,7 +589,7 @@ proc define-append {name args} {
 
 # @get-define name ?default=0?
 #
-# Returns the current value of the 'defined' variable, or $default
+# Returns the current value of the "defined" variable, or '$default'
 # if not set.
 #
 proc get-define {name {default 0}} {
@@ -600,7 +611,7 @@ proc is-defined {name} {
 
 # @all-defines
 #
-# Returns a dictionary (name value list) of all defined variables.
+# Returns a dictionary (name, value list) of all defined variables.
 #
 # This is suitable for use with 'dict', 'array set' or 'foreach'
 # and allows for arbitrary processing of the defined variables.
@@ -612,9 +623,9 @@ proc all-defines {} {
 
 # @get-env name default
 #
-# If $name was specified on the command line, return it.
-# If $name was set in the environment, return it.
-# Otherwise return $default.
+# If '$name' was specified on the command line, return it.
+# Otherwise if '$name' was set in the environment, return it.
+# Otherwise return '$default'.
 #
 proc get-env {name default} {
 	if {[dict exists $::autosetup(cmdline) $name]} {
@@ -625,7 +636,7 @@ proc get-env {name default} {
 
 # @env-is-set name
 #
-# Returns 1 if the $name was specified on the command line or in the environment.
+# Returns 1 if '$name' was specified on the command line or in the environment.
 # Note that an empty environment variable is not considered to be set.
 #
 proc env-is-set {name} {
@@ -641,7 +652,7 @@ proc env-is-set {name} {
 # @readfile filename ?default=""?
 #
 # Return the contents of the file, without the trailing newline.
-# If the file doesn't exist or can't be read, returns $default.
+# If the file doesn't exist or can't be read, returns '$default'.
 #
 proc readfile {filename {default_value ""}} {
 	set result $default_value
@@ -655,7 +666,7 @@ proc readfile {filename {default_value ""}} {
 
 # @writefile filename value
 #
-# Creates the given file containing $value.
+# Creates the given file containing '$value'.
 # Does not add an extra newline.
 #
 proc writefile {filename value} {
@@ -679,40 +690,10 @@ proc quote-argv {argv} {
 	join $args
 }
 
-# @suffix suf list
-#
-# Takes a list and returns a new list with $suf appended
-# to each element
-#
-## suffix .c {a b c} => {a.c b.c c.c}
-#
-proc suffix {suf list} {
-	set result {}
-	foreach p $list {
-		lappend result $p$suf
-	}
-	return $result
-}
-
-# @prefix pre list
-#
-# Takes a list and returns a new list with $pre prepended
-# to each element
-#
-## prefix jim- {a.c b.c} => {jim-a.c jim-b.c}
-#
-proc prefix {pre list} {
-	set result {}
-	foreach p $list {
-		lappend result $pre$p
-	}
-	return $result
-}
-
 # @find-executable name
 #
 # Searches the path for an executable with the given name.
-# Note that the name may include some parameters, e.g. "cc -mbig-endian",
+# Note that the name may include some parameters, e.g. 'cc -mbig-endian',
 # in which case the parameters are ignored.
 # Returns 1 if found, or 0 if not.
 #
@@ -766,7 +747,7 @@ proc find-an-executable {args} {
 
 # @configlog msg
 #
-# Writes the given message to the configuration log, config.log
+# Writes the given message to the configuration log, 'config.log'.
 #
 proc configlog {msg} {
 	if {![info exists ::autosetup(logfh)]} {
@@ -802,8 +783,8 @@ proc msg-result {msg} {
 
 # @msg-quiet command ...
 #
-# msg-quiet evaluates it's arguments as a command with output
-# from msg-checking and msg-result suppressed.
+# 'msg-quiet' evaluates it's arguments as a command with output
+# from 'msg-checking' and 'msg-result' suppressed.
 #
 # This is useful if a check needs to run a subcheck which isn't
 # of interest to the user.
@@ -843,7 +824,7 @@ proc dputs {msg} {
 #
 # Indicate incorrect usage to the user, including if required components
 # or features are not found.
-# autosetup exits with a non-zero return code.
+# 'autosetup' exits with a non-zero return code.
 #
 proc user-error {msg} {
 	show-notices
@@ -887,6 +868,18 @@ proc show-notices {} {
 proc maybe-show-timestamp {} {
 	if {$::autosetup(msg-timing) && $::autosetup(msg-checking) == 0} {
 		puts -nonewline [format {[%6.2f] } [expr {([clock millis] - $::autosetup(start)) % 10000 / 1000.0}]]
+	}
+}
+
+# @autosetup-require-version required
+#
+# Checks the current version of 'autosetup' against '$required'.
+# A fatal error is generated if the current version is less than that required.
+#
+proc autosetup-require-version {required} {
+	use util
+	if {[compare-versions $::autosetup(version) $required] < 0} {
+		user-error "autosetup version $required is required, but this is $::autosetup(version)"
 	}
 }
 
@@ -988,19 +981,31 @@ proc autosetup_add_dep {filename} {
 # when it is loaded.
 #
 proc use {args} {
+	global autosetup libmodule modsource
+
+	set dirs [list $autosetup(libdir)]
+	if {[info exists autosetup(srcdir)]} {
+		lappend dirs $autosetup(srcdir)/autosetup
+	}
 	foreach m $args {
-		if {[info exists ::libmodule($m)]} {
+		if {[info exists libmodule($m)]} {
 			continue
 		}
-		set ::libmodule($m) 1
-		if {[info exists ::modsource($m)]} {
-			automf_load eval $::modsource($m)
+		set libmodule($m) 1
+		if {[info exists modsource(${m}.tcl)]} {
+			automf_load eval $modsource(${m}.tcl)
 		} else {
-			set sources [list $::autosetup(libdir)/${m}.tcl $::autosetup(libdir)/${m}/init.tcl]
+			set locs [list ${m}.tcl ${m}/init.tcl]
 			set found 0
-			foreach source $sources {
-				if {[file exists $source]} {
-					incr found
+			foreach dir $dirs {
+				foreach loc $locs {
+					set source $dir/$loc
+					if {[file exists $source]} {
+						incr found
+						break
+					}
+				}
+				if {$found} {
 					break
 				}
 			}
@@ -1017,6 +1022,18 @@ proc use {args} {
 	}
 }
 
+proc autosetup_load_auto_modules {} {
+	global autosetup modsource
+	# First load any embedded auto modules
+	foreach mod [array names modsource *.auto] {
+		automf_load eval $modsource($mod)
+	}
+	# Now any external auto modules
+	foreach file [glob -nocomplain $autosetup(libdir)/*.auto $autosetup(libdir)/*/*.auto] {
+		automf_load source $file
+	}
+}
+
 # Load module source in the global scope by executing the given command
 proc automf_load {args} {
 	if {[catch [list uplevel #0 $args] msg opts] ni {0 2 3}} {
@@ -1029,14 +1046,17 @@ set autosetup(exe) $::argv0
 set autosetup(istcl) 1
 set autosetup(start) [clock millis]
 set autosetup(installed) 0
+set autosetup(sysinstall) 0
 set autosetup(msg-checking) 0
 set autosetup(msg-quiet) 0
+set autosetup(inittypes) {}
 
 # Embedded modules are inserted below here
 set autosetup(installed) 1
-# ----- module asciidoc-formatting -----
+set autosetup(sysinstall) 0
+# ----- @module asciidoc-formatting.tcl -----
 
-set modsource(asciidoc-formatting) {
+set modsource(asciidoc-formatting.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1104,9 +1124,9 @@ proc defn {first args} {
 }
 }
 
-# ----- module formatting -----
+# ----- @module formatting.tcl -----
 
-set modsource(formatting) {
+set modsource(formatting.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1161,9 +1181,9 @@ proc parse_code_block {text} {
 }
 }
 
-# ----- module getopt -----
+# ----- @module getopt.tcl -----
 
-set modsource(getopt) {
+set modsource(getopt.tcl) {
 # Copyright (c) 2006 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1220,9 +1240,9 @@ proc getopt {argvname} {
 }
 }
 
-# ----- module help -----
+# ----- @module help.tcl -----
 
-set modsource(help) {
+set modsource(help.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://workware.net.au/
 # All rights reserved
 
@@ -1252,6 +1272,24 @@ proc autosetup_help {what} {
         }
     }
     exit 0
+}
+
+proc autosetup_show_license {} {
+    global modsource autosetup
+    use_pager
+
+    if {[info exists modsource(LICENSE)]} {
+        puts $modsource(LICENSE)
+        return
+    }
+    foreach dir [list $autosetup(libdir) $autosetup(srcdir)] {
+        set path [file join $dir LICENSE]
+        if {[file exists $path]} {
+            puts [readfile $path]
+            return
+        }
+    }
+    puts "LICENSE not found"
 }
 
 # If not already paged and stdout is a tty, pipe the output through the pager
@@ -1306,6 +1344,12 @@ proc autosetup_reference {{type text}} {
 proc autosetup_output_block {type lines} {
     if {[llength $lines]} {
         switch $type {
+            section {
+                section $lines
+            }
+            subsection {
+                subsection $lines
+            }
             code {
                 codelines $lines
             }
@@ -1327,15 +1371,29 @@ proc automf_command_reference {} {
     lappend files $::autosetup(prog)
     lappend files {*}[lsort [glob -nocomplain $::autosetup(libdir)/*.tcl]]
 
-    section "Core Commands"
-    set type p
-    set lines {}
-    set cmd {}
+    # We want to process all non-module files before module files
+    # and then modules in alphabetical order.
+    # So examine all files and extract docs into doc($modulename) and doc(_core_)
+    #
+    # Each entry is a list of {type data} where $type is one of: section, subsection, code, list, p
+    # and $data is a string for section, subsection or a list of text lines for other types.
+
+    # XXX: Should commands be in alphabetical order too? Currently they are in file order.
+
+    set doc(_core_) {}
+    lappend doc(_core_) [list section "Core Commands"]
 
     foreach file $files {
+        set modulename [file rootname [file tail $file]]
+        set current _core_
         set f [open $file]
         while {![eof $f]} {
             set line [gets $f]
+
+            # Find embedded module names
+            if {[regexp {^#.*@module ([^ ]*)} $line -> modulename]} {
+                continue
+            }
 
             # Find lines starting with "# @*" and continuing through the remaining comment lines
             if {![regexp {^# @(.*)} $line -> cmd]} {
@@ -1344,9 +1402,10 @@ proc automf_command_reference {} {
 
             # Synopsis or command?
             if {$cmd eq "synopsis:"} {
-                section "Module: [file rootname [file tail $file]]"
+                set current $modulename
+                lappend doc($current) [list section "Module: $modulename"]
             } else {
-                subsection $cmd
+                lappend doc($current) [list subsection $cmd]
             }
 
             set lines {}
@@ -1371,7 +1430,7 @@ proc automf_command_reference {} {
 
                 if {$t ne $type || $cmd eq ""} {
                     # Finish the current block
-                    autosetup_output_block $type $lines
+                    lappend doc($current) [list $type $lines]
                     set lines {}
                     set type $t
                 }
@@ -1380,16 +1439,25 @@ proc automf_command_reference {} {
                 }
             }
 
-            autosetup_output_block $type $lines
+            lappend doc($current) [list $type $lines]
         }
         close $f
+    }
+
+    # Now format and output the results
+
+    # _core_ will sort first
+    foreach module [lsort [array names doc]] {
+        foreach item $doc($module) {
+            autosetup_output_block {*}$item
+        }
     }
 }
 }
 
-# ----- module init -----
+# ----- @module init.tcl -----
 
-set modsource(init) {
+set modsource(init.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1446,22 +1514,55 @@ proc autosetup_check_create {filename contents} {
 }
 }
 
-# ----- module install -----
+# ----- @module install.tcl -----
 
-set modsource(install) {
+set modsource(install.tcl) {
 # Copyright (c) 2006-2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
 # Module which can install autosetup
 
-proc autosetup_install {dir} {
-	if {[catch {
+# autosetup(installed)=1 means that autosetup is not running from source
+# autosetup(sysinstall)=1 means that autosetup is running from a sysinstall verion
+# shared=1 means that we are trying to do a sysinstall. This is only possible from the development source.
+
+proc autosetup_install {dir {shared 0}} {
+	if {$shared && $::autosetup(installed)} {
+		user-error "Can only --sysinstall from development sources"
+	}
+
+	if {$::autosetup(sysinstall)} {
+		# This is the sysinstall version, so install just uses references
 		cd $dir
+
+		puts "[autosetup_version] creating configure to use system-installed autosetup"
+		autosetup_create_configure 1
+		puts "Creating autosetup/README.autosetup"
 		file mkdir autosetup
+		autosetup_install_readme autosetup/README.autosetup 1
+		return
+	}
 
-		set f [open autosetup/autosetup w]
+	if {[catch {
+		if {$shared} {
+			set target $dir/bin/autosetup
+			set installedas $target
+		} else {
+			if {$dir eq "."} {
+				set installedas autosetup
+			} else {
+				set installedas $dir/autosetup
+			}
+			cd $dir
+			file mkdir autosetup
+			set target autosetup/autosetup
+		}
+		set targetdir [file dirname $target]
+		file mkdir $targetdir
 
-		set publicmodules [glob $::autosetup(libdir)/*.auto]
+		set f [open $target w]
+
+		set publicmodules {}
 
 		# First the main script, but only up until "CUT HERE"
 		set in [open $::autosetup(dir)/autosetup]
@@ -1473,48 +1574,89 @@ proc autosetup_install {dir} {
 
 			# Insert the static modules here
 			# i.e. those which don't contain @synopsis:
+			# All modules are inserted if $shared is set
 			puts $f "set autosetup(installed) 1"
-			foreach file [lsort [glob $::autosetup(libdir)/*.tcl]] {
+			puts $f "set autosetup(sysinstall) $shared"
+			foreach file [lsort [glob $::autosetup(libdir)/*.{tcl,auto}]] {
+				set modname [file tail $file]
+				set ext [file ext $modname]
 				set buf [readfile $file]
-				if {[string match "*\n# @synopsis:*" $buf]} {
-					lappend publicmodules $file
-					continue
+				if {!$shared} {
+					if {$ext eq ".auto" || [string match "*\n# @synopsis:*" $buf]} {
+						lappend publicmodules $file
+						continue
+					}
 				}
-				set modname [file rootname [file tail $file]]
-				puts $f "# ----- module $modname -----"
+				dputs "install: importing lib/[file tail $file]"
+				puts $f "# ----- @module $modname -----"
 				puts $f "\nset modsource($modname) \{"
 				puts $f $buf
 				puts $f "\}\n"
 			}
+			if {$shared} {
+				foreach {srcname destname} [list $::autosetup(libdir)/README.autosetup-lib README.autosetup \
+						$::autosetup(srcdir)/LICENSE LICENSE] {
+					dputs "install: importing $srcname as $destname"
+					puts $f "\nset modsource($destname) \\\n[list [readfile $srcname]\n]\n"
+				}
+			}
 		}
 		close $in
 		close $f
-		exec chmod 755 autosetup/autosetup
+		exec chmod 755 $target
 
-		# Install public modules
-		foreach file $publicmodules {
-			autosetup_install_file $file autosetup
+		set installfiles {autosetup-config.guess autosetup-config.sub autosetup-test-tclsh}
+		set removefiles {}
+
+		if {!$shared} {
+			autosetup_install_readme $targetdir/README.autosetup 0
+
+			# Install public modules
+			foreach file $publicmodules {
+				set tail [file tail $file]
+				autosetup_install_file $file $targetdir/$tail
+			}
+			lappend installfiles jimsh0.c autosetup-find-tclsh LICENSE
+			lappend removefiles config.guess config.sub test-tclsh find-tclsh
+		} else {
+			lappend installfiles {sys-find-tclsh autosetup-find-tclsh}
 		}
 
 		# Install support files
-		foreach file {config.guess config.sub jimsh0.c find-tclsh test-tclsh LICENSE} {
-			autosetup_install_file $::autosetup(dir)/$file autosetup
+		foreach fileinfo $installfiles {
+			if {[llength $fileinfo] == 2} {
+				lassign $fileinfo source dest
+			} else {
+				lassign $fileinfo source
+				set dest $source
+			}
+			autosetup_install_file $::autosetup(dir)/$source $targetdir/$dest
+			exec chmod 755 $targetdir/$dest
 		}
-		exec chmod 755 autosetup/config.sub autosetup/config.guess autosetup/find-tclsh
 
-		writefile autosetup/README.autosetup \
-			"This is [autosetup_version]. See http://msteveb.github.com/autosetup/\n"
-
+		# Remove obsolete files
+		foreach file $removefiles {
+			if {[file exists $targetdir/$file]} {
+				file delete $targetdir/$file
+			}
+		}
 	} error]} {
 		user-error "Failed to install autosetup: $error"
 	}
-	puts "Installed [autosetup_version] to autosetup/"
+	if {$shared} {
+		set type "system"
+	} else {
+		set type "local"
+	}
+	puts "Installed $type [autosetup_version] to $installedas"
 
-	# Now create 'configure' if necessary
-	autosetup_create_configure
+	if {!$shared} {
+		# Now create 'configure' if necessary
+		autosetup_create_configure 0
+	}
 }
 
-proc autosetup_create_configure {} {
+proc autosetup_create_configure {shared} {
 	if {[file exists configure]} {
 		if {!$::autosetup(force)} {
 			# Could this be an autosetup configure?
@@ -1529,36 +1671,68 @@ proc autosetup_create_configure {} {
 	} else {
 		puts "I don't see configure, so I will create it."
 	}
-	writefile configure \
+	if {$shared} {
+		writefile configure \
+{#!/bin/sh
+# Note that WRAPPER is set here purely to detect an autosetup-created script
+WRAPPER="-"; "autosetup" "$@"
+}
+	} else {
+		writefile configure \
 {#!/bin/sh
 dir="`dirname "$0"`/autosetup"
-WRAPPER="$0"; export WRAPPER; exec "`$dir/find-tclsh`" "$dir/autosetup" "$@"
+WRAPPER="$0"; export WRAPPER; exec "`$dir/autosetup-find-tclsh`" "$dir/autosetup" "$@"
 }
+	}
 	catch {exec chmod 755 configure}
 }
 
 # Append the contents of $file to filehandle $f
 proc autosetup_install_append {f file} {
+	dputs "install: include $file"
 	set in [open $file]
 	puts $f [read $in]
 	close $in
 }
 
-proc autosetup_install_file {file dir} {
-	if {![file exists $file]} {
-		error "Missing installation file '$file'"
+proc autosetup_install_file {source target} {
+	dputs "install: $source => $target"
+	if {![file exists $source]} {
+		error "Missing installation file '$source'"
 	}
-	writefile [file join $dir [file tail $file]] [readfile $file]\n
+	writefile $target [readfile $source]\n
 }
 
-if {$::autosetup(installed)} {
-	user-error "autosetup can only be installed from development source, not from installed copy"
+proc autosetup_install_readme {target sysinstall} {
+	set readme "README.autosetup created by [autosetup_version]\n\n"
+	if {$sysinstall} {
+		append readme \
+{This is the autosetup directory for a system install of autosetup.
+Loadable modules can be added here.
+}
+	} else {
+		append readme \
+{This is the autosetup directory for a local install of autosetup.
+It contains autosetup, support files and loadable modules.
 }
 }
 
-# ----- module markdown-formatting -----
+	append readme {
+*.tcl files in this directory are optional modules which
+can be loaded with the 'use' directive.
 
-set modsource(markdown-formatting) {
+*.auto files in this directory are auto-loaded.
+
+For more information, see http://msteveb.github.com/autosetup/
+}
+	dputs "install: autosetup/README.autosetup"
+	writefile $target $readme
+}
+}
+
+# ----- @module markdown-formatting.tcl -----
+
+set modsource(markdown-formatting.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1629,9 +1803,9 @@ proc defn {first args} {
 }
 }
 
-# ----- module misc -----
+# ----- @module misc.tcl -----
 
-set modsource(misc) {
+set modsource(misc.tcl) {
 # Copyright (c) 2007-2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1807,9 +1981,9 @@ proc error-dump {msg opts fulltrace} {
 }
 }
 
-# ----- module text-formatting -----
+# ----- @module text-formatting.tcl -----
 
-set modsource(text-formatting) {
+set modsource(text-formatting.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1818,91 +1992,193 @@ set modsource(text-formatting) {
 use formatting
 
 proc wordwrap {text length {firstprefix ""} {nextprefix ""}} {
-    set len 0
-    set space $firstprefix
-    foreach word [split $text] {
-        set word [string trim $word]
-        if {$word == ""} {
-            continue
-        }
-        if {$len && [string length $space$word] + $len >= $length} {
-            puts ""
-            set len 0
-            set space $nextprefix
-        }
-        incr len [string length $space$word]
+	set len 0
+	set space $firstprefix
 
-        # Use man-page conventions for highlighting 'quoted' and *quoted*
-        # single words.
-        # Use x^Hx for *bold* and _^Hx for 'underline'.
-        #
-        # less and more will both understand this.
-        # Pipe through 'col -b' to remove them.
-        if {[regexp {^'(.*)'([^a-zA-Z0-9_]*)$} $word -> bareword dot]} {
-            regsub -all . $bareword "_\b&" word
-            append word $dot
-        } elseif {[regexp {^[*](.*)[*]([^a-zA-Z0-9_]*)$} $word -> bareword dot]} {
-            regsub -all . $bareword "&\b&" word
-            append word $dot
-        }
-        puts -nonewline $space$word
-        set space " "
-    }
-    if {$len} {
-        puts ""
-    }
+	foreach word [split $text] {
+		set word [string trim $word]
+		if {$word eq ""} {
+			continue
+		}
+		if {[info exists partial]} {
+			append partial " " $word
+			if {[string first $quote $word] < 0} {
+				# Haven't found end of quoted word
+				continue
+			}
+			# Finished quoted word
+			set word $partial
+			unset partial
+			unset quote
+		} else {
+			set quote [string index $word 0]
+			if {$quote in {' *}} {
+				if {[string first $quote $word 1] < 0} {
+					# Haven't found end of quoted word
+					# Not a whole word.
+					set first [string index $word 0]
+					# Start of quoted word
+					set partial $word
+					continue
+				}
+			}
+		}
+
+		if {$len && [string length $space$word] + $len >= $length} {
+			puts ""
+			set len 0
+			set space $nextprefix
+		}
+		incr len [string length $space$word]
+
+		# Use man-page conventions for highlighting 'quoted' and *quoted*
+		# single words.
+		# Use x^Hx for *bold* and _^Hx for 'underline'.
+		#
+		# less and more will both understand this.
+		# Pipe through 'col -b' to remove them.
+		if {[regexp {^'(.*)'(.*)} $word -> quoted after]} {
+			set quoted [string map {~ " "} $quoted]
+			regsub -all . $quoted "&\b&" quoted
+			set word $quoted$after
+		} elseif {[regexp {^[*](.*)[*](.*)} $word -> quoted after]} {
+			set quoted [string map {~ " "} $quoted]
+			regsub -all . $quoted "_\b&" quoted
+			set word $quoted$after
+		}
+		puts -nonewline $space$word
+		set space " "
+	}
+	if {[info exists partial]} {
+		# Missing end of quote
+		puts -nonewline $space$partial
+	}
+	if {$len} {
+		puts ""
+	}
 }
 proc title {text} {
-    underline [string trim $text] =
-    nl
+	underline [string trim $text] =
+	nl
 }
 proc p {text} {
-    wordwrap $text 80
-    nl
+	wordwrap $text 80
+	nl
 }
 proc codelines {lines} {
-    foreach line $lines {
-        puts "    $line"
-    }
-    nl
+	foreach line $lines {
+		puts "	  $line"
+	}
+	nl
 }
 proc nl {} {
-    puts ""
+	puts ""
 }
 proc underline {text char} {
-    regexp "^(\[ \t\]*)(.*)" $text -> indent words
-    puts $text
-    puts $indent[string repeat $char [string length $words]]
+	regexp "^(\[ \t\]*)(.*)" $text -> indent words
+	puts $text
+	puts $indent[string repeat $char [string length $words]]
 }
 proc section {text} {
-    underline "[string trim $text]" -
-    nl
+	underline "[string trim $text]" -
+	nl
 }
 proc subsection {text} {
-    underline "$text" ~
-    nl
+	underline "$text" ~
+	nl
 }
 proc bullet {text} {
-    wordwrap $text 76 "  * " "    "
+	wordwrap $text 76 "	 * " "	  "
 }
 proc indent {text} {
-    wordwrap $text 76 "    " "    "
+	wordwrap $text 76 "	   " "	  "
 }
 proc defn {first args} {
-    if {$first ne ""} {
-        underline "    $first" ~
-    }
-    foreach p $args {
-        if {$p ne ""} {
-            indent $p
-        }
-    }
+	if {$first ne ""} {
+		underline "	   $first" ~
+	}
+	foreach p $args {
+		if {$p ne ""} {
+			indent $p
+		}
+	}
 }
 }
 
-# ----- module wiki-formatting -----
+# ----- @module util.tcl -----
 
-set modsource(wiki-formatting) {
+set modsource(util.tcl) {
+# Copyright (c) 2012 WorkWare Systems http://www.workware.net.au/
+# All rights reserved
+
+# Module which contains miscellaneous utility functions
+
+# @compare-versions version1 version2
+#
+# Versions are of the form 'a.b.c' (may be any number of numeric components)
+#
+# Compares the two versions and returns:
+## -1 if v1 < v2
+##  0 if v1 == v2
+##  1 if v1 > v2
+#
+# If one version has fewer components than the other, 0 is substituted to the right. e.g.
+## 0.2   <  0.3
+## 0.2.5 >  0.2
+## 1.1   == 1.1.0
+#
+proc compare-versions {v1 v2} {
+	foreach c1 [split $v1 .] c2 [split $v2 .] {
+		if {$c1 eq ""} {
+			set c1 0
+		}
+		if {$c2 eq ""} {
+			set c2 0
+		}
+		if {$c1 < $c2} {
+			return -1
+		}
+		if {$c1 > $c2} {
+			return 1
+		}
+	}
+	return 0
+}
+
+# @suffix suf list
+#
+# Takes a list and returns a new list with '$suf' appended
+# to each element
+#
+## suffix .c {a b c} => {a.c b.c c.c}
+#
+proc suffix {suf list} {
+	set result {}
+	foreach p $list {
+		lappend result $p$suf
+	}
+	return $result
+}
+
+# @prefix pre list
+#
+# Takes a list and returns a new list with '$pre' prepended
+# to each element
+#
+## prefix jim- {a.c b.c} => {jim-a.c jim-b.c}
+#
+proc prefix {pre list} {
+	set result {}
+	foreach p $list {
+		lappend result $pre$p
+	}
+	return $result
+}
+}
+
+# ----- @module wiki-formatting.tcl -----
+
+set modsource(wiki-formatting.tcl) {
 # Copyright (c) 2010 WorkWare Systems http://www.workware.net.au/
 # All rights reserved
 
@@ -1977,7 +2253,7 @@ if {$autosetup(debug)} {
 }
 if {[catch {main $argv} msg opts] == 1} {
 	show-notices
-	autosetup-full-error [error-dump $msg $opts $::autosetup(debug)]
+	autosetup-full-error [error-dump $msg $opts $autosetup(debug)]
 	if {!$autosetup(debug)} {
 		puts stderr "Try: '[file tail $autosetup(exe)] --debug' for a full stack trace"
 	}

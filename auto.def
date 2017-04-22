@@ -4,7 +4,7 @@
 define JIM_VERSION 77
 
 # Note: modules which support options *must* be included before 'options'
-use cc cc-shared cc-db cc-lib pkg-config
+use cc cc-shared cc-db cc-lib pkg-config util
 use local
 
 options {
