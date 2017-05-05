@@ -75,6 +75,11 @@ static Jim_Obj *JimSqliteFormatQuery(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
     int fmtLen;
     Jim_Obj *resObjPtr;
 
+    if (Jim_GetObjTaint(fmtObjPtr) & JIM_TAINT_ANY) {
+        Jim_SetResultString(interp, "sqlite3 query: tainted data", -1);
+        return NULL;
+    }
+
     fmt = Jim_GetString(fmtObjPtr, &fmtLen);
     resObjPtr = Jim_NewStringObj(interp, "", 0);
     while (fmtLen) {
@@ -269,6 +274,12 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         Jim_WrongNumArgs(interp, 1, argv, "dbname");
         return JIM_ERR;
     }
+
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
+
     r = sqlite3_open(Jim_String(argv[1]), &db);
     if (r != SQLITE_OK) {
         Jim_SetResultString(interp, sqlite3_errmsg(db), -1);
