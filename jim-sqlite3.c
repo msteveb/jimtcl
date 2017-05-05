@@ -177,7 +177,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         }
         Jim_IncrRefCount(nullStrObj);
         if (argc < 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "query ?args?");
+            Jim_WrongNumArgs(interp, 2, argv, "?args?");
             goto err;
         }
         objPtr = JimSqliteFormatQuery(interp, argv[2], argc - 3, argv + 3);
