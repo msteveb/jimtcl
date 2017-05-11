@@ -12759,6 +12759,7 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
     Jim_Obj *resObj;
     int i;
     int retCode;
+    int shared;
 
     struct lsort_info info;
 
@@ -12824,12 +12825,14 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
                 break;
         }
     }
-    resObj = Jim_DuplicateObj(interp, argv[argc - 1]);
+    resObj = argv[argc - 1];
+    if ((shared = Jim_IsShared(resObj)))
+        resObj = Jim_DuplicateObj(interp, resObj);
     retCode = ListSortElements(interp, resObj, &info);
     if (retCode == JIM_OK) {
         Jim_SetResult(interp, resObj);
     }
-    else {
+    else if (shared) {
         Jim_FreeNewObj(interp, resObj);
     }
     return retCode;

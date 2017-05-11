@@ -288,6 +288,12 @@ puts "TEST 38 PASSED"
 catch {set a $(5?6,7?8:?9:10%11:12)}
 puts "TEST 39 PASSED"
 
+# REGTEST 40
+# ref count problem - double free
+set d [dict create a b]
+lsort r($d)
+puts "TEST 40 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
