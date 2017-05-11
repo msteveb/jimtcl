@@ -959,10 +959,11 @@ badargs:
         fdtype origErrorId = errorId;
 
         for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
-            if (arg_array[lastArg][0] == '|') {
-                if (arg_array[lastArg][1] == '&') {
-                    pipe_dup_err = 1;
-                }
+            if (strcmp(arg_array[lastArg], "|") == 0) {
+                break;
+            }
+            if (strcmp(arg_array[lastArg], "|&") == 0) {
+                pipe_dup_err = 1;
                 break;
             }
         }

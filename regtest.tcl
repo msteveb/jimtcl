@@ -300,6 +300,11 @@ puts "TEST 40 PASSED"
 catch {scan x %3}
 puts "TEST 41 PASSED"
 
+# REGTEST 42
+# | and |& are not acceptable as prefixes
+catch {exec dummy |x second}
+puts "TEST 42 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
