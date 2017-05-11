@@ -177,7 +177,8 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
             *p++ = ch;
             format += step;
             step = utf8_tounicode(format, &ch);
-        } while (sawFlag);
+            /* Only allow one of each flag, so if we have more than 5 flags, stop */
+        } while (sawFlag && (p - spec <= 5));
 
         /*
          * Step 3. Minimum field width.

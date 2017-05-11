@@ -305,6 +305,11 @@ puts "TEST 41 PASSED"
 catch {exec dummy |x second}
 puts "TEST 42 PASSED"
 
+# REGTEST 43
+# too many flags to format
+catch {format %----------------------------------------d 1}
+puts "TEST 43 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
