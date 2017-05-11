@@ -295,6 +295,11 @@ lsort r($d)
 catch {dict remove r($d) m}
 puts "TEST 40 PASSED"
 
+# REGTEST 41
+# access invalid memory on no scan conversion char
+catch {scan x %3}
+puts "TEST 41 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

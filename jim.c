@@ -9890,8 +9890,13 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         }
         else {
             /* Remember any valid modifier if given */
-            if (strchr("hlL", *fmt) != 0)
+            if (fmt < fmtEnd && strchr("hlL", *fmt))
                 descr->modifier = tolower((int)*fmt++);
+
+            if (fmt >= fmtEnd) {
+                fmtObj->error = "missing scan conversion character";
+                return JIM_ERR;
+            }
 
             descr->type = *fmt;
             if (strchr("efgcsndoxui", *fmt) == 0) {
