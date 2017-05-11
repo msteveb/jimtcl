@@ -966,6 +966,12 @@ badargs:
                 break;
             }
         }
+
+        if (lastArg == firstArg) {
+            Jim_SetResultString(interp, "missing command to exec", -1);
+            goto error;
+        }
+
         /* Replace | with NULL for execv() */
         arg_array[lastArg] = NULL;
         if (lastArg == arg_count) {
