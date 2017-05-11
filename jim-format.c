@@ -399,6 +399,13 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
             *p++ = (char) ch;
             *p = '\0';
 
+            /* Put some reasonable limits on the field size */
+            if (width > 10000 || length > 10000) {
+                Jim_SetResultString(interp, "format too long", -1);
+                goto error;
+            }
+
+
             /* Adjust length for width and precision */
             if (width > length) {
                 length = width;
