@@ -310,6 +310,11 @@ puts "TEST 42 PASSED"
 catch {format %----------------------------------------d 1}
 puts "TEST 43 PASSED"
 
+# REGTEST 44
+# lsort -unique with no duplicate - invalid memory write
+lsort -unique {a b c d}
+puts "TEST 44 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

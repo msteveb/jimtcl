@@ -6659,8 +6659,12 @@ static void ListRemoveDuplicates(Jim_Obj *listObjPtr, int (*comp)(Jim_Obj **lhs,
         }
         ele[dst] = ele[src];
     }
-    /* At end of list, keep the final element */
-    ele[++dst] = ele[src];
+
+    /* At end of list, keep the final element unless all elements were kept */
+    dst++;
+    if (dst < listObjPtr->internalRep.listValue.len) {
+        ele[dst] = ele[src];
+    }
 
     /* Set the new length */
     listObjPtr->internalRep.listValue.len = dst;
