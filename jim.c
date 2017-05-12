@@ -9757,8 +9757,8 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     ScanFmtStringObj *fmtObj;
     char *buffer;
     int maxCount, i, approxSize, lastPos = -1;
-    const char *fmt = objPtr->bytes;
-    int maxFmtLen = objPtr->length;
+    const char *fmt = Jim_String(objPtr);
+    int maxFmtLen = Jim_Length(objPtr);
     const char *fmtEnd = fmt + maxFmtLen;
     int curr;
 

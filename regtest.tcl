@@ -320,6 +320,11 @@ puts "TEST 44 PASSED"
 catch [list regexp "u{0" x]
 puts "TEST 45 PASSED"
 
+# REGTEST 46
+# scan with no stringrep
+catch {scan $(1) $(1)}
+puts "TEST 46 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
