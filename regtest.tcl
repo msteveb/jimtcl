@@ -315,6 +315,11 @@ puts "TEST 43 PASSED"
 lsort -unique {a b c d}
 puts "TEST 44 PASSED"
 
+# REGTEST 45
+# regexp with missing close brace for count
+catch [list regexp "u{0" x]
+puts "TEST 45 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

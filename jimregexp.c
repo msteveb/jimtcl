@@ -477,6 +477,10 @@ static int regpiece(regex_t *preg, int *flagp)
 		if (*end == '}') {
 			max = min;
 		}
+		else if (*end == '\0') {
+			preg->err = REG_ERR_UNMATCHED_BRACES;
+			return 0;
+		}
 		else {
 			preg->regparse = end;
 			max = strtoul(preg->regparse + 1, &end, 10);
