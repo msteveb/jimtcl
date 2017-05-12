@@ -2307,12 +2307,22 @@ static void JimSetStringBytes(Jim_Obj *objPtr, const char *str)
 }
 
 static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
-static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 
 static const Jim_ObjType dictSubstObjType = {
     "dict-substitution",
     FreeDictSubstInternalRep,
-    DupDictSubstInternalRep,
+    NULL,
+    NULL,
+    JIM_TYPE_NONE,
+};
+
+static void FreeInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
+static void DupInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
+
+static const Jim_ObjType interpolatedObjType = {
+    "interpolated",
+    FreeInterpolatedInternalRep,
+    DupInterpolatedInternalRep,
     NULL,
     JIM_TYPE_NONE,
 };
@@ -2322,13 +2332,13 @@ static void FreeInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
 }
 
-static const Jim_ObjType interpolatedObjType = {
-    "interpolated",
-    FreeInterpolatedInternalRep,
-    NULL,
-    NULL,
-    JIM_TYPE_NONE,
-};
+static void DupInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+{
+    /* Copy the interal rep */
+    dupPtr->internalRep = srcPtr->internalRep;
+    /* Need to increment the key ref count */
+    Jim_IncrRefCount(dupPtr->internalRep.dictSubstValue.indexObjPtr);
+}
 
 /* -----------------------------------------------------------------------------
  * String Object
@@ -4849,16 +4859,6 @@ void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr);
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
-}
-
-void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
-{
-    JIM_NOTUSED(interp);
-
-    dupPtr->internalRep.dictSubstValue.varNameObjPtr =
-        srcPtr->internalRep.dictSubstValue.varNameObjPtr;
-    dupPtr->internalRep.dictSubstValue.indexObjPtr = srcPtr->internalRep.dictSubstValue.indexObjPtr;
-    dupPtr->typePtr = &dictSubstObjType;
 }
 
 /* Note: The object *must* be in dict-sugar format */

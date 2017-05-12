@@ -292,6 +292,7 @@ puts "TEST 39 PASSED"
 # ref count problem - double free
 set d [dict create a b]
 lsort r($d)
+catch {dict remove r($d) m}
 puts "TEST 40 PASSED"
 
 # TAKE THE FOLLOWING puts AS LAST LINE
