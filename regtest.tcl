@@ -325,6 +325,11 @@ puts "TEST 45 PASSED"
 catch {scan $(1) $(1)}
 puts "TEST 46 PASSED"
 
+# REGTEST 47
+# Invalid ternary expression
+catch {set a $(99?9,99?9:*9:999)?9)}
+puts "TEST 47 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -816,7 +816,7 @@ JIM_EXPORT int Jim_GetReturnCode (Jim_Interp *interp, Jim_Obj *objPtr,
 
 /* expression object */
 JIM_EXPORT int Jim_EvalExpression (Jim_Interp *interp,
-        Jim_Obj *exprObjPtr, Jim_Obj **exprResultPtrPtr);
+        Jim_Obj *exprObjPtr);
 JIM_EXPORT int Jim_GetBoolFromExpr (Jim_Interp *interp,
         Jim_Obj *exprObjPtr, int *boolPtr);
 

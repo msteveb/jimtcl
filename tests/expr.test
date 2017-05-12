@@ -99,6 +99,14 @@ test expr-2.4 "Ternary operator - missing question" -body {
 	expr {1 : 2}
 } -returnCodes error -match glob -result *
 
+test expr-2.5 "Ternary operator with -ve values" {
+	expr {-1?-2:-3}
+} -2
+
+test expr-2.6 "Ternary operator with -ve values" {
+	expr {0?-2:-3}
+} -3
+
 test expr-3.1 "in, ni operators" {
 	set l {a b c d}
 	set c C
