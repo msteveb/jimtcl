@@ -9623,37 +9623,26 @@ noopt:
 
 int Jim_GetBoolFromExpr(Jim_Interp *interp, Jim_Obj *exprObjPtr, int *boolPtr)
 {
-    int retcode;
-    jim_wide wideValue;
-    double doubleValue;
-    int booleanValue;
     Jim_Obj *exprResultPtr;
+    int retcode = Jim_EvalExpression(interp, exprObjPtr, &exprResultPtr);
 
-    retcode = Jim_EvalExpression(interp, exprObjPtr, &exprResultPtr);
-    if (retcode != JIM_OK)
-        return retcode;
+    if (retcode == JIM_OK) {
+        switch (ExprBool(interp, exprResultPtr)) {
+            case 0:
+                *boolPtr = 0;
+                break;
 
-    if (JimGetWideNoErr(interp, exprResultPtr, &wideValue) != JIM_OK) {
-        if (Jim_GetDouble(interp, exprResultPtr, &doubleValue) != JIM_OK) {
-            if (Jim_GetBoolean(interp, exprResultPtr, &booleanValue) != JIM_OK) {
-                Jim_DecrRefCount(interp, exprResultPtr);
-                return JIM_ERR;
-            } else {
-                Jim_DecrRefCount(interp, exprResultPtr);
-                *boolPtr = booleanValue;
-                return JIM_OK;
-            }
+            case 1:
+                *boolPtr = 1;
+                break;
+
+            case -1:
+                retcode = JIM_ERR;
+                break;
         }
-        else {
-            Jim_DecrRefCount(interp, exprResultPtr);
-            *boolPtr = doubleValue != 0;
-            return JIM_OK;
-        }
+        Jim_DecrRefCount(interp, exprResultPtr);
     }
-    *boolPtr = wideValue != 0;
-
-    Jim_DecrRefCount(interp, exprResultPtr);
-    return JIM_OK;
+    return retcode;
 }
 
 /* -----------------------------------------------------------------------------
