@@ -6013,11 +6013,6 @@ static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     jim_wide wideValue;
     const char *str;
 
-    /* Preserve the string representation.
-     * Needed so we can convert back to int without loss
-     */
-    str = Jim_String(objPtr);
-
 #ifdef HAVE_LONG_LONG
     /* Assume a 53 bit mantissa */
 #define MIN_INT_IN_DOUBLE -(1LL << 53)
@@ -6031,8 +6026,12 @@ static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         objPtr->typePtr = &coercedDoubleObjType;
         return JIM_OK;
     }
-    else
 #endif
+    /* Preserve the string representation.
+     * Needed so we can convert back to int without loss
+     */
+    str = Jim_String(objPtr);
+
     if (Jim_StringToWide(str, &wideValue, 10) == JIM_OK) {
         /* Managed to convert to an int, so we can use this as a cooerced double */
         Jim_FreeIntRep(interp, objPtr);
