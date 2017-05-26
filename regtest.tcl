@@ -335,6 +335,11 @@ puts "TEST 47 PASSED"
 catch {scan a {%-9999999$c}}
 puts "TEST 48 PASSED"
 
+# REGTEST 49
+# format: precision too large
+catch {format %1.9999999999f 1.0}
+puts "TEST 49 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
