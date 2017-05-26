@@ -330,6 +330,11 @@ puts "TEST 46 PASSED"
 catch {set a $(99?9,99?9:*9:999)?9)}
 puts "TEST 47 PASSED"
 
+# REGTEST 48
+# scan: -ve XPG3 specifier
+catch {scan a {%-9999999$c}}
+puts "TEST 48 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

@@ -9516,6 +9516,11 @@ static int SetScanFmtFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
                         return JIM_ERR;
                     }
                 }
+                if (descr->pos < 0) {
+                    fmtObj->error =
+                        "\"%n$\" conversion specifier is negative";
+                    return JIM_ERR;
+                }
                 /* Try to find a width after the XPG3 specifier */
                 if (sscanf(fmt, "%d%n", &width, &skip) == 1) {
                     descr->width = width;
