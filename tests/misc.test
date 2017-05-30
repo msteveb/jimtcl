@@ -475,6 +475,19 @@ test jimexpr-2.5 "double ** operator" {
     expr {$result in {unsupported 8.0}}
 } 1
 
+test jimexpr-2.6 "exit in expression" {
+	# The inner 'exit 0' should propagate through the if to
+	# the outer catch
+	catch -exit {
+		set x 1
+		if {[catch {exit 0}] == 1} {
+			set x 2
+		} else {
+			set x 3
+		}
+	}]
+} 6
+
 # This one is for test coverage of an unusual case
 test jimobj-1.1 "duplicate obj with no dupIntRepProc" {
 	proc "x x" {} { return 2 }

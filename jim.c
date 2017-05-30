@@ -7667,20 +7667,20 @@ typedef struct Jim_ExprOperator
     unsigned char namelen;
 } Jim_ExprOperator;
 
-static Jim_Obj *JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node);
+static int JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node, Jim_Obj **objPtrPtr);
 static int JimExprGetTermBoolean(Jim_Interp *interp, struct JimExprNode *node);
 static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node);
 
 static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
 {
     int intresult = 1;
-    int rc = JIM_OK;
+    int rc;
     double dA, dC = 0;
     jim_wide wA, wC = 0;
     Jim_Obj *A;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
 
     if ((A->typePtr != &doubleObjType || A->bytes) && JimGetWideNoErr(interp, A, &wA) == JIM_OK) {
@@ -7770,8 +7770,8 @@ static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprNode *node)
     Jim_Obj *A;
     int rc;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
 
     rc = Jim_GetWide(interp, A, &wA);
@@ -7810,8 +7810,8 @@ static int JimExprOpDoubleUnary(Jim_Interp *interp, struct JimExprNode *node)
     double dA, dC;
     Jim_Obj *A;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
 
     rc = Jim_GetDouble(interp, A, &dA);
@@ -7878,16 +7878,18 @@ static int JimExprOpDoubleUnary(Jim_Interp *interp, struct JimExprNode *node)
 static int JimExprOpIntBin(Jim_Interp *interp, struct JimExprNode *node)
 {
     jim_wide wA, wB;
-    int rc = JIM_ERR;
+    int rc;
     Jim_Obj *A, *B;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
-    if ((B = JimExprGetTerm(interp, node->right)) == NULL) {
+    if ((rc = JimExprGetTerm(interp, node->right, &B)) != JIM_OK) {
         Jim_DecrRefCount(interp, A);
-        return JIM_ERR;
+        return rc;
     }
+
+    rc = JIM_ERR;
 
     if (Jim_GetWide(interp, A, &wA) == JIM_OK && Jim_GetWide(interp, B, &wB) == JIM_OK) {
         jim_wide wC;
@@ -7978,12 +7980,12 @@ static int JimExprOpBin(Jim_Interp *interp, struct JimExprNode *node)
     jim_wide wA, wB, wC = 0;
     Jim_Obj *A, *B;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
-    if ((B = JimExprGetTerm(interp, node->right)) == NULL) {
+    if ((rc = JimExprGetTerm(interp, node->right, &B)) != JIM_OK) {
         Jim_DecrRefCount(interp, A);
-        return JIM_ERR;
+        return rc;
     }
 
     if ((A->typePtr != &doubleObjType || A->bytes) &&
@@ -8184,13 +8186,14 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
 {
     Jim_Obj *A, *B;
     jim_wide wC;
+    int rc;
 
-    if ((A = JimExprGetTerm(interp, node->left)) == NULL) {
-        return JIM_ERR;
+    if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
+        return rc;
     }
-    if ((B = JimExprGetTerm(interp, node->right)) == NULL) {
+    if ((rc = JimExprGetTerm(interp, node->right, &B)) != JIM_OK) {
         Jim_DecrRefCount(interp, A);
-        return JIM_ERR;
+        return rc;
     }
 
     switch (node->type) {
@@ -8215,7 +8218,7 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
     Jim_DecrRefCount(interp, A);
     Jim_DecrRefCount(interp, B);
 
-    return JIM_OK;
+    return rc;
 }
 
 static int ExprBool(Jim_Interp *interp, Jim_Obj *obj)
@@ -9187,14 +9190,14 @@ static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node)
     }
 }
 
-static Jim_Obj *JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node)
+static int JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node, Jim_Obj **objPtrPtr)
 {
-    if (JimExprEvalTermNode(interp, node) == JIM_OK) {
-        Jim_Obj *objPtr = Jim_GetResult(interp);
-        Jim_IncrRefCount(objPtr);
-        return objPtr;
+    int rc = JimExprEvalTermNode(interp, node);
+    if (rc == JIM_OK) {
+        *objPtrPtr = Jim_GetResult(interp);
+        Jim_IncrRefCount(*objPtrPtr);
     }
-    return NULL;
+    return rc;
 }
 
 static int JimExprGetTermBoolean(Jim_Interp *interp, struct JimExprNode *node)
