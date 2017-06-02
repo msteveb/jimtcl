@@ -60,6 +60,10 @@ package require oo
 #   THe default index is "end"
 #   Returns the name of the newly added node
 #
+# $pt delete <nodename>
+#
+#   Delete the given node and all it's children.
+#
 # $pt walk <nodename> dfs|bfs {actionvar nodevar} <code>
 #
 #   Walks the tree starting from the given node, either breadth first (bfs)
@@ -154,6 +158,26 @@ tree method insert {node {index end}} {
 
 	return $childname
 }
+
+tree method delete {node} {
+	if {$node eq "root"} {
+		return -code error "can't delete root node"
+	}
+	$self walk $node dfs {action subnode} {
+		if {$action eq "exit"} {
+			# Remove the node
+			dict unset tree $subnode
+			# And remove as a child of our parent
+			set parent [$self parent $subnode]
+			if {$parent ne ""} {
+				set siblings [dict get $children $parent]
+				set i [lsearch $siblings $subnode]
+				dict set children $parent [lreplace $siblings $i $i]
+			}
+		}
+	}
+}
+
 
 tree method lappend {node key args} {
 	if {[dict exists $tree $node $key]} {
