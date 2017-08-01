@@ -3411,7 +3411,7 @@ static void ScriptAddToken(ParseTokenList *tokenlist, const char *token, int len
  * operator (in which case the count doesn't include
  * that token).
  */
-static int JimCountWordTokens(ParseToken *t)
+static int JimCountWordTokens(struct ScriptObj *script, ParseToken *t)
 {
     int expand = 1;
     int count = 0;
@@ -3422,6 +3422,13 @@ static int JimCountWordTokens(ParseToken *t)
             /* Create an expand token */
             expand = -1;
             t++;
+        }
+        else {
+            if (script->missing == ' ') {
+                /* This is a "extra characters after close-brace" error. Report the first error */
+                script->missing = '}';
+                script->linenr = t[1].line;
+            }
         }
     }
 
@@ -3509,7 +3516,7 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
             i++;
         }
 
-        wordtokens = JimCountWordTokens(tokenlist->list + i);
+        wordtokens = JimCountWordTokens(script, tokenlist->list + i);
 
         if (wordtokens == 0) {
             /* None, so at end of line */
@@ -3590,6 +3597,10 @@ static void ScriptObjAddTokens(Jim_Interp *interp, struct ScriptObj *script,
  * '\\' on scripts with a trailing backslash.
  *
  * If the script is complete, 1 is returned, otherwise 0.
+ *
+ * If the script has extra characters after a close brace, this still returns 1,
+ * but sets *stateCharPtr to '}'
+ * Evaluating the script will give the error "extra characters after close-brace".
  */
 int Jim_ScriptIsComplete(Jim_Interp *interp, Jim_Obj *scriptObj, char *stateCharPtr)
 {
@@ -3597,7 +3608,7 @@ int Jim_ScriptIsComplete(Jim_Interp *interp, Jim_Obj *scriptObj, char *stateChar
     if (stateCharPtr) {
         *stateCharPtr = script->missing;
     }
-    return (script->missing == ' ');
+    return script->missing == ' ' || script->missing == '}';
 }
 
 /**
@@ -3621,6 +3632,9 @@ static int JimParseCheckMissing(Jim_Interp *interp, int ch)
             break;
         case '{':
             msg = "missing close-brace";
+            break;
+        case '}':
+            msg = "extra characters after close-brace";
             break;
         case '"':
         default:

@@ -485,7 +485,7 @@ test jimexpr-2.6 "exit in expression" {
 		} else {
 			set x 3
 		}
-	}]
+	}
 } 6
 
 # This one is for test coverage of an unusual case

@@ -142,10 +142,13 @@ test subst-10.2 {break in a subst} {
 test subst-10.3 {break in a subst} {
     subst {foo [if 1 { break; bogus code}] bar}
 } {foo }
-test subst-10.4 {break in a subst, parse error} {
+
+# Note that unlike Tcl, Jim throws an error for these two before
+# evaluating 
+test subst-10.4 {break in a subst, parse error} tcl {
     subst {foo [break ; set a {}{} ; stuff] bar}
 } {foo }
-test subst-10.5 {break in a subst, parse error} {
+test subst-10.5 {break in a subst, parse error} tcl {
     subst {foo [break ;set bar baz ;set a {}{} ; stuff] bar}
 } {foo }
 
