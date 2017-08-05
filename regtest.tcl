@@ -340,6 +340,11 @@ puts "TEST 48 PASSED"
 catch {format %1.9999999999f 1.0}
 puts "TEST 49 PASSED"
 
+# REGTEST 50
+# expr missing operand
+catch {expr {>>-$x}}
+puts "TEST 50 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

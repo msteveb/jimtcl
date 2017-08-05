@@ -8899,12 +8899,26 @@ noargs:
 
             if (op->arity >= 3) {
                 node->ternary = Jim_StackPop(&builder->stack);
+                if (node->ternary == NULL) {
+                    goto missingoperand;
+                }
             }
             if (op->arity >= 2) {
                 node->right = Jim_StackPop(&builder->stack);
+                if (node->right == NULL) {
+                    printf("missing right term to operator %s\n", op->name);
+                    goto missingoperand;
+                }
             }
             if (op->arity >= 1) {
                 node->left = Jim_StackPop(&builder->stack);
+                if (node->left == NULL) {
+missingoperand:
+                    Jim_SetResultFormatted(interp, "missing operand to %s in expression: \"%#s\"", op->name, builder->exprObjPtr);
+                    builder->next--;
+                    return JIM_ERR;
+
+                }
             }
 
             /* Now push the node */
