@@ -9008,6 +9008,9 @@ static struct ExprTree *ExprTreeCreateTree(Jim_Interp *interp, const ParseTokenL
             rc = JIM_ERR;
         }
     }
+    else {
+        top = NULL;
+    }
 
     /* Free the stack used for the compilation. */
     Jim_FreeStack(&builder.stack);
