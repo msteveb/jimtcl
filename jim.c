@@ -2454,6 +2454,7 @@ Jim_Obj *Jim_NewStringObjUtf8(Jim_Interp *interp, const char *s, int charlen)
  * use it directly. */
 Jim_Obj *Jim_NewStringObjNoAlloc(Jim_Interp *interp, char *s, int len)
 {
+    if (!s) return NULL; // see line 10286
     Jim_Obj *objPtr = Jim_NewObj(interp);
 
     objPtr->bytes = s;
