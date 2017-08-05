@@ -345,6 +345,11 @@ puts "TEST 49 PASSED"
 catch {expr {>>-$x}}
 puts "TEST 50 PASSED"
 
+# REGTEST 51
+# expr convert invalid value to boolean
+catch {expr {2 && "abc$"}}
+puts "TEST 51 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
