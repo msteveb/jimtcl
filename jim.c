@@ -2307,11 +2307,12 @@ static void JimSetStringBytes(Jim_Obj *objPtr, const char *str)
 }
 
 static void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr);
+static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr);
 
 static const Jim_ObjType dictSubstObjType = {
     "dict-substitution",
     FreeDictSubstInternalRep,
-    NULL,
+    DupDictSubstInternalRep,
     NULL,
     JIM_TYPE_NONE,
 };
@@ -4873,6 +4874,15 @@ void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.varNameObjPtr);
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
+}
+
+static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+{
+    /* Copy the internal rep */
+    dupPtr->internalRep = srcPtr->internalRep;
+    /* Need to increment the ref counts */
+    Jim_IncrRefCount(dupPtr->internalRep.dictSubstValue.varNameObjPtr);
+    Jim_IncrRefCount(dupPtr->internalRep.dictSubstValue.indexObjPtr);
 }
 
 /* Note: The object *must* be in dict-sugar format */
