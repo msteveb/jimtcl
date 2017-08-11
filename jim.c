@@ -8922,7 +8922,6 @@ noargs:
             if (op->arity >= 2) {
                 node->right = Jim_StackPop(&builder->stack);
                 if (node->right == NULL) {
-                    printf("missing right term to operator %s\n", op->name);
                     goto missingoperand;
                 }
             }
