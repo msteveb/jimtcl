@@ -7,4 +7,4 @@
 # Prefer jimsh in .. if it exists
 PATH=..:$PATH; export PATH
 asdir="`dirname "$0"`/../autosetup"
-exec "`$asdir/find-tclsh`" ../build-jim-ext "$@"
+exec "`$asdir/autosetup-find-tclsh`" ../build-jim-ext "$@"
