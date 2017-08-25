@@ -13,6 +13,9 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd binary
+if {[testConstraint jim]} {
+    needs cmd pack
+}
 testConstraint bigEndian [expr {$tcl_platform(byteOrder) eq "bigEndian"}]
 testConstraint littleEndian [expr {$tcl_platform(byteOrder) eq "littleEndian"}]
 testConstraint maxCompatibility 0
