@@ -1,5 +1,12 @@
 # Implements script-based standard commands for Jim Tcl
 
+if {![exists -command ref]} {
+	# No support for references, so create a poor-man's reference just good enough for lambda
+	proc ref {args} {{count 0}} {
+		format %08x [incr count]
+	}
+}
+
 # Creates an anonymous procedure
 proc lambda {arglist args} {
 	tailcall proc [ref {} function lambda.finalizer] $arglist {*}$args

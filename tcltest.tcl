@@ -166,7 +166,7 @@ proc testConstraint {constraint {bool {}}} {
 }
 
 testConstraint {utf8} [expr {[string length "\xc2\xb5"] == 1}]
-testConstraint {references} [expr {[info commands ref] ne ""}]
+testConstraint {references} [expr {[info commands getref] ne ""}]
 testConstraint {jim} 1
 testConstraint {tcl} 0
 

@@ -62,8 +62,8 @@ test curry-1.4 "Two word curry" {
 	list [$two x] [$two y]
 } {1 0}
 
-collect
-test curry-1.5 "Delete curry" {
+test curry-1.5 "Delete curry" references {
+	collect
 	unset one two
 	collect
 } {2}
