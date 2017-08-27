@@ -189,16 +189,7 @@ test timer-6.4 {Tcl_AfterCmd procedure, ms argument} {
     update
     list $y $x
 } {before after}
-test timer-6.5 {Tcl_AfterCmd procedure, ms argument} {
-    set x before
-    after 60 {set x after}
-    after 40
-    update
-    set y $x
-    after 40
-    update
-    list $y $x
-} {before after}
+
 test timer-6.6 {Tcl_AfterCmd procedure, cancel option} {
     list [catch {after cancel} msg] $msg
 } {1 {wrong # args: should be "after cancel id|command"}}
