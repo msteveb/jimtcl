@@ -349,7 +349,7 @@ test exec-12.1 {reaping background processes} -constraints unix -body {
         exec echo foo > exec.tmp1 &
     }
     exec {*}$sleepx 0.1
-    catch {exec ps | fgrep "echo foo" | fgrep -v fgrep | wc} msg
+    catch {exec ps | fgrep "echo foo" | fgrep -v grep | wc} msg
     lindex $msg 0
 } -cleanup {
     file delete exec.tmp1
