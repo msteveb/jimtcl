@@ -5025,6 +5025,55 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
     return JIM_OK;
 }
 
+/**
+ * Run any $jim::defer scripts for the current call frame.
+ *
+ * retcode is the return code from the current proc.
+ *
+ * Returns the new return code.
+ */
+static int JimInvokeDefer(Jim_Interp *interp, int retcode)
+{
+    Jim_Obj *objPtr = Jim_GetVariableStr(interp, "jim::defer", JIM_NONE);
+    int ret = JIM_OK;
+
+    if (objPtr) {
+        int i;
+        int listLen = Jim_ListLength(interp, objPtr);
+        Jim_Obj *resultObjPtr;
+
+        Jim_IncrRefCount(objPtr);
+
+        /* Need to save away the current interp result and
+         * restore it if appropriate
+         */
+        resultObjPtr = Jim_GetResult(interp);
+        Jim_IncrRefCount(resultObjPtr);
+        Jim_SetEmptyResult(interp);
+
+        /* Invoke in reverse order */
+        for (i = listLen; i > 0; i--) {
+            /* If a defer script returns an error, don't evaluate remaining scripts */
+            Jim_Obj *scriptObjPtr = Jim_ListGetIndex(interp, objPtr, i - 1);
+            ret = Jim_EvalObj(interp, scriptObjPtr);
+            if (ret != JIM_OK) {
+                break;
+            }
+        }
+
+        if (ret == JIM_OK || retcode == JIM_ERR) {
+            /* defer script had no error, or proc had an error so restore proc result */
+            Jim_SetResult(interp, resultObjPtr);
+        }
+        else {
+            retcode = ret;
+        }
+
+        Jim_DecrRefCount(interp, resultObjPtr);
+        Jim_DecrRefCount(interp, objPtr);
+    }
+    return retcode;
+}
 
 #define JIM_FCF_FULL 0          /* Always free the vars hash table */
 #define JIM_FCF_REUSE 1         /* Reuse the vars hash table if possible */
@@ -5545,6 +5594,8 @@ void Jim_FreeInterp(Jim_Interp *i)
 
     /* Free the active call frames list - must be done before i->commands is destroyed */
     for (cf = i->framePtr; cf; cf = cfx) {
+        /* Note that we ignore any errors */
+        JimInvokeDefer(i, JIM_OK);
         cfx = cf->parent;
         JimFreeCallFrame(i, cf, JIM_FCF_FULL);
     }
@@ -10810,7 +10861,8 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
 
 badargset:
 
-    /* Free the callframe */
+    /* Invoke $jim::defer then destroy the callframe */
+    retcode = JimInvokeDefer(interp, retcode);
     interp->framePtr = interp->framePtr->parent;
     JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
 

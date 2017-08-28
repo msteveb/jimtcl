@@ -60,6 +60,8 @@ Changes between 0.77 and 0.78
 4. Add scriptable autocompletion support in interactive mode with `tcl::autocomplete`
 5. Add `aio sockopt`
 6. Add scriptable autocompletion support with `history completion`
+7. Add support for `tree delete`
+8. Add support for `defer` and '$jim::defer'
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3243,6 +3245,21 @@ If +-index 'listindex'+ is specified, each element of the list is treated as a l
 the given index is extracted from the list for comparison. The list index may
 be any valid list index, such as +1+, +end+ or +end-2+.
 
+defer
+~~~~~
++*defer* 'script'+
+
+This command is a simple helper command to add a script to the '+$jim::defer+' variable
+that will run when the current proc or interpreter exits. For example:
+
+    jim> proc a {} { defer {puts "Leaving a"}; puts "Exit" }
+    jim> a
+    Exit
+    Leaving a
+
+If the '+$jim::defer+' variable exists, it is treated as a list of scripts to run
+when the proc or interpreter exits.
+
 open
 ~~~~
 +*open* 'fileName ?access?'+
@@ -5163,6 +5180,14 @@ The following global variables are set by jimsh.
 
 +*jim::argv0*+::
     The value of argv[0] when jimsh was invoked.
+
+The following variables have special meaning to Jim Tcl:
+
++*jim::defer*+::
+    If this variable is set, it is considered to be a list of scripts to evaluate
+	when the current proc exits (local variables), or the interpreter exits (global variable).
+	See `defer`.
+
 
 CHANGES IN PREVIOUS RELEASES
 ----------------------------

@@ -1,13 +1,10 @@
 CORE LANGUAGE FEATURES
 
+- none
+
 CORE COMMANDS
 
-- [onleave] command, executing something as soon as the current procedure
-  returns. With no arguments it returns the script set, with one appends
-  the onleave script. There should be a way to reset.
-
-  Currently we have [local] which can be used to delete procs on proc exit.
-  Also try/on/finally. Is [onleave] really needed?
+- none
 
 OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 
@@ -17,7 +14,6 @@ EXTENSIONS
 
 - Cryptography: hash functions, block ciphers, strim ciphers, PRNGs.
 - Tuplespace extension (http://wiki.tcl.tk/3947) (using sqlite as backend)
-- Zlib
 - Gdlib
 - CGI (interface compatible with ncgi, but possibly written in C for speed)
 

@@ -1,0 +1,237 @@
+# vim:se syntax=tcl:
+
+source [file dirname [info script]]/testing.tcl
+
+needs cmd defer
+needs cmd interp
+
+test defer-1.1 {defer in proc} {
+	set x -
+	proc a {} {
+		set x +
+		# This does nothing since it increments a local variable
+		defer {append x L}
+		# This increments the global variable
+		defer {append ::x G}
+		# Will return "-", not "-L" since return happens before defer triggers
+		return $x
+	}
+	list [a] $x
+} {+ -G}
+
+test defer-1.2 {set $defer directly} {
+	set x -
+	proc a {} {
+		lappend jim::defer {append ::x a}
+		lappend jim::defer {append ::x b}
+		return $jim::defer
+	}
+	list [a] $x
+} {{{append ::x a} {append ::x b}} -ba}
+
+
+test defer-1.3 {unset $defer} {
+	set x -
+	proc a {} {
+		defer {append ::x a}
+		# unset, to remove all defer actions
+		unset jim::defer
+	}
+	a
+	set x
+} {-}
+
+test defer-1.4 {error in defer - error} {
+	set x -
+	proc a {} {
+		# First defer script will not happen because of error in next defer script
+		defer {append ::x a}
+		# Error ignored because of error from proc
+		defer {blah}
+		# Last defer script will happen
+		defer {append ::x b}
+		# This error will take precedence over the error from defer
+		error "from a"
+	}
+	set rc [catch {a} msg]
+	list [info ret $rc] $msg $x
+} {error {from a} -b}
+
+test defer-1.5 {error in defer - return} {
+	set x -
+	proc a {} {
+		# First defer script will not happen
+		defer {append ::x a}
+		defer {blah}
+		# Last defer script will happen
+		defer {append ::x b}
+		return 3
+	}
+	set rc [catch {a} msg]
+	list [info ret $rc] $msg $x
+} {error {invalid command name "blah"} -b}
+
+test defer-1.6 {error in defer - ok} {
+	set x -
+	proc a {} {
+		# First defer script will not happen
+		defer {append ::x a}
+		# Error ignored because of error from proc
+		defer {blah}
+		# Last defer script will happen
+		defer {append ::x b}
+	}
+	set rc [catch {a} msg]
+	list [info ret $rc] $msg $x
+} {error {invalid command name "blah"} -b}
+
+test defer-1.7 {error in defer - break} {
+	set x -
+	proc a {} {
+		# First defer script will not happen
+		defer {append ::x a}
+		# This non-zero return code will take precedence over the proc return
+		defer {return -code 30 ret30}
+		# Last defer script will happen
+		defer {append ::x b}
+
+		return -code 20 ret20
+	}
+	set rc [catch {a} msg]
+	list [info ret $rc] $msg $x
+} {30 ret30 -b}
+
+test defer-1.8 {error in defer - tailcall} {
+	set x -
+	proc a {} {
+		# This will prevent tailcall from happening
+		defer {blah}
+
+		# Tailcall will not happen because of error in defer
+		tailcall append ::x a
+	}
+	set rc [catch {a} msg]
+	list [info ret $rc] $msg $x
+} {error {invalid command name "blah"} -}
+
+test defer-1.9 {Add to defer in defer body} {
+	set x -
+	proc a {} {
+		defer {
+			# Add to defer in defer
+			defer {
+				# This will do nothing
+				error here
+			}
+		}
+		defer {append ::x a}
+	}
+	a
+	set x
+} {-a}
+
+test defer-1.10 {Unset defer in defer body} {
+	set x -
+	proc a {} {
+		defer {
+			# This will do nothing
+			unset -nocomplain jim::defer
+		}
+		defer {append ::x a}
+	}
+	a
+	set x
+} {-a}
+
+test defer-1.11 {defer through tailcall} {
+	set x {}
+	proc a {} {
+		defer {append ::x a}
+		b
+	}
+	proc b {} {
+		defer {append ::x b}
+		# c will be invoked as through called from a but this
+		# won't make any difference for defer
+		tailcall c
+	}
+	proc c {} {
+		defer {append ::x c}
+	}
+	a
+	set x
+} {bca}
+
+test defer-1.12 {defer in recursive call} {
+	set x {}
+	proc a {n} {
+		# defer happens just before the return, so after the recursive call to a
+		defer {lappend ::x $n}
+		if {$n > 0} {
+			a $($n - 1)
+		}
+	}
+	a 3
+	set x
+} {0 1 2 3}
+
+test defer-1.13 {defer in recursive tailcall} {
+	set x {}
+	proc a {n} {
+		# defer happens just before the return, so before the tailcall to a
+		defer {lappend ::x $n}
+		if {$n > 0} {
+			tailcall a $($n - 1)
+		}
+	}
+	a 3
+	set x
+} {3 2 1 0}
+
+test defer-1.14 {defer capture variables} {
+	set x {}
+	proc a {} {
+		set y 1
+		# A normal defer will evaluate at the end of the proc, so $y may change
+		defer {lappend ::x $y}
+		incr y
+
+		# What if we want to capture the value of y here? list will work
+		defer [list lappend ::x $y]
+		incr y
+
+		# But with multiple statements, list doesn't work, so use a lambda 
+		# to capture the value instead
+		defer [lambda {} {y} {
+			# multi-line script
+			lappend ::x $y
+		}]
+		incr y
+
+		return $y
+	}
+	list [a] $x
+} {4 {3 2 4}}
+
+test defer-2.1 {defer from interp} -body {
+	set i [interp]
+	# defer needs to have some effect to detect on exit,
+	# so write to a file
+	file delete defer.tmp
+	$i eval {
+		defer {
+			[open defer.tmp w] puts "leaving child"
+		}
+	}
+	set a [file exists defer.tmp]
+	$i delete
+	# Now the file should exist
+	set f [open defer.tmp]
+	$f gets b
+	$f close
+	list $a $b
+} -result {0 {leaving child}} -cleanup {
+	file delete defer.tmp
+}
+
+testreport
