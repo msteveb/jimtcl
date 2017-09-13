@@ -212,9 +212,9 @@ install-docs:
 	$(INSTALL_DATA) Tcl_shipped.html $(DESTDIR)$(docdir)/Tcl.html
 @endif
 
-Tcl.html: jim_tcl.txt
+Tcl.html: jim_tcl.txt @srcdir@/make-index
 @if HAVE_ASCIIDOC
-	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ -o $@ -d manpage -
+	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ -d manpage - | @GREP@ -v '^Last updated ' >$@
 @else
 	@echo "asciidoc is not available"; false
 @endif
