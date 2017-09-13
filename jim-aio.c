@@ -944,21 +944,106 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
-#if defined(TCP_NODELAY) && !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
-static int aio_cmd_tcp_nodelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+#define SOCKOPT_BOOL 0
+#define SOCKOPT_INT 1
+#define SOCKOPT_TIMEVAL 2   /* not currently supported */
+
+static const struct sockopt_def {
+    const char *name;
+    int level;
+    int opt;
+    int type;   /* SOCKOPT_xxx */
+} sockopts[] = {
+#ifdef SOL_SOCKET
+#ifdef SO_BROADCAST
+    { "broadcast", SOL_SOCKET, SO_BROADCAST },
+#endif
+#ifdef SO_DEBUG
+    { "debug", SOL_SOCKET, SO_DEBUG },
+#endif
+#ifdef SO_KEEPALIVE
+    { "keepalive", SOL_SOCKET, SO_KEEPALIVE },
+#endif
+#ifdef SO_NOSIGPIPE
+    { "nosigpipe", SOL_SOCKET, SO_NOSIGPIPE },
+#endif
+#ifdef SO_OOBINLINE
+    { "oobinline", SOL_SOCKET, SO_OOBINLINE },
+#endif
+#ifdef SO_SNDBUF
+    { "sndbuf", SOL_SOCKET, SO_SNDBUF, SOCKOPT_INT },
+#endif
+#ifdef SO_RCVBUF
+    { "rcvbuf", SOL_SOCKET, SO_RCVBUF, SOCKOPT_INT },
+#endif
+#if 0 && defined(SO_SNDTIMEO)
+    { "sndtimeo", SOL_SOCKET, SO_SNDTIMEO, SOCKOPT_TIMEVAL },
+#endif
+#if 0 && defined(SO_RCVTIMEO)
+    { "rcvtimeo", SOL_SOCKET, SO_RCVTIMEO, SOCKOPT_TIMEVAL },
+#endif
+#endif
+#ifdef IPPROTO_TCP
+#ifdef TCP_NODELAY
+    { "tcp_nodelay", IPPROTO_TCP, TCP_NODELAY },
+#endif
+#endif
+};
+
+static int aio_cmd_sockopt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    int on;
+    int i;
 
-    if (Jim_GetBoolean(interp, argv[0], &on) != JIM_OK) {
-        return JIM_ERR;
+    if (argc == 0) {
+        Jim_Obj *dictObjPtr = Jim_NewListObj(interp, NULL, 0);
+        for (i = 0; i < sizeof(sockopts) / sizeof(*sockopts); i++) {
+            int value = 0;
+            socklen_t len = sizeof(value);
+            if (getsockopt(af->fd, sockopts[i].level, sockopts[i].opt, (void *)&value, &len) == 0) {
+                if (sockopts[i].type == SOCKOPT_BOOL) {
+                    value = !!value;
+                }
+                Jim_ListAppendElement(interp, dictObjPtr, Jim_NewStringObj(interp, sockopts[i].name, -1));
+                Jim_ListAppendElement(interp, dictObjPtr, Jim_NewIntObj(interp, value));
+            }
+        }
+        Jim_SetResult(interp, dictObjPtr);
+        return JIM_OK;
     }
-    setsockopt(af->fd, IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on));
+    if (argc == 1) {
+        return -1;
+    }
 
-    return JIM_OK;
+    /* Set an option */
+    for (i = 0; i < sizeof(sockopts) / sizeof(*sockopts); i++) {
+        if (strcmp(Jim_String(argv[0]), sockopts[i].name) == 0) {
+            int on;
+            if (sockopts[i].type == SOCKOPT_BOOL) {
+                if (Jim_GetBoolean(interp, argv[1], &on) != JIM_OK) {
+                    return JIM_ERR;
+                }
+            }
+            else {
+                long longval;
+                if (Jim_GetLong(interp, argv[1], &longval) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                on = longval;
+            }
+            if (setsockopt(af->fd, sockopts[i].level, sockopts[i].opt, (void *)&on, sizeof(on)) < 0) {
+                Jim_SetResultFormatted(interp, "Failed to set %#s: %s", argv[0], strerror(errno));
+                return JIM_ERR;
+            }
+            return JIM_OK;
+        }
+    }
+    /* Not found */
+    Jim_SetResultFormatted(interp, "Unknown sockopt %#s", argv[0]);
+    return JIM_ERR;
 }
 #endif
-
 
 #ifdef HAVE_FSYNC
 static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1392,13 +1477,13 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Set O_NDELAY (if arg). Returns current/new setting. */
     },
 #endif
-#if defined(TCP_NODELAY) && !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
-    {   "tcp_nodelay",
-        "boolean",
-        aio_cmd_tcp_nodelay,
-        1,
-        1,
-        /* Description: Set TCP_NODELAY (Nagle's algorithm) */
+#if !defined(JIM_ANSIC) && !defined(JIM_BOOTSTRAP)
+    {   "sockopt",
+        "?opt 0|1?",
+        aio_cmd_sockopt,
+        0,
+        2,
+        /* Description: Return a dictionary of sockopts, or set the value of a sockopt */
     },
 #endif
 #ifdef HAVE_FSYNC
