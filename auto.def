@@ -158,7 +158,7 @@ cc-check-tools ar ranlib strip
 define tclsh [info nameofexecutable]
 
 if {[opt-bool docs]} {
-    if {[cc-check-progs asciidoc grep]} {
+    if {[cc-check-progs asciidoc sed]} {
         define INSTALL_DOCS docs
         define HAVE_ASCIIDOC
     } else {
