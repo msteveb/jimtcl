@@ -212,9 +212,12 @@ install-docs:
 	$(INSTALL_DATA) Tcl_shipped.html $(DESTDIR)$(docdir)/Tcl.html
 @endif
 
-Tcl.html: jim_tcl.txt
+Tcl.man.asciidoc: jim_tcl.txt
+	@tclsh@ @srcdir@/make-index $< > $@ && touch -r $< $@
+
+Tcl.html: Tcl.man.asciidoc
 @if HAVE_ASCIIDOC
-	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ -o $@ -d manpage -
+	@ASCIIDOC@ -o $@ -d manpage $<
 @else
 	@echo "asciidoc is not available"; false
 @endif
