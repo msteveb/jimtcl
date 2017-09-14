@@ -119,7 +119,7 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     retval = Jim_EvalObj(interp, scriptObjPtr);
     interp->framePtr = savedFramePtr;
     /* Try to report the error (if any) via the bgerror proc */
-    if (retval != JIM_OK && !eventLoop->suppress_bgerror) {
+    if (retval != JIM_OK && retval != JIM_RETURN && !eventLoop->suppress_bgerror) {
         Jim_Obj *objv[2];
         int rc = JIM_ERR;
 
@@ -433,7 +433,8 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
                     mask |= JIM_EVENT_EXCEPTION;
 
                 if (mask) {
-                    if (fe->fileProc(interp, fe->clientData, mask) != JIM_OK) {
+                    int ret = fe->fileProc(interp, fe->clientData, mask);
+                    if (ret != JIM_OK && ret != JIM_RETURN) {
                         /* Remove the element on handler error */
                         Jim_DeleteFileHandler(interp, fd, mask);
                         /* At this point fe is no longer valid - it will be assigned below */
