@@ -58,6 +58,8 @@ Changes between 0.77 and 0.78
 2. Add support for 'jimsh -'
 3. Add hidden '-commands' option to many commands
 4. Add scriptable autocompletion support in interactive mode with `tcl::autocomplete`
+5. Add `aio sockopt`
+6. Add scriptable autocompletion support with `history completion`
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4551,9 +4553,6 @@ aio
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
 
-+$handle *tcp_nodelay* boolean+::
-    Enable or disable TCP_NODELAY (Nagle's) algorithm.
-
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
 
@@ -4574,6 +4573,13 @@ aio
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
+
++$handle *sockopt* '?name value?'+::
+    With no arguments, returns a dictionary of socket options currently set for the handle
+	(will be empty for a non-socket). With +'name'+ and +'value'+, sets the socket option
+	to the given value. Currently supports the following boolean socket options:
+	+broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay+, and the following
+	integer socket options: +sndbuf, rcvbuf+
 
 +$handle *sync*+::
     Flush the stream, then fsync(2) to commit any changes to storage.
@@ -5009,6 +5015,10 @@ the remaining subcommands do nothing.
     Displays the given prompt and allows a line to be entered. Similarly to `gets`,
     if +'varname'+ is given, it receives the line and the length of the line is returned,
     or -1 on EOF. If +'varname'+ is not given, the line is returned directly.
+
++*history completion* 'command'+::
+    Sets an autocompletion command (see `tcl::autocomplete`) that is active during `history getline`.
+	If the command is empty, autocompletion is disabled.
 
 +*history add* 'line'+::
     Adds the given line to the history buffer.
