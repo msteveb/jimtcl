@@ -8,6 +8,8 @@ package require history
 
 set histfile [env HOME]/.jtclsh
 history load $histfile
+# Use the standard Tcl autocompletion
+history completion tcl::autocomplete
 set prefix ""
 while {1} {
 	# Read a complete line (script)

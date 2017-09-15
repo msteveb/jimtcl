@@ -880,7 +880,8 @@ JIM_EXPORT void Jim_MakeErrorMessage (Jim_Interp *interp);
 JIM_EXPORT int Jim_InteractivePrompt (Jim_Interp *interp);
 JIM_EXPORT void Jim_HistoryLoad(const char *filename);
 JIM_EXPORT void Jim_HistorySave(const char *filename);
-JIM_EXPORT char *Jim_HistoryGetline(const char *prompt);
+JIM_EXPORT char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt);
+JIM_EXPORT void Jim_HistorySetCompletion(Jim_Interp *interp, Jim_Obj *commandObj);
 JIM_EXPORT void Jim_HistoryAdd(const char *line);
 JIM_EXPORT void Jim_HistoryShow(void);
 

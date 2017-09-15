@@ -9,7 +9,7 @@
 static int history_cmd_getline(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
-    char *line = Jim_HistoryGetline(Jim_String(argv[0]));
+    char *line = Jim_HistoryGetline(interp, Jim_String(argv[0]));
 
     /* On EOF returns -1 if varName was specified; otherwise the empty string. */
     if (line == NULL) {
@@ -32,6 +32,12 @@ static int history_cmd_getline(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     else {
         Jim_SetResult(interp, objPtr);
     }
+    return JIM_OK;
+}
+
+static int history_cmd_setcompletion(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_HistorySetCompletion(interp, Jim_Length(argv[0]) ? argv[0] : NULL);
     return JIM_OK;
 }
 
@@ -66,6 +72,13 @@ static const jim_subcmd_type history_command_table[] = {
         1,
         2,
         /* Description: Reads one line from the user. Similar to gets. */
+    },
+    {   "completion",
+        "command",
+        history_cmd_setcompletion,
+        1,
+        1,
+        /* Description: Sets an autocompletion callback command, or none if "" */
     },
     {   "load",
         "filename",
