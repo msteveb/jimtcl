@@ -12089,15 +12089,13 @@ int Jim_CommandMatchObj(Jim_Interp *interp, Jim_Obj *commandObj, Jim_Obj *patter
     return eq;
 }
 
-enum
-{ SWITCH_EXACT, SWITCH_GLOB, SWITCH_RE, SWITCH_CMD };
-
 /* [switch] */
 static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    enum { SWITCH_EXACT, SWITCH_GLOB, SWITCH_RE, SWITCH_CMD };
     int matchOpt = SWITCH_EXACT, opt = 1, patCount, i;
-    Jim_Obj *command = 0, *const *caseList = 0, *strObj;
-    Jim_Obj *script = 0;
+    Jim_Obj *command = NULL, *scriptObj = NULL, *strObj;
+    Jim_Obj **caseList;
 
     if (argc < 3) {
       wrongnumargs:
@@ -12138,16 +12136,13 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     strObj = argv[opt++];
     patCount = argc - opt;
     if (patCount == 1) {
-        Jim_Obj **vector;
-
-        JimListGetElements(interp, argv[opt], &patCount, &vector);
-        caseList = vector;
+        JimListGetElements(interp, argv[opt], &patCount, &caseList);
     }
     else
-        caseList = &argv[opt];
+        caseList = (Jim_Obj **)&argv[opt];
     if (patCount == 0 || patCount % 2 != 0)
         goto wrongnumargs;
-    for (i = 0; script == 0 && i < patCount; i += 2) {
+    for (i = 0; scriptObj == NULL && i < patCount; i += 2) {
         Jim_Obj *patObj = caseList[i];
 
         if (!Jim_CompareStringImmediate(interp, patObj, "default")
@@ -12155,11 +12150,11 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             switch (matchOpt) {
                 case SWITCH_EXACT:
                     if (Jim_StringEqObj(strObj, patObj))
-                        script = caseList[i + 1];
+                        scriptObj = caseList[i + 1];
                     break;
                 case SWITCH_GLOB:
                     if (Jim_StringMatchObj(interp, patObj, strObj, 0))
-                        script = caseList[i + 1];
+                        scriptObj = caseList[i + 1];
                     break;
                 case SWITCH_RE:
                     command = Jim_NewStringObj(interp, "regexp", -1);
@@ -12171,34 +12166,31 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                          * make sure to reconvert the object into a list
                          * again. Only for the single-list style [switch]. */
                         if (argc - opt == 1) {
-                            Jim_Obj **vector;
-
-                            JimListGetElements(interp, argv[opt], &patCount, &vector);
-                            caseList = vector;
+                            JimListGetElements(interp, argv[opt], &patCount, &caseList);
                         }
                         /* command is here already decref'd */
                         if (rc < 0) {
                             return -rc;
                         }
                         if (rc)
-                            script = caseList[i + 1];
+                            scriptObj = caseList[i + 1];
                         break;
                     }
             }
         }
         else {
-            script = caseList[i + 1];
+            scriptObj = caseList[i + 1];
         }
     }
-    for (; i < patCount && Jim_CompareStringImmediate(interp, script, "-"); i += 2)
-        script = caseList[i + 1];
-    if (script && Jim_CompareStringImmediate(interp, script, "-")) {
+    for (; i < patCount && Jim_CompareStringImmediate(interp, scriptObj, "-"); i += 2)
+        scriptObj = caseList[i + 1];
+    if (scriptObj && Jim_CompareStringImmediate(interp, scriptObj, "-")) {
         Jim_SetResultFormatted(interp, "no body specified for pattern \"%#s\"", caseList[i - 2]);
         return JIM_ERR;
     }
     Jim_SetEmptyResult(interp);
-    if (script) {
-        return Jim_EvalObj(interp, script);
+    if (scriptObj) {
+        return Jim_EvalObj(interp, scriptObj);
     }
     return JIM_OK;
 }
