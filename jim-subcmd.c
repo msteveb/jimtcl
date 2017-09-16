@@ -41,18 +41,14 @@ static void add_commands(Jim_Interp *interp, const jim_subcmd_type * ct, const c
 static void bad_subcmd(Jim_Interp *interp, const jim_subcmd_type * command_table, const char *type,
     Jim_Obj *cmd, Jim_Obj *subcmd)
 {
-    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    Jim_AppendStrings(interp, Jim_GetResult(interp), Jim_String(cmd), ", ", type,
-        " command \"", Jim_String(subcmd), "\": should be ", NULL);
+    Jim_SetResultFormatted(interp, "%#s, %s command \"%#s\": should be ", cmd, type, subcmd);
     add_commands(interp, command_table, ", ");
 }
 
 static void show_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * command_table, int argc,
     Jim_Obj *const *argv)
 {
-    Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-    Jim_AppendStrings(interp, Jim_GetResult(interp), "Usage: \"", Jim_String(argv[0]),
-        " command ... \", where command is one of: ", NULL);
+    Jim_SetResultFormatted(interp, "Usage: \"%#s command ... \", where command is one of: ", argv[0]);
     add_commands(interp, command_table, ", ");
 }
 
@@ -82,16 +78,11 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
     int cmdlen;
     Jim_Obj *cmd;
     const char *cmdstr;
-    const char *cmdname;
     int help = 0;
 
-    cmdname = Jim_String(argv[0]);
-
     if (argc < 2) {
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "wrong # args: should be \"", cmdname,
-            " command ...\"\n", NULL);
-        Jim_AppendStrings(interp, Jim_GetResult(interp), "Use \"", cmdname, " -help ?command?\" for help", NULL);
+        Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s command ...\"\n"
+            "Use \"%#s -help ?command?\" for help", argv[0], argv[0]);
         return 0;
     }
 
