@@ -53,7 +53,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
             const char **table;
             Jim_Obj *tableObj;
             Jim_Obj *errorObj = NULL;
-            Jim_Obj *messageObj = NULL;
+            const char *message = "option";
             static const char * const matchoptions[] = { "-error", "-exact", "-message", NULL };
             enum { OPT_MATCH_ERROR, OPT_MATCH_EXACT, OPT_MATCH_MESSAGE };
             int flags = JIM_ERRMSG | JIM_ENUM_ABBREV;
@@ -91,7 +91,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
                             Jim_SetResultString(interp, "missing message", -1);
                             return JIM_ERR;
                         }
-                        messageObj = argv[i];
+                        message = Jim_String(argv[i]);
                         break;
                 }
             }
@@ -104,7 +104,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
             }
             table[i] = NULL;
 
-            ret = Jim_GetEnum(interp, stringObj, table, &i, messageObj ? Jim_String(messageObj) : NULL, flags);
+            ret = Jim_GetEnum(interp, stringObj, table, &i, message, flags);
             Jim_Free(table);
             if (ret == JIM_OK) {
                 Jim_ListIndex(interp, tableObj, i, &objPtr, JIM_NONE);
@@ -112,7 +112,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
                 return JIM_OK;
             }
             if (tablesize == 0) {
-                Jim_SetResultFormatted(interp, "bad option \"%#s\": no valid options", stringObj);
+                Jim_SetResultFormatted(interp, "bad %s \"%#s\": no valid options", message, stringObj);
                 return JIM_ERR;
             }
             if (errorObj) {
