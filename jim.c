@@ -5034,10 +5034,17 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
  */
 static int JimInvokeDefer(Jim_Interp *interp, int retcode)
 {
-    Jim_Obj *objPtr = Jim_GetVariableStr(interp, "jim::defer", JIM_NONE);
-    int ret = JIM_OK;
+    Jim_Obj *objPtr;
+
+    /* Fast check for the likely case that the variable doesn't exist */
+    if (Jim_FindHashEntry(&interp->framePtr->vars, "jim::defer") == NULL) {
+        return retcode;
+    }
+
+    objPtr = Jim_GetVariableStr(interp, "jim::defer", JIM_NONE);
 
     if (objPtr) {
+        int ret = JIM_OK;
         int i;
         int listLen = Jim_ListLength(interp, objPtr);
         Jim_Obj *resultObjPtr;
