@@ -70,6 +70,18 @@ static void set_wrong_args(Jim_Interp *interp, const jim_subcmd_type * command_t
     Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
 }
 
+/* internal rep is stored in ptrIntvalue
+ *  ptr = command_table
+ *  int1 = index
+ */
+static const Jim_ObjType subcmdLookupObjType = {
+    "subcmd-lookup",
+    NULL,
+    NULL,
+    NULL,
+    JIM_TYPE_REFERENCES
+};
+
 const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type * command_table,
     int argc, Jim_Obj *const *argv)
 {
@@ -87,6 +99,14 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
     }
 
     cmd = argv[1];
+
+    /* Use cached lookup if possible */
+    if (cmd->typePtr == &subcmdLookupObjType) {
+        if (cmd->internalRep.ptrIntValue.ptr == command_table) {
+            ct = command_table + cmd->internalRep.ptrIntValue.int1;
+            goto found;
+        }
+    }
 
     /* Check for the help command */
     if (Jim_CompareStringImmediate(interp, cmd, "-help")) {
@@ -155,6 +175,13 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
         return &dummy_subcmd;
     }
 
+    /* Cache the result for a successful non-help lookup */
+    Jim_FreeIntRep(interp, cmd);
+    cmd->typePtr = &subcmdLookupObjType;
+    cmd->internalRep.ptrIntValue.ptr = (void *)command_table;
+    cmd->internalRep.ptrIntValue.int1 = ct - command_table;
+
+found:
     /* Check the number of args */
     if (argc - 2 < ct->minargs || (ct->maxargs >= 0 && argc - 2 > ct->maxargs)) {
         Jim_SetResultString(interp, "wrong # args: should be \"", -1);
