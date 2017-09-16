@@ -293,6 +293,12 @@ typedef struct Jim_Obj {
             void *ptr1;
             void *ptr2;
         } twoPtrValue;
+        /* Generic pointer, int, int value */
+        struct {
+            void *ptr;
+            int int1;
+            int int2;
+        } ptrIntValue;
         /* Variable object */
         struct {
             struct Jim_Var *varPtr;

@@ -15416,6 +15416,19 @@ int Jim_CheckShowCommands(Jim_Interp *interp, Jim_Obj *objPtr, const char *const
     return JIM_ERR;
 }
 
+/* internal rep is stored in ptrIntvalue
+ *  ptr = tablePtr
+ *  int1 = flags
+ *  int2 = index
+ */
+static const Jim_ObjType getEnumObjType = {
+    "get-enum",
+    NULL,
+    NULL,
+    NULL,
+    JIM_TYPE_REFERENCES
+};
+
 int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
     const char *const *tablePtr, int *indexPtr, const char *name, int flags)
 {
@@ -15424,15 +15437,24 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
     int i;
     int match = -1;
     int arglen;
-    const char *arg = Jim_GetString(objPtr, &arglen);
+    const char *arg;
+
+    if (objPtr->typePtr == &getEnumObjType) {
+        if (objPtr->internalRep.ptrIntValue.ptr == tablePtr && objPtr->internalRep.ptrIntValue.int1 == flags) {
+            *indexPtr = objPtr->internalRep.ptrIntValue.int2;
+            return JIM_OK;
+        }
+    }
+
+    arg = Jim_GetString(objPtr, &arglen);
 
     *indexPtr = -1;
 
     for (entryPtr = tablePtr, i = 0; *entryPtr != NULL; entryPtr++, i++) {
         if (Jim_CompareStringImmediate(interp, objPtr, *entryPtr)) {
             /* Found an exact match */
-            *indexPtr = i;
-            return JIM_OK;
+            match = i;
+            goto found;
         }
         if (flags & JIM_ENUM_ABBREV) {
             /* Accept an unambiguous abbreviation.
@@ -15453,6 +15475,14 @@ int Jim_GetEnum(Jim_Interp *interp, Jim_Obj *objPtr,
 
     /* If we had an unambiguous partial match */
     if (match >= 0) {
+  found:
+        /* Record the match in the object */
+        Jim_FreeIntRep(interp, objPtr);
+        objPtr->typePtr = &getEnumObjType;
+        objPtr->internalRep.ptrIntValue.ptr = (void *)tablePtr;
+        objPtr->internalRep.ptrIntValue.int1 = flags;
+        objPtr->internalRep.ptrIntValue.int2 = match;
+        /* Return the result */
         *indexPtr = match;
         return JIM_OK;
     }
