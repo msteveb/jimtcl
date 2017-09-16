@@ -337,11 +337,6 @@ typedef struct Jim_Obj {
             struct Jim_Obj *varNameObjPtr;
             struct Jim_Obj *indexObjPtr;
         } dictSubstValue;
-        /* Regular expression pattern */
-        struct {
-            void *compre;       /* really an allocated (regex_t *) */
-            unsigned flags;
-        } regexpValue;
         struct {
             int line;
             int argc;

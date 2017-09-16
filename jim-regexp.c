@@ -58,10 +58,14 @@
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    regfree(objPtr->internalRep.regexpValue.compre);
-    Jim_Free(objPtr->internalRep.regexpValue.compre);
+    regfree(objPtr->internalRep.ptrIntValue.ptr);
+    Jim_Free(objPtr->internalRep.ptrIntValue.ptr);
 }
 
+/* internal rep is stored in ptrIntvalue
+ *  ptr = compiled regex
+ *  int1 = flags
+ */
 static const Jim_ObjType regexpObjType = {
     "regexp",
     FreeRegexpInternalRep,
@@ -78,9 +82,9 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
 
     /* Check if the object is already an uptodate variable */
     if (objPtr->typePtr == &regexpObjType &&
-        objPtr->internalRep.regexpValue.compre && objPtr->internalRep.regexpValue.flags == flags) {
+        objPtr->internalRep.ptrIntValue.ptr && objPtr->internalRep.ptrIntValue.int1 == flags) {
         /* nothing to do */
-        return objPtr->internalRep.regexpValue.compre;
+        return objPtr->internalRep.ptrIntValue.ptr;
     }
 
     /* Not a regexp or the flags do not match */
@@ -102,8 +106,8 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
     Jim_FreeIntRep(interp, objPtr);
 
     objPtr->typePtr = &regexpObjType;
-    objPtr->internalRep.regexpValue.flags = flags;
-    objPtr->internalRep.regexpValue.compre = compre;
+    objPtr->internalRep.ptrIntValue.int1 = flags;
+    objPtr->internalRep.ptrIntValue.ptr = compre;
 
     return compre;
 }
