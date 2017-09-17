@@ -326,7 +326,7 @@ dict set extdb attrs {
     stdlib    { tcl static }
     syslog    {}
     tclcompat { tcl static }
-    tclprefix {}
+    tclprefix { optional }
     tree      { tcl }
     win32     { optional }
 }
