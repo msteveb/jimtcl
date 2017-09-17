@@ -21,7 +21,7 @@ options {
     docs=1          => "don't build or install the documentation"
     docdir:path     => "path to install docs (if built)"
     random-hash	    => "randomise hash tables. more secure but hash table results are not predicable"
-    with-jim-ext: {with-ext:"ext1 ext2 ..."} => {
+    with-jim-ext: {with-ext:"ext1,ext2,..."} => {
         Specify additional jim extensions to include.
         These are enabled by default:
 
@@ -61,11 +61,11 @@ options {
         sqlite3   - Interface to sqlite3
         win32     - Interface to win32
     }
-    with-out-jim-ext: {without-ext:"default|ext1 ext2 ..."} => {
+    with-out-jim-ext: {without-ext:"default|ext1,ext2,..."} => {
         Specify jim extensions to exclude.
         If 'default' is given, the default extensions will not be added.
     }
-    with-jim-extmod: {with-mod:"ext1 ext2 ..."} => {
+    with-jim-extmod: {with-mod:"ext1,ext2,..."} => {
         Specify jim extensions to build as separate modules (either C or Tcl).
         Note that not all extensions can be built as loadable modules.
     }
@@ -379,11 +379,22 @@ proc check-metakit {} {
     return $found
 }
 
+# Takes a list of module names, separated by spaces or commas
+# and returns them as a single list
+proc join-ext-names {list} {
+    set result {}
+    # Replace comma with space in each list then concatenate the result
+    foreach l $list {
+        lappend result {*}[string map {, " "} $l]
+    }
+    return $result
+}
+
 # Set up the withinfo array based on what the user selected
 global withinfo
-set withinfo(without) [join [opt-val {without-ext with-out-jim-ext}]]
-set withinfo(ext) [join [opt-val {with-ext with-jim-ext}]]
-set withinfo(mod) [join [opt-val {with-mod with-jim-extmod}]]
+set withinfo(without) [join-ext-names [opt-val {without-ext with-out-jim-ext}]]
+set withinfo(ext) [join-ext-names [opt-val {with-ext with-jim-ext}]]
+set withinfo(mod) [join-ext-names [opt-val {with-mod with-jim-extmod}]]
 set withinfo(nodefault) 0
 set withinfo(optional) [opt-bool full]
 if {$withinfo(without) eq "default"} {
