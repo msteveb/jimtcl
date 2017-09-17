@@ -44,6 +44,12 @@ proc needs {type what {packages {}}} {
 		}
 		skiptest " (command $what)"
 	}
+	if {$type eq "package"} {
+		if {[catch {package require $what}]} {
+			skiptest " (package $what)"
+		}
+		return
+	}
 	error "Unknown needs type: $type"
 }
 
