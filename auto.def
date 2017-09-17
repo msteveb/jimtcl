@@ -44,17 +44,21 @@ options {
         tclcompat - Tcl compatible read, gets, puts, parray, case, ...
         namespace - Tcl compatible namespace support
 
-        These are disabled by default:
+        These are disabled by default, but enabled by --full:
 
         oo        - Jim OO extension
         tree      - OO tree structure, similar to tcllib ::struct::tree
         binary    - Tcl-compatible 'binary' command
+        tclprefix - Support for the tcl::prefix command
+        ensemble  - Support for the ensemble command
+        zlib      - Interface to zlib
+
+        These are disabled unless explicitly enabled:
+
         readline  - Interface to libreadline
         rlprompt  - Tcl wrapper around the readline extension
         mk        - Interface to Metakit
-        tclprefix - Support for the tcl::prefix command
         sqlite3   - Interface to sqlite3
-        zlib      - Interface to zlib
         win32     - Interface to win32
     }
     with-out-jim-ext: {without-ext:"default|ext1 ext2 ..."} => {
@@ -293,13 +297,14 @@ if {[opt-val docdir] ne ""} {
 # Attributes of the extensions
 # tcl=Pure Tcl extension
 # static=Can't be built as a module
-# optional=Not selected by default
+# off=Off unless explicitly enabled
+# optional=Off by default, but selected by --full
 # cpp=Is a C++ extension
 global extdb
 dict set extdb attrs {
     aio       { static }
     array     {}
-    binary    { tcl }
+    binary    { tcl optional }
     clock     {}
     eventloop { static }
     exec      { static }
@@ -308,7 +313,7 @@ dict set extdb attrs {
     history   {}
     interp    { }
     load      { static }
-    mk        { cpp optional }
+    mk        { cpp off }
     namespace { static }
     nshelper  { tcl optional }
     oo        { tcl }
@@ -316,19 +321,19 @@ dict set extdb attrs {
     package   { static }
     posix     {}
     readdir   {}
-    readline  { optional }
+    readline  { off }
     regexp    {}
-    rlprompt  { tcl optional }
-    sdl       { optional }
+    rlprompt  { tcl off }
+    sdl       { off }
     signal    { static }
-    sqlite3   { optional }
+    sqlite3   { off }
     zlib      { optional }
     stdlib    { tcl static }
     syslog    {}
     tclcompat { tcl static }
     tclprefix { optional }
     tree      { tcl }
-    win32     { optional }
+    win32     { off }
 }
 
 # Additional information about certain extensions
@@ -380,6 +385,7 @@ set withinfo(without) [join [opt-val {without-ext with-out-jim-ext}]]
 set withinfo(ext) [join [opt-val {with-ext with-jim-ext}]]
 set withinfo(mod) [join [opt-val {with-mod with-jim-extmod}]]
 set withinfo(nodefault) 0
+set withinfo(optional) [opt-bool full]
 if {$withinfo(without) eq "default"} {
     set withinfo(without) {}
     set withinfo(nodefault) 1

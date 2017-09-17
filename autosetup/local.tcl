@@ -180,15 +180,20 @@ proc check-extensions {} {
     set withinfo(maybe) {}
 
     # Now work out the default status. We have.
-    # normal case, include !optional if possible
-    # --without=default, don't include optional
+    # normal case, include !off, !optional if possible
+    # --full, include !off if possible
+    # --without=default, don't include optional or off
     if {$withinfo(nodefault)} {
         lappend withinfo(maybe) stdlib
     } else {
         foreach i $extlist {
-            if {![ext-has $i optional]} {
-                lappend withinfo(maybe) $i
+            if {[ext-has $i off]} {
+                continue
             }
+            if {[ext-has $i optional] && !$withinfo(optional)} {
+                continue
+            }
+            lappend withinfo(maybe) $i
         }
     }
 
