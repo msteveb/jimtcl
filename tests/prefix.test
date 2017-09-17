@@ -14,7 +14,7 @@
 
 source [file dirname [info script]]/testing.tcl
 
-needs cmd tcl::prefix prefix
+needs cmd tcl::prefix tclprefix
 testConstraint namespace [expr {[info commands namespace] ne ""}]
 
 test string-26.1 {tcl::prefix, too few args} -body {
