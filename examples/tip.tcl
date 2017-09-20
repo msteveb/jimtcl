@@ -106,25 +106,57 @@ stdout tty output raw
 stdout buffering none
 
 set status ""
+set tilde 0
+set tosend {}
+
+# To avoid sending too much data and blocking,
+# this sends str in chunks of 1000 bytes via writable
+proc output-on-writable {fh str} {
+	# Add it to the buffer to send
+	append ::tosend($fh) $str
+
+	if {[string length [$fh writable]] == 0} {
+		# Start the writable event handler
+		$fh writable [list output-is-writable $fh]
+	}
+}
+
+# This is the writable callback
+proc output-is-writable {fh} {
+	global tosend
+	set buf $tosend($fh)
+	if {[string bytelength $buf] >= 1000} {
+		set tosend($fh) [string byterange $buf 1000 end]
+		set buf [string byterange $buf 0 999]
+	} else {
+		set tosend($fh) {}
+		# All sent, so cancel the writable event handler
+		$fh writable {}
+	}
+	$fh puts -nonewline $buf
+}
+
+proc bgerror {args} {
+	set status $args
+	incr ::done
+}
 
 # I/O loop
-
-set tilde 0
 
 $f readable {
 	set c [$f read]
 	if {[$f eof]} {
 		set status "$device: disconnected"
 		incr done
-	} else {
-		stdout puts -nonewline $c
+		break
 	}
+	output-on-writable stdout $c
 }
 
 proc tilde_timeout {} {
 	global tilde f
 	if {$tilde} {
-		$f puts -nonewline ~
+		output-on-writable $f ~
 		set tilde 0
 	}
 }
@@ -145,9 +177,9 @@ stdin readable {
 				incr done
 				return
 			}
-			$f puts -nonewline ~
+			output-on-writable $f ~
 		}
-		$f puts -nonewline $c
+		output-on-writable $f $c
 	}
 }
 
