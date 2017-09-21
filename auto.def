@@ -50,7 +50,6 @@ options {
         tree      - OO tree structure, similar to tcllib ::struct::tree
         binary    - Tcl-compatible 'binary' command
         tclprefix - Support for the tcl::prefix command
-        ensemble  - Support for the ensemble command
         zlib      - Interface to zlib
 
         These are disabled unless explicitly enabled:
