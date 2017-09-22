@@ -114,7 +114,7 @@ cc-check-functions geteuid mkstemp realpath isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 cc-check-functions shutdown socketpair isinf isnan link symlink fsync dup umask
-cc-check-functions localtime gmtime strptime timegm
+cc-check-functions localtime gmtime strptime timegm clock_gettime
 
 if {[cc-check-function-in-lib backtrace execinfo]} {
     define-append LDLIBS [get-define lib_backtrace]
