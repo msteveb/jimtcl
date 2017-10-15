@@ -10132,6 +10132,7 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
     Jim_Cmd *cmdPtr;
+    void *prevPrivData;
 
 #if 0
     printf("invoke");
@@ -10161,6 +10162,7 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         goto out;
     }
     interp->evalDepth++;
+    prevPrivData = interp->cmdPrivData;
 
     /* Call it -- Make sure result is an empty object. */
     Jim_SetEmptyResult(interp);
@@ -10171,6 +10173,7 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
         interp->cmdPrivData = cmdPtr->u.native.privData;
         retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
     }
+    interp->cmdPrivData = prevPrivData;
     interp->evalDepth--;
 
 out:
