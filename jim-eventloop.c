@@ -219,8 +219,6 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide us,
     jim_wide id = ++eventLoop->timeEventNextId;
     Jim_TimeEvent *te, *e, *prev;
 
-    printf("Create time handler, us=%lld, now=%lld\n", us, JimGetTimeUsec(eventLoop));
-
     te = Jim_Alloc(sizeof(*te));
     te->id = id;
     te->initialus = us;
