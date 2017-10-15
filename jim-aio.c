@@ -2040,8 +2040,8 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template)
     fd = mkstemp(filenameObj->bytes);
     umask(mask);
     if (fd < 0) {
-        JimAioSetError(interp, filenameObj);
-        Jim_FreeNewObj(interp, filenameObj);
+        Jim_IncrRefCount(filenameObj);
+        Jim_SetResultFormatted(interp, "%#s: %s", filenameObj, strerror(errno));
         return -1;
     }
 
