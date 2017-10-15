@@ -54,8 +54,10 @@
 #if defined(__MINGW32__)
 #include <windows.h>
 #include <winsock.h>
+#ifndef HAVE_USLEEP
 #define usleep(US) Sleep((US) / 1000)
 #define HAVE_USLEEP
+#endif
 #else
 #include <sys/types.h>
 #ifdef HAVE_SYS_SELECT_H
@@ -628,7 +630,7 @@ static void JimAfterTimeEventFinalizer(Jim_Interp *interp, void *clientData)
 static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
-    double ms;
+    double ms = 0;
     jim_wide id;
     Jim_Obj *objPtr, *idObjPtr;
     static const char * const options[] = {
