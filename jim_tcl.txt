@@ -4665,7 +4665,7 @@ aio
 		Timeout for noncanonical read (units of 0.1 seconds)
 
 +$handle *ssl* *?-server cert priv?*+::
-    Initiates a SSL/TLS session and returns a new stream
+    Upgrades the stream to a SSL/TLS session and returns the handle.
 
 +$handle *unlock*+::
     Release a POSIX lock previously acquired by `aio lock`.

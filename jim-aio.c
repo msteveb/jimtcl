@@ -1187,7 +1187,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     AioFile *af = Jim_CmdPrivData(interp);
     SSL *ssl;
     SSL_CTX *ssl_ctx;
-    int fd, server = 0;
+    int server = 0;
 
     if (argc == 5) {
         if (!Jim_CompareStringImmediate(interp, argv[2], "-server")) {
@@ -1200,13 +1200,11 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    fd = fileno(af->fp);
-#if defined(HAVE_DUP)
-    fd = dup(fd);
-    if (fd < 0) {
+    if (af->ssl) {
+        Jim_SetResultFormatted(interp, "%#s: stream is already ssl", argv[0]);
         return JIM_ERR;
     }
-#endif
+
     ssl_ctx = JimAioSslCtx(interp);
     if (ssl_ctx == NULL) {
         return JIM_ERR;
@@ -1214,11 +1212,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     ssl = SSL_new(ssl_ctx);
     if (ssl == NULL) {
-#if defined(HAVE_DUP)
-        close(fd);
-#endif
-        Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
-        return JIM_ERR;
+        goto out;
     }
 
     SSL_set_cipher_list(ssl, "ALL");
@@ -1246,21 +1240,18 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    af = JimMakeChannel(interp, NULL, fd, NULL, "aio.sslstream%ld", af->addr_family, "r+");
-    if (af == NULL) {
-        goto out;
-    }
-
     af->ssl = ssl;
     af->fops = &ssl_fops;
+
+    /* Set the command name as the result */
+    Jim_SetResult(interp, argv[0]);
 
     return JIM_OK;
 
 out:
-#if defined(HAVE_DUP)
-    close(fd);
-#endif
-    SSL_free(ssl);
+    if (ssl) {
+        SSL_free(ssl);
+    }
     Jim_SetResultString(interp, ERR_error_string(ERR_get_error(), NULL), -1);
     return JIM_ERR;
 }
