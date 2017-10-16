@@ -52,12 +52,12 @@ test exec2-3.1 "close pipeline return value" {
 } {1 {child process exited abnormally} CHILDSTATUS 1}
 
 test exec2-3.2 "close pipeline return value" -body {
-	set f [open "|echo abc | grep def | wc" ]
+	set bigstring [string repeat a 10000]
+	set f [open [list |cat << $bigstring]]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
 	list $rc $msg $status $exitcode
 } -match glob -result {1 {child killed*} CHILDKILLED SIGPIPE}
-
 
 test exec2-3.4 "wait for background task" {
 	set pid [exec sleep 0.1 &]
