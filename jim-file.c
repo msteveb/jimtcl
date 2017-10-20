@@ -71,7 +71,7 @@
 # define MAXPATHLEN JIM_PATH_LEN
 # endif
 
-#if defined(__MINGW32__) || defined(_MSC_VER)
+#if defined(__MINGW32__) || defined(__MSYS__) || defined(_MSC_VER)
 #define ISWINDOWS 1
 #else
 #define ISWINDOWS 0
