@@ -308,7 +308,7 @@ struct WaitInfo
     int flags;                  /* Various flag bits;  see below for definitions. */
 };
 
-/* This table is shared by exec and os.wait */
+/* This table is shared by exec and wait */
 struct WaitInfoTable {
     struct WaitInfo *info;      /* Table of outstanding processes */
     int size;                   /* Size of the allocated table */

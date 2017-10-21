@@ -36,7 +36,7 @@ options {
         readdir   - Required for glob
         package   - Package management with the package command
         load      - Load binary extensions at runtime with load or package
-        posix     - Posix APIs including os.fork, os.wait, pid
+        posix     - Posix APIs including os.fork, os.uptime
         regexp    - Tcl-compatible regexp, regsub commands
         signal    - Signal handling
         stdlib    - Built-in commands including lassign, lambda, alias

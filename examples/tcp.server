@@ -5,7 +5,7 @@ set s [socket stream.server 20000]
 
 $s readable {
 	# Clean up children
-	os.wait -nohang 0
+	wait -nohang 0
 	set sock [$s accept addr]
 	puts "Client address: $addr"
 

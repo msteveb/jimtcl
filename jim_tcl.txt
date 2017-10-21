@@ -39,7 +39,7 @@ Some notable differences with Tcl 8.5/8.6 are:
 4. Support for references (`ref`/`getref`/`setref`) and garbage collection
 5. Builtin dictionary type (`dict`) with some limitations compared to Tcl 8.6
 6. `env` command to access environment variables
-7. Operating system features: `os.fork`, `os.wait`, `os.uptime`, `signal`, `alarm`, `sleep`
+7. Operating system features: `os.fork`, `os.uptime`, `wait`, `signal`, `alarm`, `sleep`
 8. Much better error reporting. `info stacktrace` as a replacement for '$errorInfo', '$errorCode'
 9. Support for "static" variables in procedures
 10. Threads and coroutines are not supported
