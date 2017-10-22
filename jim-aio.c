@@ -109,8 +109,6 @@
 #undef HAVE_SOCKETPAIR
 #endif
 
-#define JimCheckStreamError(interp, af) af->fops->error(af)
-
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 union sockaddr_any {
     struct sockaddr sa;
@@ -487,6 +485,15 @@ static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
     else {
         Jim_SetResultString(interp, JimAioErrorString(af), -1);
     }
+}
+
+static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
+{
+	int ret = af->fops->error(af);
+	if (ret) {
+		JimAioSetError(interp, af->filename);
+	}
+	return ret;
 }
 
 static void JimAioDelProc(Jim_Interp *interp, void *privData)
@@ -1267,9 +1274,7 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     ret = af->fops->verify(af);
     if (ret != JIM_OK) {
-        if (JimCheckStreamError(interp, af)) {
-            JimAioSetError(interp, af->filename);
-        } else {
+        if (JimCheckStreamError(interp, af) == JIM_OK) {
             Jim_SetResultString(interp, "failed to verify the connection authenticity", -1);
         }
     }
