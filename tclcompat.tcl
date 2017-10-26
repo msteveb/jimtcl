@@ -1,5 +1,5 @@
 # Loads some Tcl-compatible features.
-# I/O commands, case, lassign, parray, errorInfo, ::tcl_platform, ::env
+# I/O commands, parray, open |..., errorInfo, ::env
 # try, throw, file copy, file delete -force
 #
 # (c) 2008 Steve Bennett <steveb@workware.net.au>
@@ -118,7 +118,7 @@ proc {file copy} {{force {}} source target} {
 }
 
 # 'open "|..." ?mode?" will invoke this wrapper around exec/pipe
-# Note that we return a lambda which also provides the 'pid' command
+# Note that we return a lambda that also provides the 'pid' command
 proc popen {cmd {mode r}} {
 	lassign [pipe] r w
 	try {
@@ -167,7 +167,7 @@ proc popen {cmd {mode r}} {
 	}
 }
 
-# A wrapper around 'pid' which can return the pids for 'popen'
+# A wrapper around 'pid' that can return the pids for 'popen'
 local proc pid {{channelId {}}} {
 	if {$channelId eq ""} {
 		tailcall upcall pid
@@ -186,6 +186,7 @@ local proc pid {{channelId {}}} {
 # Usage: try ?catchopts? script ?onclause ...? ?finallyclause?
 #
 # Where:
+#       catchopts is: options for catch such as -nobreak, -signal
 #        onclause is: on codes {?resultvar? ?optsvar?} script
 #           codes is: a list of return codes (ok, error, etc. or integers), or * for any
 #   finallyclause is: finally script
