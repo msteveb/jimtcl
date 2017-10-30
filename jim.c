@@ -224,7 +224,7 @@ first:
             pattern += utf8_tounicode_case(pattern, &start, nocase);
             if (pattern[0] == '-' && pattern[1]) {
                 /* skip '-' */
-                pattern += utf8_tounicode(pattern, &pchar);
+                pattern++;
                 pattern += utf8_tounicode_case(pattern, &end, nocase);
 
                 /* Handle reversed range too */
@@ -368,9 +368,12 @@ static int JimStringCompareLen(const char *s1, const char *s2, int maxchars, int
     return 0;
 }
 
-/* Search 's1' inside 's2', starting to search from char 'index' of 's2'.
+/* Search for 's1' inside 's2', starting to search from char 'index' of 's2'.
  * The index of the first occurrence of s1 in s2 is returned.
- * If s1 is not found inside s2, -1 is returned. */
+ * If s1 is not found inside s2, -1 is returned.
+ *
+ * Note: Lengths and return value are in bytes, not chars.
+ */
 static int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int idx)
 {
     int i;
@@ -395,7 +398,10 @@ static int JimStringFirst(const char *s1, int l1, const char *s2, int l2, int id
     return -1;
 }
 
-/**
+/* Search for the last occurrence 's1' inside 's2', starting to search from char 'index' of 's2'.
+ * The index of the last occurrence of s1 in s2 is returned.
+ * If s1 is not found inside s2, -1 is returned.
+ *
  * Note: Lengths and return value are in bytes, not chars.
  */
 static int JimStringLast(const char *s1, int l1, const char *s2, int l2)
@@ -416,7 +422,7 @@ static int JimStringLast(const char *s1, int l1, const char *s2, int l2)
 
 #ifdef JIM_UTF8
 /**
- * Note: Lengths and return value are in chars.
+ * Per JimStringLast but lengths and return value are in chars, not bytes.
  */
 static int JimStringLastUtf8(const char *s1, int l1, const char *s2, int l2)
 {
@@ -452,7 +458,7 @@ static int JimCheckConversion(const char *str, const char *endptr)
     return JIM_OK;
 }
 
-/* Parses the front of a number to determine it's sign and base
+/* Parses the front of a number to determine its sign and base.
  * Returns the index to start parsing according to the given base
  */
 static int JimNumberBase(const char *str, int *base, int *sign)
@@ -983,7 +989,7 @@ Jim_HashEntry *Jim_NextHashEntry(Jim_HashTableIterator *iter)
 static void JimExpandHashTableIfNeeded(Jim_HashTable *ht)
 {
     /* If the hash table is empty expand it to the intial size,
-     * if the table is "full" dobule its size. */
+     * if the table is "full" double its size. */
     if (ht->size == 0)
         Jim_ExpandHashTable(ht, JIM_HT_INITIAL_SIZE);
     if (ht->size == ht->used)
@@ -1188,12 +1194,12 @@ void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
  * Results of missing quotes, braces, etc. from parsing.
  */
 struct JimParseMissing {
-    int ch;             /* At end of parse, ' ' if complete or '{', '[', '"', '\\' , '{' if incomplete */
+    int ch;             /* At end of parse, ' ' if complete or '{', '[', '"', '\\', '}' if incomplete */
     int line;           /* Line number starting the missing token */
 };
 
-/* Parser context structure. The same context is used both to parse
- * Tcl scripts and lists. */
+/* Parser context structure. The same context is used to parse
+ * Tcl scripts, expressions and lists. */
 struct JimParserCtx
 {
     const char *p;              /* Pointer to the point of the program we are parsing */
@@ -1339,17 +1345,17 @@ static int JimParseEol(struct JimParserCtx *pc)
 ** Here are the rules for parsing:
 ** {braced expression}
 ** - Count open and closing braces
-** - Backslash escapes meaning of braces
+** - Backslash escapes meaning of braces but doesn't remove the backslash
 **
 ** "quoted expression"
-** - First double quote at start of word terminates the expression
-** - Backslash escapes quote and bracket
+** - Unescaped double quote terminates the expression
+** - Backslash escapes next char
 ** - [commands brackets] are counted/nested
-** - command rules apply within [brackets], not quoting rules (i.e. quotes have their own rules)
+** - command rules apply within [brackets], not quoting rules (i.e. brackets have their own rules)
 **
 ** [command expression]
 ** - Count open and closing brackets
-** - Backslash escapes quote, bracket and brace
+** - Backslash escapes next char
 ** - [commands brackets] are counted/nested
 ** - "quoted expressions" are parsed according to quoting rules
 ** - {braced expressions} are parsed according to brace rules
@@ -1812,8 +1818,8 @@ static int odigitval(int c)
 
 /* Perform Tcl escape substitution of 's', storing the result
  * string into 'dest'. The escaped string is guaranteed to
- * be the same length or shorted than the source string.
- * Slen is the length of the string at 's'.
+ * be the same length or shorter than the source string.
+ * slen is the length of the string at 's'.
  *
  * The function returns the length of the resulting string. */
 static int JimEscape(char *dest, const char *s, int slen)
@@ -2004,23 +2010,19 @@ static Jim_Obj *JimParserGetTokenObj(Jim_Interp *interp, struct JimParserCtx *pc
 
     start = pc->tstart;
     end = pc->tend;
-    if (start > end) {
+    len = (end - start) + 1;
+    if (len < 0) {
         len = 0;
-        token = Jim_Alloc(1);
-        token[0] = '\0';
+    }
+    token = Jim_Alloc(len + 1);
+    if (pc->tt != JIM_TT_ESC) {
+        /* No escape conversion needed? Just copy it. */
+        memcpy(token, start, len);
+        token[len] = '\0';
     }
     else {
-        len = (end - start) + 1;
-        token = Jim_Alloc(len + 1);
-        if (pc->tt != JIM_TT_ESC) {
-            /* No escape conversion needed? Just copy it. */
-            memcpy(token, start, len);
-            token[len] = '\0';
-        }
-        else {
-            /* Else convert the escape chars. */
-            len = JimEscape(token, start, len);
-        }
+        /* Else convert the escape chars. */
+        len = JimEscape(token, start, len);
     }
 
     return Jim_NewStringObjNoAlloc(interp, token, len);
@@ -2160,10 +2162,10 @@ Jim_Obj *Jim_NewObj(Jim_Interp *interp)
     }
 
     /* Object is returned with refCount of 0. Every
-     * kind of GC implemented should take care to don't try
-     * to scan objects with refCount == 0. */
+     * kind of GC implemented should take care to avoid
+     * scanning objects with refCount == 0. */
     objPtr->refCount = 0;
-    /* All the other fields are left not initialized to save time.
+    /* All the other fields are left uninitialized to save time.
      * The caller will probably want to set them to the right
      * value anyway. */
 
@@ -2234,7 +2236,9 @@ Jim_Obj *Jim_DuplicateObj(Jim_Interp *interp, Jim_Obj *objPtr)
         dupPtr->bytes = NULL;
     }
     else if (objPtr->length == 0) {
-        /* Zero length, so don't even bother with the type-specific dup, since all zero length objects look the same */
+        /* Zero length, so don't even bother with the type-specific dup,
+         * since all zero length objects look the same
+         */
         dupPtr->bytes = JimEmptyStringRep;
         dupPtr->length = 0;
         dupPtr->typePtr = NULL;
@@ -2277,7 +2281,7 @@ const char *Jim_GetString(Jim_Obj *objPtr, int *lenPtr)
     return objPtr->bytes;
 }
 
-/* Just returns the length of the object's string rep */
+/* Just returns the length (in bytes) of the object's string rep */
 int Jim_Length(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
@@ -2420,9 +2424,7 @@ Jim_Obj *Jim_NewStringObj(Jim_Interp *interp, const char *s, int len)
         objPtr->bytes = JimEmptyStringRep;
     }
     else {
-        objPtr->bytes = Jim_Alloc(len + 1);
-        memcpy(objPtr->bytes, s, len);
-        objPtr->bytes[len] = '\0';
+        objPtr->bytes = Jim_StrDupLen(s, len);
     }
     objPtr->length = len;
 
@@ -2745,8 +2747,6 @@ static Jim_Obj *JimStringToLower(Jim_Interp *interp, Jim_Obj *strObjPtr)
     int len;
     const char *str;
 
-    SetStringFromAny(interp, strObjPtr);
-
     str = Jim_GetString(strObjPtr, &len);
 
 #ifdef JIM_UTF8
@@ -2768,10 +2768,6 @@ static Jim_Obj *JimStringToUpper(Jim_Interp *interp, Jim_Obj *strObjPtr)
     char *buf;
     const char *str;
     int len;
-
-    if (strObjPtr->typePtr != &stringObjType) {
-        SetStringFromAny(interp, strObjPtr);
-    }
 
     str = Jim_GetString(strObjPtr, &len);
 
@@ -2797,9 +2793,7 @@ static Jim_Obj *JimStringToTitle(Jim_Interp *interp, Jim_Obj *strObjPtr)
     const char *str;
 
     str = Jim_GetString(strObjPtr, &len);
-    if (len == 0) {
-        return strObjPtr;
-    }
+
 #ifdef JIM_UTF8
     /* Case mapping can change the utf-8 length of the string.
      * But at worst it will be by one extra byte per char
@@ -3088,9 +3082,7 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, const char *
         return 1;
     }
     else {
-        const char *objStr = Jim_String(objPtr);
-
-        if (strcmp(str, objStr) != 0)
+        if (strcmp(str, Jim_String(objPtr)) != 0)
             return 0;
 
         if (objPtr->typePtr != &comparedStringObjType) {
@@ -3804,10 +3796,6 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
  *
  * Keys are dynamically allocated strings, Values are Jim_Var structures.
  */
-
-/* Variables HashTable Type.
- *
- * Keys are dynamic allocated strings, Values are Jim_Var structures. */
 static void JimVariablesHTValDestructor(void *interp, void *val)
 {
     Jim_DecrRefCount(interp, ((Jim_Var *)val)->objPtr);
@@ -3866,6 +3854,11 @@ static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
     return nsObj;
 }
 
+/**
+ * If nameObjPtr starts with "::", returns it.
+ * Otherwise returns a new object with nameObjPtr prefixed with "::".
+ * In this case, decrements the ref count of nameObjPtr.
+ */
 Jim_Obj *Jim_MakeGlobalNamespaceName(Jim_Interp *interp, Jim_Obj *nameObjPtr)
 {
     Jim_Obj *resultObj;
@@ -4037,6 +4030,10 @@ static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Ob
     return JIM_OK;
 }
 
+/**
+ * If the command is a proc, sets/updates the cached namespace (nsObj)
+ * based on the command name.
+ */
 static void JimUpdateProcNamespace(Jim_Interp *interp, Jim_Cmd *cmdPtr, const char *cmdname)
 {
 #ifdef jim_ext_namespace
@@ -4049,7 +4046,7 @@ static void JimUpdateProcNamespace(Jim_Interp *interp, Jim_Cmd *cmdPtr, const ch
             Jim_IncrRefCount(cmdPtr->u.proc.nsObj);
 
             if (Jim_FindHashEntry(&interp->commands, pt + 1)) {
-                /* This commands shadows a global command, so a proc epoch update is required */
+                /* This command shadows a global command, so a proc epoch update is required */
                 Jim_InterpIncrProcEpoch(interp);
             }
         }
@@ -4234,12 +4231,12 @@ static const Jim_ObjType commandObjType = {
 };
 
 /* This function returns the command structure for the command name
- * stored in objPtr. It tries to specialize the objPtr to contain
- * a cached info instead to perform the lookup into the hash table
- * every time. The information cached may not be uptodate, in such
- * a case the lookup is performed and the cache updated.
+ * stored in objPtr. It specializes the objPtr to contain
+ * cached info instead of performing the lookup into the hash table
+ * every time. The information cached may not be up-to-date, in this
+ * case the lookup is performed and the cache updated.
  *
- * Respects the 'upcall' setting
+ * Respects the 'upcall' setting.
  */
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
@@ -4290,7 +4287,7 @@ found:
 #endif
         cmd = Jim_GetHashEntryVal(he);
 
-        /* Free the old internal repr and set the new one. */
+        /* Free the old internal rep and set the new one. */
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &commandObjType;
         objPtr->internalRep.cmdValue.procEpoch = interp->procEpoch;
@@ -4464,6 +4461,9 @@ static Jim_Var *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_O
  * All the caching should also have an 'epoch' mechanism similar
  * to the one used by Tcl for procedures lookup caching. */
 
+/**
+ * Set the variable nameObjPtr to value valObjptr.
+ */
 int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 {
     int err;
@@ -4527,15 +4527,12 @@ int Jim_SetGlobalVariableStr(Jim_Interp *interp, const char *name, Jim_Obj *objP
 
 int Jim_SetVariableStrWithStr(Jim_Interp *interp, const char *name, const char *val)
 {
-    Jim_Obj *nameObjPtr, *valObjPtr;
+    Jim_Obj *valObjPtr;
     int result;
 
-    nameObjPtr = Jim_NewStringObj(interp, name, -1);
     valObjPtr = Jim_NewStringObj(interp, val, -1);
-    Jim_IncrRefCount(nameObjPtr);
     Jim_IncrRefCount(valObjPtr);
-    result = Jim_SetVariable(interp, nameObjPtr, valObjPtr);
-    Jim_DecrRefCount(interp, nameObjPtr);
+    result = Jim_SetVariableStr(interp, name, valObjPtr);
     Jim_DecrRefCount(interp, valObjPtr);
     return result;
 }
@@ -4711,8 +4708,9 @@ Jim_Obj *Jim_GetGlobalVariableStr(Jim_Interp *interp, const char *name, int flag
 }
 
 /* Unset a variable.
- * Note: On success unset invalidates all the variable objects created
- * in the current call frame incrementing. */
+ * Note: On success unset invalidates all the (cached) variable objects
+ * by incrementing callFrameEpoch
+ */
 int Jim_UnsetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 {
     Jim_Var *varPtr;
