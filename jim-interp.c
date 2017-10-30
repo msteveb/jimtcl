@@ -163,7 +163,7 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     snprintf(buf, sizeof(buf), "interp.handle%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimInterpSubCmdProc, child, JimInterpDelProc);
-    Jim_SetResultString(interp, buf, -1);
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
     return JIM_OK;
 }
 
