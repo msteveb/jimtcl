@@ -52,13 +52,13 @@ test exec2-3.1 "close pipeline return value" {
 	list $rc $msg $status $exitcode
 } {1 {child process exited abnormally} CHILDSTATUS 1}
 
-# Note that on at least one Windows system, this fails to return SIGPIPE
-# and cat simply fails instead. How to it simply returns 
 test exec2-3.2 "close pipeline return value" -constraints pipe -body {
 	# Create a pipe and immediately close the read end
 	lassign [pipe] r w
 	close $r
-	set bigstring [string repeat a 10000]
+	# Write more than 64KB which is maximum size of the pipe buffers
+	# on all systems we have seen
+	set bigstring [string repeat a 100000]
 	set f [open [list |cat << $bigstring >$@w]]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
