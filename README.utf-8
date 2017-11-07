@@ -6,8 +6,8 @@ Date: 2 Nov 2010 10:55:52 EST
 
 OVERVIEW
 --------
-Traditionally Jim Tcl has support strings, including binary strings containing
-nulls, however it has had no support for multi-byte character encodings.
+Early versions of Jim Tcl supported strings, including binary strings containing
+nulls, however it had no support for multi-byte character encodings.
 
 In some fields, such as when dealing with the web, or other user-generated content,
 support for multi-byte character encodings is necessary.
@@ -16,7 +16,7 @@ as multi-byte character strings rather than simply binary bytes.
 
 Supporting multiple character encodings and translation between those encodings
 is beyond the scope of Jim Tcl. Therefore, Jim has been enhanced to add support
-for UTF-8, as probably the most popular general purpose multi-byte encoding.
+for UTF-8, as the most popular general purpose multi-byte encoding.
 
 UTF-8 support is optional. It can be enabled at compile time with:
 
@@ -31,8 +31,8 @@ It is important to understand that Unicode is an abstract representation
 of the concept of a "character", while UTF-8 is an encoding of
 Unicode into bytes.  Thus the Unicode codepoint U+00B5 is encoded
 in UTF-8 with the byte sequence: 0xc2, 0xb5. This is different from
-ASCII which the same name is used interchangeably between a character
-set and an encoding.
+ASCII where the same name is used interchangeably between a character value
+and and its encoding.
 
 Unicode Escapes
 ---------------
@@ -40,7 +40,10 @@ Even without UTF-8 enabled, it is useful to be able to encode UTF-8 characters
 in strings. This can be done with the \uNNNN Unicode escape. This syntax
 is compatible with Tcl and is enabled even if UTF-8 is disabled.
 
-Like Tcl, currently only 16-bit Unicode characters can be encoded.
+Unlike Tcl, Jim Tcl supports  Unicode characters up to 21 bits.
+In addition to \uNNNN, Jim Tcl also supports variable length Unicode
+character specifications with \u{NNNNNN} where there may be anywhere between
+1 and 6 hex within the braces. e.g. \u{24B62}
 
 UTF-8 Properties
 ----------------
@@ -100,16 +103,15 @@ Working with Binary Data and non-UTF-8 encodings
 ------------------------------------------------
 Almost all Jim commands will work identically with binary data and
 UTF-8 encoded data, including read, gets, puts and 'string eq'.  It
-is only certain string manipulation commands which will operated
-differently.  For example, 'string index' will return UTF-8 characters,
-not bytes.
+is only certain string manipulation commands that behave differently.
+For example, 'string index' will return UTF-8 characters, not bytes.
 
 If it is necessary to manipulate strings containing binary, non-ASCII
 data (bytes >= 0x80), there are two options.
 
 1. Build Jim without UTF-8 support
-2. Arrange to encode and decode binary data or data in other encodings
-   to UTF-8 before manipulation.
+2. Use 'string byterange', 'string bytelength' and 'pack', 'unpack' and
+   'binary' to operate on strings as bytes rather than characters.
 
 Internal Details
 ----------------
@@ -120,4 +122,5 @@ terminated (which it always will be).
 It is possible to tell if a string is ascii-only because length == bytelength
 
 It is possible to provide optimised versions of various routines for
-the ascii-only case. Currently this is done only for 'string index' and 'string range'.
+the ascii-only case. Both 'string index' and 'string range' currently
+perform such optimisation.
