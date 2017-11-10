@@ -9070,7 +9070,7 @@ static struct ExprTree *ExprTreeCreateTree(Jim_Interp *interp, const ParseTokenL
     struct ExprTree *expr;
     struct ExprBuilder builder;
     int rc;
-    struct JimExprNode *top;
+    struct JimExprNode *top = NULL;
 
     builder.parencount = 0;
     builder.level = 0;
