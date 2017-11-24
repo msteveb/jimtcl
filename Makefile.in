@@ -85,6 +85,7 @@ install: all @TCL_EXTS@ install-exec install-docs
 	$(INSTALL_DATA) jim-config.h $(DESTDIR)@includedir@
 	$(INSTALL_DATA_DIR) $(DESTDIR)@bindir@
 	$(INSTALL_DATA) build-jim-ext $(DESTDIR)@bindir@
+	$(INSTALL_DATA_DIR) $(DESTDIR)@libdir@/pkgconfig
 	$(INSTALL_DATA) jimtcl.pc $(DESTDIR)@libdir@/pkgconfig
 
 install-exec: all
