@@ -24,8 +24,6 @@ if {[string match "*not supported" $res]} {
     if {[catch {
         [socket -ipv6 stream.server ::1:5000] close
     } msg opts]} {
-        puts msg=$msg
-        parray opts
         set ipv6 0
     }
 }
