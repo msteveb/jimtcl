@@ -15,8 +15,21 @@ needs cmd after eventloop
 testConstraint socket [expr {[info commands socket] ne ""}]
 testConstraint exec [expr {[info commands exec] ne ""}]
 testConstraint signal [expr {[info commands signal] ne ""}]
-catch {[socket -ipv6 stream ::1:5000]} ipv6res
-testConstraint ipv6 [expr {$ipv6res ne "ipv6 not supported"}]
+catch {[socket -ipv6 stream ::1:5000]} res
+set ipv6 1
+if {[string match "*not supported" $res]} {
+    set ipv6 0
+} else {
+    # Also, if we can't bind an IPv6 socket, don't run IPv6 tests
+    if {[catch {
+        [socket -ipv6 stream.server ::1:5000] close
+    } msg opts]} {
+        puts msg=$msg
+        parray opts
+        set ipv6 0
+    }
+}
+testConstraint ipv6 $ipv6
 
 test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} jim {
     catch {rename bgerror {}}
