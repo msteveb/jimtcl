@@ -287,11 +287,7 @@ define LIBSOEXT [format [get-define SH_SOEXTVER] [get-define VERSION]]
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
-if {[opt-val docdir] ne ""} {
-    define docdir [lindex [opt-val docdir] end]
-} else {
-    define docdir {${prefix}/docs/jim}
-}
+define docdir [opt-str docdir o {${prefix}/docs/jim}]
 
 # Attributes of the extensions
 # tcl=Pure Tcl extension

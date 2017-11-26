@@ -22,7 +22,10 @@
 # If '--prefix' is not supplied, it defaults to '/usr/local' unless 'defaultprefix' is defined *before*
 # including the 'system' module.
 
-set defaultprefix [get-define defaultprefix /usr/local]
+if {[is-defined defaultprefix]} {
+	user-notice "Note: defaultprefix is deprecated. Use options-defaults to set default options"
+	options-defaults [list prefix [get-define defaultprefix]]
+}
 
 module-options [subst -noc -nob {
 	host:host-alias =>		{a complete or partial cpu-vendor-opsys for the system where
@@ -30,7 +33,7 @@ module-options [subst -noc -nob {
 	build:build-alias =>	{a complete or partial cpu-vendor-opsys for the system
 							where the application will be built (defaults to the
 							result of running config.guess)}
-	prefix:dir =>			{the target directory for the build (defaults to '$defaultprefix')}
+	prefix:dir=/usr/local => {the target directory for the build (default: '@default@')}
 
 	# These (hidden) options are supported for autoconf/automake compatibility
 	exec-prefix:
@@ -47,6 +50,7 @@ module-options [subst -noc -nob {
 	localstatedir:
 	maintainer-mode=0
 	dependency-tracking=0
+	silent-rules=0
 }]
 
 # @check-feature name { script }
@@ -130,7 +134,8 @@ proc write-if-changed {file buf {script {}}} {
 
 # @make-template template ?outfile?
 #
-# Reads the input file '<srcdir>/$template' and writes the output file '$outfile'.
+# Reads the input file '<srcdir>/$template' and writes the output file '$outfile'
+# (unless unchanged).
 # If '$outfile' is blank/omitted, '$template' should end with '.in' which
 # is removed to create the output file name.
 #
@@ -222,13 +227,13 @@ proc make-template {template {out {}}} {
 		}
 		lappend result $line
 	}
-	writefile $out [string map $mapping [join $result \n]]\n
-
-	msg-result "Created [relative-path $out] from [relative-path $template]"
+	write-if-changed $out [string map $mapping [join $result \n]] {
+		msg-result "Created [relative-path $out] from [relative-path $template]"
+	}
 }
 
 # build/host tuples and cross-compilation prefix
-set build [lindex [opt-val build] end]
+opt-str build build ""
 define build_alias $build
 if {$build eq ""} {
 	define build [config_guess]
@@ -236,7 +241,7 @@ if {$build eq ""} {
 	define build [config_sub $build]
 }
 
-set host [lindex [opt-val host] end]
+opt-str host host ""
 define host_alias $host
 if {$host eq ""} {
 	define host [get-define build]
@@ -247,40 +252,62 @@ if {$host eq ""} {
 }
 define cross [get-env CROSS $cross]
 
-set prefix [lindex [opt-val prefix $defaultprefix] end]
+# build/host _cpu, _vendor and _os
+foreach type {build host} {
+	set v [get-define $type]
+	if {![regexp {^([^-]+)-([^-]+)-(.*)$} $v -> cpu vendor os]} {
+		user-error "Invalid canonical $type: $v"
+	}
+	define ${type}_cpu $cpu
+	define ${type}_vendor $vendor
+	define ${type}_os $os
+}
+
+opt-str prefix prefix /usr/local
 
 # These are for compatibility with autoconf
 define target [get-define host]
 define prefix $prefix
 define builddir $autosetup(builddir)
 define srcdir $autosetup(srcdir)
-# Allow this to come from the environment
-define top_srcdir [get-env top_srcdir [get-define srcdir]]
+define top_srcdir $autosetup(srcdir)
+define abs_top_srcdir [file-normalize $autosetup(srcdir)]
+define abs_top_builddir [file-normalize $autosetup(builddir)]
 
 # autoconf supports all of these
-set exec_prefix [lindex [opt-val exec-prefix $prefix] end]
-define exec_prefix $exec_prefix
+define exec_prefix [opt-str exec-prefix exec_prefix $prefix]
 foreach {name defpath} {
 	bindir /bin
 	sbindir /sbin
 	libexecdir /libexec
 	libdir /lib
 } {
-	define $name [lindex [opt-val $name $exec_prefix$defpath] end]
+	define $name [opt-str $name o $exec_prefix$defpath]
 }
 foreach {name defpath} {
 	datadir /share
-	sysconfdir /etc
 	sharedstatedir /com
-	localstatedir /var
 	infodir /share/info
 	mandir /share/man
 	includedir /include
 } {
-	define $name [lindex [opt-val $name $prefix$defpath] end]
+	define $name [opt-str $name o $prefix$defpath]
 }
+if {$prefix ne {/usr}} {
+	opt-str sysconfdir sysconfdir $prefix/etc
+} else {
+	opt-str sysconfdir sysconfdir /etc
+}
+define sysconfdir $sysconfdir
+
+define localstatedir [opt-str localstatedir o /var]
 
 define SHELL [get-env SHELL [find-an-executable sh bash ksh]]
+
+# These could be used to generate Makefiles following some automake conventions
+define AM_SILENT_RULES [opt-bool silent-rules]
+define AM_MAINTAINER_MODE [opt-bool maintainer-mode]
+define AM_DEPENDENCY_TRACKING [opt-bool dependency-tracking]
 
 # Windows vs. non-Windows
 switch -glob -- [get-define host] {

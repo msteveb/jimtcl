@@ -30,11 +30,6 @@ use system
 
 module-options {}
 
-# Note that the return code is not meaningful
-proc cc-check-something {name code} {
-	uplevel 1 $code
-}
-
 # Checks for the existence of the given function by linking
 #
 proc cctest_function {function} {
@@ -155,7 +150,7 @@ proc cc-check-types {args} {
 
 # @cc-check-defines define ...
 #
-# Checks that the given preprocessor symbol is defined.
+# Checks that the given preprocessor symbols are defined.
 proc cc-check-defines {args} {
 	cc-check-some-feature $args {
 		cctest_define $each
@@ -242,9 +237,8 @@ proc cc-check-function-in-lib {function libs {otherlibs {}}} {
 			}
 		}
 	}
-	if {$found} {
-		define [feature-define-name $function]
-	} else {
+	define-feature $function $found
+	if {!$found} {
 		msg-result "no"
 	}
 	return $found
@@ -309,6 +303,29 @@ proc cc-check-progs {args} {
 	expr {!$failed}
 }
 
+# @cc-path-progs prog ...
+#
+# Like cc-check-progs, but sets the define to the full path rather
+# than just the program name.
+#
+proc cc-path-progs {args} {
+	set failed 0
+	foreach prog $args {
+		set PROG [string toupper $prog]
+		msg-checking "Checking for $prog..."
+		set path [find-executable-path $prog]
+		if {$path eq ""} {
+			msg-result no
+			define $PROG false
+			incr failed
+		} else {
+			msg-result $path
+			define $PROG $path
+		}
+	}
+	expr {!$failed}
+}
+
 # Adds the given settings to $::autosetup(ccsettings) and
 # returns the old settings.
 #
@@ -328,14 +345,14 @@ proc cc-add-settings {settings} {
 		switch -exact -- $name {
 			-cflags - -includes {
 				# These are given as lists
-				lappend new($name) {*}$value
+				lappend new($name) {*}[list-non-empty $value]
 			}
 			-declare {
 				lappend new($name) $value
 			}
 			-libs {
 				# Note that new libraries are added before previous libraries
-				set new($name) [list {*}$value {*}$new($name)]
+				set new($name) [list {*}[list-non-empty $value] {*}$new($name)]
 			}
 			-link - -lang - -nooutput {
 				set new($name) $value
