@@ -1,3 +1,18 @@
+@if NO_SILENT_RULES
+Q :=
+ECHO := @:
+@else
+# make V=1 for verbose make output
+Q := @
+ECHO := @echo
+ifeq ($(V),1)
+ifeq ("$(origin V)", "command line")
+Q :=
+ECHO := @:
+endif
+endif
+@endif
+
 # Tools
 CC = @CCACHE@ @CC@
 CXX = @CCACHE@ @CXX@
@@ -67,11 +82,18 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 # Create C extensions from pure Tcl extensions
 .SUFFIXES: .tcl
 .tcl.o:
-	@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
-	$(CC) $(CFLAGS) -c -o $@ _$*.c
+	$(ECHO) " 	TCLEXT	_$*.c"
+	$(Q)@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
+	$(ECHO) " 	CC	$@"
+	$(Q)$(CC) $(CFLAGS) -c -o $@ _$*.c
+
+.c.o:
+	$(ECHO) "	CC	$@"
+	$(Q)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $*.c -o $@
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
-	$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)
+	$(ECHO) "	LINK	$@"
+	$(Q)$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)
 
 @if JIM_INSTALL
 install: all @TCL_EXTS@ install-exec install-docs
@@ -114,85 +136,120 @@ $(OBJS) jimsh.o initjimsh.o: Makefile $(wildcard *.h)
 utf8.o: _unicode_mapping.c
 
 _unicode_mapping.c: @srcdir@/UnicodeData.txt @srcdir@/parse-unidata.tcl
-	@tclsh@ @srcdir@/parse-unidata.tcl @PARSE_UNIDATA_FLAGS@ @srcdir@/UnicodeData.txt @srcdir@/EastAsianWidth.txt >$@ || ( rm $@; exit 1)
+	$(ECHO) "	UNIDATA	$@"
+	$(Q)@tclsh@ @srcdir@/parse-unidata.tcl @PARSE_UNIDATA_FLAGS@ @srcdir@/UnicodeData.txt @srcdir@/EastAsianWidth.txt >$@ || ( rm $@; exit 1)
 @endif
 
 _load-static-exts.c: @srcdir@/make-load-static-exts.tcl Makefile
-	@tclsh@ @srcdir@/make-load-static-exts.tcl @STATIC_EXTS@ >$@ || ( rm $@; exit 1)
+	$(ECHO) "	MKLDEXT	$@"
+	$(Q)@tclsh@ @srcdir@/make-load-static-exts.tcl @STATIC_EXTS@ >$@ || ( rm $@; exit 1)
 
+$(LIBJIM): $(OBJS)
 @if JIM_STATICLIB
-$(LIBJIM): $(OBJS)
-	$(AR) cr $@ $(OBJS)
-	$(RANLIB) $@
+	$(ECHO) "	AR	$@"
+	$(Q)$(AR) cr $@ $(OBJS)
+	$(Q)$(RANLIB) $@
 @else
-$(LIBJIM): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBS)
+	$(ECHO) "	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBS)
 @endif
 
 # Note that $> $^ is for compatibility with both GNU make and BSD make
 readdir.so: jim-readdir.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readdir.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readdir.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readdir.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readdir.o $(SH_LIBJIM)
 
 array.so: jim-array.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-array.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-array.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-array.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-array.o $(SH_LIBJIM)
 
 clock.so: jim-clock.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-clock.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-clock.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-clock.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-clock.o $(SH_LIBJIM)
 
 file.so: jim-file.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-file.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-file.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-file.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-file.o $(SH_LIBJIM)
 
 interp.so: jim-interp.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-interp.o jim-interp.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-interp.o $(SH_LIBJIM) @LDLIBS_interp@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-interp.o jim-interp.c
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-interp.o $(SH_LIBJIM) @LDLIBS_interp@
 
 posix.so: jim-posix.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-posix.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-posix.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-posix.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-posix.o $(SH_LIBJIM)
 
 regexp.so: jim-regexp.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-regexp.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-regexp.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-regexp.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-regexp.o $(SH_LIBJIM)
 
 syslog.so: jim-syslog.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-syslog.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-syslog.o $(SH_LIBJIM)
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-syslog.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-syslog.o $(SH_LIBJIM)
 
 readline.so: jim-readline.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readline.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readline.o $(SH_LIBJIM) @LDLIBS_readline@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-readline.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-readline.o $(SH_LIBJIM) @LDLIBS_readline@
 
 pack.so: jim-pack.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-pack.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-pack.o $(SH_LIBJIM) @LDLIBS_pack@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-pack.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-pack.o $(SH_LIBJIM) @LDLIBS_pack@
 
 tclprefix.so: jim-tclprefix.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-tclprefix.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-tclprefix.o $(SH_LIBJIM) @LDLIBS_tclprefix@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-tclprefix.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-tclprefix.o $(SH_LIBJIM) @LDLIBS_tclprefix@
 
 sqlite3.so: jim-sqlite3.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite3.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite3.o $(SH_LIBJIM) @LDLIBS_sqlite3@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sqlite3.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sqlite3.o $(SH_LIBJIM) @LDLIBS_sqlite3@
 
 win32.so: jim-win32.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-win32.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-win32.o $(SH_LIBJIM) @LDLIBS_win32@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-win32.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-win32.o $(SH_LIBJIM) @LDLIBS_win32@
 
 mk.so: jim-mk.cpp
-	$(CXX) $(CXXFLAGS) $(SHOBJ_CFLAGS) -c -o jim-mk.o $> $^
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-mk.o $(SH_LIBJIM) @LDLIBS_mk@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CXX) $(CXXFLAGS) $(SHOBJ_CFLAGS) -c -o jim-mk.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-mk.o $(SH_LIBJIM) @LDLIBS_mk@
 
 sdl.so: jim-sdl.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sdl.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sdl.o $(SH_LIBJIM) @LDLIBS_sdl@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-sdl.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-sdl.o $(SH_LIBJIM) @LDLIBS_sdl@
 
 zlib.so: jim-zlib.c
-	$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-zlib.o $> $^
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-zlib.o $(SH_LIBJIM) @LDLIBS_zlib@
+	$(ECHO)	"	CC	${@:.so=.o}"
+	$(Q)$(CC) $(CFLAGS) $(SHOBJ_CFLAGS) -c -o jim-zlib.o $> $^
+	$(ECHO)	"	LDSO	$@"
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SHOBJ_LDFLAGS) -o $@ jim-zlib.o $(SH_LIBJIM) @LDLIBS_zlib@
 
 docs: Tcl.html
 

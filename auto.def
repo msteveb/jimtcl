@@ -3,6 +3,10 @@
 
 define JIM_VERSION 77
 
+options-defaults {
+    silent-rules 1
+}
+
 # Note: modules which support options *must* be included before 'options'
 use cc cc-shared cc-db cc-lib pkg-config util
 use local
@@ -159,6 +163,18 @@ switch -glob -- $host_os {
 # Find some tools
 cc-check-tools ar ranlib strip
 define tclsh [info nameofexecutable]
+
+# We only support silent-rules for GNU Make
+define NO_SILENT_RULES
+if {[get-define AM_SILENT_RULES 0]} {
+    if {[cc-check-progs [get-define MAKE make]]} {
+        # Are we using GNU make?
+        catch {exec [get-define MAKE] --version} makeversion
+        if {[string match "GNU Make*" $makeversion]} {
+            define NO_SILENT_RULES 0
+        }
+    }
+}
 
 if {[opt-bool docs]} {
     if {[cc-check-progs asciidoc sed]} {
