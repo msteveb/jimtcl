@@ -89,7 +89,7 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 
 .c.o:
 	$(ECHO) "	CC	$@"
-	$(Q)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $*.c -o $@
+	$(Q)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(ECHO) "	LINK	$@"
