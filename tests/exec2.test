@@ -5,7 +5,13 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
-testConstraint pipe [expr {[info commands pipe] ne ""}]
+# Some Windows platforms (e.g. AppVeyor) produce ENOSPC rather than killing
+# the child with SIGPIPE). So turn off this test for that platform
+if {[info commands pipe] ne "" && [env MSYSTEM ""] ne "MINGW32"} {
+	testConstraint pipe 1
+} else {
+	testConstraint pipe 0
+}
 
 set d \"
 set s '
