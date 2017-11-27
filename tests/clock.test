@@ -1,5 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
+needs cmd clock
+
 if {[catch {clock scan 2000 -format %Y}]} {
     testConstraint clockscan 0
 } else {
