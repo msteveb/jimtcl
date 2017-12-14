@@ -203,24 +203,8 @@ test lsort-3.22 {lsort, unique sort with index} {
 } {0 4 5}
 
 test lsort-4.26 {DefaultCompare procedure, signed characters} utf8 {
-    set l [lsort [list "abc\u80" "abc"]]
-    set viewlist {}
-    foreach s $l {
-	set viewelem ""
-	set len [string length $s]
-	for {set i 0} {$i < $len} {incr i} {
-	    set c [string index $s $i]
-	    scan $c %c d
-	    if {$d > 0 && $d < 128} {
-		append viewelem $c
-	    } else {
-		append viewelem "\\[format %03o [expr {$d & 0xff}]]"
-	    }
-	}
-	lappend viewlist $viewelem
-    }
-    set viewlist
-} [list "abc" "abc\\200"]
+    lsort [list "abc\u80" "abc"]
+} [list "abc" "abc\u80"]
 
 test lsort-5.1 "Sort case insensitive" {
     lsort -nocase {ba aB aa ce}

@@ -74,7 +74,8 @@ test utf-4.2 {Tcl_NumUtfChars: length 1} {
 test utf-4.3 {Tcl_NumUtfChars: long string} {
     testnumutfchars [bytestring "abc\xC2\xA2\xe4\xb9\x8e\uA2\u4e4e"]
 } {7}
-test utf-4.4 {Tcl_NumUtfChars: #u0000} {
+# This is an invalid utf-8 sequence. Not minimal, so should return 2
+test utf-4.4 {Tcl_NumUtfChars: #u0000} tcl {
     testnumutfchars [bytestring "\xC0\x80"]
 } {1}
 test utf-4.5 {Tcl_NumUtfChars: zero length, calc len} {
@@ -86,7 +87,7 @@ test utf-4.6 {Tcl_NumUtfChars: length 1, calc len} {
 test utf-4.7 {Tcl_NumUtfChars: long string, calc len} {
     testnumutfchars [bytestring "abc\xC2\xA2\xe4\xb9\x8e\uA2\u4e4e"] 1
 } {7}
-test utf-4.8 {Tcl_NumUtfChars: #u0000, calc len} {
+test utf-4.8 {Tcl_NumUtfChars: #u0000, calc len} tcl {
     testnumutfchars [bytestring "\xC0\x80"] 1
 } {1}
 

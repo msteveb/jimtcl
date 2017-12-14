@@ -131,19 +131,28 @@ int utf8_tounicode(const char *str, int *uc)
     if (s[0] < 0xe0) {
         if ((s[1] & 0xc0) == 0x80) {
             *uc = ((s[0] & ~0xc0) << 6) | (s[1] & ~0x80);
-            return 2;
+            if (*uc >= 0x80) {
+                return 2;
+            }
+            /* Otherwise this is an invalid sequence */
         }
     }
     else if (s[0] < 0xf0) {
         if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80)) {
             *uc = ((s[0] & ~0xe0) << 12) | ((s[1] & ~0x80) << 6) | (s[2] & ~0x80);
-            return 3;
+            if (*uc >= 0x800) {
+                return 3;
+            }
+            /* Otherwise this is an invalid sequence */
         }
     }
     else if (s[0] < 0xf8) {
         if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80) && ((str[3] & 0xc0) == 0x80)) {
             *uc = ((s[0] & ~0xf0) << 18) | ((s[1] & ~0x80) << 12) | ((s[2] & ~0x80) << 6) | (s[3] & ~0x80);
-            return 4;
+            if (*uc >= 0x10000) {
+                return 4;
+            }
+            /* Otherwise this is an invalid sequence */
         }
     }
 
