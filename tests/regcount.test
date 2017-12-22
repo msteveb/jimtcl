@@ -84,6 +84,7 @@ foreach {pat str exp} {
 	(a|y){5,6}? baaaad {}
     {[[:alpha:]]+} _bcd56_ef bcd
     {[[:alnum:]]+} _bcd56_ef bcd56
+    {[\w]+} :_bcd56_ef _bcd56_ef
     {[[:space:]]+} "_bc \t\r\n\f\v_" "{ \t\r\n\f\v}"
     {[\x41-\x43]+} "_ABCD_" ABC
     {\m.+\M} "#A test#" "{A test}"

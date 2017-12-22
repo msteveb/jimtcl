@@ -724,8 +724,31 @@ static int regatom(regex_t *preg, int *flagp)
 				int start;
 				int end;
 
+				enum {
+					CC_ALPHA, CC_ALNUM, CC_SPACE, CC_BLANK, CC_UPPER, CC_LOWER,
+					CC_DIGIT, CC_XDIGIT, CC_CNTRL, CC_GRAPH, CC_PRINT, CC_PUNCT,
+					CC_NUM
+				};
+				int cc;
+
 				pattern += reg_utf8_tounicode_case(pattern, &start, nocase);
 				if (start == '\\') {
+					/* First check for class shorthand escapes */
+					switch (*pattern) {
+						case 's':
+							pattern++;
+							cc = CC_SPACE;
+							goto cc_switch;
+						case 'd':
+							pattern++;
+							cc = CC_DIGIT;
+							goto cc_switch;
+						case 'w':
+							pattern++;
+							reg_addrange(preg, '_', '_');
+							cc = CC_ALNUM;
+							goto cc_switch;
+					}
 					pattern += reg_decode_escape(pattern, &start);
 					if (start == 0) {
 						preg->err = REG_ERR_NULL_CHAR;
@@ -752,23 +775,18 @@ static int regatom(regex_t *preg, int *flagp)
 						":alpha:", ":alnum:", ":space:", ":blank:", ":upper:", ":lower:",
 						":digit:", ":xdigit:", ":cntrl:", ":graph:", ":print:", ":punct:",
 					};
-					enum {
-						CC_ALPHA, CC_ALNUM, CC_SPACE, CC_BLANK, CC_UPPER, CC_LOWER,
-						CC_DIGIT, CC_XDIGIT, CC_CNTRL, CC_GRAPH, CC_PRINT, CC_PUNCT,
-						CC_NUM
-					};
-					int i;
 
-					for (i = 0; i < CC_NUM; i++) {
-						n = strlen(character_class[i]);
-						if (strncmp(pattern, character_class[i], n) == 0) {
+					for (cc = 0; cc < CC_NUM; cc++) {
+						n = strlen(character_class[cc]);
+						if (strncmp(pattern, character_class[cc], n) == 0) {
 							/* Found a character class */
 							pattern += n + 1;
 							break;
 						}
 					}
-					if (i != CC_NUM) {
-						switch (i) {
+					if (cc != CC_NUM) {
+cc_switch:
+						switch (cc) {
 							case CC_ALNUM:
 								reg_addrange(preg, '0', '9');
 								/* Fall through */
