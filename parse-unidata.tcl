@@ -84,6 +84,27 @@ proc output-int-pairs {list} {
 	}
 }
 
+# Merges adjacent ranges in a list of ranges (lower upper lower upper ...)
+proc combine-adjacent-ranges {list} {
+	set newlist {}
+	foreach {lower upper} $list {
+		if {[info exists prev_upper]} {
+			if {$lower == $prev_upper + 1} {
+				# combine these
+				set prev_upper $upper
+				continue
+			} else {
+				# can't combine
+				lappend newlist $prev_lower $prev_upper
+			}
+		}
+		set prev_lower $lower
+		set prev_upper $upper
+	}
+	# Now add the last range
+	lappend newlist $prev_lower $prev_upper
+	return $newlist
+}
 
 foreach type {upper lower title} {
 	puts "static const struct casemap unicode_case_mapping_$type\[\] = \{"
@@ -94,23 +115,13 @@ foreach type {upper lower title} {
 if {$do_width} {
 	set f [open $widthfile]
 	while {[gets $f buf] >= 0} {
-		if {[regexp {^([0-9A-F.]+);W} $buf -> range]} {
+		if {[regexp {^([0-9A-Fa-f.]+);W} $buf -> range]} {
+			set range [string tolower $range]
 			lassign [split $range .] lower - upper
 			if {$upper eq ""} {
 				set upper $lower
 			}
-			set lower 0x$lower
-			set upper 0x$upper
-			if {[info exists endrange]} {
-				if {$upper == $endrange + 1} {
-					# Just extend the range
-					set endrange $upper
-					continue
-				}
-				lappend map(wide) $startrange $endrange
-			}
-			set startrange $lower
-			set endrange $upper
+			lappend map(wide) 0x$lower 0x$upper
 		}
 	}
 	close $f
@@ -119,7 +130,7 @@ if {$do_width} {
 foreach type {combining wide} {
 	puts "static const struct utf8range unicode_range_$type\[\] = \{"
 	if {$do_width} {
-		output-int-pairs $map($type)
+		output-int-pairs [combine-adjacent-ranges $map($type)]
 	} else {
 		# Just produce empty width tables in this case
 		output-int-pairs {}
