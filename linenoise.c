@@ -127,8 +127,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -289,6 +291,8 @@ static void fd_printf(int fd, const char *format, ...)
 
     va_start(args, format);
     n = vsnprintf(buf, sizeof(buf), format, args);
+    /* This will never happen because we are sure to use fd_printf() for short sequences */
+    assert(n < sizeof(buf));
     va_end(args);
     IGNORE_RC(write(fd, buf, n));
 }
@@ -1230,6 +1234,16 @@ process_char:
         case ctrl('C'):     /* ctrl-c */
             errno = EAGAIN;
             return -1;
+        case ctrl('Z'):     /* ctrl-z */
+#ifdef SIGTSTP
+            /* send ourselves SIGSUSP */
+            disableRawMode(current);
+            raise(SIGTSTP);
+            /* and resume */
+            enableRawMode(current);
+            refreshLine(current->prompt, current);
+#endif
+            continue;
         case 127:   /* backspace */
         case ctrl('H'):
             if (remove_char(current, current->pos - 1) == 1) {
