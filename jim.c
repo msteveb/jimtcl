@@ -8830,7 +8830,10 @@ static int ExprTreeBuildTree(Jim_Interp *interp, struct ExprBuilder *builder, in
     /* Calculate the stack length expected after pushing the number of expected terms */
     int exp_stacklen = builder->stack.len + exp_numterms;
 
-    builder->level++;
+    if (builder->level++ > 200) {
+        Jim_SetResultString(interp, "Expression too complex", -1);
+        return JIM_ERR;
+    }
 
     while (builder->token->type != JIM_TT_EOL) {
         ParseToken *t = builder->token++;
