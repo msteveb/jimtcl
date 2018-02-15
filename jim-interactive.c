@@ -29,12 +29,19 @@ char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt)
 #ifdef USE_LINENOISE
     struct JimCompletionInfo *compinfo = Jim_GetAssocData(interp, completion_callback_assoc_key);
     char *result;
+    Jim_Obj *objPtr;
+    long mlmode = 0;
     /* Set any completion callback just during the call to linenoise()
      * to allow for per-interp settings
      */
     if (compinfo) {
         linenoiseSetCompletionCallback(JimCompletionCallback, compinfo);
     }
+    objPtr = Jim_GetVariableStr(interp, "history::multiline", JIM_NONE);
+    if (objPtr && Jim_GetLong(interp, objPtr, &mlmode) == JIM_NONE) {
+        linenoiseSetMultiLine(mlmode);
+    }
+
     result = linenoise(prompt);
     /* unset the callback */
     linenoiseSetCompletionCallback(NULL, NULL);

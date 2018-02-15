@@ -66,6 +66,7 @@ Changes between 0.77 and 0.78
 10. `pipe` is now a synonym for `socket pipe`
 11. Closing a pipe open with `open |...` now returns Tcl-like status
 12. It is now possible to used `exec` redirection with a pipe opened with `open |...`
+13. Interactive line editing now supports multiline mode if $::history::multiline is set
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5211,6 +5212,10 @@ The following variables have special meaning to Jim Tcl:
 	when the current proc exits (local variables), or the interpreter exits (global variable).
 	See `defer`.
 
++*history::multiline*+::
+    If this variable is set to "1", interactive line editing operates in multiline mode.
+	That is, long lines will wrap across multiple lines rather than scrolling within a
+	single line.
 
 CHANGES IN PREVIOUS RELEASES
 ----------------------------
