@@ -44,7 +44,7 @@ docdir = @docdir@
 
 CC += -Wall $(OPTIM) -I.
 CXX += -Wall $(OPTIM) -I.
-@if srcdir != .
+@if [get-define srcdir] ne "."
 CFLAGS += -I@srcdir@
 CXXFLAGS += -I@srcdir@
 VPATH := @srcdir@
@@ -93,7 +93,7 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(ECHO) "	LINK	$@"
-	$(Q)$(JIMSH_CC) @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)
+	$(Q)$(JIMSH_CC) @SH_LINKRPATH_FLAGS@ @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)
 
 @if JIM_INSTALL
 install: all @TCL_EXTS@ install-exec install-docs
@@ -253,17 +253,17 @@ zlib.so: jim-zlib.c
 
 docs: Tcl.html
 
-@if INSTALL_DOCS == nodocs
+@if INSTALL_DOCS eq "nodocs"
 install-docs:
 @endif
 
-@if INSTALL_DOCS == docs
+@if INSTALL_DOCS eq "docs"
 install-docs: docs
 	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
 	$(INSTALL_DATA) Tcl.html $(DESTDIR)$(docdir)
 @endif
 
-@if INSTALL_DOCS == shipped
+@if INSTALL_DOCS eq "shipped"
 install-docs:
 	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
 	@echo "Warning: asciidoc not available - installing Tcl_shipped.html"

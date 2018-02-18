@@ -300,6 +300,11 @@ if {[opt-bool shared with-jim-shared]} {
 }
 define VERSION [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]
 define LIBSOEXT [format [get-define SH_SOEXTVER] [get-define VERSION]]
+if {[get-define libdir] ni {/lib /usr/lib}} {
+    define SH_LINKRPATH_FLAGS [format [get-define SH_LINKRPATH] [get-define libdir]]
+} else {
+    define SH_LINKRPATH_FLAGS ""
+}
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
@@ -484,6 +489,7 @@ define LIBS $LIBS
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
+make-template tests/Makefile.in
 make-template build-jim-ext.in
 make-template jimtcl.pc.in
 

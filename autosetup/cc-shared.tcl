@@ -14,6 +14,7 @@
 ## SHOBJ_CFLAGS      Flags to use compiling sources destined for a shared object
 ## SHOBJ_LDFLAGS     Flags to use linking a shared object, undefined symbols allowed
 ## SHOBJ_LDFLAGS_R   - as above, but all symbols must be resolved
+## SH_LINKRPATH      Format for setting the rpath when linking an executable, %s = path
 ## SH_LINKFLAGS      Flags to use linking an executable which will load shared objects
 ## LD_LIBRARY_PATH   Environment variable which specifies path to shared libraries
 ## STRIPLIBFLAGS     Arguments to strip a dynamic library
@@ -26,6 +27,7 @@ define SHOBJ_LDFLAGS -shared
 define SH_CFLAGS -fpic
 define SH_LDFLAGS -shared
 define SH_LINKFLAGS -rdynamic
+define SH_LINKRPATH "-Wl,-rpath -Wl,%s"
 define SH_SOEXT .so
 define SH_SOEXTVER .so.%s
 define SH_SOPREFIX -Wl,-soname,
@@ -54,6 +56,7 @@ switch -glob -- [get-define host] {
 		define SHOBJ_LDFLAGS -shared
 		define SH_CFLAGS ""
 		define SH_LDFLAGS -shared
+		define SH_LINKRPATH ""
 		define SH_LINKFLAGS ""
 		define SH_SOEXT .dll
 		define SH_SOEXTVER .dll
@@ -64,7 +67,7 @@ switch -glob -- [get-define host] {
 		if {[msg-quiet cc-check-decls __SUNPRO_C]} {
 			msg-result "Found sun stdio compiler"
 			# sun stdio compiler
-			# XXX: These haven't been fully tested. 
+			# XXX: These haven't been fully tested.
 			define SHOBJ_CFLAGS -KPIC
 			define SHOBJ_LDFLAGS "-G"
 			define SH_CFLAGS -KPIC
@@ -80,7 +83,7 @@ switch -glob -- [get-define host] {
 		if {[msg-quiet cc-check-decls __SUNPRO_C]} {
 			msg-result "Found sun stdio compiler"
 			# sun stdio compiler
-			# XXX: These haven't been fully tested. 
+			# XXX: These haven't been fully tested.
 			define SHOBJ_CFLAGS -KPIC
 			define SHOBJ_LDFLAGS "-G"
 			define SH_CFLAGS -KPIC
