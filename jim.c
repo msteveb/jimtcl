@@ -2286,8 +2286,7 @@ int Jim_Length(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
-        JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
-        objPtr->typePtr->updateStringProc(objPtr);
+        Jim_GetString(objPtr, NULL);
     }
     return objPtr->length;
 }
@@ -2297,9 +2296,7 @@ const char *Jim_String(Jim_Obj *objPtr)
 {
     if (objPtr->bytes == NULL) {
         /* Invalid string repr. Generate it. */
-        JimPanic((objPtr->typePtr == NULL, "UpdateStringProc called against typeless value."));
-        JimPanic((objPtr->typePtr->updateStringProc == NULL, "UpdateStringProc called against '%s' type.", objPtr->typePtr->name));
-        objPtr->typePtr->updateStringProc(objPtr);
+        Jim_GetString(objPtr, NULL);
     }
     return objPtr->bytes;
 }
