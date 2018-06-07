@@ -11181,7 +11181,7 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
 
     listObjPtr = Jim_NewListObj(interp, argv, argc);
 
-    if (*msg) {
+    if (msg && *msg) {
         Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, msg, -1));
     }
     Jim_IncrRefCount(listObjPtr);
