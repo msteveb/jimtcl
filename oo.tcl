@@ -78,7 +78,7 @@ proc class {classname {baseclasses {}} classvars} {
 	proc "$classname classvars" {} classvars { return $classvars }
 	proc "$classname classname" {} classname { return $classname }
 	proc "$classname methods" {} classname {
-		lsort [lmap p [info procs "$classname *"] {
+		lsort [lmap p [info commands "$classname *"] {
 			lindex [split $p " "] 1
 		}]
 	}
