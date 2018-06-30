@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.77 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.78 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------

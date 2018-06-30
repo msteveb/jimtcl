@@ -738,7 +738,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.77 -
+<p>Jim Tcl v0.78 -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -754,9 +754,10 @@ Jim Tcl(n) Manual Page
 <div class="paragraph"><p>or</p></div>
 <div class="literalblock">
 <div class="content">
-<pre><code>jimsh [&lt;scriptfile&gt;]
+<pre><code>jimsh [&lt;scriptfile&gt;|-]
 jimsh -e '&lt;immediate-script&gt;'
-jimsh --version</code></pre>
+jimsh --version
+jimsh --help</code></pre>
 </div></div>
 <div class="ulist"><div class="title">Quick Index</div><ul>
 <li>
@@ -823,7 +824,7 @@ Builtin dictionary type (<a href="#_dict"><strong><code>dict</code></strong></a>
 </li>
 <li>
 <p>
-Operating system features: <a href="#cmd_1"><strong><code>os.fork</code></strong></a>, <a href="#cmd_1"><strong><code>os.wait</code></strong></a>, <a href="#cmd_1"><strong><code>os.uptime</code></strong></a>, <a href="#_signal"><strong><code>signal</code></strong></a>, <a href="#_alarm"><strong><code>alarm</code></strong></a>, <a href="#_sleep"><strong><code>sleep</code></strong></a>
+Operating system features: <a href="#cmd_1"><strong><code>os.fork</code></strong></a>, <a href="#cmd_1"><strong><code>os.uptime</code></strong></a>, <a href="#_wait"><strong><code>wait</code></strong></a>, <a href="#_signal"><strong><code>signal</code></strong></a>, <a href="#_alarm"><strong><code>alarm</code></strong></a>, <a href="#_sleep"><strong><code>sleep</code></strong></a>
 </p>
 </li>
 <li>
@@ -877,6 +878,76 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_77_and_0_78">Changes between 0.77 and 0.78</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Add serial/tty support with <a href="#_aio"><strong><code>aio</code></strong></a> <code>tty</code>
+</p>
+</li>
+<li>
+<p>
+Add support for <em>jimsh -</em>
+</p>
+</li>
+<li>
+<p>
+Add hidden <em>-commands</em> option to many commands
+</p>
+</li>
+<li>
+<p>
+Add scriptable autocompletion support in interactive mode with <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_aio"><strong><code>aio</code></strong></a> <code>sockopt</code>
+</p>
+</li>
+<li>
+<p>
+Add scriptable autocompletion support with <a href="#_history"><strong><code>history</code></strong></a> <code>completion</code>
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_tree"><strong><code>tree</code></strong></a> <code>delete</code>
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_defer"><strong><code>defer</code></strong></a> and <em>$jim::defer</em>
+</p>
+</li>
+<li>
+<p>
+Renamed <code>os.wait</code> to <a href="#_wait"><strong><code>wait</code></strong></a>, now more Tcl-compatible and compatible with <a href="#_exec"><strong><code>exec</code></strong></a> <code>... &amp;</code>
+</p>
+</li>
+<li>
+<p>
+<a href="#_pipe"><strong><code>pipe</code></strong></a> is now a synonym for <a href="#_socket"><strong><code>socket</code></strong></a> <code>pipe</code>
+</p>
+</li>
+<li>
+<p>
+Closing a pipe open with <a href="#_open"><strong><code>open</code></strong></a> <code>|...</code> now returns Tcl-like status
+</p>
+</li>
+<li>
+<p>
+It is now possible to used <a href="#_exec"><strong><code>exec</code></strong></a> redirection with a pipe opened with <a href="#_open"><strong><code>open</code></strong></a> <code>|...</code>
+</p>
+</li>
+<li>
+<p>
+Interactive line editing now supports multiline mode if $::history::multiline is set
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_76_and_0_77">Changes between 0.76 and 0.77</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -1275,6 +1346,11 @@ It may be invoked in interactive mode as:</p></div>
 <div class="literalblock">
 <div class="content">
 <pre><code>jimsh filename</code></pre>
+</div></div>
+<div class="paragraph"><p>or to process the Tcl script from standard input:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><code>jimsh -</code></pre>
 </div></div>
 <div class="paragraph"><p>It may also be invoked to execute an immediate script with:</p></div>
 <div class="literalblock">
@@ -3168,13 +3244,14 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_concat"><strong><code>concat</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_continue"><strong><code>continue</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_curry"><strong><code>curry</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_defer"><strong><code>defer</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_dict"><strong><code>dict</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_env"><strong><code>env</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eof"><strong><code>eof</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_error"><strong><code>error</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_eval"><strong><code>eval</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_eval"><strong><code>eval</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>eventloop</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exec"><strong><code>exec</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exists"><strong><code>exists</code></strong></a></p></td>
@@ -3182,9 +3259,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_expr"><strong><code>expr</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_fconfigure"><strong><code>fconfigure</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_file"><strong><code>file</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_finalize"><strong><code>finalize</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_finalize"><strong><code>finalize</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_flush"><strong><code>flush</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_for"><strong><code>for</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_foreach"><strong><code>foreach</code></strong></a></p></td>
@@ -3192,9 +3269,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_getref"><strong><code>getref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_gets"><strong><code>gets</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_glob"><strong><code>glob</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_global"><strong><code>global</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_global"><strong><code>global</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_history"><strong><code>history</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_if"><strong><code>if</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_incr"><strong><code>incr</code></strong></a></p></td>
@@ -3202,9 +3279,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_interp"><strong><code>interp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_join"><strong><code>join</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_kill"><strong><code>kill</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><code>lambda</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><code>lambda</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lappend"><strong><code>lappend</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><code>lassign</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><code>lindex</code></strong></a></p></td>
@@ -3212,9 +3289,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_list"><strong><code>list</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_llength"><strong><code>llength</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lmap"><strong><code>lmap</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_load"><strong><code>load</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_load"><strong><code>load</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_local"><strong><code>local</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_loop"><strong><code>loop</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><code>lrange</code></strong></a></p></td>
@@ -3222,9 +3299,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lreplace"><strong><code>lreplace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreverse"><strong><code>lreverse</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><code>lsearch</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lset"><strong><code>lset</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lset"><strong><code>lset</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><code>lsort</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_namespace"><strong><code>namespace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>oo</code></strong></a></p></td>
@@ -3232,19 +3309,19 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.fork</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.gethostname</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.getids</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.uptime</code></strong></a></p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.wait</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.uptime</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package"><strong><code>package</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pid"><strong><code>pid</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_pipe"><strong><code>pipe</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>posix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><code>proc</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_puts"><strong><code>puts</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_puts"><strong><code>puts</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><code>pwd</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><code>rand</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_range"><strong><code>range</code></strong></a></p></td>
@@ -3252,9 +3329,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_ref"><strong><code>ref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><code>regexp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><code>regsub</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_rename"><strong><code>rename</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_rename"><strong><code>rename</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return"><strong><code>return</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><code>scan</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_seek"><strong><code>seek</code></strong></a></p></td>
@@ -3262,9 +3339,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_setref"><strong><code>setref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><code>signal</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><code>sleep</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_socket"><strong><code>socket</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_socket"><strong><code>socket</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source"><strong><code>source</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><code>split</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><code>stackdump</code></strong></a></p></td>
@@ -3272,34 +3349,33 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_string"><strong><code>string</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><code>subst</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>super</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_switch"><strong><code>switch</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_switch"><strong><code>switch</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><code>syslog</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><code>tailcall</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw"><strong><code>throw</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>update</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><code>uplevel</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_wait"><strong><code>wait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -3370,8 +3446,7 @@ command.  The legal <code><em>options</em></code> (which may be abbreviated) are
 <dd>
 <p>
     Returns 1 if arrayName is an array variable, 0 if there is
-    no variable by that name.  This command is essentially
-    identical to <a href="#_info"><strong><code>info</code></strong></a> <code>exists</code>
+    no variable by that name.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5308,6 +5383,21 @@ the given index is extracted from the list for comparison. The list index may
 be any valid list index, such as <code>1</code>, <code>end</code> or <code>end-2</code>.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_defer">defer</h3>
+<div class="paragraph"><p><code><strong>defer</strong> <em>script</em></code></p></div>
+<div class="paragraph"><p>This command is a simple helper command to add a script to the <em><code>$jim::defer</code></em> variable
+that will run when the current proc or interpreter exits. For example:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><code>jim&gt; proc a {} { defer {puts "Leaving a"}; puts "Exit" }
+jim&gt; a
+Exit
+Leaving a</code></pre>
+</div></div>
+<div class="paragraph"><p>If the <em><code>$jim::defer</code></em> variable exists, it is treated as a list of scripts to run
+when the proc or interpreter exits.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_open">open</h3>
 <div class="paragraph"><p><code><strong>open</strong> <em>fileName ?access?</em></code></p></div>
 <div class="paragraph"><p><code><strong>open</strong> <em>|command-pipeline ?access?</em></code></p></div>
@@ -5453,6 +5543,10 @@ but this feature may be suppressed by specifying the <code>-nonewline</code>
 switch.</p></div>
 <div class="paragraph"><p>Output to files is buffered internally by Tcl; the <a href="#_flush"><strong><code>flush</code></strong></a>
 command may be used to force buffered characters to be output.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_pipe">pipe</h3>
+<div class="paragraph"><p>Creates a pair of <a href="#_aio"><strong><code>aio</code></strong></a> channels and returns the handles as a list: <code>{read write}</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_pwd">pwd</h3>
@@ -5927,6 +6021,8 @@ while {1} {
     # Received SIGHUP, so reconfigure
 }</code></pre>
 </div></div>
+<div class="paragraph"><p>Note: signal handling is currently not supported in child interpreters.
+In these interpreters, the signal command does not exist.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_sleep">sleep</h3>
@@ -6863,6 +6959,25 @@ instead of <a href="#_upvar"><strong><code>upvar</code></strong></a>, <a href="#
 to access the variable in the caller&#8217;s procedure frame.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_wait">wait</h3>
+<div class="paragraph"><p><code><strong>wait</strong></code></p></div>
+<div class="paragraph"><p><code><strong>wait -nohang</strong> <em>pid</em></code></p></div>
+<div class="paragraph"><p>With no arguments, cleans up any processes started by <a href="#_exec"><strong><code>exec</code></strong></a> <code>... &amp;</code> that have completed
+(reaps zombie processes).</p></div>
+<div class="paragraph"><p>With one or two arguments, waits for a process by id, either returned by <a href="#_exec"><strong><code>exec</code></strong></a> <code>... &amp;</code>
+or by <a href="#cmd_1"><strong><code>os.fork</code></strong></a> (if supported).</p></div>
+<div class="paragraph"><p>Waits for the process to complete, unless <code>-nohang</code> is specified, in which case returns
+immediately if the process is still running.</p></div>
+<div class="paragraph"><p>Returns a list of 3 elements.</p></div>
+<div class="paragraph"><p><code>{NONE x x}</code> if the process does not exist or has already been waited for, or
+if -nohang is specified, and the process is still alive.</p></div>
+<div class="paragraph"><p><code>{CHILDSTATUS &lt;pid&gt; &lt;exit-status&gt;}</code> if the process exited normally.</p></div>
+<div class="paragraph"><p><code>{CHILDKILLED &lt;pid&gt; &lt;signal&gt;}</code> if the process terminated on a signal.</p></div>
+<div class="paragraph"><p><code>{CHILDSUSP &lt;pid&gt; none}</code> if the process terminated for some other reason.</p></div>
+<div class="paragraph"><p>Note that on platforms supporting waitpid(2), <code>pid</code> can also be given special values such
+as 0 or -1. See waitpid(2) for more detail.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_while">while</h3>
 <div class="paragraph"><p><code><strong>while</strong> <em>test body</em></code></p></div>
 <div class="paragraph"><p>The <code><em>while</em></code> command evaluates <code><em>test</em></code> as an expression
@@ -6886,7 +7001,7 @@ termination of the <a href="#_while"><strong><code>while</code></strong></a> com
 <div class="paragraph"><p>The following extensions may or may not be available depending upon
 what options were selected when Jim Tcl was built.</p></div>
 <div class="sect2">
-<h3 id="cmd_1">posix: os.fork, os.wait, os.gethostname, os.getids, os.uptime</h3>
+<h3 id="cmd_1">posix: os.fork, os.gethostname, os.getids, os.uptime</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <code><strong>os.fork</strong></code>
@@ -6895,35 +7010,6 @@ what options were selected when Jim Tcl was built.</p></div>
 <p>
     Invokes <em>fork(2)</em> and returns the result.
 </p>
-</dd>
-<dt class="hdlist1">
-<code><strong>os.wait -nohang</strong> <em>pid</em></code>
-</dt>
-<dd>
-<p>
-    Invokes waitpid(2), with WNOHANG if <code>-nohang</code> is specified.
-    Returns a list of 3 elements.
-</p>
-<div class="literalblock">
-<div class="content">
-<pre><code>{0 none 0} if -nohang is specified, and the process is still alive.</code></pre>
-</div></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>{-1 error &lt;error-description&gt;} if the process does not exist or has already been waited for.</code></pre>
-</div></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>{&lt;pid&gt; exit &lt;exit-status&gt;} if the process exited normally.</code></pre>
-</div></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>{&lt;pid&gt; signal &lt;signal-number&gt;} if the process terminated on a signal.</code></pre>
-</div></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>{&lt;pid&gt; other 0} otherwise (core dump, stopped, continued, etc.)</code></pre>
-</div></div>
 </dd>
 <dt class="hdlist1">
 <code><strong>os.gethostname</strong></code>
@@ -7114,6 +7200,18 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>sockopt</strong> <em>?name value?</em></code>
+</dt>
+<dd>
+<p>
+    With no arguments, returns a dictionary of socket options currently set for the handle
+        (will be empty for a non-socket). With <code><em>name</em></code> and <code><em>value</em></code>, sets the socket option
+        to the given value. Currently supports the following boolean socket options:
+        <code>broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay</code>, and the following
+        integer socket options: <code>sndbuf, rcvbuf</code>
+</p>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>sync</strong></code>
 </dt>
 <dd>
@@ -7131,11 +7229,98 @@ uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>tty</strong> ?settings?</code>
+</dt>
+<dd>
+<p>
+        If no arguments are given, returns a dictionary containing the tty settings for the stream.
+        If arguments are given, they must either be a dictionary, or <code>setting value ...</code>
+        Abbrevations are supported for both settings and values, so the following is acceptable:
+        <code>$f tty parity e input c out raw</code>.
+    Only available on platforms that support termios(3). Supported settings are:
+</p>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>baud</strong> <em>rate</em></code>
+</dt>
+<dd>
+<p>
+        Baud rate. e.g. 115200
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>data 5|6|7|8</strong></code>
+</dt>
+<dd>
+<p>
+        Number of data bits
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>stop 1|2</strong></code>
+</dt>
+<dd>
+<p>
+        Number of stop bits
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>parity even|odd|none</strong></code>
+</dt>
+<dd>
+<p>
+        Parity setting
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>handshake xonxoff|rtscts|none</strong></code>
+</dt>
+<dd>
+<p>
+                Handshaking type
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>input raw|cooked</strong></code>
+</dt>
+<dd>
+<p>
+                Input character processing. In raw mode, the usual key sequences such as ^C do
+                not generate signals.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>output raw|cooked</strong></code>
+</dt>
+<dd>
+<p>
+                Output character processing. Typically CR &#8594; CRNL is disabled in raw mode.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>vmin</strong> <em>numchars</em></code>
+</dt>
+<dd>
+<p>
+                Minimum number of characters to read.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>vtime</strong> <em>time</em></code>
+</dt>
+<dd>
+<p>
+                Timeout for noncanonical read (units of 0.1 seconds)
+</p>
+</dd>
+</dl></div>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>ssl</strong> <strong>?-server cert priv?</strong></code>
 </dt>
 <dd>
 <p>
-    Initiates a SSL/TLS session and returns a new stream
+    Upgrades the stream to a SSL/TLS session and returns the handle.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7384,8 +7569,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 </dt>
 <dd>
 <p>
-    A pipe. Note that unlike all other socket types, this command returns
-    a list of two channels: {read write}
+        A synonym for <a href="#_pipe"><strong><code>pipe</code></strong></a>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7393,7 +7577,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 </dt>
 <dd>
 <p>
-    A socketpair (see socketpair(2)). Like <a href="#_socket"><strong><code>socket</code></strong></a> <code>pipe</code>, this command returns
+    A socketpair (see socketpair(2)). Like <a href="#_pipe"><strong><code>pipe</code></strong></a>, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
 </p>
 </dd>
@@ -7787,7 +7971,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 </div>
 <div class="sect2">
 <h3 id="_tcl_prefix">tcl::prefix</h3>
-<div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <em>tcl::prefix</em> command
+<div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a> command
 (<a href="http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm</a>) for matching strings against a table
 of possible values (typically commands or options).</p></div>
 <div class="dlist"><dl>
@@ -7841,6 +8025,25 @@ of possible values (typically commands or options).</p></div>
 </dl></div>
 </div>
 <div class="sect2">
+<h3 id="_tcl_autocomplete">tcl::autocomplete</h3>
+<div class="paragraph"><p>Scriptable command line completion is supported in the interactive shell, <em>jimsh</em>, through
+the <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a> callback. A simple implementation is provided, however this may
+be replaced with a custom command instead if desired.</p></div>
+<div class="paragraph"><p>In the interactive shell, press &lt;TAB&gt; to activate command line completion.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>tcl::autocomplete</strong> <em>commandline</em></code>
+</dt>
+<dd>
+<p>
+        This command is called with the current command line when the user presses &lt;TAB&gt;.
+        The command should return a list of all possible command lines that match the current command line.
+        For example if <code><strong>pr</strong></code> is the current command line, the list <code><strong>{prefix proc}</strong></code> may be returned.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
 <h3 id="_history">history</h3>
 <div class="paragraph"><p>The optional history extension provides script access to the command line editing
 and history support available in <em>jimsh</em>. See <em>examples/jtclsh.tcl</em> for an example.
@@ -7864,6 +8067,15 @@ the remaining subcommands do nothing.</p></div>
     Displays the given prompt and allows a line to be entered. Similarly to <a href="#_gets"><strong><code>gets</code></strong></a>,
     if <code><em>varname</em></code> is given, it receives the line and the length of the line is returned,
     or -1 on EOF. If <code><em>varname</em></code> is not given, the line is returned directly.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>history completion</strong> <em>command</em></code>
+</dt>
+<dd>
+<p>
+    Sets an autocompletion command (see <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a>) that is active during <a href="#_history"><strong><code>history</code></strong></a> <code>getline</code>.
+        If the command is empty, autocompletion is disabled.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -8153,6 +8365,29 @@ tcl_platform(pathSeparator) = :</code></pre>
 <dd>
 <p>
     The value of argv[0] when jimsh was invoked.
+</p>
+</dd>
+</dl></div>
+<div class="paragraph"><p>The following variables have special meaning to Jim Tcl:</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>jim::defer</strong></code>
+</dt>
+<dd>
+<p>
+    If this variable is set, it is considered to be a list of scripts to evaluate
+        when the current proc exits (local variables), or the interpreter exits (global variable).
+        See <a href="#_defer"><strong><code>defer</code></strong></a>.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>history::multiline</strong></code>
+</dt>
+<dd>
+<p>
+    If this variable is set to "1", interactive line editing operates in multiline mode.
+        That is, long lines will wrap across multiple lines rather than scrolling within a
+        single line.
 </p>
 </dd>
 </dl></div>
@@ -8490,9 +8725,6 @@ official policies, either expressed or implied, of the Jim Tcl Project.</code></
 </div>
 <div id="footnotes"><hr /></div>
 <div id="footer">
-<div id="footer-text">
-Last updated 2016-08-29 16:18:20 AEST
-</div>
 </div>
 </body>
 </html>

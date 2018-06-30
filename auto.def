@@ -1,7 +1,7 @@
 # vim:se syn=tcl:
 #
 
-define JIM_VERSION 77
+define JIM_VERSION 78
 
 options-defaults {
     silent-rules 1
