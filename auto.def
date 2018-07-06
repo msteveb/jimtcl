@@ -456,6 +456,13 @@ if {[ext-get-status load] eq "n"} {
     define SH_LINKFLAGS ""
 }
 
+# Are we cross compiling?
+if {[get-define host] ne [get-define build]} {
+	define cross_compiling 1
+} else {
+	define cross_compiling 0
+}
+
 msg-result "Jim static extensions: [lsort [concat $extinfo(static-tcl) $extinfo(static-c)]]"
 if {[llength $extinfo(module-tcl)]} {
     msg-result "Jim Tcl extensions: [lsort $extinfo(module-tcl)]"
