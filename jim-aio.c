@@ -256,9 +256,9 @@ static const char *ssl_strerror(struct AioFile *af)
     if (err) {
         return ERR_error_string(err, NULL);
     }
-
-    /* should not happen */
-    return "unknown SSL error";
+	else {
+		return stdio_strerror(af);
+	}
 }
 
 static int ssl_verify(struct AioFile *af)
