@@ -1098,7 +1098,6 @@ badargs:
         }
         if (outputId != -1) {
             close(outputId);
-            outputId = -1;
         }
         inputId = pipeIds[0];
         pipeIds[0] = pipeIds[1] = -1;
