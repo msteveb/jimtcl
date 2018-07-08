@@ -11899,7 +11899,7 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     }
     if (result != JIM_OK) {
         Jim_SetResultString(interp, "foreach varlist is empty", -1);
-        return result;
+        goto empty_varlist;
     }
 
     if (doMap) {
@@ -11962,6 +11962,7 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     Jim_SetResult(interp, resultObj);
   err:
     Jim_DecrRefCount(interp, resultObj);
+  empty_varlist:
     if (numargs > 2) {
         Jim_Free(iters);
     }
