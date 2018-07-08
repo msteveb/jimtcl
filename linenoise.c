@@ -807,7 +807,7 @@ static void cursorDown(struct current *current, int n)
 
 void linenoiseClearScreen(void)
 {
-    write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7);
+    IGNORE_RC(write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7));
 }
 
 /**
