@@ -724,7 +724,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
     int lastBar;
     int i;
     pidtype pid;
-    char **save_environ, **child_environ;
+    char **save_environ;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
     /* Holds the args which will be used to exec */
@@ -843,7 +843,6 @@ badargs:
 
     /* Must do this before vfork(), so do it now */
     save_environ = JimSaveEnv(JimBuildEnv(interp));
-    child_environ = Jim_GetEnviron();
 
     /*
      * Set up the redirected input source for the pipeline, if
@@ -1030,7 +1029,7 @@ badargs:
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        pid = JimStartWinProcess(interp, &arg_array[firstArg], child_environ, inputId, outputId, errorId);
+        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
         if (pid == JIM_BAD_PID) {
             Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
             goto error;
@@ -1079,7 +1078,7 @@ badargs:
             /* Restore SIGPIPE behaviour */
             (void)signal(SIGPIPE, SIG_DFL);
 
-            execvpe(arg_array[firstArg], &arg_array[firstArg], child_environ);
+            execvpe(arg_array[firstArg], &arg_array[firstArg], save_environ);
 
             if (write(fileno(stderr), "couldn't exec \"", 15) &&
                 write(fileno(stderr), arg_array[firstArg], i) &&
