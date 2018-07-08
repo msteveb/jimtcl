@@ -724,7 +724,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, pidtype **
     int lastBar;
     int i;
     pidtype pid;
-    char **save_environ;
+    char **save_environ, **child_environ;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
     /* Holds the args which will be used to exec */
@@ -843,6 +843,7 @@ badargs:
 
     /* Must do this before vfork(), so do it now */
     save_environ = JimSaveEnv(JimBuildEnv(interp));
+    child_environ = Jim_GetEnviron();
 
     /*
      * Set up the redirected input source for the pipeline, if
@@ -1009,6 +1010,7 @@ badargs:
         arg_array[lastArg] = NULL;
         if (lastArg == arg_count) {
             outputId = lastOutputId;
+            lastOutputId = -1;
         }
         else {
             if (pipe(pipeIds) != 0) {
@@ -1023,17 +1025,19 @@ badargs:
             errorId = outputId;
         }
 
+        i = strlen(arg_array[firstArg]);
+
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        pid = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
+        pid = JimStartWinProcess(interp, &arg_array[firstArg], child_environ, inputId, outputId, errorId);
         if (pid == JIM_BAD_PID) {
             Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
             goto error;
         }
 #else
         /*
-         * Make a new process and enter it into the table if the fork
+         * Make a new process and enter it into the table if the vfork
          * is successful.
          */
         pid = vfork();
@@ -1043,20 +1047,45 @@ badargs:
         }
         if (pid == 0) {
             /* Child */
-            if (inputId != -1) dup2(inputId, fileno(stdin));
-            if (outputId != -1) dup2(outputId, fileno(stdout));
-            if (errorId != -1) dup2(errorId, fileno(stderr));
-
-            for (i = 3; (i <= outputId) || (i <= inputId) || (i <= errorId); i++) {
-                close(i);
+            /* Set up stdin, stdout, stderr */
+            if (inputId != -1) {
+                dup2(inputId, fileno(stdin));
+                close(inputId);
+            }
+            if (outputId != -1) {
+                dup2(outputId, fileno(stdout));
+                if (outputId != errorId) {
+                    close(outputId);
+                }
+            }
+            if (errorId != -1) {
+                dup2(errorId, fileno(stderr));
+                close(errorId);
+            }
+            /* Close parent-only file descriptors */
+            if (outPipePtr) {
+                close(*outPipePtr);
+            }
+            if (errFilePtr) {
+                close(*errFilePtr);
+            }
+            if (pipeIds[0] != -1) {
+                close(pipeIds[0]);
+            }
+            if (lastOutputId != -1) {
+                close(lastOutputId);
             }
 
             /* Restore SIGPIPE behaviour */
             (void)signal(SIGPIPE, SIG_DFL);
 
-            execvpe(arg_array[firstArg], &arg_array[firstArg], Jim_GetEnviron());
+            execvpe(arg_array[firstArg], &arg_array[firstArg], child_environ);
 
-            fprintf(stderr, "couldn't exec \"%s\"\n", arg_array[firstArg]);
+            if (write(fileno(stderr), "couldn't exec \"", 15) &&
+                write(fileno(stderr), arg_array[firstArg], i) &&
+                write(fileno(stderr), "\"\n", 2)) {
+                /* nothing */
+            }
 #ifdef JIM_MAINTAINER
             {
                 /* Keep valgrind happy */
