@@ -4805,7 +4805,7 @@ Various socket types may be created.
 +*socket unix.dgram* '?path?'+::
     A unix domain socket datagram client, optionally connected to 'path'
 
-+*socket unix.server* 'path'+::
++*socket unix.dgram.server* 'path'+::
     A unix domain socket datagram server server listening on 'path'
 
 +*socket ?-ipv6? stream* 'addr:port'+::
