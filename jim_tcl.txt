@@ -55,6 +55,7 @@ RECENT CHANGES
 Changes since 0.78
 ~~~~~~~~~~~~~~~~~~
 1. Add `file mtimeus` for high resolution file timestamps
+2. `aio` now supports datagram Unix-Domain sockets
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3426,6 +3427,14 @@ pipe
 ~~~~
 Creates a pair of `aio` channels and returns the handles as a list: +{read write}+
 
+    lassign [pipe] r w
+
+    # Must close $w after exec
+    exec ps >@$w &
+    $w close
+
+    $r readable ...
+
 pwd
 ~~~
 +*pwd*+
@@ -4566,14 +4575,18 @@ aio
 +$handle *accept* ?addrvar?+::
     Server socket only: Accept a connection and return stream.
     If +'addrvar'+ is specified, the address of the connected client is stored
-    in the named variable in the form 'addr:port'. See `socket` for details.
+    in the named variable in the form 'addr:port' for IP sockets or 'path' for Unix domain sockets.
+    See `socket` for details.
 
 +$handle *buffering none|line|full*+::
     Sets the buffering mode of the stream.
 
-+$handle *close* ?r(ead)|w(rite)?+::
++$handle *close* ?r(ead)|w(rite)|-nodelete?+::
     Closes the stream.
-    The  two-argument form is a "half-close" on a socket. See the +shutdown(2)+ man page.
+    The +'read'+ and +'write'+ arguments perform a "half-close" on a socket. See the +shutdown(2)+ man page.
+    The +'-nodelete'+ option is applicable only for Unix domain sockets. It closes the socket
+    but does not delete the bound path (e.g. after `os.fork`).
+
 
 +$handle *copyto* 'tofd ?size?'+::
     Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
@@ -4609,6 +4622,9 @@ aio
     Note that in general ANSI I/O interacts badly with non-blocking I/O.
     Use with care.
 
++$handle *peername*+::
+    Returns the remote address or path of the connected socket. See 'getpeername(2)'.
+
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
 
@@ -4617,25 +4633,28 @@ aio
 
 +$handle *recvfrom* 'maxlen ?addrvar?'+::
     Receives a message from the handle via recvfrom(2) and returns it.
-    At most +'maxlen'+ bytes are read.
-    If +'addrvar'+ is specified, the sending address of the message is stored in
-    the named variable in the form 'addr:port'. See `socket` for details.
+    At most +'maxlen'+ bytes are read. If +'addrvar'+ is specified, the sending address
+    of the message is stored in the named variable in the form 'addr:port' for IP sockets
+    or 'path' for Unix domain sockets. See `socket` for details.
 
 +$handle *seek* 'offset' *?start|current|end?*+::
     Seeks in the stream (default 'current')
 
-+$handle *sendto* 'str ?addr:?port'+::
-    Sends the string, +'str'+, to the given address via the socket using sendto(2).
++$handle *sendto* 'str ?address'+::
+    Sends the string, +'str'+, to the given address (host:port or path) via the socket using sendto(2).
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
 
++$handle *sockname*+::
+    Returns the bound address or path of the socket. See 'getsockname(2)'.
+
 +$handle *sockopt* '?name value?'+::
     With no arguments, returns a dictionary of socket options currently set for the handle
-	(will be empty for a non-socket). With +'name'+ and +'value'+, sets the socket option
-	to the given value. Currently supports the following boolean socket options:
-	+broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay+, and the following
-	integer socket options: +sndbuf, rcvbuf+
+    (will be empty for a non-socket). With +'name'+ and +'value'+, sets the socket option
+    to the given value. Currently supports the following boolean socket options:
+    +broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay+, and the following
+    integer socket options: +sndbuf, rcvbuf+
 
 +$handle *sync*+::
     Flush the stream, then fsync(2) to commit any changes to storage.
@@ -4645,10 +4664,10 @@ aio
     Returns the current seek position
 
 +$handle *tty* ?settings?+::
-	If no arguments are given, returns a dictionary containing the tty settings for the stream.
-	If arguments are given, they must either be a dictionary, or +setting value \...+
-	Abbrevations are supported for both settings and values, so the following is acceptable:
-	+$f tty parity e input c out raw+.
+    If no arguments are given, returns a dictionary containing the tty settings for the stream.
+    If arguments are given, they must either be a dictionary, or +setting value \...+
+    Abbrevations are supported for both settings and values, so the following is acceptable:
+    +$f tty parity e input c out raw+.
     Only available on platforms that support termios(3). Supported settings are:
 
     +*baud* 'rate'+;;
@@ -4664,20 +4683,20 @@ aio
         Parity setting
 
     +*handshake xonxoff|rtscts|none*+;;
-		Handshaking type
+        Handshaking type
 
     +*input raw|cooked*+;;
-		Input character processing. In raw mode, the usual key sequences such as ^C do
-		not generate signals.
+        Input character processing. In raw mode, the usual key sequences such as ^C do
+        not generate signals.
 
     +*output raw|cooked*+;;
-		Output character processing. Typically CR -> CRNL is disabled in raw mode.
+        Output character processing. Typically CR -> CRNL is disabled in raw mode.
 
     +*vmin* 'numchars'+;;
-		Minimum number of characters to read.
+        Minimum number of characters to read.
 
     +*vtime* 'time'+;;
-		Timeout for noncanonical read (units of 0.1 seconds)
+        Timeout for noncanonical read (units of 0.1 seconds)
 
 +$handle *ssl* *?-server cert priv?*+::
     Upgrades the stream to a SSL/TLS session and returns the handle.
@@ -4778,10 +4797,16 @@ socket
 Various socket types may be created.
 
 +*socket unix* 'path'+::
-    A unix domain socket client.
+    A unix domain socket client connected to 'path'
 
 +*socket unix.server* 'path'+::
-    A unix domain socket server.
+    A unix domain socket server listening on 'path'
+
++*socket unix.dgram* '?path?'+::
+    A unix domain socket datagram client, optionally connected to 'path'
+
++*socket unix.server* 'path'+::
+    A unix domain socket datagram server server listening on 'path'
 
 +*socket ?-ipv6? stream* 'addr:port'+::
     A TCP socket client. (See the forms for +'addr'+ below)
@@ -4798,7 +4823,7 @@ Various socket types may be created.
     A UDP socket server.
 
 +*socket pipe*+::
-	A synonym for `pipe`
+    A synonym for `pipe`
 
 +*socket pair*+::
     A socketpair (see socketpair(2)). Like `pipe`, this command returns
@@ -4842,15 +4867,12 @@ also accept requests via IPv4.
 Where a hostname is specified, the +'first'+ returned address is used
 which matches the socket type is used.
 
-The special type 'pipe' isn't really a socket.
+An unconnected dgram socket (either 'dgram' or 'unix.dgram') must use
+`sendto` to specify the destination address.
 
-    lassign [socket pipe] r w
-
-    # Must close $w after exec
-    exec ps >@$w &
-    $w close
-
-    $r readable ...
+The path for Unix domain sockets is automatically removed when the socket
+is closed. Use `close -nodelete` in the rare case where this behaviour
+should be avoided (e.g. after `os.fork`).
 
 syslog
 ~~~~~~
@@ -5051,9 +5073,9 @@ be replaced with a custom command instead if desired.
 In the interactive shell, press <TAB> to activate command line completion.
 
 +*tcl::autocomplete* 'commandline'+::
-	This command is called with the current command line when the user presses <TAB>.
-	The command should return a list of all possible command lines that match the current command line.
-	For example if +*pr*+ is the current command line, the list +*{prefix proc}*+ may be returned.
+    This command is called with the current command line when the user presses <TAB>.
+    The command should return a list of all possible command lines that match the current command line.
+    For example if +*pr*+ is the current command line, the list +*{prefix proc}*+ may be returned.
 
 history
 ~~~~~~~
@@ -5073,7 +5095,7 @@ the remaining subcommands do nothing.
 
 +*history completion* 'command'+::
     Sets an autocompletion command (see `tcl::autocomplete`) that is active during `history getline`.
-	If the command is empty, autocompletion is disabled.
+    If the command is empty, autocompletion is disabled.
 
 +*history add* 'line'+::
     Adds the given line to the history buffer.
@@ -5128,20 +5150,20 @@ independently (but synchronously) of the main interpreter.
 
 +*interp*+::
     Creates and returns a new interpreter object (command).
-	The created interpeter contains any built-in commands along with static extensions,
-	but does not include any dynamically loaded commands (package require, load).
-	These must be reloaded in the child interpreter if required.
+    The created interpeter contains any built-in commands along with static extensions,
+    but does not include any dynamically loaded commands (package require, load).
+    These must be reloaded in the child interpreter if required.
 
 +*$interp delete*+::
     Deletes the interpeter object.
 
 +*$interp eval* 'script' ...+::
-	Evaluates a script in the context for the child interpreter, in the same way as 'eval'.
+    Evaluates a script in the context for the child interpreter, in the same way as 'eval'.
 
 +*$interp alias* 'alias childcmd parentcmd ?arg ...?'+::
-	Similar to 'alias', but creates a command, +'childcmd'+, in the child interpreter that is an
-	alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments.
-	The alias may be deleted in the child with 'rename'.
+    Similar to 'alias', but creates a command, +'childcmd'+, in the child interpreter that is an
+    alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments.
+    The alias may be deleted in the child with 'rename'.
 
 [[BuiltinVariables]]
 BUILT-IN VARIABLES
@@ -5223,13 +5245,13 @@ The following variables have special meaning to Jim Tcl:
 
 +*jim::defer*+::
     If this variable is set, it is considered to be a list of scripts to evaluate
-	when the current proc exits (local variables), or the interpreter exits (global variable).
-	See `defer`.
+    when the current proc exits (local variables), or the interpreter exits (global variable).
+    See `defer`.
 
 +*history::multiline*+::
     If this variable is set to "1", interactive line editing operates in multiline mode.
-	That is, long lines will wrap across multiple lines rather than scrolling within a
-	single line.
+    That is, long lines will wrap across multiple lines rather than scrolling within a
+    single line.
 
 CHANGES IN PREVIOUS RELEASES
 ----------------------------
