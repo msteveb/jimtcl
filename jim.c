@@ -5381,11 +5381,11 @@ int Jim_Collect(Jim_Interp *interp)
     Jim_Obj *objPtr;
 
     /* Avoid recursive calls */
-    if (interp->lastCollectId == -1) {
+    if (interp->lastCollectId == (unsigned long)~0) {
         /* Jim_Collect() already running. Return just now. */
         return 0;
     }
-    interp->lastCollectId = -1;
+    interp->lastCollectId = ~0;
 
     /* Mark all the references found into the 'mark' hash table.
      * The references are searched in every live object that

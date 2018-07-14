@@ -224,7 +224,7 @@ static int ssl_reader(struct AioFile *af, char *buf, int len)
 
 static const char *ssl_getline(struct AioFile *af, char *buf, int len)
 {
-    int i;
+    size_t i;
     for (i = 0; i < len + 1; i++) {
         if (SSL_read(af->ssl, &buf[i], 1) != 1) {
             if (i == 0) {

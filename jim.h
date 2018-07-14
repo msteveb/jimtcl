@@ -535,7 +535,7 @@ typedef struct Jim_Interp {
     unsigned long referenceNextId; /* Next id for reference. */
     struct Jim_HashTable references; /* References hash table. */
     unsigned long lastCollectId; /* reference max Id of the last GC
-                execution. It's set to -1 while the collection
+                execution. It's set to ~0 while the collection
                 is running as sentinel to avoid to recursive
                 calls via the [collect] command inside
                 finalizers. */

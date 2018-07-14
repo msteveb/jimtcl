@@ -199,7 +199,7 @@ static int utf8_map_case(const struct casemap *mapping, int num, int ch)
 static int cmp_range(const void *key, const void *cm)
 {
     const struct utf8range *range = (const struct utf8range *)cm;
-    int ch = *(int *)key;
+    unsigned ch = *(unsigned *)key;
     if (ch < range->lower) {
         return -1;
     }

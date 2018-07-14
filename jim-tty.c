@@ -146,7 +146,7 @@ static void JimListAddPair(Jim_Interp *interp, Jim_Obj *listObjPtr, const char *
 Jim_Obj *Jim_GetTtySettings(Jim_Interp *interp, int fd)
 {
     struct termios tio;
-    int i;
+    size_t i;
     const char *p;
     Jim_Obj *listObjPtr;
     speed_t speed;
@@ -215,7 +215,7 @@ int Jim_SetTtySettings(Jim_Interp *interp, int fd, Jim_Obj *dictObjPtr)
         int opt;
         const struct flag_name_map *p;
         long l;
-        int j;
+        size_t j;
 
         if (Jim_GetEnum(interp, nameObj, tty_settings_names, &opt, "setting", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
             return JIM_ERR;
