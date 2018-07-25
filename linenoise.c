@@ -180,7 +180,6 @@ void sb_append(stringbuf *sb, const char *str)
 
 void sb_append_len(stringbuf *sb, const char *str, int len)
 {
-	int utf8_strlen(const char *str, int bytelen);
 	if (sb->remaining < len + 1) {
 		sb_realloc(sb, sb->last + len + 1 + SB_INCREMENT);
 	}
@@ -480,6 +479,7 @@ struct current {
     int cols;   /* Size of the window, in chars */
     int nrows;  /* How many rows are being used in multiline mode (>= 1) */
     int rpos;   /* The current row containing the cursor - multiline mode only */
+    int availcols;  /* refreshLine() caches available cols after the prompt here */
     const char *prompt;
     stringbuf *capture; /* capture buffer, or NULL for none. Always null terminated */
     stringbuf *output;  /* used only during refreshLine() - output accumulator */
@@ -1246,43 +1246,52 @@ void linenoiseSetMultiLine(int enableml)
 }
 
 /* Helper of refreshSingleLine() and refreshMultiLine() to show hints
- * to the right of the prompt. */
-static void refreshShowHints(struct current *current, const char *buf, int availcols) {
+ * to the right of the prompt.
+ * Returns 1 if a hint was shown, or 0 if not
+ * If 'display' is 0, does no output. Just returns the appropriate return code.
+ */
+static int refreshShowHints(struct current *current, const char *buf, int availcols, int display)
+{
+    int rc = 0;
     if (showhints && hintsCallback && availcols > 0) {
         int bold = 0;
         int color = -1;
         char *hint = hintsCallback(buf, &color, &bold, hintsUserdata);
         if (hint) {
-            const char *pt;
-            if (bold == 1 && color == -1) color = 37;
-            if (bold || color > 0) {
-                int props[3] = { bold, color, 49 }; /* bold, color, fgnormal */
-                setOutputHighlight(current, props, 3);
-            }
-            DRL("<hint bold=%d,color=%d>", bold, color);
-            pt = hint;
-            while (*pt) {
-                int ch;
-                int n = utf8_tounicode(pt, &ch);
-                int width = char_display_width(ch);
-
-                if (width >= availcols) {
-                    DRL("<hinteol>");
-                    break;
+            rc = 1;
+            if (display) {
+                const char *pt;
+                if (bold == 1 && color == -1) color = 37;
+                if (bold || color > 0) {
+                    int props[3] = { bold, color, 49 }; /* bold, color, fgnormal */
+                    setOutputHighlight(current, props, 3);
                 }
-                DRL_CHAR(ch);
+                DRL("<hint bold=%d,color=%d>", bold, color);
+                pt = hint;
+                while (*pt) {
+                    int ch;
+                    int n = utf8_tounicode(pt, &ch);
+                    int width = char_display_width(ch);
 
-                availcols -= width;
-                outputChars(current, pt, n);
-                pt += n;
+                    if (width >= availcols) {
+                        DRL("<hinteol>");
+                        break;
+                    }
+                    DRL_CHAR(ch);
+
+                    availcols -= width;
+                    outputChars(current, pt, n);
+                    pt += n;
+                }
+                if (bold || color > 0) {
+                    clearOutputHighlight(current);
+                }
+                /* Call the function to free the hint returned. */
+                if (freeHintsCallback) freeHintsCallback(hint, hintsUserdata);
             }
-            if (bold || color > 0) {
-                clearOutputHighlight(current);
-            }
-            /* Call the function to free the hint returned. */
-            if (freeHintsCallback) freeHintsCallback(hint, hintsUserdata);
         }
     }
+    return rc;
 }
 
 #ifdef USE_TERMIOS
@@ -1327,6 +1336,7 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
     int notecursor;
     int cursorcol = 0;
     int cursorrow = 0;
+    int hint;
     struct esc_parser parser;
 
 #ifdef DEBUG_REFRESHLINE
@@ -1507,7 +1517,16 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
     DRL("\nafter buf: displaycol=%d, displayrow=%d, cursorcol=%d, cursorrow=%d\n\n", displaycol, displayrow, cursorcol, cursorrow);
 
     /* (f) show hints */
-    refreshShowHints(current, buf, current->cols - displaycol);
+    hint = refreshShowHints(current, buf, current->cols - displaycol, 1);
+
+    /* Remember how many many cols are available for insert optimisation */
+    if (prompt == current->prompt && hint == 0) {
+        current->availcols = current->cols - displaycol;
+    }
+    else {
+        /* Can't optimise */
+        current->availcols = 0;
+    }
 
     refreshEndChars(current);
 
@@ -1579,17 +1598,39 @@ static int insert_char(struct current *current, int pos, int ch)
         char buf[MAX_UTF8_LEN + 1];
         int offset = utf8_index(sb_str(current->buf), pos);
         int n = utf8_getchars(buf, ch);
+        int rc = 1;
 
         /* null terminate since sb_insert() requires it */
         buf[n] = 0;
 
-        /* Optimisation removed - see reason in remove_char() */
-
+        /* Now we try to optimise in the simple but very common case that:
+         * - we are inserting at EOL
+         * - there are enough columns available
+         * - no hints are being shown
+         */
+        if (pos == current->pos && pos == sb_chars(current->buf)) {
+            int width = char_display_width(ch);
+            if (current->availcols > width) {
+                /* Yes, can optimise */
+                current->availcols -= width;
+                rc = 2;
+            }
+        }
         sb_insert(current->buf, offset, buf);
         if (current->pos >= pos) {
             current->pos++;
         }
-        return 1;
+        if (rc == 2) {
+            if (refreshShowHints(current, sb_str(current->buf), current->availcols, 0)) {
+                /* A hint needs to be shown, so can't optimise after all */
+                rc = 1;
+            }
+            else {
+                /* optimised output */
+                outputChars(current, buf, n);
+            }
+        }
+        return rc;
     }
     return 0;
 }
@@ -1605,7 +1646,7 @@ static void capture_chars(struct current *current, int pos, int nchars)
         int offset = utf8_index(sb_str(current->buf), pos);
         int nbytes = utf8_index(sb_str(current->buf) + offset, nchars);
 
-        if (nbytes) {
+        if (nbytes > 0) {
             if (current->capture) {
                 sb_clear(current->capture);
             }
@@ -1988,6 +2029,7 @@ history_navigation:
 int linenoiseColumns(void)
 {
     struct current current;
+    current.output = NULL;
     enableRawMode (&current);
     getWindowSize (&current);
     disableRawMode (&current);
