@@ -479,7 +479,8 @@ struct current {
     int cols;   /* Size of the window, in chars */
     int nrows;  /* How many rows are being used in multiline mode (>= 1) */
     int rpos;   /* The current row containing the cursor - multiline mode only */
-    int availcols;  /* refreshLine() caches available cols after the prompt here */
+    int colsright; /* refreshLine() cached cols for insert_char() optimisation */
+    int colsleft;  /* refreshLine() cached cols for remove_char() optimisation */
     const char *prompt;
     stringbuf *capture; /* capture buffer, or NULL for none. Always null terminated */
     stringbuf *output;  /* used only during refreshLine() - output accumulator */
@@ -1514,19 +1515,22 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
         cursorrow = displayrow;
     }
 
-    DRL("\nafter buf: displaycol=%d, displayrow=%d, cursorcol=%d, cursorrow=%d\n\n", displaycol, displayrow, cursorcol, cursorrow);
+    DRL("\nafter buf: displaycol=%d, displayrow=%d, cursorcol=%d, cursorrow=%d\n", displaycol, displayrow, cursorcol, cursorrow);
 
     /* (f) show hints */
     hint = refreshShowHints(current, buf, current->cols - displaycol, 1);
 
     /* Remember how many many cols are available for insert optimisation */
     if (prompt == current->prompt && hint == 0) {
-        current->availcols = current->cols - displaycol;
+        current->colsright = current->cols - displaycol;
+        current->colsleft = displaycol;
     }
     else {
         /* Can't optimise */
-        current->availcols = 0;
+        current->colsright = 0;
+        current->colsleft = 0;
     }
+    DRL("\nafter hints: colsleft=%d, colsright=%d\n\n", current->colsleft, current->colsright);
 
     refreshEndChars(current);
 
@@ -1571,16 +1575,47 @@ static int remove_char(struct current *current, int pos)
     if (pos >= 0 && pos < sb_chars(current->buf)) {
         int offset = utf8_index(sb_str(current->buf), pos);
         int nbytes = utf8_index(sb_str(current->buf) + offset, 1);
+        int rc = 1;
 
-        /* Note that we no longer try to optimise the remove-at-end case
-         * since control characters and wide characters mess
-         * up the simple count
+        /* Now we try to optimise in the simple but very common case that:
+         * - we are remove the char at EOL
+         * - the buffer is not empty
+         * - there are columns available to the left
+         * - the char being deleted is not a wide or utf-8 character
+         * - no hints are being shown
          */
+        if (current->pos == pos + 1 && current->pos == sb_chars(current->buf) && pos > 0) {
+#ifdef USE_UTF8
+            /* Could implement utf8_prev_len() but simplest just to not optimise this case */
+            char last = sb_str(current->buf)[offset];
+#else
+            char last = 0;
+#endif
+            if (current->colsleft > 0 && (last & 0x80) == 0) {
+                /* Have cols on the left and not a UTF-8 char or continuation */
+                /* Yes, can optimise */
+                current->colsleft--;
+                current->colsright++;
+                rc = 2;
+            }
+        }
+
         sb_delete(current->buf, offset, nbytes);
 
         if (current->pos > pos) {
             current->pos--;
         }
+        if (rc == 2) {
+            if (refreshShowHints(current, sb_str(current->buf), current->colsright, 0)) {
+                /* A hint needs to be shown, so can't optimise after all */
+                rc = 1;
+            }
+            else {
+                /* optimised output */
+                outputChars(current, "\b \b", 3);
+            }
+        }
+        return rc;
         return 1;
     }
     return 0;
@@ -1610,9 +1645,10 @@ static int insert_char(struct current *current, int pos, int ch)
          */
         if (pos == current->pos && pos == sb_chars(current->buf)) {
             int width = char_display_width(ch);
-            if (current->availcols > width) {
+            if (current->colsright > width) {
                 /* Yes, can optimise */
-                current->availcols -= width;
+                current->colsright -= width;
+                current->colsleft -= width;
                 rc = 2;
             }
         }
@@ -1621,7 +1657,7 @@ static int insert_char(struct current *current, int pos, int ch)
             current->pos++;
         }
         if (rc == 2) {
-            if (refreshShowHints(current, sb_str(current->buf), current->availcols, 0)) {
+            if (refreshShowHints(current, sb_str(current->buf), current->colsright, 0)) {
                 /* A hint needs to be shown, so can't optimise after all */
                 rc = 1;
             }
