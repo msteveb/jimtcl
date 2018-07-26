@@ -139,7 +139,7 @@ static void JimInterpCopyVariable(Jim_Interp *target, Jim_Interp *source, const 
 static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Interp *child;
-    char buf[32];
+    char buf[34];
 
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
