@@ -12496,18 +12496,11 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
      * <elements before first> <supplied elements> <elements after last>
      */
 
-    /* Check to see if trying to replace past the end of the list */
-    if (first < len) {
-        /* OK. Not past the end */
-    }
-    else if (len == 0) {
-        /* Special for empty list, adjust first to 0 */
-        first = 0;
-    }
-    else {
-        Jim_SetResultString(interp, "list doesn't contain element ", -1);
-        Jim_AppendObj(interp, Jim_GetResult(interp), argv[2]);
-        return JIM_ERR;
+    /* Trying to replace past the end of the list means end of list
+     * See TIP #505
+     */
+    if (first > len) {
+        first = len;
     }
 
     /* Add the first set of elements */
