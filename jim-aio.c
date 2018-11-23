@@ -1712,16 +1712,16 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     af = Jim_Alloc(sizeof(*af));
     memset(af, 0, sizeof(*af));
     af->fp = fh;
+    af->filename = filename;
+    af->openFlags = openFlags;
 #ifndef JIM_ANSIC
     af->fd = fileno(fh);
-#endif
-    af->filename = filename;
 #ifdef FD_CLOEXEC
     if ((openFlags & AIO_KEEPOPEN) == 0) {
         (void)fcntl(af->fd, F_SETFD, FD_CLOEXEC);
     }
 #endif
-    af->openFlags = openFlags;
+#endif
     af->addr_family = family;
     af->fops = &stdio_fops;
     af->ssl = NULL;
