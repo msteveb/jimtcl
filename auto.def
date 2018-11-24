@@ -284,6 +284,10 @@ if {[opt-bool-or-full ssl]} {
             user-error "SSL support requires OpenSSL"
         }
     }
+    # Later versions deprecate TLSv1_2_method, but older versions don't have TLS_method
+    if {![cc-check-function-in-lib TLS_method ssl]} {
+        define-append CCOPTS -DUSE_TLSv1_2_method
+    }
 }
 if {[opt-bool-or-full lineedit]} {
     if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {

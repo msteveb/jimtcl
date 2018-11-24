@@ -1636,13 +1636,17 @@ static void JimAioSslContextDelProc(struct Jim_Interp *interp, void *privData)
     ERR_free_strings();
 }
 
+#ifdef USE_TLSv1_2_method
+#define TLS_method TLSv1_2_method
+#endif
+
 static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
 {
     SSL_CTX *ssl_ctx = (SSL_CTX *)Jim_GetAssocData(interp, "ssl_ctx");
     if (ssl_ctx == NULL) {
         SSL_load_error_strings();
         SSL_library_init();
-        ssl_ctx = SSL_CTX_new(TLSv1_2_method());
+        ssl_ctx = SSL_CTX_new(TLS_method());
         if (ssl_ctx && SSL_CTX_set_default_verify_paths(ssl_ctx)) {
             SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
             Jim_SetAssocData(interp, "ssl_ctx", JimAioSslContextDelProc, ssl_ctx);
