@@ -1866,7 +1866,7 @@ clock
     Returns the current time as seconds since the epoch.
 
 +*clock clicks*+::
-    Returns the current time in `clicks'.
+    Returns the current time in "clicks", a system-dependent, high-resolution time.
 
 +*clock microseconds*+::
     Returns the current time in microseconds.
@@ -1874,14 +1874,18 @@ clock
 +*clock milliseconds*+::
     Returns the current time in milliseconds.
 
-+*clock format* 'seconds' ?*-format* 'format?'+::
++*clock format* 'seconds' ?*-format* 'format?' ?*-gmt* 'boolean?'+::
     Format the given time (seconds since the epoch) according to the given
     format. See strftime(3) for supported formats.
     If no format is supplied, "%c" is used.
+  ::
+    If +'boolean'+ is true, processing is performed in UTC.
+    If +'boolean'+ is false (the default), processing  is performeed in the local time zone.
 
-+*clock scan* 'str' *-format* 'format'+::
++*clock scan* 'str' *-format* 'format' ?*-gmt* 'boolean?'+::
     Scan the given time string using the given format string.
     See strptime(3) for supported formats.
+    See `clock format` for the handling of '-gmt'.
 
 close
 ~~~~~
