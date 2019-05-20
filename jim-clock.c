@@ -122,7 +122,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     char *pt;
     struct tm tm;
-    /*time_t now = time(NULL);*/
+    time_t now = time(NULL);
     /* No default format */
     struct clock_options options = { 0, NULL };
 
@@ -137,10 +137,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return -1;
     }
 
-    /* Set unspecified fields to 0, e.g. HH:MM becomes 00:00 */
-    memset(&tm, 0, sizeof(tm));
-    /* But this is 1-based */
-    tm.tm_mday = 1;
+    localtime_r(&now, &tm);
 
     pt = strptime(Jim_String(argv[0]), options.format, &tm);
     if (pt == 0 || *pt != 0) {
