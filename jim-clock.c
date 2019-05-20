@@ -98,25 +98,22 @@ static int clock_cmd_format(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 #ifdef HAVE_STRPTIME
-#ifndef HAVE_TIMEGM
-/* Implement a basic timegm() for system's that don't have it */
-static time_t timegm(struct tm *tm)
+/* Implement timegm() that doesn't require messing with timezone
+ * Based on: http://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ */
+static time_t jim_timegm(const struct tm *tm)
 {
-    time_t t;
-    const char *tz = getenv("TZ");
-    setenv("TZ", "", 1);
-    tzset();
-    t = mktime(tm);
-    if (tz) {
-        setenv("TZ", tz, 1);
-    }
-    else {
-        unsetenv("TZ");
-    }
-    tzset();
-    return t;
+    int m = tm->tm_mon + 1;
+    int y = 1900 + tm->tm_year - (m <= 2);
+    int era = (y >= 0 ? y : y - 399) / 400;
+    unsigned yoe = (unsigned)(y - era * 400);
+    unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + tm->tm_mday - 1;
+    unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    long days = (era * 146097 + (int)doe - 719468);
+    int secs = tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
+
+    return days * 24 * 60 * 60 + secs;
 }
-#endif
 
 static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -146,7 +143,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Now convert into a time_t */
-    Jim_SetResultInt(interp, options.gmt ? timegm(&tm) : mktime(&tm));
+    Jim_SetResultInt(interp, options.gmt ? jim_timegm(&tm) : mktime(&tm));
 
     return JIM_OK;
 }
