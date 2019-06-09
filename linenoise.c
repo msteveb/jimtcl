@@ -1881,6 +1881,7 @@ static int linenoiseEdit(struct current *current) {
         switch(c) {
         case SPECIAL_NONE:
             break;
+        case '\n':    /* line feed */
         case '\r':    /* enter */
             history_len--;
             free(history[history_len]);
