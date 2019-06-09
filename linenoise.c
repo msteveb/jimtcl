@@ -1003,18 +1003,20 @@ static int check_special(int fd)
         c = fd_read_char(fd, 50);
         if (c == '~') {
             switch (c2) {
+                case '1':
+                case '7':
+                    return SPECIAL_HOME;
                 case '2':
                     return SPECIAL_INSERT;
                 case '3':
                     return SPECIAL_DELETE;
+                case '4':
+                case '8':
+                    return SPECIAL_END;
                 case '5':
                     return SPECIAL_PAGE_UP;
                 case '6':
                     return SPECIAL_PAGE_DOWN;
-                case '7':
-                    return SPECIAL_HOME;
-                case '8':
-                    return SPECIAL_END;
             }
         }
         while (c != -1 && c != '~') {
