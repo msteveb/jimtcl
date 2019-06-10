@@ -1578,13 +1578,14 @@ static int remove_char(struct current *current, int pos)
         int rc = 1;
 
         /* Now we try to optimise in the simple but very common case that:
-         * - we are remove the char at EOL
+         * - outputChars() can be used directly (not win32)
+         * - we are removing the char at EOL
          * - the buffer is not empty
          * - there are columns available to the left
          * - the char being deleted is not a wide or utf-8 character
          * - no hints are being shown
          */
-        if (current->pos == pos + 1 && current->pos == sb_chars(current->buf) && pos > 0) {
+        if (current->output && current->pos == pos + 1 && current->pos == sb_chars(current->buf) && pos > 0) {
 #ifdef USE_UTF8
             /* Could implement utf8_prev_len() but simplest just to not optimise this case */
             char last = sb_str(current->buf)[offset];
@@ -1639,11 +1640,12 @@ static int insert_char(struct current *current, int pos, int ch)
         buf[n] = 0;
 
         /* Now we try to optimise in the simple but very common case that:
+         * - outputChars() can be used directly (not win32)
          * - we are inserting at EOL
          * - there are enough columns available
          * - no hints are being shown
          */
-        if (pos == current->pos && pos == sb_chars(current->buf)) {
+        if (current->output && pos == current->pos && pos == sb_chars(current->buf)) {
             int width = char_display_width(ch);
             if (current->colsright > width) {
                 /* Yes, can optimise */
@@ -1881,7 +1883,8 @@ static int linenoiseEdit(struct current *current) {
         switch(c) {
         case SPECIAL_NONE:
             break;
-        case '\r':    /* enter */
+        case '\r':    /* enter/CR */
+        case '\n':    /* LF */
             history_len--;
             free(history[history_len]);
             current->pos = sb_chars(current->buf);
