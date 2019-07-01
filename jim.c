@@ -11152,7 +11152,11 @@ static ScriptObj *Jim_GetSubst(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
  * resObjPtrPtr. */
 int Jim_SubstObj(Jim_Interp *interp, Jim_Obj *substObjPtr, Jim_Obj **resObjPtrPtr, int flags)
 {
-    ScriptObj *script = Jim_GetSubst(interp, substObjPtr, flags);
+    ScriptObj *script;
+
+    JimPanic((substObjPtr->refCount == 0, "Jim_SubstObj() called with zero refcount object"));
+
+    script = Jim_GetSubst(interp, substObjPtr, flags);
 
     Jim_IncrRefCount(substObjPtr);      /* Make sure it's shared. */
     /* In order to preserve the internal rep, we increment the
