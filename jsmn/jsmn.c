@@ -170,6 +170,10 @@ int jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 				if (token == NULL)
 					return JSMN_ERROR_NOMEM;
 				if (parser->toksuper != -1) {
+					if (tokens[parser->toksuper].type == JSMN_OBJECT) {
+						/* Object keys must be strings, not objects or arrays */
+						return JSMN_ERROR_INVAL;
+					}
 					tokens[parser->toksuper].size++;
 #ifdef JSMN_PARENT_LINKS
 					token->parent = parser->toksuper;
