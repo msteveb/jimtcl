@@ -495,6 +495,23 @@ define EXTRA_OBJS $extra_objs
 # Restore the user-specified LIBS
 define LIBS $LIBS
 
+# Now generate the Makefile rules to build the external C shared objects
+# It is easier to do this here rather than listing them out explicitly in Makefile.in
+set lines {}
+foreach mod $extinfo(module-c) {
+    set objs {}
+    set libs [get-define LDLIBS_$mod]
+    set src jim-$mod.c
+    lappend lines "$mod.so: $src"
+    set obj [file rootname $src].o
+    lappend lines "\t\$(ECHO)\t\"\tCC\t$obj\""
+    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(SHOBJ_CFLAGS) -c -o $obj $src"
+    lappend lines "\t\$(ECHO)\t\"\tLDSO\t\$@\""
+    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(LDFLAGS) \$(SHOBJ_LDFLAGS) -o \$@ $obj \$(SH_LIBJIM) $libs"
+    lappend lines ""
+}
+define BUILD_SHOBJS [join $lines \n]
+
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in

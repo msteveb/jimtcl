@@ -32,7 +32,7 @@ proc ext-get-status {ext} {
     return ?
 }
 
-proc check-extension-status {ext required} {
+proc check-extension-status {ext required {asmodule 0}} {
     global withinfo
 
     set status [ext-get-status $ext]
@@ -79,7 +79,13 @@ proc check-extension-status {ext required} {
         }
     }
 
-    if {$ext in $withinfo(mod)} {
+    # asmodule=1 means that the parent is a module so
+    # any automatically selected dependencies should also be modules
+    if {$asmodule == 0 && $ext in $withinfo(mod)} {
+        set asmodule 1
+    }
+
+    if {$asmodule} {
         # This is a module, so ignore LIBS
         # LDLIBS_$ext will contain the appropriate libs for this module
         define LIBS $LIBS
@@ -88,7 +94,7 @@ proc check-extension-status {ext required} {
     if {$depinfo(n) == 0} {
         # Now extension dependencies
         foreach i [ext-get $ext dep] {
-            set status [check-extension-status $i $required]
+            set status [check-extension-status $i $required $asmodule]
             #puts "$ext: dep $i $required => $status"
             incr depinfo($status)
             if {$depinfo(n)} {
@@ -108,8 +114,8 @@ proc check-extension-status {ext required} {
         return [ext-set-status $ext n]
     }
 
-    # Selected as a module?
-    if {$ext in $withinfo(mod)} {
+    # Selected as a module directly or because of a parent dependency?
+    if {$asmodule} {
         if {[ext-has $ext tcl]} {
             # Easy, a Tcl module
             msg-result "Extension $ext...tcl"
