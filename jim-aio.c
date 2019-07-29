@@ -1440,13 +1440,21 @@ static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     struct flock fl;
+    int lockmode = F_SETLK;
+
+    if (argc == 1) {
+        if (!Jim_CompareStringImmediate(interp, argv[0], "-wait")) {
+            return -1;
+        }
+        lockmode = F_SETLKW;
+    }
 
     fl.l_start = 0;
     fl.l_len = 0;
     fl.l_type = F_WRLCK;
     fl.l_whence = SEEK_SET;
 
-    switch (fcntl(af->fd, F_SETLK, &fl))
+    switch (fcntl(af->fd, lockmode, &fl))
     {
         case 0:
             Jim_SetResultInt(interp, 1);
@@ -1732,12 +1740,12 @@ static const jim_subcmd_type aio_command_table[] = {
     },
 #endif
 #if defined(HAVE_STRUCT_FLOCK)
-    {   "lock",
+    {   "lock ?-wait?",
         NULL,
         aio_cmd_lock,
         0,
-        0,
-        /* Description: Attempt to get a lock. */
+        1,
+        /* Description: Attempt to get a lock, possibly waiting */
     },
     {   "unlock",
         NULL,

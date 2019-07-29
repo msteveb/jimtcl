@@ -56,6 +56,7 @@ Changes since 0.78
 ~~~~~~~~~~~~~~~~~~
 1. Add `file mtimeus` for high resolution file timestamps
 2. `aio` now supports datagram Unix-Domain sockets
+3. Add support for `aio lock -wait`
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4581,9 +4582,9 @@ aio
 +$handle *buffering none|line|full*+::
     Sets the buffering mode of the stream.
 
-+$handle *close* ?r(ead)|w(rite)|-nodelete?+::
++$handle *close ?r(ead)|w(rite)|-nodelete?*+::
     Closes the stream.
-    The +'read'+ and +'write'+ arguments perform a "half-close" on a socket. See the +shutdown(2)+ man page.
+    The +'read'+ and +'write'+ arguments perform a "half-close" on a socket. See the 'shutdown(2)' man page.
     The +'-nodelete'+ option is applicable only for Unix domain sockets. It closes the socket
     but does not delete the bound path (e.g. after `os.fork`).
 
@@ -4609,9 +4610,10 @@ aio
 +$handle *isatty*+::
     Returns 1 if the stream is a tty device.
 
-+$handle *lock*+::
++$handle *lock ?-wait?*+::
     Apply a POSIX lock to the open file associated with the handle using
-    fcntl(2).
+    'fcntl(F_SETLK)', or 'fcntl(F_SETLKW)' to wait for the lock to be available if +'-wait'+
+    is specified.
     The handle must be open for write access.
     Returns 1 if the lock was successfully obtained, 0 otherwise.
     An error occurs if the handle is not suitable for locking (e.g.
@@ -4641,7 +4643,7 @@ aio
     Seeks in the stream (default 'current')
 
 +$handle *sendto* 'str ?address'+::
-    Sends the string, +'str'+, to the given address (host:port or path) via the socket using sendto(2).
+    Sends the string, +'str'+, to the given address (host:port or path) via the socket using 'sendto(2)'.
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
@@ -4657,8 +4659,8 @@ aio
     integer socket options: +sndbuf, rcvbuf+
 
 +$handle *sync*+::
-    Flush the stream, then fsync(2) to commit any changes to storage.
-    Only available on platforms that support fsync(2).
+    Flush the stream, then 'fsync(2)' to commit any changes to storage.
+    Only available on platforms that support 'fsync(2)'.
 
 +$handle *tell*+::
     Returns the current seek position
@@ -4668,7 +4670,7 @@ aio
     If arguments are given, they must either be a dictionary, or +setting value \...+
     Abbrevations are supported for both settings and values, so the following is acceptable:
     +$f tty parity e input c out raw+.
-    Only available on platforms that support termios(3). Supported settings are:
+    Only available on platforms that support 'termios(3)'. Supported settings are:
 
     +*baud* 'rate'+;;
         Baud rate. e.g. 115200
@@ -4698,7 +4700,7 @@ aio
     +*vtime* 'time'+;;
         Timeout for noncanonical read (units of 0.1 seconds)
 
-+$handle *ssl* *?-server cert priv?*+::
++$handle *ssl* ?*-server* 'cert priv'?+::
     Upgrades the stream to a SSL/TLS session and returns the handle.
 
 +$handle *unlock*+::

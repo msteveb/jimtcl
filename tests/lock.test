@@ -42,6 +42,19 @@ test lock-1.5 {grab lock from sub-process} {
 	set stat
 } 0
 
+test lock-1.6 {wait for lock} {
+	# Run a child process that grabs the lock for 0.5 seconds
+	set pid [exec [info nameofexecutable] -e {set fh [open locktest.file r+]; $fh lock; sleep 0.5} >/dev/null &]
+	# And wait to acquire the lock in the parent. Should take ~500ms
+	set start [clock millis]
+	sleep 0.1
+	$fh lock -wait
+	set delta [expr {[clock millis] - $start}]
+	if {$delta < 100} {
+		error "Lock acquired after ${delta}ms"
+	}
+} {}
+
 $fh close
 file delete locktest.file
 
