@@ -88,6 +88,7 @@ if {"-Werror" in [get-define CFLAGS] && [cctest -cflags -Wno-error]} {
 }
 
 cc-check-types "long long"
+cc-check-sizeof int
 
 define CCOPTS ""
 define CXXOPTS ""
@@ -530,7 +531,7 @@ foreach mod $extinfo(module-c) {
 }
 define BUILD_SHOBJS [join $lines \n]
 
-make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8} -bare JIM_VERSION -none *
+make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 SIZEOF_INT} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template tests/Makefile.in
