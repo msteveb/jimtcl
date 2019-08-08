@@ -762,17 +762,6 @@ int Jim_InitHashTable(Jim_HashTable *ht, const Jim_HashTableType *type, void *pr
     return JIM_OK;
 }
 
-/* Resize the table to the minimal size that contains all the elements,
- * but with the invariant of a USER/BUCKETS ration near to <= 1 */
-void Jim_ResizeHashTable(Jim_HashTable *ht)
-{
-    int minimal = ht->used;
-
-    if (minimal < JIM_HT_INITIAL_SIZE)
-        minimal = JIM_HT_INITIAL_SIZE;
-    Jim_ExpandHashTable(ht, minimal);
-}
-
 /* Expand or create the hashtable */
 void Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
 {

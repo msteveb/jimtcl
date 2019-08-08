@@ -656,7 +656,6 @@ JIM_EXPORT int Jim_DeleteHashEntry (Jim_HashTable *ht,
 JIM_EXPORT int Jim_FreeHashTable (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashEntry * Jim_FindHashEntry (Jim_HashTable *ht,
         const void *key);
-JIM_EXPORT void Jim_ResizeHashTable (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashTableIterator *Jim_GetHashTableIterator
         (Jim_HashTable *ht);
 JIM_EXPORT Jim_HashEntry * Jim_NextHashEntry
