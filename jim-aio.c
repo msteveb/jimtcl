@@ -1356,8 +1356,7 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         server = 1;
     }
     else if (argc != 2) {
-        Jim_WrongNumArgs(interp, 2, argv, "?-server cert priv?");
-        return JIM_ERR;
+        return -1;
     }
 
     if (af->ssl) {
