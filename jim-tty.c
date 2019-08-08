@@ -79,6 +79,7 @@ static const char * const tty_settings_names[] = {
     "stop",
     "vmin",
     "vtime",
+    "echo",
     NULL
 };
 
@@ -91,7 +92,8 @@ enum {
     OPT_PARITY,
     OPT_STOP,
     OPT_VMIN,
-    OPT_VTIME
+    OPT_VTIME,
+    OPT_ECHO
 };
 
 
@@ -316,6 +318,18 @@ badvalue:
                 else {
                     tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON | IEXTEN | ISIG | NOFLSH | TOSTOP);
                     tio.c_iflag &= ~ICRNL;
+                }
+                break;
+
+            case OPT_ECHO:
+                if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
+                    goto badvalue;
+                }
+                if (l) {
+                    tio.c_lflag |= ECHO;
+                }
+                else {
+                    tio.c_lflag &= ~ECHO;
                 }
                 break;
 

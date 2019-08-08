@@ -60,6 +60,7 @@ Changes since 0.78
 4. Add `signal block` to prevent delivery of signals
 5. Add support for `file split`
 6. Add support for `json::encode` and `json::decode`
+7. `aio tty` now allows setting +echo+ without full +raw+ mode
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4854,6 +4855,10 @@ aio
 
     +*output raw|cooked*+;;
         Output character processing. Typically CR -> CRNL is disabled in raw mode.
+
+    +*echo 0|1*+;;
+        Disable or enable echo on input. Note that this is a set-only value.
+        Setting +input+ to +raw+ or +cooked+ will overwrite this setting.
 
     +*vmin* 'numchars'+;;
         Minimum number of characters to read.
