@@ -111,25 +111,11 @@ static const jim_subcmd_type history_command_table[] = {
     { NULL }
 };
 
-static int JimHistorySubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, history_command_table, argc, argv), argc, argv);
-}
-
-static void JimHistoryDelProc(Jim_Interp *interp, void *privData)
-{
-    Jim_Free(privData);
-}
-
 int Jim_historyInit(Jim_Interp *interp)
 {
-    void **history;
     if (Jim_PackageProvide(interp, "history", "1.0", JIM_ERRMSG))
         return JIM_ERR;
 
-    history = Jim_Alloc(sizeof(*history));
-    *history = NULL;
-
-    Jim_CreateCommand(interp, "history", JimHistorySubCmdProc, history, JimHistoryDelProc);
+    Jim_CreateCommand(interp, "history", Jim_SubCmdProc, (void *)history_command_table, NULL);
     return JIM_OK;
 }
