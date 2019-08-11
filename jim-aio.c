@@ -752,15 +752,21 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     while (count < maxlen) {
-        char ch;
+        /* A reasonable compromise between stack size and speed */
+        char buf[AIO_BUF_LEN];
+        jim_wide len = maxlen - count;
+        if (len > sizeof(buf)) {
+            len = sizeof(buf);
+        }
 
-        if (af->fops->reader(af, &ch, 1) != 1) {
+        len = af->fops->reader(af, buf, len);
+        if (len <= 0) {
             break;
         }
-        if (outf->fops->writer(outf, &ch, 1) != 1) {
+        if (outf->fops->writer(outf, buf, len) != len) {
             break;
         }
-        count++;
+        count += len;
     }
 
     if (JimCheckStreamError(interp, af) || JimCheckStreamError(interp, outf)) {
