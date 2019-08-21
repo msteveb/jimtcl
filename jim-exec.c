@@ -1079,9 +1079,6 @@ badargs:
                 close(lastOutputId);
             }
 
-            /* Restore SIGPIPE behaviour */
-            (void)signal(SIGPIPE, SIG_DFL);
-
             execvpe(arg_array[firstArg], &arg_array[firstArg], child_environ);
 
             if (write(fileno(stderr), "couldn't exec \"", 15) &&
@@ -1238,20 +1235,6 @@ int Jim_execInit(Jim_Interp *interp)
     struct WaitInfoTable *waitinfo;
     if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
         return JIM_ERR;
-
-#ifdef SIGPIPE
-    /*
-     * Disable SIGPIPE signals:  if they were allowed, this process
-     * might go away unexpectedly if children misbehave.  This code
-     * can potentially interfere with other application code that
-     * expects to handle SIGPIPEs.
-     *
-     * By doing this in the init function, applications can override
-     * this later. Note that child processes have SIGPIPE restored
-     * to the default after vfork().
-     */
-    (void)signal(SIGPIPE, SIG_IGN);
-#endif
 
     waitinfo = JimAllocWaitInfoTable();
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, waitinfo, JimFreeWaitInfoTable);
