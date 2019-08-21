@@ -57,6 +57,7 @@ Changes since 0.78
 1. Add `file mtimeus` for high resolution file timestamps
 2. `aio` now supports datagram Unix-Domain sockets
 3. Add support for `aio lock -wait`
+4. Add `signal block` to prevent delivery of signals
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3798,8 +3799,16 @@ Commands which return a list of signal names do so using the canonical form:
     `signal check` to determine which signals have occurred but
     been ignored.
 
++*signal block* ?'signals \...'?+::
+    If no signals are given, returns a lists all signals which are currently
+    being blocked.
+    If signals are specified, these are added to the list of signals
+    currently being blocked. These signals are not delivered to the process.
+    This can be useful for signals such as +SIGPIPE+, especially in conjunction
+    with `exec` as child processes inherit the parent's signal disposition.
+
 +*signal default* ?'signals \...'?+::
-    If no signals are given, returns a lists all signals which are currently have
+    If no signals are given, returns a lists all signals which currently have
     the default behaviour.
     If signals are specified, these are added to the list of signals which have
     the default behaviour.

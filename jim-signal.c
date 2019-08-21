@@ -22,7 +22,7 @@
 #endif
 
 static jim_wide *sigloc;
-static jim_wide sigsblocked;
+static jim_wide sigsignored;
 static struct sigaction *sa_old;
 static struct {
     int status;
@@ -34,16 +34,16 @@ static struct {
 
 static void signal_handler(int sig)
 {
-    /* We just remember which signals occurred. Jim_Eval() will
-     * notice this as soon as it can and throw an error
+    /* Remember which signals occurred and store in *sigloc.
+     * Jim_Eval() will notice this as soon as it can and throw an error
      */
     *sigloc |= sig_to_bit(sig);
 }
 
 static void signal_ignorer(int sig)
 {
-    /* We just remember which signals occurred */
-    sigsblocked |= sig_to_bit(sig);
+    /* Remember which signals occurred for access by 'signal check' */
+    sigsignored |= sig_to_bit(sig);
 }
 
 static void signal_init_names(void)
@@ -169,6 +169,7 @@ static int find_signal_by_name(Jim_Interp *interp, const char *name)
 
 #define SIGNAL_ACTION_HANDLE 1
 #define SIGNAL_ACTION_IGNORE -1
+#define SIGNAL_ACTION_BLOCK -2
 #define SIGNAL_ACTION_DEFAULT 0
 
 static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *const *argv)
@@ -194,8 +195,12 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
         if (action == SIGNAL_ACTION_HANDLE) {
             sa.sa_handler = signal_handler;
         }
-        else {
+        else if (action == SIGNAL_ACTION_IGNORE) {
             sa.sa_handler = signal_ignorer;
+        }
+        else {
+            /* SIGNAL_ACTION_BLOCK */
+            sa.sa_handler = SIG_IGN;
         }
     }
 
@@ -209,6 +214,7 @@ static int do_signal_cmd(Jim_Interp *interp, int action, int argc, Jim_Obj *cons
         if (action != siginfo[sig].status) {
             /* Need to change the action for this signal */
             switch (action) {
+                case SIGNAL_ACTION_BLOCK:
                 case SIGNAL_ACTION_HANDLE:
                 case SIGNAL_ACTION_IGNORE:
                     if (siginfo[sig].status == SIGNAL_ACTION_DEFAULT) {
@@ -246,6 +252,11 @@ static int signal_cmd_ignore(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return do_signal_cmd(interp, SIGNAL_ACTION_IGNORE, argc, argv);
 }
 
+static int signal_cmd_block(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return do_signal_cmd(interp, SIGNAL_ACTION_BLOCK, argc, argv);
+}
+
 static int signal_cmd_default(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     return do_signal_cmd(interp, SIGNAL_ACTION_DEFAULT, argc, argv);
@@ -269,7 +280,7 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int clear = 0;
     jim_wide mask = 0;
-    jim_wide blocked;
+    jim_wide ignored;
 
     if (argc > 0 && Jim_CompareStringImmediate(interp, argv[0], "-clear")) {
         clear++;
@@ -292,17 +303,13 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         mask = ~mask;
     }
 
-    if ((sigsblocked & mask) == 0) {
-        /* No matching signals, so empty result and nothing to do */
-        return JIM_OK;
-    }
     /* Be careful we don't have a race condition where signals are cleared but not returned */
-    blocked = sigsblocked & mask;
+    ignored = sigsignored & mask;
     if (clear) {
-        sigsblocked &= ~blocked;
+        sigsignored &= ~ignored;
     }
     /* Set the result */
-    signal_set_sigmask_result(interp, blocked);
+    signal_set_sigmask_result(interp, ignored);
     return JIM_OK;
 }
 
@@ -316,9 +323,9 @@ static int signal_cmd_throw(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    /* If the signal is ignored (blocked) ... */
+    /* If the signal is ignored ... */
     if (siginfo[sig].status == SIGNAL_ACTION_IGNORE) {
-        sigsblocked |= sig_to_bit(sig);
+        sigsignored |= sig_to_bit(sig);
         return JIM_OK;
     }
 
@@ -369,6 +376,13 @@ static const jim_subcmd_type signal_command_table[] = {
         0,
         -1,
         /* Description: Lists ignored signals, or adds to ignored signals */
+    },
+    {   "block",
+        "?signals ...?",
+        signal_cmd_block,
+        0,
+        -1,
+        /* Description: Lists blocked signals, or adds to blocked signals */
     },
     {   "default",
         "?signals ...?",
