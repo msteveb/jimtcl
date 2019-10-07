@@ -1,0 +1,33 @@
+# @cc-check-inline
+#
+# The equivalent of the 'AC_C_INLINE' macro.
+#
+# defines 'HAVE_INLINE' if inline is available,
+# and defines 'inline' to be __inline__ or __inline if necessary
+# or to "" if not available.
+#
+# Returns 1 if 'inline' is available or 0 otherwise
+#
+proc cc-check-inline {} {
+	msg-checking "Checking for inline support..."
+	set ok 0
+	foreach i {inline __inline__ __inline} {
+		if {[cctest -declare "#ifndef __cplusplus\nstatic $i void testfunc__(void);\n#endif"]} {
+			incr ok
+			break
+		}
+	}
+	if {$ok} {
+		if {$i eq "inline"} {
+			msg-result yes
+		} else {
+			msg-result $i
+			define inline $i
+		}
+	} else {
+		define inline ""
+		msg-result no
+	}
+	define-feature inline $ok
+	return $ok
+}

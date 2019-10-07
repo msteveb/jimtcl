@@ -297,6 +297,9 @@ if {[opt-bool-or-full lineedit]} {
         define USE_LINENOISE
         define-append PARSE_UNIDATA_FLAGS -width
         lappend extra_objs linenoise.o
+        if {[cc-check-inline] && [is-defined inline]} {
+            define-append CCOPTS -Dinline=[get-define inline]
+        }
     }
 }
 if {[opt-bool references]} {
