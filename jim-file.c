@@ -215,9 +215,43 @@ static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat
     return JIM_OK;
 }
 
+/**
+ * Give a path of length 'len', returns the length of the path
+ * with any trailing slashes removed.
+ */
+static int JimPathLenNoTrailingSlashes(const char *path, int len)
+{
+    int i;
+    for (i = len; i > 1 && path[i - 1] == '/'; i--) {
+        /* Trailing slash, so remove it */
+        if (ISWINDOWS && path[i - 2] == ':') {
+            /* But on windows, we won't remove the trailing slash from c:/ */
+            break;
+        }
+    }
+    return i;
+}
+
+/**
+ * Give a path in objPtr, returns a new path with any trailing slash removed.
+ * Use Jim_DecrRefCount() on the returned object (which may be identical to objPtr).
+ */
+static Jim_Obj *JimStripTrailingSlashes(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    int len = Jim_Length(objPtr);
+    const char *path = Jim_String(objPtr);
+    int i = JimPathLenNoTrailingSlashes(path, len);
+    if (i != len) {
+        objPtr = Jim_NewStringObj(interp, path, i);
+    }
+    Jim_IncrRefCount(objPtr);
+    return objPtr;
+}
+
 static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_String(argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    const char *path = Jim_String(objPtr);
     const char *p = strrchr(path, '/');
 
     if (!p && path[0] == '.' && path[1] == '.' && path[2] == '\0') {
@@ -233,29 +267,35 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, path, p - path + 1);
     }
     else {
-        Jim_SetResultString(interp, path, p - path);
+        /* Strip any trailing slashes from the result */
+        int len = JimPathLenNoTrailingSlashes(path, p - path);
+        Jim_SetResultString(interp, path, len);
     }
+    Jim_DecrRefCount(interp, objPtr);
     return JIM_OK;
 }
 
 static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_String(argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    const char *path = Jim_String(objPtr);
     const char *lastSlash = strrchr(path, '/');
     const char *p = strrchr(path, '.');
 
     if (p == NULL || (lastSlash != NULL && lastSlash > p)) {
-        Jim_SetResult(interp, argv[0]);
+        Jim_SetResult(interp, objPtr);
     }
     else {
         Jim_SetResultString(interp, path, p - path);
     }
+    Jim_DecrRefCount(interp, objPtr);
     return JIM_OK;
 }
 
 static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_String(argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    const char *path = Jim_String(objPtr);
     const char *lastSlash = strrchr(path, '/');
     const char *p = strrchr(path, '.');
 
@@ -263,20 +303,23 @@ static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv
         p = "";
     }
     Jim_SetResultString(interp, p, -1);
+    Jim_DecrRefCount(interp, objPtr);
     return JIM_OK;
 }
 
 static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path = Jim_String(argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    const char *path = Jim_String(objPtr);
     const char *lastSlash = strrchr(path, '/');
 
     if (lastSlash) {
         Jim_SetResultString(interp, lastSlash + 1, -1);
     }
     else {
-        Jim_SetResult(interp, argv[0]);
+        Jim_SetResult(interp, objPtr);
     }
+    Jim_DecrRefCount(interp, objPtr);
     return JIM_OK;
 }
 
