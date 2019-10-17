@@ -147,5 +147,10 @@ if {$tcl_platform(platform) eq {windows}} {
     test file.17  "picol test" {file join foo C:/bar grill}  C:/bar/grill
 }
 
+test file.18   "picol test" {file split {/foo/space station/bar}}  {/ foo {space station} bar}
+test file.19   "picol test" {file split {/foo/space station/bar/}}  {/ foo {space station} bar}
+test file.20   "picol test" {file split {foo/space station/bar}}  {foo {space station} bar}
+test file.21   "picol test" {file split foo///bar}  {foo bar}
+test file.22   "picol test" {file split foo}  foo
 
 testreport

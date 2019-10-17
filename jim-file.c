@@ -275,6 +275,35 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int file_cmd_split(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+    const char *path = Jim_String(argv[0]);
+
+    if (*path == '/') {
+        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "/", 1));
+    }
+
+    while (1) {
+        /* Remove leading slashes */
+        while (*path == '/') {
+            path++;
+        }
+        if (*path) {
+            const char *pt = strchr(path, '/');
+            if (pt) {
+                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, path, pt - path));
+                path = pt;
+                continue;
+            }
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, path, -1));
+        }
+        break;
+    }
+    Jim_SetResult(interp, listObj);
+    return JIM_OK;
+}
+
 static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
@@ -889,6 +918,13 @@ static const jim_subcmd_type file_command_table[] = {
         1,
         1,
         /* Description: Last component of the name */
+    },
+    {   "split",
+        "name",
+        file_cmd_split,
+        1,
+        1,
+        /* Description: Split path into components as a list */
     },
     {   "normalize",
         "name",

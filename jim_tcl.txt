@@ -58,6 +58,7 @@ Changes since 0.78
 2. `aio` now supports datagram Unix-Domain sockets
 3. Add support for `aio lock -wait`
 4. Add `signal block` to prevent delivery of signals
+5. Add support for `file split`
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2418,10 +2419,11 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     the last '.' character in the name.  If +'name'+ doesn't contain
     a dot, then return +'name'+.
 
-+*file size* 'name'+::
-    Return a decimal string giving the size of file +'name'+ in bytes.
-    If the file doesn't exist or its size cannot be queried then an
-    error is generated.
++*file split* 'name'+::
+    Returns a list whose elements are the path components in +'name'+.
+    The first element of the list will have the same path type as
+    +'name'+. All other elements will be relative. Path separators
+    will be discarded.
 
 +*file stat* 'name ?varName?'+::
     Invoke the 'stat' kernel call on +'name'+, and return the result
