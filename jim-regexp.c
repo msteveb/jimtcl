@@ -281,16 +281,15 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             }
         }
         else {
-            int len = pmatch[j].rm_eo - pmatch[j].rm_so;
-
             if (opt_indices) {
-                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp,
-                        offset + pmatch[j].rm_so));
-                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp,
-                        offset + pmatch[j].rm_so + len - 1));
+                /* rm_so and rm_eo are byte offsets. We need char offsets */
+                int so = utf8_strlen(source_str, pmatch[j].rm_so);
+                int eo = utf8_strlen(source_str + pmatch[j].rm_so, pmatch[j].rm_eo);
+                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + so));
+                Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + eo - 1));
             }
             else {
-                Jim_AppendString(interp, resultObj, source_str + pmatch[j].rm_so, len);
+                Jim_AppendString(interp, resultObj, source_str + pmatch[j].rm_so, pmatch[j].rm_eo - pmatch[j].rm_so);
             }
         }
 
@@ -311,7 +310,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
   try_next_match:
     if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
         if (pmatch[0].rm_eo) {
-            offset += pmatch[0].rm_eo;
+            offset += utf8_strlen(source_str, pmatch[0].rm_eo);
             source_str += pmatch[0].rm_eo;
         }
         else {

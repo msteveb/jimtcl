@@ -633,6 +633,7 @@ test regexpComp-16.5 {regexp -start with utf8} utf8 {
 test regexpComp-16.6 {regexp -start with utf8} utf8 {
     regsub -start 1 . \u0442\u0435\u0441\u0442 x
 } \u0442x\u0441\u0442
+
 test regexpComp-17.1 {regexp -inline} {
     regexp -inline b ababa
 } {b}
@@ -654,6 +655,9 @@ test regexpComp-17.6 {regexp -inline no matches} {
 test regexpComp-17.7 {regexp -inline, no matchvars allowed} {
     list [catch {regexp -inline b abc match} msg] $msg
 } {1 {regexp match variables not allowed when using -inline}}
+test regexpComp-17.8 {regexp -indices utf8} utf8 {
+    regexp -all -inline -start 1 -indices . \u0442\u0435\u0441\u0442
+} {{1 1} {2 2} {3 3}}
 
 test regexpComp-18.1 {regexp -all} {
     regexp -all b bbbbb
