@@ -55,6 +55,7 @@
     #include <regex.h>
 #endif
 #include "jim.h"
+#include "utf8.h"
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -226,7 +227,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             source_str += source_len;
         }
         else if (offset > 0) {
-            source_str += offset;
+            source_str += utf8_index(source_str, offset);
         }
         eflags |= REG_NOTBOL;
     }
@@ -441,6 +442,8 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             offset = 0;
         }
     }
+    /* Convert from character offset to byte offset */
+    offset = utf8_index(source_str, offset);
 
     /* Copy the part before -start */
     Jim_AppendString(interp, resultObj, source_str, offset);

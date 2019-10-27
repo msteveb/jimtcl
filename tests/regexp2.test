@@ -627,7 +627,12 @@ test regexpComp-16.3 {regsub -start} {
 #    lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
 #    lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
 #} {5 /a/b/c/d/e 3 ab/c/d/e}
-
+test regexpComp-16.5 {regexp -start with utf8} utf8 {
+    regexp -inline -start 1 . \u0442\u0435\u0441\u0442
+} \u0435
+test regexpComp-16.6 {regexp -start with utf8} utf8 {
+    regsub -start 1 . \u0442\u0435\u0441\u0442 x
+} \u0442x\u0441\u0442
 test regexpComp-17.1 {regexp -inline} {
     regexp -inline b ababa
 } {b}
