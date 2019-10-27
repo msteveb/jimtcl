@@ -89,12 +89,13 @@ int utf8_strwidth(const char *str, int charlen)
     return width;
 }
 
+/* Idea from http://canonical.org/~kragen/strlen-utf8.html */
 int utf8_index(const char *str, int index)
 {
     const char *s = str;
-    while (index--) {
-        int c;
-        s += utf8_tounicode(s, &c);
+    while (index) {
+        s++;
+        if ((*s & 0xc0) != 0x80) index--;
     }
     return s - str;
 }
