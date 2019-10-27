@@ -284,7 +284,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             if (opt_indices) {
                 /* rm_so and rm_eo are byte offsets. We need char offsets */
                 int so = utf8_strlen(source_str, pmatch[j].rm_so);
-                int eo = utf8_strlen(source_str + pmatch[j].rm_so, pmatch[j].rm_eo);
+                int eo = utf8_strlen(source_str, pmatch[j].rm_eo);
                 Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + so));
                 Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, offset + eo - 1));
             }
