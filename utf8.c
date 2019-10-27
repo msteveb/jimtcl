@@ -56,8 +56,8 @@ int utf8_charlen(int c)
     if ((c & 0xf8) == 0xf0) {
         return 4;
     }
-    /* Invalid sequence */
-    return -1;
+    /* Invalid sequence, so treat it as a single byte */
+    return 1;
 }
 
 int utf8_strlen(const char *str, int bytelen)
@@ -93,8 +93,7 @@ int utf8_index(const char *str, int index)
 {
     const char *s = str;
     while (index--) {
-        int c;
-        s += utf8_tounicode(s, &c);
+        s += utf8_charlen(*s);
     }
     return s - str;
 }

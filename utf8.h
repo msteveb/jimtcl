@@ -49,9 +49,8 @@ int utf8_fromunicode(char *p, unsigned uc);
 /**
  * Returns the length of the utf-8 sequence starting with 'c'.
  *
- * Returns 1-4, or -1 if this is not a valid start byte.
- *
- * Note that charlen=4 is not supported by the rest of the API.
+ * Returns 1-4.
+ * If 'c' is not a valid start byte, returns 1.
  */
 int utf8_charlen(int c);
 
