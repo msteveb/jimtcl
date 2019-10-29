@@ -2150,14 +2150,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             close(sock);
             return JIM_ERR;
         }
+        if (reuse) {
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
+        }
         if (bind(sock, &sa.sa, salen)) {
             Jim_SetResultFormatted(interp, "%s: bind: %s", bind_addr, strerror(errno));
             close(sock);
             return JIM_ERR;
         }
-    }
-    if (reuse) {
-        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
     }
     if (connect_addr) {
         if (JimParseSocketAddress(interp, family, connect_addr, &sa, &salen) != JIM_OK) {
