@@ -1612,10 +1612,9 @@ static int regrepeat(regex_t *preg, int p, int max)
 	opnd = OPERAND(p);
 	switch (OP(preg, p)) {
 	case ANY:
-		/* No need to handle utf8 specially here */
 		while (!reg_iseol(preg, *scan) && count < max) {
 			count++;
-			scan++;
+			scan += utf8_charlen(*scan);
 		}
 		break;
 	case EXACTLY:
