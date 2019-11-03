@@ -55,6 +55,7 @@ options {
         binary    - Tcl-compatible 'binary' command
         tclprefix - Support for the tcl::prefix command
         zlib      - Interface to zlib
+        json      - JSON encode/decode
 
         These are disabled unless explicitly enabled:
 
@@ -337,6 +338,8 @@ dict set extdb attrs {
     glob      { tcl }
     history   {}
     interp    { }
+    json      { optional }
+    jsonencode { tcl optional }
     load      { static }
     mk        { cpp off }
     namespace { static }
@@ -372,6 +375,7 @@ dict set extdb info {
     load     { check {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]} libdep lib_dlopen }
     mk       { check {[check-metakit]} libdep lib_mk }
     namespace { dep nshelper }
+    json     { dep jsonencode extrasrcs jsmn/jsmn.c }
     posix    { check {[have-feature waitpid]} }
     readdir  { check {[have-feature opendir]} }
     readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
@@ -460,6 +464,14 @@ if {$jimregexp || [opt-bool jim-regexp]} {
     }
 }
 
+foreach mod $extinfo(static-c) {
+    if {[dict exists $extdb info $mod extrasrcs]} {
+        foreach src [dict get $extdb info $mod extrasrcs] {
+            lappend extra_objs {*}[file rootname $src].o
+        }
+    }
+}
+
 # poor-man's signals
 if {"signal" ni $extinfo(static-c)} {
     lappend extra_objs jim-nosignal.o
@@ -501,13 +513,19 @@ set lines {}
 foreach mod $extinfo(module-c) {
     set objs {}
     set libs [get-define LDLIBS_$mod]
-    set src jim-$mod.c
-    lappend lines "$mod.so: $src"
-    set obj [file rootname $src].o
-    lappend lines "\t\$(ECHO)\t\"\tCC\t$obj\""
-    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(SHOBJ_CFLAGS) -c -o $obj $src"
+    set srcs jim-$mod.c
+    if {[dict exists $extdb info $mod extrasrcs]} {
+        lappend srcs {*}[dict get $extdb info $mod extrasrcs]
+    }
+    lappend lines "$mod.so: $srcs"
+    foreach src $srcs {
+        set obj [file rootname $src].o
+        lappend objs $obj
+        lappend lines "\t\$(ECHO)\t\"\tCC\t$obj\""
+        lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(SHOBJ_CFLAGS) -c -o $obj $src"
+    }
     lappend lines "\t\$(ECHO)\t\"\tLDSO\t\$@\""
-    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(LDFLAGS) \$(SHOBJ_LDFLAGS) -o \$@ $obj \$(SH_LIBJIM) $libs"
+    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(LDFLAGS) \$(SHOBJ_LDFLAGS) -o \$@ $objs \$(SH_LIBJIM) $libs"
     lappend lines ""
 }
 define BUILD_SHOBJS [join $lines \n]

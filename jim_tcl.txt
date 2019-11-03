@@ -5331,6 +5331,49 @@ independently (but synchronously) of the main interpreter.
     alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments.
     The alias may be deleted in the child with 'rename'.
 
+json
+~~~~
+
+The optional 'json' package includes a Tcl -> JSON encoder and a JSON -> Tcl decoder.
+
++*json::encode* 'value ?schema?'+::
+
+Encode a Tcl value as JSON according to the schema (defaults to +'str'+). The following schema types are supported:
+* 'str' - Tcl string -> JSON string
+* 'num' - Tcl value -> bare numeric value or true, false, null
+* 'obj ?name subschema ...?' - Tcl dict -> JSON object. For each dict key matching 'name', the corresponding 'subschema'
+is applied. The special name +'*'+ matches any keys not otherwise matched, otherwise the default +'str'+ is used.
+* 'list ?subschema?' - Tcl list -> JSON array. The 'subschema' (default +'str'+) is applied for each element of the list/array.
+* 'mixed ?subschema ...?' = Tcl list -> JSON array. Each 'subschema' is applied for the corresponding element of the list/array.
+  ::
+The following are examples:
+----
+    . json::encode {1 2 true false null 5.0} list
+    [ "1", "2", "true", "false", "null", "5.0" ]
+    . json::encode {1 2 true false null 5.0} {list num}
+    [ 1, 2, true, false, null, 5.0 ]
+    . json::encode {a 1 b hello c {3 4}} obj
+    { "a":"1", "b":"hello", "c":"3 4" }
+    . json::encode {a 1 b hello c {3 4}} {obj a num c {list num}}
+    { "a":1, "b":"hello", "c":[ 3, 4 ] }
+    . json::encode {true true {abc def}} {mixed str num obj}
+    [ "true", true, { "abc":"def" } ]
+    . json::encode {a 1 b 3.0 c hello d null} {obj c str * num}
+    { "a":1, "b":3.0, "c":"hello", "d":null }
+----
+
++*json::decode* ?*-null* 'string'? 'json-string'+::
+
+Decodes the given JSON string into a Tcl data structure.
+Decoding is as follows:
+* object -> dict
+* array -> list
+* number, true, false -> as-is
+* string -> string
+* null -> supplied null string or the default +'"null"'+
+ ::
+ Note that an object decoded into a dict will return the keys in the same order as the original string.
+
 [[BuiltinVariables]]
 BUILT-IN VARIABLES
 ------------------
