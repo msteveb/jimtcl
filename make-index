@@ -16,13 +16,13 @@ while {[gets $f buf] >= 0} {
 			incr c
 			set target cmd_$c
 			set lines [linsert $lines end-1 "\[\[$target\]\]"]
-			set prevlist [split $prev ":, "]
+			set prevlist [split $prev ", "]
 		} else {
 			set target _[string map {:: _} $prev]
 			set prevlist [list $prev]
 		}
 		foreach cmd $prevlist {
-			set cmd [string trim $cmd]
+			set cmd [string trim $cmd :]
 			if {[regexp {^[a-z.:]+$} $cmd]} {
 				lappend commands [list $cmd $target]
 				set cdict($cmd) $target

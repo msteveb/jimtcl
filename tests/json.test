@@ -1,0 +1,146 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd json::decode json
+needs cmd json::encode json
+
+set json {
+{
+	"fossil":"9c65b5432e4aeecf3556e5550c338ce93fd861cc",
+	"timestamp":1435827337,
+	"command":"timeline/checkin",
+	"procTimeUs":3333,
+	"procTimeMs":3,
+	"homepage":null,
+	"payload":{
+		"limit":1,
+		"timeline":[{
+			"type":"checkin",
+			"uuid":"f8b17edee7ff4f16517601c40eb713602aed7a52",
+			"isLeaf":true,
+			"timestamp":1435318826,
+			"user":"juef",
+			"comment":"adwaita-icon-theme: update to 3.17.3",
+			"parents":["de628be645cc62429d630f9234c56d1fddfdc2a3"],
+			"tags":["trunk"]
+		}]
+	}
+}}
+
+test json-decode-001 {top level keys} {
+	lsort [dict keys [json::decode $json]]
+} {command fossil homepage payload procTimeMs procTimeUs timestamp}
+
+# Note that the decode will return the keys/values in order
+test json-decode-002 {object value} {
+	dict get [json::decode $json] payload
+} {limit 1 timeline {{type checkin uuid f8b17edee7ff4f16517601c40eb713602aed7a52 isLeaf true timestamp 1435318826 user juef comment {adwaita-icon-theme: update to 3.17.3} parents de628be645cc62429d630f9234c56d1fddfdc2a3 tags trunk}}}
+
+test json-decode-003 {object nested value} {
+	dict get [json::decode $json] payload timeline
+} {{type checkin uuid f8b17edee7ff4f16517601c40eb713602aed7a52 isLeaf true timestamp 1435318826 user juef comment {adwaita-icon-theme: update to 3.17.3} parents de628be645cc62429d630f9234c56d1fddfdc2a3 tags trunk}}
+
+test json-decode-004 {array entry from nested value} {
+	lindex [dict get [json::decode $json] payload timeline] 0
+} {type checkin uuid f8b17edee7ff4f16517601c40eb713602aed7a52 isLeaf true timestamp 1435318826 user juef comment {adwaita-icon-theme: update to 3.17.3} parents de628be645cc62429d630f9234c56d1fddfdc2a3 tags trunk}
+
+test json-decode-005 {object value from child array entry} {
+	dict get [lindex [dict get [json::decode $json] payload timeline] 0] comment
+} {adwaita-icon-theme: update to 3.17.3}
+
+test json-decode-006 {unicode escape} {
+	dict get [json::decode {{"key":"\u2022"}}] key
+} \u2022
+
+test json-decode-011 {null subsitution} {
+	dict get [json::decode -null NULL $json] homepage
+} {NULL}
+
+test json-decode-012 {default null value} {
+	dict get [json::decode $json] homepage
+} {null}
+
+test json-decode-1.1 {Number forms} {
+	json::decode {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
+} {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5}
+
+test json-2.1 {schema tests} {
+	lindex [json::decode -schema {[]}] 1
+} {list}
+
+test json-2.2 {schema tests} {
+	lindex [json::decode -schema {[1, 2]}] 1
+} {list num}
+
+test json-2.3 {schema tests} {
+	lindex [json::decode -schema {[1, 2, [3, 4], 4, 6]}] 1
+} {mixed num num {list num} num num}
+
+test json-2.4 {schema tests} {
+	lindex [json::decode -schema {{"a":1, "b":2}}] 1
+} {obj a num b num}
+
+test json-2.5 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}] 1
+} {mixed num num {obj a str c bool} str}
+
+test json-2.6 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, Infinity]}]}] 1
+} {mixed num num {obj a {mixed str num bool num}}}
+
+test json-2.7 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
+} {mixed num num {obj a {mixed str num bool {list str}}}}
+
+test json-2.8 {schema tests} {
+	lindex [json::decode -schema {[1, 2, true, false]}] 1
+} {mixed num num bool bool}
+
+
+unset -nocomplain json
+
+test json-encode-1.1 {String with backslashes}  {
+	json::encode {A "quoted string containing \backslashes\"}
+} {"A \"quoted string containing \\backslashes\\\""}
+
+test json-encode-1.2 {String with special chars} {
+	json::encode "Various \n special \b characters \t and /slash/ \r too"
+} {"Various \n special \b characters \t and \/slash\/ \r too"}
+
+test json-encode-1.3 {Array of numbers} {
+	json::encode {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5} {list num}
+} {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
+
+test json-encode-1.4 {Array of strings} {
+	json::encode {1 2 3.0 4} list
+} {[ "1", "2", "3.0", "4" ]}
+
+test json-encode-1.5 {Array of objects} {
+	json::encode {{state NY city {New York} postalCode 10021 streetAddress {21 2nd Street}} {state CA city {Los Angeles} postalCode 10345 streetAddress {15 Hale St}}} {list obj postalCode num}
+} {[ { "city":"New York", "postalCode":10021, "state":"NY", "streetAddress":"21 2nd Street" }, { "city":"Los Angeles", "postalCode":10345, "state":"CA", "streetAddress":"15 Hale St" } ]}
+
+test json-encode-1.6 {Simple typeless object} {
+	json::encode {home {212 555-1234} fax {646 555-4567}} obj
+} {{ "fax":"646 555-4567", "home":"212 555-1234" }}
+
+test json-encode-1.7 {Primitives as num} {
+	json::encode {a false b null c true} {obj a num b num c num}
+} {{ "a":false, "b":null, "c":true }}
+
+test json-encode-1.8 {Complex schema} {
+	json::encode {Person {firstName John age 25 lastName Smith years {1972 1980 1995 2002} PhoneNumbers {home {212 555-1234} fax {646 555-4567}} Address {state NY city {New York} postalCode 10021 streetAddress {21 2nd Street}}}} {obj Person {obj age num Address {obj postalCode num} PhoneNumbers obj years {list num}}}
+} {{ "Person":{ "Address":{ "city":"New York", "postalCode":10021, "state":"NY", "streetAddress":"21 2nd Street" }, "PhoneNumbers":{ "fax":"646 555-4567", "home":"212 555-1234" }, "age":25, "firstName":"John", "lastName":"Smith", "years":[ 1972, 1980, 1995, 2002 ] } }}
+
+test json-encode-1.9 {Array of mixed types} {
+	json::encode {{a b c d} 44} {mixed list num}
+} {[ [ "a", "b", "c", "d" ], 44 ]}
+
+test json-encode-1.10 {Array of objects} {
+	json::encode {{state NY city {New York} postalCode 10021 streetAddress {21 2nd Street}} {state CA city {Los Angeles} postalCode 10345 streetAddress {15 Hale St}}} {list obj postalCode num}
+} {[ { "city":"New York", "postalCode":10021, "state":"NY", "streetAddress":"21 2nd Street" }, { "city":"Los Angeles", "postalCode":10345, "state":"CA", "streetAddress":"15 Hale St" } ]}
+
+test json-encode-1.11 {Forms of boolean} {
+	json::encode {-5 4 1 0 yes no true false} {list bool}
+} {[ true, true, true, false, true, false, true, false ]}
+
+
+testreport
