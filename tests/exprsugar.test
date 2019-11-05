@@ -48,5 +48,10 @@ test exprsugar-1.11 {Simple operations} {
 test exprsugar-1.12 {Simple operations} {
 	set x $((2 + 4))
 } 6
+# This necessary to ensure that things like exit will pass through expr-sugar
+test exprsugar-1.13 {Non-error return inside expr-sugar} -body {
+	proc a {} { break }
+	set x $([a])
+} -returnCodes break
 
 testreport

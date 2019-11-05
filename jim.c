@@ -4922,14 +4922,6 @@ static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
     return resObjPtr;
 }
 
-static Jim_Obj *JimExpandExprSugar(Jim_Interp *interp, Jim_Obj *objPtr)
-{
-    if (Jim_EvalExpression(interp, objPtr) == JIM_OK) {
-        return Jim_GetResult(interp);
-    }
-    return NULL;
-}
-
 /* -----------------------------------------------------------------------------
  * CallFrame
  * ---------------------------------------------------------------------------*/
@@ -10248,6 +10240,7 @@ static void JimAddErrorToStack(Jim_Interp *interp, ScriptObj *script)
 static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Obj **objPtrPtr)
 {
     Jim_Obj *objPtr;
+    int ret = JIM_ERR;
 
     switch (token->type) {
         case JIM_TT_STR:
@@ -10261,22 +10254,21 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
             objPtr = JimExpandDictSugar(interp, token->objPtr);
             break;
         case JIM_TT_EXPRSUGAR:
-            objPtr = JimExpandExprSugar(interp, token->objPtr);
+            ret = Jim_EvalExpression(interp, token->objPtr);
+            if (ret == JIM_OK) {
+                objPtr = Jim_GetResult(interp);
+            }
+            else {
+                objPtr = NULL;
+            }
             break;
         case JIM_TT_CMD:
-            switch (Jim_EvalObj(interp, token->objPtr)) {
-                case JIM_OK:
-                case JIM_RETURN:
-                    objPtr = interp->result;
-                    break;
-                case JIM_BREAK:
-                    /* Stop substituting */
-                    return JIM_BREAK;
-                case JIM_CONTINUE:
-                    /* just skip this one */
-                    return JIM_CONTINUE;
-                default:
-                    return JIM_ERR;
+            ret = Jim_EvalObj(interp, token->objPtr);
+            if (ret == JIM_OK || ret == JIM_RETURN) {
+                objPtr = interp->result;
+            } else {
+                /* includes JIM_BREAK, JIM_CONTINUE */
+                objPtr = NULL;
             }
             break;
         default:
@@ -10289,7 +10281,7 @@ static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Ob
         *objPtrPtr = objPtr;
         return JIM_OK;
     }
-    return JIM_ERR;
+    return ret;
 }
 
 /* Interpolate the given tokens into a unique Jim_Obj returned by reference
@@ -10537,7 +10529,13 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                         wordObjPtr = Jim_GetVariable(interp, token[i].objPtr, JIM_ERRMSG);
                         break;
                     case JIM_TT_EXPRSUGAR:
-                        wordObjPtr = JimExpandExprSugar(interp, token[i].objPtr);
+                        retcode = Jim_EvalExpression(interp, token[i].objPtr);
+                        if (retcode == JIM_OK) {
+                            wordObjPtr = Jim_GetResult(interp);
+                        }
+                        else {
+                            wordObjPtr = NULL;
+                        }
                         break;
                     case JIM_TT_DICTSUGAR:
                         wordObjPtr = JimExpandDictSugar(interp, token[i].objPtr);
