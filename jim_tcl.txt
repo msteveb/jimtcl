@@ -309,7 +309,9 @@ The first field must be the name of a command, and the
 additional fields, if any, are arguments that will be passed to
 that command.  For example, the command:
 
+----
     set a 22
+----
 
 has three fields:  the first, `set`, is the name of a Tcl command, and
 the last two, 'a' and '22', will be passed as arguments to
@@ -362,7 +364,9 @@ for information on semi-colons); instead it ends at the next double-quote
 character.  The double-quotes are not included in the resulting argument.
 For example, the command
 
+----
     set a "This is a single argument"
+----
 
 will pass two arguments to `set`:  'a' and 'This is a single argument'.
 
@@ -385,7 +389,9 @@ at the matching right brace.  Tcl will strip off the outermost layer
 of braces and pass the information between the braces to the command
 without any further modification.  For example, in the command
 
+----
     set a {xyz a {b c d}}
+----
 
 the `set` command will receive two arguments: 'a'
 and 'xyz a {b c d}'.
@@ -397,10 +403,12 @@ characters up to the matching brace or quote.  For example, the `eval`
 command takes one argument, which is a command string; `eval` invokes
 the Tcl interpreter to execute the command string.  The command
 
+----
     eval {
       set a 22
       set b 33
     }
+----
 
 will assign the value '22' to 'a' and '33' to 'b'.
 
@@ -417,37 +425,47 @@ text up to the matching close bracket is treated as a Tcl command and
 executed immediately.  Then the result of that command is substituted
 for the bracketed text.  For example, consider the command
 
+----
     set a [set b]
+----
 
 When the `set` command has only a single argument, it is the name of a
 variable and `set` returns the contents of that variable.  In this case,
 if variable 'b' has the value 'foo', then the command above is equivalent
 to the command
 
+----
     set a foo
+----
 
 Brackets can be used in more complex ways.  For example, if the variable
 'b' has the value 'foo' and the variable 'c' has the value 'gorp',
 then the command
 
+----
     set a xyz[set b].[set c]
+----
 
 is equivalent to the command
 
+----
     set a xyzfoo.gorp
-
+----
 
 A bracketed command may contain multiple commands separated by newlines
 or semi-colons in the usual fashion.  In this case the value of the last
 command is used for substitution.  For example, the command
 
+----
     set a x[set b 22
     expr $b+2]x
+----
 
 is equivalent to the command
 
+----
     set a x24x
-
+----
 
 If a field is enclosed in braces then the brackets and the characters
 between them are not interpreted specially; they are passed through to
@@ -464,11 +482,15 @@ variable is substituted for the name.
 
 For example, if variable 'foo' has the value 'test', then the command
 
+----
     set a $foo.c
+----
 
 is equivalent to the command
 
+----
     set a test.c
+----
 
 There are two special forms for variable substitution.  If the next
 character after the name of the variable is an open parenthesis, then
@@ -482,21 +504,29 @@ For example, if the variable 'x' is an array with one element named
 'first' and value '87' and another element named '14' and value 'more',
 then the command
 
+----
     set a xyz$x(first)zyx
+----
 
 is equivalent to the command
 
+----
     set a xyz87zyx
+----
 
 If the variable 'index' has the value '14', then the command
 
+----
     set a xyz$x($index)zyx
+----
 
 is equivalent to the command
 
+----
     set a xyzmorezyx
+----
 
-For more information on arrays, see VARIABLES AND ARRAYS below.
+For more information on arrays, see <<_variables_scalars_and_arrays,VARIABLES - SCALARS AND ARRAYS>> below.
 
 The second special form for variables occurs when the dollar sign is
 followed by an open curly brace.  In this case the variable name consists
@@ -506,11 +536,15 @@ Array references are not possible in this form:  the name between braces
 is assumed to refer to a scalar variable.  For example, if variable
 'foo' has the value 'test', then the command
 
+----
     set a abc${foo}bar
+----
 
 is equivalent to the command
 
+----
     set a abctestbar
+----
 
 
 Variable substitution does not occur in arguments that are enclosed in
@@ -604,7 +638,9 @@ sequence is replaced by the given character:
 
 For example, in the command
 
+----
     set a \{x\[\ yz\141
+----
 
 the second argument to `set` will be +{x[ yza+.
 
@@ -614,7 +650,9 @@ field without any special processing, and the Tcl scanner continues
 normal processing with the next character.  For example, in the
 command
 
+----
     set \*a \\\{foo
+----
 
 The first argument to `set` will be +{backslash}*a+ and the second
 argument will be +{backslash}{foo+.
@@ -629,7 +667,9 @@ matching right brace that terminates the argument.
 For example, in the
 command
 
+----
     set a {\{abc}
+----
 
 the second argument to `set` will be +{backslash}{abc+.
 
@@ -708,7 +748,9 @@ Expressions almost always yield numeric results
 (integer or floating-point values).
 For example, the expression
 
+----
     8.2 + 6
+----
 
 evaluates to 14.2.
 
@@ -780,10 +822,12 @@ the value 3 and the variable 'b' has the value 6.  Then the expression
 on the left side of each of the lines below will evaluate to the value
 on the right side of the line:
 
+----
     $a + 3.1                6.1
     2 + "$a.$b"             5.6
     4*[llength "6 2"]       8
     {word one} < "word $a"  0
+----
 
 The valid operators are listed below, grouped in decreasing order
 of precedence:
@@ -872,7 +916,9 @@ produced by each operator.
 All of the binary operators group left-to-right within the same
 precedence level.  For example, the expression
 
+----
     4*2 < 7
+----
 
 evaluates to 0.
 
@@ -880,7 +926,9 @@ The +&&+, +||+, and +?:+ operators have 'lazy evaluation', just as
 in C, which means that operands are not evaluated if they are not
 needed to determine the outcome.  For example, in
 
+----
     $v ? [a] : [b]
+----
 
 only one of +[a]+ or +[b]+ will actually be evaluated,
 depending on the value of +$v+.
@@ -904,12 +952,16 @@ For arithmetic computations, integers are used until some
 floating-point number is introduced, after which floating-point is used.
 For example,
 
+----
     5 / 4
+----
 
 yields the result 1, while
 
+----
     5 / 4.0
     5 / ( [string length "abcd"] + 0.0 )
+----
 
 both yield the result 1.25.
 
@@ -922,8 +974,10 @@ a string using the C 'sprintf' format specifier
 '%d' for integers and '%g' for floating-point values.
 For example, the expressions
 
+----
     "0x03" > "2"
     "0y" < "0x12"
+----
 
 both evaluate to 1.  The first comparison is done using integer
 comparison, and the second is done using string comparison after
@@ -934,7 +988,9 @@ entering it in a command:  otherwise, if the expression contains
 any white space then the Tcl interpreter will split it
 among several arguments.  For example, the command
 
+----
     expr $a + $b
+----
 
 results in three arguments being passed to `expr`:  +$a+,
 \+, and +$b+.  In addition, if the expression isn't in braces
@@ -948,7 +1004,9 @@ the variable or command substitutions each time the expression is
 evaluated, rather than once and for all at the beginning.  For example,
 the command
 
+----
     for {set i 1} $i<=10 {incr i} {...}        ** WRONG **
+----
 
 is probably intended to iterate over all values of +i+ from 1 to 10.
 After each iteration of the body of the loop, `for` will pass
@@ -961,7 +1019,9 @@ which will always evaluate to 1, even though +i+ eventually
 becomes greater than 10.  In the above case the loop will never
 terminate.  Instead, the expression should be placed in braces:
 
+----
     for {set i 1} {$i<=10} {incr i} {...}      ** RIGHT **
+----
 
 This causes the substitution of 'i'
 to be delayed; it will be re-done each time the expression is
@@ -974,7 +1034,9 @@ A list is just a string with a list-like structure
 consisting of fields separated by white space.  For example, the
 string
 
+----
     Al Sue Anne John
+----
 
 is a list with four elements or fields.
 Lists have the same basic structure as command strings, except
@@ -983,7 +1045,9 @@ just like space or tab.  Conventions for braces and quotes
 and backslashes are the same for lists as for commands.  For example,
 the string
 
+----
     a b\ c {d e {f g h}}
+----
 
 is a list with three elements:  +a+, +b c+, and +d e {f g h}+.
 
@@ -992,7 +1056,9 @@ braces and quotes and backslashes are applied as for commands.  Thus in
 the example above when the third element is extracted from the list,
 the result is
 
+----
     d e {f g h}
+----
 
 (when the field was extracted, all that happened was to strip off
 the outermost layer of braces).  Command substitution and
@@ -1015,14 +1081,18 @@ arguments. Support for this feature is also available in Jim.
 
 Consider the following attempt to exec a list:
 
+----
     set cmd {ls -l}
     exec $cmd
+----
 
 This will attempt to exec a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
 it can be solved much more easily with +\{*\}+.
 
+----
     exec {*}$cmd
+----
 
 This will expand the following argument into individual elements and then evaluate
 the resulting command.
@@ -1198,7 +1268,9 @@ order with the following precedence.
 
 The following example illustrates precedence. Assume a procedure declaration:
 
+----
     proc p {{a A} args b {c C} d} {...}
+----
 
 This procedure requires at least two arguments, but can accept an unlimited number.
 The following table shows how various numbers of arguments are assigned.
@@ -1228,18 +1300,20 @@ Either from the static variable definition, or from the enclosing scope.
 
 Consider the following example:
 
-    jim> set a 1
-    jim> proc a {} {a {b 2}} {
+----
+    . set a 1
+    . proc a {} {a {b 2}} {
         set c 1
         puts "$a $b $c"
         incr a
         incr b
         incr c
     }
-    jim> a
+    . a
     1 2 1
-    jim> a
+    . a
     2 3 1
+----
 
 The static variable +'a'+ has no initialiser, so it is initialised from
 the enclosing scope with the value 1. (Note that it is an error if there
@@ -1250,7 +1324,7 @@ Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.
 
 See the `proc` command for information on how to define procedures
-and what happens when they are invoked. See also NAMESPACES.
+and what happens when they are invoked. See also <<_namespaces,NAMESPACES>>.
 
 VARIABLES - SCALARS AND ARRAYS
 ------------------------------
@@ -1270,7 +1344,9 @@ Array indexes may be arbitrary strings; they need not be numeric.
 Parentheses are used refer to array elements in Tcl commands.
 For example, the command
 
+----
     set x(first) 44
+----
 
 will modify the element of 'x' whose index is 'first'
 so that its new value is '44'.
@@ -1279,8 +1355,10 @@ Two-dimensional arrays can be simulated in Tcl by using indexes
 that contain multiple concatenated values.
 For example, the commands
 
+----
     set a(2,3) 1
     set a(3,6) 2
+----
 
 set the elements of 'a' whose indexes are '2,3' and '3,6'.
 
@@ -1311,15 +1389,17 @@ that a name refer to a global variable for the duration of the current
 procedure (this is somewhat analogous to 'extern' in C), or the variable
 may be explicitly scoped with the +::+ prefix. For example
 
-    set a 1
-    set b 2
-    proc p {} {
+----
+    . set a 1
+    . set b 2
+    . proc p {} {
         set c 3
         global a
 
         puts "$a $::b $c"
     }
-    p
+    . p
+----
 
 will output:
 
@@ -1333,12 +1413,16 @@ can convert between a string and a list.
 
 For example:
 
+----
   set a {1 one 2 two}
   puts $a(2)
+----
 
 will output:
 
+----
   two
+----
 
 Thus `array set` is equivalent to `set` when the variable does not
 exist or is empty.
@@ -1346,12 +1430,16 @@ exist or is empty.
 The reverse is also true where an array will be converted into
 a list.
 
+----
   set a(1) one; set a(2) two
   puts $a
+----
 
 will output:
 
+----
   1 one 2 two
+----
 
 DICTIONARY VALUES
 -----------------
@@ -1390,16 +1478,18 @@ Note that in Jim, arrays are implemented as dictionaries.
 Thus automatic conversion between lists and dictionaries applies
 as it does for arrays.
 
-  jim> dict set a 1 one
+----
+  . dict set a 1 one
   1 one
-  jim> dict set a 2 two
+  . dict set a 2 two
   1 one 2 two
-  jim> puts $a
+  . puts $a
   1 one 2 two
-  jim> puts $a(2)
+  . puts $a(2)
   two
-  jim> dict set a 3 T three
+  . dict set a 3 T three
   1 one 2 two 3 {T three}
+----
 
 See the `dict` command for more details.
 
@@ -1427,10 +1517,12 @@ A reference can be thought of as holding a value with one level of indirection,
 where the value may be garbage collected when unreferenced.
 Consider the following example:
 
-    jim> set r [ref "One String" test]
+----
+    . set r [ref "One String" test]
     <reference.<test___>.00000000000000000000>
-    jim> getref $r
+    . getref $r
     One String
+----
 
 The operation `ref` creates a references to the value specified by the
 first argument. (The second argument is a "type" used for documentation purposes).
@@ -1438,10 +1530,12 @@ first argument. (The second argument is a "type" used for documentation purposes
 The operation `getref` is the dereferencing operation which retrieves the value
 stored in the reference.
 
-    jim> setref $r "New String"
+----
+    . setref $r "New String"
     New String
-    jim> getref $r
+    . getref $r
     New String
+----
 
 The operation `setref` replaces the value stored by the reference. If the old value
 is no longer accessible by any reference, it will eventually be automatically be garbage
@@ -1459,15 +1553,17 @@ and discard objects which are no longer accessible by any reference.
 The `collect` command may be used to force garbage collection.  Consider a reference created
 with a finalizer:
 
-    jim> proc f {ref value} { puts "Finaliser called for $ref,$value" }
-    jim> set r [ref "One String" test f]
+----
+    . proc f {ref value} { puts "Finaliser called for $ref,$value" }
+    . set r [ref "One String" test f]
     <reference.<test___>.00000000000
-    jim> collect
+    . collect
     0
-    jim> set r ""
-    jim> collect
+    . set r ""
+    . collect
     Finaliser called for <reference.<test___>.00000000000,One String
     1
+----
 
 Note that once the reference, 'r', was modified so that it no longer
 contained a reference to the value, the garbage collector discarded
@@ -1475,22 +1571,26 @@ the value (after calling the finalizer).
 
 The finalizer for a reference may be examined or changed with the `finalize` command
 
-    jim> finalize $r
+----
+    . finalize $r
     f
-    jim> finalize $r newf
+    . finalize $r newf
     newf
+----
 
 Lambda Function
 ~~~~~~~~~~~~~~~
 Jim provides a garbage collected `lambda` function. This is a procedure
 which is able to create an anonymous procedure.  Consider:
 
-    jim> set f [lambda {a} {{x 0}} { incr x $a }]
-    jim> $f 1
+----
+    . set f [lambda {a} {{x 0}} { incr x $a }]
+    . $f 1
     1
-    jim> $f 2
+    . $f 2
     3
-    jim> set f ""
+    . set f ""
+----
 
 This create an anonymous procedure (with the name stored in 'f'), with a static variable
 which is incremented by the supplied value and the result returned.
@@ -1500,7 +1600,9 @@ when the garbage collector runs.
 
 The procedure may also be delete immediately by renaming it "". e.g.
 
-    jim> rename $f ""
+----
+    . rename $f ""
+----
 
 UTF-8 AND UNICODE
 -----------------
@@ -1527,24 +1629,32 @@ String Matching
 Commands such as `string match`, `lsearch -glob`, `array names` and others use string
 pattern matching rules. These commands support UTF-8. For example:
 
+----
   string match a\[\ua0-\ubf\]b "a\u00a3b"
+----
 
 format and scan
 ~~~~~~~~~~~~~~~
 +format %c+ allows a unicode codepoint to be be encoded. For example, the following will return
 a string with two bytes and one character. The same as +{backslash}ub5+
 
+----
   format %c 0xb5
+----
 
 `format` respects widths as character widths, not byte widths. For example, the following will
 return a string with three characters, not three bytes.
 
+----
   format %.3s \ub5\ub6\ub7\ub8
+----
 
 Similarly, +scan ... %c+ allows a UTF-8 to be decoded to a unicode codepoint. The following will set
 +'a'+ to 181 (0xb5) and +'b'+ to 65 (0x41).
 
+----
   scan \u00b5A %c%c a b
+----
 
 `scan %s` will also accept a character class, including unicode ranges.
 
@@ -1553,7 +1663,9 @@ String Classes
 `string is` has *not* been extended to classify UTF-8 characters. Therefore, the following
 will return 0, even though the string may be considered to be alphabetic.
 
+----
   string is alpha \ub5Test
+----
 
 This does not affect the string classes 'ascii', 'control', 'digit', 'double', 'integer' or 'xdigit'.
 
@@ -1579,14 +1691,16 @@ and those which end prematurely, such as a lone '0xc2'.
 In these situations, the offending bytes are treated as single characters. For example,
 the following returns 2.
 
+----
   string bytelength \xff\xff
+----
 
 Regular Expressions
 ~~~~~~~~~~~~~~~~~~~
 If UTF-8 support is enabled, the built-in regular expression engine will be
 selected which supports UTF-8 strings and patterns.
 
-See REGULAR EXPRESSIONS
+See <<_regular_expressions,REGULAR EXPRESSIONS>>
 
 BUILT-IN COMMANDS
 -----------------
@@ -1632,10 +1746,12 @@ alias
 Creates a single word alias (command) for one or more words. For example,
 the following creates an alias for the command `info exists`.
 
+----
     alias e info exists
     if {[e var]} {
       ...
     }
+----
 
 `alias` returns +'name'+, allowing it to be used with `local`.
 
@@ -1774,11 +1890,13 @@ same value as the global variable $::errorCode, and the value of
 the key +-level+ will be the current return level (see `return -level`).
 This can be useful to rethrow an error:
 
+----
     if {[catch {...} msg opts]} {
         ...maybe do something with the error...
         incr opts(-level)
         return {*}$opts $msg
     }
+----
 
 Normally `catch` will +'not'+ catch any of the codes +JIM_EXIT+, +JIM_EVAL+ or +JIM_SIGNAL+.
 The set of codes which will be caught may be modified by specifying the one more codes before
@@ -1786,7 +1904,9 @@ The set of codes which will be caught may be modified by specifying the one more
 
 e.g. To catch +JIM_EXIT+ but not +JIM_BREAK+ or +JIM_CONTINUE+
 
+----
     catch -exit -nobreak -nocontinue -- { ... }
+----
 
 The use of +--+ is optional. It signifies that no more return code options follow.
 
@@ -1849,7 +1969,7 @@ collect
 Normally reference garbage collection is automatically performed periodically.
 However it may be run immediately with the `collect` command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 concat
 ~~~~~~
@@ -1859,11 +1979,15 @@ This command treats each argument as a list and concatenates them
 into a single list.  It permits any number of arguments.  For example,
 the command
 
+----
     concat a b {c d e} {f {g h}}
+----
 
 will return
 
+----
     a b c d e f {g h}
+----
 
 as its result.
 
@@ -1885,10 +2009,12 @@ a named procedure.
 
 the following creates a local, unnamed alias for the command `info exists`.
 
+----
     set e [local curry info exists]
     if {[$e var]} {
       ...
     }
+----
 
 `curry` returns the name of the procedure.
 
@@ -2024,9 +2150,11 @@ if a caught error cannot be handled successfully, +'stacktrace'+ can be used
 to return a stack trace reflecting the original point of occurrence
 of the error:
 
+----
     catch {...} errMsg
     ...
     error $errMsg [info stacktrace]
+----
 
 See also `errorInfo`, `info stacktrace`, `catch` and `return`
 
@@ -2037,10 +2165,12 @@ errorInfo
 Returns a human-readable representation of the given error message and stack trace.
 Typical usage is:
 
+----
     if {[catch {...} error]} {
         puts stderr [errorInfo $error [info stacktrace]]
         exit 1
     }
+----
 
 See also `error`.
 
@@ -2227,13 +2357,15 @@ expr
 +*expr* 'arg'+
 
 Calls the expression processor to evaluate +'arg'+, and returns
-the result as a string.  See the section EXPRESSIONS above.
+the result as a string.  See the section <<_expressions,EXPRESSIONS>> above.
 
 Note that Jim supports a shorthand syntax for `expr` as +$(\...)+
 The following two are identical.
 
+----
   set x [expr {3 * 2 + 1}]
   set x $(3 * 2 + 1)
+----
 
 file
 ~~~~
@@ -2327,9 +2459,9 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
 
 +*file mtimeus* 'name ?time_us?'+::
     As for `file mtime` except the time value is in microseconds
-	since the epoch (see also `clock microseconds`).
-	Note that some platforms and some filesystems don't support high
-	resolution timestamps for files.
+    since the epoch (see also `clock microseconds`).
+    Note that some platforms and some filesystems don't support high
+    resolution timestamps for files.
 
 +*file normalize* 'name'+::
     Return the normalized path of +'name'+. See 'realpath(3)'.
@@ -2399,11 +2531,13 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
 The `file` commands that return 0/1 results are often used in
 conditional or looping commands, for example:
 
+----
     if {![file exists foo]} {
         error {bad file name}
     } else {
         ...
     }
+----
 
 finalize
 ~~~~~~~~
@@ -2417,7 +2551,7 @@ the empty string to remove the current finalizer.
 The reference must be a valid reference create with the `ref`
 command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 flush
 ~~~~~
@@ -2523,7 +2657,7 @@ getref
 Returns the string associated with +'reference'+. The reference must
 be a valid reference create with the `ref` command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 gets
 ~~~~
@@ -2819,7 +2953,7 @@ The `lambda` command is identical to `proc`, except rather than
 creating a named procedure, it creates an anonymous procedure and returns
 the name of the procedure.
 
-See `proc` and GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See `proc` and <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 lappend
 ~~~~~~~
@@ -2836,11 +2970,15 @@ each +'value'+ is appended as a list element rather than raw text.
 This command provides a relatively efficient way to build up large lists.
 For example,
 
+----
     lappend a $b
+----
 
 is much more efficient than
 
+----
     set a [concat $a [list $b]]
+----
 
 when +$a+ is long.
 
@@ -2853,9 +2991,11 @@ the variables given by the +'varName'+ arguments in order. If there are more var
 list elements, the remaining variables are set to the empty string. If there are more list elements
 than variables, a list of unassigned elements is returned.
 
-    jim> lassign {1 2 3} a b; puts a=$a,b=$b
+----
+    . lassign {1 2 3} a b; puts a=$a,b=$b
     3
     a=1,b=2
+----
 
 local
 ~~~~~
@@ -2875,6 +3015,7 @@ procedure exits. See `upcall` for more details.
 In this example, a local procedure is created. Note that the procedure
 continues to have global scope while it is active.
 
+----
     proc outer {} {
       # proc ... returns "inner" which is marked local
       local proc inner {} {
@@ -2884,10 +3025,12 @@ continues to have global scope while it is active.
       inner
       ...
     }
+----
 
 In this example, the lambda is deleted at the end of the procedure rather
 than waiting until garbage collection.
 
+----
     proc outer {} {
       set x [lambda inner {args} {
         # will be deleted when 'outer' exits
@@ -2898,6 +3041,7 @@ than waiting until garbage collection.
       $x ...
       ...
     }
+----
 
 loop
 ~~~~
@@ -2906,7 +3050,9 @@ loop
 Similar to `for` except simpler and possibly more efficient.
 With a positive increment, equivalent to:
 
-  for {set var $first} {$var < $limit} {incr var $incr} $body
+----
+    for {set var $first} {$var < $limit} {incr var $incr} $body
+----
 
 If +'incr'+ is not specified, 1 is used.
 Note that setting the loop variable inside the loop does not
@@ -2918,7 +3064,7 @@ lindex
 
 Treats +'list'+ as a Tcl list and returns element +'index'+ from it
 (0 refers to the first element of the list).
-See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'index'+.
+See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'index'+.
 
 In extracting the element, +'lindex'+ observes the same rules concerning
 braces and quotes and backslashes as the Tcl command interpreter; however,
@@ -2946,7 +3092,7 @@ beginning of the list. If +'index'+ is greater than or equal
 to the number of elements in the list, then the new elements are
 appended to the list.
 
-See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'index'+.
+See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'index'+.
 
 list
 ~~~~
@@ -2963,15 +3109,21 @@ its arguments. `list` produces slightly different results than
 the list, while `list` works directly from the original arguments.
 For example, the command
 
+----
     list a b {c d e} {f {g h}}
+----
 
 will return
 
+----
     a b {c d e} {f {g h}}
+----
 
 while `concat` with the same arguments will return
 
+----
     a b c d e f {g h}
+----
 
 llength
 ~~~~~~~
@@ -2992,7 +3144,9 @@ zero or more indices into the list. Finally, it accepts a new value
 for an element of varName. If no indices are presented, the command
 takes the form:
 
+----
     lset varName newValue
+----
 
 In this case, newValue replaces the old value of the variable
 varName.
@@ -3011,14 +3165,16 @@ the `lset` command.
 If index is negative or greater than or equal to the number of
 elements in $varName, then an error occurs.
 
-See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'index'+.
+See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'index'+.
 
 If additional index arguments are supplied, then each argument is
 used in turn to address an element within a sublist designated by
 the previous indexing operation, allowing the script to alter
 elements in sublists. The command,
 
+----
     lset a 1 2 newValue
+----
 
 replaces element 2 of sublist 1 with +'newValue'+.
 
@@ -3039,10 +3195,12 @@ lmap
 
 For example:
 
-    jim> lmap i {1 2 3 4 5} {expr $i*$i}
+----
+    . lmap i {1 2 3 4 5} {expr $i*$i}
     1 4 9 16 25
-    jim> lmap a {1 2 3} b {A B C} {list $a $b}
+    . lmap a {1 2 3} b {A B C} {list $a $b}
     {1 A} {2 B} {3 C}
+----
 
 If the body invokes `continue`, no value is added for this iteration.
 If the body invokes `break`, the loop ends and no more values are added.
@@ -3064,7 +3222,7 @@ lrange
 +'list'+ must be a valid Tcl list. This command will return a new
 list consisting of elements +'first'+ through +'last'+, inclusive.
 
-See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'first'+ and +'last'+.
+See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'first'+ and +'last'+.
 
 If +'last'+ is greater than or equal to the number of elements
 in the list, then it is treated as if it were +end+.
@@ -3095,7 +3253,7 @@ must exist in the list.
 +'last'+ gives the index in +'list'+ of the last element
 to be replaced;  it must be greater than or equal to +'first'+.
 
-See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'first'+ and +'last'+.
+See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'first'+ and +'last'+.
 
 The +'element'+ arguments specify zero or more new arguments to
 be added to the list in place of those that were deleted.
@@ -3113,8 +3271,10 @@ lrepeat
 Build a list by repeating elements +'number'+ times (which must be
 a positive integer).
 
-    jim> lrepeat 3 a b
+----
+    . lrepeat 3 a b
     a b a b a b
+----
 
 lreverse
 ~~~~~~~~
@@ -3122,8 +3282,10 @@ lreverse
 
 Returns the list in reverse order.
 
-    jim> lreverse {1 2 3}
+----
+    . lreverse {1 2 3}
     3 2 1
+----
 
 lsearch
 ~~~~~~~
@@ -3216,10 +3378,12 @@ defer
 This command is a simple helper command to add a script to the '+$jim::defer+' variable
 that will run when the current proc or interpreter exits. For example:
 
-    jim> proc a {} { defer {puts "Leaving a"}; puts "Exit" }
-    jim> a
+----
+    . proc a {} { defer {puts "Leaving a"}; puts "Exit" }
+    . a
     Exit
     Leaving a
+----
 
 If the '+$jim::defer+' variable exists, it is treated as a list of scripts to run
 when the proc or interpreter exits.
@@ -3334,7 +3498,7 @@ Tcl interpreter. +'args'+ specifies the formal arguments to the procedure.
 If specified, +'statics'+, declares static variables which are bound to the
 procedure.
 
-See PROCEDURES for detailed information about Tcl procedures.
+See <<_procedures,PROCEDURES> for detailed information about Tcl procedures.
 
 The `proc` command returns +'name'+ (which is useful with `local`).
 
@@ -3371,6 +3535,7 @@ pipe
 ~~~~
 Creates a pair of `aio` channels and returns the handles as a list: +{read write}+
 
+----
     lassign [pipe] r w
 
     # Must close $w after exec
@@ -3378,6 +3543,7 @@ Creates a pair of `aio` channels and returns the handles as a list: +{read write
     $w close
 
     $r readable ...
+----
 
 pwd
 ~~~
@@ -3401,14 +3567,16 @@ range
 Returns a list of integers starting at +'start'+ (defaults to 0)
 and ranging up to but not including +'end'+ in steps of +'step'+ defaults to 1).
 
-    jim> range 5
+----
+    . range 5
     0 1 2 3 4
-    jim> range 2 5
+    . range 2 5
     2 3 4
-    jim> range 2 10 4
+    . range 2 10 4
     2 6
-    jim> range 7 4 -2
+    . range 7 4 -2
     7 5
+----
 
 read
 ~~~~
@@ -3419,7 +3587,6 @@ read
 +*read* 'fileId numBytes'+
 
 +'fileId' *read* 'numBytes'+
-
 
 In the first form, all of the remaining bytes are read from the file
 given by +'fileId'+; they are returned as the result of the command.
@@ -3441,7 +3608,7 @@ regexp
 Determines whether the regular expression +'exp'+ matches part or
 all of +'string'+ and returns 1 if it does, 0 if it doesn't.
 
-See REGULAR EXPRESSIONS above for complete information on the
+See <<_regular_expressions,REGULAR EXPRESSIONS>> above for complete information on the
 syntax of +'exp'+ and how it is matched against +'string'+.
 
 If additional arguments are specified after +'string'+ then they
@@ -3592,9 +3759,11 @@ no longer accessible.
 
 The finalizer is invoked as:
 
-  finalizer reference string
+----
+    finalizer reference string
+----
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 rename
 ~~~~~~
@@ -3715,7 +3884,7 @@ Store a new string in +'reference'+, replacing the existing string.
 The reference must be a valid reference create with the `ref`
 command.
 
-See GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION for more detail.
+See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for more detail.
 
 signal
 ~~~~~~
@@ -3766,7 +3935,9 @@ Commands which return a list of signal names do so using the canonical form:
     Raises the given signal, which defaults to +SIGINT+ if not specified.
     The behaviour is identical to:
 
-        kill signal [pid]
+----
+    kill signal [pid]
+----
 
 Note that `signal handle` and `signal ignore` represent two forms of signal
 handling. `signal handle` is used in conjunction with `catch -signal` or `try -signal`
@@ -3776,6 +3947,7 @@ two examples below.
 
 Prevent a processing from taking too long
 
+----
     signal handle SIGALRM
     alarm 20
     try -signal {
@@ -3784,9 +3956,11 @@ Prevent a processing from taking too long
     } on signal {sig} {
         puts stderr "Process took too long"
     }
+----
 
 Handle SIGHUP to reconfigure:
 
+----
     signal ignore SIGHUP
     while {1} {
         ... handle configuration/reconfiguration ...
@@ -3795,6 +3969,7 @@ Handle SIGHUP to reconfigure:
         }
         # Received SIGHUP, so reconfigure
     }
+----
 
 Note: signal handling is currently not supported in child interpreters.
 In these interpreters, the signal command does not exist.
@@ -3842,11 +4017,15 @@ If +'splitChars'+ is an empty string then each character of
 +'splitChars'+ defaults to the standard white-space characters.
 For example,
 
+----
     split "comp.unix.misc" .
+----
 
 returns +'"comp unix misc"'+ and
 
+----
     split "Hello world" {}
+----
 
 returns +'"H e l l o { } w o r l d"'+.
 
@@ -3880,7 +4059,7 @@ The legal options (which may be abbreviated) are:
     Returns the length of the string in bytes. This will return
     the same value as `string length` if UTF-8 support is not enabled,
     or if the string is composed entirely of ASCII characters.
-    See UTF-8 AND UNICODE.
+    See <<_utf_8_and_unicode,UTF-8 AND UNICODE>>.
 
 +*string byterange* 'string first last'+::
     Like `string range` except works on bytes rather than characters.
@@ -3911,7 +4090,7 @@ The legal options (which may be abbreviated) are:
     found, return -1. If +'firstIndex'+ is specified, matching will start
     from +'firstIndex'+ of +'string1'+.
  ::
-    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'firstIndex'+.
+    See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'firstIndex'+.
 
 +*string index* 'string charIndex'+::
     Returns the +'charIndex'+'th character of the +'string'+
@@ -3921,7 +4100,7 @@ The legal options (which may be abbreviated) are:
     or equal to the length of the string then an empty string is
     returned.
  ::
-    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'charIndex'+.
+    See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'charIndex'+.
 
 +*string is* 'class' ?*-strict*? 'string'+::
     Returns 1 if +'string'+ is a valid member of the specified character
@@ -3947,7 +4126,7 @@ The legal options (which may be abbreviated) are:
   +upper+;;  Any upper case alphabet character.
   +xdigit+;; Any hexadecimal digit character ([0-9A-Fa-f]).
  ::
-    Note that string classification does +'not'+ respect UTF-8. See UTF-8 AND UNICODE
+    Note that string classification does +'not'+ respect UTF-8. See <<_utf_8_and_unicode,UTF-8 AND UNICODE>>.
  ::
     Note that only +'lowercase'+ boolean values are recognized (Tcl accepts any case).
 
@@ -3958,12 +4137,12 @@ The legal options (which may be abbreviated) are:
     is no match, then return -1. If +'lastIndex'+ is specified, only characters
     up to +'lastIndex'+ of +'string2'+ will be considered in the match.
  ::
-    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'lastIndex'+.
+    See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'lastIndex'+.
 
 +*string length* 'string'+::
     Returns a decimal string giving the number of characters in +'string'+.
     If UTF-8 support is enabled, this may be different than the number of bytes.
-    See UTF-8 AND UNICODE
+    See <<_utf_8_and_unicode,UTF-8 AND UNICODE>>.
 
 +*string map ?-nocase?* 'mapping string'+::
     Replaces substrings in +'string'+ based on the key-value pairs in
@@ -3976,7 +4155,9 @@ The legal options (which may be abbreviated) are:
     only iterated over once, so earlier key replacements will have no affect for
     later key matches. For example,
 
+----
       string map {abc 1 ab 2 a 3 1 0} 1abcaababcabababc
+----
 
  ::
     will return the string +01321221+.
@@ -3984,7 +4165,9 @@ The legal options (which may be abbreviated) are:
     Note that if an earlier key is a prefix of a later one, it will completely mask the later
     one.  So if the previous example is reordered like this,
 
+----
       string map {1 0 ab 2 a 3 abc 1} 1abcaababcabababc
+----
 
  ::
     it will return the string +02c322c222c+.
@@ -4022,7 +4205,7 @@ The legal options (which may be abbreviated) are:
     character whose index is +'last'+.  An index of 0 refers to the
     first character of the string.
  ::
-    See STRING AND LIST INDEX SPECIFICATIONS for all allowed forms for +'first'+ and +'last'+.
+    See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'first'+ and +'last'+.
  ::
     If +'first'+ is less than zero then it is treated as if it were zero, and
     if +'last'+ is greater than or equal to the length of the string then
@@ -4103,8 +4286,10 @@ characters with no special interpretation.
 special treatment to double quotes or curly braces. For example,
 the following script returns +xyz \{44\}+, not +xyz \{$a\}+.
 
+----
     set a 44
     subst {xyz {$a}}
+----
 
 
 switch
@@ -4169,25 +4354,31 @@ body among several patterns.
 
 Below are some examples of `switch` commands:
 
+----
     switch abc a - b {format 1} abc {format 2} default {format 3}
+----
 
 will return 2,
 
+----
     switch -regexp aaab {
            ^a.*b$ -
            b {format 1}
            a* {format 2}
            default {format 3}
     }
+----
 
 will return 1, and
 
+----
     switch xyz {
            a -
            b {format 1}
            a* {format 2}
            default {format 3}
     }
+----
 
 will return 3.
 
@@ -4200,17 +4391,23 @@ the current call frame. This is similar to 'exec' in Bourne Shell.
 
 The following are identical except the first immediately replaces the current call frame.
 
+----
   tailcall a b c
+----
 
+----
   return [uplevel 1 [list a b c]]
+----
 
 `tailcall` is useful as a dispatch mechanism:
 
+----
   proc a {cmd args} {
     tailcall sub_$cmd {*}$args
   }
   proc sub_cmd1 ...
   proc sub_cmd2 ...
+----
 
 tell
 ~~~~
@@ -4243,7 +4440,9 @@ This command will call the Tcl interpreter +'count'+
 times to execute +'command'+ (or once if +'count'+ isn't
 specified).  It will then return a string of the form
 
+----
     503 microseconds per iteration
+----
 
 which indicates the average amount of time required per iteration,
 in microseconds.
@@ -4278,6 +4477,7 @@ the matching handler.
 
 For example:
 
+----
     set f [open input]
     try -signal {
         process $f
@@ -4291,6 +4491,7 @@ For example:
     } finally {
         $f close
     }
+----
 
 If break, continue or error are raised, they are dealt with by the matching
 handler.
@@ -4383,14 +4584,18 @@ The `uplevel` command causes the invoking procedure to disappear
 from the procedure calling stack while the command is being executed.
 In the above example, suppose 'c' invokes the command
 
+----
     uplevel 1 {set x 43; d}
+----
 
 where 'd' is another Tcl procedure.  The `set` command will
 modify the variable 'x' in 'b's context, and 'd' will execute
 at level 3, as if called from 'b'.  If it in turn executes
 the command
 
+----
     uplevel {set x 42}
+----
 
 then the `set` command will modify the same variable 'x' in 'b's
 context:  the procedure 'c' does not appear to be on the call stack
@@ -4432,10 +4637,12 @@ procedure calling and also makes it easier to build new control constructs
 as Tcl procedures.
 For example, consider the following procedure:
 
+----
     proc add2 name {
         upvar $name x
         set x [expr $x+2]
     }
+----
 
 'add2' is invoked with an argument giving the name of a variable,
 and it adds two to the value of that variable.
@@ -4510,8 +4717,10 @@ posix: os.fork, os.gethostname, os.getids, os.uptime
 +*os.getids*+::
     Returns the various user/group ids for the current process.
 
-    jim> os.getids
+----
+    . os.getids
     uid 1000 euid 1000 gid 100 egid 100
+----
 
 +*os.uptime*+::
     Returns the number of seconds since system boot. See description of 'uptime' in 'sysinfo(2)'.
@@ -4788,16 +4997,19 @@ address.
 The returned value is channel and may generally be used with the various file I/O
 commands (gets, puts, read, etc.), either as object-based syntax or Tcl-compatible syntax.
 
+----
     . set f [socket stream www.google.com:80]
     aio.sockstream1
     . $f puts -nonewline "GET / HTTP/1.0\r\n\r\n"
     . $f gets
     HTTP/1.0 302 Found
     . $f close
+----
 
 Server sockets, however support only 'accept', which is most useful in conjunction with
 the EVENTLOOP API.
 
+----
     set f [socket stream.server 80]
     $f readable {
         set client [$f accept]
@@ -4807,6 +5019,7 @@ the EVENTLOOP API.
         $client close
     }
     vwait done
+----
 
 The address, +'addr'+, can be given in one of the following forms:
 
@@ -4912,7 +5125,7 @@ commands based on the low-level `pack` and `unpack` commands.
 See the Tcl documentation at: http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm
 
 Note that 'binary format' with f/r/R specifiers (single-precision float) uses the value of Infinity
- in case of overflow.
+in case of overflow.
 
 oo: class, super
 ~~~~~~~~~~~~~~~~
@@ -5170,6 +5383,7 @@ The following global variables are set by jimsh.
     about the platform upon which Jim was built. The following is an
     example of the contents of this array.
 
+----
     tcl_platform(byteOrder)     = littleEndian
     tcl_platform(engine)        = Jim
     tcl_platform(os)            = Darwin
@@ -5178,6 +5392,7 @@ The following global variables are set by jimsh.
     tcl_platform(threaded)      = 0
     tcl_platform(wordSize)      = 8
     tcl_platform(pathSeparator) = :
+----
 
 +*argv0*+::
     If jimsh is invoked to run a script, this variable contains the name
