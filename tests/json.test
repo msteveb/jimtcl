@@ -59,9 +59,38 @@ test json-decode-012 {default null value} {
 	dict get [json::decode $json] homepage
 } {null}
 
-test json-decode-2.1 {Number forms} {
+test json-decode-1.1 {Number forms} {
 	json::decode {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
 } {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5}
+
+test json-2.1 {schema tests} {
+	lindex [json::decode -schema {[]}] 1
+} {list str}
+
+test json-2.2 {schema tests} {
+	lindex [json::decode -schema {[1, 2]}] 1
+} {list num}
+
+test json-2.3 {schema tests} {
+	lindex [json::decode -schema {[1, 2, [3, 4], 4, 6]}] 1
+} {mixed num num {list num} num num}
+
+test json-2.4 {schema tests} {
+	lindex [json::decode -schema {{"a":1, "b":2}}] 1
+} {obj a num b num}
+
+test json-2.5 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}] 1
+} {mixed num num {obj a str c num} str}
+
+test json-2.6 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, Infinity]}]}] 1
+} {mixed num num {obj a {mixed str num num num}}}
+
+test json-2.7 {schema tests} {
+	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
+} {mixed num num {obj a {mixed str num num {list str}}}}
+
 
 unset -nocomplain json
 

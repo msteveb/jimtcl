@@ -25,13 +25,70 @@
 
 #include "jsmn/jsmn.h"
 
-struct jmsn_state {
+struct json_state {
 	Jim_Obj *nullObj;
 	jsmntok_t *tok;
+	Jim_Obj *schemaObj;
+	int schema;
 	int need_subst;
 };
 
-static void json_decode_dump_value(Jim_Interp *interp, struct jmsn_state *state, Jim_Obj *list, const char *json);
+static void json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *list, const char *json);
+
+/**
+ * Start a new subschema. Returns the previous schemaObj.
+ * Does nothing and returns NULL if -schema is not enabled.
+ */
+static Jim_Obj *json_decode_schema_push(Jim_Interp *interp, struct json_state *state)
+{
+	Jim_Obj *prevSchemaObj = NULL;
+	if (state->schema) {
+		prevSchemaObj = state->schemaObj;
+		state->schemaObj = Jim_NewListObj(interp, NULL, 0);
+		Jim_IncrRefCount(state->schemaObj);
+	}
+	return prevSchemaObj;
+}
+
+/**
+ * Combines the current schema with the previous schema, prevSchemaObj
+ * returned by json_decode_schema_push().
+ * Does nothing if -schema is not enabled.
+ */
+static void json_decode_schema_pop(Jim_Interp *interp, struct json_state *state, Jim_Obj *prevSchemaObj)
+{
+	if (state->schema) {
+		Jim_ListAppendElement(interp, prevSchemaObj, state->schemaObj);
+		Jim_DecrRefCount(interp, state->schemaObj);
+		state->schemaObj = prevSchemaObj;
+	}
+}
+
+/**
+ * Appends the schema type to schemaObj based on 'type'
+ */
+static void json_decode_add_schema_type(Jim_Interp *interp, Jim_Obj *schemaObj, jsmntype_t type)
+{
+	/* XXX: Could optimise storage of these strings */
+	const char *typename;
+	switch (type) {
+		case JSMN_PRIMITIVE:
+			typename = "num";
+			break;
+		case JSMN_STRING:
+			typename = "str";
+			break;
+		case JSMN_OBJECT:
+			typename = "obj";
+			break;
+		case JSMN_ARRAY:
+			typename = "mixed";
+			break;
+		default:
+			assert(0);
+	}
+	Jim_ListAppendElement(interp, schemaObj, Jim_NewStringObj(interp, typename, -1));
+}
 
 /**
  * Returns the current object (state->tok) as a Tcl list.
@@ -39,24 +96,72 @@ static void json_decode_dump_value(Jim_Interp *interp, struct jmsn_state *state,
  * state->tok is incremented to just past the object that was dumped.
  */
 static Jim_Obj *
-json_decode_dump_container(Jim_Interp *interp, struct jmsn_state *state, const char *json)
+json_decode_dump_container(Jim_Interp *interp, struct json_state *state, const char *json)
 {
 	int i;
 
 	Jim_Obj *list = Jim_NewListObj(interp, NULL, 0);
 	int size = state->tok->size;
 	int type = state->tok->type;
+	int subtypes = 1;
 
 	state->tok++;
+
+	if (state->schemaObj) {
+		/* Figure out the type to use for the container - obj, list or mixed, and whether to include subtypes */
+		if (type == JSMN_ARRAY) {
+			int list_type = size ? JSMN_UNDEFINED : JSMN_STRING;
+
+			/* If every element of the array is of the same primitive type (str or num),
+			 * we can use "list", otherwise need to use "mixed"
+			 */
+			for (i = 0; i < size; i++) {
+				int t = state->tok[i].type;
+				if (t == JSMN_PRIMITIVE || t == JSMN_STRING) {
+					if (list_type == JSMN_UNDEFINED) {
+						/* First element */
+						list_type = t;
+						continue;
+					}
+					if (t == list_type) {
+						continue;
+					}
+				}
+				/* Can't use list */
+				list_type = JSMN_UNDEFINED;
+				break;
+			}
+			if (list_type != JSMN_UNDEFINED) {
+				/* We can use list, so don't need subtypes */
+				Jim_ListAppendElement(interp, state->schemaObj, Jim_NewStringObj(interp, "list", -1));
+				json_decode_add_schema_type(interp, state->schemaObj, list_type);
+				subtypes = 0;
+			}
+		}
+		if (subtypes) {
+			json_decode_add_schema_type(interp, state->schemaObj, type);
+		}
+	}
 
 	for (i = 0; i < size; i++) {
 		if (type == JSMN_OBJECT) {
 			/* Dump the object key */
+			if (state->schema) {
+				Jim_ListAppendElement(interp, state->schemaObj, Jim_NewStringObj(interp, json + state->tok->start, state->tok->end - state->tok->start));
+			}
 			json_decode_dump_value(interp, state, list, json);
 		}
+
+		if (state->schemaObj && subtypes) {
+			if (state->tok->type == JSMN_STRING || state->tok->type == JSMN_PRIMITIVE) {
+				json_decode_add_schema_type(interp, state->schemaObj, state->tok->type);
+			}
+		}
+
 		/* Dump the array or object value */
 		json_decode_dump_value(interp, state, list, json);
 	}
+
 	return list;
 }
 
@@ -65,7 +170,7 @@ json_decode_dump_container(Jim_Interp *interp, struct jmsn_state *state, const c
  * past that token.
  */
 static void
-json_decode_dump_value(Jim_Interp *interp, struct jmsn_state *state, Jim_Obj *list, const char *json)
+json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *list, const char *json)
 {
 	Jim_Obj		*newList, *elem;
 	unsigned char	 c;
@@ -97,20 +202,22 @@ json_decode_dump_value(Jim_Interp *interp, struct jmsn_state *state, Jim_Obj *li
 		state->tok++;
 	}
 	else {
+		Jim_Obj *prevSchemaObj = json_decode_schema_push(interp, state);
 		newList = json_decode_dump_container(interp, state, json);
 		Jim_ListAppendElement(interp, list, newList);
+		json_decode_schema_pop(interp, state, prevSchemaObj);
 	}
 }
 
-/* Parses the options ?-null string? *state.
+/* Parses the options ?-null string? ?-schema? *state.
  * Any options not present are not set.
  *
  * Returns JIM_OK or JIM_ERR and sets an error result.
  */
-static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *const argv[], struct jmsn_state *state)
+static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *const argv[], struct json_state *state)
 {
-	static const char * const options[] = { "-null", NULL };
-	enum { OPT_NULL, };
+	static const char * const options[] = { "-null", "-schema", NULL };
+	enum { OPT_NULL, OPT_SCHEMA, };
 	int i;
 
 	for (i = 1; i < argc - 1; i++) {
@@ -125,12 +232,16 @@ static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *cons
 				Jim_DecrRefCount(interp, state->nullObj);
 				state->nullObj = argv[i];
 				break;
+
+			case OPT_SCHEMA:
+				state->schema = 1;
+				break;
 		}
 	}
 
 	if (i != argc - 1) {
 		Jim_WrongNumArgs(interp, 1, argv,
-			"?-null nullvalue? json");
+			"?-null nullvalue? ?-schema? json");
 		return JIM_ERR;
 	}
 
@@ -184,6 +295,11 @@ error:
 	return t;
 }
 
+/**
+ * json::decode returns the decoded data structure.
+ *
+ * If -schema is specified, returns a list of {data schema}
+ */
 static int
 json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
@@ -193,9 +309,11 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 	int		 len;
 	int ret = JIM_ERR;
 
-	struct jmsn_state state;
+	struct json_state state;
 
 	state.need_subst = 0;
+	state.schema = 0;
+	state.schemaObj = NULL;
 	state.nullObj = Jim_NewStringObj(interp, "null", -1);
 	Jim_IncrRefCount(state.nullObj);
 
@@ -213,6 +331,7 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 		goto done;
 	}
 	state.tok = tokens;
+	json_decode_schema_push(interp, &state);
 
 	list = json_decode_dump_container(interp, &state, json);
 	Jim_Free(tokens);
@@ -236,6 +355,14 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 
 done:
 	Jim_DecrRefCount(interp, state.nullObj);
+
+	if (state.schemaObj) {
+		Jim_Obj *resultObj = Jim_NewListObj(interp, NULL, 0);
+		Jim_ListAppendElement(interp, resultObj, Jim_GetResult(interp));
+		Jim_ListAppendElement(interp, resultObj, state.schemaObj);
+		Jim_SetResult(interp, resultObj);
+		Jim_DecrRefCount(interp, state.schemaObj);
+	}
 
 	return ret;
 }

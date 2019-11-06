@@ -59,6 +59,7 @@ Changes since 0.78
 3. Add support for `aio lock -wait`
 4. Add `signal block` to prevent delivery of signals
 5. Add support for `file split`
+6. Add support for `json::encode` and `json::decode`
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5331,8 +5332,8 @@ independently (but synchronously) of the main interpreter.
     alias for +'parentcmd'+ in the parent interpreter, with the given, fixed arguments.
     The alias may be deleted in the child with 'rename'.
 
-json
-~~~~
+json: json::encode, json::decode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The optional 'json' package includes a Tcl -> JSON encoder and a JSON -> Tcl decoder.
 
@@ -5362,9 +5363,10 @@ The following are examples:
     { "a":1, "b":3.0, "c":"hello", "d":null }
 ----
 
-+*json::decode* ?*-null* 'string'? 'json-string'+::
++*json::decode* ?*-null* 'string'? ?*-schema*? 'json-string'+::
 
-Decodes the given JSON string into a Tcl data structure.
+Decodes the given JSON string into a Tcl data structure. If '+-schema+' is specified, returns a
+list of +'{data schema}'+ where the schema is compatible with `json::encode`. Otherwise just returns the data.
 Decoding is as follows:
 * object -> dict
 * array -> list
@@ -5373,6 +5375,16 @@ Decoding is as follows:
 * null -> supplied null string or the default +'"null"'+
  ::
  Note that an object decoded into a dict will return the keys in the same order as the original string.
+----
+    . json::decode {[1, 2]}
+    {1 2}
+    . json::decode -schema {[1, 2]}
+    {1 2} {list num}
+    . json::decode -schema {{"a":1, "b":2}}
+    {a 1 b 2} {obj a num b num}
+    . json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}
+    {1 2 {a b c false} hello} {mixed num num {obj a str c num} str}
+----
 
 [[BuiltinVariables]]
 BUILT-IN VARIABLES
