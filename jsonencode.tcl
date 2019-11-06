@@ -37,6 +37,9 @@ proc json::encode. {args} {
 
 # Encode a number
 proc json::encode.num {value {dummy {}}} {
+	if {$value in {Inf -Inf}} {
+		append value inity
+	}
 	return $value
 }
 

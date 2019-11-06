@@ -59,6 +59,10 @@ test json-decode-012 {default null value} {
 	dict get [json::decode $json] homepage
 } {null}
 
+test json-decode-2.1 {Number forms} {
+	json::decode {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
+} {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5}
+
 unset -nocomplain json
 
 test json-encode-1.1 {String with backslashes}  {
@@ -70,8 +74,8 @@ test json-encode-1.2 {String with special chars} {
 } {"Various \n special \b characters \t and \/slash\/ \r too"}
 
 test json-encode-1.3 {Array of numbers} {
-	json::encode {1 2 3.0 4} {list num}
-} {[ 1, 2, 3.0, 4 ]}
+	json::encode {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5} {list num}
+} {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
 
 test json-encode-1.4 {Array of strings} {
 	json::encode {1 2 3.0 4} list

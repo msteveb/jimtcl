@@ -85,6 +85,10 @@ json_decode_dump_value(Jim_Interp *interp, struct jmsn_state *state, Jim_Obj *li
 			elem = Jim_NewStringObj(interp, json + t->start, len);
 		} else if (c == 'n') {	/* null */
 			elem = state->nullObj;
+		} else if (c == 'I') {
+			elem = Jim_NewStringObj(interp, "Inf", -1);
+		} else if (c == '-' && json[t->start + 1] == 'I') {
+			elem = Jim_NewStringObj(interp, "-Inf", -1);
 		} else {		/* number, true or false */
 			elem = Jim_NewStringObj(interp, json + t->start, len);
 		}
