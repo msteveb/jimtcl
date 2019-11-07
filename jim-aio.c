@@ -1918,7 +1918,7 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
  * Create a pair of channels. e.g. from pipe() or socketpair()
  */
 static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
-    const char *hdlfmt, int family, const char *mode[2])
+    const char *hdlfmt, int family, const char * const mode[2])
 {
     if (JimMakeChannel(interp, NULL, p[0], filename, hdlfmt, family, mode[0], 0)) {
         Jim_Obj *objPtr = Jim_NewListObj(interp, NULL, 0);
@@ -1942,7 +1942,7 @@ static int JimMakeChannelPair(Jim_Interp *interp, int p[2], Jim_Obj *filename,
 static int JimAioPipeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int p[2];
-    static const char *mode[2] = { "r", "w" };
+    static const char * const mode[2] = { "r", "w" };
 
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
@@ -2032,7 +2032,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #if defined(HAVE_SOCKETPAIR) && UNIX_SOCKETS
     if (socktype == SOCK_STREAM_SOCKETPAIR) {
         int p[2];
-        static const char *mode[2] = { "r+", "r+" };
+        static const char * const mode[2] = { "r+", "r+" };
 
         if (addr || ipv6) {
             goto wrongargs;
