@@ -12,7 +12,8 @@
 #
 # The schema provides the type information for the value.
 # str = string
-# num = numeric
+# num = numeric (or null)
+# bool = boolean
 # obj ... = object. parameters are 'name' 'subschema' where the name matches the dict.
 # list ... = array. parameters are 'subschema' for the elements of the list/array.
 # mixed ... = array of mixed types. parameters are types for each element of the list/array.
@@ -41,6 +42,14 @@ proc json::encode.num {value {dummy {}}} {
 		append value inity
 	}
 	return $value
+}
+
+# Encode a boolean
+proc json::encode.bool {value {dummy {}}} {
+	if {$value} {
+		return true
+	}
+	return false
 }
 
 # Encode an object (dictionary)

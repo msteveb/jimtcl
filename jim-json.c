@@ -67,13 +67,19 @@ static void json_decode_schema_pop(Jim_Interp *interp, struct json_state *state,
 /**
  * Appends the schema type to schemaObj based on 'type'
  */
-static void json_decode_add_schema_type(Jim_Interp *interp, Jim_Obj *schemaObj, jsmntype_t type)
+static void json_decode_add_schema_type(Jim_Interp *interp, Jim_Obj *schemaObj, jsmntype_t type, const char *json)
 {
 	/* XXX: Could optimise storage of these strings */
 	const char *typename;
 	switch (type) {
 		case JSMN_PRIMITIVE:
-			typename = "num";
+			assert(json);
+			if (*json == 't' || *json == 'f') {
+				typename = "bool";
+			}
+			else {
+				typename = "num";
+			}
 			break;
 		case JSMN_STRING:
 			typename = "str";
@@ -134,12 +140,12 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state, const c
 			if (list_type != JSMN_UNDEFINED) {
 				/* We can use list, so don't need subtypes */
 				Jim_ListAppendElement(interp, state->schemaObj, Jim_NewStringObj(interp, "list", -1));
-				json_decode_add_schema_type(interp, state->schemaObj, list_type);
+				json_decode_add_schema_type(interp, state->schemaObj, list_type, json + state->tok[0].start);
 				subtypes = 0;
 			}
 		}
 		if (subtypes) {
-			json_decode_add_schema_type(interp, state->schemaObj, type);
+			json_decode_add_schema_type(interp, state->schemaObj, type, NULL);
 		}
 	}
 
@@ -154,7 +160,7 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state, const c
 
 		if (state->schemaObj && subtypes) {
 			if (state->tok->type == JSMN_STRING || state->tok->type == JSMN_PRIMITIVE) {
-				json_decode_add_schema_type(interp, state->schemaObj, state->tok->type);
+				json_decode_add_schema_type(interp, state->schemaObj, state->tok->type, json + state->tok->start);
 			}
 		}
 

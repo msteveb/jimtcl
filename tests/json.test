@@ -81,15 +81,15 @@ test json-2.4 {schema tests} {
 
 test json-2.5 {schema tests} {
 	lindex [json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}] 1
-} {mixed num num {obj a str c num} str}
+} {mixed num num {obj a str c bool} str}
 
 test json-2.6 {schema tests} {
 	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, Infinity]}]}] 1
-} {mixed num num {obj a {mixed str num num num}}}
+} {mixed num num {obj a {mixed str num bool num}}}
 
 test json-2.7 {schema tests} {
 	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
-} {mixed num num {obj a {mixed str num num {list str}}}}
+} {mixed num num {obj a {mixed str num bool {list str}}}}
 
 
 unset -nocomplain json
@@ -109,7 +109,6 @@ test json-encode-1.3 {Array of numbers} {
 test json-encode-1.4 {Array of strings} {
 	json::encode {1 2 3.0 4} list
 } {[ "1", "2", "3.0", "4" ]}
-
 
 test json-encode-1.5 {Array of objects} {
 	json::encode {{state NY city {New York} postalCode 10021 streetAddress {21 2nd Street}} {state CA city {Los Angeles} postalCode 10345 streetAddress {15 Hale St}}} {list obj postalCode num}
@@ -134,5 +133,10 @@ test json-encode-1.9 {Array of mixed types} {
 test json-encode-1.10 {Array of objects} {
 	json::encode {{state NY city {New York} postalCode 10021 streetAddress {21 2nd Street}} {state CA city {Los Angeles} postalCode 10345 streetAddress {15 Hale St}}} {list obj postalCode num}
 } {[ { "city":"New York", "postalCode":10021, "state":"NY", "streetAddress":"21 2nd Street" }, { "city":"Los Angeles", "postalCode":10345, "state":"CA", "streetAddress":"15 Hale St" } ]}
+
+test json-encode-1.11 {Forms of boolean} {
+	json::encode {-5 4 1 0 yes no true false} {list bool}
+} {[ true, true, true, false, true, false, true, false ]}
+
 
 testreport
