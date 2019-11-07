@@ -3,7 +3,7 @@ install:
   - cmd: set MSYSTEM=MINGW32
   - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc"
 build_script:
-  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --full --with-ext='zlib win32' --disable-docs"
+  - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --full --ssl --with-ext='zlib win32' --disable-docs"
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make"
 test_script:
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make test"
