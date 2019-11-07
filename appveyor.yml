@@ -2,6 +2,7 @@ version: "0.78.0.{build}"
 install:
   - cmd: set MSYSTEM=MINGW32
   - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc"
+  - cmd: cd C:\projects & mklink /D %APPVEYOR_PROJECT_NAME% %APPVEYOR_PROJECT_SLUG% & exit 0
 build_script:
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --full --ssl --with-ext='zlib win32' --disable-docs"
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; make"
