@@ -65,7 +65,7 @@ test json-decode-1.1 {Number forms} {
 
 test json-2.1 {schema tests} {
 	lindex [json::decode -schema {[]}] 1
-} {list str}
+} {list}
 
 test json-2.2 {schema tests} {
 	lindex [json::decode -schema {[1, 2]}] 1
@@ -90,6 +90,10 @@ test json-2.6 {schema tests} {
 test json-2.7 {schema tests} {
 	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
 } {mixed num num {obj a {mixed str num bool {list str}}}}
+
+test json-2.8 {schema tests} {
+	lindex [json::decode -schema {[1, 2, true, false]}] 1
+} {mixed num num bool bool}
 
 
 unset -nocomplain json

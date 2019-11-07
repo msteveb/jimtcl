@@ -33,6 +33,18 @@ struct json_state {
 	int need_subst;
 };
 
+/* These are all the schema types we support */
+typedef enum {
+	JSON_NONE = -1,
+	JSON_BOOL = 0,
+	JSON_OBJ,
+	JSON_LIST,
+	JSON_MIXED,
+	JSON_STR,
+	JSON_NUM,
+} json_schema_t;
+
+
 static void json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *list, const char *json);
 
 /**
@@ -67,33 +79,42 @@ static void json_decode_schema_pop(Jim_Interp *interp, struct json_state *state,
 /**
  * Appends the schema type to schemaObj based on 'type'
  */
-static void json_decode_add_schema_type(Jim_Interp *interp, Jim_Obj *schemaObj, jsmntype_t type, const char *json)
+static void json_decode_add_schema_type(Jim_Interp *interp, Jim_Obj *schemaObj, json_schema_t type)
 {
-	/* XXX: Could optimise storage of these strings */
-	const char *typename;
-	switch (type) {
+	static const char * const schema_names[] = {
+		"bool",
+		"obj",
+		"list",
+		"mixed",
+		"str",
+		"num",
+	};
+	assert(type < sizeof(schema_names) / sizeof(*schema_names));
+
+	/* XXX: Could optimise storage of these strings with reference counting*/
+	Jim_ListAppendElement(interp, schemaObj, Jim_NewStringObj(interp, schema_names[type], -1));
+}
+
+static json_schema_t json_decode_get_type(const jsmntok_t *tok, const char *json)
+{
+	switch (tok->type) {
 		case JSMN_PRIMITIVE:
 			assert(json);
-			if (*json == 't' || *json == 'f') {
-				typename = "bool";
+			if (json[tok->start] == 't' || json[tok->start] == 'f') {
+				return JSON_BOOL;
 			}
-			else {
-				typename = "num";
-			}
-			break;
+			return JSON_NUM;
 		case JSMN_STRING:
-			typename = "str";
-			break;
+			return JSON_STR;
 		case JSMN_OBJECT:
-			typename = "obj";
-			break;
+			return JSON_OBJ;
 		case JSMN_ARRAY:
-			typename = "mixed";
-			break;
+			/* Return mixed by default - need other checks to determine list instead */
+			return JSON_MIXED;
 		default:
+			fprintf(stderr, "tok->type=%d, token=%s\n", tok->type, json + tok->start);
 			assert(0);
 	}
-	Jim_ListAppendElement(interp, schemaObj, Jim_NewStringObj(interp, typename, -1));
 }
 
 /**
@@ -111,43 +132,42 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state, const c
 	int type = state->tok->type;
 	int subtypes = 1;
 
-	state->tok++;
-
 	if (state->schemaObj) {
 		/* Figure out the type to use for the container - obj, list or mixed, and whether to include subtypes */
 		if (type == JSMN_ARRAY) {
-			int list_type = size ? JSMN_UNDEFINED : JSMN_STRING;
-
-			/* If every element of the array is of the same primitive type (str or num),
+			/* If every element of the array is of the same primitive schema type (str, bool or num),
 			 * we can use "list", otherwise need to use "mixed"
 			 */
-			for (i = 0; i < size; i++) {
-				int t = state->tok[i].type;
-				if (t == JSMN_PRIMITIVE || t == JSMN_STRING) {
-					if (list_type == JSMN_UNDEFINED) {
-						/* First element */
-						list_type = t;
-						continue;
+			subtypes = 0;
+			if (size == 0) {
+				/* Special case "[]" */
+				json_decode_add_schema_type(interp, state->schemaObj, JSON_LIST);
+			}
+			else {
+				json_schema_t list_type = json_decode_get_type(&state->tok[1], json);
+
+				if (list_type == JSON_BOOL || list_type == JSON_STR || list_type == JSON_NUM) {
+					for (i = 2; i <= size; i++) {
+						if (json_decode_get_type(state->tok + i, json) != list_type) {
+							/* Can't use list */
+							subtypes = 1;
+							break;
+						}
 					}
-					if (t == list_type) {
-						continue;
+					if (subtypes == 0) {
+						/* We can use list, so don't need subtypes */
+						json_decode_add_schema_type(interp, state->schemaObj, JSON_LIST);
+						json_decode_add_schema_type(interp, state->schemaObj, list_type);
 					}
 				}
-				/* Can't use list */
-				list_type = JSMN_UNDEFINED;
-				break;
-			}
-			if (list_type != JSMN_UNDEFINED) {
-				/* We can use list, so don't need subtypes */
-				Jim_ListAppendElement(interp, state->schemaObj, Jim_NewStringObj(interp, "list", -1));
-				json_decode_add_schema_type(interp, state->schemaObj, list_type, json + state->tok[0].start);
-				subtypes = 0;
 			}
 		}
 		if (subtypes) {
-			json_decode_add_schema_type(interp, state->schemaObj, type, NULL);
+			json_decode_add_schema_type(interp, state->schemaObj, json_decode_get_type(state->tok, json));
 		}
 	}
+
+	state->tok++;
 
 	for (i = 0; i < size; i++) {
 		if (type == JSMN_OBJECT) {
@@ -160,7 +180,7 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state, const c
 
 		if (state->schemaObj && subtypes) {
 			if (state->tok->type == JSMN_STRING || state->tok->type == JSMN_PRIMITIVE) {
-				json_decode_add_schema_type(interp, state->schemaObj, state->tok->type, json + state->tok->start);
+				json_decode_add_schema_type(interp, state->schemaObj, json_decode_get_type(state->tok, json));
 			}
 		}
 
