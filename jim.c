@@ -727,7 +727,13 @@ unsigned int Jim_GenHashFunction(const unsigned char *buf, int len)
 
 /* ----------------------------- API implementation ------------------------- */
 
-/* reset a hashtable already initialized */
+/*
+ * Reset a hashtable already initialized.
+ * The table data should already have been freed.
+ *
+ * Note that type and privdata are not initialised
+ * to allow the now-empty hashtable to be reused
+ */
 static void JimResetHashTable(Jim_HashTable *ht)
 {
     ht->table = NULL;
@@ -899,7 +905,9 @@ int Jim_DeleteHashEntry(Jim_HashTable *ht, const void *key)
     return JIM_ERR;             /* not found */
 }
 
-/* Destroy an entire hash table and leave it ready for reuse */
+/* Remove all entries from the hash table
+ * and leave it empty for reuse
+ */
 int Jim_FreeHashTable(Jim_HashTable *ht)
 {
     unsigned int i;
