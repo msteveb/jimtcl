@@ -112,9 +112,10 @@ static json_schema_t json_decode_get_type(const jsmntok_t *tok, const char *json
 			/* Return mixed by default - need other checks to determine list instead */
 			return JSON_MIXED;
 		default:
-			fprintf(stderr, "tok->type=%d, token=%s\n", tok->type, json + tok->start);
 			assert(0);
 	}
+	/* NOTREACHED */
+	return JSON_NONE;
 }
 
 /**
