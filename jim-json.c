@@ -159,6 +159,9 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state)
 						}
 					}
 				}
+				else {
+					container_type = JSON_MIXED;
+				}
 			}
 		}
 		json_decode_add_schema_type(interp, state, container_type);
