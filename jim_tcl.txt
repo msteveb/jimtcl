@@ -5371,10 +5371,12 @@ json::decode
 
 The JSON -> Tcl decoder is part of the optional 'json' package.
 
-+*json::decode* ?*-null* 'string'? ?*-schema*? 'json-string'+::
++*json::decode* ?*-index*? ?*-null* 'string'? ?*-schema*? 'json-string'+::
 
-Decodes the given JSON string (must be array or object) into a Tcl data structure. If '+-schema+' is specified, returns a
-list of +'{data schema}'+ where the schema is compatible with `json::encode`. Otherwise just returns the data.
+Decodes the given JSON string (must be array or object) into a Tcl data structure. If '+-index+' is specified,
+decodes JSON arrays as dictionaries with numeric keys. This makes it possible to retrieve data from nested
+arrays and dictionaries with just '+dict get+'. With the option '+-schema+' returns a list of +'{data schema}'+
+where the schema is compatible with `json::encode`. Otherwise just returns the data.
 Decoding is as follows (with schema types listed in parentheses):
 * object -> dict ('obj')
 * array -> list ('mixed' or 'list')
@@ -5393,6 +5395,8 @@ Decoding is as follows (with schema types listed in parentheses):
     {a 1 b 2} {obj a num b num}
     . json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}
     {1 2 {a b c false} hello} {mixed num num {obj a str c bool} str}
+    . json::decode -index {["foo", "bar"]}
+    {0 foo 1 bar}
 ----
 
 [[BuiltinVariables]]

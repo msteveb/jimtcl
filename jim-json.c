@@ -44,6 +44,7 @@ struct json_state {
 	int need_subst;
 	/* The following are used for -schema */
 	int enable_schema;
+	int enable_index;
 	Jim_Obj *schemaObj;
 	Jim_Obj *schemaTypeObj[JSON_MAX_TYPE];
 };
@@ -183,6 +184,10 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state)
 			json_decode_dump_value(interp, state, list);
 		}
 
+		if (state->enable_index && type == JSMN_ARRAY) {
+			Jim_ListAppendElement(interp, list, Jim_NewIntObj(interp, i));
+		}
+
 		if (state->schemaObj && container_type != JSON_LIST) {
 			if (state->tok->type == JSMN_STRING || state->tok->type == JSMN_PRIMITIVE) {
 				json_decode_add_schema_type(interp, state, json_decode_get_type(state->tok, state->json));
@@ -245,8 +250,8 @@ json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *li
  */
 static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *const argv[], struct json_state *state)
 {
-	static const char * const options[] = { "-null", "-schema", NULL };
-	enum { OPT_NULL, OPT_SCHEMA, };
+	static const char * const options[] = { "-index", "-null", "-schema", NULL };
+	enum { OPT_INDEX, OPT_NULL, OPT_SCHEMA, };
 	int i;
 
 	for (i = 1; i < argc - 1; i++) {
@@ -255,6 +260,10 @@ static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *cons
 			return JIM_ERR;
 		}
 		switch (option) {
+			case OPT_INDEX:
+				state->enable_index = 1;
+				break;
+
 			case OPT_NULL:
 				i++;
 				Jim_IncrRefCount(argv[i]);
@@ -270,7 +279,7 @@ static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *cons
 
 	if (i != argc - 1) {
 		Jim_WrongNumArgs(interp, 1, argv,
-			"?-null nullvalue? ?-schema? json");
+			"?-index? ?-null nullvalue? ?-schema? json");
 		return JIM_ERR;
 	}
 
