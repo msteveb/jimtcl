@@ -468,6 +468,8 @@ if {$jimregexp || [opt-bool jim-regexp]} {
 foreach mod $extinfo(static-c) {
     if {[dict exists $extdb info $mod extrasrcs]} {
         foreach src [dict get $extdb info $mod extrasrcs] {
+            # In case we are building out-of-tree and $src is in a subdir
+            file mkdir [file dirname $src]
             lappend extra_objs {*}[file rootname $src].o
         }
     }
