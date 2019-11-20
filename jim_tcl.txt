@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.78+ - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.79 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,8 +52,8 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
-Changes since 0.78
-~~~~~~~~~~~~~~~~~~
+Changes between 0.78 and 0.79
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add `file mtimeus` for high resolution file timestamps
 2. `aio` now supports datagram Unix-Domain sockets
 3. Add support for `aio lock -wait`
@@ -106,58 +106,6 @@ Changes between 0.74 and 0.75
 8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
 9. `file stat` no longer requires the variable name
 10. Add support for `file link`
-
-Changes between 0.73 and 0.74
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Numbers with leading zeros are treated as decimal, not octal
-2. Add `aio isatty`
-3. Add LFS (64 bit) support for `aio seek`, `aio tell`, `aio copyto`, `file copy`
-4. `string compare` and `string equal` now support '-length'
-5. `glob` now supports '-directory'
-
-Changes between 0.72 and 0.73
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Built-in regexp now support non-capturing parentheses: (?:...)
-2. Add `string replace`
-3. Add `string totitle`
-4. Add `info statics`
-5. Add +build-jim-ext+ for easy separate building of loadable modules (extensions)
-6. `local` now works with any command, not just procs
-7. Add `info alias` to access the target of an alias
-8. UTF-8 encoding past the basic multilingual plane (BMP) is supported
-9. Add `tcl::prefix`
-10. Add `history`
-11. Most extensions are now enabled by default
-12. Add support for namespaces and the `namespace` command
-13. Add `apply`
-
-Changes between 0.71 and 0.72
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. procs now allow 'args' and optional parameters in any position
-2. Add Tcl-compatible expr functions, `rand()`, `srand()` and `pow()`
-3. Add support for the '-force' option to `file delete`
-4. Better diagnostics when `source` fails to load a script with a missing quote or bracket
-5. New +tcl_platform(pathSeparator)+
-6. Add support settings the modification time with `file mtime`
-7. `exec` is now fully supported on win32 (mingw32)
-8. `file join`, `pwd`, `glob` etc. now work for mingw32
-9. Line editing is now supported for the win32 console (mingw32)
-10. Add `aio listen` command
-
-Changes between 0.70 and 0.71
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Allow 'args' to be renamed in procs
-2. Add +$(...)+ shorthand syntax for expressions
-3. Add automatic reference variables in procs with +&var+ syntax
-4. Support +jimsh --version+
-5. Additional variables in +tcl_platform()+
-6. `local` procs now push existing commands and `upcall` can call them
-7. Add `loop` command (TclX compatible)
-8. Add `aio buffering` command
-9. `info complete` can now return the missing character
-10. `binary format` and `binary scan` are now (optionally) supported
-11. Add `string byterange`
-12. Built-in regexp now support non-greedy repetition (*?, +?, ??)
 
 TCL INTRODUCTION
 -----------------
@@ -5496,6 +5444,59 @@ The following variables have special meaning to Jim Tcl:
 
 CHANGES IN PREVIOUS RELEASES
 ----------------------------
+
+=== In v0.74 ===
+
+1. Numbers with leading zeros are treated as decimal, not octal
+2. Add `aio isatty`
+3. Add LFS (64 bit) support for `aio seek`, `aio tell`, `aio copyto`, `file copy`
+4. `string compare` and `string equal` now support '-length'
+5. `glob` now supports '-directory'
+
+=== In v0.73 ===
+
+1. Built-in regexp now support non-capturing parentheses: (?:...)
+2. Add `string replace`
+3. Add `string totitle`
+4. Add `info statics`
+5. Add +build-jim-ext+ for easy separate building of loadable modules (extensions)
+6. `local` now works with any command, not just procs
+7. Add `info alias` to access the target of an alias
+8. UTF-8 encoding past the basic multilingual plane (BMP) is supported
+9. Add `tcl::prefix`
+10. Add `history`
+11. Most extensions are now enabled by default
+12. Add support for namespaces and the `namespace` command
+13. Add `apply`
+
+=== In v0.72 ===
+
+1. procs now allow 'args' and optional parameters in any position
+2. Add Tcl-compatible expr functions, `rand()`, `srand()` and `pow()`
+3. Add support for the '-force' option to `file delete`
+4. Better diagnostics when `source` fails to load a script with a missing quote or bracket
+5. New +tcl_platform(pathSeparator)+
+6. Add support settings the modification time with `file mtime`
+7. `exec` is now fully supported on win32 (mingw32)
+8. `file join`, `pwd`, `glob` etc. now work for mingw32
+9. Line editing is now supported for the win32 console (mingw32)
+10. Add `aio listen` command
+
+=== In v0.71 ===
+
+1. Allow 'args' to be renamed in procs
+2. Add +$(...)+ shorthand syntax for expressions
+3. Add automatic reference variables in procs with +&var+ syntax
+4. Support +jimsh --version+
+5. Additional variables in +tcl_platform()+
+6. `local` procs now push existing commands and `upcall` can call them
+7. Add `loop` command (TclX compatible)
+8. Add `aio buffering` command
+9. `info complete` can now return the missing character
+10. `binary format` and `binary scan` are now (optionally) supported
+11. Add `string byterange`
+12. Built-in regexp now support non-greedy repetition (*?, +?, ??)
+
 
 === In v0.70 ===
 
