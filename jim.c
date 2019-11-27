@@ -317,53 +317,33 @@ static int JimGlobMatch(const char *pattern, const char *string, int nocase)
 }
 
 /**
- * string comparison. Works on binary data.
+ * utf-8 string comparison. case-insensitive if nocase is set.
  *
  * Returns -1, 0 or 1
  *
- * Note that the lengths are byte lengths, not char lengths.
+ * Note that the lengths are character lengths, not byte lengths.
  */
-static int JimStringCompare(const char *s1, int l1, const char *s2, int l2)
+static int JimStringCompareUtf8(const char *s1, int l1, const char *s2, int l2, int nocase)
 {
-    if (l1 < l2) {
-        return memcmp(s1, s2, l1) <= 0 ? -1 : 1;
+    int minlen = l1;
+    if (l2 < l1) {
+        minlen = l2;
     }
-    else if (l2 < l1) {
-        return memcmp(s1, s2, l2) >= 0 ? 1 : -1;
-    }
-    else {
-        return JimSign(memcmp(s1, s2, l1));
-    }
-}
-
-/**
- * Compare null terminated strings, up to a maximum of 'maxchars' characters,
- * (or end of string if 'maxchars' is -1).
- *
- * Returns -1, 0, 1 for s1 < s2, s1 == s2, s1 > s2 respectively.
- *
- * Note: does not support embedded nulls.
- */
-static int JimStringCompareLen(const char *s1, const char *s2, int maxchars, int nocase)
-{
-    while (*s1 && *s2 && maxchars) {
+    while (minlen) {
         int c1, c2;
         s1 += utf8_tounicode_case(s1, &c1, nocase);
         s2 += utf8_tounicode_case(s2, &c2, nocase);
         if (c1 != c2) {
             return JimSign(c1 - c2);
         }
-        maxchars--;
+        minlen--;
     }
-    if (!maxchars) {
-        return 0;
-    }
-    /* One string or both terminated */
-    if (*s1) {
-        return 1;
-    }
-    if (*s2) {
+    /* Equal to this point, so the shorter string is less */
+    if (l1 < l2) {
         return -1;
+    }
+    if (l1 > l2) {
+        return 1;
     }
     return 0;
 }
@@ -2548,33 +2528,13 @@ int Jim_StringMatchObj(Jim_Interp *interp, Jim_Obj *patternObjPtr, Jim_Obj *objP
     return JimGlobMatch(Jim_String(patternObjPtr), Jim_String(objPtr), nocase);
 }
 
-/*
- * Note: does not support embedded nulls for the nocase option.
- */
 int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
 {
-    int l1, l2;
-    const char *s1 = Jim_GetString(firstObjPtr, &l1);
-    const char *s2 = Jim_GetString(secondObjPtr, &l2);
-
-    if (nocase) {
-        /* Do a character compare for nocase */
-        return JimStringCompareLen(s1, s2, -1, nocase);
-    }
-    return JimStringCompare(s1, l1, s2, l2);
-}
-
-/**
- * Like Jim_StringCompareObj() except compares to a maximum of the length of firstObjPtr.
- *
- * Note: does not support embedded nulls
- */
-int Jim_StringCompareLenObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
-{
     const char *s1 = Jim_String(firstObjPtr);
+    int l1 = Jim_Utf8Length(interp, firstObjPtr);
     const char *s2 = Jim_String(secondObjPtr);
-
-    return JimStringCompareLen(s1, s2, Jim_Utf8Length(interp, firstObjPtr), nocase);
+    int l2 = Jim_Utf8Length(interp, secondObjPtr);
+    return JimStringCompareUtf8(s1, l1, s2, l2, nocase);
 }
 
 /* Convert a range, as returned by Jim_GetRange(), into
@@ -13353,7 +13313,7 @@ static Jim_Obj *JimStringMap(Jim_Interp *interp, Jim_Obj *mapListObjPtr,
 
             if (strLen >= kl && kl) {
                 int rc;
-                rc = JimStringCompareLen(str, k, kl, nocase);
+                rc = JimStringCompareUtf8(str, kl, k, kl, nocase);
                 if (rc == 0) {
                     if (noMatchStart) {
                         Jim_AppendString(interp, resultObjPtr, noMatchStart, str - noMatchStart);
@@ -13487,12 +13447,19 @@ badcompareargs:
                     Jim_SetResultBool(interp, Jim_StringEqObj(argv[0], argv[1]));
                 }
                 else {
+                    const char *s1 = Jim_String(argv[0]);
+                    int l1 = Jim_Utf8Length(interp, argv[0]);
+                    const char *s2 = Jim_String(argv[1]);
+                    int l2 = Jim_Utf8Length(interp, argv[1]);
                     if (opt_length >= 0) {
-                        n = JimStringCompareLen(Jim_String(argv[0]), Jim_String(argv[1]), opt_length, !opt_case);
+                        if (l1 > opt_length) {
+                            l1 = opt_length;
+                        }
+                        if (l2 > opt_length) {
+                            l2 = opt_length;
+                        }
                     }
-                    else {
-                        n = Jim_StringCompareObj(interp, argv[0], argv[1], !opt_case);
-                    }
+                    n = JimStringCompareUtf8(s1, l1, s2, l2, !opt_case);
                     Jim_SetResultInt(interp, option == OPT_COMPARE ? n : n == 0);
                 }
                 return JIM_OK;

@@ -28,6 +28,32 @@ static int JimStringCommonLength(const char *str1, int charlen1, const char *str
     return maxlen;
 }
 
+/*
+ * Like Jim_StringCompareObj() except only matches as much as the length of firstObjPtr.
+ * So "abc" matches "abcdef" but "abcdef" does not match "abc".
+ */
+int JimStringComparePrefix(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr)
+{
+    /* We do this the easy way by creating a (possibly) shorter version of secondObjPtr */
+    int l1 = Jim_Utf8Length(interp, firstObjPtr);
+    const char *s2 = Jim_String(secondObjPtr);
+    int l2 = Jim_Utf8Length(interp, secondObjPtr);
+    Jim_Obj *objPtr;
+    int ret;
+
+    if (l2 > l1) {
+        objPtr = Jim_NewStringObjUtf8(interp, s2, l1);
+    }
+    else {
+        objPtr = secondObjPtr;
+    }
+    Jim_IncrRefCount(objPtr);
+
+    ret = Jim_StringCompareObj(interp, firstObjPtr, objPtr, 0);
+    Jim_DecrRefCount(interp, objPtr);
+    return ret;
+}
+
 /* [tcl::prefix]
  */
 static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -140,7 +166,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
                 objPtr = Jim_NewListObj(interp, NULL, 0);
                 for (i = 0; i < listlen; i++) {
                     Jim_Obj *valObj = Jim_ListGetIndex(interp, argv[2], i);
-                    if (Jim_StringCompareLenObj(interp, argv[3], valObj, 0) == 0) {
+                    if (JimStringComparePrefix(interp, argv[3], valObj) == 0) {
                         Jim_ListAppendElement(interp, objPtr, valObj);
                     }
                 }
@@ -164,7 +190,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
                 for (i = 0; i < listlen; i++) {
                     Jim_Obj *valObj = Jim_ListGetIndex(interp, argv[2], i);
 
-                    if (Jim_StringCompareLenObj(interp, stringObj, valObj, 0)) {
+                    if (JimStringComparePrefix(interp, stringObj, valObj)) {
                         /* Does not begin with 'string' */
                         continue;
                     }

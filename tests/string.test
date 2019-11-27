@@ -116,6 +116,15 @@ test string-2.28 {string equal with length, unequal strings} {
 test string-2.29 {string equal with length, unequal strings} {
     string compare -length 2 ab abde
 } 0
+test string-2.30 {string compare - bytes vs chars} {
+    string compare abcd\u1000\u1100\u1200x abcd\u1000\u1100\u1200y
+} -1
+test string-2.31 {string compare - embedded nulls} {
+    string compare ab\0ghi0 ab\0ghi1
+} -1
+test string-2.31 {string compare - embedded nulls, nocase} {
+    string compare -nocase ab\0ghi0 AB\0GHi1
+} -1
 # only need a few tests on equal, since it uses the same code as
 # string compare, but just modifies the return output
 test string-3.1 {string equal} {
@@ -521,6 +530,18 @@ test string-10.16 {string map, one pair case} {
 test string-10.17 {string map, one pair case} {
     string map {Ab 4321} aAbCaBaAbAbcAb
 } {a4321CaBa43214321c4321}
+test string-10.18 {string map, nulls in string} {
+    string map {a bc} ade\0ghia\0jkl
+} "bcde\0ghibc\0jkl"
+test string-10.19 {string map, nulls in map source} {
+    string map {\0 bc} ade\0ghia\0jkl
+} "adebcghiabcjkl"
+test string-10.20 {string map, nulls in map dest} {
+    string map {a A\0A} adeghiajkl
+} "A\0AdeghiA\0Ajkl"
+test string-10.21 {string map, null bytes} {
+    string map "\u0000afternull #" foo\u0000afternull\u0000123456789bar
+} foo#\u0000123456789bar
 
 test string-11.1 {string match, too few args} {
     list [catch {string match a} msg]
