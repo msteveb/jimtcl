@@ -128,7 +128,10 @@ int main(int argc, char *const argv[])
             JimSetArgv(interp, argc - 3, argv + 3);
             retcode = Jim_Eval(interp, argv[2]);
             if (retcode != JIM_ERR) {
-                printf("%s\n", Jim_String(Jim_GetResult(interp)));
+                int len;
+                const char *msg = Jim_GetString(Jim_GetResult(interp), &len);
+                fwrite(msg, len, 1, stdout);
+                putchar('\n');
             }
         }
         else {
