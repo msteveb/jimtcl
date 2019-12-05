@@ -171,6 +171,11 @@ extern "C" {
 #define JIM_LIBPATH "auto_path"
 #define JIM_INTERACTIVE "tcl_interactive"
 
+/* script debugger related */
+#if !defined(JIM_BOOTSTRAP)
+    #define JIM_DEBUG_SCRIPT
+#endif
+
 /* -----------------------------------------------------------------------------
  * Stack
  * ---------------------------------------------------------------------------*/
@@ -554,6 +559,9 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
+#if defined(JIM_DEBUG_SCRIPT)
+    int enableScriptStep; /* 1 to pause before executing each script line. */
+#endif
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.

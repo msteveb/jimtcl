@@ -10500,6 +10500,14 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         argc = token[i].objPtr->internalRep.scriptLineValue.argc;
         script->linenr = token[i].objPtr->internalRep.scriptLineValue.line;
 
+#if defined(JIM_DEBUG_SCRIPT)
+        /* get permission to step into the next line of script */
+        if (interp->enableScriptStep) {
+            printf("Step line %d of %s\n", script->linenr, script->fileNameObj->bytes);
+            getc(stdin);
+        }
+#endif
+
         /* Allocate the arguments vector if required */
         if (argc > JIM_EVAL_SARGV_LEN)
             argv = Jim_Alloc(sizeof(Jim_Obj *) * argc);
@@ -12851,6 +12859,47 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     /* unreached */
 #endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
 #if !defined(JIM_DEBUG_COMMAND)
+    Jim_SetResultString(interp, "unsupported", -1);
+    return JIM_ERR;
+#endif
+}
+
+/* [debug] */
+static int Jim_DebugScriptCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+#if defined(JIM_DEBUG_SCRIPT)
+    static const char * const options[] = {
+        "begin",
+        NULL
+    };
+    enum
+    {
+        OPT_BEGIN,
+    };
+    int option;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?...?");
+        return JIM_ERR;
+    }
+    if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK)
+        return Jim_CheckShowCommands(interp, argv[1], options);
+    if (option == OPT_BEGIN) {
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        Jim_SetResultBool(interp, interp->enableScriptStep);
+        interp->enableScriptStep = 1;
+        return JIM_OK;
+    }
+    else {
+        Jim_SetResultString(interp, "bad option. Valid options are begin", -1);
+        return JIM_ERR;
+    }
+    /* unreached */
+#endif /* JIM_DEBUG_SCRIPT */
+#if !defined(JIM_DEBUG_SCRIPT)
     Jim_SetResultString(interp, "unsupported", -1);
     return JIM_ERR;
 #endif
@@ -15265,6 +15314,7 @@ static const struct {
     {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
     {"debug", Jim_DebugCoreCommand},
+    {"debugscript", Jim_DebugScriptCoreCommand},
     {"eval", Jim_EvalCoreCommand},
     {"uplevel", Jim_UplevelCoreCommand},
     {"expr", Jim_ExprCoreCommand},
