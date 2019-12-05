@@ -10503,7 +10503,11 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 #if defined(JIM_DEBUG_SCRIPT)
         /* get permission to step into the next line of script */
         if (interp->framePtr->enableScriptStep) {
-            printf("Step line %d of %s\n", script->linenr, script->fileNameObj->bytes);
+            printf("Step line %d of %s:\n ", script->linenr, script->fileNameObj->bytes);
+            for (j = 1; j <= argc; j++) {
+                printf(" %.20s", token[i+j].objPtr->bytes);
+            }
+            printf("\n");
             getc(stdin);
         }
 #endif
@@ -12864,7 +12868,7 @@ static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 #endif
 }
 
-/* [debug] */
+/* [debugscript] */
 static int Jim_DebugScriptCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #if defined(JIM_DEBUG_SCRIPT)
