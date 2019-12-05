@@ -440,6 +440,9 @@ typedef struct Jim_CallFrame {
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
     struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
+#if defined(JIM_DEBUG_SCRIPT)
+    int enableScriptStep; /* 1 to pause before executing each script line. */
+#endif
 } Jim_CallFrame;
 
 /* The var structure. It just holds the pointer of the referenced
@@ -559,9 +562,6 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
-#if defined(JIM_DEBUG_SCRIPT)
-    int enableScriptStep; /* 1 to pause before executing each script line. */
-#endif
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.

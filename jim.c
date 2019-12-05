@@ -10502,7 +10502,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
 #if defined(JIM_DEBUG_SCRIPT)
         /* get permission to step into the next line of script */
-        if (interp->enableScriptStep) {
+        if (interp->framePtr->enableScriptStep) {
             printf("Step line %d of %s\n", script->linenr, script->fileNameObj->bytes);
             getc(stdin);
         }
@@ -12889,8 +12889,8 @@ static int Jim_DebugScriptCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *con
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        Jim_SetResultBool(interp, interp->enableScriptStep);
-        interp->enableScriptStep = 1;
+        Jim_SetResultBool(interp, interp->framePtr->enableScriptStep);
+        interp->framePtr->enableScriptStep = 1;
         return JIM_OK;
     }
     else {
