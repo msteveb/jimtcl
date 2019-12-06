@@ -10508,7 +10508,56 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 printf(" %.20s", token[i+j].objPtr->bytes);
             }
             printf("\n");
-            getc(stdin);
+
+            while (1) {
+                Jim_Obj *scriptObjPtr;
+                int dRet = JIM_OK;
+                const char *result;
+                int reslen;
+                char *prompt;
+                
+                prompt = "> ";
+                scriptObjPtr = Jim_NewStringObj(interp, "", 0);
+                Jim_IncrRefCount(scriptObjPtr);
+                while (1) {
+                    char state;
+                    char *line;
+
+                    line = Jim_HistoryGetline(interp, prompt);
+                    if (line == NULL) {
+                        if (errno == EINTR) {
+                            continue;
+                        }
+                        Jim_DecrRefCount(interp, scriptObjPtr);
+                        dRet = JIM_OK;
+                        goto nextLine;
+                    }
+                    if (Jim_Length(scriptObjPtr) != 0) {
+                        /* Line continuation */
+                        Jim_AppendString(interp, scriptObjPtr, "\n", 1);
+                    }
+                    Jim_AppendString(interp, scriptObjPtr, line, -1);
+                    free(line);
+                    if (Jim_ScriptIsComplete(interp, scriptObjPtr, &state))
+                        break;
+
+                    prompt = "%c> ";
+                }
+                 
+                if (Jim_Length(scriptObjPtr) == 0) {
+                    nextLine:
+                    break; /* implied approval to step into next script line. */
+                }
+                
+                dRet = Jim_EvalObjList(interp, scriptObjPtr);
+                if (dRet == JIM_ERR) {
+                    Jim_MakeErrorMessage(interp);
+                }
+                result = Jim_GetString(Jim_GetResult(interp), &reslen);
+                if (reslen) {
+                    printf("%s\n", result);
+                }
+            }
         }
 #endif
 
