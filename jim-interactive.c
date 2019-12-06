@@ -5,20 +5,16 @@
 #include <jim.h>
 
 #ifdef USE_LINENOISE
-#ifdef HAVE_UNISTD_H
-    #include <unistd.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-    #include <sys/stat.h>
-#endif
-#include "linenoise.h"
-#else
-#define MAX_LINE_LEN 512
-#endif
+    #ifdef HAVE_UNISTD_H
+        #include <unistd.h>
+    #endif
+    #ifdef HAVE_SYS_STAT_H
+        #include <sys/stat.h>
+    #endif
+    #include "linenoise.h"
 
-#ifdef USE_LINENOISE
-static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void *userdata);
-static const char completion_callback_assoc_key[] = "interactive-completion";
+    static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void *userdata);
+    static const char completion_callback_assoc_key[] = "interactive-completion";
 #endif
 
 /**

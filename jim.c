@@ -10514,41 +10514,29 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
                 int dRet = JIM_OK;
                 const char *result;
                 int reslen;
-                char *prompt;
+                char *line;
+
+                line = Jim_HistoryGetline(interp, "> ");
+                if (line == NULL)
+                    continue;
+                if (strnlen(line, MAX_LINE_LEN) == 0)
+                    continue;
+
+                if (strcmp(line, "s") == 0 || strcmp(line, "n") == 0) {
+                    break; /* approval to step into next script line. */
+                }
+                else if (strcmp(line, "c") == 0) {
+                    interp->framePtr->enableScriptStep = 0;
+                    break; /* continue full speed */
+                }
+                else if (strcmp(line, "q") == 0) {
+                    exit(0);
+                }
                 
-                prompt = "> ";
                 scriptObjPtr = Jim_NewStringObj(interp, "", 0);
                 Jim_IncrRefCount(scriptObjPtr);
-                while (1) {
-                    char state;
-                    char *line;
-
-                    line = Jim_HistoryGetline(interp, prompt);
-                    if (line == NULL) {
-                        if (errno == EINTR) {
-                            continue;
-                        }
-                        Jim_DecrRefCount(interp, scriptObjPtr);
-                        dRet = JIM_OK;
-                        goto nextLine;
-                    }
-                    if (Jim_Length(scriptObjPtr) != 0) {
-                        /* Line continuation */
-                        Jim_AppendString(interp, scriptObjPtr, "\n", 1);
-                    }
-                    Jim_AppendString(interp, scriptObjPtr, line, -1);
-                    free(line);
-                    if (Jim_ScriptIsComplete(interp, scriptObjPtr, &state))
-                        break;
-
-                    prompt = "%c> ";
-                }
-                 
-                if (Jim_Length(scriptObjPtr) == 0) {
-                    nextLine:
-                    break; /* implied approval to step into next script line. */
-                }
-                
+                Jim_AppendString(interp, scriptObjPtr, line, -1);
+                free(line);                 
                 dRet = Jim_EvalObjList(interp, scriptObjPtr);
                 if (dRet == JIM_ERR) {
                     Jim_MakeErrorMessage(interp);

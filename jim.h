@@ -171,6 +171,8 @@ extern "C" {
 #define JIM_LIBPATH "auto_path"
 #define JIM_INTERACTIVE "tcl_interactive"
 
+#define MAX_LINE_LEN 512
+
 /* script debugger related */
 #if !defined(JIM_BOOTSTRAP)
     #define JIM_DEBUG_SCRIPT
