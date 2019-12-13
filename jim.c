@@ -12981,7 +12981,7 @@ static int Jim_ReturnCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     if (i == argc - 1) {
         Jim_SetResult(interp, argv[i]);
     }
-    return JIM_RETURN;
+    return level == 0 ? returnCode : JIM_RETURN;
 }
 
 /* [tailcall] */

@@ -1,5 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
+set testpath [file dirname [info script]]
+
 # return -code
 
 test return-1.1 {return -code} {
@@ -8,11 +10,11 @@ test return-1.1 {return -code} {
 } {2 result}
 
 test return-1.2 {source file with break} {
-	list [catch {source break.tcl} msg] $msg
+	list [catch {source $testpath/break.tcl} msg] $msg
 } {3 {}}
 
 test return-1.3 {source file with break} {
-	list [catch {source return-break.tcl} msg] $msg
+	list [catch {source $testpath/return-break.tcl} msg] $msg
 } {3 result}
 
 proc a {level code msg} {
@@ -46,5 +48,10 @@ test return-2.5 {return -level 1} {
 test return-2.6 {return -level 2} {
 	list [catch {b 2 20 text} msg] $msg
 } {20 text}
+
+test return-2.7 {return -level 0 -code break} {
+	list [catch {return -level 0 -code break text} msg] $msg
+} {3 text}
+
 
 testreport
