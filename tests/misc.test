@@ -306,7 +306,7 @@ test return-1.1 "return can rethrow an error" {
 	proc b {} { catch {a} msg opts; return {*}$opts $msg }
 	set rc [catch {b} msg opts]
 	list $rc $msg [llength $opts(-errorinfo)]
-} {1 {from a} 6}
+} {1 {from a} 9}
 
 test return-1.2 "error can rethrow an error" {
 	proc a {} { error "from a" }
