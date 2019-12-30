@@ -1582,6 +1582,8 @@ static int regmatch(regex_t *preg, int prog)
 					}
 					return(1);
 				}
+				/* Restore input position after failure */
+				preg->reginput = save;
 				return(0);
 			}
 			return REG_ERR_INTERNAL;

@@ -669,4 +669,8 @@ test reg-31.1 {[[:xdigit:]] behaves correctly when followed by [[:space:]]} {
     # Code used to produce {1 2:::DebugWin32 2 :::DebugWin32} !!!
 } {1 2 2 {}}
 
+test reg-31.2 {scanner not reset in failed optional group} {
+    regexp -inline {^(?:(-)(?:(\w[\w-]*)\|)?)?(\w[\w-]*)$} -debug
+} {-debug - {} debug}
+
 testreport
