@@ -3403,12 +3403,13 @@ package
 +*package provide* 'name ?version?'+
 
 Indicates that the current script provides the package named +'name'+.
-If no version is specified, '1.0' is used.
+*Note*: The supplied version is ignored. All packages are registered as version 1.0
+(it is simply accepted for compatibility purposes).
 
-Any script which provides a package may include this statement
+Any script that provides a package may include this statement
 as the first statement, although it is not required.
 
-+*package require* 'name ?version?'*+
++*package require* 'name ?version?'+
 
 Searches for the package with the given +'name'+ by examining each path
 in '$::auto_path' and trying to load '$path/$name.so' as a dynamic extension,
