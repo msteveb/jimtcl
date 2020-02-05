@@ -69,7 +69,7 @@ proc class {classname {baseclasses {}} classvars} {
 			# Note that we can't use 'dict with' here because
 			# the dict isn't updated until the body completes.
 			foreach __ [$self vars] {upvar 1 instvars($__) $__}
-			unset __
+			unset -nocomplain __
 			eval $__body
 		}
 	}
