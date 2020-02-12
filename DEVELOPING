@@ -46,7 +46,7 @@ the project that is about to be started. The only thing that has to be
 taken care of is the project mode -- it should be "push mode".
 
 Once the project is created one must add a user that will actually
-start commiting new files to the repo. It can also be done through the
+start committing new files to the repo. It can also be done through the
 WWW interface, so nothing more is necessary.
 
 Once finished with setting up a project on the WWW panel, one can
@@ -65,12 +65,12 @@ So for example for me it was:
 
 In order to add file we type "git add <file>".  For remove, we do "git rm
 <file>".  To remove all local changes that aren't in a repository you do "git
-reset --hard HEAD".  Once inserted, files have to be commited with "git commit
+reset --hard HEAD".  Once inserted, files have to be committed with "git commit
 -a".  Once done with commits for today, "git push" can be used to propagate
 changes from your local disk to the remote repository.
 
 Right now you can verify whether this works by trying to clone your
-project's repository somewhere else, this time using anonymount HTTP
+project's repository somewhere else, this time using anonymous HTTP
 access:
 
         git clone http://repo.or.cz/r/jimtcl/wkoszek.git
@@ -83,7 +83,7 @@ Jim-devel mailing list:
 
         http://jim.tcl.tk:8080/cgi-bin/mailman/listinfo/jim-devel
 
-Patches prepared with the procedures presented abore are welcome. Before
+Patches prepared with the procedures presented above are welcome. Before
 submitting patches, you can verify that your changes didn't bring any
 regressions to the Jim. In order to do so, sample regression tests have
 been implemented. You can execute them by typing:

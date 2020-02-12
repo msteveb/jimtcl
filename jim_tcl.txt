@@ -1894,7 +1894,7 @@ clock
     If no format is supplied, "%c" is used.
   ::
     If +'boolean'+ is true, processing is performed in UTC.
-    If +'boolean'+ is false (the default), processing  is performeed in the local time zone.
+    If +'boolean'+ is false (the default), processing  is performed in the local time zone.
 
 +*clock scan* 'str' *-format* 'format' ?*-gmt* 'boolean?'+::
     Scan the given time string using the given format string.
@@ -4779,7 +4779,7 @@ aio
 +$handle *tty* ?settings?+::
     If no arguments are given, returns a dictionary containing the tty settings for the stream.
     If arguments are given, they must either be a dictionary, or +setting value \...+
-    Abbrevations are supported for both settings and values, so the following is acceptable:
+    Abbreviations are supported for both settings and values, so the following is acceptable:
     +$f tty parity e input c out raw+.
     Only available on platforms that support 'termios(3)'. Supported settings are:
 
@@ -5062,7 +5062,7 @@ The optional 'zlib' extension provides a Tcl-compatible subset of the `zlib` com
 
 +*inflate* 'data' '?bufferSize?'+::
     Decompresses a raw, Deflate-compressed stream. When the uncompressed data size is known and specified, memory
-    allocation is more efficient. Otherwise, decomperssion is chunked and therefore slower.
+    allocation is more efficient. Otherwise, decompression is chunked and therefore slower.
 
 +*gzip* 'string' '?-level level?'+::
     Compresses a buffer and adds a gzip header.
@@ -5271,12 +5271,12 @@ independently (but synchronously) of the main interpreter.
 
 +*interp*+::
     Creates and returns a new interpreter object (command).
-    The created interpeter contains any built-in commands along with static extensions,
+    The created interpreter contains any built-in commands along with static extensions,
     but does not include any dynamically loaded commands (package require, load).
     These must be reloaded in the child interpreter if required.
 
 +*$interp delete*+::
-    Deletes the interpeter object.
+    Deletes the interpreter object.
 
 +*$interp eval* 'script' ...+::
     Evaluates a script in the context for the child interpreter, in the same way as 'eval'.

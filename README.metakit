@@ -39,7 +39,7 @@ state of the database to disk.
 CREATING VIEWS
 --------------
 *Views* in Metakit are what is called "tables" in conventional databases. A view
-may several typed *properties*, or columns, and contains homogenous *rows*, or
+may several typed *properties*, or columns, and contains homogeneous *rows*, or
 records. New properties may be added to a view as needed; however, new properties
 are not stored in the database file by default. The structure method specifies
 the stored properties of a view, creating a new view or restructuring an old one
@@ -74,7 +74,7 @@ The supported property types include:
 `subview`
 :   This type is not usually specified directly; instead, a structure
     description of a nested view is given. `subview` properties store complete
-    views as their value, creating hierarchical data structures. When retreived
+    views as their value, creating hierarchical data structures. When retrieved
     from a view, a value of a subview property is a normal view handle.
 
 Without a `description` parameter, the `structure` method returns the current
@@ -108,7 +108,7 @@ where `$cur` is a string of form `viewHandle!index`. Row indices are zero-based
 and may also be specified relative to the last row of the view using the
 `end[+-]integer` notation.
 
-A dictionary containing all property name and value pairs can be retreived by
+A dictionary containing all property name and value pairs can be retrieved by
 omitting the `propName` argument:
 
     cursor get $cur
