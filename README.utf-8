@@ -32,7 +32,7 @@ of the concept of a "character", while UTF-8 is an encoding of
 Unicode into bytes.  Thus the Unicode codepoint U+00B5 is encoded
 in UTF-8 with the byte sequence: 0xc2, 0xb5. This is different from
 ASCII where the same name is used interchangeably between a character value
-and and its encoding.
+and its encoding.
 
 Unicode Escapes
 ---------------

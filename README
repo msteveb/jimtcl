@@ -190,7 +190,7 @@ HISTORY
 "first Jim goal: to vent my need to hack on Tcl."
 
 And actually this is exactly why I started Jim, in the first days
-of Jenuary 2005. After a month of hacking Jim was able to run
+of January 2005. After a month of hacking Jim was able to run
 simple scripts, now, after two months it started to be clear to
 me that it was not just the next toy to throw away but something
 that may evolve into a real interpreter. In the same time
