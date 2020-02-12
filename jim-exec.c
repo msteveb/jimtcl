@@ -1066,10 +1066,10 @@ badargs:
                 close(errorId);
             }
             /* Close parent-only file descriptors */
-            if (outPipePtr) {
+            if (outPipePtr && *outPipePtr != -1) {
                 close(*outPipePtr);
             }
-            if (errFilePtr) {
+            if (errFilePtr && *errFilePtr != -1) {
                 close(*errFilePtr);
             }
             if (pipeIds[0] != -1) {
