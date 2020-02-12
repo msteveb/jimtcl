@@ -540,6 +540,7 @@ make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 SIZEOF_INT} -bar
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template tests/Makefile.in
+make-template examples.api/Makefile.in
 make-template build-jim-ext.in
 make-template jimtcl.pc.in
 

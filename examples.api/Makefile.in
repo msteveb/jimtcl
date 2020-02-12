@@ -1,6 +1,7 @@
 CFLAGS+= -Wall -g
 CFLAGS+= -I..
-LDLIBS += -L.. -ljim
+LDFLAGS += @LDFLAGS@
+LDLIBS += -L.. -ljim @LDLIBS@
 
 EXAMPLES=		\
 	jim_command	\
