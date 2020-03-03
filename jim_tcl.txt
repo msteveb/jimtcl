@@ -1901,6 +1901,9 @@ clock
     See strptime(3) for supported formats.
     See `clock format` for the handling of '-gmt'.
 
+*NOTE* Some systems such as 32-bit Linux have only a 32-bit time_t, and are therefore not year 2038
+compliant.
+
 close
 ~~~~~
 +*close* 'fileId'+
