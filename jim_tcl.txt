@@ -1052,7 +1052,7 @@ for backward compatibility with experimental versions of this feature.
 
 REGULAR EXPRESSIONS
 -------------------
-Tcl provides two commands that support string matching using regular
+Jim Tcl provides two commands that support string matching using regular
 expressions, `regexp` and `regsub`, as well as `switch -regexp` and
 `lsearch -regexp`.
 
@@ -1094,6 +1094,35 @@ and POSIX are highlighted below.
 8. Support for the +?+ non-greedy quantifier. e.g. +*?+
 9. Support for non-capturing parentheses +(?:...)+
 10. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
+
+STRING MATCHING
+---------------
+A number of commands in Jim support C-shell style "glob matching", including
+`string match`, `switch -glob`, `array names` and others. This form of string matching
+works as follows:
+
+A test occurs where a +'string'+ is matched against a +'pattern'+. The match is considered
+successful if the contents of +'string'+ and +'pattern'+ are identical except that the
+following special sequences may appear in +'pattern'+:
+
++*+;;
+    Matches any sequence of characters in +'string'+, including a null string.
+
++?+;;
+    Matches any single character in +'string'+.
+
++['chars']+;;
+    Matches any character in the set given by +'chars'+.
+    If a sequence of the form +'x-y'+ appears in +'chars'+,
+    then any character between +'x'+ and +'y'+, inclusive,
+    will match.
+
++{backslash}x+;;
+    Matches the single character +'x'+.  This provides a way of
+    avoiding the special interpretation of the characters +{backslash}*?[]+
+    in +'pattern'+.
+
+*NOTE* Jim considers that both patterns and strings end at a null character (\x00).
 
 COMMAND RESULTS
 ---------------
@@ -1576,8 +1605,8 @@ Jim Tcl supports all currently defined unicode codepoints. That is 21 bits, up t
 
 String Matching
 ~~~~~~~~~~~~~~~
-Commands such as `string match`, `lsearch -glob`, `array names` and others use string
-pattern matching rules. These commands support UTF-8. For example:
+Commands such as `string match`, `lsearch -glob`, `array names` and others use
+<<_string_matching,STRING MATCHING>> rules. These commands support UTF-8. For example:
 
 ----
   string match a\[\ua0-\ubf\]b "a\u00a3b"
@@ -1726,11 +1755,11 @@ apply
 +*apply* 'lambdaExpr ?arg1 arg2 \...?'+
 
 The command `apply` provides for anonymous procedure calls,
-similar to `lambda`, but without command name being created, even temporarily.
+similar to `lambda`, but without a command name being created, even temporarily.
 
-The function  +'lambdaExpr'+ is a two element list +{args body}+
-or a three element list +{args body namespace}+. The first element
-args specifies the formal arguments, in the same form as the `proc` and `lambda` commands.
+The function  +'lambdaExpr'+ is a two element list, +{args body}+
+or a three element list, +{args body namespace}+. The first element
++'args'+ specifies the formal arguments in the same form as the `proc` and `lambda` commands.
 
 array
 ~~~~~
@@ -1746,51 +1775,51 @@ The +'option'+ argument determines what action is carried out by the
 command.  The legal +'options'+ (which may be abbreviated) are:
 
 +*array exists* 'arrayName'+::
-    Returns 1 if arrayName is an array variable, 0 if there is
+    Returns 1 if +'arrayName'+ is an array variable, 0 if there is
     no variable by that name.
 
 +*array get* 'arrayName ?pattern?'+::
     Returns a list containing pairs of elements. The first
-    element in each pair is the name of an element in arrayName
+    element in each pair is the name of an element in +'arrayName'+
     and the second element of each pair is the value of the
     array element. The order of the pairs is undefined. If
-    pattern is not specified, then all of the elements of the
-    array are included in the result. If pattern is specified,
-    then only those elements whose names match pattern (using
-    the matching rules of string match) are included. If arrayName
+    +'pattern'+ is not specified, then all of the elements of the
+    array are included in the result. If +'pattern'+ is specified,
+    then only those elements whose names match +'pattern'+ (using
+    <<_string_matching,STRING MATCHING>> rules) are included. If +'arrayName'+
     isn't the name of an array variable, or if the array contains
     no elements, then an empty list is returned.
 
 +*array names* 'arrayName ?pattern?'+::
     Returns a list containing the names of all of the elements
-    in the array that match pattern. If pattern is omitted then
+    in the array that match +'pattern'+. If +'pattern'+ is omitted then
     the command returns all of the element names in the array.
-    If pattern is specified, then only those elements whose
-    names match pattern (using the matching rules of string
-    match) are included. If there are no (matching) elements
-    in the array, or if arrayName isn't the name of an array
+    If +'pattern'+ is specified, then only those elements whose
+    names match +'pattern'+ (using <<_string_matching,STRING MATCHING>> rules)
+    are included. If there are no (matching) elements
+    in the array, or if +'arrayName'+ isn't the name of an array
     variable, then an empty string is returned.
 
 +*array set* 'arrayName list'+::
-    Sets the values of one or more elements in arrayName. list
+    Sets the values of one or more elements in +'arrayName'+. +'list'+
     must have a form like that returned by array get, consisting
     of an even number of elements. Each odd-numbered element
     in list is treated as an element name within arrayName, and
     the following element in list is used as a new value for
-    that array element. If the variable arrayName does not
-    already exist and list is empty, arrayName is created with
+    that array element. If the variable +'arrayName'+ does not
+    already exist and list is empty, +'arrayName'+ is created with
     an empty array value.
 
 +*array size* 'arrayName'+::
-    Returns the number of elements in the array. If arrayName
+    Returns the number of elements in the array. If +'arrayName'+
     isn't the name of an array then 0 is returned.
 
 +*array unset* 'arrayName ?pattern?'+::
-    Unsets all of the elements in the array that match pattern
-    (using the matching rules of string match). If arrayName
+    Unsets all of the elements in the array that match +'pattern'+
+    (using <<_string_matching,STRING MATCHING>> rules). If +'arrayName'+
     isn't the name of an array variable or there are no matching
-    elements in the array, no error will be raised. If pattern
-    is omitted and arrayName is an array variable, then the
+    elements in the array, no error will be raised. If +'pattern'+
+    is omitted and +'arrayName'+ is an array variable, then the
     command unsets the entire array. The command always returns
     an empty string.
 
@@ -2009,9 +2038,9 @@ command.  The legal +'options'+ are:
 
 +*dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
-    If pattern is specified, then only those keys whose
-    names match +'pattern'+ (using the matching rules of string
-    match) are included.
+    If +'pattern'+ is specified, then only those keys whose
+    names match +'pattern'+ (using <<_string_matching,STRING MATCHING>> rules)
+    are included.
 
 +*dict merge* ?'dictionary \...'?+::
     Return a dictionary that contains the contents of each of the
@@ -2750,8 +2779,7 @@ The legal +'option'+'s (which may be abbreviated) are:
     Tcl commands, including both the built-in commands written in C and
     the command procedures defined using the `proc` command.
     If +'pattern'+ is specified, only those names matching +'pattern'+
-    are returned.  Matching is determined using the same rules as for
-    `string match`.
+    (using <<_string_matching,STRING MATCHING>> rules) are returned.
 
 +*info complete* 'command' ?'missing'?+::
     Returns 1 if +'command'+ is a complete Tcl command in the sense of
@@ -2783,8 +2811,7 @@ The legal +'option'+'s (which may be abbreviated) are:
     If +'pattern'+ isn't specified, returns a list of all the names
     of currently-defined global variables.
     If +'pattern'+ is specified, only those names matching +'pattern'+
-    are returned.  Matching is determined using the same rules as for
-    `string match`.
+    (using <<_string_matching,STRING MATCHING>> rules) are returned.
 
 +*info hostname*+::
     An alias for `os.gethostname` for compatibility with Tcl 6.x
@@ -2807,8 +2834,8 @@ The legal +'option'+'s (which may be abbreviated) are:
     of currently-defined local variables, including arguments to the
     current procedure, if any.  Variables defined with the `global`
     and `upvar` commands will not be returned.  If +'pattern'+ is
-    specified, only those names matching +'pattern'+ are returned.
-    Matching is determined using the same rules as for `string match`.
+    specified, only those names matching +'pattern'+
+    (using <<_string_matching,STRING MATCHING>> rules) are returned.
 
 +*info nameofexecutable*+::
     Returns the name of the binary file from which the application
@@ -2819,8 +2846,7 @@ The legal +'option'+'s (which may be abbreviated) are:
     If +'pattern'+ isn't specified, returns a list of all the
     names of Tcl command procedures.
     If +'pattern'+ is specified, only those names matching +'pattern'+
-    are returned.  Matching is determined using the same rules as for
-    `string match`.
+    (using <<_string_matching,STRING MATCHING>> rules) are returned.
 
 +*info references*+::
     Returns a list of all references which have not yet been garbage
@@ -2863,8 +2889,7 @@ The legal +'option'+'s (which may be abbreviated) are:
     returns a list of all the names of currently-visible variables, including
     both locals and currently-visible globals.
     If +'pattern'+ is specified, only those names matching +'pattern'+
-    are returned.  Matching is determined using the same rules as for
-    `string match`.
+    (using <<_string_matching,STRING MATCHING>> rules) are returned.
 
 join
 ~~~~
@@ -2955,13 +2980,13 @@ local
 +*local* 'cmd ?arg\...?'+
 
 First, `local` evaluates +'cmd'+ with the given arguments. The return value must
-be the name of an existing command, which is marked as having local scope.
+be the name of an existing command, which is then marked as having local scope.
 This means that when the current procedure exits, the specified
 command is deleted. This can be useful with `lambda`, local procedures or
 to automatically close a filehandle.
 
-In addition, if a command already exists with the same name,
-the existing command will be kept rather than deleted, and may be called
+In addition, if a the command already exists with the same name,
+the existing command will be kept rather than being deleted, and may be called
 via `upcall`. The previous command will be restored when the current
 procedure exits. See `upcall` for more details.
 
@@ -2996,16 +3021,20 @@ than waiting until garbage collection.
     }
 ----
 
+Also see `defer` as another mechanism for cleaning up at the end of a procedure.
+
 loop
 ~~~~
 +*loop* 'var first limit ?incr? body'+
 
 Similar to `for` except simpler and possibly more efficient.
-With a positive increment, equivalent to:
+If +'incr'+ is positive, the effect is, equivalent to:
 
 ----
     for {set var $first} {$var < $limit} {incr var $incr} $body
 ----
+
+While if +'incr'+ is negative, the count is downwards.
 
 If +'incr'+ is not specified, 1 is used.
 Note that setting the loop variable inside the loop does not
@@ -3082,8 +3111,7 @@ llength
 ~~~~~~~
 +*llength* 'list'+
 
-Treats +'list'+ as a list and returns a decimal string giving
-the number of elements in it.
+Treats +'list'+ as a list and returns the number of elements in that list.
 
 lset
 ~~~~
@@ -3094,7 +3122,7 @@ Sets an element in a list.
 The `lset` command accepts a parameter, +'varName'+, which it interprets
 as the name of a variable containing a Tcl list. It also accepts
 zero or more indices into the list. Finally, it accepts a new value
-for an element of varName. If no indices are presented, the command
+for an element of +'varName'+. If no indices are presented, the command
 takes the form:
 
 ----
@@ -3102,21 +3130,21 @@ takes the form:
 ----
 
 In this case, newValue replaces the old value of the variable
-varName.
++'varName'+.
 
 When presented with a single index, the `lset` command
-treats the content of the varName variable as a Tcl list. It addresses
+treats the content of the +'varName'+ variable as a Tcl list. It addresses
 the index'th element in it (0 refers to the first element of the
 list). When interpreting the list, `lset` observes the same rules
 concerning braces and quotes and backslashes as the Tcl command
 interpreter; however, variable substitution and command substitution
 do not occur. The command constructs a new list in which the
 designated element is replaced with newValue. This new list is
-stored in the variable varName, and is also the return value from
+stored in the variable +'varName'+, and is also the return value from
 the `lset` command.
 
 If index is negative or greater than or equal to the number of
-elements in $varName, then an error occurs.
+elements in +$varName+, then an error occurs.
 
 See <<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>> for all allowed forms for +'index'+.
 
@@ -3256,12 +3284,12 @@ the list are to be matched against pattern and must have one of the values below
     This is the default.
 
 +*-glob*+::
-    +'pattern'+ is a glob-style pattern which is matched against each list element using the same
-    rules as the string match command.
+    +'pattern'+ is a glob-style pattern which is matched against each list element using
+    <<_string_matching,STRING MATCHING>> rules.
 
 +*-regexp*+::
     +'pattern'+ is treated as a regular expression and matched against each list element using
-    the rules described by `regexp`.
+    <<_regular_expressions,REGULAR EXPRESSIONS>> rules.
 
 +*-command* 'cmdname'+::
     +'cmdname'+ is a command which is used to match the pattern against each element of the
@@ -4127,31 +4155,10 @@ The legal options (which may be abbreviated) are:
     it will return the string +02c322c222c+.
 
 +*string match ?-nocase?* 'pattern string'+::
-    See if +'pattern'+ matches +'string'+; return 1 if it does, 0
-    if it doesn't.  Matching is done in a fashion similar to that
-    used by the C-shell.  For the two strings to match, their contents
-    must be identical except that the following special sequences
-    may appear in +'pattern'+:
-
-    +*+;;
-        Matches any sequence of characters in +'string'+,
-        including a null string.
-
-    +?+;;
-        Matches any single character in +'string'+.
-
-    +['chars']+;;
-        Matches any character in the set given by +'chars'+.
-        If a sequence of the form +'x-y'+ appears in +'chars'+,
-        then any character between +'x'+ and +'y'+, inclusive,
-        will match.
-
-    +{backslash}x+;;
-        Matches the single character +'x'+.  This provides a way of
-        avoiding the special interpretation of the characters +{backslash}*?[]+
-        in +'pattern'+.
- ::
-    Performs a case-insensitive comparison if +-nocase+ is specified.
+    See if +'pattern'+ matches +'string'+ according to
+    <<_string_matching,STRING MATCHING>> rules
+    ; return 1 if it does, 0
+    if it doesn't. The match is performed in a case-insensitive manner if +-nocase+ is specified.
 
 +*string range* 'string first last'+::
     Returns a range of consecutive characters from +'string'+, starting
@@ -4267,13 +4274,11 @@ as options. The following options are currently supported:
 
     +-glob+::
         When matching string to the patterns, use glob-style
-        matching (i.e. the same as implemented by the string
-        match command).
+        <<_string_matching,STRING MATCHING>> rules.
 
     +-regexp+::
-        When matching string to the patterns, use regular
-        expression matching (i.e. the same as implemented
-        by the regexp command).
+        When matching string to the patterns, use
+        <<_regular_expressions,REGULAR EXPRESSIONS>> rules.
 
     +-command 'commandname'+::
         When matching string to the patterns, use the given command, which
