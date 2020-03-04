@@ -5444,20 +5444,20 @@ int Jim_Collect(Jim_Interp *interp)
     }
     Jim_FreeHashTable(&marks);
     interp->lastCollectId = interp->referenceNextId;
-    interp->lastCollectTime = time(NULL);
+    interp->lastCollectTime = JimClock();
     return collected;
 }
 
-#define JIM_COLLECT_ID_PERIOD 5000
-#define JIM_COLLECT_TIME_PERIOD 300
+#define JIM_COLLECT_ID_PERIOD 5000000
+#define JIM_COLLECT_TIME_PERIOD 300000
 
 void Jim_CollectIfNeeded(Jim_Interp *interp)
 {
     unsigned long elapsedId;
-    int elapsedTime;
+    jim_wide elapsedTime;
 
     elapsedId = interp->referenceNextId - interp->lastCollectId;
-    elapsedTime = time(NULL) - interp->lastCollectTime;
+    elapsedTime = JimClock() - interp->lastCollectTime;
 
 
     if (elapsedId > JIM_COLLECT_ID_PERIOD || elapsedTime > JIM_COLLECT_TIME_PERIOD) {
@@ -5488,7 +5488,7 @@ Jim_Interp *Jim_CreateInterp(void)
 
     i->maxCallFrameDepth = JIM_MAX_CALLFRAME_DEPTH;
     i->maxEvalDepth = JIM_MAX_EVAL_DEPTH;
-    i->lastCollectTime = time(NULL);
+    i->lastCollectTime = JimClock();
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are

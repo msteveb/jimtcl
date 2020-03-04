@@ -539,7 +539,7 @@ typedef struct Jim_Interp {
                 is running as sentinel to avoid to recursive
                 calls via the [collect] command inside
                 finalizers. */
-    time_t lastCollectTime; /* unix time of the last GC execution */
+    jim_wide lastCollectTime; /* unix time of the last GC execution */
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *errorProc; /* Name of last procedure which returned an error */
     Jim_Obj *unknown; /* Unknown command cache */
