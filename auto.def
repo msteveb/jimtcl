@@ -99,8 +99,13 @@ if {[cctest -cflags -fno-asynchronous-unwind-tables]} {
     define-append CCOPTS -fno-asynchronous-unwind-tables
 }
 
-cc-check-includes sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
+cc-check-includes time.h sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
 cc-check-includes sys/un.h dlfcn.h unistd.h dirent.h crt_externs.h
+
+# Check sizeof time_t so we can warn on non-Y2038 compliance
+cc-with {-includes time.h} {
+    cc-check-sizeof time_t
+}
 
 define LDLIBS ""
 
@@ -545,3 +550,12 @@ make-template build-jim-ext.in
 make-template jimtcl.pc.in
 
 catch {exec chmod +x build-jim-ext}
+
+# Finally produce any warnings
+if {[get-define SIZEOF_TIME_T] <= 4} {
+    set note ""
+    if {[have-feature windows]} {
+        set note ", consider CFLAGS=-D__MINGW_USE_VC2005_COMPAT on mingw32"
+    }
+    user-notice "Warning: sizeof(time_t) is [get-define SIZEOF_TIME_T] -- not Y2038 compliant$note"
+}

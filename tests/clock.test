@@ -51,9 +51,4 @@ test clock-4.1 {clock scan tests} clockscan {
     clock scan {Sun Nov 04 03:02:46 AM 1990} -format {%a %b %d %I:%M:%S %p %Y} -gmt true
 } 657687766
 
-# This will fail on systems that are not Y2038 compliant
-test clock-5.1 {Year 2038 compliance} {
-    clock format 2200000000 -format %Y-%m-%dT%H:%M:%S -gmt true
-} 2039-09-18T23:06:40
-
 testreport
