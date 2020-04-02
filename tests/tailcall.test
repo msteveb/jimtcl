@@ -87,7 +87,7 @@ test tailcall-1.9 {tailcall with large number of invocations} {
 		incr n -1
 		tailcall a $n
 	}
-	a 1000
+	a 100000
 } 1
 
 test tailcall-1.10 {tailcall through uplevel} {

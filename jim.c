@@ -10080,6 +10080,7 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     int retcode;
     Jim_Cmd *cmdPtr;
     void *prevPrivData;
+    Jim_Obj *tailcallObj = NULL;
 
 #if 0
     printf("invoke");
@@ -10090,18 +10091,11 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     printf("\n");
 #endif
 
-    if (interp->framePtr->tailcallCmd) {
-        /* Special tailcall command was pre-resolved */
-        cmdPtr = interp->framePtr->tailcallCmd;
-        interp->framePtr->tailcallCmd = NULL;
+    cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
+    if (cmdPtr == NULL) {
+        return JimUnknown(interp, objc, objv);
     }
-    else {
-        cmdPtr = Jim_GetCommand(interp, objv[0], JIM_ERRMSG);
-        if (cmdPtr == NULL) {
-            return JimUnknown(interp, objc, objv);
-        }
-        JimIncrCmdRefCount(cmdPtr);
-    }
+    JimIncrCmdRefCount(cmdPtr);
 
     if (interp->evalDepth == interp->maxEvalDepth) {
         Jim_SetResultString(interp, "Infinite eval recursion", -1);
@@ -10111,20 +10105,71 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     interp->evalDepth++;
     prevPrivData = interp->cmdPrivData;
 
+tailcall:
+
     /* Call it -- Make sure result is an empty object. */
     Jim_SetEmptyResult(interp);
     if (cmdPtr->isproc) {
         retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
+
+        /* Handle the JIM_RETURN return code */
+        if (retcode == JIM_RETURN) {
+            if (--interp->returnLevel <= 0) {
+                retcode = interp->returnCode;
+                interp->returnCode = JIM_OK;
+                interp->returnLevel = 0;
+            }
+        }
+        else if (retcode == JIM_ERR) {
+            interp->addStackTrace++;
+            Jim_DecrRefCount(interp, interp->errorProc);
+            interp->errorProc = objv[0];
+            Jim_IncrRefCount(interp->errorProc);
+        }
     }
     else {
         interp->cmdPrivData = cmdPtr->u.native.privData;
         retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
     }
+
+    if (tailcallObj) {
+        /* clean up previous tailcall if we were invoking one */
+        Jim_DecrRefCount(interp, tailcallObj);
+        tailcallObj = NULL;
+    }
+
+    /* If a tailcall is returned for this frame, loop to invoke the new command */
+    if (retcode == JIM_EVAL && interp->framePtr->tailcallObj) {
+        JimDecrCmdRefCount(interp, cmdPtr);
+
+        /* Replace the current command with the new tailcall command */
+        cmdPtr = interp->framePtr->tailcallCmd;
+        interp->framePtr->tailcallCmd = NULL;
+        tailcallObj = interp->framePtr->tailcallObj;
+        interp->framePtr->tailcallObj = NULL;
+        /* We can access the internal rep here because the object can only
+         * be constructed by the tailcall command
+         */
+        objc = tailcallObj->internalRep.listValue.len;
+        objv = tailcallObj->internalRep.listValue.ele;
+        goto tailcall;
+    }
+
     interp->cmdPrivData = prevPrivData;
     interp->evalDepth--;
 
 out:
     JimDecrCmdRefCount(interp, cmdPtr);
+
+    if (interp->framePtr->tailcallObj) {
+        /* We might have skipped invoking a tailcall, perhaps because of an error
+         * in defer handling so cleanup now
+         */
+        JimDecrCmdRefCount(interp, interp->framePtr->tailcallCmd);
+        Jim_DecrRefCount(interp, interp->framePtr->tailcallObj);
+        interp->framePtr->tailcallCmd = NULL;
+        interp->framePtr->tailcallObj = NULL;
+    }
 
     return retcode;
 }
@@ -10828,47 +10873,6 @@ badargset:
     retcode = JimInvokeDefer(interp, retcode);
     interp->framePtr = interp->framePtr->parent;
     JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
-
-    /* Now chain any tailcalls in the parent frame */
-    if (interp->framePtr->tailcallObj) {
-        do {
-            Jim_Obj *tailcallObj = interp->framePtr->tailcallObj;
-
-            interp->framePtr->tailcallObj = NULL;
-
-            if (retcode == JIM_EVAL) {
-                retcode = Jim_EvalObjList(interp, tailcallObj);
-                if (retcode == JIM_RETURN) {
-                    /* If the result of the tailcall is 'return', push
-                     * it up to the caller
-                     */
-                    interp->returnLevel++;
-                }
-            }
-            Jim_DecrRefCount(interp, tailcallObj);
-        } while (interp->framePtr->tailcallObj);
-
-        /* If the tailcall chain finished early, may need to manually discard the command */
-        if (interp->framePtr->tailcallCmd) {
-            JimDecrCmdRefCount(interp, interp->framePtr->tailcallCmd);
-            interp->framePtr->tailcallCmd = NULL;
-        }
-    }
-
-    /* Handle the JIM_RETURN return code */
-    if (retcode == JIM_RETURN) {
-        if (--interp->returnLevel <= 0) {
-            retcode = interp->returnCode;
-            interp->returnCode = JIM_OK;
-            interp->returnLevel = 0;
-        }
-    }
-    else if (retcode == JIM_ERR) {
-        interp->addStackTrace++;
-        Jim_DecrRefCount(interp, interp->errorProc);
-        interp->errorProc = argv[0];
-        Jim_IncrRefCount(interp->errorProc);
-    }
 
     return retcode;
 }

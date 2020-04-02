@@ -127,6 +127,24 @@ test apply-8.10 {default values} {
     apply [list {x {y 2} args} $applyBody] 1 3
 } {{args {}} {x 1} {y 3}}
 
+test apply-9.1 {tailcall within apply} {
+    proc p {y frame} {
+        list [expr {$y * 2}] [expr {$frame - [info frame]}]
+    }
+    apply {{x} {
+        tailcall p $x [info frame]
+        notreached
+    }} {4}
+} {8 0}
+test apply-9.2 {return from apply} {
+    apply {{x} {
+        return [expr {$x + 1}]
+    }} {4}
+} {5}
+
+
+rename p {}
+
 ::tcltest::cleanupTests
 return
 
