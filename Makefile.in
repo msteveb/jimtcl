@@ -182,8 +182,22 @@ Tcl.html: jim_tcl.txt @srcdir@/make-index
 	@echo "asciidoc is not available"; false
 @endif
 
+coverage:
+@if COVERAGE
+@if GCOVR
+	@GCOVR@ -s -e 'conftest*' --html --html-details --output coverage.html
+@else
+	gcov @srcdir@/*.c
+@endif
+@else
+	@echo "Use ./configure --coverage to enable code coverage"
+@endif
+
 clean:
 	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c
+@if COVERAGE
+	rm -f *.gcno *.gcov *.gcda coverage*.html
+@endif
 
 distclean: clean
 	rm -f jimautoconf.h jim-config.h Makefile config.log @srcdir@/autosetup/jimsh0@EXEEXT@ build-jim-ext

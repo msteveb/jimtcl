@@ -25,6 +25,7 @@ options {
     docs=1          => "don't build or install the documentation"
     docdir:path     => "path to install docs (if built)"
     random-hash	    => "randomise hash tables. more secure but hash table results are not predicable"
+    coverage	    => "build with code coverage support"
     with-jim-ext: {with-ext:"ext1,ext2,..."} => {
         Specify additional jim extensions to include.
         These are enabled by default:
@@ -77,6 +78,8 @@ options {
     install-jim=1
 }
 
+set warnings {}
+
 # Save the user-specified LIBS
 # We add detected libs to LDLIBS explicitly
 set LIBS [get-define LIBS]
@@ -97,6 +100,20 @@ if {[cctest -cflags -fno-unwind-tables]} {
 }
 if {[cctest -cflags -fno-asynchronous-unwind-tables]} {
     define-append CCOPTS -fno-asynchronous-unwind-tables
+}
+if {[opt-bool coverage]} {
+    if {[cctest -link 1 -cflags --coverage]} {
+        # Disable ccache when using coverage
+        define CCACHE ""
+        define-append CCOPTS --coverage
+        define-append LDFLAGS --coverage
+        define COVERAGE 1
+        if {![cc-check-progs gcovr]} {
+            lappend warnings "Note: gcovr is not available, falling back to gcov"
+        }
+    } else {
+        lappend warnings "Warning: --coverage specified, but compiler does not support --coverage"
+    }
 }
 
 cc-check-includes time.h sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
@@ -551,11 +568,15 @@ make-template jimtcl.pc.in
 
 catch {exec chmod +x build-jim-ext}
 
-# Finally produce any warnings
 if {[get-define SIZEOF_TIME_T] <= 4} {
     set note ""
     if {[have-feature windows]} {
         set note ", consider CFLAGS=-D__MINGW_USE_VC2005_COMPAT on mingw32"
     }
-    user-notice "Warning: sizeof(time_t) is [get-define SIZEOF_TIME_T] -- not Y2038 compliant$note"
+    lappend warnings "Warning: sizeof(time_t) is [get-define SIZEOF_TIME_T] -- not Y2038 compliant$note"
+}
+
+# Output any warnings at the end to make them easier to see
+foreach warning $warnings {
+    user-notice $warning
 }

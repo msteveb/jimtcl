@@ -19,3 +19,7 @@ libjim.a
 configure.gnu
 jimsh0
 build-jim-ext
+*.gcda
+*.gcno
+*.gcov
+coverage*.html
