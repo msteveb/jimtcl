@@ -3787,28 +3787,6 @@ static const Jim_HashTableType JimCommandsHashTableType = {
 
 #ifdef jim_ext_namespace
 /**
- * Returns the "unscoped" version of the given namespace.
- * That is, the fully qualified name without the leading ::
- * The returned value is either nsObj, or an object with a zero ref count.
- */
-static Jim_Obj *JimQualifyNameObj(Jim_Interp *interp, Jim_Obj *nsObj)
-{
-    const char *name = Jim_String(nsObj);
-    if (name[0] == ':' && name[1] == ':') {
-        /* This command is being defined in the global namespace */
-        while (*++name == ':') {
-        }
-        nsObj = Jim_NewStringObj(interp, name, -1);
-    }
-    else if (Jim_Length(interp->framePtr->nsObj)) {
-        /* This command is being defined in a non-global namespace */
-        nsObj = Jim_DuplicateObj(interp, interp->framePtr->nsObj);
-        Jim_AppendStrings(interp, nsObj, "::", name, NULL);
-    }
-    return nsObj;
-}
-
-/**
  * If nameObjPtr starts with "::", returns it.
  * Otherwise returns a new object with nameObjPtr prefixed with "::".
  * In this case, decrements the ref count of nameObjPtr.
@@ -13199,8 +13177,15 @@ static int Jim_ApplyCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
         if (len == 3) {
 #ifdef jim_ext_namespace
-            /* Need to canonicalise the given namespace. */
-            nsObj = JimQualifyNameObj(interp, Jim_ListGetIndex(interp, argv[1], 2));
+            /* Need to canonicalise the given namespaces, but it is always treated as global */
+            const char *name;
+            nsObj = Jim_ListGetIndex(interp, argv[1], 2);
+            name = Jim_String(nsObj);
+            if (name[0] == ':' && name[1] == ':') {
+                while (*++name == ':') {
+                }
+                nsObj = Jim_NewStringObj(interp, name, -1);
+            }
 #else
             Jim_SetResultString(interp, "namespaces not enabled", -1);
             return JIM_ERR;

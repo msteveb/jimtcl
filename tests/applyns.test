@@ -89,7 +89,23 @@ test apply-7.8 {namespace access} {
     apply [list args $body testApply]
 } testApply
 
+# apply ignore the current namespace and runs at global scope
+# or the provided namespace (relative to global)
+test apply-8.1 {namespace current within apply} {
+    namespace eval testApply {}
+    namespace eval testApply2 {
+        apply {a { return [namespace current]-$a } testApply} 5
+    }
+} {::testApply-5}
+
+test apply-8.2 {namespace current within apply} {
+    namespace eval testApply2 {
+        apply {a { return [namespace current]-$a }} 5
+    }
+} {::-5}
+
 namespace delete testApply
+namespace delete testApply2
 
 testreport
 
