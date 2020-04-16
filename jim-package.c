@@ -190,7 +190,7 @@ static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /*
  *----------------------------------------------------------------------
  *
- * package list
+ * package list|names
  *
  *      Returns a list of known packages
  *
@@ -199,7 +199,7 @@ static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  *
  *----------------------------------------------------------------------
  */
-static int package_cmd_list(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int package_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_HashTableIterator *htiter;
     Jim_HashEntry *he;
@@ -236,7 +236,16 @@ static const jim_subcmd_type package_command_table[] = {
     {
         "list",
         NULL,
-        package_cmd_list,
+        package_cmd_names,
+        0,
+        0,
+        JIM_MODFLAG_HIDDEN
+        /* Description: Deprecated - Lists all known packages */
+    },
+    {
+        "names",
+        NULL,
+        package_cmd_names,
         0,
         0,
         /* Description: Lists all known packages */

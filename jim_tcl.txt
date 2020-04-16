@@ -3455,6 +3455,10 @@ otherwise if '$name.tcl' exists it is loaded with the `source` command.
 If `load` or `source` fails, `package require` will fail immediately.
 No further attempt will be made to locate the file.
 
++*package names*+
+
+Returns a list of all known/loaded packages, including internal packages.
+
 pid
 ~~~
 +*pid*+
