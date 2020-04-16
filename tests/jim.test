@@ -3472,6 +3472,21 @@ test rand-1.2 {Check limits} {
 catch {unset sum; unset err; unset i}
 
 ################################################################################
+# ENV
+################################################################################
+test env-1.1 {env} -body {
+    env abc def ghi
+} -returnCodes error -result {wrong # args: should be "env varName ?default?"}
+
+test env-1.2 {env} -body {
+    env DOES_NOT_EXIST abc
+} -result {abc}
+
+test env-1.3 {env} -body {
+    env DOES_NOT_EXIST
+} -returnCodes error -result {environment variable "DOES_NOT_EXIST" does not exist}
+
+################################################################################
 # JIM REGRESSION TESTS
 ################################################################################
 test regression-1.0 {Rename against procedures with static vars} {
