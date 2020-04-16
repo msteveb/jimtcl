@@ -1489,6 +1489,9 @@ static void JimParseSubCmd(struct JimParserCtx *pc)
             case '"':
                 if (startofword) {
                     JimParseSubQuote(pc);
+                    if (pc->missing.ch == '"') {
+                        return;
+                    }
                     continue;
                 }
                 break;
