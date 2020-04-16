@@ -9261,9 +9261,11 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr)
     struct ExprTree *expr;
     int retcode = JIM_OK;
 
+    Jim_IncrRefCount(exprObjPtr);     /* Make sure it's shared. */
     expr = JimGetExpression(interp, exprObjPtr);
     if (!expr) {
-        return JIM_ERR;         /* error in expression. */
+        retcode = JIM_ERR;
+        goto done;
     }
 
 #ifdef JIM_OPTIMIZATION
@@ -9290,7 +9292,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr)
                 objPtr = JimExprIntValOrVar(interp, expr->expr);
                 if (objPtr) {
                     Jim_SetResult(interp, objPtr);
-                    return JIM_OK;
+                    goto done;
                 }
                 break;
 
@@ -9300,7 +9302,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr)
 
                     if (objPtr && JimIsWide(objPtr)) {
                         Jim_SetResult(interp, JimWideValue(objPtr) ? interp->falseObj : interp->trueObj);
-                        return JIM_OK;
+                        goto done;
                     }
                 }
                 break;
@@ -9336,7 +9338,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr)
                                 goto noopt;
                         }
                         Jim_SetResult(interp, cmpRes ? interp->trueObj : interp->falseObj);
-                        return JIM_OK;
+                        goto done;
                     }
                 }
                 break;
@@ -9346,14 +9348,21 @@ noopt:
 #endif
 
     /* In order to avoid the internal repr being freed due to
-     * shimmering of the exprObjPtr's object, we make the internal rep
-     * shared. */
+     * shimmering of the exprObjPtr's object, we increment the use count
+     * and keep our own pointer outside the object.
+     */
     expr->inUse++;
 
     /* Evaluate with the recursive expr engine */
     retcode = JimExprEvalTermNode(interp, expr->expr);
 
-    expr->inUse--;
+    /* Now transfer ownership of expr back into the object in case it shimmered away */
+    Jim_FreeIntRep(interp, exprObjPtr);
+    exprObjPtr->typePtr = &exprObjType;
+    Jim_SetIntRepPtr(exprObjPtr, expr);
+
+done:
+    Jim_DecrRefCount(interp, exprObjPtr);
 
     return retcode;
 }

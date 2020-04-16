@@ -627,6 +627,19 @@ test expr-21.7 {checking boolean mixed case} {
   }
 } 1
 
+# This test won't fail if shimmering isn't handled
+# correctly, but it will leak memory. configure with --maintainer
+# to see the issue.
+test expr-21.1 {expr shimmering} {
+  set x {[a] + 2}
+  proc a {} {
+    upvar x x
+    # make the expression become a list while we are executing it
+    lindex $x 2
+  }
+  expr $x
+} {4}
+
 # cleanup
 if {[info exists a]} {
     unset a
