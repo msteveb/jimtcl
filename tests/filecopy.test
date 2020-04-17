@@ -5,6 +5,8 @@ needs cmd file
 needs cmd exec
 needs cmd parray tclcompat
 
+testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+
 cd [file dirname [info script]]
 
 file mkdir tempdir
@@ -75,19 +77,22 @@ test file-tempfile-1.1 {file tempfile - simple} {
 	set ret
 } {1}
 
-test file-tempfile-1.2 {file tempfile with pattern} {
+# Note that Windows doesn't provide much control over the tempfile.
+# Only the first 3 chars of the pattern are used, so ignore these tests on that platform
+
+test file-tempfile-1.2 {file tempfile with pattern} unix {
 	set f [file tempfile /tmp/file-tempfile.XXXXXX]
 	set ret [file exists $f]
 	file delete $f
 	set ret
 } {1}
 
-test file-tempfile-1.3 {file tempfile with invalid path} -body {
+test file-tempfile-1.3 {file tempfile with invalid path} -constraints unix -body {
 	set f [file tempfile /doesnotexist/file-tempfile.XXXXXX]
 	puts $f
 	set ret [file exists $f]
 	file delete $f
-	set ret
+	set $f
 } -returnCodes error -match glob -result {/doesnotexist/file-tempfile.*}
 
 file delete tempfile
