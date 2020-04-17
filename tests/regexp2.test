@@ -494,6 +494,15 @@ test regexpComp-10.3 {newline sensitivity in regsub} {
 #	list [regsub -linestop {a.*b} "da\nbaxyb\nxb" 123 foo] $foo
 #    }
 #} "1 {da\nb123\nxb}"
+test regexpComp-10.6 {\Z only matching end of string with -line} {
+    evalInProc {
+	set foo xxx
+	list [regsub -line {^a.*b\Z} "dabc\ncaxyb\naxb" 123 foo] $foo
+    }
+} "1 {dabc\ncaxyb\n123}"
+test regexpComp-10.7 {\A only matching beginning of string with -line} {
+    regexp -all -inline -line {\Aab.} abc\nabd
+} {abc}
 
 test regexpComp-11.1 {regsub errors} {
     evalInProc {
@@ -622,17 +631,25 @@ test regexpComp-16.3 {regsub -start} {
     catch {unset x}
     list [regsub -all -start 3 {z} hello {/&} x] $x
 } {0 hello}
-#test regexpComp-16.4 {regsub -start, \A behavior} {
-#    set out {}
-#    lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
-#    lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
-#} {5 /a/b/c/d/e 3 ab/c/d/e}
+test regexpComp-16.4 {regsub -start, \A behavior} tcl {
+    set out {}
+    lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
+    lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
+} {5 /a/b/c/d/e 3 ab/c/d/e}
 test regexpComp-16.5 {regexp -start with utf8} utf8 {
     regexp -inline -start 1 . \u0442\u0435\u0441\u0442
 } \u0435
 test regexpComp-16.6 {regexp -start with utf8} utf8 {
     regsub -start 1 . \u0442\u0435\u0441\u0442 x
 } \u0442x\u0441\u0442
+
+test regexpComp-16.7 {regexp -start with \A} {
+    regsub -start 1 {\Aabc} deabc -
+} {deabc}
+
+test regexpComp-16.7 {regexp -start with \A} {
+    regsub -start 1 {\Aabc} dabc -
+} {d-}
 
 test regexpComp-17.1 {regexp -inline} {
     regexp -inline b ababa

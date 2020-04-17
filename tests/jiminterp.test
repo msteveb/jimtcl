@@ -1,0 +1,27 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd interp
+
+test interp-1.0 {interp bad args} -body {
+	interp arg
+} -returnCodes error -result {wrong # args: should be "interp"}
+
+test interp-1.1 {interp alias} {
+    set i [interp]
+    $i alias subincr incr
+    $i eval { set x 0 }
+    $i eval { subincr x }
+    $i eval { subincr x }
+} {2}
+
+test interp-1.2 {interp alias delete} {
+    $i eval { rename subincr "" }
+} {}
+
+test interp-1.3 {interp delete } {
+    $i alias subincr2 incr
+    $i delete
+} {}
+
+testreport

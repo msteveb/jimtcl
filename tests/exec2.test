@@ -5,9 +5,8 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
-foreach i {pipe signal wait} {
-	testConstraint $i [expr {[info commands $i] ne ""}]
-}
+testCmdConstraints pipe signal wait alarm
+
 # Some Windows platforms (e.g. AppVeyor) produce ENOSPC rather than killing
 # the child with SIGPIPE). So turn off this test for that platform
 if {[info exists env(MSYSTEM)] && $env(MSYSTEM) eq "MINGW32"} {
@@ -99,5 +98,70 @@ test exec2-3.4 "wait for background task" -constraints wait -body {
 		list $status $exitcode
 	}
 } -result {CHILDSTATUS 0}
+
+test exec2-4.1 {redirect from invalid filehandle} -body {
+	exec cat <@bogus
+} -returnCodes error -result {invalid command name "bogus"}
+
+test exec2-4.2 {env is invalid dict} -constraints jim -body {
+	set saveenv $env
+	lappend env bogus
+	catch {exec pwd}
+} -result {0} -cleanup {
+	set env $saveenv
+}
+
+test exec2-4.3 {signalled process during foreground exec} -constraints {jim alarm} -body {
+	# We need to exec a pipeline and then have one process
+	# be killed by a signal
+	exec [info nameofexecutable] -e {alarm 0.1; sleep 0.5}
+} -returnCodes error -result {child killed by signal SIGALRM}
+
+test exec2-4.4 {exec - consecutive |} -body {
+	exec echo | |  test
+} -returnCodes error -result {illegal use of | or |& in command}
+
+test exec2-4.5 {exec - consecutive | with &} -body {
+	exec echo | |  test &
+} -returnCodes error -result {illegal use of | or |& in command}
+
+test exec2-4.6 {exec - illegal channel} -body {
+	exec echo hello >@nonexistent
+} -returnCodes error -result {invalid command name "nonexistent"}
+
+test exec2-5.1 {wait with invalid pid} wait {
+	wait 9999999
+} {NONE -1 -1}
+
+test exec2-5.2 {wait with invalid pid} -constraints wait -body {
+	wait blah
+} -returnCodes error -result {expected integer but got "blah"}
+
+test exec2-5.3 {wait - bad args} -constraints wait -body {
+	wait too many args
+} -returnCodes error -result {wrong # args: should be "wait ?-nohang? ?pid?"}
+
+test exec2-5.4 {wait -nohang} -constraints wait -body {
+	set pid [exec sleep 0.2 &]
+	# first wait will do nothing as the process is not finished
+	wait -nohang $pid
+	wait $pid
+} -match glob -result {CHILDSTATUS * 0}
+
+test exec2-5.5 {wait for all children} -body {
+	# We want to have children finish at different times
+	# so that we test the handling of the wait table
+	foreach i {0.1 0.2 0.6 0.5 0.4 0.3} {
+		exec sleep $i &
+	}
+	# reap zombies, there should not be any
+	wait
+	sleep 0.3
+	# reap zombies, 2-3 should be finished now
+	wait
+	sleep 0.4
+	# reap zombies, all processes should be finished now
+	wait
+} -result {}
 
 testreport

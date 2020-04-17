@@ -11,8 +11,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 catch {package require regexp}
-testConstraint regexp [expr {[info commands regexp] ne {}}]
-testConstraint lambda [expr {[info commands ref] ne {}}]
+testCmdConstraints regexp readdir lambda
 
 ################################################################################
 # SET
@@ -3340,7 +3339,7 @@ test range-1.9 {basic range test} {
 test range-2.0 {foreach range test} {
     set k 0
     foreach {x y} [range 100] {
-	incr k [expr {$x*$y}]
+        incr k [expr {$x*$y}]
     }
     set k
 } {164150}
@@ -3349,8 +3348,8 @@ test range-2.1 {foreach range test without obj reuse} {
     set k 0
     set trash {}
     foreach {x y} [range 100] {
-	incr k [expr {$x*$y}]
-	lappend trash $x $y
+        incr k [expr {$x*$y}]
+        lappend trash $x $y
     }
     set trash {}
     set k
@@ -3359,7 +3358,7 @@ test range-2.1 {foreach range test without obj reuse} {
 test range-2.2 {range element shimmering test} {
     set k {}
     foreach x [range 0 10] {
-	append k [llength $x]
+        append k [llength $x]
     }
     set k
 } {1111111111}
@@ -3385,11 +3384,39 @@ test range-5.0 {lindex llength range test} {
     set trash {}
     set r [range 100]
     for {set i 0} {$i < [llength $r]} {incr i 2} {
-	incr k [expr {[lindex $r $i]*[lindex $r [expr {$i+1}]]}]
+        incr k [expr {[lindex $r $i]*[lindex $r [expr {$i+1}]]}]
     }
     set trash {}
     set k
 } {164150}
+
+test range-6.1 {range} -body {
+    range
+} -returnCodes error -result {wrong # args: should be "range ?start? end ?step?"}
+
+test range-6.2 {range} -body {
+    range foo
+} -returnCodes error -result {expected integer but got "foo"}
+
+test range-6.3 {range} -body {
+    range 2 bar
+} -returnCodes error -result {expected integer but got "bar"}
+
+test range-6.4 {range} -body {
+    range 2 4 foo
+} -returnCodes error -result {expected integer but got "foo"}
+
+test range-6.5 {range} -body {
+    range 10 0
+} -returnCodes error -result {Invalid (infinite?) range specified}
+
+test range-6.6 {range} -body {
+    range 2 4 0
+} -returnCodes error -result {Invalid (infinite?) range specified}
+
+test range-6.7 {range} -body {
+    range 2 4 -2
+} -returnCodes error -result {Invalid (infinite?) range specified}
 
 ################################################################################
 # SCOPE
@@ -3485,6 +3512,30 @@ test env-1.2 {env} -body {
 test env-1.3 {env} -body {
     env DOES_NOT_EXIST
 } -returnCodes error -result {environment variable "DOES_NOT_EXIST" does not exist}
+
+################################################################################
+# READDIR
+################################################################################
+test readdir-1.1 {readdir usage} -body {
+    readdir
+} -returnCodes error -result {wrong # args: should be "readdir ?-nocomplain? dirPath"}
+
+test readdir-1.2 {readdir basic} -body {
+    expr {"jim.test" in [readdir [file dirname [info script]]]}
+} -result {1}
+
+test readdir-1.3 {readdir basic} -body {
+    expr {"jim.test" in [readdir -nocomplain [file dirname [info script]]]}
+} -result {1}
+
+test readdir-1.4 {readdir errors} -body {
+    readdir nonexistent
+} -returnCodes error -result {No such file or directory}
+
+test readdir-1.4 {readdir -nocomplain} -body {
+    readdir -nocomplain nonexistent
+} -result {}
+
 
 ################################################################################
 # JIM REGRESSION TESTS

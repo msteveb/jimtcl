@@ -1,79 +1,87 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exists
-testConstraint lambda [expr {[info commands lambda] ne {}}]
+testCmdConstraints lambda
 
 test exists-1.1 "Exists var" {
 	set a 1
 	exists a
 } 1
 
-test exists-1.1 "Exists var" {
+test exists-1.2 "Exists var" {
 	unset -nocomplain b
 	exists b
 } 0
 
-test exists-1.1 "Exists -var" {
+test exists-1.3 "Exists -var" {
 	exists -var a
 } 1
 
-test exists-1.1 "Exists -var" {
+test exists-1.4 "Exists -var" {
 	exists -var b
 } 0
 
-test exists-1.1 "Exists in proc" {
+test exists-1.5 "Exists in proc" {
 	proc a {name} { exists $name }
 	a ::a
 } 1
 
-test exists-1.1 "Exists in proc" {
+test exists-1.6 "Exists in proc" {
 	a ::b
 } 0
 
-test exists-1.1 "Exists in proc" {
+test exists-1.7 "Exists in proc" {
 	a name
 } 1
 
-test exists-1.1 "Exists in proc" {
+test exists-1.8 "Exists in proc" {
 	a none
 } 0
 
-test exists-1.1 "Exists -proc" {
+test exists-1.9 "Exists -proc" {
 	exists -proc a
 } 1
 
-test exists-1.1 "Exists -proc" {
+test exists-1.10 "Exists -proc" {
 	exists -proc bogus
 } 0
 
-test exists-1.1 "Exists -proc" {
+test exists-1.11 "Exists -proc" {
 	exists -proc info
 } 0
 
-test exists-1.1 "Exists -command" {
+test exists-1.12 "Exists -command" {
 	exists -command a
 } 1
 
-test exists-1.1 "Exists -command" {
+test exists-1.13 "Exists -command" {
 	exists -command info
 } 1
 
-test exists-1.1 "Exists -command" {
+test exists-1.14 "Exists -command" {
 	exists -command bogus
 } 0
 
-test exists-1.1 "Exists local lambda after exit" lambda {
+test exists-1.15 "Exists local lambda after exit" lambda {
 	proc a {} {
 		local lambda {} {dummy}
 	}
 	exists -proc [a]
 } 0
 
-test exists-1.1 "Exists local lambda" lambda {
+test exists-1.16 "Exists local lambda" lambda {
 	proc a {} {
 		exists -proc [local lambda {} {dummy}]
 	}
 	a
 } 1
+
+test exists-1.17 {exists usage} -body {
+	exists -dummy blah
+} -returnCodes error -result {bad option "-dummy": must be -alias, -command, -proc, or -var}
+
+test exists-1.18 {exists usage} -body {
+	exists abc def ghi
+} -returnCodes error -result {wrong # args: should be "exists ?option? name"}
 
 testreport

@@ -1,6 +1,10 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd file
+catch {file link} msg
+testConstraint filelink [string match "wrong # args:*" $msg]
+catch {file lstat} msg
+testConstraint filelstat [string match "wrong # args:*" $msg]
 
 test join-1.1 "One name" {
 	file join abc
@@ -116,6 +120,265 @@ test dirname-1.3 "Absolute one component" {
 test dirname-1.4 "Trailing slash" {
 	file dirname abc/
 } {.}
+
+test dirname-1.5 ".." {
+	# Should be . to match Tcl
+	file dirname ..
+} {..}
+
+test dirname-1.6 "abc/.." {
+	file dirname abc/..
+} {abc}
+
+test dirname-1.7 "../abc" {
+	file dirname ../abc
+} {..}
+
+test stat-1.1 {file stat usage} -body {
+	file stat
+} -returnCodes error -match glob -result {wrong # args: should be "file stat name*"}
+
+test stat-1.2 {file stat usage} -body {
+	file stat nonexistent a
+} -returnCodes error -match glob -result {could not read "nonexistent": *}
+
+test stat-1.3 {file stat} {
+	unset -nocomplain a
+	file stat [info script] a
+	set a(type)
+} {file}
+
+test stat-1.4 {file stat update array} {
+	set a(type) bogus
+	file stat [info nameofexecutable] a
+	set a(type)
+} {file}
+
+test stat-1.5 {file stat update bad array} -body {
+	unset -nocomplain a
+	# invalid dict/array
+	set a {1 2 3}
+	file stat [info nameofexecutable] a
+} -returnCodes error -result {can't set "a(dev)": variable isn't array}
+
+test stat-1.7 {file stat no variable} jim {
+	set a [file stat [info script]]
+	set a(type)
+} {file}
+
+test ext-1.1 {file ext} -body {
+	file ext
+} -returnCodes error -result {wrong # args: should be "file extension name"}
+
+test ext-1.2 {file ext basic} {
+	file ext abc.def
+} {.def}
+
+test ext-1.3 {file ext path} {
+	file ext 123/abc.def
+} {.def}
+
+test ext-1.4 {file ext noext} {
+	file ext abc
+} {}
+
+test ext-1.5 {file ext noext} {
+	file ext abc.def/ghi
+} {}
+
+test rootname-1.1 {file rootname} -body {
+	file rootname
+} -returnCodes error -result {wrong # args: should be "file rootname name"}
+
+test rootname-1.2 {file rootname basic} -body {
+	file rootname abc
+} -result {abc}
+
+test rootname-1.3 {file rootname basic} -body {
+	file rootname abc/def
+} -result {abc/def}
+
+test rootname-1.4 {file rootname basic} -body {
+	file rootname abc.c
+} -result {abc}
+
+test rootname-1.5 {file rootname basic} -body {
+	file rootname abc/def.c
+} -result {abc/def}
+
+test rootname-1.6 {file rootname odd cases} -body {
+	file rootname abc/def.c/ghi
+} -result {abc/def.c/ghi}
+
+test readable-1.1 {file readable} {
+	file readable [info script]
+} {1}
+
+test writable-1.1 {file writable} -body {
+	set name tmp.[pid]
+	makeFile testing $name
+	file writable $name
+} -result 1 -cleanup {
+	file delete $name
+}
+
+test rename-1.1 {file rename usage} -body {
+	file rename
+} -returnCodes error -match glob -result {wrong # args: should be *}
+
+test rename-1.2 {file rename usage} -body {
+	file rename -badarg name1 name2
+} -returnCodes error -match glob -result {*}
+
+test rename-1.1 {file rename, target exists} -body {
+	set name1 tmp.[pid]
+	set name2 tmp2.[pid]
+	makeFile testing $name1
+	makeFile testing2 $name2
+	file rename $name1 $name2
+} -returnCodes error -match glob -result {error renaming *}
+
+test rename-1.2 {file rename -force, target exists} -body {
+	file rename -force $name1 $name2
+	list [file exists $name1] [file exists $name2]
+} -result {0 1} -cleanup {
+	file delete $name2
+}
+
+test link-1.1 {file link usage} -constraints filelink -body {
+	file link
+} -returnCodes error -match glob -result {wrong # args: should be "file link*}
+
+test link-1.2 {file hard link} -constraints filelink -body {
+	set name tmp.[pid]
+	file link $name [info script]
+	file exists $name
+} -result {1} -cleanup {
+	file delete $name
+}
+
+test link-1.3 {file hard link} -constraints filelink -body {
+	set name tmp.[pid]
+	file link -hard $name [info script]
+	file exists $name
+} -result {1} -cleanup {
+	file delete $name
+}
+
+test link-1.4 {file sym link} -constraints filelink -body {
+	set name tmp.[pid]
+	file link -sym $name [info script]
+	list [file exists $name] [file tail [file readlink $name]]
+} -result {1 file.test} -cleanup {
+	file delete $name
+}
+
+test link-1.5 {file readlink, bad link} -constraints filelink -body {
+	file readlink [info script]
+} -returnCodes error -match glob -result {could*read*link "*file.test": *}
+
+test link-1.6 {file link badopt} -constraints filelink -body {
+	file link -bad name1 name2
+} -returnCodes error -match glob -result {bad * "-bad": must be *}
+
+test lstat-1.1 {file lstat} -constraints filelstat -body {
+	file lstat
+} -returnCodes error -match glob -result {wrong # args: should be "file lstat name *}
+
+test lstat-1.2 {file lstat} -constraints filelstat -body {
+	file lstat nonexistent ls
+} -returnCodes error -match glob -result {could not read "nonexistent": *}
+
+test lstat-1.3 {file lstat} -constraints {filelink filelstat} -body {
+	set name tmp.[pid]
+	file link -sym $name [info script]
+	unset -nocomplain s ls
+	file lstat $name ls
+	file stat [info script] s
+	list $ls(type) $s(type)
+} -match glob -result {link file} -cleanup {
+	file delete $name
+}
+
+test type-1.1 {file type} {
+	file type [info script]
+} {file}
+
+test type-1.2 {file type} {
+	file type [file dirname [info script]]
+} {directory}
+
+test type-1.2 {file type} -body {
+	file type nonexistent
+} -returnCodes error -match glob -result {could not read "nonexistent": *}
+
+test isfile-1.1 {file isfile} -body {
+	file isfile
+} -returnCodes error -result {wrong # args: should be "file isfile name"}
+
+test isfile-1.2 {file isfile} {
+	file isfile [info script]
+} {1}
+
+test isfile-1.3 {file isfile} {
+	file isfile [file dirname [info script]]
+} {0}
+
+test size-1.1 {file size} -body {
+	file size
+} -returnCodes error -result {wrong # args: should be "file size name"}
+
+test size-1.2 {file size} -body {
+	file size nonexistent
+} -returnCodes error -match glob -result {could not read "nonexistent":*}
+
+test size-1.3 {file size} {
+	set size [file size [info script]]
+	file stat [info script] s
+	expr {$size - $s(size)}
+} {0}
+
+test mtime-1.1 {file mtime} -body {
+	file mtime
+} -returnCodes error -result {wrong # args: should be "file mtime name ?time?"}
+
+test mtime-1.2 {file mtime} -body {
+	file mtime nonexistent
+} -returnCodes error -match glob -result {could not read "nonexistent":*}
+
+test mtime-1.3 {file mtime} -body {
+	file mtime [info script] bad
+} -returnCodes error -result {expected integer but got "bad"}
+
+test mtime-1.4 {file mtime} {
+	set mtime [file mtime [info script]]
+	file stat [info script] s
+	expr {$mtime - $s(mtime)}
+} {0}
+
+test mtime-1.5 {file mtime} -body {
+	set name tmp.[pid]
+	makeFile testing $name
+	set t [file mtime [info script]]
+	file mtime $name $t
+	expr {$t - [file mtime $name]}
+} -result {0} -cleanup {
+	file delete $name
+}
+
+test atime-1.1 {file atime} -body {
+	file atime
+} -returnCodes error -match glob -result {wrong # args: should be "file atime name*}
+
+test atime-1.2 {file atime} -body {
+	file atime nonexistent
+} -returnCodes error -match glob -result {could not read "nonexistent":*}
+
+test atime-1.3 {file atime} {
+	set atime [file atime [info script]]
+	file stat [info script] s
+	expr {$atime - $s(atime)}
+} {0}
 
 # These tests are courtesy of picol
 

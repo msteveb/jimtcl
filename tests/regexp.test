@@ -661,6 +661,88 @@ test regexp-21.15 {Replace literal backslash} {
     set value
 } "\\abc\\def"
 
+test regexp-22.1 {char range} {
+    regexp -all -inline {[a-c]+} "defaaghbcadfbaacccd"
+} {aa bca baaccc}
+
+# Tcl doesn't like this
+test regexp-22.2 {reversed char range} jim {
+    regexp -all -inline {[c-a]+} "defaaghbcadfbaacccd"
+} {aa bca baaccc}
+
+# Note that here the hex escapes are interpreted by regexp, not by Tcl
+test regexp-22.3 {hex digits} {
+    regexp -all -inline {[\x6a-\x6c]+} "jlaksdjflkwueorilkj"
+} {jl k j lk lkj}
+
+test regexp-22.4 {uppercase hex digits} {
+    regexp -all -inline {[\x6A-\x6C]+} "jlaksdjflkwueorilkj"
+} {jl k j lk lkj}
+
+# Below \x9X will be treated as \x9 followed by X
+test regexp-22.5 {invalid hex digits} {
+    regexp -all -inline {[\x9X\x6C]+} "jla\tX6djflyw\tueorilkj"
+} [list l \tX l \t l]
+
+test regexp-22.6 {unicode hex digits} jim {
+    regexp -all -inline {[\u{41}-\u{00043}]+} "AVBASDFBABDFBAFBAFA"
+} {A BA BAB BA BA A}
+
+# \u{X41} is treated as u { X 41 }
+test regexp-22.7 {unicode hex digits with invalid exscape} jim {
+    regexp -all -inline {[\u{X41}]+} "uVBAX{SD4B1}DFBAFBAFA"
+} {u X\{ 4 1\}}
+
+test regexp-22.8 {unicode hex digits} {
+    regexp -all -inline {[\u0041-\u0043]+} "AVBASDFBABDFBAFBAFA"
+} {A BA BAB BA BA A}
+
+test regexp-22.9 {\U unicode hex digits} {
+    regexp -all -inline {[\U00000041-\U00000043]+} "AVBASDFBABDFBAFBAFA"
+} {A BA BAB BA BA A}
+
+test regexp-22.10 {Various char escapes} {
+    set result {}
+    foreach match [regexp -all -inline {[\e\f\v\t\b]+} "A\f\vBB\b\tC\x1BG"] {
+	set chars {}
+	foreach c [split $match ""] {
+	    scan $c %c char
+	    lappend chars $char
+	}
+	lappend result [join $chars ,]
+    }
+    join $result |
+} {12,11|8,9|27}
+
+test regexp-22.11 {backslash as last char} {
+    regexp -all -inline "\[a\\" "ba\\d\[ef"
+} "a\ \\\\"
+
+# Probably should be an error
+test regexp-22.12 {missing closing bracket} {
+    regexp -all -inline {[abc} "abcdefghi"
+} {a b c}
+
+test regexp-22.13 {empty alternative} {
+    regexp -all -inline {a(a|b|)c} "aacbacbaa"
+} {aac a ac {}}
+
+test regexp-22.14 {] in set} {
+    regexp -all -inline {[]ab]+} "aac\[ba\]cbaa"
+} {aa ba\] baa}
+
+test regexp-22.15 {- in set} {
+    regexp -all -inline {[-ab]+} "aac\[ba\]cb-aa"
+} {aa ba b-aa}
+
+test regexp-22.16 {\s in set} {
+    regexp -all -inline {[\sa]+} "aac\[b a\]c\tb-aa"
+} [list aa " a" \t aa]
+
+test regexp-22.17 {\d in set} {
+    regexp -all -inline {[a\d]+} "a0ac\[b a\]44c\tb-1aa7"
+} {a0a a 44 1aa7}
+
 # Tests resulting from bugs reported by users
 test reg-31.1 {[[:xdigit:]] behaves correctly when followed by [[:space:]]} {
     set str {2:::DebugWin32}

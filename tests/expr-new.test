@@ -640,6 +640,55 @@ test expr-21.1 {expr shimmering} {
   expr $x
 } {4}
 
+test expr-22.1 {expr} -body {
+    expr {1 + $nonexistent}
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+test expr-22.2 {expr} -body {
+    expr {~$nonexistent}
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+test expr-22.3 {expr} -body {
+    expr {abs($nonexistent)}
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+test expr-22.4 {expr} -body {
+    expr {[nonexistent] << 4}
+} -returnCodes error -result {invalid command name "nonexistent"}
+
+test expr-22.5 {expr} -body {
+    expr {5 >> [nonexistent]}
+} -returnCodes error -result {invalid command name "nonexistent"}
+
+test expr-22.6 {expr} -body {
+    expr {$nonexistent in {a b c}}
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+test expr-22.7 {expr} -body {
+    expr {"a" ni $nonexistent}
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+test expr-22.8 {expr} -body {
+    expr {5 + $}
+} -returnCodes error -result {syntax error in expression: "5 + $"}
+
+test expr-22.9 {expr} -body {
+    expr {. + 1}
+} -returnCodes error -result {syntax error in expression: ". + 1"}
+
+test expr-22.10 {expr} -body {
+    expr {5 + ,}
+} -returnCodes error -result {unexpected comma in expression: "5 + ,"}
+
+test expr-22.11 {expr} -body {
+    expr {round(1,2,3,4)}
+} -returnCodes error -result {too many arguments to math function}
+
+test expr-22.12 {expr} {
+    expr {inf}
+} {Inf}
+
+
 # cleanup
 if {[info exists a]} {
     unset a

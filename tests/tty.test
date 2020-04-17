@@ -13,12 +13,29 @@ test tty-1.1 {tty status} {
     dict exists $dict output
 } 1
 
-foreach {id param value} {
-    tty-1.2 output raw
-    tty-1.3 input raw
-    tty-1.4 handshake rtscts
+test tty-1.2 {tty bad param} -body {
+    stdout tty bad value
+} -returnCodes error -result {bad setting "bad": must be baud, data, echo, handshake, input, output, parity, stop, vmin, or vtime}
+
+test tty-1.3 {tty bad baud} -body {
+    stdout tty baud 12345
+} -returnCodes error -result {bad value for baud: 12345}
+
+test tty-1.4 {tty bad fd} -body {
+    set f [open [file tempfile] w]
+    $f tty
+} -returnCodes error -result {Inappropriate ioctl for device} -cleanup {
+    $f close
+}
+
+
+set n 0
+foreach {param value} {
+    output raw
+    input raw
+    handshake rtscts
 } {
-    test $id "tty setting $param" -setup {
+    test tty-1.[incr n] "tty setting $param" -setup {
         set savetty [stdout tty]
     } -body "stdout tty $param $value; dict get \[stdout tty\] $param" \
         -result $value -cleanup {
@@ -26,19 +43,14 @@ foreach {id param value} {
     }
 }
 
-test tty-1.4 {tty setting} -body {
-    stdout tty output bad
-} -returnCodes error -result {bad value for output: bad}
-
-test tty-1.4 {tty setting} -body {
-    stdout tty bad value
-} -returnCodes error -result {bad setting "bad": must be baud, data, echo, handshake, input, output, parity, stop, vmin, or vtime}
-
-test tty-1.5 {tty bad fd} -body {
-    set f [open [file tempfile] w]
-    $f tty
-} -returnCodes error -result {Inappropriate ioctl for device} -cleanup {
-    $f close
+set n 0
+foreach param {output input handshake baud stop data vmin vtime} {
+    test tty-2.[incr n] "tty bad setting $param" -setup {
+        set savetty [stdout tty]
+    } -body "stdout tty $param bad" \
+    -returnCodes error -result "bad value for $param: bad" -cleanup {
+        stdout tty $savetty
+    }
 }
 
 testreport

@@ -1,0 +1,16 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd package
+
+test package-1.1 {provide} -body {
+	package provide new-package-name
+	expr {"new-package-name" in [package names]}
+} -result 1
+
+test package-1.2 {provide, duplicate} -body {
+	package provide new-package-name
+} -returnCodes error -result {package "new-package-name" was already provided}
+
+testreport
+

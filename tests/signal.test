@@ -95,4 +95,113 @@ test signal-1.8 "try/signal" try {
 	list [expr {$i in {3 4 5}}] $msg
 } {1 SIGALRM}
 
+test signal-1.9 {throw an ignored signal} {
+	signal ignore SIGTERM
+	signal throw SIGTERM
+	signal check -clear SIGTERM
+} {SIGTERM}
+
+test signal-1.10 {throw with no signal} try {
+	# With no arg, signal throw means signal throw SIGINT
+	try -signal {
+		signal throw
+	} on signal msg {
+	}
+	set msg
+} SIGINT
+
+test signal-2.1 {bad signal} -body {
+	signal handle NONEXISTENT
+} -returnCodes error -result {unknown signal NONEXISTENT}
+
+test signal-2.2 {bad signal} -body {
+	signal handle 999999
+} -returnCodes error -result {unknown signal 999999}
+
+test signal-2.3 {signal by number} {
+	signal handle 2
+	signal default 2
+} {}
+
+test signal-2.4 {signal block} {
+	signal block SIGINT
+	signal handle SIGINT
+	signal default SIGINT
+} {}
+
+# should complain about unknown signal
+test signal-2.5 {signal check invalid} -body {
+	signal check NONEXISTENT
+} -returnCodes error -result {wrong # args: should be "signal check ?-clear? ?signals ...?"}
+
+# should complain about unknown signal
+test signal-2.6 {signal check invalid num} -body {
+	signal check 999999
+} -returnCodes error -result {wrong # args: should be "signal check ?-clear? ?signals ...?"}
+
+test signal-2.7 {signal throw invalid} -body {
+	signal throw NONEXISTENT
+} -returnCodes error -result {unknown signal NONEXISTENT}
+
+test signal-2.8 {signal throw invalid num} -body {
+	signal throw 999999
+} -returnCodes error -result {unknown signal 999999}
+
+test signal-2.9 {signal list} {
+	expr {"SIGINT" in [signal default]}
+} {1}
+
+test alarm-1.1 {alarm usage} -body {
+	alarm
+} -returnCodes error -result {wrong # args: should be "alarm seconds"}
+
+test alarm-1.2 {alarm usage} -body {
+	alarm too many args
+} -returnCodes error -result {wrong # args: should be "alarm seconds"}
+
+test alarm-1.3 {alarm usage} -body {
+	alarm badnum
+} -returnCodes error -result {expected floating-point number but got "badnum"}
+
+test alarm-1.4 {alarm seconds} {
+	alarm 2
+	alarm 0
+} {}
+
+test sleep-1.1 {sleep usage} -body {
+	sleep
+} -returnCodes error -result {wrong # args: should be "sleep seconds"}
+
+test sleep-1.2 {sleep usage} -body {
+	sleep too many args
+} -returnCodes error -result {wrong # args: should be "sleep seconds"}
+
+test sleep-1.3 {sleep usage} -body {
+	sleep badnum
+} -returnCodes error -result {expected floating-point number but got "badnum"}
+
+test kill-1.1 {kill usage} -body {
+	kill
+} -returnCodes error -result {wrong # args: should be "kill ?SIG|-0? pid"}
+
+test kill-1.2 {kill usage} -body {
+	kill too many args
+} -returnCodes error -result {wrong # args: should be "kill ?SIG|-0? pid"}
+
+test kill-1.3 {kill bad signal} -body {
+	kill NONEXISTENT [pid]
+} -returnCodes error -result {unknown signal NONEXISTENT}
+
+test kill-1.4 {kill -0} {
+	kill -0 [pid]
+} {}
+
+test kill-1.5 {kill 0 pid} {
+	kill 0 [pid]
+} {}
+
+test kill-1.6 {kill to invalid process} -body {
+	kill 0 9999999
+} -returnCodes error -result {kill: Failed to deliver signal}
+
 testreport

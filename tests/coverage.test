@@ -1,0 +1,245 @@
+# various tests to improve code coverage
+
+source [file dirname [info script]]/testing.tcl
+
+testCmdConstraints ref rand
+
+testConstraint debug-invstr 0
+catch {
+	debug -commands
+	testConstraint debug-invstr 1
+}
+
+test dupobj-1 {duplicate script object} {
+	set y {expr 2}
+	# make y a script
+	eval $y
+	# Now treat it as a list that needs duplicating
+	lset y 0 abc
+	set y
+} {abc 2}
+
+test dupobj-2 {duplicate expr object} {
+	set y {2 + 1}
+	# make y an expression
+	expr $y
+	# Now treat it as a list that needs duplicating
+	lset y 0 abc
+	set y
+} {abc + 1}
+
+test dupobj-3 {duplicate interpolated object} {
+	set w 4
+	set y def($w)
+	# Now treat it as a namespace object that needs duplicating
+	namespace eval $y {}
+	apply [list x {set x 1} $y] x
+} {1}
+
+test dupobj-4 {duplicate dict subst object} {
+	# make y a dict subst
+	set def(4) 5
+	set y def(4)
+	incr $y
+	# Now treat it as a namespace object that needs duplicating
+	namespace eval $y {}
+	apply [list x {set x 1} $y] x
+} {1}
+
+test dupobj-5 {duplicate object with no string rep} {
+	# A sorted list has no string rep
+	set y [lsort {abc def}]
+	# Now treat it as a namespace object that needs duplicating
+	namespace eval $y {}
+	apply [list x {set x 1} $y] x
+} {1}
+
+test dupobj-6 {duplicate object with no type dup proc} {
+	set x 6
+	incr x
+	# x is now an int, an object with no dup proc
+	# using as a namespace requires the object to be duplicated
+	namespace eval $x {
+		proc a {} {}
+		rename a ""
+	}
+} {}
+
+test dupobj-7 {duplicate scan obj} {
+	set x "%d %d"
+	scan "1 4" $x y z
+	# Now treat it as a namespace object that needs duplicating
+	namespace eval $x {}
+	apply [list x {set x 1} $x] x
+} {1}
+
+
+test script-1 {convert empty object to script} {
+	set empty [foreach a {} {}]
+	eval $empty
+} {}
+
+test ref-1 {treat something as a reference} ref {
+	set ref [ref abc tag]
+	append ref "  "
+	getref "  $ref "
+} {abc}
+
+test ref-2 {getref invalid reference} -constraints ref -body {
+	getref "<reference.<tag____>.99999999999999000000>"
+} -returnCodes error -match glob -result {invalid reference id *}
+
+test ref-3 {getref invalid reference tag} -constraints ref -body {
+	getref "<reference.<tag!%(*>.99999999999999000000>"
+} -returnCodes error -match glob -result {expected reference but got "<reference.<tag!%(*>.99999999999999000000>"}
+
+test ref-4 {finalize} ref {
+	finalize $ref
+} {}
+
+test ref-5 {finalize} ref {
+	finalize $ref cleanup
+	finalize $ref cleanup2
+	finalize $ref
+} {cleanup2}
+
+test ref-6 {finalize get invalid reference} -constraints ref -body {
+	finalize "<reference.<tag____>.99999999999999000000>"
+} -returnCodes error -match glob -result {invalid reference id *}
+
+test ref-7 {finalize set invalid reference} -constraints ref -body {
+	finalize "<reference.<tag____>.99999999999999000000>" cleanup
+} -returnCodes error -match glob -result {invalid reference id *}
+
+test collect-1 {recursive collect} ref {
+	set ref2 [ref dummy cleanup2]
+	unset ref2
+	proc cleanup2 {ref value} {
+		# Try to call collect
+		stdout puts "in cleanup2: ref=$ref, value=$value"
+		if {[collect]} {
+			error "Should return 0"
+		}
+	}
+	collect
+} {1}
+
+test scan-1 {update string of scan obj} debug-invstr {
+	set x "%d %d"
+	scan "1 4" $x y z
+	debug invstr $x
+	# x is now of scanfmt type with no string rep
+	set x
+} {%d %d}
+
+# It is too hard to do this one without debug invstr
+test index-1 {update string of index} debug-invstr {
+	set x end-1
+	lindex {a b c} $x
+	debug invstr $x
+	# x is now of index type with no string rep
+	set x
+} {end-1}
+
+test index-2 {update string of index} debug-invstr {
+	set x end
+	lindex {a b c} $x
+	debug invstr $x
+	# x is now of index type with no string rep
+	set x
+} {end}
+
+test index-3 {update string of index} debug-invstr {
+	set x 2
+	lindex {a b c} $x
+	debug invstr $x
+	# x is now of index type with no string rep
+	set x
+} {2}
+
+test index-4 {index > INT_MAX} debug-invstr {
+	set x 99999999999
+	incr x
+	# x is now of int type > INT_MAX
+	lindex {a b c} $x
+} {}
+
+test cmd-1 {standard -commands} jim {
+	expr {"length" in [string -commands]}
+} {1}
+
+test rand-1 {rand} -constraints rand -body {
+	rand 1 2 3
+} -returnCodes error -result {wrong # args: should be "rand ?min? max"}
+
+test rand-2 {rand} -constraints rand -body {
+	rand foo
+} -returnCodes error -result {expected integer but got "foo"}
+
+test rand-3 {rand} -constraints rand -body {
+	rand 2 bar
+} -returnCodes error -result {expected integer but got "bar"}
+
+test rand-4 {rand} rand {
+	string is integer [rand]
+} {1}
+
+test rand-5 {srand} rand {
+	set x [expr {srand(123)}]
+	if {$x >= 0 && $x <= 1} {
+		return 1
+	} else {
+		return 0
+	}
+} {1}
+
+test lreverse-1 {lreverse} -body {
+	lreverse
+} -returnCodes error -result {wrong # args: should be "lreverse list"}
+
+test divide-1 {expr} -constraints jim -body {
+	/ 2 0
+} -returnCodes error -result {Division by zero}
+
+test package-1 {package names} jim {
+	expr {"stdlib" in [package names]}
+} {1}
+
+test variable-1 {upvar to invalid name} -constraints jim -body {
+	proc a {} {
+		upvar var\0null abc
+		incr abc
+	}
+	a
+} -returnCodes error -result {variable name contains embedded null}
+
+test variable-2 {upvar to global name} {
+	set ::globalvar 1
+	proc a {} {
+		upvar ::globalvar abc
+		incr abc
+	}
+	a
+} {2}
+
+test unknown-1 {recursive unknown} -body {
+	# unknown will call itself a maximum of 50 times before simply returning an error
+	proc unknown {args} {
+		nonexistent 3
+	}
+	nonexistent 4
+} -returnCodes error -result {invalid command name "nonexistent"} -cleanup {
+	rename unknown {}
+}
+
+test interpolate-1 {interpolate} -body {
+	unset -nocomplain a
+	for {set i 0} {$i < 10} {incr i} {
+		set a($i) $i
+	}
+	set x "$a(0)$a(1)$a(2)$a(3)$a(4)$a(5)$a(6)$a(7)$a(8)$a(9)$nonexistent"
+	set x
+} -returnCodes error -result {can't read "nonexistent": no such variable}
+
+
+testreport

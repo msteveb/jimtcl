@@ -44,8 +44,9 @@ foreach {pat str exp} {
 	a{1,2}? baaaad a
 	a{3,4}? baaaad aaa
 	a{5,6}? baaaad {}
+	(a|b){3,4}?def baaaad {}
 	{\d{1,3}} 239 239
-	(aa|bb)?c xabbaac {aac aa}
+	(aa|bb)?cdef xcdabbaacdef {aacdef aa}
 	(a|y)+ bac {a a}
 	(a|y){1,} bac {a a}
 	(a|y)* bac {{} {}}
@@ -84,6 +85,13 @@ foreach {pat str exp} {
 	(a|y){5,6}? baaaad {}
     {[[:alpha:]]+} _bcd56_ef bcd
     {[[:alnum:]]+} _bcd56_ef bcd56
+    {[[:blank:]]+} "_b \t\n6cAF" "{ \t}"
+    {[[:upper:]]+} "_b \t\n6cAF" {AF}
+    {[[:lower:]]+} "_b \t\n6cAF" {b}
+    {[[:cntrl:]]+} _bcd\x04z56_ef "\x04"
+    {[[:print:]]+} "\v _b \t\n6cAF" {{ _b }}
+    {[[:graph:]]+} " _,b \t\n6cAF" {_,b}
+    {[[:punct:]]+} bcd56_,ef _,
     {[\w]+} :_bcd56_ef _bcd56_ef
     {[[:space:]]+} "_bc \t\r\n\f\v_" "{ \t\r\n\f\v}"
     {[\x41-\x43]+} "_ABCD_" ABC
@@ -96,6 +104,8 @@ foreach {pat str exp} {
 	####((a*)*b)*b aaaaaaaaaaaaaaaaaaaaaaaaab {b {} {}}
 	####(a*)* aab {aa {}}
 	{^([^:=]*)(:)?(=)?$} version {version version {} {}}
+	{\Aab.} abc,abd abc
+	{de.\Z} def,deh,dei dei
 } {
 	if {[string match #* $pat]} {
 		continue

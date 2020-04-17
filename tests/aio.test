@@ -1,0 +1,121 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+
+makeFile {test-data} testdata.in 
+set f [open testdata.in]
+
+defer {
+	$f close
+}
+
+test aio-1.1 {seek usage} -body {
+	$f seek
+} -returnCodes error -match glob -result {wrong # args: should be "* seek offset ?start|current|end"}
+
+test aio-1.2 {seek start} -body {
+	$f seek 2
+	$f tell
+} -result {2}
+
+test aio-1.3 {seek start} -body {
+	$f seek 4 start
+	$f tell
+} -result {4}
+
+test aio-1.4 {read after seek} -body {
+	set c [$f read 1]
+	list $c [$f tell]
+} -result {- 5}
+
+test aio-1.5 {seek backwards} -body {
+	$f seek -2 current
+	set c [$f read 1]
+	list $c [$f tell]
+} -result {t 4}
+
+test aio-1.6 {seek from end} -body {
+	$f seek -2 end
+	set c [$f read 2]
+	list $c [$f tell]
+} -result [list "a\n" 10]
+
+test aio-1.7 {seek usage} -body {
+	$f seek 4 bad
+} -returnCodes error -match glob -result {wrong # args: should be "* seek offset ?start|current|end"}
+
+test aio-1.8 {seek usage} -body {
+	$f seek badint
+} -returnCodes error -match glob -result {expected integer but got "badint"}
+
+test aio-1.9 {seek bad pos} -body {
+	$f seek -20
+} -returnCodes error -match glob -result {testdata.in: Invalid argument}
+
+test aio-2.1 {read usage} -body {
+	$f read -nonoption
+} -returnCodes error -result {expected integer but got "-nonoption"}
+
+test aio-2.2 {read usage} -body {
+	$f read badint
+} -returnCodes error -result {expected integer but got "badint"}
+
+test aio-2.3 {read -ve len} -body {
+	$f read " -20"
+} -returnCodes error -result {invalid parameter: negative len}
+
+test aio-2.4 {read too many args} -body {
+	$f read 20 extra
+} -returnCodes error -match glob -result {wrong # args: should be "* read ?-nonewline? ?len?"}
+
+test aio-3.1 {copy to invalid fh} -body {
+	$f copy lambda
+} -returnCodes error -result {Not a filehandle: "lambda"}
+
+test aio-3.2 {copy bad length} -body {
+	$f copy stdout invalid
+} -returnCodes error -result {expected integer but got "invalid"}
+
+set badvar a
+
+test aio-4.1 {gets invalid var} -body {
+	$f gets badvar(abc)
+} -returnCodes error -result {can't set "badvar(abc)": variable isn't array}
+
+test aio-5.1 {puts usage} -body {
+	stdout puts -badopt abc
+} -returnCodes error -result {wrong # args: should be "stdout puts ?-nonewline? str"}
+
+test aio-6.1 {eof} {
+	$f seek 0
+	$f eof
+} {0}
+
+test aio-6.2 {eof} {
+	# eof won't trigger until we try to read
+	$f seek 0 end
+	$f eof
+} {0}
+
+test aio-6.3 {eof} {
+	$f read 1
+	$f eof
+} {1}
+
+test aio-7.1 {close args} -body {
+	$f close badopt
+} -returnCodes error -result {bad option "badopt": must be -nodelete, r, or w}
+
+test aio-7.2 {close w on non-socket} -body {
+	$f close w
+} -returnCodes error -result {Socket operation on non-socket}
+
+test aio-7.3 {close -nodelete on non-socket} -body {
+	$f close -nodelete
+} -returnCodes error -result {not supported}
+
+test aio-8.1 {filename} {
+	$f filename
+} testdata.in
+
+testreport

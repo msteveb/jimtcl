@@ -149,4 +149,24 @@ test utf8-8.4 {Longer sequences} {
 	string length \u12000
 } 2
 
+test utf8-8.5 {\U} jim {
+	set x \U000000b5
+} \ub5
+
+test utf8-8.6 {\u invalid} {
+	set x "\u{0000000b5}"
+} "u{0000000b5}"
+
+test utf8-9.1 {string totitle} {
+	string totitle \u01c4-test
+} "\u01c5-test"
+
+test utf8-9.2 {string totitle} {
+	string totitle \u01c5-test
+} "\u01c5-test"
+
+test utf8-9.3 {string totitle} {
+	string totitle abc-\u01c4
+} "Abc-\u01c6"
+
 testreport

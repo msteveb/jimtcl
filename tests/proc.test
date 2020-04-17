@@ -246,7 +246,9 @@ test proc-old-5.3 {error conditions} {
     list [catch {proc tproc b c d e} msg]
 } {1}
 
-
+test proc-5.4 {proc double args} -body {
+    proc a {args args} {}
+} -returnCodes error -result {'args' specified more than once}
 
 test proc-old-5.6 {error conditions} {
     list [catch {proc tproc {{} y} {return foo}} msg] $msg
