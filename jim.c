@@ -4120,19 +4120,27 @@ int Jim_RenameCommand(Jim_Interp *interp, const char *oldName, const char *newNa
         Jim_SetResultFormatted(interp, "can't rename to \"%s\": command already exists", newName);
     }
     else {
-        /* Add the new name first */
         cmdPtr = Jim_GetHashEntryVal(he);
-        JimIncrCmdRefCount(cmdPtr);
-        JimUpdateProcNamespace(interp, cmdPtr, fqnew);
-        Jim_AddHashEntry(&interp->commands, fqnew, cmdPtr);
+        if (cmdPtr->prevCmd) {
+            /* If the command replaced another command with 'local', renaming it
+             * would break the usage of upcall, so don't allow it.
+             */
+            Jim_SetResultFormatted(interp, "can't rename local command \"%s\"", oldName);
+        }
+        else {
+            /* Add the new name first */
+            JimIncrCmdRefCount(cmdPtr);
+            JimUpdateProcNamespace(interp, cmdPtr, fqnew);
+            Jim_AddHashEntry(&interp->commands, fqnew, cmdPtr);
 
-        /* Now remove the old name */
-        Jim_DeleteHashEntry(&interp->commands, fqold);
+            /* Now remove the old name */
+            Jim_DeleteHashEntry(&interp->commands, fqold);
 
-        /* Increment the epoch */
-        Jim_InterpIncrProcEpoch(interp);
+            /* Increment the epoch */
+            Jim_InterpIncrProcEpoch(interp);
 
-        ret = JIM_OK;
+            ret = JIM_OK;
+        }
     }
 
     JimFreeQualifiedName(interp, qualifiedOldNameObj);

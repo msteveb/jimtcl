@@ -240,9 +240,28 @@ test upcall-1.4 "upcall errors" {
 	list [catch {upcall a} msg] $msg
 } {1 {no previous command: "a"}}
 
-test upcall-1.4 "upcall errors" {
+test upcall-1.5 "upcall errors" {
 	proc a {} {upcall a}
 	list [catch a msg] $msg
 } {1 {no previous command: "a"}}
+
+test upcall-1.6 "delete local command" -setup {
+	# First make sure a is gone
+	rename a ""
+} -body {
+	local proc a {x} {list 2 $x}
+	# It is OK to rename this local proc
+	rename a b
+	b 5
+} -result {2 5} -cleanup {
+	rename b ""
+}
+
+test upcall-1.6 {delete local command with upcall} -body {
+	local proc a {x} {list 2 $x}
+	local proc a {x} {list 3 $x}
+	# Can't rename a because it would invalide upcalls from a
+	rename a c
+} -returnCodes error -result {can't rename local command "a"}
 
 testreport
