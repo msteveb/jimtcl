@@ -110,4 +110,11 @@ test list-3.1 {SetListFromAny and lrange/concat results} {
     slowsort {fred julie alex carol bill annie}
 } {alex annie bill carol fred julie}
 
+test list-4.1 {lreverse} {
+    lreverse {}
+} {}
+test list-4.2 {lreverse} {
+    lreverse {1 2 3}
+} {3 2 1}
+
 testreport

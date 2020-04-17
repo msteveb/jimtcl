@@ -977,4 +977,44 @@ test string-23.4 {string cat} {
     string cat $abc (def)
 } {123(def)}
 
+test string-24.1 {string byterange} {
+    list [catch {string byterange} msg]
+} {1}
+test string-24.2 {string byterange} {
+    list [catch {string byterange a 1} msg]
+} {1}
+test string-24.3 {string byterange} {
+    list [catch {string byterange a 1 2 3} msg]
+} {1}
+test string-24.4 {string byterange} {
+    string byterange abcdefghijklmnop 2 14
+} {cdefghijklmno}
+test string-24.5 {string byterange, last > length} {
+    string byterange abcdefghijklmnop 7 1000
+} {hijklmnop}
+test string-24.6 {string byterange} {
+    string byterange abcdefghijklmnop 10 end
+} {klmnop}
+test string-24.7 {string byterange, last < first} {
+    string byterange abcdefghijklmnop 10 9
+} {}
+test string-24.8 {string byterange, first < 0} {
+    string byterange abcdefghijklmnop -3 2
+} {abc}
+test string-24.9 {string byterange} {
+    string byterange abcdefghijklmnop -3 -2
+} {}
+test string-24.10 {string byterange, utf8} {
+    string byterange \u00b5\u00b6 0 1
+} \u00b5
+test string-24.11 {string byterange, slice utf8 } {
+    string byterange \u00b5\u00b6 1 2
+} \xb5\xc2
+test string-24.12 {string byterange, full range} {
+    string byterange abcdef 0 end
+} abcdef
+test string-24.13 {string byterange, invalid range} -body {
+    string byterange abcdef foo bar
+} -returnCodes error -result {bad index "foo": must be integer?[+-]integer? or end?[+-]integer?}
+
 testreport

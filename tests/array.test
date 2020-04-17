@@ -131,4 +131,24 @@ test array-1.23 "array exists non-array" -body {
 	array exists x
 } -result {0}
 
+test array-2.1 {array -help} -constraints jim -body {
+    array -help
+} -match glob -result {Usage: "array command ... ", where command is one of: *}
+
+test array-2.2 {array -help get} -constraints jim -body {
+    array -help get
+} -result {Usage: array get arrayName ?pattern?}
+
+test array-2.3 {array -help ambiguous} -constraints jim -body {
+    array -help s
+} -match glob -result {Usage: "array command ... ", where command is one of: *}
+
+test array-2.3 {array -help nomatch} -constraints jim -body {
+    array -help unknown
+} -match glob -result {Usage: "array command ... ", where command is one of: *}
+
+test array-2.4 {array ambiguous} -constraints jim -body {
+    array s
+} -returnCodes error -match glob -result {array, ambiguous command "s": should be *}
+
 testreport

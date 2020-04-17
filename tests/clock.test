@@ -30,6 +30,10 @@ test clock-3.6 {clock format tests} -body {
     clock format foo
 } -returnCodes error -result {expected integer but got "foo"}
 
+test clock-3.7 {clock format tests} -body {
+    clock format 10000 -format [string repeat x 1000] -gmt true
+} -returnCodes error -result {format string too long or invalid time}
+
 test clock-3.8 {clock format tests} -body {
     clock format a b c d e g
 } -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
@@ -47,8 +51,46 @@ test clock-3.11 {clock format tests} {
     clock format 123 -format "x"
 } x
 
+test clock-3.12 {clock format tests} -body {
+	clock format  123 -gmt blah
+} -returnCodes error -result {expected boolean but got "blah"}
+
+test clock-3.13 {clock format tests} -body {
+	clock format 123 odd option count
+} -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
+
 test clock-4.1 {clock scan tests} clockscan {
     clock scan {Sun Nov 04 03:02:46 AM 1990} -format {%a %b %d %I:%M:%S %p %Y} -gmt true
 } 657687766
+
+test clock-4.2 {clock scan tests} -constraints clockscan -body {
+    clock scan odd number arg count
+} -returnCodes error -result {wrong # args: should be "clock scan str -format format ?-gmt boolean?"}
+
+test clock-4.3 {clock scan tests} -constraints clockscan -body {
+    clock scan str -bad option
+} -returnCodes error -result {bad option "-bad": must be -format, or -gmt}
+
+test clock-4.4 {clock scan tests} -constraints clockscan -body {
+    clock scan str -gmt true
+} -returnCodes error -result {wrong # args: should be "clock scan str -format format ?-gmt boolean?"}
+
+test clock-4.5 {clock scan tests} -constraints clockscan -body {
+    clock scan str -format "%H" -gmt true
+} -returnCodes error -result {Failed to parse time according to format}
+
+test clock-5.1 {clock seconds} {
+	clock format [clock seconds]
+	list 1
+} {1}
+
+test clock-5.2 {clock millis, micros} {
+	set ms [clock millis]
+	set us [clock micros]
+	set delta [expr {abs($us - $ms * 1000)}]
+	if {$delta > 250000} {
+		error "clock millis and micros differ by too much"
+	}
+} {}
 
 testreport
