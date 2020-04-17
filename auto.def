@@ -103,13 +103,18 @@ if {[cctest -cflags -fno-asynchronous-unwind-tables]} {
 }
 if {[opt-bool coverage]} {
     if {[cctest -link 1 -cflags --coverage]} {
-        # Disable ccache when using coverage
+        # When using coverage, disable ccache and compiler optimisation
         define CCACHE ""
-        define-append CCOPTS --coverage
+        define-append CCOPTS --coverage -O0
         define-append LDFLAGS --coverage
         define COVERAGE 1
-        if {![cc-check-progs gcovr]} {
-            lappend warnings "Note: gcovr is not available, falling back to gcov"
+        if {[cc-check-progs gcovr]} {
+            define COVERAGE_TOOL gcovr
+        } elseif {[cc-check-progs lcov] && [cc-check-progs genhtml]} {
+            define COVERAGE_TOOL lcov
+        } else {
+            define COVERAGE_TOOL gcov
+            lappend warnings "Note: Neither lcov nor gcovr is available, falling back to gcov"
         }
     } else {
         lappend warnings "Warning: --coverage specified, but compiler does not support --coverage"

@@ -19,6 +19,9 @@ CXX = @CCACHE@ @CXX@
 RANLIB = @RANLIB@
 AR = @AR@
 STRIP = @STRIP@
+@if COVERAGE
+export CCACHE_DISABLE := 1
+@endif
 
 # Configuration
 
@@ -184,9 +187,15 @@ Tcl.html: jim_tcl.txt @srcdir@/make-index
 
 coverage:
 @if COVERAGE
-@if GCOVR
+@if COVERAGE_TOOL eq "lcov"
+	@LCOV@ -c --rc genhtml_branch_coverage=1 -d . -o lcov.txt
+	@GENHTML@ --rc genhtml_branch_coverage=1 -o coverage_html lcov.txt > genhtml_output.txt
+	@LCOV@ --summary lcov.txt
+@endif
+@if COVERAGE_TOOL eq "gcovr"
 	@GCOVR@ -s -e 'conftest*' --html --html-details --output coverage.html
-@else
+@endif
+@if COVERAGE_TOOL eq "gcov"
 	gcov @srcdir@/*.c
 @endif
 @else
@@ -196,7 +205,8 @@ coverage:
 clean:
 	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c
 @if COVERAGE
-	rm -f *.gcno *.gcov *.gcda coverage*.html
+	rm -f *.gcno *.gcov *.gcda */*.gcno */*.gcda */*.gcov coverage*.html
+	rm -rf coverage_html lcov.txt genhtml_output.txt
 @endif
 
 distclean: clean
