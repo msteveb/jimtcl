@@ -4,15 +4,22 @@
 set testinfo(verbose) 0
 set testinfo(numpass) 0
 set testinfo(stoponerror) 0
+set testinfo(template) 0
 set testinfo(numfail) 0
 set testinfo(numskip) 0
 set testinfo(numtests) 0
 set testinfo(reported) 0
 set testinfo(failed) {}
 
+# -verbose or $testverbose show OK/ERR of individual tests
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
 	incr testinfo(verbose)
 }
+# -template causes failed tests to output a template test that would succeed
+if {[lsearch $argv "-template"] >= 0} {
+	incr testinfo(template)
+}
+# -stoponerror or $stoponerror stops on the first failed test
 if {[lsearch $argv "-stoponerror"] >= 0 || [info exists env(stoponerror)]} {
 	incr testinfo(stoponerror)
 }
@@ -51,6 +58,13 @@ proc needs {type what {packages {}}} {
 		return
 	}
 	error "Unknown needs type: $type"
+}
+
+# Simplify setting constraints for whether commands exist
+proc testCmdConstraints {args} {
+	foreach cmd $args {
+		testConstraint $cmd [expr {[info commands $cmd] ne {}}]
+	}
 }
 
 proc skiptest {{msg {}}} {
@@ -182,7 +196,8 @@ proc bytestring {x} {
 
 # Note: We don't support -output or -errorOutput yet
 proc test {id descr args} {
-	set a [dict create -returnCodes {ok return} -match exact -result {} -constraints {} -body {} -setup {} -cleanup {}]
+	set default [dict create -returnCodes {ok return} -match exact -result {} -constraints {} -body {} -setup {} -cleanup {}]
+	set a $default
 	if {[lindex $args 0] ni [dict keys $a]} {
 		if {[llength $args] == 2} {
 			lassign $args body result constraints
@@ -225,8 +240,10 @@ proc test {id descr args} {
 
 	if {[info return $rc] ni $a(-returnCodes) && $rc ni $a(-returnCodes)} {
 		set ok 0
-		set expected "rc=$a(-returnCodes) result=$a(-result)"
-		set result "rc=[info return $rc] result=$result"
+		set expected "rc=[list $a(-returnCodes)] result=[list $a(-result)]"
+		set actual "rc=[info return $rc] result=[list $result]"
+		# Now for the template, update -returnCodes
+		set a(-returnCodes) [info return $rc]
 	} else {
 		if {$a(-match) eq "exact"} {
 			set ok [string equal $a(-result) $result]
@@ -237,7 +254,8 @@ proc test {id descr args} {
 		} else {
 			return -code error "$id: unknown match type: $a(-match)"
 		}
-		set expected $a(-result)
+		set actual [list $result]
+		set expected [list $a(-result)]
 	}
 
 	if {$ok} {
@@ -257,9 +275,23 @@ proc test {id descr args} {
 	} else {
 		set source [error_source]
 	}
-	puts "Expected: '$expected'"
-	puts "Got     : '$result'"
+	puts "Expected: $expected"
+	puts "Got     : $actual"
 	puts ""
+	if {$::testinfo(template)} {
+		# We can't really do -match glob|regexp so
+		# just store the result as-is for -match exact
+		set a(-result) $result
+
+		set template [list test $id $descr]
+		foreach key {-constraints -setup -body -returnCodes -match -result -cleanup} {
+			if {$a($key) ne $default($key)} {
+				lappend template $key $a($key)
+			}
+		}
+		puts "### template"
+		puts $template\n
+	}
 	incr ::testinfo(numfail)
 	lappend ::testinfo(failed) [list $id $descr $source $expected $result]
 	if {$::testinfo(stoponerror)} {
