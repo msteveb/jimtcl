@@ -129,15 +129,13 @@ test signal-2.4 {signal block} {
 	signal default SIGINT
 } {}
 
-# should complain about unknown signal
 test signal-2.5 {signal check invalid} -body {
 	signal check NONEXISTENT
-} -returnCodes error -result {wrong # args: should be "signal check ?-clear? ?signals ...?"}
+} -returnCodes error -result {unknown signal NONEXISTENT}
 
-# should complain about unknown signal
 test signal-2.6 {signal check invalid num} -body {
 	signal check 999999
-} -returnCodes error -result {wrong # args: should be "signal check ?-clear? ?signals ...?"}
+} -returnCodes error -result {unknown signal 999999}
 
 test signal-2.7 {signal throw invalid} -body {
 	signal throw NONEXISTENT

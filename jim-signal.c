@@ -293,7 +293,7 @@ static int signal_cmd_check(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             int sig = find_signal_by_name(interp, Jim_String(argv[i]));
 
             if (sig < 0 || sig >= MAX_SIGNALS) {
-                return -1;
+                return JIM_ERR;
             }
             mask |= sig_to_bit(sig);
         }
