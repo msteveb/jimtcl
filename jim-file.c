@@ -816,7 +816,7 @@ static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (linkLength == -1) {
         Jim_Free(linkValue);
-        Jim_SetResultFormatted(interp, "couldn't readlink \"%#s\": %s", argv[0], strerror(errno));
+        Jim_SetResultFormatted(interp, "could not read link \"%#s\": %s", argv[0], strerror(errno));
         return JIM_ERR;
     }
     linkValue[linkLength] = 0;

@@ -282,7 +282,7 @@ test link-1.4 {file sym link} -constraints filelink -body {
 
 test link-1.5 {file readlink, bad link} -constraints filelink -body {
 	file readlink [info script]
-} -returnCodes error -match glob -result {could*read*link "*file.test": *}
+} -returnCodes error -match glob -result {could not read*link "*file.test": *}
 
 test link-1.6 {file link badopt} -constraints filelink -body {
 	file link -bad name1 name2
