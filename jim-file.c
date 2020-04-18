@@ -254,10 +254,12 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *path = Jim_String(objPtr);
     const char *p = strrchr(path, '/');
 
-    if (!p && path[0] == '.' && path[1] == '.' && path[2] == '\0') {
-        Jim_SetResultString(interp, "..", -1);
-    } else if (!p) {
+    if (!p) {
         Jim_SetResultString(interp, ".", -1);
+    }
+    else if (p[1] == 0) {
+        /* Trailing slash so do nothing */
+        Jim_SetResult(interp, objPtr);
     }
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
@@ -306,18 +308,16 @@ static int file_cmd_split(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
-    const char *path = Jim_String(objPtr);
+    const char *path = Jim_String(argv[0]);
     const char *lastSlash = strrchr(path, '/');
     const char *p = strrchr(path, '.');
 
     if (p == NULL || (lastSlash != NULL && lastSlash > p)) {
-        Jim_SetResult(interp, objPtr);
+        Jim_SetResult(interp, argv[0]);
     }
     else {
         Jim_SetResultString(interp, path, p - path);
     }
-    Jim_DecrRefCount(interp, objPtr);
     return JIM_OK;
 }
 

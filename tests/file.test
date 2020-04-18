@@ -122,9 +122,8 @@ test dirname-1.4 "Trailing slash" {
 } {.}
 
 test dirname-1.5 ".." {
-	# Should be . to match Tcl
 	file dirname ..
-} {..}
+} {.}
 
 test dirname-1.6 "abc/.." {
 	file dirname abc/..
@@ -209,6 +208,14 @@ test rootname-1.5 {file rootname basic} -body {
 test rootname-1.6 {file rootname odd cases} -body {
 	file rootname abc/def.c/ghi
 } -result {abc/def.c/ghi}
+
+test rootname-1.7 {file rootname odd cases} -body {
+	file rootname abc/def.c/
+} -result {abc/def.c/}
+
+test rootname-1.8 {file rootname odd cases} -body {
+	file rootname abc/def.c//
+} -result {abc/def.c//}
 
 test readable-1.1 {file readable} {
 	file readable [info script]
