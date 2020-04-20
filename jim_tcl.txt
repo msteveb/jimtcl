@@ -62,6 +62,7 @@ Changes between 0.78 and 0.79
 6. Add support for `json::encode` and `json::decode`
 7. `aio tty` now allows setting +echo+ without full +raw+ mode
 8. `regsub` now fully supports +{backslash}A+
+9. Add `socket pty` to create a pseudo-tty pair
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4980,6 +4981,10 @@ Various socket types may be created.
 +*socket pair*+::
     A socketpair (see socketpair(2)). Like `pipe`, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
+
++*socket pty*+::
+    A pseudo-tty pair (see openpty(3)). Like `pipe`, this command returns
+    a list of two channels: {master slave}. These channels are both readable and writable.
 
 This command creates a socket connected (client) or bound (server) to the given
 address.

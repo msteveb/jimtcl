@@ -51,6 +51,12 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif
+#ifdef HAVE_PTY_H
+#include <pty.h>
+#endif
 
 #include "jim.h"
 #include "jimiocompat.h"
@@ -2001,7 +2007,7 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     return af;
 }
 
-#if defined(HAVE_PIPE) || (defined(HAVE_SOCKETPAIR) && UNIX_SOCKETS)
+#if defined(HAVE_PIPE) || (defined(HAVE_SOCKETPAIR) && UNIX_SOCKETS) || defined(HAVE_OPENPTY)
 /**
  * Create a pair of channels. e.g. from pipe() or socketpair()
  */
@@ -2046,6 +2052,26 @@ static int JimAioPipeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
+#ifdef HAVE_OPENPTY
+static int JimAioOpenPtyCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int p[2];
+    static const char * const mode[2] = { "r+", "w+" };
+
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
+
+    if (openpty(&p[0], &p[1], NULL, NULL, NULL) != 0) {
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+
+    return JimMakeChannelPair(interp, p, argv[0], "aio.pty%ld", 0, mode);
+}
+#endif
+
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 
 static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -2061,6 +2087,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         "stream.server",
         "pipe",
         "pair",
+        "pty",
         NULL
     };
     enum
@@ -2075,6 +2102,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         SOCK_STREAM_SERVER,
         SOCK_STREAM_PIPE,
         SOCK_STREAM_SOCKETPAIR,
+        SOCK_STREAM_PTY,
     };
     int socktype;
     int sock;
@@ -2220,6 +2248,13 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             type = SOCK_DGRAM;
             family = PF_UNIX;
             break;
+#endif
+#ifdef HAVE_OPENPTY
+        case SOCK_STREAM_PTY:
+            if (addr || ipv6) {
+                goto wrongargs;
+            }
+            return JimAioOpenPtyCommand(interp, 1, &argv[1]);
 #endif
 
         default:
