@@ -9016,7 +9016,7 @@ static struct ExprTree *ExprTreeCreateTree(Jim_Interp *interp, const ParseTokenL
     builder.exprObjPtr = exprObjPtr;
     builder.fileNameObj = fileNameObj;
     /* The bytecode will never produce more nodes than there are tokens - 1 (for EOL)*/
-    builder.nodes = malloc(sizeof(struct JimExprNode) * (tokenlist->count - 1));
+    builder.nodes = Jim_Alloc(sizeof(struct JimExprNode) * (tokenlist->count - 1));
     memset(builder.nodes, 0, sizeof(struct JimExprNode) * (tokenlist->count - 1));
     builder.next = builder.nodes;
     Jim_InitStack(&builder.stack);
