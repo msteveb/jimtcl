@@ -139,6 +139,24 @@ test namespace-1.28 {namespace variable with array element syntax} -body {
 	}
 } -returnCodes error -result {can't define "x(3)": name refers to an element in an array}
 
+
+test namespace-1.29 {namespace variable too many args} -body {
+	namespace eval ns1 {
+		variable x(3) y a b c
+	}
+} -returnCodes error -result {wrong # args: should be "variable name ?value?"}
+
+test namespace-1.30 {namespace current too many args} -body {
+	namespace current a
+} -returnCodes error -result {wrong # args: should be "namespace current"}
+
+# TODO: Add tests for canonical option
+
+test namespace-1.31 {namespace canonical too many args} -body {
+	namespace canonical a b c
+} -returnCodes error -result {wrong # args: should be "namespace canonical ?current? ?name?"}
+
+
 unset -nocomplain ns1::x ns1::y
 
 # -----------------------------------------------------------------------
@@ -286,6 +304,13 @@ test namespace-5.21 {querying namespace parent for explicit namespace} {
          [namespace parent nsh1::nsh2] \
          [namespace parent nsh1::nsh2::nsh3a]
 } {{} :: ::nsh1 ::nsh1::nsh2}
+
+test namespace-5.22 {query namespace parent with fully qualified names} {
+    list [namespace eval :: {namespace parent}] \
+         [namespace eval ::nsh1 {namespace parent}] \
+         [namespace eval ::nsh1::nsh2 {namespace parent}] \
+         [namespace eval nsh1::nsh2::nsh3a {namespace parent ::nsh1::nsh2}] \
+} {{} :: ::nsh1 ::nsh1}
 
 # -----------------------------------------------------------------------
 # TEST: name resolution and caching
