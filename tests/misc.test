@@ -288,8 +288,8 @@ test catch-1.6 "catch break" {
 
 test catch-1.7 "catch exit" {
 	# Normally exit would not be caught
-	dict get [info returncodes] [catch -exit {exit 5} result]
-} {exit}
+	list [dict get [info returncodes] [catch -exit {exit 5} result]] $result
+} {exit 5}
 
 test catch-1.8 "catch error has -errorinfo" {
 	set rc [catch {set undefined} msg opts]

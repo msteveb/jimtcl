@@ -13764,6 +13764,7 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (argc == 2) {
         if (Jim_GetLong(interp, argv[1], &exitCode) != JIM_OK)
             return JIM_ERR;
+        Jim_SetResult(interp, argv[1]);
     }
     interp->exitCode = exitCode;
     return JIM_EXIT;
