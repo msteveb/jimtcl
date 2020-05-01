@@ -541,7 +541,6 @@ static Jim_Obj *JimFormatSocketAddress(Jim_Interp *interp, const union sockaddr_
         default:
             /* Otherwise just an empty address */
             addr = "";
-            fprintf(stderr, "%s:%d", __FILE__, __LINE__);
             break;
     }
 
