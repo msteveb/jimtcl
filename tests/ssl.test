@@ -1,0 +1,89 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd socket
+needs cmd alarm
+needs cmd os.fork
+testCmdConstraints load_ssl_certs
+
+#load_ssl_certs [file dirname [info script]]/certs
+#load_ssl_certs /etc/ssl/certs
+
+# Let's set up a client and a server where the client
+# simply echos everything back to the server
+
+set s [socket stream.server 1443]
+if {[os.fork] == 0} {
+	# child
+	set c [[socket stream [$s sockname]] ssl]
+	$c buffering none
+	$s close
+	sleep 0.25
+	$c readable {
+		set buf [$c read 1]
+		if {[string length $buf] == 0} {
+			incr ssldone
+			$c close
+		} else {
+			$c puts -nonewline $buf
+		}
+	}
+	vwait ssldone
+	exit 99
+}
+
+# Now set up the server
+set certpath [file dirname [info script]]
+set cs [[$s accept addr] ssl -server $certpath/certificate.pem $certpath/key.pem]
+$s close
+defer {
+	$cs close
+}
+
+# At this point, $cs is the server connection to the client in the child process
+
+test ssl-1.1 {puts/gets} {
+	$cs puts hello
+	$cs gets
+} hello
+
+# XXX this test does not work because of the interaction between
+# ssl buffering and readable
+alarm 1
+test ssl-1.2 {puts/gets} {
+	$cs puts -nonewline again
+	lmap p [range 5] {
+		set c [$cs read 1]
+		set c
+	}
+} {a g a i n}
+alarm 0
+
+test ssl-2.1 {https to google.com, gets} -body {
+	set c [[socket stream www.google.com:443] ssl]
+	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+	$c close w
+	set lines {}
+	while {[$c gets buf] >= 0} {
+		lappend lines $buf
+	}
+	$c close
+	join $lines \n
+} -match glob -result {HTTP/1.0 200 OK*</html>}
+
+test ssl-2.2 {https to google.com, read} -body {
+	set c [[socket stream www.google.com:443] ssl]
+	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+	$c close w
+	set buf [$c read]
+} -match glob -result {HTTP/1.0 200 OK*</html>}
+
+test ssl-2.3 {ssl to google.com on port 80} -body {
+	# Try to talk SSL to a non-SSL server
+	set c [[socket stream www.google.com:80] ssl]
+	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
+	$c close w
+	set buf [$c read]
+} -returnCodes error -match glob -result {error:*}
+
+testreport
