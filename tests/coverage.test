@@ -164,6 +164,14 @@ test index-4 {index > INT_MAX} debug-invstr {
 	lindex {a b c} $x
 } {}
 
+test index-5 {update string of index} debug-invstr {
+	set x -1
+	lindex {a b c} $x
+	debug invstr $x
+	# x is now of index type with no string rep
+	set x
+} {-2147483647}
+
 test cmd-1 {standard -commands} jim {
 	expr {"length" in [string -commands]}
 } {1}

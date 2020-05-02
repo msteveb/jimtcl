@@ -7414,7 +7414,7 @@ static void UpdateStringOfIndex(struct Jim_Obj *objPtr)
     }
     else {
         char buf[JIM_INTEGER_SPACE + 1];
-        if (objPtr->internalRep.intValue >= 0) {
+        if (objPtr->internalRep.intValue >= 0 || objPtr->internalRep.intValue == -INT_MAX) {
             sprintf(buf, "%d", objPtr->internalRep.intValue);
         }
         else {
