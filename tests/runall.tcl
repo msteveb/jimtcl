@@ -44,6 +44,13 @@ if {[info commands interp] eq ""} {
 			if {[info returncode $opts(-code)] eq "error"} {
 				puts [format "%16s:   --- error ($msg)" $script]
 				incr total(fail)
+			} elseif {[info return $opts(-code)] eq "exit"} {
+				# if the test explicitly called exit 99,
+				# it must be from a child process via os.fork, so
+				# silently exit
+				if {$msg eq "99"} {
+					exit 0
+				}
 			}
 
 			# Extract the counts
