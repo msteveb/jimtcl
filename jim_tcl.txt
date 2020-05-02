@@ -3574,6 +3574,10 @@ read
 
 +'fileId' *read* 'numBytes'+
 
++*read* ?*-pending*? 'fileId'+
+
++'fileId' *read* ?*-pending*?+
+
 In the first form, all of the remaining bytes are read from the file
 given by +'fileId'+; they are returned as the result of the command.
 If the +-nonewline+ switch is specified then the last
@@ -3583,6 +3587,21 @@ In the second form, the extra argument specifies how many bytes to read;
 exactly this many bytes will be read and returned, unless there are fewer than
 +'numBytes'+ bytes left in the file; in this case, all the remaining
 bytes are returned.
+
+The third form is currently only useful with SSL sockets. It reads at least 1 byte
+and then any additional data that is buffered. This allows for use in an event handler.
+e.g.
+
+----
+    $sock readable {
+        set buf [$sock read -pending]
+    }
+----
+
+This is necessary because otherwise pending data may be buffered, but
+the underlying socket will not be marked 'readable'. This featured is not
+currently supported for regular sockets, and so these sockets must be
+set to unbufferred (+$sock buffering false+) to work in an event loop.
 
 +'fileId'+ must be +stdin+ or the return value from a previous call
 to `open`; it must refer to a file that was opened for reading.
@@ -4753,8 +4772,8 @@ aio
 +$handle *puts ?-nonewline?* 'str'+::
     Write the string, with newline unless -nonewline
 
-+$handle *read ?-nonewline?* '?len?'+::
-    Read and return bytes from the stream. To eof if no len.
++$handle *read ?-nonewline|-pending*|len?'+::
+    Read and return bytes from the stream. To eof if no len. See `read`.
 
 +$handle *recvfrom* 'maxlen ?addrvar?'+::
     Receives a message from the handle via recvfrom(2) and returns it.

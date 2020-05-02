@@ -58,7 +58,7 @@ test aio-1.9 {seek bad pos} -body {
 
 test aio-2.1 {read usage} -body {
 	$f read -nonoption
-} -returnCodes error -result {expected integer but got "-nonoption"}
+} -returnCodes error -result {bad option "-nonoption": must be -nonewline, or -pending}
 
 test aio-2.2 {read usage} -body {
 	$f read badint
@@ -70,7 +70,11 @@ test aio-2.3 {read -ve len} -body {
 
 test aio-2.4 {read too many args} -body {
 	$f read 20 extra
-} -returnCodes error -match glob -result {wrong # args: should be "* read ?-nonewline? ?len?"}
+} -returnCodes error -match glob -result {wrong # args: should be "* read ?-nonewline|-pending|len?"}
+
+test aio-2.5 {read -pending on non-ssl} -body {
+	$f read -pending
+} -returnCodes error -result {-pending not supported on this connection type}
 
 test aio-3.1 {copy to invalid fh} -body {
 	$f copy lambda

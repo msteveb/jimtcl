@@ -2,7 +2,6 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 needs cmd socket
-needs cmd alarm
 needs cmd os.fork
 testCmdConstraints load_ssl_certs
 
@@ -16,11 +15,12 @@ set s [socket stream.server 1443]
 if {[os.fork] == 0} {
 	# child
 	set c [[socket stream [$s sockname]] ssl]
-	$c buffering none
 	$s close
 	sleep 0.25
 	$c readable {
-		set buf [$c read 1]
+		# when we read we need to also read any pending data,
+		# otherwise readable won't retrigger
+		set buf [$c read -pending]
 		if {[string length $buf] == 0} {
 			incr ssldone
 			$c close
@@ -47,9 +47,6 @@ test ssl-1.1 {puts/gets} {
 	$cs gets
 } hello
 
-# XXX this test does not work because of the interaction between
-# ssl buffering and readable
-alarm 1
 test ssl-1.2 {puts/gets} {
 	$cs puts -nonewline again
 	lmap p [range 5] {
@@ -57,7 +54,6 @@ test ssl-1.2 {puts/gets} {
 		set c
 	}
 } {a g a i n}
-alarm 0
 
 test ssl-2.1 {https to google.com, gets} -body {
 	set c [[socket stream www.google.com:443] ssl]

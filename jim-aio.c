@@ -95,6 +95,7 @@
 
 #define AIO_KEEPOPEN 1
 #define AIO_NODELETE 2
+#define AIO_EOF 4
 
 #if defined(JIM_IPV6)
 #define IPV6 1
@@ -150,6 +151,8 @@ typedef struct {
     int (*error)(const struct AioFile *af);
     const char *(*strerror)(struct AioFile *af);
     int (*verify)(struct AioFile *af);
+    int (*eof)(struct AioFile *af);
+    int (*pending)(struct AioFile *af);
 } JimAioFopsType;
 
 typedef struct AioFile
@@ -157,7 +160,7 @@ typedef struct AioFile
     FILE *fp;
     Jim_Obj *filename;
     int type;
-    int openFlags;              /* AIO_KEEPOPEN? keep FILE* */
+    int flags;              /* AIO_KEEPOPEN? keep FILE* */
     int fd;
     Jim_Obj *rEvent;
     Jim_Obj *wEvent;
@@ -210,13 +213,20 @@ static const char *stdio_strerror(struct AioFile *af)
     return strerror(errno);
 }
 
+static int stdio_eof(struct AioFile *af)
+{
+    return feof(af->fp);
+}
+
 static const JimAioFopsType stdio_fops = {
     stdio_writer,
     stdio_reader,
     stdio_getline,
     stdio_error,
     stdio_strerror,
-    NULL
+    NULL, /* verify */
+    stdio_eof,
+    NULL, /* pending */
 };
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -228,35 +238,64 @@ static int ssl_writer(struct AioFile *af, const char *buf, int len)
     return SSL_write(af->ssl, buf, len);
 }
 
+static int ssl_pending(struct AioFile *af)
+{
+    return SSL_pending(af->ssl);
+}
+
 static int ssl_reader(struct AioFile *af, char *buf, int len)
 {
-    return SSL_read(af->ssl, buf, len);
+    int ret = SSL_read(af->ssl, buf, len);
+    switch (SSL_get_error(af->ssl, ret)) {
+    case SSL_ERROR_NONE:
+        return ret;
+    case SSL_ERROR_SYSCALL:
+    case SSL_ERROR_ZERO_RETURN:
+        if (errno != EAGAIN) {
+            af->flags |= AIO_EOF;
+        }
+        return 0;
+    case SSL_ERROR_SSL:
+    default:
+        if (errno == EAGAIN) {
+            return 0;
+        }
+        af->flags |= AIO_EOF;
+        return -1;
+    }
+}
+
+static int ssl_eof(struct AioFile *af)
+{
+    return (af->flags & AIO_EOF);
 }
 
 static const char *ssl_getline(struct AioFile *af, char *buf, int len)
 {
     size_t i;
-    for (i = 0; i < len + 1; i++) {
-        if (SSL_read(af->ssl, &buf[i], 1) != 1) {
-            if (i == 0) {
-                return NULL;
-            }
+    for (i = 0; i < len - 1 && !ssl_eof(af); i++) {
+        int ret = ssl_reader(af, &buf[i], 1);
+        if (ret != 1) {
             break;
         }
         if (buf[i] == '\n') {
+            i++;
             break;
         }
     }
     buf[i] = '\0';
+    if (i == 0 && ssl_eof(af)) {
+        return NULL;
+    }
     return buf;
 }
 
 static int ssl_error(const struct AioFile *af)
 {
-    if (ERR_peek_error() == 0) {
-        return JIM_OK;
+    int ret = SSL_get_error(af->ssl, 0);
+    if (ret == SSL_ERROR_SYSCALL || ret == 0) {
+        return stdio_error(af);
     }
-
     return JIM_ERR;
 }
 
@@ -295,7 +334,9 @@ static const JimAioFopsType ssl_fops = {
     ssl_getline,
     ssl_error,
     ssl_strerror,
-    ssl_verify
+    ssl_verify,
+    ssl_eof,
+    ssl_pending,
 };
 #endif /* JIM_BOOTSTRAP */
 
@@ -605,7 +646,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     JIM_NOTUSED(interp);
 
 #if UNIX_SOCKETS
-    if (af->addr_family == PF_UNIX && (af->openFlags & AIO_NODELETE) == 0) {
+    if (af->addr_family == PF_UNIX && (af->flags & AIO_NODELETE) == 0) {
         /* If this is bound, delete the socket file now */
         Jim_Obj *filenameObj = aio_sockname(interp, af);
         if (filenameObj) {
@@ -629,7 +670,7 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
         SSL_free(af->ssl);
     }
 #endif
-    if (!(af->openFlags & AIO_KEEPOPEN)) {
+    if (!(af->flags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
 
@@ -642,22 +683,42 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr;
     int nonewline = 0;
+    int pending = 0;
     jim_wide neededLen = -1;         /* -1 is "read as much as possible" */
+    static const char * const options[] = { "-pending", "-nonewline", NULL };
+    enum { OPT_PENDING, OPT_NONEWLINE };
+    int option;
 
-    if (argc && Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
-        nonewline = 1;
-        argv++;
-        argc--;
-    }
-    if (argc == 1) {
-        if (Jim_GetWide(interp, argv[0], &neededLen) != JIM_OK)
-            return JIM_ERR;
-        if (neededLen < 0) {
-            Jim_SetResultString(interp, "invalid parameter: negative len", -1);
-            return JIM_ERR;
+    if (argc) {
+        if (*Jim_String(argv[0]) == '-') {
+            if (Jim_GetEnum(interp, argv[0], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
+                return JIM_ERR;
+            }
+            switch (option) {
+                case OPT_PENDING:
+                    if (!af->fops->pending) {
+                        Jim_SetResultString(interp, "-pending not supported on this connection type", -1);
+                        return JIM_ERR;
+                    }
+                    pending++;
+                    break;
+                case OPT_NONEWLINE:
+                    nonewline++;
+                    break;
+            }
         }
+        else {
+            if (Jim_GetWide(interp, argv[0], &neededLen) != JIM_OK)
+                return JIM_ERR;
+            if (neededLen < 0) {
+                Jim_SetResultString(interp, "invalid parameter: negative len", -1);
+                return JIM_ERR;
+            }
+        }
+        argc--;
+        argv++;
     }
-    else if (argc) {
+    if (argc) {
         return -1;
     }
     objPtr = Jim_NewStringObj(interp, NULL, 0);
@@ -671,15 +732,22 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else {
             readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
         }
-        retval = af->fops->reader(af, buf, readlen);
+        retval = af->fops->reader(af, buf, pending ? 1 : readlen);
         if (retval > 0) {
             Jim_AppendString(interp, objPtr, buf, retval);
             if (neededLen != -1) {
                 neededLen -= retval;
             }
+            else if (pending) {
+                /* If pending was specified, after we do the initial read,
+                 * we do a second read to fetch any buffered data
+                 */
+                neededLen = af->fops->pending(af);
+            }
         }
-        if (retval != readlen)
+        if (retval <= 0) {
             break;
+        }
     }
     /* Check for error conditions */
     if (JimCheckStreamError(interp, af)) {
@@ -823,7 +891,7 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         len = Jim_Length(objPtr);
 
-        if (len == 0 && feof(af->fp)) {
+        if (len == 0 && af->fops->eof(af)) {
             /* On EOF returns -1 if varName was specified */
             len = -1;
         }
@@ -1016,7 +1084,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    Jim_SetResultInt(interp, !!feof(af->fp));
+    Jim_SetResultInt(interp, !!af->fops->eof(af));
     return JIM_OK;
 }
 
@@ -1046,7 +1114,7 @@ static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #if UNIX_SOCKETS
             case OPT_NODELETE:
                 if (af->addr_family == PF_UNIX) {
-                    af->openFlags |= AIO_NODELETE;
+                    af->flags |= AIO_NODELETE;
                     break;
                 }
                 /* fall through */
@@ -1542,7 +1610,7 @@ static int aio_cmd_tty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static const jim_subcmd_type aio_command_table[] = {
     {   "read",
-        "?-nonewline? ?len?",
+        "?-nonewline|-pending|len?",
         aio_cmd_read,
         0,
         2,
@@ -1889,7 +1957,7 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     memset(af, 0, sizeof(*af));
     af->fp = fh;
     af->filename = filename;
-    af->openFlags = flags;
+    af->flags = flags;
 #ifndef JIM_ANSIC
     af->fd = fileno(fh);
 #ifdef FD_CLOEXEC
