@@ -1,0 +1,367 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd socket
+needs cmd os.fork
+
+test socket-1.1 {stream} -body {
+	# Let the system choose a port
+	set s [socket stream.server 127.0.0.1:0]
+	stdout flush
+	if {[os.fork] == 0} {
+		# child
+		set c [socket stream [$s sockname]]
+		$s close
+		$c puts hello
+		$c close
+		exit 99
+	}
+	set cs [$s accept]
+	$cs gets buf
+	$cs close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.2 {dgram - connected} -body {
+	# Let the system choose a port
+	set s [socket dgram.server 127.0.0.1:0]
+	set c [socket dgram [$s sockname]]
+	$s buffering none
+	$c buffering none
+	$c puts -nonewline hello
+	set buf [$s recv 1000]
+	$c close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.3 {dgram - unconnected} -body {
+	# Let the system choose a port
+	set s [socket dgram.server 127.0.0.1:0]
+	set c [socket dgram]
+	$s buffering none
+	$c buffering none
+	$c sendto hello [$s sockname]
+	set buf [$s recv 1000]
+	$c close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.4 {unix} -body {
+	set path [file tempfile]
+	file delete $path
+	set s [socket unix.server $path]
+	stdout flush
+	if {[os.fork] == 0} {
+		# child
+		set c [socket unix [$s sockname]]
+		$s close
+		$c puts hello
+		$c close
+		exit 99
+	}
+	set cs [$s accept]
+	$cs gets buf
+	$cs close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.5 {unix.dgram} -body {
+	set path [file tempfile]
+	file delete $path
+	set s [socket unix.dgram.server $path]
+	set c [socket unix.dgram [$s sockname]]
+	$s buffering none
+	$c buffering none
+	$c puts -nonewline hello
+	set buf [$s recv 1000]
+	$s close
+	$c close
+	set buf
+} -result {hello}
+
+test socket-1.6 {pipe} -body {
+	lassign [socket pipe] r w
+	stdout flush
+	if {[os.fork] == 0} {
+		$r close
+		$w puts hello
+		$w close
+		exit 99
+	}
+	$w close
+	$r gets buf
+	$r close
+	set buf
+} -result {hello}
+
+test socket-1.7 {socketpair} -body {
+	lassign [socket pair] s1 s2
+	stdout flush
+	if {[os.fork] == 0} {
+		$s1 close
+		# Read data and send it back
+		$s2 gets buf
+		$s2 puts $buf
+		$s2 close
+		exit 99
+	}
+	$s2 close
+	$s1 puts hello
+	$s1 gets buf
+	$s1 close
+	set buf
+} -result {hello}
+
+test socket-1.8 {stream - ipv6} -body {
+	# Let the system choose a port
+	set s [socket -ipv6 stream.server localhost:0]
+	stdout flush
+	if {[os.fork] == 0} {
+		# child
+		set c [socket -ipv6 stream [$s sockname]]
+		$s close
+		$c puts hello
+		$c close
+		exit 99
+	}
+	set cs [$s accept]
+	$cs gets buf
+	$cs close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.9 {dgram - ipv6 - unconnected} -body {
+	# Let the system choose a port
+	set s [socket -ipv6 dgram.server localhost:0]
+	set c [socket -ipv6 dgram]
+	$s buffering none
+	$c buffering none
+	$c sendto hello [$s sockname]
+	set buf [$s recv 1000]
+	$c close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.10 {stream - port only} -body {
+	set s [socket stream.server 0]
+	stdout flush
+	if {[os.fork] == 0} {
+		# child
+		set c [socket stream [$s sockname]]
+		$s close
+		$c puts hello
+		$c close
+		exit 99
+	}
+	set cs [$s accept]
+	$cs gets buf
+	$cs close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-1.11 {stream - ipv6 - port only} -body {
+	# Let the system choose a port
+	set s [socket -ipv6 stream.server 0]
+	stdout flush
+	if {[os.fork] == 0} {
+		# child
+		set c [socket -ipv6 stream [$s sockname]]
+		$s close
+		$c puts hello
+		$c close
+		exit 99
+	}
+	set cs [$s accept]
+	$cs gets buf
+	$cs close
+	$s close
+	set buf
+} -result {hello}
+
+test socket-2.1 {read 1} -body {
+	lassign [socket pipe] r w
+	$w puts -nonewline hello
+	$w close
+	set chars {}
+	while {1} {
+		set c [$r read 1]
+		if {$c eq ""} {
+			break
+		}
+		lappend chars $c
+	}
+	$r close
+	set chars
+} -result {h e l l o}
+
+test socket-2.2 {read to EOF} -body {
+	lassign [socket pipe] r w
+	$w puts -nonewline hello
+	$w close
+	set buf [$r read]
+	$r close
+	set buf
+} -result {hello}
+
+test socket-2.3 {read -nonewline} -body {
+	lassign [socket pipe] r w
+	$w puts hello
+	$w close
+	set buf [$r read -nonewline]
+	$r close
+	set buf
+} -result {hello}
+
+test socket-2.4 {isatty} -body {
+	lassign [socket pipe] r w
+	set result [list [$r isatty] [$w isatty]]
+	$r close
+	$w close
+	set result
+} -result {0 0}
+
+test socket-2.5 {peername} -body {
+	set s [socket stream.server 0]
+	stdout flush
+	if {[os.fork] == 0} {
+		try {
+			set c [socket stream [$s sockname]]
+			$s close
+			$c puts [list [$c sockname] [$c peername]]
+			$c close
+		} on error msg {
+			stderr puts $msg
+		}
+		exit 99
+	}
+	set cs [$s accept]
+	lassign [$cs gets] c_sockname c_peername
+	if {$c_sockname ne [$cs peername]} {
+		error "client sockname=$c_sockname not equal to server peername=[$cs peername]"
+	}
+	if {$c_peername ne [$cs sockname]} {
+		error "client peername=$c_peername not equal to server sockname=[$cs sockname]"
+	}
+	$cs close
+	$s close
+} -result {}
+
+test socket-3.1 {listen} {
+	set s [socket stream.server 0]
+	$s listen 10
+	$s close
+} {}
+
+test socket-3.2 {listen usage} -body {
+	set s [socket stream.server 0]
+	$s listen
+} -returnCodes error -match glob -result {wrong # args: should be "* listen backlog"} -cleanup {
+	$s close
+}
+
+test socket-3.3 {listen usage} -body {
+	set s [socket stream.server 0]
+	$s listen blah
+} -returnCodes error -match glob -result {expected integer but got "blah"} -cleanup {
+	$s close
+}
+
+test socket-3.4 {listen not a socket} -body {
+	set f [open [info script]]
+	$f listen 10
+} -returnCodes error -match glob -result {Socket operation on non-socket} -cleanup {
+	$f close
+}
+
+test socket-4.1 {invalid ipv6 address} -body {
+	socket -ipv6 stream "- invalid - address -"
+} -returnCodes error -result {Not a valid address: :::- invalid - address -}
+
+test socket-4.2 {invalid ipv4 address} -body {
+	socket stream {9.9.9.9.9:0}
+} -returnCodes error -result {Not a valid address: 9.9.9.9.9:0}
+
+test socket-4.3 {sockname on non-socket} -body {
+	set f [open [info script]]
+	$f sockname
+} -returnCodes error -result {Socket operation on non-socket} -cleanup {
+	$f close
+}
+
+test socket-4.4 {peername on non-socket} -body {
+	set f [open [info script]]
+	$f peername
+} -returnCodes error -result {Socket operation on non-socket} -cleanup {
+	$f close
+}
+
+# For the eventloop tests, let's set up a client and a server where the client
+# simply echos everything back to the server
+
+set s [socket stream.server 0]
+if {[os.fork] == 0} {
+	# child
+	set c [socket stream [$s sockname]]
+	# Note: We have to disable buffering here, otherwise
+	# when we read data in $c readable {} we many leave buffered
+	# data and readable won't retrigger.
+	$c buffering none
+	$s close
+	$c readable {
+		# when we read we need to also read any pending data,
+		# otherwise readable won't retrigger
+		set buf [$c read 1]
+		if {[string length $buf] == 0} {
+			incr readdone
+			$c close
+		} else {
+			$c puts -nonewline $buf
+		}
+	}
+	vwait readdone
+	exit 99
+}
+
+# Now set up the server
+set cs [$s accept addr]
+defer {
+	$cs close
+}
+$s close
+
+# At this point, $cs is the server connection to the client in the child process
+
+test eventloop-1.1 {puts/gets} {
+	$cs puts hello
+	$cs gets
+} hello
+
+test eventloop-1.2 {puts/gets} {
+	$cs puts -nonewline again
+	lmap p [range 5] {
+		set c [$cs read 1]
+		set c
+	}
+} {a g a i n}
+
+test sockopt-1.1 {sockopt} -body {
+	lsort [dict keys [$cs sockopt]]
+} -match glob -result {*tcp_nodelay*}
+
+test sockopt-1.2 {sockopt set} {
+	$cs sockopt tcp_nodelay 1
+	dict get [$cs sockopt] tcp_nodelay
+} 1
+
+test sockopt-1.3 {sockopt set invalid} -body {
+	$cs sockopt tcp_nodelay badbool
+} -returnCodes error -result {expected boolean but got "badbool"}
+
+testreport
