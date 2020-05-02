@@ -1,0 +1,137 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+
+package require expect
+
+set saveenv $env
+
+# Make sure we start with an empty history
+set env(HOME) [pwd]
+file delete .jim_history
+
+# spawn the process to be used for testing
+set p [expect::spawn [info nameofexecutable]]
+
+set env $saveenv
+
+$p timeout 1
+# Turn on echo since we get echo with linenoise anyway
+$p tty echo 1
+
+proc wait-for-prompt {p} {
+	$p expect {\. }
+}
+
+# Start with an empty history
+file delete test_history
+wait-for-prompt $p
+$p send "history load test_history\r"
+# skip echoed output
+$p expect {\r\n}
+wait-for-prompt $p
+
+test interactive-1.1 {basic command} -body {
+	$p send "lsort \[info commands li*\]\r"
+	# skip echoed output
+	$p expect {\r\n}
+	# get command result
+	$p expect {\r\n}
+	$p before
+} -result {lindex linsert list} -cleanup {
+	wait-for-prompt $p
+}
+
+test interactive-1.2 {command line completion} {
+	set check 0
+	set failed 0
+	$p send "li\t"
+	$p expect {lindex} { incr check } TIMEOUT { incr failed }
+	if {!$failed} {
+		$p send "\t"
+		$p expect {linsert} { incr check }
+		$p send "\t"
+		$p expect {list} { incr check }
+		$p send \r
+	}
+	$p expect {\r\n}
+	wait-for-prompt $p
+
+	list $check $failed
+} {3 0}
+
+test interactive-1.3 {history show} -body {
+	$p send "history show\r"
+	$p expect {\r\n}
+	$p expect {history show\r\n}
+	string cat [$p before] [$p after]
+} -result "   1 history load test_history\r\n   2 lsort \[info commands li*\]\r\n   3 list\r\n   4 history show\r\n" -cleanup {
+	wait-for-prompt $p
+}
+
+test interactive-1.4 {history getline} -body {
+	$p send "history getline {PROMPT> }\r"
+	$p expect {\r\n}
+	sleep 0.25
+	$p send "abc\bd\x01e\r"
+	$p expect {\r\n}
+	$p expect {\r\n}
+	$p before
+} -result {eabd} -cleanup {
+	wait-for-prompt $p
+}
+
+test interactive-1.4 {history getline} -body {
+	$p send "set len \[history getline {PROMPT> } buf\]\r"
+	$p expect {\r\n}
+	sleep 0.25
+	$p send "abcde\r"
+	$p expect {\r\n}
+	$p expect {\r\n}
+	sleep 0.25
+	$p wait-for-prompt
+	$p send "list \$len \$buf\r"
+	$p expect {\r\n}
+	$p expect {\r\n}
+	$p before
+} -result {5 abcde} -cleanup {
+	wait-for-prompt $p
+}
+
+test interactive-1.5 {insert wide character} -constraints utf8 -body {
+	$p send "set x a\u1100b"
+	# now arrow left twice over the wide char and insert another char
+	$p send \x1bOD
+	$p send \x1bOD
+	$p send y
+	$p send \r
+	$p expect {\r\n}
+	sleep 0.25
+	$p expect {\r\n}
+	$p before
+} -result ay\u1100b -cleanup {
+	wait-for-prompt $p
+}
+
+test interactive-1.6 {insert utf-8 combining character} -constraints utf8 -body {
+	$p send "set x x\u0300"
+	# now arrow left twice over the combining char and "x" and insert another char
+	$p send \x1bOD
+	$p send \x1bOD
+	$p send y
+	$p send \r
+	$p expect {\r\n}
+	sleep 0.25
+	$p expect {\r\n}
+	$p before
+} -result yx\u0300 -cleanup {
+	wait-for-prompt $p
+}
+
+# send ^D to cause the interpeter to exit
+$p send \x04
+sleep 0.25
+$p expect EOF
+$p close
+
+testreport
