@@ -413,7 +413,7 @@ static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union s
     req.ai_family = PF_INET6;
 
     if (getaddrinfo(sthost, stport, &req, &ai)) {
-        Jim_SetResultFormatted(interp, "Not a valid address: %s", hostport);
+        Jim_SetResultFormatted(interp, "Not a valid address: %s:%s", sthost, stport);
         ret = JIM_ERR;
     }
     else {
