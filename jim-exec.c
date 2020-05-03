@@ -986,9 +986,6 @@ badargs:
      */
 
     pidPtr = Jim_Alloc(cmdCount * sizeof(*pidPtr));
-    for (i = 0; i < numPids; i++) {
-        pidPtr[i] = JIM_BAD_PID;
-    }
     for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg + 1) {
         int pipe_dup_err = 0;
         int origErrorId = errorId;
