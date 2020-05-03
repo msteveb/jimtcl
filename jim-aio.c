@@ -1421,15 +1421,31 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     SSL *ssl;
     SSL_CTX *ssl_ctx;
     int server = 0;
+    const char *sni = NULL;
 
-    if (argc == 5) {
-        if (!Jim_CompareStringImmediate(interp, argv[2], "-server")) {
+    if (argc > 2) {
+        static const char * const options[] = { "-server", "-sni", NULL };
+        enum { OPT_SERVER, OPT_SNI };
+        int option;
+
+        if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
         }
-        server = 1;
-    }
-    else if (argc != 2) {
-        return -1;
+        switch (option) {
+            case OPT_SERVER:
+                if (argc != 4 && argc != 5) {
+                    return JIM_ERR;
+                }
+                server = 1;
+                break;
+
+            case OPT_SNI:
+                if (argc != 4) {
+                    return JIM_ERR;
+                }
+                sni = Jim_String(argv[3]);
+                break;
+        }
     }
 
     if (af->ssl) {
@@ -1454,11 +1470,12 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (server) {
-        if (SSL_use_certificate_file(ssl, Jim_String(argv[3]), SSL_FILETYPE_PEM) != 1) {
+        const char *certfile = Jim_String(argv[3]);
+        const char *keyfile = (argc == 4) ? certfile : Jim_String(argv[4]);
+        if (SSL_use_certificate_file(ssl, certfile, SSL_FILETYPE_PEM) != 1) {
             goto out;
         }
-
-        if (SSL_use_PrivateKey_file(ssl, Jim_String(argv[4]), SSL_FILETYPE_PEM) != 1) {
+        if (SSL_use_PrivateKey_file(ssl, keyfile, SSL_FILETYPE_PEM) != 1) {
             goto out;
         }
 
@@ -1467,6 +1484,10 @@ static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
     else {
+        if (sni) {
+            /* Set server name indication if requested */
+            SSL_set_tlsext_host_name(ssl, sni);
+        }
         if (SSL_connect(ssl) != 1) {
             goto out;
         }
@@ -1796,7 +1817,7 @@ static const jim_subcmd_type aio_command_table[] = {
 #if !defined(JIM_BOOTSTRAP)
 #if defined(JIM_SSL)
     {   "ssl",
-        "?-server cert priv?",
+        "?-server cert ?priv?|-sni servername?",
         aio_cmd_ssl,
         0,
         3,

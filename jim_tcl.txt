@@ -4846,8 +4846,12 @@ aio
     +*vtime* 'time'+;;
         Timeout for noncanonical read (units of 0.1 seconds)
 
-+$handle *ssl* ?*-server* 'cert priv'?+::
++$handle *ssl* ?*-server* 'cert ?key?'|*-sni* 'servername'?+::
     Upgrades the stream to a SSL/TLS session and returns the handle.
+    If +-server+ is specified, either both the certificate and private key files
+    must be specified, or a single file must be specified containing both.
+    If +-server+ is not specified, the connection is a client connection. In this case
+    +-sni+ may be specified if required to set the Server Name Indication.
 
 +$handle *unlock*+::
     Release a POSIX lock previously acquired by `aio lock`.

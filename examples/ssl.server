@@ -6,7 +6,7 @@ set s [socket stream.server 20000]
 $s readable {
 	# Clean up children
 	wait -nohang 0
-	set sock [[$s accept addr] ssl -server certificate.pem key.pem]
+	set sock [[$s accept addr] ssl -server certificate.pem]
 	puts "Client address: $addr"
 
 	# Make this server forking so we can accept multiple
