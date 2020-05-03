@@ -5,8 +5,9 @@ needs cmd socket
 needs cmd os.fork
 testCmdConstraints load_ssl_certs
 
-#load_ssl_certs [file dirname [info script]]/certs
-#load_ssl_certs /etc/ssl/certs
+# Note that we don't actually need to load certificates with load_ssl_certs
+# since the openssl installation should generally automatically load
+# root certs
 
 # Let's set up a client and a server where the client
 # simply echos everything back to the server
@@ -67,8 +68,11 @@ test ssl-2.1 {https to google.com, gets} -body {
 	join $lines \n
 } -match glob -result {HTTP/1.0 200 OK*</html>}
 
-test ssl-2.2 {https to google.com, read} -body {
-	set c [[socket stream www.google.com:443] ssl]
+test ssl-2.2 {https to google.com, read with cert verify} -body {
+	# Note that in order to verify the cert, we need sni
+	set c [[socket stream www.google.com:443] ssl -sni www.google.com]
+	# Verify the cert (note that this does not check CN)
+	$c verify
 	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
 	$c close w
 	set buf [$c read]
