@@ -81,26 +81,24 @@ test unpack-1.3 {unpack bad width} -body {
 } -returnCodes error -result {expected integer but got "badint"}
 
 test unpack-1.4 {unpack bad width} -body {
-	# Poor message
 	unpack abc -intle 0 -5
-} -returnCodes error -result {int field is too wide: -5}
+} -returnCodes error -result {bad bitwidth: -5}
 
 test unpack-1.5 {unpack bad offset} -body {
 	unpack abc -intle badint 8
 } -returnCodes error -result {expected integer but got "badint"}
 
-test unpack-1.6 {unpack bad offset} {
-	# Should be an error
+test unpack-1.6 {unpack bad offset} -body {
 	unpack abc -intle -6 8
-} 0
+} -returnCodes error -result {bad bitoffset: -6}
 
 test unpack-1.7 {unpack str not on byte boundary offset} -body {
 	unpack abc -str 5 8
-} -returnCodes error -result {string field is not on a byte boundary}
+} -returnCodes error -result {bad bitoffset: 5}
 
 test unpack-1.8 {unpack float bad width} -body {
 	unpack abc -floatbe 0 24
-} -returnCodes error -result {float field has bad bitwidth: 24}
+} -returnCodes error -result {bad bitwidth: 24}
 
 test unpack-2.1 {unpack str width past end} -body {
 	unpack abc -str 16 16

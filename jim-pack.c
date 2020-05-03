@@ -293,7 +293,16 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (Jim_GetWide(interp, argv[3], &pos) != JIM_OK) {
         return JIM_ERR;
     }
+    if (pos < 0 || (option == OPT_STR && pos % 8)) {
+        Jim_SetResultFormatted(interp, "bad bitoffset: %#s", argv[3]);
+        return JIM_ERR;
+    }
     if (Jim_GetWide(interp, argv[4], &width) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if (width < 0 || (option == OPT_STR && width % 8) || (option != OPT_STR && width > sizeof(jim_wide) * 8) ||
+       ((option == OPT_FLOATLE || option == OPT_FLOATBE) && width != 32 && width != 64)) {
+        Jim_SetResultFormatted(interp, "bad bitwidth: %#s", argv[4]);
         return JIM_ERR;
     }
 
@@ -301,12 +310,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int len;
         const char *str = Jim_GetString(argv[1], &len);
 
-        if (width % 8 || pos % 8) {
-            Jim_SetResultString(interp, "string field is not on a byte boundary", -1);
-            return JIM_ERR;
-        }
-
-        if (pos >= 0 && width > 0 && pos < len * 8) {
+        if (pos < len * 8) {
             if (pos + width > len * 8) {
                 width = len * 8 - pos;
             }
@@ -319,12 +323,7 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         const unsigned char *str = (const unsigned char *)Jim_GetString(argv[1], &len);
         jim_wide result = 0;
 
-        if (width > sizeof(jim_wide) * 8) {
-            Jim_SetResultFormatted(interp, "int field is too wide: %#s", argv[4]);
-            return JIM_ERR;
-        }
-
-        if (pos >= 0 && width > 0 && pos < len * 8) {
+        if (pos < len * 8) {
             if (pos + width > len * 8) {
                 width = len * 8 - pos;
             }
@@ -344,11 +343,8 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             double fresult;
             if (width == 32) {
                 fresult = (double) JimIntToFloat(result);
-            } else if (width == 64) {
-                fresult = JimIntToDouble(result);
             } else {
-                Jim_SetResultFormatted(interp, "float field has bad bitwidth: %#s", argv[4]);
-                return JIM_ERR;
+                fresult = JimIntToDouble(result);
             }
             Jim_SetResult(interp, Jim_NewDoubleObj(interp, fresult));
         } else {
