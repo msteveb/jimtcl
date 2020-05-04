@@ -169,4 +169,11 @@ test utf8-9.3 {string totitle} {
 	string totitle abc-\u01c4
 } "Abc-\u01c6"
 
+# Previously scan was using char length instead of byte length
+# when iterating over the string
+test utf8-10.1 {scan with utf-8} {
+	scan ab\u0300c %c%c%c%c a b c d
+	list $a $b $c $d
+} {97 98 768 99}
+
 testreport
