@@ -37,4 +37,20 @@ test jimsh-1.7 {jimsh prompt} -body {
 . 4
 . }
 
+test jimsh-1.8 {jimsh prompt - error} -body {
+	exec [info nameofexecutable] << "blah\n"
+} -match glob -result {Welcome to Jim version *
+. invalid command name "blah"
+\[error\] . }
+
+test jimsh-1.9 {jimsh prompt - error} -body {
+	exec [info nameofexecutable] << "throw 99\n"
+} -match glob -result {Welcome to Jim version *
+. \[99\] . }
+
+test jimsh-1.10 {jimsh prompt - continuation} -body {
+	exec [info nameofexecutable] << "set x {\nabc\n}\n"
+} -match glob -result "Welcome to Jim version *\n. {> {> \nabc\n\n. "
+
+
 testreport
