@@ -3,11 +3,11 @@ source [file dirname [info script]]/testing.tcl
 needs constraint jim
 testCmdConstraints os.getids os.gethostname os.uptime os.fork
 
-test posix-1.1 {os.getids usage} -body {
+test posix-1.1 {os.getids usage} -constraints os.getids -body {
 	os.getids blah
 } -returnCodes error -result {wrong # args: should be "os.getids"}
 
-test posix-1.2 {os.getids} -body {
+test posix-1.2 {os.getids} -constraints os.getids -body {
 	set uid [exec id -u]
 	set d [os.getids]
 	if {$d(uid) != $uid} {
@@ -16,21 +16,21 @@ test posix-1.2 {os.getids} -body {
 } -result {}
 
 
-test posix-1.4 {os.uptime} -body {
+test posix-1.4 {os.uptime} -constraints os.uptime -body {
 	string is integer -strict [os.uptime]
 } -result {1}
 
-test posix-1.5 {os.gethostname usage} -body {
+test posix-1.5 {os.gethostname usage} -constraints os.gethostname -body {
 	os.gethostname blah
 } -returnCodes error -result {wrong # args: should be "os.gethostname"}
 
-test posix-1.6 {os.gethostname} -body {
+test posix-1.6 {os.gethostname} -constraints os.gethostname -body {
 	if {[exec hostname] ne [os.gethostname]} {
 		error "os.gethostname did not match system hostname"
 	}
 } -result {}
 
-test posix-1.7 {os.fork usage} -body {
+test posix-1.7 {os.fork usage} -constraints os.fork -body {
 	os.fork extra args
 } -returnCodes error -result {wrong # args: should be "os.fork"}
 

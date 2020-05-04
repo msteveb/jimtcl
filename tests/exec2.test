@@ -156,10 +156,10 @@ test exec2-5.5 {wait for all children} -body {
 	}
 	# reap zombies, there should not be any
 	wait
-	sleep 0.3
+	after 300
 	# reap zombies, 2-3 should be finished now
 	wait
-	sleep 0.4
+	after 400
 	# reap zombies, all processes should be finished now
 	wait
 } -result {}

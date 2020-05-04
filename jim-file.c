@@ -607,7 +607,12 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             argv[1]);
         return JIM_ERR;
     }
-
+#if ISWINDOWS
+    if (access(dest, F_OK) == 0) {
+        /* Windows won't rename over an existing file */
+        remove(dest);
+    }
+#endif
     if (rename(source, dest) != 0) {
         Jim_SetResultFormatted(interp, "error renaming \"%#s\" to \"%#s\": %s", argv[0], argv[1],
             strerror(errno));

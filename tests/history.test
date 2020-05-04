@@ -36,8 +36,10 @@ test history-1.6 {history completion} {
 	history completion {}
 } {}
 
-file delete $name
+catch {
+	file delete $name
+}
 
-# Can't really tests history add, show, setcompletion
+# Can't really test history add, show, setcompletion
 
 testreport

@@ -1016,7 +1016,7 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    Jim_SetResultInt(interp, feof(af->fp));
+    Jim_SetResultInt(interp, !!feof(af->fp));
     return JIM_OK;
 }
 
