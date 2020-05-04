@@ -61,6 +61,7 @@ Changes between 0.78 and 0.79
 5. Add support for `file split`
 6. Add support for `json::encode` and `json::decode`
 7. `aio tty` now allows setting +echo+ without full +raw+ mode
+8. `regsub` now fully supports +{backslash}A+
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1088,12 +1089,11 @@ and POSIX are highlighted below.
 2. All Tcl character classes are supported (e.g. +[:alnum:]+, +[:digit:]+, +[:space:]+), but...
 3. Character classes apply to ASCII characters only
 4. Supported shorthand character classes: +{backslash}w+ = +[:alnum:]+, +{backslash}W+ = +^[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}D+ = +^[:digit:],+ +{backslash}s+ = +[:space:]+, + +{backslash}S+ = +^[:space:]+
-5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word
+5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word, +{backslash}A+ = start of string, +{backslash}Z+ = end of string
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
-7. Partially supported constraint escapes: +{backslash}A+ = start of string, +{backslash}Z+ = end of string
-8. Support for the +?+ non-greedy quantifier. e.g. +*?+
-9. Support for non-capturing parentheses +(?:...)+
-10. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
+7. Support for the +?+ non-greedy quantifier. e.g. +*?+
+8. Support for non-capturing parentheses +(?:...)+
+9. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
 
 STRING MATCHING
 ---------------

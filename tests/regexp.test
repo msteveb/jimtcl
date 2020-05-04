@@ -489,11 +489,11 @@ test regexp-16.3 {regsub -start} {
     catch {unset x}
     list [regsub -all -start 3 {z} hello {/&} x] $x
 } {0 hello}
-#test regexp-16.4 {regsub -start, \A behavior} {
-#    set out {}
-#    lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
-#    lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
-#} {5 /a/b/c/d/e 3 ab/c/d/e}
+test regexp-16.4 {regsub -start, \A behavior} {
+    set out {}
+    lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
+    lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
+} {5 /a/b/c/d/e 3 ab/c/d/e}
 test regexp-16.5 {regsub -start, double option} {
     list [regsub -start 2 -start 0 a abc c x] $x
 } {1 cbc}

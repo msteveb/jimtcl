@@ -540,7 +540,14 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             n--;
         }
 
-        regexec_flags |= REG_NOTBOL;
+        if (pmatch[0].rm_eo == pmatch[0].rm_so) {
+            /* The match did not advance the string, so set REG_NOTBOL to force the next match */
+            regexec_flags = REG_NOTBOL;
+        }
+        else {
+            regexec_flags = 0;
+        }
+
     } while (n);
 
     /*
