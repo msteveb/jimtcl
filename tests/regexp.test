@@ -714,14 +714,13 @@ test regexp-22.10 {Various char escapes} {
     join $result |
 } {12,11|8,9|27}
 
-test regexp-22.11 {backslash as last char} {
+test regexp-22.11 {backslash as last char} -body {
     regexp -all -inline "\[a\\" "ba\\d\[ef"
-} "a\ \\\\"
+} -returnCodes error -result {couldn't compile regular expression pattern: invalid escape \ sequence}
 
-# Probably should be an error
-test regexp-22.12 {missing closing bracket} {
+test regexp-22.12 {missing closing bracket} -body {
     regexp -all -inline {[abc} "abcdefghi"
-} {a b c}
+} -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
 test regexp-22.13 {empty alternative} {
     regexp -all -inline {a(a|b|)c} "aacbacbaa"
