@@ -5136,7 +5136,7 @@ This command returns an empty string.
 
 +$handle *tty* ?settings?+::
     If no arguments are given, returns a dictionary containing the tty settings for the stream.
-    If arguments are given, they must either be a dictionary, or +setting value \...+
+    If arguments are given, they must either be a dictionary, or +setting value \...+.
     Abbreviations are supported for both settings and values, so the following is acceptable:
     +$f tty parity e input c out raw+.
     Only available on platforms that support 'termios(3)'. Supported settings are:
@@ -5178,6 +5178,25 @@ This command returns an empty string.
 
     +*vstop* 'char'+;;
         Stop character for xonoff, usually 0x13 (^S)
+
++$handle *ttycontrol* ?settings?+::
+    If no arguments are given, returns a dictionary containing the modem control signals
+    from the stream (must be a serial-type device). e.g. +{rts 1 dtr 1 dcd 0 dsr 0 ring 0 cts 0}+.
+    Note that +rts+ and +dtr+ are controlled by the local system while the other signals reflect
+    the remote system.
+    If arguments are given, they must either be a dictionary, or +setting value \...+.
+    Abbreviations are supported for both settings and values.
+    Supported settings are:
+
+    +*rts 0|1*+;;
+        Set the RTS (Request To Send) signal
+
+    +*dtr 0|1*+;;
+        Set the DTR (Data Terminal Ready) signal
+
+    +*break* 'duration'+;;
+        Generate a break condition. +duration+ is generally ignored but may be used
+        in a platform-dependent manner.
 
 +$handle *ssl* ?*-server* 'cert ?key?'|*-sni* 'servername'?+::
     Upgrades the stream to a SSL/TLS session and returns the handle.
