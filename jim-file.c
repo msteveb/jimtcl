@@ -48,10 +48,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/stat.h>
 
 #include <jimautoconf.h>
 #include <jim-subcmd.h>
+#include <jimiocompat.h>
 
 #ifdef HAVE_UTIMES
 #include <sys/time.h>
@@ -161,7 +161,7 @@ static void AppendStatElement(Jim_Interp *interp, Jim_Obj *listObj, const char *
     Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, value));
 }
 
-static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const struct stat *sb)
+static int StoreStatData(Jim_Interp *interp, Jim_Obj *varName, const jim_stat_t *sb)
 {
     /* Just use a list to store the data */
     Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
@@ -541,9 +541,9 @@ static int mkdir_all(char *path)
         }
         /* Maybe it already exists as a directory */
         if (errno == EEXIST) {
-            struct stat sb;
+            jim_stat_t sb;
 
-            if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+            if (Jim_Stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
                 return 0;
             }
             /* Restore errno */
@@ -660,11 +660,11 @@ static int file_cmd_link(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 #endif
 
-static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
+static int file_stat(Jim_Interp *interp, Jim_Obj *filename, jim_stat_t *sb)
 {
     const char *path = Jim_String(filename);
 
-    if (stat(path, sb) == -1) {
+    if (Jim_Stat(path, sb) == -1) {
         Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
@@ -672,7 +672,7 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 }
 
 #ifdef HAVE_LSTAT
-static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
+static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, jim_stat_t *sb)
 {
     const char *path = Jim_String(filename);
 
@@ -688,7 +688,7 @@ static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, struct stat *sb)
 
 static int file_cmd_atime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
@@ -721,7 +721,7 @@ static int JimSetFileTimes(Jim_Interp *interp, const char *filename, jim_wide us
 
 static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (argc == 2) {
         jim_wide secs;
@@ -740,7 +740,7 @@ static int file_cmd_mtime(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef STAT_MTIME_US
 static int file_cmd_mtimeus(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (argc == 2) {
         jim_wide us;
@@ -764,7 +764,7 @@ static int file_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
@@ -775,7 +775,7 @@ static int file_cmd_size(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_isdirectory(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
@@ -787,7 +787,7 @@ static int file_cmd_isdirectory(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 static int file_cmd_isfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
@@ -800,7 +800,7 @@ static int file_cmd_isfile(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef HAVE_GETEUID
 static int file_cmd_owned(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
     int ret = 0;
 
     if (file_stat(interp, argv[0], &sb) == JIM_OK) {
@@ -832,7 +832,7 @@ static int file_cmd_readlink(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (file_lstat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
@@ -844,7 +844,7 @@ static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef HAVE_LSTAT
 static int file_cmd_lstat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (file_lstat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;
@@ -857,7 +857,7 @@ static int file_cmd_lstat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct stat sb;
+    jim_stat_t sb;
 
     if (file_stat(interp, argv[0], &sb) != JIM_OK) {
         return JIM_ERR;

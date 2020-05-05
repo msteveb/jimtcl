@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "jimautoconf.h"
 #include <jim.h>
@@ -61,19 +62,26 @@ int Jim_OpenForRead(const char *filename);
     #define HAVE_PIPE
     #define pipe(P) _pipe((P), 0, O_NOINHERIT)
 
-#elif defined(HAVE_UNISTD_H)
-    #include <unistd.h>
-    #include <fcntl.h>
-    #include <sys/wait.h>
-    #include <sys/stat.h>
+    typedef struct _stat64 jim_stat_t;
+    #define Jim_Stat _stat64
 
-    typedef int pidtype;
-    #define Jim_Errno() errno
-    #define JIM_BAD_PID -1
-    #define JIM_NO_PID 0
+#else
+    typedef struct stat jim_stat_t;
+    #define Jim_Stat stat
 
-    #ifndef HAVE_EXECVPE
-        #define execvpe(ARG0, ARGV, ENV) execvp(ARG0, ARGV)
+    #if defined(HAVE_UNISTD_H)
+        #include <unistd.h>
+        #include <fcntl.h>
+        #include <sys/wait.h>
+
+        typedef int pidtype;
+        #define Jim_Errno() errno
+        #define JIM_BAD_PID -1
+        #define JIM_NO_PID 0
+
+        #ifndef HAVE_EXECVPE
+            #define execvpe(ARG0, ARGV, ENV) execvp(ARG0, ARGV)
+        #endif
     #endif
 #endif
 
