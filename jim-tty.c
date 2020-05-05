@@ -79,6 +79,8 @@ static const char * const tty_settings_names[] = {
     "vmin",
     "vtime",
     "echo",
+    "vstart",
+    "vstop",
     NULL
 };
 
@@ -92,7 +94,9 @@ enum {
     OPT_STOP,
     OPT_VMIN,
     OPT_VTIME,
-    OPT_ECHO
+    OPT_ECHO,
+    OPT_VSTART,
+    OPT_VSTOP,
 };
 
 
@@ -184,6 +188,10 @@ Jim_Obj *Jim_GetTtySettings(Jim_Interp *interp, int fd)
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VMIN]));
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vtime", -1));
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VTIME]));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vstart", -1));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VSTART]));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vstop", -1));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VSTOP]));
 
     speed = cfgetispeed(&tio);
     baud = 0;
@@ -283,17 +291,18 @@ badvalue:
                 break;
 
             case OPT_VMIN:
-                if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
-                    goto badvalue;
-                }
-                tio.c_cc[VMIN] = l;
-                break;
-
             case OPT_VTIME:
+            case OPT_VSTART:
+            case OPT_VSTOP:
                 if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
                     goto badvalue;
                 }
-                tio.c_cc[VTIME] = l;
+                switch (opt) {
+                    case OPT_VMIN: tio.c_cc[VMIN] = l; break;
+                    case OPT_VTIME: tio.c_cc[VTIME] = l; break;
+                    case OPT_VSTART: tio.c_cc[VSTART] = l; break;
+                    case OPT_VSTOP: tio.c_cc[VSTOP] = l; break;
+                }
                 break;
 
             case OPT_OUTPUT:

@@ -25,7 +25,7 @@ test tty-1.1 {tty status} {
 
 test tty-1.2 {tty bad param} -body {
     $chan tty bad value
-} -returnCodes error -result {bad setting "bad": must be baud, data, echo, handshake, input, output, parity, stop, vmin, or vtime}
+} -returnCodes error -result {bad setting "bad": must be baud, data, echo, handshake, input, output, parity, stop, vmin, vstart, vstop, or vtime}
 
 test tty-1.3 {tty bad baud} -body {
     $chan tty baud 12345

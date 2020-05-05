@@ -5173,6 +5173,12 @@ This command returns an empty string.
     +*vtime* 'time'+;;
         Timeout for noncanonical read (units of 0.1 seconds)
 
+    +*vstart* 'char'+;;
+        Start character for xonoff, usually 0x11 (^Q)
+
+    +*vstop* 'char'+;;
+        Stop character for xonoff, usually 0x13 (^S)
+
 +$handle *ssl* ?*-server* 'cert ?key?'|*-sni* 'servername'?+::
     Upgrades the stream to a SSL/TLS session and returns the handle.
     If +-server+ is specified, either both the certificate and private key files

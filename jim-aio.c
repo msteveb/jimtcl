@@ -2145,7 +2145,7 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #if defined(HAVE_TERMIOS_H)
     {   "tty",
-        "?baud rate? ?data bits? ?stop bits? ?parity even|odd|none? ?handshake xonxoff|rtscts|none? ?input raw|cooked? ?output raw|cooked? ?echo 0|1? ?vmin n? ?vtime n?",
+        "?baud rate? ?data bits? ?stop bits? ?parity even|odd|none? ?handshake xonxoff|rtscts|none? ?input raw|cooked? ?output raw|cooked? ?echo 0|1? ?vmin n? ?vtime n? ?vstart char? ?vstop char?",
         aio_cmd_tty,
         0,
         -1,
