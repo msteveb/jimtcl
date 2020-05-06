@@ -72,6 +72,14 @@ test lsearch-2.9 {search modes, -nocase} {
     lsearch -nocase -glob {b.x ^bc xy bcx} B*
 } 0
 
+test lsearch-2.10 {regexp with option-looking pattern} regexp {
+    lsearch -regexp {-abc -def -ghi} -def
+} 1
+
+test lsearch-2.11 {regexp with option-looking pattern, -nocase} regexp {
+    lsearch -nocase -regexp {-abc -def -ghi} -DEF
+} 1
+
 test lsearch-3.1 {lsearch errors} {
     list [catch lsearch msg]
 } {1}

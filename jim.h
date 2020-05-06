@@ -161,6 +161,7 @@ extern "C" {
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
 #define JIM_NOCASE      1   /* no case */
+#define JIM_OPT_END     2   /* if implemented by a command (e.g. regexp), add -- to the argument list */
 
 /* Filesystem related */
 #define JIM_PATH_LEN 1024

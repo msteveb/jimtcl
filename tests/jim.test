@@ -2500,6 +2500,15 @@ test switch-3.7 {-exact vs. -glob vs. -regexp} {
     list [catch {switch -foo a b c} msg] $msg
 } {1 {bad option "-foo": must be -exact, -glob, -regexp, -command procname or --}}
 
+test switch-3.8 {switch -regexp with option-like pattern} regexp {
+    switch -regexp -- -def {
+	-abc {concat first}
+	-def {concat second}
+	-ghi {concat third}
+	default	{concat none}
+    }
+} second
+
 test switch-4.1 {error in executed command} {
     list [catch {switch a a {error "Just a test"} default {expr 1}} msg] \
 	    $msg

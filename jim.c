@@ -12028,18 +12028,23 @@ static int Jim_IfCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 
-/* Returns 1 if match, 0 if no match or -<error> on error (e.g. -JIM_ERR, -JIM_BREAK)*/
+/* Returns 1 if match, 0 if no match or -<error> on error (e.g. -JIM_ERR, -JIM_BREAK)
+ * flags may contain JIM_NOCASE and/or JIM_OPT_END
+ */
 int Jim_CommandMatchObj(Jim_Interp *interp, Jim_Obj *commandObj, Jim_Obj *patternObj,
-    Jim_Obj *stringObj, int nocase)
+    Jim_Obj *stringObj, int flags)
 {
-    Jim_Obj *parms[4];
+    Jim_Obj *parms[5];
     int argc = 0;
     long eq;
     int rc;
 
     parms[argc++] = commandObj;
-    if (nocase) {
+    if (flags & JIM_NOCASE) {
         parms[argc++] = Jim_NewStringObj(interp, "-nocase", -1);
+    }
+    if (flags & JIM_OPT_END) {
+        parms[argc++] = Jim_NewStringObj(interp, "--", -1);
     }
     parms[argc++] = patternObj;
     parms[argc++] = stringObj;
@@ -12058,6 +12063,7 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 {
     enum { SWITCH_EXACT, SWITCH_GLOB, SWITCH_RE, SWITCH_CMD };
     int matchOpt = SWITCH_EXACT, opt = 1, patCount, i;
+    int match_flags = 0;
     Jim_Obj *command = NULL, *scriptObj = NULL, *strObj;
     Jim_Obj **caseList;
 
@@ -12080,8 +12086,10 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             matchOpt = SWITCH_EXACT;
         else if (strncmp(option, "-glob", 2) == 0)
             matchOpt = SWITCH_GLOB;
-        else if (strncmp(option, "-regexp", 2) == 0)
+        else if (strncmp(option, "-regexp", 2) == 0) {
             matchOpt = SWITCH_RE;
+            match_flags |= JIM_OPT_END;
+        }
         else if (strncmp(option, "-command", 2) == 0) {
             matchOpt = SWITCH_CMD;
             if ((argc - opt) < 2)
@@ -12124,7 +12132,7 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                     command = Jim_NewStringObj(interp, "regexp", -1);
                     /* Fall thru intentionally */
                 case SWITCH_CMD:{
-                        int rc = Jim_CommandMatchObj(interp, command, patObj, strObj, 0);
+                        int rc = Jim_CommandMatchObj(interp, command, patObj, strObj, match_flags);
 
                         /* After the execution of a command we need to
                          * make sure to reconvert the object into a list
@@ -12227,7 +12235,6 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     int i;
     int opt_bool = 0;
     int opt_not = 0;
-    int opt_nocase = 0;
     int opt_all = 0;
     int opt_inline = 0;
     int opt_match = OPT_EXACT;
@@ -12235,6 +12242,7 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     int rc = JIM_OK;
     Jim_Obj *listObjPtr = NULL;
     Jim_Obj *commandObj = NULL;
+    int match_flags = 0;
 
     if (argc < 3) {
       wrongargs:
@@ -12258,7 +12266,7 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
                 opt_not = 1;
                 break;
             case OPT_NOCASE:
-                opt_nocase = 1;
+                match_flags |= JIM_NOCASE;
                 break;
             case OPT_INLINE:
                 opt_inline = 1;
@@ -12266,6 +12274,10 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
                 break;
             case OPT_ALL:
                 opt_all = 1;
+                break;
+            case OPT_REGEXP:
+                opt_match = option;
+                match_flags |= JIM_OPT_END;
                 break;
             case OPT_COMMAND:
                 if (i >= argc - 2) {
@@ -12275,7 +12287,6 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
                 /* fallthru */
             case OPT_EXACT:
             case OPT_GLOB:
-            case OPT_REGEXP:
                 opt_match = option;
                 break;
         }
@@ -12300,16 +12311,16 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
         switch (opt_match) {
             case OPT_EXACT:
-                eq = Jim_StringCompareObj(interp, argv[1], objPtr, opt_nocase) == 0;
+                eq = Jim_StringCompareObj(interp, argv[1], objPtr, match_flags) == 0;
                 break;
 
             case OPT_GLOB:
-                eq = Jim_StringMatchObj(interp, argv[1], objPtr, opt_nocase);
+                eq = Jim_StringMatchObj(interp, argv[1], objPtr, match_flags);
                 break;
 
             case OPT_REGEXP:
             case OPT_COMMAND:
-                eq = Jim_CommandMatchObj(interp, commandObj, argv[1], objPtr, opt_nocase);
+                eq = Jim_CommandMatchObj(interp, commandObj, argv[1], objPtr, match_flags);
                 if (eq < 0) {
                     if (listObjPtr) {
                         Jim_FreeNewObj(interp, listObjPtr);
