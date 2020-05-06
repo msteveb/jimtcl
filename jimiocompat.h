@@ -63,7 +63,7 @@ int Jim_OpenForRead(const char *filename);
     #define pipe(P) _pipe((P), 0, O_NOINHERIT)
 
     typedef struct _stat64 jim_stat_t;
-    #define Jim_Stat _stat64
+    #define Jim_Stat __stat64
 
 #else
     typedef struct stat jim_stat_t;
