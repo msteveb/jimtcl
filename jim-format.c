@@ -331,7 +331,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
                 j = 0;
                 for (i = length; i > 0; ) {
                         i--;
-                    if (w & ((unsigned jim_wide)1 << i)) {
+                        if (w & ((unsigned jim_wide)1 << i)) {
                                 num_buffer[j++] = '1';
                         }
                         else if (j || i == 0) {
