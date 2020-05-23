@@ -96,5 +96,5 @@ proc class {classname {baseclasses {}} classvars} {
 # Note that this will only call the last baseclass given
 proc super {method args} {
 	upvar self self
-	uplevel 2 [$self baseclass] $method {*}$args
+	uplevel 2 [list [$self baseclass] $method {*}$args]
 }
