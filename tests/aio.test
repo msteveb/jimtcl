@@ -116,7 +116,7 @@ test aio-7.1 {close args} -constraints socket -body {
 
 test aio-7.2 {close w on non-socket} -constraints socket -body {
 	$f close w
-} -returnCodes error -result {Socket operation on non-socket}
+} -returnCodes error -match regexp -result {^(Socket operation on non-socket|Not a socket)$}
 
 test aio-7.3 {close -nodelete on non-socket} -constraints socket -body {
 	$f close -nodelete

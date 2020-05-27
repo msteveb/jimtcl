@@ -24,7 +24,7 @@ test tty-1.3 {tty bad baud} -body {
 test tty-1.4 {tty bad fd} -body {
     set f [open [file tempfile] w]
     $f tty
-} -returnCodes error -result {Inappropriate ioctl for device} -cleanup {
+} -returnCodes error -match regexp -result {^(Inappropriate ioctl for device|Not a tty)$} -cleanup {
     $f close
 }
 
