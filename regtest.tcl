@@ -350,6 +350,12 @@ puts "TEST 50 PASSED"
 catch {expr {2 && "abc$"}}
 puts "TEST 51 PASSED"
 
+# REGTEST 52
+# lsearch -command with too few args
+catch {lsearch -all -command abc def}
+puts "TEST 52 PASSED"
+
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"

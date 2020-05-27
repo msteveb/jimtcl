@@ -12292,6 +12292,10 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         }
     }
 
+    argc -= i;
+    if (argc < 2) {
+        goto wrongargs;
+    }
     argv += i;
 
     if (opt_all) {
