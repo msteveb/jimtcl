@@ -10110,21 +10110,6 @@ tailcall:
     Jim_SetEmptyResult(interp);
     if (cmdPtr->isproc) {
         retcode = JimCallProcedure(interp, cmdPtr, objc, objv);
-
-        /* Handle the JIM_RETURN return code */
-        if (retcode == JIM_RETURN) {
-            if (--interp->returnLevel <= 0) {
-                retcode = interp->returnCode;
-                interp->returnCode = JIM_OK;
-                interp->returnLevel = 0;
-            }
-        }
-        else if (retcode == JIM_ERR) {
-            interp->addStackTrace++;
-            Jim_DecrRefCount(interp, interp->errorProc);
-            interp->errorProc = objv[0];
-            Jim_IncrRefCount(interp->errorProc);
-        }
     }
     else {
         interp->cmdPrivData = cmdPtr->u.native.privData;
@@ -10872,6 +10857,21 @@ badargset:
     retcode = JimInvokeDefer(interp, retcode);
     interp->framePtr = interp->framePtr->parent;
     JimFreeCallFrame(interp, callFramePtr, JIM_FCF_REUSE);
+
+    /* Handle the JIM_RETURN return code */
+    if (retcode == JIM_RETURN) {
+        if (--interp->returnLevel <= 0) {
+            retcode = interp->returnCode;
+            interp->returnCode = JIM_OK;
+            interp->returnLevel = 0;
+        }
+    }
+    else if (retcode == JIM_ERR) {
+        interp->addStackTrace++;
+        Jim_DecrRefCount(interp, interp->errorProc);
+        interp->errorProc = argv[0];
+        Jim_IncrRefCount(interp->errorProc);
+    }
 
     return retcode;
 }
