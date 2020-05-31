@@ -188,12 +188,13 @@ static int utf8_tounicode_case(const char *s, int *uc, int upper)
  *
  * Returns NULL on no match.
  */
-static const char *JimCharsetMatch(const char *pattern, int c, int flags)
+static const char *JimCharsetMatch(const char *pattern, int plen, int c, int flags)
 {
     int not = 0;
     int pchar;
     int match = 0;
     int nocase = 0;
+    int n;
 
     if (flags & JIM_NOCASE) {
         nocase++;
@@ -204,6 +205,7 @@ static const char *JimCharsetMatch(const char *pattern, int c, int flags)
         if (*pattern == '^') {
             not++;
             pattern++;
+            plen--;
         }
 
         /* Special case. If the first char is ']', it is part of the set */
@@ -212,22 +214,27 @@ static const char *JimCharsetMatch(const char *pattern, int c, int flags)
         }
     }
 
-    while (*pattern && *pattern != ']') {
+    while (plen && *pattern != ']') {
         /* Exact match */
         if (pattern[0] == '\\') {
 first:
-            pattern += utf8_tounicode_case(pattern, &pchar, nocase);
+            n = utf8_tounicode_case(pattern, &pchar, nocase);
+            pattern += n;
+            plen -= n;
         }
         else {
             /* Is this a range? a-z */
             int start;
             int end;
 
-            pattern += utf8_tounicode_case(pattern, &start, nocase);
-            if (pattern[0] == '-' && pattern[1]) {
+            n = utf8_tounicode_case(pattern, &start, nocase);
+            pattern += n;
+            plen -= n;
+            if (pattern[0] == '-' && plen > 1) {
                 /* skip '-' */
-                pattern++;
-                pattern += utf8_tounicode_case(pattern, &end, nocase);
+                n = 1 + utf8_tounicode_case(pattern + 1, &end, nocase);
+                pattern += n;
+                plen -= n;
 
                 /* Handle reversed range too */
                 if ((c >= start && c <= end) || (c >= end && c <= start)) {
@@ -253,39 +260,52 @@ first:
 
 /* Note: string *must* be valid UTF-8 sequences
  */
-static int JimGlobMatch(const char *pattern, const char *string, int nocase)
+static int JimGlobMatch(const char *pattern, int plen, const char *string, int slen, int nocase)
 {
     int c;
     int pchar;
-    while (*pattern) {
+    int n;
+    const char *p;
+    while (plen) {
         switch (pattern[0]) {
             case '*':
-                while (pattern[1] == '*') {
+                while (pattern[1] == '*' && plen) {
                     pattern++;
+                    plen--;
                 }
                 pattern++;
-                if (!pattern[0]) {
+                plen--;
+                if (!plen) {
                     return 1;   /* match */
                 }
-                while (*string) {
+                while (slen) {
                     /* Recursive call - Does the remaining pattern match anywhere? */
-                    if (JimGlobMatch(pattern, string, nocase))
+                    if (JimGlobMatch(pattern, plen, string, slen, nocase))
                         return 1;       /* match */
-                    string += utf8_tounicode(string, &c);
+                    n = utf8_tounicode(string, &c);
+                    string += n;
+                    slen -= n;
                 }
                 return 0;       /* no match */
 
             case '?':
-                string += utf8_tounicode(string, &c);
+                n = utf8_tounicode(string, &c);
+                string += n;
+                slen -= n;
                 break;
 
             case '[': {
-                    string += utf8_tounicode(string, &c);
-                    pattern = JimCharsetMatch(pattern + 1, c, nocase ? JIM_NOCASE : 0);
-                    if (!pattern) {
+                    n = utf8_tounicode(string, &c);
+                    string += n;
+                    slen -= n;
+                    p = JimCharsetMatch(pattern + 1, plen - 1, c, nocase ? JIM_NOCASE : 0);
+                    if (!p) {
                         return 0;
                     }
-                    if (!*pattern) {
+                    plen -= p - pattern;
+                    pattern = p;
+
+                    if (!plen) {
                         /* Ran out of pattern (no ']') */
                         continue;
                     }
@@ -294,25 +314,31 @@ static int JimGlobMatch(const char *pattern, const char *string, int nocase)
             case '\\':
                 if (pattern[1]) {
                     pattern++;
+                    plen--;
                 }
                 /* fall through */
             default:
-                string += utf8_tounicode_case(string, &c, nocase);
+                n = utf8_tounicode_case(string, &c, nocase);
+                string += n;
+                slen -= n;
                 utf8_tounicode_case(pattern, &pchar, nocase);
                 if (pchar != c) {
                     return 0;
                 }
                 break;
         }
-        pattern += utf8_tounicode_case(pattern, &pchar, nocase);
-        if (!*string) {
-            while (*pattern == '*') {
+        n = utf8_tounicode_case(pattern, &pchar, nocase);
+        pattern += n;
+        plen -= n;
+        if (!slen) {
+            while (*pattern == '*' && plen) {
                 pattern++;
+                plen--;
             }
             break;
         }
     }
-    if (!*pattern && !*string) {
+    if (!plen && !slen) {
         return 1;
     }
     return 0;
@@ -2539,7 +2565,10 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr)
  */
 int Jim_StringMatchObj(Jim_Interp *interp, Jim_Obj *patternObjPtr, Jim_Obj *objPtr, int nocase)
 {
-    return JimGlobMatch(Jim_String(patternObjPtr), Jim_String(objPtr), nocase);
+    int plen, slen;
+    const char *pattern = Jim_GetString(patternObjPtr, &plen);
+    const char *string = Jim_GetString(objPtr, &slen);
+    return JimGlobMatch(pattern, plen, string, slen, nocase);
 }
 
 int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *secondObjPtr, int nocase)
@@ -9699,7 +9728,7 @@ static Jim_Obj *JimScanAString(Jim_Interp *interp, const char *sdescr, const cha
             break;              /* EOS via WS if unspecified */
 
         n = utf8_tounicode(str, &c);
-        if (sdescr && !JimCharsetMatch(sdescr, c, JIM_CHARSET_SCAN))
+        if (sdescr && !JimCharsetMatch(sdescr, strlen(sdescr), c, JIM_CHARSET_SCAN))
             break;
         while (n--)
             *p++ = *str++;
@@ -11217,7 +11246,9 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
                     nomatch = !Jim_StringMatchObj(interp, patternObjPtr, he->key, 0);
                 }
                 else {
-                    nomatch = !JimGlobMatch(Jim_String(patternObjPtr), he->key, 0);
+                    int plen;
+                    const char *pattern = Jim_GetString(patternObjPtr, &plen);
+                    nomatch = !JimGlobMatch(pattern, plen, he->key, strlen(he->key), 0);
                 }
             }
             if (!nomatch) {

@@ -214,12 +214,20 @@ test stringmatch-6.6 {charset with ^} {
     string match {a[\]]c} {a]c}
 } 0
 
-test stringmatch=7.1 {short string with ?} {
+test stringmatch-7.1 {short string with ?} {
     string match {ab?} ab
 } 0
 
-test stringmatch=7.1 {multiple * to end} {
+test stringmatch-7.2 {multiple * to end} {
     string match {ab**} ab
+} 1
+
+test stringmatch-7.3 {null in string} {
+    string match *bar* foo\0bar
+} 1
+
+test stringmatch-7.4 {null in pattern} {
+    string match *b\[\0a\]r* foobar
 } 1
 
 testreport

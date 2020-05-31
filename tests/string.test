@@ -696,6 +696,17 @@ test string-11.50 {string match, *special case} tcl {
     string match "\\" "\\"
 } 0
 
+test string-11.51 {string match, nulls in pattern} {
+    string match "abc\0def" "abc\0def"
+} 1
+
+test string-11.52 {string match, nulls in pattern} {
+    string match "abc*\0def" "abcghi\0def"
+} 1
+
+test string-11.53 {string match, nulls in pattern} {
+    string match "abc\[ghi\0]def" "abc\0def"
+} 1
 
 test string-12.1 {string range} {
     list [catch {string range} msg]
