@@ -1272,9 +1272,8 @@ test dict-23.4 {dict with usage} -body {
 } -returnCodes error -result {wrong # args: should be "dict with dictVar ?key ...? script"}
 
 test dict-23.5 {dict with badvar} -constraints jim -body {
-	# set up a variable that will fail Jim_SetVariable()
-	dict with dictnulls {}
-} -returnCodes error -result {variable name contains embedded null}
+	dict with dictnulls {lsort [info locals]}
+} -returnCodes ok -result [list \0ghi kl\0m ab\0c de\0f]
 
 test dict-23.6 {dict with baddict} -body {
 	dict with dictbad {}

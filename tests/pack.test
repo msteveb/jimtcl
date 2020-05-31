@@ -66,7 +66,7 @@ test pack-2.7 {pack bad set} -body {
 
 test pack-2.8 {pack bad set} -body {
 	pack bad\x00var 32 -intle 8
-} -returnCodes error -result {variable name contains embedded null}
+} -returnCodes ok -result {8}
 
 test unpack-1.1 {unpack usage} -body {
 	unpack

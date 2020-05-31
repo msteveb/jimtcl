@@ -527,15 +527,15 @@ test jimobj-1.4 "incr dict sugar" {
 	list $a(3) $a
 } {4 {3 4}}
 
-test jim-badvar-1.1 "invalid variable name" {
+test jim-badvar-1.1 "variable name with embedded null" {
 	set x b\0c
-	catch {set $x 5}
-} 1
+	set $x 5
+} 5
 
-test jim-badvar-1.2 "incr invalid variable name" {
+test jim-badvar-1.2 "incr variable name with embedded null" {
 	set x b\0c
-	catch {incr $x}
-} 1
+	incr $x
+} 6
 
 test lset-1.1 "lset with bad var" {
 	catch {lset badvar 1 x}

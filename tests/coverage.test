@@ -213,13 +213,14 @@ test package-1 {package names} jim {
 	expr {"stdlib" in [package names]}
 } {1}
 
-test variable-1 {upvar to invalid name} -constraints jim -body {
+test variable-1 {upvar, name with embedded null} -constraints jim -body {
 	proc a {} {
 		upvar var\0null abc
 		incr abc
 	}
+	set var\0null 2
 	a
-} -returnCodes error -result {variable name contains embedded null}
+} -returnCodes ok -result {3}
 
 test variable-2 {upvar to global name} {
 	set ::globalvar 1

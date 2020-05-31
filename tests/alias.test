@@ -145,12 +145,12 @@ test statics-1.1 "missing static variable init" {
 	}
 } 1
 
-test statics-1.2 "static variable with invalid name" {
-	catch {
-		proc a {b} "{c\0d 4}" {
-		}
+test statics-1.2 "static variable with name containing null" {
+	proc a {b} "{c\0d 4}" {
+		return [set c\0d]
 	}
-} 1
+	a 5
+} 4
 
 test statics-1.3 "duplicate static variable" {
 	catch {

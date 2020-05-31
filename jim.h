@@ -544,6 +544,7 @@ typedef struct Jim_Interp {
     Jim_Obj *stackTrace; /* Stack trace object. */
     Jim_Obj *errorProc; /* Name of last procedure which returned an error */
     Jim_Obj *unknown; /* Unknown command cache */
+    Jim_Obj *defer; /* "jim::defer" */
     int unknown_called; /* The unknown command has been invoked */
     int errorFlag; /* Set if an error occurred during execution. */
     void *cmdPrivData; /* Used to pass the private data pointer to
