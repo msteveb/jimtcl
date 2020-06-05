@@ -1714,7 +1714,7 @@ static int DbObjCmd(Jim_Interp *interp, int objc,Jim_Obj *const*objv){
   ** Shutdown the database
   */
   case DB_CLOSE: {
-    Jim_DeleteCommand(interp, Jim_String(objv[0]));
+    Jim_DeleteCommand(interp, objv[0]);
     break;
   }
 

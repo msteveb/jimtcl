@@ -1569,7 +1569,7 @@ static int view_cmd_as(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int view_cmd_destroy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_DeleteCommand(interp, Jim_String(argv[0]));
+    Jim_DeleteCommand(interp, argv[0]);
     return JIM_OK;
 }
 
@@ -1801,7 +1801,7 @@ static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const
 
     cmd = Jim_GetCommand(interp, argv[0], 0);
     if (cmd && !cmd->isproc && cmd->u.native.cmdProc == JimOneShotViewSubCmdProc)
-        Jim_DeleteCommand(interp, Jim_String(argv[0]));
+        Jim_DeleteCommand(interp, argv[0]);
 
     return result;
 }
@@ -1809,7 +1809,7 @@ static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const
 static int JimViewFinalizerProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     /* We won't succeed here if the user renamed the command, and this is right */
-    Jim_DeleteCommand(interp, Jim_String(argv[1]));
+    Jim_DeleteCommand(interp, argv[1]);
     return JIM_OK;
 }
 
@@ -2038,7 +2038,7 @@ static int storage_cmd_rollback(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 static int storage_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_DeleteCommand(interp, Jim_String(argv[0]));
+    return Jim_DeleteCommand(interp, argv[0]);
 }
 
 /* Command table ----------------------------------------------------------- */
