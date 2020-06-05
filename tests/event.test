@@ -198,14 +198,14 @@ test event-12.4 {Tcl_UpdateCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
-    after 10; update; # On Mac make sure update won't take long
-    after 200 {set x x-done}
-    after 400 {set y y-done}
+    after 20; update; # On Mac make sure update won't take long
+    after 400 {set x x-done}
+    after 800 {set y y-done}
     after idle {set z z-done}
     set x before
     set y before
     set z before
-    after 300
+    after 600
     update
     list $x $y $z
 } {x-done before z-done}

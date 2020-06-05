@@ -81,9 +81,9 @@ test signal-1.7 "clearing ignored signals" {
 test signal-1.8 "try/signal" try {
 	signal handle ALRM
 	try -signal {
-		alarm 0.4
+		alarm 0.8
 		foreach i [range 10] {
-			sleep 0.1
+			sleep 0.2
 		}
 		set msg ""
 	} on signal {msg} {
@@ -92,7 +92,7 @@ test signal-1.8 "try/signal" try {
 		alarm 0
 	}
 	signal default ALRM
-	list [expr {$i in {3 4 5}}] $msg
+	list [expr {$i in {2 3 4}}] $msg
 } {1 SIGALRM}
 
 test signal-1.9 {throw an ignored signal} {

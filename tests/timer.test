@@ -23,13 +23,13 @@ test timer-1.1 {Tcl_CreateTimerHandler procedure} {
 	after cancel $i
     }
     set x ""
-    foreach i {20 40 200 10 30} {
+    foreach i {40 80 400 20 60} {
 	after $i lappend x $i
     }
-    after 50
+    after 100
     update
     set x
-} {10 20 30 40}
+} {20 40 60 80}
 
 test timer-2.1 {Tcl_DeleteTimerHandler procedure} {
     foreach i [after info] {
@@ -62,21 +62,21 @@ test timer-3.2 {TimerHandlerEventProc procedure: multiple timers} {
     foreach i [after info] {
 	after cancel $i
     }
-    foreach i {40 120 200} {
+    foreach i {80 240 400} {
 	after $i lappend x $i
     }
-    after 50
+    after 100
     set result ""
     set x ""
     update
     lappend result $x
-    after 80
+    after 160
     update
     lappend result $x
-    after 80
+    after 160
     update
     lappend result $x
-} {40 {40 120} {40 120 200}}
+} {80 {80 240} {80 240 400}}
 test timer-3.3 {TimerHandlerEventProc procedure: reentrant timer deletion} {
     foreach i [after info] {
 	after cancel $i
@@ -181,11 +181,11 @@ test timer-6.3 {Tcl_AfterCmd procedure, basics} jim {
 } {1 {bad argument "gorp": must be cancel, idle, or info}}
 test timer-6.4 {Tcl_AfterCmd procedure, ms argument} {
     set x before
-    after 80 {set x after}
-    after 40
+    after 500 {set x after}
+    after 100
     update
     set y $x
-    after 80
+    after 500
     update
     list $y $x
 } {before after}
