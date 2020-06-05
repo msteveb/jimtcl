@@ -3,7 +3,7 @@ source [file dirname [info script]]/testing.tcl
 needs constraint jim
 needs cmd socket
 needs cmd os.fork
-testCmdConstraints load_ssl_certs
+needs cmd load_ssl_certs
 
 # Note that we don't actually need to load certificates with load_ssl_certs
 # since the openssl installation should generally automatically load

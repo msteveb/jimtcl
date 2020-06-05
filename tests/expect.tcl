@@ -26,6 +26,12 @@
 #
 # $p tty ?...?
 # $p kill ?SIGNAL?
+if {![exists -command namespace]} {
+	# Just enough to support [namespace current]
+	proc namespace {args} {
+		return ""
+	}
+}
 
 proc expect::spawn {cmd} {
 	lassign [socket pty] m s

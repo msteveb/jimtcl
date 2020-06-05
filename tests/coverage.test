@@ -2,7 +2,7 @@
 
 source [file dirname [info script]]/testing.tcl
 
-testCmdConstraints ref rand
+testCmdConstraints ref rand namespace
 
 testConstraint debug-invstr 0
 catch {
@@ -28,7 +28,7 @@ test dupobj-2 {duplicate expr object} {
 	set y
 } {abc + 1}
 
-test dupobj-3 {duplicate interpolated object} {
+test dupobj-3 {duplicate interpolated object} namespace {
 	set w 4
 	set y def($w)
 	# Now treat it as a namespace object that needs duplicating
@@ -36,7 +36,7 @@ test dupobj-3 {duplicate interpolated object} {
 	apply [list x {set x 1} $y] x
 } {1}
 
-test dupobj-4 {duplicate dict subst object} {
+test dupobj-4 {duplicate dict subst object} namespace {
 	# make y a dict subst
 	set def(4) 5
 	set y def(4)
@@ -46,7 +46,7 @@ test dupobj-4 {duplicate dict subst object} {
 	apply [list x {set x 1} $y] x
 } {1}
 
-test dupobj-5 {duplicate object with no string rep} {
+test dupobj-5 {duplicate object with no string rep} namespace {
 	# A sorted list has no string rep
 	set y [lsort {abc def}]
 	# Now treat it as a namespace object that needs duplicating
@@ -54,7 +54,7 @@ test dupobj-5 {duplicate object with no string rep} {
 	apply [list x {set x 1} $y] x
 } {1}
 
-test dupobj-6 {duplicate object with no type dup proc} {
+test dupobj-6 {duplicate object with no type dup proc} namespace {
 	set x 6
 	incr x
 	# x is now an int, an object with no dup proc
@@ -65,7 +65,7 @@ test dupobj-6 {duplicate object with no type dup proc} {
 	}
 } {}
 
-test dupobj-7 {duplicate scan obj} {
+test dupobj-7 {duplicate scan obj} namespace {
 	set x "%d %d"
 	scan "1 4" $x y z
 	# Now treat it as a namespace object that needs duplicating
