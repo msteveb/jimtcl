@@ -63,6 +63,7 @@ Changes between 0.78 and 0.79
 7. `aio tty` now allows setting +echo+ without full +raw+ mode
 8. `regsub` now fully supports +{backslash}A+
 9. Add `socket pty` to create a pseudo-tty pair
+10. Null characters (\x00) are now supported in variable and proc names
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1122,8 +1123,6 @@ following special sequences may appear in +'pattern'+:
     Matches the single character +'x'+.  This provides a way of
     avoiding the special interpretation of the characters +{backslash}*?[]+
     in +'pattern'+.
-
-*NOTE* Jim considers that both patterns and strings end at a null character (\x00).
 
 COMMAND RESULTS
 ---------------

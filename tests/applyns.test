@@ -88,6 +88,11 @@ test apply-7.8 {namespace access} {
     set body {testApply}
     apply [list args $body testApply]
 } testApply
+test apply-7.9 {namespace access} {
+    set ::testApply::x 0
+    set body {testApply}
+    apply [list args $body ::testApply]
+} testApply
 
 # apply ignore the current namespace and runs at global scope
 # or the provided namespace (relative to global)

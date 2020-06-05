@@ -64,6 +64,7 @@ test curry-1.4 "Two word curry" {
 
 test curry-1.5 "Delete curry" references {
 	collect
+	$one abc
 	unset one two
 	collect
 } {2}

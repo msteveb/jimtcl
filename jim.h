@@ -724,9 +724,9 @@ JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
         const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
          Jim_DelCmdProc *delProc);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
-        const char *cmdName);
+        Jim_Obj *cmdNameObj);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
-        const char *oldName, const char *newName);
+        Jim_Obj *oldNameObj, Jim_Obj *newNameObj);
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
 JIM_EXPORT int Jim_SetVariable (Jim_Interp *interp,

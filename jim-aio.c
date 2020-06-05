@@ -1131,7 +1131,7 @@ static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    return Jim_DeleteCommand(interp, Jim_String(argv[0]));
+    return Jim_DeleteCommand(interp, argv[0]);
 }
 
 static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)

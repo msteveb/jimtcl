@@ -42,7 +42,7 @@ static int interp_cmd_eval(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int interp_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    return Jim_DeleteCommand(interp, Jim_String(argv[0]));
+    return Jim_DeleteCommand(interp, argv[0]);
 }
 
 static void JimInterpDelAlias(Jim_Interp *interp, void *privData)
