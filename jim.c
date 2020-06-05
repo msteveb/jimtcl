@@ -3757,6 +3757,19 @@ static int JimScriptValid(Jim_Interp *interp, ScriptObj *script)
 /* -----------------------------------------------------------------------------
  * Commands
  * ---------------------------------------------------------------------------*/
+void Jim_InterpIncrProcEpoch(Jim_Interp *interp)
+{
+    interp->procEpoch++;
+
+    /* Now discard all out-of-date Jim_Cmd entries */
+    while (interp->oldCmdCache) {
+        Jim_Cmd *next = interp->oldCmdCache->prevCmd;
+        Jim_Free(interp->oldCmdCache);
+        interp->oldCmdCache = next;
+    }
+    interp->oldCmdCacheSize = 0;
+}
+
 static void JimIncrCmdRefCount(Jim_Cmd *cmdPtr)
 {
     cmdPtr->inUse++;
@@ -3784,7 +3797,22 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
             /* Delete any pushed command too */
             JimDecrCmdRefCount(interp, cmdPtr->prevCmd);
         }
-        Jim_Free(cmdPtr);
+
+        if (interp->quitting) {
+            Jim_Free(cmdPtr);
+        }
+        else {
+            /* Preserve the structure with inUse = 0 so that
+             * cached references will continue to work.
+             * These will be discarding at the next procEpoch increment
+             * or once 1000 have been accumulated.
+             */
+            cmdPtr->prevCmd = interp->oldCmdCache;
+            interp->oldCmdCache = cmdPtr;
+            if (++interp->oldCmdCacheSize >= 1000) {
+                Jim_InterpIncrProcEpoch(interp);
+            }
+        }
     }
 }
 
@@ -3956,13 +3984,15 @@ static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cm
          * to increment the 'proc epoch' because creation of a new procedure
          * can never affect existing cached commands. We don't do
          * negative caching. */
-        Jim_InterpIncrProcEpoch(interp);
+        //Jim_InterpIncrProcEpoch(interp);
     }
 
     if (he && interp->local) {
         /* Push this command over the top of the previous one */
         cmd->prevCmd = Jim_GetHashEntryVal(he);
         Jim_SetHashVal(&interp->commands, he, cmd);
+        /* Need to increment the proc epoch here so that the new command will be used */
+        Jim_InterpIncrProcEpoch(interp);
     }
     else {
         if (he) {
@@ -4196,9 +4226,6 @@ int Jim_DeleteCommand(Jim_Interp *interp, Jim_Obj *nameObj)
         Jim_SetResultFormatted(interp, "can't delete \"%#s\": command doesn't exist", nameObj);
         ret = JIM_ERR;
     }
-    else {
-        Jim_InterpIncrProcEpoch(interp);
-    }
     Jim_DecrRefCount(interp, nameObj);
 
     return ret;
@@ -4291,18 +4318,23 @@ static const Jim_ObjType commandObjType = {
  */
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    Jim_Cmd *cmd;
+    Jim_Cmd *cmd = NULL;
 
     /* In order to be valid, the proc epoch must match and
      * the lookup must have occurred in the same namespace
      */
-    if (objPtr->typePtr != &commandObjType ||
-            objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
+    if (objPtr->typePtr == &commandObjType) {
+        cmd = objPtr->internalRep.cmdValue.cmdPtr;
+        if (cmd->inUse == 0 || objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
 #ifdef jim_ext_namespace
             || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
 #endif
         ) {
-        /* Not cached or out of date, so lookup */
+            /* Cache is invalid */
+            cmd = NULL;
+        }
+    }
+    if (!cmd) {
         Jim_Obj *qualifiedNameObj = JimQualifyName(interp, objPtr);
         Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, qualifiedNameObj);
 #ifdef jim_ext_namespace
@@ -4327,9 +4359,6 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
         objPtr->internalRep.cmdValue.nsObj = interp->framePtr->nsObj;
         Jim_IncrRefCount(interp->framePtr->nsObj);
         Jim_DecrRefCount(interp, qualifiedNameObj);
-    }
-    else {
-        cmd = objPtr->internalRep.cmdValue.cmdPtr;
     }
     while (cmd->u.proc.upcall) {
         cmd = cmd->prevCmd;
@@ -5042,7 +5071,6 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
                 else {
                     Jim_DeleteHashEntry(ht, cmdNameObj);
                 }
-                Jim_InterpIncrProcEpoch(interp);
             }
             Jim_DecrRefCount(interp, cmdNameObj);
         }
@@ -5624,6 +5652,8 @@ void Jim_FreeInterp(Jim_Interp *i)
 
     Jim_Obj *objPtr, *nextObjPtr;
 
+    i->quitting = 1;
+
     /* Free the active call frames list - must be done before i->commands is destroyed */
     for (cf = i->framePtr; cf; cf = cfx) {
         /* Note that we ignore any errors */
@@ -5643,6 +5673,9 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->errorFileNameObj);
     Jim_DecrRefCount(i, i->currentScriptObj);
     Jim_DecrRefCount(i, i->nullScriptObj);
+
+    Jim_InterpIncrProcEpoch(i);
+
     Jim_FreeHashTable(&i->commands);
 #ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);

@@ -526,6 +526,7 @@ typedef struct Jim_Interp {
                 'ID' field contained in the Jim_CallFrame
                 structure. */
     int local; /* If 'local' is in effect, newly defined procs keep a reference to the old defn */
+    int quitting; /* Set to 1 during Jim_FreeInterp() */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
@@ -551,6 +552,8 @@ typedef struct Jim_Interp {
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */
 
+    Jim_Cmd *oldCmdCache; /* commands that have been deleted, but may still be cached */
+    int oldCmdCacheSize; /* Number of delete commands */
     struct Jim_CallFrame *freeFramesList; /* list of CallFrame structures. */
     struct Jim_HashTable assocData; /* per-interp storage for use by packages */
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
@@ -562,7 +565,6 @@ typedef struct Jim_Interp {
  * At some point may be a real function doing more work.
  * The proc epoch is used in order to know when a command lookup
  * cached can no longer considered valid. */
-#define Jim_InterpIncrProcEpoch(i) (i)->procEpoch++
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
 #define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
 /* Note: Using trueObj and falseObj here makes some things slower...*/
