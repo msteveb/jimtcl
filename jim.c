@@ -828,14 +828,12 @@ void Jim_ExpandHashTable(Jim_HashTable *ht, unsigned int size)
     *ht = n;
 }
 
-/* Add an element to the target hash table */
+/* Add an element to the target hash table
+ * Returns JIM_ERR if the entry already exists
+ */
 int Jim_AddHashEntry(Jim_HashTable *ht, const void *key, void *val)
 {
-    Jim_HashEntry *entry;
-
-    /* Get the index of the new element, or -1 if
-     * the element already exists. */
-    entry = JimInsertHashEntry(ht, key, 0);
+    Jim_HashEntry *entry = JimInsertHashEntry(ht, key, 0);;
     if (entry == NULL)
         return JIM_ERR;
 
@@ -3199,7 +3197,7 @@ static const Jim_ObjType scriptObjType = {
     FreeScriptInternalRep,
     DupScriptInternalRep,
     NULL,
-    JIM_TYPE_REFERENCES,
+    JIM_TYPE_NONE,
 };
 
 /* Each token of a script is represented by a ScriptToken.
@@ -5457,19 +5455,6 @@ int Jim_Collect(Jim_Interp *interp)
                 continue;
             }
 
-            /* Maybe the entire string is a reference that is also in the commands table with a refcount of 1.
-             * If so, this can be collected */
-            if (objPtr->refCount == 1) {
-                if (Jim_FindHashEntry(&interp->commands, objPtr)) {
-#ifdef JIM_DEBUG_GC
-                    printf("Found %s which is a command with refcount=1, so not marking\n", Jim_String(objPtr));
-#endif
-                    /* Yes, a command with refcount of 1 */
-                    objPtr = objPtr->nextObjPtr;
-                    continue;
-                }
-            }
-
             /* Extract references from the object string repr. */
             while (1) {
                 int i;
@@ -5490,9 +5475,19 @@ int Jim_Collect(Jim_Interp *interp)
 
                 /* Ok, a reference for the given ID
                  * was found. Mark it. */
-                Jim_AddHashEntry(&marks, &id, NULL);
+
+                 /* But if this is a command in the command table with refCount 1
+                  * don't mark it since it can be deleted.
+                  */
+                if (p == str && objPtr->refCount == 1 && Jim_FindHashEntry(&interp->commands, objPtr)) {
 #ifdef JIM_DEBUG_GC
-                printf("MARK: %d\n", (int)id);
+                    printf("No MARK: %lu - command with refcount=1\n", id);
+#endif
+                    break;
+                }
+                Jim_AddHashEntry(&marks, &id, objPtr);
+#ifdef JIM_DEBUG_GC
+                printf("MARK: %lu (type=%s)\n", id, JimObjTypeName(objPtr));
 #endif
                 p += JIM_REFERENCE_SPACE;
             }
@@ -8762,7 +8757,7 @@ static const Jim_ObjType exprObjType = {
     FreeExprInternalRep,
     DupExprInternalRep,
     NULL,
-    JIM_TYPE_REFERENCES,
+    JIM_TYPE_NONE,
 };
 
 /* expr tree structure */
