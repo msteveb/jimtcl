@@ -64,6 +64,7 @@ Changes between 0.78 and 0.79
 8. `regsub` now fully supports +{backslash}A+
 9. Add `socket pty` to create a pseudo-tty pair
 10. Null characters (\x00) are now supported in variable and proc names
+11. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -55,7 +55,9 @@ if {[info commands interp] eq ""} {
 
 			# Extract the counts
 			foreach var {pass fail skip tests} {
-				incr total($var) [$i eval "set testinfo(num$var)"]
+				catch {
+					incr total($var) [$i eval "set testinfo(num$var)"]
+				}
 			}
 			$i delete
 		}
