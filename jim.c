@@ -6867,6 +6867,22 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
     return rc;
 }
 
+/* Ensure there is room for at least 'idx' values in the list */
+static void ListEnsureLength(Jim_Obj *listPtr, int idx)
+{
+    assert(idx >= 0);
+    if (idx >= listPtr->internalRep.listValue.maxLen) {
+        if (idx < 4) {
+            /* Don't do allocations of under 4 pointers. */
+            idx = 4;
+        }
+        listPtr->internalRep.listValue.ele = Jim_Realloc(listPtr->internalRep.listValue.ele,
+            sizeof(Jim_Obj *) * idx);
+
+        listPtr->internalRep.listValue.maxLen = idx;
+    }
+}
+
 /* This is the low-level function to insert elements into a list.
  * The higher-level Jim_ListInsertElements() performs shared object
  * check and invalidates the string repr. This version is used
@@ -6885,18 +6901,11 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     Jim_Obj **point;
 
     if (requiredLen > listPtr->internalRep.listValue.maxLen) {
-        if (requiredLen < 2) {
-            /* Don't do allocations of under 4 pointers. */
-            requiredLen = 4;
-        }
-        else {
+        if (currentLen) {
+            /* Assume that we will need extra space for future expansion */
             requiredLen *= 2;
         }
-
-        listPtr->internalRep.listValue.ele = Jim_Realloc(listPtr->internalRep.listValue.ele,
-            sizeof(Jim_Obj *) * requiredLen);
-
-        listPtr->internalRep.listValue.maxLen = requiredLen;
+        ListEnsureLength(listPtr, requiredLen);
     }
     if (idx < 0) {
         idx = currentLen;
@@ -15102,7 +15111,6 @@ static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         Jim_WrongNumArgs(interp, 1, argv, "count ?value ...?");
         return JIM_ERR;
     }
-
     if (count == 0 || argc == 2) {
         return JIM_OK;
     }
@@ -15110,8 +15118,9 @@ static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     argc -= 2;
     argv += 2;
 
-    objPtr = Jim_NewListObj(interp, argv, argc);
-    while (--count) {
+    objPtr = Jim_NewListObj(interp, NULL, 0);
+    ListEnsureLength(objPtr, argc * count);
+    while (count--) {
         ListInsertElements(objPtr, -1, argc, argv);
     }
 
@@ -15214,8 +15223,9 @@ static int Jim_LreverseCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         return JIM_ERR;
     }
     JimListGetElements(interp, argv[1], &len, &ele);
-    len--;
     revObjPtr = Jim_NewListObj(interp, NULL, 0);
+    ListEnsureLength(revObjPtr, len);
+    len--;
     while (len >= 0)
         ListAppendElement(revObjPtr, ele[len--]);
     Jim_SetResult(interp, revObjPtr);
@@ -15275,6 +15285,7 @@ static int Jim_RangeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     objPtr = Jim_NewListObj(interp, NULL, 0);
+    ListEnsureLength(objPtr, len);
     for (i = 0; i < len; i++)
         ListAppendElement(objPtr, Jim_NewIntObj(interp, start + i * step));
     Jim_SetResult(interp, objPtr);
