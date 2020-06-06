@@ -1273,7 +1273,7 @@ test dict-23.4 {dict with usage} -body {
 
 test dict-23.5 {dict with badvar} -constraints jim -body {
 	dict with dictnulls {lsort [info locals]}
-} -returnCodes ok -result [list \0ghi kl\0m ab\0c de\0f]
+} -returnCodes ok -result [list ab\0c de\0f \0ghi kl\0m]
 
 test dict-23.6 {dict with baddict} -body {
 	dict with dictbad {}

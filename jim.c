@@ -119,6 +119,7 @@ static void JimPanicDump(int fail_condition, const char *fmt, ...);
 #endif
 
 #ifdef JIM_OPTIMIZATION
+static int JimIsWide(Jim_Obj *objPtr);
 #define JIM_IF_OPTIM(X) X
 #else
 #define JIM_IF_OPTIM(X)
@@ -141,7 +142,6 @@ static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim
 static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands);
 static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
-static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len);
 static void JimSetFailedEnumResult(Jim_Interp *interp, const char *arg, const char *badtype,
     const char *prefix, const char *const *tablePtr, const char *name);
 static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *const *argv);
@@ -151,7 +151,6 @@ static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
 static int JimSetNewVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr, Jim_Var *var);
 static Jim_Var *JimFindVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr);
-
 
 /* Fast access to the int (wide) value of an object which is known to be of int type */
 #define JimWideValue(objPtr) (objPtr)->internalRep.wideValue
@@ -721,15 +720,15 @@ unsigned int Jim_IntHashFunction(unsigned int key)
     return key;
 }
 
-/* Generic hash function (we are using to multiply by 9 and add the byte
- * as Tcl) */
-unsigned int Jim_GenHashFunction(const unsigned char *buf, int len)
+/* Generic string hash function */
+unsigned int Jim_GenHashFunction(const unsigned char *string, int length)
 {
-    unsigned int h = 0;
-
-    while (len--)
-        h += (h << 3) + *buf++;
-    return h;
+    unsigned result = 0;
+    string += length;
+    while (length--) {
+        result += (result << 3) + (unsigned char)(*--string);
+    }
+    return result;
 }
 
 /* ----------------------------- API implementation ------------------------- */
@@ -1025,7 +1024,12 @@ static unsigned int JimHashTableNextPower(unsigned int size)
 
 /* Returns the index of a free slot that can be populated with
  * a hash entry for the given 'key'.
- * If the key already exists, -1 is returned. */
+ * If the key already exists the result depends upon whether 'replace' is set.
+ * If replace is false, returns NULL.
+ * Otherwise returns the existing hash entry.
+ * Note that existing vs new cases can be distinguished because he->key will be NULL
+ * if the key is new
+ */
 static Jim_HashEntry *JimInsertHashEntry(Jim_HashTable *ht, const void *key, int replace)
 {
     unsigned int h;
@@ -3828,9 +3832,35 @@ static void JimVariablesHTValDestructor(void *interp, void *val)
 
 static unsigned int JimObjectHTHashFunction(const void *key)
 {
-    int len;
-    const char *str = Jim_GetString((Jim_Obj *)key, &len);
-    return Jim_GenHashFunction((const unsigned char *)str, len);
+    Jim_Obj *keyObj = (Jim_Obj *)key;
+    int length;
+    const char *string;
+
+    if (JimIsWide(keyObj) && keyObj->bytes == NULL) {
+        /* Special case: we can compute the hash of integers numerically. */
+        jim_wide objValue = JimWideValue(keyObj);
+        if (objValue > INT_MIN && objValue < INT_MAX) {
+            unsigned result = 0;
+            unsigned value = (unsigned)objValue;
+
+            if (objValue < 0) { /* wrap to positive (remove sign) */
+                value = (unsigned)-objValue;
+            }
+
+            /* important: use do-cycle, because value could be 0 */
+            do {
+                result += (result << 3) + (value % 10 + '0');
+                value /= 10;
+            } while (value);
+
+            if (objValue < 0) { /* negative, sign as char */
+                result += (result << 3) + '-';
+            }
+            return result;
+        }
+    }
+    string = Jim_GetString(keyObj, &length);
+    return Jim_GenHashFunction((const unsigned char *)string, length);
 }
 
 static int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
@@ -6560,27 +6590,26 @@ static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         return JIM_OK;
     }
 
-    /* Optimise dict -> list for object with no string rep. Note that this may only save a little time, but
-     * it also preserves any source location of the dict elements
-     * which can be very useful
-     */
+    /* Optimise dict -> list for object with no string rep.  */
     if (Jim_IsDict(objPtr) && objPtr->bytes == NULL) {
-        Jim_Obj **listObjPtrPtr;
-        int len;
-        int i;
+        Jim_Dict *dict = objPtr->internalRep.dictValue;
+        /* To convert to a list we need to:
+         * 1. Take ownership of the table
+         * 2. Discard the hash table
+         * 3. Free the dict structure
+         */
 
-        listObjPtrPtr = JimDictPairs(objPtr, &len);
-        for (i = 0; i < len; i++) {
-            Jim_IncrRefCount(listObjPtrPtr[i]);
-        }
-
-        /* Now just switch the internal rep */
-        Jim_FreeIntRep(interp, objPtr);
+        /* 1. Switch the internal rep */
         objPtr->typePtr = &listObjType;
-        objPtr->internalRep.listValue.len = len;
-        objPtr->internalRep.listValue.maxLen = len;
-        objPtr->internalRep.listValue.ele = listObjPtrPtr;
+        objPtr->internalRep.listValue.len = dict->len;
+        objPtr->internalRep.listValue.maxLen = dict->maxLen;
+        objPtr->internalRep.listValue.ele = dict->table;
 
+        /* 2. Discard the hash table */
+        Jim_Free(dict->ht);
+
+        /* 3. Free the dict structure */
+        Jim_Free(dict);
         return JIM_OK;
     }
 
@@ -7158,18 +7187,11 @@ static void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dup
 static void UpdateStringOfDict(struct Jim_Obj *objPtr);
 static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr);
 
-/* Dict HashTable Type.
+/* Dict Type.
  *
- * Keys and Values are Jim objects. */
-
-static const Jim_HashTableType JimDictHashTableType = {
-    JimObjectHTHashFunction,    /* hash function */
-    JimObjectHTKeyValDup,       /* key dup */
-    JimObjectHTKeyValDup,       /* val dup */
-    JimObjectHTKeyCompare,      /* key compare */
-    JimObjectHTKeyValDestructor,    /* key destructor */
-    JimObjectHTKeyValDestructor /* val destructor */
-};
+ * Jim dictionaries use a specialised hash table for efficiency.
+ * See Jim_Dict in jim.h
+ */
 
 /* Note that while the elements of the dict may contain references,
  * the list object itself can't. This basically means that the
@@ -7183,68 +7205,211 @@ static const Jim_ObjType dictObjType = {
     JIM_TYPE_NONE,
 };
 
-void FreeDictInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+/**
+ * Free the entire dict structure, including the key, value table,
+ * the hash table and the dict structure.
+ */
+static void JimFreeDict(Jim_Interp *interp, Jim_Dict *dict)
 {
-    JIM_NOTUSED(interp);
-
-    Jim_FreeHashTable(objPtr->internalRep.ptr);
-    Jim_Free(objPtr->internalRep.ptr);
+    int i;
+    for (i = 0; i < dict->len; i++) {
+        Jim_DecrRefCount(interp, dict->table[i]);
+    }
+    Jim_Free(dict->table);
+    Jim_Free(dict->ht);
+    Jim_Free(dict);
 }
 
-void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
-{
-    Jim_HashTable *ht, *dupHt;
-    Jim_HashTableIterator htiter;
-    Jim_HashEntry *he;
+enum {
+    DICT_HASH_FIND = -1,
+    DICT_HASH_REMOVE = -2,
+    DICT_HASH_ADD = -3,
+};
 
-    /* Create a new hash table */
-    ht = srcPtr->internalRep.ptr;
-    dupHt = Jim_Alloc(sizeof(*dupHt));
-    Jim_InitHashTable(dupHt, &JimDictHashTableType, interp);
-    if (ht->size != 0)
-        Jim_ExpandHashTable(dupHt, ht->size);
-    /* Copy every element from the source to the dup hash table */
-    JimInitHashTableIterator(ht, &htiter);
-    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-        Jim_AddHashEntry(dupHt, he->key, he->u.val);
+/**
+ * Search for the given key in the dict hash table and perform the given operation.
+ *
+ * op_tvoffset is one of:
+ *
+ * DICT_HASH_FIND
+ * - if found, returns the table value offset, otherwise 0
+ * DICT_HASH_REMOVE
+ * - if found, removes the entry and returns the tabel value offset, otherwise 0
+ * DICT_HASH_ADD
+ * - if found, does nothing and returns the tabel value offset.
+ *   otherwise adds the entry with an table value offset of dict->len + 1 and returns 0
+ * A table value offset (> 0)
+ * - in this case the entry *must* exist and the table value offset
+ *   for the entry is updated to be op_offset.
+ */
+static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
+{
+    unsigned h = (JimObjectHTHashFunction(keyObjPtr) + dict->uniq);
+    unsigned idx = h & dict->sizemask;
+    int tvoffset = 0;
+    unsigned peturb = h;
+
+    if (dict->len) {
+        while ((tvoffset = dict->ht[idx].offset)) {
+            if (dict->ht[idx].hash == h) {
+                if (Jim_StringEqObj(keyObjPtr, dict->table[tvoffset - 1])) {
+                    break;
+                }
+            }
+            /* Use the Python algorithm for conflict resolution */
+            peturb >>= 5;
+            idx = (5 * idx + 1 + peturb) & dict->sizemask;
+        }
     }
 
-    dupPtr->internalRep.ptr = dupHt;
-    dupPtr->typePtr = &dictObjType;
+    switch (op_tvoffset) {
+        case DICT_HASH_FIND:
+            /* If found return tvoffset, if not found return -1 */
+            break;
+        case DICT_HASH_REMOVE:
+            if (tvoffset) {
+                /* Found, remove */
+                dict->ht[idx].offset = 0;
+            }
+            /* else if not found, return -1 */
+            break;
+        case DICT_HASH_ADD:
+            if (tvoffset == 0) {
+                /* Not found so add it at the end */
+                dict->ht[idx].offset = dict->len + 1;
+                dict->ht[idx].hash = h;
+            }
+            /* else if found, return tvoffset */
+            break;
+        default:
+            assert(tvoffset);
+            /* Found so replace the tvoffset */
+            dict->ht[idx].offset = op_tvoffset;
+            break;
+    }
+
+    return tvoffset;
 }
 
-static Jim_Obj **JimDictPairs(Jim_Obj *dictPtr, int *len)
+/* Expand or create the hashtable to at least size 'size'
+ * The hash table size should be have room for twice the number
+ * of keys to reduce collisions
+ */
+static void JimDictExpandHashTable(Jim_Dict *dict, unsigned int size)
 {
-    Jim_HashTable *ht;
-    Jim_HashTableIterator htiter;
-    Jim_HashEntry *he;
-    Jim_Obj **objv;
     int i;
 
-    ht = dictPtr->internalRep.ptr;
+    dict->size = JimHashTableNextPower(size);
+    dict->sizemask = dict->size - 1;
 
-    /* Turn the hash table into a flat vector of Jim_Objects. */
-    objv = Jim_Alloc((ht->used * 2) * sizeof(Jim_Obj *));
-    JimInitHashTableIterator(ht, &htiter);
-    i = 0;
-    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-        objv[i++] = Jim_GetHashEntryKey(he);
-        objv[i++] = Jim_GetHashEntryVal(he);
+    /* Resize the table */
+    dict->ht = Jim_Realloc(dict->ht, dict->size * sizeof(*dict->ht));
+    memset(dict->ht, 0, dict->size * sizeof(*dict->ht));
+
+    /* Now add all the table entries to the new table */
+
+    /* Note that we can't simply reuse the hash values in the existing table
+     * because we need to add them in the same order as the key, value table.
+     * This is so that hash table conflicts resolve to the same result.
+     */
+    for (i = 0; i < dict->len; i += 2) {
+        /* Find the location in the new table for this entry */
+        unsigned h = (JimObjectHTHashFunction(dict->table[i]) + dict->uniq);
+        unsigned idx = h & dict->sizemask;
+        unsigned peturb = h;
+
+        while (dict->ht[idx].offset) {
+            peturb >>= 5;
+            idx = (5 * idx + 1 + peturb) & dict->sizemask;
+        }
+        dict->ht[idx].offset = i + 1;
+        dict->ht[idx].hash = h;
     }
-    *len = i;
-    return objv;
+}
+
+/**
+ * Add an entry to the hash table for 'keyObjPtr'
+ * If the entry already exists, return the current tvoffset.
+ * Otherwise inserts a new entry with table value offset dict->len + 1
+ * and returns 0.
+ */
+static int JimDictAdd(Jim_Dict *dict, Jim_Obj *keyObjPtr)
+{
+    /* If we are trying to add an entry and the hash table is too small,
+     * increase the size now, even if it may exist and the add would
+     * do nothing.
+     * This way we don't need to recalculate the hash index in case
+     * it didn't exist.
+     */
+    if (dict->size <= dict->len) {
+        /* The first add grows the size to 8, and thereafter it is doubled
+         * in size. Note that hash table sizes are always powers of two.
+         */
+        JimDictExpandHashTable(dict, dict->size ? dict->size * 2 : 8);
+    }
+    return JimDictHashFind(dict, keyObjPtr, DICT_HASH_ADD);
+}
+
+/**
+ * Allocate and return a new Jim_Dict structure
+ * with space for 'table_size' key, object entries
+ * and hash table size 'ht_size'
+ * These can be 0.
+ */
+static Jim_Dict *JimDictNew(Jim_Interp *interp, int table_size, int ht_size)
+{
+    Jim_Dict *dict = Jim_Alloc(sizeof(*dict));
+    memset(dict, 0, sizeof(*dict));
+
+    if (ht_size) {
+        JimDictExpandHashTable(dict, ht_size);
+    }
+    if (table_size) {
+        dict->table = Jim_Alloc(table_size * sizeof(*dict->table));
+        dict->maxLen = table_size;
+    }
+#ifdef JIM_RANDOMISE_HASH
+    /* This is initialised to a random value to avoid a hash collision attack.
+     * See: n.runs-SA-2011.004
+     */
+    dict->uniq = (rand() ^ time(NULL) ^ clock());
+#endif
+    return dict;
+}
+
+static void FreeDictInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
+{
+    JimFreeDict(interp, objPtr->internalRep.dictValue);
+}
+
+static void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
+{
+    Jim_Dict *oldDict = srcPtr->internalRep.dictValue;
+    int i;
+
+    /* Create a new hash table */
+    Jim_Dict *newDict = JimDictNew(interp, oldDict->maxLen, oldDict->size);
+
+    /* Copy the table of key and value objects, incrementing the reference count of both */
+    for (i = 0; i < oldDict->len; i++) {
+        newDict->table[i] = oldDict->table[i];
+        Jim_IncrRefCount(newDict->table[i]);
+    }
+    newDict->len = oldDict->len;
+
+    /* Must keep the same uniq so that the hashes agree */
+    newDict->uniq = oldDict->uniq;
+
+    /* Now copy the the hash table efficiently */
+    memcpy(newDict->ht, oldDict->ht, sizeof(*oldDict->ht) * oldDict->size);
+
+    dupPtr->internalRep.dictValue = newDict;
+    dupPtr->typePtr = &dictObjType;
 }
 
 static void UpdateStringOfDict(struct Jim_Obj *objPtr)
 {
-    /* Turn the hash table into a flat vector of Jim_Objects. */
-    int len;
-    Jim_Obj **objv = JimDictPairs(objPtr, &len);
-
-    /* And now generate the string rep as a list */
-    JimMakeListStringRep(objPtr, objv, len);
-
-    Jim_Free(objv);
+    JimMakeListStringRep(objPtr, objPtr->internalRep.dictValue->table, objPtr->internalRep.dictValue->len);
 }
 
 static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
@@ -7257,35 +7422,52 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
     if (Jim_IsList(objPtr) && Jim_IsShared(objPtr)) {
         /* A shared list, so get the string representation now to avoid
-         * changing the order in case of fast conversion to dict.
+         * losing duplicate keys from the string rep when converting to
+         * a dict.
          */
         Jim_String(objPtr);
     }
 
-    /* For simplicity, convert a non-list object to a list and then to a dict */
+    /* Convert a non-list object to a list and then to a dict
+     * since we will need the list of key, value pairs anyway
+     */
     listlen = Jim_ListLength(interp, objPtr);
     if (listlen % 2) {
         Jim_SetResultString(interp, "missing value to go with key", -1);
         return JIM_ERR;
     }
     else {
-        /* Converting from a list to a dict can't fail */
-        Jim_HashTable *ht;
+        /* Allocate space in the hash table for twice the number of elements */
+        Jim_Dict *dict = JimDictNew(interp, 0, listlen);
         int i;
 
-        ht = Jim_Alloc(sizeof(*ht));
-        Jim_InitHashTable(ht, &JimDictHashTableType, interp);
+        /* Take ownership of the list array */
+        dict->table = objPtr->internalRep.listValue.ele;
+        dict->maxLen = objPtr->internalRep.listValue.maxLen;
 
+        /* Now add all the elements to the hash table */
         for (i = 0; i < listlen; i += 2) {
-            Jim_Obj *keyObjPtr = Jim_ListGetIndex(interp, objPtr, i);
-            Jim_Obj *valObjPtr = Jim_ListGetIndex(interp, objPtr, i + 1);
-
-            Jim_ReplaceHashEntry(ht, keyObjPtr, valObjPtr);
+            if (JimDictAdd(dict, dict->table[i])) {
+                /* A duplicate key, so skip this pair */
+                Jim_DecrRefCount(interp, dict->table[i]);
+                Jim_DecrRefCount(interp, dict->table[i + 1]);
+            }
+            else {
+                if (dict->len != i) {
+                    /* Need to move later entries down to fill the hole created by
+                     * a previous duplicate entry.
+                     */
+                    dict->table[dict->len++] = dict->table[i];
+                    dict->table[dict->len++] = dict->table[i + 1];
+                }
+                else {
+                    dict->len += 2;
+                }
+            }
         }
 
-        Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &dictObjType;
-        objPtr->internalRep.ptr = ht;
+        objPtr->internalRep.dictValue = dict;
 
         return JIM_OK;
     }
@@ -7302,13 +7484,62 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 static int DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
     Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr)
 {
-    Jim_HashTable *ht = objPtr->internalRep.ptr;
+    Jim_Dict *dict = objPtr->internalRep.dictValue;
+    if (valueObjPtr == NULL) {
+        /* Removing an entry */
+        int tvoffset = JimDictHashFind(dict, keyObjPtr, DICT_HASH_REMOVE);
+        if (tvoffset) {
+            /* Found, so we need to remove the value from the table too, and if it is not the last
+             * entry, need to swap with the last entry
+             */
+            /* Remove the table entries */
+            Jim_DecrRefCount(interp, dict->table[tvoffset - 1]);
+            Jim_DecrRefCount(interp, dict->table[tvoffset]);
+            dict->len -= 2;
+            if (tvoffset != dict->len + 1) {
+                /* Swap the last pair of table entries into the now empty entries */
+                dict->table[tvoffset - 1] = dict->table[dict->len];
+                dict->table[tvoffset] = dict->table[dict->len + 1];
 
-    if (valueObjPtr == NULL) {  /* unset */
-        return Jim_DeleteHashEntry(ht, keyObjPtr);
+                /* Now we need to update the hash table for the swapped entry */
+                JimDictHashFind(dict, dict->table[tvoffset - 1], tvoffset);
+            }
+            return JIM_OK;
+        }
+        return JIM_ERR;
     }
-    Jim_ReplaceHashEntry(ht, keyObjPtr, valueObjPtr);
-    return JIM_OK;
+    else {
+        /* Adding an entry - does it already exist? */
+        int tvoffset = JimDictAdd(dict, keyObjPtr);
+        if (tvoffset) {
+            /* Yes, already exists, so just replace value entry in the table */
+            Jim_IncrRefCount(valueObjPtr);
+            Jim_DecrRefCount(interp, dict->table[tvoffset]);
+            dict->table[tvoffset] = valueObjPtr;
+        }
+        else {
+            /* No, so need to make space in the table
+            * and insert this entry at dict->len, dict->len + 1
+            */
+            if (dict->maxLen == dict->len) {
+                /* Expand the table */
+                if (dict->maxLen < 4) {
+                    dict->maxLen = 4;
+                }
+                else {
+                    dict->maxLen *= 2;
+                }
+                dict->table = Jim_Realloc(dict->table, dict->maxLen * sizeof(*dict->table));
+            }
+            Jim_IncrRefCount(keyObjPtr);
+            Jim_IncrRefCount(valueObjPtr);
+
+            dict->table[dict->len++] = keyObjPtr;
+            dict->table[dict->len++] = valueObjPtr;
+
+        }
+        return JIM_OK;
+    }
 }
 
 /* Add an element, higher-level interface for DictAddElement().
@@ -7334,8 +7565,8 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
     objPtr = Jim_NewObj(interp);
     objPtr->typePtr = &dictObjType;
     objPtr->bytes = NULL;
-    objPtr->internalRep.ptr = Jim_Alloc(sizeof(Jim_HashTable));
-    Jim_InitHashTable(objPtr->internalRep.ptr, &JimDictHashTableType, interp);
+
+    objPtr->internalRep.dictValue = JimDictNew(interp, len, 0);
     for (i = 0; i < len; i += 2)
         DictAddElement(interp, objPtr, elements[i], elements[i + 1]);
     return objPtr;
@@ -7349,36 +7580,51 @@ Jim_Obj *Jim_NewDictObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
 int Jim_DictKey(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj *keyPtr,
     Jim_Obj **objPtrPtr, int flags)
 {
-    Jim_HashEntry *he;
-    Jim_HashTable *ht;
+    int tvoffset;
+    Jim_Dict *dict;
 
     if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
         return -1;
     }
-    ht = dictPtr->internalRep.ptr;
-    if ((he = Jim_FindHashEntry(ht, keyPtr)) == NULL) {
+    dict = dictPtr->internalRep.dictValue;
+    tvoffset = JimDictHashFind(dict, keyPtr, DICT_HASH_FIND);
+    if (tvoffset == 0) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp, "key \"%#s\" not known in dictionary", keyPtr);
         }
         return JIM_ERR;
     }
-    else {
-        *objPtrPtr = Jim_GetHashEntryVal(he);
-        return JIM_OK;
-    }
-}
-
-/* Return an allocated array of key/value pairs for the dictionary. Stores the length in *len */
-int Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len)
-{
-    if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
-        return JIM_ERR;
-    }
-    *objPtrPtr = JimDictPairs(dictPtr, len);
-
+    *objPtrPtr = dict->table[tvoffset];
     return JIM_OK;
 }
 
+/* Return the key/value pairs array for the dictionary. Stores the length in *len
+ *
+ * Note that the point is to the internal table, so is only
+ * valid until the dict is next modified, and the result should
+ * not be freed.
+ *
+ * Returns NULL if the object can't be converted to a dictionary, or if the length is 0.
+ */
+Jim_Obj **Jim_DictPairs(Jim_Interp *interp, Jim_Obj *dictPtr, int *len)
+{
+    /* If it is a list with an even number of elements, no need to convert to dict first */
+    if (Jim_IsList(dictPtr)) {
+        Jim_Obj **table;
+        JimListGetElements(interp, dictPtr, len, &table);
+        if (*len % 2 == 0) {
+            return table;
+        }
+        /* Otherwise fall through to get the standard error */
+    }
+    if (SetDictFromAny(interp, dictPtr) != JIM_OK) {
+        /* Make sure we can differentiate between an empty dict/list and bad length */
+        *len = 1;
+        return NULL;
+    }
+    *len = dictPtr->internalRep.dictValue->len;
+    return dictPtr->internalRep.dictValue->table;
+}
 
 /* Return the value associated to the specified dict keys */
 int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
@@ -14134,30 +14380,32 @@ static int Jim_RenameCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
  */
 int Jim_DictMatchTypes(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj, int match_type, int return_types)
 {
-    Jim_HashEntry *he;
     Jim_Obj *listObjPtr;
-    Jim_HashTableIterator htiter;
+    Jim_Dict *dict;
+    int i;
 
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
+    dict = objPtr->internalRep.dictValue;
 
     listObjPtr = Jim_NewListObj(interp, NULL, 0);
 
-    JimInitHashTableIterator(objPtr->internalRep.ptr, &htiter);
-    while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
+    for (i = 0; i < dict->len; i += 2 ) {
+        Jim_Obj *keyObj = dict->table[i];
+        Jim_Obj *valObj = dict->table[i + 1];
         if (patternObj) {
-            Jim_Obj *matchObj = (match_type == JIM_DICTMATCH_KEYS) ? (Jim_Obj *)he->key : Jim_GetHashEntryVal(he);
+            Jim_Obj *matchObj = (match_type == JIM_DICTMATCH_KEYS) ? keyObj : valObj;
             if (!Jim_StringMatchObj(interp, patternObj, matchObj, 0)) {
                 /* no match */
                 continue;
             }
         }
         if (return_types & JIM_DICTMATCH_KEYS) {
-            Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
+            Jim_ListAppendElement(interp, listObjPtr, keyObj);
         }
         if (return_types & JIM_DICTMATCH_VALUES) {
-            Jim_ListAppendElement(interp, listObjPtr, Jim_GetHashEntryVal(he));
+            Jim_ListAppendElement(interp, listObjPtr, valObj);
         }
     }
 
@@ -14170,7 +14418,7 @@ int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr)
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return -1;
     }
-    return ((Jim_HashTable *)objPtr->internalRep.ptr)->used;
+    return objPtr->internalRep.dictValue->len / 2;
 }
 
 /**
@@ -14187,18 +14435,20 @@ Jim_Obj *Jim_DictMerge(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     /* Note that we don't optimise the trivial case of a single argument */
 
     for (i = 0; i < objc; i++) {
-        Jim_HashTable *ht;
-        Jim_HashTableIterator htiter;
-        Jim_HashEntry *he;
+        Jim_Obj **table;
+        int tablelen;
+        int j;
 
-        if (SetDictFromAny(interp, objv[i]) != JIM_OK) {
+        /* If the object is a list, avoid converting to a dictionary as
+         * we may mishandle duplicate keys
+         */
+        table = Jim_DictPairs(interp, objv[i], &tablelen);
+        if (tablelen && !table) {
             Jim_FreeNewObj(interp, objPtr);
             return NULL;
         }
-        ht = objv[i]->internalRep.ptr;
-        JimInitHashTableIterator(ht, &htiter);
-        while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-            Jim_ReplaceHashEntry(objPtr->internalRep.ptr, Jim_GetHashEntryKey(he), Jim_GetHashEntryVal(he));
+        for (j = 0; j < tablelen; j += 2) {
+            DictAddElement(interp, objPtr, table[j], table[j + 1]);
         }
     }
     return objPtr;
@@ -14206,50 +14456,19 @@ Jim_Obj *Jim_DictMerge(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 
 int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    Jim_HashTable *ht;
-    unsigned int i;
     char buffer[100];
-    int sum = 0;
-    int nonzero_count = 0;
     Jim_Obj *output;
-    int bucket_counts[11] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    Jim_Dict *dict;
 
     if (SetDictFromAny(interp, objPtr) != JIM_OK) {
         return JIM_ERR;
     }
 
-    ht = (Jim_HashTable *)objPtr->internalRep.ptr;
+    dict = objPtr->internalRep.dictValue;
 
     /* Note that this uses internal knowledge of the hash table */
-    snprintf(buffer, sizeof(buffer), "%d entries in table, %d buckets\n", ht->used, ht->size);
+    snprintf(buffer, sizeof(buffer), "%d entries in table, %d buckets", dict->len, dict->size);
     output = Jim_NewStringObj(interp, buffer, -1);
-
-    for (i = 0; i < ht->size; i++) {
-        Jim_HashEntry *he = ht->table[i];
-        int entries = 0;
-        while (he) {
-            entries++;
-            he = he->next;
-        }
-        if (entries > 9) {
-            bucket_counts[10]++;
-        }
-        else {
-            bucket_counts[entries]++;
-        }
-        if (entries) {
-            sum += entries;
-            nonzero_count++;
-        }
-    }
-    for (i = 0; i < 10; i++) {
-        snprintf(buffer, sizeof(buffer), "number of buckets with %d entries: %d\n", i, bucket_counts[i]);
-        Jim_AppendString(interp, output, buffer, -1);
-    }
-    snprintf(buffer, sizeof(buffer), "number of buckets with 10 or more entries: %d\n", bucket_counts[10]);
-    Jim_AppendString(interp, output, buffer, -1);
-    snprintf(buffer, sizeof(buffer), "average search distance for entry: %.1f", nonzero_count ? (double)sum / nonzero_count : 0.0);
-    Jim_AppendString(interp, output, buffer, -1);
     Jim_SetResult(interp, output);
     return JIM_OK;
 }
@@ -14282,12 +14501,12 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
         return JIM_ERR;
     }
     /* Set the local variables */
-    if (Jim_DictPairs(interp, objPtr, &dictValues, &len) == JIM_ERR) {
+    dictValues = Jim_DictPairs(interp, objPtr, &len);
+    if (len && dictValues == NULL) {
         return JIM_ERR;
     }
     for (i = 0; i < len; i += 2) {
         if (Jim_SetVariable(interp, dictValues[i], dictValues[i + 1]) == JIM_ERR) {
-            Jim_Free(dictValues);
             return JIM_ERR;
         }
     }
@@ -14313,8 +14532,6 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
             Jim_Free(newkeyv);
         }
     }
-
-    Jim_Free(dictValues);
 
     return ret;
 }

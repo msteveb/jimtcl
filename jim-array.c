@@ -114,7 +114,8 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_OK;
     }
 
-    if (Jim_DictPairs(interp, objPtr, &dictValuesObj, &len) != JIM_OK) {
+    dictValuesObj = Jim_DictPairs(interp, objPtr, &len);
+    if (dictValuesObj == NULL) {
         /* Variable is not an array - tclsh ignores this and returns nothing - be compatible */
         Jim_SetResultString(interp, "", -1);
         return JIM_OK;
@@ -128,7 +129,6 @@ static int array_cmd_unset(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             Jim_DictAddElement(interp, resultObj, dictValuesObj[i], dictValuesObj[i + 1]);
         }
     }
-    Jim_Free(dictValuesObj);
 
     Jim_SetVariable(interp, argv[0], resultObj);
     return JIM_OK;

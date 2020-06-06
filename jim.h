@@ -236,6 +236,8 @@ typedef struct Jim_HashTableIterator {
         (entry)->u.val = (_val_); \
 } while(0)
 
+#define Jim_SetHashIntVal(ht, entry, _val_) (entry)->u.intval = (_val_)
+
 #define Jim_FreeEntryKey(ht, entry) \
     if ((ht)->type->keyDestructor) \
         (ht)->type->keyDestructor((ht)->privdata, (entry)->key)
@@ -256,6 +258,7 @@ typedef struct Jim_HashTableIterator {
 
 #define Jim_GetHashEntryKey(he) ((he)->key)
 #define Jim_GetHashEntryVal(he) ((he)->u.val)
+#define Jim_GetHashEntryIntVal(he) ((he)->u.intval)
 #define Jim_GetHashTableCollisions(ht) ((ht)->collisions)
 #define Jim_GetHashTableSize(ht) ((ht)->size)
 #define Jim_GetHashTableUsed(ht) ((ht)->used)
@@ -318,6 +321,8 @@ typedef struct Jim_Obj {
             int len;        /* Length */
             int maxLen;        /* Allocated 'ele' length */
         } listValue;
+        /* dict object */
+        struct Jim_Dict *dictValue;
         /* String type */
         struct {
             int maxLength;
@@ -455,7 +460,22 @@ typedef int Jim_CmdProc(struct Jim_Interp *interp, int argc,
     Jim_Obj *const *argv);
 typedef void Jim_DelCmdProc(struct Jim_Interp *interp, void *privData);
 
-
+/* The dict structure. It uses the same approach as Python OrderedDict
+ * of storing a hash table of table offsets into a table containing keys and objects.
+ * This preserves order when adding and replacing elements.
+ */
+typedef struct Jim_Dict {
+    struct JimDictHashEntry {
+        int offset;
+        unsigned hash;
+    } *ht;		        /* Allocated hash table of size 'size' */
+    unsigned int size;          /* Size of the hash table (0 or power of two) */
+    unsigned int sizemask;      /* mask to apply to hash to index into offsets table */
+    unsigned int uniq;          /* unique value to add to hash generator */
+    Jim_Obj **table;            /* Table of alternating key, value elements */
+    int len;                    /* Number of used elements in table */
+    int maxLen;                 /* Allocated length of table */
+} Jim_Dict;
 
 /* A command is implemented in C if isproc is 0, otherwise
  * it is a Tcl procedure with the arglist and body represented by the
@@ -799,8 +819,8 @@ JIM_EXPORT int Jim_DictKeysVector (Jim_Interp *interp,
 JIM_EXPORT int Jim_SetDictKeysVector (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr, int flags);
-JIM_EXPORT int Jim_DictPairs(Jim_Interp *interp,
-        Jim_Obj *dictPtr, Jim_Obj ***objPtrPtr, int *len);
+JIM_EXPORT Jim_Obj **Jim_DictPairs(Jim_Interp *interp,
+        Jim_Obj *dictPtr, int *len);
 JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr);
 

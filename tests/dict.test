@@ -249,4 +249,25 @@ test dict-24.4 {dict/list shimmering with lappend and foreach} {
 	llength $a
 } 12
 
+# As of 0.79, dicts maintain insertion order
+test dict-25.1 {dict ordering} {
+	dict keys {a x 0 y}
+} {a 0}
+
+test dict-25.2 {dict ordering} {
+	dict keys {0 x a y}
+} {0 a}
+
+test dict-25.3 {dict ordering} {
+	set d [dict create a y 0 x 2 z]
+	dict set d 1 w
+	dict keys $d
+} {a 0 2 1}
+
+test dict-25.3 {dict ordering} {
+	set d [dict create a y 0 x 2 z]
+	dict set d 0 w
+	dict keys $d
+} {a 0 2}
+
 testreport
