@@ -13828,8 +13828,6 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 {
     long i, count = 1;
     jim_wide start, elapsed;
-    char buf[60];
-    const char *fmt = "%" JIM_WIDE_MODIFIER " microseconds per iteration";
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "script ?count?");
@@ -13852,8 +13850,13 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         }
     }
     elapsed = JimClock() - start;
-    sprintf(buf, fmt, count == 0 ? 0 : elapsed / count);
-    Jim_SetResultString(interp, buf, -1);
+    if (elapsed < count * 10) {
+        Jim_SetResult(interp, Jim_NewDoubleObj(interp, elapsed * 1.0 / count));
+    }
+    else {
+        Jim_SetResultInt(interp, count == 0 ? 0 : elapsed / count);
+    }
+    Jim_AppendString(interp, Jim_GetResult(interp)," microseconds per iteration", -1);
     return JIM_OK;
 }
 
