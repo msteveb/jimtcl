@@ -14612,6 +14612,71 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_OK;
 }
 
+/* [timerate] */
+static int Jim_TimeRateCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    long us = 0;
+    jim_wide start, delta, overhead;
+    Jim_Obj *objPtr;
+    double us_per_iter;
+    int count;
+    int n;
+
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "script ?milliseconds?");
+        return JIM_ERR;
+    }
+    if (argc == 3) {
+        if (Jim_GetLong(interp, argv[2], &us) != JIM_OK)
+            return JIM_ERR;
+        us *= 1000;
+    }
+    if (us < 1) {
+        /* Default is 1 second */
+        us = 1000 * 1000;
+    }
+
+    /* Run until we exceed the time limit */
+    start = JimClock();
+    count = 0;
+    do {
+        int retval = Jim_EvalObj(interp, argv[1]);
+        delta = JimClock() - start;
+        if (retval != JIM_OK) {
+            return retval;
+        }
+        count++;
+    } while (delta < us);
+
+    /* Now try to account for the loop and eval overhead */
+    start = JimClock();
+    n = 0;
+    do {
+        int retval = Jim_EvalObj(interp, interp->nullScriptObj);
+        overhead = JimClock() - start;
+        if (retval != JIM_OK) {
+            return retval;
+        }
+        n++;
+    } while (n < count);
+
+    delta -= overhead;
+
+    us_per_iter = (double)delta / count;
+    objPtr = Jim_NewListObj(interp, NULL, 0);
+
+    Jim_ListAppendElement(interp, objPtr, Jim_NewStringObj(interp, "us_per_iter", -1));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewDoubleObj(interp, us_per_iter));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewStringObj(interp, "iters_per_sec", -1));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewDoubleObj(interp, 1e6 / us_per_iter));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewStringObj(interp, "count", -1));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewIntObj(interp, count));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewStringObj(interp, "elapsed_us", -1));
+    Jim_ListAppendElement(interp, objPtr, Jim_NewIntObj(interp, delta));
+    Jim_SetResult(interp, objPtr);
+    return JIM_OK;
+}
+
 /* [exit] */
 static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -16286,6 +16351,7 @@ static const struct {
     {"global", Jim_GlobalCoreCommand},
     {"string", Jim_StringCoreCommand},
     {"time", Jim_TimeCoreCommand},
+    {"timerate", Jim_TimeRateCoreCommand},
     {"exit", Jim_ExitCoreCommand},
     {"catch", Jim_CatchCoreCommand},
     {"try", Jim_TryCoreCommand},
