@@ -4318,23 +4318,21 @@ static const Jim_ObjType commandObjType = {
  */
 Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    Jim_Cmd *cmd = NULL;
+    Jim_Cmd *cmd;
 
     /* In order to be valid, the proc epoch must match and
      * the lookup must have occurred in the same namespace
      */
-    if (objPtr->typePtr == &commandObjType) {
-        cmd = objPtr->internalRep.cmdValue.cmdPtr;
-        if (cmd->inUse == 0 || objPtr->internalRep.cmdValue.procEpoch != interp->procEpoch
+    if (objPtr->typePtr == &commandObjType
+        && objPtr->internalRep.cmdValue.procEpoch == interp->procEpoch
 #ifdef jim_ext_namespace
-            || !Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
+        && Jim_StringEqObj(objPtr->internalRep.cmdValue.nsObj, interp->framePtr->nsObj)
 #endif
-        ) {
-            /* Cache is invalid */
-            cmd = NULL;
-        }
+        && objPtr->internalRep.cmdValue.cmdPtr->inUse) {
+        /* Cached value is valid */
+        cmd = objPtr->internalRep.cmdValue.cmdPtr;
     }
-    if (!cmd) {
+    else {
         Jim_Obj *qualifiedNameObj = JimQualifyName(interp, objPtr);
         Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, qualifiedNameObj);
 #ifdef jim_ext_namespace
