@@ -1,38 +1,109 @@
 set batchmode 0
 set benchmarks {}
+# Run each benchmark for this long (ms)
+# Can be changed with the -time parameter
+set benchtime 1000
+
+# If the timerate command doesn't exist, implement it in Tcl
+if {[info commands timerate] eq ""} {
+    proc timerate {script {ms 1000}} {
+        set start [clock micros]
+        set stop [expr {$start + $ms * 1000}]
+        set count 0
+        while {1} {
+            uplevel 1 $script
+            incr count
+            set now [clock micros]
+            if {$now >= $stop} {
+                break
+            }
+        }
+        set elapsed [expr {$now - $start}]
+
+        # Now try to account for the Tcl overhead
+        set start [clock micros]
+        set n 0
+        while {1} {
+            uplevel 1 {}
+            incr n
+            set now [clock micros]
+            if {$n >= $count} {
+                break
+            }
+        }
+        set elapsed [expr {$elapsed - ($now - $start)}]
+
+        list us_per_iter [expr {1.0 * $elapsed / $count}] iters_per_sec [expr {1e6 * $count / $elapsed}] \
+            count $count elapsed_us $elapsed
+    }
+}
+
+proc format_us_time {us} {
+    set units {2 {ps 1e6} 1 {ns 1e3} 0 {us 1} -1 {ms 1e-3} -2 {s 1e-6}}
+
+    if {$us >= 1e8} {
+            # >= 100 seconds
+            return [format "%.0fs" [expr {$us / 1e6}]]
+    }
+
+    # Avoid using log10 here in case math functions aren't enabled
+
+    # How many digits to the left of the decimal place?
+    lassign [split [format %e $us] e] - exp
+    # Work around Tcl's stupid auto-octal detection
+    set exp [regsub -all {([-+])(0+)?(\d)} $exp {\1\3}]
+    set leftdigits [expr {$exp + 1}]
+    #set leftdigits [expr {int(floor(log10($us)) + 1)}]
+    #puts "$leftdigits1 $leftdigits"
+    # Work out how much to shift by, in increments of 10^3
+    set shift3 [expr {(-$leftdigits / 3) + 1}]
+    set shift [expr {$shift3 * 3}]
+    # Always show 3 significant digits
+    set decimals [expr {3 - ($leftdigits + $shift)}]
+    lassign [dict get $units $shift3] name mult
+    set value [expr {$us * $mult}]
+    return [format "%.${decimals}f%s" $value $name]
+}
 
 proc bench {title script} {
     global benchmarks batchmode
 
     set Title [string range "$title                     " 0 20]
 
-    set failed [catch {time $script} res]
+    catch {collect}
+    set failed [catch {timerate $script $::benchtime} res]
     if {$failed} {
         if {!$batchmode} {puts "$Title - This test can't run on this interpreter ($res)"}
         lappend benchmarks $title F
     } else {
-        set t [expr {[lindex $res 0] / 1000}]
-        lappend benchmarks $title $t
-        set ts "          $t"
-        set ts [string range $ts [expr {[string length $ts]-10}] end]
-        if {!$batchmode} {puts "$Title -$ts ms per iteration"}
+        set us [dict get $res us_per_iter]
+        set count [dict get $res count]
+        set ms [expr {$us / 1000}]
+        lappend benchmarks $title $ms
+        if {!$batchmode} { puts "$Title - [format_us_time $us] per iteration" }
     }
     catch { collect }
 }
 
 ### BUSY LOOP ##################################################################
 
-proc whilebusyloop {} {
+proc whilebusyloop {n} {
     set i 0
-    while {$i < 1850000} {
-        set a 2
-	incr i
+    while {$i < $n} {
+        set a $i
+        incr i
     }
 }
 
-proc forbusyloop {} {
-    for {set i 0} {$i < 1850000} {incr i} {
-        set a 2
+proc forbusyloop {n} {
+    for {set i 0} {$i < $n} {incr i} {
+        set a $i
+    }
+}
+
+proc loopbusyloop {n} {
+    loop i 0 $n {
+        set a $i
     }
 }
 
@@ -99,8 +170,7 @@ proc heapsort {ra_name} {
     }
 }
 
-proc heapsort_main {} {
-    set n 6100
+proc heapsort_main {n} {
     make_gen_random
 
     set data {}
@@ -189,9 +259,9 @@ proc repeat {n body} {
     }
 }
 
-proc use_repeat {} {
+proc use_repeat {n} {
     set x 0
-    repeat {1000000} {incr x}
+    repeat $n {incr x}
 }
 
 ### UPVAR ######################################################################
@@ -201,17 +271,16 @@ proc myincr varname {
     incr x
 }
 
-proc upvartest {} {
+proc upvartest {n} {
     set y 0
-    for {set x 0} {$x < 100000} {myincr x} {
+    for {set x 0} {$x < $n} {myincr x} {
 	myincr y
     }
 }
 
 ### NESTED LOOPS ###############################################################
 
-proc nestedloops {} {
-    set n 10
+proc nestedloops {n} {
     set x 0
     incr n 1
     set a $n
@@ -246,17 +315,25 @@ proc rotate {count} {
 
 ### DYNAMICALLY GENERATED CODE #################################################
 
-proc dyncode {} {
-    for {set i 0} {$i < 100000} {incr i} {
+proc dyncode {n} {
+    for {set i 0} {$i < $n} {incr i} {
         set script "lappend foo $i"
         eval $script
     }
 }
 
-proc dyncode_list {} {
-    for {set i 0} {$i < 100000} {incr i} {
+proc dyncode_list {n} {
+    for {set i 0} {$i < $n} {incr i} {
         set script [list lappend foo $i]
         eval $script
+    }
+}
+
+### LIST #################################################
+
+proc listcreate {n} {
+    for {set i 0} {$i < $n} {incr i} {
+        set a [list a b c d e f]
     }
 }
 
@@ -298,11 +375,11 @@ proc expand {} {
 
 ### MINLOOPS ###################################################################
 
-proc miniloops {} {
-    for {set i 0} {$i < 100000} {incr i} {
+proc miniloops {n} {
+    for {set i 0} {$i < $n} {incr i} {
         set sum 0
         for {set j 0} {$j < 10} {incr j} {
-            # something of more or less real
+            # something more or less real
             incr sum $j
         }
     }
@@ -494,9 +571,9 @@ proc miniloops {} {
  #    close $f0
  # But I'll just provide some sample lines:
 
-proc commonsub_test {} {
+proc commonsub_test {n} {
  set x {}
- for { set i 0 } { $i < 20 } { incr i } {
+ for { set i 0 } { $i < $n } { incr i } {
      lappend x a r a d e d a b r a x
  }
 
@@ -507,7 +584,7 @@ proc commonsub_test {} {
  # Once again, I'll just do some sample lines.
 
  set y {}
- for { set i 0 } { $i < 20 } { incr i } {
+ for { set i 0 } { $i < $n } { incr i } {
      lappend y a b r a c a d a b r a
  }
 
@@ -543,32 +620,50 @@ proc mandel {xres yres infx infy supx supy} {
 
 ### RUN ALL ####################################################################
 
-if {[string compare [lindex $argv 0] "-batch"] == 0} {
-    set batchmode 1
-    set argv [lrange $argv 1 end]
+# bench.tcl ?-batch? ?-time <ms>? ?version?
+
+while [llength $argv] {
+    switch -glob -- [lindex $argv 0] {
+        -batch {
+            set batchmode 1
+            set argv [lrange $argv 1 end]
+        }
+        -time {
+            set arg [lindex $argv 1]
+            if {$arg ne ""} {
+                set benchtime $arg
+            }
+            set argv [lrange $argv 2 end]
+        }
+        default {
+            break
+        }
+    }
 }
 set ver [lindex $argv 0]
 
-bench {[while] busy loop} {whilebusyloop}
-bench {[for] busy loop} {forbusyloop}
-bench {mini loops} {miniloops}
-bench {fibonacci(25)} {fibonacci 25}
-bench {heapsort} {heapsort_main}
-bench {sieve} {sieve 10}
-bench {sieve [dict]} {sieve_dict 10}
-bench {ary} {ary 100000}
-bench {ary [dict]} {ary_dict 100000}
-bench {ary [static]} {ary_static 1000000}
-bench {repeat} {use_repeat}
-bench {upvar} {upvartest}
-bench {nested loops} {nestedloops}
-bench {rotate} {rotate 100000}
-bench {dynamic code} {dyncode}
-bench {dynamic code (list)} {dyncode_list}
-bench {PI digits} {pi_digits 300}
+bench {[while] busy loop} {whilebusyloop 10}
+bench {[for] busy loop} {forbusyloop 10}
+bench {[loop] busy loop} {loopbusyloop 10}
+bench {mini loops} {miniloops 10}
+bench {fibonacci(4)} {fibonacci 4}
+bench {heapsort} {heapsort_main 50}
+bench {sieve} {sieve 1}
+bench {sieve [dict]} {sieve_dict 1}
+bench {ary} {ary 20}
+bench {ary [dict]} {ary_dict 20}
+bench {ary [static]} {ary_static 20}
+bench {repeat} {use_repeat 20}
+bench {upvar} {upvartest 20}
+bench {nested loops} {nestedloops 2}
+bench {rotate} {rotate 100}
+bench {dynamic code} {dyncode 100}
+bench {dynamic code (list)} {dyncode_list 100}
+bench {PI digits} {pi_digits 100}
+bench {listcreate} {listcreate 100}
 bench {expand} {expand}
-bench {wiki.tcl.tk/8566} {commonsub_test}
-bench {mandel} {mandel 60 60 -2 -1.5 1 1.5}
+bench {wiki.tcl.tk/8566} {commonsub_test 10}
+bench {mandel} {mandel 30 30 -2 -1.5 1 1.5}
 
 if {$batchmode} {
     if {$ver == ""} {
