@@ -1,6 +1,7 @@
 config.log
 tags
 /Makefile
+/tests/Makefile
 Tcl.html
 jimautoconf.h
 jimautoconfext.h
@@ -23,3 +24,4 @@ build-jim-ext
 *.gcno
 *.gcov
 coverage*.html
+jimtcl.pc
