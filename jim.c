@@ -879,35 +879,37 @@ int Jim_ReplaceHashEntry(Jim_HashTable *ht, const void *key, void *val)
     return existed;
 }
 
-/* Search and remove an element */
+/**
+ * Search the hash table for the given key.
+ * If found, removes the hash entry and returns JIM_OK.
+ * Otherwise returns JIM_ERR.
+ */
 int Jim_DeleteHashEntry(Jim_HashTable *ht, const void *key)
 {
-    unsigned int h;
-    Jim_HashEntry *he, *prevHe;
+    if (ht->used) {
+        unsigned int h = Jim_HashKey(ht, key) & ht->sizemask;
+        Jim_HashEntry *prevHe = NULL;
+        Jim_HashEntry *he = ht->table[h];
 
-    if (ht->used == 0)
-        return JIM_ERR;
-    h = Jim_HashKey(ht, key) & ht->sizemask;
-    he = ht->table[h];
-
-    prevHe = NULL;
-    while (he) {
-        if (Jim_CompareHashKeys(ht, key, he->key)) {
-            /* Unlink the element from the list */
-            if (prevHe)
-                prevHe->next = he->next;
-            else
-                ht->table[h] = he->next;
-            Jim_FreeEntryKey(ht, he);
-            Jim_FreeEntryVal(ht, he);
-            Jim_Free(he);
-            ht->used--;
-            return JIM_OK;
+        while (he) {
+            if (Jim_CompareHashKeys(ht, key, he->key)) {
+                /* Unlink the element from the list */
+                if (prevHe)
+                    prevHe->next = he->next;
+                else
+                    ht->table[h] = he->next;
+                ht->used--;
+                Jim_FreeEntryKey(ht, he);
+                Jim_FreeEntryVal(ht, he);
+                Jim_Free(he);
+                return JIM_OK;
+            }
+            prevHe = he;
+            he = he->next;
         }
-        prevHe = he;
-        he = he->next;
     }
-    return JIM_ERR;             /* not found */
+    /* not found */
+    return JIM_ERR;
 }
 
 /**
@@ -3962,7 +3964,7 @@ static Jim_Obj *JimQualifyName(Jim_Interp *interp, Jim_Obj *objPtr)
 }
 
 /**
- * Note that nameObjPtr must already be namespace qualified.
+ * Add the command to the commands hash table
  */
 static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cmd)
 {
@@ -3973,34 +3975,25 @@ static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cm
      * BUT, if 'local' is in force, instead of deleting the existing
      * proc, we stash a reference to the old proc here.
      */
-    Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, nameObjPtr);
-    if (he) {
-        /* There was an old cmd with the same name,
-         * so this requires a 'proc epoch' update. */
-
-        /* If a procedure with the same name didn't exist there is no need
-         * to increment the 'proc epoch' because creation of a new procedure
-         * can never affect existing cached commands. We don't do
-         * negative caching. */
-        //Jim_InterpIncrProcEpoch(interp);
-    }
-
-    if (he && interp->local) {
-        /* Push this command over the top of the previous one */
-        cmd->prevCmd = Jim_GetHashEntryVal(he);
-        Jim_SetHashVal(&interp->commands, he, cmd);
-        /* Need to increment the proc epoch here so that the new command will be used */
-        Jim_InterpIncrProcEpoch(interp);
-    }
-    else {
+    if (interp->local) {
+        Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, nameObjPtr);
         if (he) {
-            /* Replace the existing command */
-            Jim_DeleteHashEntry(&interp->commands, nameObjPtr);
+            /* Push this command over the top of the previous one */
+            cmd->prevCmd = Jim_GetHashEntryVal(he);
+            Jim_SetHashVal(&interp->commands, he, cmd);
+            /* Need to increment the proc epoch here so that the new command will be used */
+            Jim_InterpIncrProcEpoch(interp);
+            return JIM_OK;
         }
-
-        Jim_AddHashEntry(&interp->commands, nameObjPtr, cmd);
     }
-    return JIM_OK;
+
+    /* Otherwise simply replace any existing command */
+
+    /* Note that it is not necessary to increment the 'proc epoch' because any
+     * existing command that is replace will be held as a negative cache entry
+     * until the next time the proc epoch is incremented.
+     */
+    return Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
 }
 
 int Jim_CreateCommandObj(Jim_Interp *interp, Jim_Obj *cmdNameObj,
