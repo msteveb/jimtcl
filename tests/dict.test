@@ -270,4 +270,12 @@ test dict-25.3 {dict ordering} {
 	dict keys $d
 } {a 0 2}
 
+test dict-25.4 {removal of keys that hash earlier} {
+	set parsed {formPost {text {This is text.} {text file} Hello. {image file} abc}}
+
+	dict unset parsed formPost text
+	dict unset parsed formPost {image file}
+	dict get $parsed formPost {text file}
+} Hello.
+
 testreport
