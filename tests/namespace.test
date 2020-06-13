@@ -531,6 +531,13 @@ test namespace-12.3 {namespace import loop} -setup {
     namespace delete one two three
 } -returnCodes error -match glob -result {import pattern * would create a loop*}
 
+test namespace-12.4 {namespace import} {
+	namespace eval ::test_ns_one {}
+	proc ::test_ns_one::testcmd args { return 2 }
+	namespace import ::test_ns_one::*
+	testcmd
+} 2
+
 foreach cmd [info commands test_ns_*] {
     rename $cmd ""
 }

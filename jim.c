@@ -11255,7 +11255,7 @@ void Jim_WrongNumArgs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, const 
  * May add the key and/or value to the list.
  */
 typedef void JimHashtableIteratorCallbackType(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, int type);
+    Jim_Obj *keyObjPtr, void *value, Jim_Obj *patternObjPtr, int type);
 
 #define JimTrivialMatch(pattern)    (strpbrk((pattern), "*[?\\") == NULL)
 
@@ -11274,16 +11274,16 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
     if (patternObjPtr && JimTrivialMatch(Jim_String(patternObjPtr))) {
         he = Jim_FindHashEntry(ht, patternObjPtr);
         if (he) {
-            callback(interp, listObjPtr, he, type);
+            callback(interp, listObjPtr, Jim_GetHashEntryKey(he), Jim_GetHashEntryVal(he),
+                patternObjPtr, type);
         }
     }
     else {
         Jim_HashTableIterator htiter;
         JimInitHashTableIterator(ht, &htiter);
         while ((he = Jim_NextHashEntry(&htiter)) != NULL) {
-            if (!patternObjPtr || Jim_StringMatchObj(interp, patternObjPtr, he->key, 0)) {
-                callback(interp, listObjPtr, he, type);
-            }
+            callback(interp, listObjPtr, Jim_GetHashEntryKey(he), Jim_GetHashEntryVal(he),
+                patternObjPtr, type);
         }
     }
     return listObjPtr;
@@ -11298,23 +11298,30 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
  * Adds matching command names (procs, channels) to the list.
  */
 static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, int type)
+    Jim_Obj *keyObj, void *value, Jim_Obj *patternObj, int type)
 {
-    Jim_Cmd *cmdPtr = Jim_GetHashEntryVal(he);
-    Jim_Obj *objPtr;
+    Jim_Cmd *cmdPtr = (Jim_Cmd *)value;
 
     if (type == JIM_CMDLIST_PROCS && !cmdPtr->isproc) {
         /* not a proc */
         return;
     }
 
-    objPtr = (Jim_Obj *)he->key;
-    Jim_IncrRefCount(objPtr);
+    Jim_IncrRefCount(keyObj);
 
-    if (type != JIM_CMDLIST_CHANNELS || Jim_AioFilehandle(interp, objPtr)) {
-        Jim_ListAppendElement(interp, listObjPtr, objPtr);
+    if (type != JIM_CMDLIST_CHANNELS || Jim_AioFilehandle(interp, keyObj)) {
+        int match = 1;
+        if (patternObj) {
+            int plen, slen;
+            const char *pattern = Jim_GetStringNoQualifier(patternObj, &plen);
+            const char *str = Jim_GetStringNoQualifier(keyObj, &slen);
+            match = JimGlobMatch(pattern, plen, str, slen, 0);
+        }
+        if (match) {
+            Jim_ListAppendElement(interp, listObjPtr, keyObj);
+        }
     }
-    Jim_DecrRefCount(interp, objPtr);
+    Jim_DecrRefCount(interp, keyObj);
 }
 
 static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int type)
@@ -11334,14 +11341,16 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
  * Adds matching variable names to the list.
  */
 static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
-    Jim_HashEntry *he, int type)
+    Jim_Obj *keyObj, void *value, Jim_Obj *patternObj, int type)
 {
-    Jim_Var *varPtr = Jim_GetHashEntryVal(he);
+    Jim_Var *varPtr = (Jim_Var *)value;
 
     if ((type & JIM_VARLIST_MASK) != JIM_VARLIST_LOCALS || varPtr->linkFramePtr == NULL) {
-        Jim_ListAppendElement(interp, listObjPtr, (Jim_Obj *)he->key);
-        if (type & JIM_VARLIST_VALUES) {
-            Jim_ListAppendElement(interp, listObjPtr, varPtr->objPtr);
+        if (patternObj == NULL || Jim_StringMatchObj(interp, patternObj, keyObj, 0)) {
+            Jim_ListAppendElement(interp, listObjPtr, keyObj);
+            if (type & JIM_VARLIST_VALUES) {
+                Jim_ListAppendElement(interp, listObjPtr, varPtr->objPtr);
+            }
         }
     }
 }
