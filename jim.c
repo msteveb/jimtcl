@@ -7453,9 +7453,12 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
             int tvoffset = JimDictAdd(dict, dict->table[i]);
             if (tvoffset) {
                 /* A duplicate key, so replace the value but and don't add a new entry */
-                JimDictAdd(dict, dict->table[i]);
+                /* Discard the old value */
                 Jim_DecrRefCount(interp, dict->table[tvoffset]);
+                /* Set the new value */
                 dict->table[tvoffset] = dict->table[i + 1];
+                /* Discard the duplicate key */
+                Jim_DecrRefCount(interp, dict->table[i]);
             }
             else {
                 if (dict->len != i) {
