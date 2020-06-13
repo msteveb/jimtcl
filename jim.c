@@ -7234,7 +7234,7 @@ enum {
  * DICT_HASH_FIND
  * - if found, returns the table value offset, otherwise 0
  * DICT_HASH_REMOVE
- * - if found, removes the entry and returns the tabel value offset, otherwise 0
+ * - if found, removes the entry and returns the table value offset, otherwise 0
  * DICT_HASH_ADD
  * - if found, does nothing and returns the tabel value offset.
  *   otherwise adds the entry with an table value offset of dict->len + 1 and returns 0
@@ -7251,10 +7251,16 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
 
     if (dict->len) {
         while ((tvoffset = dict->ht[idx].offset)) {
-            /* And entry with offset=-1 is a removed entry
-             * we need skip it when searching
-             */
-            if (tvoffset > 0 && dict->ht[idx].hash == h) {
+            if (tvoffset == -1) {
+                /* An entry with offset=-1 is a removed entry
+                 * we need skip it when searching, but stop when adding.
+                 */
+                if (op_tvoffset == DICT_HASH_ADD) {
+                    tvoffset = 0;
+                    break;
+                }
+            }
+            else if (dict->ht[idx].hash == h) {
                 if (Jim_StringEqObj(keyObjPtr, dict->table[tvoffset - 1])) {
                     break;
                 }
@@ -7267,14 +7273,14 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
 
     switch (op_tvoffset) {
         case DICT_HASH_FIND:
-            /* If found return tvoffset, if not found return -1 */
+            /* If found return tvoffset, if not found return 0 */
             break;
         case DICT_HASH_REMOVE:
             if (tvoffset) {
                 /* Found, remove with -1 meaning a removed entry */
                 dict->ht[idx].offset = -1;
             }
-            /* else if not found, return -1 */
+            /* else if not found, return 0 */
             break;
         case DICT_HASH_ADD:
             if (tvoffset == 0) {
@@ -7285,13 +7291,13 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
             /* else if found, return tvoffset */
             break;
         default:
-            assert(tvoffset > 0);
+            assert(tvoffset);
             /* Found so replace the tvoffset */
             dict->ht[idx].offset = op_tvoffset;
             break;
     }
 
-    return tvoffset <= 0 ? 0 : tvoffset;
+    return tvoffset;
 }
 
 /* Expand or create the hashtable to at least size 'size'
