@@ -7450,10 +7450,12 @@ static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
         /* Now add all the elements to the hash table */
         for (i = 0; i < listlen; i += 2) {
-            if (JimDictAdd(dict, dict->table[i])) {
-                /* A duplicate key, so skip this pair */
-                Jim_DecrRefCount(interp, dict->table[i]);
-                Jim_DecrRefCount(interp, dict->table[i + 1]);
+            int tvoffset = JimDictAdd(dict, dict->table[i]);
+            if (tvoffset) {
+                /* A duplicate key, so replace the value but and don't add a new entry */
+                JimDictAdd(dict, dict->table[i]);
+                Jim_DecrRefCount(interp, dict->table[tvoffset]);
+                dict->table[tvoffset] = dict->table[i + 1];
             }
             else {
                 if (dict->len != i) {
