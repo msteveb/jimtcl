@@ -1109,7 +1109,7 @@ successful if the contents of +'string'+ and +'pattern'+ are identical except th
 following special sequences may appear in +'pattern'+:
 
 +*+;;
-    Matches any sequence of characters in +'string'+, including a null string.
+    Matches any sequence of characters in +'string'+, including an empty string.
 
 +?+;;
     Matches any single character in +'string'+.
@@ -3648,9 +3648,9 @@ The following switches modify the behaviour of +'regexp'+
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
     either REs or strings. With this flag, +[^+ bracket expressions
-    and +.+ never match newline, an +^+ anchor matches the null
+    and +.+ never match newline, an +^+ anchor matches the empty
     string after any newline in the string in addition to its normal
-    function, and the +$+ anchor matches the null string before any
+    function, and the +$+ anchor matches the empty string before any
     newline in the string in addition to its normal function.
 
 +*-indices*+::
@@ -3740,9 +3740,9 @@ The following switches modify the behaviour of +'regsub'+
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
     either REs or strings.  With this flag, +[^+ bracket expressions
-    and +.+ never match newline, an +^+ anchor matches the null
+    and +.+ never match newline, an +^+ anchor matches the empty
     string after any newline in the string in addition to its normal
-    function, and the +$+ anchor matches the null string before any
+    function, and the +$+ anchor matches the empty string before any
     newline in the string in addition to its normal function.
 
 +*-start* 'offset'+::
