@@ -449,6 +449,9 @@ test string-7.5 {string last} {
 test string-7.6 {string last} {
     string las x xxxx123xx345x678
 } 12
+test string-7.7 {string last, bad index} {
+    string last ba badbad -1
+} -1
 test string-7.13 {string last, start index} {
     ## Constrain to last 'a' should work
     string last ba badbad end-1

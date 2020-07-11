@@ -2590,7 +2590,7 @@ int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *seco
  * is out of range. */
 static int JimRelToAbsIndex(int len, int idx)
 {
-    if (idx < 0)
+    if (idx < 0 && idx > -INT_MAX)
         return len + idx;
     return idx;
 }
@@ -13979,9 +13979,7 @@ badcompareargs:
                 }
                 str = Jim_String(argv[2]);
                 len = Jim_Utf8Length(interp, argv[2]);
-                if (idx != INT_MIN && idx != INT_MAX) {
-                    idx = JimRelToAbsIndex(len, idx);
-                }
+                idx = JimRelToAbsIndex(len, idx);
                 if (idx < 0 || idx >= len || str == NULL) {
                     Jim_SetResultString(interp, "", 0);
                 }
@@ -14015,6 +14013,9 @@ badcompareargs:
                         return JIM_ERR;
                     }
                     idx = JimRelToAbsIndex(l2, idx);
+                    if (idx < 0) {
+                        idx = 0;
+                    }
                 }
                 else if (option == OPT_LAST) {
                     idx = l2;

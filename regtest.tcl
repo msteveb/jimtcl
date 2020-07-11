@@ -355,6 +355,11 @@ puts "TEST 51 PASSED"
 catch {lsearch -all -command abc def}
 puts "TEST 52 PASSED"
 
+# REGTEST 53
+# string last with invalid index
+catch {string last foo bar -1}
+puts "TEST 53 PASSED"
+
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 
