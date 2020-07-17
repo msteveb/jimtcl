@@ -18,8 +18,18 @@
 #endif
 
 #ifdef USE_LINENOISE
+struct JimCompletionInfo {
+    Jim_Interp *interp;
+    Jim_Obj *completion_command;
+    Jim_Obj *hints_command;
+    /*Jim_Obj *hint;*/
+};
+
+static struct JimCompletionInfo *JimGetCompletionInfo(Jim_Interp *interp);
 static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void *userdata);
 static const char completion_callback_assoc_key[] = "interactive-completion";
+static char *JimHintsCallback(const char *prefix, int *color, int *bold, void *userdata);
+static void JimFreeHintsCallback(void *hint, void *userdata);
 #endif
 
 /**
@@ -28,15 +38,19 @@ static const char completion_callback_assoc_key[] = "interactive-completion";
 char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt)
 {
 #ifdef USE_LINENOISE
-    struct JimCompletionInfo *compinfo = Jim_GetAssocData(interp, completion_callback_assoc_key);
+    struct JimCompletionInfo *compinfo = JimGetCompletionInfo(interp);
     char *result;
     Jim_Obj *objPtr;
     long mlmode = 0;
     /* Set any completion callback just during the call to linenoise()
      * to allow for per-interp settings
      */
-    if (compinfo) {
+    if (compinfo->completion_command) {
         linenoiseSetCompletionCallback(JimCompletionCallback, compinfo);
+    }
+    if (compinfo->hints_command) {
+        linenoiseSetHintsCallback(JimHintsCallback, compinfo);
+        linenoiseSetFreeHintsCallback(JimFreeHintsCallback);
     }
     objPtr = Jim_GetVariableStr(interp, "history::multiline", JIM_NONE);
     if (objPtr && Jim_GetLong(interp, objPtr, &mlmode) == JIM_NONE) {
@@ -44,8 +58,10 @@ char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt)
     }
 
     result = linenoise(prompt);
-    /* unset the callback */
+    /* unset the callbacks */
     linenoiseSetCompletionCallback(NULL, NULL);
+    linenoiseSetHintsCallback(NULL, NULL);
+    linenoiseSetFreeHintsCallback(NULL);
     return result;
 #else
     int len;
@@ -124,18 +140,13 @@ int Jim_HistoryGetMaxLen(void)
 }
 
 #ifdef USE_LINENOISE
-struct JimCompletionInfo {
-    Jim_Interp *interp;
-    Jim_Obj *command;
-};
-
 static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp, void *userdata)
 {
     struct JimCompletionInfo *info = (struct JimCompletionInfo *)userdata;
     Jim_Obj *objv[2];
     int ret;
 
-    objv[0] = info->command;
+    objv[0] = info->completion_command;
     objv[1] = Jim_NewStringObj(info->interp, prefix, -1);
 
     ret = Jim_EvalObjVector(info->interp, 2, objv);
@@ -151,13 +162,69 @@ static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp
     }
 }
 
+static char *JimHintsCallback(const char *prefix, int *color, int *bold, void *userdata)
+{
+    struct JimCompletionInfo *info = (struct JimCompletionInfo *)userdata;
+    Jim_Obj *objv[2];
+    int ret;
+    char *result = NULL;
+
+    objv[0] = info->hints_command;
+    objv[1] = Jim_NewStringObj(info->interp, prefix, -1);
+
+    ret = Jim_EvalObjVector(info->interp, 2, objv);
+
+    /* XXX: Consider how best to handle errors here. bgerror? */
+    if (ret == JIM_OK) {
+        Jim_Obj *listObj = Jim_GetResult(info->interp);
+        Jim_IncrRefCount(listObj);
+        /* Should return a list of {hintstring color bold} where the second two are optional */
+        int len = Jim_ListLength(info->interp, listObj);
+        if (len >= 1) {
+            long x;
+            result = Jim_StrDup(Jim_String(Jim_ListGetIndex(info->interp, listObj, 0)));
+            if (len >= 2 && Jim_GetLong(info->interp, Jim_ListGetIndex(info->interp, listObj, 1), &x) == JIM_OK) {
+                *color = x;
+            }
+            if (len >= 3 && Jim_GetLong(info->interp, Jim_ListGetIndex(info->interp, listObj, 2), &x) == JIM_OK) {
+                *bold = x;
+            }
+        }
+        Jim_DecrRefCount(info->interp, listObj);
+    }
+    return result;
+}
+
+static void JimFreeHintsCallback(void *hint, void *userdata)
+{
+    Jim_Free(hint);
+}
+
 static void JimHistoryFreeCompletion(Jim_Interp *interp, void *data)
 {
     struct JimCompletionInfo *compinfo = data;
 
-    Jim_DecrRefCount(interp, compinfo->command);
+    if (compinfo->completion_command) {
+        Jim_DecrRefCount(interp, compinfo->completion_command);
+    }
+    if (compinfo->hints_command) {
+        Jim_DecrRefCount(interp, compinfo->hints_command);
+    }
 
     Jim_Free(compinfo);
+}
+
+static struct JimCompletionInfo *JimGetCompletionInfo(Jim_Interp *interp)
+{
+    struct JimCompletionInfo *compinfo = Jim_GetAssocData(interp, completion_callback_assoc_key);
+    if (compinfo == NULL) {
+        compinfo = Jim_Alloc(sizeof(*compinfo));
+        compinfo->interp = interp;
+        compinfo->completion_command = NULL;
+        compinfo->hints_command = NULL;
+        Jim_SetAssocData(interp, completion_callback_assoc_key, JimHistoryFreeCompletion, compinfo);
+    }
+    return compinfo;
 }
 #endif
 
@@ -165,23 +232,39 @@ static void JimHistoryFreeCompletion(Jim_Interp *interp, void *data)
  * Sets a completion command to be used with Jim_HistoryGetline()
  * If commandObj is NULL, deletes any existing completion command.
  */
-void Jim_HistorySetCompletion(Jim_Interp *interp, Jim_Obj *commandObj)
+void Jim_HistorySetCompletion(Jim_Interp *interp, Jim_Obj *completionCommandObj)
 {
 #ifdef USE_LINENOISE
-    if (commandObj) {
+    struct JimCompletionInfo *compinfo = JimGetCompletionInfo(interp);
+
+    if (completionCommandObj) {
         /* Increment now in case the existing object is the same */
-        Jim_IncrRefCount(commandObj);
+        Jim_IncrRefCount(completionCommandObj);
     }
-
-    Jim_DeleteAssocData(interp, completion_callback_assoc_key);
-
-    if (commandObj) {
-        struct JimCompletionInfo *compinfo = Jim_Alloc(sizeof(*compinfo));
-        compinfo->interp = interp;
-        compinfo->command = commandObj;
-
-        Jim_SetAssocData(interp, completion_callback_assoc_key, JimHistoryFreeCompletion, compinfo);
+    if (compinfo->completion_command) {
+        Jim_DecrRefCount(interp, compinfo->completion_command);
     }
+    compinfo->completion_command = completionCommandObj;
+#endif
+}
+
+/**
+ * Sets a hints command to be used with Jim_HistoryGetline()
+ * If commandObj is NULL, deletes any existing hints command.
+ */
+void Jim_HistorySetHints(Jim_Interp *interp, Jim_Obj *hintsCommandObj)
+{
+#ifdef USE_LINENOISE
+    struct JimCompletionInfo *compinfo = JimGetCompletionInfo(interp);
+
+    if (hintsCommandObj) {
+        /* Increment now in case the existing object is the same */
+        Jim_IncrRefCount(hintsCommandObj);
+    }
+    if (compinfo->hints_command) {
+        Jim_DecrRefCount(interp, compinfo->hints_command);
+    }
+    compinfo->hints_command = hintsCommandObj;
 #endif
 }
 
@@ -201,6 +284,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     }
 
     Jim_HistorySetCompletion(interp, Jim_NewStringObj(interp, "tcl::autocomplete", -1));
+    Jim_HistorySetHints(interp, Jim_NewStringObj(interp, "tcl::stdhint", -1));
 #endif
 
     printf("Welcome to Jim version %d.%d\n",

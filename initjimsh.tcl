@@ -44,7 +44,7 @@ if {$tcl_platform(platform) eq "windows"} {
 }
 
 # Set a global variable here so that custom commands can be added post hoc
-set tcl::autocomplete_commands {info tcl::prefix socket namespace array clock file package string dict signal history}
+set tcl::autocomplete_commands {info tcl::prefix socket namespace array clock file package string dict signal history zlib}
 
 # Simple interactive command line completion callback
 # Explicitly knows about some commands that support "-commands"
@@ -74,6 +74,63 @@ proc tcl::autocomplete {prefix} {
 		}
 		function $p
 	}]
+}
+
+# Only commands that support "cmd -help subcommand" have autohint suport
+set tcl::stdhint_commands {array clock file package signal history zlib}
+
+set tcl::stdhint_cols {
+	none {0}
+	black {30}
+	red {31}
+	green {32}
+	yellow {33}
+	blue {34}
+	purple {35}
+	cyan {36}
+	normal {37}
+	grey {30 1}
+	gray {30 1}
+	lred {31 1}
+	lgreen {32 1}
+	lyellow {33 1}
+	lblue {34 1}
+	lpurple {35 1}
+	lcyan {36 1}
+	white {37 1}
+}
+
+# Make it easy to change the colour
+set tcl::stdhint_col $tcl::stdhint_cols(lcyan)
+
+# The default hint implementation
+proc tcl::stdhint {string} {
+	set result ""
+	if {[llength $string] >= 2} {
+		lassign $string cmd arg
+		if {$cmd in $::tcl::stdhint_commands || [info channel $cmd] ne ""} {
+			catch {
+				set help [$cmd -help $arg]
+				if {[string match "Usage: $cmd *" $help]} {
+					set n [llength $string]
+					set subcmd [lindex $help $n]
+					incr n
+					set hint [join [lrange $help $n end]]
+					set prefix ""
+					if {![string match "* " $string]} {
+						if {$n == 3 && $subcmd ne $arg} {
+							# complete the subcommand in the hint
+							set prefix "[string range $subcmd [string length $arg] end] "
+						} else {
+							set prefix " "
+						}
+					}
+					set result [list $prefix$hint {*}$::tcl::stdhint_col]
+				}
+			}
+		}
+	}
+	return $result
 }
 
 _jimsh_init
