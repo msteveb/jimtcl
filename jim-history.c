@@ -41,6 +41,12 @@ static int history_cmd_setcompletion(Jim_Interp *interp, int argc, Jim_Obj *cons
     return JIM_OK;
 }
 
+static int history_cmd_sethints(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_HistorySetHints(interp, Jim_Length(argv[0]) ? argv[0] : NULL);
+    return JIM_OK;
+}
+
 static int history_cmd_load(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_HistoryLoad(Jim_String(argv[0]));
@@ -94,6 +100,13 @@ static const jim_subcmd_type history_command_table[] = {
         1,
         1,
         /* Description: Sets an autocompletion callback command, or none if "" */
+    },
+    {   "hints",
+        "command",
+        history_cmd_sethints,
+        1,
+        1,
+        /* Description: Sets a hints callback command, or none if "" */
     },
     {   "getline",
         "prompt ?varname?",
