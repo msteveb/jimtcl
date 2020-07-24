@@ -299,7 +299,11 @@ static const char *ssl_getline(struct AioFile *af, char *buf, int len)
 static int ssl_error(const struct AioFile *af)
 {
     int ret = SSL_get_error(af->ssl, 0);
-    if (ret == SSL_ERROR_SYSCALL || ret == 0) {
+	/* XXX should we be following the same logic as ssl_reader() here? */
+    if (ret == SSL_ERROR_ZERO_RETURN || ret == SSL_ERROR_NONE) {
+		return JIM_OK;
+	}
+    if (ret == SSL_ERROR_SYSCALL) {
         return stdio_error(af);
     }
     return JIM_ERR;
