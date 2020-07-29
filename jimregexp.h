@@ -10,6 +10,12 @@
 extern "C" {
 #endif
 
+/* Rename these symbols to avoid collisions with libc */
+#define regcomp jim_regcomp
+#define regexec jim_regexec
+#define regerror jim_regerror
+#define regfree jim_regfree
+
 #include <stdlib.h>
 
 typedef struct {
