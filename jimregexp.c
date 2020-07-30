@@ -231,7 +231,7 @@ static int str_int_len(const int *seq)
  * Beware that the optimization-preparation code in here knows about some
  * of the structure of the compiled regexp.
  */
-int regcomp(regex_t *preg, const char *exp, int cflags)
+int jim_regcomp(regex_t *preg, const char *exp, int cflags)
 {
 	int scan;
 	int longest;
@@ -1114,7 +1114,7 @@ static int regrepeat(regex_t *preg, int p, int max);
 /*
  - regexec - match a regexp against a string
  */
-int regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmatch[], int eflags)
+int jim_regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t pmatch[], int eflags)
 {
 	const char *s;
 	int scan;
@@ -1869,7 +1869,7 @@ static const char *regprop( int op )
 }
 #endif /* JIM_BOOTSTRAP */
 
-size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_size)
+size_t jim_regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_size)
 {
 	static const char *error_strings[] = {
 		"success",
@@ -1905,7 +1905,7 @@ size_t regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errbuf_s
 	return snprintf(errbuf, errbuf_size, "%s", err);
 }
 
-void regfree(regex_t *preg)
+void jim_regfree(regex_t *preg)
 {
 	free(preg->program);
 }

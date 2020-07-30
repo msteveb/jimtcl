@@ -53,13 +53,17 @@
     #include "jimregexp.h"
 #else
     #include <regex.h>
+    #define jim_regcomp regcomp
+    #define jim_regexec regexec
+    #define jim_regerror regerror
+    #define jim_regfree regfree
 #endif
 #include "jim.h"
 #include "utf8.h"
 
 static void FreeRegexpInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    regfree(objPtr->internalRep.ptrIntValue.ptr);
+    jim_regfree(objPtr->internalRep.ptrIntValue.ptr);
     Jim_Free(objPtr->internalRep.ptrIntValue.ptr);
 }
 
@@ -94,12 +98,12 @@ static regex_t *SetRegexpFromAny(Jim_Interp *interp, Jim_Obj *objPtr, unsigned f
     pattern = Jim_String(objPtr);
     compre = Jim_Alloc(sizeof(regex_t));
 
-    if ((ret = regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
+    if ((ret = jim_regcomp(compre, pattern, REG_EXTENDED | flags)) != 0) {
         char buf[100];
 
-        regerror(ret, compre, buf, sizeof(buf));
+        jim_regerror(ret, compre, buf, sizeof(buf));
         Jim_SetResultFormatted(interp, "couldn't compile regular expression pattern: %s", buf);
-        regfree(compre);
+        jim_regfree(compre);
         Jim_Free(compre);
         return NULL;
     }
@@ -237,11 +241,11 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
   next_match:
-    match = regexec(regex, source_str, num_vars + 1, pmatch, eflags);
+    match = jim_regexec(regex, source_str, num_vars + 1, pmatch, eflags);
     if (match >= REG_BADPAT) {
         char buf[100];
 
-        regerror(match, regex, buf, sizeof(buf));
+        jim_regerror(match, regex, buf, sizeof(buf));
         Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
         result = JIM_ERR;
         goto done;
@@ -457,12 +461,12 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     n = source_len - offset;
     p = source_str + offset;
     do {
-        int match = regexec(regex, p, MAX_SUB_MATCHES, pmatch, regexec_flags);
+        int match = jim_regexec(regex, p, MAX_SUB_MATCHES, pmatch, regexec_flags);
 
         if (match >= REG_BADPAT) {
             char buf[100];
 
-            regerror(match, regex, buf, sizeof(buf));
+            jim_regerror(match, regex, buf, sizeof(buf));
             Jim_SetResultFormatted(interp, "error while matching pattern: %s", buf);
             return JIM_ERR;
         }
