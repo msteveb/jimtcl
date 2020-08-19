@@ -180,7 +180,7 @@ install-docs:
 
 Tcl.html: jim_tcl.txt @srcdir@/make-index
 @if HAVE_ASCIIDOC
-	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ -d manpage - | @SED@ -e '/^<div.*id="footer-text"/,/<\/div>/d' >$@
+	@tclsh@ @srcdir@/make-index $> $^ | @ASCIIDOC@ --attribute footer-style=none -d manpage - >$@
 @else
 	@echo "asciidoc is not available"; false
 @endif
