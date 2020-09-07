@@ -465,13 +465,15 @@ static int JimCheckConversion(const char *str, const char *endptr)
 }
 
 /* Parses the front of a number to determine its sign and base.
- * Returns the index to start parsing according to the given base
+ * Returns the index to start parsing according to the given base.
+ * Sets *base to zero if *str contains no indicator of its base and
+ * to the base (2, 8, 10 or 16) otherwise.
  */
 static int JimNumberBase(const char *str, int *base, int *sign)
 {
     int i = 0;
 
-    *base = 10;
+    *base = 0;
 
     while (isspace(UCHAR(str[i]))) {
         i++;
@@ -489,7 +491,7 @@ static int JimNumberBase(const char *str, int *base, int *sign)
     }
 
     if (str[i] != '0') {
-        /* base 10 */
+        /* no base indicator */
         return 0;
     }
 
@@ -498,6 +500,7 @@ static int JimNumberBase(const char *str, int *base, int *sign)
         case 'x': case 'X': *base = 16; break;
         case 'o': case 'O': *base = 8; break;
         case 'b': case 'B': *base = 2; break;
+        case 'd': case 'D': *base = 10; break;
         default: return 0;
     }
     i += 2;
@@ -506,8 +509,8 @@ static int JimNumberBase(const char *str, int *base, int *sign)
         /* Parse according to this base */
         return i;
     }
-    /* Parse as base 10 */
-    *base = 10;
+    /* Parse as default */
+    *base = 0;
     return 0;
 }
 
@@ -520,7 +523,7 @@ static long jim_strtol(const char *str, char **endptr)
     int base;
     int i = JimNumberBase(str, &base, &sign);
 
-    if (base != 10) {
+    if (base != 0) {
         long value = strtol(str + i, endptr, base);
         if (endptr == NULL || *endptr != str + i) {
             return value * sign;
@@ -542,7 +545,7 @@ static jim_wide jim_strtoull(const char *str, char **endptr)
     int base;
     int i = JimNumberBase(str, &base, &sign);
 
-    if (base != 10) {
+    if (base != 0) {
         jim_wide value = strtoull(str + i, endptr, base);
         if (endptr == NULL || *endptr != str + i) {
             return value * sign;
