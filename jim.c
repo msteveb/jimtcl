@@ -7981,15 +7981,19 @@ enum
     JIM_EXPROP_STRNE,
     JIM_EXPROP_STRIN,
     JIM_EXPROP_STRNI,
+    JIM_EXPROP_STRLT,
+    JIM_EXPROP_STRGT,
+    JIM_EXPROP_STRLE,
+    JIM_EXPROP_STRGE,
 
     /* Unary operators (numbers) */
-    JIM_EXPROP_NOT,             /* 47 */
+    JIM_EXPROP_NOT,             /* 51 */
     JIM_EXPROP_BITNOT,
     JIM_EXPROP_UNARYMINUS,
     JIM_EXPROP_UNARYPLUS,
 
     /* Functions */
-    JIM_EXPROP_FUNC_INT,      /* 51 */
+    JIM_EXPROP_FUNC_INT,      /* 55 */
     JIM_EXPROP_FUNC_WIDE,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
@@ -7998,7 +8002,7 @@ enum
     JIM_EXPROP_FUNC_SRAND,
 
     /* math functions from libm */
-    JIM_EXPROP_FUNC_SIN,        /* 65 */
+    JIM_EXPROP_FUNC_SIN,        /* 69 */
     JIM_EXPROP_FUNC_COS,
     JIM_EXPROP_FUNC_TAN,
     JIM_EXPROP_FUNC_ASIN,
@@ -8561,7 +8565,7 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
 {
     Jim_Obj *A, *B;
     jim_wide wC;
-    int rc;
+    int comp, rc;
 
     if ((rc = JimExprGetTerm(interp, node->left, &A)) != JIM_OK) {
         return rc;
@@ -8577,6 +8581,21 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
             wC = Jim_StringEqObj(A, B);
             if (node->type == JIM_EXPROP_STRNE) {
                 wC = !wC;
+            }
+            break;
+        case JIM_EXPROP_STRLT:
+        case JIM_EXPROP_STRGT:
+        case JIM_EXPROP_STRLE:
+        case JIM_EXPROP_STRGE:
+            comp = Jim_StringCompareObj(interp, A, B, 0);
+            if (node->type == JIM_EXPROP_STRLT) {
+                wC = comp == -1;
+            } else if (node->type == JIM_EXPROP_STRGT) {
+                wC = comp == 1;
+            } else if (node->type == JIM_EXPROP_STRLE) {
+                wC = comp == -1 || comp == 0;
+            } else /* JIM_EXPROP_STRGE */ {
+                wC = comp == 0 || comp == 1;
             }
             break;
         case JIM_EXPROP_STRIN:
@@ -8723,6 +8742,13 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
     OPRINIT("in", 55, 2, JimExprOpStrBin),
     OPRINIT("ni", 55, 2, JimExprOpStrBin),
+
+    /* Precedence must be higher than ==, !=, eq, ne but lower than
+       <, >, <=, >= */
+    OPRINIT("lt", 75, 2, JimExprOpStrBin),
+    OPRINIT("gt", 75, 2, JimExprOpStrBin),
+    OPRINIT("le", 75, 2, JimExprOpStrBin),
+    OPRINIT("ge", 75, 2, JimExprOpStrBin),
 
     OPRINIT_ATTR("!", 150, 1, JimExprOpNumUnary, OP_RIGHT_ASSOC),
     OPRINIT_ATTR("~", 150, 1, JimExprOpIntUnary, OP_RIGHT_ASSOC),
