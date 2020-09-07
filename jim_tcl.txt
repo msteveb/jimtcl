@@ -827,6 +827,12 @@ of precedence:
     These operators may be applied to strings as well as numeric operands,
     in which case string comparison is used.
 
++lt  gt  le  ge+::
+    Boolean less, greater, less than or equal, and greater than or equal.
+    Each operator produces 1 if the condition is true, 0 otherwise.
+    These operators differ from the above in that they use string comparison
+    for all operands, including numeric.
+
 +==  !=+::
     Boolean equal and not equal.  Each operator produces a zero/one result.
     Valid for all operand types. *Note* that values will be converted to integers
