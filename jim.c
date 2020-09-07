@@ -14595,18 +14595,19 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
+    int rc;
     int types = JIM_DICTMATCH_KEYS;
     int option;
     static const char * const options[] = {
         "create", "get", "set", "unset", "exists", "keys", "size", "info",
         "merge", "with", "append", "lappend", "incr", "remove", "values", "for",
-        "replace", "update", NULL
+        "replace", "update", "getwithdefault", NULL
     };
     enum
     {
         OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXISTS, OPT_KEYS, OPT_SIZE, OPT_INFO,
         OPT_MERGE, OPT_WITH, OPT_APPEND, OPT_LAPPEND, OPT_INCR, OPT_REMOVE, OPT_VALUES, OPT_FOR,
-        OPT_REPLACE, OPT_UPDATE,
+        OPT_REPLACE, OPT_UPDATE, OPT_GETDEF,
     };
 
     if (argc < 2) {
@@ -14615,7 +14616,11 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     }
 
     if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK) {
-        return Jim_CheckShowCommands(interp, argv[1], options);
+        /* Handle getdef as an alias for getwithdefault */
+        if (Jim_CompareStringImmediate(interp, argv[1], "getdef") == 0) {
+            return Jim_CheckShowCommands(interp, argv[1], options);
+        }
+        option = OPT_GETDEF;
     }
 
     switch (option) {
@@ -14629,6 +14634,24 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_ERR;
             }
             Jim_SetResult(interp, objPtr);
+            return JIM_OK;
+
+        case OPT_GETDEF:
+            if (argc < 5) {
+                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?key ...? key default");
+                return JIM_ERR;
+            }
+            rc = Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 4, &objPtr, JIM_ERRMSG);
+            if (rc == -1) {
+                /* Not a valid dictionary */
+                return JIM_ERR;
+            }
+            if (rc == JIM_ERR) {
+                Jim_SetResult(interp, argv[argc - 1]);
+            }
+            else {
+                Jim_SetResult(interp, objPtr);
+            }
             return JIM_OK;
 
         case OPT_SET:

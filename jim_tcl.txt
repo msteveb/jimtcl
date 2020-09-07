@@ -65,6 +65,7 @@ Changes between 0.78 and 0.79
 9. Add `socket pty` to create a pseudo-tty pair
 10. Null characters (\x00) are now supported in variable and proc names
 11. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
+12. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2043,6 +2044,13 @@ command.  The legal +'options'+ are:
     element of each pair would be the key and the second element would
     be the value for that key.  It is an error to attempt to retrieve
     a value for a key that is not present in the dictionary.
+
++*dict getdef* 'dictionary ?key \...? key default'+::
+    Alias for `dict getwithdefault`.
+
++*dict getwithdefault* 'dictionary ?key \...? key default'+::
+    Similar to `dict get` except if no value exists in the dictionary for the
+    give key(s), returns +'default'+ instead.
 
 +*dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
