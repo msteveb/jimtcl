@@ -15,6 +15,11 @@ set good_testcases {
 	-0b111		-7
 	-0B101		-5
 	0o7			7
+	0d0			0
+	0d7			7
+	0d99			99
+	0d099			99
+	-0d099			-99
 }
 
 set i 0
@@ -34,6 +39,8 @@ set bad_testcases {
 	0x-5
 	{0x 5}
 	{0o8 + 1}
+        0d-5
+        0dff
 }
 
 set i 0
