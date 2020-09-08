@@ -719,11 +719,10 @@ White space may be used between the operands and operators and
 parentheses; it is ignored by the expression processor.
 Where possible, operands are interpreted as integer values.
 
-Integer values may be specified in decimal (the default case that can
-be make explicit by prepending '0d' to the operand) or in binary, octal
-or hexadecimal (if the first two characters of the operand are '0b',
-'0o' or '0x' respectively).  Note that Jim Tcl does *not* treat numbers
-with leading zeros as octal.
+Integer values are interpreted as decimal, binary, octal or
+hexadecimal if prepended with '0d', '0b', '0o' or '0x'
+respectively. Otherwise they are interpreted as decimal by default.
+(Jim Tcl does not interpret numbers with leading zeros as octal.)
 
 If an operand does not have one of the integer formats given
 above, then it is treated as a floating-point number if that is
