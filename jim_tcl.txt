@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.79 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.79+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -31,7 +31,7 @@ The core language engine is compatible with Tcl 8.5+, while implementing
 a significant subset of the Tcl 8.6 command set, plus additional features
 available only in Jim Tcl.
 
-Some notable differences with Tcl 8.5/8.6 are:
+Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 1. Object-based I/O (aio), but with a Tcl-compatibility layer
 2. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
@@ -52,6 +52,16 @@ Some notable differences with Tcl 8.5/8.6 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.79 and 0.80
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. `regsub` now fully supports +{backslash}A+
+2. Add `socket pty` to create a pseudo-tty pair
+3. Null characters (\x00) are now supported in variable and proc names
+4. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
+5. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
+6. Add string comparison operators (lt, gt, le, ge) per TIP 461
+7. Implement 0d radix prefix for decimal per TIP 472
+
 Changes between 0.78 and 0.79
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Add `file mtimeus` for high resolution file timestamps
@@ -61,11 +71,6 @@ Changes between 0.78 and 0.79
 5. Add support for `file split`
 6. Add support for `json::encode` and `json::decode`
 7. `aio tty` now allows setting +echo+ without full +raw+ mode
-8. `regsub` now fully supports +{backslash}A+
-9. Add `socket pty` to create a pseudo-tty pair
-10. Null characters (\x00) are now supported in variable and proc names
-11. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
-12. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
