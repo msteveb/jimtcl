@@ -141,7 +141,10 @@ json_decode_dump_container(Jim_Interp *interp, struct json_state *state)
 	json_schema_t container_type = JSON_OBJ; /* JSON_LIST, JSON_MIXED or JSON_OBJ */
 
 	if (state->schemaObj) {
-		json_schema_t list_type;
+		/* Don't strictly need to initialise this, but some compilers can't figure out it is always
+		 * assigned a value below.
+		 */
+		json_schema_t list_type = JSON_STR;
 		/* Figure out the type to use for the container */
 		if (type == JSMN_ARRAY) {
 			/* If every element of the array is of the same primitive schema type (str, bool or num),
