@@ -142,4 +142,12 @@ test expr-4.1 "Shimmering" {
 	set a
 } {2}
 
+test expr-5.1 "Not" {
+	lmap x {1 0 true false on off yes no} { expr {!$x} }
+} {0 1 0 1 0 1 0 1}
+
+test expr-5.2 "Not" -body {
+	expr {!this}
+} -returnCodes error -result {syntax error in expression: "!this"}
+
 testreport
