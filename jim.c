@@ -8056,7 +8056,7 @@ static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node);
 static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
 {
     int intresult = 1;
-    int rc;
+    int rc, bA = 0;
     double dA, dC = 0;
     jim_wide wA, wC = 0;
     Jim_Obj *A;
@@ -8118,6 +8118,15 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
                 break;
             case JIM_EXPROP_NOT:
                 wC = !dA;
+                break;
+            default:
+                abort();
+        }
+    }
+    else if ((rc = Jim_GetBoolean(interp, A, &bA)) == JIM_OK) {
+        switch (node->type) {
+            case JIM_EXPROP_NOT:
+                wC = !bA;
                 break;
             default:
                 abort();
