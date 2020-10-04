@@ -64,7 +64,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_BACKTRACE
+#ifdef HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
 #ifdef HAVE_CRT_EXTERNS_H
@@ -635,7 +635,7 @@ static void JimPanicDump(int condition, const char *fmt, ...)
     fprintf(stderr, "\n\n");
     va_end(ap);
 
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE)
     {
         void *array[40];
         int size, i;
