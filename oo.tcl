@@ -95,6 +95,7 @@ proc class {classname {baseclasses {}} classvars} {
 # From within a method, invokes the given method on the base class.
 # Note that this will only call the last baseclass given
 proc super {method args} {
-	upvar self self
-	uplevel 2 [list [$self baseclass] $method {*}$args]
+	# If we are called from "class method", we want to call "[$class baseclass] method"
+	set classname [lindex [info level -1] 0 0]
+	uplevel 2 [list [$classname baseclass] $method {*}$args]
 }
