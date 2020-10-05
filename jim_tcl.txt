@@ -3505,7 +3505,7 @@ Tcl interpreter. +'args'+ specifies the formal arguments to the procedure.
 If specified, +'statics'+, declares static variables which are bound to the
 procedure.
 
-See <<_procedures,PROCEDURES> for detailed information about Tcl procedures.
+See <<_procedures,PROCEDURES>> for detailed information about Tcl procedures.
 
 The `proc` command returns +'name'+ (which is useful with `local`).
 
