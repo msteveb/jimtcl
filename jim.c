@@ -11095,7 +11095,7 @@ static void JimSetProcWrongArgs(Jim_Interp *interp, Jim_Obj *procNameObj, Jim_Cm
             }
             else {
                 /* We have plain args */
-                Jim_AppendString(interp, argmsg, "?arg...?", -1);
+                Jim_AppendString(interp, argmsg, "?arg ...?", -1);
             }
         }
         else {
@@ -12905,7 +12905,7 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "listVar ?index...? newVal");
+        Jim_WrongNumArgs(interp, 1, argv, "listVar ?index ...? newVal");
         return JIM_ERR;
     }
     else if (argc == 3) {

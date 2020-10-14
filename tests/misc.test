@@ -541,6 +541,11 @@ test lset-1.1 "lset with bad var" {
 	catch {lset badvar 1 x}
 } 1
 
+test lset-1.2 "lset error message" {
+	catch lset msg
+	set msg
+} {wrong # args: should be "lset listVar ?index ...? newVal"}
+
 test dict-1.1 "dict to string" {
 	set a [dict create abc \\ def \"]
 	set x x$a
