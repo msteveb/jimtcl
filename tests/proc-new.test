@@ -124,4 +124,13 @@ test proc-3.4 "invalid upref in rightargs" {
 	catch {a B}
 } 1
 
+test proc-3.5 "error message with optional args" {
+	proc a {b args} {
+		return $args
+	}
+	catch a msg
+	set msg
+} {wrong # args: should be "a b ?arg ...?"}
+
+
 testreport
