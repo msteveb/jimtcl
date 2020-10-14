@@ -12905,7 +12905,7 @@ static int Jim_LreplaceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc < 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "listVar ?index ...? newVal");
+        Jim_WrongNumArgs(interp, 1, argv, "listVar ?index ...? value");
         return JIM_ERR;
     }
     else if (argc == 3) {
