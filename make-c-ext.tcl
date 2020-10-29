@@ -18,8 +18,8 @@ set f [open $source]
 while {[gets $f buf] >= 0} {
 	# Remove comment lines
 	regsub {^[ \t]*#.*$} $buf "" buf
-	# Escape quotes and backlashes
-	set buf [string map [list \\ \\\\ \" \\"] $buf]
+	# Escape quotes and backlashes and remove carriage returns
+	set buf [string map [list \\ \\\\ \" \\" \r ""] $buf]
 	lappend sourcelines \"$buf\\n\"
 }
 close $f
