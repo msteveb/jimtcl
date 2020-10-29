@@ -43,7 +43,10 @@ proc main {argv} {
 	# 'misc' is needed before we can do anything, so set a temporary libdir
 	# in case this is the development version
 	set autosetup(libdir) [file dirname $::argv0]/lib
+puts stderr "libdir:$autosetup(libdir)"
 	use misc
+source [file join [file dirname $::argv0] jim-misc.auto]
+if {[llength [info commands cc-check-inline]] == 0} {error "cc-check-inline not found"}
 
 	# (a)
 	set autosetup(dir) [realdir [file dirname [realpath $::argv0]]]

@@ -16,6 +16,9 @@ if {![string match *.tcl $source]} {
 set sourcelines {}
 set f [open $source]
 while {[gets $f buf] >= 0} {
+    # remove carriage returns (inserted by git??) not filtered out by bootstrap shell jimsh0.
+    regsub {\r} $buf "" buf
+    #puts stderr "[file tail $source]:[string length $buf]:$buf"
 	# Remove comment lines
 	regsub {^[ \t]*#.*$} $buf "" buf
 	# Escape quotes and backlashes
