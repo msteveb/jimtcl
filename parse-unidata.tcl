@@ -33,6 +33,8 @@ lassign $argv unicodefile widthfile
 
 set f [open $unicodefile]
 while {[gets $f buf] >= 0} {
+    # remove carriage returns (inserted by git??) not filtered out by bootstrap shell jimsh0.
+    regsub {\r} $buf "" buf
 	set title ""
 	set lower ""
 	set upper ""
