@@ -244,11 +244,11 @@ test scan-4.40.2 {Tcl_ScanObjCmd, base-16 integer scanning} {
     catch {unset x}
     list [scan {xF} {%x} x] [info exists x]
 } {0 0}
-test scan-4.41 {Tcl_ScanObjCmd, base-unknown integer scanning} {
+test scan-4.41 {Tcl_ScanObjCmd, base-unknown integer scanning} jim {
     set x {}
     list [scan {10 010 0x10} {%i%i%i} x y z] $x $y $z
 } {3 10 10 16}
-test scan-4.42 {Tcl_ScanObjCmd, base-unknown integer scanning} {
+test scan-4.42 {Tcl_ScanObjCmd, base-unknown integer scanning} jim {
     set x {}
     list [scan {10 010 0X10} {%i%i%i} x y z] $x $y $z
 } {3 10 10 16}
@@ -437,10 +437,10 @@ test scan-6.5 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
     list [scan "4.6 99999.7 876.43e-1 118" "%f %f %f %e" a b c d] $a $b $c $d
 } {4 4.6 99999.7 87.643 118.0}
-test scan-6.6 {floating-point scanning} jim {
+test scan-6.6 {floating-point scanning} -body {
     set a {}; set b {}; set c {}; set d {}
     list [scan "1.2345 697.0e-3 124 .00005" "%f %e %f %e" a b c d] $a $b $c $d
-} {4 1.2345 0.697 124.0 5e-05}
+} -match regexp -result {4 1\.2345 0\.697 124.0 5e-0?5}
 test scan-6.7 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
     list [scan "4.6abc" "%f %f %f %f" a b c d] $a $b $c $d
