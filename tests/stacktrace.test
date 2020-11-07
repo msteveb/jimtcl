@@ -16,9 +16,9 @@ proc main {} {
 			test err-$id1.$id2 "Stacktrace on error type $type, method $method" {
 				set rc [catch {error_caller $type $method} msg]
 				#puts "\n-----------------\n$type, $method\n[errorInfo $msg]\n\n"
-				if {$::SHOW_EXPECTED} { puts stderr "\terr-$id1.$id2 {[list $rc $msg [info stacktrace]]}" }
+				if {$::SHOW_EXPECTED} { puts stderr "\terr-$id1.$id2 {[list $rc $msg [basename-stacektrace [info stacktrace]]]}" }
 
-				list $rc $msg [info stacktrace]
+				list $rc $msg [basename-stacktrace [info stacktrace]]
 			} $exp
 		}
 	}
@@ -29,9 +29,9 @@ proc main {} {
 	test err-10.1 "Stacktrace on error from unknown (badcmd, call)" {
 		set rc [catch {error_caller badcmd call} msg]
 		#puts stderr "err-10.1\n[errorInfo $msg]\n"
-		#puts stderr "\terr-10.1 {[list $rc $msg [info stacktrace]]}"
+		#puts stderr "\terr-10.1 {[list $rc $msg [basename-stacktrace [info stacktrace]]]}"
 
-		list $rc $msg [info stacktrace]
+		list $rc $msg [basename-stacktrace [info stacktrace]]
 	} {1 {from unknown} {{} stacktrace.test 26 {} errors.tcl 6 error_generator errors.tcl 44 error_caller stacktrace.test 30}}
 
 	rename unknown ""
@@ -51,17 +51,17 @@ proc main {} {
 	set g {four}
 
 	test source-1.1 "Basic line numbers" {
-		info source $a
+		basename-source [info source $a]
 	} {stacktrace.test 39}
 
 	test source-1.2 "Line numbers after command with escaped newlines" {
-		info source $c
+		basename-source [info source $c]
 	} {stacktrace.test 43}
 	test source-1.3 "Line numbers after string with newlines" {
-		info source $e
+		basename-source [info source $e]
 	} {stacktrace.test 47}
 	test source-1.4 "Line numbers after string with escaped newlines" {
-		info source $g
+		basename-source [info source $g]
 	} {stacktrace.test 51}
 }
 

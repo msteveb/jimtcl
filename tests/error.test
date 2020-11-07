@@ -15,7 +15,7 @@ test error-1.1 "Rethrow caught error" {
 	set rc [catch {b} msg]
 	#puts stderr "error-1.1\n[errorInfo $msg]\n"
 
-	list $rc $msg [info stacktrace]
+	list $rc $msg [basename-stacktrace [info stacktrace]]
 } {1 {error thrown from a} {{} error.test 4 a error.test 8 b error.test 15}}
 
 proc c {} {
@@ -44,7 +44,7 @@ test error-1.2 "Modify stacktrace" {
 	# Now rethrow with the new stack
 	set rc [catch {error $msg $newst} msg]
 	#puts [errorInfo $msg]
-	info stacktrace
+	basename-stacktrace [info stacktrace]
 } {{} error.test 4 a error.test 22 c error.test 26 e error.test 34}
 
 # Package should be able to invoke exit, which should exit if not caught

@@ -21,7 +21,7 @@ proc error_generator {type} {
 			package require dummy
 		}
 		source {
-			source dummy.tcl
+			source [file dirname [info script]]/dummy.tcl
 		}
 		badpackage {
 			package require bogus

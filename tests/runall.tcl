@@ -5,12 +5,14 @@
 
 lappend auto_path .
 
+set testdir [file dirname [info script]]
+
 # In case interp is a module
 catch {package require interp}
 
 if {[info commands interp] eq ""} {
 	set rc 1
-	foreach script [lsort [glob *.test]] {
+	foreach script [lsort [glob $testdir/*.test]] {
 		if {[catch {
 			exec [info nameofexecutable] $script >@stdout 2>@stderr
 			set rc 0
@@ -21,10 +23,10 @@ if {[info commands interp] eq ""} {
 	exit $rc
 } else {
 	array set total {pass 0 fail 0 skip 0 tests 0}
-	foreach script [lsort [glob *.test]] {
+	foreach script [lsort [glob $testdir/*.test]] {
 		set ::argv0 $script
 
-		if {$script eq "signal.test"} {
+		if {[file tail $script] eq "signal.test"} {
 			# special case, can't run this in a child interpeter
 			catch -exit {
 				source $script

@@ -10,6 +10,7 @@ set testinfo(numskip) 0
 set testinfo(numtests) 0
 set testinfo(reported) 0
 set testinfo(failed) {}
+set testinfo(source) [file tail $::argv0]
 
 # -verbose or $testverbose show OK/ERR of individual tests
 if {[lsearch $argv "-verbose"] >= 0 || [info exists env(testverbose)]} {
@@ -68,7 +69,7 @@ proc testCmdConstraints {args} {
 }
 
 proc skiptest {{msg {}}} {
-	puts [format "%16s:   --- skipped$msg" $::argv0]
+	puts [format "%16s:   --- skipped$msg" $::testinfo(source)]
 	exit 0
 }
 
@@ -168,7 +169,7 @@ proc package-or-skip {name} {
 	if {[catch {
 		package require $name
 	}]} {
-		puts [format "%16s:   --- skipped" $::argv0]
+		puts [format "%16s:   --- skipped" $::testinfo(source)]
 		exit 0
 	}
 }
@@ -192,6 +193,21 @@ testConstraint {tcl} 0
 
 proc bytestring {x} {
 	return $x
+}
+
+# Takes a stacktrace and applies [file tail] to the filenames.
+# This allows stacktrace tests to be run from a directory other than the source directory.
+proc basename-stacktrace {stacktrace} {
+	set result {}
+	foreach {p f l} $stacktrace {
+		lappend result $p [file tail $f] $l
+	}
+	return $result
+}
+
+# Takes a list of {filename line} and returns {basename line}
+proc basename-source {list} {
+	list [file tail [lindex $list 0]] [lindex $list 1]
 }
 
 # Note: We don't support -output or -errorOutput yet
@@ -311,9 +327,9 @@ proc testreport {} {
 	incr ::testinfo(reported)
 
 	if {$::testinfo(verbose)} {
-		puts -nonewline "\n$::argv0"
+		puts -nonewline "\n$::testinfo(source)"
 	} else {
-		puts -nonewline [format "%16s" $::argv0]
+		puts -nonewline [format "%16s" $::testinfo(source)]
 	}
 	puts [format ": Total %5d   Passed %5d  Skipped %5d  Failed %5d" \
 		$::testinfo(numtests) $::testinfo(numpass) $::testinfo(numskip) $::testinfo(numfail)]

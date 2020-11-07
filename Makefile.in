@@ -44,6 +44,7 @@ LIBS += @LIBS@
 exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 docdir = @docdir@
+srcdir := @srcdir@
 
 CC += -Wall $(OPTIM) -I.
 CXX += -Wall $(OPTIM) -I.
@@ -130,7 +131,7 @@ uninstall:
 @endif
 
 test check: $(JIMSH)
-	cd @srcdir@/tests; $(DEF_LD_PATH) $(MAKE) jimsh=@builddir@/jimsh TOPSRCDIR=..
+	$(DEF_LD_PATH) $(MAKE) -C tests jimsh=@builddir@/jimsh
 
 $(OBJS) jimsh.o initjimsh.o: Makefile $(wildcard *.h)
 

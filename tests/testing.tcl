@@ -1,12 +1,5 @@
 # Find and load the Jim tcltest wrapper
-if {[catch {info version}]} {
-	# Tcl
-	source [file dirname [info script]]/../tcltest.tcl
-} else {
-	# Jim
-	if {[exists env(TOPSRCDIR)]} {
-		set auto_path [list $env(TOPSRCDIR) {*}$auto_path]
-	}
+source [file dirname [info script]]/../tcltest.tcl
 
-	package require tcltest
-}
+# If jimsh is not installed we may also need to include top_srcdir for Tcl modules (.. from this script)
+set auto_path [list [file dirname [info script]]/.. {*}$auto_path]

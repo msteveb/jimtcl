@@ -2,9 +2,9 @@ source [file dirname [info script]]/testing.tcl
 needs constraint jim
 proc a {n} {
 	if {$n eq "trace"} {
-		stacktrace
+		basename-stacktrace [stacktrace]
 	} else {
-		info frame $n
+		basename-stacktrace [info frame $n]
 	}
 }
 
