@@ -12,10 +12,10 @@ needs cmd load_ssl_certs
 # Let's set up a client and a server where the client
 # simply echos everything back to the server
 
-set s [socket stream.server 1443]
+set s [socket stream.server 127.0.0.1:1443]
 if {[os.fork] == 0} {
 	# child
-	set c [[socket stream [$s sockname]] ssl]
+	set c [[socket stream 127.0.0.1:1443] ssl]
 	$s close
 	sleep 0.25
 	$c readable {

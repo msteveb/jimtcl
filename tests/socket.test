@@ -4,19 +4,34 @@ needs constraint jim
 needs cmd socket
 needs cmd os.fork
 
-catch {[socket -ipv6 stream ::1:5000]} res
+catch {[socket -ipv6 stream {[::1]:5000}]} res
 set ipv6 1
 if {[string match "*not supported" $res]} {
     set ipv6 0
 } else {
     # Also, if we can't bind an IPv6 socket, don't run IPv6 tests
     if {[catch {
-        [socket -ipv6 stream.server ::1:5000] close
+        [socket -ipv6 stream.server {[::1]:5000}] close
     } msg opts]} {
         set ipv6 0
     }
 }
 testConstraint ipv6 $ipv6
+
+# Given an IPv4 or IPv6 server socket, return an address
+# that a client can use to connect to the socket.
+# This handles the case where the server is listening on (say) 0.0.0.0:5000
+# but some systems need the client to connect on localhost:5000
+proc socket-connect-addr {s} {
+	if {[regexp {(.*):([^:]+)} [$s sockname] -> host port]} {
+		if {$host eq "0.0.0.0"} {
+			return 127.0.0.1:$port
+		} elseif {$host eq {[::]}} {
+			return \[::1\]:$port
+		}
+	}
+	return [$s sockname]
+}
 
 test socket-1.1 {stream} -body {
 	# Let the system choose a port
@@ -132,7 +147,7 @@ test socket-1.7 {socketpair} -body {
 
 test socket-1.8 {stream - ipv6} -constraints ipv6 -body {
 	# Let the system choose a port
-	set s [socket -ipv6 stream.server localhost:0]
+	set s [socket -ipv6 stream.server {[::1]:0}]
 	stdout flush
 	if {[os.fork] == 0} {
 		# child
@@ -151,7 +166,7 @@ test socket-1.8 {stream - ipv6} -constraints ipv6 -body {
 
 test socket-1.9 {dgram - ipv6 - unconnected} -constraints ipv6 -body {
 	# Let the system choose a port
-	set s [socket -ipv6 dgram.server localhost:0]
+	set s [socket -ipv6 dgram.server {[::1]:0}]
 	set c [socket -ipv6 dgram]
 	$s buffering none
 	$c buffering none
@@ -167,7 +182,7 @@ test socket-1.10 {stream - port only} -body {
 	stdout flush
 	if {[os.fork] == 0} {
 		# child
-		set c [socket stream [$s sockname]]
+		set c [socket stream [socket-connect-addr $s]]
 		$s close
 		$c puts hello
 		$c close
@@ -186,7 +201,7 @@ test socket-1.11 {stream - ipv6 - port only} -constraints ipv6 -body {
 	stdout flush
 	if {[os.fork] == 0} {
 		# child
-		set c [socket -ipv6 stream [$s sockname]]
+		set c [socket -ipv6 stream [socket-connect-addr $s]]
 		$s close
 		$c puts hello
 		$c close
@@ -246,7 +261,7 @@ test socket-2.5 {peername} -body {
 	stdout flush
 	if {[os.fork] == 0} {
 		try {
-			set c [socket stream [$s sockname]]
+			set c [socket stream [socket-connect-addr $s]]
 			$s close
 			$c puts [list [$c sockname] [$c peername]]
 			$c close
@@ -322,7 +337,7 @@ test socket-4.4 {peername on non-socket} -body {
 set s [socket stream.server 0]
 if {[os.fork] == 0} {
 	# child
-	set c [socket stream [$s sockname]]
+	set c [socket stream [socket-connect-addr $s]]
 	# Note: We have to disable buffering here, otherwise
 	# when we read data in $c readable {} we many leave buffered
 	# data and readable won't retrigger.
