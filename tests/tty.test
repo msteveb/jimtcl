@@ -4,7 +4,7 @@ set havetty 0
 catch {
     set havetty [expr {"tty" in [stdout -commands]}]
 }
-if {!$havetty} {
+if {!$havetty || ![stdout isatty]} {
     skiptest "  (aio tty)"
 }
 
