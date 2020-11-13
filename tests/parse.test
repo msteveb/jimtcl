@@ -356,4 +356,20 @@ test parse-1.69 {comment with trailing backslash} {
 	eval $x
 } {}
 
+test parse-1.70 {info complete, missing quotes} {
+	set v 1
+	set result {}
+	# missing leading quote is ok
+	foreach p {
+		{"abc}
+		{"abc$v}
+		{abc"}
+		{abc$v"}
+		{"abc$v"}
+	} {
+		lappend result [info complete $p]
+	}
+	set result
+} {0 0 1 1 1}
+
 testreport

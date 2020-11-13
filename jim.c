@@ -1275,6 +1275,9 @@ static int JimParseScript(struct JimParserCtx *pc)
             pc->tend = pc->p - 1;
             pc->tline = pc->linenr;
             pc->tt = JIM_TT_EOL;
+            if (pc->inquote) {
+                pc->missing.ch = '"';
+            }
             pc->eof = 1;
             return JIM_OK;
         }
