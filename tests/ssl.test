@@ -59,7 +59,7 @@ test ssl-1.2 {puts/gets} {
 test ssl-2.1 {https to google.com, gets} -body {
 	set c [[socket stream www.google.com:443] ssl]
 	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
-	$c close w
+	$c flush
 	set lines {}
 	while {[$c gets buf] >= 0} {
 		lappend lines $buf
@@ -74,7 +74,7 @@ test ssl-2.2 {https to google.com, read with cert verify} -body {
 	# Verify the cert (note that this does not check CN)
 	$c verify
 	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
-	$c close w
+	$c flush
 	set buf [$c read]
 } -match glob -result {HTTP/1.0 200 OK*</html>}
 
@@ -82,7 +82,7 @@ test ssl-2.3 {ssl to google.com on port 80} -body {
 	# Try to talk SSL to a non-SSL server
 	set c [[socket stream www.google.com:80] ssl]
 	$c puts -nonewline "GET / HTTP/1.0\r\n\r\n"
-	$c close w
+	$c flush
 	set buf [$c read]
 } -returnCodes error -match glob -result {error:*}
 
