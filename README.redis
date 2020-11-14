@@ -1,0 +1,105 @@
+Jim redis extension documentation.
+
+Overview
+~~~~~~~~
+
+The redis extension is a very simple extension to provide fast
+client access to redis (https://redis.io/) via the hiredis library
+(which must be available when building).
+
+Usage
+~~~~~
+
+The redis extension exports an Object Based interface. In order
+to open a connection, a stream sock must be open to the redis server.
+e.g.
+
+    set r [redis [socket stream localhost:6379]]
+
+Or to connect via the unix domain socket:
+
+    set r [redis [socket unix /tmp/redis.sock]]
+
+The [redis] command returns a handle, that is a command name that
+can be used to perform operations on the redis instance. A real example:
+
+    . package require redis
+    1.0
+    . set r [redis [socket stream localhost:6379]]
+    ::redis.handle4
+    . $r KEYS a*
+    abc
+    . $r SET def 3
+    OK
+    . $r INCR def
+    4
+    . $r HMSET hash a 1 b 2 c 3
+    OK
+    . $r HGETALL hash
+    a 1 b 2 c 3
+
+Note that redis commands are shown here in uppercase, but they are accepted in
+a case insensitive manner.
+
+The redis connection is very thin wrapper around the redis protocol.
+It simply formats the command according the redis protocol and converts
+the response into the appropriate Tcl format.
+
+Note that all values are binary strings, so keys and values in utf-8
+format will be stored and returned exactly.
+
+Return values
+~~~~~~~~~~~~~
+
+The response from redis contains a type, and these types are handled as follows:
+
+* integer - returns the integer result
+* string - returns the string result
+* array - returns a list of elements (where each element is a redis type)
+* null - returns the empty string
+* status - returns the status as a string
+* error - returns an error with the message as the value
+
+The read subcommand
+~~~~~~~~~~~~~~~~~~~
+
+While most redis commands return an immediate response, SUBSRIBE and PSUBSCRIBE
+return multiple results over time. These responses can be (synchronously)
+read with the 'read' subcommand, typically in conjunction with readable.
+
+For example
+
+    . $r SUBSCRIBE chan
+    subscribe chan 1
+    . $r read
+    message chan PONG
+
+If no message is received, the read command will wait forever.
+
+The message is returned as: message <channel> <text>
+
+The readable subcommand
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Like normal aio sockets, the readable subcommand is supported to invoke
+the given script when the underlying socket is readable.
+
+    $r SUBSCRIBE channel
+    $r readable {
+        puts [$r read]
+    }
+    # wait forever, reading messages from the channel
+    vwait forever
+
+To remove the callback, invoke with no arguments (this is different from aio readable).
+
+    # Remove the callback
+    $r readable
+
+The close subcommand
+~~~~~~~~~~~~~~~~~~~~
+
+The 'close' command is supported to close the connection.
+This command is equivalent to deleting the command with:
+
+    rename $r ""

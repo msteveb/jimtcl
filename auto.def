@@ -64,6 +64,7 @@ options {
         rlprompt  - Tcl wrapper around the readline extension
         mk        - Interface to Metakit
         sqlite3   - Interface to sqlite3
+        redis     - Interface to redis
         win32     - Interface to win32
     }
     with-out-jim-ext: {without-ext:"default|ext1,ext2,..."} => {
@@ -389,6 +390,7 @@ dict set extdb attrs {
     sdl       { off }
     signal    { static }
     sqlite3   { off }
+    redis     { off }
     zlib      { optional }
     stdlib    { tcl static }
     syslog    {}
@@ -420,6 +422,7 @@ dict set extdb info {
              }
     signal   { check {[have-feature sigaction]} }
     sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
+    redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }
     zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
