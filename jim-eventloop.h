@@ -64,6 +64,8 @@ JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
         int fd, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
+JIM_EXPORT void Jim_CreateScriptFileHandler(Jim_Interp *interp,
+        int fd, int mask, Jim_Obj *scriptObj);
 JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
         int fd, int mask);
 JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
@@ -71,6 +73,7 @@ JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
+JIM_EXPORT void *Jim_FindFileHandler(Jim_Interp *interp, int fd, int mask);
 
 #define JIM_FILE_EVENTS 1
 #define JIM_TIME_EVENTS 2

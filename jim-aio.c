@@ -168,9 +168,6 @@ typedef struct AioFile
     int type;
     int flags;              /* AIO_KEEPOPEN? keep FILE* */
     int fd;
-    Jim_Obj *rEvent;
-    Jim_Obj *wEvent;
-    Jim_Obj *eEvent;
     int addr_family;
     void *ssl;
     const JimAioFopsType *fops;
@@ -1355,49 +1352,25 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 #ifdef jim_ext_eventloop
-static void JimAioFileEventFinalizer(Jim_Interp *interp, void *clientData)
-{
-    Jim_Obj **objPtrPtr = clientData;
-
-    Jim_DecrRefCount(interp, *objPtrPtr);
-    *objPtrPtr = NULL;
-}
-
-static int JimAioFileEventHandler(Jim_Interp *interp, void *clientData, int mask)
-{
-    Jim_Obj **objPtrPtr = clientData;
-
-    return Jim_EvalObjBackground(interp, *objPtrPtr);
-}
-
-static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask, Jim_Obj **scriptHandlerObj,
+static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask,
     int argc, Jim_Obj * const *argv)
 {
     if (argc == 0) {
         /* Return current script */
-        if (*scriptHandlerObj) {
-            Jim_SetResult(interp, *scriptHandlerObj);
+        Jim_Obj *objPtr = Jim_FindFileHandler(interp, af->fd, mask);
+        if (objPtr) {
+            Jim_SetResult(interp, objPtr);
         }
         return JIM_OK;
     }
 
-    if (*scriptHandlerObj) {
-        /* Delete old handler */
-        Jim_DeleteFileHandler(interp, af->fd, mask);
-    }
+    /* Delete old handler */
+    Jim_DeleteFileHandler(interp, af->fd, mask);
 
     /* Now possibly add the new script(s) */
-    if (Jim_Length(argv[0]) == 0) {
-        /* Empty script, so done */
-        return JIM_OK;
+    if (Jim_Length(argv[0])) {
+        Jim_CreateScriptFileHandler(interp, af->fd, mask, argv[0]);
     }
-
-    /* A new script to add */
-    Jim_IncrRefCount(argv[0]);
-    *scriptHandlerObj = argv[0];
-
-    Jim_CreateFileHandler(interp, af->fd, mask,
-        JimAioFileEventHandler, scriptHandlerObj, JimAioFileEventFinalizer);
 
     return JIM_OK;
 }
@@ -1406,21 +1379,21 @@ static int aio_cmd_readable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    return aio_eventinfo(interp, af, JIM_EVENT_READABLE, &af->rEvent, argc, argv);
+    return aio_eventinfo(interp, af, JIM_EVENT_READABLE, argc, argv);
 }
 
 static int aio_cmd_writable(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    return aio_eventinfo(interp, af, JIM_EVENT_WRITABLE, &af->wEvent, argc, argv);
+    return aio_eventinfo(interp, af, JIM_EVENT_WRITABLE, argc, argv);
 }
 
 static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
-    return aio_eventinfo(interp, af, JIM_EVENT_EXCEPTION, &af->eEvent, argc, argv);
+    return aio_eventinfo(interp, af, JIM_EVENT_EXCEPTION, argc, argv);
 }
 #endif
 

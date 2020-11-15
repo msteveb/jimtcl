@@ -148,6 +148,16 @@ int Jim_EvalObjBackground(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 }
 
 
+/**
+ * Register a file event handler on the given file descriptor with the given mask
+ * (may be 1 or more of JIM_EVENT_xxx)
+ *
+ * When the event occurs, proc is called with clientData and the mask of events that occurred.
+ * When the filehandler is removed, finalizerProc is called.
+ *
+ * Note that no check is made that only one handler is registered for the given
+ * event(s).
+ */
 void Jim_CreateFileHandler(Jim_Interp *interp, int fd, int mask,
     Jim_FileProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
@@ -162,6 +172,45 @@ void Jim_CreateFileHandler(Jim_Interp *interp, int fd, int mask,
     fe->clientData = clientData;
     fe->next = eventLoop->fileEventHead;
     eventLoop->fileEventHead = fe;
+}
+
+static int JimEventHandlerScript(Jim_Interp *interp, void *clientData, int mask)
+{
+    return Jim_EvalObjBackground(interp, (Jim_Obj *)clientData);
+}
+
+static void JimEventHandlerScriptFinalize(Jim_Interp *interp, void *clientData)
+{
+    Jim_DecrRefCount(interp, (Jim_Obj *)clientData);
+}
+
+/**
+ * A convenience version of Jim_CreateFileHandler() which evaluates
+ * scriptObj with Jim_EvalObjBackground() when the event occurs.
+ */
+void Jim_CreateScriptFileHandler(Jim_Interp *interp, int fd, int mask,
+    Jim_Obj *scriptObj)
+{
+    Jim_IncrRefCount(scriptObj);
+    Jim_CreateFileHandler(interp, fd, mask, JimEventHandlerScript, scriptObj, JimEventHandlerScriptFinalize);
+}
+
+/**
+ * If there is a file handler registered with the given mask, return the clientData
+ * for the (first) handler.
+ * Otherwise return NULL.
+ */
+void *Jim_FindFileHandler(Jim_Interp *interp, int fd, int mask)
+{
+    Jim_FileEvent *fe;
+    Jim_EventLoop *eventLoop = Jim_GetAssocData(interp, "eventloop");
+
+    for (fe = eventLoop->fileEventHead; fe; fe = fe->next) {
+        if (fe->fd == fd && (fe->mask & mask)) {
+            return fe->clientData;
+        }
+    }
+    return NULL;
 }
 
 /**
