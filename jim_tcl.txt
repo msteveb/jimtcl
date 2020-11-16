@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.80 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.80+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,6 +52,10 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 RECENT CHANGES
 --------------
+Changes since 0.80
+~~~~~~~~~~~~~~~~~~
+1. TIP 582, comments allowed in expressions
+
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `regsub` now fully supports +{backslash}A+
@@ -724,6 +728,9 @@ and parentheses.
 White space may be used between the operands and operators and
 parentheses; it is ignored by the expression processor.
 Where possible, operands are interpreted as integer values.
+
+Comments are allowed in expressions, beginning with the '#' character
+and continuing until the end of line or end of expression.
 
 Integer values are interpreted as decimal, binary, octal or
 hexadecimal if prepended with '0d', '0b', '0o' or '0x'

@@ -443,9 +443,11 @@ test expr-old-26.9 {error conditions} {
 test expr-old-26.10 {error conditions} {
     expr 2.0/0.0
 } {Inf}
-test expr-old-26.11 {error conditions} {
-    list [catch {expr 2#} msg]
-} {1}
+# Note that this is no longer an error with TIP 582
+#
+#test expr-old-26.11 {error conditions} {
+#    list [catch {expr 2#} msg]
+#} {1}
 test expr-old-26.12 {error conditions} {
     list [catch {expr a.b} msg]
 } {1}

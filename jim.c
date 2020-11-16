@@ -8810,13 +8810,22 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
 static int JimParseExpression(struct JimParserCtx *pc)
 {
-    /* Discard spaces and quoted newline */
-    while (isspace(UCHAR(*pc->p)) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
-        if (*pc->p == '\n') {
-            pc->linenr++;
+    while (1) {
+        /* Discard spaces and quoted newline */
+        while (isspace(UCHAR(*pc->p)) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
+            if (*pc->p == '\n') {
+                pc->linenr++;
+            }
+            pc->p++;
+            pc->len--;
         }
-        pc->p++;
-        pc->len--;
+        /* Discard comments */
+        if (*pc->p == '#') {
+            JimParseComment(pc);
+            /* Go back to discarding white space */
+            continue;
+        }
+        break;
     }
 
     /* Common case */

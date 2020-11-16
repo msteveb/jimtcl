@@ -710,6 +710,27 @@ test expr-22.12 {expr} {
     expr {inf}
 } {Inf}
 
+test expr-23.1 {expr TIP 582 comments} {
+    expr {1 + # comment on line 1
+    2}
+} {3}
+
+test expr-23.2 {expr TIP 582 comments} {
+    expr {1 +
+        # comment on line 2
+        2
+    }
+} {3}
+
+test expr-23.3 {expr TIP 582 comments} {
+    expr {1 +
+        # Multiple lines
+        # of comments
+        2
+    }
+} {3}
+
+
 
 # cleanup
 if {[info exists a]} {
