@@ -8155,7 +8155,7 @@ static double JimRandDouble(Jim_Interp *interp)
     unsigned long x;
     JimRandomBytes(interp, &x, sizeof(x));
 
-    return (double)x / (unsigned long)~0;
+    return (double)x / (double)~0UL;
 }
 
 static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprNode *node)
