@@ -1,6 +1,7 @@
 config.log
 tags
 /Makefile
+/examples.api/Makefile
 /tests/Makefile
 Tcl.html
 jimautoconf.h
