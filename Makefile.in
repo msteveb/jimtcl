@@ -211,7 +211,7 @@ clean:
 @endif
 
 distclean: clean
-	rm -f jimautoconf.h jim-config.h Makefile config.log @srcdir@/autosetup/jimsh0@EXEEXT@ build-jim-ext
+	rm -f jimautoconf.h jim-config.h Makefile config.log jimsh0@EXEEXT@ build-jim-ext
 	rm -f jimtcl.pc tests/Makefile examples.api/Makefile
 
 ship: Tcl.html
