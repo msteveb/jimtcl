@@ -55,6 +55,7 @@ RECENT CHANGES
 Changes since 0.80
 ~~~~~~~~~~~~~~~~~~
 1. TIP 582, comments allowed in expressions
+2. Indexes may contain any number of +n, -n
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -655,17 +656,18 @@ The index may be one of the following forms:
     A simple integer, where '0' refers to the first element of the string
     or list.
 
-+integer+integer+ or::
-+integer-integer+::
-    The sum or difference of the two integers. e.g. +2+3+ refers to the 5th element.
++integer+integer?...?+ or::
++integer-integer?...?+::
+    The sum or difference of the two or more integers. e.g. +2+3-1+ refers to the 4th element.
     This is useful when used with (e.g.) +$i+1+ rather than the more verbose
     +[expr {$i+1\}]+
 
 +end+::
     The last element of the string or list.
 
-+end-integer+::
-    The 'nth-from-last' element of the string or list.
++end-integer?...?+::
+    The 'nth-from-last' element of the string or list. Again, one or more integers may
+    be added or subtracted. e.g. +end-3+1+
 
 COMMAND SUMMARY
 ---------------

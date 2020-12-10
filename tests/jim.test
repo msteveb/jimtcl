@@ -1837,6 +1837,34 @@ test lindex-17.1 {no index} {
     lindex {a b c}
 } {a b c}
 
+test lindex-18.1 {multiple +n} {
+    lindex {a b c d e f g} 1+1+1
+} {d}
+
+test lindex-18.2 {multiple +n/-n} {
+    lindex {a b c d e f g} 1+2-1
+} {c}
+
+test lindex-18.3 {end + multiple +n/-n} {
+    lindex {a b c d e f g} end-1-1
+} {e}
+
+test lindex-18.3 {end + multiple +n/-n} {
+    lindex {a b c d e f g} end-3+1
+} {e}
+
+test lindex-18.4 {multiple +/- in error} -body {
+    lindex {a b c d e f g} 1-x+3
+} -returnCodes error -match glob -result "bad index*"
+
+test lindex-18.5 {multiple +/- in error} -body {
+    lindex {a b c d e f g} 2-1+4x
+} -returnCodes error -match glob -result "bad index*"
+
+test lindex-18.6 {multiple +/- in error} -body {
+    lindex {a b c d e f g} end-3x-1
+} -returnCodes error -match glob -result "bad index*"
+
 catch { unset lindex}
 catch { unset minus }
 

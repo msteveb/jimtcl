@@ -7815,16 +7815,17 @@ static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         str = endptr;
     }
 
-    /* Now str may include or +<num> or -<num> */
-    if (*str == '+' || *str == '-') {
+    /* Now str may include any number of +<num> or -<num> */
+    while (*str == '+' || *str == '-') {
         int sign = (*str == '+' ? 1 : -1);
 
         idx += sign * jim_strtol(++str, &endptr);
-        if (str == endptr || *endptr) {
+        if (endptr == str) {
             goto badindex;
         }
         str = endptr;
     }
+
     /* The only thing left should be spaces */
     while (isspace(UCHAR(*str))) {
         str++;
