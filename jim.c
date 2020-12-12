@@ -5050,8 +5050,6 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
 
         cf->argv = NULL;
         cf->argc = 0;
-        cf->procArgsObjPtr = NULL;
-        cf->procBodyObjPtr = NULL;
         cf->next = NULL;
         cf->staticVars = NULL;
         cf->localCommands = NULL;
@@ -5169,10 +5167,6 @@ static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action)
  {
     JimDeleteLocalProcs(interp, cf->localCommands);
 
-    if (cf->procArgsObjPtr)
-        Jim_DecrRefCount(interp, cf->procArgsObjPtr);
-    if (cf->procBodyObjPtr)
-        Jim_DecrRefCount(interp, cf->procBodyObjPtr);
     Jim_DecrRefCount(interp, cf->nsObj);
     if (action == JIM_FCF_FULL || cf->vars.size != JIM_HT_INITIAL_SIZE)
         Jim_FreeHashTable(&cf->vars);
@@ -11142,8 +11136,6 @@ int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj)
     callFramePtr = JimCreateCallFrame(interp, interp->framePtr, nsObj);
     callFramePtr->argv = &interp->emptyObj;
     callFramePtr->argc = 0;
-    callFramePtr->procArgsObjPtr = NULL;
-    callFramePtr->procBodyObjPtr = scriptObj;
     callFramePtr->staticVars = NULL;
     callFramePtr->fileNameObj = interp->emptyObj;
     callFramePtr->line = 0;
@@ -11204,8 +11196,6 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
     callFramePtr = JimCreateCallFrame(interp, interp->framePtr, cmd->u.proc.nsObj);
     callFramePtr->argv = argv;
     callFramePtr->argc = argc;
-    callFramePtr->procArgsObjPtr = cmd->u.proc.argListObjPtr;
-    callFramePtr->procBodyObjPtr = cmd->u.proc.bodyObjPtr;
     callFramePtr->staticVars = cmd->u.proc.staticVars;
 
     /* Remember where we were called from. */
