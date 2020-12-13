@@ -95,10 +95,13 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (reply) {
         Jim_SetResult(interp, jim_redis_get_result(interp, reply));
         if (reply->type == REDIS_REPLY_ERROR) {
-            /*Jim_SetResultFormatted(interp, "%#s %#s: %#s", argv[0], argv[1], Jim_GetResult(interp));*/
             ret = JIM_ERR;
         }
         freeReplyObject(reply);
+    }
+    else if (c->err) {
+        Jim_SetResultFormatted(interp, "%#s: %s", argv[1], c->errstr);
+        ret = JIM_ERR;
     }
     return ret;
 }
