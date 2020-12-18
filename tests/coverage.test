@@ -182,11 +182,11 @@ test rand-1 {rand} -constraints rand -body {
 
 test rand-2 {rand} -constraints rand -body {
 	rand foo
-} -returnCodes error -result {expected integer but got "foo"}
+} -returnCodes error -match glob -result {expected integer *but got "foo"}
 
 test rand-3 {rand} -constraints rand -body {
 	rand 2 bar
-} -returnCodes error -result {expected integer but got "bar"}
+} -returnCodes error -match glob -result {expected integer *but got "bar"}
 
 test rand-4 {rand} rand {
 	string is integer [rand]

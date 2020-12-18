@@ -316,14 +316,14 @@ test dict-11.9 {dict incr command} -returnCodes error -body {
 	dict-sort $dictv
 } -cleanup {
     unset dictv
-} -result {expected integer but got "dummy"}
+} -match glob -result {expected integer *but got "dummy"}
 test dict-11.10 {dict incr command} -returnCodes error -body {
     set dictv {a 1}
     dict incr dictv a dummy
 	dict-sort $dictv
 } -cleanup {
     unset dictv
-} -result {expected integer but got "dummy"}
+} -match glob -result {expected integer *but got "dummy"}
 test dict-11.11 {dict incr command} -setup {
     unset -nocomplain dictv
 } -body {

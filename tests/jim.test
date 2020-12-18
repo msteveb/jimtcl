@@ -1269,11 +1269,10 @@ test incr-1.23 {TclCompileIncrCmd: increment given, formatted int != int} {
     set i 25
     incr i 000012345     ;# a decimal literal
 } 12370
-test incr-1.24 {TclCompileIncrCmd: increment given, formatted int != int} {
+test incr-1.24 {TclCompileIncrCmd: increment given, formatted int != int} -body {
     set i 25
-    catch {incr i 1a} msg
-    set msg
-} {expected integer but got "1a"}
+    incr i 1a
+} -returnCodes error -match glob -result {expected integer *but got "1a"}
 
 test incr-1.25 {TclCompileIncrCmd: too many arguments} {
     set i 10
@@ -1282,10 +1281,10 @@ test incr-1.25 {TclCompileIncrCmd: too many arguments} {
 } {wrong # args: should be "incr varName ?increment?"}
 
 
-test incr-1.29 {TclCompileIncrCmd: runtime error, bad variable value} {
+test incr-1.29 {TclCompileIncrCmd: runtime error, bad variable value} -body {
     set x "  -  "
-    list [catch {incr x 1} msg] $msg
-} {1 {expected integer but got "  -  "}}
+    incr x 1
+} -returnCodes error -match glob -result {expected integer *but got "  -  "}
 
 test incr-1.30 {TclCompileIncrCmd: array var, braced (no subs)} {
     catch {unset array}
@@ -1488,12 +1487,11 @@ test incr-2.23 {incr command (not compiled): increment given, formatted int != i
     set i 25
     $z i 000012345     ;# an octal literal
 } 12370
-test incr-2.24 {incr command (not compiled): increment given, formatted int != int} {
+test incr-2.24 {incr command (not compiled): increment given, formatted int != int} -body {
     set z incr
     set i 25
-    catch {$z i 1a} msg
-    set msg
-} {expected integer but got "1a"}
+    $z i 1a
+} -returnCodes error -match glob -result {expected integer *but got "1a"}
 
 test incr-2.25 {incr command (not compiled): too many arguments} {
     set z incr
@@ -1502,11 +1500,11 @@ test incr-2.25 {incr command (not compiled): too many arguments} {
     set msg
 } {wrong # args: should be "incr varName ?increment?"}
 
-test incr-2.29 {incr command (not compiled): runtime error, bad variable value} {
+test incr-2.29 {incr command (not compiled): runtime error, bad variable value} -body {
     set z incr
     set x "  -  "
-    list [catch {$z x 1} msg] $msg
-} {1 {expected integer but got "  -  "}}
+    $z x 1
+} -returnCodes error -match glob -result {expected integer *but got "  -  "}
 
 ################################################################################
 # LLENGTH
@@ -3433,15 +3431,15 @@ test range-6.1 {range} -body {
 
 test range-6.2 {range} -body {
     range foo
-} -returnCodes error -result {expected integer but got "foo"}
+} -returnCodes error -match glob -result {expected integer *but got "foo"}
 
 test range-6.3 {range} -body {
     range 2 bar
-} -returnCodes error -result {expected integer but got "bar"}
+} -returnCodes error -match glob -result {expected integer *but got "bar"}
 
 test range-6.4 {range} -body {
     range 2 4 foo
-} -returnCodes error -result {expected integer but got "foo"}
+} -returnCodes error -match glob -result {expected integer *but got "foo"}
 
 test range-6.5 {range} -body {
     range 10 0

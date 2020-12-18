@@ -251,7 +251,7 @@ test binary-8.9 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-8.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format c $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-8.11 {Tcl_BinaryObjCmd: format} {
     set a {0x50 0x51}
     binary format c1 $a
@@ -262,7 +262,7 @@ test binary-9.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-9.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format s blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-9.3 {Tcl_BinaryObjCmd: format} {
     binary format s0 0x50
 } {}
@@ -290,7 +290,7 @@ test binary-9.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-9.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format s $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-9.12 {Tcl_BinaryObjCmd: format} {
     set a {0x50 0x51}
     binary format s1 $a
@@ -301,7 +301,7 @@ test binary-10.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-10.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format S blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-10.3 {Tcl_BinaryObjCmd: format} {
     binary format S0 0x50
 } {}
@@ -329,7 +329,7 @@ test binary-10.10 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-10.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format S $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-10.12 {Tcl_BinaryObjCmd: format} {
     set a {0x50 0x51}
     binary format S1 $a
@@ -340,7 +340,7 @@ test binary-11.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-11.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format i blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-11.3 {Tcl_BinaryObjCmd: format} {
     binary format i0 0x50
 } {}
@@ -371,7 +371,7 @@ test binary-11.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-11.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format i $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-11.13 {Tcl_BinaryObjCmd: format} {
     set a {0x50 0x51}
     binary format i1 $a
@@ -382,7 +382,7 @@ test binary-12.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-12.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format I blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-12.3 {Tcl_BinaryObjCmd: format} {
     binary format I0 0x50
 } {}
@@ -413,7 +413,7 @@ test binary-12.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-12.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format I $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-12.13 {Tcl_BinaryObjCmd: format} {
     set a {0x50 0x51}
     binary format I1 $a
@@ -1664,7 +1664,7 @@ test binary-48.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-48.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format t blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-48.3 {Tcl_BinaryObjCmd: format} {
     binary format S0 0x50
 } {}
@@ -1710,7 +1710,7 @@ test binary-48.16 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-48.17 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format t $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-48.18 {Tcl_BinaryObjCmd: format} bigEndian {
     set a {0x50 0x51}
     binary format t1 $a
@@ -1726,7 +1726,7 @@ test binary-49.1 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 } -result {not enough arguments for all format specifiers}
 test binary-49.2 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     binary format n blat
-} -result {expected integer but got "blat"}
+} -match glob -result {expected integer *but got "blat"}
 test binary-49.3 {Tcl_BinaryObjCmd: format} {
     binary format n0 0x50
 } {}
@@ -1757,7 +1757,7 @@ test binary-49.11 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
 test binary-49.12 {Tcl_BinaryObjCmd: format} -returnCodes error -body {
     set a {0x50 0x51}
     binary format n $a
-} -result "expected integer but got \"0x50 0x51\""
+} -match glob -result "expected integer *but got \"0x50 0x51\""
 test binary-49.13 {Tcl_BinaryObjCmd: format} littleEndian {
     set a {0x50 0x51}
     binary format n1 $a

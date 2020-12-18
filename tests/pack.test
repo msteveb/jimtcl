@@ -12,7 +12,7 @@ test pack-1.2 {pack invalid type} -body {
 
 test pack-1.3 {pack bad width} -body {
 	pack a 1 -intbe badint
-} -returnCodes error -result {expected integer but got "badint"}
+} -returnCodes error -match glob -result {expected integer *but got "badint"}
 
 test pack-1.4 {pack bad width} -body {
 	pack a 1 -intbe -5
@@ -20,7 +20,7 @@ test pack-1.4 {pack bad width} -body {
 
 test pack-1.5 {pack bad offset} -body {
 	pack a 1 -intbe 5 badint
-} -returnCodes error -result {expected integer but got "badint"}
+} -returnCodes error -match glob -result {expected integer *but got "badint"}
 
 test pack-1.6 {pack bad offset} -body {
 	pack a 1 -intbe 5 -6
@@ -78,7 +78,7 @@ test unpack-1.2 {unpack invalid type} -body {
 
 test unpack-1.3 {unpack bad width} -body {
 	unpack abc -intle 0 badint
-} -returnCodes error -result {expected integer but got "badint"}
+} -returnCodes error -match glob -result {expected integer *but got "badint"}
 
 test unpack-1.4 {unpack bad width} -body {
 	unpack abc -intle 0 -5
@@ -86,7 +86,7 @@ test unpack-1.4 {unpack bad width} -body {
 
 test unpack-1.5 {unpack bad offset} -body {
 	unpack abc -intle badint 8
-} -returnCodes error -result {expected integer but got "badint"}
+} -returnCodes error -match glob -result {expected integer *but got "badint"}
 
 test unpack-1.6 {unpack bad offset} -body {
 	unpack abc -intle -6 8

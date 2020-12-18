@@ -6063,6 +6063,27 @@ int Jim_GetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
     return JIM_OK;
 }
 
+int Jim_GetWideExpr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
+{
+    int ret = JIM_OK;
+    if (objPtr->typePtr == &intObjType) {
+        *widePtr = JimWideValue(objPtr);
+    }
+    else {
+        ret = Jim_EvalExpression(interp, objPtr);
+        if (ret == JIM_OK) {
+            ret = Jim_GetWide(interp, Jim_GetResult(interp), widePtr);
+        }
+        else {
+            /* XXX By doing this we throw away any more detailed message,
+             * but typical integer expressions won't be very complex
+             */
+            Jim_SetResultFormatted(interp, "expected integer expression but got \"%#s\"", objPtr);
+        }
+    }
+    return ret;
+}
+
 /* Get a wide but does not set an error if the format is bad. */
 static int JimGetWideNoErr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
 {
@@ -10415,7 +10436,7 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     }
     if (argc == 3) {
-        if (Jim_GetWide(interp, argv[2], &increment) != JIM_OK)
+        if (Jim_GetWideExpr(interp, argv[2], &increment) != JIM_OK)
             return JIM_ERR;
     }
     intObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
@@ -12049,7 +12070,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
         /* Get the stop condition (must be a variable or integer) */
         if (expr->expr->right->type == JIM_TT_EXPR_INT) {
-            if (Jim_GetWide(interp, expr->expr->right->objPtr, &stop) == JIM_ERR) {
+            if (Jim_GetWideExpr(interp, expr->expr->right->objPtr, &stop) == JIM_ERR) {
                 goto evalstart;
             }
         }
@@ -12161,14 +12182,14 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         return JIM_ERR;
     }
 
-    if (Jim_GetWide(interp, argv[2], &i) != JIM_OK ||
-        Jim_GetWide(interp, argv[3], &limit) != JIM_OK ||
-          (argc == 6 && Jim_GetWide(interp, argv[4], &incr) != JIM_OK)) {
+    if (Jim_GetWideExpr(interp, argv[2], &i) != JIM_OK ||
+        Jim_GetWideExpr(interp, argv[3], &limit) != JIM_OK ||
+          (argc == 6 && Jim_GetWideExpr(interp, argv[4], &incr) != JIM_OK)) {
         return JIM_ERR;
     }
     bodyObjPtr = (argc == 5) ? argv[4] : argv[5];
 
-    retval = Jim_SetVariable(interp, argv[1], argv[2]);
+    retval = Jim_SetVariable(interp, argv[1], Jim_NewIntObj(interp, i));
 
     while (((i < limit && incr > 0) || (i > limit && incr < 0)) && retval == JIM_OK) {
         retval = Jim_EvalObj(interp, bodyObjPtr);
@@ -13978,7 +13999,7 @@ badcompareargs:
                     Jim_WrongNumArgs(interp, 2, argv, "string count");
                     return JIM_ERR;
                 }
-                if (Jim_GetWide(interp, argv[3], &count) != JIM_OK) {
+                if (Jim_GetWideExpr(interp, argv[3], &count) != JIM_OK) {
                     return JIM_ERR;
                 }
                 objPtr = Jim_NewStringObj(interp, "", 0);
@@ -15413,13 +15434,14 @@ static int Jim_LrangeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 static int Jim_LrepeatCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
-    long count;
+    jim_wide count;
 
-    if (argc < 2 || Jim_GetLong(interp, argv[1], &count) != JIM_OK || count < 0) {
+    if (argc < 2 || Jim_GetWideExpr(interp, argv[1], &count) != JIM_OK || count < 0) {
         Jim_WrongNumArgs(interp, 1, argv, "count ?value ...?");
         return JIM_ERR;
     }
     if (count == 0 || argc == 2) {
+        Jim_SetEmptyResult(interp);
         return JIM_OK;
     }
 
@@ -15578,14 +15600,14 @@ static int Jim_RangeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
     if (argc == 2) {
-        if (Jim_GetWide(interp, argv[1], &end) != JIM_OK)
+        if (Jim_GetWideExpr(interp, argv[1], &end) != JIM_OK)
             return JIM_ERR;
     }
     else {
-        if (Jim_GetWide(interp, argv[1], &start) != JIM_OK ||
-            Jim_GetWide(interp, argv[2], &end) != JIM_OK)
+        if (Jim_GetWideExpr(interp, argv[1], &start) != JIM_OK ||
+            Jim_GetWideExpr(interp, argv[2], &end) != JIM_OK)
             return JIM_ERR;
-        if (argc == 4 && Jim_GetWide(interp, argv[3], &step) != JIM_OK)
+        if (argc == 4 && Jim_GetWideExpr(interp, argv[3], &step) != JIM_OK)
             return JIM_ERR;
     }
     if ((len = JimRangeLen(start, end, step)) == -1) {
@@ -15612,11 +15634,11 @@ static int Jim_RandCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (argc == 1) {
         max = JIM_WIDE_MAX;
     } else if (argc == 2) {
-        if (Jim_GetWide(interp, argv[1], &max) != JIM_OK)
+        if (Jim_GetWideExpr(interp, argv[1], &max) != JIM_OK)
             return JIM_ERR;
     } else if (argc == 3) {
-        if (Jim_GetWide(interp, argv[1], &min) != JIM_OK ||
-            Jim_GetWide(interp, argv[2], &max) != JIM_OK)
+        if (Jim_GetWideExpr(interp, argv[1], &min) != JIM_OK ||
+            Jim_GetWideExpr(interp, argv[2], &max) != JIM_OK)
             return JIM_ERR;
     }
     len = max-min;

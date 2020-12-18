@@ -56,6 +56,8 @@ Changes since 0.80
 ~~~~~~~~~~~~~~~~~~
 1. TIP 582, comments allowed in expressions
 2. Indexes may contain any number of +n, -n
+3. Many commands now accept integer expressions rather than simple integers:
+   `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2771,7 +2773,7 @@ Increment the value stored in the variable whose name is +'varName'+.
 The value of the variable must be integral.
 
 If +'increment'+ is supplied then its value (which must be an
-integer) is added to the value of variable +'varName'+;  otherwise
+integer expression) is added to the value of variable +'varName'+;  otherwise
 1 is added to +'varName'+.
 
 The new value is stored as a decimal string in variable +'varName'+
@@ -3069,6 +3071,8 @@ While if +'incr'+ is negative, the count is downwards.
 If +'incr'+ is not specified, 1 is used.
 Note that setting the loop variable inside the loop does not
 affect the loop count.
+
+Integer parameters may be any integer expression.
 
 lindex
 ~~~~~~
@@ -3593,6 +3597,8 @@ and ranging up to but not including +'end'+ in steps of +'step'+ defaults to 1).
     . range 7 4 -2
     7 5
 ----
+
+Integer parameters may be any integer expression.
 
 read
 ~~~~
