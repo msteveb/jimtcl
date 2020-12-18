@@ -290,14 +290,14 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    if (Jim_GetWide(interp, argv[3], &pos) != JIM_OK) {
+    if (Jim_GetWideExpr(interp, argv[3], &pos) != JIM_OK) {
         return JIM_ERR;
     }
     if (pos < 0 || (option == OPT_STR && pos % 8)) {
         Jim_SetResultFormatted(interp, "bad bitoffset: %#s", argv[3]);
         return JIM_ERR;
     }
-    if (Jim_GetWide(interp, argv[4], &width) != JIM_OK) {
+    if (Jim_GetWideExpr(interp, argv[4], &width) != JIM_OK) {
         return JIM_ERR;
     }
     if (width < 0 || (option == OPT_STR && width % 8) || (option != OPT_STR && width > sizeof(jim_wide) * 8) ||
@@ -387,14 +387,14 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     if ((option == OPT_LE || option == OPT_BE) &&
-            Jim_GetWide(interp, argv[2], &value) != JIM_OK) {
+            Jim_GetWideExpr(interp, argv[2], &value) != JIM_OK) {
         return JIM_ERR;
     }
     if ((option == OPT_FLOATLE || option == OPT_FLOATBE) &&
             Jim_GetDouble(interp, argv[2], &fvalue) != JIM_OK) {
         return JIM_ERR;
     }
-    if (Jim_GetWide(interp, argv[4], &width) != JIM_OK) {
+    if (Jim_GetWideExpr(interp, argv[4], &width) != JIM_OK) {
         return JIM_ERR;
     }
     if (width <= 0 || (option == OPT_STR && width % 8) || (option != OPT_STR && width > sizeof(jim_wide) * 8) ||
@@ -403,7 +403,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     if (argc == 6) {
-        if (Jim_GetWide(interp, argv[5], &pos) != JIM_OK) {
+        if (Jim_GetWideExpr(interp, argv[5], &pos) != JIM_OK) {
             return JIM_ERR;
         }
         if (pos < 0 || (option == OPT_STR && pos % 8)) {
