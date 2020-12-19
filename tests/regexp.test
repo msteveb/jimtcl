@@ -221,7 +221,7 @@ test regexp-6.8 {regexp errors} jim {
 } {1 {can't set "f1(f2)": variable isn't array}}
 test regexp-6.9 {regexp errors, -start bad int check} {
     list [catch {regexp -start bogus {^$} {}} msg] $msg
-} {1 {bad index "bogus": must be integer?[+-]integer? or end?[+-]integer?}}
+} {1 {bad index "bogus": must be intexpr or end?[+-]intexpr?}}
 test regexp-6.10 {regexp errors, -start too few args} {
     list [catch {regexp -all -start} msg] $msg
 } {1 {wrong # args: should be "regexp ?-switch ...? exp string ?matchVar? ?subMatchVar ...?"}}
@@ -378,7 +378,7 @@ test regexp-11.7 {regsub errors} jim {
 } {1 {can't set "f1(f2)": variable isn't array}}
 test regexp-11.8 {regsub errors, -start bad int check} {
     list [catch {regsub -start bogus pattern string rep var} msg] $msg
-} {1 {bad index "bogus": must be integer?[+-]integer? or end?[+-]integer?}}
+} {1 {bad index "bogus": must be intexpr or end?[+-]intexpr?}}
 test regexp-11.9 {regsub without final variable name returns value} {
     regsub b abaca X
 } {aXaca}

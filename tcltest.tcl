@@ -152,7 +152,7 @@ if {![exists -proc puts]} {
 proc script_source {script} {
 	lassign [info source $script] f l
 	if {$f ne ""} {
-		puts "At      : $f:$l"
+		puts "$f:$l:Error test failure"
 		return \t$f:$l
 	}
 }
@@ -160,7 +160,7 @@ proc script_source {script} {
 proc error_source {} {
 	lassign [info stacktrace] p f l
 	if {$f ne ""} {
-		puts "At      : $f:$l"
+		puts "$f:$l:Error test failure"
 		return \t$f:$l
 	}
 }
