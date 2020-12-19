@@ -547,6 +547,7 @@ typedef struct Jim_Interp {
                 structure. */
     int local; /* If 'local' is in effect, newly defined procs keep a reference to the old defn */
     int quitting; /* Set to 1 during Jim_FreeInterp() */
+    int safeexpr; /* Set when evaluating a "safe" expression, no var subst or command eval */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
