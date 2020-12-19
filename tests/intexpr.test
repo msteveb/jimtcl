@@ -1,0 +1,133 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+
+# There are two kinds of commands that use (safe) integer expressions:
+# direct: loop, range, incr, string repeat, lrepeat, pack, unpack, rand
+# index: lindex, linsert, lreplace, lset, lrange, lsort, regexp, regsub, string index,first,last,range
+#
+# Since they are all identical under the covers, we only test one from each group here,
+# string repeat and string index
+
+test intexpr-1.1 {string repeat} {
+	string repeat a 2+1
+} {aaa}
+
+test intexpr-1.2 {string repeat} {
+	string repeat a 2-1
+} {a}
+
+test intexpr-1.3 {string repeat} {
+	string repeat a 2*3
+} {aaaaaa}
+
+test intexpr-1.4 {string repeat - function calls} {
+	string repeat a int(abs(-2))
+} {aa}
+
+test intexpr-1.4 {string repeat - expanded var} {
+	set n 3
+	string repeat a $n+1
+} {aaaa}
+
+test intexpr-1.5 {string repeat - no subst var} -body {
+	set n 3
+	string repeat a {$n+1}
+} -returnCodes error -result {expected integer expression but got "$n+1"}
+
+test intexpr-1.6 {string repeat - no subst cmd} -body {
+	string repeat a {[string length xy]+1}
+} -returnCodes error -result {expected integer expression but got "[string length xy]+1"}
+
+test intexpr-1.6 {string repeat - no subst dictvar} -body {
+	set b(3) 4
+	string repeat a {$b(4)}
+} -returnCodes error -result {expected integer expression but got "$b(4)"}
+
+test intexpr-1.7 {string repeat - no subst dictvar} -body {
+	set b(3) 4
+	string repeat a {$b(4)+2}
+} -returnCodes error -result {expected integer expression but got "$b(4)+2"}
+
+set str abcdefghi
+test intexpr-2.1 {string index} {
+	string index $str 2+1
+} {d}
+
+test intexpr-2.2 {string index} {
+	string index $str 2-1
+} {b}
+
+test intexpr-2.3 {string index} {
+	string index $str 2*3
+} {g}
+
+test intexpr-2.4 {string index - function calls} {
+	string index $str int(abs(-2))
+} {c}
+
+test intexpr-2.4 {string index - expanded var} {
+	set n 3
+	string index $str $n+1
+} {e}
+
+test intexpr-2.5 {string index - no subst var} -body {
+	set n 3
+	string index $str {$n+1}
+} -returnCodes error -result {bad index "$n+1": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-2.6 {string index - no subst cmd} -body {
+	string index $str {[string length xy]+1}
+} -returnCodes error -result {bad index "[string length xy]+1": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-2.6 {string index - no subst dictvar} -body {
+	set b(3) 4
+	string index $str {$b(4)}
+} -returnCodes error -result {bad index "$b(4)": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-2.7 {string index - no subst dictvar} -body {
+	set b(3) 4
+	string index $str {$b(4)+2}
+} -returnCodes error -result {bad index "$b(4)+2": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-3.1 {string index} {
+	string index $str end-2+1
+} {h}
+
+test intexpr-3.2 {string index} {
+	string index $str end-2-1
+} {f}
+
+test intexpr-3.3 {string index} {
+	string index $str end-2*3
+} {c}
+
+test intexpr-3.4 {string index - function calls} {
+	string index $str end+int(-2)
+} {g}
+
+test intexpr-3.4 {string index - expanded var} {
+	set n 3
+	string index $str end-($n+1)
+} {e}
+
+test intexpr-3.5 {string index - no subst var} -body {
+	set n 3
+	string index $str {end-($n+1)}
+} -returnCodes error -result {bad index "end-($n+1)": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-3.6 {string index - no subst cmd} -body {
+	string index $str {end-[string length xy]+1}
+} -returnCodes error -result {bad index "end-[string length xy]+1": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-3.6 {string index - no subst dictvar} -body {
+	set b(3) 4
+	string index $str {end-$b(4)}
+} -returnCodes error -result {bad index "end-$b(4)": must be intexpr or end?[+-]intexpr?}
+
+test intexpr-3.7 {string index - no subst dictvar} -body {
+	set b(3) -4
+	string index $str {end+$b(4)-2}
+} -returnCodes error -result {bad index "end+$b(4)-2": must be intexpr or end?[+-]intexpr?}
+
+testreport

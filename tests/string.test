@@ -837,10 +837,10 @@ test string-14.12 {string replace} {
 } {}
 test string-14.13 {string replace} {
     list [catch {string replace abc abc 1} msg] $msg
-} {1 {bad index "abc": must be integer?[+-]integer? or end?[+-]integer?}}
+} {1 {bad index "abc": must be intexpr or end?[+-]intexpr?}}
 test string-14.14 {string replace} {
     list [catch {string replace abc 1 eof} msg] $msg
-} {1 {bad index "eof": must be integer?[+-]integer? or end?[+-]integer?}}
+} {1 {bad index "eof": must be intexpr or end?[+-]intexpr?}}
 test string-14.15 {string replace} {
     string replace abcdefghijklmnop end-10 end-2 NEW
 } {abcdeNEWop}
@@ -1029,6 +1029,6 @@ test string-24.12 {string byterange, full range} {
 } abcdef
 test string-24.13 {string byterange, invalid range} -body {
     string byterange abcdef foo bar
-} -returnCodes error -result {bad index "foo": must be integer?[+-]integer? or end?[+-]integer?}
+} -returnCodes error -result {bad index "foo": must be intexpr or end?[+-]intexpr?}
 
 testreport

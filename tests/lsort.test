@@ -51,7 +51,7 @@ test lsort-1.11 {Tcl_LsortObjCmd procedure, -index option} {
 } {1 {"-index" option must be followed by list index}}
 test lsort-1.12 {Tcl_LsortObjCmd procedure, -index option} {
     list [catch {lsort -index foo {1 3 2 5}} msg] $msg
-} {1 {bad index "foo": must be integer?[+-]integer? or end?[+-]integer?}}
+} {1 {bad index "foo": must be intexpr or end?[+-]intexpr?}}
 test lsort-1.13 {Tcl_LsortObjCmd procedure, -index option} {
     lsort -index end -integer {{2 25} {10 20 50 100} {3 16 42} 1}
 } {1 {2 25} {3 16 42} {10 20 50 100}}

@@ -6088,7 +6088,7 @@ int Jim_GetWideExpr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
         if (ret == JIM_OK) {
             ret = Jim_GetWide(interp, Jim_GetResult(interp), widePtr);
         }
-        else {
+        if (ret != JIM_OK) {
             /* XXX By doing this we throw away any more detailed message,
              * but typical integer expressions won't be very complex
              */
@@ -7828,9 +7828,12 @@ static void UpdateStringOfIndex(struct Jim_Obj *objPtr)
 
 static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
-    int idx, end = 0;
+    jim_wide idx;
+    int end = 0;
     const char *str;
-    char *endptr;
+    Jim_Obj *exprObj = objPtr;
+
+    JimPanic((objPtr->refCount == 0, "SetIndexFromAny() called with zero refcount object"));
 
     /* Get the string representation */
     str = Jim_String(objPtr);
@@ -7840,34 +7843,33 @@ static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         end = 1;
         str += 3;
         idx = 0;
-    }
-    else {
-        idx = jim_strtol(str, &endptr);
+        switch (*str) {
+            case '\0':
+                exprObj = NULL;
+                break;
 
-        if (endptr == str) {
+            case '-':
+            case '+':
+                /* Create a temp object here for evaluation, but this only happens
+                 * once unless the index object shimmers since the result is kept
+                 */
+                exprObj = Jim_NewStringObj(interp, str, -1);
+                break;
+
+            default:
+                goto badindex;
+        }
+    }
+    if (exprObj) {
+        int ret;
+        Jim_IncrRefCount(exprObj);
+        ret = Jim_GetWideExpr(interp, exprObj, &idx);
+        Jim_DecrRefCount(interp, exprObj);
+        if (ret != JIM_OK) {
             goto badindex;
         }
-        str = endptr;
     }
 
-    /* Now str may include any number of +<num> or -<num> */
-    while (*str == '+' || *str == '-') {
-        int sign = (*str == '+' ? 1 : -1);
-
-        idx += sign * jim_strtol(++str, &endptr);
-        if (endptr == str) {
-            goto badindex;
-        }
-        str = endptr;
-    }
-
-    /* The only thing left should be spaces */
-    while (isspace(UCHAR(*str))) {
-        str++;
-    }
-    if (*str) {
-        goto badindex;
-    }
     if (end) {
         if (idx > 0) {
             idx = INT_MAX;
@@ -7889,7 +7891,7 @@ static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 
   badindex:
     Jim_SetResultFormatted(interp,
-        "bad index \"%#s\": must be integer?[+-]integer? or end?[+-]integer?", objPtr);
+        "bad index \"%#s\": must be intexpr or end?[+-]intexpr?", objPtr);
     return JIM_ERR;
 }
 
