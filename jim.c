@@ -4729,6 +4729,9 @@ int Jim_SetVariableLink(Jim_Interp *interp, Jim_Obj *nameObjPtr,
  */
 Jim_Obj *Jim_GetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, int flags)
 {
+    if (interp->safeexpr) {
+        return nameObjPtr;
+    }
     switch (SetVariableFromAny(interp, nameObjPtr)) {
         case JIM_OK:{
                 Jim_Var *varPtr = nameObjPtr->internalRep.varValue.varPtr;
@@ -5019,6 +5022,10 @@ static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_Obj *resObjPtr = NULL;
     Jim_Obj *substKeyObjPtr = NULL;
+
+    if (interp->safeexpr) {
+        return objPtr;
+    }
 
     SetDictSubstFromAny(interp, objPtr);
 
@@ -6070,7 +6077,14 @@ int Jim_GetWideExpr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
         *widePtr = JimWideValue(objPtr);
     }
     else {
+        /* safeexpr can never be set here, because evaluating an expression
+         * safely can never cause a script to be run
+         */
+        JimPanic((interp->safeexpr, "interp->safeexpr is set"));
+        interp->safeexpr++;
         ret = Jim_EvalExpression(interp, objPtr);
+        interp->safeexpr--;
+
         if (ret == JIM_OK) {
             ret = Jim_GetWide(interp, Jim_GetResult(interp), widePtr);
         }
@@ -9190,8 +9204,7 @@ static void JimShowExprNode(struct JimExprNode *node, int level)
  *
  * 'exp_numterms' indicates how many terms are expected. Normally this is 1, but may be more for EXPR_FUNC_ARGS and EXPR_TERNARY.
  */
-static int ExprTreeBuildTree(Jim_Interp *interp, struct ExprBuilder *builder, int precedence, int flags, int exp_numterms)
-{
+static int ExprTreeBuildTree(Jim_Interp *interp, struct ExprBuilder *builder, int precedence, int flags, int exp_numterms) {
     int rc;
     struct JimExprNode *node;
     /* Calculate the stack length expected after pushing the number of expected terms */
@@ -9643,6 +9656,9 @@ static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node)
                 return JIM_ERR;
 
             case JIM_TT_ESC:
+                if (interp->safeexpr) {
+                    return JIM_ERR;
+                }
                 if (Jim_SubstObj(interp, node->objPtr, &objPtr, JIM_NONE) == JIM_OK) {
                     Jim_SetResult(interp, objPtr);
                     return JIM_OK;
@@ -9650,6 +9666,9 @@ static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node)
                 return JIM_ERR;
 
             case JIM_TT_CMD:
+                if (interp->safeexpr) {
+                    return JIM_ERR;
+                }
                 return Jim_EvalObj(interp, node->objPtr);
 
             default:
@@ -9702,7 +9721,7 @@ int Jim_EvalExpression(Jim_Interp *interp, Jim_Obj *exprObjPtr)
      *   $a != CONST, $a != $b
      *   $a == CONST, $a == $b
      */
-    {
+    if (!interp->safeexpr) {
         Jim_Obj *objPtr;
 
         /* STEP 1 -- Check if there are the conditions to run the specialized
