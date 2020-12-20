@@ -55,9 +55,9 @@ RECENT CHANGES
 Changes since 0.80
 ~~~~~~~~~~~~~~~~~~
 1. TIP 582, comments allowed in expressions
-2. Indexes may contain any number of +n, -n
-3. Many commands now accept integer expressions rather than simple integers:
+2. Many commands now accept "safe" integer expressions rather than simple integers:
    `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
+3. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -655,21 +655,32 @@ specify a position in the string relative to the start or end of the string/list
 The index may be one of the following forms:
 
 +integer+::
-    A simple integer, where '0' refers to the first element of the string
+    A simple integer, where +0+ refers to the first element of the string
     or list.
 
-+integer+integer?...?+ or::
-+integer-integer?...?+::
-    The sum or difference of the two or more integers. e.g. +2+3-1+ refers to the 4th element.
-    This is useful when used with (e.g.) +$i+1+ rather than the more verbose
-    +[expr {$i+1\}]+
++integerexpression+::
+    Any "safe" expression that evaluates to an integer. A "safe" expression does not perform
+    variable or command subsitution, but is otherwise like a normal expression
+    (see <<_expressions,EXPRESSIONS>>).
 
-+end+::
+ ::
+    For example +1+2*3+ is valid integer expression, but +{$x*2-1}+ is not.
+    But note that it is possible to use an unbraced expression to allow the Tcl interpreter
+    to expand variables and commands before being parsed as an integer expression.
+
+ ::
+    e.g. +string repeat a $x*2-1+
+
++*end*+::
     The last element of the string or list.
 
-+end-integer?...?+::
-    The 'nth-from-last' element of the string or list. Again, one or more integers may
-    be added or subtracted. e.g. +end-3+1+
++*end*-integer+::
++*end*-integerexpression+::
++*end*+integerexpression+::
+    The 'nth-from-last' element of the string or list. Again, a "safe" integer expression
+    may be used in place of a simple integer. +end-3+ or  +end-3+2*$n+. Normally it only makes
+    sense to use the +*end*-+ form, but if the integer expression is negative, the +*end*++ form
+    may be used.
 
 COMMAND SUMMARY
 ---------------
