@@ -12198,17 +12198,26 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     jim_wide incr = 1;
     Jim_Obj *bodyObjPtr;
 
-    if (argc != 5 && argc != 6) {
-        Jim_WrongNumArgs(interp, 1, argv, "var first limit ?incr? body");
+    if (argc < 4 || argc > 6) {
+        Jim_WrongNumArgs(interp, 1, argv, "var ?first? limit ?incr? body");
         return JIM_ERR;
     }
 
-    if (Jim_GetWideExpr(interp, argv[2], &i) != JIM_OK ||
-        Jim_GetWideExpr(interp, argv[3], &limit) != JIM_OK ||
-          (argc == 6 && Jim_GetWideExpr(interp, argv[4], &incr) != JIM_OK)) {
-        return JIM_ERR;
+    retval = Jim_GetWideExpr(interp, argv[2], &i);
+    if (argc > 4 && retval == JIM_OK) {
+        retval = Jim_GetWideExpr(interp, argv[3], &limit);
     }
-    bodyObjPtr = (argc == 5) ? argv[4] : argv[5];
+    if (argc > 5 && retval == JIM_OK) {
+        Jim_GetWideExpr(interp, argv[4], &incr);
+    }
+    if (retval != JIM_OK) {
+        return retval;
+    }
+    if (argc == 4) {
+        limit = i;
+        i = 0;
+    }
+    bodyObjPtr = argv[argc - 1];
 
     retval = Jim_SetVariable(interp, argv[1], Jim_NewIntObj(interp, i));
 

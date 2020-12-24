@@ -75,6 +75,14 @@ test loop-1.10 {no exec infinite loop} {
     set a
 } {}
 
+test loop-1.11 {no start} {
+    set a {}
+    loop i  5 {
+        lappend a $i
+    }
+    set a
+} {0 1 2 3 4}
+
 test loop-2.1 {loop shimmering tests} {
     loop i 1 6 {
     }

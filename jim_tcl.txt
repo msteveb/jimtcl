@@ -58,6 +58,7 @@ Changes since 0.80
 2. Many commands now accept "safe" integer expressions rather than simple integers:
    `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
 3. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
+4. `loop` can now omit start value
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3068,7 +3069,7 @@ Also see `defer` as another mechanism for cleaning up at the end of a procedure.
 
 loop
 ~~~~
-+*loop* 'var first limit ?incr? body'+
++*loop* 'var ?first? limit ?incr? body'+
 
 Similar to `for` except simpler and possibly more efficient.
 If +'incr'+ is positive, the effect is, equivalent to:
@@ -3079,11 +3080,12 @@ If +'incr'+ is positive, the effect is, equivalent to:
 
 While if +'incr'+ is negative, the count is downwards.
 
+If +'first'+ is not specified, 0 is used.
 If +'incr'+ is not specified, 1 is used.
 Note that setting the loop variable inside the loop does not
 affect the loop count.
 
-Integer parameters may be any integer expression.
++'first'+, +'limit'+ and +'incr'+ may be any integer expression.
 
 lindex
 ~~~~~~
