@@ -14240,18 +14240,46 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_EXIT;
 }
 
-/* [catch] */
-static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+static int JimMatchReturnCodes(Jim_Interp *interp, Jim_Obj *retcodeListObj, int rc)
 {
+    int len = Jim_ListLength(interp, retcodeListObj);
+    int i;
+    for (i = 0; i < len; i++) {
+        int returncode;
+        if (Jim_GetReturnCode(interp, Jim_ListGetIndex(interp, retcodeListObj, i), &returncode) != JIM_OK) {
+            return JIM_ERR;
+        }
+        if (rc == returncode) {
+            return JIM_OK;
+        }
+    }
+    return -1;
+}
+
+/* Implements both [try] and [catch] */
+static int JimCatchTryHelper(Jim_Interp *interp, int istry, int argc, Jim_Obj *const *argv)
+{
+    static const char * const wrongargs_catchtry[2] = {
+        "?-?no?code ... --? script ?resultVarName? ?optionVarName?",
+        "?-?no?code ... --? script ?on codes vars script? ... ?finally script?"
+    };
     int exitCode = 0;
     int i;
     int sig = 0;
+    int ok;
+    Jim_Obj *finallyScriptObj = NULL;
+    Jim_Obj *msgVarObj = NULL;
+    Jim_Obj *optsVarObj = NULL;
+    Jim_Obj *onScriptObj = NULL;
+    int idx;
 
     /* Which return codes are ignored (passed through)? By default, only exit, eval and signal */
     jim_wide ignore_mask = (1 << JIM_EXIT) | (1 << JIM_EVAL) | (1 << JIM_SIGNAL);
     static const int max_ignore_code = sizeof(ignore_mask) * 8;
 
-    /* Reset the error code before catch.
+    JimPanic((istry != 0 && istry != 1, "wrong args to JimCatchTryHelper"));
+
+    /* Reset the error code before catch/try.
      * Note that this is not strictly correct.
      */
     Jim_SetGlobalVariableStr(interp, "errorCode", Jim_NewStringObj(interp, "NONE", -1));
@@ -14297,14 +14325,13 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
     }
 
-    argc -= i;
-    if (argc < 1 || argc > 3) {
-      wrongargs:
-        Jim_WrongNumArgs(interp, 1, argv,
-            "?-?no?code ... --? script ?resultVarName? ?optionVarName?");
+    idx = i;
+
+    if (argc - idx < 1) {
+wrongargs:
+        Jim_WrongNumArgs(interp, 1, argv, wrongargs_catchtry[istry]);
         return JIM_ERR;
     }
-    argv += i;
 
     if ((ignore_mask & (1 << JIM_SIGNAL)) == 0) {
         sig++;
@@ -14316,15 +14343,67 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         exitCode = JIM_SIGNAL;
     }
     else {
-        exitCode = Jim_EvalObj(interp, argv[0]);
+        exitCode = Jim_EvalObj(interp, argv[idx]);
         /* Don't want any caught error included in a later stack trace */
         interp->errorFlag = 0;
     }
     interp->signal_level -= sig;
 
+    /* For try, we need to find both a matching return code and finally (if they exist)
+     * Set: finallyScriptObj
+     *      onScriptObj
+     *      msgVarObj
+     *      optsVarObj
+     * Any of these can be NULL;
+     */
+    idx++;
+    if (istry) {
+        while (idx < argc) {
+            if (Jim_CompareStringImmediate(interp, argv[idx], "on")) {
+                int ret;
+                if (idx + 4 > argc) {
+                    goto wrongargs;
+                }
+                ret = JimMatchReturnCodes(interp, argv[idx + 1], exitCode);
+                if (ret > JIM_OK) {
+                    goto wrongargs;
+                }
+                if (ret == JIM_OK) {
+                    msgVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 0);
+                    optsVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 1);
+                    onScriptObj = argv[idx + 3];
+                }
+                idx += 4;
+            }
+            else if (Jim_CompareStringImmediate(interp, argv[idx], "finally")) {
+                if (idx + 2 != argc) {
+                    goto wrongargs;
+                }
+                finallyScriptObj = argv[idx + 1];
+                idx += 2;
+            }
+            else {
+                goto wrongargs;
+            }
+        }
+    }
+    else {
+        if (argc - idx >= 1) {
+            msgVarObj = argv[idx];
+            idx++;
+            if (argc - idx >= 1) {
+                optsVarObj = argv[idx];
+                idx++;
+            }
+        }
+    }
+
     /* Catch or pass through? Only the first 32/64 codes can be passed through */
     if (exitCode >= 0 && exitCode < max_ignore_code && (((unsigned jim_wide)1 << exitCode) & ignore_mask)) {
         /* Not caught, pass it up */
+        if (finallyScriptObj) {
+            Jim_EvalObj(interp, finallyScriptObj);
+        }
         return exitCode;
     }
 
@@ -14333,43 +14412,77 @@ static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         if (interp->signal_set_result) {
             interp->signal_set_result(interp, interp->sigmask);
         }
-        else {
+        else if (!istry) {
             Jim_SetResultInt(interp, interp->sigmask);
         }
         interp->sigmask = 0;
     }
 
-    if (argc >= 2) {
-        if (Jim_SetVariable(interp, argv[1], Jim_GetResult(interp)) != JIM_OK) {
-            return JIM_ERR;
-        }
-        if (argc == 3) {
-            Jim_Obj *optListObj = Jim_NewListObj(interp, NULL, 0);
-
-            Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-code", -1));
-            Jim_ListAppendElement(interp, optListObj,
-                Jim_NewIntObj(interp, exitCode == JIM_RETURN ? interp->returnCode : exitCode));
-            Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-level", -1));
-            Jim_ListAppendElement(interp, optListObj, Jim_NewIntObj(interp, interp->returnLevel));
-            if (exitCode == JIM_ERR) {
-                Jim_Obj *errorCode;
-                Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorinfo",
-                    -1));
-                Jim_ListAppendElement(interp, optListObj, interp->stackTrace);
-
-                errorCode = Jim_GetGlobalVariableStr(interp, "errorCode", JIM_NONE);
-                if (errorCode) {
-                    Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorcode", -1));
-                    Jim_ListAppendElement(interp, optListObj, errorCode);
-                }
-            }
-            if (Jim_SetVariable(interp, argv[2], optListObj) != JIM_OK) {
-                return JIM_ERR;
-            }
+    ok = 1;
+    if (msgVarObj && Jim_Length(msgVarObj)) {
+        if (Jim_SetVariable(interp, msgVarObj, Jim_GetResult(interp)) != JIM_OK) {
+            ok = 0;
         }
     }
-    Jim_SetResultInt(interp, exitCode);
-    return JIM_OK;
+    if (ok && optsVarObj && Jim_Length(optsVarObj)) {
+        Jim_Obj *optListObj = Jim_NewListObj(interp, NULL, 0);
+
+        Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-code", -1));
+        Jim_ListAppendElement(interp, optListObj,
+            Jim_NewIntObj(interp, exitCode == JIM_RETURN ? interp->returnCode : exitCode));
+        Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-level", -1));
+        Jim_ListAppendElement(interp, optListObj, Jim_NewIntObj(interp, interp->returnLevel));
+        if (exitCode == JIM_ERR) {
+            Jim_Obj *errorCode;
+            Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorinfo",
+                -1));
+            Jim_ListAppendElement(interp, optListObj, interp->stackTrace);
+
+            errorCode = Jim_GetGlobalVariableStr(interp, "errorCode", JIM_NONE);
+            if (errorCode) {
+                Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorcode", -1));
+                Jim_ListAppendElement(interp, optListObj, errorCode);
+            }
+        }
+        if (Jim_SetVariable(interp, optsVarObj, optListObj) != JIM_OK) {
+            ok = 0;
+        }
+    }
+    if (ok && onScriptObj) {
+        /* Execute the on script. Any return code replaces the original. */
+        exitCode = Jim_EvalObj(interp, onScriptObj);
+    }
+
+    if (finallyScriptObj) {
+        /* Execute the on script. If OK, restore previous resul/exitcode */
+        Jim_Obj *prevResultObj = Jim_GetResult(interp);
+        Jim_IncrRefCount(prevResultObj);
+        int ret = Jim_EvalObj(interp, finallyScriptObj);
+        if (ret == JIM_OK) {
+            Jim_SetResult(interp, prevResultObj);
+        }
+        else {
+            exitCode = ret;
+        }
+        Jim_DecrRefCount(interp, prevResultObj);
+    }
+    if (!istry) {
+        Jim_SetResultInt(interp, exitCode);
+        exitCode = JIM_OK;
+    }
+    return exitCode;
+}
+
+/* [catch] */
+static int Jim_CatchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimCatchTryHelper(interp, 0, argc, argv);
+}
+
+/* [try] */
+static int Jim_TryCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    return JimCatchTryHelper(interp, 1, argc, argv);
 }
 
 #if defined(JIM_REFERENCES) && !defined(JIM_BOOTSTRAP)
@@ -15736,6 +15849,7 @@ static const struct {
     {"time", Jim_TimeCoreCommand},
     {"exit", Jim_ExitCoreCommand},
     {"catch", Jim_CatchCoreCommand},
+    {"try", Jim_TryCoreCommand},
 #ifdef JIM_REFERENCES
     {"ref", Jim_RefCoreCommand},
     {"getref", Jim_GetrefCoreCommand},
