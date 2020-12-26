@@ -6292,23 +6292,35 @@ int Jim_GetBoolean(Jim_Interp *interp, Jim_Obj *objPtr, int * booleanPtr)
     return JIM_OK;
 }
 
+/* If the string is a boolean value, return 1 or 0
+ * and if match is not NULL, stores the matched string in *match.
+ * Otherwise return -1
+ */
+static int JimParseBoolean(const char *str, const char **match)
+{
+    /* DON'T change this array without fixing the lengths below */
+    static const char * const false_true[] = {
+        "0", "false", "no", "off",
+        "1", "true", "yes", "on",
+        NULL
+    };
+    int index = Jim_FindByName(str, false_true, sizeof(false_true) / sizeof(*false_true));
+    if (index < 0) {
+        return -1;
+    }
+    if (match) {
+        *match = false_true[index];
+    }
+    if (index < 4) {
+        return 0;
+    }
+    return 1;
+}
+
 static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    static const char * const falses[] = {
-        "0", "false", "no", "off", NULL
-    };
-    static const char * const trues[] = {
-        "1", "true", "yes", "on", NULL
-    };
-
-    int boolean;
-
-    int index;
-    if (Jim_GetEnum(interp, objPtr, falses, &index, NULL, 0) == JIM_OK) {
-        boolean = 0;
-    } else if (Jim_GetEnum(interp, objPtr, trues, &index, NULL, 0) == JIM_OK) {
-        boolean = 1;
-    } else {
+    int boolean = JimParseBoolean(Jim_String(objPtr), NULL);
+    if (boolean < 0) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp, "expected boolean but got \"%#s\"", objPtr);
         }
@@ -8990,21 +9002,14 @@ static int JimParseExprIrrational(struct JimParserCtx *pc)
 
 static int JimParseExprBoolean(struct JimParserCtx *pc)
 {
-    const char *booleans[] = { "false", "no", "off", "true", "yes", "on", NULL };
-    const int lengths[] = { 5, 2, 3, 4, 3, 2, 0 };
-    int i;
-
-    for (i = 0; booleans[i]; i++) {
-        const char *boolean = booleans[i];
-        int length = lengths[i];
-
-        if (strncmp(boolean, pc->p, length) == 0) {
-            pc->p += length;
-            pc->len -= length;
-            pc->tend = pc->p - 1;
-            pc->tt = JIM_TT_EXPR_BOOLEAN;
-            return JIM_OK;
-        }
+    const char *match;
+    if (JimParseBoolean(pc->p, &match) >= 0) {
+        int len = strlen(match);
+        pc->p += len;
+        pc->len -= len;
+        pc->tend = pc->p - 1;
+        pc->tt = JIM_TT_EXPR_BOOLEAN;
+        return JIM_OK;
     }
     return JIM_ERR;
 }
