@@ -59,13 +59,34 @@ proc check-extension-status {ext required {asmodule 0}} {
     set use_pkgconfig 0
     set pkgconfig [ext-get $ext pkg-config]
     if {$pkgconfig ne ""} {
-        # pkg-config support is optional, so explicitly initialse it here
+        # pkg-config support is optional, so explicitly initialise it here
         if {[pkg-config-init 0]} {
-            lassign $pkgconfig pkg args
-
-            if {[pkg-config {*}$pkgconfig]} {
-                # Found via pkg-config so ignore check and libdep
-                set use_pkgconfig 1
+            # Check for at least one set of alternates
+            foreach pinfo [split $pkgconfig |] {
+                set ok 1
+                set pkgs {}
+                foreach pkg [split $pinfo ,] {
+                    set args [lassign $pkg pkgname]
+                    set pkg [string trim $pkg]
+                    set optional 0
+                    if {[string match {*[*]} $pkg]} {
+                        # This package is optional
+                        set optional 1
+                        set pkg [string range $pkg 0 end-1]
+                    }
+                    if {![pkg-config $pkg {*}$args]} {
+                        if {!$optional} {
+                            set ok 0
+                            break
+                        }
+                    } else {
+                        lappend pkgs $pkg
+                    }
+                }
+                if {$ok} {
+                    set use_pkgconfig 1
+                    break
+                }
             }
         }
     }
@@ -124,10 +145,7 @@ proc check-extension-status {ext required {asmodule 0}} {
         } else {
             msg-result "Extension $ext...module"
             if {$use_pkgconfig} {
-                define-append LDLIBS_$ext [pkg-config-get $pkg LIBS]
-                define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
-                define-append CCOPTS [pkg-config-get $pkg CFLAGS]
-                define-append PKG_CONFIG_REQUIRES $pkg
+                add-pkgconfig-deps $ext $pkgs $asmodule
             } else {
                 foreach i [ext-get $ext libdep] {
                     define-append LDLIBS_$ext [get-define $i ""]
@@ -149,16 +167,27 @@ proc check-extension-status {ext required {asmodule 0}} {
         return [ext-set-status $ext x]
     }
     if {$use_pkgconfig} {
-        define-append LDLIBS [pkg-config-get $pkg LIBS]
-        define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
-        define-append CCOPTS [pkg-config-get $pkg CFLAGS]
-        define-append PKG_CONFIG_REQUIRES $pkg
+        add-pkgconfig-deps $ext $pkgs $asmodule
     } else {
         foreach i [ext-get $ext libdep] {
             define-append LDLIBS [get-define $i ""]
         }
     }
     return [ext-set-status $ext y]
+}
+
+# Add dependencies for a pkg-config module to the extension
+proc add-pkgconfig-deps {ext pkgs asmodule} {
+    foreach pkg $pkgs {
+        if {$asmodule} {
+            define-append LDLIBS_$ext [pkg-config-get $pkg LIBS]
+        } else {
+            define-append LDLIBS [pkg-config-get $pkg LIBS]
+        }
+        define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
+        define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+        define-append PKG_CONFIG_REQUIRES $pkg
+    }
 }
 
 # Examines the user options (the $withinfo array)

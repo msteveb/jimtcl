@@ -404,6 +404,10 @@ dict set extdb attrs {
 # dep=list of extensions which are required for this extension
 # check=[expr] expression to evaluate to determine if the extension can be used
 # libdep=list of 'define' symbols for dependent libraries
+# pkg-config=name1 ?args?, name2* ?args? | name3 ?args?
+#   Any set of packages from the alternates is acceptable (e.g. name1 and name2, or name3)
+#   If the pkgname has a * appended, it is optional (so name1 without name2 is OK)
+#   The optional args are pkg-config specifications (e.g. name1 >= 1.3.4)
 dict set extdb info {
     binary   { dep pack }
     exec     { check {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]} }
@@ -417,9 +421,7 @@ dict set extdb info {
     readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
     rlprompt { dep readline }
     tree     { dep oo }
-    sdl      { pkg-config SDL_gfx check {[cc-check-function-in-lib SDL_SetVideoMode SDL] && [cc-check-function-in-lib rectangleRGBA SDL_gfx]}
-               libdep {lib_SDL_SetVideoMode lib_rectangleRGBA}
-             }
+    sdl      { pkg-config {SDL2_gfx | SDL_gfx} }
     signal   { check {[have-feature sigaction]} }
     sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }

@@ -37,15 +37,24 @@
 #include <string.h>
 #include <errno.h>
 #include <SDL.h>
+#if SDL_MAJOR_VERSION == 2
+#include <SDL2_gfxPrimitives.h>
+#else
 #include <SDL_gfxPrimitives.h>
+#endif
 
 #include <jim.h>
 
-#define AIO_CMD_LEN 128
-
 typedef struct JimSdlSurface
 {
+#if SDL_MAJOR_VERSION == 2
+    SDL_Window *win;
+    SDL_Renderer *screen;
+    SDL_Texture *texture;
+#else
     SDL_Surface *screen;
+#endif
+    long background[4];
 } JimSdlSurface;
 
 static void JimSdlSetError(Jim_Interp *interp)
@@ -59,8 +68,36 @@ static void JimSdlDelProc(Jim_Interp *interp, void *privData)
 
     JIM_NOTUSED(interp);
 
+#if SDL_MAJOR_VERSION == 2
+    SDL_DestroyRenderer(jss->screen);
+    SDL_DestroyWindow(jss->win);
+#else
     SDL_FreeSurface(jss->screen);
+#endif
     Jim_Free(jss);
+}
+
+static int JimSdlGetLongs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, long *dest)
+{
+    while (argc) {
+        if (Jim_GetLong(interp, *argv, dest) != JIM_OK) {
+            return JIM_ERR;
+        }
+        argc--;
+        argv++;
+        dest++;
+    }
+    return JIM_OK;
+}
+
+static void JimSdlClear(JimSdlSurface *jss, int r, int g, int b, int alpha)
+{
+#if SDL_MAJOR_VERSION == 2
+    SDL_SetRenderDrawColor(jss->screen, r, g, b, alpha);
+    SDL_RenderClear(jss->screen);
+#else
+    SDL_FillRect(jss->screen, NULL, SDL_MapRGBA(jss->screen->format, r, g, b, alpha));
+#endif
 }
 
 /* Calls to commands created via [sdl.surface] are implemented by this
@@ -71,11 +108,11 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     int option;
     static const char * const options[] = {
         "free", "flip", "pixel", "rectangle", "box", "line", "aaline",
-        "circle", "aacircle", "fcircle", NULL
+        "circle", "aacircle", "fcircle", "clear", NULL
     };
     enum
     { OPT_FREE, OPT_FLIP, OPT_PIXEL, OPT_RECTANGLE, OPT_BOX, OPT_LINE,
-        OPT_AALINE, OPT_CIRCLE, OPT_AACIRCLE, OPT_FCIRCLE
+        OPT_AALINE, OPT_CIRCLE, OPT_AACIRCLE, OPT_FCIRCLE, OPT_CLEAR
     };
 
     if (argc < 2) {
@@ -86,22 +123,17 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     if (option == OPT_PIXEL) {
         /* PIXEL */
-        long x, y, red, green, blue, alpha = 255;
+        /* x, y, red, green, blue, alpha = 255 */
+        long vals[7];
 
         if (argc != 7 && argc != 8) {
             Jim_WrongNumArgs(interp, 2, argv, "x y red green blue ?alpha?");
             return JIM_ERR;
         }
-        if (Jim_GetLong(interp, argv[2], &x) != JIM_OK ||
-            Jim_GetLong(interp, argv[3], &y) != JIM_OK ||
-            Jim_GetLong(interp, argv[4], &red) != JIM_OK ||
-            Jim_GetLong(interp, argv[5], &green) != JIM_OK ||
-            Jim_GetLong(interp, argv[6], &blue) != JIM_OK) {
+        if (JimSdlGetLongs(interp, argc - 3, argv + 3, vals) != JIM_OK) {
             return JIM_ERR;
         }
-        if (argc == 8 && Jim_GetLong(interp, argv[7], &alpha) != JIM_OK)
-            return JIM_ERR;
-        pixelRGBA(jss->screen, x, y, red, green, blue, alpha);
+        pixelRGBA(jss->screen, vals[0], vals[1], vals[2], vals[3], vals[4], argc == 8 ? vals[5] : SDL_ALPHA_OPAQUE);
         return JIM_OK;
     }
     else if (option == OPT_RECTANGLE || option == OPT_BOX ||
@@ -180,13 +212,44 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         Jim_DeleteCommand(interp, argv[0]);
         return JIM_OK;
     }
+    else if (option == OPT_CLEAR) {
+        long vals[4];
+        if (argc != 5 && argc != 6) {
+            Jim_WrongNumArgs(interp, 2, argv, "red green blue ?alpha?");
+            return JIM_ERR;
+        }
+        if (JimSdlGetLongs(interp, argc - 2, argv + 2, vals) != JIM_OK) {
+            return JIM_ERR;
+        }
+        if (argc == 5) {
+            vals[3] = SDL_ALPHA_OPAQUE;
+        }
+        JimSdlClear(jss, vals[0], vals[1], vals[2], vals[3]);
+    }
     else if (option == OPT_FLIP) {
         /* FLIP */
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        SDL_Flip(jss->screen);
+        {
+            SDL_Event e;
+#if SDL_MAJOR_VERSION == 2
+            SDL_RenderPresent(jss->screen);
+#else
+            SDL_Flip(jss->screen);
+#endif
+            JimSdlClear(jss, 0, 0, 0, SDL_ALPHA_OPAQUE);
+            /* Throw away all events except quit, and pass this back as JIM_EXIT.
+             * If necessary, this can be caught with catch -exit { ... }
+             */
+            while (SDL_PollEvent(&e)) {
+                if (e.type == SDL_QUIT) {
+                    Jim_SetResultInt(interp, 0);
+                    return JIM_EXIT;
+                }
+            }
+        }
         return JIM_OK;
     }
     return JIM_OK;
@@ -195,10 +258,8 @@ static int JimSdlHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     JimSdlSurface *jss;
-    char buf[AIO_CMD_LEN];
-    Jim_Obj *objPtr;
-    long screenId, xres, yres;
-    SDL_Surface *screen;
+    char buf[128];
+    long xres, yres;
 
     if (argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "xres yres");
@@ -208,25 +269,37 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         Jim_GetLong(interp, argv[2], &yres) != JIM_OK)
         return JIM_ERR;
 
+    jss = Jim_Alloc(sizeof(*jss));
+    memset(jss, 0, sizeof(*jss));
+    jss->background[3] = SDL_ALPHA_OPAQUE;
+
+#if SDL_MAJOR_VERSION == 2
     /* Try to create the surface */
-    screen = SDL_SetVideoMode(xres, yres, 32, SDL_SWSURFACE | SDL_ANYFORMAT);
-    if (screen == NULL) {
+    jss->win = SDL_CreateWindow("sdl", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xres, yres, 0);
+    if (jss->win) {
+        jss->screen = SDL_CreateRenderer(jss->win, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+        if (jss->screen) {
+            /* Need an initial SDL_PollEvent() to make the window display */
+            SDL_PollEvent(NULL);
+        }
+        else {
+            SDL_DestroyWindow(jss->win);
+        }
+    }
+#else
+    jss->screen = SDL_SetVideoMode(xres, yres, 32, SDL_SWSURFACE | SDL_ANYFORMAT);
+#endif
+    if (jss->screen) {
+        JimSdlClear(jss, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    }
+    else {
         JimSdlSetError(interp);
+        Jim_Free(jss);
         return JIM_ERR;
     }
-    /* Get the next file id */
-    if (Jim_EvalGlobal(interp, "if {[catch {incr sdl.surfaceId}]} {set sdl.surfaceId 0}") != JIM_OK)
-        return JIM_ERR;
-    objPtr = Jim_GetVariableStr(interp, "sdl.surfaceId", JIM_ERRMSG);
-    if (objPtr == NULL)
-        return JIM_ERR;
-    if (Jim_GetLong(interp, objPtr, &screenId) != JIM_OK)
-        return JIM_ERR;
 
-    /* Create the SDL screen command */
-    jss = Jim_Alloc(sizeof(*jss));
-    jss->screen = screen;
-    sprintf(buf, "sdl.surface%ld", screenId);
+    /* Create the SDL command */
+    snprintf(buf, sizeof(buf), "sdl.surface%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, JimSdlHandlerCommand, jss, JimSdlDelProc);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
     return JIM_OK;
