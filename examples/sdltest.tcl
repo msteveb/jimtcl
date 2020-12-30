@@ -1,28 +1,46 @@
 package require sdl
 
-set xres 1024
-set yres 768
+# Basic test of all sdl commands
+
+set xres 640
+set yres 384
 set s [sdl.screen $xres $yres]
 
-proc drawlist {s list} {
-    foreach item $list {
-        $s {*}$item
-    }
+set cyan {0 255 255 200}
+set yellow {255 255 0 200}
+set red {255 0 0 200}
+set green {0 255 0 200}
+set grey {50 50 50 200}
+set white {255 255 255}
+set blue {0 0 255 200}
+
+$s clear {*}$grey
+
+$s fcircle 320 280 40 {*}$cyan
+$s circle 320 280 60 {*}$yellow
+$s aacircle 320 280 80 {*}$green
+
+$s rectangle 200 100 300 180 {*}$cyan
+$s box 210 110 290 170 {*}$yellow
+
+set x 20
+set y 20
+set dy 10
+set dx 10
+foreach i [range 50] {
+	set nx $($x + $dx)
+	set ny $($y + $dy)
+	$s line $x $y $nx $ny {*}$green
+	$s aaline $x $($y+30) $nx $($ny+30) {*}$red
+	set x $nx
+	set y $ny
+	set dy $(-$dy)
 }
 
-proc rand_circle {xres yres maxradius alpha} {
-    list fcircle [rand $xres] [rand $yres] [rand $maxradius] [rand 256] [rand 256] [rand 256] $alpha
+$s rectangle 50 200 150 300 {*}$yellow
+foreach i [range 500] {
+	$s pixel $([rand 100] + 50) $([rand 100] + 200) {*}$white
 }
 
-loop i 0 200 {
-    set commands {}
-    loop j 0 1000 {
-        lappend commands [rand_circle $xres $yres 40 100]
-        if {$j % 50 == 0} {
-            #$s clear 200 200 200
-            drawlist $s $commands
-            $s flip
-            sleep 0.1
-        }
-    }
-}
+$s poll { sleep 0.25 }
+$s free
