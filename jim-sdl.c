@@ -36,9 +36,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <jimautoconf.h>
 #include <SDL.h>
 #if SDL_MAJOR_VERSION == 2
 #include <SDL2_gfxPrimitives.h>
+#ifdef HAVE_PKG_SDL2_TTF
+#include <SDL_ttf.h>
+#endif
 #else
 #include <SDL_gfxPrimitives.h>
 #endif
@@ -54,6 +58,9 @@ typedef struct JimSdlSurface
     SDL_Window *win;
     SDL_Renderer *screen;
     SDL_Texture *texture;
+#ifdef HAVE_PKG_SDL2_TTF
+    TTF_Font *font;
+#endif
 #else
     SDL_Surface *screen;
 #endif
@@ -73,6 +80,11 @@ static void JimSdlDelProc(Jim_Interp *interp, void *privData)
 #if SDL_MAJOR_VERSION == 2
     SDL_DestroyRenderer(jss->screen);
     SDL_DestroyWindow(jss->win);
+#ifdef HAVE_PKG_SDL2_TTF
+    if (jss->font) {
+        TTF_CloseFont(jss->font);
+    }
+#endif
 #else
     SDL_FreeSurface(jss->screen);
 #endif
@@ -82,12 +94,13 @@ static void JimSdlDelProc(Jim_Interp *interp, void *privData)
 static int JimSdlGetLongs(Jim_Interp *interp, int argc, Jim_Obj *const *argv, long *dest)
 {
     while (argc) {
-        if (Jim_GetLong(interp, *argv, dest) != JIM_OK) {
+        jim_wide w;
+        if (Jim_GetWideExpr(interp, *argv, &w) != JIM_OK) {
             return JIM_ERR;
         }
+        *dest++ = w;
         argc--;
         argv++;
-        dest++;
     }
     return JIM_OK;
 }
@@ -289,6 +302,68 @@ static int jim_sdl_subcmd_aaline(Jim_Interp *interp, int argc, Jim_Obj *const *a
     return JIM_OK;
 }
 
+#ifdef HAVE_PKG_SDL2_TTF
+static int jim_sdl_subcmd_font(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    JimSdlSurface *jss = Jim_CmdPrivData(interp);
+    long size;
+
+    if (Jim_GetLong(interp, argv[1], &size) != JIM_OK) {
+        return JIM_ERR;
+    }
+    if (jss->font) {
+        TTF_CloseFont(jss->font);
+    }
+    else {
+        TTF_Init();
+    }
+    jss->font = TTF_OpenFont(Jim_String(argv[0]), size);
+    if (jss->font == NULL) {
+        Jim_SetResultFormatted(interp, "Failed to load font %#s", argv[0]);
+        return JIM_ERR;
+    }
+    TTF_SetFontHinting(jss->font, TTF_HINTING_LIGHT);
+    return JIM_OK;
+}
+
+static int jim_sdl_subcmd_text(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    JimSdlSurface *jss = Jim_CmdPrivData(interp);
+    long vals[6];
+    SDL_Surface *surface;
+    SDL_Texture *texture;
+    SDL_Rect rect;
+    SDL_Color col;
+
+    if (!jss->font) {
+        Jim_SetResultString(interp, "No font loaded", -1);
+        return JIM_ERR;
+    }
+
+    if (JimSdlGetLongs(interp, argc - 1, argv + 1, vals) != JIM_OK) {
+        return JIM_ERR;
+    }
+    col.r = vals[2];
+    col.g = vals[3];
+    col.b = vals[4];
+    col.a = (argc == 7) ? vals[5] : SDL_ALPHA_OPAQUE;
+#ifdef JIM_UTF8
+    surface = TTF_RenderUTF8_Blended(jss->font, Jim_String(argv[0]), col);
+#else
+    surface = TTF_RenderText_Blended(jss->font, Jim_String(argv[0]), col);
+#endif
+    texture = SDL_CreateTextureFromSurface(jss->screen, surface);
+    rect.x = vals[0];
+    rect.y = vals[1];
+    rect.w = surface->w;
+    rect.h = surface->h;
+    SDL_RenderCopy(jss->screen, texture, NULL, &rect);
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+    return JIM_OK;
+}
+#endif
+
 static const jim_subcmd_type sdl_command_table[] = {
     {   "free",
         NULL,
@@ -363,6 +438,20 @@ static const jim_subcmd_type sdl_command_table[] = {
         7,
         8,
     },
+#ifdef HAVE_PKG_SDL2_TTF
+    {   "font",
+        "filename.ttf size",
+        jim_sdl_subcmd_font,
+        2,
+        2,
+    },
+    {   "text",
+        "x y string red green blue ?alpha?",
+        jim_sdl_subcmd_text,
+        6,
+        7,
+    },
+#endif
     { NULL }
 };
 
@@ -397,6 +486,10 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             JimSdlSetError(interp);
             return JIM_ERR;
         }
+#if SDL_MAJOR_VERSION == 2
+        SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+#endif
         atexit(SDL_Quit);
     }
 

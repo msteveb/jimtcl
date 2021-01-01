@@ -22,10 +22,14 @@ class ball {
 	res {x 512 y 512}
 	delta {x 3 y 3}
 	radius 40
+	havetext 1
 }
 
 ball method draw {s} {
 	$s fcircle $pos(x) $pos(y) $radius {*}$color
+	if {$havetext} {
+		$s text "($pos(x),$pos(y))" $pos(x)-25 $pos(y)-5 0 0 0
+	}
 	foreach xy {x y} {
 		incr pos($xy) $delta($xy)
 		if {$pos($xy) <= $radius + $delta($xy) || $pos($xy) >= $res($xy) - $radius - $delta($xy) || [rand 50] == 1} {
@@ -35,19 +39,31 @@ ball method draw {s} {
 	}
 }
 
+ball method setvar {name_ value_} {
+	set $name_ $value_
+}
+
+try {
+	$s font [file dirname [info script]]/FreeSans.ttf 12
+	set havetext 1
+} on error msg {
+	puts $msg
+	set havetext 0
+}
+
 foreach c [dict keys $col] {
 	set b [ball]
-	$b eval [list set name $c]
-	$b eval [list set res(x) $xres]
-	$b eval [list set res(y) $yres]
-	$b eval [list set pos(x) $($xres/2)]
-	$b eval [list set pos(y) $($yres/2)]
-	$b eval [list set color [list {*}$col($c) 150]]
+	$b setvar name $c
+	$b setvar res(x) $xres
+	$b setvar res(y) $yres
+	$b setvar pos(x) $($xres/2)
+	$b setvar pos(y) $($yres/2)
+	$b setvar color [list {*}$col($c) 150]
+	$b setvar havetext $havetext
 	lappend balls $b
 }
 
 proc draw {balls} {s} {
-	global x y dx dy xres yres
 	$s clear {*}$::grey
 	foreach ball $balls {
 		$ball draw $s
@@ -65,12 +81,16 @@ proc heartbeat {} {
 	after 250 heartbeat
 }
 
+set t1 [clock millis]
 draw $balls
 heartbeat
 $s poll {
-	# 16ms = 60 frames/second
-	# Could take into account the drawing time
-	after 16
 	draw $balls
 	update
+	set t2 [clock millis]
+	# 33ms = 30 frames/second
+	if {$t2 - $t1 < 33} {
+		after $(33 - ($t2 - $t1))
+	}
+	set t1 $t2
 }
