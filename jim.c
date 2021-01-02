@@ -6292,35 +6292,21 @@ int Jim_GetBoolean(Jim_Interp *interp, Jim_Obj *objPtr, int * booleanPtr)
     return JIM_OK;
 }
 
-/* If the string is a boolean value, return 1 or 0
- * and if match is not NULL, stores the matched string in *match.
- * Otherwise return -1
- */
-static int JimParseBoolean(const char *str, const char **match)
-{
-    /* DON'T change this array without fixing the lengths below */
-    static const char * const false_true[] = {
-        "0", "false", "no", "off",
-        "1", "true", "yes", "on",
-        NULL
-    };
-    int index = Jim_FindByName(str, false_true, sizeof(false_true) / sizeof(*false_true));
-    if (index < 0) {
-        return -1;
-    }
-    if (match) {
-        *match = false_true[index];
-    }
-    if (index < 4) {
-        return 0;
-    }
-    return 1;
-}
+static const char * const jim_true_false_strings[8] = {
+    "1", "true", "yes", "on",
+    "0", "false", "no", "off"
+};
+/* Must keep these lengths in sync with the strings above */
+static const int jim_true_false_lens[8] = {
+    1, 4, 3, 2,
+    1, 5, 2, 3,
+};
 
 static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
-    int boolean = JimParseBoolean(Jim_String(objPtr), NULL);
-    if (boolean < 0) {
+    int index = Jim_FindByName(Jim_String(objPtr), jim_true_false_strings,
+        sizeof(jim_true_false_strings) / sizeof(*jim_true_false_strings));
+    if (index < 0) {
         if (flags & JIM_ERRMSG) {
             Jim_SetResultFormatted(interp, "expected boolean but got \"%#s\"", objPtr);
         }
@@ -6330,7 +6316,8 @@ static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
     objPtr->typePtr = &intObjType;
-    objPtr->internalRep.wideValue = boolean;
+    /* 4 true values in jim_true_false_strings */
+    objPtr->internalRep.wideValue = index < 4 ? 1 : 0;
     return JIM_OK;
 }
 
@@ -9002,14 +8989,15 @@ static int JimParseExprIrrational(struct JimParserCtx *pc)
 
 static int JimParseExprBoolean(struct JimParserCtx *pc)
 {
-    const char *match;
-    if (JimParseBoolean(pc->p, &match) >= 0) {
-        int len = strlen(match);
-        pc->p += len;
-        pc->len -= len;
-        pc->tend = pc->p - 1;
-        pc->tt = JIM_TT_EXPR_BOOLEAN;
-        return JIM_OK;
+    int i;
+    for (i = 0; i < sizeof(jim_true_false_strings) / sizeof(*jim_true_false_strings); i++) {
+        if (strncmp(pc->p, jim_true_false_strings[i], jim_true_false_lens[i]) == 0) {
+            pc->p += jim_true_false_lens[i];
+            pc->len -= jim_true_false_lens[i];
+            pc->tend = pc->p - 1;
+            pc->tt = JIM_TT_EXPR_BOOLEAN;
+            return JIM_OK;
+        }
     }
     return JIM_ERR;
 }

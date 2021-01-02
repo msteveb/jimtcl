@@ -150,4 +150,9 @@ test expr-5.2 "Not" -body {
 	expr {!this}
 } -returnCodes error -result {syntax error in expression: "!this"}
 
+test expr-5.3 {boolean in expression} {
+	expr {true ? 4 : 5}
+} {4}
+
+
 testreport
