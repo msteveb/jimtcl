@@ -558,7 +558,7 @@ foreach mod $extinfo(module-c) {
     if {[dict exists $extdb info $mod extrasrcs]} {
         lappend srcs {*}[dict get $extdb info $mod extrasrcs]
     }
-    lappend lines "$mod.so: $srcs"
+    lappend lines "$mod.so: $srcs \$(LIBJIM)"
     foreach src $srcs {
         set obj [file rootname $src].o
         lappend objs $obj
