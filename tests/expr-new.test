@@ -70,10 +70,10 @@ test expr-1.2 {TclCompileExprCmd: one expression word} {
     expr -25
 } -25
 test expr-1.3 {TclCompileExprCmd: two expression words} {
-    expr -8.2   -6
+    expr {-8.2   -6}
 } -14.2
 test expr-1.4 {TclCompileExprCmd: five expression words} {
-    expr 20 - 5 +10 -7
+    expr {20 - 5 +10 -7}
 } 18
 test expr-1.5 {TclCompileExprCmd: quoted expression word} {
     expr "0005"
@@ -111,7 +111,7 @@ test expr-1.13 {TclCompileExprCmd: second level of substitutions in expr not in 
 } foo
 test expr-1.14 {TclCompileExprCmd: second level of substitutions in expr with comparison as top-level operator} {
     set a xxx
-    set x 2;  set b {$x};  set a [expr $b == 2]
+    set x 2;  set b {$x};  set a [expr "$b == 2"]
     set a
 } 1
 

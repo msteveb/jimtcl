@@ -13590,26 +13590,11 @@ static int Jim_UplevelCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 /* [expr] */
 static int Jim_ExprCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int retcode;
-
     if (argc == 2) {
-        retcode = Jim_EvalExpression(interp, argv[1]);
+        return Jim_EvalExpression(interp, argv[1]);
     }
-    else if (argc > 2) {
-        Jim_Obj *objPtr;
-
-        objPtr = Jim_ConcatObj(interp, argc - 1, argv + 1);
-        Jim_IncrRefCount(objPtr);
-        retcode = Jim_EvalExpression(interp, objPtr);
-        Jim_DecrRefCount(interp, objPtr);
-    }
-    else {
-        Jim_WrongNumArgs(interp, 1, argv, "expression ?...?");
-        return JIM_ERR;
-    }
-    if (retcode != JIM_OK)
-        return retcode;
-    return JIM_OK;
+    Jim_WrongNumArgs(interp, 1, argv, "expression");
+    return JIM_ERR;
 }
 
 /* [break] */
