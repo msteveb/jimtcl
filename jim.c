@@ -15838,8 +15838,8 @@ static const struct {
     {"lsort", Jim_LsortCoreCommand},
     {"append", Jim_AppendCoreCommand},
 #if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
-	{"debug", Jim_DebugCoreCommand},
-#endif
+    {"debug", Jim_DebugCoreCommand},
+#endif /* JIM_DEBUG_COMMAND && !JIM_BOOTSTRAP */
     {"eval", Jim_EvalCoreCommand},
     {"uplevel", Jim_UplevelCoreCommand},
     {"expr", Jim_ExprCoreCommand},
