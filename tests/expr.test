@@ -11,7 +11,7 @@ test expr-1.2 "Compare strings with embedded nulls" {
 } {1}
 
 test expr-1.3 "Hex values" {
-	set mask1 [expr 0x4050 & 0x0CCC]
+	set mask1 [expr {0x4050 & 0x0CCC}]
 } {64}
 
 test expr-1.4 "Ternary operator - true" {
