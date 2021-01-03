@@ -2,7 +2,7 @@
 
 source [file dirname [info script]]/testing.tcl
 
-testCmdConstraints ref rand namespace
+testCmdConstraints getref rand namespace
 
 testConstraint debug-invstr 0
 catch {
@@ -79,39 +79,39 @@ test script-1 {convert empty object to script} {
 	eval $empty
 } {}
 
-test ref-1 {treat something as a reference} ref {
+test ref-1 {treat something as a reference} getref {
 	set ref [ref abc tag]
 	append ref "  "
 	getref "  $ref "
 } {abc}
 
-test ref-2 {getref invalid reference} -constraints ref -body {
+test ref-2 {getref invalid reference} -constraints getref -body {
 	getref "<reference.<tag____>.99999999999999000000>"
 } -returnCodes error -match glob -result {invalid reference id *}
 
-test ref-3 {getref invalid reference tag} -constraints ref -body {
+test ref-3 {getref invalid reference tag} -constraints getref -body {
 	getref "<reference.<tag!%(*>.99999999999999000000>"
 } -returnCodes error -match glob -result {expected reference but got "<reference.<tag!%(*>.99999999999999000000>"}
 
-test ref-4 {finalize} ref {
+test ref-4 {finalize} getref {
 	finalize $ref
 } {}
 
-test ref-5 {finalize} ref {
+test ref-5 {finalize} getref {
 	finalize $ref cleanup
 	finalize $ref cleanup2
 	finalize $ref
 } {cleanup2}
 
-test ref-6 {finalize get invalid reference} -constraints ref -body {
+test ref-6 {finalize get invalid reference} -constraints getref -body {
 	finalize "<reference.<tag____>.99999999999999000000>"
 } -returnCodes error -match glob -result {invalid reference id *}
 
-test ref-7 {finalize set invalid reference} -constraints ref -body {
+test ref-7 {finalize set invalid reference} -constraints getref -body {
 	finalize "<reference.<tag____>.99999999999999000000>" cleanup
 } -returnCodes error -match glob -result {invalid reference id *}
 
-test collect-1 {recursive collect} ref {
+test collect-1 {recursive collect} getref {
 	set ref2 [ref dummy cleanup2]
 	unset ref2
 	proc cleanup2 {ref value} {
@@ -208,10 +208,6 @@ test lreverse-1 {lreverse} -body {
 test divide-1 {expr} -constraints jim -body {
 	/ 2 0
 } -returnCodes error -result {Division by zero}
-
-test package-1 {package names} jim {
-	expr {"stdlib" in [package names]}
-} {1}
 
 test variable-1 {upvar, name with embedded null} -constraints jim -body {
 	proc a {} {

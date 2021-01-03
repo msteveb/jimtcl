@@ -6,6 +6,11 @@ testConstraint filelink [string match "wrong # args:*" $msg]
 catch {file lstat} msg
 testConstraint filelstat [string match "wrong # args:*" $msg]
 testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+if {[testConstraint jim]} {
+	testConstraint mtimeset [expr {!$tcl_platform(bootstrap)}]
+} else {
+	testConstraint mtimeset 1
+}
 
 test join-1.1 "One name" {
 	file join abc
@@ -366,7 +371,7 @@ test mtime-1.4 {file mtime} {
 	}
 } {}
 
-test mtime-1.5 {file mtime} -constraints unix -body {
+test mtime-1.5 {file mtime} -constraints {mtimeset unix} -body {
 	set name tmp.[pid]
 	makeFile testing $name
 	set t [file mtime [info script]]

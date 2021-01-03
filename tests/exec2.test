@@ -5,7 +5,14 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
-testCmdConstraints pipe signal wait alarm
+testCmdConstraints signal wait alarm after
+
+# Jim needs [pipe] to implement [open |command]
+if {[testConstraint tcl]} {
+	testConstraint pipe 1
+} else {
+	testCmdConstraints pipe
+}
 
 # Some Windows platforms (e.g. AppVeyor) produce ENOSPC rather than killing
 # the child with SIGPIPE). So turn off this test for that platform
@@ -53,14 +60,14 @@ test exec2-2.4 "Remove all env var" {
 
 array set env [array get saveenv]
 
-test exec2-3.1 "close pipeline return value" {
+test exec2-3.1 "close pipeline return value" pipe {
 	set f [open |false]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
 	list $rc $msg $status $exitcode
 } {1 {child process exited abnormally} CHILDSTATUS 1}
 
-test exec2-3.2 "close pipeline return value" -constraints {pipe nomingw32} -body {
+test exec2-3.2 "close pipeline return value" -constraints {jim pipe nomingw32} -body {
 	# Create a pipe and immediately close the read end
 	lassign [pipe] r w
 	close $r
@@ -101,7 +108,7 @@ test exec2-3.4 "wait for background task" -constraints wait -body {
 
 test exec2-4.1 {redirect from invalid filehandle} -body {
 	exec cat <@bogus
-} -returnCodes error -result {invalid command name "bogus"}
+} -returnCodes error -match glob -result {*"bogus"}
 
 test exec2-4.2 {env is invalid dict} -constraints jim -body {
 	set saveenv $env
@@ -127,7 +134,7 @@ test exec2-4.5 {exec - consecutive | with &} -body {
 
 test exec2-4.6 {exec - illegal channel} -body {
 	exec echo hello >@nonexistent
-} -returnCodes error -result {invalid command name "nonexistent"}
+} -returnCodes error -match glob -result {*"nonexistent"}
 
 test exec2-5.1 {wait with invalid pid} wait {
 	wait 9999999
@@ -148,7 +155,7 @@ test exec2-5.4 {wait -nohang} -constraints wait -body {
 	wait $pid
 } -match glob -result {CHILDSTATUS * 0}
 
-test exec2-5.5 {wait for all children} -body {
+test exec2-5.5 {wait for all children} -constraints {after jim} -body {
 	# We want to have children finish at different times
 	# so that we test the handling of the wait table
 	foreach i {0.1 0.2 0.6 0.5 0.4 0.3} {

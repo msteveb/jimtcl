@@ -18,6 +18,13 @@ source [file dirname [info script]]/testing.tcl
 needs cmd exec
 needs cmd flush
 
+# Jim needs [pipe] to implement [open |command]
+if {[testConstraint tcl]} {
+    testConstraint pipe 1
+} else {
+    testCmdConstraints pipe
+}
+
 testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
 
 # Sleep which supports fractions of a second
@@ -415,7 +422,7 @@ Third line}
 
 test exec-17.1 {redirecting from command pipeline} -setup {
     makeFile "abc\nghi\njkl" gorp.file
-} -body {
+} -constraints pipe -body {
     set f [open "|cat gorp.file | wc -l" r]
     set result [lindex [exec cat <@$f] 0]
     close $f
@@ -426,7 +433,7 @@ test exec-17.1 {redirecting from command pipeline} -setup {
 
 test exec-17.2 {redirecting to command pipeline} -setup {
     makeFile "abc\nghi\njkl" gorp.file
-} -body {
+} -constraints pipe -body {
     set f [open "|wc -l >gorp2.file" w]
     exec cat gorp.file >@$f
     flush $f
