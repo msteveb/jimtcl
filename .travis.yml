@@ -5,6 +5,7 @@ addons:
     packages:
       - libsqlite3-dev
 before_script:
-  - ./configure --full --with-ext="sqlite3 zlib" --disable-docs
+  - ./configure --maintainer --full --with-ext=sqlite3,zlib --disable-docs
 script:
   - make test
+  - ./test-bootstrap-jim
