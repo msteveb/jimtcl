@@ -13625,8 +13625,8 @@ static int Jim_ProcCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [xtrace] */
 static int Jim_XtraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc != 1 && argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "?callback?");
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "callback");
         return JIM_ERR;
     }
 
@@ -13635,7 +13635,7 @@ static int Jim_XtraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
         interp->traceCmdObj = NULL;
     }
 
-    if (argc == 2) {
+    if (Jim_Length(argv[1])) {
         /* Install the new execution trace callback */
         interp->traceCmdObj = argv[1];
         Jim_IncrRefCount(interp->traceCmdObj);
