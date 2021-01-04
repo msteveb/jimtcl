@@ -1,7 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env jimsh
 # vim:se syntax=tcl:
-# \
-exec $(dirname "$0")/jimsh "$0" "$@"
 
 # Experimental code coverage for Jim Tcl
 
