@@ -1,0 +1,62 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd xtrace
+
+# Simply accumulate the callback args in the list ::lines
+proc xtracetest {args} {
+	lappend ::lines $args
+}
+
+proc xtracesummary {lines} {
+	# Omit the last line that will always be xtrace {}
+	# Remove file and line
+	lmap line [lrange $lines 0 end-1] {
+		lassign $line type file line result cmd arglist
+		list $type ($result) $cmd $arglist
+	}
+}
+
+proc xtracetestproc {a} {
+	append a " world"
+	return $a
+}
+
+test xtrace-1.1 {xtrace usage} -body {
+	xtrace
+} -returnCodes error -result {wrong # args: should be "xtrace callback"}
+
+test xtrace-1.2 {xtrace non-proc} -body {
+	set lines {}
+	xtrace xtracetest
+	set x 3
+	xtrace {}
+	xtracesummary $lines
+} -result {{cmd () set {x 3}}}
+
+# This will produce 4 calls to the trace callback
+# 1. xtracetestproc hello (cmd)
+# 2. xtracetestproc hello (proc - when executing the proc body)
+# 3. append a " hello"
+# 4. return "hello world" (previous command result will be "hello world")
+test xtrace-1.3 {xtrace proc} -body {
+	set lines {}
+	xtrace xtracetest
+	xtracetestproc hello
+	xtrace {}
+	xtracesummary $lines
+} -result {{cmd () xtracetestproc hello} {proc () xtracetestproc hello} {cmd () append {a { world}}} {cmd {(hello world)} return {{hello world}}}}
+
+test xtrace-1.4 {xtrace line numbers} -body {
+	set lines {}
+	xtrace xtracetest
+	set x abc
+	xtrace {}
+	# Now the first callback should happen at the correct line number
+	lassign [lindex $lines 0] - tracefile traceline
+	lassign [info source $x] file line
+	if {"$tracefile:$traceline" eq "$file:$line"} {
+		function ok
+	}
+} -result {ok}
+
+testreport
