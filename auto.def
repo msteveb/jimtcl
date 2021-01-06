@@ -12,72 +12,167 @@ use cc cc-shared cc-db cc-lib pkg-config util
 use local
 
 options {
-    utf8            => "include support for utf8-encoded strings"
-    lineedit=1      => "disable line editing"
-    references=1    => "disable support for references"
-    math            => "include support for math functions"
-    ssl             => "include ssl/tls support in the aio extension"
-    ipv6            => "include ipv6 support in the aio extension"
-    maintainer      => {enable the [debug] command and JimPanic}
-    full            => "Enable some optional features: ipv6, ssl, math, utf8, binary, oo, tree"
-    with-jim-shared shared => "build a shared library instead of a static library"
-    jim-regexp=1    => "prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
-    docs=1          => "don't build or install the documentation"
-    docdir:path     => "path to install docs (if built)"
-    random-hash	    => "randomise hash tables. more secure but hash table results are not predicable"
-    coverage	    => "build with code coverage support"
+    utf8            => "Include support for utf8-encoded strings"
+    lineedit=1      => "Disable line editing"
+    references=1    => "Disable support for references"
+    math            => "Include support for math functions"
+    ssl             => "Include ssl/tls support in the aio extension"
+    ipv6            => "Include ipv6 support in the aio extension"
+    maintainer      => {Enable the [debug] command and JimPanic}
+    full            => "Enable some optional features: ipv6, ssl, math, utf8, and some extensions (see --extinfo)"
+    allextmod       => "Enable all non-default extensions as modules if prerequisites are found"
+    extinfo         => "Show information about available extensions"
+    with-jim-shared shared => "Build a shared library instead of a static library"
+    jim-regexp=1    => "Prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
+    docs=1          => "Don't build or install the documentation"
+    docdir:path     => "Path to install docs (if built)"
+    random-hash	    => "Randomise hash tables. more secure but hash table results are not predicable"
+    coverage	    => "Build with code coverage support"
     with-jim-ext: {with-ext:"ext1,ext2,..."} => {
-        Specify additional jim extensions to include.
-        These are enabled by default:
-
-        aio       - ANSI I/O, including open and socket
-        eventloop - after, vwait, update
-        array     - Tcl-compatible array command
-        clock     - Tcl-compatible clock command
-        exec      - Tcl-compatible exec command
-        file      - Tcl-compatible file command
-        glob      - Tcl-compatible glob command
-        history   - Tcl access to interactive history
-        readdir   - Required for glob
-        package   - Package management with the package command
-        load      - Load binary extensions at runtime with load or package
-        posix     - Posix APIs including os.fork, os.uptime
-        regexp    - Tcl-compatible regexp, regsub commands
-        signal    - Signal handling
-        stdlib    - Built-in commands including lassign, lambda, alias
-        syslog    - System logging with syslog
-        tclcompat - Tcl compatible read, gets, puts, parray, case, ...
-        namespace - Tcl compatible namespace support
-
-        These are disabled by default, but enabled by --full:
-
-        oo        - Jim OO extension
-        tree      - OO tree structure, similar to tcllib ::struct::tree
-        binary    - Tcl-compatible 'binary' command
-        tclprefix - Support for the tcl::prefix command
-        zlib      - Interface to zlib
-        json      - JSON encode/decode
-
-        These are disabled unless explicitly enabled:
-
-        readline  - Interface to libreadline
-        rlprompt  - Tcl wrapper around the readline extension
-        mk        - Interface to Metakit
-        sqlite3   - Interface to sqlite3
-        redis     - Interface to redis
-        win32     - Interface to win32
+        Specify additional Jim extensions to include.
+        Use --extinfo to show information about available extensions.
     }
     with-out-jim-ext: {without-ext:"default|ext1,ext2,..."} => {
-        Specify jim extensions to exclude.
+        Specify Jim extensions to exclude.
         If 'default' is given, the default extensions will not be added.
     }
     with-jim-extmod: {with-mod:"ext1,ext2,..."} => {
-        Specify jim extensions to build as separate modules (either C or Tcl).
+        Specify Jim extensions to build as separate modules (either C or Tcl).
         Note that not all extensions can be built as loadable modules.
     }
     # To help out openocd with automake
     install-jim=1
 }
+
+# Attributes and help for each supportted extensions
+# tcl=Pure Tcl extension
+# static=Can't be built as a module
+# off=Off unless explicitly enabled or required by an enabled extension
+# optional=Off by default, but selected by --full
+# cpp=Is a C++ extension
+global extdb
+
+foreach {mod attrs help} {
+    aio       { static }            {File and socket (networking) I/O}
+    array     {}                    {Tcl-compatible array command}
+    binary    { tcl optional }      {Tcl-compatible binary command}
+    clock     {}                    {Tcl-compatible clock command}
+    eventloop { static }            {after, vwait, update}
+    exec      { static }            {Tcl-compatible exec command}
+    file      {}                    {Tcl-compatible file command}
+    glob      { tcl }               {Tcl-compatible glob command}
+    history   {}                    {Tcl access to interactive history}
+    interp    {}                    {Support for child interpreters}
+    json      { optional }          {JSON decoder}
+    jsonencode { tcl optional }     {JSON encoder}
+    load      { static }            {Load binary extensions at runtime with load or package}
+    mk        { cpp off }           {Interface to metakit}
+    namespace { static }            {Tcl compatible namespace support}
+    nshelper  { tcl optional }      {}
+    oo        { tcl }               {Object Oriented class support}
+    pack      {}                    {Low level binary pack and unpack}
+    package   { static }            {Package management with the package command}
+    posix     {}                    {Posix APIs including os.fork, os.uptime}
+    readdir   {}                    {Read the contents of a directory (used by glob)}
+    readline  { off }               {Interface to libreadline}
+    redis     { off }               {Client interface to redis database}
+    regexp    {}                    {Tcl-compatible regexp, regsub commands}
+    rlprompt  { tcl off }           {readline-based REPL}
+    sdl       { off }               {SDL graphics interface}
+    signal    { static }            {Signal handling}
+    sqlite3   { off }               {Interface to sqlite3 database}
+    stdlib    { tcl static }        {Built-in commands including lambda, stacktrace and some dict subcommands}
+    syslog    {}                    {System logging with syslog}
+    tclcompat { tcl static }        {Tcl compatible read, gets, puts, parray, case, ...}
+    tclprefix { optional }          {Support for the tcl::prefix command}
+    tree      { tcl }               {OO tree structure, similar to tcllib ::struct::tree}
+    win32     { off }               {Interface to win32}
+    zlib      { optional }          {zlib compression interface}
+} {
+    dict set extdb attrs $mod $attrs
+    dict set extdb help $mod $help
+}
+
+if {[opt-bool extinfo]} {
+    use text-formatting
+    use help
+    use_pager
+    nl
+    p {
+        Jim Tcl is very modular and many extensions can be selectively
+        enabled (--with-ext) or disabled (--without-ext).
+        Many extensions may be statically compiled into Jim Tcl or built as loadable modules (--with-mod).
+        This includes both C extensions and Tcl extensions.
+    }
+
+    # collect extension info
+    set attrs [dict get $extdb attrs]
+    set info {}
+    foreach mod [dict keys $attrs] {
+        set help [dict get $extdb help $mod]
+        if {$help ne ""} {
+            if {"off" in [dict get $attrs $mod]} {
+                set a off
+            } elseif {"optional" in [dict get $attrs $mod]} {
+                set a optional
+            } else {
+                set a default
+            }
+            dict set info $mod [list $a $help]
+        }
+    }
+
+    proc showmods {heading info type} {
+        p $heading
+        foreach mod [dict keys $info] {
+            lassign [dict get $info $mod] a help
+            if {$a eq $type} {
+                puts "[format %10s $mod] - $help"
+            }
+        }
+    }
+    showmods "These extensions are enabled by default:" $info default
+    nl
+    showmods "These are disabled by default, but enabled by --full:" $info optional
+    nl
+    showmods {
+        These are disabled unless explicitly enabled or --allextmod is selected and
+        the prerequisites are met:
+    } $info off
+    exit 0
+}
+
+# Additional information about certain extensions
+# dep=list of extensions which are required for this extension
+# check=[expr] expression to evaluate to determine if the extension can be used
+# libdep=list of 'define' symbols for dependent libraries
+# pkg-config=name1 ?args?, name2* ?args? | name3 ?args?
+#   Any set of packages from the alternates is acceptable (e.g. name1 and name2, or name3)
+#   If the pkgname has a * appended, it is optional (so name1 without name2 is OK)
+#   The optional args are pkg-config specifications (e.g. name1 >= 1.3.4)
+dict set extdb info {
+    binary   { dep pack }
+    exec     { check {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]} }
+    glob     { dep readdir }
+    load     { check {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]} libdep lib_dlopen }
+    mk       { check {[check-metakit]} libdep lib_mk }
+    namespace { dep nshelper }
+    json     { dep jsonencode extrasrcs jsmn/jsmn.c }
+    posix    { check {[have-feature waitpid]} }
+    readdir  { check {[have-feature opendir]} }
+    readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
+    rlprompt { dep readline }
+    tree     { dep oo }
+    sdl      { pkg-config {SDL2_gfx, SDL2_ttf* | SDL_gfx} }
+    signal   { check {[have-feature sigaction]} }
+    sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
+    redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }
+    zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
+    syslog   { check {[have-feature syslog]} }
+    tree     { dep oo }
+    win32    { check {[have-feature windows]} }
+}
+
 
 set warnings {}
 
@@ -355,82 +450,6 @@ define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
 define docdir [opt-str docdir o {${prefix}/docs/jim}]
 
-# Attributes of the extensions
-# tcl=Pure Tcl extension
-# static=Can't be built as a module
-# off=Off unless explicitly enabled
-# optional=Off by default, but selected by --full
-# cpp=Is a C++ extension
-global extdb
-dict set extdb attrs {
-    aio       { static }
-    array     {}
-    binary    { tcl optional }
-    clock     {}
-    eventloop { static }
-    exec      { static }
-    file      {}
-    glob      { tcl }
-    history   {}
-    interp    { }
-    json      { optional }
-    jsonencode { tcl optional }
-    load      { static }
-    mk        { cpp off }
-    namespace { static }
-    nshelper  { tcl optional }
-    oo        { tcl }
-    pack      {}
-    package   { static }
-    posix     {}
-    readdir   {}
-    readline  { off }
-    regexp    {}
-    rlprompt  { tcl off }
-    sdl       { off }
-    signal    { static }
-    sqlite3   { off }
-    redis     { off }
-    zlib      { optional }
-    stdlib    { tcl static }
-    syslog    {}
-    tclcompat { tcl static }
-    tclprefix { optional }
-    tree      { tcl }
-    win32     { off }
-}
-
-# Additional information about certain extensions
-# dep=list of extensions which are required for this extension
-# check=[expr] expression to evaluate to determine if the extension can be used
-# libdep=list of 'define' symbols for dependent libraries
-# pkg-config=name1 ?args?, name2* ?args? | name3 ?args?
-#   Any set of packages from the alternates is acceptable (e.g. name1 and name2, or name3)
-#   If the pkgname has a * appended, it is optional (so name1 without name2 is OK)
-#   The optional args are pkg-config specifications (e.g. name1 >= 1.3.4)
-dict set extdb info {
-    binary   { dep pack }
-    exec     { check {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]} }
-    glob     { dep readdir }
-    load     { check {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]} libdep lib_dlopen }
-    mk       { check {[check-metakit]} libdep lib_mk }
-    namespace { dep nshelper }
-    json     { dep jsonencode extrasrcs jsmn/jsmn.c }
-    posix    { check {[have-feature waitpid]} }
-    readdir  { check {[have-feature opendir]} }
-    readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
-    rlprompt { dep readline }
-    tree     { dep oo }
-    sdl      { pkg-config {SDL2_gfx, SDL2_ttf* | SDL_gfx} }
-    signal   { check {[have-feature sigaction]} }
-    sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
-    redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }
-    zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
-    syslog   { check {[have-feature syslog]} }
-    tree     { dep oo }
-    win32    { check {[have-feature windows]} }
-}
-
 # autosetup cc-check-function-in-library can't handle C++ libraries
 proc check-metakit {} {
     set found 0
@@ -471,7 +490,7 @@ if {$withinfo(without) eq "default"} {
 }
 
 # Now go check everything - see autosetup/local.tcl
-array set extinfo [check-extensions]
+array set extinfo [check-extensions [opt-bool allextmod]]
 
 # Now special checks
 if {[have-feature windows]} {

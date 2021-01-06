@@ -194,13 +194,16 @@ proc add-pkgconfig-deps {ext pkgs asmodule} {
 # and the extension database ($extdb) to determine
 # what is selected, and in what way.
 #
+# If $allextmod is 1, extensions that would normally be disabled
+# are enabled as modules if their prerequisites are met
+#
 # The results are available via ext-get-status
 # And a dictionary is returned containing four keys:
 #   static-c     extensions which are static C
 #   static-tcl   extensions which are static Tcl
 #   module-c     extensions which are C modules
 #   module-tcl   extensions which are Tcl modules
-proc check-extensions {} {
+proc check-extensions {allextmod} {
     global extdb withinfo
 
     # Check valid extension names
@@ -213,6 +216,7 @@ proc check-extensions {} {
     set extlist [lsort [dict keys [dict get $extdb attrs]]]
 
     set withinfo(maybe) {}
+    set withinfo(maybemod) {}
 
     # Now work out the default status. We have.
     # normal case, include !off, !optional if possible
@@ -223,9 +227,15 @@ proc check-extensions {} {
     } else {
         foreach i $extlist {
             if {[ext-has $i off]} {
+                if {$allextmod} {
+                    lappend withinfo(maybemod) $i
+                }
                 continue
             }
             if {[ext-has $i optional] && !$withinfo(optional)} {
+                if {$allextmod} {
+                    lappend withinfo(maybemod) $i
+                }
                 continue
             }
             lappend withinfo(maybe) $i
@@ -241,6 +251,9 @@ proc check-extensions {} {
     }
     foreach i $withinfo(maybe) {
         check-extension-status $i wanted
+    }
+    foreach i $withinfo(maybemod) {
+        check-extension-status $i wanted 1
     }
 
     array set extinfo {static-c {} static-tcl {} module-c {} module-tcl {}}
