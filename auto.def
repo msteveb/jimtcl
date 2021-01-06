@@ -163,7 +163,7 @@ dict set extdb info {
     readline { pkg-config readline check {[cc-check-function-in-lib readline readline]} libdep lib_readline}
     rlprompt { dep readline }
     tree     { dep oo }
-    sdl      { pkg-config {SDL2_gfx, SDL2_ttf* | SDL_gfx} }
+    sdl      { pkg-config {SDL2_gfx, SDL2_ttf* | SDL_gfx} check false }
     signal   { check {[have-feature sigaction]} }
     sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }

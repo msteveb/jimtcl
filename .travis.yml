@@ -4,8 +4,9 @@ addons:
   apt:
     packages:
       - libsqlite3-dev
+      - libhiredis-dev
 before_script:
   - ./configure --maintainer --full --allextmod --disable-docs
 script:
-  - make test
+  - make all test
   - ./test-bootstrap-jim
