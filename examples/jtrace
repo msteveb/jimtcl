@@ -20,4 +20,4 @@ xtrace jtime::xtrace
 # Catch exit but not error
 set rc [catch -noerror -exit {source $argv0} msg opts]
 
-xtrace
+xtrace {}
