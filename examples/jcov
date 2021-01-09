@@ -25,7 +25,7 @@ xtrace xcov
 # Catch exit but not error
 set rc [catch -noerror -exit {source $argv0} msg opts]
 
-xtrace
+xtrace {}
 
 proc show-coverage {filename} {
 	set info $::coverage($filename)
