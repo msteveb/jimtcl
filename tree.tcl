@@ -143,7 +143,7 @@ tree method getall {node} {
 tree method insert {node {index end}} {
 
 	# Make a new node and add it to the tree
-	set childname node[incr nodeid]
+	set childname [incr nodeid]
 	dict set tree $childname {}
 
 	# The new node has no children

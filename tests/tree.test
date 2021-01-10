@@ -111,7 +111,7 @@ test tree-2.3 "walk bfs" {
 } {rootnode childnode1 root.c2 root.c3 childnode2 n.c4 n.c5 n.c5.c6}
 
 test tree-3.1 "delete nodes" {
-	$pt delete node6
+	$pt delete 6
 	set result {}
 	$pt walk root bfs {action n} {
 		if {$action == "enter"} {
