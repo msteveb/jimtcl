@@ -137,9 +137,7 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
 int Jim_posixInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "posix", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "posix");
 #ifdef HAVE_FORK
     Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
 #endif

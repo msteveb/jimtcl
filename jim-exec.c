@@ -82,9 +82,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_execInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "exec");
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
     return JIM_OK;
 }
@@ -1230,8 +1228,8 @@ static int JimCleanupChildren(Jim_Interp *interp, int numPids, pidtype *pidPtr, 
 int Jim_execInit(Jim_Interp *interp)
 {
     struct WaitInfoTable *waitinfo;
-    if (Jim_PackageProvide(interp, "exec", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
+
+    Jim_PackageProvideCheck(interp, "exec");
 
     waitinfo = JimAllocWaitInfoTable();
     Jim_CreateCommand(interp, "exec", Jim_ExecCmd, waitinfo, JimFreeWaitInfoTable);

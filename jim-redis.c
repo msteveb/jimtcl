@@ -163,9 +163,7 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int
 Jim_redisInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "redis", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "redis");
     Jim_CreateCommand(interp, "redis", jim_redis_cmd, NULL, NULL);
     return JIM_OK;
 }

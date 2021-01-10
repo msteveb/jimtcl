@@ -530,9 +530,7 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_signalInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "signal", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "signal");
     Jim_CreateCommand(interp, "alarm", Jim_AlarmCmd, 0, 0);
     Jim_CreateCommand(interp, "kill", Jim_KillCmd, 0, 0);
     /* Sleep is slightly dubious here */

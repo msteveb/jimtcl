@@ -16206,6 +16206,19 @@ void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...)
     }
 }
 
+/* Should be called as the first thing in a loadable module to verify
+ * that the interpeter ABI is compatible with the ABI that the module was compiled against.
+ * Returns JIM_ERR and sets an error if mismatch.
+ */
+int Jim_CheckAbiVersion(Jim_Interp *interp, int abi_version)
+{
+    if (abi_version != JIM_ABI_VERSION) {
+        Jim_SetResultString(interp, "ABI version mismatch", -1);
+        return JIM_ERR;
+    }
+    return JIM_OK;
+}
+
 /* stubs */
 #ifndef jim_ext_package
 int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, int flags)

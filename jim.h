@@ -125,6 +125,9 @@ extern "C" {
  * Exported defines
  * ---------------------------------------------------------------------------*/
 
+/* Increment this every time the public ABI changes */
+#define JIM_ABI_VERSION 100
+
 #define JIM_OK 0
 #define JIM_ERR 1
 #define JIM_RETURN 2
@@ -891,13 +894,18 @@ JIM_EXPORT void * Jim_GetAssocData(Jim_Interp *interp, const char *key);
 JIM_EXPORT int Jim_SetAssocData(Jim_Interp *interp, const char *key,
         Jim_InterpDeleteProc *delProc, void *data);
 JIM_EXPORT int Jim_DeleteAssocData(Jim_Interp *interp, const char *key);
+JIM_EXPORT int Jim_CheckAbiVersion(Jim_Interp *interp, int abi_version);
 
 /* Packages C API */
+
 /* jim-package.c */
 JIM_EXPORT int Jim_PackageProvide (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
 JIM_EXPORT int Jim_PackageRequire (Jim_Interp *interp,
         const char *name, int flags);
+#define Jim_PackageProvideCheck(INTERP, NAME) \
+        if (Jim_CheckAbiVersion(INTERP, JIM_ABI_VERSION) == JIM_ERR || Jim_PackageProvide(INTERP, NAME, "1.0", JIM_ERRMSG)) \
+                return JIM_ERR
 
 /* error messages */
 JIM_EXPORT void Jim_MakeErrorMessage (Jim_Interp *interp);

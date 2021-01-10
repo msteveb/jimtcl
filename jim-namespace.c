@@ -324,9 +324,7 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_namespaceInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "namespace", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "namespace");
     Jim_CreateCommand(interp, "namespace", JimNamespaceCmd, NULL, NULL);
     Jim_CreateCommand(interp, "variable", JimVariableCmd, NULL, NULL);
     return JIM_OK;

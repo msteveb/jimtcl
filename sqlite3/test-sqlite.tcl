@@ -1,11 +1,11 @@
-# A simple test of the "big" sqlite3 extension
+# A simple test of the "big" sqlite extension
 
 set auto_path [list . {*}$auto_path]
 
-package require sqlite3
+package require sqlite
 
 # Create an in-memory database and add some data
-sqlite3 db :memory:
+sqlite db :memory:
 db eval {CREATE TABLE history (type, time, value)}
 foreach t [range 1 50] {
     set temp [rand 100]

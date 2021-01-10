@@ -13,14 +13,14 @@ Ensure that you have configured and built jim in the source directory, then:
 
 $ make
 
-./build-ext -o sqlite3.so -I.. -L.. -DSQLITE_OMIT_LOAD_EXTENSION=1 ... jim-sqlite3.c sqlite3.c
-Building sqlite3.so from jim-sqlite3.c sqlite3.c
+./build-ext -o sqlite.so -I.. -L.. -DSQLITE_OMIT_LOAD_EXTENSION=1 ... jim-sqlite.c sqlite3.c
+Building sqlite.so from jim-sqlite.c sqlite3.c
 
 Warning: libjim is static. Dynamic module may not work on some platforms.
 
-Compile: jim-sqlite3.o
+Compile: jim-sqlite.o
 Compile: sqlite3.o
-Link:    sqlite3.so
+Link:    sqlite.so
 
 Success!
 
@@ -32,17 +32,17 @@ $ make test
 Installing
 ----------
 
-Copy sqlite3.so to your jim library directory, typically /usr/local/lib/jim or
+Copy sqlite.so to your jim library directory, typically /usr/local/lib/jim or
 where $JIMLIB points to.
 
 Using
 -----
-In your Jim Tcl code, ensure that sqlite3.so is in a directory on $auto_path.
+In your Jim Tcl code, ensure that sqlite.so is in a directory on $auto_path.
 Then:
 
-  package require sqlite3
+  package require sqlite
 
-  sqlite3 db test.db
+  sqlite db test.db
   ...etc..
 
 Documentation

@@ -506,8 +506,7 @@ Win32_MessageBox(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
 int
 Jim_win32Init(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "win32", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
+    Jim_PackageProvideCheck(interp, "win32");
 
 #define CMD(name) \
     Jim_CreateCommand(interp, "win32." #name , Win32_ ## name , NULL, NULL)

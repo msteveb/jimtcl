@@ -2821,10 +2821,8 @@ static int DbMain(Jim_Interp *interp, int objc, Jim_Obj *const*objv){
 ** used to open a new SQLite database.  See the DbMain() routine above
 ** for additional information.
 */
-EXTERN int Jim_sqlite3Init(Jim_Interp *interp){
-  Jim_CreateCommand(interp, "sqlite3", DbMain, 0, 0);
-  Jim_PackageProvide(interp, "sqlite3", PACKAGE_VERSION, 0);
+EXTERN int Jim_sqliteInit(Jim_Interp *interp){
+  Jim_PackageProvideCheck(interp, "sqlite");
   Jim_CreateCommand(interp, "sqlite", DbMain, 0, 0);
-  Jim_PackageProvide(interp, "sqlite", PACKAGE_VERSION, 0);
   return JIM_OK;
 }

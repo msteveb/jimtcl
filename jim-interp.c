@@ -169,9 +169,7 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_interpInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "interp", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "interp");
     Jim_CreateCommand(interp, "interp", JimInterpCommand, NULL, NULL);
 
     return JIM_OK;

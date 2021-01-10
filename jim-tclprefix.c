@@ -214,10 +214,7 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 
 int Jim_tclprefixInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "tclprefix", "1.0", JIM_ERRMSG)) {
-        return JIM_ERR;
-    }
-
+    Jim_PackageProvideCheck(interp, "tclprefix");
     Jim_CreateCommand(interp, "tcl::prefix", Jim_TclPrefixCoreCommand, NULL, NULL);
     return JIM_OK;
 }

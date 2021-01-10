@@ -418,10 +418,7 @@ done:
 int
 Jim_jsonInit(Jim_Interp *interp)
 {
-	if (Jim_PackageProvide(interp, "json", "1.0", JIM_ERRMSG) != JIM_OK) {
-		return JIM_ERR;
-	}
-
+	Jim_PackageProvideCheck(interp, "json");
 	Jim_CreateCommand(interp, "json::decode", json_decode, NULL, NULL);
 	/* Load the Tcl implementation of the json encoder if possible */
 	Jim_PackageRequire(interp, "jsonencode", 0);

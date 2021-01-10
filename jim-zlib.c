@@ -309,10 +309,7 @@ static int JimZlibCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_zlibInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "zlib", "1.0", JIM_ERRMSG)) {
-        return JIM_ERR;
-    }
-
+    Jim_PackageProvideCheck(interp, "zlib");
     Jim_CreateCommand(interp, "zlib", JimZlibCmd, 0, 0);
 
     return JIM_OK;

@@ -475,10 +475,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 int Jim_packInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "pack", "1.0", JIM_ERRMSG)) {
-        return JIM_ERR;
-    }
-
+    Jim_PackageProvideCheck(interp, "pack");
     Jim_CreateCommand(interp, "unpack", Jim_UnpackCmd, NULL, NULL);
     Jim_CreateCommand(interp, "pack", Jim_PackCmd, NULL, NULL);
     return JIM_OK;

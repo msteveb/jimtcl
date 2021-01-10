@@ -172,8 +172,7 @@ int Jim_syslogInit(Jim_Interp *interp)
 {
     SyslogInfo *info;
 
-    if (Jim_PackageProvide(interp, "syslog", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
+    Jim_PackageProvideCheck(interp, "syslog");
 
     info = Jim_Alloc(sizeof(*info));
 

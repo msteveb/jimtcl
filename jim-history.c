@@ -113,9 +113,7 @@ static const jim_subcmd_type history_command_table[] = {
 
 int Jim_historyInit(Jim_Interp *interp)
 {
-    if (Jim_PackageProvide(interp, "history", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
-
+    Jim_PackageProvideCheck(interp, "history");
     Jim_CreateCommand(interp, "history", Jim_SubCmdProc, (void *)history_command_table, NULL);
     return JIM_OK;
 }

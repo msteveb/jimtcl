@@ -794,8 +794,7 @@ int Jim_eventloopInit(Jim_Interp *interp)
 {
     Jim_EventLoop *eventLoop;
 
-    if (Jim_PackageProvide(interp, "eventloop", "1.0", JIM_ERRMSG))
-        return JIM_ERR;
+    Jim_PackageProvideCheck(interp, "eventloop");
 
     eventLoop = Jim_Alloc(sizeof(*eventLoop));
     memset(eventLoop, 0, sizeof(*eventLoop));
