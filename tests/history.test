@@ -9,7 +9,7 @@ Use "history -help ?command?" for help}
 
 test history-1.2 {history -help} -body {
 	history -help
-} -result {Usage: "history command ... ", where command is one of: getline, completion, load, save, add, show}
+} -result {Usage: "history command ... ", where command is one of: add, completion, getline, keep, load, save, show}
 
 test history-1.2 {history add} {
 	history add line1

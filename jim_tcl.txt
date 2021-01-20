@@ -60,6 +60,7 @@ Changes since 0.80
 3. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
 4. `loop` can now omit the start value
 5. Add the `xtrace` command for execution trace support
+6. Add `history keep`
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5331,6 +5332,9 @@ the remaining subcommands do nothing.
 
 +*history add* 'line'+::
     Adds the given line to the history buffer.
+
++*history keep* '?count?'+::
+    Set or return the maximum history size. Defaults to 100.
 
 +*history save* 'filename'+::
     Saves the current history buffer to the given file.

@@ -918,6 +918,8 @@ JIM_EXPORT char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt);
 JIM_EXPORT void Jim_HistorySetCompletion(Jim_Interp *interp, Jim_Obj *commandObj);
 JIM_EXPORT void Jim_HistoryAdd(const char *line);
 JIM_EXPORT void Jim_HistoryShow(void);
+JIM_EXPORT void Jim_HistorySetMaxLen(int length);
+JIM_EXPORT int Jim_HistoryGetMaxLen(void);
 
 /* Misc */
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);

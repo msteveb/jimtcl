@@ -107,6 +107,21 @@ void Jim_HistoryShow(void)
 #endif
 }
 
+void Jim_HistorySetMaxLen(int length)
+{
+#ifdef USE_LINENOISE
+    linenoiseHistorySetMaxLen(length);
+#endif
+}
+
+int Jim_HistoryGetMaxLen(void)
+{
+#ifdef USE_LINENOISE
+    return linenoiseHistoryGetMaxLen();
+#endif
+    return 0;
+}
+
 #ifdef USE_LINENOISE
 struct JimCompletionInfo {
     Jim_Interp *interp;
