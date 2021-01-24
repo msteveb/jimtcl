@@ -139,6 +139,8 @@ static char JimEmptyStringRep[] = "";
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action);
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int listindex, Jim_Obj *newObjPtr,
     int flags);
+static int Jim_ListIndices(Jim_Interp *interp, Jim_Obj *listPtr, Jim_Obj *const *indexv, int indexc,
+    Jim_Obj **resultObj, int flags);
 static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands);
 static Jim_Obj *JimExpandDictSugar(Jim_Interp *interp, Jim_Obj *objPtr);
 static void SetDictSubstFromAny(Jim_Interp *interp, Jim_Obj *objPtr);
@@ -6722,7 +6724,7 @@ Jim_Obj *Jim_NewListObj(Jim_Interp *interp, Jim_Obj *const *elements, int len)
  * sure that the list object can't shimmer while the vector returned
  * is in use, this vector is the one stored inside the internal representation
  * of the list object. This function is not exported, extensions should
- * always access to the List object elements using Jim_ListIndex(). */
+ * always access to the List object elements using Jim_ListGetIndex(). */
 static void JimListGetElements(Jim_Interp *interp, Jim_Obj *listObj, int *listLen,
     Jim_Obj ***listVec)
 {
@@ -6755,8 +6757,8 @@ struct lsort_info {
         JIM_LSORT_COMMAND
     } type;
     int order;
-    int index;
-    int indexed;
+    Jim_Obj **indexv;
+    int indexc;
     int unique;
     int (*subfn)(Jim_Obj **, Jim_Obj **);
 };
@@ -6767,8 +6769,8 @@ static int ListSortIndexHelper(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     Jim_Obj *lObj, *rObj;
 
-    if (Jim_ListIndex(sort_info->interp, *lhsObj, sort_info->index, &lObj, JIM_ERRMSG) != JIM_OK ||
-        Jim_ListIndex(sort_info->interp, *rhsObj, sort_info->index, &rObj, JIM_ERRMSG) != JIM_OK) {
+    if (Jim_ListIndices(sort_info->interp, *lhsObj, sort_info->indexv, sort_info->indexc, &lObj, JIM_ERRMSG) != JIM_OK ||
+        Jim_ListIndices(sort_info->interp, *rhsObj, sort_info->indexv, sort_info->indexc, &rObj, JIM_ERRMSG) != JIM_OK) {
         longjmp(sort_info->jmpbuf, JIM_ERR);
     }
     return sort_info->subfn(&lObj, &rObj);
@@ -6910,7 +6912,7 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
             return -1; /* Should not be run but keeps static analysers happy */
     }
 
-    if (info->indexed) {
+    if (info->indexc) {
         /* Need to interpose a "list index" function */
         info->subfn = fn;
         fn = ListSortIndexHelper;
@@ -7059,6 +7061,57 @@ int Jim_ListIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx, Jim_Obj **objPt
     return JIM_OK;
 }
 
+/* Get the value from the list associated to the specified list indices.
+ * Return JIM_ERR if an index is invalid (and sets an error message).
+ * Returns -1 if the list index is out of range.
+ * In this case, if flags includes JIM_ERRMSG, an error result is set.
+ * Otherwise, returns JIM_OK and sets *resultObj to the indexed value.
+ * (This is the only case where *resultObj is set)
+ */
+static int Jim_ListIndices(Jim_Interp *interp, Jim_Obj *listPtr,
+    Jim_Obj *const *indexv, int indexc, Jim_Obj **resultObj, int flags)
+{
+    int i;
+    int static_idxes[5];
+    int *idxes = static_idxes;
+    int ret = JIM_OK;
+
+    if (indexc > sizeof(static_idxes) / sizeof(*static_idxes)) {
+        idxes = Jim_Alloc(indexc * sizeof(*idxes));
+    }
+
+    /* In the rare, contrived case where an index is also the list (or an element)
+     * we need to extract the indices first.
+     */
+    for (i = 0; i < indexc; i++) {
+        ret = Jim_GetIndex(interp, indexv[i], &idxes[i]);
+        if (ret != JIM_OK) {
+            goto err;
+        }
+    }
+
+    for (i = 0; i < indexc; i++) {
+        Jim_Obj *objPtr = Jim_ListGetIndex(interp, listPtr, idxes[i]);
+        if (!objPtr) {
+            if (flags & JIM_ERRMSG) {
+                if (idxes[i] < 0 || idxes[i] > Jim_ListLength(interp, listPtr)) {
+                    Jim_SetResultFormatted(interp, "index \"%#s\" out of range", indexv[i]);
+                }
+                else {
+                    Jim_SetResultFormatted(interp, "element %#s missing from sublist \"%#s\"", indexv[i], listPtr);
+                }
+            }
+            return -1;
+        }
+        listPtr = objPtr;
+    }
+    *resultObj = listPtr;
+err:
+    if (idxes != static_idxes)
+        Jim_Free(idxes);
+    return ret;
+}
+
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     Jim_Obj *newObjPtr, int flags)
 {
@@ -7096,7 +7149,10 @@ int Jim_ListSetIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
         listObjPtr = objPtr;
         if (Jim_GetIndex(interp, indexv[i], &idx) != JIM_OK)
             goto err;
-        if (Jim_ListIndex(interp, listObjPtr, idx, &objPtr, JIM_ERRMSG) != JIM_OK) {
+
+        objPtr = Jim_ListGetIndex(interp, listObjPtr, idx);
+        if (objPtr == NULL) {
+            Jim_SetResultFormatted(interp, "index \"%#s\" out of range", indexv[i]);
             goto err;
         }
         if (Jim_IsShared(objPtr)) {
@@ -12694,35 +12750,24 @@ static int Jim_ListCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 /* [lindex] */
 static int Jim_LindexCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr, *listObjPtr;
-    int i;
-    int idx;
+    Jim_Obj *objPtr;
+    int ret;
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "list ?index ...?");
         return JIM_ERR;
     }
-    objPtr = argv[1];
-    Jim_IncrRefCount(objPtr);
-    for (i = 2; i < argc; i++) {
-        listObjPtr = objPtr;
-        if (Jim_GetIndex(interp, argv[i], &idx) != JIM_OK) {
-            Jim_DecrRefCount(interp, listObjPtr);
-            return JIM_ERR;
-        }
-        if (Jim_ListIndex(interp, listObjPtr, idx, &objPtr, JIM_NONE) != JIM_OK) {
-            /* Returns an empty object if the index
-             * is out of range. */
-            Jim_DecrRefCount(interp, listObjPtr);
-            Jim_SetEmptyResult(interp);
-            return JIM_OK;
-        }
-        Jim_IncrRefCount(objPtr);
-        Jim_DecrRefCount(interp, listObjPtr);
+    ret = Jim_ListIndices(interp, argv[1], argv + 2, argc - 2, &objPtr, JIM_NONE);
+    if (ret < 0) {
+        /* Returns an empty object if the index
+         * is out of range. */
+        ret = JIM_OK;
+        Jim_SetEmptyResult(interp);
     }
-    Jim_SetResult(interp, objPtr);
-    Jim_DecrRefCount(interp, objPtr);
-    return JIM_OK;
+    else if (ret == JIM_OK) {
+        Jim_SetResult(interp, objPtr);
+    }
+    return ret;
 }
 
 /* [llength] */
@@ -12741,11 +12786,11 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 {
     static const char * const options[] = {
         "-bool", "-not", "-nocase", "-exact", "-glob", "-regexp", "-all", "-inline", "-command",
-            NULL
+        "-stride", "-index", NULL
     };
     enum
     { OPT_BOOL, OPT_NOT, OPT_NOCASE, OPT_EXACT, OPT_GLOB, OPT_REGEXP, OPT_ALL, OPT_INLINE,
-            OPT_COMMAND };
+            OPT_COMMAND, OPT_STRIDE, OPT_INDEX };
     int i;
     int opt_bool = 0;
     int opt_not = 0;
@@ -12756,12 +12801,14 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     int rc = JIM_OK;
     Jim_Obj *listObjPtr = NULL;
     Jim_Obj *commandObj = NULL;
+    Jim_Obj *indexObj = NULL;
     int match_flags = 0;
+    long stride = 1;
 
     if (argc < 3) {
       wrongargs:
         Jim_WrongNumArgs(interp, 1, argv,
-            "?-exact|-glob|-regexp|-command 'command'? ?-bool|-inline? ?-not? ?-nocase? ?-all? list value");
+            "?-exact|-glob|-regexp|-command 'command'? ?-bool|-inline? ?-not? ?-nocase? ?-all? ?-stride len? ?-index val? list value");
         return JIM_ERR;
     }
 
@@ -12803,6 +12850,24 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
             case OPT_GLOB:
                 opt_match = option;
                 break;
+            case OPT_INDEX:
+                if (i >= argc - 2) {
+                    goto wrongargs;
+                }
+                indexObj = argv[++i];
+                break;
+            case OPT_STRIDE:
+                if (i >= argc - 2) {
+                    goto wrongargs;
+                }
+                if (Jim_GetLong(interp, argv[++i], &stride) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                if (stride < 1) {
+                    Jim_SetResultString(interp, "stride length must be at least 1", -1);
+                    return JIM_ERR;
+                }
+                break;
         }
     }
 
@@ -12811,6 +12876,12 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         goto wrongargs;
     }
     argv += i;
+
+    listlen = Jim_ListLength(interp, argv[0]);
+    if (listlen % stride) {
+        Jim_SetResultString(interp, "list size must be a multiple of the stride length", -1);
+        return JIM_ERR;
+    }
 
     if (opt_all) {
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
@@ -12822,10 +12893,41 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
         Jim_IncrRefCount(commandObj);
     }
 
-    listlen = Jim_ListLength(interp, argv[0]);
-    for (i = 0; i < listlen; i++) {
+    for (i = 0; i < listlen; i += stride) {
         int eq = 0;
-        Jim_Obj *objPtr = Jim_ListGetIndex(interp, argv[0], i);
+        Jim_Obj *searchListObj;
+        Jim_Obj *objPtr;
+        int offset;
+
+        if (indexObj) {
+            int indexlen = Jim_ListLength(interp, indexObj);
+            if (stride == 1) {
+                searchListObj = Jim_ListGetIndex(interp, argv[0], i);
+            }
+            else {
+                searchListObj = Jim_NewListObj(interp, argv[0]->internalRep.listValue.ele + i, stride);
+            }
+            Jim_IncrRefCount(searchListObj);
+            rc = Jim_ListIndices(interp, searchListObj, indexObj->internalRep.listValue.ele, indexlen, &objPtr, JIM_ERRMSG);
+            if (rc != JIM_OK) {
+                Jim_DecrRefCount(interp, searchListObj);
+                rc = JIM_ERR;
+                goto done;
+            }
+            /* now indexObj is the object to compare */
+            offset = 0;
+        }
+        else {
+            /* No -index, so we have an implicit {0} as indexObj */
+            searchListObj = argv[0];
+            offset = i;
+            objPtr = Jim_ListGetIndex(interp, searchListObj, i);
+            Jim_IncrRefCount(searchListObj);
+        }
+        /* At this point objPtr represents the object to search against and
+         * searchListObj represents the list we search in (offset .. offset + stride - 1)
+         * both need to have reference counts decremented when done
+         */
 
         switch (opt_match) {
             case OPT_EXACT:
@@ -12840,22 +12942,15 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
             case OPT_COMMAND:
                 eq = Jim_CommandMatchObj(interp, commandObj, argv[1], objPtr, match_flags);
                 if (eq < 0) {
-                    if (listObjPtr) {
-                        Jim_FreeNewObj(interp, listObjPtr);
-                    }
+                    Jim_DecrRefCount(interp, searchListObj);
                     rc = JIM_ERR;
                     goto done;
                 }
                 break;
         }
 
-        /* If we have a non-match with opt_bool, opt_not, !opt_all, can't exit early */
-        if (!eq && opt_bool && opt_not && !opt_all) {
-            continue;
-        }
-
+        /* Got a match (or non-match for opt_not), or (opt_bool && opt_all) */
         if ((!opt_bool && eq == !opt_not) || (opt_bool && (eq || opt_all))) {
-            /* Got a match (or non-match for opt_not), or (opt_bool && opt_all) */
             Jim_Obj *resultObj;
 
             if (opt_bool) {
@@ -12864,22 +12959,36 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
             else if (!opt_inline) {
                 resultObj = Jim_NewIntObj(interp, i);
             }
-            else {
+            else if (stride == 1) {
                 resultObj = objPtr;
+            }
+            else if (opt_all) {
+                /* Add the entire sublist directly for -all -stride > 1 */
+                ListInsertElements(listObjPtr, -1, stride,
+                    searchListObj->internalRep.listValue.ele + offset);
+            }
+            else {
+                resultObj = Jim_NewListObj(interp, searchListObj->internalRep.listValue.ele + offset, stride);
             }
 
             if (opt_all) {
-                Jim_ListAppendElement(interp, listObjPtr, resultObj);
+                /* The stride > 1 case has already been handled above */
+                if (stride == 1) {
+                    Jim_ListAppendElement(interp, listObjPtr, resultObj);
+                }
             }
             else {
                 Jim_SetResult(interp, resultObj);
+                Jim_DecrRefCount(interp, searchListObj);
                 goto done;
             }
         }
+        Jim_DecrRefCount(interp, searchListObj);
     }
 
     if (opt_all) {
         Jim_SetResult(interp, listObjPtr);
+        listObjPtr = NULL;
     }
     else {
         /* No match */
@@ -12892,6 +13001,9 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
     }
 
   done:
+    if (listObjPtr) {
+        Jim_FreeNewObj(interp, listObjPtr);
+    }
     if (commandObj) {
         Jim_DecrRefCount(interp, commandObj);
     }
@@ -13028,25 +13140,30 @@ static int Jim_LsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 {
     static const char * const options[] = {
-        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", "-unique", NULL
+        "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", "-unique",
+        "-stride", NULL
     };
-    enum
-    { OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX, OPT_UNIQUE };
+    enum {
+        OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX, OPT_UNIQUE,
+        OPT_STRIDE
+    };
     Jim_Obj *resObj;
     int i;
     int retCode;
     int shared;
+    long stride = 1;
 
     struct lsort_info info;
 
     if (argc < 2) {
+wrongargs:
         Jim_WrongNumArgs(interp, 1, argv, "?options? list");
         return JIM_ERR;
     }
 
     info.type = JIM_LSORT_ASCII;
     info.order = 1;
-    info.indexed = 0;
+    info.indexc = 0;
     info.unique = 0;
     info.command = NULL;
     info.interp = interp;
@@ -13088,28 +13205,72 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
                 info.command = argv[i + 1];
                 i++;
                 break;
+            case OPT_STRIDE:
+                if (i >= argc - 2) {
+                    goto wrongargs;
+                }
+                if (Jim_GetLong(interp, argv[++i], &stride) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                if (stride < 2) {
+                    Jim_SetResultString(interp, "stride length must be at least 2", -1);
+                    return JIM_ERR;
+                }
+                break;
             case OPT_INDEX:
                 if (i >= (argc - 2)) {
+badindex:
                     Jim_SetResultString(interp, "\"-index\" option must be followed by list index", -1);
                     return JIM_ERR;
                 }
-                if (Jim_GetIndex(interp, argv[i + 1], &info.index) != JIM_OK) {
-                    return JIM_ERR;
+                JimListGetElements(interp, argv[i + 1], &info.indexc, &info.indexv);
+                if (info.indexc == 0) {
+                    goto badindex;
                 }
-                info.indexed = 1;
                 i++;
                 break;
         }
     }
     resObj = argv[argc - 1];
-    if ((shared = Jim_IsShared(resObj)))
-        resObj = Jim_DuplicateObj(interp, resObj);
-    retCode = ListSortElements(interp, resObj, &info);
-    if (retCode == JIM_OK) {
-        Jim_SetResult(interp, resObj);
+    if (stride > 1) {
+        Jim_Obj *tmpListObj;
+        Jim_Obj **elements;
+        int listlen;
+        int i;
+
+        JimListGetElements(interp, resObj, &listlen, &elements);
+        if (listlen % stride) {
+            Jim_SetResultString(interp, "list size must be a multiple of the stride length", -1);
+            return JIM_ERR;
+        }
+        /* Need to create a new list of lists for sorting */
+        tmpListObj = Jim_NewListObj(interp, NULL, 0);
+        Jim_IncrRefCount(tmpListObj);
+        for (i = 0; i < listlen; i += stride) {
+            Jim_ListAppendElement(interp, tmpListObj, Jim_NewListObj(interp, elements + i, stride));
+        }
+        retCode = ListSortElements(interp, tmpListObj, &info);
+        if (retCode == JIM_OK) {
+            resObj = Jim_NewListObj(interp, NULL, 0);
+            /* Now we need to unpack the result back into a flat list */
+            for (i = 0; i < listlen; i += stride) {
+                Jim_ListAppendList(interp, resObj, Jim_ListGetIndex(interp, tmpListObj, i / stride));
+            }
+            Jim_SetResult(interp, resObj);
+        }
+        Jim_DecrRefCount(interp, tmpListObj);
     }
-    else if (shared) {
-        Jim_FreeNewObj(interp, resObj);
+    else {
+        if ((shared = Jim_IsShared(resObj))) {
+            resObj = Jim_DuplicateObj(interp, resObj);
+        }
+        retCode = ListSortElements(interp, resObj, &info);
+        if (retCode == JIM_OK) {
+            Jim_SetResult(interp, resObj);
+        }
+        else if (shared) {
+            Jim_FreeNewObj(interp, resObj);
+        }
     }
     return retCode;
 }
