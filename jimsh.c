@@ -130,7 +130,9 @@ int main(int argc, char *const argv[])
             if (retcode != JIM_ERR) {
                 int len;
                 const char *msg = Jim_GetString(Jim_GetResult(interp), &len);
-                fwrite(msg, len, 1, stdout);
+                if (fwrite(msg, len, 1, stdout) == 0) {
+                    /* nothing */
+                }
                 putchar('\n');
             }
         }

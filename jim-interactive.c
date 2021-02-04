@@ -276,7 +276,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         }
         result = Jim_GetString(Jim_GetResult(interp), &reslen);
         if (reslen) {
-            fwrite(result, reslen, 1, stdout);
+            if (fwrite(result, reslen, 1, stdout) == 0) {
+                /* nothing */
+            }
             putchar('\n');
         }
     }

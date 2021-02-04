@@ -12966,6 +12966,8 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
                 /* Add the entire sublist directly for -all -stride > 1 */
                 ListInsertElements(listObjPtr, -1, stride,
                     searchListObj->internalRep.listValue.ele + offset);
+                /* Not necessary, but some compilers can't figure that out */
+                resultObj = NULL;
             }
             else {
                 resultObj = Jim_NewListObj(interp, searchListObj->internalRep.listValue.ele + offset, stride);
