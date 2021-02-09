@@ -22,7 +22,6 @@ proc class {classname {baseclasses {}} classvars} {
 
 	# Merge in the baseclass vars with lower precedence
 	set classvars [dict merge $baseclassvars $classvars]
-	set vars [lsort [dict keys $classvars]]
 
 	# This is the class dispatcher for $classname
 	# It simply dispatches 'classname cmd' to a procedure named {classname cmd}
@@ -73,7 +72,7 @@ proc class {classname {baseclasses {}} classvars} {
 		}
 	}
 	# Other simple class procs
-	proc "$classname vars" {} vars { return $vars }
+	proc "$classname vars" {} classvars { lsort [dict keys $classvars] }
 	proc "$classname classvars" {} classvars { return $classvars }
 	proc "$classname classname" {} classname { return $classname }
 	proc "$classname methods" {} classname {
@@ -84,9 +83,10 @@ proc class {classname {baseclasses {}} classvars} {
 	# Pre-defined some instance methods
 	$classname method destroy {} { rename $self "" }
 	$classname method get {var} { set $var }
-	$classname method eval {{locals {}} __code} {
-		foreach var $locals { upvar 2 $var $var }
-		eval $__code
+	$classname method eval {{__locals {}} __body} {
+		foreach __ $__locals { upvar 2 $__ $__ }
+		unset -nocomplain __
+		eval $__body
 	}
 	return $classname
 }
