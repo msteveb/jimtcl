@@ -40,8 +40,7 @@ proc class {classname {baseclasses {}} classvars} {
 
 		# This is the object dispatcher for $classname.
 		# Store the classname in both the ref value and tag, for debugging
-		# ref tag (for debugging)
-		set obj [ref $classname $classname "$classname finalize"]
+		set obj ::[ref $classname $classname "$classname finalize"]
 		proc $obj {method args} {classname instvars} {
 			if {![exists -command "$classname $method"]} {
 				if {![exists -command "$classname unknown"]} {
