@@ -4118,6 +4118,7 @@ static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Ob
 }
 
 /* memrchr() is not standard */
+#ifdef jim_ext_namespace
 static const char *Jim_memrchr(const char *p, int c, int len)
 {
     int i;
@@ -4128,6 +4129,7 @@ static const char *Jim_memrchr(const char *p, int c, int len)
     }
     return NULL;
 }
+#endif
 
 /**
  * If the command is a proc, sets/updates the cached namespace (nsObj)
