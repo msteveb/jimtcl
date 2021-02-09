@@ -64,11 +64,11 @@ foreach {mod attrs help} {
     history   {}                    {Tcl access to interactive history}
     interp    {}                    {Support for child interpreters}
     json      { optional }          {JSON decoder}
-    jsonencode { tcl optional }     {JSON encoder}
+    jsonencode { tcl off }          {JSON encoder}
     load      { static }            {Load binary extensions at runtime with load or package}
     mk        { cpp off }           {Interface to metakit}
     namespace { static }            {Tcl compatible namespace support}
-    nshelper  { tcl optional }      {}
+    nshelper  { tcl off }           {}
     oo        { tcl }               {Object Oriented class support}
     pack      {}                    {Low level binary pack and unpack}
     package   { static }            {Package management with the package command}
