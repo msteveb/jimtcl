@@ -64,6 +64,7 @@ Changes since 0.80
 7. Add support for `lsearch -index` and `lsearch -stride`, the latter per TIP 351
 8. `lsort -index` now supports multiple indices
 9. Add support for `lsort -stride`
+10. `open` now supports POSIX-style access arguments
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3505,6 +3506,41 @@ It may have any of the following values:
     to the end of the file.
 
 +'access'+ defaults to 'r'.
+
+Additionally, if POSIX mode is supported by the underlying system,
+then access may insted of consistent of a list of any of the following
+flags, all of which have the standard POSIX meanings. In this case,
+the first flag *must* be one of RDONLY, WRONLY or RDWR.
+
++RDONLY+::
+    Open the file for reading only.
+
++WRONLY+::
+    Open the file for writing only.
+
++RDWR+::
+    Open the file for both reading and writing.
+
++APPEND+::
+    Set the file pointer to the end of the file prior to each write.
+
++BINARY+::
+    Ignored.
+
++CREAT+::
+    Create the file if it does not already exist (without this flag
+    it  is  an  error for the file not to exist).
+
++EXCL+::
+    If CREAT is also specified, an error is returned if the file
+    already exists.
+
++NOCTTY+::
+    If  the  file is a terminal device, this flag prevents the file
+    from becoming the controlling terminal of the process.
+
++TRUNC+::
+    If the file exists it is truncated to zero length.
 
 If a file is opened for both reading and writing, then `seek`
 must be invoked between a read and a write, or vice versa.

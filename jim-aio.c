@@ -1853,8 +1853,9 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     const char *mode;
-    FILE *fh;
+    FILE *fh = NULL;
     const char *filename;
+    int fd = -1;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
@@ -1879,15 +1880,57 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         }
     }
 #endif
+#ifndef JIM_ANSIC
+    if (*mode == 'R' || *mode == 'W') {
+        /* POSIX flags */
+        static const char * const modetypes[] = {
+            "RDONLY", "WRONLY", "RDWR", "APPEND", "BINARY", "CREAT", "EXCL", "NOCTTY", "TRUNC", NULL
+        };
+        static const char * const simplemodes[] = {
+            "r", "w", "w+"
+        };
+        static const int modeflags[] = {
+            O_RDONLY, O_WRONLY, O_RDWR, O_APPEND, 0, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC,
+        };
+        int posixflags = 0;
+        int len = Jim_ListLength(interp, argv[2]);
+        int i;
+        int opt;
 
-    fh = fopen(filename, mode);
+        mode = NULL;
+
+        for (i = 0; i < len; i++) {
+            Jim_Obj *objPtr = Jim_ListGetIndex(interp, argv[2], i);
+            if (Jim_GetEnum(interp, objPtr, modetypes, &opt, "access mode", JIM_ERRMSG) != JIM_OK) {
+                return JIM_ERR;
+            }
+            if (opt < 3) {
+                mode = simplemodes[opt];
+            }
+            posixflags |= modeflags[opt];
+        }
+        /* mode must be set here if it started with 'R' or 'W' and passed the enum check above */
+        assert(mode);
+        fd = open(filename, posixflags, 0666);
+        if (fd >= 0) {
+            fh = fdopen(fd, mode);
+            if (fh == NULL) {
+                close(fd);
+            }
+        }
+    }
+    else
+#endif
+    {
+        fh = fopen(filename, mode);
+    }
 
     if (fh == NULL) {
         JimAioSetError(interp, argv[1]);
         return JIM_ERR;
     }
 
-    return JimMakeChannel(interp, fh, -1, argv[1], "aio.handle%ld", 0, mode, 0) ? JIM_OK : JIM_ERR;
+    return JimMakeChannel(interp, fh, fd, argv[1], "aio.handle%ld", 0, mode, 0) ? JIM_OK : JIM_ERR;
 }
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)

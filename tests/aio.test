@@ -2,6 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 testCmdConstraints socket
+testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
 
 # Create and open in binary mode for compatibility between Windows and Unix
 set f [open testdata.in wb]
@@ -11,6 +12,7 @@ set f [open testdata.in rb]
 
 defer {
 	$f close
+	file delete testdata.in
 }
 
 test aio-1.1 {seek usage} -body {
@@ -125,5 +127,33 @@ test aio-7.3 {close -nodelete on non-socket} -constraints socket -body {
 test aio-8.1 {filename} {
 	$f filename
 } testdata.in
+
+test aio-9.1 {open: posix modes} -constraints unix -body {
+	set in [open testdata.in RDONLY]
+	set buf [$in gets]
+	$in close
+	set buf
+} -result {test-data}
+
+test aio-9.2 {open: posix modes, bad modes} -constraints unix -body {
+	open testdata.in {CREAT TRUNC}
+} -returnCodes error -result {testdata.in: Invalid argument}
+
+test aio-9.3 {open: posix modes, bad modes} -constraints unix -body {
+	open testdata.in {WRONG TRUNC}
+} -returnCodes error -result {bad access mode "WRONG": must be APPEND, BINARY, CREAT, EXCL, NOCTTY, RDONLY, RDWR, TRUNC, or WRONLY}
+
+test aio-9.4 {open: posix modes} -constraints unix -cleanup {
+	file delete testdata.out
+} -body {
+	set out [open testdata.out {WRONLY CREAT TRUNC}]
+	$out puts write-data
+	$out close
+	# Now open for readwrite without truncate
+	set io [open testdata.out {RDWR CREAT}]
+	set buf [$io gets]
+	$io close
+	set buf
+} -result {write-data}
 
 testreport
