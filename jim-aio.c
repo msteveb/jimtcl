@@ -1853,17 +1853,19 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     const char *mode;
+    FILE *fh;
+    const char *filename;
 
     if (argc != 2 && argc != 3) {
         Jim_WrongNumArgs(interp, 1, argv, "filename ?mode?");
         return JIM_ERR;
     }
 
+    filename = Jim_String(argv[1]);
     mode = (argc == 3) ? Jim_String(argv[2]) : "r";
 
 #ifdef jim_ext_tclcompat
     {
-        const char *filename = Jim_String(argv[1]);
 
         /* If the filename starts with '|', use popen instead */
         if (*filename == '|') {
@@ -1877,7 +1879,15 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         }
     }
 #endif
-    return JimMakeChannel(interp, NULL, -1, argv[1], "aio.handle%ld", 0, mode, 0) ? JIM_OK : JIM_ERR;
+
+    fh = fopen(filename, mode);
+
+    if (fh == NULL) {
+        JimAioSetError(interp, argv[1]);
+        return JIM_ERR;
+    }
+
+    return JimMakeChannel(interp, fh, -1, argv[1], "aio.handle%ld", 0, mode, 0) ? JIM_OK : JIM_ERR;
 }
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -1913,48 +1923,40 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
  * Creates a channel for fh/fd/filename.
  *
  * If fh is not NULL, uses that as the channel (and sets AIO_KEEPOPEN).
- * Otherwise, if fd is >= 0, uses that as the channel.
- * Otherwise opens 'filename' with mode 'mode'.
+ * Otherwise fd must be >= 0, in which case it uses that as the channel.
  *
  * hdlfmt is a sprintf format for the filehandle. Anything with %ld at the end will do.
  * mode is used for open or fdopen.
  *
  * Creates the command and sets the name as the current result.
- * Returns the AioFile pointer on sucess or NULL on failure.
+ * Returns the AioFile pointer on sucess or NULL on failure (only if fdopen fails).
  */
 static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, const char *mode, int flags)
 {
     AioFile *af;
     char buf[AIO_CMD_LEN];
-
-    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
-    if (!filename) {
-        filename = Jim_NewStringObj(interp, buf, -1);
-    }
-
-    Jim_IncrRefCount(filename);
+    Jim_Obj *cmdname;
 
     if (fh == NULL) {
-        if (fd >= 0) {
+        assert(fd >= 0);
 #ifndef JIM_ANSIC
-            fh = fdopen(fd, mode);
-#endif
-        }
-        else
-            fh = fopen(Jim_String(filename), mode);
+        fh = fdopen(fd, mode);
 
         if (fh == NULL) {
             JimAioSetError(interp, filename);
-#ifndef JIM_ANSIC
-            if (fd >= 0) {
-                close(fd);
-            }
-#endif
-            Jim_DecrRefCount(interp, filename);
+            close(fd);
             return NULL;
         }
+#endif
     }
+
+    snprintf(buf, sizeof(buf), hdlfmt, Jim_GetId(interp));
+    cmdname = Jim_NewStringObj(interp, buf, -1);
+    if (!filename) {
+        filename = cmdname;
+    }
+    Jim_IncrRefCount(filename);
 
     /* Create the file command */
     af = Jim_Alloc(sizeof(*af));
@@ -1979,7 +1981,7 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, FILE *fh, int fd, Jim_Obj *fi
     /* Note that the command must use the global namespace, even if
      * the current namespace is something different
      */
-    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
+    Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, cmdname));
 
     return af;
 }
