@@ -81,13 +81,14 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
     else {
-        args = Jim_Alloc(sizeof(*args) * argc - 1);
-        arglens = Jim_Alloc(sizeof(*arglens) * argc - 1);
-        for (i = 1; i < argc; i++) {
-            args[i - 1] = Jim_String(argv[i]);
-            arglens[i - 1] = Jim_Length(argv[i]);
+        int nargs = argc - 1;
+        args = Jim_Alloc(sizeof(*args) * nargs);
+        arglens = Jim_Alloc(sizeof(*arglens) * nargs);
+        for (i = 0; i < nargs; i++) {
+            args[i] = Jim_String(argv[i + 1]);
+            arglens[i] = Jim_Length(argv[i + 1]);
         }
-        reply = redisCommandArgv(c, argc - 1, args, arglens);
+        reply = redisCommandArgv(c, nargs, args, arglens);
         Jim_Free(args);
         Jim_Free(arglens);
     }
