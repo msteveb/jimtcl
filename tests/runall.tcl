@@ -11,13 +11,13 @@ set testdir [file dirname [info script]]
 catch {package require interp}
 
 if {[info commands interp] eq ""} {
-	set rc 1
+	set rc 0
 	foreach script [lsort [glob $testdir/*.test]] {
 		if {[catch {
 			exec [info nameofexecutable] $script >@stdout 2>@stderr
-			set rc 0
 		} msg opts]} {
 			puts "Failed: $script"
+			set rc 1
 		}
 	}
 	exit $rc
