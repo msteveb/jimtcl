@@ -1883,6 +1883,10 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
 #ifndef JIM_ANSIC
     if (*mode == 'R' || *mode == 'W') {
         /* POSIX flags */
+        #ifndef O_NOCTTY
+            /* mingw doesn't support this flag */
+            #define O_NOCTTY 0
+        #endif
         static const char * const modetypes[] = {
             "RDONLY", "WRONLY", "RDWR", "APPEND", "BINARY", "CREAT", "EXCL", "NOCTTY", "TRUNC", NULL
         };
