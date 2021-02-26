@@ -2,7 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 testCmdConstraints socket
-testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
+testConstraint posixaio [expr {$tcl_platform(platform) eq {unix} && !$tcl_platform(bootstrap)}]
 
 # Create and open in binary mode for compatibility between Windows and Unix
 set f [open testdata.in wb]
@@ -128,22 +128,22 @@ test aio-8.1 {filename} {
 	$f filename
 } testdata.in
 
-test aio-9.1 {open: posix modes} -constraints unix -body {
+test aio-9.1 {open: posix modes} -constraints posixaio -body {
 	set in [open testdata.in RDONLY]
 	set buf [$in gets]
 	$in close
 	set buf
 } -result {test-data}
 
-test aio-9.2 {open: posix modes, bad modes} -constraints unix -body {
+test aio-9.2 {open: posix modes, bad modes} -constraints posixaio -body {
 	open testdata.in {CREAT TRUNC}
 } -returnCodes error -result {testdata.in: Invalid argument}
 
-test aio-9.3 {open: posix modes, bad modes} -constraints unix -body {
+test aio-9.3 {open: posix modes, bad modes} -constraints posixaio -body {
 	open testdata.in {WRONG TRUNC}
 } -returnCodes error -result {bad access mode "WRONG": must be APPEND, BINARY, CREAT, EXCL, NOCTTY, RDONLY, RDWR, TRUNC, or WRONLY}
 
-test aio-9.4 {open: posix modes} -constraints unix -cleanup {
+test aio-9.4 {open: posix modes} -constraints posixaio -cleanup {
 	file delete testdata.out
 } -body {
 	set out [open testdata.out {WRONLY CREAT TRUNC}]
