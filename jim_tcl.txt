@@ -1139,6 +1139,7 @@ and POSIX are highlighted below.
 7. Support for the +?+ non-greedy quantifier. e.g. +*?+
 8. Support for non-capturing parentheses +(?:...)+
 9. Jim Tcl considers that both patterns and strings end at a null character (+\x00+)
+10. Jim Tcl does not support back references. e.g. +{backslash}1+
 
 STRING MATCHING
 ---------------
