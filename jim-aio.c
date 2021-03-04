@@ -460,12 +460,16 @@ static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union s
     memset(&req, '\0', sizeof(req));
     req.ai_family = PF_INET6;
 
-    if (getaddrinfo(sthost, stport, &req, &ai)) {
+    if (getaddrinfo(sthost, stport, &req, &ai) &&
+        getaddrinfo(sthost, NULL, &req, &ai)) {
         Jim_SetResultFormatted(interp, "Not a valid address: %s:%s", sthost, stport);
         ret = JIM_ERR;
     }
     else {
         memcpy(&sa->sin6, ai->ai_addr, ai->ai_addrlen);
+	if (!sa->sin.sin_port)
+	    sa->sin.sin_port = htons(atoi(stport));
+
         *salen = ai->ai_addrlen;
         freeaddrinfo(ai);
     }
@@ -508,11 +512,15 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
     memset(&req, '\0', sizeof(req));
     req.ai_family = PF_INET;
 
-    if (getaddrinfo(sthost, stport, &req, &ai)) {
+    if (getaddrinfo(sthost, stport, &req, &ai) &&
+        getaddrinfo(sthost, NULL, &req, &ai)) {
         ret = JIM_ERR;
     }
     else {
         memcpy(&sa->sin, ai->ai_addr, ai->ai_addrlen);
+	if (!sa->sin.sin_port)
+	    sa->sin.sin_port = htons(atoi(stport));
+
         *salen = ai->ai_addrlen;
         freeaddrinfo(ai);
     }
