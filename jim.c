@@ -16077,6 +16077,7 @@ static const struct {
     {"string", Jim_StringCoreCommand},
     {"time", Jim_TimeCoreCommand},
     {"exit", Jim_ExitCoreCommand},
+    {"quit", Jim_ExitCoreCommand},
     {"catch", Jim_CatchCoreCommand},
     {"try", Jim_TryCoreCommand},
 #ifdef JIM_REFERENCES
