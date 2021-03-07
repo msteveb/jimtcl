@@ -3671,6 +3671,12 @@ pwd
 
 Returns the path name of the current working directory.
 
+quit
+~~~~
++*quit*+
+
+Synonym for `exit`.
+
 rand
 ~~~~
 +*rand* '?min? ?max?'+
