@@ -415,7 +415,7 @@ static void freeaddrinfo(struct addrinfo *ai)
 }
 #endif
 
-static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, socklen_t *salen)
+static int JimParseIPv6Address(Jim_Interp *interp, int socktype, const char *hostport, union sockaddr_any *sa, socklen_t *salen)
 {
 #if IPV6
     /*
@@ -459,6 +459,7 @@ static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union s
 
     memset(&req, '\0', sizeof(req));
     req.ai_family = PF_INET6;
+    req.ai_socktype = socktype;
 
     if (getaddrinfo(sthost, stport, &req, &ai)) {
         Jim_SetResultFormatted(interp, "Not a valid address: %s:%s", sthost, stport);
@@ -478,7 +479,7 @@ static int JimParseIPv6Address(Jim_Interp *interp, const char *hostport, union s
 #endif
 }
 
-static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union sockaddr_any *sa, socklen_t *salen)
+static int JimParseIpAddress(Jim_Interp *interp, int socktype, const char *hostport, union sockaddr_any *sa, socklen_t *salen)
 {
     /* An IPv4 addr/port looks like:
      *   192.168.1.5
@@ -507,6 +508,7 @@ static int JimParseIpAddress(Jim_Interp *interp, const char *hostport, union soc
 
     memset(&req, '\0', sizeof(req));
     req.ai_family = PF_INET;
+    req.ai_socktype = socktype;
 
     if (getaddrinfo(sthost, stport, &req, &ai)) {
         ret = JIM_ERR;
@@ -536,7 +538,7 @@ static int JimParseDomainAddress(Jim_Interp *interp, const char *path, union soc
 }
 #endif
 
-static int JimParseSocketAddress(Jim_Interp *interp, int family, const char *addr, union sockaddr_any *sa, socklen_t *salen)
+static int JimParseSocketAddress(Jim_Interp *interp, int family, int socktype, const char *addr, union sockaddr_any *sa, socklen_t *salen)
 {
     switch (family) {
 #if UNIX_SOCKETS
@@ -544,9 +546,9 @@ static int JimParseSocketAddress(Jim_Interp *interp, int family, const char *add
             return JimParseDomainAddress(interp, addr, sa, salen);
 #endif
         case PF_INET6:
-            return JimParseIPv6Address(interp, addr, sa, salen);
+            return JimParseIPv6Address(interp, socktype, addr, sa, salen);
         case PF_INET:
-            return JimParseIpAddress(interp, addr, sa, salen);
+            return JimParseIpAddress(interp, socktype, addr, sa, salen);
     }
     return JIM_ERR;
 }
@@ -992,7 +994,7 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *addr = Jim_String(argv[1]);
     socklen_t salen;
 
-    if (JimParseSocketAddress(interp, af->addr_family, addr, &sa, &salen) != JIM_OK) {
+    if (JimParseSocketAddress(interp, af->addr_family, SOCK_DGRAM, addr, &sa, &salen) != JIM_OK) {
         return JIM_ERR;
     }
     wdata = Jim_GetString(argv[0], &wlen);
@@ -2295,7 +2297,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     if (bind_addr) {
-        if (JimParseSocketAddress(interp, family, bind_addr, &sa, &salen) != JIM_OK) {
+        if (JimParseSocketAddress(interp, family, type, bind_addr, &sa, &salen) != JIM_OK) {
             close(sock);
             return JIM_ERR;
         }
@@ -2309,7 +2311,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
     if (connect_addr) {
-        if (JimParseSocketAddress(interp, family, connect_addr, &sa, &salen) != JIM_OK) {
+        if (JimParseSocketAddress(interp, family, type, connect_addr, &sa, &salen) != JIM_OK) {
             close(sock);
             return JIM_ERR;
         }
