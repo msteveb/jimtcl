@@ -32,7 +32,7 @@ test debug-2.2 {debug objcount too many args} -body {
 } -returnCodes error -result {wrong # args: should be "debug objcount"}
 
 test debug-3.1 {debug objects} -body {
-    expr [llength [debug objects]] > 1000
+    expr {[llength [debug objects]] > 1000}
 } -result {1}
 
 # does not currently check for too many args
