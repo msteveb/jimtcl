@@ -4006,8 +4006,14 @@ static Jim_Obj *JimQualifyName(Jim_Interp *interp, Jim_Obj *objPtr)
 /**
  * Add the command to the commands hash table
  */
-static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cmd)
+static void JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cmd)
 {
+    /* If the entry already exists, nameObjPtr will not be used,
+     * so the refCount of nameObjPtr can't be zero, relying on this function to
+     * release it in that case.
+     */
+    JimPanic((nameObjPtr->refCount == 0, "JimCreateCommand called with zero ref count name"));
+
     /* It may already exist, so we try to delete the old one.
      * Note that reference count means that it won't be deleted yet if
      * it exists in the call stack.
@@ -4023,7 +4029,7 @@ static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cm
             Jim_SetHashVal(&interp->commands, he, cmd);
             /* Need to increment the proc epoch here so that the new command will be used */
             Jim_InterpIncrProcEpoch(interp);
-            return JIM_OK;
+            return;
         }
     }
 
@@ -4033,7 +4039,7 @@ static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cm
      * existing command that is replace will be held as a negative cache entry
      * until the next time the proc epoch is incremented.
      */
-    return Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
+    Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
 }
 
 int Jim_CreateCommandObj(Jim_Interp *interp, Jim_Obj *cmdNameObj,
@@ -4048,7 +4054,9 @@ int Jim_CreateCommandObj(Jim_Interp *interp, Jim_Obj *cmdNameObj,
     cmdPtr->u.native.cmdProc = cmdProc;
     cmdPtr->u.native.privData = privData;
 
+    Jim_IncrRefCount(cmdNameObj);
     JimCreateCommand(interp, cmdNameObj, cmdPtr);
+    Jim_DecrRefCount(interp, cmdNameObj);
 
     return JIM_OK;
 }
