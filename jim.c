@@ -4033,7 +4033,10 @@ static int JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *cm
      * existing command that is replace will be held as a negative cache entry
      * until the next time the proc epoch is incremented.
      */
-    return Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
+    Jim_IncrRefCount(nameObjPtr);
+    Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
+    Jim_DecrRefCount(interp, nameObjPtr);
+    return JIM_OK;
 }
 
 int Jim_CreateCommandObj(Jim_Interp *interp, Jim_Obj *cmdNameObj,
