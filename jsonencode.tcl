@@ -21,80 +21,73 @@
 # Top level JSON encoder which encodes the given
 # value based on the schema
 proc json::encode {value {schema str}} {
-	json::encode.[lindex $schema 0] $value [lrange $schema 1 end]
+	json::subencode [lindex $schema 0] $value [lrange $schema 1 end]
 }
 
-# Encode a string
-proc json::encode.str {value {dummy {}}} {
-	# Strictly we should be converting \x00 through \x1F to unicode escapes
-	# And anything outside the BMP to a UTF-16 surrogate pair
-	return \"[string map [list \\ \\\\ \" \\" \f \\f \n \\n / \\/ \b \\b \r \\r \t \\t] $value]\"
-}
-
-# If no type is given, also encode as a string
-proc json::encode. {args} {
-	tailcall json::encode.str {*}$args
-}
-
-# Encode a number
-proc json::encode.num {value {dummy {}}} {
-	if {$value in {Inf -Inf}} {
-		append value inity
-	}
-	return $value
-}
-
-# Encode a boolean
-proc json::encode.bool {value {dummy {}}} {
-	if {$value} {
-		return true
-	}
-	return false
-}
-
-# Encode an object (dictionary)
-proc json::encode.obj {obj {schema {}}} {
-	set result "\{"
-	set sep " "
-	foreach k [lsort [dict keys $obj]] {
-		if {[dict exists $schema $k]} {
-			set type [dict get $schema $k]
-		} elseif {[dict exists $schema *]} {
-			set type [dict get $schema *]
-		} else {
-			set type str
+# encode the value according to to the given type
+proc json::subencode {type value {schema {}}} {
+	switch -exact -- $type {
+		str - "" {
+			# Strictly we should be converting \x00 through \x1F to unicode escapes
+			# And anything outside the BMP to a UTF-16 surrogate pair
+			return \"[string map [list \\ \\\\ \" \\" \f \\f \n \\n / \\/ \b \\b \r \\r \t \\t] $value]\"
 		}
-		append result $sep\"$k\":
+		num {
+			if {$value in {Inf -Inf}} {
+				append value inity
+			}
+			return $value
+		}
+		bool {
+			if {$value} {
+				return true
+			}
+			return false
+		}
+		obj {
+			set result "\{"
+			set sep " "
+			foreach k [lsort [dict keys $value]] {
+				if {[dict exists $schema $k]} {
+					set subtype [dict get $schema $k]
+				} elseif {[dict exists $schema *]} {
+					set subtype [dict get $schema *]
+				} else {
+					set subtype str
+				}
+				append result $sep\"$k\":
 
-		append result [json::encode.[lindex $type 0] [dict get $obj $k] [lrange $type 1 end]]
-		set sep ", "
+				append result [json::subencode [lindex $subtype 0] [dict get $value $k] [lrange $subtype 1 end]]
+				set sep ", "
+			}
+			append result " \}"
+			return $result
+		}
+		list {
+			set result "\["
+			set sep " "
+			foreach l $value {
+				append result $sep
+				append result [json::subencode [lindex $schema 0] $l [lrange $schema 1 end]]
+				set sep ", "
+			}
+			append result " \]"
+			return $result
+		}
+		mixed {
+			set result "\["
+			set sep " "
+			foreach l $value subtype $schema {
+				append result $sep
+				append result [json::subencode [lindex $subtype 0] $l [lrange $subtype 1 end]]
+				set sep ", "
+			}
+			append result " \]"
+		}
+		default {
+			error "bad type $type"
+		}
 	}
-	append result " \}"
-}
-
-# Encode an array (list)
-proc json::encode.list {list {type str}} {
-	set result "\["
-	set sep " "
-	foreach l $list {
-		append result $sep
-		append result [json::encode.[lindex $type 0] $l [lrange $type 1 end]]
-		set sep ", "
-	}
-	append result " \]"
-}
-
-# Encode a mixed-type array (list)
-# Must be as many types as there are elements of the list
-proc json::encode.mixed {list types} {
-	set result "\["
-	set sep " "
-	foreach l $list type $types {
-		append result $sep
-		append result [json::encode.[lindex $type 0] $l [lrange $type 1 end]]
-		set sep ", "
-	}
-	append result " \]"
 }
 
 # vim: se ts=4:
