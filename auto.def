@@ -21,6 +21,7 @@ options {
     maintainer      => {Enable the [debug] command and JimPanic}
     full            => "Enable some optional features: ipv6, ssl, math, utf8, and some extensions (see --extinfo)"
     allextmod       => "Enable all non-default extensions as modules if prerequisites are found"
+    compat          => "Enable some backward compatibility behaviour"
     extinfo         => "Show information about available extensions"
     with-jim-shared shared => "Build a shared library instead of a static library"
     jim-regexp=1    => "Prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
@@ -431,6 +432,10 @@ if {[opt-bool-or-full lineedit]} {
 if {[opt-bool references]} {
     msg-result "Enabling references"
     define JIM_REFERENCES
+}
+if {[opt-bool compat]} {
+    msg-result "Enabling compatibility mode"
+    define JIM_COMPAT
 }
 if {[opt-bool shared with-jim-shared]} {
     msg-result "Building shared library"

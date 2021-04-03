@@ -65,7 +65,7 @@ Changes since 0.80
 8. `lsort -index` now supports multiple indices
 9. Add support for `lsort -stride`
 10. `open` now supports POSIX-style access arguments
-11. TIP 526, `expr` now only allows a single argument
+11. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
