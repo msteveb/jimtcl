@@ -132,7 +132,7 @@ uninstall:
 @endif
 
 test check: $(JIMSH)
-	$(DEF_LD_PATH) $(MAKE) -C tests jimsh=@builddir@/jimsh
+	$(DEF_LD_PATH) $(MAKE) -C tests jimsh="@builddir@/jimsh"
 
 $(OBJS) jimsh.o initjimsh.o: Makefile $(wildcard *.h)
 

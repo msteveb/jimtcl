@@ -42,7 +42,7 @@ if {[info commands interp] eq ""} {
 			}
 
 			# Run the test
-			catch -exit {$i eval source $script} msg opts
+			catch -exit [list $i eval [list source $script]] msg opts
 			if {[info returncode $opts(-code)] eq "error"} {
 				puts [format "%16s:   --- error ($msg)" $script]
 				incr total(fail)

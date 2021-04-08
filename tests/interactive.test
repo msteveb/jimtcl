@@ -12,7 +12,7 @@ set env(HOME) [pwd]
 file delete .jim_history
 
 # spawn the process to be used for testing
-set p [expect::spawn [info nameofexecutable]]
+set p [expect::spawn [list [info nameofexecutable]]]
 
 set env $saveenv
 

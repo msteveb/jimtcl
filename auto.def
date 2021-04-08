@@ -296,7 +296,7 @@ switch -glob -- $host_os {
 
 # Find some tools
 cc-check-tools ar ranlib strip
-define tclsh [info nameofexecutable]
+define tclsh [quote-if-needed [info nameofexecutable]]
 
 # We only support silent-rules for GNU Make
 define NO_SILENT_RULES

@@ -1,13 +1,11 @@
 jimsh ?= ../jimsh
 tclsh ?= tclsh
 
-DEF_LD_PATH := @LD_LIBRARY_PATH@="@builddir@:$(@LD_LIBRARY_PATH@)"
-
 test:
-	@$(DEF_LD_PATH) $(jimsh) @abs_top_srcdir@/tests/runall.tcl
+	@LD_LIBRARY_PATH="@builddir@:$(@LD_LIBRARY_PATH@)" "$(jimsh)" "@abs_top_srcdir@/tests/runall.tcl"
 
 tcl:
-	@rc=0; for i in @abs_top_srcdir@/tests/*.test; do $(tclsh) -encoding utf-8 $$i || rc=$?; done; exit $$rc
+	@rc=0; for i in "@abs_top_srcdir@"/tests/*.test; do "$(tclsh)" -encoding utf-8 $$i || rc=$?; done; exit $$rc
 
 clean:
 	rm -f gorp.file2 gorp.file sleepx test1 exec.tmp1
