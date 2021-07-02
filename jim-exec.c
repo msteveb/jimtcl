@@ -1046,17 +1046,17 @@ badargs:
         if (pid == 0) {
             /* Child */
             /* Set up stdin, stdout, stderr */
-            if (inputId != -1) {
+            if (inputId != -1 && inputId != fileno(stdin)) {
                 dup2(inputId, fileno(stdin));
                 close(inputId);
             }
-            if (outputId != -1) {
+            if (outputId != -1 && outputId != fileno(stdout)) {
                 dup2(outputId, fileno(stdout));
                 if (outputId != errorId) {
                     close(outputId);
                 }
             }
-            if (errorId != -1) {
+            if (errorId != -1 && errorId != fileno(stderr)) {
                 dup2(errorId, fileno(stderr));
                 close(errorId);
             }
