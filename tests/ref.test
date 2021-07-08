@@ -1,0 +1,24 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+needs cmd ref
+needs cmd collect
+
+test collect-1.1 {ensure globally scoped references are deleted} {
+	collect
+	set result {}
+
+	# Create a globally scoped reference as a function name
+	set a ::[ref testfunction -]
+	proc $a {} { return 3 }
+	lappend result [$a]
+	# It shouldn't be collected
+	lappend result [collect]
+	lappend result [$a]
+	unset a
+	# Now it should be collected
+	lappend result [collect]
+	set result
+} {3 0 3 1}
+
+testreport
