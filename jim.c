@@ -5505,6 +5505,14 @@ int Jim_Collect(Jim_Interp *interp)
                 continue;
             }
 
+            /* If the string is ::<reference we need to skip over the :: when doing the
+             * comparison
+             */
+            if (str[0] == ':' && str[1] == ':') {
+                str +=2;
+                len -= 2;
+            }
+
             /* Extract references from the object string repr. */
             while (1) {
                 int i;
@@ -5526,9 +5534,9 @@ int Jim_Collect(Jim_Interp *interp)
                 /* Ok, a reference for the given ID
                  * was found. Mark it. */
 
-                 /* But if this is a command in the command table with refCount 1
-                  * don't mark it since it can be deleted.
-                  */
+                /* But if this is a command in the command table with refCount 1
+                 * don't mark it since it can be deleted.
+                 */
                 if (p == str && objPtr->refCount == 1 && Jim_FindHashEntry(&interp->commands, objPtr)) {
 #ifdef JIM_DEBUG_GC
                     printf("No MARK: %lu - command with refcount=1\n", id);
