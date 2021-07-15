@@ -1818,8 +1818,8 @@ static const jim_subcmd_type aio_command_table[] = {
     },
 #endif
 #if defined(HAVE_STRUCT_FLOCK)
-    {   "lock ?-wait?",
-        NULL,
+    {   "lock",
+        "?-wait?",
         aio_cmd_lock,
         0,
         1,
