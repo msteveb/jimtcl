@@ -66,6 +66,7 @@ Changes since 0.80
 9. Add support for `lsort -stride`
 10. `open` now supports POSIX-style access arguments
 11. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
+12. TIP 603, `aio stat` is now support to stat a file handle
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4951,6 +4952,10 @@ aio
 
 +$handle *sockname*+::
     Returns the bound address or path of the socket. See 'getsockname(2)'.
+
++$handle *stat* ?varName?+::
+    Implements the same functionality as `file stat` for a filehandle.
+    Only available on platforms that support 'fstat(2)' or equivalent.
 
 +$handle *sockopt* '?name value?'+::
     With no arguments, returns a dictionary of socket options currently set for the handle

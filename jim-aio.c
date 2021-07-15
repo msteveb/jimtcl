@@ -121,6 +121,7 @@
 /* no fdopen() with ANSIC, so can't support these */
 #undef HAVE_PIPE
 #undef HAVE_SOCKETPAIR
+#undef Jim_FileStat
 #endif
 
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
@@ -1399,6 +1400,20 @@ static int aio_cmd_onexception(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 }
 #endif
 
+#if defined(jim_ext_file) && defined(Jim_FileStat)
+static int aio_cmd_stat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    jim_stat_t sb;
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    if (Jim_FileStat(af->fd, &sb) == -1) {
+        JimAioSetError(interp, NULL);
+        return JIM_ERR;
+    }
+    return Jim_FileStoreStatData(interp, argc == 0 ? NULL : argv[0], &sb);
+}
+#endif
+
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
 static int aio_cmd_ssl(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -1776,6 +1791,15 @@ static const jim_subcmd_type aio_command_table[] = {
         1,
         /* Description: Sets buffering */
     },
+#if defined(jim_ext_file) && defined(Jim_FileStat)
+    {   "stat",
+        "?var?",
+        aio_cmd_stat,
+        0,
+        1,
+        /* Description: 'file stat' on the open file */
+    },
+#endif
 #ifdef jim_ext_eventloop
     {   "readable",
         "?readable-script?",
