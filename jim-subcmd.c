@@ -26,30 +26,49 @@ static const jim_subcmd_type dummy_subcmd = {
     "dummy", NULL, subcmd_null, 0, 0, JIM_MODFLAG_HIDDEN
 };
 
-static void add_commands(Jim_Interp *interp, const jim_subcmd_type * ct, const char *sep)
+/* Creates and returns a string (object) of each non-hidden command in 'ct',
+ * sorted and separated with the given separator string.
+ *
+ * For example, if there are two commands, "def" and "abc", with a separator of "; ",
+ * the returned string will be "abc; def"
+ *
+ * The returned object has a reference count of 0.
+ */
+static Jim_Obj *subcmd_cmd_list(Jim_Interp *interp, const jim_subcmd_type * ct, const char *sep)
 {
-    const char *s = "";
+    /* Create a list to sort before joining */
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+    Jim_Obj *sortCmd[2];
 
     for (; ct->cmd; ct++) {
         if (!(ct->flags & JIM_MODFLAG_HIDDEN)) {
-            Jim_AppendStrings(interp, Jim_GetResult(interp), s, ct->cmd, NULL);
-            s = sep;
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, ct->cmd, -1));
         }
     }
+
+    /* There is no direct API to sort a list, so just invoke lsort here. */
+    sortCmd[0] = Jim_NewStringObj(interp, "lsort", -1);
+    sortCmd[1] = listObj;
+    /* Leaves the result in the interpreter result */
+    if (Jim_EvalObjVector(interp, 2, sortCmd) == JIM_OK) {
+        return Jim_ListJoin(interp, Jim_GetResult(interp), sep, strlen(sep));
+    }
+    /* lsort can't really fail (normally), but if it does, just return the error as the result */
+    return Jim_GetResult(interp);
 }
 
 static void bad_subcmd(Jim_Interp *interp, const jim_subcmd_type * command_table, const char *type,
     Jim_Obj *cmd, Jim_Obj *subcmd)
 {
-    Jim_SetResultFormatted(interp, "%#s, %s command \"%#s\": should be ", cmd, type, subcmd);
-    add_commands(interp, command_table, ", ");
+    Jim_SetResultFormatted(interp, "%#s, %s command \"%#s\": should be %#s", cmd, type,
+        subcmd, subcmd_cmd_list(interp, command_table, ", "));
 }
 
 static void show_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * command_table, int argc,
     Jim_Obj *const *argv)
 {
-    Jim_SetResultFormatted(interp, "Usage: \"%#s command ... \", where command is one of: ", argv[0]);
-    add_commands(interp, command_table, ", ");
+    Jim_SetResultFormatted(interp, "Usage: \"%#s command ... \", where command is one of: %#s",
+        argv[0], subcmd_cmd_list(interp, command_table, ", "));
 }
 
 static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Obj *cmd)
@@ -123,9 +142,7 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
 
     /* Check for special builtin '-commands' command first */
     if (Jim_CompareStringImmediate(interp, cmd, "-commands")) {
-        /* Build the result here */
-        Jim_SetResult(interp, Jim_NewEmptyStringObj(interp));
-        add_commands(interp, command_table, " ");
+        Jim_SetResult(interp, subcmd_cmd_list(interp, command_table, " "));
         return &dummy_subcmd;
     }
 
