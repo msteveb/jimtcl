@@ -8,8 +8,10 @@ testConstraint filelstat [string match "wrong # args:*" $msg]
 testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
 if {[testConstraint jim]} {
 	testConstraint mtimeset [expr {!$tcl_platform(bootstrap)}]
+	testConstraint aiostat [expr {!$tcl_platform(bootstrap)}]
 } else {
 	testConstraint mtimeset 1
+	testConstraint aiostat 0
 }
 
 test join-1.1 "One name" {
@@ -170,6 +172,22 @@ test stat-1.7 {file stat no variable} jim {
 	set a [file stat [info script]]
 	set a(type)
 } {file}
+
+test aio-stat-1.1 {file stat via an open file descriptor} {jim aiostat} {
+	set filename [info script]
+	set fstat [file stat $filename]
+	set f [open $filename]
+	set aiostat [$f stat]
+	$f close
+	set ok 1
+	foreach field {size type mode mtime} {
+		if {$fstat($field) != $aiostat($field)} {
+			puts "error: $field: file stat:$fstat($field) != aio stat:$aiostat($field)"
+			set ok 0
+		}
+	}
+	set ok
+} {1}
 
 test ext-1.1 {file ext} -body {
 	file ext

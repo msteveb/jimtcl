@@ -67,10 +67,12 @@ int Jim_OpenForRead(const char *filename);
 
     typedef struct _stat64 jim_stat_t;
     #define Jim_Stat __stat64
+    #define Jim_FileStat _fstat64
 
 #else
     typedef struct stat jim_stat_t;
     #define Jim_Stat stat
+    #define Jim_FileStat fstat
 
     #if defined(HAVE_UNISTD_H)
         #include <unistd.h>
@@ -88,5 +90,11 @@ int Jim_OpenForRead(const char *filename);
         #endif
     #endif
 #endif
+
+/* jim-file.c */
+/* Note that this is currently an internal function only.
+ * It does not form part of the public Jim API
+ */
+int Jim_FileStoreStatData(Jim_Interp *interp, Jim_Obj *varName, const jim_stat_t *sb);
 
 #endif
