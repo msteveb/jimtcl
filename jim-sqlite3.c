@@ -212,7 +212,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
                         vObj = nullStrObj;
                         break;
                     case SQLITE_INTEGER:
-                        vObj = Jim_NewIntObj(interp, sqlite3_column_int(stmt, i));
+                        vObj = Jim_NewIntObj(interp, sqlite3_column_int64(stmt, i));
                         break;
                     case SQLITE_FLOAT:
                         vObj = Jim_NewDoubleObj(interp, sqlite3_column_double(stmt, i));
