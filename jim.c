@@ -15871,6 +15871,10 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         }
 
         case INFO_TAINTED:
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "value");
+                return JIM_ERR;
+            }
             Jim_SetResultBool(interp, argv[2]->taint != 0);
             return JIM_OK;
         case INFO_CHANNELS:
