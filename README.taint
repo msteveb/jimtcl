@@ -9,12 +9,12 @@ OVERVIEW
 Perl and Ruby support the concept of tainted data, taint sources
 and taint sinks. The idea is to improve security in situations
 where data may be coming from outside the program (e.g. input
-to a web application) should not inadvertently be output
+to a web application). This data should not inadvertently be output
 on a web page unescaped (to avoid XSS attacks), to a database
 (to avoid SQL injections attacks) or to execute system commands
 (to avoid system attacks).
 
-Standard Tcl does not support tainting. Instead it uses "safe"
+Standard Tcl does not support tainting, but uses "safe"
 interpreters for a similar purpose. For Jim Tcl, taint support is
 smaller and simpler.
 
@@ -31,7 +31,7 @@ Taint Sources
 Untrusted data may come from various sources in the system.
 In Jim Tcl, the sources of external data are:
 
-* Data read file a file or socket (aio read, gets, recvfrom)
+* Data read from a file or socket (aio read, gets, recvfrom)
 * Command line arguments ($argv)
 * Loaded code or scripts (source, package require, load)
 * Environment variables (env)
@@ -70,15 +70,15 @@ to taint propagation as follows:
 * Any value constructed in part from a tainted value is tainted
   (append, lappend, lset)
 * A tainted value added to a container (dict, list, array) remains tainted.
-  While the tainted value can be distinguished from other values
-  in the container, the container is not tainted. However if the container
-  needs to change representation (the entire container becomes tainted.
+  If the tainted value can be distinguished from other values
+  in the container, the container is not tainted. However, if the container
+  needs to change representation, the entire container becomes tainted.
 * Integer and floating point values are not tainted
 
 Taint types
 -----------
 It may be useful to distinguish between different types of taint.
-Each taint type is associate with a bit field. The standard taint
+Each taint type is assigned a bit in a taint bit field. The standard taint
 type is 1, but taint types 2, 4, etc. may also be used.  If a taint
 source is marked as taint type 2, it will not be flagged as invalid
 when consumed by a taint sink marked as taint type 4.
@@ -114,16 +114,16 @@ To mark a filehandle as a taint source or sink (or not):
 
 More Information
 ----------------
-In order to simplify taint propagation, the interpreter
-examines the arguments to every command (plus the command itself).
-If any argument is tainted, the command execution is considered tainted.
-Any new objects (except int and double) created during the execution of the command
-will be marked tainted.
+To simplify taint propagation, the interpreter examines the arguments
+to every command (plus the command itself).  If any argument is
+tainted, the command execution is considered tainted.  Any new
+objects (except int and double) created during the execution of the
+command will be marked tainted.
 
 The Rules
 ---------
-- The taint and untaint commands operate on variables and taint/untaint the contents of the variable
-- Adding/modifying a list/dict/array element taints that element plus the "container" but not
+- The taint and untaint commands operate on variables, and taint/untaint the contents of the variable
+- Adding/modifying a list/dict/array element taints that element plus the "container", but not
   the other elements in that container
 - Tainting a container element taints the container too
 - Untainting a container element does not untaint the container, even if it contains no more tainted elements
@@ -133,11 +133,11 @@ The Rules
 Specific Notes
 --------------
 In general, a conservative approach is used to tainting, so if
-a command creates a new object while any of it's arguments are tainted,
+a command creates a new object while any of its arguments are tainted,
 the new object is also tainted.
 
-However the list-related commands are more intelligent.
+However, the list-related commands are more intelligent.
 All list-related commands such as lindex, lrange, lassign and lreplace will
-maintain the taint of existing list elements, but will avoid tainting untainted elements.
+not change the taint of existing list elements, but will avoid tainting untainted elements.
 For example, if the list {a b t d} contains one tainted element, 't', then [lreverse $a]
 will produce a list with only one tainted element.
