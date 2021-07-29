@@ -100,6 +100,10 @@ Win32_ShellExecute(Jim_Interp *interp, int objc, Jim_Obj * const *objv)
         Jim_WrongNumArgs(interp, 1, objv, "verb path ?parameters?");
         return JIM_ERR;
     }
+    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+        Jim_SetTaintError(interp, 1, objv);
+        return JIM_ERR;
+    }
     verb = Jim_String(objv[1]);
     file = Jim_String(objv[2]);
     GetCurrentDirectoryA(MAX_PATH + 1, cwd);
