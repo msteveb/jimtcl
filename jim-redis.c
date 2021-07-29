@@ -135,6 +135,10 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             reply = NULL;
         }
     }
+    else if (Jim_GetObjTaint(argv[1]) & JIM_TAINT_ANY) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
     else {
         int nargs = argc - 1;
         args = Jim_Alloc(sizeof(*args) * nargs);
