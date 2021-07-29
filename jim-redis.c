@@ -135,6 +135,10 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             reply = NULL;
         }
     }
+    else if (Jim_GetObjTaint(argv[1]) & JIM_TAINT_ANY) {
+        Jim_SetTaintError(interp, 1, argv);
+        return JIM_ERR;
+    }
     else {
         int nargs = argc - 1;
         args = Jim_Alloc(sizeof(*args) * nargs);
@@ -209,7 +213,7 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         ret = Jim_GetLong(interp, Jim_GetResult(interp), &fd) == JIM_ERR;
     }
     if (ret != JIM_OK) {
-        Jim_SetResultFormatted(interp, "%#s: not a valid stream handle: %#s", argv[0], argv[1]);
+        Jim_SetResultFormatted(interp, "%#s: not a valid stream handle: %#s", argv[0], argv[1 + async]);
         return ret;
     }
 
