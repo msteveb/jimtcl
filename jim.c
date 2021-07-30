@@ -11990,6 +11990,7 @@ void Jim_SetTaintError(Jim_Interp *interp, int cmdargs, Jim_Obj *const *argv)
     Jim_Obj *objPtr = JimJoinCmdArgs(interp, cmdargs, argv);
     Jim_SetResultFormatted(interp, "%#s: tainted data", objPtr);
     Jim_DecrRefCount(interp, objPtr);
+    Jim_SetGlobalVariableStr(interp, "errorCode", Jim_NewStringObj(interp, "TAINTED", -1));
 #endif
 }
 

@@ -170,6 +170,14 @@ test taint-2.6 {file delete with tainted data} -body {
 	file delete $t
 } -returnCodes error -result {file delete: tainted data}
 
+test taint-2.7 {check errorcode on tainted data} -body {
+	try {
+		eval {exec $t}
+	} on error {msg opts} {
+		dict get $opts -errorcode
+	}
+} -result {TAINTED}
+
 test taint-3.1 {filehandle not taint source by default} {
 	set f [open [info script]]
 	gets $f buf
