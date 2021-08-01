@@ -66,6 +66,7 @@ Changes between 0.80 and 0.81
 9. Add support for `lsort -stride`
 10. `open` now supports POSIX-style access arguments
 11. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
+12. `try` now supports trap to match on errorcode
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4570,29 +4571,35 @@ Time is measured in elapsed time, not CPU time.
 
 try
 ~~~
-+*try* '?catchopts? tryscript' ?*on* 'returncodes {?resultvar? ?optsvar?} handlerscript \...'? ?*finally* 'finalscript'?+
++*try* '?catchopts? tryscript' ?*on|trap* 'match {?resultvar? ?optsvar?} handlerscript \...'? ?*finally* 'finalscript'?+
 
 The `try` command is provided as a convenience for exception handling.
 
 This interpeter first evaluates +'tryscript'+ under the effect of the catch
 options +'catchopts'+ (e.g. +-signal -noexit --+, see `catch`).
 
-It then evaluates the script for the first matching 'on' handler
-(there many be zero or more) based on the return code from the `try`
-section. For example a normal +JIM_ERR+ error will be matched by
-an 'on error' handler.
+It then evaluates the script for the first matching 'on' or 'trap'
+handler (there many be zero or more) based on the return code and
+'errorcode' from the `try` section. For example a normal +JIM_ERR+
+error will be matched by an 'on error' handler.
 
 Finally, any +'finalscript'+ is evaluated.
 
-The result of this command is the result of +'tryscript'+, except in the
-case where an exception occurs in a matching 'on' handler script or the 'finally' script,
-in which case the result is this new exception.
+The result of this command is the result of +'tryscript'+, except
+in the case where an exception occurs in a matching 'on' handler
+script or the 'finally' script, in which case the result is this
+new exception.
 
-The specified +'returncodes'+ is a list of return codes either as names ('ok', 'error', 'break', etc.)
-or as integers.
+For the +'on'+ handler, 'match' is a list of return codes either
+as names ('ok', 'error', 'break', etc.) or as integers.
 
-If +'resultvar'+ and +'optsvar'+ are specified, they are set as for `catch` before evaluating
-the matching handler.
+For the +'trap'+ handler, 'match' is a list to match against
+'errorcode'. For example, if the errorcode was
++'\{CHILDKILLED 10627 SIGTERM\}'+, then a 'match' value of +\{CHILDKILLED\}+
+would match.
+
+If +'resultvar'+ and +'optsvar'+ are specified, they are set as for
+`catch` before evaluating the matching handler.
 
 For example:
 
@@ -4602,6 +4609,9 @@ For example:
         process $f
     } on {continue break} {} {
         error "Unexpected break/continue"
+    } trap CHILDKILLED {msg opts} {
+        puts "A child process died"
+        return {*}$opts $msg
     } on error {msg opts} {
         puts "Dealing with error"
         return {*}$opts $msg
@@ -4613,7 +4623,8 @@ For example:
 ----
 
 If break, continue or error are raised, they are dealt with by the matching
-handler.
+handler. If an error occurred with an errorcode of +CHILDKILLED+, the trap
+handler will be evaluated as it is specified before the 'on error' handler.
 
 In any case, the file will be closed via the 'finally' clause.
 

@@ -14518,7 +14518,7 @@ static int JimCatchTryHelper(Jim_Interp *interp, int istry, int argc, Jim_Obj *c
 {
     static const char * const wrongargs_catchtry[2] = {
         "?-?no?code ... --? script ?resultVarName? ?optionVarName?",
-        "?-?no?code ... --? script ?on codes vars script? ... ?finally script?"
+        "?-?no?code ... --? script ?on|trap codes vars script? ... ?finally script?"
     };
     int exitCode = 0;
     int i;
@@ -14527,7 +14527,8 @@ static int JimCatchTryHelper(Jim_Interp *interp, int istry, int argc, Jim_Obj *c
     Jim_Obj *finallyScriptObj = NULL;
     Jim_Obj *msgVarObj = NULL;
     Jim_Obj *optsVarObj = NULL;
-    Jim_Obj *onScriptObj = NULL;
+    Jim_Obj *handlerScriptObj = NULL;
+    Jim_Obj *errorCodeObj;
     int idx;
 
     /* Which return codes are ignored (passed through)? By default, only exit, eval and signal */
@@ -14606,9 +14607,11 @@ wrongargs:
     }
     interp->signal_level -= sig;
 
-    /* For try, we need to find both a matching return code and finally (if they exist)
+    errorCodeObj = Jim_GetGlobalVariableStr(interp, "errorCode", JIM_NONE);
+
+    /* For try, we need to find both a matching return or trap code and finally (if they exist)
      * Set: finallyScriptObj
-     *      onScriptObj
+     *      handlerScriptObj
      *      msgVarObj
      *      optsVarObj
      * Any of these can be NULL;
@@ -14616,31 +14619,60 @@ wrongargs:
     idx++;
     if (istry) {
         while (idx < argc) {
-            if (Jim_CompareStringImmediate(interp, argv[idx], "on")) {
-                int ret;
-                if (idx + 4 > argc) {
-                    goto wrongargs;
-                }
-                ret = JimMatchReturnCodes(interp, argv[idx + 1], exitCode);
-                if (ret > JIM_OK) {
-                    goto wrongargs;
-                }
-                if (ret == JIM_OK) {
-                    msgVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 0);
-                    optsVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 1);
-                    onScriptObj = argv[idx + 3];
-                }
-                idx += 4;
+            int option;
+            int ret;
+            static const char * const try_options[] = { "on", "trap", "finally", NULL };
+            enum { TRY_ON, TRY_TRAP, TRY_FINALLY, };
+
+            if (Jim_GetEnum(interp, argv[idx], try_options, &option, "handler", JIM_ERRMSG) != JIM_OK) {
+                return JIM_ERR;
             }
-            else if (Jim_CompareStringImmediate(interp, argv[idx], "finally")) {
-                if (idx + 2 != argc) {
-                    goto wrongargs;
-                }
-                finallyScriptObj = argv[idx + 1];
-                idx += 2;
-            }
-            else {
-                goto wrongargs;
+            switch (option) {
+                case TRY_ON:
+                case TRY_TRAP:
+                    if (idx + 4 > argc) {
+                        goto wrongargs;
+                    }
+                    if (option == TRY_ON) {
+                        ret = JimMatchReturnCodes(interp, argv[idx + 1], exitCode);
+                        if (ret > JIM_OK) {
+                            goto wrongargs;
+                        }
+                    }
+                    else if (errorCodeObj) {
+                        int len = Jim_ListLength(interp, argv[idx + 1]);
+                        int i;
+
+                        ret = JIM_OK;
+                        /* Try to match the sublist against errorcode */
+                        for (i = 0; i < len; i++) {
+                            Jim_Obj *matchObj = Jim_ListGetIndex(interp, argv[idx + 1], i);
+                            Jim_Obj *objPtr = Jim_ListGetIndex(interp, errorCodeObj, i);
+                            if (Jim_StringCompareObj(interp, matchObj, objPtr, 0) != 0) {
+                                ret = -1;
+                                break;
+                            }
+                        }
+                    }
+                    else {
+                        /* No errorCode, so no match for trap */
+                        ret = -1;
+                    }
+                    /* Save the details of the first match */
+                    if (ret == JIM_OK && handlerScriptObj == NULL) {
+                        msgVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 0);
+                        optsVarObj = Jim_ListGetIndex(interp, argv[idx + 2], 1);
+                        handlerScriptObj = argv[idx + 3];
+                    }
+                    idx += 4;
+                    break;
+                case TRY_FINALLY:
+                    if (idx + 2 != argc) {
+                        goto wrongargs;
+                    }
+                    finallyScriptObj = argv[idx + 1];
+                    idx += 2;
+                    break;
             }
         }
     }
@@ -14690,24 +14722,22 @@ wrongargs:
         Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-level", -1));
         Jim_ListAppendElement(interp, optListObj, Jim_NewIntObj(interp, interp->returnLevel));
         if (exitCode == JIM_ERR) {
-            Jim_Obj *errorCode;
             Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorinfo",
                 -1));
             Jim_ListAppendElement(interp, optListObj, interp->stackTrace);
 
-            errorCode = Jim_GetGlobalVariableStr(interp, "errorCode", JIM_NONE);
-            if (errorCode) {
+            if (errorCodeObj) {
                 Jim_ListAppendElement(interp, optListObj, Jim_NewStringObj(interp, "-errorcode", -1));
-                Jim_ListAppendElement(interp, optListObj, errorCode);
+                Jim_ListAppendElement(interp, optListObj, errorCodeObj);
             }
         }
         if (Jim_SetVariable(interp, optsVarObj, optListObj) != JIM_OK) {
             ok = 0;
         }
     }
-    if (ok && onScriptObj) {
+    if (ok && handlerScriptObj) {
         /* Execute the on script. Any return code replaces the original. */
-        exitCode = Jim_EvalObj(interp, onScriptObj);
+        exitCode = Jim_EvalObj(interp, handlerScriptObj);
     }
 
     if (finallyScriptObj) {

@@ -97,6 +97,50 @@ test try-1.9 "return -code from within try" {
 	list [catch a msg] $msg
 } {3 text}
 
+test try-2.1 "try ... trap" -body {
+	proc a {} {
+		return -code error -errorcode {CUSTOM RESULT} "custom errorcode"
+	}
+	try {
+		a
+	} trap CUSTOM {msg opts} {
+		list $msg $opts(-code) $opts(-errorcode)
+	}
+} -result {{custom errorcode} 1 {CUSTOM RESULT}}
+
+test try-2.2 "trap single match" {
+	try {
+		apply {{} {return -code error -errorcode {FOO BAR} failed}}
+	} trap FOO {msg opts} {
+		list trapped
+	}
+} trapped
+
+test try-2.3 "trap two matches" {
+	try {
+		apply {{} {return -code error -errorcode {FOO BAR} failed}}
+	} trap {FOO BAR} {msg opts} {
+		list trapped
+	}
+} trapped
+
+test try-2.4 "trap no match" -body {
+	try {
+		apply {{} {return -code error -errorcode {FOO BAR} failed}}
+	} trap BAZ {msg opts} {
+		list trapped
+	}
+} -returnCodes error -result failed
+
+test try-2.5 "trap match first but not second" -body {
+	try {
+		apply {{} {return -code error -errorcode {FOO BAR} failed}}
+	} trap {FOO BAZ} {msg opts} {
+		list trapped
+	}
+} -returnCodes error -result failed
+
+
 proc c {} {
 	try {
 		error here
