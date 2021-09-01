@@ -62,6 +62,7 @@ Changes since 0.83
 #. Add support for `regexp -expanded` and `regsub -expanded`
 #. `vwait` now accepts a script argument
 #. Add support for `os.umask`
+#. Add `taint` support for improved data security
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3048,6 +3049,9 @@ The legal +'option'+'s (which may be abbreviated) are:
     procedure. An empty dictionary is returned if the procedure has
     no static variables.
 
++*info tainted* 'str'+::
+    Returns 1 if the value is tainted, or 0 if not.
+
 +*info version*+::
     Returns the version number for this version of Jim in the form +*x.yy*+.
 
@@ -4589,6 +4593,12 @@ The following are identical except the first immediately replaces the current ca
   proc sub_cmd2 ...
 ----
 
+taint
+~~~~~
++*taint* 'varname'+
+
+Set "taint" on the value contained in the given variable.
+
 tell
 ~~~~
 +*tell* 'fileId'+
@@ -4754,6 +4764,12 @@ The `unset` command returns an empty string as result.
 An error occurs if any of the variables doesn't exist, unless '-nocomplain'
 is specified. The '--' argument may be specified to stop option processing
 in case the variable name may be '-nocomplain'.
+
+untaint
+~~~~~~~
++*untaint* 'varname'+
+
+Remove "taint" from the value contained in the given variable.
 
 upcall
 ~~~~~~~
@@ -5167,6 +5183,15 @@ This command returns an empty string.
     If the flush fails (perhaps because the channel is non-blocking), an error
     will be returned instead. Although this is designed for normal files and
     those should be used in blocking mode.
+
++$handle *taint source|sink ?0:n?*+::
+    Sets the taint characteristics of the channel. Data read from
+    the channel will have a taint value as set by +'source'+, while
+    a check will be made against data written to the channel against
+    the +'sink'+ value. If the taint of the data and the channel
+    match, the operation will fail. By default, channels created
+    by `open` are not tainted while channels created by `socket`
+    have both set to 1.
 
 +$handle *tell*+::
     Returns the current seek position or -1 if the channel is not seekable.
