@@ -4182,6 +4182,7 @@ static Jim_Cmd *JimCreateProcedureCmd(Jim_Interp *interp, Jim_Obj *argListObjPtr
 
     /* Allocate space for both the command pointer and the arg list */
     cmdPtr = Jim_Alloc(sizeof(*cmdPtr) + sizeof(struct Jim_ProcArg) * argListLen);
+    assert(cmdPtr);
     memset(cmdPtr, 0, sizeof(*cmdPtr));
     cmdPtr->inUse = 1;
     cmdPtr->isproc = 1;
@@ -14303,6 +14304,7 @@ badcompareargs:
 
                 str = Jim_GetString(argv[2], &len);
                 buf = Jim_Alloc(len + 1);
+                assert(buf);
                 p = buf + len;
                 *p = 0;
                 for (i = 0; i < len; ) {
