@@ -739,7 +739,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.80 -
+<p>Jim Tcl v0.81 -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -879,6 +879,67 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_between_0_80_and_0_81">Changes between 0.80 and 0.81</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+TIP 582, comments allowed in expressions
+</p>
+</li>
+<li>
+<p>
+Many commands now accept "safe" integer expressions rather than simple integers:
+   <a href="#_loop"><strong><code>loop</code></strong></a>, <a href="#_range"><strong><code>range</code></strong></a>, <a href="#_incr"><strong><code>incr</code></strong></a>, <a href="#_string"><strong><code>string</code></strong></a> <code>repeat</code>, <a href="#_lrepeat"><strong><code>lrepeat</code></strong></a>, <a href="#cmd_3"><strong><code>pack</code></strong></a>, <a href="#cmd_3"><strong><code>unpack</code></strong></a>, <a href="#_rand"><strong><code>rand</code></strong></a>
+</p>
+</li>
+<li>
+<p>
+String and list indexes now accept integer expressions (<a href="#_string_and_list_index_specifications">STRING AND LIST INDEX SPECIFICATIONS</a>)
+</p>
+</li>
+<li>
+<p>
+<a href="#_loop"><strong><code>loop</code></strong></a> can now omit the start value
+</p>
+</li>
+<li>
+<p>
+Add the <a href="#_xtrace"><strong><code>xtrace</code></strong></a> command for execution trace support
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_history"><strong><code>history</code></strong></a> <code>keep</code>
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-index</code> and <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-stride</code>, the latter per TIP 351
+</p>
+</li>
+<li>
+<p>
+<a href="#_lsort"><strong><code>lsort</code></strong></a> <code>-index</code> now supports multiple indices
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>-stride</code>
+</p>
+</li>
+<li>
+<p>
+<a href="#_open"><strong><code>open</code></strong></a> now supports POSIX-style access arguments
+</p>
+</li>
+<li>
+<p>
+TIP 526, <a href="#_expr"><strong><code>expr</code></strong></a> now only allows a single argument (unless --compat is enabled)
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_79_and_0_80">Changes between 0.79 and 0.80</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -1753,25 +1814,40 @@ specify a position in the string relative to the start or end of the string/list
 </dt>
 <dd>
 <p>
-    A simple integer, where <em>0</em> refers to the first element of the string
+    A simple integer, where <code>0</code> refers to the first element of the string
     or list.
 </p>
 </dd>
 <dt class="hdlist1">
-<code>integer+integer</code> or
-</dt>
-<dt class="hdlist1">
-<code>integer-integer</code>
+<code>integerexpression</code>
 </dt>
 <dd>
 <p>
-    The sum or difference of the two integers. e.g. <code>2+3</code> refers to the 5th element.
-    This is useful when used with (e.g.) <code>$i+1</code> rather than the more verbose
-    <code>[expr {$i+1}]</code>
+    Any "safe" expression that evaluates to an integer. A "safe" expression does not perform
+    variable or command subsitution, but is otherwise like a normal expression
+    (see <a href="#_expressions">EXPRESSIONS</a>).
 </p>
 </dd>
 <dt class="hdlist1">
-<code>end</code>
+ 
+</dt>
+<dd>
+<p>
+    For example <code>1+2*3</code> is valid integer expression, but <code>{$x*2-1}</code> is not.
+    But note that it is possible to use an unbraced expression to allow the Tcl interpreter
+    to expand variables and commands before being parsed as an integer expression.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    e.g. <code>string repeat a $x*2-1</code>
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>end</strong></code>
 </dt>
 <dd>
 <p>
@@ -1779,11 +1855,20 @@ specify a position in the string relative to the start or end of the string/list
 </p>
 </dd>
 <dt class="hdlist1">
-<code>end-integer</code>
+<code><strong>end</strong>-integer</code>
+</dt>
+<dt class="hdlist1">
+<code><strong>end</strong>-integerexpression</code>
+</dt>
+<dt class="hdlist1">
+<code><strong>end</strong>+integerexpression</code>
 </dt>
 <dd>
 <p>
-    The <em>nth-from-last</em> element of the string or list.
+    The <em>nth-from-last</em> element of the string or list. Again, a "safe" integer expression
+    may be used in place of a simple integer. <code>end-3</code> or  <code>end-3+2*$n</code>. Normally it only makes
+    sense to use the <code><strong>end</strong>-</code> form, but if the integer expression is negative, the <code><strong>end</strong></code>+ form
+    may be used.
 </p>
 </dd>
 </dl></div>
@@ -1882,6 +1967,8 @@ and parentheses.</p></div>
 <div class="paragraph"><p>White space may be used between the operands and operators and
 parentheses; it is ignored by the expression processor.
 Where possible, operands are interpreted as integer values.</p></div>
+<div class="paragraph"><p>Comments are allowed in expressions, beginning with the <em>#</em> character
+and continuing until the end of line or end of expression.</p></div>
 <div class="paragraph"><p>Integer values are interpreted as decimal, binary, octal or
 hexadecimal if prepended with <em>0d</em>, <em>0b</em>, <em>0o</em> or <em>0x</em>
 respectively. Otherwise they are interpreted as decimal by default.
@@ -2409,6 +2496,11 @@ Support for non-capturing parentheses <code>(?:&#8230;)</code>
 <li>
 <p>
 Jim Tcl considers that both patterns and strings end at a null character (<code>\x00</code>)
+</p>
+</li>
+<li>
+<p>
+Jim Tcl does not support back references. e.g. <code>\1</code>
 </p>
 </li>
 </ol></div>
@@ -3293,8 +3385,8 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_wait"><strong><code>wait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_xtrace"><strong><code>xtrace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 </tr>
 </tbody>
 </table>
@@ -4563,7 +4655,7 @@ and there was no <code><em>bodyN</em></code>.</p></div>
 <div class="paragraph"><p>Increment the value stored in the variable whose name is <code><em>varName</em></code>.
 The value of the variable must be integral.</p></div>
 <div class="paragraph"><p>If <code><em>increment</em></code> is supplied then its value (which must be an
-integer) is added to the value of variable <code><em>varName</em></code>;  otherwise
+integer expression) is added to the value of variable <code><em>varName</em></code>;  otherwise
 1 is added to <code><em>varName</em></code>.</p></div>
 <div class="paragraph"><p>The new value is stored as a decimal string in variable <code><em>varName</em></code>
 and also returned as result.</p></div>
@@ -4961,7 +5053,7 @@ than waiting until garbage collection.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_loop">loop</h3>
-<div class="paragraph"><p><code><strong>loop</strong> <em>var first limit ?incr? body</em></code></p></div>
+<div class="paragraph"><p><code><strong>loop</strong> <em>var ?first? limit ?incr? body</em></code></p></div>
 <div class="paragraph"><p>Similar to <a href="#_for"><strong><code>for</code></strong></a> except simpler and possibly more efficient.
 If <code><em>incr</em></code> is positive, the effect is, equivalent to:</p></div>
 <div class="listingblock">
@@ -4969,9 +5061,11 @@ If <code><em>incr</em></code> is positive, the effect is, equivalent to:</p></di
 <pre><code>    for {set var $first} {$var &lt; $limit} {incr var $incr} $body</code></pre>
 </div></div>
 <div class="paragraph"><p>While if <code><em>incr</em></code> is negative, the count is downwards.</p></div>
-<div class="paragraph"><p>If <code><em>incr</em></code> is not specified, 1 is used.
+<div class="paragraph"><p>If <code><em>first</em></code> is not specified, 0 is used.
+If <code><em>incr</em></code> is not specified, 1 is used.
 Note that setting the loop variable inside the loop does not
 affect the loop count.</p></div>
+<div class="paragraph"><p><code><em>first</em></code>, <code><em>limit</em></code> and <code><em>incr</em></code> may be any integer expression.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_lindex">lindex</h3>
@@ -5255,29 +5349,149 @@ the list are to be matched against pattern and must have one of the values below
     Causes comparisons to be handled in a case-insensitive manner.
 </p>
 </dd>
+<dt class="hdlist1">
+<code><strong>-index</strong> <em>indexList</em></code>
+</dt>
+<dd>
+<p>
+    This option is designed for use when searching within nested lists. The
+    <em>indexList</em> gives a path of indices (much as might be used with
+    the lindex or lset commands) within each element to allow the location
+    of the term being matched against.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-stride</strong> <em>strideLength</em></code>
+</dt>
+<dd>
+<p>
+    If this option is specified, the list is treated as consisting of
+    groups of <em>strideLength</em> elements and the groups are searched by
+    either their first element or, if the <code>-index</code> option is used,
+    by the element within each group given by the first index passed to
+    <code>-index</code> (which is then ignored by <code>-index</code>). The resulting
+    index always points to the first element in a group.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    The list length must be an integer multiple of <em>strideLength</em>, which
+    in turn must be at least 1. A <em>strideLength</em> of 1 is the default and
+    indicates no grouping.
+</p>
+</dd>
 </dl></div>
 </div>
 <div class="sect2">
 <h3 id="_lsort">lsort</h3>
-<div class="paragraph"><p><code><strong>lsort</strong> ?<strong>-index</strong> <em>listindex</em>? ?<strong>-nocase|-integer|-real|-command</strong> <em>cmdname</em>? ?<strong>-unique</strong>? ?<strong>-decreasing</strong>|<strong>-increasing</strong>? <em>list</em></code></p></div>
+<div class="paragraph"><p><code><strong>lsort</strong> <em>?options? list</em></code></p></div>
 <div class="paragraph"><p>Sort the elements of <code><em>list</em></code>, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.</p></div>
-<div class="paragraph"><p>If <code>-nocase</code> is specified, comparisons are case-insensitive.</p></div>
-<div class="paragraph"><p>If <code>-integer</code> is specified, numeric sorting is used.</p></div>
-<div class="paragraph"><p>If <code>-real</code> is specified, floating point number sorting is used.</p></div>
-<div class="paragraph"><p>If <code>-command <em>cmdname</em></code> is specified, <code><em>cmdname</em></code> is treated as a command
-name. For each comparison, <code><em>cmdname $value1 $value2</code></em> is called which
-should compare the values and return an integer less than, equal
-to, or greater than zero if the <code><em>$value1</em></code> is to be considered less
-than, equal to, or greater than <code><em>$value2</em></code>, respectively.</p></div>
-<div class="paragraph"><p>If <code>-decreasing</code> is specified, the resulting list is in the opposite
-order to what it would be otherwise. <code>-increasing</code> is the default.</p></div>
-<div class="paragraph"><p>If <code>-unique</code> is specified, then only the last set of duplicate elements found in the list will be retained.
-Note that duplicates are determined relative to the comparison used in the sort. Thus if <code>-index 0</code> is used,
-<code>{1 a}</code> and <code>{1 b}</code> would be considered duplicates and only the second element, <code>{1 b}</code>, would be retained.</p></div>
-<div class="paragraph"><p>If <code>-index <em>listindex</em></code> is specified, each element of the list is treated as a list and
-the given index is extracted from the list for comparison. The list index may
-be any valid list index, such as <code>1</code>, <code>end</code> or <code>end-2</code>.</p></div>
+<div class="paragraph"><p>Note that only one sort type may be selected with <code>-integer</code>, <code>-real</code>, <code>-nocase</code> or <code>-command</code>
+with last option being used.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>-integer</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using numeric (integer) comparison.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-real</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using floating point comparison.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-nocase</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using using string comparison without regard for case.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-command</strong> <em>cmdname</em></code>
+</dt>
+<dd>
+<p>
+    <code><em>cmdname</em></code> is treated as a command name. For each comparison,
+    <code><em>cmdname $value1 $value2</code></em> is called which
+    should compare the values and return an integer less than, equal
+    to, or greater than zero if the <code><em>$value1</em></code> is to be considered less
+    than, equal to, or greater than <code><em>$value2</em></code>, respectively.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-increasing</strong></code>
+</dt>
+<dd>
+<p>
+    The resulting list is in ascending order, from smallest/lowest to largest/highest.
+    This is the default and does not need to be specified.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-decreasing</strong></code>
+</dt>
+<dd>
+<p>
+    The resulting list is in the opposite order to what it would be otherwise.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-unique</strong></code>
+</dt>
+<dd>
+<p>
+    Only the last set of duplicate elements found in the list will
+    be retained.  Note that duplicates are determined relative to the
+    comparison used in the sort. Thus if <code>-index 0</code> is used, <code>{1 a}</code> and
+    <code>{1 b}</code> would be considered duplicates and only the second element,
+    <code>{1 b}</code>, would be retained.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-index</strong> <em>indexList</em></code>
+</dt>
+<dd>
+<p>
+    This option is designed for use when sorting nested lists. The
+    <em>indexList</em> gives a path of indices (much as might be used with
+    the lindex or lset commands) within each element to specify the
+    value to be used for comparison.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-stride</strong> <em>strideLength</em></code>
+</dt>
+<dd>
+<p>
+    If this option is specified, the list is treated as consisting of
+    groups of <em>strideLength</em> elements and the groups are sorted by
+    either their first element or, if the <code>-index</code> option is used,
+    by the element within each group given by the first index passed to
+    <code>-index</code> (which is then ignored by <code>-index</code>). The resulting list
+    is once again a flat list.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    The list length must be an integer multiple of <em>strideLength</em>, which
+    in turn must be at least 2.
+</p>
+</dd>
+</dl></div>
 </div>
 <div class="sect2">
 <h3 id="_defer">defer</h3>
@@ -5361,6 +5575,87 @@ It may have any of the following values:</p></div>
 </dd>
 </dl></div>
 <div class="paragraph"><p><code><em>access</em></code> defaults to <em>r</em>.</p></div>
+<div class="paragraph"><p>Additionally, if POSIX mode is supported by the underlying system,
+then access may insted of consistent of a list of any of the following
+flags, all of which have the standard POSIX meanings. In this case,
+the first flag <strong>must</strong> be one of RDONLY, WRONLY or RDWR.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code>RDONLY</code>
+</dt>
+<dd>
+<p>
+    Open the file for reading only.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>WRONLY</code>
+</dt>
+<dd>
+<p>
+    Open the file for writing only.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>RDWR</code>
+</dt>
+<dd>
+<p>
+    Open the file for both reading and writing.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>APPEND</code>
+</dt>
+<dd>
+<p>
+    Set the file pointer to the end of the file prior to each write.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>BINARY</code>
+</dt>
+<dd>
+<p>
+    Ignored.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>CREAT</code>
+</dt>
+<dd>
+<p>
+    Create the file if it does not already exist (without this flag
+    it  is  an  error for the file not to exist).
+</p>
+</dd>
+<dt class="hdlist1">
+<code>EXCL</code>
+</dt>
+<dd>
+<p>
+    If CREAT is also specified, an error is returned if the file
+    already exists.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>NOCTTY</code>
+</dt>
+<dd>
+<p>
+    If  the  file is a terminal device, this flag prevents the file
+    from becoming the controlling terminal of the process.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>TRUNC</code>
+</dt>
+<dd>
+<p>
+    If the file exists it is truncated to zero length.
+</p>
+</dd>
+</dl></div>
 <div class="paragraph"><p>If a file is opened for both reading and writing, then <a href="#_seek"><strong><code>seek</code></strong></a>
 must be invoked between a read and a write, or vice versa.</p></div>
 <div class="paragraph"><p>If the first character of <code><em>fileName</em></code> is "|" then the remaining
@@ -5486,6 +5781,7 @@ and ranging up to but not including <code><em>end</em></code> in steps of <code>
     . range 7 4 -2
     7 5</code></pre>
 </div></div>
+<div class="paragraph"><p>Integer parameters may be any integer expression.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_read">read</h3>
@@ -6884,6 +7180,24 @@ commands may be executed inside <code><em>body</em></code> to cause immediate
 termination of the <a href="#_while"><strong><code>while</code></strong></a> command.</p></div>
 <div class="paragraph"><p>The <a href="#_while"><strong><code>while</code></strong></a> command always returns an empty string.</p></div>
 </div>
+<div class="sect2">
+<h3 id="_xtrace">xtrace</h3>
+<div class="paragraph"><p><code><strong>xtrace</strong> <em>command</em></code></p></div>
+<div class="paragraph"><p>Install an execution trace callback command. This is useful for implementing a debugger
+or tracing tool. On each command invocation, the given command is invoked as:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    command proc|cmd filename line result command arglist</code></pre>
+</div></div>
+<div class="paragraph"><p><code><em>proc</em></code> or <code><em>cmd</em></code> indicates whether a command or a proc body is being executed.
+<code><em>filename</em></code> and <code><em>line</em></code> indicate the location where the command was invoked.
+<code><em>result</em></code> is the current interpreter result (from the previous command).
+<code><em>command</em></code> and <code><em>arglist</em></code> indicate the command being executed.</p></div>
+<div class="paragraph"><p>While the callback is executing, any further execution traces are temporarily disabled.
+If the callback returns <code>JIM_OK</code> or <code>JIM_RETURN</code>, the execution trace is reinstalled. Otherwise
+the execution trace is removed.</p></div>
+<div class="paragraph"><p>If <code><strong>xtrace</strong></code> is called with an empty argument (""), any existing callback is removed.</p></div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -8010,6 +8324,14 @@ the remaining subcommands do nothing.</p></div>
 <dd>
 <p>
     Adds the given line to the history buffer.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>history keep</strong> <em>?count?</em></code>
+</dt>
+<dd>
+<p>
+    Set or return the maximum history size. Defaults to 100.
 </p>
 </dd>
 <dt class="hdlist1">
