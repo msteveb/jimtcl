@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.80+ - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.81 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,8 +52,8 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 RECENT CHANGES
 --------------
-Changes since 0.80
-~~~~~~~~~~~~~~~~~~
+Changes between 0.80 and 0.81
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. TIP 582, comments allowed in expressions
 2. Many commands now accept "safe" integer expressions rather than simple integers:
    `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
