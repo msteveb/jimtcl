@@ -167,7 +167,7 @@ struct casemap {
 
 struct utf8range {
     unsigned lower;     /* lower inclusive */
-    unsigned upper;     /* upper exclusive */
+    unsigned upper;     /* upper inclusive */
 };
 
 
@@ -202,7 +202,7 @@ static int cmp_range(const void *key, const void *cm)
     if (ch < range->lower) {
         return -1;
     }
-    if (ch >= range->upper) {
+    if (ch > range->upper) {
         return 1;
     }
     return 0;
