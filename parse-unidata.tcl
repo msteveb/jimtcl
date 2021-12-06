@@ -119,7 +119,7 @@ if {$do_width} {
 	while {[gets $f buf] >= 0} {
 		# Remove any trailing whitespace, especially errant CR
 		set buf [string trim $buf]
-		if {[regexp {^([0-9A-Fa-f.]+);W} $buf -> range]} {
+		if {[regexp {^([0-9A-Fa-f.]+);[FW]} $buf -> range]} {
 			set range [string tolower $range]
 			lassign [split $range .] lower - upper
 			if {$upper eq ""} {
