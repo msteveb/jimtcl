@@ -1279,5 +1279,18 @@ test dict-23.6 {dict with baddict} -body {
 	dict with dictbad {}
 } -returnCodes error -result {missing value to go with key}
 
+test dict-24.1 {dict hash collision} {
+    set d {}
+    # 0,13 and 8,4 product a hash collision
+    # add both
+    dict set d 0,13 X
+    dict set d 8,4 Y
+    # Now remove the first and update the second
+    dict unset d 0,13
+    dict set d 8,4 Z
+    # There should be 1 entry, not 2
+    dict size $d
+} 1
+
 
 testreport

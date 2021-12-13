@@ -7369,16 +7369,18 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
     unsigned idx = h & dict->sizemask;
     int tvoffset = 0;
     unsigned peturb = h;
+    unsigned first_removed = ~0;
 
     if (dict->len) {
         while ((tvoffset = dict->ht[idx].offset)) {
             if (tvoffset == -1) {
                 /* An entry with offset=-1 is a removed entry
-                 * we need skip it when searching, but stop when adding.
+                 * Need to keep going in case there is a non-removed entry later.
+                 * But for adds we prefer to use the first available removed entry
+                 * for performance reasons
                  */
-                if (op_tvoffset == DICT_HASH_ADD) {
-                    tvoffset = 0;
-                    break;
+                if (first_removed == ~0) {
+                    first_removed = idx;
                 }
             }
             else if (dict->ht[idx].hash == h) {
@@ -7405,7 +7407,10 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
             break;
         case DICT_HASH_ADD:
             if (tvoffset == 0) {
-                /* Not found so add it at the end */
+                /* Not found so add it at the the first removed entry, or the end */
+                if (first_removed != ~0) {
+                    idx = first_removed;
+                }
                 dict->ht[idx].offset = dict->len + 1;
                 dict->ht[idx].hash = h;
             }
