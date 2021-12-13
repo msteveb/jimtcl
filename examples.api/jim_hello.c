@@ -48,8 +48,7 @@ main(int argc, char **argv)
 	/* And initialise any static extensions */
 	Jim_InitStaticExtensions(interp);
 
-
-	/* Print a string to standard output */
+	/* Print a string to standard output by evaluating a script with the interpreter */
 	Jim_Eval(interp, "puts {Hello world!}");
 
 	/* Free the interpreter */

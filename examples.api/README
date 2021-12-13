@@ -15,11 +15,7 @@ jim_command
 	in a script encoded within a program.
 
 jim_hello
-	Standard "Hello world!" program.
-
-jim_inline
-	Similar "Hello world!" program, but the result comes from a Tcl
-	script interpreted in Jim. Result is printed back on a terminal.
+	Standard "Hello world!" program, from executing a script.
 
 jim_list
 	Will teach you how to create a list in Jim's API.  Once created,
