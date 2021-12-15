@@ -360,6 +360,30 @@ puts "TEST 52 PASSED"
 catch {string last foo bar -1}
 puts "TEST 53 PASSED"
 
+# REGTEST 54
+# dict fills up with dummy entries, infinite loop
+set d {}
+# These two sets of chars yield different hashes (dict indexes)
+set chars1 {a b c d e f g h}
+set chars2 {i j k l m n o p}
+# Fill and empty the first set
+foreach i $chars1 {
+    dict set d $i 1
+    dict unset d $i
+}
+# Fill and empty the second set
+foreach i $chars2 {
+    dict set d $i 1
+    dict unset d $i
+}
+# Now the dictionary is full of dummy entries and adding an entry will loop forever
+alarm 1
+foreach i $chars1 {
+    dict set d $i 1
+}
+alarm 0
+puts "TEST 54 PASSED"
+
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 

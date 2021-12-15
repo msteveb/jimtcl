@@ -478,6 +478,7 @@ typedef struct Jim_Dict {
     Jim_Obj **table;            /* Table of alternating key, value elements */
     int len;                    /* Number of used elements in table */
     int maxLen;                 /* Allocated length of table */
+    unsigned int dummy;         /* Number of dummy entries */
 } Jim_Dict;
 
 /* A command is implemented in C if isproc is 0, otherwise

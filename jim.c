@@ -7402,6 +7402,7 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
             if (tvoffset) {
                 /* Found, remove with -1 meaning a removed entry */
                 dict->ht[idx].offset = -1;
+                dict->dummy++;
             }
             /* else if not found, return 0 */
             break;
@@ -7410,6 +7411,7 @@ static int JimDictHashFind(Jim_Dict *dict, Jim_Obj *keyObjPtr, int op_tvoffset)
                 /* Not found so add it at the the first removed entry, or the end */
                 if (first_removed != ~0) {
                     idx = first_removed;
+                    dict->dummy--;
                 }
                 dict->ht[idx].offset = dict->len + 1;
                 dict->ht[idx].hash = h;
@@ -7475,8 +7477,12 @@ static int JimDictAdd(Jim_Dict *dict, Jim_Obj *keyObjPtr)
      * do nothing.
      * This way we don't need to recalculate the hash index in case
      * it didn't exist and is added.
+     *
+     * Note that dict->len includes both keys and values, so
+     * a dict with 4 keys needs at least 8 entries.
+     * Also dummy entries take up space, so take those into account too.
      */
-    if (dict->size <= dict->len) {
+    if (dict->size <= dict->len + dict->dummy) {
         /* The first add grows the size to 8, and thereafter it is doubled
          * in size. Note that hash table sizes are always powers of two.
          */
