@@ -103,6 +103,9 @@ $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 install: all @TCL_EXTS@ install-exec install-docs
 	$(INSTALL_DATA_DIR) $(DESTDIR)@libdir@/jim
 	$(INSTALL_DATA) $(LIBJIM) $(DESTDIR)@libdir@
+@if !JIM_STATICLIB
+	ln -s -f $(LIBJIM) $(DESTDIR)@libdir@/libjim@SH_SOEXT@
+@endif
 	$(INSTALL_DATA) @srcdir@/README.extensions @C_EXT_SHOBJS@ $(DESTDIR)@libdir@/jim
 	for i in tcltest.tcl @TCL_EXTS@; do $(INSTALL_DATA) @srcdir@/$$i $(DESTDIR)@libdir@/jim; done
 	$(INSTALL_DATA_DIR) $(DESTDIR)@includedir@
