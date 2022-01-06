@@ -158,8 +158,11 @@ $(LIBJIM): $(OBJS)
 	$(Q)$(AR) cr $@ $(OBJS)
 	$(Q)$(RANLIB) $@
 @else
-	$(ECHO) "	LDSO	$@"
+	$(ECHO) "	LDSO	$@ libjim@SH_SOEXT@"
 	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBS)
+@if SH_SOEXT ne LIBSOEXT
+	$(Q)ln -s -f $@ libjim@SH_SOEXT@
+@endif
 @endif
 
 @BUILD_SHOBJS@
@@ -208,7 +211,7 @@ coverage:
 @endif
 
 clean:
-	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c
+	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c libjim@SH_SOEXT@
 @if COVERAGE
 	rm -f *.gcno *.gcov *.gcda */*.gcno */*.gcda */*.gcov coverage*.html
 	rm -rf coverage_html lcov.txt genhtml_output.txt
