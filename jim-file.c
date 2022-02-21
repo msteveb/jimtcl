@@ -476,8 +476,8 @@ static int file_cmd_delete(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int force = Jim_CompareStringImmediate(interp, argv[0], "-force");
 
     if (force || Jim_CompareStringImmediate(interp, argv[0], "--")) {
-        argc++;
-        argv--;
+        argc--;
+        argv++;
     }
 
     while (argc--) {
