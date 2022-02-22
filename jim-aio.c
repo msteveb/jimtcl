@@ -171,6 +171,7 @@ typedef struct AioFile
     int addr_family;
     void *ssl;
     const JimAioFopsType *fops;
+    Jim_Obj *getline_partial;      /* In case of fgets() returning EAGAIN, partial line stored here */
 } AioFile;
 
 static int stdio_writer(struct AioFile *af, const char *buf, int len)
@@ -682,6 +683,9 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
     if (!(af->flags & AIO_KEEPOPEN)) {
         fclose(af->fp);
     }
+    if (af->getline_partial) {
+        Jim_FreeNewObj(interp, af->getline_partial);
+    }
 
     Jim_Free(af);
 }
@@ -860,33 +864,49 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr;
     int len;
+    int eof_or_partial = 0;
 
     errno = 0;
 
-    objPtr = Jim_NewStringObj(interp, NULL, 0);
+    if (af->getline_partial) {
+        /* A partial line was read previously, so append to it */
+        objPtr = af->getline_partial;
+        af->getline_partial = NULL;
+    }
+    else {
+        objPtr = Jim_NewStringObj(interp, NULL, 0);
+    }
+
     while (1) {
-        buf[AIO_BUF_LEN - 1] = '_';
-
-        if (af->fops->getline(af, buf, AIO_BUF_LEN) == NULL)
-            break;
-
-        if (buf[AIO_BUF_LEN - 1] == '\0' && buf[AIO_BUF_LEN - 2] != '\n') {
-            Jim_AppendString(interp, objPtr, buf, AIO_BUF_LEN - 1);
-        }
-        else {
+        if (af->fops->getline(af, buf, AIO_BUF_LEN)) {
             len = strlen(buf);
-
-            if (len && (buf[len - 1] == '\n')) {
-                /* strip "\n" */
-                len--;
+            if (len && buf[len - 1] == '\n') {
+                /* strip "\n" and we are done */
+                Jim_AppendString(interp, objPtr, buf, len - 1);
+                break;
             }
 
+            /* Otherwise just append what we have */
             Jim_AppendString(interp, objPtr, buf, len);
+        }
+
+        if (errno == EAGAIN) {
+            if (Jim_Length(objPtr)) {
+                /* Stash the partial line */
+                af->getline_partial = objPtr;
+                /* And indicate that no line is (yet) available */
+                objPtr = Jim_NewStringObj(interp, NULL, 0);
+            }
+            eof_or_partial = 1;
+            break;
+        }
+        else if (af->fops->eof(af)) {
+            eof_or_partial = 1;
             break;
         }
     }
 
-    if (JimCheckStreamError(interp, af)) {
+    if (Jim_Length(objPtr) == 0 && JimCheckStreamError(interp, af)) {
         /* I/O error */
         Jim_FreeNewObj(interp, objPtr);
         return JIM_ERR;
@@ -900,8 +920,8 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         len = Jim_Length(objPtr);
 
-        if (len == 0 && af->fops->eof(af)) {
-            /* On EOF returns -1 if varName was specified */
+        if (eof_or_partial && len == 0) {
+            /* On EOF or partial line with empty result, returns -1 if varName was specified */
             len = -1;
         }
         Jim_SetResultInt(interp, len);
