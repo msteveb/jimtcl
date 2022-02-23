@@ -497,12 +497,19 @@ if {$withinfo(without) eq "default"} {
 # Now go check everything - see autosetup/local.tcl
 array set extinfo [check-extensions [opt-bool allextmod]]
 
+set buildjimext 1
+
 # Now special checks
 if {[have-feature windows]} {
     lappend extra_objs jim-win32compat.o
 
-    if {[llength $extinfo(module-c)] && [get-define JIM_STATICLIB]} {
-        user-error "cygwin/mingw require --shared for dynamic modules"
+    if {[get-define JIM_STATICLIB]} {
+        if {[llength $extinfo(module-c)]} {
+            user-error "cygwin/mingw require --shared for dynamic modules"
+        } else {
+            user-notice "Building static library, so build-jim-ext will not work on cygwin/mingw"
+            set buildjimext 0
+        }
     }
 }
 if {[have-feature termios.h]} {
@@ -600,10 +607,12 @@ make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE
 make-template Makefile.in
 make-template tests/Makefile.in
 make-template examples.api/Makefile.in
-make-template build-jim-ext.in
+if {$buildjimext} {
+    make-template build-jim-ext.in
+    catch {exec chmod +x build-jim-ext}
+}
 make-template jimtcl.pc.in
 
-catch {exec chmod +x build-jim-ext}
 
 if {[get-define SIZEOF_TIME_T] <= 4} {
     set note ""
