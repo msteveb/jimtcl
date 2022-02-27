@@ -13,7 +13,7 @@ Ensure that you have configured and built jim in the source directory, then:
 
 $ make
 
-./build-ext -o sqlite.so -I.. -L.. -DSQLITE_OMIT_LOAD_EXTENSION=1 ... jim-sqlite.c sqlite3.c
+./build-ext -Wall -o sqlite.so -I.. -L.. -DSQLITE_OMIT_LOAD_EXTENSION=1 ... jim-sqlite.c sqlite3.c
 Building sqlite.so from jim-sqlite.c sqlite3.c
 
 Warning: libjim is static. Dynamic module may not work on some platforms.
@@ -58,3 +58,9 @@ Differences:
   string, so only the @field syntax causes a fieldsto be bound
   as a blob rather than text.
 - Jim Tcl doesn't have a boolean type
+
+SQLite Source
+-------------
+
+The currently included version of sqlite is v3.38.0 downloaded from:
+https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz
