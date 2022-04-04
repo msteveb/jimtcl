@@ -41,7 +41,7 @@ for {set i 0} {$i < [llength $argv]} {incr i} {
 			set cross 1
 		}
 		--install {
-			# Install to $DESTDIR/@prefix@/lib/jim
+			# Install to $DESTDIR/@libdir@/jim
 			set install 1
 		}
 		--static {
@@ -225,7 +225,7 @@ if {$static} {
 			load ./$target
 		}
 		if {$install} {
-			set dest [env DESTDIR ""]@prefix@/lib/jim
+			set dest [env DESTDIR ""]@libdir@/jim
 			puts "Install: $target => $dest"
 			file mkdir $dest
 			file copy $target $dest/$target

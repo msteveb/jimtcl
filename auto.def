@@ -271,7 +271,7 @@ cc-with {-includes fcntl.h} {
 cc-check-lfs
 cc-check-functions fseeko ftello
 
-define TCL_LIBRARY [get-define prefix]/lib/jim
+define TCL_LIBRARY [get-define libdir]/jim
 
 lassign [split [get-define host] -] host_cpu host_vendor host_os
 # Scrub revision from the host_os
