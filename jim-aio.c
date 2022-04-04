@@ -642,9 +642,12 @@ static void JimAioSetError(Jim_Interp *interp, Jim_Obj *name)
 
 static int JimCheckStreamError(Jim_Interp *interp, AioFile *af)
 {
-    int ret = af->fops->error(af);
-    if (ret) {
-        JimAioSetError(interp, af->filename);
+    int ret = 0;
+    if (!af->fops->eof(af)) {
+        ret = af->fops->error(af);
+        if (ret) {
+            JimAioSetError(interp, af->filename);
+        }
     }
     return ret;
 }
