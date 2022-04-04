@@ -117,6 +117,10 @@
 #define UNIX_SOCKETS 0
 #endif
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN JIM_PATH_LEN
+#endif
+
 #ifdef JIM_ANSIC
 /* no fdopen() with ANSIC, so can't support these */
 #undef HAVE_PIPE
@@ -2141,6 +2145,7 @@ static int JimAioPipeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int JimAioOpenPtyCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int p[2];
+    char path[MAXPATHLEN];
     static const char * const mode[2] = { "r+", "w+" };
 
     if (argc != 1) {
@@ -2148,12 +2153,13 @@ static int JimAioOpenPtyCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
 
-    if (openpty(&p[0], &p[1], NULL, NULL, NULL) != 0) {
+    if (openpty(&p[0], &p[1], path, NULL, NULL) != 0) {
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
 
-    return JimMakeChannelPair(interp, p, argv[0], "aio.pty%ld", 0, mode);
+    /* Note: The slave path will be used for both master and slave */
+    return JimMakeChannelPair(interp, p, Jim_NewStringObj(interp, path, -1), "aio.pty%ld", 0, mode);
 }
 #endif
 
