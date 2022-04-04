@@ -742,13 +742,16 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int retval;
         int readlen;
 
-        if (neededLen == -1) {
+        if (pending) {
+            readlen = 1;
+        }
+        else if (neededLen == -1) {
             readlen = AIO_BUF_LEN;
         }
         else {
             readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
         }
-        retval = af->fops->reader(af, buf, pending ? 1 : readlen);
+        retval = af->fops->reader(af, buf, readlen);
         if (retval > 0) {
             Jim_AppendString(interp, objPtr, buf, retval);
             if (neededLen != -1) {
@@ -759,6 +762,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                  * we do a second read to fetch any buffered data
                  */
                 neededLen = af->fops->pending(af);
+                pending = 0;
             }
         }
         if (retval <= 0) {
