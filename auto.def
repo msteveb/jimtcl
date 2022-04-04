@@ -445,7 +445,7 @@ if {[opt-bool shared with-jim-shared]} {
 }
 define VERSION [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]
 define LIBSOEXT [format [get-define SH_SOEXTVER] [get-define VERSION]]
-if {[get-define libdir] ni {/lib /usr/lib}} {
+if {[get-define libdir] ni {/lib /usr/lib /usr/lib64}} {
     define SH_LINKRPATH_FLAGS [format [get-define SH_LINKRPATH] [get-define libdir]]
 } else {
     define SH_LINKRPATH_FLAGS ""
