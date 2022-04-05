@@ -102,7 +102,6 @@ typedef struct Jim_EventLoop
     Jim_FileEvent *fileEventHead;
     Jim_TimeEvent *timeEventHead;
     jim_wide timeEventNextId;   /* highest event id created, starting at 1 */
-    time_t timeBase;
     int suppress_bgerror; /* bgerror returned break, so don't call it again */
 } Jim_EventLoop;
 
@@ -239,7 +238,8 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, int fd, int mask)
 }
 
 /**
- * Returns the time since interp creation in microseconds.
+ * Returns the time of day in microseconds.
+ * (the time base is not relevant here)
  */
 static jim_wide JimGetTimeUsec(Jim_EventLoop *eventLoop)
 {
@@ -260,7 +260,7 @@ static jim_wide JimGetTimeUsec(Jim_EventLoop *eventLoop)
         now = tv.tv_sec * 1000000LL + tv.tv_usec;
     }
 
-    return now - eventLoop->timeBase;
+    return now;
 }
 
 jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide us,
