@@ -5325,6 +5325,10 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 
     /* Get the string representation */
     str = Jim_GetString(objPtr, &len);
+    if (str[0] == ':' && str[1] == ':') {
+        str +=2;
+        len -= 2;
+    }
     /* Check if it looks like a reference */
     if (len < JIM_REFERENCE_SPACE)
         goto badformat;

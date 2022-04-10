@@ -21,4 +21,23 @@ test collect-1.1 {ensure globally scoped references are deleted} {
 	set result
 } {3 0 3 1}
 
+test getref-1.1 {getref basic functionality} {
+	set r [ref string tag]
+	getref $r
+} string
+
+test getref-1.2 {getref fully qualified} {
+	getref ::$r
+} string
+
+test setref-1.1 {setref basic functionality} {
+	setref $r string2
+	getref $r
+} string2
+
+test setref-1.2 {setref fully qualified} {
+	setref ::$r string3
+	getref ::$r
+} string3
+
 testreport
