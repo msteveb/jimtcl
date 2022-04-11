@@ -5317,7 +5317,7 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     unsigned long value;
     int i, len;
-    const char *str, *start, *end;
+    const char *str;
     char refId[21];
     Jim_Reference *refPtr;
     Jim_HashEntry *he;
@@ -5330,29 +5330,20 @@ static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
         len -= 2;
     }
     /* Check if it looks like a reference */
-    if (len < JIM_REFERENCE_SPACE)
-        goto badformat;
-    /* Trim spaces */
-    start = str;
-    end = str + len - 1;
-    while (*start == ' ')
-        start++;
-    while (*end == ' ' && end > start)
-        end--;
-    if (end - start + 1 != JIM_REFERENCE_SPACE)
+    if (len != JIM_REFERENCE_SPACE)
         goto badformat;
     /* <reference.<1234567>.%020> */
-    if (memcmp(start, "<reference.<", 12) != 0)
+    if (memcmp(str, "<reference.<", 12) != 0)
         goto badformat;
-    if (start[12 + JIM_REFERENCE_TAGLEN] != '>' || end[0] != '>')
+    if (str[12 + JIM_REFERENCE_TAGLEN] != '>' || str[len - 1] != '>')
         goto badformat;
     /* The tag can't contain chars other than a-zA-Z0-9 + '_'. */
     for (i = 0; i < JIM_REFERENCE_TAGLEN; i++) {
-        if (!isrefchar(start[12 + i]))
+        if (!isrefchar(str[12 + i]))
             goto badformat;
     }
     /* Extract info from the reference. */
-    memcpy(refId, start + 14 + JIM_REFERENCE_TAGLEN, 20);
+    memcpy(refId, str + 14 + JIM_REFERENCE_TAGLEN, 20);
     refId[20] = '\0';
     /* Try to convert the ID into an unsigned long */
     value = strtoul(refId, &endptr, 10);

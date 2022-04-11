@@ -81,8 +81,7 @@ test script-1 {convert empty object to script} {
 
 test ref-1 {treat something as a reference} getref {
 	set ref [ref abc tag]
-	append ref "  "
-	getref "  $ref "
+	getref $ref
 } {abc}
 
 test ref-2 {getref invalid reference} -constraints getref -body {
