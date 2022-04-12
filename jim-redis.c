@@ -151,6 +151,8 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     fd = dup(fd);
     /* Can't fail */
     c = redisConnectFd(fd);
+    /* Enable TCP_KEEPALIVE - this is the default for later redis versions */
+    redisEnableKeepAlive(c);
     /* Now delete the original stream */
     Jim_DeleteCommand(interp, argv[1]);
     snprintf(buf, sizeof(buf), "redis.handle%ld", Jim_GetId(interp));
