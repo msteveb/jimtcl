@@ -90,16 +90,48 @@ int Jim_Errno(void)
     return EINVAL;
 }
 
-pidtype waitpid(pidtype pid, int *status, int nohang)
+long JimProcessPid(phandle_t pid)
 {
-    DWORD ret = WaitForSingleObject(pid, nohang ? 0 : INFINITE);
+    if (pid == INVALID_HANDLE_VALUE) {
+        return -1;
+    }
+    return GetProcessId(pid);
+}
+
+/**
+ * Returns the phandle of the process identified by 'pid' or JIM_BAD_PHANDLE on error.
+ * Note that on success, the handle will no longer be valid.
+ * It can only be used as a token (e.g. to look up the wait table)
+ */
+phandle_t JimWaitPid(long pid, int *status, int nohang)
+{
+    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
+    if (h) {
+        long pid = waitpid(h, status, nohang);
+        CloseHandle(h);
+        if (pid > 0) {
+            return h;
+        }
+    }
+    return JIM_BAD_PHANDLE;
+}
+
+/**
+ * Returns the pid of the process if OK or -1 on error.
+ */
+long waitpid(phandle_t phandle, int *status, int nohang)
+{
+    long pid;
+    DWORD ret = WaitForSingleObject(phandle, nohang ? 0 : INFINITE);
     if (ret == WAIT_TIMEOUT || ret == WAIT_FAILED) {
         /* WAIT_TIMEOUT can only happend with WNOHANG */
-        return JIM_BAD_PID;
+        return -1;
     }
-    GetExitCodeProcess(pid, &ret);
+    GetExitCodeProcess(phandle, &ret);
     *status = ret;
-    CloseHandle(pid);
+    /* We won't be able to get this after we close the handle */
+    pid = GetProcessId(phandle);
+    CloseHandle(phandle);
     return pid;
 }
 
@@ -121,7 +153,7 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unli
     }
 
     Jim_SetResultString(interp, name, -1);
-    return _open_osfhandle((int)handle, _O_RDWR | _O_TEXT);
+    return _open_osfhandle((intptr_t)handle, _O_RDWR | _O_TEXT);
 
   error:
     Jim_SetResultErrno(interp, name);

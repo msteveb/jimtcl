@@ -100,7 +100,7 @@ test exec2-3.4 "wait for background task" -constraints wait -body {
 	set pid [exec sleep 0.1 &]
 	lassign [wait $pid] status newpid exitcode
 	if {$pid != $newpid} {
-		error "Got wrong pid from wait"
+		error "wait $pid returned pid=$newpid"
 	} else {
 		list $status $exitcode
 	}
