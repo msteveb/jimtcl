@@ -285,6 +285,8 @@ switch -glob -- $host_os {
         define TCL_PLATFORM_OS $host_os
         define TCL_PLATFORM_PLATFORM windows
         define TCL_PLATFORM_PATH_SEPARATOR {;}
+        # Target WinXP or later. Should this be configurable?
+        define-append CCOPTS -D_WIN32_WINNT=0x501 -Wno-deprecated-declarations
     }
     default {
         # Note that cygwin is considered a unix platform
