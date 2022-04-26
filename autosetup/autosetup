@@ -878,7 +878,7 @@ proc list-non-empty {list} {
 # The full path to the executable if found, or "" if not found.
 # Returns 1 if found, or 0 if not.
 #
-proc find-executable-path {name} {
+proc find-executable-path {name args} {
 	# Ignore any parameters
 	set name [lindex $name 0]
 	# The empty string is never a valid executable
@@ -902,7 +902,7 @@ proc find-executable-path {name} {
 # in which case the parameters are ignored.
 # Returns 1 if found, or 0 if not.
 #
-proc find-executable {name} {
+proc find-executable {name args} {
 	if {[find-executable-path $name] eq {}} {
 		return 0
 	}
