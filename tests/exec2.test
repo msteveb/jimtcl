@@ -171,4 +171,11 @@ test exec2-5.5 {wait for all children} -constraints {after jim} -body {
 	wait
 } -result {}
 
+test exec2-5.6 {wait -1 to wait for any child} -constraints {after jim nomingw32} -body {
+	set pid [exec sleep 0.1 &]
+	# Now wait for any child
+	lassign [wait -1] status waitpid code
+	list $status $($waitpid == $pid) $code
+} -result {CHILDSTATUS 1 0}
+
 testreport

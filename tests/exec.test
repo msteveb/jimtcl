@@ -445,4 +445,8 @@ test exec-17.2 {redirecting to command pipeline} -setup {
 
 file delete sleepx
 
+# Now we probably have a lot of unreaped zombies at this point
+# so reap them to avoid confusing further tests
+wait
+
 testreport
