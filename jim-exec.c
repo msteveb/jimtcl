@@ -614,6 +614,12 @@ static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (phandle == JIM_BAD_PHANDLE) {
         pid = -1;
     }
+    else if (pid < 0) {
+        /* This catches the case where pid=-1. It is only supported on unix where
+         * the returned phandle is a pid, so can simply assign here
+         */
+        pid = phandle;
+    }
 
     errCodeObj = JimMakeErrorCode(interp, pid, status, NULL);
 

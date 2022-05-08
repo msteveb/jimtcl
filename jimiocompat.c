@@ -102,15 +102,20 @@ long JimProcessPid(phandle_t pid)
  * Returns the phandle of the process identified by 'pid' or JIM_BAD_PHANDLE on error.
  * Note that on success, the handle will no longer be valid.
  * It can only be used as a token (e.g. to look up the wait table)
+ *
+ * Note that Windows doesn't support waitpid(-1, ...) to wait for any child process
+ * so just always return JIM_BAD_PHANDLE in that case.
  */
 phandle_t JimWaitPid(long pid, int *status, int nohang)
 {
-    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
-    if (h) {
-        long pid = waitpid(h, status, nohang);
-        CloseHandle(h);
-        if (pid > 0) {
-            return h;
+    if (pid > 0) {
+        HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
+        if (h) {
+            long pid = waitpid(h, status, nohang);
+            CloseHandle(h);
+            if (pid > 0) {
+                return h;
+            }
         }
     }
     return JIM_BAD_PHANDLE;
