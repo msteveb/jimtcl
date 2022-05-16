@@ -13,30 +13,63 @@
 /**
  * Recursively decode a redis reply as Tcl data structure.
  */
-static Jim_Obj *jim_redis_get_result(Jim_Interp *interp, redisReply *reply)
+static Jim_Obj *jim_redis_get_result(Jim_Interp *interp, redisReply *reply, int addtype)
 {
     int i;
+    Jim_Obj *obj;
+
     switch (reply->type) {
         case REDIS_REPLY_INTEGER:
-            return Jim_NewIntObj(interp, reply->integer);
+            obj = Jim_NewIntObj(interp, reply->integer);
+            break;
         case REDIS_REPLY_STATUS:
         case REDIS_REPLY_ERROR:
         case REDIS_REPLY_STRING:
-            return Jim_NewStringObj(interp, reply->str, reply->len);
+            obj = Jim_NewStringObj(interp, reply->str, reply->len);
             break;
         case REDIS_REPLY_ARRAY:
-            {
-                Jim_Obj *obj = Jim_NewListObj(interp, NULL, 0);
-                for (i = 0; i < reply->elements; i++) {
-                    Jim_ListAppendElement(interp, obj, jim_redis_get_result(interp, reply->element[i]));
-                }
-                return obj;
+            obj = Jim_NewListObj(interp, NULL, 0);
+            for (i = 0; i < reply->elements; i++) {
+                Jim_ListAppendElement(interp, obj, jim_redis_get_result(interp, reply->element[i], addtype));
             }
+            break;
         case REDIS_REPLY_NIL:
-            return Jim_NewStringObj(interp, NULL, 0);
+            obj = Jim_NewStringObj(interp, NULL, 0);
+            break;
         default:
-            return Jim_NewStringObj(interp, "badtype", -1);
+            obj = Jim_NewStringObj(interp, "badtype", -1);
+            break;
     }
+    if (addtype) {
+        const char *type;
+
+        switch (reply->type) {
+            case REDIS_REPLY_INTEGER:
+                type = "int";
+                break;
+            case REDIS_REPLY_STATUS:
+                type = "status";
+                break;
+            case REDIS_REPLY_ERROR:
+                type = "error";
+                break;
+            case REDIS_REPLY_STRING:
+                type = "str";
+                break;
+            case REDIS_REPLY_ARRAY:
+                type = "array";
+                break;
+            case REDIS_REPLY_NIL:
+                type = "nil";
+                break;
+            default:
+                type = "invalid";
+                break;
+        }
+        obj = Jim_NewListObj(interp, &obj, 1);
+        Jim_ListAppendElement(interp, obj, Jim_NewStringObj(interp, type, -1));
+    }
+    return obj;
 }
 
 /**
@@ -56,12 +89,14 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char **args;
     size_t *arglens;
     int ret = JIM_OK;
+    int addtype = 0;
 
     redisReply *reply;
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "cmd ?args ...?");
-        return JIM_ERR;
+    if (argc >= 3 && Jim_CompareStringImmediate(interp, argv[1], "-type")) {
+        addtype = 1;
+        argc--;
+        argv++;
     }
 
     if (Jim_CompareStringImmediate(interp, argv[1], "readable")) {
@@ -94,7 +129,7 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     /* sometimes commands return NULL */
     if (reply) {
-        Jim_SetResult(interp, jim_redis_get_result(interp, reply));
+        Jim_SetResult(interp, jim_redis_get_result(interp, reply, addtype));
         if (reply->type == REDIS_REPLY_ERROR) {
             ret = JIM_ERR;
         }

@@ -11,7 +11,7 @@ Usage
 ~~~~~
 
 The redis extension exports an Object Based interface. In order
-to open a connection, a stream sock must be open to the redis server.
+to open a connection, a stream socket must be open to the redis server.
 e.g.
 
     set r [redis [socket stream localhost:6379]]
@@ -21,7 +21,7 @@ Or to connect via the unix domain socket:
     set r [redis [socket unix /tmp/redis.sock]]
 
 The [redis] command returns a handle, that is a command name that
-can be used to perform operations on the redis instance. A real example:
+can be used to perform operations on the redis instance. For example:
 
     . package require redis
     1.0
@@ -51,14 +51,44 @@ format will be stored and returned exactly.
 Return values
 ~~~~~~~~~~~~~
 
-The response from redis contains a type, and these types are handled as follows:
+Responses from redis contain type information. These types are handled as follows:
 
 * integer - returns the integer result
 * string - returns the string result
 * array - returns a list of elements (where each element is a redis type)
-* null - returns the empty string
+* nil - returns the empty string
 * status - returns the status as a string
 * error - returns an error with the message as the value
+
+Accessing type information
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Normally the type of the return value doesn't matter as Jim treats everything as a string,
+however it can be useful to differentiate between the empty string and nil, or between a status
+return and an error return. In order to support this, the '-type' option is allowed as the
+first word of the subcommand. In this case, whenever a value is returned, a list of {value type}
+is returned instead. This is true recursively, so an array will return both the type for the array
+and each element will include a type. The types are identified as follows:
+
+* integer - "int"
+* string - "str"
+* array - "array"
+* nil - "nil"
+* status - "status"
+* error - "error"
+
+The following example illustrates the use of types:
+
+    . $r -type KEYS a*
+    {{abc str}} array
+    . $r -type SET def 3
+    OK status
+    . $r INCR def
+    4 int
+    . $r -type GET missing
+    {} nil
+	. $r -type KEYS
+	{ERR wrong number of arguments for 'keys' command} error
 
 The read subcommand
 ~~~~~~~~~~~~~~~~~~~

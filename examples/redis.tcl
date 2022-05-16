@@ -27,6 +27,17 @@ $r HMSET env {*}$env
 set result [$r HGET env testing]
 puts "HGET: testing=$result"
 
+# Now the same with -type
+set result [$r -type HGET env testing]
+puts "HGET (-type): testing=$result"
+
+# Now a missing value with -type
+set result [$r -type HGET env doesnotexist]
+puts "HGET (-type): doesnotexist=$result"
+
+set result [$r -type HGETALL env]
+puts "HGETALL (-type): $result"
+
 set size [$r HLEN env]
 puts "Size of env is $size"
 
