@@ -443,6 +443,10 @@ test exec-17.2 {redirecting to command pipeline} -setup {
     file delete gorp.file gorp2.file
 } -result {3}
 
+test exec-17.3 {redirecting stderr to stdout} -body {
+    exec sh -c "echo foo bar 1>&2" 2>@1
+} -result {foo bar}
+
 file delete sleepx
 
 # Now we probably have a lot of unreaped zombies at this point
