@@ -699,6 +699,71 @@ static unsigned JimExecClassifyArg(const char *arg)
 }
 
 /**
+ * Parses the exec pipeline in TIP424 format into two lists, cmdList and redirectList.
+ * (These must start as empty lists)
+ * 
+ * Returns JIM_OK if ok or JIM_ERR on error.
+ */
+static int JimParsePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Obj *cmdList, Jim_Obj *redirectList)
+{
+    int i;
+    /* Add an initial empty commandlist */
+    int first = 1;
+    const char *arg = NULL;
+
+    for (i = 0; i < argc; i++) {
+        unsigned ett;
+        if (first) {
+            printf("first, so adding cmdList=%s\n", Jim_String(argv[i]));
+            if (Jim_ListLength(interp, argv[i]) == 0) {
+                Jim_SetResultString(interp, "empty command list", -1);
+                return JIM_ERR;
+            }
+            Jim_ListAppendElement(interp, cmdList, argv[i]);
+            first = 0;
+            continue;
+        }
+        /* Remaining items should be redirections or | */
+        arg = Jim_String(argv[i]);
+        ett = JimExecClassifyArg(arg);
+        printf("not first, so procesing %s => 0x%04x\n", arg, ett);
+        if (ett == JIM_ETT_BAD || ett == JIM_ETT_CMD) {
+            Jim_SetResultFormatted(interp, "invalid redirection %s", arg);
+            return JIM_ERR;
+        }
+        if (ett & JIM_ETT_PIPE) {
+            printf("pipe\n");
+            Jim_ListAppendElement(interp, cmdList, argv[i]);
+            first = 1;
+            continue;
+        }
+        Jim_ListAppendElement(interp, redirectList, argv[i]);
+        if ((ett & JIM_ETT_NOARG)) {
+            /* This means we need an arg */
+            if (i >= argc - 1) {
+                /* This is an error */
+                Jim_SetResultFormatted(interp, "can't specify \"%#s\" as last word in command", argv[i]);
+                return -1;
+            }
+            i++;
+            Jim_ListAppendElement(interp, redirectList, argv[i]);
+        }
+    }
+
+    if (first) {
+        if (Jim_ListLength(interp, cmdList)) {
+            Jim_SetResultFormatted(interp, "cmdlist required after %s", arg);
+        }
+        else {
+            Jim_SetResultString(interp, "cmdlist is required", -1);
+        }
+        return JIM_ERR;
+    }
+
+    return JIM_OK;
+}
+
+/**
  * Parses the exec pipeline in legacy format into two lists, cmdList and redirectList.
  * (These must start as empty lists)
  * 
@@ -1271,14 +1336,25 @@ static int
 JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t **pidArrayPtr,
     int *outPipePtr, int *errFilePtr)
 {
-    /* JimParsePipelineLegacy builds cmdList and redirectList */
+    int rc = -1;
+    int ret;
+
     Jim_Obj *cmdList = Jim_NewListObj(interp, NULL, 0);
     Jim_Obj *redirectList = Jim_NewListObj(interp, NULL, 0);
     Jim_IncrRefCount(cmdList);
     Jim_IncrRefCount(redirectList);
 
-    int rc = -1;
-    if (JimParsePipelineLegacy(interp, argc, argv, cmdList, redirectList) == JIM_OK) {
+    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[0], "|")) {
+        /* TIP424 exec format */
+        ret = JimParsePipeline(interp, argc - 1, argv + 1, cmdList, redirectList);
+    }
+    else {
+        /* legacy exec format */
+        ret = JimParsePipelineLegacy(interp, argc, argv, cmdList, redirectList);
+    }
+    if (ret == JIM_OK) {
+        printf("cmdList=%s\n", Jim_String(cmdList));
+        printf("redirectList=%s\n", Jim_String(redirectList));
         /* OK, try to exec */
         rc = JimExecPipeline(interp, cmdList, redirectList, pidArrayPtr, outPipePtr, errFilePtr);
     }
