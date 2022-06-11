@@ -97,8 +97,8 @@ struct WaitInfoTable;
 static char **JimOriginalEnviron(void);
 static char **JimSaveEnv(char **env);
 static void JimRestoreEnv(char **env);
-static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv,
-    phandle_t **pidArrayPtr, int *inPipePtr, int *outPipePtr, int *errFilePtr);
+static int JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t **pidArrayPtr,
+    int *outPipePtr, int *errFilePtr);
 static void JimDetachPids(struct WaitInfoTable *table, int numPids, const phandle_t *pidPtr);
 static int JimCleanupChildren(Jim_Interp *interp, int numPids, phandle_t *pidPtr, Jim_Obj *errStrObj);
 static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
@@ -383,7 +383,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int i;
 
         argc--;
-        numPids = JimCreatePipeline(interp, argc - 1, argv + 1, &pidPtr, NULL, NULL, NULL);
+        numPids = JimCreatePipeline(interp, argc - 1, argv + 1, &pidPtr, NULL, NULL);
         if (numPids < 0) {
             return JIM_ERR;
         }
@@ -402,7 +402,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      * Create the command's pipeline.
      */
     numPids =
-        JimCreatePipeline(interp, argc - 1, argv + 1, &pidPtr, NULL, &outputId, &errorId);
+        JimCreatePipeline(interp, argc - 1, argv + 1, &pidPtr, &outputId, &errorId);
 
     if (numPids < 0) {
         return JIM_ERR;
@@ -503,6 +503,7 @@ static void JimDetachPids(struct WaitInfoTable *table, int numPids, const phandl
 }
 
 /* Use 'name getfd' to get the file descriptor associated with channel 'name'
+ * and dup() the resulting file descriptor.
  * Returns the file descriptor or -1 on error
  */
 static int JimGetChannelFd(Jim_Interp *interp, const char *name)
@@ -515,7 +516,7 @@ static int JimGetChannelFd(Jim_Interp *interp, const char *name)
     if (Jim_EvalObjVector(interp, 2, objv) == JIM_OK) {
         jim_wide fd;
         if (Jim_GetWide(interp, Jim_GetResult(interp), &fd) == JIM_OK) {
-            return fd;
+            return dup(fd);
         }
     }
     return -1;
@@ -636,37 +637,138 @@ static int Jim_PidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-/*
- *----------------------------------------------------------------------
+#define JIM_ETT_IN    0x0001     /* < */
+#define JIM_ETT_OUT   0x0002     /* > */
+#define JIM_ETT_ERR   0x0004     /* 2> */
+#define JIM_ETT_PIPE  0x0008     /* | */
+
+#define JIM_ETT_NOARG   0x0010     /* does not accept an additional argument */
+#define JIM_ETT_APPEND  0x0020     /* append to output */
+#define JIM_ETT_STR     0x0040     /* arg is a literal */
+#define JIM_ETT_DUPERR  0x0080     /* dup output to err */
+#define JIM_ETT_HANDLE  0x0100     /* arg is a filehandle */
+
+#define JIM_ETT_CMD     0xF000
+#define JIM_ETT_BAD     0xF001
+
+struct redir_type_t {
+    const char *prefix;
+    unsigned flags;
+};
+
+/* These need to be sorted by length, most specific first */
+static const struct redir_type_t redir_types[] = {
+    { "<<@",    JIM_ETT_IN | JIM_ETT_HANDLE | JIM_ETT_STR },
+    { "<<",     JIM_ETT_IN | JIM_ETT_STR },
+    { "<@",     JIM_ETT_IN | JIM_ETT_HANDLE },
+    { "<",      JIM_ETT_IN },
+
+    { "2>>",    JIM_ETT_ERR | JIM_ETT_APPEND },
+    { "2>@",    JIM_ETT_ERR | JIM_ETT_HANDLE },
+    { "2>",     JIM_ETT_ERR },
+
+    { ">>&",    JIM_ETT_OUT | JIM_ETT_APPEND | JIM_ETT_DUPERR },
+    { ">>",     JIM_ETT_OUT | JIM_ETT_APPEND },
+    { ">&@",    JIM_ETT_OUT | JIM_ETT_HANDLE | JIM_ETT_DUPERR },
+    { ">@",     JIM_ETT_OUT | JIM_ETT_HANDLE },
+    { ">&",     JIM_ETT_OUT | JIM_ETT_DUPERR },
+    { ">",      JIM_ETT_OUT },
+
+    { "|&",     JIM_ETT_PIPE | JIM_ETT_DUPERR },
+    { "|",      JIM_ETT_PIPE },
+    { NULL }
+};
+
+static unsigned JimExecClassifyArg(const char *arg)
+{
+    int i;
+    for (i = 0; redir_types[i].prefix; i++) {
+        int len = strlen(redir_types[i].prefix);
+        if (strncmp(arg, redir_types[i].prefix, len) == 0) {
+            if (strlen(arg) > len) {
+                if (redir_types[i].flags & JIM_ETT_NOARG) {
+                    /* error - no arg expected */
+                    return JIM_ETT_BAD;
+                }
+                return redir_types[i].flags;
+            }
+            /* Token doesn't contain an arg */
+            return redir_types[i].flags | JIM_ETT_NOARG;
+        }
+    }
+    return JIM_ETT_CMD;
+}
+
+/**
+ * Parses the exec pipeline in legacy format into two lists, cmdList and redirectList.
+ * (These must start as empty lists)
+ * 
+ * cmdList contains a list of {cmdlist ?sep cmdlist ...? }
+ * i.e. pairs of cmdlist (a list of {command arg...}) and a separator:  | or |&
+ * with the separator missing after the last command list.
  *
- * JimCreatePipeline --
- *
- *  Given an argc/argv array, instantiate a pipeline of processes
- *  as described by the argv.
- *
- * Results:
- *  The return value is a count of the number of new processes
- *  created, or -1 if an error occurred while creating the pipeline.
- *  *pidArrayPtr is filled in with the address of a dynamically
- *  allocated array giving the ids of all of the processes.  It
- *  is up to the caller to free this array when it isn't needed
- *  anymore.  If inPipePtr is non-NULL, *inPipePtr is filled in
- *  with the file id for the input pipe for the pipeline (if any):
- *  the caller must eventually close this file.  If outPipePtr
- *  isn't NULL, then *outPipePtr is filled in with the file id
- *  for the output pipe from the pipeline:  the caller must close
- *  this file.  If errFilePtr isn't NULL, then *errFilePtr is filled
- *  with a file id that may be used to read error output after the
- *  pipeline completes.
- *
- * Side effects:
- *  Processes and pipes are created.
- *
- *----------------------------------------------------------------------
+ * Returns JIM_OK if ok or JIM_ERR on error.
  */
-static int
-JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t **pidArrayPtr,
-    int *inPipePtr, int *outPipePtr, int *errFilePtr)
+static int JimParsePipelineLegacy(Jim_Interp *interp, int argc, Jim_Obj *const *argv, Jim_Obj *cmdList, Jim_Obj *redirectList)
+{
+    int i;
+    /* Add an initial empty commandlist */
+    Jim_Obj *cmdObj = Jim_NewListObj(interp, NULL, 0);
+    Jim_ListAppendElement(interp, cmdList, cmdObj);
+    const char *arg = NULL;
+
+    for (i = 0; i < argc; i++) {
+        arg = Jim_String(argv[i]);
+        unsigned ett = JimExecClassifyArg(arg);
+        if (ett == JIM_ETT_BAD) {
+            Jim_SetResultFormatted(interp, "invalid: %s", arg);
+            return JIM_ERR;
+        }
+        if (ett == JIM_ETT_CMD) {
+            /* Add to the current command */
+            Jim_ListAppendElement(interp, cmdObj, argv[i]);
+            continue;
+        }
+        if (ett & JIM_ETT_PIPE) {
+            if (Jim_ListLength(interp, cmdObj) == 0) {
+                goto missing_cmd;
+            }
+            /* Add this separator */
+            Jim_ListAppendElement(interp, cmdList, argv[i]);
+            /* Now start a new command list */
+            cmdObj = Jim_NewListObj(interp, NULL, 0);
+            Jim_ListAppendElement(interp, cmdList, cmdObj);
+            continue;
+        }
+        Jim_ListAppendElement(interp, redirectList, argv[i]);
+        if ((ett & JIM_ETT_NOARG)) {
+            /* This means we need an arg */
+            if (i >= argc - 1) {
+                /* This is an error */
+                Jim_SetResultFormatted(interp, "can't specify \"%#s\" as last word in command", argv[i]);
+                return -1;
+            }
+            i++;
+            Jim_ListAppendElement(interp, redirectList, argv[i]);
+        }
+    }
+
+    if (Jim_ListLength(interp, cmdObj) == 0) {
+missing_cmd:
+        if (arg && *arg == '|') {
+            Jim_SetResultString(interp, "illegal use of | or |& in command", -1);
+        }
+        else {
+            Jim_SetResultString(interp, "didn't specify command to execute", -1);
+        }
+        return JIM_ERR;
+    }
+
+    return JIM_OK;
+}
+
+static int JimExecPipeline(Jim_Interp *interp, Jim_Obj *cmdList, Jim_Obj *redirectList,
+    phandle_t **pidArrayPtr, int *outPipePtr, int *errFilePtr)
 {
     phandle_t *pidPtr = NULL;         /* Points to alloc-ed array holding all
                                  * the pids of child processes. */
@@ -679,9 +781,9 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
                                  * from stdin/pipe. */
     int input_len = 0;          /* Length of input, if relevant */
 
-#define FILE_NAME   0           /* input/output: filename */
+#define FILE_NAME   0           /* input/output: filename or @filehandle */
 #define FILE_APPEND 1           /* output only:  filename, append */
-#define FILE_HANDLE 2           /* input/output: filehandle */
+#define FILE_HANDLE 2           /* input/output: @ filehandle */
 #define FILE_TEXT   3           /* input only:   input is actual text */
 
     int inputFile = FILE_NAME;  /* 1 means input is name of input file.
@@ -720,9 +822,6 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
                                  * in pipeline (could be file or pipe).
                                  * -1 means use stdout. */
     int pipeIds[2];           /* File ids for pipe that's being created. */
-    int firstArg, lastArg;      /* Indexes of first and last arguments in
-                                 * current command. */
-    int lastBar;
     int i;
     phandle_t phandle;
     char **save_environ;
@@ -731,13 +830,6 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
 #endif
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
 
-    /* Holds the args which will be used to exec */
-    char **arg_array = Jim_Alloc(sizeof(*arg_array) * (argc + 1));
-    int arg_count = 0;
-
-    if (inPipePtr != NULL) {
-        *inPipePtr = -1;
-    }
     if (outPipePtr != NULL) {
         *outPipePtr = -1;
     }
@@ -746,103 +838,70 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
     }
     pipeIds[0] = pipeIds[1] = -1;
 
-    /*
-     * First, scan through all the arguments to figure out the structure
-     * of the pipeline.  Count the number of distinct processes (it's the
-     * number of "|" arguments).  If there are "<", "<<", or ">" arguments
-     * then make note of input and output redirection and remove these
-     * arguments and the arguments that follow them.
+    /* Now interpet the redirection list
      */
-    cmdCount = 1;
-    lastBar = -1;
-    for (i = 0; i < argc; i++) {
-        const char *arg = Jim_String(argv[i]);
-
-        if (arg[0] == '<') {
-            inputFile = FILE_NAME;
-            input = arg + 1;
-            if (*input == '<') {
-                inputFile = FILE_TEXT;
-                input_len = Jim_Length(argv[i]) - 2;
-                input++;
+    int redir_len = Jim_ListLength(interp, redirectList);
+    for (i = 0; i < redir_len; i++) {
+        int len;
+        int item_len;
+        Jim_Obj *redirObj = Jim_ListGetIndex(interp, redirectList, i);
+        const char *arg = Jim_GetString(redirObj, &len);
+        unsigned ett = JimExecClassifyArg(arg);
+        const char *item;
+        int type = FILE_NAME;
+        if ((ett & JIM_ETT_NOARG) == 0) {
+            /* No separate arg. Need to skip over the appropriate number or redirection chars */
+            item = arg + 1;
+            if (ett & JIM_ETT_HANDLE) {
+                item++;
             }
-            else if (*input == '@') {
-                inputFile = FILE_HANDLE;
-                input++;
+            if (ett & JIM_ETT_APPEND) {
+                item++;
             }
-
-            if (!*input && ++i < argc) {
-                input = Jim_GetString(argv[i], &input_len);
+            if (ett & JIM_ETT_DUPERR) {
+                item++;
             }
-        }
-        else if (arg[0] == '>') {
-            int dup_error = 0;
-
-            outputFile = FILE_NAME;
-
-            output = arg + 1;
-            if (*output == '>') {
-                outputFile = FILE_APPEND;
-                output++;
+            if (ett & JIM_ETT_ERR) {
+                item++;
             }
-            if (*output == '&') {
-                /* Redirect stderr too */
-                output++;
-                dup_error = 1;
+            if (ett & JIM_ETT_STR) {
+                type = FILE_TEXT;
+                item++;
             }
-            if (*output == '@') {
-                outputFile = FILE_HANDLE;
-                output++;
-            }
-            if (!*output && ++i < argc) {
-                output = Jim_String(argv[i]);
-            }
-            if (dup_error) {
-                errorFile = outputFile;
-                error = output;
-            }
-        }
-        else if (arg[0] == '2' && arg[1] == '>') {
-            error = arg + 2;
-            errorFile = FILE_NAME;
-
-            if (*error == '@') {
-                errorFile = FILE_HANDLE;
-                error++;
-            }
-            else if (*error == '>') {
-                errorFile = FILE_APPEND;
-                error++;
-            }
-            if (!*error && ++i < argc) {
-                error = Jim_String(argv[i]);
-            }
+            item_len = len - (item - arg);
         }
         else {
-            if (strcmp(arg, "|") == 0 || strcmp(arg, "|&") == 0) {
-                if (i == lastBar + 1 || i == argc - 1) {
-                    Jim_SetResultString(interp, "illegal use of | or |& in command", -1);
-                    goto badargs;
-                }
-                lastBar = i;
-                cmdCount++;
+            /* separate arg, so fetch it */
+            i++;
+            item = Jim_GetString(Jim_ListGetIndex(interp, redirectList, i), &item_len);
+        }
+        /* Figure out the type */
+        if (ett & JIM_ETT_HANDLE) {
+            type = FILE_HANDLE;
+        }
+        if (ett & JIM_ETT_APPEND) {
+            type = FILE_APPEND;
+        }
+        if (ett & JIM_ETT_STR) {
+            type = FILE_TEXT;
+        }
+        if (ett & JIM_ETT_IN) {
+            input = item;
+            input_len = item_len;
+            inputFile = type;
+        }
+        else if (ett & JIM_ETT_OUT) {
+            output = item;
+            outputFile = type;
+            if (ett & JIM_ETT_DUPERR) {
+                error = output;
+                errorFile = outputFile;
             }
-            /* Either |, |& or a "normal" arg, so store it in the arg array */
-            arg_array[arg_count++] = (char *)arg;
-            continue;
         }
-
-        if (i >= argc) {
-            Jim_SetResultFormatted(interp, "can't specify \"%s\" as last word in command", arg);
-            goto badargs;
+        else if (ett & JIM_ETT_ERR) {
+            error = item;
+            errorFile = type;
         }
-    }
-
-    if (arg_count == 0) {
-        Jim_SetResultString(interp, "didn't specify command to execute", -1);
-badargs:
-        Jim_Free(arg_array);
-        return -1;
     }
 
     /* Must do this before vfork(), so do it now */
@@ -870,12 +929,10 @@ badargs:
             Jim_Lseek(inputId, 0L, SEEK_SET);
         }
         else if (inputFile == FILE_HANDLE) {
-            int fd = JimGetChannelFd(interp, input);
-
-            if (fd < 0) {
+            inputId = JimGetChannelFd(interp, input);
+            if (inputId < 0) {
                 goto error;
             }
-            inputId = dup(fd);
         }
         else {
             /*
@@ -888,15 +945,6 @@ badargs:
             }
         }
     }
-    else if (inPipePtr != NULL) {
-        if (pipe(pipeIds) != 0) {
-            Jim_SetResultErrno(interp, "couldn't create input pipe for command");
-            goto error;
-        }
-        inputId = pipeIds[0];
-        *inPipePtr = pipeIds[1];
-        pipeIds[0] = pipeIds[1] = -1;
-    }
 
     /*
      * Set up the redirected output sink for the pipeline from one
@@ -904,11 +952,10 @@ badargs:
      */
     if (output != NULL) {
         if (outputFile == FILE_HANDLE) {
-            int fd = JimGetChannelFd(interp, output);
-            if (fd < 0) {
+            lastOutputId = JimGetChannelFd(interp, output);
+            if (lastOutputId < 0) {
                 goto error;
             }
-            lastOutputId = dup(fd);
         }
         else {
             /*
@@ -933,11 +980,12 @@ badargs:
         *outPipePtr = pipeIds[0];
         pipeIds[0] = pipeIds[1] = -1;
     }
+
     /* If we are redirecting stderr with 2>filename or 2>@fileId, then we ignore errFilePtr */
     if (error != NULL) {
         if (errorFile == FILE_HANDLE) {
             if (strcmp(error, "1") == 0) {
-                /* Special 2>@1 */
+                /* Special 2>@1 so stderr goes to the pipe output too */
                 if (lastOutputId != -1) {
                     errorId = dup(lastOutputId);
                 }
@@ -947,11 +995,10 @@ badargs:
                 }
             }
             if (errorId == -1) {
-                int fd = JimGetChannelFd(interp, error);
-                if (fd < 0) {
+                errorId = JimGetChannelFd(interp, error);
+                if (errorId < 0) {
                     goto error;
                 }
-                errorId = dup(fd);
             }
         }
         else {
@@ -982,59 +1029,59 @@ badargs:
     }
 
     /*
-     * Scan through the argc array, forking off a process for each
-     * group of arguments between "|" arguments.
+     * Iterate over cmdList, forking off a process for each
+     * cmdlist
      */
-
+    int cmd_list_size = Jim_ListLength(interp, cmdList);
+    cmdCount = (cmd_list_size + 1) / 2;
     pidPtr = Jim_Alloc(cmdCount * sizeof(*pidPtr));
-    for (firstArg = 0; firstArg < arg_count; numPids++, firstArg = lastArg + 1) {
-        int pipe_dup_err = 0;
+
+    for (i = 0; i < cmd_list_size; ) {
+        char **arg_array;
+        int j;
         int origErrorId = errorId;
-
-        for (lastArg = firstArg; lastArg < arg_count; lastArg++) {
-            if (strcmp(arg_array[lastArg], "|") == 0) {
-                break;
-            }
-            if (strcmp(arg_array[lastArg], "|&") == 0) {
-                pipe_dup_err = 1;
-                break;
-            }
+        Jim_Obj *cmdObj = Jim_ListGetIndex(interp, cmdList, i++);
+        int cmd_len = Jim_ListLength(interp, cmdObj);
+        Jim_Obj *sepObj = NULL;
+        if (i < cmd_list_size - 1) {
+            sepObj = Jim_ListGetIndex(interp, cmdList, i++);
         }
 
-        if (lastArg == firstArg) {
-            Jim_SetResultString(interp, "missing command to exec", -1);
-            goto error;
+        /* Build exec array */
+        arg_array = Jim_Alloc((cmd_len + 1) * sizeof(*arg_array));
+        for (j = 0; j < cmd_len; j++) {
+            arg_array[j] = (char *)Jim_String(Jim_ListGetIndex(interp, cmdObj, j));
         }
+        arg_array[j] = NULL;
 
-        /* Replace | with NULL for execv() */
-        arg_array[lastArg] = NULL;
-        if (lastArg == arg_count) {
+        if (sepObj == NULL) {
             outputId = lastOutputId;
             lastOutputId = -1;
         }
         else {
             if (pipe(pipeIds) != 0) {
                 Jim_SetResultErrno(interp, "couldn't create pipe");
+                Jim_Free(arg_array);
                 goto error;
             }
             outputId = pipeIds[1];
         }
 
         /* Need to do this before vfork() */
-        if (pipe_dup_err) {
+        if (sepObj && Jim_CompareStringImmediate(interp, sepObj, "|&")) {
             errorId = outputId;
         }
 
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        phandle = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
+        phandle = JimStartWinProcess(interp, &arg_array[0], save_environ, inputId, outputId, errorId);
         if (phandle == JIM_BAD_PHANDLE) {
-            Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
+            Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[0]);
             goto error;
         }
 #else
-        i = strlen(arg_array[firstArg]);
+        int argv0_len = strlen(arg_array[0]);
 
 #ifdef HAVE_EXECVPE
         child_environ = Jim_GetEnviron();
@@ -1083,10 +1130,10 @@ badargs:
                 close(lastOutputId);
             }
 
-            execvpe(arg_array[firstArg], &arg_array[firstArg], child_environ);
+            execvpe(arg_array[0], arg_array, child_environ);
 
             if (write(fileno(stderr), "couldn't exec \"", 15) &&
-                write(fileno(stderr), arg_array[firstArg], i) &&
+                write(fileno(stderr), arg_array[0], argv0_len) &&
                 write(fileno(stderr), "\"\n", 2)) {
                 /* nothing */
             }
@@ -1102,6 +1149,7 @@ badargs:
 #endif
 
         /* parent */
+        Jim_Free(arg_array);
 
         /*
          * Enlarge the wait table if there isn't enough space for a new
@@ -1116,7 +1164,7 @@ badargs:
         table->info[table->used].flags = 0;
         table->used++;
 
-        pidPtr[numPids] = phandle;
+        pidPtr[numPids++] = phandle;
 
         /* Restore in case of pipe_dup_err */
         errorId = origErrorId;
@@ -1151,7 +1199,6 @@ badargs:
     if (errorId != -1) {
         close(errorId);
     }
-    Jim_Free(arg_array);
 
     JimRestoreEnv(save_environ);
 
@@ -1164,10 +1211,6 @@ badargs:
      */
 
   error:
-    if ((inPipePtr != NULL) && (*inPipePtr != -1)) {
-        close(*inPipePtr);
-        *inPipePtr = -1;
-    }
     if ((outPipePtr != NULL) && (*outPipePtr != -1)) {
         close(*outPipePtr);
         *outPipePtr = -1;
@@ -1192,6 +1235,52 @@ badargs:
     }
     numPids = -1;
     goto cleanup;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * JimCreatePipeline --
+ *
+ *  Given an argc/argv array, instantiate a pipeline of processes
+ *  as described by the argv.
+ *
+ * Results:
+ *  The return value is a count of the number of new processes
+ *  created, or -1 if an error occurred while creating the pipeline.
+ *  *pidArrayPtr is filled in with the address of a dynamically
+ *  allocated array giving the ids of all of the processes.  It
+ *  is up to the caller to free this array when it isn't needed
+ *  anymore. If outPipePtr
+ *  isn't NULL, then *outPipePtr is filled in with the file id
+ *  for the output pipe from the pipeline:  the caller must close
+ *  this file.  If errFilePtr isn't NULL, then *errFilePtr is filled
+ *  with a file id that may be used to read error output after the
+ *  pipeline completes.
+ *
+ * Side effects:
+ *  Processes and pipes are created.
+ *
+ *----------------------------------------------------------------------
+ */
+static int
+JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t **pidArrayPtr,
+    int *outPipePtr, int *errFilePtr)
+{
+    /* JimParsePipelineLegacy builds cmdList and redirectList */
+    Jim_Obj *cmdList = Jim_NewListObj(interp, NULL, 0);
+    Jim_Obj *redirectList = Jim_NewListObj(interp, NULL, 0);
+    Jim_IncrRefCount(cmdList);
+    Jim_IncrRefCount(redirectList);
+
+    int rc = -1;
+    if (JimParsePipelineLegacy(interp, argc, argv, cmdList, redirectList) == JIM_OK) {
+        /* OK, try to exec */
+        rc = JimExecPipeline(interp, cmdList, redirectList, pidArrayPtr, outPipePtr, errFilePtr);
+    }
+    Jim_DecrRefCount(interp, cmdList);
+    Jim_DecrRefCount(interp, redirectList);
+    return rc;
 }
 
 /*
