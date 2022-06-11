@@ -268,7 +268,8 @@ error msg 2}}
 test exec-10.1 {errors in exec invocation} {
     list [catch {exec} msg]
 } {1}
-test exec-10.2 {errors in exec invocation} {
+# Note that with TIP424 exec, this is no longer an error in Jim
+test exec-10.2 {errors in exec invocation} tcl {
     list [catch {exec | cat} msg] $msg
 } {1 {illegal use of | or |& in command}}
 test exec-10.3 {errors in exec invocation} {
