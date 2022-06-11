@@ -57,6 +57,11 @@ Changes since 0.83
 #. `aio` - support for configurable read and write buffering
 #. Add support for `package forget`
 #. Add `aio translation` support (and fconfigure -translation)
+#. `exec` TIP 424 - support safer +'exec |'+ syntax (also +'open "|| pipeline..."'+)
+#. New `lsubst` command to create lists using subst-style substitution
+#. Add support for `regexp -expanded` and `regsub -expanded`
+#. `vwait` now accepts a script argument
+#. Add support for `os.umask`
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2320,6 +2325,8 @@ exec
 ~~~~
 +*exec* 'arg ?arg\...?'+
 
++*exec* | '{cmdlist \...} ?redirection \...?'+
+
 This command treats its arguments as the specification
 of one or more UNIX commands to execute as subprocesses.
 The commands take the form of a standard shell pipeline;
@@ -2353,7 +2360,8 @@ is a newline then that character is deleted from the result
 or error message for consistency with normal
 Tcl return values.
 
-An +'arg'+ may have one of the following special forms:
+An +'arg'+ (or +'redirection'+ in the second form) may have one of the
+following special forms:
 
 +>filename+::
     The standard output of the last command in the pipeline
@@ -2370,23 +2378,23 @@ An +'arg'+ may have one of the following special forms:
     will normally return an empty string.
 
 +2>filename+::
-    The standard error of the last command in the pipeline
+    The standard error of all commands in the pipeline
     is redirected to the file.
 
 +2>>filename+::
     As above, but append to the file.
 
 +2>@fileId+::
-    The standard error of the last command in the pipeline is
+    The standard error of all commands in the pipeline is
     redirected to the given (writable) file descriptor.
 
 +2>@1+::
-    The standard error of the last command in the pipeline is
-    redirected to the same file descriptor as the standard output.
+    The standard error of all commands in the pipeline is
+    redirected command output.
 
 +>&filename+::
-    Both the standard output and standard error of the last command
-    in the pipeline is redirected to the file.
+    Both standard output from the last command and standard error from all commands
+    in the pipeline are redirected to the file.
 
 +>>&filename+::
     As above, but append to the file.
@@ -2403,23 +2411,28 @@ An +'arg'+ may have one of the following special forms:
     The standard input of the first command in the pipeline
     is taken from the given (readable) file descriptor.
 
+Note that any of the forms that take an argument (filename, fileId or string)
+their argument may be a separate word. e.g. +'<< $str'+.
+
 If there is no redirection of standard input, standard error
 or standard output, these are connected to the corresponding
 input or output of the application.
 
-If the last +'arg'+ is +&+ then the command will be
-executed in background.
-In this case the standard output from the last command
-in the pipeline will
-go to the application's standard output unless
-redirected in the command, and error output from all
-the commands in the pipeline will go to the application's
-standard error file. The return value of exec in this case
-is a list of process ids (pids) in the pipeline.
+If the last +'arg'+ or +'redirection'+ is +&+ then the command will be
+executed in background.  In this case the standard output from the last
+command in the pipeline will go to the application's standard output
+unless redirected in the command, and error output from all the commands
+in the pipeline will go to the application's standard error file. The
+return value of exec in this case is a list of process ids (pids) in
+the pipeline.
 
 Each +'arg'+ becomes one word for a command, except for
 +|+, +<+, +<<+, +>+, and +&+ arguments, and the
 arguments that follow +<+, +<<+, and +>+.
+
+In the second form, +'cmdlist'+ is the command list, so there
+is no ambiguity about whether an argument or a redirection.
+Note that this second form is not currently supported by Tcl.
 
 The first word in each command is taken as the command name;
 the directories in the PATH environment variable are searched for
@@ -3654,6 +3667,8 @@ pipeline is directed to the current standard output unless overridden
 by the command. If read-only access is used (e.g. +'access'+ is r),
 standard input for the pipeline is taken from the current standard
 input unless overridden by the command.
+
+Note that this incudes new style exec syntax, e.g. +'open |[list | ls -l] r'+.
 
 The `pid` command may be used to return the process ids of the commands
 forming the command pipeline.
