@@ -714,7 +714,6 @@ static int JimParsePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, 
     for (i = 0; i < argc; i++) {
         unsigned ett;
         if (first) {
-            printf("first, so adding cmdList=%s\n", Jim_String(argv[i]));
             if (Jim_ListLength(interp, argv[i]) == 0) {
                 Jim_SetResultString(interp, "empty command list", -1);
                 return JIM_ERR;
@@ -726,13 +725,11 @@ static int JimParsePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, 
         /* Remaining items should be redirections or | */
         arg = Jim_String(argv[i]);
         ett = JimExecClassifyArg(arg);
-        printf("not first, so procesing %s => 0x%04x\n", arg, ett);
         if (ett == JIM_ETT_BAD || ett == JIM_ETT_CMD) {
             Jim_SetResultFormatted(interp, "invalid redirection %s", arg);
             return JIM_ERR;
         }
         if (ett & JIM_ETT_PIPE) {
-            printf("pipe\n");
             Jim_ListAppendElement(interp, cmdList, argv[i]);
             first = 1;
             continue;
@@ -1353,8 +1350,6 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
         ret = JimParsePipelineLegacy(interp, argc, argv, cmdList, redirectList);
     }
     if (ret == JIM_OK) {
-        printf("cmdList=%s\n", Jim_String(cmdList));
-        printf("redirectList=%s\n", Jim_String(redirectList));
         /* OK, try to exec */
         rc = JimExecPipeline(interp, cmdList, redirectList, pidArrayPtr, outPipePtr, errFilePtr);
     }
