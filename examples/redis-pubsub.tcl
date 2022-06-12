@@ -36,26 +36,39 @@ try {
 }
 
 if {$op eq "sub"} {
+    # read will generate a bgerror if the server goes away
+    proc bgerror {msg} {
+        set ::done "$::op: $msg"
+    }
+
     $r SUBSCRIBE chin
     $r SUBSCRIBE chan
+
+    proc sub_timeout {} {
+        set ::done "$::op: quitting on idle"
+    }
 
     $r readable {
         after cancel $afterid
         set result [$r read]
         puts "$op: $result"
-        set afterid [after 2000 {incr done}]
+        set afterid [after 2000 sub_timeout]
     }
     # If no message for 2 seconds, stop
-    set afterid [after 2000 {incr done}]
+    set afterid [after 2000 sub_timeout]
     vwait done
-    puts "$op: quitting on idle"
+    puts $done
 } else {
-    loop i 1 15 {
-        $r PUBLISH chan PONG$i
-        puts "$op: chan PONG$i"
-        after 250
-        $r PUBLISH chin PING$i
-        puts "$op: chin PING$i"
-        after 250
+    try {
+        loop i 1 15 {
+            $r PUBLISH chan PONG$i
+            puts "$op: chan PONG$i"
+            after 250
+            $r PUBLISH chin PING$i
+            puts "$op: chin PING$i"
+            after 250
+        }
+    } on error msg {
+        puts "$op: $msg"
     }
 }
