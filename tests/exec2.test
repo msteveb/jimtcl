@@ -67,28 +67,22 @@ test exec2-3.1 "close pipeline return value" pipe {
 	list $rc $msg $status $exitcode
 } {1 {child process exited abnormally} CHILDSTATUS 1}
 
-test exec2-3.2 "close pipeline return value" -constraints {jim pipe nomingw32} -body {
-	# Create a pipe and immediately close the read end
-	lassign [pipe] r w
-	close $r
+test exec2-3.2 "close pipeline return value" -constraints {pipe nomingw32} -body {
 	# Write more than 64KB which is maximum size of the pipe buffers
 	# on all systems we have seen
 	set bigstring [string repeat a 100000]
-	set f [open [list |cat << $bigstring >$@w]]
+	set f [open [list |cat << $bigstring]]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
 	list $rc $msg $status $exitcode
 } -match glob -result {1 {child killed*} CHILDKILLED SIGPIPE}
 
 test exec2-3.3 "close pipeline with SIGPIPE blocked" -constraints {pipe signal nomingw32} -body {
-	# Create a pipe and immediately close the read end
-	lassign [pipe] r w
-	close $r
 	signal block SIGPIPE
 	# Write more than 64KB which is maximum size of the pipe buffers
 	# on all systems we have seen
 	set bigstring [string repeat a 100000]
-	set f [open [list |cat << $bigstring >$@w 2>/dev/null]]
+	set f [open [list |cat << $bigstring 2>/dev/null]]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
 	list $rc $msg $status $exitcode
