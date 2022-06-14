@@ -11716,51 +11716,38 @@ int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename)
  * Reads the text file contents into an object and returns with a zero ref count.
  * Returns NULL and sets an error if can't read the file.
  */
-static Jim_Obj *JimReadTextFile(Jim_Interp *interp, const char *filename)
-{
-    jim_stat_t sb;
-    int fd;
-    char *buf;
-    int readlen;
-
-    if (Jim_Stat(filename, &sb) == -1 || (fd = open(filename, O_RDONLY | O_TEXT, 0666)) < 0) {
-        Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
-        return NULL;
-    }
-    buf = Jim_Alloc(sb.st_size + 1);
-    readlen = read(fd, buf, sb.st_size);
-    close(fd);
-    if (readlen < 0) {
-        Jim_Free(buf);
-        Jim_SetResultFormatted(interp, "failed to load file \"%s\": %s", filename, strerror(errno));
-        return NULL;
-    }
-    else {
-        Jim_Obj *objPtr;
-        buf[readlen] = 0;
-
-        objPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
-
-        return objPtr;
-    }
-}
-
-
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
-    Jim_Obj *filenameObj;
-    Jim_Obj *oldFilenameObj;
+    FILE *fp;
+    char *buf;
     Jim_Obj *scriptObjPtr;
-    int retcode;
+    Jim_Obj *filenameObj, *oldFilenameObj;
+    int retcode = JIM_ERR;
+    int readlen;
+#define READ_BUF_SIZE 256
 
-    scriptObjPtr = JimReadTextFile(interp, filename);
-    if (!scriptObjPtr) {
+   if ((fp = fopen(filename, "rt")) == NULL) {
+        Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
+    scriptObjPtr = Jim_NewStringObj(interp, NULL, 0);
 
+    buf = Jim_Alloc(READ_BUF_SIZE);
+    while ((readlen = fread(buf, 1, READ_BUF_SIZE, fp)) > 0) {
+        Jim_AppendString(interp, scriptObjPtr, buf, readlen);
+    }
+    Jim_Free(buf);
+    if (ferror(fp)) {
+        fclose(fp);
+        Jim_SetResultFormatted(interp, "failed to load file \"%s\": %s", filename, strerror(errno));
+        Jim_FreeNewObj(interp, scriptObjPtr);
+        return retcode;
+    }
+    fclose(fp);
+
+    /* Convert the stringObjType to a sourceObjType with filename and line */
     filenameObj = Jim_NewStringObj(interp, filename, -1);
     Jim_SetSourceInfo(interp, scriptObjPtr, filenameObj, 1);
-
     oldFilenameObj = JimPushInterpObj(interp->currentFilenameObj, filenameObj);
 
     retcode = Jim_EvalObj(interp, scriptObjPtr);
