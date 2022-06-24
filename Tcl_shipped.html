@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.10" />
+<meta name="generator" content="AsciiDoc 10.2.0" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Shared CSS for AsciiDoc xhtml11 and html5 backends */
@@ -436,7 +436,7 @@ thead, p.table.header {
 p.table {
   margin-top: 0;
 }
-/* Because the table frame attribute is overriden by CSS in most browsers. */
+/* Because the table frame attribute is overridden by CSS in most browsers. */
 div.tableblock > table[frame="void"] {
   border-style: none;
 }
@@ -936,6 +936,16 @@ Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>
 <li>
 <p>
 TIP 526, <a href="#_expr"><strong><code>expr</code></strong></a> now only allows a single argument (unless --compat is enabled)
+</p>
+</li>
+<li>
+<p>
+<a href="#_try"><strong><code>try</code></strong></a> now supports trap to match on errorcode
+</p>
+</li>
+<li>
+<p>
+TIP 603, <a href="#_aio"><strong><code>aio</code></strong></a> <code>stat</code> is now supported to stat a file handle
 </p>
 </li>
 </ol></div>
@@ -3723,6 +3733,21 @@ a named procedure.</p></div>
 <div class="paragraph"><p>See also <a href="#_proc"><strong><code>proc</code></strong></a>, <a href="#_alias"><strong><code>alias</code></strong></a>, <a href="#_lambda"><strong><code>lambda</code></strong></a>, <a href="#_local"><strong><code>local</code></strong></a>.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_defer">defer</h3>
+<div class="paragraph"><p><code><strong>defer</strong> <em>script</em></code></p></div>
+<div class="paragraph"><p>This command is a simple helper command to add a script to the <em><code>$jim::defer</code></em> variable
+that will run when the current proc or interpreter exits. For example:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    . proc a {} { defer {puts "Leaving a"}; puts "Exit" }
+    . a
+    Exit
+    Leaving a</code></pre>
+</div></div>
+<div class="paragraph"><p>If the <em><code>$jim::defer</code></em> variable exists, it is treated as a list of scripts to run
+when the proc or interpreter exits.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_dict">dict</h3>
 <div class="paragraph"><p><code><strong>dict</strong> <em>option ?arg...?</em></code></p></div>
 <div class="paragraph"><p>Performs one of several operations on dictionary values.</p></div>
@@ -5494,21 +5519,6 @@ with last option being used.</p></div>
 </dl></div>
 </div>
 <div class="sect2">
-<h3 id="_defer">defer</h3>
-<div class="paragraph"><p><code><strong>defer</strong> <em>script</em></code></p></div>
-<div class="paragraph"><p>This command is a simple helper command to add a script to the <em><code>$jim::defer</code></em> variable
-that will run when the current proc or interpreter exits. For example:</p></div>
-<div class="listingblock">
-<div class="content">
-<pre><code>    . proc a {} { defer {puts "Leaving a"}; puts "Exit" }
-    . a
-    Exit
-    Leaving a</code></pre>
-</div></div>
-<div class="paragraph"><p>If the <em><code>$jim::defer</code></em> variable exists, it is treated as a list of scripts to run
-when the proc or interpreter exits.</p></div>
-</div>
-<div class="sect2">
 <h3 id="_open">open</h3>
 <div class="paragraph"><p><code><strong>open</strong> <em>fileName ?access?</em></code></p></div>
 <div class="paragraph"><p><code><strong>open</strong> <em>|command-pipeline ?access?</em></code></p></div>
@@ -6984,22 +6994,27 @@ in microseconds.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_try">try</h3>
-<div class="paragraph"><p><code><strong>try</strong> <em>?catchopts? tryscript</em> ?<strong>on</strong> <em>returncodes {?resultvar? ?optsvar?} handlerscript ...</em>? ?<strong>finally</strong> <em>finalscript</em>?</code></p></div>
+<div class="paragraph"><p><code><strong>try</strong> <em>?catchopts? tryscript</em> ?<strong>on|trap</strong> <em>match {?resultvar? ?optsvar?} handlerscript ...</em>? ?<strong>finally</strong> <em>finalscript</em>?</code></p></div>
 <div class="paragraph"><p>The <a href="#_try"><strong><code>try</code></strong></a> command is provided as a convenience for exception handling.</p></div>
 <div class="paragraph"><p>This interpeter first evaluates <code><em>tryscript</em></code> under the effect of the catch
 options <code><em>catchopts</em></code> (e.g. <code>-signal -noexit --</code>, see <a href="#_catch"><strong><code>catch</code></strong></a>).</p></div>
-<div class="paragraph"><p>It then evaluates the script for the first matching <em>on</em> handler
-(there many be zero or more) based on the return code from the <a href="#_try"><strong><code>try</code></strong></a>
-section. For example a normal <code>JIM_ERR</code> error will be matched by
-an <em>on error</em> handler.</p></div>
+<div class="paragraph"><p>It then evaluates the script for the first matching <em>on</em> or <em>trap</em>
+handler (there many be zero or more) based on the return code and
+<em>errorcode</em> from the <a href="#_try"><strong><code>try</code></strong></a> section. For example a normal <code>JIM_ERR</code>
+error will be matched by an <em>on error</em> handler.</p></div>
 <div class="paragraph"><p>Finally, any <code><em>finalscript</em></code> is evaluated.</p></div>
-<div class="paragraph"><p>The result of this command is the result of <code><em>tryscript</em></code>, except in the
-case where an exception occurs in a matching <em>on</em> handler script or the <em>finally</em> script,
-in which case the result is this new exception.</p></div>
-<div class="paragraph"><p>The specified <code><em>returncodes</em></code> is a list of return codes either as names (<em>ok</em>, <em>error</em>, <em>break</em>, etc.)
-or as integers.</p></div>
-<div class="paragraph"><p>If <code><em>resultvar</em></code> and <code><em>optsvar</em></code> are specified, they are set as for <a href="#_catch"><strong><code>catch</code></strong></a> before evaluating
-the matching handler.</p></div>
+<div class="paragraph"><p>The result of this command is the result of <code><em>tryscript</em></code>, except
+in the case where an exception occurs in a matching <em>on</em> handler
+script or the <em>finally</em> script, in which case the result is this
+new exception.</p></div>
+<div class="paragraph"><p>For the <code><em>on</em></code> handler, <em>match</em> is a list of return codes either
+as names (<em>ok</em>, <em>error</em>, <em>break</em>, etc.) or as integers.</p></div>
+<div class="paragraph"><p>For the <code><em>trap</em></code> handler, <em>match</em> is a list to match against
+<em>errorcode</em>. For example, if the errorcode was
+<code><em>{CHILDKILLED 10627 SIGTERM}</em></code>, then a <em>match</em> value of <code>{CHILDKILLED}</code>
+would match.</p></div>
+<div class="paragraph"><p>If <code><em>resultvar</em></code> and <code><em>optsvar</em></code> are specified, they are set as for
+<a href="#_catch"><strong><code>catch</code></strong></a> before evaluating the matching handler.</p></div>
 <div class="paragraph"><p>For example:</p></div>
 <div class="listingblock">
 <div class="content">
@@ -7008,6 +7023,9 @@ the matching handler.</p></div>
         process $f
     } on {continue break} {} {
         error "Unexpected break/continue"
+    } trap CHILDKILLED {msg opts} {
+        puts "A child process died"
+        return {*}$opts $msg
     } on error {msg opts} {
         puts "Dealing with error"
         return {*}$opts $msg
@@ -7018,7 +7036,8 @@ the matching handler.</p></div>
     }</code></pre>
 </div></div>
 <div class="paragraph"><p>If break, continue or error are raised, they are dealt with by the matching
-handler.</p></div>
+handler. If an error occurred with an errorcode of <code>CHILDKILLED</code>, the trap
+handler will be evaluated as it is specified before the <em>on error</em> handler.</p></div>
 <div class="paragraph"><p>In any case, the file will be closed via the <em>finally</em> clause.</p></div>
 <div class="paragraph"><p>See also <a href="#_throw"><strong><code>throw</code></strong></a>, <a href="#_catch"><strong><code>catch</code></strong></a>, <a href="#_return"><strong><code>return</code></strong></a>, <a href="#_error"><strong><code>error</code></strong></a>.</p></div>
 </div>
@@ -7424,6 +7443,15 @@ what options were selected when Jim Tcl was built.</p></div>
 <dd>
 <p>
     Returns the bound address or path of the socket. See <em>getsockname(2)</em>.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>stat</strong> ?varName?</code>
+</dt>
+<dd>
+<p>
+    Implements the same functionality as <a href="#_file"><strong><code>file</code></strong></a> <code>stat</code> for a filehandle.
+    Only available on platforms that support <em>fstat(2)</em> or equivalent.
 </p>
 </dd>
 <dt class="hdlist1">

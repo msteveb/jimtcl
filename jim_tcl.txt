@@ -2049,6 +2049,23 @@ the following creates a local, unnamed alias for the command `info exists`.
 
 See also `proc`, `alias`, `lambda`, `local`.
 
+defer
+~~~~~
++*defer* 'script'+
+
+This command is a simple helper command to add a script to the '+$jim::defer+' variable
+that will run when the current proc or interpreter exits. For example:
+
+----
+    . proc a {} { defer {puts "Leaving a"}; puts "Exit" }
+    . a
+    Exit
+    Leaving a
+----
+
+If the '+$jim::defer+' variable exists, it is treated as a list of scripts to run
+when the proc or interpreter exits.
+
 dict
 ~~~~
 +*dict* 'option ?arg\...?'+
@@ -3453,23 +3470,6 @@ with last option being used.
  ::
     The list length must be an integer multiple of 'strideLength', which
     in turn must be at least 2.
-
-defer
-~~~~~
-+*defer* 'script'+
-
-This command is a simple helper command to add a script to the '+$jim::defer+' variable
-that will run when the current proc or interpreter exits. For example:
-
-----
-    . proc a {} { defer {puts "Leaving a"}; puts "Exit" }
-    . a
-    Exit
-    Leaving a
-----
-
-If the '+$jim::defer+' variable exists, it is treated as a list of scripts to run
-when the proc or interpreter exits.
 
 open
 ~~~~
