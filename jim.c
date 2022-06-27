@@ -3830,7 +3830,7 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
 
 /* Variables HashTable Type.
  *
- * Keys are dynamically allocated strings, Values are Jim_Var structures.
+ * Keys are Jim_Obj. Values are Jim_Var.
  */
 static void JimVariablesHTValDestructor(void *interp, void *val)
 {
@@ -4036,7 +4036,7 @@ static void JimCreateCommand(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Cmd *c
     /* Otherwise simply replace any existing command */
 
     /* Note that it is not necessary to increment the 'proc epoch' because any
-     * existing command that is replace will be held as a negative cache entry
+     * existing command that is replaced will be held as a negative cache entry
      * until the next time the proc epoch is incremented.
      */
     Jim_ReplaceHashEntry(&interp->commands, nameObjPtr, cmd);
@@ -4557,12 +4557,6 @@ static Jim_Var *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_O
 
     return var;
 }
-
-/* For now that's dummy. Variables lookup should be optimized
- * in many ways, with caching of lookups, and possibly with
- * a table of pre-allocated vars in every CallFrame for local vars.
- * All the caching should also have an 'epoch' mechanism similar
- * to the one used by Tcl for procedures lookup caching. */
 
 /**
  * Set the variable nameObjPtr to value valObjptr.
