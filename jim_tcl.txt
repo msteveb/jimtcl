@@ -1136,7 +1136,7 @@ and POSIX are highlighted below.
 1. UTF-8 strings and patterns are both supported
 2. All Tcl character classes are supported (e.g. +[:alnum:]+, +[:digit:]+, +[:space:]+), but...
 3. Character classes apply to ASCII characters only
-4. Supported shorthand character classes: +{backslash}w+ = +[:alnum:]+, +{backslash}W+ = +^[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}D+ = +^[:digit:],+ +{backslash}s+ = +[:space:]+, + +{backslash}S+ = +^[:space:]+
+4. Supported shorthand character classes: +{backslash}w+ = +[:alnum:]+, +{backslash}W+ = +\^[:alnum:]+, +{backslash}d+ = +[:digit:],+ +{backslash}D+ = +\^[:digit:],+ +{backslash}s+ = +[:space:]+, + +{backslash}S+ = +^[:space:]+
 5. Supported constraint escapes: +{backslash}m+ = +{backslash}<+ = start of word, +{backslash}M+ = +{backslash}>+ = end of word, +{backslash}A+ = start of string, +{backslash}Z+ = end of string
 6. Backslash escapes may be used within regular expressions, such as +{backslash}n+ = newline, +{backslash}uNNNN+ = unicode
 7. Support for the +?+ non-greedy quantifier. e.g. +*?+
@@ -3785,10 +3785,10 @@ The following switches modify the behaviour of +'regexp'+
 +*-line*+::
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
-    either REs or strings. With this flag, +[^+ bracket expressions
-    and +.+ never match newline, an +^+ anchor matches the empty
+    either REs or strings. With this flag, +*[\^*+ bracket expressions
+    and +*.*+ never match newline, an +*^*+ anchor matches the empty
     string after any newline in the string in addition to its normal
-    function, and the +$+ anchor matches the empty string before any
+    function, and the +*$*+ anchor matches the empty string before any
     newline in the string in addition to its normal function.
 
 +*-indices*+::
