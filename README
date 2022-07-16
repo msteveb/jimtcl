@@ -10,7 +10,7 @@ Jim is a small footprint implementation of the Tcl programming language
 written from scratch. Currently Jim Tcl is very feature complete with
 an extensive test suite (see the tests directory).
 There are some Tcl commands and features which are not implemented
-(and likely never will be), including traces and Tk. However
+(and likely never will be), including traces and Tk. However,
 Jim Tcl offers a number of both Tcl8.5 and Tcl8.6 features ({*}, dict, lassign,
 tailcall and optional UTF-8 support) and some unique features.
 These unique features include [lambda] with garbage collection, a general GC/references
@@ -25,29 +25,27 @@ the semantic of the language :)
 WHEN JIM CAN BE USEFUL?
 --------------------------------------------------------------------------------
 
-1) If you are writing an application, and want to make it scriptable, with
-Jim you have a way to do it that does not require to link your application
-with a big system. You can include the Jim source directly in your project
-and use the Jim API to write the glue code that makes your application
-scriptable in Jim, with the following advantages:
+1) Jim provides the ability to write scriptable applications without needing
+to link your application with a big system. You can include the Jim source 
+directly in your project and use the Jim API to write the glue code that makes 
+your application scriptable in Jim, with the following advantages:
 
 - Jim is not the next "little language", but it's a Tcl implementation.
-  You can reuse your knowledge if you already Tcl skills, or enjoy
+  You can reuse your knowledge if you already have Tcl skills, or enjoy
   the availability of documentation, books, web resources, ...
   (for example check my online Tcl book at http://www.invece.org/tclwise)
 
-- Jim is simple, 14k lines of core code. If you want to adapt it you can hack
+- Jim is simple with 14k lines of core code. If you want to adapt it you can hack
   the source code to meet the needs of your application. It makes you
-  able to have scripting for default, and avoid external dependences.
+  able to have scripting by default, and avoid external dependences.
 
   Having scripting support *inside*, and in a way that a given version
-  of your program always gets shipped a given version of Jim, you can
-  write part of your application in Jim itself. Like it happens for
-  Emacs/Elisp, or Gimp/Scheme, both this applications have the interpreter
-  inside.
+  of your program always gets shipped with the given version of Jim, you can
+  write part of your application in Jim itself. This is similar to Emacs/Elisp
+  or Gimp/Scheme, where both of these applications have the interpreter inside. 
 
 - Jim is Tcl, and Tcl looks like a configuration file if you want. So
-  if you use Jim you have also a flexible syntax for your config file.
+  if you use Jim you also have a flexible syntax for your config file.
   This is a valid Tcl script:
 
      set MyFeature on
@@ -61,9 +59,9 @@ scriptable in Jim, with the following advantages:
 
 - Tcl scales with the user. Not all know it, but Tcl is so powerful that
   you can reprogram the language in itself. Jim support this features
-  of the Tcl programming language. You can write new control structures,
+  of the Tcl programming language. You can write new control structures, and
   use the flexible data types it offers (Lists are a central data structure,
-  with Dictionaries that are also lists). Still Tcl is simpler for the
+  with Dictionaries that are also lists). Still, Tcl is simpler for the
   casual programmer, especially if compared to other languages offering
   small footprint implementations (like Scheme and FORTH).
 
@@ -78,10 +76,10 @@ scriptable in Jim, with the following advantages:
 
 3) We are working to make Jim as feature-complete as possible, thanks to
    dynamically loaded extensions it may stay as little as it is today
-   but able to do interesting things for you. So it's not excluded that
-   in the future Jim will be an option as general purpose language.
-   But don't mind, for this there is already the mainstream Tcl
-   implementation ;).
+   but able to do interesting things for you. So it's possible that
+   in the future Jim will be an option as a general purpose language.
+   But don't mind, there is already the mainstream Tcl
+   implementation for this ;).
 
 --------------------------------------------------------------------------------
 HOW BIG IS IT?
