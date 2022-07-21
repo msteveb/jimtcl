@@ -187,7 +187,7 @@ install-docs: docs
 install-docs:
 	$(INSTALL_DATA_DIR) $(DESTDIR)$(docdir)
 	@echo "Warning: asciidoc not available - installing Tcl_shipped.html"
-	$(INSTALL_DATA) Tcl_shipped.html $(DESTDIR)$(docdir)/Tcl.html
+	$(INSTALL_DATA) @srcdir@/Tcl_shipped.html $(DESTDIR)$(docdir)/Tcl.html
 @endif
 
 Tcl.html: jim_tcl.txt @srcdir@/make-index
