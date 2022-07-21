@@ -652,7 +652,7 @@ proc options {optlist} {
 		if {[opt-bool option-checking]} {
 			foreach o [dict keys $::autosetup(getopt)] {
 				if {$o ni $::autosetup(options)} {
-					user-error "Unknown option --$o"
+					user-notice "Unknown option --$o"
 				}
 			}
 		}
