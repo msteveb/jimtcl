@@ -37,7 +37,7 @@ your application scriptable in Jim, with the following advantages:
 
 - Jim is simple with 14k lines of core code. If you want to adapt it you can hack
   the source code to meet the needs of your application. It makes you
-  able to have scripting by default, and avoid external dependences.
+  able to have scripting by default, and avoid external dependencies.
 
   Having scripting support *inside*, and in a way that a given version
   of your program always gets shipped with the given version of Jim, you can
@@ -58,11 +58,11 @@ your application scriptable in Jim, with the following advantages:
   and [use] commands, it's a valid Tcl script.
 
 - Tcl scales with the user. Not all know it, but Tcl is so powerful that
-  you can reprogram the language in itself. Jim support this features
+  you can reprogram the language in itself. Jim support this feature
   of the Tcl programming language. You can write new control structures, and
   use the flexible data types it offers (Lists are a central data structure,
   with Dictionaries that are also lists). Still, Tcl is simpler for the
-  casual programmer, especially if compared to other languages offering
+  casual programmer, especially when compared to other languages offering
   small footprint implementations (like Scheme and FORTH).
 
 - Because of the Tcl semantic (pass by value, everything is a command
@@ -74,12 +74,12 @@ your application scriptable in Jim, with the following advantages:
 
 2) The other "field" where Jim can be useful is obviously embedded systems.
 
-3) We are working to make Jim as feature-complete as possible, thanks to
-   dynamically loaded extensions it may stay as little as it is today
+3) We are working to make Jim as feature-complete as possible. Thanks to
+   dynamically loaded extensions it may stay as small as it is today
    but able to do interesting things for you. So it's possible that
    in the future Jim will be an option as a general purpose language.
-   But don't mind, there is already the mainstream Tcl
-   implementation for this ;).
+   But don't worry, there is already the mainstream Tcl implementation
+   for this :).
 
 --------------------------------------------------------------------------------
 HOW BIG IS IT?
@@ -92,7 +92,7 @@ Without any extensions, it is about 85k.
 HOW FAST IS IT?
 --------------------------------------------------------------------------------
 
-Jim is in most code faster than Tcl7.6p2 (latest 7.x version),
+Jim is, in most code, faster than Tcl7.6p2 (latest 7.x version),
 and slower than Tcl 8.4.x. You can expect pretty decent performance
 for such a little interpreter.
 
@@ -106,7 +106,7 @@ HOW TO COMPILE
 
 Jim was tested under Linux, FreeBSD, MacosX, eCos, QNX, Windows XP (mingw, MVC).
 
-To compile jim itself try:
+To compile Jim itself try:
 
   ./configure
   make
