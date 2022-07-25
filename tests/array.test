@@ -131,6 +131,12 @@ test array-1.23 "array exists non-array" -body {
 	array exists x
 } -result {0}
 
+test array-1.24 "unset -nocomplain missing array element" -body {
+	unset -nocomplain a
+	set a(1) one
+	unset -nocomplain a(2)
+} -result {}
+
 test array-2.1 {array -help} -constraints jim -body {
     array -help
 } -match glob -result {Usage: "array command ... ", where command is one of: *}

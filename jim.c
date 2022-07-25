@@ -12084,6 +12084,8 @@ static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
         i++;
     }
+
+    Jim_SetEmptyResult(interp);
     return JIM_OK;
 }
 
