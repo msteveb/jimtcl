@@ -13,12 +13,13 @@ puts "Account vars=[Account vars]"
 puts "Account methods=[Account methods]"
 puts ""
 
-# Create a constructor. This does validation, but it could
-# do other things
-Account method constructor {} {
-	if {$balance < 0} {
-		error "Can't initialise account with a -ve balance"
+# Create a constructor that takes a name and an optional balance.
+Account method constructor {who {amount 0}} {
+	if {$amount < 0} {
+		error "Can't initialise account for $who with a -ve balance"
 	}
+	set name $who
+	set balance $amount
 }
 
 # Now flesh out the class with some methods
@@ -42,8 +43,16 @@ Account method describe {} {
 	}
 }
 
-# Now an instance, initialisition some fields
-set a [Account new {name "Bob Smith"}]
+# Since the constructor requires an argument, can't
+# not provide them
+try {
+	set a [Account]
+} on error msg {
+	puts "Correctly did not create uninitialised account"
+}
+
+# Now an instance, using the constructor for initialisation
+set a [Account new "Bob Smith"]
 
 puts "---- object Account ----"
 # We can use class methods on the instance too
@@ -70,10 +79,11 @@ class CreditAccount Account {
 	limit -1000
 }
 
-CreditAccount method constructor {} {
-	# Dummy constructor
-	# If desired, manually invoke the baseclass constructor
-	super constructor
+CreditAccount method constructor {who {amount 0}} {
+	# Invoke the baseclass constructor, then
+	# set the amount, which may be -ve
+	super constructor $who
+	set balance $amount
 }
 
 # Override the 'withdraw' method to allow overdrawing
@@ -96,7 +106,7 @@ puts "CreditAccount methods=[CreditAccount methods]"
 puts ""
 
 puts "---- object CreditAccount ----"
-set b [CreditAccount new {name "John White"}]
+set b [CreditAccount new "John White" -20]
 
 puts b.vars=[$b vars]
 puts b.classname=[$b classname]
@@ -128,8 +138,8 @@ puts "Total of accounts [$a get name] and [$b eval {return "$name (Credit Limit:
 # Almost. We can't really distinguish those which aren't real classes.
 # This will get all references which aren't simple lambdas.
 puts "---- All objects ----"
-Account new {name "Terry Green" balance 20}
-set x [Account]
+Account new "Terry Green" 20
+set x [Account new -]
 lambda {} {dummy}
 ref blah blah
 
