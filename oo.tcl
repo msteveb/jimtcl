@@ -34,12 +34,11 @@ proc class {classname {baseclasses {}} classvars} {
 	}
 
 	# Constructor
-	proc "$classname new" {{instvars {}}} {classname classvars} {
-		set instvars [dict merge $classvars $instvars]
-
+	proc "$classname new" {args} {classname classvars} {
 		# This is the object dispatcher for $classname.
 		# Store the classname in both the ref value and tag, for debugging
 		set obj ::[ref $classname $classname "$classname finalize"]
+		set instvars $classvars
 		proc $obj {method args} {classname instvars} {
 			if {![exists -command "$classname $method"]} {
 				if {![exists -command "$classname unknown"]} {
@@ -49,9 +48,7 @@ proc class {classname {baseclasses {}} classvars} {
 			}
 			"$classname $method" {*}$args
 		}
-		if {[exists -command "$classname constructor"]} {
-			$obj constructor
-		}
+		$obj constructor {*}$args
 		return $obj
 	}
 	# Finalizer to invoke destructor during garbage collection
@@ -81,6 +78,16 @@ proc class {classname {baseclasses {}} classvars} {
 		}]
 	}
 	# Pre-defined some instance methods
+	$classname method defaultconstructor {{__vars {}}} {
+		set __classvars [$self classvars]
+		foreach __v [dict keys $__vars] {
+			if {![dict exists $__classvars $__v]} {
+				return -code error "$classname, $__v is not a class variable"
+			}
+			set $__v [dict get $__vars $__v]
+		}
+	}
+	alias "$classname constructor" "$classname defaultconstructor"
 	$classname method destroy {} { rename $self "" }
 	$classname method get {var} { set $var }
 	$classname method eval {{__locals {}} __body} {

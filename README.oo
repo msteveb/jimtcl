@@ -47,10 +47,12 @@ PREDEFINED CLASS METHODS
 Declaring a class pre-defines a number of "class" methods. i.e. those which don't
 require an object and simply return or manipulate properties of the class. These are:
 
-  new ?instancevars?::
+  new ?instancevars? ?args...?::
     Creates and returns new object, optionally overriding the default class variable values.
 	Note that the class name is an alias for 'classname new {}' and can be used as a shorthand
-	for creating new objects with default values.
+	for creating new objects with default values. If the default constructor is used,
+	'args' is interpreted as a dictionary of instance variables that are set as given.
+	These can be interpreted differently if a custom constructor is used.
 
   method name arglist body::
     Creates or redefines a method for the class with the given name, argument list and body.
@@ -87,6 +89,14 @@ PREDEFINED OBJECT METHODS
 Declaring a class pre-defines a number of "object" methods. i.e. those which operate
 on a specific object.
 
+  defaultconstructor ?dict?::
+    This is the default constructor. It sets instance variables from the dictionary.
+
+  constructor ?args...?::
+    Invoked after an object is created with the arguments to 'new'. The default implementation
+	is 'defaultconstructor', but this may be replaced and then the arguments can be
+	interpeted in a class-specific manner.
+
   destroy::
     Destroys the object. This method may be overridden, but note that it should
 	delete the object with {rename $self ""}. This method will also be called
@@ -102,10 +112,7 @@ on a specific object.
 
 RESERVED METHODS
 ----------------
-The following methods are special
-
-  constructor::
-    If this method exists, it is invoked (with no arguments) after an object is created
+The following methods is special
 
   unknown methodname ...::
     If an undefined method is invoked, and this method exists, it is called with the methodname
@@ -132,7 +139,15 @@ For example:
   . $b get balance
   1000
 
-If the 'constructor' method exists, it is invoked just after the object is created
+Here the default constructor is used. Alternatively we could use a custom constructor.
+
+  Account method constuctor {initial} {
+	set balance $initial
+  }
+
+Now can do:
+
+  set b [Account new 1000]
 
 DECLARING METHODS
 -----------------
