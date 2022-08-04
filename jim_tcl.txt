@@ -5135,18 +5135,18 @@ Various socket types may be created.
 +*socket unix.dgram.server* 'path'+::
     A unix domain socket datagram server server listening on 'path'
 
-+*socket ?-ipv6? stream* 'addr:port'+::
++*socket ?-async? ?-ipv6? stream* 'addr:port'+::
     A TCP socket client. (See the forms for +'addr'+ below)
 
-+*socket ?-ipv6? stream.server* '?addr:?port'+::
++*socket ?-async? ?-ipv6? stream.server* '?addr:?port'+::
     A TCP socket server (+'addr'+ defaults to +0.0.0.0+ for IPv4 or +[::]+ for IPv6).
 
-+*socket ?-ipv6? dgram* ?'addr:port'?+::
++*socket ?-async? ?-ipv6? dgram* ?'addr:port'?+::
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and 'sendto' must be used
     to indicated the destination.
 
-+*socket ?-ipv6? dgram.server* 'addr:port'+::
++*socket ?-async? ?-ipv6? dgram.server* 'addr:port'+::
     A UDP socket server.
 
 +*socket pipe*+::
@@ -5208,6 +5208,38 @@ An unconnected dgram socket (either 'dgram' or 'unix.dgram') must use
 The path for Unix domain sockets is automatically removed when the socket
 is closed. Use `close -nodelete` in the rare case where this behaviour
 should be avoided (e.g. after `os.fork`).
+
+If '+-async+' is specified, the socket is opened in non-blocking (ndelay) mode
+and 'connect' is non-blocking (applies to 'stream'). In this case, a 'writable' handler
+should be used that will fire when the connect succeeds or fails, and calling 'peername' on the handle
+will succeed if connected or fail if connect failed. Typical usage is as follows:
+
+----
+    set s [socket -async stream host:port]
+
+    $s writable {
+        # Remove writable either way
+        $s writable {}
+        try {
+            $s peername
+        } on error msg {
+            # Connect failed
+            incr done
+            return
+        }
+
+        $s readable {
+            set buf [$s read]
+            if {[$s eof]} {
+                # Closed connection
+                incr done
+            }
+            ...
+        }
+    }
+
+    vwait done
+----
 
 syslog
 ~~~~~~

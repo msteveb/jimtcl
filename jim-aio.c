@@ -1209,11 +1209,22 @@ static int aio_cmd_filename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 #ifdef O_NDELAY
+static int aio_set_nonblocking(int fd, int nb)
+{
+    int fmode = fcntl(fd, F_GETFL);
+    if (nb) {
+        fmode |= O_NDELAY;
+    }
+    else {
+        fmode &= ~O_NDELAY;
+    }
+    (void)fcntl(fd, F_SETFL, fmode);
+    return fmode;
+}
+
 static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-
-    int fmode = fcntl(af->fd, F_GETFL);
 
     if (argc) {
         long nb;
@@ -1221,14 +1232,9 @@ static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (Jim_GetLong(interp, argv[0], &nb) != JIM_OK) {
             return JIM_ERR;
         }
-        if (nb) {
-            fmode |= O_NDELAY;
-        }
-        else {
-            fmode &= ~O_NDELAY;
-        }
-        (void)fcntl(af->fd, F_SETFL, fmode);
+        aio_set_nonblocking(af->fd, nb);
     }
+    int fmode = fcntl(af->fd, F_GETFL);
     Jim_SetResultInt(interp, (fmode & O_NONBLOCK) ? 1 : 0);
     return JIM_OK;
 }
@@ -2197,21 +2203,38 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int type = SOCK_STREAM;
     Jim_Obj *argv0 = argv[0];
     int ipv6 = 0;
+    int async = 0;
 
-    if (argc > 1 && Jim_CompareStringImmediate(interp, argv[1], "-ipv6")) {
-        if (!IPV6) {
-            Jim_SetResultString(interp, "ipv6 not supported", -1);
+
+    while (argc > 1 && Jim_String(argv[1])[0] == '-') {
+        static const char * const options[] = { "-async", "-ipv6", NULL };
+        enum { OPT_ASYNC, OPT_IPV6 };
+        int option;
+
+        if (Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
         }
-        ipv6 = 1;
-        family = PF_INET6;
+        switch (option) {
+            case OPT_ASYNC:
+                async = 1;
+                break;
+
+            case OPT_IPV6:
+                if (!IPV6) {
+                    Jim_SetResultString(interp, "ipv6 not supported", -1);
+                    return JIM_ERR;
+                }
+                ipv6 = 1;
+                family = PF_INET6;
+                break;
+        }
+        argc--;
+        argv++;
     }
-    argc -= ipv6;
-    argv += ipv6;
 
     if (argc < 2) {
       wrongargs:
-        Jim_WrongNumArgs(interp, 1, &argv0, "?-ipv6? type ?address?");
+        Jim_WrongNumArgs(interp, 1, &argv0, "?-async? ?-ipv6? type ?address?");
         return JIM_ERR;
     }
 
@@ -2347,6 +2370,9 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         JimAioSetError(interp, NULL);
         return JIM_ERR;
     }
+    if (async) {
+        aio_set_nonblocking(sock, 1);
+    }
     if (bind_addr) {
         if (JimParseSocketAddress(interp, family, type, bind_addr, &sa, &salen) != JIM_OK) {
             close(sock);
@@ -2367,9 +2393,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
         if (connect(sock, &sa.sa, salen)) {
-            Jim_SetResultFormatted(interp, "%s: connect: %s", connect_addr, strerror(errno));
-            close(sock);
-            return JIM_ERR;
+            if (async && errno == EINPROGRESS) {
+                /* OK */
+            }
+            else {
+                Jim_SetResultFormatted(interp, "%s: connect: %s", connect_addr, strerror(errno));
+                close(sock);
+                return JIM_ERR;
+            }
         }
     }
     if (do_listen) {
