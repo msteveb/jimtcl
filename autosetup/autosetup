@@ -6,7 +6,7 @@
 dir=`dirname "$0"`; exec "`$dir/autosetup-find-tclsh`" "$0" "$@"
 
 # Note that the version has a trailing + on unreleased versions
-set autosetup(version) 0.7.0+
+set autosetup(version) 0.7.1
 
 # Can be set to 1 to debug early-init problems
 set autosetup(debug) [expr {"--debug" in $argv}]
@@ -239,6 +239,8 @@ proc main {argv} {
 
 	exit 0
 }
+
+# @section Option Handling
 
 # @opt-bool ?-nodefault? option ...
 #
@@ -691,6 +693,8 @@ proc config_sub {alias} {
 	return $alias
 }
 
+# @section Variable Definitions (defines)
+
 # @define name ?value=1?
 #
 # Defines the named variable to the given value.
@@ -700,6 +704,29 @@ proc config_sub {alias} {
 proc define {name {value 1}} {
 	set ::define($name) $value
 	#dputs "$name <= $value"
+}
+
+# @define-push {name ...} script
+#
+# Save the values of the given defines, evaluation the script, then restore.
+# For example, to avoid updating AS_FLAGS and AS_CXXFLAGS:
+## define-push {AS_CFLAGS AS_CXXFLAGS} {
+##   cc-check-flags -Wno-error
+## }
+proc define-push {names script} {
+	array set unset {}
+	foreach name $names {
+		if {[is-defined $name]} {
+			set save($name) [get-define $name]
+		} else {
+			set unset($name) 1
+		}
+	}
+	uplevel 1 $script
+	array set ::define [array get save]
+	foreach name [array names unset] {
+		unset -nocomplain ::define($name)
+	}
 }
 
 # @undefine name
@@ -787,6 +814,7 @@ proc all-defines {} {
 	array get ::define
 }
 
+# @section Environment/Helpers
 
 # @get-env name default
 #
@@ -870,6 +898,8 @@ proc list-non-empty {list} {
 	return $result
 }
 
+# @section Paths, Searching
+
 # @find-executable-path name
 #
 # Searches the path for an executable with the given name.
@@ -938,6 +968,8 @@ proc find-an-executable {args} {
 	}
 	return ""
 }
+
+# @section Logging, Messages and Errors
 
 # @configlog msg
 #
@@ -1155,6 +1187,8 @@ proc relative-path {path {pwd {}}} {
 proc autosetup_add_dep {filename} {
 	lappend ::autosetup(deps) [file-normalize $filename]
 }
+
+# @section Modules Support
 
 ##################################################################
 #
@@ -1526,7 +1560,8 @@ proc autosetup_reference {{type text}} {
     section {Introduction}
 
     p {
-        See http://msteveb.github.com/autosetup/ for the online documentation for 'autosetup'
+        See http://msteveb.github.com/autosetup/ for the online documentation for 'autosetup'.
+		This documentation can also be accessed locally with `autosetup --ref`.
     }
 
     p {
@@ -1590,6 +1625,11 @@ proc automf_command_reference {} {
         while {![eof $f]} {
             set line [gets $f]
 
+            if {[regexp {^#.*@section (.*)$} $line -> section]} {
+                lappend doc($current) [list section $section]
+				continue
+			}
+
             # Find embedded module names
             if {[regexp {^#.*@module ([^ ]*)} $line -> modulename]} {
                 continue
@@ -1604,7 +1644,7 @@ proc automf_command_reference {} {
             if {$cmd eq "synopsis:"} {
                 set current $modulename
                 lappend doc($current) [list section "Module: $modulename"]
-            } else {
+			} else {
                 lappend doc($current) [list subsection $cmd]
             }
 
@@ -1884,6 +1924,7 @@ WRAPPER="$0"; export WRAPPER; "autosetup" "$@"
 		writefile configure \
 {#!/bin/sh
 dir="`dirname "$0"`/autosetup"
+#@@INITCHECK@@#
 WRAPPER="$0"; export WRAPPER; exec "`"$dir/autosetup-find-tclsh"`" "$dir/autosetup" "$@"
 }
 	}
@@ -2319,6 +2360,8 @@ set modsource(util.tcl) {
 # All rights reserved
 
 # Module which contains miscellaneous utility functions
+
+# @section Utilities
 
 # @compare-versions version1 version2
 #
