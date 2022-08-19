@@ -29,7 +29,7 @@
 #include "jimautoconf.h"
 #include <jim.h>
 
-#if (!defined(HAVE_VFORK) || !defined(HAVE_WAITPID)) && !defined(__MINGW32__)
+#if (!(defined(HAVE_VFORK) || defined(HAVE_FORK)) || !defined(HAVE_WAITPID)) && !defined(__MINGW32__)
 /* Poor man's implementation of exec with system()
  * The system() call *may* do command line redirection, etc.
  * The standard output is not available.
@@ -1047,7 +1047,11 @@ badargs:
          * Make a new process and enter it into the table if the vfork
          * is successful.
          */
+#ifdef HAVE_VFORK
         phandle = vfork();
+#else
+        phandle = fork();
+#endif
         if (phandle < 0) {
             Jim_SetResultErrno(interp, "couldn't fork child process");
             goto error;

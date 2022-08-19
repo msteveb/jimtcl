@@ -157,7 +157,7 @@ if {[opt-bool extinfo]} {
 #   The optional args are pkg-config specifications (e.g. name1 >= 1.3.4)
 dict set extdb info {
     binary   { dep pack }
-    exec     { check {([have-feature vfork] && [have-feature waitpid]) || [have-feature system]} }
+    exec     { check {(([have-feature vfork] || [have-feature fork]) && [have-feature waitpid]) || [have-feature system]} }
     glob     { dep readdir }
     load     { check {[have-feature dlopen-compat] || [cc-check-function-in-lib dlopen dl]} libdep lib_dlopen }
     mk       { check {[check-metakit]} libdep lib_mk }
@@ -242,12 +242,19 @@ if {[cc-check-function-in-lib socket socket]} {
     define-append LDLIBS [get-define lib_socket]
 }
 
-cc-check-functions ualarm lstat fork vfork system select execvpe
+cc-check-functions ualarm lstat fork system select execvpe
 cc-check-functions geteuid mkstemp realpath isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 cc-check-functions shutdown socketpair isinf isnan link symlink fsync dup umask
 cc-check-functions localtime gmtime strptime clock_gettime
+
+if {[have-feature fork]} {
+	# Only use vfork if not deprecated
+	cc-with {-nooutput 1} {
+		cc-check-functions vfork
+	}
+}
 
 if {[cc-check-function-in-lib backtrace execinfo]} {
     define-append LDLIBS [get-define lib_backtrace]
