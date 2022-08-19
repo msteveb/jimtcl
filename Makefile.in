@@ -40,8 +40,11 @@ SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
 @else
 SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS_R@
 @endif
-CFLAGS = @CFLAGS@ @CCOPTS@ @CPPFLAGS@
-CXXFLAGS = @CXXFLAGS@ @CXXOPTS@
+AS_CFLAGS = @AS_CFLAGS@
+AS_CXXFLAGS = @AS_CFLAGS@
+AS_CPPFLAGS = @AS_CPPFLAGS@
+CFLAGS ?= @CFLAGS@
+CXXFLAGS ?= @CXXFLAGS@
 LDFLAGS = @LDFLAGS@
 LDLIBS += @LDLIBS@
 LIBS += @LIBS@
@@ -50,11 +53,9 @@ prefix ?= @prefix@
 docdir = @docdir@
 srcdir := @srcdir@
 
-CC += -Wall $(OPTIM) -I.
-CXX += -Wall $(OPTIM) -I.
+AS_CPPFLAGS += -Wall -I.
 @if [get-define srcdir] ne "."
-CFLAGS += -I@srcdir@
-CXXFLAGS += -I@srcdir@
+AS_CPPFLAGS += -I@srcdir@
 VPATH := @srcdir@
 @endif
 
@@ -69,9 +70,9 @@ DEF_LD_PATH := @LD_LIBRARY_PATH@="@builddir@:$(@LD_LIBRARY_PATH@)"
 @endif
 
 @if HAVE_CXX_EXTENSIONS
-JIMSH_CC := $(CXX) $(CXXFLAGS)
+JIMSH_CC := $(CXX) $(AS_CXXFLAGS) $(CXXFLAGS)
 @else
-JIMSH_CC := $(CC) $(CFLAGS)
+JIMSH_CC := $(CC) $(AS_FLAGS) $(CFLAGS)
 @endif
 
 OBJS := _load-static-exts.o jim-subcmd.o jim-interactive.o jim-format.o jim.o utf8.o jimregexp.o jimiocompat.o \
@@ -93,11 +94,11 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 	$(ECHO) " 	TCLEXT	_$*.c"
 	$(Q)@tclsh@ @srcdir@/make-c-ext.tcl $< >_$*.c
 	$(ECHO) " 	CC	$@"
-	$(Q)$(CC) $(CFLAGS) -c -o $@ _$*.c
+	$(Q)$(CC) $(AS_CFLAGS) $(AS_CPPFLAGS) $(CFLAGS) $(CPPFLAGS) -c -o $@ _$*.c
 
 .c.o:
 	$(ECHO) "	CC	$@"
-	$(Q)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+	$(Q)$(CC) $(AS_CFLAGS) $(AS_CPPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(ECHO) "	LINK	$@"
@@ -163,7 +164,7 @@ $(LIBJIM): $(OBJS)
 	$(Q)$(RANLIB) $@
 @else
 	$(ECHO) "	LDSO	$@ libjim@SH_SOEXT@"
-	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBS)
+	$(Q)$(CC) $(AS_CFLAGS) $(CFLAGS) $(LDFLAGS) $(SH_LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBS)
 @if SH_SOEXT ne LIBSOEXT
 	$(Q)ln -s -f $@ libjim@SH_SOEXT@
 @endif

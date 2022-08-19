@@ -11,6 +11,10 @@ options-defaults {
 use cc cc-shared cc-db cc-lib pkg-config util
 use local
 
+# CFLAGS, CXXFLAGS only come from the user
+define CFLAGS [get-env CFLAGS ""]
+define CXXFLAGS [get-env CFLAGS ""]
+
 options {
     utf8            => "Include support for utf8-encoded strings"
     lineedit=1      => "Disable line editing"
@@ -190,19 +194,18 @@ if {"-Werror" in [get-define CFLAGS] && [cctest -cflags -Wno-error]} {
 cc-check-types "long long"
 cc-check-sizeof int
 
-define CCOPTS ""
-define CXXOPTS ""
-if {[cctest -cflags -fno-unwind-tables]} {
-    define-append CCOPTS -fno-unwind-tables
-}
-if {[cctest -cflags -fno-asynchronous-unwind-tables]} {
-    define-append CCOPTS -fno-asynchronous-unwind-tables
+# Default optimisation
+define-append AS_CPPFLAGS -O2
+
+# check, but don't add to -cflags
+cc-with {} {
+	cc-check-flags -fno-unwind-tables -fno-asynchronous-unwind-tables
 }
 if {[opt-bool coverage]} {
     if {[cctest -link 1 -cflags --coverage]} {
         # When using coverage, disable ccache and compiler optimisation
         define CCACHE ""
-        define-append CCOPTS --coverage -O0
+        define-append AS_CFLAGS --coverage -O0
         define-append LDFLAGS --coverage
         define COVERAGE 1
         if {[cc-check-progs gcovr]} {
@@ -286,7 +289,7 @@ switch -glob -- $host_os {
         define TCL_PLATFORM_PLATFORM windows
         define TCL_PLATFORM_PATH_SEPARATOR {;}
         # Target WinXP or later. Should this be configurable?
-        define-append CCOPTS -D_WIN32_WINNT=0x501 -Wno-deprecated-declarations
+        define-append AS_CFLAGS -D_WIN32_WINNT=0x501 -Wno-deprecated-declarations
     }
     default {
         # Note that cygwin is considered a unix platform
@@ -370,7 +373,7 @@ proc opt-bool-or-full {opt} {
 if {[opt-bool-or-full utf8]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
-    define-append CCOPTS -DUSE_UTF8
+    define-append AS_CFLAGS -DUSE_UTF8
     define PARSE_UNIDATA_FLAGS ""
     incr jimregexp
 } else {
@@ -399,7 +402,7 @@ if {[opt-bool-or-full ssl]} {
                 define JIM_SSL
                 define-append LDLIBS [pkg-config-get $pkg LIBS]
                 define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
-                define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+                define-append AS_CFLAGS [pkg-config-get $pkg CFLAGS]
                 msg-result "Enabling SSL ($pkg)"
                 define-append PKG_CONFIG_REQUIRES $pkg
                 break
@@ -417,7 +420,7 @@ if {[opt-bool-or-full ssl]} {
     }
     # Later versions deprecate TLSv1_2_method, but older versions don't have TLS_method
     if {![cc-check-function-in-lib TLS_method ssl]} {
-        define-append CCOPTS -DUSE_TLSv1_2_method
+        define-append AS_CFLAGS -DUSE_TLSv1_2_method
     }
 }
 if {[opt-bool-or-full lineedit]} {
@@ -427,7 +430,7 @@ if {[opt-bool-or-full lineedit]} {
         define-append PARSE_UNIDATA_FLAGS -width
         lappend extra_objs linenoise.o
         if {[cc-check-inline] && [is-defined inline]} {
-            define-append CCOPTS -Dinline=[get-define inline]
+            define-append AS_CFLAGS -Dinline=[get-define inline]
         }
     }
 }
