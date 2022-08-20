@@ -1,0 +1,11 @@
+Jim Tcl uses linenoise (https://github.com/msteveb/linenoise) to
+provide command line editing, both in jimsh and via the history extension
+(so you can create REPL interfaces in pure Tcl)
+
+Please see the link above for development documentation and key bindings.
+
+Because Jim Tcl already has utf-8 support, the linenoise-ship.c amalagamation
+is not used directly. Instead we use everything except utf-8. Update as follows:
+
+    git clone https://github.com/msteveb/linenoise.git
+    cat linenoise/stringbuf.h linenoise/stringbuf.c linenoise/linenoise.c >linenoise.c

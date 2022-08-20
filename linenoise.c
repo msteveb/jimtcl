@@ -1,8 +1,12 @@
 #ifndef STRINGBUF_H
 #define STRINGBUF_H
-
-/* (c) 2017 Workware Systems Pty Ltd  -- All Rights Reserved */
-
+/**
+ * resizable string buffer
+ *
+ * (c) 2017-2020 Steve Bennett <steveb@workware.net.au>
+ *
+ * See utf8.c for licence details.
+ */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,7 +52,7 @@ void sb_free(stringbuf *sb);
 stringbuf *sb_copy(stringbuf *sb);
 
 /**
- * Returns the length of the buffer.
+ * Returns the byte length of the buffer.
  * 
  * Returns 0 for both a NULL buffer and an empty buffer.
  */
@@ -98,7 +102,7 @@ static inline char *sb_str(const stringbuf *sb)
 }
 
 /**
- * Inserts the given string *before* (zero-based) 'index' in the stringbuf.
+ * Inserts the given string *before* (zero-based) byte 'index' in the stringbuf.
  * If index is past the end of the buffer, the string is appended,
  * just like sb_append()
  */
@@ -131,6 +135,13 @@ char *sb_to_string(stringbuf *sb);
 #endif
 
 #endif
+/**
+ * resizable string buffer
+ *
+ * (c) 2017-2020 Steve Bennett <steveb@workware.net.au>
+ *
+ * See utf8.c for licence details.
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -141,7 +152,9 @@ char *sb_to_string(stringbuf *sb);
 #include "stringbuf.h"
 #endif
 #ifdef USE_UTF8
+#ifndef UTF8_UTIL_H
 #include "utf8.h"
+#endif
 #endif
 
 #define SB_INCREMENT 200
@@ -442,11 +455,16 @@ void sb_clear(stringbuf *sb)
 #ifndef STRINGBUF_H
 #include "stringbuf.h"
 #endif
+#ifndef UTF8_UTIL_H
 #include "utf8.h"
+#endif
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 
+/* ctrl('A') -> 0x01 */
 #define ctrl(C) ((C) - '@')
+/* meta('a') ->  0xe1 */
+#define meta(C) ((C) | 0x80)
 
 /* Use -ve numbers here to co-exist with normal unicode chars */
 enum {
@@ -524,15 +542,17 @@ void linenoiseHistoryFree(void) {
     }
 }
 
+typedef enum {
+    EP_START,   /* looking for ESC */
+    EP_ESC,     /* looking for [ */
+    EP_DIGITS,  /* parsing digits */
+    EP_PROPS,   /* parsing digits or semicolons */
+    EP_END,     /* ok */
+    EP_ERROR,   /* error */
+} ep_state_t;
+
 struct esc_parser {
-    enum {
-        EP_START,   /* looking for ESC */
-        EP_ESC,     /* looking for [ */
-        EP_DIGITS,  /* parsing digits */
-        EP_PROPS,   /* parsing digits or semicolons */
-        EP_END,     /* ok */
-        EP_ERROR,   /* error */
-    } state;
+    ep_state_t state;
     int props[5];   /* properties are stored here */
     int maxprops;   /* size of the props[] array */
     int numprops;   /* number of properties found */
@@ -639,7 +659,7 @@ static void DRL_STR(const char *str)
     }
 }
 #else
-#define DRL(ARGS...)
+#define DRL(...)
 #define DRL_CHAR(ch)
 #define DRL_STR(str)
 #endif
@@ -976,6 +996,10 @@ static int check_special(int fd)
     if (c < 0) {
         return CHAR_ESCAPE;
     }
+	else if (c >= 'a' && c <= 'z') {
+		/* esc-a => meta-a */
+		return meta(c);
+	}
 
     c2 = fd_read_char(fd, 50);
     if (c2 < 0) {
@@ -1313,6 +1337,7 @@ static void refreshEnd(struct current *current)
 
 static void refreshStartChars(struct current *current)
 {
+    (void)current;
 }
 
 static void refreshNewline(struct current *current)
@@ -1323,6 +1348,7 @@ static void refreshNewline(struct current *current)
 
 static void refreshEndChars(struct current *current)
 {
+    (void)current;
 }
 #endif
 
@@ -1735,6 +1761,28 @@ static int insert_chars(struct current *current, int pos, const char *chars)
     return inserted;
 }
 
+static int skip_space_nonspace(struct current *current, int dir, int check_is_space)
+{
+    int moved = 0;
+    int checkoffset = (dir < 0) ? -1 : 0;
+    int limit = (dir < 0) ? 0 : sb_chars(current->buf);
+    while (current->pos != limit && (get_char(current, current->pos + checkoffset) == ' ') == check_is_space) {
+        current->pos += dir;
+        moved++;
+    }
+    return moved;
+}
+
+static int skip_space(struct current *current, int dir)
+{
+    return skip_space_nonspace(current, dir, 1);
+}
+
+static int skip_nonspace(struct current *current, int dir)
+{
+    return skip_space_nonspace(current, dir, 0);
+}
+
 /**
  * Returns the keycode to process, or 0 if none.
  */
@@ -1760,8 +1808,8 @@ static int reverseIncrementalSearch(struct current *current)
         c = fd_read(current);
         if (c == ctrl('H') || c == CHAR_DELETE) {
             if (rchars) {
-                int p = utf8_index(rbuf, --rchars);
-                rbuf[p] = 0;
+                int p_ind = utf8_index(rbuf, --rchars);
+                rbuf[p_ind] = 0;
                 rlen = strlen(rbuf);
             }
             continue;
@@ -1786,7 +1834,7 @@ static int reverseIncrementalSearch(struct current *current)
             searchdir = 1;
             skipsame = 1;
         }
-        else if (c >= ' ') {
+        else if (c >= ' ' && c <= '~') {
             /* >= here to allow for null terminator */
             if (rlen >= (int)sizeof(rbuf) - MAX_UTF8_LEN) {
                 continue;
@@ -1845,11 +1893,6 @@ static int reverseIncrementalSearch(struct current *current)
 static int linenoiseEdit(struct current *current) {
     int history_index = 0;
 
-    /* The latest history entry is always our current buffer, that
-     * initially is just an empty string. */
-    linenoiseHistoryAdd("");
-
-    set_current(current, "");
     refreshLine(current);
 
     while(1) {
@@ -1921,6 +1964,7 @@ static int linenoiseEdit(struct current *current) {
                 return -1;
             }
             /* Otherwise fall through to delete char to right of cursor */
+            /* fall-thru */
         case SPECIAL_DELETE:
             if (remove_char(current, current->pos) == 1) {
                 refreshLine(current);
@@ -1930,6 +1974,24 @@ static int linenoiseEdit(struct current *current) {
             /* Ignore. Expansion Hook.
              * Future possibility: Toggle Insert/Overwrite Modes
              */
+            break;
+        case meta('b'):    /* meta-b, move word left */
+            if (skip_nonspace(current, -1)) {
+                refreshLine(current);
+            }
+            else if (skip_space(current, -1)) {
+                skip_nonspace(current, -1);
+                refreshLine(current);
+            }
+            break;
+        case meta('f'):    /* meta-f, move word right */
+            if (skip_space(current, 1)) {
+                refreshLine(current);
+            }
+            else if (skip_nonspace(current, 1)) {
+                skip_space(current, 1);
+                refreshLine(current);
+            }
             break;
         case ctrl('W'):    /* ctrl-w, delete word at left. save deleted chars */
             /* eat any spaces on the left */
@@ -2053,6 +2115,10 @@ history_navigation:
             refreshLine(current);
             break;
         default:
+			if (c >= meta('a') && c <= meta('z')) {
+				/* Don't insert meta chars that are not bound */
+				break;
+			}
             /* Only tab is allowed without ^V */
             if (c == '\t' || c >= ' ') {
                 if (insert_char(current, current->pos, c) == 1) {
@@ -2110,7 +2176,7 @@ static stringbuf *sb_getline(FILE *fh)
     return sb;
 }
 
-char *linenoise(const char *prompt)
+char *linenoiseWithInitial(const char *prompt, const char *initial)
 {
     int count;
     struct current current;
@@ -2129,6 +2195,10 @@ char *linenoise(const char *prompt)
         current.nrows = 1;
         current.prompt = prompt;
 
+		/* The latest history entry is always our current buffer */
+		linenoiseHistoryAdd(initial);
+		set_current(&current, initial);
+
         count = linenoiseEdit(&current);
 
         disableRawMode(&current);
@@ -2142,6 +2212,11 @@ char *linenoise(const char *prompt)
         sb = current.buf;
     }
     return sb ? sb_to_string(sb) : NULL;
+}
+
+char *linenoise(const char *prompt)
+{
+	return linenoiseWithInitial(prompt, "");
 }
 
 /* Using a circular buffer is smarter, but a bit more complex to handle. */
