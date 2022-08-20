@@ -606,10 +606,10 @@ foreach mod $extinfo(module-c) {
         set obj [file rootname $src].o
         lappend objs $obj
         lappend lines "\t\$(ECHO)\t\"\tCC\t$obj\""
-        lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(SHOBJ_CFLAGS) -c -o $obj \$(srcdir)/$src"
+        lappend lines "\t\$(Q)\$(CC) \$(AS_CFLAGS) \$(AS_CPPFLAGS) \$(CFLAGS) \$(CPPFLAGS) \$(SHOBJ_CFLAGS) -c -o $obj \$(srcdir)/$src"
     }
     lappend lines "\t\$(ECHO)\t\"\tLDSO\t\$@\""
-    lappend lines "\t\$(Q)\$(CC) \$(CFLAGS) \$(LDFLAGS) \$(SHOBJ_LDFLAGS) -o \$@ $objs \$(SH_LIBJIM) $libs"
+    lappend lines "\t\$(Q)\$(CC) \$(AS_CFLAGS) \$(CFLAGS) \$(LDFLAGS) \$(SHOBJ_LDFLAGS) -o \$@ $objs \$(SH_LIBJIM) $libs"
     lappend lines ""
 }
 define BUILD_SHOBJS [join $lines \n]

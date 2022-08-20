@@ -185,7 +185,7 @@ proc add-pkgconfig-deps {ext pkgs asmodule} {
             define-append LDLIBS [pkg-config-get $pkg LIBS]
         }
         define-append LDFLAGS [pkg-config-get $pkg LDFLAGS]
-        define-append CCOPTS [pkg-config-get $pkg CFLAGS]
+        define-append AS_CFLAGS [pkg-config-get $pkg CFLAGS]
         define-append PKG_CONFIG_REQUIRES $pkg
     }
 }
