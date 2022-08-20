@@ -47,7 +47,7 @@ PREDEFINED CLASS METHODS
 Declaring a class pre-defines a number of "class" methods. i.e. those which don't
 require an object and simply return or manipulate properties of the class. These are:
 
-  new ?instancevars? ?args...?::
+  new ?args...?::
     Creates and returns new object, optionally overriding the default class variable values.
 	Note that the class name is an alias for 'classname new {}' and can be used as a shorthand
 	for creating new objects with default values. If the default constructor is used,
@@ -95,7 +95,7 @@ on a specific object.
   constructor ?args...?::
     Invoked after an object is created with the arguments to 'new'. The default implementation
 	is 'defaultconstructor', but this may be replaced and then the arguments can be
-	interpeted in a class-specific manner.
+	interpreted in a class-specific manner.
 
   destroy::
     Destroys the object. This method may be overridden, but note that it should
@@ -112,7 +112,7 @@ on a specific object.
 
 RESERVED METHODS
 ----------------
-The following methods is special
+The following method is special
 
   unknown methodname ...::
     If an undefined method is invoked, and this method exists, it is called with the methodname
@@ -139,9 +139,9 @@ For example:
   . $b get balance
   1000
 
-Here the default constructor is used. Alternatively we could use a custom constructor.
+The default constructor is used above. Alternatively, we could define a custom constructor:
 
-  Account method constuctor {initial} {
+  Account method constructor {initial} {
 	set balance $initial
   }
 
