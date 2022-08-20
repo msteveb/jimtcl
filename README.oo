@@ -145,7 +145,7 @@ Here the default constructor is used. Alternatively we could use a custom constr
 	set balance $initial
   }
 
-Now can do:
+Now we can do:
 
   set b [Account new 1000]
 
