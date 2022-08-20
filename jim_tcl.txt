@@ -5211,8 +5211,8 @@ should be avoided (e.g. after `os.fork`).
 
 If '+-async+' is specified, the socket is opened in non-blocking (ndelay) mode
 and 'connect' is non-blocking (applies to 'stream'). In this case, a 'writable' handler
-should be used that will fire when the connect succeeds or fails. In this case, 'peername'
-will succeed if connected or fail if connect failed. Typical usage is.
+should be used that will fire when the connect succeeds or fails, and calling 'peername' on the handle
+will succeed if connected or fail if connect failed. Typical usage is as follows:
 
 ----
     set s [socket -async stream host:port]
