@@ -263,7 +263,7 @@ test executable-1.1 {file executable} -body {
     file executable [info nameofexecutable]
 } -result 1
 
-test executable-1.2 {file executable} -body {
+test executable-1.2 {file executable} -constraints unix -body {
     file executable [info script]
 } -result 0
 
