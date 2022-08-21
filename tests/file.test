@@ -5,10 +5,16 @@ catch {file link} msg
 testConstraint filelink [string match "wrong # args:*" $msg]
 catch {file lstat} msg
 testConstraint filelstat [string match "wrong # args:*" $msg]
+catch {file mtimeus} msg
+testConstraint mtimeus [string match "wrong # args:*" $msg]
 testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+testConstraint normalize 1
 if {[testConstraint jim]} {
 	testConstraint mtimeset [expr {!$tcl_platform(bootstrap)}]
 	testConstraint aiostat [expr {!$tcl_platform(bootstrap)}]
+	if {[catch {file normalize .}]} {
+		testConstraint normalize 0
+	}
 } else {
 	testConstraint mtimeset 1
 	testConstraint aiostat 0
@@ -253,6 +259,14 @@ test writable-1.1 {file writable} -body {
 	file delete $name
 }
 
+test executable-1.1 {file executable} -body {
+    file executable [info nameofexecutable]
+} -result 1
+
+test executable-1.2 {file executable} -body {
+    file executable [info script]
+} -result 0
+
 test rename-1.1 {file rename usage} -body {
 	file rename
 } -returnCodes error -match glob -result {wrong # args: should be *}
@@ -399,6 +413,26 @@ test mtime-1.5 {file mtime} -constraints {mtimeset unix} -body {
 	file delete $name
 }
 
+test mtimeus-1.1 {file mtimeus} -constraints mtimeus -body {
+	file mtimeus
+} -returnCodes error -result {wrong # args: should be "file mtimeus name ?time?"}
+
+test mtimeus-1.2 {file mtimeus} -constraints mtimeus -body {
+	file mtimeus nonexistent
+} -returnCodes error -match glob -result {could not read "nonexistent":*}
+
+test mtimeus-1.3 {file mtimeus} -constraints mtimeus -body {
+	file mtimeus [info script] bad
+} -returnCodes error -result {expected integer but got "bad"}
+
+test mtimeus-1.4 {file mtimeus} -constraints mtimeus -body {
+	set mtimeus [file mtimeus [info script]]
+	file stat [info script] s
+	if {$mtimeus != $s(mtimeus)} {
+		error "mtimeus was $mtimeus but s(mtimeus) was $s(mtimeus)"
+	}
+}
+
 test atime-1.1 {file atime} -body {
 	file atime
 } -returnCodes error -match glob -result {wrong # args: should be "file atime name*}
@@ -448,5 +482,21 @@ test file.19   "picol test" {file split {/foo/space station/bar/}}  {/ foo {spac
 test file.20   "picol test" {file split {foo/space station/bar}}  {foo {space station} bar}
 test file.21   "picol test" {file split foo///bar}  {foo bar}
 test file.22   "picol test" {file split foo}  foo
+
+test normalize-1.1 {normalize usage} -body {
+	file normalize
+} -returnCodes error -match glob -result {wrong # args: should be "file normalize *"}
+
+test normalize-1.2 {normalize usage} -body {
+	file normalize abc def
+} -returnCodes error -match glob -result {wrong # args: should be "file normalize *"}
+
+test normalize-1.3 {normalize simple} -constraints normalize -body {
+	file tail [file normalize [info script]]
+} -result file.test
+
+test normalize-1.4 {normalize simple} -constraints normalize -body {
+	file tail [file normalize [file dirname [info script]]]
+} -result tests
 
 testreport
