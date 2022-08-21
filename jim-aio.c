@@ -2158,7 +2158,7 @@ static int JimAioOpenPtyCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
 
-    /* Note: The slave path will be used for both master and slave */
+    /* Note: The replica path will be used for both handles slave */
     return JimMakeChannelPair(interp, p, Jim_NewStringObj(interp, path, -1), "aio.pty%ld", 0, mode);
 }
 #endif
@@ -2200,6 +2200,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *addr = NULL;
     const char *bind_addr = NULL;
     const char *connect_addr = NULL;
+    Jim_Obj *filename = NULL;
     union sockaddr_any sa;
     socklen_t salen;
     int on = 1;
@@ -2251,6 +2252,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc > 2) {
         addr = Jim_String(argv[2]);
+		filename = argv[2];
     }
 
 #if defined(HAVE_SOCKETPAIR) && UNIX_SOCKETS
@@ -2416,8 +2418,11 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             return JIM_ERR;
         }
     }
+	if (!filename) {
+		filename = argv[1];
+	}
 
-    return JimMakeChannel(interp, NULL, sock, argv[1], "aio.sock%ld", family, "r+", 0) ? JIM_OK : JIM_ERR;
+    return JimMakeChannel(interp, NULL, sock, filename, "aio.sock%ld", family, "r+", 0) ? JIM_OK : JIM_ERR;
 }
 #endif /* JIM_BOOTSTRAP */
 
