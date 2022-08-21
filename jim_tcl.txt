@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.81 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.81+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,6 +52,13 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 RECENT CHANGES
 --------------
+Changes between 0.81 and 0.82
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. `try` now supports trap to match on errorcode
+2. TIP 603, `aio stat` is now supported to stat a file handle
+3. Add support for `socket -async`
+4. The handles created by `socket pty` now make the replica name available via 'filename'
+
 Changes between 0.80 and 0.81
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. TIP 582, comments allowed in expressions
@@ -66,8 +73,6 @@ Changes between 0.80 and 0.81
 9. Add support for `lsort -stride`
 10. `open` now supports POSIX-style access arguments
 11. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
-12. `try` now supports trap to match on errorcode
-13. TIP 603, `aio stat` is now supported to stat a file handle
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4912,7 +4917,8 @@ aio
 
 +$handle *filename*+::
     Returns the original filename associated with the handle.
-    Handles returned by `socket` give the socket type instead of a filename.
+    Handles returned by `socket` provide different information.
+	See `socket` for each socket type.
 
 +$handle *flush*+::
     Flush the stream
@@ -5125,40 +5131,51 @@ Various socket types may be created.
 
 +*socket unix* 'path'+::
     A unix domain socket client connected to 'path'
+	'filename' returns +'path'+
 
 +*socket unix.server* 'path'+::
     A unix domain socket server listening on 'path'
+	'filename' returns +'path'+
 
 +*socket unix.dgram* '?path?'+::
     A unix domain socket datagram client, optionally connected to 'path'
+	'filename' returns +'path'+ if provided or "dgram" if not
 
 +*socket unix.dgram.server* 'path'+::
     A unix domain socket datagram server server listening on 'path'
+	'filename' returns +'path'+
 
 +*socket ?-async? ?-ipv6? stream* 'addr:port'+::
     A TCP socket client. (See the forms for +'addr'+ below)
+	'filename' returns +'addr:port'+
 
 +*socket ?-async? ?-ipv6? stream.server* '?addr:?port'+::
     A TCP socket server (+'addr'+ defaults to +0.0.0.0+ for IPv4 or +[::]+ for IPv6).
+	'filename' returns +'addr:port'+
 
 +*socket ?-async? ?-ipv6? dgram* ?'addr:port'?+::
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and 'sendto' must be used
     to indicated the destination.
+	'filename' returns +'addr:port'+ if provided or "dgram" if not
 
 +*socket ?-async? ?-ipv6? dgram.server* 'addr:port'+::
     A UDP socket server.
+	'filename' returns +'addr:port'+
 
 +*socket pipe*+::
     A synonym for `pipe`
+	'filename' returns "pipe"
 
 +*socket pair*+::
     A socketpair (see socketpair(2)). Like `pipe`, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
+	'filename' returns "pair"
 
 +*socket pty*+::
     A pseudo-tty pair (see openpty(3)). Like `pipe`, this command returns
-    a list of two channels: {master slave}. These channels are both readable and writable.
+    a list of two channels: {primary replica}. These channels are both readable and writable.
+	'filename' for both handles returns the replica filename.
 
 This command creates a socket connected (client) or bound (server) to the given
 address.
