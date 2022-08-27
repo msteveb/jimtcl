@@ -6,7 +6,7 @@ addons:
       - libsqlite3-dev
       - libhiredis-dev
 before_script:
-  - ./configure --maintainer --full --allextmod --disable-docs
+  - ./configure --maintainer --allextmod --disable-docs
 script:
   - make all test
   - ./test-bootstrap-jim

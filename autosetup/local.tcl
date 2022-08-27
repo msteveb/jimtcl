@@ -219,27 +219,28 @@ proc check-extensions {allextmod} {
     set withinfo(maybemod) {}
 
     # Now work out the default status. We have.
-    # normal case, include !off, !optional if possible
-    # --full, include !off if possible
-    # --without=default, don't include optional or off
-    if {$withinfo(nodefault)} {
-        lappend withinfo(maybe) stdlib
-    } else {
-        foreach i $extlist {
-            if {[ext-has $i off]} {
-                if {$allextmod} {
-                    lappend withinfo(maybemod) $i
-                }
-                continue
-            }
-            if {[ext-has $i optional] && !$withinfo(optional)} {
-                if {$allextmod} {
-                    lappend withinfo(maybemod) $i
-                }
-                continue
-            }
-            lappend withinfo(maybe) $i
-        }
+    # normal case: include !off, !optional if possible
+    # --without=default: only include always
+	foreach i $extlist {
+		if {$withinfo(nodefault)} {
+			if {[ext-has $i always]} {
+				lappend withinfo(maybe) $i
+			}
+			continue
+		}
+		if {[ext-has $i off]} {
+			if {$allextmod} {
+				lappend withinfo(maybemod) $i
+			}
+			continue
+		}
+		if {[ext-has $i optional] && !$withinfo(optional)} {
+			if {$allextmod} {
+				lappend withinfo(maybemod) $i
+			}
+			continue
+		}
+		lappend withinfo(maybe) $i
     }
 
     foreach i $extlist {

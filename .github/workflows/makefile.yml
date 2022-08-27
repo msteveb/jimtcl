@@ -18,7 +18,7 @@ jobs:
       run: sudo apt install libsqlite3-dev libhiredis-dev
 
     - name: configure
-      run: ./configure --maintainer --full --allextmod --disable-docs
+      run: ./configure --maintainer --allextmod --disable-docs
 
     - name: Build
       run: make
