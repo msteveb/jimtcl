@@ -35,7 +35,7 @@ test lock-1.4 {release lock again} {
 test lock-1.5 {grab lock from sub-process} {
 	# Run a child process that grabs the lock for 0.5 seconds
 	set pid [exec [info nameofexecutable] -e {set fh [open locktest.file r+]; $fh lock; sleep 0.5} >/dev/null &]
-	sleep 0.1
+	sleep 0.25
 	# Try to grab the lock - should fail
 	set stat [$fh lock]
 	sleep 0.5
