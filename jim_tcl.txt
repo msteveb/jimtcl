@@ -2549,6 +2549,9 @@ abbreviation for +'option'+ is acceptable.  The valid options are:
     the last '.' character in the name.  If +'name'+ doesn't contain
     a dot, then return +'name'+.
 
++*file size* 'name'+::
+    Returns the size, in bytes, of the file +'name'+.
+
 +*file split* 'name'+::
     Returns a list whose elements are the path components in +'name'+.
     The first element of the list will have the same path type as
