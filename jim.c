@@ -12102,7 +12102,7 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     /* The general purpose implementation of while starts here */
     while (1) {
-        int boolean, retval;
+        int boolean = 0, retval;
 
         if ((retval = Jim_GetBoolFromExpr(interp, argv[1], &boolean)) != JIM_OK)
             return retval;
