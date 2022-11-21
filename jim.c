@@ -5531,7 +5531,7 @@ int Jim_Collect(Jim_Interp *interp)
                     Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, objPtr);
                     if (he && ((Jim_Obj *)Jim_GetHashEntryKey(he))->refCount == 1) {
 #ifdef JIM_DEBUG_GC
-                        printf("No MARK: %lu - command with refcount=1\n", idp);
+                        printf("No MARK: %lu - command with refcount=1\n", id);
 #endif
                         break;
                     }
