@@ -694,14 +694,34 @@ char *Jim_StrDupLen(const char *s, int l)
  * Time related functions
  * ---------------------------------------------------------------------------*/
 
-/* Returns current time in microseconds */
-static jim_wide JimClock(void)
+/* Returns current time in microseconds
+ * CLOCK_MONOTONIC (monotonic clock that is affected by time adjustments)
+ * CLOCK_MONOTONIC_RAW (monotonic clock that is not affected by time adjustments)
+ * CLOCK_REALTIME (wall time)
+ */
+jim_wide Jim_GetTimeUsec(unsigned type)
 {
+    long long now;
     struct timeval tv;
 
-    gettimeofday(&tv, NULL);
-    return (jim_wide) tv.tv_sec * 1000000 + tv.tv_usec;
+#if defined(HAVE_CLOCK_GETTIME)
+    struct timespec ts;
+
+    if (clock_gettime(type, &ts) == 0) {
+        now = ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+    }
+    else
+#endif
+    {
+        gettimeofday(&tv, NULL);
+
+        now = tv.tv_sec * 1000000LL + tv.tv_usec;
+    }
+
+    return now;
 }
+
+
 
 /* -----------------------------------------------------------------------------
  * Hash Tables
@@ -5614,7 +5634,7 @@ int Jim_Collect(Jim_Interp *interp)
     }
     Jim_FreeHashTable(&marks);
     interp->lastCollectId = interp->referenceNextId;
-    interp->lastCollectTime = JimClock();
+    interp->lastCollectTime = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
     return collected;
 }
 
@@ -5627,7 +5647,7 @@ void Jim_CollectIfNeeded(Jim_Interp *interp)
     jim_wide elapsedTime;
 
     elapsedId = interp->referenceNextId - interp->lastCollectId;
-    elapsedTime = JimClock() - interp->lastCollectTime;
+    elapsedTime = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) - interp->lastCollectTime;
 
 
     if (elapsedId > JIM_COLLECT_ID_PERIOD || elapsedTime > JIM_COLLECT_TIME_PERIOD) {
@@ -5658,7 +5678,7 @@ Jim_Interp *Jim_CreateInterp(void)
 
     i->maxCallFrameDepth = JIM_MAX_CALLFRAME_DEPTH;
     i->maxEvalDepth = JIM_MAX_EVAL_DEPTH;
-    i->lastCollectTime = JimClock();
+    i->lastCollectTime = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
 
     /* Note that we can create objects only after the
      * interpreter liveList and freeList pointers are
@@ -14592,7 +14612,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (count < 0)
         return JIM_OK;
     i = count;
-    start = JimClock();
+    start = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
     while (i-- > 0) {
         int retval;
 
@@ -14601,7 +14621,7 @@ static int Jim_TimeCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return retval;
         }
     }
-    elapsed = JimClock() - start;
+    elapsed = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) - start;
     if (elapsed < count * 10) {
         Jim_SetResult(interp, Jim_NewDoubleObj(interp, elapsed * 1.0 / count));
     }
@@ -14637,11 +14657,11 @@ static int Jim_TimeRateCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     }
 
     /* Run until we exceed the time limit */
-    start = JimClock();
+    start = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
     count = 0;
     do {
         int retval = Jim_EvalObj(interp, argv[1]);
-        delta = JimClock() - start;
+        delta = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) - start;
         if (retval != JIM_OK) {
             return retval;
         }
@@ -14649,11 +14669,11 @@ static int Jim_TimeRateCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     } while (delta < us);
 
     /* Now try to account for the loop and eval overhead */
-    start = JimClock();
+    start = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
     n = 0;
     do {
         int retval = Jim_EvalObj(interp, interp->nullScriptObj);
-        overhead = JimClock() - start;
+        overhead = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) - start;
         if (retval != JIM_OK) {
             return retval;
         }

@@ -151,37 +151,32 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int clock_cmd_seconds(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_SetResultInt(interp, time(NULL));
+    Jim_SetResultInt(interp, Jim_GetTimeUsec(CLOCK_REALTIME) / 1000000);
+    return JIM_OK;
+}
 
+static int clock_cmd_clicks(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_SetResultInt(interp, Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW));
     return JIM_OK;
 }
 
 static int clock_cmd_micros(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    Jim_SetResultInt(interp, (jim_wide) tv.tv_sec * 1000000 + tv.tv_usec);
-
+    Jim_SetResultInt(interp, Jim_GetTimeUsec(CLOCK_REALTIME));
     return JIM_OK;
 }
 
 static int clock_cmd_millis(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    Jim_SetResultInt(interp, (jim_wide) tv.tv_sec * 1000 + tv.tv_usec / 1000);
-
+    Jim_SetResultInt(interp, Jim_GetTimeUsec(CLOCK_REALTIME) / 1000);
     return JIM_OK;
 }
 
 static const jim_subcmd_type clock_command_table[] = {
     {   "clicks",
         NULL,
-        clock_cmd_micros,
+        clock_cmd_clicks,
         0,
         0,
         /* Description: Returns the current time in 'clicks' */

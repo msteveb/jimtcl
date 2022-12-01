@@ -251,7 +251,7 @@ cc-check-functions geteuid mkstemp isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 cc-check-functions shutdown socketpair link symlink fsync dup umask
-cc-check-functions localtime gmtime strptime clock_gettime
+cc-check-functions localtime gmtime strptime
 if {![cc-check-functions realpath]} {
 	cc-check-functions _fullpath
 }
@@ -534,6 +534,9 @@ if {[have-feature windows]} {
             set buildjimext 0
         }
     }
+} else {
+    # We don't trust any version of clock_gettime on windows
+    cc-check-functions clock_gettime
 }
 if {[have-feature termios.h]} {
     lappend extra_objs jim-tty.o

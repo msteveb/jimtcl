@@ -237,32 +237,6 @@ void Jim_DeleteFileHandler(Jim_Interp *interp, int fd, int mask)
     }
 }
 
-/**
- * Returns the time of day in microseconds.
- * (the time base is not relevant here)
- */
-static jim_wide JimGetTimeUsec(Jim_EventLoop *eventLoop)
-{
-    long long now;
-    struct timeval tv;
-
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC_RAW)
-    struct timespec ts;
-
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) == 0) {
-        now = ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
-    }
-    else
-#endif
-    {
-        gettimeofday(&tv, NULL);
-
-        now = tv.tv_sec * 1000000LL + tv.tv_usec;
-    }
-
-    return now;
-}
-
 jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide us,
     Jim_TimeProc * proc, void *clientData, Jim_EventFinalizerProc * finalizerProc)
 {
@@ -273,7 +247,7 @@ jim_wide Jim_CreateTimeHandler(Jim_Interp *interp, jim_wide us,
     te = Jim_Alloc(sizeof(*te));
     te->id = id;
     te->initialus = us;
-    te->when = JimGetTimeUsec(eventLoop) + us;
+    te->when = Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) + us;
     te->timeProc = proc;
     te->finalizerProc = finalizerProc;
     te->clientData = clientData;
@@ -374,7 +348,7 @@ jim_wide Jim_DeleteTimeHandler(Jim_Interp *interp, jim_wide id)
     if (te) {
         jim_wide remain;
 
-        remain = te->when - JimGetTimeUsec(eventLoop);
+        remain = te->when - Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
         remain = (remain < 0) ? 0 : remain;
 
         Jim_FreeTimeHandler(interp, te);
@@ -432,7 +406,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
 
             /* Calculate the time missing for the nearest
              * timer to fire. */
-            sleep_us = shortest->when - JimGetTimeUsec(eventLoop);
+            sleep_us = shortest->when - Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW);
             if (sleep_us < 0) {
                 sleep_us = 0;
             }
@@ -534,7 +508,7 @@ int Jim_ProcessEvents(Jim_Interp *interp, int flags)
             te = te->next;
             continue;
         }
-        if (JimGetTimeUsec(eventLoop) >= te->when) {
+        if (Jim_GetTimeUsec(CLOCK_MONOTONIC_RAW) >= te->when) {
             id = te->id;
             /* Remove from the list before executing */
             Jim_RemoveTimeHandler(eventLoop, id);

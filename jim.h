@@ -665,6 +665,16 @@ JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 JIM_EXPORT char **Jim_GetEnviron(void);
 JIM_EXPORT void Jim_SetEnviron(char **env);
 JIM_EXPORT int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unlink_file);
+#ifndef CLOCK_REALTIME
+#  define CLOCK_REALTIME 0
+#endif
+#ifndef CLOCK_MONOTONIC
+#  define CLOCK_MONOTONIC 1
+#endif
+#ifndef CLOCK_MONOTONIC_RAW
+#  define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+JIM_EXPORT jim_wide Jim_GetTimeUsec(unsigned type);
 
 /* evaluation */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);
