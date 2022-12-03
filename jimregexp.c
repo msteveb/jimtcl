@@ -1499,7 +1499,7 @@ static int regmatch(regex_t *preg, int prog)
 			/* Can't match at BOL */
 			if (preg->reginput > preg->regbol) {
 				/* Current must be EOL or nonword */
-				if (reg_iseol(preg, c) || !isalnum(UCHAR(c)) || c != '_') {
+				if (reg_iseol(preg, c) || !(isalnum(UCHAR(c)) || c == '_')) {
 					c = preg->reginput[-1];
 					/* Previous must be word */
 					if (isalnum(UCHAR(c)) || c == '_') {

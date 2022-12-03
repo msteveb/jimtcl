@@ -940,4 +940,8 @@ test regexp-25.2 {Single braced count} {
     regexp "a{4}" baaaad
 } 1
 
+test regexp-25.3 {End of word} {
+    regexp {\mcd\M} cdef
+} 0
+
 testreport
