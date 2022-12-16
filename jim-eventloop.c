@@ -592,13 +592,18 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_EventLoop *eventLoop = Jim_CmdPrivData(interp);
     Jim_Obj *oldValue;
     int rc;
+    int signal = 0;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "name");
+    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "-signal")) {
+        signal++;
+    }
+
+    if (argc - signal != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-signal? name");
         return JIM_ERR;
     }
 
-    oldValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
+    oldValue = Jim_GetGlobalVariable(interp, argv[1 + signal], JIM_NONE);
     if (oldValue) {
         Jim_IncrRefCount(oldValue);
     }
@@ -612,6 +617,14 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     eventLoop->suppress_bgerror = 0;
 
     while ((rc = Jim_ProcessEvents(interp, JIM_ALL_EVENTS)) >= 0) {
+        if (signal && interp->sigmask) {
+            /* vwait -signal and handled signals were received, so transfer them
+             * to ignored signals so that 'signal check -clear' will return them.
+             */
+            Jim_SignalSetIgnored(interp->sigmask);
+            interp->sigmask = 0;
+            break;
+        }
         Jim_Obj *currValue;
         currValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,

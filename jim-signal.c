@@ -46,6 +46,11 @@ static void signal_ignorer(int sig)
     sigsignored |= sig_to_bit(sig);
 }
 
+void Jim_SignalSetIgnored(jim_wide mask)
+{
+    sigsignored |= mask;
+}
+
 static void signal_init_names(void)
 {
 #define SET_SIG_NAME(SIG) siginfo[SIG].name = #SIG
