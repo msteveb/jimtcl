@@ -957,6 +957,7 @@ JIM_EXPORT int Jim_IsBigEndian(void);
  * in a catch -signal {} clause.
  */
 #define Jim_CheckSignal(i) ((i)->signal_level && (i)->sigmask)
+JIM_EXPORT void Jim_SignalSetIgnored(jim_wide mask);
 
 /* jim-load.c */
 JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);

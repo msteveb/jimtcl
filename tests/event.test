@@ -104,12 +104,12 @@ test event-10.1 {Tcl_Exit procedure} exec {
         [lindex $errorCode 2]
 } {1 CHILDSTATUS 3}
 
-test event-11.1 {Tcl_VwaitCmd procedure} {
-    list [catch {vwait} msg] $msg
-} {1 {wrong # args: should be "vwait name"}}
-test event-11.2 {Tcl_VwaitCmd procedure} {
-    list [catch {vwait a b} msg] $msg
-} {1 {wrong # args: should be "vwait name"}}
+test event-11.1 {Tcl_VwaitCmd procedure} -body {
+    vwait
+} -returnCodes error -match glob -result {wrong # args: should be "vwait* name"}
+test event-11.2 {Tcl_VwaitCmd procedure} -body {
+    vwait a b
+} -returnCodes error -match glob -result {wrong # args: should be "vwait* name"}
 test event-11.3 {Tcl_VwaitCmd procedure} jim {
     catch {unset x}
     set x 1
