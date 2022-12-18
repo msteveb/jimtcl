@@ -5449,6 +5449,36 @@ static const Jim_HashTableType JimRefMarkHashTableType = {
     NULL                        /* val destructor */
 };
 
+/* Adds a reference (id) to the marks table with the given reference count.
+ * If iscmd is 1, marks this as a command (so we can GC commands with refcount=1)
+ */
+static void JimMarkObject(Jim_Interp *interp, Jim_HashTable *marks, Jim_Obj *objPtr, unsigned long id, int checkcmd)
+{
+    if (checkcmd && objPtr->refCount == 1) {
+        /* This may be the object in the command table with refcount 1 */
+        Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, objPtr);
+        if (he && Jim_GetHashEntryKey(he) == objPtr) {
+            /* Yes, so no need to mark */
+            return;
+        }
+    }
+
+#ifdef JIM_DEBUG_GC
+    printf("MARK: %lu (type=%s, refcount=%d)\n", id, JimObjTypeName(objPtr), objPtr->refCount);
+#endif
+
+    Jim_AddHashEntry(marks, &id, NULL);
+}
+
+/**
+ * Returns 1 if id is in the marks table
+ * In this case, the object can't be collected.
+ */
+static int JimIsMarked(Jim_HashTable *marks, unsigned long id)
+{
+    return Jim_FindHashEntry(marks, &id) != NULL;
+}
+
 /* Performs the garbage collection. */
 int Jim_Collect(Jim_Interp *interp)
 {
@@ -5476,13 +5506,11 @@ int Jim_Collect(Jim_Interp *interp)
             int len;
 
             /* If the object is of type reference, to get the
-             * Id is simple... */
+             * Id is simple...
+             * Mark it, noting if it is in the command table
+             */
             if (objPtr->typePtr == &referenceObjType) {
-                Jim_AddHashEntry(&marks, &objPtr->internalRep.refValue.id, NULL);
-#ifdef JIM_DEBUG_GC
-                printf("MARK (reference): %d refcount: %d\n",
-                    (int)objPtr->internalRep.refValue.id, objPtr->refCount);
-#endif
+                JimMarkObject(interp, &marks, objPtr, objPtr->internalRep.refValue.id, 1);
                 objPtr = objPtr->nextObjPtr;
                 continue;
             }
@@ -5522,24 +5550,9 @@ int Jim_Collect(Jim_Interp *interp)
                 id = strtoul(p + 21, NULL, 10);
 
                 /* Ok, a reference for the given ID
-                 * was found. Mark it. */
-
-                /* But if this is a command in the command table with refCount 1
-                 * don't mark it since it can be deleted.
+                 * was found. Mark it, noting if it is in the command table
                  */
-                if (p == str) {
-                    Jim_HashEntry *he = Jim_FindHashEntry(&interp->commands, objPtr);
-                    if (he && ((Jim_Obj *)Jim_GetHashEntryKey(he))->refCount == 1) {
-#ifdef JIM_DEBUG_GC
-                        printf("No MARK: %lu - command with refcount=1\n", idp);
-#endif
-                        break;
-                    }
-                }
-                Jim_AddHashEntry(&marks, &id, objPtr);
-#ifdef JIM_DEBUG_GC
-                printf("MARK: %lu (type=%s)\n", id, JimObjTypeName(objPtr));
-#endif
+                JimMarkObject(interp, &marks, objPtr, id, p == str);
                 p += JIM_REFERENCE_SPACE;
             }
         }
@@ -5554,9 +5567,8 @@ int Jim_Collect(Jim_Interp *interp)
         Jim_Reference *refPtr;
 
         refId = he->key;
-        /* Check if in the mark phase we encountered
-         * this reference. */
-        if (Jim_FindHashEntry(&marks, refId) == NULL) {
+
+        if (!JimIsMarked(&marks, *refId)) {
 #ifdef JIM_DEBUG_GC
             printf("COLLECTING %d\n", (int)*refId);
 #endif
