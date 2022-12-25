@@ -68,7 +68,11 @@
 #endif
 
 # ifndef MAXPATHLEN
+# ifdef PATH_MAX
+# define MAXPATHLEN PATH_MAX
+# else
 # define MAXPATHLEN JIM_PATH_LEN
+# endif
 # endif
 
 #if defined(__MINGW32__) || defined(__MSYS__) || defined(_MSC_VER)
