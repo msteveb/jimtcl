@@ -77,12 +77,13 @@ proc class {classname {baseclasses {}} classvars} {
 			lindex [split $p " "] 1
 		}]
 	}
-	# Pre-defined some instance methods
+	# Pre-define some instance methods
 	$classname method defaultconstructor {{__vars {}}} {
 		set __classvars [$self classvars]
 		foreach __v [dict keys $__vars] {
 			if {![dict exists $__classvars $__v]} {
-				return -code error "$classname, $__v is not a class variable"
+				# level 3 because defaultconstructor is called by new
+				return -code error -level 3 "[lindex [info level 0] 0], $__v is not a class variable"
 			}
 			set $__v [dict get $__vars $__v]
 		}
