@@ -378,7 +378,9 @@ proc debugger::_db {type file line result name arglist} {
             # Build the active stacktrace
             set s(stacktrace) {}
             foreach level [range 1 [info level]] {
-                lassign [info frame $level] p f l
+                set frame [info frame $level]
+                set f [dict get $frame file]
+                set l [dict get $frame line]
                 lassign [info level $level] p pargs
                 lappend s(stacktrace) [list $f $l $p $pargs]
             }

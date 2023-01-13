@@ -128,11 +128,11 @@ test apply-8.10 {default values} {
 } {{args {}} {x 1} {y 3}}
 
 test apply-9.1 {tailcall within apply} {
-    proc p {y frame} {
-        list [expr {$y * 2}] [expr {$frame - [info frame]}]
+    proc p {y level} {
+        list [expr {$y * 2}] [expr {$level - [info level]}]
     }
     apply {{x} {
-        tailcall p $x [info frame]
+        tailcall p $x [info level]
         notreached
     }} {4}
 } {8 0}

@@ -58,6 +58,7 @@ Changes between 0.81 and 0.82
 2. TIP 603, `aio stat` is now supported to stat a file handle
 3. Add support for `socket -async`
 4. The handles created by `socket pty` now make the replica name available via 'filename'
+5. `info frame` now returns a (largely) Tcl-compatible dictionary, and supports 'info frame 0'
 
 Changes between 0.80 and 0.81
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2876,6 +2877,7 @@ The legal +'option'+'s (which may be abbreviated) are:
     otherwise.
 
 +*info frame* ?'number'?+::
+    TBD: Update for new Tcl-compatible dictionary format - type, line, file, cmd, proc, level.
     If +'number'+ is not specified, this command returns a number
     which is the same result as `info level` - the current stack frame level.
     If +'number'+ is specified, then the result is a list consisting of the procedure,

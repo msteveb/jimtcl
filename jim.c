@@ -4391,6 +4391,12 @@ Jim_Cmd *Jim_GetCommand(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
         }
         cmd = Jim_GetHashEntryVal(he);
 
+        /* Stash the resolved command name. Note that we don't incr the ref count here
+         * since we don't want to increase the ref count. The lifetime is the same as the key
+         * in the commands hash table
+         */
+        cmd->cmdNameObj = Jim_GetHashEntryKey(he);
+
         /* Free the old internal rep and set the new one. */
         Jim_FreeIntRep(interp, objPtr);
         objPtr->typePtr = &commandObjType;
@@ -5674,6 +5680,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->errorProc = i->emptyObj;
     i->currentScriptObj = Jim_NewEmptyStringObj(i);
     i->nullScriptObj = Jim_NewEmptyStringObj(i);
+    i->evalFrame = &i->topEvalFrame;
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->errorFileNameObj);
     Jim_IncrRefCount(i->result);
@@ -5857,21 +5864,20 @@ Jim_CallFrame *Jim_GetCallFrameByLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr)
 /* Similar to Jim_GetCallFrameByLevel() but the level is specified
  * as a relative integer like in the [info level ?level?] command.
  **/
-static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *levelObjPtr)
+static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, long level)
 {
-    long level;
     Jim_CallFrame *framePtr;
 
-    if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
-        if (level <= 0) {
-            /* Convert from a relative to an absolute level */
-            level = interp->framePtr->level + level;
-        }
+    if (level == 0) {
+        return interp->framePtr;
+    }
 
-        if (level == 0) {
-            return interp->topFramePtr;
-        }
+    if (level < 0) {
+        /* Convert from a relative to an absolute level */
+        level = interp->framePtr->level + level;
+    }
 
+    if (level > 0) {
         /* Lookup */
         for (framePtr = interp->framePtr; framePtr; framePtr = framePtr->parent) {
             if (framePtr->level == level) {
@@ -5879,10 +5885,33 @@ static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, Jim_Obj *leve
             }
         }
     }
-
-    Jim_SetResultFormatted(interp, "bad level \"%#s\"", levelObjPtr);
     return NULL;
 }
+
+static Jim_EvalFrame *JimGetEvalFrameByInteger(Jim_Interp *interp, long level)
+{
+    Jim_EvalFrame *evalFrame;
+
+    if (level == 0) {
+        return interp->evalFrame;
+    }
+
+    if (level < 0) {
+        /* Convert from a relative to an absolute level */
+        level = interp->evalFrame->level + level;
+    }
+
+    if (level > 0) {
+        /* Lookup */
+        for (evalFrame = interp->evalFrame; evalFrame; evalFrame = evalFrame->parent) {
+            if (evalFrame->level == level) {
+                return evalFrame;
+            }
+        }
+    }
+    return NULL;
+}
+
 
 static void JimResetStackTrace(Jim_Interp *interp)
 {
@@ -10653,12 +10682,36 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return retcode;
 }
 
+static void JimPushEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame)
+{
+    memset(frame, 0, sizeof(*frame));
+    frame->parent = interp->evalFrame;
+    frame->level = frame->parent->level + 1;
+    frame->type = "unknown";
+    frame->callFrameLevel = interp->framePtr->level;
+    frame->scriptObj = interp->currentScriptObj;
+    interp->evalFrame = frame;
+#if 0
+    if (frame->scriptObj) {
+        printf("script: %.*s\n", 20, Jim_String(frame->scriptObj));
+    }
+#endif
+}
+
+static void JimPopEvalFrame(Jim_Interp *interp)
+{
+    interp->evalFrame = interp->evalFrame->parent;
+}
+
 static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
     Jim_Cmd *cmdPtr;
     void *prevPrivData;
     Jim_Obj *tailcallObj = NULL;
+    int prev_argc;
+    Jim_Obj * const *prev_argv;
+    Jim_EvalFrame frame;
 
 #if 0
     printf("invoke");
@@ -10682,8 +10735,28 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     }
     interp->evalDepth++;
     prevPrivData = interp->cmdPrivData;
+    /* XXX We should consider creating a struct here (on the stack) with a back pointer
+     * so that the entire call chain can be walked. This would allow 'info frame' to walk
+     * the full call chain, not just call frames
+     */
+    prev_argc = interp->argc;
+    prev_argv = interp->argv;
+
+    JimPushEvalFrame(interp, &frame);
 
 tailcall:
+
+    interp->argc = objc;
+    interp->argv = objv;
+
+    if (cmdPtr->isproc) {
+        frame.type = "proc";
+    }
+    else {
+        frame.type = "cmd";
+    }
+    frame.argc = objc;
+    frame.argv = objv;
 
     if (!interp->traceCmdObj ||
         (retcode = JimTraceCallback(interp, "cmd", objc, objv)) == JIM_OK) {
@@ -10724,8 +10797,13 @@ tailcall:
     interp->cmdPrivData = prevPrivData;
     interp->evalDepth--;
 
+    interp->argc = prev_argc;
+    interp->argv = prev_argv;
+
 out:
     JimDecrCmdRefCount(interp, cmdPtr);
+
+    JimPopEvalFrame(interp);
 
     if (interp->framePtr->tailcallObj) {
         /* We might have skipped invoking a tailcall, perhaps because of an error
@@ -11308,16 +11386,17 @@ int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj)
 {
     Jim_CallFrame *callFramePtr;
     int retcode;
+    ScriptObj *script = JimGetScript(interp, scriptObj);
 
     /* Create a new callframe */
     callFramePtr = JimCreateCallFrame(interp, interp->framePtr, nsObj);
-    callFramePtr->argv = &interp->emptyObj;
-    callFramePtr->argc = 0;
+    callFramePtr->argv = interp->argv;
+    callFramePtr->argc = interp->argc;
     callFramePtr->procArgsObjPtr = NULL;
     callFramePtr->procBodyObjPtr = scriptObj;
     callFramePtr->staticVars = NULL;
-    callFramePtr->fileNameObj = interp->emptyObj;
-    callFramePtr->line = 0;
+    callFramePtr->fileNameObj = script->fileNameObj;
+    callFramePtr->line = script->linenr;
     Jim_IncrRefCount(scriptObj);
     interp->framePtr = callFramePtr;
 
@@ -11430,6 +11509,8 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
         }
     }
 
+    interp->evalFrame->cmd = cmd;
+
     if (interp->traceCmdObj == NULL ||
         (retcode = JimTraceCallback(interp, "proc", argc, argv)) == JIM_OK) {
         /* Eval the body */
@@ -11457,6 +11538,8 @@ badargset:
         interp->errorProc = argv[0];
         Jim_IncrRefCount(interp->errorProc);
     }
+
+    interp->evalFrame->cmd = NULL;
 
     return retcode;
 }
@@ -11857,34 +11940,68 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int
     }
 }
 
-static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr,
-    Jim_Obj **objPtrPtr, int info_level_cmd)
+static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objPtrPtr)
 {
-    Jim_CallFrame *targetCallFrame;
+    long level;
 
-    targetCallFrame = JimGetCallFrameByInteger(interp, levelObjPtr);
-    if (targetCallFrame == NULL) {
-        return JIM_ERR;
+    if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
+        Jim_CallFrame *targetCallFrame = JimGetCallFrameByInteger(interp, level);
+        if (targetCallFrame && targetCallFrame != interp->topFramePtr) {
+            *objPtrPtr = Jim_NewListObj(interp, targetCallFrame->argv, targetCallFrame->argc);
+            return JIM_OK;
+        }
     }
-    /* No proc call at toplevel callframe */
-    if (targetCallFrame == interp->topFramePtr) {
-        Jim_SetResultFormatted(interp, "bad level \"%#s\"", levelObjPtr);
-        return JIM_ERR;
-    }
-    if (info_level_cmd) {
-        *objPtrPtr = Jim_NewListObj(interp, targetCallFrame->argv, targetCallFrame->argc);
-    }
-    else {
-        Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
-
-        Jim_ListAppendElement(interp, listObj, targetCallFrame->argv[0]);
-        Jim_ListAppendElement(interp, listObj, targetCallFrame->fileNameObj);
-        Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, targetCallFrame->line));
-        *objPtrPtr = listObj;
-    }
-    return JIM_OK;
+    Jim_SetResultFormatted(interp, "bad level \"%#s\"", levelObjPtr);
+    return JIM_ERR;
 }
 
+static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objPtrPtr)
+{
+    long level;
+
+    if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
+        Jim_EvalFrame *targetEvalFrame = JimGetEvalFrameByInteger(interp, level);
+        if (targetEvalFrame) {
+            Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+            int linenr;
+            Jim_Obj *fileNameObj;
+            Jim_Obj *cmdObj;
+            /*Jim_EvalFrame *procEvalFrame;*/
+
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "type", -1));
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "source", -1));
+            if (targetEvalFrame->scriptObj) {
+                ScriptObj *script = JimGetScript(interp, targetEvalFrame->scriptObj);
+                linenr = script->linenr;
+                fileNameObj = script->fileNameObj;
+                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "line", -1));
+                Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, linenr));
+                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "file", -1));
+                Jim_ListAppendElement(interp, listObj, fileNameObj);
+            }
+            cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
+
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "cmd", -1));
+            Jim_ListAppendElement(interp, listObj, cmdObj);
+            /* Look in parent frames for a proc name */
+            Jim_EvalFrame *p;
+            for (p = targetEvalFrame->parent; p ; p = p->parent) {
+                if (p->cmd && p->cmd->isproc) {
+                    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
+                    Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
+                    break;
+                }
+            }
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "level", -1));
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->callFrameLevel));
+
+            *objPtrPtr = listObj;
+            return JIM_OK;
+        }
+    }
+    Jim_SetResultFormatted(interp, "bad level \"%#s\"", levelObjPtr);
+    return JIM_ERR;
+}
 /* -----------------------------------------------------------------------------
  * Core commands
  * ---------------------------------------------------------------------------*/
@@ -15452,14 +15569,32 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             break;
 
         case INFO_LEVEL:
-        case INFO_FRAME:
             switch (argc) {
                 case 2:
                     Jim_SetResultInt(interp, interp->framePtr->level);
                     break;
 
                 case 3:
-                    if (JimInfoLevel(interp, argv[2], &objPtr, cmd == INFO_LEVEL) != JIM_OK) {
+                    if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK) {
+                        return JIM_ERR;
+                    }
+                    Jim_SetResult(interp, objPtr);
+                    break;
+
+                default:
+                    Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
+                    return JIM_ERR;
+            }
+            break;
+
+        case INFO_FRAME:
+            switch (argc) {
+                case 2:
+                    Jim_SetResultInt(interp, interp->evalFrame->level);
+                    break;
+
+                case 3:
+                    if (JimInfoFrame(interp, argv[2], &objPtr) != JIM_OK) {
                         return JIM_ERR;
                     }
                     Jim_SetResult(interp, objPtr);

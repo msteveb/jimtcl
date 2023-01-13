@@ -446,6 +446,18 @@ typedef struct Jim_CallFrame {
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
 } Jim_CallFrame;
 
+/* Evaluation frame */
+typedef struct Jim_EvalFrame {
+    const char *type;           /* "cmd", "source", etc. */
+    int level; /* Level of this evaluation frame. 0 = global */
+    int callFrameLevel;         /* corresponding call frame level */
+    struct Jim_Cmd *cmd;        /* The currently executing command */
+    struct Jim_EvalFrame *parent; /* The parent frame or NULL if at top */
+    Jim_Obj *const *argv; /* object vector of the current command . */
+    int argc; /* number of args */
+    Jim_Obj *scriptObj;
+} Jim_EvalFrame;
+
 /* The var structure. It just holds the pointer of the referenced
  * object. If linkFramePtr is not NULL the variable is a link
  * to a variable of name stored in objPtr living in the given callframe
@@ -488,6 +500,7 @@ typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
     int isproc;          /* Is this a procedure? */
     struct Jim_Cmd *prevCmd;    /* Previous command defn if cmd created 'local' */
+    Jim_Obj *cmdNameObj;       /* The fully resolved command name - just a pointer, not a reference */
     union {
         struct {
             /* native (C) command */
@@ -555,6 +568,10 @@ typedef struct Jim_Interp {
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
     Jim_Obj *currentScriptObj; /* Script currently in execution. */
+    Jim_EvalFrame topEvalFrame;  /* dummy top evaluation frame */
+    Jim_EvalFrame *evalFrame;  /* evaluation stack */
+    int argc;
+    Jim_Obj * const *argv;
     Jim_Obj *nullScriptObj; /* script representation of an empty string */
     Jim_Obj *emptyObj; /* Shared empty string object. */
     Jim_Obj *trueObj; /* Shared true int object. */
