@@ -88,6 +88,18 @@
     #define STAT_MTIME_US(STAT) ((STAT).st_mtim.tv_sec * 1000000ll + (STAT).st_mtim.tv_nsec / 1000)
 #endif
 
+/* On windows, convert backslashes to forward slashes (in place) in the null terminated path */
+static void JimFixPath(char *path)
+{
+    if (ISWINDOWS) {
+        /* Try to keep backslashes out of paths */
+        char *p = path;
+        while ((p = strchr(p, '\\')) != NULL) {
+            *p++ = '/';
+        }
+    }
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -358,25 +370,30 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static char *JimRealPath(const char *restrict path, char *restrict resolved_path, size_t len)
+{
+#if ISWINDOWS
+    return _fullpath(resolved_path, path, len);
+#elif defined(HAVE_REALPATH)
+    return realpath(path, resolved_path);
+#else
+    return NULL;
+#endif
+}
+
 static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-#ifdef HAVE_REALPATH
     const char *path = Jim_String(argv[0]);
-    char *newname = Jim_Alloc(MAXPATHLEN + 1);
+    char *newname = Jim_Alloc(MAXPATHLEN);
 
-    if (realpath(path, newname)) {
+    if (JimRealPath(path, newname, MAXPATHLEN)) {
+        JimFixPath(newname);
         Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, newname, -1));
         return JIM_OK;
     }
-    else {
-        Jim_Free(newname);
-        Jim_SetResultFormatted(interp, "can't normalize \"%#s\": %s", argv[0], strerror(errno));
-        return JIM_ERR;
-    }
-#else
-    Jim_SetResultString(interp, "Not implemented", -1);
+    Jim_Free(newname);
+    Jim_SetResultFormatted(interp, "can't normalize \"%#s\": %s", argv[0], strerror(errno));
     return JIM_ERR;
-#endif
 }
 
 static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1109,14 +1126,7 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_Free(cwd);
         return JIM_ERR;
     }
-    else if (ISWINDOWS) {
-        /* Try to keep backslashes out of paths */
-        char *p = cwd;
-        while ((p = strchr(p, '\\')) != NULL) {
-            *p++ = '/';
-        }
-    }
-
+    JimFixPath(cwd);
     Jim_SetResultString(interp, cwd, -1);
 
     Jim_Free(cwd);
