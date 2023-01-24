@@ -3635,6 +3635,13 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_normalize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#if !defined(HAVE_REALPATH) && (defined(__MINGW32__) || defined(_MSC_VER))
+    #define HAVE_REALPATH
+    #ifndef MAX_PATH
+        #define MAX_PATH (260)
+    #endif
+    #define realpath(N,R) _fullpath((R),(N),MAX_PATH)
+#endif
 #ifdef HAVE_REALPATH
     const char *path = Jim_String(argv[0]);
     char *newname = Jim_Alloc(MAXPATHLEN + 1);
