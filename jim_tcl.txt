@@ -2877,16 +2877,28 @@ The legal +'option'+'s (which may be abbreviated) are:
     otherwise.
 
 +*info frame* ?'number'?+::
-    TBD: Update for new Tcl-compatible dictionary format - type, line, file, cmd, proc, level.
+    *Note*: This command has changed as of Jim version 0.82 to be more Tcl-compatible.
+  ::
     If +'number'+ is not specified, this command returns a number
-    which is the same result as `info level` - the current stack frame level.
-    If +'number'+ is specified, then the result is a list consisting of the procedure,
-    filename and line number for the procedure call at level +'number'+ on the stack.
-    If +'number'+ is positive then it selects a particular stack level (1 refers
-    to the top-most active procedure, 2 to the procedure it called, and
-    so on); otherwise it gives a level relative to the current level
-    (0 refers to the current procedure, -1 to its caller, and so on).
-    The level has an identical meaning to `info level`.
+    giving the evaluation level of the invoking command (1 when invoked a the top level).
+  ::
+    If +'number'+ is positive then it selects a particular evaluation level (1 refers
+    to the top-most evaluation level, 2 to the command it called, and
+    so on); otherwise it gives a level relative to the current evaluation level
+    (0 refers to the current command (info frame), -1 to its caller, and so on).
+    In this case, the command returns a dictionary containing the folllowing keys:
+  ::
+    'type' - always +'"source"'+
+  ::
+    'file' - file name where the command was invoked (may be empty if not known)
+  ::
+    'line' - line number where the command was invoked (may be 0 if not known)
+  ::
+    'cmd' - the command (as a list) executing at the given level
+  ::
+    'proc' - if within a proc, the name of the proc (omitted if not within a proc)
+  ::
+    'level' - the evaluation level
 
 +*info globals* ?'pattern'?+::
     If +'pattern'+ isn't specified, returns a list of all the names
