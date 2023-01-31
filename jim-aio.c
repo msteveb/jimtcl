@@ -832,6 +832,11 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     jim_wide count = 0;
     jim_wide maxlen = JIM_WIDE_MAX;
     AioFile *outf = Jim_AioFile(interp, argv[0]);
+    /* Small, static buffer for small files */
+    char buf[AIO_BUF_LEN];
+    /* Will be allocated if the file is large */
+    char *bufp = buf;
+    int buflen = sizeof(buf);
 
     if (outf == NULL) {
         return JIM_ERR;
@@ -844,21 +849,28 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     while (count < maxlen) {
-        /* A reasonable compromise between stack size and speed */
-        char buf[AIO_BUF_LEN];
         jim_wide len = maxlen - count;
-        if (len > sizeof(buf)) {
-            len = sizeof(buf);
+        if (len > buflen) {
+            len = buflen;
         }
 
-        len = af->fops->reader(af, buf, len);
+        len = af->fops->reader(af, bufp, len);
         if (len <= 0) {
             break;
         }
-        if (outf->fops->writer(outf, buf, len) != len) {
+        if (outf->fops->writer(outf, bufp, len) != len) {
             break;
         }
         count += len;
+        if (count >= 16384 && bufp == buf) {
+            /* Heuristic check - for large copy speed-up */
+            buflen = 65536;
+            bufp = malloc(buflen);
+        }
+    }
+
+    if (bufp != buf) {
+        free(bufp);
     }
 
     if (JimCheckStreamError(interp, af) || JimCheckStreamError(interp, outf)) {
