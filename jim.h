@@ -126,7 +126,7 @@ extern "C" {
  * ---------------------------------------------------------------------------*/
 
 /* Increment this every time the public ABI changes */
-#define JIM_ABI_VERSION 100
+#define JIM_ABI_VERSION 101
 
 #define JIM_OK 0
 #define JIM_ERR 1
