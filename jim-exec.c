@@ -734,7 +734,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
     int i;
     phandle_t phandle;
     char **save_environ;
-#ifndef __MINGW32__
+#ifdef HAVE_EXECVPE
     char **child_environ;
 #endif
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
@@ -1044,7 +1044,9 @@ badargs:
 #else
         i = strlen(arg_array[firstArg]);
 
+#ifdef HAVE_EXECVPE
         child_environ = Jim_GetEnviron();
+#endif
         /*
          * Make a new process and enter it into the table if the vfork
          * is successful.
