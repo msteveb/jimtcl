@@ -620,8 +620,12 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (signal && interp->sigmask) {
             /* vwait -signal and handled signals were received, so transfer them
              * to ignored signals so that 'signal check -clear' will return them.
+             * It's possible that if signals aren't supported we shouldn't even
+             * allow the -signal option.
              */
+#ifdef jim_ext_signal
             Jim_SignalSetIgnored(interp->sigmask);
+#endif
             interp->sigmask = 0;
             break;
         }
