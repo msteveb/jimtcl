@@ -865,12 +865,12 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (count >= 16384 && bufp == buf) {
             /* Heuristic check - for large copy speed-up */
             buflen = 65536;
-            bufp = malloc(buflen);
+            bufp = Jim_Alloc(buflen);
         }
     }
 
     if (bufp != buf) {
-        free(bufp);
+        Jim_Free(bufp);
     }
 
     if (JimCheckStreamError(interp, af) || JimCheckStreamError(interp, outf)) {

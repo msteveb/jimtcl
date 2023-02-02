@@ -2502,7 +2502,7 @@ static void StringAppendString(Jim_Obj *objPtr, const char *str, int len)
     if (objPtr->internalRep.strValue.maxLength < needlen ||
         objPtr->internalRep.strValue.maxLength == 0) {
         needlen *= 2;
-        /* Inefficient to malloc() for less than 8 bytes */
+        /* Inefficient to alloc for less than 8 bytes */
         if (needlen < 7) {
             needlen = 7;
         }

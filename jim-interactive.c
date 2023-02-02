@@ -48,13 +48,13 @@ char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt)
     return result;
 #else
     int len;
-    char *line = malloc(MAX_LINE_LEN);
+    char *line = Jim_Alloc(MAX_LINE_LEN);
 
     fputs(prompt, stdout);
     fflush(stdout);
 
     if (fgets(line, MAX_LINE_LEN, stdin) == NULL) {
-        free(line);
+        Jim_Free(line);
         return NULL;
     }
     len = strlen(line);
@@ -246,7 +246,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
                 Jim_AppendString(interp, scriptObjPtr, "\n", 1);
             }
             Jim_AppendString(interp, scriptObjPtr, line, -1);
-            free(line);
+            Jim_Free(line);
             if (Jim_ScriptIsComplete(interp, scriptObjPtr, &state))
                 break;
 

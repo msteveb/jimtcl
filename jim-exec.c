@@ -676,7 +676,7 @@ static int
 JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t **pidArrayPtr,
     int *inPipePtr, int *outPipePtr, int *errFilePtr)
 {
-    phandle_t *pidPtr = NULL;         /* Points to malloc-ed array holding all
+    phandle_t *pidPtr = NULL;         /* Points to alloc-ed array holding all
                                  * the pids of child processes. */
     int numPids = 0;            /* Actual number of processes that exist
                                  * at *pidPtr right now. */
