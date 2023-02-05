@@ -734,7 +734,7 @@ JimCreatePipeline(Jim_Interp *interp, int argc, Jim_Obj *const *argv, phandle_t 
     int i;
     phandle_t phandle;
     char **save_environ;
-#ifdef HAVE_EXECVPE
+#if defined(HAVE_EXECVPE) && !defined(__MINGW32__)
     char **child_environ;
 #endif
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
