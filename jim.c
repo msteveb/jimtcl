@@ -684,8 +684,8 @@ char *Jim_StrDupLen(const char *s, int l)
 {
     char *copy = Jim_Alloc(l + 1);
 
-    memcpy(copy, s, l + 1);
-    copy[l] = 0;                /* Just to be sure, original could be substring */
+    memcpy(copy, s, l);
+    copy[l] = 0;                /* NULL terminate */
     return copy;
 }
 
