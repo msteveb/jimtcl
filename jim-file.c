@@ -77,6 +77,8 @@
 
 #if defined(__MINGW32__) || defined(__MSYS__) || defined(_MSC_VER)
 #define ISWINDOWS 1
+/* Even if we have symlink it isn't compatible enought to use */
+#undef HAVE_SYMLINK
 #else
 #define ISWINDOWS 0
 #endif
@@ -376,7 +378,7 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static char *JimRealPath(const char *restrict path, char *restrict resolved_path, size_t len)
 {
-#if ISWINDOWS
+#if defined(HAVE__FULLPATH)
     return _fullpath(resolved_path, path, len);
 #elif defined(HAVE_REALPATH)
     return realpath(path, resolved_path);

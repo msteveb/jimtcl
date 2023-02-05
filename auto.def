@@ -247,11 +247,14 @@ if {[cc-check-function-in-lib socket socket]} {
 }
 
 cc-check-functions ualarm lstat fork system select execvpe
-cc-check-functions geteuid mkstemp realpath isatty
+cc-check-functions geteuid mkstemp isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 cc-check-functions shutdown socketpair link symlink fsync dup umask
 cc-check-functions localtime gmtime strptime clock_gettime
+if {![cc-check-functions realpath]} {
+	cc-check-functions _fullpath
+}
 
 cc-with {-includes math.h} {
 	cc-check-decls isinf isnan
