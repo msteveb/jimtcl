@@ -108,6 +108,8 @@ If no message is received, the read command will wait forever.
 
 The message is returned as: message <channel> <text>
 
+The 'read' subcommand is also used in non-blocking mode. See the section below for more details.
+
 The readable subcommand
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -133,3 +135,31 @@ The 'close' command is supported to close the connection.
 This command is equivalent to deleting the command with:
 
     rename $r ""
+
+Async/Non-blocking support
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to connect to redis in non-blocking mode by using the '-async' flag. e.g.
+
+  set r [redis -async [socket stream localhost:6379]]
+
+Now commands will return immediately with an empty result and 'read' in a 'readable' should
+be used to retrieve the result. As a simple example:
+
+  $r readable {
+      set result [$r read]
+      if {$result ne ""} {
+          puts $result
+          incr next
+      }
+  }
+  $r SET x 5
+  vwait next
+  $r INCR x
+  vwait next
+
+Note that if a large result is returned, 'read' may return an empty string, in
+which case further calls to 'readable' are required to return the result.
+
+In general the underlying socket should be put into non-blocking mode ($sock ndelay 1)
+and a while loop should be used to read reponses until and empty result is returned.

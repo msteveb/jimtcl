@@ -72,6 +72,21 @@ static Jim_Obj *jim_redis_get_result(Jim_Interp *interp, redisReply *reply, int 
     return obj;
 }
 
+static int jim_redis_write_callback(Jim_Interp *interp, void *clientData, int mask)
+{
+    redisContext *c = clientData;
+
+    int done;
+    if (redisBufferWrite(c, &done) != REDIS_OK) {
+        return JIM_ERR;
+    }
+    if (done) {
+        /* Write has completed, so remove the callback */
+        Jim_DeleteFileHandler(interp, c->fd, mask);
+    }
+    return JIM_OK;
+}
+
 /**
  * $r readable ?script?
  * - set or clear a readable script
@@ -111,7 +126,12 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return Jim_DeleteCommand(interp, argv[0]);
     }
     if (Jim_CompareStringImmediate(interp, argv[1], "read")) {
-        if (redisGetReply(c, (void **)&reply) != REDIS_OK) {
+        int rc;
+        if (!(c->flags & REDIS_BLOCK)) {
+            redisBufferRead(c);
+        }
+        rc = redisGetReply(c, (void **)&reply);
+        if (rc != REDIS_OK) {
             reply = NULL;
         }
     }
@@ -126,6 +146,13 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         reply = redisCommandArgv(c, nargs, args, arglens);
         Jim_Free(args);
         Jim_Free(arglens);
+        if (!(c->flags & REDIS_BLOCK)) {
+            int done;
+            if (redisBufferWrite(c, &done) == REDIS_OK && !done) {
+                /* Couldn't write the entire command, so set up a writable callback to complete the job */
+                Jim_CreateFileHandler(interp, c->fd, JIM_EVENT_WRITABLE, jim_redis_write_callback, c, NULL);
+            }
+        }
     }
     /* sometimes commands return NULL */
     if (reply) {
@@ -164,14 +191,18 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *objv[2];
     long fd;
     int ret;
+    int async = 0;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "socket-stream");
+    if (argc > 2 && Jim_CompareStringImmediate(interp, argv[1], "-async")) {
+        async = 1;
+    }
+    if (argc - async != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "?-async? socket-stream");
         return JIM_ERR;
     }
 
     /* Invoke getfd to get the file descriptor */
-    objv[0] = argv[1];
+    objv[0] = argv[1 + async];
     objv[1] = Jim_NewStringObj(interp, "getfd", -1);
     ret = Jim_EvalObjVector(interp, 2, objv);
     if (ret == JIM_OK) {
@@ -186,10 +217,13 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     fd = dup(fd);
     /* Can't fail */
     c = redisConnectFd(fd);
+    if (async) {
+        c->flags &= ~REDIS_BLOCK;
+    }
     /* Enable TCP_KEEPALIVE - this is the default for later redis versions */
     redisEnableKeepAlive(c);
     /* Now delete the original stream */
-    Jim_DeleteCommand(interp, argv[1]);
+    Jim_DeleteCommand(interp, argv[1 + async]);
     snprintf(buf, sizeof(buf), "redis.handle%ld", Jim_GetId(interp));
     Jim_CreateCommand(interp, buf, jim_redis_subcmd, c, jim_redis_del_proc);
 
