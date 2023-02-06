@@ -1,0 +1,30 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt install libsqlite3-dev libhiredis-dev
+
+    - name: configure
+      run: ./configure --maintainer --full --allextmod --disable-docs
+
+    - name: Build
+      run: make
+
+    - name: Run check
+      run: make test
+
+    - name: Test bootstrap jimsh
+      run: ./test-bootstrap-jim
