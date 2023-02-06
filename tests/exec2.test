@@ -68,7 +68,7 @@ test exec2-3.1 "close pipeline return value" pipe {
 } {1 {child process exited abnormally} CHILDSTATUS 1}
 
 test exec2-3.2 "close pipeline return value" -constraints {pipe signal nomingw32} -body {
-	signal default SIGPIPE
+	signal ignore SIGPIPE
 	# Write more than 64KB which is maximum size of the pipe buffers
 	# on all systems we have seen
 	set bigstring [string repeat a 100000]
