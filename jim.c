@@ -6176,11 +6176,11 @@ static const Jim_ObjType doubleObjType = {
     JIM_TYPE_NONE,
 };
 
-#ifndef HAVE_DECL_ISNAN
+#if !HAVE_DECL_ISNAN
 #undef isnan
 #define isnan(X) ((X) != (X))
 #endif
-#ifndef HAVE_DECL_ISINF
+#if !HAVE_DECL_ISINF
 #undef isinf
 #define isinf(X) (1.0 / (X) == 0.0)
 #endif
