@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.81+ - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.82 - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -60,6 +60,8 @@ Changes between 0.81 and 0.82
 4. The handles created by `socket pty` now make the replica name available via 'filename'
 5. `info frame` now returns a (largely) Tcl-compatible dictionary, and supports 'info frame 0'
 6. `vwait -signal` is now supported
+7. ./configure now defaults to '--full'
+8. New `timerate` command as an improvement over `time`, somewhat compatible with TIP 527
 
 Changes between 0.80 and 0.81
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4592,6 +4594,28 @@ which indicates the average amount of time required per iteration,
 in microseconds.
 
 Time is measured in elapsed time, not CPU time.
+
+timerate
+~~~~~~~~
++*timerate* 'script ?milliseconds?'+
+
+Evaluates the given script continuously until at least +'milliseconds'+ time has elapsed (defaults to 1000)
+and returns a dictionary containing performance results. The dictionary contains the following:
+
+* us_per_iter - average elapsed time (microseconds) per iteration
+* iters_per_sec - estimated number of iterations per second
+* count - number of iterations performed
+* elapsed_us - elapsed time (microseconds)
+
+Note that `timerate` attempts to subtract the overhead of `timerate` itself in the result, hence
+the returned elapsed time will typically be less than the specified run time.
+
+The following is an example result of using timerate:
+
+----
+  . timerate {expr {pow(1.5,7)}} 2000
+  us_per_iter 0.09866879769 iters_per_sec 10134916.2391 count 13046627 elapsed_us 1287295
+----
 
 try
 ~~~
