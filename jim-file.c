@@ -370,6 +370,10 @@ static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifndef HAVE_RESTRICT
+#define restrict
+#endif
+
 static char *JimRealPath(const char *restrict path, char *restrict resolved_path, size_t len)
 {
 #if ISWINDOWS

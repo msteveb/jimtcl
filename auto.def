@@ -191,6 +191,10 @@ if {"-Werror" in [get-define CFLAGS] && [cctest -cflags -Wno-error]} {
     cc-with {-cflags -Wno-error}
 }
 
+# Very old compilers might not have restrict
+cc-check-some-feature restrict {
+    cctest -declare {extern void restrict_test(const char * restrict param);}
+}
 cc-check-types "long long"
 cc-check-sizeof int
 
