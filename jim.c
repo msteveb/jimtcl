@@ -6102,6 +6102,10 @@ int Jim_GetWide(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
 int Jim_GetWideExpr(Jim_Interp *interp, Jim_Obj *objPtr, jim_wide * widePtr)
 {
     int ret = JIM_OK;
+    /* As an optimisation, try to convert to int first */
+    if (objPtr->typePtr == &sourceObjType || objPtr->typePtr == NULL) {
+        SetIntFromAny(interp, objPtr, 0);
+    }
     if (objPtr->typePtr == &intObjType) {
         *widePtr = JimWideValue(objPtr);
     }
