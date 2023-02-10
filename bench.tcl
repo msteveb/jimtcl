@@ -11,7 +11,7 @@ proc bench {title script} {
         if {!$batchmode} {puts "$Title - This test can't run on this interpreter ($res)"}
         lappend benchmarks $title F
     } else {
-        set t [expr [lindex $res 0] / 1000]
+        set t [expr {[lindex $res 0] / 1000}]
         lappend benchmarks $title $t
         set ts "          $t"
         set ts [string range $ts [expr {[string length $ts]-10}] end]
