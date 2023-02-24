@@ -154,6 +154,7 @@ extern "C" {
 #define JIM_ENUM_ABBREV 2       /* Jim_GetEnum() - Allow unambiguous abbreviation */
 #define JIM_UNSHARED 4          /* Jim_GetVariable() - return unshared object */
 #define JIM_MUSTEXIST 8         /* Jim_SetDictKeysVector() - fail if non-existent */
+#define JIM_NORESULT 16         /* Jim_SetDictKeysVector() - don't store the result in the interp result */
 
 /* Flags for Jim_SubstObj() */
 #define JIM_SUBST_NOVAR 1 /* don't perform variables substitutions */

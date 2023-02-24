@@ -1272,8 +1272,13 @@ test dict-23.4 {dict with usage} -body {
 } -returnCodes error -result {wrong # args: should be "dict with dictVar ?key ...? script"}
 
 test dict-23.5 {dict with badvar} -constraints jim -body {
-	dict with dictnulls {lsort [info locals]}
-} -returnCodes ok -result [list ab\0c de\0f \0ghi kl\0m]
+    proc a {dict} {
+	dict with dict {
+	    lsort [info locals]
+	}
+    }
+    a $dictnulls
+} -returnCodes ok -result [list \0ghi ab\0c dict]
 
 test dict-23.6 {dict with baddict} -body {
 	dict with dictbad {}

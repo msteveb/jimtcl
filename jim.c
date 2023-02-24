@@ -7863,6 +7863,8 @@ int Jim_DictKeysVector(Jim_Interp *interp, Jim_Obj *dictPtr,
  *
  * If flags & JIM_ERRMSG, then failure to remove the key is considered an error
  * and JIM_ERR is returned. Otherwise it is ignored and JIM_OK is returned.
+ *
+ * Normally the result is stored in the interp result. If JIM_NORESULT is set, this is not done.
  */
 int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     Jim_Obj *const *keyv, int keyc, Jim_Obj *newObjPtr, int flags)
@@ -7932,7 +7934,10 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK) {
         goto err;
     }
-    Jim_SetResult(interp, varObjPtr);
+
+    if (!(flags & JIM_NORESULT)) {
+        Jim_SetResult(interp, varObjPtr);
+    }
     return JIM_OK;
   err:
     if (shared) {
@@ -15270,10 +15275,13 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
             }
 
             for (i = 0; i < len; i += 2) {
-                /* This will be NULL if the variable no longer exists, thus deleting the variable */
-                objPtr = Jim_GetVariable(interp, dictValues[i], 0);
-                newkeyv[keyc] = dictValues[i];
-                Jim_SetDictKeysVector(interp, dictVarName, newkeyv, keyc + 1, objPtr, 0);
+                /* If the an element mirrors the dictionary name, skip it to avoid creating a recursive data structure */
+                if (Jim_StringCompareObj(interp, dictVarName, dictValues[i], 0) != 0) {
+                    /* This will be NULL if the variable no longer exists, thus deleting the variable */
+                    objPtr = Jim_GetVariable(interp, dictValues[i], 0);
+                    newkeyv[keyc] = dictValues[i];
+                    Jim_SetDictKeysVector(interp, dictVarName, newkeyv, keyc + 1, objPtr, JIM_NORESULT);
+                }
             }
             Jim_Free(newkeyv);
         }

@@ -114,6 +114,18 @@ test dict-5.2 {Dict with} {
 	}
 	dictsort [a]
 } {a B}
+test dict-5.3 {Dict with return value} {
+	proc a {} {
+		set x [dict create a b c d]
+		dict with x {
+			set a B
+			unset c
+			# dict with should return the script return value
+			set retvalue ok
+		}
+	}
+	a
+} {ok}
 
 test dict-22.1 {dict with command} {
     list [catch {dict with} msg] $msg
