@@ -739,7 +739,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.81 -
+<p>Jim Tcl v0.82 -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -880,6 +880,56 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="_changes_between_0_81_and_0_82">Changes between 0.81 and 0.82</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<a href="#_try"><strong><code>try</code></strong></a> now supports trap to match on errorcode
+</p>
+</li>
+<li>
+<p>
+TIP 603, <a href="#_aio"><strong><code>aio</code></strong></a> <code>stat</code> is now supported to stat a file handle
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_socket"><strong><code>socket</code></strong></a> <code>-async</code>
+</p>
+</li>
+<li>
+<p>
+The handles created by <a href="#_socket"><strong><code>socket</code></strong></a> <code>pty</code> now make the replica name available via <em>filename</em>
+</p>
+</li>
+<li>
+<p>
+<a href="#_info"><strong><code>info</code></strong></a> <code>frame</code> now returns a (largely) Tcl-compatible dictionary, and supports <em>info frame 0</em>
+</p>
+</li>
+<li>
+<p>
+<a href="#cmd_2"><strong><code>vwait</code></strong></a> <code>-signal</code> is now supported
+</p>
+</li>
+<li>
+<p>
+./configure now defaults to <em>--full</em>
+</p>
+</li>
+<li>
+<p>
+New <a href="#_timerate"><strong><code>timerate</code></strong></a> command as an improvement over <a href="#_time"><strong><code>time</code></strong></a>, somewhat compatible with TIP 527
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_ensemble"><strong><code>ensemble</code></strong></a> command and support for <a href="#_namespace"><strong><code>namespace</code></strong></a> <code>ensemble</code> (as an optional extension)
+</p>
+</li>
+</ol></div>
+</div>
+<div class="sect2">
 <h3 id="_changes_between_0_80_and_0_81">Changes between 0.80 and 0.81</h3>
 <div class="olist arabic"><ol class="arabic">
 <li>
@@ -936,16 +986,6 @@ Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>
 <li>
 <p>
 TIP 526, <a href="#_expr"><strong><code>expr</code></strong></a> now only allows a single argument (unless --compat is enabled)
-</p>
-</li>
-<li>
-<p>
-<a href="#_try"><strong><code>try</code></strong></a> now supports trap to match on errorcode
-</p>
-</li>
-<li>
-<p>
-TIP 603, <a href="#_aio"><strong><code>aio</code></strong></a> <code>stat</code> is now supported to stat a file handle
 </p>
 </li>
 </ol></div>
@@ -1777,7 +1817,7 @@ sequence is replaced by the given character:</p></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a \{x\[\ yz\141</code></pre>
+<pre><code>    set a {x\[\ yz\141</code></pre>
 </div></div>
 <div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{x[ yza</code>.</p></div>
 <div class="paragraph"><p>If a backslash is followed by something other than one of the options
@@ -1787,10 +1827,10 @@ normal processing with the next character.  For example, in the
 command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set \*a \\\{foo</code></pre>
+<pre><code>    set \*a \\{foo</code></pre>
 </div></div>
 <div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\*a</code> and the second
-argument will be <code>\{foo</code>.</p></div>
+argument will be <code>{foo</code>.</p></div>
 <div class="paragraph"><p>If an argument is enclosed in braces, then backslash sequences inside
 the argument are parsed but no substitution occurs (except for
 backslash-newline):  the backslash
@@ -1802,9 +1842,9 @@ For example, in the
 command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {\{abc}</code></pre>
+<pre><code>    set a {{abc}</code></pre>
 </div></div>
-<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\{abc</code>.</p></div>
+<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{abc</code>.</p></div>
 <div class="paragraph"><p>This backslash mechanism is not sufficient to generate absolutely
 any argument structure; it only covers the
 most common cases.  To produce particularly complicated arguments
@@ -2423,14 +2463,14 @@ arguments. Support for this feature is also available in Jim.</p></div>
 </div></div>
 <div class="paragraph"><p>This will attempt to exec a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
-it can be solved much more easily with <code>{*}</code>.</p></div>
+it can be solved much more easily with <code>\{*}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    exec {*}$cmd</code></pre>
 </div></div>
 <div class="paragraph"><p>This will expand the following argument into individual elements and then evaluate
 the resulting command.</p></div>
-<div class="paragraph"><p>Note that the official Tcl syntax is <code>{*}</code>, however <code>{expand}</code> is retained
+<div class="paragraph"><p>Note that the official Tcl syntax is <code>\{*}</code>, however <code>{expand}</code> is retained
 for backward compatibility with experimental versions of this feature.</p></div>
 </div>
 </div>
@@ -2480,7 +2520,7 @@ Character classes apply to ASCII characters only
 </li>
 <li>
 <p>
-Supported shorthand character classes: <code>\w</code> = <code>[:alnum:]</code>, <code>\W</code> = <code><sup>[:alnum:]</code>, <code>\d</code> = <code>[:digit:],</code> <code>\D</code> = <code></sup>[:digit:],</code> <code>\s</code> = <code>[:space:]</code>, + <code>\S</code> = <code>^[:space:]</code>
+Supported shorthand character classes: <code>\w</code> = <code>[:alnum:]</code>, <code>\W</code> = <code>^[:alnum:]</code>, <code>\d</code> = <code>[:digit:],</code> <code>\D</code> = <code>^[:digit:],</code> <code>\s</code> = <code>[:space:]</code>, + <code>\S</code> = <code>^[:space:]</code>
 </p>
 </li>
 <li>
@@ -3264,11 +3304,12 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_curry"><strong><code>curry</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_defer"><strong><code>defer</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_dict"><strong><code>dict</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_ensemble"><strong><code>ensemble</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_env"><strong><code>env</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eof"><strong><code>eof</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_error"><strong><code>error</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_error"><strong><code>error</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_eval"><strong><code>eval</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>eventloop</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_exec"><strong><code>exec</code></strong></a></p></td>
@@ -3276,9 +3317,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_exit"><strong><code>exit</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_expr"><strong><code>expr</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_fconfigure"><strong><code>fconfigure</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_file"><strong><code>file</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_file"><strong><code>file</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_finalize"><strong><code>finalize</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_flush"><strong><code>flush</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_for"><strong><code>for</code></strong></a></p></td>
@@ -3286,9 +3327,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_format"><strong><code>format</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_getref"><strong><code>getref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_gets"><strong><code>gets</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_glob"><strong><code>glob</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_glob"><strong><code>glob</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_global"><strong><code>global</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_history"><strong><code>history</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_if"><strong><code>if</code></strong></a></p></td>
@@ -3296,9 +3337,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_info"><strong><code>info</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_interp"><strong><code>interp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_join"><strong><code>join</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_json_decode"><strong><code>json::decode</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_json_decode"><strong><code>json::decode</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_json_encode"><strong><code>json::encode</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_kill"><strong><code>kill</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lambda"><strong><code>lambda</code></strong></a></p></td>
@@ -3306,9 +3347,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lassign"><strong><code>lassign</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lindex"><strong><code>lindex</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_linsert"><strong><code>linsert</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_list"><strong><code>list</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_list"><strong><code>list</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_llength"><strong><code>llength</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lmap"><strong><code>lmap</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_load"><strong><code>load</code></strong></a></p></td>
@@ -3316,9 +3357,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_loop"><strong><code>loop</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrange"><strong><code>lrange</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lrepeat"><strong><code>lrepeat</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_lreplace"><strong><code>lreplace</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_lreplace"><strong><code>lreplace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lreverse"><strong><code>lreverse</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><code>lsearch</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset"><strong><code>lset</code></strong></a></p></td>
@@ -3326,9 +3367,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_namespace"><strong><code>namespace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>oo</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_open"><strong><code>open</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.fork</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.fork</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.gethostname</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.getids</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.uptime</code></strong></a></p></td>
@@ -3336,9 +3377,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_package"><strong><code>package</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pid"><strong><code>pid</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_pipe"><strong><code>pipe</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_pipe"><strong><code>pipe</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>posix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><code>proc</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts"><strong><code>puts</code></strong></a></p></td>
@@ -3346,9 +3387,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><code>rand</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_range"><strong><code>range</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_read"><strong><code>read</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_ref"><strong><code>ref</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_ref"><strong><code>ref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><code>regexp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><code>regsub</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename"><strong><code>rename</code></strong></a></p></td>
@@ -3356,9 +3397,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><code>scan</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_seek"><strong><code>seek</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_set"><strong><code>set</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_setref"><strong><code>setref</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_setref"><strong><code>setref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><code>signal</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><code>sleep</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket"><strong><code>socket</code></strong></a></p></td>
@@ -3366,9 +3407,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><code>split</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><code>stackdump</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><code>stacktrace</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_string"><strong><code>string</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_string"><strong><code>string</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><code>subst</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>super</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_switch"><strong><code>switch</code></strong></a></p></td>
@@ -3376,27 +3417,36 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><code>tailcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw"><strong><code>throw</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_timerate"><strong><code>timerate</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>update</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><code>uplevel</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_wait"><strong><code>wait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_xtrace"><strong><code>xtrace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
 </tr>
 </tbody>
 </table>
@@ -3900,6 +3950,26 @@ command.  The legal <code><em>options</em></code> are:</p></div>
 </dd>
 </dl></div>
 <div class="paragraph"><p><code><strong>dict for, values, incr, append, lappend, update, info, replace</strong></code> to be documented&#8230;</p></div>
+</div>
+<div class="sect2">
+<h3 id="_ensemble">ensemble</h3>
+<div class="paragraph"><p><code><strong>ensemble</strong> <em>name ?<strong>-automap</strong>? prefix</em></code></p></div>
+<div class="paragraph"><p>Create a single ensemble command that redirects to individual commands based on the prefix.
+By default, the prefix is <code><em>name</em></code> followed by a single space.</p></div>
+<div class="paragraph"><p>For example, consider:</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><code>proc {test open} {name} { ... }
+proc {test close} {handle} { ... }
+proc {test show} {handle} { ... }
+ensemble test</code></pre>
+</div></div>
+<div class="paragraph"><p>Now the <em><code>test</code></em> command has been created that redirects based on the first argument.
+e.g.</p></div>
+<div class="literalblock">
+<div class="content">
+<pre><code>test open $filename =&gt; {test open} $filename</code></pre>
+</div></div>
 </div>
 <div class="sect2">
 <h3 id="_env">env</h3>
@@ -4433,6 +4503,14 @@ abbreviation for <code><em>option</em></code> is acceptable.  The valid options 
 </p>
 </dd>
 <dt class="hdlist1">
+<code><strong>file size</strong> <em>name</em></code>
+</dt>
+<dd>
+<p>
+    Returns the size, in bytes, of the file <code><em>name</em></code>.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>file split</strong> <em>name</em></code>
 </dt>
 <dd>
@@ -4777,15 +4855,76 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 </dt>
 <dd>
 <p>
+    <strong>Note</strong>: This command has changed as of Jim version 0.82 to be more Tcl-compatible.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
     If <code><em>number</em></code> is not specified, this command returns a number
-    which is the same result as <a href="#_info"><strong><code>info</code></strong></a> <code>level</code> - the current stack frame level.
-    If <code><em>number</em></code> is specified, then the result is a list consisting of the procedure,
-    filename and line number for the procedure call at level <code><em>number</em></code> on the stack.
-    If <code><em>number</em></code> is positive then it selects a particular stack level (1 refers
-    to the top-most active procedure, 2 to the procedure it called, and
-    so on); otherwise it gives a level relative to the current level
-    (0 refers to the current procedure, -1 to its caller, and so on).
-    The level has an identical meaning to <a href="#_info"><strong><code>info</code></strong></a> <code>level</code>.
+    giving the evaluation level of the invoking command (1 when invoked a the top level).
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    If <code><em>number</em></code> is positive then it selects a particular evaluation level (1 refers
+    to the top-most evaluation level, 2 to the command it called, and
+    so on); otherwise it gives a level relative to the current evaluation level
+    (0 refers to the current command (info frame), -1 to its caller, and so on).
+    In this case, the command returns a dictionary containing the folllowing keys:
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>type</em> - always <code><em>"source"</em></code>
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>file</em> - file name where the command was invoked (may be empty if not known)
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>line</em> - line number where the command was invoked (may be 0 if not known)
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>cmd</em> - the command (as a list) executing at the given level
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>proc</em> - if within a proc, the name of the proc (omitted if not within a proc)
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    <em>level</em> - the evaluation level
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5868,10 +6007,10 @@ string otherwise.</p></div>
 <p>
     Use newline-sensitive matching. By default, newline
     is a completely ordinary character with no special meaning in
-    either REs or strings. With this flag, <code>[<sup></code> bracket expressions
-    and <code>.</code> never match newline, an <code></sup></code> anchor matches the empty
+    either REs or strings. With this flag, <code><strong>[^</strong></code> bracket expressions
+    and <code><strong>.</strong></code> never match newline, an <code><strong>^</strong></code> anchor matches the empty
     string after any newline in the string in addition to its normal
-    function, and the <code>$</code> anchor matches the empty string before any
+    function, and the <code><strong>$</strong></code> anchor matches the empty string before any
     newline in the string in addition to its normal function.
 </p>
 </dd>
@@ -6822,7 +6961,7 @@ is performed: open and close brackets are treated as ordinary
 characters with no special interpretation.</p></div>
 <div class="paragraph"><p><strong>Note</strong>: when it performs its substitutions, subst does not give any
 special treatment to double quotes or curly braces. For example,
-the following script returns <code>xyz {44}</code>, not <code>xyz {$a}</code>.</p></div>
+the following script returns <code>xyz {44}</code>, not <code>xyz \{$a}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    set a 44
@@ -6991,6 +7130,42 @@ specified).  It will then return a string of the form</p></div>
 <div class="paragraph"><p>which indicates the average amount of time required per iteration,
 in microseconds.</p></div>
 <div class="paragraph"><p>Time is measured in elapsed time, not CPU time.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_timerate">timerate</h3>
+<div class="paragraph"><p><code><strong>timerate</strong> <em>script ?milliseconds?</em></code></p></div>
+<div class="paragraph"><p>Evaluates the given script continuously until at least <code><em>milliseconds</em></code> time has elapsed (defaults to 1000)
+and returns a dictionary containing performance results. The dictionary contains the following:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+us_per_iter - average elapsed time (microseconds) per iteration
+</p>
+</li>
+<li>
+<p>
+iters_per_sec - estimated number of iterations per second
+</p>
+</li>
+<li>
+<p>
+count - number of iterations performed
+</p>
+</li>
+<li>
+<p>
+elapsed_us - elapsed time (microseconds)
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Note that <a href="#_timerate"><strong><code>timerate</code></strong></a> attempts to subtract the overhead of <a href="#_timerate"><strong><code>timerate</code></strong></a> itself in the result, hence
+the returned elapsed time will typically be less than the specified run time.</p></div>
+<div class="paragraph"><p>The following is an example result of using timerate:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>  . timerate {expr {pow(1.5,7)}} 2000
+  us_per_iter 0.09866879769 iters_per_sec 10134916.2391 count 13046627 elapsed_us 1287295</code></pre>
+</div></div>
 </div>
 <div class="sect2">
 <h3 id="_try">try</h3>
@@ -7332,7 +7507,8 @@ what options were selected when Jim Tcl was built.</p></div>
 <dd>
 <p>
     Returns the original filename associated with the handle.
-    Handles returned by <a href="#_socket"><strong><code>socket</code></strong></a> give the socket type instead of a filename.
+    Handles returned by <a href="#_socket"><strong><code>socket</code></strong></a> provide different information.
+        See <a href="#_socket"><strong><code>socket</code></strong></a> for each socket type.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7737,7 +7913,7 @@ handler is removed.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>vwait</strong> <em>variable</em></code>
+<code><strong>vwait ?-signal?</strong> <em>variable</em></code>
 </dt>
 <dd>
 <p>
@@ -7745,7 +7921,9 @@ handler is removed.</p></div>
     events until the named (global) variable changes or all
     event handlers are removed. The variable need not exist
     beforehand.  If there are no event handlers defined, <a href="#cmd_2"><strong><code>vwait</code></strong></a>
-    returns immediately.
+    returns immediately. If <code><em>-signal</em></code> is specified, <a href="#cmd_2"><strong><code>vwait</code></strong></a> will
+    also quit if a handled signal occurs. In this case, <a href="#_signal"><strong><code>signal</code></strong></a> <code>check -clear</code>
+    can be used to check for the signal that occurred.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7788,6 +7966,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A unix domain socket client connected to <em>path</em>
+        <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7796,6 +7975,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A unix domain socket server listening on <em>path</em>
+        <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7804,6 +7984,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A unix domain socket datagram client, optionally connected to <em>path</em>
+        <em>filename</em> returns <code><em>path</em></code> if provided or "dgram" if not
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7812,40 +7993,45 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A unix domain socket datagram server server listening on <em>path</em>
+        <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-ipv6? stream</strong> <em>addr:port</em></code>
+<code><strong>socket ?-async? ?-ipv6? stream</strong> <em>addr:port</em></code>
 </dt>
 <dd>
 <p>
     A TCP socket client. (See the forms for <code><em>addr</em></code> below)
+        <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-ipv6? stream.server</strong> <em>?addr:?port</em></code>
+<code><strong>socket ?-async? ?-ipv6? stream.server</strong> <em>?addr:?port</em></code>
 </dt>
 <dd>
 <p>
     A TCP socket server (<code><em>addr</em></code> defaults to <code>0.0.0.0</code> for IPv4 or <code>[::]</code> for IPv6).
+        <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-ipv6? dgram</strong> ?<em>addr:port</em>?</code>
+<code><strong>socket ?-async? ?-ipv6? dgram</strong> ?<em>addr:port</em>?</code>
 </dt>
 <dd>
 <p>
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and <em>sendto</em> must be used
     to indicated the destination.
+        <em>filename</em> returns <code><em>addr:port</em></code> if provided or "dgram" if not
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-ipv6? dgram.server</strong> <em>addr:port</em></code>
+<code><strong>socket ?-async? ?-ipv6? dgram.server</strong> <em>addr:port</em></code>
 </dt>
 <dd>
 <p>
     A UDP socket server.
+        <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7854,6 +8040,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A synonym for <a href="#_pipe"><strong><code>pipe</code></strong></a>
+        <em>filename</em> returns "pipe"
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7863,6 +8050,7 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <p>
     A socketpair (see socketpair(2)). Like <a href="#_pipe"><strong><code>pipe</code></strong></a>, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
+        <em>filename</em> returns "pair"
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7871,7 +8059,8 @@ to prevent infinite errors. (A time event handler is always removed after execut
 <dd>
 <p>
     A pseudo-tty pair (see openpty(3)). Like <a href="#_pipe"><strong><code>pipe</code></strong></a>, this command returns
-    a list of two channels: {master slave}. These channels are both readable and writable.
+    a list of two channels: {primary replica}. These channels are both readable and writable.
+        <em>filename</em> for both handles returns the replica filename.
 </p>
 </dd>
 </dl></div>
@@ -7929,6 +8118,37 @@ which matches the socket type is used.</p></div>
 <div class="paragraph"><p>The path for Unix domain sockets is automatically removed when the socket
 is closed. Use <a href="#_close"><strong><code>close</code></strong></a> <code>-nodelete</code> in the rare case where this behaviour
 should be avoided (e.g. after <a href="#cmd_1"><strong><code>os.fork</code></strong></a>).</p></div>
+<div class="paragraph"><p>If <em><code>-async</code></em> is specified, the socket is opened in non-blocking (ndelay) mode
+and <em>connect</em> is non-blocking (applies to <em>stream</em>). In this case, a <em>writable</em> handler
+should be used that will fire when the connect succeeds or fails, and calling <em>peername</em> on the handle
+will succeed if connected or fail if connect failed. Typical usage is as follows:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    set s [socket -async stream host:port]
+
+    $s writable {
+        # Remove writable either way
+        $s writable {}
+        try {
+            $s peername
+        } on error msg {
+            # Connect failed
+            incr done
+            return
+        }
+
+        $s readable {
+            set buf [$s read]
+            if {[$s eof]} {
+                # Closed connection
+                incr done
+            }
+            ...
+        }
+    }
+
+    vwait done</code></pre>
+</div></div>
 </div>
 <div class="sect2">
 <h3 id="_syslog">syslog</h3>
@@ -8408,6 +8628,14 @@ the remaining subcommands do nothing.</p></div>
 <dd>
 <p>
     Deletes all commands and variables with the given namespace prefixes.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>namespace ensemble create</strong>'</code>
+</dt>
+<dd>
+<p>
+    Creates an ensemble command for the current namespace (requires the <em>ensemble</em> extension').
 </p>
 </dd>
 <dt class="hdlist1">
