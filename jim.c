@@ -10830,10 +10830,10 @@ tailcall:
     interp->argc = prev_argc;
     interp->argv = prev_argv;
 
+    JimPopEvalFrame(interp);
+
 out:
     JimDecrCmdRefCount(interp, cmdPtr);
-
-    JimPopEvalFrame(interp);
 
     if (interp->framePtr->tailcallObj) {
         /* We might have skipped invoking a tailcall, perhaps because of an error
