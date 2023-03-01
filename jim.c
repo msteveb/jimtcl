@@ -41,9 +41,6 @@
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
 #define JIM_OPTIMIZATION        /* comment to avoid optimizations and reduce size */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE             /* Mostly just for environ */
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>

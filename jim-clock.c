@@ -6,18 +6,6 @@
 
 #include "jimautoconf.h"
 
-/* For strptime() - currently nothing sets this */
-#ifdef STRPTIME_NEEDS_XOPEN_SOURCE
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 500
-#endif
-#endif
-
-/* For timegm() */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

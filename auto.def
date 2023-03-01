@@ -209,6 +209,8 @@ cc-check-sizeof int
 # Default optimisation
 define-append AS_CPPFLAGS -O2
 
+define-append AS_CPPFLAGS -D_GNU_SOURCE
+
 # check, but don't add to -cflags
 cc-with {} {
     cc-check-flags -fno-unwind-tables -fno-asynchronous-unwind-tables

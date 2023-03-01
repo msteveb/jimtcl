@@ -39,9 +39,6 @@
 
 #include "jimautoconf.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
