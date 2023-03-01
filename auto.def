@@ -442,7 +442,7 @@ if {[opt-bool-unless-minimal ssl]} {
             msg-result "Enabling SSL"
             define JIM_SSL
             define-append LDLIBS [get-define lib_ERR_error_string] [get-define lib_TLSv1_2_method]
-        } elseif {[opt-bool ssl]} {
+        } elseif {[opt-bool -nodefault ssl] > 0} {
             user-error "SSL support requires OpenSSL"
         }
     }
