@@ -6,7 +6,9 @@
  */
 
 /* termios support is required */
-
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <jim-tty.h>
 #include <termios.h>
 
