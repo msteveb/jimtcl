@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define JIM_EMBEDDED
 #include <jim.h>
 
 /*
