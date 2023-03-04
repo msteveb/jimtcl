@@ -35,6 +35,7 @@ options {
     docdir:path     => "Path to install docs (if built)"
     random-hash     => "Randomise hash tables. more secure but hash table results are not predicable"
     coverage        => "Build with code coverage support"
+    introspection=1 => "Disable introspection"
     with-jim-ext: {with-ext:"ext1,ext2,..."} => {
         Specify additional Jim extensions to include.
         Use --extinfo to show information about available extensions.
@@ -474,6 +475,10 @@ if {[opt-bool references]} {
 if {[opt-bool compat]} {
     msg-result "Enabling compatibility mode"
     define JIM_COMPAT
+}
+if {![opt-bool introspection]} {
+    msg-result "Disabling introspection"
+    define JIM_NO_INTROSPECTION
 }
 if {[opt-bool shared with-jim-shared]} {
     msg-result "Building shared library"

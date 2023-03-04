@@ -9,7 +9,7 @@
 set env [env]
 
 # Provide Tcl-compatible I/O commands
-if {[info commands stdout] ne ""} {
+if {[exists -command stdout]} {
 	# Tcl-compatible I/O commands
 	foreach p {gets flush close eof seek tell} {
 		proc $p {chan args} {p} {

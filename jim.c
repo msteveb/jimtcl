@@ -11912,7 +11912,12 @@ static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
             int plen, slen;
             const char *pattern = Jim_GetStringNoQualifier(patternObj, &plen);
             const char *str = Jim_GetStringNoQualifier(keyObj, &slen);
+#ifdef JIM_NO_INTROSPECTION
+            /* Only exact match supported with no introspection */
+            match = (JimStringCompareUtf8(pattern, plen, str, slen, 0) == 0);
+#else
             match = JimGlobMatch(pattern, plen, str, slen, 0);
+#endif
         }
         if (match) {
             Jim_ListAppendElement(interp, listObjPtr, keyObj);
@@ -11974,7 +11979,12 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
     if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
         Jim_CallFrame *targetCallFrame = JimGetCallFrameByInteger(interp, level);
         if (targetCallFrame && targetCallFrame != interp->topFramePtr) {
+#ifdef JIM_NO_INTROSPECTION
+            /* Only return the command, not the args */
+            *objPtrPtr = Jim_NewListObj(interp, targetCallFrame->argv, 1);
+#else
             *objPtrPtr = Jim_NewListObj(interp, targetCallFrame->argv, targetCallFrame->argc);
+#endif
             return JIM_OK;
         }
     }
@@ -11992,7 +12002,6 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
             Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
             int linenr;
             Jim_Obj *fileNameObj;
-            Jim_Obj *cmdObj;
             /*Jim_EvalFrame *procEvalFrame;*/
 
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "type", -1));
@@ -12006,19 +12015,25 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "file", -1));
                 Jim_ListAppendElement(interp, listObj, fileNameObj);
             }
-            cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
+#ifndef JIM_NO_INTROSPECTION
+            {
+                Jim_Obj *cmdObj;
+                /* Omit the command and proc */
+                cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
 
-            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "cmd", -1));
-            Jim_ListAppendElement(interp, listObj, cmdObj);
-            /* Look in parent frames for a proc name */
-            Jim_EvalFrame *p;
-            for (p = targetEvalFrame->parent; p ; p = p->parent) {
-                if (p->cmd && p->cmd->isproc) {
-                    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
-                    Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
-                    break;
+                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "cmd", -1));
+                Jim_ListAppendElement(interp, listObj, cmdObj);
+                /* Look in parent frames for a proc name */
+                Jim_EvalFrame *p;
+                for (p = targetEvalFrame->parent; p ; p = p->parent) {
+                    if (p->cmd && p->cmd->isproc) {
+                        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
+                        Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
+                        break;
+                    }
                 }
             }
+#endif
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "level", -1));
             Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->callFrameLevel));
 
@@ -15718,12 +15733,18 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     return JIM_ERR;
                 }
                 switch (cmd) {
+#ifdef JIM_NO_INTROSPECTION
+                    default:
+                        Jim_SetResultString(interp, "unsupported", -1);
+                        return JIM_ERR;
+#else
                     case INFO_BODY:
                         Jim_SetResult(interp, cmdPtr->u.proc.bodyObjPtr);
                         break;
                     case INFO_ARGS:
                         Jim_SetResult(interp, cmdPtr->u.proc.argListObjPtr);
                         break;
+#endif
                     case INFO_STATICS:
                         if (cmdPtr->u.proc.staticVars) {
                             Jim_SetResult(interp, JimHashtablePatternMatch(interp, cmdPtr->u.proc.staticVars,
