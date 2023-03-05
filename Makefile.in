@@ -217,6 +217,7 @@ coverage:
 
 clean:
 	rm -f *.o *.so *.dll *.exe lib*.a $(JIMSH) $(LIBJIM) Tcl.html _*.c libjim@SH_SOEXT@
+	rm -f jsmn/*.o
 @if COVERAGE
 	rm -f *.gcno *.gcov *.gcda */*.gcno */*.gcda */*.gcov coverage*.html
 	rm -rf coverage_html lcov.txt genhtml_output.txt
