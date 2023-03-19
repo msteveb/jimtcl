@@ -415,10 +415,13 @@ if {[opt-bool maintainer]} {
     define JIM_MAINTAINER
 }
 if {[opt-bool-unless-minimal math]} {
-    msg-result "Enabling math functions"
-    define JIM_MATH_FUNCTIONS
-    cc-check-function-in-lib sin m
-    define-append LDLIBS [get-define lib_sin]
+    if {[cc-check-function-in-lib sin m]} {
+        msg-result "Enabling math functions"
+        define JIM_MATH_FUNCTIONS
+        define-append LDLIBS [get-define lib_sin]
+    } elseif {[opt-bool -nodefault math] > 0} {
+        user-error "Math functions are not available"
+    }
 }
 if {[opt-bool-unless-minimal ipv6]} {
     msg-result "Enabling IPv6"
