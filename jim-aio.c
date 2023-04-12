@@ -1284,6 +1284,8 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     union sockaddr_any sa;
     socklen_t salen = sizeof(sa);
     Jim_Obj *filenameObj;
+    int n = 0;
+    int flags = AIO_NODELETE;
 
     sock = accept(af->fd, &sa.sa, &salen);
     if (sock < 0) {
@@ -1291,8 +1293,14 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
 
-    if (argc > 0) {
-        if (JimSetVariableSocketAddress(interp, argv[0], &sa, salen) != JIM_OK) {
+    if (argc > 0 && Jim_CompareStringImmediate(interp, argv[0], "-noclose")) {
+        flags = AIO_KEEPOPEN;
+        n++;
+    }
+
+    if (argc > n) {
+        if (JimSetVariableSocketAddress(interp, argv[n], &sa, salen) != JIM_OK) {
+            close(sock);
             return JIM_ERR;
         }
     }
@@ -1305,7 +1313,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Create the file command */
     return JimMakeChannel(interp, sock, filenameObj,
-        "aio.sockstream%ld", af->addr_family, AIO_NODELETE) ? JIM_OK : JIM_ERR;
+        "aio.sockstream%ld", af->addr_family, flags) ? JIM_OK : JIM_ERR;
 }
 
 static int aio_cmd_sockname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
