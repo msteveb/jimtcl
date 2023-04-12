@@ -59,6 +59,7 @@ Changes since 0.82
 3. `stacktrace` is now a builtin command
 4. The stack trace on error now includes the full stack trace, not just back to where it was caught
 5. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
+6. `socket` , `open` and `aio accept` now support '-noclose'
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3507,7 +3508,7 @@ with last option being used.
 
 open
 ~~~~
-+*open* 'fileName ?access?'+
++*open* 'fileName *?-noclose?* ?access?'+
 
 +*open* '|command-pipeline ?access?'+
 
@@ -3515,6 +3516,9 @@ Opens a file and returns an identifier
 that may be used in future invocations
 of commands like `read`, `puts`, and `close`.
 +'fileName'+ gives the name of the file to open.
+
+If +'-noclose'+ is given, the returned handle is not automatically
+closed for child proceses.
 
 The +'access'+ argument indicates the way in which the file is to be accessed.
 It may have any of the following values:
@@ -3688,6 +3692,8 @@ Creates a pair of `aio` channels and returns the handles as a list: +{read write
 
     $r readable ...
 ----
+
+Note that if '+-noclose+' is desired, use `socket -noclose pipe` instead.
 
 pwd
 ~~~
@@ -4893,11 +4899,13 @@ over `aio read` and `aio puts`.
 
 aio
 ~~~
-+$handle *accept* ?addrvar?+::
++$handle *accept ?-noclose?* ?addrvar?+::
     Server socket only: Accept a connection and return a stream channel.
     If +'addrvar'+ is specified, the address of the connected client is
-    stored in the named variable in the form 'addr:port' for IP sockets or
-    'path' for Unix domain sockets.  See `socket` for details.
+    stored in the named variable in the form 'addr:port' for IP sockets
+    or 'path' for Unix domain sockets.  See `socket` for details.
+    If +'-noclose'+ is given, the returned handle is not automatically
+    closed for child proceses.  See `socket` for details.
 
 +$handle *buffering none|line|full*+::
     Sets the output buffering mode of the stream channel. +'none'+ means
@@ -4956,6 +4964,9 @@ aio
     used to determine what really happened.  If the last character in
     the file is not a newline character, then `gets` behaves as if there
     were an additional newline character at the end of the file.
+
++$handle *getfd*+::
+    Returns the underlying file descriptor. On Unix platforms this is a small integer.
 
 +$handle *isatty*+::
     Returns 1 if the channel is a tty device.
@@ -5229,55 +5240,55 @@ to prevent infinite errors. (A time event handler is always removed after execut
 
 socket
 ~~~~~~
-Various socket types may be created.
+Various socket types may be created as follows.
 
-+*socket unix* 'path'+::
++*socket ?-noclose? unix* 'path'+::
     A unix domain socket client connected to 'path'
-	'filename' returns +'path'+
+    'filename' returns +'path'+
 
-+*socket unix.server* 'path'+::
++*socket ?-noclose? unix.server* 'path'+::
     A unix domain socket server listening on 'path'
-	'filename' returns +'path'+
+    'filename' returns +'path'+
 
-+*socket unix.dgram* '?path?'+::
++*socket ?-noclose? unix.dgram* '?path?'+::
     A unix domain socket datagram client, optionally connected to 'path'
-	'filename' returns +'path'+ if provided or "dgram" if not
+    'filename' returns +'path'+ if provided or "dgram" if not
 
-+*socket unix.dgram.server* 'path'+::
++*socket ?-noclose? unix.dgram.server* 'path'+::
     A unix domain socket datagram server server listening on 'path'
-	'filename' returns +'path'+
+    'filename' returns +'path'+
 
-+*socket ?-async? ?-ipv6? stream* 'addr:port'+::
++*socket ?-noclose? ?-async? ?-ipv6? stream* 'addr:port'+::
     A TCP socket client. (See the forms for +'addr'+ below)
-	'filename' returns +'addr:port'+
+    'filename' returns +'addr:port'+
 
-+*socket ?-async? ?-ipv6? stream.server* '?addr:?port'+::
++*socket ?-noclose? ?-async? ?-ipv6? stream.server* '?addr:?port'+::
     A TCP socket server (+'addr'+ defaults to +0.0.0.0+ for IPv4 or +[::]+ for IPv6).
-	'filename' returns +'addr:port'+
+    'filename' returns +'addr:port'+
 
-+*socket ?-async? ?-ipv6? dgram* ?'addr:port'?+::
++*socket ?-noclose? ?-async? ?-ipv6? dgram* ?'addr:port'?+::
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and 'sendto' must be used
     to indicated the destination.
-	'filename' returns +'addr:port'+ if provided or "dgram" if not
+    'filename' returns +'addr:port'+ if provided or "dgram" if not
 
-+*socket ?-async? ?-ipv6? dgram.server* 'addr:port'+::
++*socket ?-noclose? ?-async? ?-ipv6? dgram.server* 'addr:port'+::
     A UDP socket server.
-	'filename' returns +'addr:port'+
+    'filename' returns +'addr:port'+
 
-+*socket pipe*+::
++*socket ?-noclose? pipe*+::
     A synonym for `pipe`
-	'filename' returns "pipe"
+    'filename' returns "pipe"
 
-+*socket pair*+::
++*socket ?-noclose? pair*+::
     A socketpair (see socketpair(2)). Like `pipe`, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
-	'filename' returns "pair"
+    'filename' returns "pair"
 
-+*socket pty*+::
++*socket ?-noclose? pty*+::
     A pseudo-tty pair (see openpty(3)). Like `pipe`, this command returns
     a list of two channels: {primary replica}. These channels are both readable and writable.
-	'filename' for both handles returns the replica filename.
+    'filename' for both handles returns the replica filename.
 
 This command creates a socket connected (client) or bound (server) to the given
 address.
@@ -5358,6 +5369,15 @@ will succeed if connected or fail if connect failed. Typical usage is as follows
     }
 
     vwait done
+----
+
+If '+-noclose+' is specified, the socket is not automatically closed for child proceses. e.g.
+
+----
+    lassign [socket -noclose pipe] r w
+    # This file descriptor will be open in the child process
+    # with the file descriptors passed on the command line
+    exec subcommand [$r getfd] [$w getfd]
 ----
 
 syslog
