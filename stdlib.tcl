@@ -42,7 +42,7 @@ proc stacktrace {{skip 0}} {
 	incr skip 2
 	loop level $skip [info level]+1 {
 		set frame [info frame -$level]
-		lappend trace [lindex [dict get $frame cmd] 0] [dict get $frame file] [dict get $frame line]
+		lappend trace [lindex [dict getdef $frame cmd {}] 0] [dict get $frame file] [dict get $frame line]
 	}
 	return $trace
 }
