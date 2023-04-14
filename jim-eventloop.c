@@ -604,7 +604,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
         Jim_Obj *currValue;
-        currValue = Jim_GetGlobalVariable(interp, argv[1], JIM_NONE);
+        currValue = Jim_GetGlobalVariable(interp, argv[1 + signal], JIM_NONE);
         /* Stop the loop if the vwait-ed variable changed value,
          * or if was unset and now is set (or the contrary)
          * or if a signal was caught
