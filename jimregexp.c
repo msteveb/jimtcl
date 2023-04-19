@@ -774,7 +774,7 @@ static int regatom(regex_t *preg, int *flagp)
 							preg->err = REG_ERR_NULL_CHAR;
 							return 0;
 						}
-						if (start == '\\' && *pattern == 0) {
+						if (end == '\\' && *pattern == 0) {
 							preg->err = REG_ERR_INVALID_ESCAPE;
 							return 0;
 						}

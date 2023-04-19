@@ -758,4 +758,8 @@ test reg-31.2 {invalid digit check in class} -body {
   regexp {[[:digit:\0]} 1
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
+test reg-31.3 {invalid trailing backslash} -body {
+  regexp "\[abc\\" a
+} -returnCodes error -result {couldn't compile regular expression pattern: invalid escape \ sequence}
+
 testreport
