@@ -2,6 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 constraint cmd socket
+constraint cmd os.fork
 constraint expr posixaio {$tcl_platform(platform) eq {unix} && !$tcl_platform(bootstrap)}
 
 # Create and open in binary mode for compatibility between Windows and Unix
@@ -161,6 +162,22 @@ test aio-9.4 {open: posix modes} -constraints posixaio -cleanup {
 	set buf
 } -result {write-data}
 
+test aio-10.1 {open: -noclose} -constraints os.fork -cleanup {
+	file delete testdata.out
+} -body {
+	# Keep this file descriptor open for children
+	set f [open testdata.out -noclose w]
+	$f puts parent
+	$f flush
+	# Now the child process can write to the same file via the file descriptor
+	exec sh -c "echo child >&[$f getfd]"
+	$f close
+	set in [open testdata.out]
+	set lines [list [$in gets] [$in gets]]
+	$in close
+	set lines
+} -result {parent child}
+
 test copyto-1.1 {basic copyto} {
 	set in [open copy.in]
 	set out [open copy.out w]
@@ -281,7 +298,7 @@ proc child_reader {numlines} {
 	list $pid $w
 }
 
-test autoflush-1.1 {pipe writer, blocking} -constraints socket -body {
+test autoflush-1.1 {pipe writer, blocking} -constraints {socket os.fork} -body {
 	lassign [child_reader 10000] pid w
 
 	# Send data fast enough to fill up the send buffer
@@ -298,7 +315,7 @@ test autoflush-1.1 {pipe writer, blocking} -constraints socket -body {
 	list $rc
 } -result {99}
 
-test autoflush-1.2 {pipe writer, non blocking} -constraints socket -body {
+test autoflush-1.2 {pipe writer, non blocking} -constraints {socket os.fork} -body {
 	lassign [child_reader 10000] pid w
 
 	$w ndelay 1
