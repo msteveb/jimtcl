@@ -384,6 +384,9 @@ foreach i $chars1 {
 alarm 0
 puts "TEST 54 PASSED"
 
+# info frame should work even if in an anonymous proc
+apply {{} {info frame 0}}
+puts "TEST 55 PASSED"
 
 # TAKE THE FOLLOWING puts AS LAST LINE
 

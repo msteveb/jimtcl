@@ -37,32 +37,14 @@ proc function {value} {
 # with 3 entries for each stack frame (proc),
 # (deepest level first)
 proc stacktrace {{skip 0}} {
-	set trace {}
-	# Need to skip info frame 0 and this (stacktrace) level
-	incr skip 2
-	loop level $skip [info level]+1 {
+	set frames {}
+	loop level 2 [info frame]+1 {
 		set frame [info frame -$level]
-		lappend trace [lindex [dict getdef $frame cmd {}] 0] [dict get $frame file] [dict get $frame line]
-	}
-	return $trace
-}
-proc stacktrace {{skip 0}} {
-	set trace {}
-	# skip the internal frames
-	incr skip 1
-	set last 0
-	loop level $skip [info frame]+1 {
-		set frame [info frame -$level]
-		set file [dict get $frame file]
-		set line [dict get $frame line]
-		set lev [dict get $frame level]
-		if {$lev != $last && $lev > $skip} {
-			set proc [lindex [dict get $frame cmd] 0]
-			lappend trace $proc $file $line
+		if {$frame(level) > $skip && [dict exists $frame proc]} {
+			lappend frames $frame(proc) $frame(file) $frame(line)
 		}
-		set last $lev
 	}
-	return $trace
+	return $frames
 }
 
 # Returns a human-readable version of a stack trace

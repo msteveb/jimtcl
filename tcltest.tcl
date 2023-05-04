@@ -73,6 +73,20 @@ proc skiptest {{msg {}}} {
 	exit 0
 }
 
+# Takes a stacktrace and applies [file tail] to the filenames.
+# This allows stacktrace tests to be run from a directory other than the source directory.
+# Also convert proc name ::a into a for compatibility between Tcl and Jim
+proc basename-stacktrace {stacktrace} {
+	set result {}
+	foreach {p f l} $stacktrace {
+		if {[string match ::* $p]} {
+			set p [string range $p 2 end]
+		}
+		lappend result $p [file tail $f] $l
+	}
+	return $result
+}
+
 # If tcl, just use tcltest
 if {[catch {info version}]} {
 	package require Tcl 8.5
@@ -86,6 +100,29 @@ if {[catch {info version}]} {
 	testConstraint tcl 1
 	proc testreport {} {
 		::tcltest::cleanupTests
+	}
+	proc stacktrace {{skip 0}} {
+		set trace {}
+		# Need to skip info frame 0 and this (stacktrace) level
+		incr skip 1
+		set maxlevel [info frame]
+		for {set level $skip} {$level < $maxlevel} {incr level} {
+			set frame [info frame -$level]
+			if {[dict get $frame type] eq "source" && [dict exists $frame proc]} {
+				set proc [dict get $frame proc]
+				# make it look like it is running under Jim tcltest
+				if {$proc eq "::tcltest::RunTest"} {
+					set proc test
+				} else {
+					set proc [string range $proc 2 end]
+				}
+				lappend trace $proc [dict get $frame file] [dict get $frame line]
+				if {$proc eq "test"} {
+					break
+				}
+			}
+		}
+		return $trace
 	}
 	return
 }
@@ -193,16 +230,6 @@ testConstraint {tcl} 0
 
 proc bytestring {x} {
 	return $x
-}
-
-# Takes a stacktrace and applies [file tail] to the filenames.
-# This allows stacktrace tests to be run from a directory other than the source directory.
-proc basename-stacktrace {stacktrace} {
-	set result {}
-	foreach {p f l} $stacktrace {
-		lappend result $p [file tail $f] $l
-	}
-	return $result
 }
 
 # Takes a list of {filename line} and returns {basename line}

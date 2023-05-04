@@ -12017,23 +12017,44 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
             }
 #ifndef JIM_NO_INTROSPECTION
             {
-                Jim_Obj *cmdObj;
-                /* Omit the command and proc */
-                cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
+                Jim_Obj *cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
 
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "cmd", -1));
                 Jim_ListAppendElement(interp, listObj, cmdObj);
-                /* Look in parent frames for a proc name */
-                Jim_EvalFrame *p;
-                for (p = targetEvalFrame->parent; p ; p = p->parent) {
-                    if (p->cmd && p->cmd->isproc) {
-                        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
-                        Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
+            }
+#endif
+            /* Now determine if this eval frame has a proc caller */
+            {
+                /* If the target eval frame has proc call frame level >= the previous one
+                 * we don't set 'proc' (it will be set on the previous one)
+                 * So first determine if this needs 'proc'
+                 */
+                Jim_EvalFrame *e, *p = NULL;
+                for (e = interp->evalFrame; e; e = e->parent) {
+                    if (e == targetEvalFrame) {
                         break;
+                    }
+                    if (!p || e->callFrameLevel != p->callFrameLevel) {
+                        p = e;
+                    }
+                    else {
+                        p = NULL;
+                    }
+                }
+                if (!p || e->callFrameLevel < p->callFrameLevel) {
+                    /* Find the first proc above this level */
+                    for (e = targetEvalFrame->parent; e; e = e->parent) {
+                        if (e->cmd && e->cmd->isproc) {
+                            /* apply and namespace eval won't provide cmdNameObj */
+                            if (e->cmd->cmdNameObj) {
+                                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
+                                Jim_ListAppendElement(interp, listObj, e->cmd->cmdNameObj);
+                            }
+                            break;
+                        }
                     }
                 }
             }
-#endif
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "level", -1));
             Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->callFrameLevel));
 

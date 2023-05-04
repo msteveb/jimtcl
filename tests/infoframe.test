@@ -1,11 +1,14 @@
 source [file dirname [info script]]/testing.tcl
-needs constraint jim
+
 proc a {n} {
 	if {$n eq "trace"} {
-		# strip the frame levels for test and uplevel
-		return [basename-stacktrace [lrange [stacktrace] 0 end-6]]
+		return [basename-stacktrace [stacktrace]]
 	}
-	set frame [info frame $n]; list [dict getdef $frame proc {}] [file tail [dict get $frame file]] [dict get $frame line]
+	set frame [info frame $n]
+	if {![dict exists $frame proc]} {
+		dict set frame proc {}
+	}
+	basename-stacktrace [list [dict get $frame proc] [file tail [dict get $frame file]] [dict get $frame line]]
 }
 
 proc b {n} {
@@ -18,24 +21,24 @@ proc c {n} {
 
 # --- Don't change line numbers above
 
-test info-frame-1.1 "Current command" {
+test info-frame-1.1 {Current command} -body {
 	c 0
-} {a infoframe.test 8}
+} -result {a infoframe.test 7}
 
-test info-frame-1.2 "Current Proc" {
+test info-frame-1.2 {Current Proc} -body {
 	c -1
-} {b infoframe.test 12}
+} -result {b infoframe.test 15}
 
-test info-frame-1.3 "Caller" {
+test info-frame-1.3 Caller -body {
 	c -2
-} {c infoframe.test 16}
+} -result {c infoframe.test 19}
 
-test info-frame-1.4 "Caller of Caller" {
+test info-frame-1.4 {Caller of Caller} -body {
 	c -3
-} {test infoframe.test 34}
+} -result {test infoframe.test 37}
 
-test stacktrace-1.1 "Full stack trace" {
+test stacktrace-1.1 {Full stack trace} -body {
 	c trace
-} {a infoframe.test 12 b infoframe.test 16 c infoframe.test 38}
+} -result {a infoframe.test 5 b infoframe.test 15 c infoframe.test 19 test infoframe.test 41}
 
 testreport
