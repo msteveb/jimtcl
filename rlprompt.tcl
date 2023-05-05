@@ -4,7 +4,7 @@
 # In order to automatically have readline-editing features
 # put this in your $HOME/.jimrc
 #
-# if {$jim_interactive} {
+# if {$tcl_interactive} {
 #    if {[catch {package require rlprompt}] == 0} {
 #       rlprompt.shell
 #    }
