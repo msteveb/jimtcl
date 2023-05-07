@@ -163,7 +163,7 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         Jim_Obj *objPtr, *rowsListPtr;
         sqlite3_stmt *stmt;
         const char *query, *tail;
-        int columns, rows, len;
+        int columns, len;
         int retcode = JIM_ERR;
         Jim_Obj *nullStrObj;
 
@@ -196,7 +196,6 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         /* Build a list of rows (that are lists in turn) */
         rowsListPtr = Jim_NewListObj(interp, NULL, 0);
         Jim_IncrRefCount(rowsListPtr);
-        rows = 0;
         columns = sqlite3_column_count(stmt);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             int i;
@@ -226,7 +225,6 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
                 Jim_ListAppendElement(interp, objPtr, vObj);
             }
             Jim_ListAppendElement(interp, rowsListPtr, objPtr);
-            rows++;
         }
         /* Finalize */
         if (sqlite3_finalize(stmt) != SQLITE_OK) {
