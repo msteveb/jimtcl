@@ -3828,20 +3828,16 @@ static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
             JimDecrCmdRefCount(interp, cmdPtr->prevCmd);
         }
 
-        if (interp->quitting) {
-            Jim_Free(cmdPtr);
-        }
-        else {
-            /* Preserve the structure with inUse = 0 so that
-             * cached references will continue to work.
-             * These will be discarding at the next procEpoch increment
-             * or once 1000 have been accumulated.
-             */
-            cmdPtr->prevCmd = interp->oldCmdCache;
-            interp->oldCmdCache = cmdPtr;
-            if (++interp->oldCmdCacheSize >= 1000) {
-                Jim_InterpIncrProcEpoch(interp);
-            }
+        /* Preserve the structure with inUse = 0 so that
+         * cached references will continue to work.
+         * These will be discarding at the next procEpoch increment
+         * or once 1000 have been accumulated (unless quitting
+         * since we can only be unwinding in that case).
+         */
+        cmdPtr->prevCmd = interp->oldCmdCache;
+        interp->oldCmdCache = cmdPtr;
+        if (!interp->quitting && ++interp->oldCmdCacheSize >= 1000) {
+            Jim_InterpIncrProcEpoch(interp);
         }
     }
 }
@@ -5756,6 +5752,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->currentScriptObj);
     Jim_DecrRefCount(i, i->nullScriptObj);
 
+    /* This will disard any cached commands */
     Jim_InterpIncrProcEpoch(i);
 
     Jim_FreeHashTable(&i->commands);
