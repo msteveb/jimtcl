@@ -12281,6 +12281,23 @@ static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
+/**
+ * All commands that support break, continue from a loop (while, loop, foreach, for)
+ * use this to check for returnLevel.
+ *
+ * If returnLevel is > 0, decrements the returnLevel and returns 1.
+ * Otherwise returns 0
+ */
+static int JimCheckLoopRetcode(Jim_Interp *interp, int retval)
+{
+    if (retval == JIM_BREAK || retval == JIM_CONTINUE) {
+        if (--interp->returnLevel > 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* [while] */
 static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
@@ -12299,13 +12316,14 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
             break;
 
         if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
+            if (JimCheckLoopRetcode(interp, retval)) {
+                return retval;
+            }
             switch (retval) {
                 case JIM_BREAK:
                     goto out;
-                    break;
                 case JIM_CONTINUE:
                     continue;
-                    break;
                 default:
                     return retval;
             }
@@ -12321,6 +12339,7 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 {
     int retval;
     int boolean = 1;
+    int immediate = 0;
     Jim_Obj *varNamePtr = NULL;
     Jim_Obj *stopVarNamePtr = NULL;
 
@@ -12441,6 +12460,10 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
             /* Eval body */
             retval = Jim_EvalObj(interp, argv[4]);
+            if (JimCheckLoopRetcode(interp, retval)) {
+                immediate++;
+                goto out;
+            }
             if (retval == JIM_OK || retval == JIM_CONTINUE) {
                 retval = JIM_OK;
 
@@ -12477,6 +12500,10 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
             /* increment */
 JIM_IF_OPTIM(evalnext:)
             retval = Jim_EvalObj(interp, argv[3]);
+            if (JimCheckLoopRetcode(interp, retval)) {
+                immediate++;
+                goto out;
+            }
             if (retval == JIM_OK || retval == JIM_CONTINUE) {
                 /* test */
 JIM_IF_OPTIM(testcond:)
@@ -12492,9 +12519,11 @@ JIM_IF_OPTIM(out:)
         Jim_DecrRefCount(interp, varNamePtr);
     }
 
-    if (retval == JIM_CONTINUE || retval == JIM_BREAK || retval == JIM_OK) {
-        Jim_SetEmptyResult(interp);
-        return JIM_OK;
+    if (!immediate) {
+        if (retval == JIM_CONTINUE || retval == JIM_BREAK || retval == JIM_OK) {
+            Jim_SetEmptyResult(interp);
+            return JIM_OK;
+        }
     }
 
     return retval;
@@ -12534,6 +12563,9 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
     while (((i < limit && incr > 0) || (i > limit && incr < 0)) && retval == JIM_OK) {
         retval = Jim_EvalObj(interp, bodyObjPtr);
+        if (JimCheckLoopRetcode(interp, retval)) {
+            return retval;
+        }
         if (retval == JIM_OK || retval == JIM_CONTINUE) {
             Jim_Obj *objPtr = Jim_GetVariable(interp, argv[1], JIM_ERRMSG);
 
@@ -12688,7 +12720,11 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 }
             }
         }
-        switch (result = Jim_EvalObj(interp, script)) {
+        result = Jim_EvalObj(interp, script);
+        if (JimCheckLoopRetcode(interp, result)) {
+            goto err;
+        }
+        switch (result) {
             case JIM_OK:
                 if (doMap) {
                     Jim_ListAppendElement(interp, resultObj, interp->result);
@@ -13828,24 +13864,33 @@ static int Jim_ExprCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return retcode;
 }
 
+static int JimBreakContinueHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int retcode)
+{
+    if (argc != 1 && argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "?level?");
+        return JIM_ERR;
+    }
+    if (argc == 2) {
+        long level;
+        int ret = Jim_GetLong(interp, argv[1], &level);
+        if (ret != JIM_OK) {
+            return ret;
+        }
+        interp->returnLevel = level;
+    }
+    return retcode;
+}
+
 /* [break] */
 static int Jim_BreakCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-    return JIM_BREAK;
+    return JimBreakContinueHelper(interp, argc, argv, JIM_BREAK);
 }
 
 /* [continue] */
 static int Jim_ContinueCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-    return JIM_CONTINUE;
+    return JimBreakContinueHelper(interp, argc, argv, JIM_CONTINUE);
 }
 
 /* [return] */

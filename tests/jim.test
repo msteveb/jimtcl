@@ -2002,9 +2002,13 @@ test foreach-7.3 {continue tests} {
 } {b}
 test foreach-7.4 {continue tests} {catch {continue foo} msg} 1
 test foreach-7.5 {continue tests} {
+	catch {continue foo blah} msg
+  set msg
+} {wrong # args: should be "continue ?level?"}
+test foreach-7.6 {continue tests} {
 	catch {continue foo} msg
   set msg
-} {wrong # args: should be "continue"}
+} {expected integer but got "foo"}
 
 # Check "break".
 
@@ -2019,9 +2023,13 @@ test foreach-8.2 {break tests} {
 } {a b}
 test foreach-8.3 {break tests} {catch {break foo} msg} 1
 test foreach-8.4 {break tests} {
-  catch {break foo} msg
+  catch {break foo blah} msg
   set msg
-} {wrong # args: should be "break"}
+} {wrong # args: should be "break ?level?"}
+test foreach-8.6 {break tests} {
+	catch {break foo} msg
+  set msg
+} {expected integer but got "foo"}
 
 # Test for incorrect "double evaluation" semantics
 
@@ -2792,9 +2800,9 @@ test for-1.15 {TclCompileForCmd: for command result} {
 # Check "for" and "continue".
 
 test for-2.1 {TclCompileContinueCmd: arguments after "continue"} {
-    catch {continue foo} msg
+    catch {continue foo blah} msg
     set msg
-} {wrong # args: should be "continue"}
+} {wrong # args: should be "continue ?level?"}
 test for-2.2 {TclCompileContinueCmd: continue result} {
     catch continue
 } 4
@@ -2863,9 +2871,9 @@ test for-2.6 {continue tests, long command body} {
 # Check "for" and "break".
 
 test for-3.1 {TclCompileBreakCmd: arguments after "break"} {
-    catch {break foo} msg
+    catch {break foo blah} msg
     set msg
-} {wrong # args: should be "break"}
+} {wrong # args: should be "break ?level?"}
 test for-3.2 {TclCompileBreakCmd: break result} {
     catch break
 } 3
