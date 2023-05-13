@@ -2065,7 +2065,7 @@ If +'n'+ is given it breaks out of +'n-1'+ loops and then continues the +'nth'+ 
 
 curry
 ~~~~~
-+*alias* 'args\...'+
++*curry* 'args\...'+
 
 Similar to `alias` except it creates an anonymous procedure (lambda) instead of
 a named procedure.
