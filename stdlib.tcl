@@ -38,9 +38,9 @@ proc function {value} {
 # (deepest level first)
 proc stacktrace {{skip 0}} {
 	set frames {}
-	loop level 2 [info frame]+1 {
+	loop level $skip+1 [info frame] {
 		set frame [info frame -$level]
-		if {$frame(level) > $skip && [dict exists $frame proc]} {
+		if {[dict exists $frame proc]} {
 			lappend frames $frame(proc) $frame(file) $frame(line)
 		}
 	}

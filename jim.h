@@ -440,8 +440,8 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *next; /* Callframes are in a linked list */
     Jim_Obj *nsObj;             /* Namespace for this proc call frame */
-    Jim_Obj *fileNameObj;       /* file and line of caller of this proc (if available) */
-    int line;
+    Jim_Obj *unused_fileNameObj;
+    int unused_line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
     struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
@@ -449,11 +449,11 @@ typedef struct Jim_CallFrame {
 
 /* Evaluation frame */
 typedef struct Jim_EvalFrame {
-    const char *type;           /* "cmd", "source", etc. */
-    int level; /* Level of this evaluation frame. 0 = global */
-    int callFrameLevel;         /* corresponding call frame level */
+    Jim_CallFrame *framePtr;    /* Pointer to corresponding proc call frame */
+    int level;                  /* Level of this evaluation frame. 0 = global */
+    int procLevel;              /* Total proc depth */
     struct Jim_Cmd *cmd;        /* The currently executing command */
-    struct Jim_EvalFrame *parent; /* The parent frame or NULL if at top */
+    struct Jim_EvalFrame *parent; /* The parent eval frame or NULL if at top */
     Jim_Obj *const *argv; /* object vector of the current command . */
     int argc; /* number of args */
     Jim_Obj *scriptObj;
@@ -568,11 +568,11 @@ typedef struct Jim_Interp {
     int safeexpr; /* Set when evaluating a "safe" expression, no var subst or command eval */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
-    Jim_Obj *currentScriptObj; /* Script currently in execution. */
+    Jim_Obj *unused_currentScriptObj; /* Script currently in execution. */
     Jim_EvalFrame topEvalFrame;  /* dummy top evaluation frame */
     Jim_EvalFrame *evalFrame;  /* evaluation stack */
-    int argc;
-    Jim_Obj * const *argv;
+    int procLevel;
+    Jim_Obj * const *unused_argv;
     Jim_Obj *nullScriptObj; /* script representation of an empty string */
     Jim_Obj *emptyObj; /* Shared empty string object. */
     Jim_Obj *trueObj; /* Shared true int object. */

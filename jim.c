@@ -5692,7 +5692,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
     i->defer = Jim_NewStringObj(i, "jim::defer", -1);
     i->errorProc = i->emptyObj;
-    i->currentScriptObj = Jim_NewEmptyStringObj(i);
     i->nullScriptObj = Jim_NewEmptyStringObj(i);
     i->evalFrame = &i->topEvalFrame;
     Jim_IncrRefCount(i->emptyObj);
@@ -5701,7 +5700,6 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->stackTrace);
     Jim_IncrRefCount(i->unknown);
     Jim_IncrRefCount(i->defer);
-    Jim_IncrRefCount(i->currentScriptObj);
     Jim_IncrRefCount(i->nullScriptObj);
     Jim_IncrRefCount(i->errorProc);
     Jim_IncrRefCount(i->trueObj);
@@ -5749,7 +5747,6 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->unknown);
     Jim_DecrRefCount(i, i->defer);
     Jim_DecrRefCount(i, i->errorFileNameObj);
-    Jim_DecrRefCount(i, i->currentScriptObj);
     Jim_DecrRefCount(i, i->nullScriptObj);
 
     /* This will disard any cached commands */
@@ -5903,23 +5900,23 @@ static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, long level)
     return NULL;
 }
 
-static Jim_EvalFrame *JimGetEvalFrameByInteger(Jim_Interp *interp, long level)
+static Jim_EvalFrame *JimGetEvalFrameByProcLevel(Jim_Interp *interp, int proclevel)
 {
     Jim_EvalFrame *evalFrame;
 
-    if (level == 0) {
+    if (proclevel == 0) {
         return interp->evalFrame;
     }
 
-    if (level < 0) {
+    if (proclevel < 0) {
         /* Convert from a relative to an absolute level */
-        level = interp->evalFrame->level + level;
+        proclevel = interp->procLevel + proclevel;
     }
 
-    if (level > 0) {
+    if (proclevel >= 0) {
         /* Lookup */
         for (evalFrame = interp->evalFrame; evalFrame; evalFrame = evalFrame->parent) {
-            if (evalFrame->level == level) {
+            if (evalFrame->procLevel == proclevel) {
                 return evalFrame;
             }
         }
@@ -10647,7 +10644,7 @@ static int JimTraceCallback(Jim_Interp *interp, const char *type, int argc, Jim_
     Jim_Obj *traceCmdObj = interp->traceCmdObj;
     Jim_Obj *resultObj = Jim_GetResult(interp);
     /* Where were we called from? */
-    ScriptObj *script = JimGetScript(interp, interp->currentScriptObj);
+    ScriptObj *script = JimGetScript(interp, interp->evalFrame->scriptObj);
 
     nargv[0] = traceCmdObj;
     nargv[1] = Jim_NewStringObj(interp, type, -1);
@@ -10706,14 +10703,19 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return retcode;
 }
 
-static void JimPushEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame)
+static void JimPushEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame, Jim_Obj *scriptObj)
 {
     memset(frame, 0, sizeof(*frame));
     frame->parent = interp->evalFrame;
     frame->level = frame->parent->level + 1;
-    frame->type = "unknown";
-    frame->callFrameLevel = interp->framePtr->level;
-    frame->scriptObj = interp->currentScriptObj;
+    frame->procLevel = interp->procLevel;
+    frame->framePtr = interp->framePtr;
+    if (scriptObj) {
+        frame->scriptObj = scriptObj;
+    }
+    else {
+        frame->scriptObj = frame->parent->scriptObj;
+    }
     interp->evalFrame = frame;
 #if 0
     if (frame->scriptObj) {
@@ -10727,15 +10729,13 @@ static void JimPopEvalFrame(Jim_Interp *interp)
     interp->evalFrame = interp->evalFrame->parent;
 }
 
+/* This is called from Jim_EvalObj, JimEvalObjList, Jim_EvalObjVector */
 static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int retcode;
     Jim_Cmd *cmdPtr;
     void *prevPrivData;
     Jim_Obj *tailcallObj = NULL;
-    int prev_argc;
-    Jim_Obj * const *prev_argv;
-    Jim_EvalFrame frame;
 
 #if 0
     printf("invoke");
@@ -10763,24 +10763,11 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
      * so that the entire call chain can be walked. This would allow 'info frame' to walk
      * the full call chain, not just call frames
      */
-    prev_argc = interp->argc;
-    prev_argv = interp->argv;
-
-    JimPushEvalFrame(interp, &frame);
-
 tailcall:
 
-    interp->argc = objc;
-    interp->argv = objv;
-
-    if (cmdPtr->isproc) {
-        frame.type = "proc";
-    }
-    else {
-        frame.type = "cmd";
-    }
-    frame.argc = objc;
-    frame.argv = objv;
+    interp->evalFrame->argc = objc;
+    interp->evalFrame->argv = objv;
+    interp->evalFrame->cmd = cmdPtr;
 
     if (!interp->traceCmdObj ||
         (retcode = JimTraceCallback(interp, "cmd", objc, objv)) == JIM_OK) {
@@ -10821,11 +10808,6 @@ tailcall:
     interp->cmdPrivData = prevPrivData;
     interp->evalDepth--;
 
-    interp->argc = prev_argc;
-    interp->argv = prev_argv;
-
-    JimPopEvalFrame(interp);
-
 out:
     JimDecrCmdRefCount(interp, cmdPtr);
 
@@ -10854,12 +10836,17 @@ out:
 int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
 {
     int i, retcode;
+    Jim_EvalFrame frame;
 
     /* Incr refcount of arguments. */
     for (i = 0; i < objc; i++)
         Jim_IncrRefCount(objv[i]);
 
+    JimPushEvalFrame(interp, &frame, NULL);
+
     retcode = JimInvokeCommand(interp, objc, objv);
+
+    JimPopEvalFrame(interp);
 
     /* Decr refcount of arguments and return the retcode */
     for (i = 0; i < objc; i++)
@@ -11069,8 +11056,12 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
 static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
 {
     int retcode = JIM_OK;
+    Jim_EvalFrame frame;
 
     JimPanic((Jim_IsList(listPtr) == 0, "JimEvalObjList() invoked on non-list."));
+
+    /* XXX should we pass listPtr as scriptObj here? */
+    JimPushEvalFrame(interp, &frame, NULL);
 
     if (listPtr->internalRep.listValue.len) {
         Jim_IncrRefCount(listPtr);
@@ -11079,6 +11070,9 @@ static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
             listPtr->internalRep.listValue.ele);
         Jim_DecrRefCount(interp, listPtr);
     }
+
+    JimPopEvalFrame(interp);
+
     return retcode;
 }
 
@@ -11095,7 +11089,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     ScriptToken *token;
     int retcode = JIM_OK;
     Jim_Obj *sargv[JIM_EVAL_SARGV_LEN], **argv = NULL;
-    Jim_Obj *prevScriptObj;
+    Jim_EvalFrame frame;
 
     /* If the object is of type "list", with no string rep we can call
      * a specialized version of Jim_EvalObj() */
@@ -11155,9 +11149,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
      * inUse field of the script internal rep structure. */
     script->inUse++;
 
-    /* Stash the current script */
-    prevScriptObj = interp->currentScriptObj;
-    interp->currentScriptObj = scriptObjPtr;
+    JimPushEvalFrame(interp, &frame, scriptObjPtr);
 
     interp->errorFlag = 0;
     argv = sargv;
@@ -11317,8 +11309,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
         interp->addStackTrace = 0;
     }
 
-    /* Restore the current script */
-    interp->currentScriptObj = prevScriptObj;
+    JimPopEvalFrame(interp);
 
     /* Note that we don't have to decrement inUse, because the
      * following code transfers our use of the reference again to
@@ -11410,17 +11401,14 @@ int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj)
 {
     Jim_CallFrame *callFramePtr;
     int retcode;
-    ScriptObj *script = JimGetScript(interp, scriptObj);
 
     /* Create a new callframe */
     callFramePtr = JimCreateCallFrame(interp, interp->framePtr, nsObj);
-    callFramePtr->argv = interp->argv;
-    callFramePtr->argc = interp->argc;
+    callFramePtr->argv = interp->evalFrame->argv;
+    callFramePtr->argc = interp->evalFrame->argc;
     callFramePtr->procArgsObjPtr = NULL;
     callFramePtr->procBodyObjPtr = scriptObj;
     callFramePtr->staticVars = NULL;
-    callFramePtr->fileNameObj = script->fileNameObj;
-    callFramePtr->line = script->linenr;
     Jim_IncrRefCount(scriptObj);
     interp->framePtr = callFramePtr;
 
@@ -11454,7 +11442,6 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
 {
     Jim_CallFrame *callFramePtr;
     int i, d, retcode, optargs;
-    ScriptObj *script;
 
     /* Check arity */
     if (argc - 1 < cmd->u.proc.reqArity ||
@@ -11482,10 +11469,7 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
     callFramePtr->procBodyObjPtr = cmd->u.proc.bodyObjPtr;
     callFramePtr->staticVars = cmd->u.proc.staticVars;
 
-    /* Remember where we were called from. */
-    script = JimGetScript(interp, interp->currentScriptObj);
-    callFramePtr->fileNameObj = script->fileNameObj;
-    callFramePtr->line = script->linenr;
+    interp->procLevel++;
 
     Jim_IncrRefCount(cmd->u.proc.argListObjPtr);
     Jim_IncrRefCount(cmd->u.proc.bodyObjPtr);
@@ -11533,8 +11517,6 @@ static int JimCallProcedure(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj 
         }
     }
 
-    interp->evalFrame->cmd = cmd;
-
     if (interp->traceCmdObj == NULL ||
         (retcode = JimTraceCallback(interp, "proc", argc, argv)) == JIM_OK) {
         /* Eval the body */
@@ -11562,8 +11544,7 @@ badargset:
         interp->errorProc = argv[0];
         Jim_IncrRefCount(interp->errorProc);
     }
-
-    interp->evalFrame->cmd = NULL;
+    interp->procLevel--;
 
     return retcode;
 }
@@ -11575,22 +11556,10 @@ int Jim_EvalSource(Jim_Interp *interp, const char *filename, int lineno, const c
 
     scriptObjPtr = Jim_NewStringObj(interp, script, -1);
     Jim_IncrRefCount(scriptObjPtr);
-
     if (filename) {
-        Jim_Obj *prevScriptObj;
-
         JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), lineno);
-
-        prevScriptObj = interp->currentScriptObj;
-        interp->currentScriptObj = scriptObjPtr;
-
-        retval = Jim_EvalObj(interp, scriptObjPtr);
-
-        interp->currentScriptObj = prevScriptObj;
     }
-    else {
-        retval = Jim_EvalObj(interp, scriptObjPtr);
-    }
+    retval = Jim_EvalObj(interp, scriptObjPtr);
     Jim_DecrRefCount(interp, scriptObjPtr);
     return retval;
 }
@@ -11632,7 +11601,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     FILE *fp;
     char *buf;
     Jim_Obj *scriptObjPtr;
-    Jim_Obj *prevScriptObj;
     struct stat sb;
     int retcode;
     int readlen;
@@ -11661,9 +11629,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), 1);
     Jim_IncrRefCount(scriptObjPtr);
 
-    prevScriptObj = interp->currentScriptObj;
-    interp->currentScriptObj = scriptObjPtr;
-
     retcode = Jim_EvalObj(interp, scriptObjPtr);
 
     /* Handle the JIM_RETURN return code */
@@ -11678,8 +11643,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
         /* EvalFile changes context, so add a stack frame here */
         interp->addStackTrace++;
     }
-
-    interp->currentScriptObj = prevScriptObj;
 
     Jim_DecrRefCount(interp, scriptObjPtr);
 
@@ -11994,7 +11957,7 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
     long level;
 
     if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
-        Jim_EvalFrame *targetEvalFrame = JimGetEvalFrameByInteger(interp, level);
+        Jim_EvalFrame *targetEvalFrame = JimGetEvalFrameByProcLevel(interp, level);
         if (targetEvalFrame) {
             Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
             int linenr;
@@ -12020,40 +11983,28 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
                 Jim_ListAppendElement(interp, listObj, cmdObj);
             }
 #endif
-            /* Now determine if this eval frame has a proc caller */
-            {
-                /* If the target eval frame has proc call frame level >= the previous one
-                 * we don't set 'proc' (it will be set on the previous one)
-                 * So first determine if this needs 'proc'
-                 */
+            /* XXX explain how this works */
+            if (targetEvalFrame == interp->evalFrame || (targetEvalFrame->cmd && targetEvalFrame->cmd->isproc && targetEvalFrame->cmd->cmdNameObj)) {
                 Jim_EvalFrame *e, *p = NULL;
-                for (e = interp->evalFrame; e; e = e->parent) {
-                    if (e == targetEvalFrame) {
+                for (e = targetEvalFrame->parent; e; e = e->parent) {
+                    if (e->cmd && e->cmd->isproc && e->cmd->cmdNameObj) {
+                        p = e;
                         break;
                     }
-                    if (!p || e->callFrameLevel != p->callFrameLevel) {
-                        p = e;
-                    }
-                    else {
-                        p = NULL;
-                    }
                 }
-                if (!p || e->callFrameLevel < p->callFrameLevel) {
-                    /* Find the first proc above this level */
-                    for (e = targetEvalFrame->parent; e; e = e->parent) {
-                        if (e->cmd && e->cmd->isproc) {
-                            /* apply and namespace eval won't provide cmdNameObj */
-                            if (e->cmd->cmdNameObj) {
-                                Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
-                                Jim_ListAppendElement(interp, listObj, e->cmd->cmdNameObj);
-                            }
-                            break;
-                        }
-                    }
-                }
+                if (p && p->level) {
+                    if (p->cmd && p->cmd->isproc) {
+                        if (p->cmd->cmdNameObj) {
+                            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
+                            Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
+                         }
+                     }
+                 }
             }
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "level", -1));
-            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->callFrameLevel));
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->framePtr->level));
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proclevel", -1));
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, targetEvalFrame->procLevel));
 
             *objPtrPtr = listObj;
             return JIM_OK;
@@ -15651,7 +15602,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_WrongNumArgs(interp, 2, argv, "");
                 return JIM_ERR;
             }
-            Jim_SetResult(interp, JimGetScript(interp, interp->currentScriptObj)->fileNameObj);
+            Jim_SetResult(interp, JimGetScript(interp, interp->evalFrame->scriptObj)->fileNameObj);
             break;
 
         case INFO_SOURCE:{
@@ -15718,7 +15669,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         case INFO_FRAME:
             switch (argc) {
                 case 2:
-                    Jim_SetResultInt(interp, interp->evalFrame->level);
+                    Jim_SetResultInt(interp, interp->procLevel + 1);
                     break;
 
                 case 3:
