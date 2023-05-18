@@ -540,9 +540,9 @@ typedef struct Jim_PrngState {
  * ---------------------------------------------------------------------------*/
 typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
-    int errorLine; /* Error line where an error occurred. */
-    Jim_Obj *errorFileNameObj; /* Error file where an error occurred. */
-    int addStackTrace; /* > 0 if a level should be added to the stack trace */
+    int unused_errorLine; /* Error line where an error occurred. */
+    Jim_Obj *unused_errorFileNameObj; /* Error file where an error occurred. */
+    int unused_addStackTrace;
     int maxCallFrameDepth; /* Used for infinite loop detection. */
     int maxEvalDepth; /* Used for infinite loop detection. */
     int evalDepth;  /* Current eval depth */

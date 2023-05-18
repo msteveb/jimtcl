@@ -150,6 +150,7 @@ static void JimPrngSeed(Jim_Interp *interp, unsigned char *seed, int seedLen);
 static void JimRandomBytes(Jim_Interp *interp, void *dest, unsigned int len);
 static int JimSetNewVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr, Jim_Var *var);
 static Jim_Var *JimFindVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr);
+static void JimSetErrorStack(Jim_Interp *interp);
 
 /* Fast access to the int (wide) value of an object which is known to be of int type */
 #define JimWideValue(objPtr) (objPtr)->internalRep.wideValue
@@ -3748,12 +3749,10 @@ static void JimSetScriptFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     objPtr->typePtr = &scriptObjType;
 }
 
-static void JimAddErrorToStack(Jim_Interp *interp, ScriptObj *script);
-
 /**
  * Returns the parsed script.
  * Note that if there is any possibility that the script is not valid,
- * call JimScriptValid() to check
+ * call JimParseCheckMissing() to check
  */
 static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 {
@@ -3768,21 +3767,6 @@ static ScriptObj *JimGetScript(Jim_Interp *interp, Jim_Obj *objPtr)
 
     return (ScriptObj *)Jim_GetIntRepPtr(objPtr);
 }
-
-/**
- * Returns 1 if the script is valid (parsed ok), otherwise returns 0
- * and leaves an error message in the interp result.
- *
- */
-static int JimScriptValid(Jim_Interp *interp, ScriptObj *script)
-{
-    if (JimParseCheckMissing(interp, script->missing) == JIM_ERR) {
-        JimAddErrorToStack(interp, script);
-        return 0;
-    }
-    return 1;
-}
-
 
 /* -----------------------------------------------------------------------------
  * Commands
@@ -5686,7 +5670,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->trueObj = Jim_NewIntObj(i, 1);
     i->falseObj = Jim_NewIntObj(i, 0);
     i->framePtr = i->topFramePtr = JimCreateCallFrame(i, NULL, i->emptyObj);
-    i->errorFileNameObj = i->emptyObj;
     i->result = i->emptyObj;
     i->stackTrace = Jim_NewListObj(i, NULL, 0);
     i->unknown = Jim_NewStringObj(i, "unknown", -1);
@@ -5695,7 +5678,6 @@ Jim_Interp *Jim_CreateInterp(void)
     i->nullScriptObj = Jim_NewEmptyStringObj(i);
     i->evalFrame = &i->topEvalFrame;
     Jim_IncrRefCount(i->emptyObj);
-    Jim_IncrRefCount(i->errorFileNameObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
     Jim_IncrRefCount(i->unknown);
@@ -5746,7 +5728,6 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->errorProc);
     Jim_DecrRefCount(i, i->unknown);
     Jim_DecrRefCount(i, i->defer);
-    Jim_DecrRefCount(i, i->errorFileNameObj);
     Jim_DecrRefCount(i, i->nullScriptObj);
 
     /* This will disard any cached commands */
@@ -5924,76 +5905,75 @@ static Jim_EvalFrame *JimGetEvalFrameByProcLevel(Jim_Interp *interp, int proclev
     return NULL;
 }
 
-
-static void JimResetStackTrace(Jim_Interp *interp)
+/* Find the proc for a given eval frame.
+ * When a proc is called (JimCallProcedure), the command name is stored in the eval frame.
+ * So to find the proc that called the code that is currently executing, we need
+ * to look back through eval frames until we find one that has a command name
+ */
+static Jim_Obj *JimProcForEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame)
 {
-    Jim_DecrRefCount(interp, interp->stackTrace);
-    interp->stackTrace = Jim_NewListObj(interp, NULL, 0);
-    Jim_IncrRefCount(interp->stackTrace);
+    /* If at the lowest level or if this level called a proc directly, go
+     * look for the caller
+     */
+    if (frame == interp->evalFrame || (frame->cmd && frame->cmd->cmdNameObj)) {
+        Jim_EvalFrame *e;
+        for (e = frame->parent; e; e = e->parent) {
+            if (e->cmd && e->cmd->isproc && e->cmd->cmdNameObj) {
+                break;
+            }
+        }
+        if (e && e->cmd && e->cmd->cmdNameObj) {
+            return e->cmd->cmdNameObj;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * Append stack trace info (proc, file, line, cmd) from the eval frame
+ * to listObj
+ */
+static void JimAddStackFrame(Jim_Interp *interp, Jim_EvalFrame *frame, Jim_Obj *listObj)
+{
+    Jim_Obj *procNameObj = JimProcForEvalFrame(interp, frame);
+    Jim_Obj *fileNameObj = interp->emptyObj;
+    int linenr = 1;
+
+    if (frame->scriptObj) {
+        ScriptObj *script = JimGetScript(interp, frame->scriptObj);
+        fileNameObj = script->fileNameObj;
+        linenr = script->linenr;
+    }
+
+    Jim_ListAppendElement(interp, listObj, procNameObj ? procNameObj : interp->emptyObj);
+    Jim_ListAppendElement(interp, listObj, fileNameObj);
+    Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, linenr));
+    Jim_ListAppendElement(interp, listObj, Jim_NewListObj(interp, frame->argv, frame->argc));
 }
 
 static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 {
-    int len;
-
     /* Increment reference first in case these are the same object */
     Jim_IncrRefCount(stackTraceObj);
     Jim_DecrRefCount(interp, interp->stackTrace);
     interp->stackTrace = stackTraceObj;
     interp->errorFlag = 1;
-
-    /* This is a bit ugly.
-     * If the filename of the last entry of the stack trace is empty,
-     * the next stack level should be added.
-     */
-    len = Jim_ListLength(interp, interp->stackTrace);
-    if (len >= 3) {
-        if (Jim_Length(Jim_ListGetIndex(interp, interp->stackTrace, len - 2)) == 0) {
-            interp->addStackTrace = 1;
-        }
-    }
 }
 
-static void JimAppendStackTrace(Jim_Interp *interp, const char *procname,
-    Jim_Obj *fileNameObj, int linenr)
+static void JimSetErrorStack(Jim_Interp *interp)
 {
-    if (strcmp(procname, "unknown") == 0) {
-        procname = "";
-    }
-    if (!*procname && !Jim_Length(fileNameObj)) {
-        /* No useful info here */
-        return;
-    }
+    if (!interp->errorFlag) {
+        int i;
+        Jim_Obj *stackTrace = Jim_NewListObj(interp, NULL, 0);
 
-    if (Jim_IsShared(interp->stackTrace)) {
-        Jim_DecrRefCount(interp, interp->stackTrace);
-        interp->stackTrace = Jim_DuplicateObj(interp, interp->stackTrace);
-        Jim_IncrRefCount(interp->stackTrace);
-    }
-
-    /* If we have no procname but the previous element did, merge with that frame */
-    if (!*procname && Jim_Length(fileNameObj)) {
-        /* Just a filename. Check the previous entry */
-        int len = Jim_ListLength(interp, interp->stackTrace);
-
-        if (len >= 3) {
-            Jim_Obj *objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 3);
-            if (Jim_Length(objPtr)) {
-                /* Yes, the previous level had procname */
-                objPtr = Jim_ListGetIndex(interp, interp->stackTrace, len - 2);
-                if (Jim_Length(objPtr) == 0) {
-                    /* But no filename, so merge the new info with that frame */
-                    ListSetIndex(interp, interp->stackTrace, len - 2, fileNameObj, 0);
-                    ListSetIndex(interp, interp->stackTrace, len - 1, Jim_NewIntObj(interp, linenr), 0);
-                    return;
-                }
+        for (i = 0; i <= interp->procLevel; i++) {
+            Jim_EvalFrame *frame = JimGetEvalFrameByProcLevel(interp, -i);
+            if (frame) {
+                JimAddStackFrame(interp, frame, stackTrace);
             }
         }
+        JimSetStackTrace(interp, stackTrace);
     }
-
-    Jim_ListAppendElement(interp, interp->stackTrace, Jim_NewStringObj(interp, procname, -1));
-    Jim_ListAppendElement(interp, interp->stackTrace, fileNameObj);
-    Jim_ListAppendElement(interp, interp->stackTrace, Jim_NewIntObj(interp, linenr));
 }
 
 int Jim_SetAssocData(Jim_Interp *interp, const char *key, Jim_InterpDeleteProc * delProc,
@@ -10759,10 +10739,7 @@ static int JimInvokeCommand(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     }
     interp->evalDepth++;
     prevPrivData = interp->cmdPrivData;
-    /* XXX We should consider creating a struct here (on the stack) with a back pointer
-     * so that the entire call chain can be walked. This would allow 'info frame' to walk
-     * the full call chain, not just call frames
-     */
+
 tailcall:
 
     interp->evalFrame->argc = objc;
@@ -10780,6 +10757,9 @@ tailcall:
             interp->cmdPrivData = cmdPtr->u.native.privData;
             retcode = cmdPtr->u.native.cmdProc(interp, objc, objv);
         }
+        if (retcode == JIM_ERR) {
+            JimSetErrorStack(interp);
+        }
     }
 
     if (tailcallObj) {
@@ -10787,6 +10767,10 @@ tailcall:
         Jim_DecrRefCount(interp, tailcallObj);
         tailcallObj = NULL;
     }
+
+    /* These are now invalid */
+    interp->evalFrame->argc = 0;
+    interp->evalFrame->argv = NULL;
 
     /* If a tailcall is returned for this frame, loop to invoke the new command */
     if (retcode == JIM_EVAL && interp->framePtr->tailcallObj) {
@@ -10810,6 +10794,10 @@ tailcall:
 
 out:
     JimDecrCmdRefCount(interp, cmdPtr);
+
+    if (retcode == JIM_ERR) {
+        JimSetErrorStack(interp);
+    }
 
     if (interp->framePtr->tailcallObj) {
         /* We might have skipped invoking a tailcall, perhaps because of an error
@@ -10868,41 +10856,6 @@ int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix, int objc, Jim_Obj *co
     ret = Jim_EvalObjVector(interp, objc + 1, nargv);
     Jim_Free(nargv);
     return ret;
-}
-
-static void JimAddErrorToStack(Jim_Interp *interp, ScriptObj *script)
-{
-    if (!interp->errorFlag) {
-        /* This is the first error, so save the file/line information and reset the stack */
-        interp->errorFlag = 1;
-        Jim_IncrRefCount(script->fileNameObj);
-        Jim_DecrRefCount(interp, interp->errorFileNameObj);
-        interp->errorFileNameObj = script->fileNameObj;
-        interp->errorLine = script->linenr;
-
-        JimResetStackTrace(interp);
-        /* Always add a level where the error first occurs */
-        interp->addStackTrace++;
-    }
-
-    /* Now if this is an "interesting" level, add it to the stack trace */
-    if (interp->addStackTrace > 0) {
-        /* Add the stack info for the current level */
-
-        JimAppendStackTrace(interp, Jim_String(interp->errorProc), script->fileNameObj, script->linenr);
-
-        /* Note: if we didn't have a filename for this level,
-         * don't clear the addStackTrace flag
-         * so we can pick it up at the next level
-         */
-        if (Jim_Length(script->fileNameObj)) {
-            interp->addStackTrace = 0;
-        }
-
-        Jim_DecrRefCount(interp, interp->errorProc);
-        interp->errorProc = interp->emptyObj;
-        Jim_IncrRefCount(interp->errorProc);
-    }
 }
 
 static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Obj **objPtrPtr)
@@ -11060,7 +11013,6 @@ static int JimEvalObjList(Jim_Interp *interp, Jim_Obj *listPtr)
 
     JimPanic((Jim_IsList(listPtr) == 0, "JimEvalObjList() invoked on non-list."));
 
-    /* XXX should we pass listPtr as scriptObj here? */
     JimPushEvalFrame(interp, &frame, NULL);
 
     if (listPtr->internalRep.listValue.len) {
@@ -11099,7 +11051,8 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     Jim_IncrRefCount(scriptObjPtr);     /* Make sure it's shared. */
     script = JimGetScript(interp, scriptObjPtr);
-    if (!JimScriptValid(interp, script)) {
+    if (JimParseCheckMissing(interp, script->missing) == JIM_ERR) {
+        JimSetErrorStack(interp);
         Jim_DecrRefCount(interp, scriptObjPtr);
         return JIM_ERR;
     }
@@ -11151,6 +11104,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     JimPushEvalFrame(interp, &frame, scriptObjPtr);
 
+    /* Collect a new error stack trace if an error occurs */
     interp->errorFlag = 0;
     argv = sargv;
 
@@ -11301,12 +11255,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 
     /* Possibly add to the error stack trace */
     if (retcode == JIM_ERR) {
-        JimAddErrorToStack(interp, script);
-    }
-    /* Propagate the addStackTrace value through 'return -code error' */
-    else if (retcode != JIM_RETURN || interp->returnCode != JIM_ERR) {
-        /* No need to add stack trace */
-        interp->addStackTrace = 0;
+        JimSetErrorStack(interp);
     }
 
     JimPopEvalFrame(interp);
@@ -11538,12 +11487,6 @@ badargset:
             interp->returnLevel = 0;
         }
     }
-    else if (retcode == JIM_ERR) {
-        interp->addStackTrace++;
-        Jim_DecrRefCount(interp, interp->errorProc);
-        interp->errorProc = argv[0];
-        Jim_IncrRefCount(interp->errorProc);
-    }
     interp->procLevel--;
 
     return retcode;
@@ -11638,10 +11581,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
             interp->returnCode = JIM_OK;
             interp->returnLevel = 0;
         }
-    }
-    if (retcode == JIM_ERR) {
-        /* EvalFile changes context, so add a stack frame here */
-        interp->addStackTrace++;
     }
 
     Jim_DecrRefCount(interp, scriptObjPtr);
@@ -11957,54 +11896,36 @@ static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
     long level;
 
     if (Jim_GetLong(interp, levelObjPtr, &level) == JIM_OK) {
-        Jim_EvalFrame *targetEvalFrame = JimGetEvalFrameByProcLevel(interp, level);
-        if (targetEvalFrame) {
+        Jim_EvalFrame *frame = JimGetEvalFrameByProcLevel(interp, level);
+        if (frame) {
             Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
-            int linenr;
-            Jim_Obj *fileNameObj;
-            /*Jim_EvalFrame *procEvalFrame;*/
 
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "type", -1));
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "source", -1));
-            if (targetEvalFrame->scriptObj) {
-                ScriptObj *script = JimGetScript(interp, targetEvalFrame->scriptObj);
-                linenr = script->linenr;
-                fileNameObj = script->fileNameObj;
+            if (frame->scriptObj) {
+                ScriptObj *script = JimGetScript(interp, frame->scriptObj);
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "line", -1));
-                Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, linenr));
+                Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, script->linenr));
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "file", -1));
-                Jim_ListAppendElement(interp, listObj, fileNameObj);
+                Jim_ListAppendElement(interp, listObj, script->fileNameObj);
             }
 #ifndef JIM_NO_INTROSPECTION
             {
-                Jim_Obj *cmdObj = Jim_NewListObj(interp, targetEvalFrame->argv, targetEvalFrame->argc);
+                Jim_Obj *cmdObj = Jim_NewListObj(interp, frame->argv, frame->argc);
 
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "cmd", -1));
                 Jim_ListAppendElement(interp, listObj, cmdObj);
             }
 #endif
-            /* XXX explain how this works */
-            if (targetEvalFrame == interp->evalFrame || (targetEvalFrame->cmd && targetEvalFrame->cmd->isproc && targetEvalFrame->cmd->cmdNameObj)) {
-                Jim_EvalFrame *e, *p = NULL;
-                for (e = targetEvalFrame->parent; e; e = e->parent) {
-                    if (e->cmd && e->cmd->isproc && e->cmd->cmdNameObj) {
-                        p = e;
-                        break;
-                    }
-                }
-                if (p && p->level) {
-                    if (p->cmd && p->cmd->isproc) {
-                        if (p->cmd->cmdNameObj) {
-                            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
-                            Jim_ListAppendElement(interp, listObj, p->cmd->cmdNameObj);
-                         }
-                     }
+            {
+                Jim_Obj *procNameObj = JimProcForEvalFrame(interp, frame);
+                if (procNameObj) {
+                    Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proc", -1));
+                    Jim_ListAppendElement(interp, listObj, procNameObj);
                  }
             }
             Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "level", -1));
-            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - targetEvalFrame->framePtr->level));
-            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "proclevel", -1));
-            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, targetEvalFrame->procLevel));
+            Jim_ListAppendElement(interp, listObj, Jim_NewIntObj(interp, interp->framePtr->level - frame->framePtr->level));
 
             *objPtrPtr = listObj;
             return JIM_OK;
@@ -13697,10 +13618,6 @@ static int Jim_EvalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         rc = Jim_EvalObj(interp, Jim_ConcatObj(interp, argc - 1, argv + 1));
     }
 
-    if (rc == JIM_ERR) {
-        /* eval is "interesting", so add a stack frame here */
-        interp->addStackTrace++;
-    }
     return rc;
 }
 
@@ -13797,6 +13714,29 @@ static int Jim_ContinueCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
         return JIM_ERR;
     }
     return JIM_CONTINUE;
+}
+
+/* [stacktrace] */
+static int Jim_StacktraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+    long skip = 0;
+    int i;
+
+    if (argc > 1) {
+        if (Jim_GetLong(interp, argv[1], &skip) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+
+    for (i = skip; i <= interp->procLevel; i++) {
+        Jim_EvalFrame *frame = JimGetEvalFrameByProcLevel(interp, -i);
+        if (frame) {
+            JimAddStackFrame(interp, frame, listObj);
+        }
+    }
+    Jim_SetResult(interp, listObj);
+    return JIM_OK;
 }
 
 /* [return] */
@@ -14806,7 +14746,7 @@ wrongargs:
     }
     else {
         exitCode = Jim_EvalObj(interp, argv[idx]);
-        /* Don't want any caught error included in a later stack trace */
+        /* Once caught, a new error will set a stack trace again */
         interp->errorFlag = 0;
     }
     interp->signal_level -= sig;
@@ -16072,7 +16012,6 @@ static int Jim_ErrorCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         JimSetStackTrace(interp, argv[2]);
         return JIM_ERR;
     }
-    interp->addStackTrace++;
     return JIM_ERR;
 }
 
@@ -16398,6 +16337,7 @@ static const struct {
     {"local", Jim_LocalCoreCommand},
     {"upcall", Jim_UpcallCoreCommand},
     {"apply", Jim_ApplyCoreCommand},
+    {"stacktrace", Jim_StacktraceCoreCommand},
     {NULL, NULL},
 };
 

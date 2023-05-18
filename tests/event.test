@@ -92,7 +92,11 @@ test event-7.4 {bgerror throws an error} -constraints jim -body {
         update
     }
 } -result {stdin:3: Error: inside bgerror
-at file "stdin", line 3}
+Traceback (most recent call last):
+  File "stdin", line 6
+    bgerror err1
+  File "stdin", line 3, in bgerror
+    error {inside bgerror}}
 
 # end of bgerror tests
 catch {rename bgerror {}}

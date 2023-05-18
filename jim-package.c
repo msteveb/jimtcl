@@ -181,9 +181,6 @@ static int package_cmd_provide(Jim_Interp *interp, int argc, Jim_Obj *const *arg
  */
 static int package_cmd_require(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    /* package require failing is important enough to add to the stack */
-    interp->addStackTrace++;
-
     return Jim_PackageRequire(interp, Jim_String(argv[0]), JIM_ERRMSG);
 }
 

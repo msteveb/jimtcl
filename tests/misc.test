@@ -301,25 +301,24 @@ test catch-1.9 "catch no error has no -errorinfo" {
 	list $rc [info exists opts(-errorinfo)]
 } {0 0}
 
-test return-1.1 "return can rethrow an error" {
+test return-1.1 {return can rethrow an error} -body {
 	proc a {} { error "from a" }
 	proc b {} { catch {a} msg opts; return {*}$opts $msg }
 	set rc [catch {b} msg opts]
-	list $rc $msg [llength $opts(-errorinfo)]
-} {1 {from a} 9}
+	list $rc $msg [basename-stacktrace $opts(-errorinfo)]
+} -result {1 {from a} {a misc.test 305 {error {from a}} b misc.test 306 a test misc.test 307 b {} misc.test 304 test\ return-1.1\ \{retu...}}
 
-test return-1.2 "error can rethrow an error" {
+test return-1.2 {error can rethrow an error} -body {
 	proc a {} { error "from a" }
 	proc b {} { catch {a} msg; error $msg [info stacktrace] }
 	set rc [catch {b} msg opts]
-	list $rc $msg [llength $opts(-errorinfo)]
-} {1 {from a} 9}
+	list $rc $msg [basename-stacktrace $opts(-errorinfo)]
+} -result {1 {from a} {a misc.test 312 {error {from a}} b misc.test 313 a test misc.test 314 b {} misc.test 311 test\ return-1.2\ \{erro...}}
 
 test return-1.3 "return can rethrow no error" {
 	proc a {} { return "from a" }
 	proc b {} { catch {a} msg opts; return {*}$opts $msg }
 	set rc [catch {b} msg opts]
-	#list $rc $msg [llength $opts(-errorinfo)]
 	list $rc $msg [info exists opts(-errorinfo)]
 } {0 {from a} 0}
 

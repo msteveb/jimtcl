@@ -33,39 +33,28 @@ proc function {value} {
 	return $value
 }
 
-# Returns a live stack trace as a list of proc filename line ...
-# with 3 entries for each stack frame (proc),
-# (deepest level first)
-proc stacktrace {{skip 0}} {
-	set frames {}
-	loop level $skip+1 [info frame] {
-		set frame [info frame -$level]
-		if {[dict exists $frame proc]} {
-			lappend frames $frame(proc) $frame(file) $frame(line)
-		}
-	}
-	return $frames
-}
-
 # Returns a human-readable version of a stack trace
 proc stackdump {stacktrace} {
 	set lines {}
-	foreach {l f p} [lreverse $stacktrace] {
+	lappend lines "Traceback (most recent call last):"
+	foreach {cmd l f p} [lreverse $stacktrace] {
 		set line {}
-		if {$p ne ""} {
-			append line "in procedure '$p' "
-			if {$f ne ""} {
-				append line "called "
-			}
-		}
 		if {$f ne ""} {
-			append line "at file \"$f\", line $l"
+			append line "  File \"$f\", line $l"
+		}
+		if {$p ne ""} {
+			append line ", in $p"
 		}
 		if {$line ne ""} {
 			lappend lines $line
+			if {$cmd ne ""} {
+				lappend lines "    $cmd"
+			}
 		}
 	}
-	join $lines \n
+	if {[llength $lines] > 1} {
+		return [join $lines \n]
+	}
 }
 
 # Add the given script to $jim::defer, to be evaluated when the current
@@ -81,10 +70,8 @@ proc errorInfo {msg {stacktrace ""}} {
 	if {$stacktrace eq ""} {
 		# By default add the stack backtrace and the live stacktrace
 		set stacktrace [info stacktrace]
-		# omit the procedure 'errorInfo' from the stack
-		lappend stacktrace {*}[stacktrace 1]
 	}
-	lassign $stacktrace p f l
+	lassign $stacktrace p f l cmd
 	if {$f ne ""} {
 		set result "$f:$l: Error: "
 	}
