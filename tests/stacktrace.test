@@ -34,13 +34,13 @@ proc main {} {
 		error "from unknown"
 	}
 
-	test err-10.1 "Stacktrace on error from unknown (badcmd, call)" {
+	test err-10.1 {Stacktrace on error from unknown (badcmd, call)} -body {
 		set rc [catch {error_caller badcmd call} msg]
 		#puts stderr "err-10.1\n[errorInfo $msg]\n"
 		#puts stderr "\terr-10.1 {[list $rc $msg [basename-stacktrace [info stacktrace]]]}"
 
 		list $rc $msg [basename-stacktrace [info stacktrace]]
-	} {1 {from unknown} {{} stacktrace.test 34 {} errors.tcl 6 error_generator errors.tcl 44 error_caller stacktrace.test 38}}
+	} -result {1 {from unknown} {unknown stacktrace.test 34 {error {from unknown}} error_generator errors.tcl 6 {unknown bogus command...} error_caller errors.tcl 44 {error_generator badcm...} test stacktrace.test 38 {error_caller badcmd c...} main stacktrace.test 37 test\ err-10.1\ \{Stackt... {} stacktrace.test 127 main}}
 
 	rename unknown ""
 
@@ -74,50 +74,50 @@ proc main {} {
 }
 
 set expected {
-	err-1.1 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-1.2 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-1.3 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-1.4 {1 {invalid command name "bogus"} {{} errors.tcl 6 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-2.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-2.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-2.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-2.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 9 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-3.1 {1 {unmatched "["} {{} errors.tcl 62 error_badproc errors.tcl 33 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-3.2 {1 {unmatched "["} {{} errors.tcl 62 error_badproc errors.tcl 33 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-3.3 {1 {unmatched "["} {{} errors.tcl 62 error_badproc errors.tcl 33 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-3.4 {1 {unmatched "["} {{} errors.tcl 62 error_badproc errors.tcl 33 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-4.1 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-4.2 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-4.3 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-4.4 {1 bogus {{} errors.tcl 12 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-5.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-5.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-5.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-5.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 15 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-6.1 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-6.2 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-6.3 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-6.4 {1 {can't read "bogus": no such variable} {{} errors.tcl 18 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
+	err-1.1 {1 {invalid command name "bogus"} {error_generator errors.tcl 6 {} error_caller errors.tcl 44 {error_generator badcm...} test stacktrace.test 25 {error_caller badcmd c...} main stacktrace.test 24 test\ err-1.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-1.2 {1 {invalid command name "bogus"} {error_generator errors.tcl 6 {} error_caller errors.tcl 47 {error_generator badcm...} test stacktrace.test 25 {error_caller badcmd u...} main stacktrace.test 24 test\ err-1.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-1.3 {1 {invalid command name "bogus"} {error_generator errors.tcl 6 {} error_caller errors.tcl 50 {error_generator badcm...} test stacktrace.test 25 {error_caller badcmd e...} main stacktrace.test 24 test\ err-1.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-1.4 {1 {invalid command name "bogus"} {error_generator errors.tcl 6 {} error_caller {} 1 {error_generator badcm...} test stacktrace.test 25 {error_caller badcmd e...} main stacktrace.test 24 test\ err-1.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-2.1 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 9 {set bogus} error_caller errors.tcl 44 {error_generator badva...} test stacktrace.test 25 {error_caller badvar c...} main stacktrace.test 24 test\ err-2.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-2.2 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 9 {set bogus} error_caller errors.tcl 47 {error_generator badva...} test stacktrace.test 25 {error_caller badvar u...} main stacktrace.test 24 test\ err-2.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-2.3 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 9 {set bogus} error_caller errors.tcl 50 {error_generator badva...} test stacktrace.test 25 {error_caller badvar e...} main stacktrace.test 24 test\ err-2.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-2.4 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 9 {set bogus} error_caller {} 1 {error_generator badva...} test stacktrace.test 25 {error_caller badvar e...} main stacktrace.test 24 test\ err-2.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-3.1 {1 {unmatched "["} {error_generator errors.tcl 33 error_badproc error_generator errors.tcl 33 error_badproc error_caller errors.tcl 44 {error_generator badpr...} test stacktrace.test 25 {error_caller badproc ...} main stacktrace.test 24 test\ err-3.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-3.2 {1 {unmatched "["} {error_generator errors.tcl 33 error_badproc error_generator errors.tcl 33 error_badproc error_caller errors.tcl 47 {error_generator badpr...} test stacktrace.test 25 {error_caller badproc ...} main stacktrace.test 24 test\ err-3.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-3.3 {1 {unmatched "["} {error_generator errors.tcl 33 error_badproc error_generator errors.tcl 33 error_badproc error_caller errors.tcl 50 {error_generator badpr...} test stacktrace.test 25 {error_caller badproc ...} main stacktrace.test 24 test\ err-3.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-3.4 {1 {unmatched "["} {error_generator errors.tcl 33 error_badproc error_generator errors.tcl 33 error_badproc error_caller {} 1 {error_generator badpr...} test stacktrace.test 25 {error_caller badproc ...} main stacktrace.test 24 test\ err-3.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-4.1 {1 bogus {error_generator errors.tcl 12 {error bogus} error_caller errors.tcl 44 {error_generator error...} test stacktrace.test 25 {error_caller error ca...} main stacktrace.test 24 test\ err-4.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-4.2 {1 bogus {error_generator errors.tcl 12 {error bogus} error_caller errors.tcl 47 {error_generator error...} test stacktrace.test 25 {error_caller error up...} main stacktrace.test 24 test\ err-4.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-4.3 {1 bogus {error_generator errors.tcl 12 {error bogus} error_caller errors.tcl 50 {error_generator error...} test stacktrace.test 25 {error_caller error ev...} main stacktrace.test 24 test\ err-4.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-4.4 {1 bogus {error_generator errors.tcl 12 {error bogus} error_caller {} 1 {error_generator error...} test stacktrace.test 25 {error_caller error ev...} main stacktrace.test 24 test\ err-4.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-5.1 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 15 {} error_caller errors.tcl 44 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-5.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-5.2 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 15 {} error_caller errors.tcl 47 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-5.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-5.3 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 15 {} error_caller errors.tcl 50 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-5.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-5.4 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 15 {} error_caller {} 1 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-5.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-6.1 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 18 {} error_caller errors.tcl 44 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-6.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-6.2 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 18 {} error_caller errors.tcl 47 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-6.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-6.3 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 18 {} error_caller errors.tcl 50 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-6.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-6.4 {1 {can't read "bogus": no such variable} {error_generator errors.tcl 18 {} error_caller {} 1 {error_generator inter...} test stacktrace.test 25 {error_caller interpba...} main stacktrace.test 24 test\ err-6.4\ \{Stacktr... {} stacktrace.test 127 main}}
 	err-7.1 {1 {from dummyproc
-Can't load package dummy} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
+Can't load package dummy} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 44 {error_generator packa...} test stacktrace.test 25 {error_caller package ...} main stacktrace.test 24 test\ err-7.1\ \{Stacktr... {} stacktrace.test 127 main}}
 	err-7.2 {1 {from dummyproc
-Can't load package dummy} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
+Can't load package dummy} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 47 {error_generator packa...} test stacktrace.test 25 {error_caller package ...} main stacktrace.test 24 test\ err-7.2\ \{Stacktr... {} stacktrace.test 127 main}}
 	err-7.3 {1 {from dummyproc
-Can't load package dummy} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
+Can't load package dummy} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 50 {error_generator packa...} test stacktrace.test 25 {error_caller package ...} main stacktrace.test 24 test\ err-7.3\ \{Stacktr... {} stacktrace.test 127 main}}
 	err-7.4 {1 {from dummyproc
-Can't load package dummy} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 21 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-8.1 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-8.2 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-8.3 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-8.4 {1 {from dummyproc} {{} dummy.tcl 3 dummyproc dummy.tcl 6 {} errors.tcl 24 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-9.1 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 44 error_caller stacktrace.test 25}}
-	err-9.2 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 47 error_caller stacktrace.test 25}}
-	err-9.3 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 50 error_caller stacktrace.test 25}}
-	err-9.4 {1 {Can't load package bogus} {{} errors.tcl 27 error_generator errors.tcl 53 error_caller stacktrace.test 25}}
-	err-10.1 {1 failure {{} errors.tcl 44 error_caller stacktrace.test 25}}
-	err-10.2 {1 failure {{} errors.tcl 47 error_caller stacktrace.test 25}}
-	err-10.3 {1 failure {{} errors.tcl 50 error_caller stacktrace.test 25}}
-	err-10.4 {1 failure {{} errors.tcl 53 error_caller stacktrace.test 25}}
+Can't load package dummy} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller {} 1 {error_generator packa...} test stacktrace.test 25 {error_caller package ...} main stacktrace.test 24 test\ err-7.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-8.1 {1 {from dummyproc} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 44 {error_generator sourc...} test stacktrace.test 25 {error_caller source c...} main stacktrace.test 24 test\ err-8.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-8.2 {1 {from dummyproc} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 47 {error_generator sourc...} test stacktrace.test 25 {error_caller source u...} main stacktrace.test 24 test\ err-8.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-8.3 {1 {from dummyproc} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller errors.tcl 50 {error_generator sourc...} test stacktrace.test 25 {error_caller source e...} main stacktrace.test 24 test\ err-8.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-8.4 {1 {from dummyproc} {dummyproc dummy.tcl 3 error\ \{from\ dummyproc... error_generator dummy.tcl 6 dummyproc error_caller {} 1 {error_generator sourc...} test stacktrace.test 25 {error_caller source e...} main stacktrace.test 24 test\ err-8.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-9.1 {1 {Can't load package bogus} {error_generator errors.tcl 27 {package require bogus...} error_caller errors.tcl 44 {error_generator badpa...} test stacktrace.test 25 {error_caller badpacka...} main stacktrace.test 24 test\ err-9.1\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-9.2 {1 {Can't load package bogus} {error_generator errors.tcl 27 {package require bogus...} error_caller errors.tcl 47 {error_generator badpa...} test stacktrace.test 25 {error_caller badpacka...} main stacktrace.test 24 test\ err-9.2\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-9.3 {1 {Can't load package bogus} {error_generator errors.tcl 27 {package require bogus...} error_caller errors.tcl 50 {error_generator badpa...} test stacktrace.test 25 {error_caller badpacka...} main stacktrace.test 24 test\ err-9.3\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-9.4 {1 {Can't load package bogus} {error_generator errors.tcl 27 {package require bogus...} error_caller {} 1 {error_generator badpa...} test stacktrace.test 25 {error_caller badpacka...} main stacktrace.test 24 test\ err-9.4\ \{Stacktr... {} stacktrace.test 127 main}}
+	err-10.1 {1 failure {error_caller errors.tcl 44 {error_generator retur...} test stacktrace.test 25 {error_caller returnco...} main stacktrace.test 24 test\ err-10.1\ \{Stackt... {} stacktrace.test 127 main}}
+	err-10.2 {1 failure {error_caller errors.tcl 47 {error_generator retur...} test stacktrace.test 25 {error_caller returnco...} main stacktrace.test 24 test\ err-10.2\ \{Stackt... {} stacktrace.test 127 main}}
+	err-10.3 {1 failure {error_caller errors.tcl 50 {error_generator retur...} test stacktrace.test 25 {error_caller returnco...} main stacktrace.test 24 test\ err-10.3\ \{Stackt... {} stacktrace.test 127 main}}
+	err-10.4 {1 failure {error_caller {} 1 {error_generator retur...} test stacktrace.test 25 {error_caller returnco...} main stacktrace.test 24 test\ err-10.4\ \{Stackt... {} stacktrace.test 127 main}}
 }
 
 # Set this to output expected results to stderr

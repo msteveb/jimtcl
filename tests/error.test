@@ -11,12 +11,12 @@ proc b {} {
 	}
 }
 
-test error-1.1 "Rethrow caught error" {
+test error-1.1 {Rethrow caught error} -body {
 	set rc [catch {b} msg]
 	#puts stderr "error-1.1\n[errorInfo $msg]\n"
 
 	list $rc $msg [basename-stacktrace [info stacktrace]]
-} {1 {error thrown from a} {{} error.test 4 a error.test 8 b error.test 15}}
+} -result {1 {error thrown from a} {a error.test 4 error\ \{error\ thrown\ f... b error.test 8 a test error.test 15 b {} error.test 14 test\ error-1.1\ \{Rethr...}}
 
 proc c {} {
 	a
@@ -30,22 +30,22 @@ proc e {} {
 	d
 }
 
-test error-1.2 "Modify stacktrace" {
+test error-1.2 {Modify stacktrace} -body {
 	set rc [catch {e} msg]
 	set st [info stacktrace]
 	# Now elide one entry from the stacktrace
 	#puts [errorInfo $msg]
 	set newst {}
-	foreach {p f l} $st {
+	foreach {p f l cmd} $st {
 		if {$p ne "d"} {
-			lappend newst $p $f $l
+			lappend newst $p $f $l $cmd
 		}
 	}
 	# Now rethrow with the new stack
 	set rc [catch {error $msg $newst} msg]
 	#puts [errorInfo $msg]
 	basename-stacktrace [info stacktrace]
-} {{} error.test 4 a error.test 22 c error.test 26 e error.test 34}
+} -result {a error.test 4 error\ \{error\ thrown\ f... c error.test 22 a e error.test 30 d test error.test 34 e {} error.test 33 test\ error-1.2\ \{Modif...}
 
 # Package should be able to invoke exit, which should exit if not caught
 test error-2.1 "Exit from package" {

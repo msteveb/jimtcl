@@ -78,11 +78,20 @@ proc skiptest {{msg {}}} {
 # Also convert proc name ::a into a for compatibility between Tcl and Jim
 proc basename-stacktrace {stacktrace} {
 	set result {}
-	foreach {p f l} $stacktrace {
-		if {[string match ::* $p]} {
+	foreach {p f l cmd} $stacktrace {
+		if {[string match *tcltest-* $f]} {
+			#break
+		}
+		if {$p eq "::tcltest::RunTest"} {
+			set p test
+		} elseif {[string match ::* $p]} {
 			set p [string range $p 2 end]
 		}
-		lappend result $p [file tail $f] $l
+		set cmd [string map [list \n \\n] $cmd]
+		if {[string length $cmd] > 20} {
+			set cmd [string range $cmd 0 20]...
+		}
+		lappend result $p [file tail $f] $l $cmd
 	}
 	return $result
 }
@@ -101,28 +110,23 @@ if {[catch {info version}]} {
 	proc testreport {} {
 		::tcltest::cleanupTests
 	}
-	proc stacktrace {{skip 0}} {
-		set trace {}
-		# Need to skip info frame 0 and this (stacktrace) level
-		incr skip 1
-		set maxlevel [info frame]
-		for {set level $skip} {$level < $maxlevel} {incr level} {
+	proc stacktrace {{skip 0} {last 0}} {
+		set frames {}
+		incr skip
+		for {set level $skip} {$level < [info frame] - $last} {incr level} {
 			set frame [info frame -$level]
-			if {[dict get $frame type] eq "source" && [dict exists $frame proc]} {
-				set proc [dict get $frame proc]
-				# make it look like it is running under Jim tcltest
-				if {$proc eq "::tcltest::RunTest"} {
-					set proc test
-				} else {
-					set proc [string range $proc 2 end]
-				}
-				lappend trace $proc [dict get $frame file] [dict get $frame line]
-				if {$proc eq "test"} {
-					break
-				}
+			puts $frame
+			if {[dict get $frame type] ne "source"} {
+				continue
 			}
+			if {[dict exists $frame proc]} {
+				set proc [dict get $frame proc]
+			} else {
+				set proc ""
+			}
+			lappend frames $proc [dict get $frame file] [dict get $frame line] [dict get $frame cmd]
 		}
-		return $trace
+		return $frames
 	}
 	return
 }
