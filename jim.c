@@ -5700,6 +5700,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_SetVariableStrWithStr(i, "tcl_platform(bootstrap)", "0");
     Jim_SetVariableStr(i, "tcl_platform(pointerSize)", Jim_NewIntObj(i, sizeof(void *)));
     Jim_SetVariableStr(i, "tcl_platform(wordSize)", Jim_NewIntObj(i, sizeof(jim_wide)));
+    Jim_SetVariableStr(i, "tcl_platform(stackFormat)", Jim_NewIntObj(i, 4));
 
     return i;
 }
