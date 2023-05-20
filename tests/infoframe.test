@@ -1,8 +1,8 @@
 source [file dirname [info script]]/testing.tcl
 
-proc a {n} {
+proc a {n args} {
 	if {$n eq "trace"} {
-		return [basename-stacktrace [stacktrace]]
+		return [basename-stacktrace [stacktrace {*}$args]]
 	}
 	set frame [info frame $n]
 	if {![dict exists $frame proc]} {
@@ -11,12 +11,12 @@ proc a {n} {
 	basename-stacktrace [list [dict get $frame proc] [file tail [dict get $frame file]] [dict get $frame line] [dict get $frame cmd]]
 }
 
-proc b {n} {
-	a $n
+proc b {args} {
+	a {*}$args
 }
 
-proc c {n} {
-	b $n
+proc c {args} {
+	b {*}$args
 }
 
 # --- Don't change line numbers above
@@ -40,5 +40,11 @@ test info-frame-1.4 {Caller of Caller} -body {
 test stacktrace-1.1 {Full stack trace} -body {
 	c trace
 } -result {a infoframe.test 5 stacktrace b infoframe.test 15 {a trace} c infoframe.test 19 {b trace} test infoframe.test 41 {c trace} {} infoframe.test 40 test\ stacktrace-1.1\ \{...}
+
+test stacktrace-1.2 {Stack trace with limited depth} -body {
+	# This will limit the stack trace to omit "this" level and below
+	c trace 0 [info frame]
+} -result {a infoframe.test 5 {stacktrace 0 2} b infoframe.test 15 {a trace 0 2} c infoframe.test 19 {b trace 0 2}}
+
 
 testreport

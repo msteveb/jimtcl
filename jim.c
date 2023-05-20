@@ -13721,11 +13721,17 @@ static int Jim_ContinueCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 static int Jim_StacktraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *listObj;
-    long skip = 0;
     int i;
+    jim_wide skip = 0;
+    jim_wide last = 0;
 
     if (argc > 1) {
-        if (Jim_GetLong(interp, argv[1], &skip) != JIM_OK) {
+        if (Jim_GetWideExpr(interp, argv[1], &skip) != JIM_OK) {
+            return JIM_ERR;
+        }
+    }
+    if (argc > 2) {
+        if (Jim_GetWideExpr(interp, argv[2], &last) != JIM_OK) {
             return JIM_ERR;
         }
     }
@@ -13733,9 +13739,10 @@ static int Jim_StacktraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
     listObj = Jim_NewListObj(interp, NULL, 0);
     for (i = skip; i <= interp->procLevel; i++) {
         Jim_EvalFrame *frame = JimGetEvalFrameByProcLevel(interp, -i);
-        if (frame) {
-            JimAddStackFrame(interp, frame, listObj);
+        if (frame->procLevel < last) {
+            break;
         }
+        JimAddStackFrame(interp, frame, listObj);
     }
     Jim_SetResult(interp, listObj);
     return JIM_OK;
