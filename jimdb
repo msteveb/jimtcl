@@ -375,13 +375,13 @@ proc debugger::_db {type file line result name arglist} {
             set s(laststop) $file:$line
             set s(prevname) $name
 
-            # Build the active stacktrace
+            # Build the active stacktrace, omitting internal frames
             set s(stacktrace) {}
-            foreach level [range 1 [info level]] {
-                set frame [info frame $level]
-                set f [dict get $frame file]
-                set l [dict get $frame line]
-                lassign [info level $level] p pargs
+            foreach {p f l cmd} [stacktrace 1] {
+                if {[lindex $cmd 0] eq "debugger::_db"} {
+                    continue
+                }
+                lassign $cmd p pargs
                 lappend s(stacktrace) [list $f $l $p $pargs]
             }
             lappend s(stacktrace) $s(active)
