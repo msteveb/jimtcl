@@ -126,7 +126,7 @@ extern "C" {
  * ---------------------------------------------------------------------------*/
 
 /* Increment this every time the public ABI changes */
-#define JIM_ABI_VERSION 101
+#define JIM_ABI_VERSION 102
 
 #define JIM_OK 0
 #define JIM_ERR 1
@@ -440,8 +440,6 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *next; /* Callframes are in a linked list */
     Jim_Obj *nsObj;             /* Namespace for this proc call frame */
-    Jim_Obj *unused_fileNameObj;
-    int unused_line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
     struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
@@ -540,14 +538,12 @@ typedef struct Jim_PrngState {
  * ---------------------------------------------------------------------------*/
 typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
-    int unused_errorLine; /* Error line where an error occurred. */
-    Jim_Obj *unused_errorFileNameObj; /* Error file where an error occurred. */
-    int unused_addStackTrace;
     int maxCallFrameDepth; /* Used for infinite loop detection. */
     int maxEvalDepth; /* Used for infinite loop detection. */
     int evalDepth;  /* Current eval depth */
     int returnCode; /* Completion code to return on JIM_RETURN. */
     int returnLevel; /* Current level of 'return -level' */
+    int procLevel;   /* Total depth of proc stack, including uplevel calls */
     int exitCode; /* Code to return to the OS on JIM_EXIT. */
     long id; /* Hold unique id for various purposes */
     int signal_level; /* A nesting level of catch -signal */
@@ -568,11 +564,8 @@ typedef struct Jim_Interp {
     int safeexpr; /* Set when evaluating a "safe" expression, no var subst or command eval */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
-    Jim_Obj *unused_currentScriptObj; /* Script currently in execution. */
     Jim_EvalFrame topEvalFrame;  /* dummy top evaluation frame */
     Jim_EvalFrame *evalFrame;  /* evaluation stack */
-    int procLevel;
-    Jim_Obj * const *unused_argv;
     Jim_Obj *nullScriptObj; /* script representation of an empty string */
     Jim_Obj *emptyObj; /* Shared empty string object. */
     Jim_Obj *trueObj; /* Shared true int object. */
@@ -591,7 +584,7 @@ typedef struct Jim_Interp {
     Jim_Obj *defer; /* "jim::defer" */
     Jim_Obj *traceCmdObj; /* If non-null, execution trace command to invoke */
     int unknown_called; /* The unknown command has been invoked */
-    int errorFlag; /* Set if an error occurred during execution. */
+    int hasErrorStackTrace; /* If a stack trace has been set due to an error during execution. */
     void *cmdPrivData; /* Used to pass the private data pointer to
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */

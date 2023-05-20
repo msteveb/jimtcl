@@ -5958,12 +5958,12 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
     Jim_IncrRefCount(stackTraceObj);
     Jim_DecrRefCount(interp, interp->stackTrace);
     interp->stackTrace = stackTraceObj;
-    interp->errorFlag = 1;
+    interp->hasErrorStackTrace = 1;
 }
 
 static void JimSetErrorStack(Jim_Interp *interp)
 {
-    if (!interp->errorFlag) {
+    if (!interp->hasErrorStackTrace) {
         int i;
         Jim_Obj *stackTrace = Jim_NewListObj(interp, NULL, 0);
 
@@ -11106,7 +11106,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     JimPushEvalFrame(interp, &frame, scriptObjPtr);
 
     /* Collect a new error stack trace if an error occurs */
-    interp->errorFlag = 0;
+    interp->hasErrorStackTrace = 0;
     argv = sargv;
 
     /* Execute every command sequentially until the end of the script
@@ -13720,7 +13720,7 @@ static int Jim_ContinueCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
 /* [stacktrace] */
 static int Jim_StacktraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
+    Jim_Obj *listObj;
     long skip = 0;
     int i;
 
@@ -13730,6 +13730,7 @@ static int Jim_StacktraceCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
         }
     }
 
+    listObj = Jim_NewListObj(interp, NULL, 0);
     for (i = skip; i <= interp->procLevel; i++) {
         Jim_EvalFrame *frame = JimGetEvalFrameByProcLevel(interp, -i);
         if (frame) {
@@ -14748,7 +14749,7 @@ wrongargs:
     else {
         exitCode = Jim_EvalObj(interp, argv[idx]);
         /* Once caught, a new error will set a stack trace again */
-        interp->errorFlag = 0;
+        interp->hasErrorStackTrace = 0;
     }
     interp->signal_level -= sig;
 
