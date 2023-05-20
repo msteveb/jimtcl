@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.82 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.82+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,6 +52,12 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 RECENT CHANGES
 --------------
+Changes since 0.82
+~~~~~~~~~~~~~~~~~~
+1. `info frame` now only returns 'proc' levels
+2. `stacktrace` is now a builtin command
+3. The stack trace on error now includes the full stack trace, not just back to where it was caught
+
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `try` now supports trap to match on errorcode
@@ -2989,7 +2995,7 @@ The legal +'option'+'s (which may be abbreviated) are:
 
 +*info stacktrace*+::
     After an error is caught with `catch`, returns the stack trace as a list
-    of +{procedure filename line \...}+.
+    of +{procedure filename line cmd \...}+.
 
 +*info statics* 'procname'+::
     Returns a dictionary of the static variables of procedure
@@ -4230,8 +4236,8 @@ stacktrace
 
 +*stacktrace*+
 
-Returns a live stack trace as a list of +proc file line proc file line \...+.
-Iteratively uses `info frame` to create the stack trace. This stack trace is in the
+Returns a live stack trace as a list of +proc file line cmd proc file line cmd \...+.
+uses the same information as `info frame` to create the stack trace. This stack trace is in the
 same form as produced by `catch` and `info stacktrace`
 
 See also `stackdump`.
