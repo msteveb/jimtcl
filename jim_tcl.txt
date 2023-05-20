@@ -55,6 +55,9 @@ RECENT CHANGES
 Changes since 0.82
 ~~~~~~~~~~~~~~~~~~
 1. Multi-level `break` and `continue` are now supported
+2. `info frame` now only returns 'proc' levels
+3. `stacktrace` is now a builtin command
+4. The stack trace on error now includes the full stack trace, not just back to where it was caught
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3010,7 +3013,7 @@ The legal +'option'+'s (which may be abbreviated) are:
 
 +*info stacktrace*+::
     After an error is caught with `catch`, returns the stack trace as a list
-    of +{procedure filename line \...}+.
+    of +{procedure filename line cmd \...}+.
 
 +*info statics* 'procname'+::
     Returns a dictionary of the static variables of procedure
@@ -4251,8 +4254,8 @@ stacktrace
 
 +*stacktrace*+
 
-Returns a live stack trace as a list of +proc file line proc file line \...+.
-Iteratively uses `info frame` to create the stack trace. This stack trace is in the
+Returns a live stack trace as a list of +proc file line cmd proc file line cmd \...+.
+uses the same information as `info frame` to create the stack trace. This stack trace is in the
 same form as produced by `catch` and `info stacktrace`
 
 See also `stackdump`.
@@ -5760,14 +5763,16 @@ The following global variables are set by jimsh.
     example of the contents of this array.
 
 ----
+    tcl_platform(bootstrap)     = 0
     tcl_platform(byteOrder)     = littleEndian
     tcl_platform(engine)        = Jim
-    tcl_platform(os)            = Darwin
+    tcl_platform(os)            = darwin
+    tcl_platform(pathSeparator) = :
     tcl_platform(platform)      = unix
     tcl_platform(pointerSize)   = 8
+    tcl_platform(stackFormat)   = 4
     tcl_platform(threaded)      = 0
     tcl_platform(wordSize)      = 8
-    tcl_platform(pathSeparator) = :
 ----
 
 +*argv0*+::
