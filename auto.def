@@ -208,9 +208,9 @@ cc-check-types "long long"
 cc-check-sizeof int
 
 # Default optimisation
-define-append AS_CPPFLAGS -O2
-
-define-append AS_CPPFLAGS -D_GNU_SOURCE
+define-append AS_CPPFLAGS -O2 -Wall -D_GNU_SOURCE
+define-append AS_CFLAGS -I.
+define-append AS_CXXFLAGS -I.
 
 # check, but don't add to -cflags
 cc-with {} {

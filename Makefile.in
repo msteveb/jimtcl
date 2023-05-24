@@ -40,9 +40,15 @@ SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS@
 @else
 SHOBJ_LDFLAGS ?= @SHOBJ_LDFLAGS_R@
 @endif
-AS_CFLAGS = @AS_CFLAGS@
-AS_CXXFLAGS = @AS_CFLAGS@
-AS_CPPFLAGS = @AS_CPPFLAGS@
+@if [get-define srcdir] ne "."
+VPATH := @srcdir@
+AS_CFLAGS = -I@srcdir@
+AS_CXXFLAGS = -I@srcdir@
+@endif
+
+AS_CFLAGS += @AS_CFLAGS@
+AS_CXXFLAGS += @AS_CFLAGS@
+AS_CPPFLAGS += @AS_CPPFLAGS@
 CFLAGS ?= @CFLAGS@
 CXXFLAGS ?= @CXXFLAGS@
 LDFLAGS = @LDFLAGS@
@@ -52,12 +58,6 @@ exec_prefix ?= @exec_prefix@
 prefix ?= @prefix@
 docdir = @docdir@
 srcdir := @srcdir@
-
-AS_CPPFLAGS += -Wall -I.
-@if [get-define srcdir] ne "."
-AS_CPPFLAGS += -I@srcdir@
-VPATH := @srcdir@
-@endif
 
 @if JIM_STATICLIB
 LIBJIM := libjim.a
