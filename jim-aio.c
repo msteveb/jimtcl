@@ -1585,6 +1585,9 @@ static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
 
+    if (aio_flush(interp, af) != JIM_OK) {
+        return JIM_ERR;
+    }
     fsync(af->fd);
     return JIM_OK;
 }
