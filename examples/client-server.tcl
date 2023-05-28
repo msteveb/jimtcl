@@ -38,11 +38,9 @@ if {[os.fork] == 0} {
 	$f readable [list onread $f]
 
 	alarm 10
-	catch -signal {
-		verbose "child: in event loop"
-		vwait done
-		verbose "child: done event loop"
-	}
+	verbose "child: in event loop"
+	vwait -signal done
+	verbose "child: done event loop"
 	alarm 0
 	$f close
 	exit 0
@@ -55,9 +53,9 @@ set done 0
 set f [socket stream.server 0.0.0.0:9876]
 
 proc server_onread {f} {
-	verbose "parent: onread (server) got connection on $f"
+	verbose "parent: onread (server) got connection on [$f filename]"
 	set cfd [$f accept]
-	verbose "parent: onread accepted $cfd"
+	verbose "parent: onread accepted [$cfd filename]"
 
 	verbose "parent: read request '[string trim [$cfd gets]]'"
 
@@ -72,9 +70,7 @@ proc server_onread {f} {
 $f readable [list server_onread $f]
 
 alarm 10
-catch -signal {
-	vwait done
-}
+vwait -signal done
 alarm 0
 $f close
 

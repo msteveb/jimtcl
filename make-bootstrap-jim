@@ -101,6 +101,7 @@ cat <<EOF
 #define HAVE_DIRENT_H
 #define HAVE_UNISTD_H
 #define HAVE_UMASK
+#define HAVE_PIPE
 #endif
 EOF
 

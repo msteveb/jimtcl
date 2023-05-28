@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "jimautoconf.h"
 #include <jim-subcmd.h>

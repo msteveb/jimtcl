@@ -129,24 +129,19 @@ static void Jim_RemoveTrailingNewline(Jim_Obj *objPtr)
 static int JimAppendStreamToString(Jim_Interp *interp, int fd, Jim_Obj *strObj)
 {
     char buf[256];
-    FILE *fh = fdopen(fd, "r");
     int ret = 0;
 
-    if (fh == NULL) {
-        return -1;
-    }
-
     while (1) {
-        int retval = fread(buf, 1, sizeof(buf), fh);
+        int retval = read(fd, buf, sizeof(buf));
         if (retval > 0) {
             ret = 1;
             Jim_AppendString(interp, strObj, buf, retval);
         }
-        if (retval != sizeof(buf)) {
+        if (retval <= 0) {
             break;
         }
     }
-    fclose(fh);
+    close(fd);
     return ret;
 }
 
@@ -441,7 +436,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
     if (errorId != -1) {
         int ret;
-        lseek(errorId, 0, SEEK_SET);
+        Jim_Lseek(errorId, 0, SEEK_SET);
         ret = JimAppendStreamToString(interp, errorId, errStrObj);
         if (ret < 0) {
             Jim_SetResultErrno(interp, "error reading from error pipe");
@@ -872,7 +867,7 @@ badargs:
                 close(inputId);
                 goto error;
             }
-            lseek(inputId, 0L, SEEK_SET);
+            Jim_Lseek(inputId, 0L, SEEK_SET);
         }
         else if (inputFile == FILE_HANDLE) {
             int fd = JimGetChannelFd(interp, input);

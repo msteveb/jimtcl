@@ -11539,39 +11539,52 @@ int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename)
 }
 
 #include <sys/stat.h>
+#include "jimiocompat.h"
+
+/**
+ * Reads the text file contents into an object and returns with a zero ref count.
+ * Returns NULL and sets an error if can't read the file.
+ */
+static Jim_Obj *JimReadTextFile(Jim_Interp *interp, const char *filename)
+{
+    jim_stat_t sb;
+    int fd;
+    char *buf;
+    int readlen;
+
+    if (Jim_Stat(filename, &sb) == -1 || (fd = open(filename, O_RDONLY | O_TEXT, 0666)) < 0) {
+        Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
+        return NULL;
+    }
+    buf = Jim_Alloc(sb.st_size + 1);
+    readlen = read(fd, buf, sb.st_size);
+    close(fd);
+    if (readlen < 0) {
+        Jim_Free(buf);
+        Jim_SetResultFormatted(interp, "failed to load file \"%s\": %s", filename, strerror(errno));
+        return NULL;
+    }
+    else {
+        Jim_Obj *objPtr;
+        buf[readlen] = 0;
+
+        objPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
+
+        return objPtr;
+    }
+}
+
 
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
-    FILE *fp;
-    char *buf;
     Jim_Obj *scriptObjPtr;
-    struct stat sb;
     int retcode;
-    int readlen;
 
-    if (stat(filename, &sb) != 0 || (fp = fopen(filename, "rt")) == NULL) {
-        Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
+    scriptObjPtr = JimReadTextFile(interp, filename);
+    if (!scriptObjPtr) {
         return JIM_ERR;
     }
-    if (sb.st_size == 0) {
-        fclose(fp);
-        return JIM_OK;
-    }
-
-    buf = Jim_Alloc(sb.st_size + 1);
-    readlen = fread(buf, 1, sb.st_size, fp);
-    if (ferror(fp)) {
-        fclose(fp);
-        Jim_Free(buf);
-        Jim_SetResultFormatted(interp, "failed to load file \"%s\": %s", filename, strerror(errno));
-        return JIM_ERR;
-    }
-    fclose(fp);
-    buf[readlen] = 0;
-
-    scriptObjPtr = Jim_NewStringObjNoAlloc(interp, buf, readlen);
     JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), 1);
-    Jim_IncrRefCount(scriptObjPtr);
 
     retcode = Jim_EvalObj(interp, scriptObjPtr);
 
@@ -11583,8 +11596,6 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
             interp->returnLevel = 0;
         }
     }
-
-    Jim_DecrRefCount(interp, scriptObjPtr);
 
     return retcode;
 }
@@ -11806,7 +11817,7 @@ static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
 
     Jim_IncrRefCount(keyObj);
 
-    if (type != JIM_CMDLIST_CHANNELS || Jim_AioFilehandle(interp, keyObj)) {
+    if (type != JIM_CMDLIST_CHANNELS || Jim_AioFilehandle(interp, keyObj) >= 0) {
         int match = 1;
         if (patternObj) {
             int plen, slen;
@@ -16677,10 +16688,9 @@ int Jim_PackageProvide(Jim_Interp *interp, const char *name, const char *ver, in
 }
 #endif
 #ifndef jim_ext_aio
-FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *fhObj)
+int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *fhObj)
 {
-    Jim_SetResultString(interp, "aio not enabled", -1);
-    return NULL;
+    return -1;
 }
 #endif
 

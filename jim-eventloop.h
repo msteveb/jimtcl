@@ -74,6 +74,8 @@ JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
         Jim_EventFinalizerProc *finalizerProc);
 JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
 JIM_EXPORT void *Jim_FindFileHandler(Jim_Interp *interp, int fd, int mask);
+/* This should probably be in jimiocompat.h */
+JIM_EXPORT int Jim_ReadableTimeout(int fd, long ms);
 
 #define JIM_FILE_EVENTS 1
 #define JIM_TIME_EVENTS 2
