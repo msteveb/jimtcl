@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 
 #include "jim.h"
 #include "jimautoconf.h"

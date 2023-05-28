@@ -129,6 +129,8 @@ test socket-1.6 {pipe} -body {
 
 test socket-1.7 {socketpair} -body {
 	lassign [socket pair] s1 s2
+	$s1 buffering line
+	$s2 buffering line
 	stdout flush
 	if {[os.fork] == 0} {
 		$s1 close
@@ -338,20 +340,18 @@ set s [socket stream.server 0]
 if {[os.fork] == 0} {
 	# child
 	set c [socket stream [socket-connect-addr $s]]
-	# Note: We have to disable buffering here, otherwise
-	# when we read data in $c readable {} we many leave buffered
-	# data and readable won't retrigger.
-	$c buffering none
 	$s close
+	$c ndelay 1
 	$c readable {
-		# when we read we need to also read any pending data,
-		# otherwise readable won't retrigger
-		set buf [$c read 1]
-		if {[string length $buf] == 0} {
+		# read everything available (non-blocking read)
+		set buf [$c read]
+		if {[string length $buf]} {
+			$c puts -nonewline $buf
+			$c flush
+		}
+		if {[$c eof]} {
 			incr readdone
 			$c close
-		} else {
-			$c puts -nonewline $buf
 		}
 	}
 	vwait readdone
@@ -365,6 +365,8 @@ defer {
 }
 $s close
 
+$cs buffering line
+
 # At this point, $cs is the server connection to the client in the child process
 
 test eventloop-1.1 {puts/gets} {
@@ -372,13 +374,66 @@ test eventloop-1.1 {puts/gets} {
 	$cs gets
 } hello
 
-test eventloop-1.2 {puts/gets} {
+test eventloop-1.2 {puts/read} {
 	$cs puts -nonewline again
+	$cs flush
 	lmap p [range 5] {
 		set c [$cs read 1]
 		set c
 	}
 } {a g a i n}
+
+test eventloop-1.3 {gets with no timeout and multiple newlines} {
+	$cs puts a\nb\nc\nd\ne
+	lmap p [range 5] {
+		$cs gets buf
+		set buf
+	}
+} {a b c d e}
+
+test eventloop-1.4 {gets with timeout and multiple newlines} {
+	$cs timeout 100
+	$cs puts a\nb\nc\nd\ne
+	lmap p [range 6] {
+		set rc [$cs gets buf]
+		set buf
+	}
+} {a b c d e {}}
+
+test eventloop-1.5 {gets with timeout and incomplete line} {
+	$cs timeout 100
+	$cs puts -nonewline first
+	list [$cs gets buf] $buf
+} {-1 {}}
+
+test eventloop-1.6 {gets with timeout and complete line} {
+	$cs timeout 100
+	$cs puts second
+	list [$cs gets buf] $buf
+} {11 firstsecond}
+
+test eventloop-1.7 {gets when read with extra data} {
+	$cs timeout 100
+	$cs puts -nonewline abcde
+	$cs flush
+	# This won't get get a line 
+	$cs gets line
+	# now read should read the data
+	set data [$cs read -nonewline]
+	list $line $data
+} {{} abcde}
+
+test eventloop-1.7 {read with timeout and no data} {
+	$cs timeout 100
+	$cs read
+} {}
+
+test eventloop-1.6 {read with timeout and data} {
+	$cs timeout 100
+	$cs puts -nonewline data
+	$cs flush
+	$cs read
+} {data}
 
 test sockopt-1.1 {sockopt} -body {
 	lsort [dict keys [$cs sockopt]]

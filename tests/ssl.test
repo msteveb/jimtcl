@@ -17,16 +17,16 @@ if {[os.fork] == 0} {
 	# child
 	set c [[socket stream 127.0.0.1:1443] ssl]
 	$s close
+	$c ndelay 1
 	sleep 0.25
 	$c readable {
-		# when we read we need to also read any pending data,
-		# otherwise readable won't retrigger
-		set buf [$c read -pending]
-		if {[string length $buf] == 0} {
+		# read everything available and echo it back
+		set buf [$c read]
+		$c puts -nonewline $buf
+		$c flush
+		if {[$c eof]} {
 			incr ssldone
 			$c close
-		} else {
-			$c puts -nonewline $buf
 		}
 	}
 	vwait ssldone
@@ -42,6 +42,7 @@ defer {
 }
 
 # At this point, $cs is the server connection to the client in the child process
+$cs buffering line
 
 test ssl-1.1 {puts/gets} {
 	$cs puts hello
@@ -50,6 +51,7 @@ test ssl-1.1 {puts/gets} {
 
 test ssl-1.2 {puts/gets} {
 	$cs puts -nonewline again
+	$cs flush
 	lmap p [range 5] {
 		set c [$cs read 1]
 		set c

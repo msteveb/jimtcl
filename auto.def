@@ -307,9 +307,8 @@ if {[get-define _FILE_OFFSET_BITS] != 64 || ![cc-check-functions stat64]} {
     cc-check-functions fstat lstat
 } else {
     # But perhaps some 32 bit systems still require explicit use of the 64 bit versions
-    cc-check-functions fstat64 lstat64
+    cc-check-functions fstat64 lstat64 lseek64
 }
-cc-check-functions fseeko ftello
 
 define TCL_LIBRARY [get-define libdir]/jim
 

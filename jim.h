@@ -71,7 +71,6 @@ extern "C" {
 
 #include <time.h>
 #include <limits.h>
-#include <stdio.h>  /* for the FILE typedef definition */
 #include <stdlib.h> /* In order to export the Jim_Free() macro */
 #include <stdarg.h> /* In order to get type va_list */
 
@@ -975,7 +974,7 @@ JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
 JIM_EXPORT void Jim_FreeLoadHandles(Jim_Interp *interp);
 
 /* jim-aio.c */
-JIM_EXPORT FILE *Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
+JIM_EXPORT int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 
 /* type inspection - avoid where possible */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);

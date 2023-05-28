@@ -47,11 +47,11 @@ if {[info commands interp] eq ""} {
 				puts [format "%16s:   --- error ($msg)" $script]
 				incr total(fail)
 			} elseif {[info return $opts(-code)] eq "exit"} {
-				# if the test explicitly called exit 99,
+				# if the test explicitly called exit 98 or 99,
 				# it must be from a child process via os.fork, so
-				# silently exit
-				if {$msg eq "99"} {
-					exit 0
+				# silently exit with that return code
+				if {$msg in {98 99}} {
+					exit $msg
 				}
 			}
 
