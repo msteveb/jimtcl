@@ -700,12 +700,12 @@ static int file_stat(Jim_Interp *interp, Jim_Obj *filename, jim_stat_t *sb)
     return JIM_OK;
 }
 
-#ifdef HAVE_LSTAT
+#ifdef Jim_LinkStat
 static int file_lstat(Jim_Interp *interp, Jim_Obj *filename, jim_stat_t *sb)
 {
     const char *path = Jim_String(filename);
 
-    if (lstat(path, sb) == -1) {
+    if (Jim_LinkStat(path, sb) == -1) {
         Jim_SetResultFormatted(interp, "could not read \"%#s\": %s", filename, strerror(errno));
         return JIM_ERR;
     }
@@ -870,7 +870,7 @@ static int file_cmd_type(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-#ifdef HAVE_LSTAT
+#ifdef Jim_LinkStat
 static int file_cmd_lstat(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     jim_stat_t sb;

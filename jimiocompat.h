@@ -70,9 +70,25 @@ int Jim_OpenForRead(const char *filename);
     #define Jim_FileStat _fstat64
 
 #else
-    typedef struct stat jim_stat_t;
-    #define Jim_Stat stat
-    #define Jim_FileStat fstat
+    #if defined(HAVE_STAT64)
+        typedef struct stat64 jim_stat_t;
+        #define Jim_Stat stat64
+        #if defined(HAVE_FSTAT64)
+            #define Jim_FileStat fstat64
+        #endif
+        #if defined(HAVE_LSTAT64)
+            #define Jim_LinkStat lstat64
+        #endif
+    #else
+        typedef struct stat jim_stat_t;
+        #define Jim_Stat stat
+        #if defined(HAVE_FSTAT)
+            #define Jim_FileStat fstat
+        #endif
+        #if defined(HAVE_LSTAT)
+            #define Jim_LinkStat lstat
+        #endif
+    #endif
 
     #if defined(HAVE_UNISTD_H)
         #include <unistd.h>

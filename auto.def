@@ -257,7 +257,7 @@ if {[cc-check-function-in-lib socket socket]} {
     define-append LDLIBS [get-define lib_socket]
 }
 
-cc-check-functions ualarm lstat fork system select execvpe
+cc-check-functions ualarm fork system select execvpe
 cc-check-functions geteuid mkstemp isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
@@ -301,6 +301,14 @@ cc-with {-includes fcntl.h} {
 }
 
 cc-check-lfs
+
+if {[get-define _FILE_OFFSET_BITS] != 64 || ![cc-check-functions stat64]} {
+    # Modern systems and really old systems have plain stat, fstat, lstat
+    cc-check-functions fstat lstat
+} else {
+    # But perhaps some 32 bit systems still require explicit use of the 64 bit versions
+    cc-check-functions fstat64 lstat64
+}
 cc-check-functions fseeko ftello
 
 define TCL_LIBRARY [get-define libdir]/jim
