@@ -26,7 +26,7 @@ if {[info commands interp] eq ""} {
 	foreach script [lsort [glob $testdir/*.test]] {
 		set ::argv0 $script
 
-		if {[file tail $script] in {signal.test exec2.test}} {
+		if {[file tail $script] in {signal.test event.test exec2.test}} {
 			# special case, can't run these in a child interpeter
 			catch -exit {
 				source $script

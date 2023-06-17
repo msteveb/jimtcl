@@ -1,7 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exists
-testCmdConstraints lambda
+constraint cmd lambda
 
 test exists-1.1 "Exists var" {
 	set a 1

@@ -1,7 +1,10 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
-testCmdConstraints os.getids os.gethostname os.uptime os.fork
+constraint cmd os.getids
+constraint cmd os.gethostname
+constraint cmd os.uptime
+constraint cmd os.fork
 
 test posix-1.1 {os.getids usage} -constraints os.getids -body {
 	os.getids blah

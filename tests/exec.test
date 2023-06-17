@@ -22,10 +22,10 @@ needs cmd flush
 if {[testConstraint tcl]} {
     testConstraint pipe 1
 } else {
-    testCmdConstraints pipe
+    constraint cmd pipe
 }
 
-testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
+constraint expr unix {$tcl_platform(platform) eq {unix}}
 
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {
@@ -447,6 +447,6 @@ file delete sleepx
 
 # Now we probably have a lot of unreaped zombies at this point
 # so reap them to avoid confusing further tests
-wait
+catch {wait}
 
 testreport

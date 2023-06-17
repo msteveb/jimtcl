@@ -15,8 +15,7 @@
 
 source [file dirname [info script]]/testing.tcl
 
-catch {package require regexp}
-testConstraint regexp [expr {[info commands regexp] ne {}}]
+constraint cmd regexp
 
 set x {abcd bbcd 123 234 345}
 test lsearch-1.1 {lsearch command} {

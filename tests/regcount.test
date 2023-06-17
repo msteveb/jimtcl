@@ -1,8 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd regexp
-testConstraint regexp_are [expr {[regexp {\d} 1]}]
-needs constraint regexp_are
+needs expr regexp_are {[regexp {\d} 1]}
 
 # Test regexp counted repetitions
 

@@ -4,19 +4,7 @@ needs constraint jim
 needs cmd socket
 needs cmd os.fork
 
-catch {[socket -ipv6 stream {[::1]:5000}]} res
-set ipv6 1
-if {[string match "*not supported" $res]} {
-    set ipv6 0
-} else {
-    # Also, if we can't bind an IPv6 socket, don't run IPv6 tests
-    if {[catch {
-        [socket -ipv6 stream.server {[::1]:5000}] close
-    } msg opts]} {
-        set ipv6 0
-    }
-}
-testConstraint ipv6 $ipv6
+constraint eval ipv6 {[socket -ipv6 stream.server ::1:5000] close}
 
 # Given an IPv4 or IPv6 server socket, return an address
 # that a client can use to connect to the socket.

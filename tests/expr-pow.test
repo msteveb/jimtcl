@@ -15,11 +15,7 @@
 source [file dirname [info script]]/testing.tcl
 
 # Jim Tcl may have no math functions, and may not have specific math functions
-if {[catch {expr pow(1,0)}]} {
-    testConstraint pow 0
-} else {
-    testConstraint pow 1
-}
+constraint eval pow {expr pow(1,0)}
 
 # Tests for exponentiation handling
 test expr-23.1 {CompileExponentialExpr: just exponential expr} {expr 4**2} 16

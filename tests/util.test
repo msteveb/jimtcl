@@ -11,8 +11,8 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd binary
 testConstraint controversialNaN 1
-testConstraint testdstring [llength [info commands testdstring]]
-testConstraint testconcatobj [llength [info commands testconcatobj]]
+constraint cmd testdstring
+constraint cmd testconcatobj
 
 # Big test for correct ordering of data in [expr]
 

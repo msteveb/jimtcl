@@ -2,13 +2,11 @@
 
 source [file dirname [info script]]/testing.tcl
 
-testCmdConstraints getref rand namespace
+constraint cmd getref
+constraint cmd rand
+constraint cmd namespace
 
-testConstraint debug-invstr 0
-catch {
-	debug -commands
-	testConstraint debug-invstr 1
-}
+constraint cmd {debug invstr}
 
 test dupobj-1 {duplicate script object} {
 	set y {expr 2}

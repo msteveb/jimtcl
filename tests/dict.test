@@ -1,3 +1,4 @@
+# vim:se syntax=tcl:
 source [file dirname [info script]]/testing.tcl
 
 test dict-1.1 "Basic dict" {

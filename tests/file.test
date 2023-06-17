@@ -1,20 +1,15 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd file
-catch {file link} msg
-testConstraint filelink [string match "wrong # args:*" $msg]
-catch {file lstat} msg
-testConstraint filelstat [string match "wrong # args:*" $msg]
-catch {file mtimeus} msg
-testConstraint mtimeus [string match "wrong # args:*" $msg]
-testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+constraint cmd {file link}
+constraint cmd {file lstat}
+constraint cmd {file mtimeus}
+constraint expr unix {$tcl_platform(platform) eq "unix"}
 testConstraint normalize 1
 if {[testConstraint jim]} {
-	testConstraint mtimeset [expr {!$tcl_platform(bootstrap)}]
-	testConstraint aiostat [expr {!$tcl_platform(bootstrap)}]
-	if {[catch {file normalize .}]} {
-		testConstraint normalize 0
-	}
+	constraint expr mtimeset {!$tcl_platform(bootstrap)}
+	constraint expr aiostat {!$tcl_platform(bootstrap)}
+	constraint eval normalize {file normalize .}
 } else {
 	testConstraint mtimeset 1
 	testConstraint aiostat 0
@@ -290,11 +285,11 @@ test rename-1.2 {file rename -force, target exists} -body {
 	file delete $name2
 }
 
-test link-1.1 {file link usage} -constraints filelink -body {
+test link-1.1 {file link usage} -constraints file-link -body {
 	file link
 } -returnCodes error -match glob -result {wrong # args: should be "file link*}
 
-test link-1.2 {file hard link} -constraints filelink -body {
+test link-1.2 {file hard link} -constraints file-link -body {
 	set name tmp.[pid]
 	file link $name [info script]
 	file exists $name
@@ -302,7 +297,7 @@ test link-1.2 {file hard link} -constraints filelink -body {
 	file delete $name
 }
 
-test link-1.3 {file hard link} -constraints filelink -body {
+test link-1.3 {file hard link} -constraints file-link -body {
 	set name tmp.[pid]
 	file link -hard $name [info script]
 	file exists $name
@@ -310,7 +305,7 @@ test link-1.3 {file hard link} -constraints filelink -body {
 	file delete $name
 }
 
-test link-1.4 {file sym link} -constraints filelink -body {
+test link-1.4 {file sym link} -constraints file-link -body {
 	set name tmp.[pid]
 	file link -sym $name [info script]
 	list [file exists $name] [file tail [file readlink $name]]
@@ -318,23 +313,23 @@ test link-1.4 {file sym link} -constraints filelink -body {
 	file delete $name
 }
 
-test link-1.5 {file readlink, bad link} -constraints filelink -body {
+test link-1.5 {file readlink, bad link} -constraints file-link -body {
 	file readlink [info script]
 } -returnCodes error -match glob -result {could not read*link "*file.test": *}
 
-test link-1.6 {file link badopt} -constraints filelink -body {
+test link-1.6 {file link badopt} -constraints file-link -body {
 	file link -bad name1 name2
 } -returnCodes error -match glob -result {bad * "-bad": must be *}
 
-test lstat-1.1 {file lstat} -constraints filelstat -body {
+test lstat-1.1 {file lstat} -constraints file-lstat -body {
 	file lstat
 } -returnCodes error -match glob -result {wrong # args: should be "file lstat name *}
 
-test lstat-1.2 {file lstat} -constraints filelstat -body {
+test lstat-1.2 {file lstat} -constraints file-lstat -body {
 	file lstat nonexistent ls
 } -returnCodes error -match glob -result {could not read "nonexistent": *}
 
-test lstat-1.3 {file lstat} -constraints {filelink filelstat} -body {
+test lstat-1.3 {file lstat} -constraints {file-link file-lstat} -body {
 	set name tmp.[pid]
 	file link -sym $name [info script]
 	unset -nocomplain s ls
@@ -413,19 +408,19 @@ test mtime-1.5 {file mtime} -constraints {mtimeset unix} -body {
 	file delete $name
 }
 
-test mtimeus-1.1 {file mtimeus} -constraints mtimeus -body {
+test mtimeus-1.1 {file mtimeus} -constraints file-mtimeus -body {
 	file mtimeus
 } -returnCodes error -result {wrong # args: should be "file mtimeus name ?time?"}
 
-test mtimeus-1.2 {file mtimeus} -constraints mtimeus -body {
+test mtimeus-1.2 {file mtimeus} -constraints file-mtimeus -body {
 	file mtimeus nonexistent
 } -returnCodes error -match glob -result {could not read "nonexistent":*}
 
-test mtimeus-1.3 {file mtimeus} -constraints mtimeus -body {
+test mtimeus-1.3 {file mtimeus} -constraints file-mtimeus -body {
 	file mtimeus [info script] bad
 } -returnCodes error -result {expected integer but got "bad"}
 
-test mtimeus-1.4 {file mtimeus} -constraints mtimeus -body {
+test mtimeus-1.4 {file mtimeus} -constraints file-mtimeus -body {
 	set mtimeus [file mtimeus [info script]]
 	file stat [info script] s
 	if {$mtimeus != $s(mtimeus)} {

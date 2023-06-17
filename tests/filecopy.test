@@ -5,7 +5,7 @@ needs cmd file
 needs cmd exec
 needs cmd parray tclcompat
 
-testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+constraint expr unix {$tcl_platform(platform) eq "unix"}
 
 cd [file dirname [info script]]
 

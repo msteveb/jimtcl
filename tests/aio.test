@@ -1,8 +1,8 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
-testCmdConstraints socket
-testConstraint posixaio [expr {$tcl_platform(platform) eq {unix} && !$tcl_platform(bootstrap)}]
+constraint cmd socket
+constraint expr posixaio {$tcl_platform(platform) eq {unix} && !$tcl_platform(bootstrap)}
 
 # Create and open in binary mode for compatibility between Windows and Unix
 set f [open testdata.in wb]
