@@ -1,12 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd clock
-
-if {[catch {clock scan 2000 -format %Y}]} {
-    testConstraint clockscan 0
-} else {
-    testConstraint clockscan 1
-}
+constraint cmd {clock scan}
 
 test clock-1.1 {clock usage} -body {
     clock
@@ -59,23 +54,23 @@ test clock-3.13 {clock format tests} -body {
 	clock format 123 odd option count
 } -returnCodes error -result {wrong # args: should be "clock format seconds ?-format string? ?-gmt boolean?"}
 
-test clock-4.1 {clock scan tests} clockscan {
+test clock-4.1 {clock scan tests} clock-scan {
     clock scan {Sun Nov 04 03:02:46 AM 1990} -format {%a %b %d %I:%M:%S %p %Y} -gmt true
 } 657687766
 
-test clock-4.2 {clock scan tests} -constraints clockscan -body {
+test clock-4.2 {clock scan tests} -constraints clock-scan -body {
     clock scan odd number arg count
 } -returnCodes error -result {wrong # args: should be "clock scan str -format format ?-gmt boolean?"}
 
-test clock-4.3 {clock scan tests} -constraints clockscan -body {
+test clock-4.3 {clock scan tests} -constraints clock-scan -body {
     clock scan str -bad option
 } -returnCodes error -result {bad option "-bad": must be -format, or -gmt}
 
-test clock-4.4 {clock scan tests} -constraints clockscan -body {
+test clock-4.4 {clock scan tests} -constraints clock-scan -body {
     clock scan str -gmt true
 } -returnCodes error -result {wrong # args: should be "clock scan str -format format ?-gmt boolean?"}
 
-test clock-4.5 {clock scan tests} -constraints clockscan -body {
+test clock-4.5 {clock scan tests} -constraints clock-scan -body {
     clock scan str -format "%H" -gmt true
 } -returnCodes error -result {Failed to parse time according to format}
 

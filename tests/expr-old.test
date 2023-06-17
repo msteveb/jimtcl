@@ -18,13 +18,9 @@
 source [file dirname [info script]]/testing.tcl
 
 # Jim Tcl may have no math functions, and may not have specific math functions
-foreach {expr constraint} {sin(0) mathfunc fmod(0,1) expr_fmod hypot(0,1) expr_hypot} {
-    if {[catch {expr $expr} msg]} {
-        testConstraint $constraint 0
-    } else {
-        testConstraint $constraint 1
-    }
-}
+constraint eval mathfunc {expr sin(0)}
+constraint eval expr_fmod {expr fmod(0,1)}
+constraint eval expr_hypot {expr hypot(0,1)}
 
 # First, test all of the integer operators individually.
 

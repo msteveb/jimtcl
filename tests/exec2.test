@@ -5,22 +5,21 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd exec
-testCmdConstraints signal wait alarm after
+constraint cmd signal
+constraint cmd wait
+constraint cmd alarm
+constraint cmd after
 
 # Jim needs [pipe] to implement [open |command]
 if {[testConstraint tcl]} {
 	testConstraint pipe 1
 } else {
-	testCmdConstraints pipe
+	constraint cmd pipe
 }
 
 # Some Windows platforms (e.g. AppVeyor) produce ENOSPC rather than killing
 # the child with SIGPIPE). So turn off this test for that platform
-if {[info exists env(MSYSTEM)] && $env(MSYSTEM) eq "MINGW32"} {
-	testConstraint nomingw32 0
-} else {
-	testConstraint nomingw32 1
-}
+constraint expr nomingw32 {![info exists env(MSYSTEM)] || $env(MSYSTEM) ne "MINGW32"}
 
 set d \"
 set s '

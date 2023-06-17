@@ -1,8 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd regexp
-testConstraint regexp_are [regexp {\d} 1]
-needs constraint regexp_are
+needs expr regexp_are {[regexp {\d} 1]}
 
 test regexpmin-1.1 {Minimal +} {
     regexp -inline {x(a|b|c)+?c} xabcabc

@@ -3,7 +3,7 @@ source [file dirname [info script]]/testing.tcl
 needs constraint jim
 needs cmd ensemble
 needs cmd namespace
-testConstraint package-ensemble [expr {"ensemble" in [package list]}]
+constraint package ensemble 
 
 # Let's create some procs for our ensemble
 namespace eval foo {

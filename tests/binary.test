@@ -16,8 +16,8 @@ needs cmd binary
 if {[testConstraint jim]} {
     needs cmd pack
 }
-testConstraint bigEndian [expr {$tcl_platform(byteOrder) eq "bigEndian"}]
-testConstraint littleEndian [expr {$tcl_platform(byteOrder) eq "littleEndian"}]
+constraint expr bigEndian {$tcl_platform(byteOrder) eq "bigEndian"}
+constraint expr littleEndian {$tcl_platform(byteOrder) eq "littleEndian"}
 testConstraint maxCompatibility 0
 testConstraint notImplemented 0
 

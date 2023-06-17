@@ -1,6 +1,6 @@
 source [file dirname [info script]]/testing.tcl
 
-needs cmd history
+needs cmd {history save}
 
 test history-1.1 {history usage} -body {
 	history

@@ -1,10 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
-set havetty 0
-catch {
-    set havetty [expr {"tty" in [stdout -commands]}]
-}
-if {!$havetty || ![stdout isatty]} {
+needs cmd {stdout tty}
+if {![stdout isatty]} {
     skiptest "  (aio tty)"
 }
 

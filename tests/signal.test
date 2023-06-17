@@ -2,7 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs cmd signal
 needs cmd pid
-testConstraint try [expr {[info commands try] ne ""}]
+constraint cmd try
 
 test signal-1.1 "catch/throw" {
 	signal handle TERM

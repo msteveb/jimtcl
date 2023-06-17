@@ -15,8 +15,8 @@ source [file dirname [info script]]/testing.tcl
 needs cmd file
 needs cmd glob
 
-testConstraint win [expr {$tcl_platform(platform) eq "windows"}]
-testConstraint unix [expr {$tcl_platform(platform) eq "unix"}]
+constraint expr win {$tcl_platform(platform) eq "windows"}
+constraint expr unix {$tcl_platform(platform) eq "unix"}
 testConstraint unixOrPc 1
 
 proc touch filename {catch {close [open $filename w]}}

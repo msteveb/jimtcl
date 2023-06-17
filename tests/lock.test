@@ -11,8 +11,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
-testConstraint aio.lock [expr {"lock" in [stdin -commands]}]
-needs constraint aio.lock
+needs cmd {stdin lock}
 
 set fh [open locktest.file w]
 

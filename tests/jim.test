@@ -10,8 +10,9 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
-catch {package require regexp}
-testCmdConstraints regexp readdir lambda
+constraint cmd regexp
+constraint cmd readdir
+constraint cmd lambda
 
 ################################################################################
 # SET
