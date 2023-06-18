@@ -1368,12 +1368,12 @@ static int aio_cmd_eof(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    AioFile *af = Jim_CmdPrivData(interp);
     if (argc == 3) {
         int option = -1;
 #if defined(HAVE_SOCKETS)
         static const char * const options[] = { "r", "w", "-nodelete", NULL };
         enum { OPT_R, OPT_W, OPT_NODELETE };
-        AioFile *af = Jim_CmdPrivData(interp);
 
         if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
@@ -1402,6 +1402,9 @@ static int aio_cmd_close(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 return JIM_ERR;
         }
     }
+
+    /* Explicit close ignores AIO_KEEPOPEN */
+    af->flags &= ~AIO_KEEPOPEN;
 
     return Jim_DeleteCommand(interp, argv[0]);
 }
