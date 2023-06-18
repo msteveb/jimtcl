@@ -58,6 +58,7 @@ Changes since 0.82
 2. `info frame` now only returns 'proc' levels
 3. `stacktrace` is now a builtin command
 4. The stack trace on error now includes the full stack trace, not just back to where it was caught
+5. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2015,12 +2016,9 @@ close
 ~~~~~
 +*close* 'fileId'+
 
-+'fileId' *close*+
+Tcl-compatible version of +'fileId' *close*+
 
-Closes the file given by +'fileId'+.
-+'fileId'+ must be the return value from a previous invocation
-of the `open` command; after this command, it should not be
-used anymore.
+See `aio close`
 
 collect
 ~~~~~~~
@@ -2231,14 +2229,9 @@ eof
 ~~~
 +*eof* 'fileId'+
 
-+'fileId' *eof*+
+Tcl-compatible alternative to +'fileId' *eof*+
 
-Returns 1 if an end-of-file condition has occurred on +'fileId'+,
-0 otherwise.
-
-+'fileId'+ must have been the return value from a previous call to `open`,
-or it may be +stdin+, +stdout+, or +stderr+ to refer to one of the
-standard I/O channels.
+See `aio eof`
 
 error
 ~~~~~
@@ -2666,13 +2659,9 @@ flush
 ~~~~~
 +*flush* 'fileId'+
 
-+'fileId' *flush*+
+Tcl-compatible alternative to +'fileId' *flush*+
 
-Flushes any output that has been buffered for +'fileId'+.  +'fileId'+ must
-have been the return value from a previous call to `open`, or it may be
-+stdout+ or +stderr+ to access one of the standard I/O streams; it must
-refer to a file that was opened for writing.  This command returns an
-empty string.
+See `aio flush`
 
 for
 ~~~
@@ -2770,36 +2759,12 @@ See <<_garbage_collection_references_lambda_function,GARBAGE COLLECTION>> for mo
 
 gets
 ~~~~
+
 +*gets* 'fileId ?varName?'+
 
-+'fileId' *gets* '?varName?'+
+Tcl-compatible alterative version of +'fileId' *gets* '?varName?'+
 
-Reads the next line from the file given by +'fileId'+ and discards
-the terminating newline character.
-
-If +'varName'+ is specified, then the line is placed in the variable
-by that name and the return value is a count of the number of characters
-read (not including the newline).
-
-If the end of the file is reached before reading
-any characters then -1 is returned and +'varName'+ is set to an
-empty string.
-
-If +'varName'+ is not specified then the return value will be
-the line (minus the newline character) or an empty string if
-the end of the file is reached before reading any characters.
-
-An empty string will also be returned if a line contains no characters
-except the newline, so `eof` may have to be used to determine
-what really happened.
-
-If the last character in the file is not a newline character, then
-`gets` behaves as if there were an additional newline character
-at the end of the file.
-
-+'fileId'+ must be +stdin+ or the return value from a previous
-call to `open`; it must refer to a file that was opened
-for reading.
+See `aio gets`
 
 glob
 ~~~~
@@ -3706,22 +3671,9 @@ puts
 ~~~~
 +*puts* ?*-nonewline*? '?fileId? string'+
 
-+'fileId' *puts* ?*-nonewline*? 'string'+
+Tcl-compatible version of +'fileId' *puts* ?*-nonewline*? 'string'+
 
-Writes the characters given by +'string'+ to the file given
-by +'fileId'+. +'fileId'+ must have been the return
-value from a previous call to `open`, or it may be
-+stdout+ or +stderr+ to refer to one of the standard I/O
-channels; it must refer to a file that was opened for
-writing.
-
-In the first form, if no +'fileId'+ is specified then it defaults to +stdout+.
-`puts` normally outputs a newline character after +'string'+,
-but this feature may be suppressed by specifying the +-nonewline+
-switch.
-
-Output to files is buffered internally by Tcl; the `flush`
-command may be used to force buffered characters to be output.
+See `aio puts`
 
 pipe
 ~~~~
@@ -3774,45 +3726,11 @@ Integer parameters may be any integer expression.
 
 read
 ~~~~
-+*read* ?*-nonewline*? 'fileId'+
++*read ?-nonewline? 'fileId ?length?'+
 
-+'fileId' *read* ?*-nonewline*?+
+Tcl-compatible alterative version of +'fileId' *read ?-nonewline?* '?length?'+
 
-+*read* 'fileId numBytes'+
-
-+'fileId' *read* 'numBytes'+
-
-+*read* ?*-pending*? 'fileId'+
-
-+'fileId' *read* ?*-pending*?+
-
-In the first form, all of the remaining bytes are read from the file
-given by +'fileId'+; they are returned as the result of the command.
-If the +-nonewline+ switch is specified then the last
-character of the file is discarded if it is a newline.
-
-In the second form, the extra argument specifies how many bytes to read;
-exactly this many bytes will be read and returned, unless there are fewer than
-+'numBytes'+ bytes left in the file; in this case, all the remaining
-bytes are returned.
-
-The third form is currently only useful with SSL sockets. It reads at least 1 byte
-and then any additional data that is buffered. This allows for use in an event handler.
-e.g.
-
-----
-    $sock readable {
-        set buf [$sock read -pending]
-    }
-----
-
-This is necessary because otherwise pending data may be buffered, but
-the underlying socket will not be marked 'readable'. This featured is not
-currently supported for regular sockets, and so these sockets must be
-set to unbufferred (+$sock buffering false+) to work in an event loop.
-
-+'fileId'+ must be +stdin+ or the return value from a previous call
-to `open`; it must refer to a file that was opened for reading.
+See `aio read`
 
 regexp
 ~~~~~~
@@ -4032,36 +3950,9 @@ seek
 ~~~~
 +*seek* 'fileId offset ?origin?'+
 
-+'fileId' *seek* 'offset ?origin?'+
+Tcl-compatible version of +'fileId' *seek* 'offset ?origin?'+
 
-Change the current access position for +'fileId'+.
-The +'offset'+ and +'origin'+ arguments specify the position at
-which the next read or write will occur for +'fileId'+.
-+'offset'+ must be a number (which may be negative) and +'origin'+
-must be one of the following:
-
-+*start*+::
-    The new access position will be +'offset'+ bytes from the start
-    of the file.
-
-+*current*+::
-    The new access position will be +'offset'+ bytes from the current
-    access position; a negative +'offset'+ moves the access position
-    backwards in the file.
-
-+*end*+::
-    The new access position will be +'offset'+ bytes from the end of
-    the file.  A negative +'offset'+ places the access position before
-    the end-of-file, and a positive +'offset'+ places the access position
-    after the end-of-file.
-
-The +'origin'+ argument defaults to +start+.
-
-+'fileId'+ must have been the return value from a previous call to
-`open`, or it may be +stdin+, +stdout+, or +stderr+ to refer to one
-of the standard I/O channels.
-
-This command returns an empty string.
+See `aio seek`
 
 set
 ~~~
@@ -4603,14 +4494,9 @@ tell
 ~~~~
 +*tell* 'fileId'+
 
-+'fileId' *tell*+
+Tcl-compatible version of +'fileId' *tell*+
 
-Returns a decimal string giving the current access position in
-+'fileId'+.
-
-+'fileId'+ must have been the return value from a previous call to
-`open`, or it may be +stdin+, +stdout+, or +stderr+ to refer to one
-of the standard I/O channels.
+See `aio tell`
 
 throw
 ~~~~~
@@ -4971,108 +4857,212 @@ posix: os.fork, os.gethostname, os.getids, os.uptime
 
 ANSI I/O (aio) and EVENTLOOP API
 --------------------------------
-Jim provides an alternative object-based API for I/O.
+In addition to the traditional Tcl I/O commands (`gets`, `read`, `puts`, `close`, `seek`, `tell`),
+Jim provides an alternative object-based API for I/O. Commands that create a channel, `open` and `socket`,
+return a handle to an I/O channel that is used to control that channel.
 
-See `open` and `socket` for commands which return an I/O handle.
+For example, the traditional Tcl usage would be:
+
+----
+    set f [open file.txt]
+    while {[gets $f buf] >= 0} {
+        puts stderr $buf
+    }
+    close $f
+----
+
+While the Jim usage would be:
+----
+    set f [open file.txt]
+    while {[$f gets buf] >= 0} {
+        stderr puts $buf
+    }
+    $f close
+----
+
+Thus channels are commands that support the various subcommands. They can be renamed handled
+like any other command. In additional to file I/O and stream (TCP) sockets, Jim supports many
+kinds of socket streams including UDP, Unix domain sockets, psuedo-tty pairs, pipes and others.
+(See `socket` for more detail). The TLS (SSL) protocol may also be seamlessly layered over a channel
+with the `ssl` command. In addition Jim I/O supports both blocking and non-blocking modes,
+fully integrates with the eventloop, supports serial ports and tty control.
+
+Note that while most channels are stream channels, some channels (socket types with 'dgram') are
+datagram channels. For those channels, `aio recv` and `aio sendto` is generally preferable
+over `aio read` and `aio puts`.
 
 aio
 ~~~
 +$handle *accept* ?addrvar?+::
-    Server socket only: Accept a connection and return stream.
-    If +'addrvar'+ is specified, the address of the connected client is stored
-    in the named variable in the form 'addr:port' for IP sockets or 'path' for Unix domain sockets.
-    See `socket` for details.
+    Server socket only: Accept a connection and return a stream channel.
+    If +'addrvar'+ is specified, the address of the connected client is
+    stored in the named variable in the form 'addr:port' for IP sockets or
+    'path' for Unix domain sockets.  See `socket` for details.
 
 +$handle *buffering none|line|full*+::
-    Sets the buffering mode of the stream.
+    Sets the output buffering mode of the stream channel. +'none'+ means
+    that puts immediately writes output.  +'line'+ means output (including
+    previously buffered output) is written if a newline is to be written.
+    +'full'+ means that data is written when the output buffer is full
+    (currently approx 64KB). Note that line buffering will also write
+    once the output buffer limit is reached, even if there is no newline.
+    Channels usually begin in full buffering mode, unless they identify
+    as a tty channel, in which case line buffering is used, and `stderr`
+    begins with no buffering. See also `aio puts` and `aio flush`.
 
-+$handle *close ?r(ead)|w(rite)|-nodelete?*+::
++$handle *close ?r(ead)|w(rite)? ?-nodelete?*+::
     Closes the stream.
     The +'read'+ and +'write'+ arguments perform a "half-close" on a socket. See the 'shutdown(2)' man page.
     The +'-nodelete'+ option is applicable only for Unix domain sockets. It closes the socket
     but does not delete the bound path (e.g. after `os.fork`).
+    After a full close, the channel handle is no longer valid.
 
-
-+$handle *copyto* 'tofd ?size?'+::
-    Copy bytes to the file descriptor +'tofd'+. If +'size'+ is specified, at most
++$handle *copyto* '$tohandle ?size?'+::
+    Copy bytes to channel +'$tohandle'+. If +'size'+ is specified, at most
     that many bytes will be copied. Otherwise copying continues until the end
-    of the input file. Returns the number of bytes actually copied.
+    of the input channel. Returns the number of bytes actually copied.
 
 +$handle *eof*+::
-    Returns 1 if stream is at eof
+    Returns 1 if an end-of-file condition has occurred on the channel. Note that
+    this condition may only be checked after reading from the channel.
 
 +$handle *filename*+::
     Returns the original filename associated with the handle.
-    Handles returned by `socket` provide different information.
-	See `socket` for each socket type.
+    Handles returned by `socket` provide different information such as the peer address
+    or a generic name if no useful filename can be provided.
+    See `socket` for each socket type.
 
 +$handle *flush*+::
-    Flush the stream
+    Flushes any output that has been buffered for the channel.
+    In blocking mode, command does not return until all data has been written.
+    In non-blocking mode, the behaviour depends on whether an `aio writable` handler
+    has been set. If it has, and not all data could be written and error will be returned
+    with the message "send buffer full". Otherwise an "autoflush" eventloop handler is installed
+    to flush the remaining data. As long as the eventloop runs (`vwait`, `update`), the write
+    data will be automatically flushed.
 
-+$handle *gets* '?var?'+::
-    Read one line and return it or store it in the var
++$handle *gets* '?varName?'+::
+    Read one line from the cannel and return it or store it in the
+    var A terminating newline character is discarded.  If +'varName'+
+    is specified, then the line is placed in the variable by that name
+    and the return value is a count of the number of characters read
+    (not including the newline).  If the end of the file is reached
+    before reading any characters then -1 is returned and +'varName'+
+    is set to an empty string.  If +'varName'+ is not specified then
+    the return value will be the line (minus the newline character) or
+    an empty string if the end of the file is reached before reading
+    any characters.  An empty string will also be returned if a line
+    contains no characters except the newline, so `eof` may have to be
+    used to determine what really happened.  If the last character in
+    the file is not a newline character, then `gets` behaves as if there
+    were an additional newline character at the end of the file.
 
 +$handle *isatty*+::
-    Returns 1 if the stream is a tty device.
+    Returns 1 if the channel is a tty device.
 
 +$handle *lock ?-wait?*+::
-    Apply a POSIX lock to the open file associated with the handle using
-    'fcntl(F_SETLK)', or 'fcntl(F_SETLKW)' to wait for the lock to be available if +'-wait'+
-    is specified.
-    The handle must be open for write access.
-    Returns 1 if the lock was successfully obtained, 0 otherwise.
-    An error occurs if the handle is not suitable for locking (e.g.
-    if it is not open for write)
+    Apply a POSIX lock to the open file associated with the channel using
+    'fcntl(F_SETLK)', or 'fcntl(F_SETLKW)' to wait for the lock to be
+    available if +'-wait'+ is specified.  The channel must be open for
+    write access.  Returns 1 if the lock was successfully obtained,
+    0 otherwise.  An error occurs if the channel is not suitable for
+    locking (e.g.  if it is not open for write)
 
 +$handle *ndelay ?0|1?*+::
-    Set O_NDELAY (if arg). Returns current/new setting.
-    Note that in general ANSI I/O interacts badly with non-blocking I/O.
-    Use with care.
+    With no argument, returns the non-blocking status of the channel
+    (1 means non-blocking).  With an arguments, sets the non-blocking
+    status of the channel.
 
 +$handle *peername*+::
     Returns the remote address or path of the connected socket. See 'getpeername(2)'.
 
-+$handle *puts ?-nonewline?* 'str'+::
-    Write the string, with newline unless -nonewline
++$handle *puts ?-nonewline?* 'string'+::
+    Writes the characters given by +'string'+ to the channel given
+    With +'-nonewline'+, the string is written as-is to the channel.
+    Otherwise a newline character is written after the string.
+    See `aio buffering` and `aio flush` for how output is buffered.
 
 +$handle *read ?-nonewline|-pending*|len?'+::
-    Read and return bytes from the stream. To eof if no len. See `read`.
+    Read and return bytes from the channel.
+    If 'len' is not given, reads until end-of-file.
+    reading from non-blocking channels.
+    For backward compatibility, +'-pending'+ is accepted, but ignored.
+    If the +-nonewline+ switch is specified then the last
+    character (at end-of-file) is discarded if it is a newline.
+    Note that read on a non-blocking channel may read less than the
+    expected number of bytes (including zero). Use `aio eof` to determine
+    if the end-of-file has been reached.
 
 +$handle *recvfrom* 'maxlen ?addrvar?'+::
-    Receives a message from the handle via recvfrom(2) and returns it.
+    Receives a message from the datagram channel via recvfrom(2) and returns it.
     At most +'maxlen'+ bytes are read. If +'addrvar'+ is specified, the sending address
     of the message is stored in the named variable in the form 'addr:port' for IP sockets
     or 'path' for Unix domain sockets. See `socket` for details.
 
 +$handle *seek* 'offset' *?start|current|end?*+::
-    Seeks in the stream (default 'current')
+    Change the current access position for the channel. This is only applicable
+    to regular files, not sockets.
+    The +'offset'+ and +'origin'+ arguments specify the position at
+    which the next read or write will occur for +'fileId'+.
+    +'offset'+ must be a number (which may be negative) and +'origin'+
+    must be one of the following:
+
++*start*+::
+    The new access position will be +'offset'+ bytes from the start
+    of the file.
+
++*current*+::
+    The new access position will be +'offset'+ bytes from the current
+    access position; a negative +'offset'+ moves the access position
+    backwards in the file.
+
++*end*+::
+    The new access position will be +'offset'+ bytes from the end of
+    the file.  A negative +'offset'+ places the access position before
+    the end-of-file, and a positive +'offset'+ places the access position
+    after the end-of-file.
+
+The +'origin'+ argument defaults to +start+.
+
+This command returns an empty string.
 
 +$handle *sendto* 'str ?address'+::
-    Sends the string, +'str'+, to the given address (host:port or path) via the socket using 'sendto(2)'.
+    Sends the string, +'str'+, to the given address (host:port or path) via datagram socket channel
+    using 'sendto(2)'.
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
 
 +$handle *sockname*+::
-    Returns the bound address or path of the socket. See 'getsockname(2)'.
+    Returns the bound address or path of the socket channel. See 'getsockname(2)'.
 
 +$handle *stat* ?varName?+::
-    Implements the same functionality as `file stat` for a filehandle.
+    Implements the same functionality as `file stat` for a file channel.
     Only available on platforms that support 'fstat(2)' or equivalent.
 
 +$handle *sockopt* '?name value?'+::
-    With no arguments, returns a dictionary of socket options currently set for the handle
-    (will be empty for a non-socket). With +'name'+ and +'value'+, sets the socket option
-    to the given value. Currently supports the following boolean socket options:
-    +broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay+, and the following
-    integer socket options: +sndbuf, rcvbuf+
+    With no arguments, returns a dictionary of socket options currently
+    set for the socket channel (will be empty for a non-socket). With
+    +'name'+ and +'value'+, sets the socket option to the given
+    value. Currently supports the following boolean socket options:
+    +broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay+,
+    and the following integer socket options: +sndbuf, rcvbuf+
 
 +$handle *sync*+::
-    Flush the stream, then 'fsync(2)' to commit any changes to storage.
+    Flushes the channel, then calls 'fsync(2)' to commit any changes to storage.
     Only available on platforms that support 'fsync(2)'.
+    If the flush fails (perhaps because the channel is non-blocking), an error
+    will be returned instead. Although this is designed for normal files and
+    those should be used in blocking mode.
 
 +$handle *tell*+::
-    Returns the current seek position
+    Returns the current seek position or -1 if the channel is not seekable.
+
++$handle *timeout* '?ms?'+::
+    With no argument, returns the current timeout of the channel, in milliseconds.
+    If an argument is given, it is set as the timeout of the channel, in milliseconds.
+    See `aio read` and `aio gets` for command that use the timeout.
+    Note that the timeout is only used if the channel is in blocking mode.
 
 +$handle *tty* ?settings?+::
     If no arguments are given, returns a dictionary containing the tty settings for the stream.
@@ -5128,6 +5118,30 @@ aio
 
 +*load_ssl_certs* 'dir'+::
     Loads SSL/TLS CA certificates for use during verification
+
+*Buffering, non-blocking and timeouts*
+
+Channels normally operate in blocking mode. This means that reads (gets,
+read, copyto) block until data is received or end-of-file is reached,
+or an error occurs. Similarly, writes (puts, copyto) block if the channel
+is not current writable.
+
+It is possible to set a timeout for blocking reads with `aio timeout`,
+generally useful on stream socket channels.  If a timeout is specified
+for a channel (the default is 0/indefinite), a blocking read will return
+with no data if the timeout expires without reading any data.
+
+For some applications, and especially when using the eventloop, blocking
+I/O and timeouts are not appropriate. Instead we wish to read what is
+available, and write what is possible in the `readable` and `writable`
+scripts and then return until the next event. This can be achived by
+setting a channel non-blocking mode with `aio ndelay`. In this case, `aio read`, `aio gets`
+and `aio puts` will return early if they would otherwise block, performing
+us much work as posssible. For example, `aio read` may return less data than requested
+and `aio puts` may write less data than requested (although see `aio flush` about
+additional write data can be automatically flushed). If `aio gets` does not receive an
+entire line, it returns -1. In all these cases `aio eof` can be used to determine
+if end-of-file was reached.
 
 fconfigure
 ~~~~~~~~~~
