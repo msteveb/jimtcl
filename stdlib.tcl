@@ -48,6 +48,10 @@ proc stackdump {stacktrace} {
 		if {$line ne ""} {
 			lappend lines $line
 			if {$cmd ne ""} {
+				set nl [string first \n $cmd 1]
+				if {$nl >= 0} {
+					set cmd [string range $cmd 0 $nl-1]...
+				}
 				lappend lines "    $cmd"
 			}
 		}
