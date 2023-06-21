@@ -38,6 +38,7 @@ proc expect::spawn {cmd} {
 	# By default, turn off echo so that we can see just the output, not the input
 	$m tty echo 0
 	$m buffering none
+	$m ndelay 1
 	try {
 		lappend cmd <@$s >@$s &
 		set pids [exec {*}$cmd]
@@ -199,7 +200,6 @@ proc expect::spawn {cmd} {
 					# that matches the pattern
 					if {[$self handle data {}] == 0} {
 						$m readable [namespace current]::[lambda {} {m self} {
-							$m ndelay 1
 							try {
 								set buf [$m read]
 								if {$buf eq ""} {
@@ -210,7 +210,6 @@ proc expect::spawn {cmd} {
 							} on error msg {
 								$self handle eof $msg
 							}
-							$m ndelay 0
 						}]
 						set matchinfo(afterid) [after $($timeout * 1e3) [list $self handle timeout]]
 
