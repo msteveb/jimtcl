@@ -15470,23 +15470,63 @@ static int JimIsGlobalNamespace(Jim_Obj *objPtr)
 /* [info] */
 static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    int cmd;
     Jim_Obj *objPtr;
     int mode = 0;
 
-    static const char * const commands[] = {
-        "body", "statics", "commands", "procs", "channels", "exists", "globals", "level", "frame", "locals",
-        "vars", "version", "patchlevel", "complete", "args", "hostname",
-        "script", "source", "stacktrace", "nameofexecutable", "returncodes",
-        "references", "alias", NULL
+    /* Must be kept in order with the array below */
+    enum {
+        INFO_ALIAS,
+        INFO_ARGS,
+        INFO_BODY,
+        INFO_CHANNELS,
+        INFO_COMMANDS,
+        INFO_COMPLETE,
+        INFO_EXISTS,
+        INFO_FRAME,
+        INFO_GLOBALS,
+        INFO_HOSTNAME,
+        INFO_LEVEL,
+        INFO_LOCALS,
+        INFO_NAMEOFEXECUTABLE,
+        INFO_PATCHLEVEL,
+        INFO_PROCS,
+        INFO_REFERENCES,
+        INFO_RETURNCODES,
+        INFO_SCRIPT,
+        INFO_SOURCE,
+        INFO_STACKTRACE,
+        INFO_STATICS,
+        INFO_VARS,
+        INFO_VERSION,
+        INFO_COUNT
     };
-    enum
-    { INFO_BODY, INFO_STATICS, INFO_COMMANDS, INFO_PROCS, INFO_CHANNELS, INFO_EXISTS, INFO_GLOBALS, INFO_LEVEL,
-        INFO_FRAME, INFO_LOCALS, INFO_VARS, INFO_VERSION, INFO_PATCHLEVEL, INFO_COMPLETE, INFO_ARGS,
-        INFO_HOSTNAME, INFO_SCRIPT, INFO_SOURCE, INFO_STACKTRACE, INFO_NAMEOFEXECUTABLE,
-        INFO_RETURNCODES, INFO_REFERENCES, INFO_ALIAS,
+    static const jim_subcmd_type cmds[INFO_COUNT + 1] = {
+        JIM_DEF_SUBCMD("alias", "command", 1, 1),
+        JIM_DEF_SUBCMD("args", "procname", 1, 1),
+        JIM_DEF_SUBCMD("body", "procname", 1, 1),
+        JIM_DEF_SUBCMD("channels", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("commands", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("complete", "script ?missing?", 1, 2),
+        JIM_DEF_SUBCMD("exists", "varName", 1, 1),
+        JIM_DEF_SUBCMD("frame", "?levelNum?", 0, 1),
+        JIM_DEF_SUBCMD("globals", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("hostname", NULL, 0, 0),
+        JIM_DEF_SUBCMD("level", "?levelNum?", 0, 1),
+        JIM_DEF_SUBCMD("locals", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("nameofexecutable", NULL, 0, 0),
+        JIM_DEF_SUBCMD("patchlevel", NULL, 0, 0),
+        JIM_DEF_SUBCMD("procs", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("references", NULL, 0, 0),
+        JIM_DEF_SUBCMD("returncodes", "?code?", 0, 1),
+        JIM_DEF_SUBCMD("script", NULL, 0, 0),
+        JIM_DEF_SUBCMD("source", "source ?filename line?", 1, 3),
+        JIM_DEF_SUBCMD("stacktrace", NULL, 0, 0),
+        JIM_DEF_SUBCMD("statics", "procname", 1, 1),
+        JIM_DEF_SUBCMD("vars", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("version", NULL, 0, 0),
+        { /* null terminator */ }
     };
-
+    const jim_subcmd_type *ct;
 #ifdef jim_ext_namespace
     int nons = 0;
 
@@ -15497,32 +15537,25 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         nons = 1;
     }
 #endif
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
+    ct = Jim_ParseSubCmd(interp, cmds, argc, argv);
+    if (!ct) {
         return JIM_ERR;
     }
-    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
-        return Jim_CheckShowCommands(interp, argv[1], commands);
+    if (ct->function) {
+        /* This is -help or -commands */
+        return ct->function(interp, argc, argv);
     }
+    /* (ct - cmds) is the index into the table */
+    int option = ct - cmds;
 
-    /* Test for the most common commands first, just in case it makes a difference */
-    switch (cmd) {
+    switch (option) {
         case INFO_EXISTS:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName");
-                return JIM_ERR;
-            }
             Jim_SetResultBool(interp, Jim_GetVariable(interp, argv[2], 0) != NULL);
-            break;
+            return JIM_OK;
 
         case INFO_ALIAS:{
             Jim_Cmd *cmdPtr;
 
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "command");
-                return JIM_ERR;
-            }
             if ((cmdPtr = Jim_GetCommand(interp, argv[2], JIM_ERRMSG)) == NULL) {
                 return JIM_ERR;
             }
@@ -15546,10 +15579,6 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             /* fall through */
         case INFO_COMMANDS:
             /* mode 0 => JIM_CMDLIST_COMMANDS */
-            if (argc != 2 && argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-                return JIM_ERR;
-            }
 #ifdef jim_ext_namespace
             if (!nons) {
                 if (Jim_Length(interp->framePtr->nsObj) || (argc == 3 && JimIsGlobalNamespace(argv[2]))) {
@@ -15558,7 +15587,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
 #endif
             Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL, mode));
-            break;
+            return JIM_OK;
 
         case INFO_VARS:
             mode++;             /* JIM_VARLIST_VARS */
@@ -15568,10 +15597,6 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             /* fall through */
         case INFO_GLOBALS:
             /* mode 0 => JIM_VARLIST_GLOBALS */
-            if (argc != 2 && argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "?pattern?");
-                return JIM_ERR;
-            }
 #ifdef jim_ext_namespace
             if (!nons) {
                 if (Jim_Length(interp->framePtr->nsObj) || (argc == 3 && JimIsGlobalNamespace(argv[2]))) {
@@ -15580,23 +15605,19 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
 #endif
             Jim_SetResult(interp, JimVariablesList(interp, argc == 3 ? argv[2] : NULL, mode));
-            break;
+            return JIM_OK;
 
         case INFO_SCRIPT:
-            if (argc != 2) {
-                Jim_WrongNumArgs(interp, 2, argv, "");
-                return JIM_ERR;
-            }
             Jim_SetResult(interp, JimGetScript(interp, interp->evalFrame->scriptObj)->fileNameObj);
-            break;
+            return JIM_OK;
 
         case INFO_SOURCE:{
                 jim_wide line;
                 Jim_Obj *resObjPtr;
                 Jim_Obj *fileNameObj;
 
-                if (argc != 3 && argc != 5) {
-                    Jim_WrongNumArgs(interp, 2, argv, "source ?filename line?");
+                if (argc == 4) {
+                    Jim_SubCmdArgError(interp, ct, argv[0]);
                     return JIM_ERR;
                 }
                 if (argc == 5) {
@@ -15625,60 +15646,42 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     Jim_ListAppendElement(interp, resObjPtr, Jim_NewIntObj(interp, line));
                 }
                 Jim_SetResult(interp, resObjPtr);
-                break;
+                return JIM_OK;
             }
 
         case INFO_STACKTRACE:
             Jim_SetResult(interp, interp->stackTrace);
-            break;
+            return JIM_OK;
 
         case INFO_LEVEL:
-            switch (argc) {
-                case 2:
-                    Jim_SetResultInt(interp, interp->framePtr->level);
-                    break;
-
-                case 3:
-                    if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK) {
-                        return JIM_ERR;
-                    }
-                    Jim_SetResult(interp, objPtr);
-                    break;
-
-                default:
-                    Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
-                    return JIM_ERR;
+            if (argc == 2) {
+                Jim_SetResultInt(interp, interp->framePtr->level);
             }
-            break;
+            else {
+                if (JimInfoLevel(interp, argv[2], &objPtr) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                Jim_SetResult(interp, objPtr);
+            }
+            return JIM_OK;
 
         case INFO_FRAME:
-            switch (argc) {
-                case 2:
-                    Jim_SetResultInt(interp, interp->procLevel + 1);
-                    break;
-
-                case 3:
-                    if (JimInfoFrame(interp, argv[2], &objPtr) != JIM_OK) {
-                        return JIM_ERR;
-                    }
-                    Jim_SetResult(interp, objPtr);
-                    break;
-
-                default:
-                    Jim_WrongNumArgs(interp, 2, argv, "?levelNum?");
-                    return JIM_ERR;
+            if (argc == 2) {
+                Jim_SetResultInt(interp, interp->procLevel + 1);
             }
-            break;
+            else {
+                if (JimInfoFrame(interp, argv[2], &objPtr) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                Jim_SetResult(interp, objPtr);
+            }
+            return JIM_OK;
 
         case INFO_BODY:
         case INFO_STATICS:
         case INFO_ARGS:{
                 Jim_Cmd *cmdPtr;
 
-                if (argc != 3) {
-                    Jim_WrongNumArgs(interp, 2, argv, "procname");
-                    return JIM_ERR;
-                }
                 if ((cmdPtr = Jim_GetCommand(interp, argv[2], JIM_ERRMSG)) == NULL) {
                     return JIM_ERR;
                 }
@@ -15686,7 +15689,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     Jim_SetResultFormatted(interp, "command \"%#s\" is not a procedure", argv[2]);
                     return JIM_ERR;
                 }
-                switch (cmd) {
+                switch (option) {
 #ifdef JIM_NO_INTROSPECTION
                     default:
                         Jim_SetResultString(interp, "unsupported", -1);
@@ -15706,7 +15709,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                         }
                         break;
                 }
-                break;
+                return JIM_OK;
             }
 
         case INFO_VERSION:
@@ -15715,23 +15718,18 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 
                 sprintf(buf, "%d.%d", JIM_VERSION / 100, JIM_VERSION % 100);
                 Jim_SetResultString(interp, buf, -1);
-                break;
+                return JIM_OK;
             }
 
-        case INFO_COMPLETE:
-            if (argc != 3 && argc != 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "script ?missing?");
-                return JIM_ERR;
-            }
-            else {
+        case INFO_COMPLETE: {
                 char missing;
 
                 Jim_SetResultBool(interp, Jim_ScriptIsComplete(interp, argv[2], &missing));
                 if (missing != ' ' && argc == 4) {
                     Jim_SetVariable(interp, argv[3], Jim_NewStringObj(interp, &missing, 1));
                 }
+                return JIM_OK;
             }
-            break;
 
         case INFO_HOSTNAME:
             /* Redirect to os.gethostname if it exists */
@@ -15769,11 +15767,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     Jim_SetResultString(interp, name, -1);
                 }
             }
-            else {
-                Jim_WrongNumArgs(interp, 2, argv, "?code?");
-                return JIM_ERR;
-            }
-            break;
+            return JIM_OK;
         case INFO_REFERENCES:
 #ifdef JIM_REFERENCES
             return JimInfoReferences(interp, argc, argv);
@@ -15781,8 +15775,9 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResultString(interp, "not supported", -1);
             return JIM_ERR;
 #endif
+        default:
+            abort();
     }
-    return JIM_OK;
 }
 
 /* [exists] */
