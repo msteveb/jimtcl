@@ -13483,168 +13483,152 @@ static Jim_Obj *JimGetExprAsList(Jim_Interp *interp, struct JimExprNode *node)
 #if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    static const char * const options[] = {
-        "refcount", "objcount", "objects", "invstr", "scriptlen", "exprlen",
-        "exprbc", "show",
-        NULL
+    /* Must be kept in order with the array below */
+    enum {
+        OPT_EXPRBC,
+        OPT_EXPRLEN,
+        OPT_INVSTR,
+        OPT_OBJCOUNT,
+        OPT_OBJECTS,
+        OPT_REFCOUNT,
+        OPT_SCRIPTLEN,
+        OPT_SHOW,
+        OPT_COUNT
     };
-    enum
-    {
-        OPT_REFCOUNT, OPT_OBJCOUNT, OPT_OBJECTS, OPT_INVSTR, OPT_SCRIPTLEN,
-        OPT_EXPRLEN, OPT_EXPRBC, OPT_SHOW,
+    static const jim_subcmd_type cmds[OPT_COUNT + 1] = {
+        JIM_DEF_SUBCMD("exprbc", "expression", 1, 1),
+        JIM_DEF_SUBCMD("exprlen", "expression", 1, 1),
+        JIM_DEF_SUBCMD("invstr", "object", 1, 1),
+        JIM_DEF_SUBCMD("objcount", NULL, 0, 0),
+        JIM_DEF_SUBCMD("objects", NULL, 0, 0),
+        JIM_DEF_SUBCMD("refcount", "object", 1, 1),
+        JIM_DEF_SUBCMD("scriptlen", "script", 1, 1),
+        JIM_DEF_SUBCMD("show", "object", 1, 1),
+        { /* null terminator */ }
     };
-    int option;
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?...?");
+    const jim_subcmd_type *ct = Jim_ParseSubCmd(interp, cmds, argc, argv);
+    if (!ct) {
         return JIM_ERR;
     }
-    if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK)
-        return Jim_CheckShowCommands(interp, argv[1], options);
-    if (option == OPT_REFCOUNT) {
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "object");
-            return JIM_ERR;
-        }
-        Jim_SetResultInt(interp, argv[2]->refCount);
-        return JIM_OK;
+    if (ct->function) {
+        /* This is -help or -commands */
+        return ct->function(interp, argc, argv);
     }
-    else if (option == OPT_OBJCOUNT) {
-        int freeobj = 0, liveobj = 0;
-        char buf[256];
-        Jim_Obj *objPtr;
+    /* (ct - cmds) is the index into the table */
+    switch (ct - cmds) {
+        case OPT_REFCOUNT:
+            Jim_SetResultInt(interp, argv[2]->refCount);
+            return JIM_OK;
 
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
-        }
-        /* Count the number of free objects. */
-        objPtr = interp->freeList;
-        while (objPtr) {
-            freeobj++;
-            objPtr = objPtr->nextObjPtr;
-        }
-        /* Count the number of live objects. */
-        objPtr = interp->liveList;
-        while (objPtr) {
-            liveobj++;
-            objPtr = objPtr->nextObjPtr;
-        }
-        /* Set the result string and return. */
-        sprintf(buf, "free %d used %d", freeobj, liveobj);
-        Jim_SetResultString(interp, buf, -1);
-        return JIM_OK;
-    }
-    else if (option == OPT_OBJECTS) {
-        Jim_Obj *objPtr, *listObjPtr, *subListObjPtr;
+        case OPT_OBJCOUNT:{
+            int freeobj = 0, liveobj = 0;
+            char buf[256];
+            Jim_Obj *objPtr;
 
-        if (argc != 2) {
-            Jim_WrongNumArgs(interp, 2, argv, "");
-            return JIM_ERR;
+            /* Count the number of free objects. */
+            objPtr = interp->freeList;
+            while (objPtr) {
+                freeobj++;
+                objPtr = objPtr->nextObjPtr;
+            }
+            /* Count the number of live objects. */
+            objPtr = interp->liveList;
+            while (objPtr) {
+                liveobj++;
+                objPtr = objPtr->nextObjPtr;
+            }
+            /* Set the result string and return. */
+            sprintf(buf, "free %d used %d", freeobj, liveobj);
+            Jim_SetResultString(interp, buf, -1);
+            return JIM_OK;
         }
 
-        /* Count the number of live objects. */
-        objPtr = interp->liveList;
-        listObjPtr = Jim_NewListObj(interp, NULL, 0);
-        while (objPtr) {
-            char buf[128];
-            const char *type = objPtr->typePtr ? objPtr->typePtr->name : "";
+        case OPT_OBJECTS:{
+            Jim_Obj *objPtr, *listObjPtr, *subListObjPtr;
 
-            subListObjPtr = Jim_NewListObj(interp, NULL, 0);
-            sprintf(buf, "%p", objPtr);
-            Jim_ListAppendElement(interp, subListObjPtr, Jim_NewStringObj(interp, buf, -1));
-            Jim_ListAppendElement(interp, subListObjPtr, Jim_NewStringObj(interp, type, -1));
-            Jim_ListAppendElement(interp, subListObjPtr, Jim_NewIntObj(interp, objPtr->refCount));
-            Jim_ListAppendElement(interp, subListObjPtr, objPtr);
-            Jim_ListAppendElement(interp, listObjPtr, subListObjPtr);
-            objPtr = objPtr->nextObjPtr;
-        }
-        Jim_SetResult(interp, listObjPtr);
-        return JIM_OK;
-    }
-    else if (option == OPT_INVSTR) {
-        Jim_Obj *objPtr;
+            /* Count the number of live objects. */
+            objPtr = interp->liveList;
+            listObjPtr = Jim_NewListObj(interp, NULL, 0);
+            while (objPtr) {
+                char buf[128];
+                const char *type = objPtr->typePtr ? objPtr->typePtr->name : "";
 
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "object");
-            return JIM_ERR;
+                subListObjPtr = Jim_NewListObj(interp, NULL, 0);
+                sprintf(buf, "%p", objPtr);
+                Jim_ListAppendElement(interp, subListObjPtr, Jim_NewStringObj(interp, buf, -1));
+                Jim_ListAppendElement(interp, subListObjPtr, Jim_NewStringObj(interp, type, -1));
+                Jim_ListAppendElement(interp, subListObjPtr, Jim_NewIntObj(interp, objPtr->refCount));
+                Jim_ListAppendElement(interp, subListObjPtr, objPtr);
+                Jim_ListAppendElement(interp, listObjPtr, subListObjPtr);
+                objPtr = objPtr->nextObjPtr;
+            }
+            Jim_SetResult(interp, listObjPtr);
+            return JIM_OK;
         }
-        objPtr = argv[2];
-        if (objPtr->typePtr != NULL)
-            Jim_InvalidateStringRep(objPtr);
-        Jim_SetEmptyResult(interp);
-        return JIM_OK;
-    }
-    else if (option == OPT_SHOW) {
-        const char *s;
-        int len, charlen;
 
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "object");
-            return JIM_ERR;
+        case OPT_INVSTR:{
+            Jim_Obj *objPtr = argv[2];
+            if (objPtr->typePtr != NULL)
+                Jim_InvalidateStringRep(objPtr);
+            Jim_SetEmptyResult(interp);
+            return JIM_OK;
         }
-        s = Jim_GetString(argv[2], &len);
-#ifdef JIM_UTF8
-        charlen = utf8_strlen(s, len);
-#else
-        charlen = len;
-#endif
-        char buf[256];
-        snprintf(buf, sizeof(buf), "refcount: %d, type: %s\n"
-            "chars (%d):",
-            argv[2]->refCount, JimObjTypeName(argv[2]), charlen);
-        Jim_SetResultFormatted(interp, "%s <<%s>>\n", buf, s);
-        snprintf(buf, sizeof(buf), "bytes (%d):", len);
-        Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
-        while (len--) {
-            snprintf(buf, sizeof(buf), " %02x", (unsigned char)*s++);
+
+        case OPT_SHOW:{
+            const char *s;
+            int len, charlen;
+
+            if (argc != 3) {
+                Jim_WrongNumArgs(interp, 2, argv, "object");
+                return JIM_ERR;
+            }
+            s = Jim_GetString(argv[2], &len);
+    #ifdef JIM_UTF8
+            charlen = utf8_strlen(s, len);
+    #else
+            charlen = len;
+    #endif
+            char buf[256];
+            snprintf(buf, sizeof(buf), "refcount: %d, type: %s\n"
+                "chars (%d):",
+                argv[2]->refCount, JimObjTypeName(argv[2]), charlen);
+            Jim_SetResultFormatted(interp, "%s <<%s>>\n", buf, s);
+            snprintf(buf, sizeof(buf), "bytes (%d):", len);
             Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
+            while (len--) {
+                snprintf(buf, sizeof(buf), " %02x", (unsigned char)*s++);
+                Jim_AppendString(interp, Jim_GetResult(interp), buf, -1);
+            }
+            return JIM_OK;
         }
-        return JIM_OK;
-    }
-    else if (option == OPT_SCRIPTLEN) {
-        ScriptObj *script;
 
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "script");
-            return JIM_ERR;
+        case OPT_SCRIPTLEN:{
+            ScriptObj *script = JimGetScript(interp, argv[2]);
+            if (script == NULL)
+                return JIM_ERR;
+            Jim_SetResultInt(interp, script->len);
+            return JIM_OK;
         }
-        script = JimGetScript(interp, argv[2]);
-        if (script == NULL)
-            return JIM_ERR;
-        Jim_SetResultInt(interp, script->len);
-        return JIM_OK;
-    }
-    else if (option == OPT_EXPRLEN) {
-        struct ExprTree *expr;
 
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "expression");
-            return JIM_ERR;
+        case OPT_EXPRLEN:{
+            struct ExprTree *expr = JimGetExpression(interp, argv[2]);
+            if (expr == NULL)
+                return JIM_ERR;
+            Jim_SetResultInt(interp, expr->len);
+            return JIM_OK;
         }
-        expr = JimGetExpression(interp, argv[2]);
-        if (expr == NULL)
-            return JIM_ERR;
-        Jim_SetResultInt(interp, expr->len);
-        return JIM_OK;
-    }
-    else if (option == OPT_EXPRBC) {
-        struct ExprTree *expr;
 
-        if (argc != 3) {
-            Jim_WrongNumArgs(interp, 2, argv, "expression");
-            return JIM_ERR;
+        case OPT_EXPRBC:{
+            struct ExprTree *expr = JimGetExpression(interp, argv[2]);
+            if (expr == NULL)
+                return JIM_ERR;
+            Jim_SetResult(interp, JimGetExprAsList(interp, expr->expr));
+            return JIM_OK;
         }
-        expr = JimGetExpression(interp, argv[2]);
-        if (expr == NULL)
-            return JIM_ERR;
-        Jim_SetResult(interp, JimGetExprAsList(interp, expr->expr));
-        return JIM_OK;
-    }
-    else {
-        Jim_SetResultString(interp,
-            "bad option. Valid options are refcount, " "objcount, objects, invstr", -1);
-        return JIM_ERR;
+
+        default:
+            abort();
     }
     /* unreached */
 }
