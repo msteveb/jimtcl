@@ -56,6 +56,7 @@
 
 #include "jim.h"
 #include "jimautoconf.h"
+#include "jim-subcmd.h"
 #include "utf8.h"
 
 #ifdef HAVE_SYS_TIME_H
@@ -14227,46 +14228,81 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
     int len;
     int opt_case = 1;
     int option;
-    static const char * const options[] = {
-        "bytelength", "length", "compare", "match", "equal", "is", "byterange", "range", "replace",
-        "map", "repeat", "reverse", "index", "first", "last", "cat",
-        "trim", "trimleft", "trimright", "tolower", "toupper", "totitle", NULL
-    };
-    enum
-    {
-        OPT_BYTELENGTH, OPT_LENGTH, OPT_COMPARE, OPT_MATCH, OPT_EQUAL, OPT_IS, OPT_BYTERANGE, OPT_RANGE, OPT_REPLACE,
-        OPT_MAP, OPT_REPEAT, OPT_REVERSE, OPT_INDEX, OPT_FIRST, OPT_LAST, OPT_CAT,
-        OPT_TRIM, OPT_TRIMLEFT, OPT_TRIMRIGHT, OPT_TOLOWER, OPT_TOUPPER, OPT_TOTITLE
-    };
     static const char * const nocase_options[] = {
         "-nocase", NULL
     };
     static const char * const nocase_length_options[] = {
         "-nocase", "-length", NULL
     };
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "option ?arguments ...?");
+    /* Must be kept in order with the array below */
+    enum {
+        OPT_BYTELENGTH,
+        OPT_BYTERANGE,
+        OPT_CAT,
+        OPT_COMPARE,
+        OPT_EQUAL,
+        OPT_FIRST,
+        OPT_INDEX,
+        OPT_IS,
+        OPT_LAST,
+        OPT_LENGTH,
+        OPT_MAP,
+        OPT_MATCH,
+        OPT_RANGE,
+        OPT_REPEAT,
+        OPT_REPLACE,
+        OPT_REVERSE,
+        OPT_TOLOWER,
+        OPT_TOTITLE,
+        OPT_TOUPPER,
+        OPT_TRIM,
+        OPT_TRIMLEFT,
+        OPT_TRIMRIGHT,
+        OPT_COUNT
+    };
+    static const jim_subcmd_type cmds[OPT_COUNT + 1] = {
+        JIM_DEF_SUBCMD("bytelength", "string", 1, 1),
+        JIM_DEF_SUBCMD("byterange", "string first last", 3, 3),
+        JIM_DEF_SUBCMD("cat", "?...?", 0, -1),
+        JIM_DEF_SUBCMD("compare", "?-nocase? ?-length int? string1 string2", 2, 5),
+        JIM_DEF_SUBCMD("equal", "?-nocase? ?-length int? string1 string2", 2, 5),
+        JIM_DEF_SUBCMD("first", "subString string ?index?", 2, 3),
+        JIM_DEF_SUBCMD("index", "string index", 2, 2),
+        JIM_DEF_SUBCMD("is", "class ?-strict? str", 2, 3),
+        JIM_DEF_SUBCMD("last", "subString string ?index?", 2, 3),
+        JIM_DEF_SUBCMD("length","string", 1, 1),
+        JIM_DEF_SUBCMD("map", "?-nocase? mapList string", 2, 3),
+        JIM_DEF_SUBCMD("match", "?-nocase? pattern string", 2, 3),
+        JIM_DEF_SUBCMD("range", "string first last", 3, 3),
+        JIM_DEF_SUBCMD("repeat", "string count", 2, 2),
+        JIM_DEF_SUBCMD("replace", "string first last ?string?", 3, 4),
+        JIM_DEF_SUBCMD("reverse", "string", 1, 1),
+        JIM_DEF_SUBCMD("tolower", "string", 1, 1),
+        JIM_DEF_SUBCMD("totitle", "string", 1, 1),
+        JIM_DEF_SUBCMD("toupper", "string", 1, 1),
+        JIM_DEF_SUBCMD("trim", "string ?trimchars?", 1, 2),
+        JIM_DEF_SUBCMD("trimleft", "string ?trimchars?", 1, 2),
+        JIM_DEF_SUBCMD("trimright", "string ?trimchars?", 1, 2),
+        { /* null terminator */ }
+    };
+    const jim_subcmd_type *ct = Jim_ParseSubCmd(interp, cmds, argc, argv);
+    if (!ct) {
         return JIM_ERR;
     }
-    if (Jim_GetEnum(interp, argv[1], options, &option, NULL,
-            JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
-        return Jim_CheckShowCommands(interp, argv[1], options);
+    if (ct->function) {
+        /* This is -help or -commands */
+        return ct->function(interp, argc, argv);
+    }
+    /* (ct - cmds) is the index into the table */
+    option = ct - cmds;
 
     switch (option) {
         case OPT_LENGTH:
+            Jim_SetResultInt(interp, Jim_Utf8Length(interp, argv[2]));
+            return JIM_OK;
+
         case OPT_BYTELENGTH:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "string");
-                return JIM_ERR;
-            }
-            if (option == OPT_LENGTH) {
-                len = Jim_Utf8Length(interp, argv[2]);
-            }
-            else {
-                len = Jim_Length(argv[2]);
-            }
-            Jim_SetResultInt(interp, len);
+            Jim_SetResultInt(interp, Jim_Length(argv[2]));
             return JIM_OK;
 
         case OPT_CAT:{
@@ -14300,7 +14336,7 @@ static int Jim_StringCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                     if (Jim_GetEnum(interp, argv[i++], nocase_length_options, &subopt, NULL,
                             JIM_ENUM_ABBREV) != JIM_OK) {
 badcompareargs:
-                        Jim_WrongNumArgs(interp, 2, argv, "?-nocase? ?-length int? string1 string2");
+                        Jim_SubCmdArgError(interp, ct, argv[0]);
                         return JIM_ERR;
                     }
                     if (subopt == 0) {
@@ -14382,22 +14418,17 @@ badcompareargs:
                 return JIM_OK;
             }
 
-        case OPT_RANGE:
-        case OPT_BYTERANGE:{
-                Jim_Obj *objPtr;
-
-                if (argc != 5) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string first last");
+        case OPT_RANGE:{
+                Jim_Obj *objPtr = Jim_StringRangeObj(interp, argv[2], argv[3], argv[4]);
+                if (objPtr == NULL) {
                     return JIM_ERR;
                 }
-                if (option == OPT_RANGE) {
-                    objPtr = Jim_StringRangeObj(interp, argv[2], argv[3], argv[4]);
-                }
-                else
-                {
-                    objPtr = Jim_StringByteRangeObj(interp, argv[2], argv[3], argv[4]);
-                }
+                Jim_SetResult(interp, objPtr);
+                return JIM_OK;
+            }
 
+        case OPT_BYTERANGE:{
+                Jim_Obj *objPtr = Jim_StringByteRangeObj(interp, argv[2], argv[3], argv[4]);
                 if (objPtr == NULL) {
                     return JIM_ERR;
                 }
@@ -14406,13 +14437,7 @@ badcompareargs:
             }
 
         case OPT_REPLACE:{
-                Jim_Obj *objPtr;
-
-                if (argc != 5 && argc != 6) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string first last ?string?");
-                    return JIM_ERR;
-                }
-                objPtr = JimStringReplaceObj(interp, argv[2], argv[3], argv[4], argc == 6 ? argv[5] : NULL);
+                Jim_Obj *objPtr = JimStringReplaceObj(interp, argv[2], argv[3], argv[4], argc == 6 ? argv[5] : NULL);
                 if (objPtr == NULL) {
                     return JIM_ERR;
                 }
@@ -14425,10 +14450,6 @@ badcompareargs:
                 Jim_Obj *objPtr;
                 jim_wide count;
 
-                if (argc != 4) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string count");
-                    return JIM_ERR;
-                }
                 if (Jim_GetWideExpr(interp, argv[3], &count) != JIM_OK) {
                     return JIM_ERR;
                 }
@@ -14446,11 +14467,6 @@ badcompareargs:
                 char *buf, *p;
                 const char *str;
                 int i;
-
-                if (argc != 3) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string");
-                    return JIM_ERR;
-                }
 
                 str = Jim_GetString(argv[2], &len);
                 buf = Jim_Alloc(len + 1);
@@ -14473,10 +14489,6 @@ badcompareargs:
                 int idx;
                 const char *str;
 
-                if (argc != 4) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string index");
-                    return JIM_ERR;
-                }
                 if (Jim_GetIndex(interp, argv[3], &idx) != JIM_OK) {
                     return JIM_ERR;
                 }
@@ -14503,10 +14515,6 @@ badcompareargs:
                 int idx = 0, l1, l2;
                 const char *s1, *s2;
 
-                if (argc != 4 && argc != 5) {
-                    Jim_WrongNumArgs(interp, 2, argv, "subString string ?index?");
-                    return JIM_ERR;
-                }
                 s1 = Jim_String(argv[2]);
                 s2 = Jim_String(argv[3]);
                 l1 = Jim_Utf8Length(interp, argv[2]);
@@ -14537,51 +14545,32 @@ badcompareargs:
             }
 
         case OPT_TRIM:
-        case OPT_TRIMLEFT:
-        case OPT_TRIMRIGHT:{
-                Jim_Obj *trimchars;
-
-                if (argc != 3 && argc != 4) {
-                    Jim_WrongNumArgs(interp, 2, argv, "string ?trimchars?");
-                    return JIM_ERR;
-                }
-                trimchars = (argc == 4 ? argv[3] : NULL);
-                if (option == OPT_TRIM) {
-                    Jim_SetResult(interp, JimStringTrim(interp, argv[2], trimchars));
-                }
-                else if (option == OPT_TRIMLEFT) {
-                    Jim_SetResult(interp, JimStringTrimLeft(interp, argv[2], trimchars));
-                }
-                else if (option == OPT_TRIMRIGHT) {
-                    Jim_SetResult(interp, JimStringTrimRight(interp, argv[2], trimchars));
-                }
+                Jim_SetResult(interp, JimStringTrim(interp, argv[2], argc == 4 ? argv[3] : NULL));
                 return JIM_OK;
-            }
+        case OPT_TRIMLEFT:
+                Jim_SetResult(interp, JimStringTrimLeft(interp, argv[2], argc == 4 ? argv[3] : NULL));
+                return JIM_OK;
+        case OPT_TRIMRIGHT:{
+                Jim_SetResult(interp, JimStringTrimRight(interp, argv[2], argc == 4 ? argv[3] : NULL));
+                return JIM_OK;
+        }
 
         case OPT_TOLOWER:
-        case OPT_TOUPPER:
-        case OPT_TOTITLE:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "string");
-                return JIM_ERR;
-            }
-            if (option == OPT_TOLOWER) {
                 Jim_SetResult(interp, JimStringToLower(interp, argv[2]));
-            }
-            else if (option == OPT_TOUPPER) {
+                return JIM_OK;
+        case OPT_TOUPPER:
                 Jim_SetResult(interp, JimStringToUpper(interp, argv[2]));
-            }
-            else {
+                return JIM_OK;
+        case OPT_TOTITLE:
                 Jim_SetResult(interp, JimStringToTitle(interp, argv[2]));
-            }
-            return JIM_OK;
+                return JIM_OK;
 
         case OPT_IS:
-            if (argc == 4 || (argc == 5 && Jim_CompareStringImmediate(interp, argv[3], "-strict"))) {
-                return JimStringIs(interp, argv[argc - 1], argv[2], argc == 5);
+            if (argc == 5 && !Jim_CompareStringImmediate(interp, argv[3], "-strict")) {
+                Jim_SubCmdArgError(interp, ct, argv[0]);
+                return JIM_ERR;
             }
-            Jim_WrongNumArgs(interp, 2, argv, "class ?-strict? str");
-            return JIM_ERR;
+            return JimStringIs(interp, argv[argc - 1], argv[2], argc == 5);
     }
     return JIM_OK;
 }
