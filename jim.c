@@ -15269,40 +15269,66 @@ static int JimDictWith(Jim_Interp *interp, Jim_Obj *dictVarName, Jim_Obj *const 
 static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
-    int rc;
     int types = JIM_DICTMATCH_KEYS;
-    int option;
-    static const char * const options[] = {
-        "create", "get", "set", "unset", "exists", "keys", "size", "info",
-        "merge", "with", "append", "lappend", "incr", "remove", "values", "for",
-        "replace", "update", "getwithdefault", NULL
+    /* Must be kept in order with the array below */
+    enum {
+        OPT_CREATE,
+        OPT_GET,
+        OPT_GETDEF,
+        OPT_GETWITHDEFAULT,
+        OPT_SET,
+        OPT_UNSET,
+        OPT_EXISTS,
+        OPT_KEYS,
+        OPT_SIZE,
+        OPT_INFO,
+        OPT_MERGE,
+        OPT_WITH,
+        OPT_APPEND,
+        OPT_LAPPEND,
+        OPT_INCR,
+        OPT_REMOVE,
+        OPT_VALUES,
+        OPT_FOR,
+        OPT_REPLACE,
+        OPT_UPDATE,
+        OPT_COUNT
     };
-    enum
-    {
-        OPT_CREATE, OPT_GET, OPT_SET, OPT_UNSET, OPT_EXISTS, OPT_KEYS, OPT_SIZE, OPT_INFO,
-        OPT_MERGE, OPT_WITH, OPT_APPEND, OPT_LAPPEND, OPT_INCR, OPT_REMOVE, OPT_VALUES, OPT_FOR,
-        OPT_REPLACE, OPT_UPDATE, OPT_GETDEF,
+    static const jim_subcmd_type cmds[OPT_COUNT + 1] = {
+        JIM_DEF_SUBCMD("create", "?key value ...?", 0, -2),
+        JIM_DEF_SUBCMD("get", "dictionary ?key ...?", 1, -1),
+        JIM_DEF_SUBCMD_HIDDEN("getdef", "dictionary ?key ...? key default", 3, -1),
+        JIM_DEF_SUBCMD("getwithdefault", "dictionary ?key ...? key default", 3, -1),
+        JIM_DEF_SUBCMD("set", "varName key ?key ...? value", 3, -1),
+        JIM_DEF_SUBCMD("unset", "varName key ?key ...?", 2, -1),
+        JIM_DEF_SUBCMD("exists", "dictionary key ?key ...?", 2, -1),
+        JIM_DEF_SUBCMD("keys", "dictionary ?pattern?", 1, 2),
+        JIM_DEF_SUBCMD("size", "dictionary", 1, 1),
+        JIM_DEF_SUBCMD("info", "dictionary", 1, 1),
+        JIM_DEF_SUBCMD("merge", "?...?", 0, -1),
+        JIM_DEF_SUBCMD("with", "dictVar ?key ...? script", 2, -1),
+        JIM_DEF_SUBCMD("append", "varName key ?value ...?", 2, -1),
+        JIM_DEF_SUBCMD("lappend",  "varName key ?value ...?", 2, -1),
+        JIM_DEF_SUBCMD("incr", "varName key ?increment?", 2, 3),
+        JIM_DEF_SUBCMD("remove", "dictionary ?key ...?", 1, -1),
+        JIM_DEF_SUBCMD("values", "dictionary ?pattern?", 1, 2),
+        JIM_DEF_SUBCMD("for", "vars dictionary script", 3, 3),
+        JIM_DEF_SUBCMD("replace", "dictionary ?key value ...?", 1, -1),
+        JIM_DEF_SUBCMD("update", "varName ?arg ...? script", 2, -1),
+        { /* null terminator */ }
     };
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?arguments ...?");
+    const jim_subcmd_type *ct = Jim_ParseSubCmd(interp, cmds, argc, argv);
+    if (!ct) {
         return JIM_ERR;
     }
-
-    if (Jim_GetEnum(interp, argv[1], options, &option, "subcommand", JIM_ERRMSG) != JIM_OK) {
-        /* Handle getdef as an alias for getwithdefault */
-        if (Jim_CompareStringImmediate(interp, argv[1], "getdef") == 0) {
-            return Jim_CheckShowCommands(interp, argv[1], options);
-        }
-        option = OPT_GETDEF;
+    if (ct->function) {
+        /* This is -help or -commands */
+        return ct->function(interp, argc, argv);
     }
 
-    switch (option) {
+    /* (ct - cmds) is the index into the table */
+    switch (ct - cmds) {
         case OPT_GET:
-            if (argc < 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?key ...?");
-                return JIM_ERR;
-            }
             if (Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3, &objPtr,
                     JIM_ERRMSG) != JIM_OK) {
                 return JIM_ERR;
@@ -15311,11 +15337,8 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return JIM_OK;
 
         case OPT_GETDEF:
-            if (argc < 5) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?key ...? key default");
-                return JIM_ERR;
-            }
-            rc = Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 4, &objPtr, JIM_ERRMSG);
+        case OPT_GETWITHDEFAULT:{
+            int rc = Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 4, &objPtr, JIM_ERRMSG);
             if (rc == -1) {
                 /* Not a valid dictionary */
                 return JIM_ERR;
@@ -15327,20 +15350,12 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 Jim_SetResult(interp, objPtr);
             }
             return JIM_OK;
+        }
 
         case OPT_SET:
-            if (argc < 5) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...? value");
-                return JIM_ERR;
-            }
             return Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 4, argv[argc - 1], JIM_ERRMSG);
 
-        case OPT_EXISTS:
-            if (argc < 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary key ?key ...?");
-                return JIM_ERR;
-            }
-            else {
+        case OPT_EXISTS:{
                 int rc = Jim_DictKeysVector(interp, argv[2], argv + 3, argc - 3, &objPtr, JIM_NONE);
                 if (rc < 0) {
                     return JIM_ERR;
@@ -15350,10 +15365,6 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             }
 
         case OPT_UNSET:
-            if (argc < 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "varName key ?key ...?");
-                return JIM_ERR;
-            }
             if (Jim_SetDictKeysVector(interp, argv[2], argv + 3, argc - 3, NULL, JIM_NONE) != JIM_OK) {
                 return JIM_ERR;
             }
@@ -15363,18 +15374,10 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             types = JIM_DICTMATCH_VALUES;
             /* fallthru */
         case OPT_KEYS:
-            if (argc != 3 && argc != 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary ?pattern?");
-                return JIM_ERR;
-            }
             return Jim_DictMatchTypes(interp, argv[2], argc == 4 ? argv[3] : NULL, types, types);
 
         case OPT_SIZE:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary");
-                return JIM_ERR;
-            }
-            else if (Jim_DictSize(interp, argv[2]) < 0) {
+            if (Jim_DictSize(interp, argv[2]) < 0) {
                 return JIM_ERR;
             }
             Jim_SetResultInt(interp, Jim_DictSize(interp, argv[2]));
@@ -15391,38 +15394,26 @@ static int Jim_DictCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
 
-        case OPT_UPDATE:
-            if (argc < 6 || argc % 2) {
-                /* Better error message */
-                argc = 2;
-            }
-            break;
-
         case OPT_CREATE:
-            if (argc % 2) {
-                Jim_WrongNumArgs(interp, 2, argv, "?key value ...?");
-                return JIM_ERR;
-            }
             objPtr = Jim_NewDictObj(interp, argv + 2, argc - 2);
             Jim_SetResult(interp, objPtr);
             return JIM_OK;
 
         case OPT_INFO:
-            if (argc != 3) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictionary");
-                return JIM_ERR;
-            }
             return Jim_DictInfo(interp, argv[2]);
 
         case OPT_WITH:
-            if (argc < 4) {
-                Jim_WrongNumArgs(interp, 2, argv, "dictVar ?key ...? script");
-                return JIM_ERR;
-            }
             return JimDictWith(interp, argv[2], argv + 3, argc - 4, argv[argc - 1]);
+
+        case OPT_UPDATE:
+            if (argc < 6 || argc % 2) {
+                /* Better error message */
+                argc = 2;
+            }
+            /* fallthru */
+        default:
+            return Jim_EvalEnsemble(interp, "dict", Jim_String(argv[1]), argc - 2, argv + 2);
     }
-    /* Handle command as an ensemble */
-    return Jim_EvalEnsemble(interp, "dict", options[option], argc - 2, argv + 2);
 }
 
 /* [subst] */
