@@ -2537,6 +2537,9 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int async = 0;
     int flags = 0;
 
+    if (argc == 2 && Jim_CompareStringImmediate(interp, argv[1], "-commands")) {
+        return Jim_CheckShowCommands(interp, argv[1], socktypes);
+    }
 
     while (argc > 1 && Jim_String(argv[1])[0] == '-') {
         static const char * const options[] = { "-async", "-ipv6", "-noclose", NULL };
@@ -2571,12 +2574,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc < 2) {
       wrongargs:
-        Jim_WrongNumArgs(interp, 1, &argv0, "?-async? ?-ipv6? type ?address?");
+        Jim_WrongNumArgs(interp, 1, &argv0, "?-async? ?-ipv6? socktype ?address?");
         return JIM_ERR;
     }
 
-    if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socket type", JIM_ERRMSG) != JIM_OK)
-        return Jim_CheckShowCommands(interp, argv[1], socktypes);
+    if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socktype", JIM_ERRMSG) != JIM_OK) {
+        /* No need to check for -commands here since we did it above */
+        return JIM_ERR;
+    }
 
     Jim_SetEmptyResult(interp);
 
