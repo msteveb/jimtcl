@@ -44,7 +44,7 @@ if {$tcl_platform(platform) eq "windows"} {
 }
 
 # Set a global variable here so that custom commands can be added post hoc
-set tcl::autocomplete_commands {info tcl::prefix socket namespace array clock file package string dict signal history zlib}
+set tcl::autocomplete_commands {array clock debug dict file history info namespace package signal socket string tcl::prefix zlib}
 
 # Simple interactive command line completion callback
 # Explicitly knows about some commands that support "-commands"
@@ -76,8 +76,8 @@ proc tcl::autocomplete {prefix} {
 	}]
 }
 
-# Only commands that support "cmd -help subcommand" have autohint suport
-set tcl::stdhint_commands {array clock file package signal history zlib}
+# Only procs and C commands that support "cmd -help subcommand" have autohint suport
+set tcl::stdhint_commands {array clock debug dict file history info namespace package signal string zlib}
 
 set tcl::stdhint_cols {
 	none {0}
