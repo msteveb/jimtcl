@@ -31,6 +31,11 @@ typedef struct {
 	unsigned short flags;			/* JIM_MODFLAG_... plus custom flags */
 } jim_subcmd_type;
 
+/* This makes it easy to define a jim_subcmd_type array with function=NULL
+ * see jim-namespace.c for an example
+ */
+#define JIM_DEF_SUBCMD(name, args, minargs, maxargs) { name, args, NULL, minargs, maxargs }
+
 /**
  * Looks up the appropriate subcommand in the given command table and return
  * the command function which implements the subcommand.
@@ -69,6 +74,13 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
  * Otherwise returns the result of ct->function.
  */
 int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_Obj *const *argv);
+
+/**
+ * Sets an error result indicating the usage of the subcmd 'ct'.
+ * Typically this will be called with the result of Jim_ParseSubCmd() after
+ * additional checks if the args are wrong.
+ */
+void Jim_SubCmdArgError(Jim_Interp *interp, const jim_subcmd_type *ct, Jim_Obj *subcmd);
 
 #ifdef __cplusplus
 }
