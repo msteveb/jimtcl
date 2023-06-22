@@ -82,10 +82,10 @@ static void add_cmd_usage(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Ob
     }
 }
 
-static void set_wrong_args(Jim_Interp *interp, const jim_subcmd_type * command_table, Jim_Obj *subcmd)
+void Jim_SubCmdArgError(Jim_Interp *interp, const jim_subcmd_type * ct, Jim_Obj *subcmd)
 {
     Jim_SetResultString(interp, "wrong # args: should be \"", -1);
-    add_cmd_usage(interp, command_table, subcmd);
+    add_cmd_usage(interp, ct, subcmd);
     Jim_AppendStrings(interp, Jim_GetResult(interp), "\"", NULL);
 }
 
@@ -110,6 +110,7 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
     Jim_Obj *cmd;
     const char *cmdstr;
     int help = 0;
+    int argsok = 1;
 
     if (argc < 2) {
         Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s command ...\"\n"
@@ -200,7 +201,18 @@ const jim_subcmd_type *Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type
 
 found:
     /* Check the number of args */
-    if (argc - 2 < ct->minargs || (ct->maxargs >= 0 && argc - 2 > ct->maxargs)) {
+
+    if (argc - 2 < ct->minargs) {
+        argsok = 0;
+    }
+    else if (ct->maxargs >= 0 && argc - 2 > ct->maxargs) {
+        argsok = 0;
+    }
+    else if (ct->maxargs < -1 && (argc - 2) % -ct->maxargs != 0) {
+        /* -2 means must have n * 2 args */
+        argsok = 0;
+    }
+    if (!argsok) {
         Jim_SetResultString(interp, "wrong # args: should be \"", -1);
         /* subcmd */
         add_cmd_usage(interp, ct, argv[0]);
@@ -225,7 +237,7 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type * ct, int argc, Jim
             ret = ct->function(interp, argc - 2, argv + 2);
         }
         if (ret < 0) {
-            set_wrong_args(interp, ct, argv[0]);
+            Jim_SubCmdArgError(interp, ct, argv[0]);
             ret = JIM_ERR;
         }
     }
