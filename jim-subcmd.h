@@ -35,6 +35,7 @@ typedef struct {
  * see jim-namespace.c for an example
  */
 #define JIM_DEF_SUBCMD(name, args, minargs, maxargs) { name, args, NULL, minargs, maxargs }
+#define JIM_DEF_SUBCMD_HIDDEN(name, args, minargs, maxargs) { name, args, NULL, minargs, maxargs, JIM_MODFLAG_HIDDEN }
 
 /**
  * Looks up the appropriate subcommand in the given command table and return
