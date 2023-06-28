@@ -1,0 +1,168 @@
+source [file dirname [info script]]/testing.tcl
+
+needs constraint jim
+
+test procstatic-1.1 "Simple statics by value with initialiser" {
+	proc a {} {{b 1} {c "two"}} {
+		incr b
+		append c -three
+		list $b $c
+	}
+	a
+} {2 two-three}
+
+test procstatic-1.2 "static by value from local scope" {
+	set b 1
+	set c two
+	proc a {} {b c} {
+		incr b
+		append c -three
+		list $b $c
+	}
+	list [a] $b $c
+} {{2 two-three} 1 two}
+
+test procstatic-1.3 "static by reference from local scope" {
+	set b 1
+	set c two
+	proc a {} {&b &c} {
+		incr b
+		append c -three
+		list $b $c
+	}
+	list [a] $b $c
+} {{2 two-three} 2 two-three}
+
+test procstatic-1.4 "static by reference shared between procs" {
+	set c 0
+	proc a {} {&c} {
+		incr c
+	}
+	proc b {} {&c} {
+		incr c 10
+	}
+	list [a] [b] [a] [b] $c
+} {1 11 12 22 22}
+
+test procstatic-1.5 "static by reference that goes out of scope" {
+	proc p {c} {
+		proc a {} {&c} {
+			incr c
+		}
+		proc b {} {&c} {
+			incr c 10
+		}
+	}
+	p 100
+	# Now c no longer exists but the reference is maintained by a and b
+	list [a] [b] [a] [b]
+} {101 111 112 122}
+
+test procstatic-1.5 "static by reference to upvar" {
+	set cc 5
+	proc p {&c} {
+		proc a {} {&c} {
+			incr c
+		}
+		proc b {} {&c} {
+			incr c 10
+		}
+	}
+	p cc
+	# a and b maintain a reference to cc by upvar. When we unset cc the link
+	# is dangling so the first incr will start with 0
+	unset cc
+	list [a] [b] [a] [b]
+} {1 11 12 22}
+
+test procstatic-1.6 "static by reference to upvar to array element" {
+	set cc {d 5}
+	proc p {} {
+		upvar cc(d) c
+		proc a {} {&c} {
+			incr c
+		}
+		proc b {} {&c} {
+			incr c 10
+		}
+	}
+	p
+	list [a] [b] [a] [b]
+} {6 16 17 27}
+
+# This test doesn't work yet because upvar simply keeps the name of the target
+# variable, not a reference to the variable so when it goes out of scope
+# the link is lost.
+# test procstatic-1.7 "static by reference to upvar that goes out of scope" {
+# 	proc q {} {
+# 		set cc 5
+# 		proc p {&c} {
+# 			proc a {} {&c} {
+# 				incr c
+# 			}
+# 			proc b {} {&c} {
+# 				incr c 10
+# 			}
+# 		}
+# 		p cc
+# 	}
+# 	q
+# 	# Now cc is out of scope. The stack frame the c points to is gone.
+# 	list [a] [b] [a] [b]
+# } {1 11 12 22}
+
+test procstatic-1.8 {lambda with reference} {
+	# Returns a lambda that appends to the given variable
+	proc a {&b sep} {
+		lambda {c} {&b sep} {
+			append b $sep$c
+		}
+	}
+	# Invoke the function with the arg.
+	# The updated variable will be in the original scope
+	proc p {f add} {
+		$f $add
+	}
+	set bb 5
+	# Create our two functions that both modify bb
+	set f [a bb -]
+	set f2 [a bb +]
+	# Call them a few times
+	p $f test
+	p $f2 again
+	p $f first
+} {5-test+again-first}
+
+test procstatic-2.1 {invalid static - array element} -body {
+    set b {1 2}
+    proc a {} {b(1)} {
+        return $b(1)
+    }
+    a
+} -returnCodes error -result {Can't initialise array element "b(1)"}
+
+test procstatic-2.2 {invalid static - array element by ref} -body {
+    set b {1 2}
+    proc a {} {&b(1)} {
+        return $b(1)
+    }
+    a
+} -returnCodes error -result {Can't link to array element "b(1)"}
+
+test procstatic-2.3 {invalid static - missing} -body {
+    unset -nocomplain b
+    proc a {} {b} {
+        return $b
+    }
+    a
+} -returnCodes error -result {variable for initialization of static "b" not found in the local context}
+
+test procstatic-2.4 {invalid static - missing, by ref} -body {
+    unset -nocomplain b
+    proc a {} {&b} {
+        return $b
+    }
+    a
+} -returnCodes error -result {variable for initialization of static "b" not found in the local context}
+
+testreport

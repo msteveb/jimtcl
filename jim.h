@@ -308,7 +308,7 @@ typedef struct Jim_Obj {
         } ptrIntValue;
         /* Variable object */
         struct {
-            struct Jim_Var *varPtr;
+            struct Jim_VarVal *vv;
             unsigned long callFrameId; /* for caching */
             int global; /* If the variable name is globally scoped with :: */
         } varValue;
@@ -458,17 +458,18 @@ typedef struct Jim_EvalFrame {
     Jim_Obj *scriptObj;
 } Jim_EvalFrame;
 
-/* The var structure. It just holds the pointer of the referenced
- * object. If linkFramePtr is not NULL the variable is a link
+/* The var structure. It holds the pointer of the referenced
+ * object and a reference count. If linkFramePtr is not NULL the variable is a link
  * to a variable of name stored in objPtr living in the given callframe
  * (this happens when the [global] or [upvar] command is used).
- * The interp in order to always know how to free the Jim_Obj associated
- * with a given variable because in Jim objects memory management is
+ * refCount is normally 1, but may be more than 1 if this has additional references
+ * (e.g. from proc static &var)
  * bound to interpreters. */
-typedef struct Jim_Var {
+typedef struct Jim_VarVal {
     Jim_Obj *objPtr;
     struct Jim_CallFrame *linkFramePtr;
-} Jim_Var;
+    int refCount;
+} Jim_VarVal;
 
 /* The cmd structure. */
 typedef int Jim_CmdProc(struct Jim_Interp *interp, int argc,

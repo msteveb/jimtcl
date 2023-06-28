@@ -61,6 +61,7 @@ Changes since 0.82
 5. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
 6. `socket` , `open` and `aio accept` now support '-noclose'
 7. Add support for hinting with `history hints`
+8. Support for `proc` statics by reference (lexical closure) rather than by value
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1368,6 +1369,25 @@ has an initialiser, so it is initialised to 2.
 
 Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.
+
+In addition to static variables by value, static variables may also be
+defined by "reference" by using a leading "&" character. In this case,
+the statics point to the original variable and when one changes, they
+both change.  For example, here 'a' changes changes the value of the
+original 'x'.
+
+----
+    . set x 1
+    . proc a {} {&x} {
+        incr x
+    }
+    . a
+    2
+    . a
+    3
+    . puts $x
+    3
+----
 
 See the `proc` command for information on how to define procedures
 and what happens when they are invoked. See also <<_namespaces,NAMESPACES>>.
