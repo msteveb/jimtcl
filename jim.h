@@ -183,6 +183,7 @@ typedef struct Jim_Stack {
     int len;
     int maxlen;
     void **vector;
+    void (*freefunc) (void *ptr);
 } Jim_Stack;
 
 /* -----------------------------------------------------------------------------
@@ -703,13 +704,10 @@ JIM_EXPORT void Jim_SetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
 
 
 /* stack */
-JIM_EXPORT void Jim_InitStack(Jim_Stack *stack);
-JIM_EXPORT void Jim_FreeStack(Jim_Stack *stack);
-JIM_EXPORT int Jim_StackLen(Jim_Stack *stack);
+JIM_EXPORT void Jim_StackInit(Jim_Stack *stack, void (*freefunc) (void *ptr));
+JIM_EXPORT void Jim_StackFree(Jim_Stack *stack);
 JIM_EXPORT void Jim_StackPush(Jim_Stack *stack, void *element);
-JIM_EXPORT void * Jim_StackPop(Jim_Stack *stack);
-JIM_EXPORT void * Jim_StackPeek(Jim_Stack *stack);
-JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr));
+JIM_EXPORT void *Jim_StackPop(Jim_Stack *stack);
 
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
