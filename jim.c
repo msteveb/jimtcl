@@ -1167,21 +1167,24 @@ static const Jim_HashTableType JimAssocDataHashTableType = {
  * Stack - This is a simple generic stack implementation. It is used for
  * example in the 'expr' expression compiler.
  * ---------------------------------------------------------------------------*/
-void Jim_InitStack(Jim_Stack *stack)
+void Jim_StackInit(Jim_Stack *stack, void (*freefunc) (void *ptr))
 {
     stack->len = 0;
     stack->maxlen = 0;
     stack->vector = NULL;
+    stack->freefunc = freefunc;
 }
 
-void Jim_FreeStack(Jim_Stack *stack)
+void Jim_StackFree(Jim_Stack *stack)
 {
+    int i;
+
+    if (stack->freefunc) {
+        for (i = 0; i < stack->len; i++) {
+            stack->freefunc(stack->vector[i]);
+        }
+    }
     Jim_Free(stack->vector);
-}
-
-int Jim_StackLen(Jim_Stack *stack)
-{
-    return stack->len;
 }
 
 void Jim_StackPush(Jim_Stack *stack, void *element)
@@ -1202,21 +1205,6 @@ void *Jim_StackPop(Jim_Stack *stack)
         return NULL;
     stack->len--;
     return stack->vector[stack->len];
-}
-
-void *Jim_StackPeek(Jim_Stack *stack)
-{
-    if (stack->len == 0)
-        return NULL;
-    return stack->vector[stack->len - 1];
-}
-
-void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc) (void *ptr))
-{
-    int i;
-
-    for (i = 0; i < stack->len; i++)
-        freeFunc(stack->vector[i]);
 }
 
 /* -----------------------------------------------------------------------------
@@ -5221,7 +5209,7 @@ static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
             }
             Jim_DecrRefCount(interp, cmdNameObj);
         }
-        Jim_FreeStack(localCommands);
+        Jim_StackFree(localCommands);
         Jim_Free(localCommands);
     }
     return JIM_OK;
@@ -9756,7 +9744,7 @@ static struct ExprTree *ExprTreeCreateTree(Jim_Interp *interp, const ParseTokenL
     builder.nodes = Jim_Alloc(sizeof(struct JimExprNode) * (tokenlist->count - 1));
     memset(builder.nodes, 0, sizeof(struct JimExprNode) * (tokenlist->count - 1));
     builder.next = builder.nodes;
-    Jim_InitStack(&builder.stack);
+    Jim_StackInit(&builder.stack, NULL);
 
     rc = ExprTreeBuildTree(interp, &builder, 0, 0, 1);
 
@@ -9770,7 +9758,7 @@ static struct ExprTree *ExprTreeCreateTree(Jim_Interp *interp, const ParseTokenL
     }
 
     /* Free the stack used for the compilation. */
-    Jim_FreeStack(&builder.stack);
+    Jim_StackFree(&builder.stack);
 
     if (rc != JIM_OK) {
         ExprTreeFreeNodes(interp, builder.nodes, builder.next - builder.nodes);
@@ -14190,7 +14178,7 @@ static int Jim_LocalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         }
         if (interp->framePtr->localCommands == NULL) {
             interp->framePtr->localCommands = Jim_Alloc(sizeof(*interp->framePtr->localCommands));
-            Jim_InitStack(interp->framePtr->localCommands);
+            Jim_StackInit(interp->framePtr->localCommands, NULL);
         }
         Jim_IncrRefCount(cmdNameObj);
         Jim_StackPush(interp->framePtr->localCommands, cmdNameObj);
