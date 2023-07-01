@@ -281,11 +281,6 @@ static int Jim_UnpackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     jim_wide pos;
     jim_wide width;
 
-    if (argc != 5) {
-        Jim_WrongNumArgs(interp, 1, argv,
-                "binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth");
-        return JIM_ERR;
-    }
     if (Jim_GetEnum(interp, argv[2], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
     }
@@ -378,11 +373,6 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int len;
     int freeobj = 0;
 
-    if (argc != 5 && argc != 6) {
-        Jim_WrongNumArgs(interp, 1, argv,
-                "varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?");
-        return JIM_ERR;
-    }
     if (Jim_GetEnum(interp, argv[3], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
     }
@@ -476,7 +466,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_packInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "pack");
-    Jim_CreateCommand(interp, "unpack", Jim_UnpackCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "pack", Jim_PackCmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "pack", "varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?", 4, 5, Jim_PackCmd);
+    Jim_RegisterSimpleCmd(interp, "unpack", "binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth", 4, 4, Jim_UnpackCmd);
     return JIM_OK;
 }

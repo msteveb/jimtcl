@@ -573,8 +573,7 @@ static int JimELVwaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc - signal != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-signal? name");
-        return JIM_ERR;
+        return JIM_USAGE;
     }
 
     oldValue = Jim_GetGlobalVariable(interp, argv[1 + signal], JIM_NONE);
@@ -640,9 +639,8 @@ static int JimELUpdateCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     if (argc == 1) {
         flags = JIM_ALL_EVENTS;
     }
-    else if (argc > 2 || Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
-        Jim_WrongNumArgs(interp, 1, argv, "?idletasks?");
-        return JIM_ERR;
+    else if (argc > 2 || Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ENUM_ABBREV) != JIM_OK) {
+        return JIM_USAGE;
     }
 
     eventLoop->suppress_bgerror = 0;
@@ -679,11 +677,6 @@ static int JimELAfterCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     enum
     { AFTER_CANCEL, AFTER_INFO, AFTER_IDLE, AFTER_RESTART, AFTER_EXPIRE, AFTER_CREATE };
     int option = AFTER_CREATE;
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "option ?arg ...?");
-        return JIM_ERR;
-    }
     if (Jim_GetDouble(interp, argv[1], &ms) != JIM_OK) {
         if (Jim_GetEnum(interp, argv[1], options, &option, "argument", JIM_ERRMSG) != JIM_OK) {
             return JIM_ERR;
@@ -792,9 +785,9 @@ int Jim_eventloopInit(Jim_Interp *interp)
 
     Jim_SetAssocData(interp, "eventloop", JimELAssocDataDeleProc, eventLoop);
 
-    Jim_CreateCommand(interp, "vwait", JimELVwaitCommand, eventLoop, NULL);
-    Jim_CreateCommand(interp, "update", JimELUpdateCommand, eventLoop, NULL);
-    Jim_CreateCommand(interp, "after", JimELAfterCommand, eventLoop, NULL);
+    Jim_RegisterCmd(interp, "vwait", "?-signal? name", 1, 2, JimELVwaitCommand, NULL, eventLoop, 0);
+    Jim_RegisterCmd(interp, "update", "?idletasks?", 0, 1, JimELUpdateCommand, NULL, eventLoop, 0);
+    Jim_RegisterCmd(interp, "after", "option ?arg ...?", 1, -1, JimELAfterCommand, NULL, eventLoop, 0);
 
     return JIM_OK;
 }

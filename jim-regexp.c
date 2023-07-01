@@ -143,13 +143,6 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         "-indices", "-nocase", "-line", "-all", "-inline", "-start", "--", NULL
     };
 
-    if (argc < 3) {
-      wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv,
-            "?-switch ...? exp string ?matchVar? ?subMatchVar ...?");
-        return JIM_ERR;
-    }
-
     for (i = 1; i < argc; i++) {
         const char *opt = Jim_String(argv[i]);
 
@@ -186,7 +179,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
             case OPT_START:
                 if (++i == argc) {
-                    goto wrongNumArgs;
+                    return JIM_USAGE;
                 }
                 if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
                     return JIM_ERR;
@@ -195,7 +188,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
     if (argc - i < 2) {
-        goto wrongNumArgs;
+        return JIM_USAGE;
     }
 
     regex = SetRegexpFromAny(interp, argv[i], regcomp_flags);
@@ -374,13 +367,6 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         "-nocase", "-line", "-all", "-start", "-command", "--", NULL
     };
 
-    if (argc < 4) {
-      wrongNumArgs:
-        Jim_WrongNumArgs(interp, 1, argv,
-            "?-switch ...? exp string subSpec ?varName?");
-        return JIM_ERR;
-    }
-
     for (i = 1; i < argc; i++) {
         const char *opt = Jim_String(argv[i]);
 
@@ -409,7 +395,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
             case OPT_START:
                 if (++i == argc) {
-                    goto wrongNumArgs;
+                    return JIM_USAGE;
                 }
                 if (Jim_GetIndex(interp, argv[i], &offset) != JIM_OK) {
                     return JIM_ERR;
@@ -422,7 +408,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
     if (argc - i != 3 && argc - i != 4) {
-        goto wrongNumArgs;
+        return JIM_USAGE;
     }
 
 	/* Need to ensure that this is unshared, so just duplicate it always */
@@ -639,7 +625,7 @@ cmd_error:
 int Jim_regexpInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "regexp");
-    Jim_CreateCommand(interp, "regexp", Jim_RegexpCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "regsub", Jim_RegsubCmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "regexp", "?-switch ...? exp string ?matchVar? ?subMatchVar ...?", 2, -1, Jim_RegexpCmd);
+    Jim_RegisterSimpleCmd(interp, "regsub", "?-switch ...? exp string subSpec ?varName?", 3, -1, Jim_RegsubCmd);
     return JIM_OK;
 }

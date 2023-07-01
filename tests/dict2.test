@@ -22,9 +22,9 @@ proc dict-sort {dict} {
     return $result
 }
 
-test dict-1.1 {dict command basic syntax} -returnCodes error -body {
+test dict-1.1 {dict command basic syntax} -body {
     dict
-}  -match glob -result {wrong # args: should be "dict command ..."*}
+} -returnCodes error -match glob -result {wrong # args: should be "dict subcommand ?arg ...?"}
 test dict-1.2 {dict command basic syntax} -returnCodes error -body {
     dict ?
 } -match glob -result *

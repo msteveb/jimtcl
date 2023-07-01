@@ -82,6 +82,6 @@ test exists-1.17 {exists usage} -body {
 
 test exists-1.18 {exists usage} -body {
 	exists abc def ghi
-} -returnCodes error -result {wrong # args: should be "exists ?option? name"}
+} -returnCodes error -result {wrong # args: should be "exists ?-command|-proc|-alias|-var? name"}
 
 testreport

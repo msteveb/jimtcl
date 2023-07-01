@@ -302,15 +302,10 @@ static const jim_subcmd_type zlib_command_table[] = {
     { NULL }
 };
 
-static int JimZlibCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, zlib_command_table, argc, argv), argc, argv);
-}
-
 int Jim_zlibInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "zlib");
-    Jim_CreateCommand(interp, "zlib", JimZlibCmd, 0, 0);
+    Jim_RegisterSubCmd(interp, "zlib", zlib_command_table, NULL);
 
     return JIM_OK;
 }

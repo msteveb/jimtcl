@@ -259,3 +259,15 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return Jim_CallSubCmd(interp, ct, argc, argv);
 }
+
+Jim_Cmd *Jim_RegisterSubCmd(Jim_Interp *interp, const char *cmdname,
+	const jim_subcmd_type *command_table, Jim_DelCmdProc *delProc)
+{
+    return Jim_RegisterCmd(interp, cmdname,
+        "subcommand ?arg ...?",
+        1, -1,
+        Jim_SubCmdProc,
+        delProc,
+        (void *)command_table,
+        0);
+}

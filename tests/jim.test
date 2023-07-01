@@ -3557,7 +3557,7 @@ catch {unset sum; unset err; unset i}
 ################################################################################
 test env-1.1 {env} -body {
     env abc def ghi
-} -returnCodes error -result {wrong # args: should be "env varName ?default?"}
+} -returnCodes error -result {wrong # args: should be "env ?varName? ?default?"}
 
 test env-1.2 {env} -body {
     env DOES_NOT_EXIST abc

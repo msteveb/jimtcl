@@ -7,7 +7,7 @@ set x 0
 
 test debug-0.1 {debug too few args} -body {
     debug
-} -returnCodes error -match glob -result {wrong # args: should be "debug command ..."*}
+} -returnCodes error -match glob -result {wrong # args: should be "debug subcommand ?arg ...?"}
 
 test debug-0.2 {debug bad option} -body {
     debug badoption

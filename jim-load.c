@@ -119,20 +119,11 @@ void Jim_FreeLoadHandles(Jim_Interp *interp)
 /* [load] */
 static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
-        Jim_SetTaintError(interp, 1, argv);
-        return JIM_ERR;
-    }
-
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "libraryFile");
-        return JIM_ERR;
-    }
     return Jim_LoadLibrary(interp, Jim_String(argv[1]));
 }
 
 int Jim_loadInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "load", Jim_LoadCoreCommand, NULL, NULL);
+    Jim_RegisterCmd(interp, "load", "libraryFile", 1, 1, Jim_LoadCoreCommand, NULL, NULL, JIM_CMD_NOTAINT);
     return JIM_OK;
 }

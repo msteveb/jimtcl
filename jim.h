@@ -127,6 +127,7 @@ extern "C" {
 /* Increment this every time the public ABI changes */
 #define JIM_ABI_VERSION 102
 
+/* Tcl return codes */
 #define JIM_OK 0
 #define JIM_ERR 1
 #define JIM_RETURN 2
@@ -134,6 +135,8 @@ extern "C" {
 #define JIM_CONTINUE 4
 #define JIM_SIGNAL 5
 #define JIM_EXIT 6
+/* Special meaning */
+#define JIM_USAGE -1    /* Throw a usage error */
 /* The following are internal codes and should never been seen/used */
 #define JIM_EVAL 7      /* tailcall */
 
@@ -501,12 +504,21 @@ typedef struct Jim_Dict {
     unsigned int dummy;         /* Number of dummy entries */
 } Jim_Dict;
 
+#define JIM_CMD_ISPROC 1
+#define JIM_CMD_ISCHANNEL 2
+#define JIM_CMD_ISALIAS 4
+
+/* When a command is registered with this flag, it can't be called with
+ * tainted data
+ */
+#define JIM_CMD_NOTAINT 0x100
+
 /* A command is implemented in C if isproc is 0, otherwise
  * it is a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyObjPtr. */
 typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
-    int isproc;          /* Is this a procedure? */
+    int flags;           /* JIM_CMD_XXX */
     struct Jim_Cmd *prevCmd;    /* Previous command defn if cmd created 'local' */
     Jim_Obj *cmdNameObj;       /* The fully resolved command name - just a pointer, not a reference */
     union {
@@ -515,6 +527,10 @@ typedef struct Jim_Cmd {
             Jim_CmdProc *cmdProc; /* The command implementation */
             Jim_DelCmdProc *delProc; /* Called when the command is deleted if != NULL */
             void *privData; /* command-private data available via Jim_CmdPrivData() */
+            const char *usage;          /* If not NULL, usage text - used by 'info usage' */
+            const char *help;           /* If not NULL, help text - used by 'info help' */
+            short minargs;
+            short maxargs;              /* -1 for unlimited */
         } native;
         struct {
             /* Tcl procedure */
@@ -793,10 +809,29 @@ JIM_EXPORT const char *Jim_ReturnCode(int code);
 JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...);
 
 /* commands */
-JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
+JIM_EXPORT Jim_Cmd *Jim_RegisterCommand(Jim_Interp *interp, Jim_Obj *cmdNameObj,
+    Jim_CmdProc *cmdProc,
+    Jim_DelCmdProc *delProc,
+    const char *usage,
+    const char *help,
+    short minargs,
+    short maxargs,
+    int flags,
+    void *privData);
+/* This is a this wrapper around Jim_RegisterCommand */
 JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
         const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
          Jim_DelCmdProc *delProc);
+/* Simplify creating commands that specify minargs, maxargs and usage but
+ * don't need delProc or privData
+ */
+#define Jim_RegisterSimpleCmd(interp, name, usage, minargs, maxargs, cmdproc) \
+        Jim_RegisterCommand(interp, Jim_NewStringObj(interp, name, -1), cmdproc, NULL, usage, NULL, minargs, maxargs, 0, NULL)
+/* And also slightly more complex where delProc, privData and flags may be needed */
+#define Jim_RegisterCmd(interp, name, usage, minargs, maxargs, cmdproc, delproc, privdata, flags) \
+        Jim_RegisterCommand(interp, Jim_NewStringObj(interp, name, -1), cmdproc, delproc, usage, NULL, minargs, maxargs, flags, privdata)
+
+JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         Jim_Obj *cmdNameObj);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
