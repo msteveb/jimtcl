@@ -201,8 +201,7 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         async = 1;
     }
     if (argc - async != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-async? socket-stream");
-        return JIM_ERR;
+        return JIM_USAGE;
     }
 
     /* Invoke getfd to get the file descriptor */
@@ -229,7 +228,7 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Now delete the original stream */
     Jim_DeleteCommand(interp, argv[1 + async]);
     snprintf(buf, sizeof(buf), "redis.handle%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, jim_redis_subcmd, c, jim_redis_del_proc);
+    Jim_RegisterCmd(interp, buf, "subcommand ?arg ...?", 1, -1, jim_redis_subcmd, jim_redis_del_proc, c, 0);
 
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
@@ -240,6 +239,6 @@ int
 Jim_redisInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "redis");
-    Jim_CreateCommand(interp, "redis", jim_redis_cmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "redis", "?-async? socket-stream", 1, 2, jim_redis_cmd);
     return JIM_OK;
 }

@@ -76,12 +76,28 @@ test exists-1.16 "Exists local lambda" lambda {
 	a
 } 1
 
-test exists-1.17 {exists usage} -body {
-	exists -dummy blah
-} -returnCodes error -result {bad option "-dummy": must be -alias, -command, -proc, or -var}
+test exists-1.17 "Exists -channel" {
+	exists -channel bogus
+} 0
 
-test exists-1.18 {exists usage} -body {
+test exists-1.18 "Exists -channel" {
+	exists -channel stdout
+} 1
+
+test exists-1.19 "Exists -channel" {
+	exists -channel info
+} 0
+
+test exists-1.20 "Exists -channel" {
+	exists -channel a
+} 0
+
+test exists-2.1 {exists usage} -body {
+	exists -dummy blah
+} -returnCodes error -result {bad option "-dummy": must be -alias, -channel, -command, -proc, or -var}
+
+test exists-2.2 {exists usage} -body {
 	exists abc def ghi
-} -returnCodes error -result {wrong # args: should be "exists ?option? name"}
+} -returnCodes error -result {wrong # args: should be "exists ?-command|-proc|-alias|-channel|-var? name"}
 
 testreport

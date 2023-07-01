@@ -329,7 +329,7 @@ has three fields:  the first, `set`, is the name of a Tcl command, and
 the last two, 'a' and '22', will be passed as arguments to
 the `set` command.  The command name may refer either to a built-in
 Tcl command, an application-specific command bound in with the library
-procedure 'Jim_CreateCommand', or a command procedure defined with the
+procedure 'Jim_RegisterCommand', or a command procedure defined with the
 `proc` built-in command.
 
 Arguments are passed literally as text strings.  Individual commands may
@@ -1208,6 +1208,10 @@ defined in jim.h, and are:
 +JIM_EXIT(6)+::
     Indicates that the command called the `exit` command.
     The string contains the exit code.
+
++JIM_USAGE(-1)+::
+    This is a special return code that is automatically translated into JIM_ERR with the command usage
+    (from Jim_RegisterCommand()) as the message.
 
 Tcl programmers do not normally need to think about return codes,
 since +JIM_OK+ is almost always returned.  If anything else is returned
@@ -2476,12 +2480,12 @@ this variable is unset, in which case the original environment is used).
 
 exists
 ~~~~~~
-+*exists ?-var|-proc|-command|-alias?* 'name'+
++*exists ?-var|-proc|-command|-alias|-channel?* 'name'+
 
-Checks the existence of the given variable, procedure, command
-or alias respectively and returns 1 if it exists or 0 if not.  This command
+Checks the existence of the given variable, procedure, command,
+alias or channel respectively and returns 1 if it exists or 0 if not.  This command
 provides a more simplified/convenient version of `info exists`,
-`info procs` and `info commands`.
+`info procs`, `info commands`, `info aliases` and `info channels`.
 
 If the type is omitted, a type of '-var' is used. The type may be abbreviated.
 
@@ -2929,12 +2933,14 @@ The legal +'option'+'s (which may be abbreviated) are:
 +*info channels*+::
     Returns a list of all open file handles from `open` or `socket`
 
-+*info commands* ?'pattern'?+::
++*info commands ?-all?* ?'pattern'?+::
     If +'pattern'+ isn't specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
     the command procedures defined using the `proc` command.
     If +'pattern'+ is specified, only those names matching +'pattern'+
     (using <<_string_matching,STRING MATCHING>> rules) are returned.
+    Normally commands containing a space character are not returned.
+    If +*-all*+ is given, the result does include these commands.
 
 +*info complete* 'command' ?'missing'?+::
     Returns 1 if +'command'+ is a complete Tcl command in the sense of
@@ -3010,11 +3016,13 @@ The legal +'option'+'s (which may be abbreviated) are:
     was invoked. A full path will be returned, unless the path
     can't be determined, in which case the empty string will be returned.
 
-+*info procs* ?'pattern'?+::
++*info procs ?-all?* ?'pattern'?+::
     If +'pattern'+ isn't specified, returns a list of all the
     names of Tcl command procedures.
     If +'pattern'+ is specified, only those names matching +'pattern'+
     (using <<_string_matching,STRING MATCHING>> rules) are returned.
+    Normally commands containing a space character are not returned.
+    If +*-all*+ is given, the result does include these commands.
 
 +*info references*+::
     Returns a list of all references which have not yet been garbage

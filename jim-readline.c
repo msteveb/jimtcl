@@ -43,10 +43,6 @@ static int JimRlReadlineCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     char *line;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "prompt");
-        return JIM_ERR;
-    }
     line = readline(Jim_String(argv[1]));
     if (!line) {
         return JIM_EXIT;
@@ -57,10 +53,6 @@ static int JimRlReadlineCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "string");
-        return JIM_ERR;
-    }
     add_history(Jim_String(argv[1]));
     return JIM_OK;
 }
@@ -68,7 +60,7 @@ static int JimRlAddHistoryCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 int Jim_readlineInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "readline");
-    Jim_CreateCommand(interp, "readline.readline", JimRlReadlineCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "readline.addhistory", JimRlAddHistoryCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "readline.readline", "prompt", 1, 1, JimRlReadlineCommand);
+    Jim_RegisterSimpleCmd(interp, "readline.addhistory", "string", 1, 1, JimRlAddHistoryCommand);
     return JIM_OK;
 }
