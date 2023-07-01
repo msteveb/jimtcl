@@ -79,12 +79,6 @@ int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int i = 1;
     SyslogInfo *info = Jim_CmdPrivData(interp);
 
-    if (argc <= 1) {
-      wrongargs:
-        Jim_WrongNumArgs(interp, 1, argv,
-            "?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? message");
-        return JIM_ERR;
-    }
     while (i < argc - 1) {
         if (Jim_CompareStringImmediate(interp, argv[i], "-facility")) {
             int entry =
@@ -146,7 +140,7 @@ int Jim_SyslogCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (i != argc - 1) {
-        goto wrongargs;
+        return JIM_USAGE;
     }
     if (!info->logOpened) {
         if (!info->ident[0]) {
@@ -181,7 +175,8 @@ int Jim_syslogInit(Jim_Interp *interp)
     info->facility = LOG_USER;
     info->ident[0] = 0;
 
-    Jim_CreateCommand(interp, "syslog", Jim_SyslogCmd, info, Jim_SyslogCmdDelete);
+    Jim_RegisterCmd(interp, "syslog", "?-facility cron|daemon|...? ?-ident string? ?-options int? ?debug|info|...? message",
+        1, -1, Jim_SyslogCmd, Jim_SyslogCmdDelete, info, 0);
 
     return JIM_OK;
 }

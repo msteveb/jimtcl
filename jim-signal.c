@@ -440,11 +440,7 @@ static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int ret;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "seconds");
-        return JIM_ERR;
-    }
-    else {
+    {
 #ifdef HAVE_UALARM
         double t;
 
@@ -473,21 +469,14 @@ static int Jim_AlarmCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int Jim_SleepCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int ret;
+    double t;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "seconds");
-        return JIM_ERR;
-    }
-    else {
-        double t;
-
-        ret = Jim_GetDouble(interp, argv[1], &t);
-        if (ret == JIM_OK) {
+    ret = Jim_GetDouble(interp, argv[1], &t);
+    if (ret == JIM_OK) {
 #ifdef HAVE_USLEEP
-            usleep((int)((t - (int)t) * 1e6));
+        usleep((int)((t - (int)t) * 1e6));
 #endif
-            sleep(t);
-        }
+        sleep(t);
     }
 
     return ret;
@@ -499,11 +488,6 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     long pid;
     Jim_Obj *pidObj;
     const char *signame;
-
-    if (argc != 2 && argc != 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "?SIG|-0? pid");
-        return JIM_ERR;
-    }
 
     if (argc == 2) {
         sig = SIGTERM;
@@ -540,10 +524,10 @@ static int Jim_KillCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_signalInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "signal");
-    Jim_CreateCommand(interp, "alarm", Jim_AlarmCmd, 0, 0);
-    Jim_CreateCommand(interp, "kill", Jim_KillCmd, 0, 0);
+    Jim_RegisterSimpleCmd(interp, "alarm", "seconds", 1, 1, Jim_AlarmCmd);
+    Jim_RegisterSimpleCmd(interp, "kill", "?SIG|-0? pid", 1, 2, Jim_KillCmd);
     /* Sleep is slightly dubious here */
-    Jim_CreateCommand(interp, "sleep", Jim_SleepCmd, 0, 0);
+    Jim_RegisterSimpleCmd(interp, "sleep", "seconds", 1, 1, Jim_SleepCmd);
 
     /* Teach the jim core how to set a result from a sigmask */
     interp->signal_set_result = signal_set_sigmask_result;
@@ -554,8 +538,7 @@ int Jim_signalInit(Jim_Interp *interp)
 
         /* Make sure we know where to store the signals which occur */
         sigloc = &interp->sigmask;
-
-        Jim_CreateCommand(interp, "signal", Jim_SubCmdProc, (void *)signal_command_table, JimSignalCmdDelete);
+        Jim_RegisterSubCmd(interp, "signal", signal_command_table, JimSignalCmdDelete);
     }
 
     return JIM_OK;

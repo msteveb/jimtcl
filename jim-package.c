@@ -277,6 +277,6 @@ static const jim_subcmd_type package_command_table[] = {
 
 int Jim_packageInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "package", Jim_SubCmdProc, (void *)package_command_table, NULL);
+    Jim_RegisterSubCmd(interp, "package", package_command_table, NULL);
     return JIM_OK;
 }

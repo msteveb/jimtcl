@@ -156,10 +156,6 @@ static int JimVariableCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int retcode = JIM_OK;
 
-    if (argc > 3) {
-        Jim_WrongNumArgs(interp, 1, argv, "name ?value?");
-        return JIM_ERR;
-    }
     if (argc > 1) {
         Jim_Obj *targetNameObj;
         Jim_Obj *localNameObj;
@@ -334,8 +330,7 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_namespaceInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "namespace");
-    Jim_CreateCommand(interp, "namespace", JimNamespaceCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "variable", JimVariableCmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "namespace", "subcommand ?arg ...?", 1, -1, JimNamespaceCmd);
+    Jim_RegisterSimpleCmd(interp, "variable", "name ?value?", 1, 2, JimVariableCmd);
     return JIM_OK;
 }
-
