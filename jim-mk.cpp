@@ -2258,13 +2258,12 @@ int Jim_mkInit(Jim_Interp *interp)
 {
     char version[MK_VERSION_SPACE];
 
+    Jim_PackageProvideCheck(interp, "mk");
+
     snprintf(version, MK_VERSION_SPACE, "%d.%d.%d",
         d4_MetakitLibraryVersion / 100,
         d4_MetakitLibraryVersion % 100 / 10,
         d4_MetakitLibraryVersion % 10);
-
-    if (Jim_PackageProvide(interp, "mk", version, JIM_ERRMSG))
-        return JIM_ERR;
 
     Jim_CreateCommand(interp, "storage", JimStorageCommand, NULL, NULL);
     Jim_CreateCommand(interp, "cursor", JimCursorCommand, NULL, NULL);

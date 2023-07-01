@@ -1110,19 +1110,7 @@ static const jim_subcmd_type file_command_table[] = {
 
 static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path;
-
-    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
-        Jim_SetTaintError(interp, 1, argv);
-        return JIM_ERR;
-    }
-
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "dirname");
-        return JIM_ERR;
-    }
-
-    path = Jim_String(argv[1]);
+    const char *path = Jim_String(argv[1]);
 
     if (chdir(path) != 0) {
         Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", path,
@@ -1151,8 +1139,8 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_fileInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "file");
-    Jim_CreateCommand(interp, "file", Jim_SubCmdProc, (void *)file_command_table, NULL);
-    Jim_CreateCommand(interp, "pwd", Jim_PwdCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "cd", Jim_CdCmd, NULL, NULL);
+    Jim_RegisterSubCmd(interp, "file", file_command_table, NULL);
+    Jim_RegisterSimpleCmd(interp, "pwd", "", 0, 0, Jim_PwdCmd);
+    Jim_RegisterCmd(interp, "cd", "dirname", 1, 1, Jim_CdCmd, NULL, NULL, JIM_CMD_NOTAINT);
     return JIM_OK;
 }

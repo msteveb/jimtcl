@@ -106,8 +106,8 @@ set tcl::stdhint_col $tcl::stdhint_cols(lcyan)
 # The default hint implementation
 proc tcl::stdhint {string} {
 	set result ""
+	lassign $string cmd arg
 	if {[llength $string] >= 2} {
-		lassign $string cmd arg
 		if {$cmd in $::tcl::stdhint_commands || [info channel $cmd] ne ""} {
 			catch {
 				set help [$cmd -help $arg]
@@ -128,6 +128,23 @@ proc tcl::stdhint {string} {
 					set result [list $prefix$hint {*}$::tcl::stdhint_col]
 				}
 			}
+		}
+	} else {
+		catch {
+			if {[exists -alias $cmd] && [llength [info alias $cmd]] == 1} {
+				# Look through a simple alias. Doesn't really work for anything more complex.
+				# consider 'alias p stderr puts' where we can't really provide the usage
+				# of 'stderr puts'
+				set help [info usage [info alias $cmd]]
+			} else {
+				set help [info usage $cmd]
+			}
+			set hint [join [lrange $help 1 end]]
+			set prefix " "
+			if {[string match "* " $string]} {
+				set prefix ""
+			}
+			set result [list $prefix$hint {*}$::tcl::stdhint_col]
 		}
 	}
 	return $result

@@ -213,6 +213,6 @@ static const jim_subcmd_type clock_command_table[] = {
 int Jim_clockInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "clock");
-    Jim_CreateCommand(interp, "clock", Jim_SubCmdProc, (void *)clock_command_table, NULL);
+    Jim_RegisterSubCmd(interp, "clock", clock_command_table, NULL);
     return JIM_OK;
 }

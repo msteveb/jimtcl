@@ -471,11 +471,6 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     long vals[2];
     const char *title;
 
-    if (argc != 3 && argc != 4) {
-        Jim_WrongNumArgs(interp, 1, argv, "xres yres ?title?");
-        return JIM_ERR;
-    }
-
     if (JimSdlGetLongs(interp, 2, argv + 1, vals) != JIM_OK) {
         return JIM_ERR;
     }
@@ -536,6 +531,6 @@ static int JimSdlSurfaceCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 int Jim_sdlInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "sdl");
-    Jim_CreateCommand(interp, "sdl.screen", JimSdlSurfaceCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "sdl.screen", "xres yres ?title?", 2, 3, JimSdlSurfaceCommand);
     return JIM_OK;
 }

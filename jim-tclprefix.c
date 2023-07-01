@@ -64,10 +64,6 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
     static const char * const options[] = { "match", "all", "longest", NULL };
     enum { OPT_MATCH, OPT_ALL, OPT_LONGEST };
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?arg ...?");
-        return JIM_ERR;
-    }
     if (Jim_GetEnum(interp, argv[1], options, &option, NULL, JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK)
         return Jim_CheckShowCommands(interp, argv[1], options);
 
@@ -215,6 +211,6 @@ static int Jim_TclPrefixCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const
 int Jim_tclprefixInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "tclprefix");
-    Jim_CreateCommand(interp, "tcl::prefix", Jim_TclPrefixCoreCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "tcl::prefix", "subcommand ?arg ...?", 1, -1, Jim_TclPrefixCoreCommand);
     return JIM_OK;
 }

@@ -80,7 +80,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_execInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "exec");
-    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "exec", "arg ?arg ...? ?&?", 1, -1, Jim_ExecCoreCmd);
     return JIM_OK;
 }
 #else
@@ -333,7 +333,7 @@ static struct WaitInfoTable *JimAllocWaitInfoTable(void)
     struct WaitInfoTable *table = Jim_Alloc(sizeof(*table));
     table->info = NULL;
     table->size = table->used = 0;
-    table->refcount = 1;
+    table->refcount = 0;
 
     return table;
 }
@@ -373,11 +373,6 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *childErrObj;
     Jim_Obj *errStrObj;
     struct WaitInfoTable *table = Jim_CmdPrivData(interp);
-
-    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
-        Jim_SetTaintError(interp, 1, argv);
-        return JIM_ERR;
-    }
 
     /*
      * See if the command is to be run in the background; if so, create
@@ -600,8 +595,7 @@ static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         nohang = 1;
     }
     if (argc != nohang + 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-nohang? ?pid?");
-        return JIM_ERR;
+        return JIM_USAGE;
     }
     if (Jim_GetLong(interp, argv[nohang + 1], &pid) != JIM_OK) {
         return JIM_ERR;
@@ -633,11 +627,6 @@ static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int Jim_PidCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-
     Jim_SetResultInt(interp, (jim_wide)getpid());
     return JIM_OK;
 }
@@ -1407,10 +1396,11 @@ int Jim_execInit(Jim_Interp *interp)
     Jim_PackageProvideCheck(interp, "exec");
 
     waitinfo = JimAllocWaitInfoTable();
-    Jim_CreateCommand(interp, "exec", Jim_ExecCmd, waitinfo, JimFreeWaitInfoTable);
+    Jim_RegisterCmd(interp, "exec", "arg ?arg ...? ?&?", 1, -1, Jim_ExecCmd, JimFreeWaitInfoTable, waitinfo, JIM_CMD_NOTAINT);
     waitinfo->refcount++;
-    Jim_CreateCommand(interp, "wait", Jim_WaitCommand, waitinfo, JimFreeWaitInfoTable);
-    Jim_CreateCommand(interp, "pid", Jim_PidCommand, 0, 0);
+    Jim_RegisterCmd(interp, "wait", "?-nohang? ?pid?", 0, 2, Jim_WaitCommand, JimFreeWaitInfoTable, waitinfo, 0);
+    waitinfo->refcount++;
+    Jim_RegisterSimpleCmd(interp, "pid", "", 0, 0, Jim_PidCommand);
 
     return JIM_OK;
 }

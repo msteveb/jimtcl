@@ -58,10 +58,6 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     JIM_NOTUSED(argv);
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     if ((pid = fork()) == -1) {
         Jim_PosixSetError(interp);
         return JIM_ERR;
@@ -76,10 +72,6 @@ static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 {
     Jim_Obj *objv[8];
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     objv[0] = Jim_NewStringObj(interp, "uid", -1);
     objv[1] = Jim_NewIntObj(interp, getuid());
     objv[2] = Jim_NewStringObj(interp, "euid", -1);
@@ -98,10 +90,6 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *co
     char *buf;
     int rc = JIM_OK;
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     buf = Jim_Alloc(JIM_HOST_NAME_MAX);
     if (gethostname(buf, JIM_HOST_NAME_MAX) == -1) {
         Jim_PosixSetError(interp);
@@ -118,11 +106,6 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 {
 #ifdef HAVE_STRUCT_SYSINFO_UPTIME
     struct sysinfo info;
-
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
 
     if (sysinfo(&info) == -1) {
         Jim_PosixSetError(interp);
@@ -141,12 +124,12 @@ int Jim_posixInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "posix");
 #ifdef HAVE_FORK
-    Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "os.fork", "", 0, 0, Jim_PosixForkCommand);
 #endif
 #if !defined(JIM_BOOTSTRAP)
-    Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "os.uptime", Jim_PosixUptimeCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "os.gethostname", "", 0, 0, Jim_PosixGethostnameCommand);
+    Jim_RegisterSimpleCmd(interp, "os.getids", "", 0, 0, Jim_PosixGetidsCommand);
+    Jim_RegisterSimpleCmd(interp, "os.uptime", "", 0, 0, Jim_PosixUptimeCommand);
 #endif /* JIM_BOOTSTRAP */
     return JIM_OK;
 }

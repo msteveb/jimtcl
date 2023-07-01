@@ -62,9 +62,9 @@ Jim_ParseSubCmd(Jim_Interp *interp, const jim_subcmd_type *command_table, int ar
  * Parses the args against the given command table and executes the subcommand if found
  * or sets an appropriate error if the subcommand or arguments is invalid.
  *
- * Can be used directly with Jim_CreateCommand() where the ClientData is the command table.
+ * Typically used via Jim_RegisterCmd()
  *
- * e.g. Jim_CreateCommand(interp, "mycmd", Jim_SubCmdProc, command_table, NULL);
+ * e.g. Jim_RegisterSubCmd(interp, "mycmd", command_table, NULL);
  */
 int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
 
@@ -86,6 +86,12 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type *ct, int argc, Jim_
  * additional checks if the args are wrong.
  */
 void Jim_SubCmdArgError(Jim_Interp *interp, const jim_subcmd_type *ct, Jim_Obj *subcmd);
+
+/**
+ * Convenience wrapper around Jim_RegisterCmd() to register a subcmd command.
+ */
+Jim_Cmd *Jim_RegisterSubCmd(Jim_Interp *interp, const char *cmdname,
+	const jim_subcmd_type *command_table, Jim_DelCmdProc *delProc);
 
 #ifdef __cplusplus
 }
