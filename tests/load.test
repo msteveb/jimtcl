@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
-needs cmd load interp
+needs cmd load
+needs cmd interp
 
 # In order to test loadable modules we need a working build-jim-ext
 # (from the same directory as jimsh).

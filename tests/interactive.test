@@ -2,6 +2,7 @@ source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
 needs cmd socket
+needs eval "socket pty" {lmap p [socket pty] { $p close }}
 
 package require expect
 
