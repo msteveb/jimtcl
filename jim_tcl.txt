@@ -60,6 +60,7 @@ Changes since 0.82
 4. The stack trace on error now includes the full stack trace, not just back to where it was caught
 5. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
 6. `socket` , `open` and `aio accept` now support '-noclose'
+7. Add support for hinting with `history hints`
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5583,6 +5584,45 @@ In the interactive shell, press <TAB> to activate command line completion.
     The command should return a list of all possible command lines that match the current command line.
     For example if +*pr*+ is the current command line, the list +*{prefix proc}*+ may be returned.
 
+tcl::stdhint
+~~~~~~~~~~~~
+Scriptable hinting is supported in the interactive shell, 'jimsh', through
+the `tcl::stdhint` callback. A simple implementation is provided, however this may
+be replaced with a custom command instead if desired.
+
+In the interactive shell, press <TAB> to activate command line completion.
+
++*tcl::stdhint* 'commandline'+::
+    This command is called with the current command line. It should return a list of +*{hint ?ANSI cols?}*+ or ""
+    if no hint is available.
+    For example, if passed +*"dict get"*+ it could return +*{"dict get dictionary ?key ...?" 36 1}*+ to show the given hint
+    in light cyan.
+
+The built-in `tcl::stdhint` callback uses 'tcl::stdhint_col' for the colour. 'tcl::stdhint_cols' can be used
+to easily change this colour, e.g. in ~/.jimrc.
+
+----
+    . parray tcl::stdhint_cols
+    tcl::stdhint_cols(black)   = 30
+    tcl::stdhint_cols(blue)    = 34
+    tcl::stdhint_cols(cyan)    = 36
+    tcl::stdhint_cols(gray)    = 30 1
+    tcl::stdhint_cols(green)   = 32
+    tcl::stdhint_cols(grey)    = 30 1
+    tcl::stdhint_cols(lblue)   = 34 1
+    tcl::stdhint_cols(lcyan)   = 36 1
+    tcl::stdhint_cols(lgreen)  = 32 1
+    tcl::stdhint_cols(lpurple) = 35 1
+    tcl::stdhint_cols(lred)    = 31 1
+    tcl::stdhint_cols(lyellow) = 33 1
+    tcl::stdhint_cols(none)    = 0
+    tcl::stdhint_cols(normal)  = 37
+    tcl::stdhint_cols(purple)  = 35
+    tcl::stdhint_cols(red)     = 31
+    tcl::stdhint_cols(white)   = 37 1
+    tcl::stdhint_cols(yellow)  = 33
+----
+
 history
 ~~~~~~~
 The optional history extension provides script access to the command line editing
@@ -5602,6 +5642,10 @@ the remaining subcommands do nothing.
 +*history completion* 'command'+::
     Sets an autocompletion command (see `tcl::autocomplete`) that is active during `history getline`.
     If the command is empty, autocompletion is disabled.
+
++*history hints* 'command'+::
+    Sets a hinting command (see `tcl::stdhint`) that is active during `history getline`.
+    If the command is empty, hinting is disabled.
 
 +*history add* 'line'+::
     Adds the given line to the history buffer.
