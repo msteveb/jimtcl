@@ -12099,9 +12099,12 @@ static Jim_Obj *JimHashtablePatternMatch(Jim_Interp *interp, Jim_HashTable *ht, 
 }
 
 /* Keep these in order */
-#define JIM_CMDLIST_COMMANDS 0
-#define JIM_CMDLIST_PROCS 1
-#define JIM_CMDLIST_CHANNELS 2
+#define JIM_CMDLIST_COMMANDS 1
+#define JIM_CMDLIST_PROCS 2
+#define JIM_CMDLIST_CHANNELS 4
+
+#define JIM_CMDLIST_ALL 0x1000
+
 
 /**
  * Adds matching command names (procs, channels) to the list.
@@ -12112,12 +12115,16 @@ static void JimCommandMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
     Jim_Cmd *cmdPtr = (Jim_Cmd *)value;
     int match = 1;
 
-    if (type == JIM_CMDLIST_PROCS && !(cmdPtr->flags & JIM_CMD_ISPROC)) {
+    if ((type & JIM_CMDLIST_PROCS) && !(cmdPtr->flags & JIM_CMD_ISPROC)) {
         /* not a proc */
         return;
     }
-    if (type == JIM_CMDLIST_CHANNELS && !(cmdPtr->flags & JIM_CMD_ISCHANNEL)) {
+    if ((type & JIM_CMDLIST_CHANNELS) && !(cmdPtr->flags & JIM_CMD_ISCHANNEL)) {
         /* not a channel */
+        return;
+    }
+    if (!(type & JIM_CMDLIST_ALL) && strchr(Jim_String(keyObj), ' ')) {
+        /* contains a space and not -all */
         return;
     }
 
@@ -12146,10 +12153,9 @@ static Jim_Obj *JimCommandsList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int 
 }
 
 /* Keep these in order */
-#define JIM_VARLIST_GLOBALS 0
-#define JIM_VARLIST_LOCALS 1
-#define JIM_VARLIST_VARS 2
-#define JIM_VARLIST_MASK 0x000f
+#define JIM_VARLIST_GLOBALS 1
+#define JIM_VARLIST_LOCALS 2
+#define JIM_VARLIST_VARS 4
 
 #define JIM_VARLIST_VALUES 0x1000
 
@@ -12161,7 +12167,7 @@ static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
 {
     Jim_VarVal *vv = (Jim_VarVal *)value;
 
-    if ((type & JIM_VARLIST_MASK) != JIM_VARLIST_LOCALS || vv->linkFramePtr == NULL) {
+    if (!(type & JIM_VARLIST_LOCALS) || vv->linkFramePtr == NULL) {
         if (patternObj == NULL || Jim_StringMatchObj(interp, patternObj, keyObj, 0)) {
             Jim_ListAppendElement(interp, listObjPtr, keyObj);
             if (type & JIM_VARLIST_VALUES) {
@@ -12174,13 +12180,13 @@ static void JimVariablesMatch(Jim_Interp *interp, Jim_Obj *listObjPtr,
 /* mode is JIM_VARLIST_xxx */
 static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int mode)
 {
-    if (mode == JIM_VARLIST_LOCALS && interp->framePtr == interp->topFramePtr) {
+    if ((mode & JIM_VARLIST_LOCALS) && interp->framePtr == interp->topFramePtr) {
         /* For [info locals], if we are at top level an empty list
          * is returned. I don't agree, but we aim at compatibility (SS) */
         return interp->emptyObj;
     }
     else {
-        Jim_CallFrame *framePtr = (mode == JIM_VARLIST_GLOBALS) ? interp->topFramePtr : interp->framePtr;
+        Jim_CallFrame *framePtr = (mode & JIM_VARLIST_GLOBALS) ? interp->topFramePtr : interp->framePtr;
         return JimHashtablePatternMatch(interp, &framePtr->vars, patternObjPtr, JimVariablesMatch,
             mode);
     }
@@ -15642,7 +15648,7 @@ static int JimIsGlobalNamespace(Jim_Obj *objPtr)
 static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *objPtr;
-    int mode = 0;
+    int mode = 1;
 
     /* Must be kept in order with the array below */
     enum {
@@ -15678,8 +15684,8 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         JIM_DEF_SUBCMD("alias", "command", 1, 1),
         JIM_DEF_SUBCMD("args", "procname", 1, 1),
         JIM_DEF_SUBCMD("body", "procname", 1, 1),
-        JIM_DEF_SUBCMD("channels", "?pattern?", 0, 1),
-        JIM_DEF_SUBCMD("commands", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("channels", "?-all? ?pattern?", 0, 2),
+        JIM_DEF_SUBCMD("commands", "?-all? ?pattern?", 0, 2),
         JIM_DEF_SUBCMD("complete", "script ?missing?", 1, 2),
         JIM_DEF_SUBCMD("exists", "varName", 1, 1),
         JIM_DEF_SUBCMD("frame", "?levelNum?", 0, 1),
@@ -15690,7 +15696,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         JIM_DEF_SUBCMD("locals", "?pattern?", 0, 1),
         JIM_DEF_SUBCMD("nameofexecutable", NULL, 0, 0),
         JIM_DEF_SUBCMD("patchlevel", NULL, 0, 0),
-        JIM_DEF_SUBCMD("procs", "?pattern?", 0, 1),
+        JIM_DEF_SUBCMD("procs", "?-all? ?pattern?", 0, 2),
         JIM_DEF_SUBCMD("references", NULL, 0, 0),
         JIM_DEF_SUBCMD("returncodes", "?code?", 0, 1),
         JIM_DEF_SUBCMD("script", "?filename?", 0, 1),
@@ -15752,17 +15758,26 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             Jim_SetResultBool(interp, argv[2]->taint != 0);
             return JIM_OK;
         case INFO_CHANNELS:
-            mode++;             /* JIM_CMDLIST_CHANNELS */
+            mode <<= 1;             /* JIM_CMDLIST_CHANNELS */
 #ifndef jim_ext_aio
             Jim_SetResultString(interp, "aio not enabled", -1);
             return JIM_ERR;
 #endif
             /* fall through */
         case INFO_PROCS:
-            mode++;             /* JIM_CMDLIST_PROCS */
+            mode <<= 1;             /* JIM_CMDLIST_PROCS */
             /* fall through */
-        case INFO_COMMANDS:
-            /* mode 0 => JIM_CMDLIST_COMMANDS */
+        case INFO_COMMANDS:{
+            int n = 0;
+            /* mode = 1 => JIM_CMDLIST_COMMANDS */
+            if (argc > 2 && Jim_CompareStringImmediate(interp, argv[2], "-all")) {
+                mode |= JIM_CMDLIST_ALL;
+                n++;
+            }
+            if (argc < 2 + n || argc > 3 + n) {
+                Jim_SetResultFormatted(interp, "wrong # args: should be \"info %#s %s\"", argv[1], cmds[option].args);
+                return JIM_ERR;
+            }
 #ifdef jim_ext_namespace
             if (!nons) {
                 /* Called as 'info -nons commands|procs' so respect the current namespace */
@@ -15771,17 +15786,18 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 }
             }
 #endif
-            Jim_SetResult(interp, JimCommandsList(interp, (argc == 3) ? argv[2] : NULL, mode));
+            Jim_SetResult(interp, JimCommandsList(interp, (argc == 3 + n) ? argv[2 + n] : NULL, mode));
             return JIM_OK;
+        }
 
         case INFO_VARS:
-            mode++;             /* JIM_VARLIST_VARS */
+            mode <<= 1;             /* JIM_VARLIST_VARS */
             /* fall through */
         case INFO_LOCALS:
-            mode++;             /* JIM_VARLIST_LOCALS */
+            mode <<= 1;             /* JIM_VARLIST_LOCALS */
             /* fall through */
         case INFO_GLOBALS:
-            /* mode 0 => JIM_VARLIST_GLOBALS */
+            /* mode = 1 => JIM_VARLIST_GLOBALS */
 #ifdef jim_ext_namespace
             if (!nons) {
                 if (Jim_Length(interp->framePtr->nsObj) || (argc == 3 && JimIsGlobalNamespace(argv[2]))) {

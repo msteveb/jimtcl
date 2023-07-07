@@ -18,7 +18,7 @@ proc ensemble {command args} {
 			if {$subcmd in {-commands -help}} {
 				# Need to remove $autoprefix from the front of these
 				set prefixlen [string length $autoprefix]
-				set subcmds [lmap p [lsort [info commands $autoprefix*]] {
+				set subcmds [lmap p [lsort [info commands -all $autoprefix*]] {
 					string range $p $prefixlen end
 				}]
 				if {$subcmd eq "-commands"} {
