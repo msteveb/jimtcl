@@ -3152,9 +3152,9 @@ test info-2.4 {info commands option} {
 } {_test1_ _test2_}
 catch {rename _test1_ {}}
 catch {rename _test2_ {}}
-test info-2.5 {info commands option} {
+test info-2.5 {info commands option} -body {
     list [catch {info commands a b} msg] $msg
-} {1 {wrong # args: should be "info commands ?pattern?"}}
+    } -result {1 {wrong # args: should be "info commands ?-all? ?pattern?"}}
 test info-3.1 {info exists option} {
     set value foo
     info exists value
