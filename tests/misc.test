@@ -579,8 +579,10 @@ test eval-list-1.1 {Lost string rep with list} {
 
 test info-statics-1.1 {info statics commands} {
 	set x 1
-	proc a {} {x {y 2}} {}
-	lsort [info statics a]
-} {1 2 x y}
+	proc a {} {x {y 2}} { incr x; incr y}
+	a
+	# Returns the dict of the current static variables
+	info statics a
+} {x 2 y 3}
 
 testreport
