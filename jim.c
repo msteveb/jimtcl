@@ -15655,7 +15655,15 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return JIM_OK;
 
         case INFO_SCRIPT:
-            Jim_SetResult(interp, JimGetScript(interp, interp->evalFrame->scriptObj)->fileNameObj);
+			Jim_EvalFrame *f = interp->evalFrame;
+			ScriptObj *s;
+			while (1) {
+				s = JimGetScript(interp, f->scriptObj);
+				if (s->fileNameObj != interp->emptyObj) break;
+				if (f->parent == &interp->topEvalFrame) break;
+				f = f->parent;
+			}
+			Jim_SetResult(interp, s->fileNameObj);
             return JIM_OK;
 
         case INFO_SOURCE:{
