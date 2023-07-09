@@ -3339,6 +3339,16 @@ test info-7.5 {info vars with temporary variables} {
     }
     t1
 } {a}
+test info-8.1 {info script} {
+    file tail [info script]
+} {jim.test}
+test info-8.2 {info script - set} {
+    set save [info script]
+    list [info script abc] [info script] [file tail [info script $save]]
+} {abc abc jim.test}
+test info-8.3 {info script - usage} -body {
+    info script too many args
+} -returnCodes error -result {wrong # args: should be "info script ?filename?"}
 
 ################################################################################
 # RANGE

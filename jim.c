@@ -172,6 +172,23 @@ static int utf8_tounicode_case(const char *s, int *uc, int upper)
     return l;
 }
 
+/* A common pattern is to save an object from interp and set a new
+ * value, and then restore the original. Use this pattern:
+ *
+ * Jim_Obj *saveObj = JimPushInterpObj(interp->obj, newobj);
+ * JimPopInterpObj(interp, interp->obj, saveObj);
+ */
+static Jim_Obj *JimPushInterpObjImpl(Jim_Obj **iop, Jim_Obj *no)
+{
+    Jim_Obj *io = *iop;
+    Jim_IncrRefCount(no);
+    *iop = no;
+    return io;
+}
+
+#define JimPushInterpObj(IO, NO) JimPushInterpObjImpl(&(IO), NO)
+#define JimPopInterpObj(I, IO, SO) do { Jim_DecrRefCount(I, IO); IO = SO; } while (0)
+
 /* These can be used in addition to JIM_CASESENS/JIM_NOCASE */
 #define JIM_CHARSET_SCAN 2
 #define JIM_CHARSET_GLOB 0
@@ -5741,6 +5758,7 @@ Jim_Interp *Jim_CreateInterp(void)
     i->errorProc = i->emptyObj;
     i->nullScriptObj = Jim_NewEmptyStringObj(i);
     i->evalFrame = &i->topEvalFrame;
+    i->currentFilenameObj = Jim_NewEmptyStringObj(i);
     Jim_IncrRefCount(i->emptyObj);
     Jim_IncrRefCount(i->result);
     Jim_IncrRefCount(i->stackTrace);
@@ -5750,6 +5768,7 @@ Jim_Interp *Jim_CreateInterp(void)
     Jim_IncrRefCount(i->errorProc);
     Jim_IncrRefCount(i->trueObj);
     Jim_IncrRefCount(i->falseObj);
+    Jim_IncrRefCount(i->currentFilenameObj);
 
     /* Initialize key variables every interpreter should contain */
     Jim_SetVariableStrWithStr(i, JIM_LIBPATH, TCL_LIBRARY);
@@ -5794,6 +5813,7 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->unknown);
     Jim_DecrRefCount(i, i->defer);
     Jim_DecrRefCount(i, i->nullScriptObj);
+    Jim_DecrRefCount(i, i->currentFilenameObj);
 
     /* This will disard any cached commands */
     Jim_InterpIncrProcEpoch(i);
@@ -11641,6 +11661,8 @@ static Jim_Obj *JimReadTextFile(Jim_Interp *interp, const char *filename)
 
 int Jim_EvalFile(Jim_Interp *interp, const char *filename)
 {
+    Jim_Obj *filenameObj;
+    Jim_Obj *oldFilenameObj;
     Jim_Obj *scriptObjPtr;
     int retcode;
 
@@ -11648,9 +11670,15 @@ int Jim_EvalFile(Jim_Interp *interp, const char *filename)
     if (!scriptObjPtr) {
         return JIM_ERR;
     }
-    JimSetSourceInfo(interp, scriptObjPtr, Jim_NewStringObj(interp, filename, -1), 1);
+
+    filenameObj = Jim_NewStringObj(interp, filename, -1);
+    JimSetSourceInfo(interp, scriptObjPtr, filenameObj, 1);
+
+    oldFilenameObj = JimPushInterpObj(interp->currentFilenameObj, filenameObj);
 
     retcode = Jim_EvalObj(interp, scriptObjPtr);
+
+    JimPopInterpObj(interp, interp->currentFilenameObj, oldFilenameObj);
 
     /* Handle the JIM_RETURN return code */
     if (retcode == JIM_RETURN) {
@@ -15565,7 +15593,7 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
         JIM_DEF_SUBCMD("procs", "?pattern?", 0, 1),
         JIM_DEF_SUBCMD("references", NULL, 0, 0),
         JIM_DEF_SUBCMD("returncodes", "?code?", 0, 1),
-        JIM_DEF_SUBCMD("script", NULL, 0, 0),
+        JIM_DEF_SUBCMD("script", "?filename?", 0, 1),
         JIM_DEF_SUBCMD("source", "source ?filename line?", 1, 3),
         JIM_DEF_SUBCMD("stacktrace", NULL, 0, 0),
         JIM_DEF_SUBCMD("statics", "procname", 1, 1),
@@ -15655,7 +15683,12 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             return JIM_OK;
 
         case INFO_SCRIPT:
-            Jim_SetResult(interp, JimGetScript(interp, interp->evalFrame->scriptObj)->fileNameObj);
+            if (argc == 3) {
+                Jim_IncrRefCount(argv[2]);
+                Jim_DecrRefCount(interp, interp->currentFilenameObj);
+                interp->currentFilenameObj = argv[2];
+            }
+            Jim_SetResult(interp, interp->currentFilenameObj);
             return JIM_OK;
 
         case INFO_SOURCE:{
