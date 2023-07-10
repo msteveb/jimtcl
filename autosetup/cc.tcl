@@ -678,7 +678,7 @@ proc calc-define-output-type {name spec} {
 }
 
 # Initialise some values from the environment or commandline or default settings
-foreach i {LDFLAGS LIBS CPPFLAGS LINKFLAGS {CFLAGS "-g -O2"}} {
+foreach i {LDFLAGS LIBS CPPFLAGS LINKFLAGS CFLAGS} {
 	lassign $i var default
 	define $var [get-env $var $default]
 }
@@ -727,7 +727,7 @@ foreach i {CC CXX CCACHE CPP CFLAGS CXXFLAGS CXXFLAGS LDFLAGS LIBS CROSS CPPFLAG
 	if {[env-is-set $i]} {
 		# Note: If the variable is set on the command line, get-env will return that value
 		# so the command line will continue to override the environment
-		define-append AUTOREMAKE [quote-if-needed $i=[get-env $i ""]]
+		define-append-argv AUTOREMAKE $i=[get-env $i ""]
 	}
 }
 
