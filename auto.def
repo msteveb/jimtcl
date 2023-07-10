@@ -181,7 +181,7 @@ dict set extdb info {
     signal   { check {[have-feature sigaction]} }
     sqlite3  { pkg-config sqlite3 check {[cc-check-function-in-lib sqlite3_prepare_v2 sqlite3]} libdep lib_sqlite3_prepare_v2 }
     redis    { pkg-config hiredis check {[cc-check-function-in-lib redisConnect hiredis]} libdep lib_redisConnect }
-    zlib     { pkg-config zlib check {[cc-check-function-in-lib deflate z]} libdep lib_deflate }
+    zlib     { pkg-config zlib check {[cc-check-includes zlib.h] && [cc-check-function-in-lib deflate z]} libdep lib_deflate }
     syslog   { check {[have-feature syslog]} }
     tree     { dep oo }
     win32    { check {[have-feature windows]} }
