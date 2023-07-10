@@ -102,6 +102,7 @@ cat <<EOF
 #define HAVE_UNISTD_H
 #define HAVE_UMASK
 #define HAVE_PIPE
+#define _FILE_OFFSET_BITS 64
 #endif
 EOF
 
