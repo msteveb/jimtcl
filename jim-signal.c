@@ -11,6 +11,10 @@
 #ifdef HAVE_UNISTD_H
     #include <unistd.h>
 #endif
+#ifdef HAVE_STRINGS_H
+    #include <strings.h>
+#endif
+
 #include <jim-subcmd.h>
 #include <jim-signal.h>
 

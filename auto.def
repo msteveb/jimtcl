@@ -236,7 +236,7 @@ if {[opt-bool coverage]} {
     }
 }
 
-cc-check-includes time.h sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h
+cc-check-includes time.h sys/time.h sys/socket.h netinet/in.h arpa/inet.h netdb.h strings.h
 cc-check-includes util.h pty.h sys/un.h dlfcn.h unistd.h dirent.h crt_externs.h execinfo.h
 
 # Check sizeof time_t so we can warn on non-Y2038 compliance
