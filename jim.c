@@ -40,7 +40,9 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the Jim Tcl Project.
  **/
+#ifndef JIM_TINY
 #define JIM_OPTIMIZATION        /* comment to avoid optimizations and reduce size */
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,7 +109,9 @@
 /* Maximum size of an integer */
 #define JIM_INTEGER_SPACE 24
 
-const char *jim_tt_name(int type);
+#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND)
+static const char *jim_tt_name(int type);
+#endif
 
 #ifdef JIM_DEBUG_PANIC
 static void JimPanicDump(int fail_condition, const char *fmt, ...);
@@ -9264,7 +9268,8 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-const char *jim_tt_name(int type)
+#if (defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND)) && !defined(JIM_BOOTSTRAP)
+static const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
         { "NIL", "STR", "ESC", "VAR", "ARY", "CMD", "SEP", "EOL", "EOF", "LIN", "WRD", "(((", ")))", ",,,", "INT",
@@ -9289,6 +9294,7 @@ const char *jim_tt_name(int type)
         return buf;
     }
 }
+#endif /* !JIM_BOOTSTRAP */
 
 /* -----------------------------------------------------------------------------
  * Expression Object
@@ -12471,15 +12477,14 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
     while (boolean && (retval == JIM_OK || retval == JIM_CONTINUE)) {
         /* Body */
         retval = Jim_EvalObj(interp, argv[4]);
-
+        if (JimCheckLoopRetcode(interp, retval)) {
+            immediate++;
+            break;
+        }
         if (retval == JIM_OK || retval == JIM_CONTINUE) {
             /* increment */
 JIM_IF_OPTIM(evalnext:)
             retval = Jim_EvalObj(interp, argv[3]);
-            if (JimCheckLoopRetcode(interp, retval)) {
-                immediate++;
-                goto out;
-            }
             if (retval == JIM_OK || retval == JIM_CONTINUE) {
                 /* test */
 JIM_IF_OPTIM(testcond:)
