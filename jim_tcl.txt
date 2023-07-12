@@ -5888,6 +5888,10 @@ The following global variables are set by jimsh.
 +*jim::argv0*+::
     The value of argv[0] when jimsh was invoked.
 
++*jim::lineedit*+::
+    This variables is set to 1 if jimsh was configured with line editing support,
+    or 0 if not.
+
 The following variables have special meaning to Jim Tcl:
 
 +*jim::defer*+::

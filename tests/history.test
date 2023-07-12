@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs cmd {history save}
+needs expr "jim::lineedit" {$jim::lineedit}
 
 test history-1.1 {history usage} -body {
 	history

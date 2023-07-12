@@ -464,8 +464,10 @@ if {[opt-bool-unless-minimal ssl]} {
         define-append AS_CFLAGS -DUSE_TLSv1_2_method
     }
 }
-if {[opt-bool-unless-minimal lineedit]} {
-    if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
+
+# Still need to check termios.h and isatty even if lineedit is disabled
+if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature winconsole]} {
+    if {[opt-bool-unless-minimal lineedit]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
         define-append PARSE_UNIDATA_FLAGS -width

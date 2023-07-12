@@ -109,6 +109,11 @@ int main(int argc, char *const argv[])
 
     Jim_SetVariableStrWithStr(interp, "jim::argv0", orig_argv0);
     Jim_SetVariableStrWithStr(interp, JIM_INTERACTIVE, argc == 1 ? "1" : "0");
+#ifdef USE_LINENOISE
+    Jim_SetVariableStrWithStr(interp, "jim::lineedit", "1");
+#else
+    Jim_SetVariableStrWithStr(interp, "jim::lineedit", "0");
+#endif
     retcode = Jim_initjimshInit(interp);
 
     if (argc == 1) {

@@ -3,6 +3,7 @@ source [file dirname [info script]]/testing.tcl
 needs constraint jim
 needs cmd socket
 needs eval "socket pty" {lmap p [socket pty] { $p close }}
+constraint expr lineedit {$jim::lineedit}
 
 package require expect
 
@@ -44,7 +45,7 @@ test interactive-1.1 {basic command} -body {
 	wait-for-prompt $p
 }
 
-test interactive-1.2 {command line completion} {
+test interactive-1.2 {command line completion} lineedit {
 	set check 0
 	set failed 0
 	$p send "li\t"
@@ -62,7 +63,7 @@ test interactive-1.2 {command line completion} {
 	list $check $failed
 } {3 0}
 
-test interactive-1.3 {history show} -body {
+test interactive-1.3 {history show} -constraints lineedit -body {
 	$p send "history show\r"
 	$p expect {\r\n}
 	$p expect {history show\r\n}
@@ -71,7 +72,7 @@ test interactive-1.3 {history show} -body {
 	wait-for-prompt $p
 }
 
-test interactive-1.4 {history getline} -body {
+test interactive-1.4 {history getline} -constraints lineedit -body {
 	$p send "history getline {PROMPT> }\r"
 	$p expect {\r\n}
 	sleep 0.25
@@ -83,7 +84,7 @@ test interactive-1.4 {history getline} -body {
 	wait-for-prompt $p
 }
 
-test interactive-1.4 {history getline} -body {
+test interactive-1.5 {history getline} -constraints lineedit -body {
 	$p send "set len \[history getline {PROMPT> } buf\]\r"
 	$p expect {\r\n}
 	sleep 0.25
@@ -100,7 +101,7 @@ test interactive-1.4 {history getline} -body {
 	wait-for-prompt $p
 }
 
-test interactive-1.5 {insert wide character} -constraints utf8 -body {
+test interactive-1.6 {insert wide character} -constraints {utf8 lineedit} -body {
 	$p send "set x a\u1100b"
 	# now arrow left twice over the wide char and insert another char
 	$p send \x1bOD
@@ -115,7 +116,7 @@ test interactive-1.5 {insert wide character} -constraints utf8 -body {
 	wait-for-prompt $p
 }
 
-test interactive-1.6 {insert utf-8 combining character} -constraints utf8 -body {
+test interactive-1.7 {insert utf-8 combining character} -constraints {utf8 lineedit} -body {
 	$p send "set x x\u0300"
 	# now arrow left twice over the combining char and "x" and insert another char
 	$p send \x1bOD

@@ -141,6 +141,10 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Interp *child;
     char buf[34];
+    int i;
+    static const char * const copyvars[] = {
+        "argv", "argc", "argv0", "jim::argv0", "jim::exe", "jim::lineedit", NULL
+    };
 
     if (argc != 1) {
         Jim_WrongNumArgs(interp, 1, argv, "");
@@ -153,11 +157,9 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_InitStaticExtensions(child);
 
     /* Copy some core variables to the new interpreter */
-    JimInterpCopyVariable(child, interp, "argv", NULL);
-    JimInterpCopyVariable(child, interp, "argc", NULL);
-    JimInterpCopyVariable(child, interp, "argv0", NULL);
-    JimInterpCopyVariable(child, interp, "jim::argv0", NULL);
-    JimInterpCopyVariable(child, interp, "jim::exe", NULL);
+    for (i = 0; copyvars[i]; i++) {
+        JimInterpCopyVariable(child, interp, copyvars[i], NULL);
+    }
 
     /* Allow the child interpreter to find the parent */
     Jim_SetAssocData(child, "interp.parent", NULL, interp);
