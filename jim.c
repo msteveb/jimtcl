@@ -12265,15 +12265,15 @@ static int Jim_UnsetCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
 /**
  * All commands that support break, continue from a loop (while, loop, foreach, for)
- * use this to check for returnLevel.
+ * use this to check for break_level.
  *
- * If returnLevel is > 0, decrements the returnLevel and returns 1.
+ * If break_level is > 0, decrements the break_level and returns 1.
  * Otherwise returns 0
  */
 static int JimCheckLoopRetcode(Jim_Interp *interp, int retval)
 {
     if (retval == JIM_BREAK || retval == JIM_CONTINUE) {
-        if (--interp->returnLevel > 0) {
+        if (--interp->break_level > 0) {
             return 1;
         }
     }
@@ -13837,7 +13837,7 @@ static int JimBreakContinueHelper(Jim_Interp *interp, int argc, Jim_Obj *const *
         if (ret != JIM_OK) {
             return ret;
         }
-        interp->returnLevel = level;
+        interp->break_level = level;
     }
     return retcode;
 }

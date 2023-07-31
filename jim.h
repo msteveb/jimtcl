@@ -542,7 +542,7 @@ typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
     int unused_errorLine; /* Error line where an error occurred. */
     Jim_Obj *currentFilenameObj; /* filename of current Jim_EvalFile() */
-    int unused_addStackTrace;
+    int break_level;       /* break/continue level */
     int maxCallFrameDepth; /* Used for infinite loop detection. */
     int maxEvalDepth; /* Used for infinite loop detection. */
     int evalDepth;  /* Current eval depth */
