@@ -816,9 +816,7 @@ static int aio_read_len(Jim_Interp *interp, AioFile *af, int nb, char *buf, size
         if (JimCheckStreamError(interp, af)) {
             return JIM_ERR;
         }
-        if (nb || af->timeout) {
-            return JIM_OK;
-        }
+        break;
     }
 
     return JIM_OK;
@@ -1105,14 +1103,9 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         offset = len;
         len = af->fops->reader(af, buf, AIO_BUF_LEN, nb);
         if (len <= 0) {
-            if (nb || af->timeout) {
-                /* Stop when no more to read (non-blocking) or timeout and return an empty string */
-                break;
-            }
+            break;
         }
-        else {
-            Jim_AppendString(interp, af->readbuf, buf, len);
-        }
+        Jim_AppendString(interp, af->readbuf, buf, len);
     }
 
     aio_set_nonblocking(af, nb);
