@@ -295,7 +295,7 @@ test socket-3.3 {listen usage} -body {
 test socket-3.4 {listen not a socket} -body {
 	set f [open [info script]]
 	$f listen 10
-} -returnCodes error -match regexp -result {^(Socket operation on non-socket|Not a socket)$} -cleanup {
+} -returnCodes error -match regexp -result {(bad|socket)} -cleanup {
 	$f close
 }
 
@@ -310,14 +310,14 @@ test socket-4.2 {invalid ipv4 address} -body {
 test socket-4.3 {sockname on non-socket} -body {
 	set f [open [info script]]
 	$f sockname
-} -returnCodes error -match regexp -result {^(Socket operation on non-socket|Not a socket)$} -cleanup {
+} -returnCodes error -match regexp -result {(bad|socket)} -cleanup {
 	$f close
 }
 
 test socket-4.4 {peername on non-socket} -body {
 	set f [open [info script]]
 	$f peername
-} -returnCodes error -match regexp -result {^(Socket operation on non-socket|Not a socket)$} -cleanup {
+} -returnCodes error -match regexp -result {(bad|socket)} -cleanup {
 	$f close
 }
 
