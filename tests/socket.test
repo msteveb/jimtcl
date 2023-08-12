@@ -5,6 +5,7 @@ needs cmd socket
 needs cmd os.fork
 
 constraint eval ipv6 {[socket -ipv6 stream.server ::1:5000] close}
+constraint expr linux {$tcl_platform(os) eq "linux"}
 
 # Given an IPv4 or IPv6 server socket, return an address
 # that a client can use to connect to the socket.
@@ -73,7 +74,7 @@ test socket-1.4 {unix} -body {
 	stdout flush
 	if {[os.fork] == 0} {
 		# child
-		set c [socket unix [$s sockname]]
+		set c [socket unix $path]
 		$s close
 		$c puts hello
 		$c close
@@ -90,7 +91,7 @@ test socket-1.5 {unix.dgram} -body {
 	set path [file tempfile]
 	file delete $path
 	set s [socket unix.dgram.server $path]
-	set c [socket unix.dgram [$s sockname]]
+	set c [socket unix.dgram $path]
 	$s buffering none
 	$c buffering none
 	$c puts -nonewline hello
@@ -203,6 +204,16 @@ test socket-1.11 {stream - ipv6 - port only} -constraints ipv6 -body {
 	$s close
 	set buf
 } -result {hello}
+
+# On hurd, sockname does not return the path for unix domain sockets
+test socket-1.12 {unix} -constraints linux -body {
+	set path [file tempfile]
+	file delete $path
+	set s [socket unix.server $path]
+	set equal [expr {[$s sockname] eq $path}]
+	$s close
+	set equal
+} -result {1}
 
 test socket-2.1 {read 1} -body {
 	lassign [socket pipe] r w
