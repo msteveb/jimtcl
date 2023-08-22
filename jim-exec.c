@@ -1141,9 +1141,9 @@ static int JimExecPipeline(Jim_Interp *interp, Jim_Obj *cmdList, Jim_Obj *redire
         /* Now fork the child */
 
 #ifdef __MINGW32__
-        phandle = JimStartWinProcess(interp, &arg_array[firstArg], save_environ, inputId, outputId, errorId);
+        phandle = JimStartWinProcess(interp, &arg_array[0], save_environ, inputId, outputId, errorId);
         if (phandle == JIM_BAD_PHANDLE) {
-            Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[firstArg]);
+            Jim_SetResultFormatted(interp, "couldn't exec \"%s\"", arg_array[0]);
             goto error;
         }
 #else
