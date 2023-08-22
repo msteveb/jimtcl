@@ -6,9 +6,8 @@ needs cmd exec
 needs cmd flush
 
 # Need [pipe] to implement [open |command]
-testCmdConstraints pipe
-
-testConstraint unix [expr {$tcl_platform(platform) eq {unix}}]
+constraint cmd pipe
+constraint expr unix {$tcl_platform(platform) eq "unix"}
 
 # Sleep which supports fractions of a second
 if {[info commands sleep] eq {}} {
