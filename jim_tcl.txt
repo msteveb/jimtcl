@@ -62,6 +62,7 @@ Changes since 0.82
 6. `socket` , `open` and `aio accept` now support '-noclose'
 7. Add support for hinting with `history hints`
 8. Support for `proc` statics by reference (lexical closure) rather than by value
+9. `exec` TIP 424 - support safer +exec | + syntax (also +open "|| pipeline..."+)
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,7 +75,6 @@ Changes between 0.81 and 0.82
 7. ./configure now defaults to '--full'
 8. New `timerate` command as an improvement over `time`, somewhat compatible with TIP 527
 9. Add `ensemble` command and support for `namespace ensemble` (as an optional extension)
-10. `exec` TIP 424 - support safer +exec | + syntax (also +open "|| pipeline..."+)
 
 Changes between 0.80 and 0.81
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
