@@ -11642,8 +11642,14 @@ static Jim_Obj *JimReadTextFile(Jim_Interp *interp, const char *filename)
     char *buf;
     int readlen;
 
-    if (Jim_Stat(filename, &sb) == -1 || (fd = open(filename, O_RDONLY | O_TEXT, 0666)) < 0) {
-        Jim_SetResultFormatted(interp, "couldn't read file \"%s\": %s", filename, strerror(errno));
+    fd = open(filename, O_RDONLY | O_TEXT, 0666);
+    if (fd < 0) {
+        Jim_SetResultFormatted(interp, "couldn't open file \"%s\": %s", filename, strerror(errno));
+        return NULL;
+    }
+    if (Jim_FileStat(fd, &sb) == -1) {
+        Jim_SetResultFormatted(interp, "couldn't stat file \"%s\": %s", filename, strerror(errno));
+        close(fd);
         return NULL;
     }
     buf = Jim_Alloc(sb.st_size + 1);
