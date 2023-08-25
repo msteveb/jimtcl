@@ -649,11 +649,11 @@ normal processing with the next character.  For example, in the
 command
 
 ----
-    set \*a \\\{foo
+    set \*a \\{foo
 ----
 
-The first argument to `set` will be +{backslash}*a+ and the second
-argument will be +{backslash}{foo+.
+The first argument to `set` will be +*a+ and the second
+argument will be +{foo+.
 
 If an argument is enclosed in braces, then backslash sequences inside
 the argument are parsed but no substitution occurs (except for
@@ -666,10 +666,10 @@ For example, in the
 command
 
 ----
-    set a {\{abc}
+    set a {\\{abc}
 ----
 
-the second argument to `set` will be +{backslash}{abc+.
+the second argument to `set` will be `\\{abc`.
 
 This backslash mechanism is not sufficient to generate absolutely
 any argument structure; it only covers the
@@ -799,25 +799,25 @@ String constants representing boolean constants
 (+'0'+, +'1'+, +'false'+, +'off'+, +'no'+, +'true'+, +'on'+, +'yes'+)
 are also recognized and can be used in logical operations.
 
-1. Operands may be specified in any of the following ways:
+Operands may be specified in any of the following ways:
 
-2. As a numeric value, either integer or floating-point.
+1. As a numeric value, either integer or floating-point.
 
-3. As one of valid boolean constants
+2. As one of valid boolean constants
 
-4. As a Tcl variable, using standard '$' notation.
+3. As a Tcl variable, using standard '$' notation.
 The variable's value will be used as the operand.
 
-5. As a string enclosed in double-quotes.
+4. As a string enclosed in double-quotes.
 The expression parser will perform backslash, variable, and
 command substitutions on the information between the quotes,
 and use the resulting value as the operand
 
-6. As a string enclosed in braces.
+5. As a string enclosed in braces.
 The characters between the open brace and matching close brace
 will be used as the operand without any substitutions.
 
-7. As a Tcl command enclosed in brackets.
+6. As a Tcl command enclosed in brackets.
 The command will be executed and its result will be used as
 the operand.
 
