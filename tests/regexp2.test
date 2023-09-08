@@ -943,4 +943,20 @@ test regexp-25.3 {End of word} {
     regexp {\mcd\M} cdef
 } 0
 
+test regexp-26.1 {regexp operator =~} {
+    expr {"abc" =~ "^a"}
+} 1
+
+test regexp-26.2 {regexp operator =~} {
+    expr {"abc" =~ "^b"}
+} 0
+
+test regexp-26.2 {regexp operator =~} {
+    expr {"abc" =~ ".b."}
+} 1
+
+test regexp-26.3 {regexp operator =~ invalid regexp} -body {
+    expr {"abc" =~ {[}}
+} -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
+
 testreport
