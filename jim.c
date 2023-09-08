@@ -109,7 +109,8 @@
 /* Maximum size of an integer */
 #define JIM_INTEGER_SPACE 24
 
-#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND) || defined(DEBUG_SHOW_SUBST)
+#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND) || defined(DEBUG_SHOW_EXPR_TOKENS) || defined(DEBUG_SHOW_EXPR)
+#define JIM_TT_NAME
 static const char *jim_tt_name(int type);
 #endif
 
@@ -8337,6 +8338,9 @@ enum
     /* Binary operators (strings) */
     JIM_EXPROP_STREQ,           /* 43 */
     JIM_EXPROP_STRNE,
+    JIM_EXPROP_STRGLOB,
+    JIM_EXPROP_STRRE,
+
     JIM_EXPROP_STRIN,
     JIM_EXPROP_STRNI,
     JIM_EXPROP_STRLT,
@@ -8345,13 +8349,13 @@ enum
     JIM_EXPROP_STRGE,
 
     /* Unary operators (numbers) */
-    JIM_EXPROP_NOT,             /* 51 */
+    JIM_EXPROP_NOT,             /* 53 */
     JIM_EXPROP_BITNOT,
     JIM_EXPROP_UNARYMINUS,
     JIM_EXPROP_UNARYPLUS,
 
     /* Functions */
-    JIM_EXPROP_FUNC_INT,      /* 55 */
+    JIM_EXPROP_FUNC_INT,      /* 57 */
     JIM_EXPROP_FUNC_WIDE,
     JIM_EXPROP_FUNC_ABS,
     JIM_EXPROP_FUNC_DOUBLE,
@@ -8360,7 +8364,7 @@ enum
     JIM_EXPROP_FUNC_SRAND,
 
     /* math functions from libm */
-    JIM_EXPROP_FUNC_SIN,        /* 69 */
+    JIM_EXPROP_FUNC_SIN,        /* 71 */
     JIM_EXPROP_FUNC_COS,
     JIM_EXPROP_FUNC_TAN,
     JIM_EXPROP_FUNC_ASIN,
@@ -8933,7 +8937,25 @@ static int JimSearchList(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *valOb
     return 0;
 }
 
+static int JimRegexpMatch(Jim_Interp *interp, Jim_Obj *patternObj, Jim_Obj *objPtr)
+{
+    Jim_Obj *argv[3];
+    int argc = 0;
+    long eq;
+    int rc;
 
+    argv[argc++] = Jim_NewStringObj(interp, "regexp", -1);
+    argv[argc++] = patternObj;
+    argv[argc++] = objPtr;
+
+    rc = Jim_EvalObjVector(interp, argc, argv);
+
+    if (rc != JIM_OK || Jim_GetLong(interp, Jim_GetResult(interp), &eq) != JIM_OK) {
+        eq = -rc;
+    }
+
+    return eq;
+}
 
 static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
 {
@@ -8978,11 +9000,22 @@ static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
         case JIM_EXPROP_STRNI:
             wC = !JimSearchList(interp, B, A);
             break;
+        case JIM_EXPROP_STRGLOB:
+            wC = Jim_StringMatchObj(interp, B, A, 0);
+            break;
+        case JIM_EXPROP_STRRE:
+            wC = JimRegexpMatch(interp, B, A);
+            if (wC < 0) {
+                rc = JIM_ERR;
+                goto error;
+            }
+            break;
         default:
             abort();
     }
     Jim_SetResultInt(interp, wC);
 
+error:
     Jim_DecrRefCount(interp, A);
     Jim_DecrRefCount(interp, B);
 
@@ -9113,6 +9146,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
     OPRINIT("eq", 60, 2, JimExprOpStrBin),
     OPRINIT("ne", 60, 2, JimExprOpStrBin),
+    OPRINIT("=*", 60, 2, JimExprOpStrBin),
+    OPRINIT("=~", 60, 2, JimExprOpStrBin),
 
     OPRINIT("in", 55, 2, JimExprOpStrBin),
     OPRINIT("ni", 55, 2, JimExprOpStrBin),
@@ -9381,7 +9416,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-#if (defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND) || defined(DEBUG_SHOW_SUBST)) && !defined(JIM_BOOTSTRAP)
+#if defined(JIM_TT_NAME) && !defined(JIM_BOOTSTRAP)
 static const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
