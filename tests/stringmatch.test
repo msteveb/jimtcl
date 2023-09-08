@@ -230,4 +230,16 @@ test stringmatch-7.4 {null in pattern} {
     string match *b\[\0a\]r* foobar
 } 1
 
+test stringmatch-8.1 {string match operator =*} {
+    expr {"abc" =* "a*"}
+} 1
+
+test stringmatch-8.2 {string match operator =*} {
+    expr {"abc" =* "b*"}
+} 0
+
+test stringmatch-8.3 {string match operator =*} {
+    expr {"abc" =* {*[bB]c}}
+} 1
+
 testreport
