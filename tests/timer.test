@@ -18,7 +18,26 @@
 source [file dirname [info script]]/testing.tcl
 needs cmd after eventloop
 
-test timer-1.1 {Tcl_CreateTimerHandler procedure} {
+# Before we start, some of these timer tests can be fragile if running on
+# a VM or overloaded system where wall time and cpu are not
+# in sync. Run a quick test to see if this seems to be the case
+# and if so skip these tests.
+
+set goodtime 1
+set prev [clock micros]
+for {set i 0} {$i < 10} {incr i} {
+    after 10
+    set now [clock micros]
+    if {$now - $prev > 15000} {
+	# a 10ms wait took more than 15ms
+	set goodtime 0
+	break
+    }
+    set prev $now
+}
+constraint expr goodtime $goodtime
+
+test timer-1.1 {Tcl_CreateTimerHandler procedure} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -31,7 +50,7 @@ test timer-1.1 {Tcl_CreateTimerHandler procedure} {
     set x
 } {20 40 60 80}
 
-test timer-2.1 {Tcl_DeleteTimerHandler procedure} {
+test timer-2.1 {Tcl_DeleteTimerHandler procedure} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -49,7 +68,7 @@ test timer-2.1 {Tcl_DeleteTimerHandler procedure} {
 # No tests for Tcl_ServiceTimer or ResetTimer, since it is already tested
 # above.
 
-test timer-3.1 {TimerHandlerEventProc procedure: event masks} {
+test timer-3.1 {TimerHandlerEventProc procedure: event masks} goodtime {
     set x start
     after 20 { set x fired }
     update idletasks
@@ -58,7 +77,7 @@ test timer-3.1 {TimerHandlerEventProc procedure: event masks} {
     update
     lappend result $x
 } {start fired}
-test timer-3.2 {TimerHandlerEventProc procedure: multiple timers} {
+test timer-3.2 {TimerHandlerEventProc procedure: multiple timers} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -77,7 +96,7 @@ test timer-3.2 {TimerHandlerEventProc procedure: multiple timers} {
     update
     lappend result $x
 } {80 {80 240} {80 240 400}}
-test timer-3.3 {TimerHandlerEventProc procedure: reentrant timer deletion} {
+test timer-3.3 {TimerHandlerEventProc procedure: reentrant timer deletion} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -89,7 +108,7 @@ test timer-3.3 {TimerHandlerEventProc procedure: reentrant timer deletion} {
     update
     set x
 } 20
-test timer-3.4 {TimerHandlerEventProc procedure: all expired timers fire} {
+test timer-3.4 {TimerHandlerEventProc procedure: all expired timers fire} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -101,7 +120,7 @@ test timer-3.4 {TimerHandlerEventProc procedure: all expired timers fire} {
     vwait x
     set x
 } {a b c}
-test timer-3.5 {TimerHandlerEventProc procedure: reentrantly added timers don't fire} {
+test timer-3.5 {TimerHandlerEventProc procedure: reentrantly added timers don't fire} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -111,7 +130,7 @@ test timer-3.5 {TimerHandlerEventProc procedure: reentrantly added timers don't 
     vwait x
     set x
 } a
-test timer-3.6 {TimerHandlerEventProc procedure: reentrantly added timers don't fire} {
+test timer-3.6 {TimerHandlerEventProc procedure: reentrantly added timers don't fire} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -127,7 +146,7 @@ test timer-3.6 {TimerHandlerEventProc procedure: reentrantly added timers don't 
 # No tests for Tcl_DoWhenIdle:  it's already tested by other tests
 # below.
 
-test timer-4.1 {Tcl_CancelIdleCall procedure} {
+test timer-4.1 {Tcl_CancelIdleCall procedure} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -156,7 +175,7 @@ test timer-4.2 {Tcl_CancelIdleCall procedure} {
     concat $x $y $z
 } {before after2 after3}
 
-test timer-5.1 {Tcl_ServiceIdle, self-rescheduling handlers} {
+test timer-5.1 {Tcl_ServiceIdle, self-rescheduling handlers} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -179,7 +198,7 @@ test timer-6.2 {Tcl_AfterCmd procedure, basics} jim {
 test timer-6.3 {Tcl_AfterCmd procedure, basics} jim {
     list [catch {after gorp} msg] $msg
 } {1 {bad argument "gorp": must be cancel, idle, or info}}
-test timer-6.4 {Tcl_AfterCmd procedure, ms argument} {
+test timer-6.4 {Tcl_AfterCmd procedure, ms argument} goodtime {
     set x before
     after 500 {set x after}
     after 100
@@ -199,7 +218,7 @@ test timer-6.7 {Tcl_AfterCmd procedure, cancel option} {
 test timer-6.8 {Tcl_AfterCmd procedure, cancel option} {
     after cancel {foo bar}
 } {}
-test timer-6.9 {Tcl_AfterCmd procedure, cancel option} {
+test timer-6.9 {Tcl_AfterCmd procedure, cancel option} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -210,7 +229,7 @@ test timer-6.9 {Tcl_AfterCmd procedure, cancel option} {
     update
     set x
 } {before}
-test timer-6.10 {Tcl_AfterCmd procedure, cancel option} {
+test timer-6.10 {Tcl_AfterCmd procedure, cancel option} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -221,7 +240,7 @@ test timer-6.10 {Tcl_AfterCmd procedure, cancel option} {
     update
     set x
 } {before}
-test timer-6.11 {Tcl_AfterCmd procedure, cancel option} {
+test timer-6.11 {Tcl_AfterCmd procedure, cancel option} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
@@ -263,7 +282,7 @@ test timer-6.13 {Tcl_AfterCmd procedure, cancel option, multiple arguments for c
     update idletasks
     set x
 } {first third}
-test timer-6.14 {Tcl_AfterCmd procedure, cancel option, cancel during handler, used to dump core} {
+test timer-6.14 {Tcl_AfterCmd procedure, cancel option, cancel during handler, used to dump core} goodtime {
     foreach i [after info] {
 	after cancel $i
     }
