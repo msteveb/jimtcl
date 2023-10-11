@@ -181,7 +181,7 @@ if {$static} {
 
 	puts "Ar:      $target"
 	set rc [exec-catch $verbose $ar]
-	if {rc == 0} {
+	if {$rc == 0} {
 		set rc [exec-catch $verbose $ranlib]
 	}
 	file delete {*}$objs
