@@ -281,9 +281,6 @@ if {[have-feature fork]} {
 if {[cc-check-function-in-lib backtrace execinfo]} {
     define-append LDLIBS [get-define lib_backtrace]
 }
-if {[cc-check-function-in-lib openpty util]} {
-    define-append LDLIBS [get-define lib_openpty]
-}
 
 if {[cc-check-functions sysinfo]} {
     cc-with {-includes sys/sysinfo.h} {
@@ -572,6 +569,12 @@ if {[have-feature windows]} {
 }
 if {[have-feature termios.h]} {
     lappend extra_objs jim-tty.o
+}
+if {[have-feature termios.h] && [cc-check-functions posix_openpt]} {
+    define-append AS_CFLAGS -DHAVE_OPENPTY
+    lappend extra_objs openpty.o
+} elseif {[have-feature util.h]} {
+    cc-check-function-in-lib openpty util
 }
 
 if {[ext-get-status regexp] in {y m}} {
