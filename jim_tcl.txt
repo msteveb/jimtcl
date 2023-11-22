@@ -2489,6 +2489,23 @@ The following two are identical.
   set x $(3 * 2 + 1)
 ----
 
+However note that the expr shorthand syntax may not be nested in an expression.
+This is to prevent the common mistake of writing:
+
+----
+  if {$(1 + 2) == 3) {
+    ...
+  }
+----
+
+rather than:
+
+----
+  if {(1 + 2) == 3) {
+    ...
+  }
+----
+
 file
 ~~~~
 +*file* 'option name ?arg\...?'+

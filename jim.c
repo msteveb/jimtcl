@@ -1281,6 +1281,7 @@ struct JimParserCtx
     int inquote;                /* Parsing a quoted string */
     int comment;                /* Non zero if the next chars may be a comment. */
     struct JimParseMissing missing;   /* Details of any missing quotes, etc. */
+    const char *errmsg;         /* Additional error message, or NULL if none */
 };
 
 static int JimParseScript(struct JimParserCtx *pc);
@@ -9060,6 +9061,8 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 
 static int JimParseExpression(struct JimParserCtx *pc)
 {
+    pc->errmsg = NULL;
+
     while (1) {
         /* Discard spaces and quoted newline */
         while (isspace(UCHAR(*pc->p)) || (*(pc->p) == '\\' && *(pc->p + 1) == '\n')) {
@@ -9110,6 +9113,7 @@ singlechar:
             else {
                 /* Don't allow expr sugar in expressions */
                 if (pc->tt == JIM_TT_EXPRSUGAR) {
+                    pc->errmsg = "nesting expr in expr is not allowed";
                     return JIM_ERR;
                 }
                 return JIM_OK;
@@ -9257,6 +9261,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
             p++;
         }
         if (*p != '(') {
+            pc->errmsg = "function requires parentheses";
             return JIM_ERR;
         }
     }
@@ -9740,6 +9745,9 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
         if (JimParseExpression(&parser) != JIM_OK) {
             ScriptTokenListFree(&tokenlist);
             Jim_SetResultFormatted(interp, "syntax error in expression: \"%#s\"", objPtr);
+            if (parser.errmsg) {
+                Jim_AppendStrings(interp, Jim_GetResult(interp), ": ", parser.errmsg, NULL);
+            }
             expr = NULL;
             goto err;
         }
