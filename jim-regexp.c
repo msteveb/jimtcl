@@ -348,27 +348,30 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int regcomp_flags = 0;
     int regexec_flags = 0;
     int opt_all = 0;
+    int opt_command = 0;
     int offset = 0;
     regex_t *regex;
     const char *p;
-    int result;
+    int result = JIM_OK;
     regmatch_t pmatch[MAX_SUB_MATCHES + 1];
     int num_matches = 0;
 
     int i, j, n;
     Jim_Obj *varname;
     Jim_Obj *resultObj;
+    Jim_Obj *cmd_prefix = NULL;
+    Jim_Obj *regcomp_obj = NULL;
     const char *source_str;
     int source_len;
-    const char *replace_str;
+    const char *replace_str = NULL;
     int replace_len;
     const char *pattern;
     int option;
     enum {
-        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_END
+        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_COMMAND, OPT_END
     };
     static const char * const options[] = {
-        "-nocase", "-line", "-all", "-start", "--", NULL
+        "-nocase", "-line", "-all", "-start", "-command", "--", NULL
     };
 
     if (argc < 4) {
@@ -412,20 +415,39 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 break;
+
+            case OPT_COMMAND:
+                opt_command = 1;
+                break;
         }
     }
     if (argc - i != 3 && argc - i != 4) {
         goto wrongNumArgs;
     }
 
-    regex = SetRegexpFromAny(interp, argv[i], regcomp_flags);
+	/* Need to ensure that this is unshared, so just duplicate it always */
+    regcomp_obj = Jim_DuplicateObj(interp, argv[i]);
+	Jim_IncrRefCount(regcomp_obj);
+    regex = SetRegexpFromAny(interp, regcomp_obj, regcomp_flags);
     if (!regex) {
+		Jim_DecrRefCount(interp, regcomp_obj);
         return JIM_ERR;
     }
     pattern = Jim_String(argv[i]);
 
     source_str = Jim_GetString(argv[i + 1], &source_len);
-    replace_str = Jim_GetString(argv[i + 2], &replace_len);
+    if (opt_command) {
+        cmd_prefix = argv[i + 2];
+        if (Jim_ListLength(interp, cmd_prefix) == 0) {
+            Jim_SetResultString(interp, "command prefix must be a list of at least one element", -1);
+			Jim_DecrRefCount(interp, regcomp_obj);
+            return JIM_ERR;
+        }
+        Jim_IncrRefCount(cmd_prefix);
+    }
+    else {
+        replace_str = Jim_GetString(argv[i + 2], &replace_len);
+    }
     varname = argv[i + 3];
 
     /* Create the result string */
@@ -482,44 +504,67 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          */
         Jim_AppendString(interp, resultObj, p, pmatch[0].rm_so);
 
-        /*
-         * Append the subSpec (replace_str) argument to the variable, making appropriate
-         * substitutions.  This code is a bit hairy because of the backslash
-         * conventions and because the code saves up ranges of characters in
-         * subSpec to reduce the number of calls to Jim_SetVar.
-         */
-
-        for (j = 0; j < replace_len; j++) {
-            int idx;
-            int c = replace_str[j];
-
-            if (c == '&') {
-                idx = 0;
-            }
-            else if (c == '\\' && j < replace_len) {
-                c = replace_str[++j];
-                if ((c >= '0') && (c <= '9')) {
-                    idx = c - '0';
+        if (opt_command) {
+            /* construct the command as a list */
+            Jim_Obj *cmdListObj = Jim_DuplicateObj(interp, cmd_prefix);
+            for (j = 0; j < MAX_SUB_MATCHES; j++) {
+                if (pmatch[j].rm_so == -1) {
+                    break;
                 }
-                else if ((c == '\\') || (c == '&')) {
+                else {
+                    Jim_Obj *srcObj = Jim_NewStringObj(interp, p + pmatch[j].rm_so, pmatch[j].rm_eo - pmatch[j].rm_so);
+                    Jim_ListAppendElement(interp, cmdListObj, srcObj);
+                }
+            }
+            Jim_IncrRefCount(cmdListObj);
+
+            result = Jim_EvalObj(interp, cmdListObj);
+            Jim_DecrRefCount(interp, cmdListObj);
+            if (result != JIM_OK) {
+                goto cmd_error;
+            }
+            Jim_AppendString(interp, resultObj, Jim_String(Jim_GetResult(interp)), -1);
+        }
+        else {
+            /*
+             * Append the subSpec (replace_str) argument to the variable, making appropriate
+             * substitutions.  This code is a bit hairy because of the backslash
+             * conventions and because the code saves up ranges of characters in
+             * subSpec to reduce the number of calls to Jim_SetVar.
+             */
+
+            for (j = 0; j < replace_len; j++) {
+                int idx;
+                int c = replace_str[j];
+
+                if (c == '&') {
+                    idx = 0;
+                }
+                else if (c == '\\' && j < replace_len) {
+                    c = replace_str[++j];
+                    if ((c >= '0') && (c <= '9')) {
+                        idx = c - '0';
+                    }
+                    else if ((c == '\\') || (c == '&')) {
+                        Jim_AppendString(interp, resultObj, replace_str + j, 1);
+                        continue;
+                    }
+                    else {
+                        /* If the replacement is a trailing backslash, just replace with a backslash, otherwise
+                         * with the literal backslash and the following character
+                         */
+                        Jim_AppendString(interp, resultObj, replace_str + j - 1, (j == replace_len) ? 1 : 2);
+                        continue;
+                    }
+                }
+                else {
                     Jim_AppendString(interp, resultObj, replace_str + j, 1);
                     continue;
                 }
-                else {
-                    /* If the replacement is a trailing backslash, just replace with a backslash, otherwise
-                     * with the literal backslash and the following character
-                     */
-                    Jim_AppendString(interp, resultObj, replace_str + j - 1, (j == replace_len) ? 1 : 2);
-                    continue;
+                if ((idx < MAX_SUB_MATCHES) && pmatch[idx].rm_so != -1 && pmatch[idx].rm_eo != -1) {
+                    Jim_AppendString(interp, resultObj, p + pmatch[idx].rm_so,
+                        pmatch[idx].rm_eo - pmatch[idx].rm_so);
                 }
-            }
-            else {
-                Jim_AppendString(interp, resultObj, replace_str + j, 1);
-                continue;
-            }
-            if ((idx < MAX_SUB_MATCHES) && pmatch[idx].rm_so != -1 && pmatch[idx].rm_eo != -1) {
-                Jim_AppendString(interp, resultObj, p + pmatch[idx].rm_so,
-                    pmatch[idx].rm_eo - pmatch[idx].rm_so);
             }
         }
 
@@ -560,21 +605,33 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
     Jim_AppendString(interp, resultObj, p, -1);
 
-    /* And now set or return the result variable */
-    if (argc - i == 4) {
-        result = Jim_SetVariable(interp, varname, resultObj);
+cmd_error:
+    if (result == JIM_OK) {
+        /* And now set or return the result variable */
+        if (argc - i == 4) {
+            result = Jim_SetVariable(interp, varname, resultObj);
 
-        if (result == JIM_OK) {
-            Jim_SetResultInt(interp, num_matches);
+            if (result == JIM_OK) {
+                Jim_SetResultInt(interp, num_matches);
+            }
+            else {
+                Jim_FreeObj(interp, resultObj);
+            }
         }
         else {
-            Jim_FreeObj(interp, resultObj);
+            Jim_SetResult(interp, resultObj);
+            result = JIM_OK;
         }
     }
     else {
-        Jim_SetResult(interp, resultObj);
-        result = JIM_OK;
+        Jim_FreeObj(interp, resultObj);
     }
+
+    if (opt_command) {
+        Jim_DecrRefCount(interp, cmd_prefix);
+    }
+
+	Jim_DecrRefCount(interp, regcomp_obj);
 
     return result;
 }

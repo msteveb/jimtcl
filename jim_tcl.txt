@@ -62,6 +62,7 @@ Changes since 0.82
 6. `socket` , `open` and `aio accept` now support '-noclose'
 7. Add support for hinting with `history hints`
 8. Support for `proc` statics by reference (lexical closure) rather than by value
+9. `regsub` now supports '-command' (per Tcl 8.7)
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3840,7 +3841,7 @@ The following switches modify the behaviour of +'regexp'+
 
 regsub
 ~~~~~~
-+*regsub ?-nocase? ?-all? ?-line? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
++*regsub ?-nocase? ?-all? ?-line? ?-command? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
 
 This command matches the regular expression +'exp'+ against
 +'string'+ using the rules described in REGULAR EXPRESSIONS
@@ -3896,6 +3897,26 @@ The following switches modify the behaviour of +'regsub'+
     string after any newline in the string in addition to its normal
     function, and the +$+ anchor matches the empty string before any
     newline in the string in addition to its normal function.
+
++*-command*+::
+
+    Changes the handling of +'subSpec'+ so that it is not treated
+    as a template for a substitution string and the substrings +*&*+
+    and +*\n*+ no longer have special meaning. Instead +'subSpec'+ must
+    be a command prefix, that is, a non-empty list. The substring
+    of string that matches +'exp'+, and then each substring that matches
+    each capturing sub-RE within +'exp'+, are appended as additional
+    elements to that list. (The items appended to the list are much
+    like what `regexp -inline` would return). The completed list is
+    then evaluated as a Tcl command, and the result of that command
+    is the substitution string. Any error or exception from command
+    evaluation becomes an error or exception from the regsub command.
+  ::
+    If +*-all*+ is not also given, the command callback will be invoked
+    at most once (exactly when the regular expression matches). If
+    +*-all*+ is given, the command callback will be invoked for each
+    matched location, in sequence. The exact location indices that
+    matched are not made available to the script.
 
 +*-start* 'offset'+::
     Specifies a character index offset into the string at which to
