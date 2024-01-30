@@ -10714,13 +10714,18 @@ static int JimTraceCallback(Jim_Interp *interp, const char *type, int argc, Jim_
     Jim_Obj *nargv[7];
     Jim_Obj *traceCmdObj = interp->traceCmdObj;
     Jim_Obj *resultObj = Jim_GetResult(interp);
+    ScriptObj *script = NULL;
+
     /* Where were we called from? */
-    ScriptObj *script = JimGetScript(interp, interp->evalFrame->scriptObj);
+    /* This may be NULL for Jim_EvalObjVector() */
+    if (interp->evalFrame->scriptObj) {
+        script = JimGetScript(interp, interp->evalFrame->scriptObj);
+    }
 
     nargv[0] = traceCmdObj;
     nargv[1] = Jim_NewStringObj(interp, type, -1);
-    nargv[2] = script->fileNameObj;
-    nargv[3] = Jim_NewIntObj(interp, script->linenr);
+    nargv[2] = script ? script->fileNameObj : interp->emptyObj;
+    nargv[3] = Jim_NewIntObj(interp, script ? script->linenr : 1);
     nargv[4] = resultObj;
     nargv[5] = argv[0];
     nargv[6] = Jim_NewListObj(interp, argv + 1, argc - 1);
@@ -10921,6 +10926,7 @@ int Jim_EvalObjVector(Jim_Interp *interp, int objc, Jim_Obj *const *objv)
     for (i = 0; i < objc; i++)
         Jim_IncrRefCount(objv[i]);
 
+    /* Note that we have no source for this command so push NULL as the scriptObj */
     JimPushEvalFrame(interp, &frame, NULL);
 
     retcode = JimInvokeCommand(interp, objc, objv);
