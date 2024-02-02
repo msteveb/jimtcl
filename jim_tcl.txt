@@ -2489,11 +2489,11 @@ The following two are identical.
   set x $(3 * 2 + 1)
 ----
 
-However note that the expr shorthand syntax may not be nested in an expression.
+However, note that the expr shorthand syntax may not be nested in an expression.
 This is to prevent the common mistake of writing:
 
 ----
-  if {$(1 + 2) == 3) {
+  if {$(1 + 2) == 3} {
     ...
   }
 ----
@@ -2501,7 +2501,7 @@ This is to prevent the common mistake of writing:
 rather than:
 
 ----
-  if {(1 + 2) == 3) {
+  if {(1 + 2) == 3} {
     ...
   }
 ----
