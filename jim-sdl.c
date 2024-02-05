@@ -446,7 +446,7 @@ static const jim_subcmd_type sdl_command_table[] = {
         2,
     },
     {   "text",
-        "x y string red green blue ?alpha?",
+        "string x y red green blue ?alpha?",
         jim_sdl_subcmd_text,
         6,
         7,
