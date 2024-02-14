@@ -176,6 +176,11 @@ test subst-12.3 {variable inside [] with -noc} {
     subst -noc {x[join $a]y}
 } {x[join 1]y}
 
+test subst-12.4 {variable after not variable} {
+    set a 1
+    subst -noc {$\[ $a}
+} {$[ 1}
+
 
 # cleanup
 testreport

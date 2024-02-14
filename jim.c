@@ -109,7 +109,7 @@
 /* Maximum size of an integer */
 #define JIM_INTEGER_SPACE 24
 
-#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND)
+#if defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND) || defined(DEBUG_SHOW_SUBST)
 static const char *jim_tt_name(int type);
 #endif
 
@@ -9273,7 +9273,7 @@ static int JimParseExprOperator(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
-#if (defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND)) && !defined(JIM_BOOTSTRAP)
+#if (defined(DEBUG_SHOW_SCRIPT) || defined(DEBUG_SHOW_SCRIPT_TOKENS) || defined(JIM_DEBUG_COMMAND) || defined(DEBUG_SHOW_SUBST)) && !defined(JIM_BOOTSTRAP)
 static const char *jim_tt_name(int type)
 {
     static const char * const tt_names[JIM_TT_EXPR_OP] =
@@ -11736,7 +11736,9 @@ static void JimParseSubst(struct JimParserCtx *pc, int flags)
         }
         /* Not a var, so treat as a string */
         pc->tstart = pc->p;
-        flags |= JIM_SUBST_NOVAR;
+        /* Skip this $ */
+        pc->p++;
+        pc->len--;
     }
     while (pc->len) {
         if (*pc->p == '$' && !(flags & JIM_SUBST_NOVAR)) {
