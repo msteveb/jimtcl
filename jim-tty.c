@@ -7,6 +7,7 @@
 
 /* termios support is required */
 #include <jim-tty.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 
 static const struct {
@@ -79,6 +80,8 @@ static const char * const tty_settings_names[] = {
     "vmin",
     "vtime",
     "echo",
+    "vstart",
+    "vstop",
     NULL
 };
 
@@ -92,7 +95,9 @@ enum {
     OPT_STOP,
     OPT_VMIN,
     OPT_VTIME,
-    OPT_ECHO
+    OPT_ECHO,
+    OPT_VSTART,
+    OPT_VSTOP,
 };
 
 
@@ -184,6 +189,10 @@ Jim_Obj *Jim_GetTtySettings(Jim_Interp *interp, int fd)
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VMIN]));
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vtime", -1));
     Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VTIME]));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vstart", -1));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VSTART]));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, "vstop", -1));
+    Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, tio.c_cc[VSTOP]));
 
     speed = cfgetispeed(&tio);
     baud = 0;
@@ -283,17 +292,18 @@ badvalue:
                 break;
 
             case OPT_VMIN:
-                if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
-                    goto badvalue;
-                }
-                tio.c_cc[VMIN] = l;
-                break;
-
             case OPT_VTIME:
+            case OPT_VSTART:
+            case OPT_VSTOP:
                 if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
                     goto badvalue;
                 }
-                tio.c_cc[VTIME] = l;
+                switch (opt) {
+                    case OPT_VMIN: tio.c_cc[VMIN] = l; break;
+                    case OPT_VTIME: tio.c_cc[VTIME] = l; break;
+                    case OPT_VSTART: tio.c_cc[VSTART] = l; break;
+                    case OPT_VSTOP: tio.c_cc[VSTOP] = l; break;
+                }
                 break;
 
             case OPT_OUTPUT:
@@ -339,4 +349,95 @@ badvalue:
         return -1;
     }
     return 0;
+}
+
+Jim_Obj *Jim_GetTtyControlSettings(Jim_Interp *interp, int fd)
+{
+    size_t i;
+    Jim_Obj *listObjPtr;
+    int status;
+    static const struct {
+        const char * const name;
+        int value;
+    } modem_signals[] = {
+        { "rts", TIOCM_RTS },
+        { "dtr", TIOCM_DTR },
+
+        { "dcd", TIOCM_CAR },
+        { "dsr", TIOCM_DSR },
+        { "ring", TIOCM_RNG },
+        { "cts", TIOCM_CTS },
+    };
+
+    if (ioctl(fd, TIOCMGET, &status) < 0) {
+        return NULL;
+    }
+
+    listObjPtr = Jim_NewListObj(interp, NULL, 0);
+    for (i = 0; i < ARRAYSIZE(modem_signals); i++) {
+        Jim_ListAppendElement(interp, listObjPtr, Jim_NewStringObj(interp, modem_signals[i].name, -1));
+        Jim_ListAppendElement(interp, listObjPtr, Jim_NewIntObj(interp, (status & modem_signals[i].value & status) != 0));
+    }
+    return listObjPtr;
+}
+
+int Jim_SetTtyControlSettings(Jim_Interp *interp, int fd, Jim_Obj *dictObjPtr)
+{
+    static const char * const modem_signal_names[] = {
+        "rts", "dtr", "break", NULL
+    };
+    enum { OPT_RTS, OPT_DTR, OPT_BREAK, };
+    int len = Jim_ListLength(interp, dictObjPtr);
+    int i;
+
+    int status;
+
+    /* Get the current status of DTR and RTS in case we aren't setting everything */
+    if (ioctl(fd, TIOCMGET, &status) < 0) {
+        return -1;
+    }
+
+    for (i = 0; i < len; i += 2) {
+        Jim_Obj *nameObj = Jim_ListGetIndex(interp, dictObjPtr, i);
+        Jim_Obj *valueObj = Jim_ListGetIndex(interp, dictObjPtr, i + 1);
+        int opt;
+        long l;
+
+        if (Jim_GetEnum(interp, nameObj, modem_signal_names, &opt, "signal", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+            return JIM_ERR;
+        }
+        if (Jim_GetLong(interp, valueObj, &l) != JIM_OK) {
+            Jim_SetResultFormatted(interp, "bad value for %#s: %#s", nameObj, valueObj);
+            return JIM_ERR;
+        }
+
+        switch (opt) {
+            case OPT_RTS:
+                if (l) {
+                    status |= TIOCM_RTS;
+                }
+                else {
+                    status &= ~TIOCM_RTS;
+                }
+                break;
+
+            case OPT_DTR:
+                if (l) {
+                    status |= TIOCM_DTR;
+                }
+                else {
+                    status &= ~TIOCM_DTR;
+                }
+                break;
+
+            case OPT_BREAK:
+                tcsendbreak(fd, l);
+                break;
+        }
+    }
+
+    if (ioctl(fd, TIOCMSET, &status) < 0) {
+        return -1;
+    }
+    return JIM_OK;
 }

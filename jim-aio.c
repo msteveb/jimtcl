@@ -1906,6 +1906,49 @@ static int aio_cmd_tty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     return ret;
 }
+
+static int aio_cmd_ttycontrol(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+    Jim_Obj *dictObjPtr;
+    int ret;
+
+    if (argc == 0) {
+        /* get the current settings as a dictionary */
+        dictObjPtr = Jim_GetTtyControlSettings(interp, af->fd);
+        if (dictObjPtr == NULL) {
+            JimAioSetError(interp, NULL);
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, dictObjPtr);
+        return JIM_OK;
+    }
+
+    if (argc > 1) {
+        /* Convert name value arguments to a dictionary */
+        dictObjPtr = Jim_NewListObj(interp, argv, argc);
+    }
+    else {
+        /* The settings are already given as a list */
+        dictObjPtr = argv[0];
+    }
+    Jim_IncrRefCount(dictObjPtr);
+
+    if (Jim_ListLength(interp, dictObjPtr) % 2) {
+        /* Must be a valid dictionary */
+        Jim_DecrRefCount(interp, dictObjPtr);
+        return -1;
+    }
+
+    ret = Jim_SetTtyControlSettings(interp, af->fd, dictObjPtr);
+    if (ret < 0) {
+        JimAioSetError(interp, NULL);
+        ret = JIM_ERR;
+    }
+    Jim_DecrRefCount(interp, dictObjPtr);
+
+    return ret;
+}
 #endif /* JIM_BOOTSTRAP */
 
 static const jim_subcmd_type aio_command_table[] = {
@@ -2145,11 +2188,18 @@ static const jim_subcmd_type aio_command_table[] = {
 #endif
 #if defined(HAVE_TERMIOS_H)
     {   "tty",
-        "?baud rate? ?data bits? ?stop bits? ?parity even|odd|none? ?handshake xonxoff|rtscts|none? ?input raw|cooked? ?output raw|cooked? ?echo 0|1? ?vmin n? ?vtime n?",
+        "?baud rate? ?data bits? ?stop bits? ?parity even|odd|none? ?handshake xonxoff|rtscts|none? ?input raw|cooked? ?output raw|cooked? ?echo 0|1? ?vmin n? ?vtime n? ?vstart char? ?vstop char?",
         aio_cmd_tty,
         0,
         -1,
         /* Description: Get or set tty settings - valid only on a tty */
+    },
+    {   "ttycontrol",
+        "?rts 0|1? ?dtr 0|1?",
+        aio_cmd_ttycontrol,
+        0,
+        -1,
+        /* Description: Get or set tty modem control settings - valid only on a tty */
     },
 #endif
 #endif /* JIM_BOOTSTRAP */
