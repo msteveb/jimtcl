@@ -2195,7 +2195,7 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Get or set tty settings - valid only on a tty */
     },
     {   "ttycontrol",
-        "?rts 0|1? ?dtr 0|1?",
+        "?rts 0|1? ?dtr 0|1? ?break duration?",
         aio_cmd_ttycontrol,
         0,
         -1,
