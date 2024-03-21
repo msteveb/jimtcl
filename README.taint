@@ -1,0 +1,143 @@
+Taint Suport for Jim Tcl
+========================
+
+Author: Steve Bennett <steveb@workware.net.au>
+Date: 24 May 2011
+
+OVERVIEW
+--------
+Perl and Ruby support the concept of tainted data, taint sources
+and taint sinks. The idea is to improve security in situations
+where data may be coming from outside the program (e.g. input
+to a web application) should not inadvertently be output
+on a web page unescaped (to avoid XSS attacks), to a database
+(to avoid SQL injections attacks) or to execute system commands
+(to avoid system attacks).
+
+Standard Tcl does not support tainting. Instead it uses "safe"
+interpreters for a similar purpose. For Jim Tcl, taint support is
+smaller and simpler.
+
+HOW IT WORKS
+------------
+
+Any data read from a 'taint source' is considered tainted.
+As that data moves through the system, it retains its taint property.
+Tainted data should not be allowed to be consumed by a 'taint sink'.
+An error should be raised instead.
+
+Taint Sources
+~~~~~~~~~~~~~
+Untrusted data may come from various sources in the system.
+In Jim Tcl, the sources of external data are:
+
+* Data read file a file or socket (aio read, gets, recvfrom)
+* Command line arguments ($argv)
+* Loaded code or scripts (source, package require, load)
+* Environment variables (env)
+* Custom Tcl commands implemented as C code
+
+Any data from these sources may be considered "tainted".
+
+By default, sockets are considered taint sources while the other
+external data sources are not. Data read from a 'taint source'
+filehandle with read, recvfrom or gets is tainted.
+
+No filehandles are considered taint sinks by default.
+
+Client sockets produced by accept inherit the accept socket settings.
+
+Taint Sinks
+~~~~~~~~~~~
+In order for tainted data to cause security problems, the data
+need to be used in certain contexts. These *may* include:
+
+* Establishing network connections (socket)
+* Sending the data to certain file descriptors (aio puts, sendto)
+* Modifying the filesystem (open, file delete, rename, mkdir)
+* Running commands (exec)
+* Evaluating scripts (eval, uplevel, source)
+* Use in custom Tcl commands implemented as C code
+
+Taint Propagation
+~~~~~~~~~~~~~~~~~
+As tainted data is assigned, or manipulated, it should retain
+its taint property. This includes the creation of new values
+based on tainted data. Jim Tcl takes a conservative approach
+to taint propagation as follows:
+
+* Any copy of a tainted value is tainted (e.g. set, proc calls)
+* Any value constructed in part from a tainted value is tainted
+  (append, lappend, lset)
+* A tainted value added to a container (dict, list, array) remains tainted.
+  While the tainted value can be distinguished from other values
+  in the container, the container is not tainted. However if the container
+  needs to change representation (the entire container becomes tainted.
+* Integer and floating point values are not tainted
+
+Taint types
+-----------
+It may be useful to distinguish between different types of taint.
+Each taint type is associate with a bit field. The standard taint
+type is 1, but taint types 2, 4, etc. may also be used.  If a taint
+source is marked as taint type 2, it will not be flagged as invalid
+when consumed by a taint sink marked as taint type 4.
+
+The commands exec, source, etc. consider any taint to be invalid, however
+file descriptors may have specific taint source and sink types specified.
+
+Taint-aware Commands
+--------------------
+The following commands will fail if any argument is tainted:
+
+- source, exec, open, socket, load, file mkdir, file delete, file rename
+
+In addition, 'package require' will ignore any tainted paths in $auto_path
+
+HOW TO USE IT
+-------------
+To mark a value as tainted:
+
+  taint varname
+
+To remove the taint from a value:
+
+  untaint varname
+
+To determine if a value is tainted:
+
+  info tainted $var
+
+To mark a filehandle as a taint source or sink (or not):
+
+  $aiohandle taint source|sink ?0|n?
+
+More Information
+----------------
+In order to simplify taint propagation, the interpreter
+examines the arguments to every command (plus the command itself).
+If any argument is tainted, the command execution is considered tainted.
+Any new objects (except int and double) created during the execution of the command
+will be marked tainted.
+
+The Rules
+---------
+- The taint and untaint commands operate on variables and taint/untaint the contents of the variable
+- Adding/modifying a list/dict/array element taints that element plus the "container" but not
+  the other elements in that container
+- Tainting a container element taints the container too
+- Untainting a container element does not untaint the container, even if it contains no more tainted elements
+- Tainting or untainting a container taints or untaints all elements in the container
+- Any element of $auto_path that is tainted will be ignored when loading packages with package require
+
+Specific Notes
+--------------
+In general, a conservative approach is used to tainting, so if
+a command creates a new object while any of it's arguments are tainted,
+the new object is also tainted.
+
+However the list-related commands are more intelligent.
+All list-related commands such as lindex, lrange, lassign and lreplace will
+maintain the taint of existing list elements, but will avoid tainting untainted elements.
+For example, if the list {a b t d} contains one tainted element, 't', then [lreverse $a]
+will produce a list with only one tainted element.

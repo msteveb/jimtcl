@@ -47,7 +47,13 @@ static char *JimFindPackage(Jim_Interp *interp, Jim_Obj *prefixListObj, const ch
 
     for (i = 0; i < prefixc; i++) {
         Jim_Obj *prefixObjPtr = Jim_ListGetIndex(interp, prefixListObj, i);
-        const char *prefix = Jim_String(prefixObjPtr);
+        const char *prefix;
+
+        if (Jim_GetObjTaint(prefixObjPtr)) {
+            /* This element is tainted, so ignore it */
+            continue;
+        }
+        prefix = Jim_String(prefixObjPtr);
 
         /* Loadable modules are tried first */
 #ifdef jim_ext_load
@@ -111,10 +117,8 @@ static int JimLoadPackage(Jim_Interp *interp, const char *name, int flags)
             }
             Jim_Free(path);
         }
-
-        return retCode;
     }
-    return JIM_ERR;
+    return retCode;
 }
 
 int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
