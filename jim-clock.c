@@ -131,6 +131,7 @@ static int clock_cmd_scan(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Now convert into a time_t */
+    tm.tm_isdst = options.gmt ? 0 : -1;
     Jim_SetResultInt(interp, options.gmt ? jim_timegm(&tm) : mktime(&tm));
 
     return JIM_OK;
