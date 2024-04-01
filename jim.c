@@ -7114,6 +7114,11 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     int i;
     Jim_Obj **point;
 
+    if (elemc == 0) {
+        /* Nothing to do */
+        return;
+    }
+
     if (requiredLen > listPtr->internalRep.listValue.maxLen) {
         if (currentLen) {
             /* Assume that we will need extra space for future expansion */
