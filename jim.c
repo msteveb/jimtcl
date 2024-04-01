@@ -9783,10 +9783,17 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     }
 #endif
 
-    if (JimParseCheckMissing(interp, parser.missing.ch) == JIM_ERR) {
+    if (tokenlist.count <= 1) {
+        Jim_SetResultString(interp, "empty expression", -1);
+        rc = JIM_ERR;
+    }
+    else {
+        rc = JimParseCheckMissing(interp, parser.missing.ch);
+    }
+    if (rc != JIM_OK) {
         ScriptTokenListFree(&tokenlist);
         Jim_DecrRefCount(interp, fileNameObj);
-        return JIM_ERR;
+        return rc;
     }
 
     /* Now create the expression bytecode from the tokenlist */
