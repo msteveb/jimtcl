@@ -13423,6 +13423,8 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
     int retCode;
     int shared;
     long stride = 1;
+    Jim_Obj **elements;
+    int listlen;
 
     struct lsort_info info;
 
@@ -13503,13 +13505,17 @@ badindex:
         }
     }
     resObj = argv[argc - 1];
+    JimListGetElements(interp, resObj, &listlen, &elements);
+    if (listlen <= 1) {
+        /* Nothing to do */
+        Jim_SetResult(interp, resObj);
+        return JIM_OK;
+    }
+
     if (stride > 1) {
         Jim_Obj *tmpListObj;
-        Jim_Obj **elements;
-        int listlen;
         int i;
 
-        JimListGetElements(interp, resObj, &listlen, &elements);
         if (listlen % stride) {
             Jim_SetResultString(interp, "list size must be a multiple of the stride length", -1);
             return JIM_ERR;
