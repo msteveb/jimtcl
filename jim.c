@@ -5820,10 +5820,11 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->nullScriptObj);
     Jim_DecrRefCount(i, i->currentFilenameObj);
 
+    Jim_FreeHashTable(&i->commands);
+
     /* This will disard any cached commands */
     Jim_InterpIncrProcEpoch(i);
 
-    Jim_FreeHashTable(&i->commands);
 #ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);
 #endif
