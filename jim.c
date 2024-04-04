@@ -5820,10 +5820,11 @@ void Jim_FreeInterp(Jim_Interp *i)
     Jim_DecrRefCount(i, i->nullScriptObj);
     Jim_DecrRefCount(i, i->currentFilenameObj);
 
+    Jim_FreeHashTable(&i->commands);
+
     /* This will disard any cached commands */
     Jim_InterpIncrProcEpoch(i);
 
-    Jim_FreeHashTable(&i->commands);
 #ifdef JIM_REFERENCES
     Jim_FreeHashTable(&i->references);
 #endif
@@ -7113,6 +7114,11 @@ static void ListInsertElements(Jim_Obj *listPtr, int idx, int elemc, Jim_Obj *co
     int requiredLen = currentLen + elemc;
     int i;
     Jim_Obj **point;
+
+    if (elemc == 0) {
+        /* Nothing to do */
+        return;
+    }
 
     if (requiredLen > listPtr->internalRep.listValue.maxLen) {
         if (currentLen) {
@@ -9778,10 +9784,17 @@ static int SetExprFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
     }
 #endif
 
-    if (JimParseCheckMissing(interp, parser.missing.ch) == JIM_ERR) {
+    if (tokenlist.count <= 1) {
+        Jim_SetResultString(interp, "empty expression", -1);
+        rc = JIM_ERR;
+    }
+    else {
+        rc = JimParseCheckMissing(interp, parser.missing.ch);
+    }
+    if (rc != JIM_OK) {
         ScriptTokenListFree(&tokenlist);
         Jim_DecrRefCount(interp, fileNameObj);
-        return JIM_ERR;
+        return rc;
     }
 
     /* Now create the expression bytecode from the tokenlist */
@@ -13411,6 +13424,8 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
     int retCode;
     int shared;
     long stride = 1;
+    Jim_Obj **elements;
+    int listlen;
 
     struct lsort_info info;
 
@@ -13491,13 +13506,17 @@ badindex:
         }
     }
     resObj = argv[argc - 1];
+    JimListGetElements(interp, resObj, &listlen, &elements);
+    if (listlen <= 1) {
+        /* Nothing to do */
+        Jim_SetResult(interp, resObj);
+        return JIM_OK;
+    }
+
     if (stride > 1) {
         Jim_Obj *tmpListObj;
-        Jim_Obj **elements;
-        int listlen;
         int i;
 
-        JimListGetElements(interp, resObj, &listlen, &elements);
         if (listlen % stride) {
             Jim_SetResultString(interp, "list size must be a multiple of the stride length", -1);
             return JIM_ERR;
