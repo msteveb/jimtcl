@@ -87,6 +87,9 @@ int Jim_OpenForRead(const char *filename);
             #define Jim_FileStat fstat
         #endif
         #if defined(HAVE_LSTAT)
+            #if !HAVE_DECL_LSTAT
+                int	lstat (const char *__path, struct stat *__buf );
+            #endif
             #define Jim_LinkStat lstat
         #endif
     #endif
@@ -122,5 +125,9 @@ int Jim_OpenForRead(const char *filename);
  * It does not form part of the public Jim API
  */
 int Jim_FileStoreStatData(Jim_Interp *interp, Jim_Obj *varName, const jim_stat_t *sb);
+
+#ifndef HAVE_ACCESS
+int access(const char *path, int mode);
+#endif
 
 #endif

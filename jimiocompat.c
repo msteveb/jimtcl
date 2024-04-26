@@ -249,3 +249,21 @@ int Jim_OpenForRead(const char *filename)
 }
 
 #endif
+
+#ifndef HAVE_UMASK
+mode_t umask(mode_t mode) {
+    return 0;
+}
+#endif
+
+#ifndef HAVE_ACCESS
+/* poor-mans access() - ignore mode and treat everything as F_OK */
+int access(const char *path, int mode)
+{
+        struct stat sb;
+        if (Jim_Stat(path, &sb) == 0 && S_ISREG(sb.st_mode)) {
+            return 0;
+        }
+        return -1;
+}
+#endif

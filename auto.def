@@ -262,7 +262,7 @@ cc-check-functions geteuid mkstemp isatty
 cc-check-functions regcomp waitpid sigaction sys_signame sys_siglist isascii
 cc-check-functions syslog opendir readlink sleep usleep pipe getaddrinfo utimes
 cc-check-functions shutdown socketpair link symlink fsync dup umask
-cc-check-functions localtime gmtime strptime
+cc-check-functions localtime gmtime strptime getpeername
 if {![cc-check-functions realpath]} {
     cc-check-functions _fullpath
 }
@@ -302,10 +302,15 @@ cc-check-lfs
 if {[get-define _FILE_OFFSET_BITS] != 64 || ![cc-check-functions stat64]} {
     # Modern systems and really old systems have plain stat, fstat, lstat
     cc-check-functions fstat lstat
+    # Some platforms have lstat but don't declare it!
+    cc-with {-includes unistd.h} {
+        cc-check-decls lstat
+    }
 } else {
     # But perhaps some 32 bit systems still require explicit use of the 64 bit versions
     cc-check-functions fstat64 lstat64 lseek64
 }
+cc-check-functions access
 
 define TCL_LIBRARY [get-define libdir]/jim
 
