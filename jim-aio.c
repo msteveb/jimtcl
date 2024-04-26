@@ -632,6 +632,7 @@ static Jim_Obj *aio_sockname(Jim_Interp *interp, int fd)
     return JimFormatSocketAddress(interp, &sa, salen);
 }
 
+#ifdef HAVE_GETPEERNAME
 static Jim_Obj *aio_peername(Jim_Interp *interp, int fd)
 {
     union sockaddr_any sa;
@@ -642,6 +643,7 @@ static Jim_Obj *aio_peername(Jim_Interp *interp, int fd)
     }
     return JimFormatSocketAddress(interp, &sa, salen);
 }
+#endif
 #endif /* JIM_BOOTSTRAP */
 
 static const char *JimAioErrorString(AioFile *af)
@@ -1434,6 +1436,7 @@ static int aio_cmd_sockname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_peername(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+#ifdef HAVE_GETPEERNAME
     AioFile *af = Jim_CmdPrivData(interp);
     Jim_Obj *objPtr = aio_peername(interp, af->fd);
 
@@ -1443,6 +1446,10 @@ static int aio_cmd_peername(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
     Jim_SetResult(interp, objPtr);
     return JIM_OK;
+#else
+    Jim_SetResultString(interp, "not supported", -1);
+    return JIM_ERR;
+#endif
 }
 
 static int aio_cmd_listen(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
