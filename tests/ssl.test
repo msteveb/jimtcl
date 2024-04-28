@@ -22,6 +22,10 @@ if {[os.fork] == 0} {
 	$c readable {
 		# read everything available and echo it back
 		set buf [$c read]
+		# We don't mind sending tainted data back to it's source
+		catch {
+			untaint buf
+		}
 		$c puts -nonewline $buf
 		$c flush
 		if {[$c eof]} {
