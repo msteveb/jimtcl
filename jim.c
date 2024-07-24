@@ -11130,131 +11130,104 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     return objPtr;
 }
 
-/* Parse a string as an 'leval' argument.
- * Returns the result as a list or NULL on error (in which case an interp error is set).
+/* Parse a string as an 'leval' argument and sets the interp result.
+ * Return JIM_OK if ok, or JIM_ERR on error.
+ *
+ * Modelled on Jim_EvalObj()
  */
-static Jim_Obj *JimParseListEval(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
-    int scriptTextLen;
-    const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
-    struct JimParserCtx parser;
-    ParseTokenList tokenlist;
-    Jim_Obj *listObj;
-    int line = 1;
-    int ret = JIM_OK;
     int i;
+    ScriptObj *script;
+    ScriptToken *token;
+    Jim_Obj *resultListObj;
+    int retcode = JIM_OK;
 
-    /* Try to get information about filename / line number */
-    if (objPtr->typePtr == &sourceObjType) {
-        line = objPtr->internalRep.sourceValue.lineNumber;
+    Jim_IncrRefCount(objPtr);     /* Make sure it's shared. */
+    script = JimGetScript(interp, objPtr);
+    if (JimParseCheckMissing(interp, script->missing) == JIM_ERR) {
+        JimSetErrorStack(interp, script);
+        Jim_DecrRefCount(interp, objPtr);
+        return JIM_ERR;
     }
 
-    /* Initially parse the string into tokens (in tokenlist) */
-    ScriptTokenListInit(&tokenlist);
+    token = script->token;
 
-    JimParserInit(&parser, scriptText, scriptTextLen, line);
-    while (!parser.eof) {
-        JimParseScript(&parser);
-        ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
-            parser.tline);
-    }
+    script->inUse++;
 
-    /* Make it easy to notice EOF */
-    ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
+    /* Build the result list here */
+    resultListObj = Jim_NewListObj(interp, NULL, 0);
 
-#ifdef DEBUG_SHOW_SUBST
-    printf("==== leval Tokens ====\n");
-    for (i = 0; i < tokenlist.count; i++) {
-        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist.list[i].line, jim_tt_name(tokenlist.list[i].type),
-            tokenlist.list[i].len, tokenlist.list[i].token);
-    }
-#endif
-
-    /* Now construct a list object from the parsed tokens */
-    listObj = Jim_NewListObj(interp, NULL, 0);
-
-    i = 0;
-    while (tokenlist.list[i].type != JIM_TT_EOF) {
-        int wordtokens;
+    /* Add every command, arg to the result list */
+    for (i = 0; i < script->len && retcode == JIM_OK; ) {
+        int argc;
         int j;
-        ScriptToken *tokens;
-        Jim_Obj *wordObjPtr;
-        int expand = 0;
 
-        /* Skip any leading separators */
-        if (tokenlist.list[i].type == JIM_TT_SEP || tokenlist.list[i].type == JIM_TT_EOL) {
-            i++;
-            continue;
-        }
+        /* First token of the line is always JIM_TT_LINE */
+        argc = token[i].objPtr->internalRep.scriptLineValue.argc;
+        script->linenr = token[i].objPtr->internalRep.scriptLineValue.line;
 
-        /* How many tokens are part of this word? */
-        wordtokens = JimCountWordTokens(NULL, tokenlist.list + i);
-        if (wordtokens < 0) {
-            /* {*} so need to expand the resulting word into multiple elements */
-            expand = 1;
-            wordtokens = -wordtokens;
-            /* Skip {*} */
-            i++;
-        }
+        /* Skip the JIM_TT_LINE token */
+        i++;
 
-        /* Interpolate the tokens */
-        /* Since we want to reuse JimInterpolateTokens() we need to create a ScriptToken array */
-        tokens = Jim_Alloc(sizeof(ScriptToken) * wordtokens);
-        for (j = 0; j < wordtokens; j++) {
-            tokens[j].objPtr = Jim_NewStringObj(interp, tokenlist.list[i + j].token, tokenlist.list[i + j].len);
-            Jim_IncrRefCount(tokens[j].objPtr);
-            tokens[j].type = tokenlist.list[i + j].type;
-        }
-        i += wordtokens;
+        /* Extract the words from this line */
+        for (j = 0; j < argc; j++) {
+            long wordtokens = 1;
+            int expand = 0;
+            Jim_Obj *wordObjPtr = NULL;
 
-        wordObjPtr = JimInterpolateTokens(interp, tokens, wordtokens, JIM_NONE);
-
-        if (wordObjPtr) {
-            if (expand) {
-                /* Expand the word into multiple elements */
-                Jim_IncrRefCount(wordObjPtr);
-                for (j = 0; j < Jim_ListLength(interp, wordObjPtr); j++) {
-                    Jim_ListAppendElement(interp, listObj, Jim_ListGetIndex(interp, wordObjPtr, j));
+            if (token[i].type == JIM_TT_WORD) {
+                wordtokens = JimWideValue(token[i++].objPtr);
+                if (wordtokens < 0) {
+                    expand = 1;
+                    wordtokens = -wordtokens;
                 }
-                /* No longer need the list value */
-                Jim_DecrRefCount(interp, wordObjPtr);
+            }
+
+            /* Note we don't worry about a fast path here */
+            wordObjPtr = JimInterpolateTokens(interp, token + i, wordtokens, JIM_NONE);
+
+            if (!wordObjPtr) {
+                if (retcode == JIM_OK) {
+                    retcode = JIM_ERR;
+                }
+                break;
+            }
+
+            Jim_IncrRefCount(wordObjPtr);
+            i += wordtokens;
+
+            if (!expand) {
+                Jim_ListAppendElement(interp, resultListObj, wordObjPtr);
             }
             else {
-                Jim_ListAppendElement(interp, listObj, wordObjPtr);
+                int k;
+                /* Need to add each word of wordObjPtr list to the result list */
+                for (k = 0; k < Jim_ListLength(interp, wordObjPtr); k++) {
+                    Jim_ListAppendElement(interp, resultListObj, Jim_ListGetIndex(interp, wordObjPtr, k));
+                }
             }
-        }
-        for (j = 0; j < wordtokens; j++) {
-            Jim_DecrRefCount(interp, tokens[j].objPtr);
-        }
-        Jim_Free(tokens);
-
-        if (wordObjPtr == NULL) {
-            /* e.g. reference to a variable that doesn't exist */
-            ret = JIM_ERR;
-            break;
+            Jim_DecrRefCount(interp, wordObjPtr);
         }
     }
 
-    if (ret != JIM_OK) {
-        Jim_FreeNewObj(interp, listObj);
-        listObj = NULL;
+    /* Note that we don't have to decrement inUse, because the
+     * following code transfers our use of the reference again to
+     * the script object. */
+    Jim_FreeIntRep(interp, objPtr);
+    objPtr->typePtr = &scriptObjType;
+    Jim_SetIntRepPtr(objPtr, script);
+    Jim_DecrRefCount(interp, objPtr);
+
+    if (retcode == JIM_OK) {
+        Jim_SetResult(interp, resultListObj);
     }
-#ifdef DEBUG_SHOW_SUBST
     else {
-        printf("==== leval ====\n");
-        for (i = 0; i < Jim_ListLength(interp, listObj); i++) {
-            printf("[%2d] %s\n", i, Jim_String(Jim_ListGetIndex(interp, listObj, i)));
-        }
+        Jim_FreeNewObj(interp, resultListObj);
     }
-#endif
 
-    /* No longer need the token list */
-    ScriptTokenListFree(&tokenlist);
-
-    return listObj;
+    return retcode;
 }
-
-
 
 /* listPtr *must* be a list.
  * The contents of the list is evaluated with the first element as the command and
@@ -15717,12 +15690,7 @@ static int Jim_LevalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         return JIM_ERR;
     }
 
-    Jim_Obj *listObj = JimParseListEval(interp, argv[1]);
-    if (listObj) {
-        Jim_SetResult(interp, listObj);
-        return JIM_OK;
-    }
-    return JIM_ERR;
+    return JimListEvalObj(interp, argv[1]);
 }
 
 #ifdef jim_ext_namespace
