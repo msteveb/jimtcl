@@ -1,0 +1,139 @@
+source [file dirname [info script]]/testing.tcl
+
+needs cmd lsubst
+
+test lsubst-1.1 {no args} -body {
+    lsubst
+} -returnCodes error -result {wrong # args: should be "lsubst ?-line? string"}
+
+test lsubst-1.2 {too many args} -body {
+    lsubst a b c
+} -returnCodes error -result {wrong # args: should be "lsubst ?-line? string"}
+
+test lsubst-1.3 {basic, no subst} -body {
+    lsubst {a b c}
+} -result {a b c}
+
+test lsubst-1.4 {basics, vars} -body {
+    set a 1
+    set b "2 3"
+    set c "4 5 6"
+    set d ".1"
+    lsubst {$a $b $c$d}
+} -result {1 {2 3} {4 5 6.1}}
+
+test lsubst-1.5 {comments} -body {
+    # It is helpful to be able to include comments in a list definition
+    # just like in a script
+    lsubst {
+        # comment line
+        1
+        2 3
+        # comment line with continuation \
+        this is also a comments
+        4 ;# comment at end of line
+        5
+    }
+} -result {1 2 3 4 5}
+
+test lsubst-1.6 {commands} -body {
+    set a 0
+    lsubst {
+        [incr a]
+        [incr a]
+        [list d e]
+        [string cat f g][string cat h i]
+    }
+} -result {1 2 {d e} fghi}
+
+test lsubst-1.7 {expand} -body {
+    set a {1 2}
+    set space " "
+    set b {3 4 5}
+    lsubst {
+        {*}$a
+        {*}$a$space$b$space[list 6 7]
+    }
+} -result {1 2 1 2 3 4 5 6 7}
+
+test lsubst-1.8 {empty case} -body {
+    lsubst {
+        # Nothing
+    }
+} -result {}
+
+test lsubst-1.9 {backslash escapes} -body {
+    lsubst {
+        # char escapes
+        \r\n\t
+        # unicode escapes
+        \u00b5
+        # hex escapes
+        \x41\x42
+    }
+} -result [list \r\n\t \u00b5 AB]
+
+test lsubst-1.10 {simple -line} -body {
+    set a {1 2}
+    set b {3 4 5}
+    lsubst -line {
+        # This line won't produce a list, but the next will produce a list with two elements
+        {*}$a
+        # And this one will have three elements
+        one two $b
+    }
+} -result {{1 2} {one two {3 4 5}}}
+
+test lsubst-2.1 {error, missing [} -body {
+    lsubst {
+        # Missing bracket
+        [string cat
+    }
+} -returnCodes error -result {unmatched "["}
+
+test lsubst-2.2 {error, invalid command} -body {
+    lsubst {
+        a
+        [dummy]
+        b
+    }
+} -returnCodes error -result {invalid command name "dummy"}
+
+test lsubst-2.3 {error, unset variable} -body {
+    lsubst {
+        a
+        $doesnotexist
+        b
+    }
+} -returnCodes error -result {can't read "doesnotexist": no such variable}
+
+test lsubst-2.4 {break} -body {
+    lsubst {
+        a
+        [break]
+        b
+    }
+} -returnCodes error -result {invoked "break" outside of a loop}
+
+test lsubst-2.5 {continue} -body {
+    lsubst {
+        a
+        [continue]
+        b
+    }
+} -returnCodes error -result {invoked "continue" outside of a loop}
+
+test lsubst-3.1 {preservation of line numbers} -body {
+    set x abc
+    set src1 [info source $x]
+    set list [lsubst {
+        a
+        $x
+        b
+    }]
+    if {[info source [lindex $list 1]] ne [info source $x]} {
+        error "source does not match
+    }
+} -result {}
+
+testreport
