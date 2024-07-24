@@ -11202,26 +11202,36 @@ static Jim_Obj *JimParseListEval(Jim_Interp *interp, struct Jim_Obj *objPtr)
         tokens = Jim_Alloc(sizeof(ScriptToken) * wordtokens);
         for (j = 0; j < wordtokens; j++) {
             tokens[j].objPtr = Jim_NewStringObj(interp, tokenlist.list[i + j].token, tokenlist.list[i + j].len);
+            Jim_IncrRefCount(tokens[j].objPtr);
             tokens[j].type = tokenlist.list[i + j].type;
         }
         i += wordtokens;
 
         wordObjPtr = JimInterpolateTokens(interp, tokens, wordtokens, JIM_NONE);
+
+        if (wordObjPtr) {
+            if (expand) {
+                /* Expand the word into multiple elements */
+                Jim_IncrRefCount(wordObjPtr);
+                for (j = 0; j < Jim_ListLength(interp, wordObjPtr); j++) {
+                    Jim_ListAppendElement(interp, listObj, Jim_ListGetIndex(interp, wordObjPtr, j));
+                }
+                /* No longer need the list value */
+                Jim_DecrRefCount(interp, wordObjPtr);
+            }
+            else {
+                Jim_ListAppendElement(interp, listObj, wordObjPtr);
+            }
+        }
+        for (j = 0; j < wordtokens; j++) {
+            Jim_DecrRefCount(interp, tokens[j].objPtr);
+        }
         Jim_Free(tokens);
+
         if (wordObjPtr == NULL) {
             /* e.g. reference to a variable that doesn't exist */
             ret = JIM_ERR;
             break;
-        }
-
-        if (expand) {
-            /* Expand the word into multiple elements */
-            for (j = 0; j < Jim_ListLength(interp, wordObjPtr); j++) {
-                Jim_ListAppendElement(interp, listObj, Jim_ListGetIndex(interp, wordObjPtr, j));
-            }
-        }
-        else {
-            Jim_ListAppendElement(interp, listObj, wordObjPtr);
         }
     }
 
