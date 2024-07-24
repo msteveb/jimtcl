@@ -11045,6 +11045,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     Jim_Obj *sintv[JIM_EVAL_SINTV_LEN];
     Jim_Obj *objPtr;
     char *s;
+    const char *error_action = NULL;
 
     if (tokens <= JIM_EVAL_SINTV_LEN)
         intv = sintv;
@@ -11064,14 +11065,16 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
                     tokens = i;
                     continue;
                 }
-                /* XXX: Should probably set an error about break outside loop */
+                error_action = "break";
                 /* fall through to error */
             case JIM_CONTINUE:
                 if (flags & JIM_SUBST_FLAG) {
                     intv[i] = NULL;
                     continue;
                 }
-                /* XXX: Ditto continue outside loop */
+                if (!error_action) {
+                    error_action = "continue";
+                }
                 /* fall through to error */
             default:
                 while (i--) {
@@ -11079,6 +11082,9 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
                 }
                 if (intv != sintv) {
                     Jim_Free(intv);
+                }
+                if (error_action) {
+                    Jim_SetResultFormatted(interp, "invoked \"%s\" outside of a loop", error_action);
                 }
                 return NULL;
         }

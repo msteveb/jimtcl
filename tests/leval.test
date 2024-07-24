@@ -56,4 +56,73 @@ test leval-1.7 {expand} -body {
     }
 } -result {1 2 1 2 3 4 5 6 7}
 
+test leval-1.8 {empty case} -body {
+	leval {
+		# Nothing
+	}
+} -result {}
+
+test leval-1.9 {backslash escapes} -body {
+	leval {
+		# char escapes
+		\r\n\t
+		# unicode escapes
+		\u00b5
+		# hex escapes
+		\x41\x42
+	}
+} -result [list \r\n\t \u00b5 AB]
+
+test leval-2.1 {error, missing [} -body {
+	leval {
+		# Missing bracket
+		[string cat
+	}
+} -returnCodes error -result {unmatched "["}
+
+test leval-2.2 {error, invalid command} -body {
+	leval {
+		a
+		[dummy]
+		b
+	}
+} -returnCodes error -result {invalid command name "dummy"}
+
+test leval-2.3 {error, unset variable} -body {
+	leval {
+		a
+		$doesnotexist
+		b
+	}
+} -returnCodes error -result {can't read "doesnotexist": no such variable}
+
+test leval-2.4 {break} -body {
+	leval {
+		a
+		[break]
+		b
+	}
+} -returnCodes error -result {invoked "break" outside of a loop}
+
+test leval-2.5 {continue} -body {
+	leval {
+		a
+		[continue]
+		b
+	}
+} -returnCodes error -result {invoked "continue" outside of a loop}
+
+test leval-3.1 {preservation of line numbers} -body {
+	set x abc
+	set src1 [info source $x]
+	set list [leval {
+		a
+		$x
+		b
+	}]
+	if {[info source [lindex $list 1]] ne [info source $x]} {
+		error "source does not match
+	}
+} -result {}
+
 testreport
