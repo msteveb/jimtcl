@@ -11130,6 +11130,121 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     return objPtr;
 }
 
+/* Parse a string as an 'leval' argument.
+ * Returns the result as a list or NULL on error (in which case an interp error is set).
+ */
+static Jim_Obj *JimParseListEval(Jim_Interp *interp, struct Jim_Obj *objPtr)
+{
+    int scriptTextLen;
+    const char *scriptText = Jim_GetString(objPtr, &scriptTextLen);
+    struct JimParserCtx parser;
+    ParseTokenList tokenlist;
+    Jim_Obj *listObj;
+    int line = 1;
+    int ret = JIM_OK;
+    int i;
+
+    /* Try to get information about filename / line number */
+    if (objPtr->typePtr == &sourceObjType) {
+        line = objPtr->internalRep.sourceValue.lineNumber;
+    }
+
+    /* Initially parse the string into tokens (in tokenlist) */
+    ScriptTokenListInit(&tokenlist);
+
+    JimParserInit(&parser, scriptText, scriptTextLen, line);
+    while (!parser.eof) {
+        JimParseScript(&parser);
+        ScriptAddToken(&tokenlist, parser.tstart, parser.tend - parser.tstart + 1, parser.tt,
+            parser.tline);
+    }
+
+    /* Make it easy to notice EOF */
+    ScriptAddToken(&tokenlist, scriptText + scriptTextLen, 0, JIM_TT_EOF, 0);
+
+#ifdef DEBUG_SHOW_SUBST
+    printf("==== leval Tokens ====\n");
+    for (i = 0; i < tokenlist.count; i++) {
+        printf("[%2d]@%d %s '%.*s'\n", i, tokenlist.list[i].line, jim_tt_name(tokenlist.list[i].type),
+            tokenlist.list[i].len, tokenlist.list[i].token);
+    }
+#endif
+
+    /* Now construct a list object from the parsed tokens */
+    listObj = Jim_NewListObj(interp, NULL, 0);
+
+    i = 0;
+    while (tokenlist.list[i].type != JIM_TT_EOF) {
+        int wordtokens;
+        int j;
+        ScriptToken *tokens;
+        Jim_Obj *wordObjPtr;
+        int expand = 0;
+
+        /* Skip any leading separators */
+        if (tokenlist.list[i].type == JIM_TT_SEP || tokenlist.list[i].type == JIM_TT_EOL) {
+            i++;
+            continue;
+        }
+
+        /* How many tokens are part of this word? */
+        wordtokens = JimCountWordTokens(NULL, tokenlist.list + i);
+        if (wordtokens < 0) {
+            /* {*} so need to expand the resulting word into multiple elements */
+            expand = 1;
+            wordtokens = -wordtokens;
+            /* Skip {*} */
+            i++;
+        }
+
+        /* Interpolate the tokens */
+        /* Since we want to reuse JimInterpolateTokens() we need to create a ScriptToken array */
+        tokens = Jim_Alloc(sizeof(ScriptToken) * wordtokens);
+        for (j = 0; j < wordtokens; j++) {
+            tokens[j].objPtr = Jim_NewStringObj(interp, tokenlist.list[i + j].token, tokenlist.list[i + j].len);
+            tokens[j].type = tokenlist.list[i + j].type;
+        }
+        i += wordtokens;
+
+        wordObjPtr = JimInterpolateTokens(interp, tokens, wordtokens, JIM_NONE);
+        Jim_Free(tokens);
+        if (wordObjPtr == NULL) {
+            /* e.g. reference to a variable that doesn't exist */
+            ret = JIM_ERR;
+            break;
+        }
+
+        if (expand) {
+            /* Expand the word into multiple elements */
+            for (j = 0; j < Jim_ListLength(interp, wordObjPtr); j++) {
+                Jim_ListAppendElement(interp, listObj, Jim_ListGetIndex(interp, wordObjPtr, j));
+            }
+        }
+        else {
+            Jim_ListAppendElement(interp, listObj, wordObjPtr);
+        }
+    }
+
+    if (ret != JIM_OK) {
+        Jim_FreeNewObj(interp, listObj);
+        listObj = NULL;
+    }
+#ifdef DEBUG_SHOW_SUBST
+    else {
+        printf("==== leval ====\n");
+        for (i = 0; i < Jim_ListLength(interp, listObj); i++) {
+            printf("[%2d] %s\n", i, Jim_String(Jim_ListGetIndex(interp, listObj, i)));
+        }
+    }
+#endif
+
+    /* No longer need the token list */
+    ScriptTokenListFree(&tokenlist);
+
+    return listObj;
+}
+
+
 
 /* listPtr *must* be a list.
  * The contents of the list is evaluated with the first element as the command and
@@ -15584,6 +15699,22 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
+/* [leval] */
+static int Jim_LevalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "string");
+        return JIM_ERR;
+    }
+
+    Jim_Obj *listObj = JimParseListEval(interp, argv[1]);
+    if (listObj) {
+        Jim_SetResult(interp, listObj);
+        return JIM_OK;
+    }
+    return JIM_ERR;
+}
+
 #ifdef jim_ext_namespace
 static int JimIsGlobalNamespace(Jim_Obj *objPtr)
 {
@@ -16490,6 +16621,7 @@ static const struct {
     {"rename", Jim_RenameCoreCommand},
     {"dict", Jim_DictCoreCommand},
     {"subst", Jim_SubstCoreCommand},
+    {"leval", Jim_LevalCoreCommand},
     {"info", Jim_InfoCoreCommand},
     {"exists", Jim_ExistsCoreCommand},
     {"split", Jim_SplitCoreCommand},
