@@ -1,31 +1,31 @@
 source [file dirname [info script]]/testing.tcl
 
-needs cmd leval
+needs cmd lsubst
 
-test leval-1.1 {no args} -body {
-    leval
-} -returnCodes error -result {wrong # args: should be "leval ?-line? string"}
+test lsubst-1.1 {no args} -body {
+    lsubst
+} -returnCodes error -result {wrong # args: should be "lsubst ?-line? string"}
 
-test leval-1.2 {too many args} -body {
-    leval a b c
-} -returnCodes error -result {wrong # args: should be "leval ?-line? string"}
+test lsubst-1.2 {too many args} -body {
+    lsubst a b c
+} -returnCodes error -result {wrong # args: should be "lsubst ?-line? string"}
 
-test leval-1.3 {basic, no subst} -body {
-    leval {a b c}
+test lsubst-1.3 {basic, no subst} -body {
+    lsubst {a b c}
 } -result {a b c}
 
-test leval-1.4 {basics, vars} -body {
+test lsubst-1.4 {basics, vars} -body {
     set a 1
     set b "2 3"
     set c "4 5 6"
     set d ".1"
-    leval {$a $b $c$d}
+    lsubst {$a $b $c$d}
 } -result {1 {2 3} {4 5 6.1}}
 
-test leval-1.5 {comments} -body {
+test lsubst-1.5 {comments} -body {
     # It is helpful to be able to include comments in a list definition
     # just like in a script
-    leval {
+    lsubst {
         # comment line
         1
         2 3
@@ -36,9 +36,9 @@ test leval-1.5 {comments} -body {
     }
 } -result {1 2 3 4 5}
 
-test leval-1.6 {commands} -body {
+test lsubst-1.6 {commands} -body {
     set a 0
-    leval {
+    lsubst {
         [incr a]
         [incr a]
         [list d e]
@@ -46,24 +46,24 @@ test leval-1.6 {commands} -body {
     }
 } -result {1 2 {d e} fghi}
 
-test leval-1.7 {expand} -body {
+test lsubst-1.7 {expand} -body {
     set a {1 2}
     set space " "
     set b {3 4 5}
-    leval {
+    lsubst {
         {*}$a
         {*}$a$space$b$space[list 6 7]
     }
 } -result {1 2 1 2 3 4 5 6 7}
 
-test leval-1.8 {empty case} -body {
-    leval {
+test lsubst-1.8 {empty case} -body {
+    lsubst {
         # Nothing
     }
 } -result {}
 
-test leval-1.9 {backslash escapes} -body {
-    leval {
+test lsubst-1.9 {backslash escapes} -body {
+    lsubst {
         # char escapes
         \r\n\t
         # unicode escapes
@@ -73,10 +73,10 @@ test leval-1.9 {backslash escapes} -body {
     }
 } -result [list \r\n\t \u00b5 AB]
 
-test leval-1.10 {simple -line} -body {
+test lsubst-1.10 {simple -line} -body {
     set a {1 2}
     set b {3 4 5}
-    leval -line {
+    lsubst -line {
         # This line won't produce a list, but the next will produce a list with two elements
         {*}$a
         # And this one will have three elements
@@ -84,49 +84,49 @@ test leval-1.10 {simple -line} -body {
     }
 } -result {{1 2} {one two {3 4 5}}}
 
-test leval-2.1 {error, missing [} -body {
-    leval {
+test lsubst-2.1 {error, missing [} -body {
+    lsubst {
         # Missing bracket
         [string cat
     }
 } -returnCodes error -result {unmatched "["}
 
-test leval-2.2 {error, invalid command} -body {
-    leval {
+test lsubst-2.2 {error, invalid command} -body {
+    lsubst {
         a
         [dummy]
         b
     }
 } -returnCodes error -result {invalid command name "dummy"}
 
-test leval-2.3 {error, unset variable} -body {
-    leval {
+test lsubst-2.3 {error, unset variable} -body {
+    lsubst {
         a
         $doesnotexist
         b
     }
 } -returnCodes error -result {can't read "doesnotexist": no such variable}
 
-test leval-2.4 {break} -body {
-    leval {
+test lsubst-2.4 {break} -body {
+    lsubst {
         a
         [break]
         b
     }
 } -returnCodes error -result {invoked "break" outside of a loop}
 
-test leval-2.5 {continue} -body {
-    leval {
+test lsubst-2.5 {continue} -body {
+    lsubst {
         a
         [continue]
         b
     }
 } -returnCodes error -result {invoked "continue" outside of a loop}
 
-test leval-3.1 {preservation of line numbers} -body {
+test lsubst-3.1 {preservation of line numbers} -body {
     set x abc
     set src1 [info source $x]
-    set list [leval {
+    set list [lsubst {
         a
         $x
         b

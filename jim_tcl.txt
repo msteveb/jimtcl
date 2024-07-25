@@ -63,7 +63,7 @@ Changes since 0.82
 7. Add support for hinting with `history hints`
 8. Support for `proc` statics by reference (lexical closure) rather than by value
 9. `regsub` now supports '-command' (per Tcl 8.7)
-10. New `leval` command to create lists using subst-style substitution
+10. New `lsubst` command to create lists using subst-style substitution
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3121,10 +3121,10 @@ than variables, a list of unassigned elements is returned.
     a=1,b=2
 ----
 
-leval
+lsubst
 ~~~~
 
-+*leval ?-line?* 'string'+
++*lsubst ?-line?* 'string'+
 
 This command is similar to `list` in that it creates a list, but uses
 the same rules as scripts when constructing the elements of the list.
@@ -3139,7 +3139,7 @@ Consider the following example.
     set x 1
     set y {2 3}
     set z 3
-    leval {
+    lsubst {
         # This is a list with interpolation
         $x; # The x variable
         {*}$y; # The y variable expanded
@@ -3149,7 +3149,7 @@ Consider the following example.
     }
 ---
 
-The result of `leval` is the following list with 7 elements.
+The result of `lsubst` is the following list with 7 elements.
 
 ---
     1 2 3 abc 4 5 33
@@ -3160,12 +3160,12 @@ as a data structure as it easily allows for comments and variable and command
 substitution.
 
 Sometimes it is useful to return each "command" as a separate list rather than
-simply running all the words together. This can be accomplished with `leval -line`.
+simply running all the words together. This can be accomplished with `lsubst -line`.
 
 Consider the following example.
 
 ---
-    leval -line {
+    lsubst -line {
         # two "lines" because of the semicolon
         one a; two b
         # one line with three elements
@@ -3173,7 +3173,7 @@ Consider the following example.
     }
 ---
 
-The result of `leval -line` is the following list with 3 elements, one for each "command".
+The result of `lsubst -line` is the following list with 3 elements, one for each "command".
 
 ---
 {one a} {two b} {a b c}

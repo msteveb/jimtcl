@@ -11136,16 +11136,16 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     return objPtr;
 }
 
-#define JIM_LEVAL_LINE 0x0001
+#define JIM_LSUBST_LINE 0x0001
 
-/* Parse a string as an 'leval' argument and sets the interp result.
+/* Parse a string as an 'lsubst' argument and sets the interp result.
  * Return JIM_OK if ok, or JIM_ERR on error.
  *
  * Modelled on Jim_EvalObj()
  * 
- * If flags contains JIM_LEVAL_LINE, each "statement" is returned as list of {command arg...}
+ * If flags contains JIM_LSUBST_LINE, each "statement" is returned as list of {command arg...}
  */
-static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned flags)
+static int JimListSubstObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned flags)
 {
     int i;
     ScriptObj *script;
@@ -11181,7 +11181,7 @@ static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned f
         /* Skip the JIM_TT_LINE token */
         i++;
 
-        if (flags & JIM_LEVAL_LINE) {
+        if (flags & JIM_LSUBST_LINE) {
             lineListObj = Jim_NewListObj(interp, NULL, 0);
         }
 
@@ -11225,7 +11225,7 @@ static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned f
             Jim_DecrRefCount(interp, wordObjPtr);
         }
 
-        if (flags & JIM_LEVAL_LINE) {
+        if (flags & JIM_LSUBST_LINE) {
             Jim_ListAppendElement(interp, resultListObj, lineListObj);
         }
     }
@@ -15701,14 +15701,14 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
-/* [leval] */
-static int Jim_LevalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+/* [lsubst] */
+static int Jim_LsubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     if (argc == 2) {
-        return JimListEvalObj(interp, argv[1], 0);
+        return JimListSubstObj(interp, argv[1], 0);
     }
     if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "-line")) {
-        return JimListEvalObj(interp, argv[2], JIM_LEVAL_LINE);
+        return JimListSubstObj(interp, argv[2], JIM_LSUBST_LINE);
     }
     Jim_WrongNumArgs(interp, 1, argv, "?-line? string");
     return JIM_ERR;
@@ -16620,7 +16620,7 @@ static const struct {
     {"rename", Jim_RenameCoreCommand},
     {"dict", Jim_DictCoreCommand},
     {"subst", Jim_SubstCoreCommand},
-    {"leval", Jim_LevalCoreCommand},
+    {"lsubst", Jim_LsubstCoreCommand},
     {"info", Jim_InfoCoreCommand},
     {"exists", Jim_ExistsCoreCommand},
     {"split", Jim_SplitCoreCommand},
