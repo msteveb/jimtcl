@@ -11136,12 +11136,16 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     return objPtr;
 }
 
+#define JIM_LEVAL_LINE 0x0001
+
 /* Parse a string as an 'leval' argument and sets the interp result.
  * Return JIM_OK if ok, or JIM_ERR on error.
  *
  * Modelled on Jim_EvalObj()
+ * 
+ * If flags contains JIM_LEVAL_LINE, each "statement" is returned as list of {command arg...}
  */
-static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr)
+static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned flags)
 {
     int i;
     ScriptObj *script;
@@ -11168,6 +11172,7 @@ static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr)
     for (i = 0; i < script->len && retcode == JIM_OK; ) {
         int argc;
         int j;
+        Jim_Obj *lineListObj = resultListObj;
 
         /* First token of the line is always JIM_TT_LINE */
         argc = token[i].objPtr->internalRep.scriptLineValue.argc;
@@ -11175,6 +11180,10 @@ static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr)
 
         /* Skip the JIM_TT_LINE token */
         i++;
+
+        if (flags & JIM_LEVAL_LINE) {
+            lineListObj = Jim_NewListObj(interp, NULL, 0);
+        }
 
         /* Extract the words from this line */
         for (j = 0; j < argc; j++) {
@@ -11204,16 +11213,20 @@ static int JimListEvalObj(Jim_Interp *interp, struct Jim_Obj *objPtr)
             i += wordtokens;
 
             if (!expand) {
-                Jim_ListAppendElement(interp, resultListObj, wordObjPtr);
+                Jim_ListAppendElement(interp, lineListObj, wordObjPtr);
             }
             else {
                 int k;
                 /* Need to add each word of wordObjPtr list to the result list */
                 for (k = 0; k < Jim_ListLength(interp, wordObjPtr); k++) {
-                    Jim_ListAppendElement(interp, resultListObj, Jim_ListGetIndex(interp, wordObjPtr, k));
+                    Jim_ListAppendElement(interp, lineListObj, Jim_ListGetIndex(interp, wordObjPtr, k));
                 }
             }
             Jim_DecrRefCount(interp, wordObjPtr);
+        }
+
+        if (flags & JIM_LEVAL_LINE) {
+            Jim_ListAppendElement(interp, resultListObj, lineListObj);
         }
     }
 
@@ -15691,12 +15704,14 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 /* [leval] */
 static int Jim_LevalCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "string");
-        return JIM_ERR;
+    if (argc == 2) {
+        return JimListEvalObj(interp, argv[1], 0);
     }
-
-    return JimListEvalObj(interp, argv[1]);
+    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "-line")) {
+        return JimListEvalObj(interp, argv[2], JIM_LEVAL_LINE);
+    }
+    Jim_WrongNumArgs(interp, 1, argv, "?-line? string");
+    return JIM_ERR;
 }
 
 #ifdef jim_ext_namespace

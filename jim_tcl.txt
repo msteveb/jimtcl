@@ -3124,7 +3124,7 @@ than variables, a list of unassigned elements is returned.
 leval
 ~~~~
 
-+*leval* 'string'+
++*leval ?-line?* 'string'+
 
 This command is similar to `list` in that it creates a list, but uses
 the same rules as scripts when constructing the elements of the list.
@@ -3158,6 +3158,26 @@ The result of `leval` is the following list with 7 elements.
 This is particularly useful when constructing a list (or dict)
 as a data structure as it easily allows for comments and variable and command
 substitution.
+
+Sometimes it is useful to return each "command" as a separate list rather than
+simply running all the words together. This can be accomplished with `leval -line`.
+
+Consider the following example.
+
+---
+    leval -line {
+        # two "lines" because of the semicolon
+        one a; two b
+        # one line with three elements
+        {*}{a b c}
+    }
+---
+
+The result of `leval -line` is the following list with 3 elements, one for each "command".
+
+---
+{one a} {two b} {a b c}
+---
 
 local
 ~~~~~

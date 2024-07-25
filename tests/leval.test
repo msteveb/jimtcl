@@ -4,11 +4,11 @@ needs cmd leval
 
 test leval-1.1 {no args} -body {
     leval
-} -returnCodes error -result {wrong # args: should be "leval string"}
+} -returnCodes error -result {wrong # args: should be "leval ?-line? string"}
 
 test leval-1.2 {too many args} -body {
-    leval
-} -returnCodes error -result {wrong # args: should be "leval string"}
+    leval a b c
+} -returnCodes error -result {wrong # args: should be "leval ?-line? string"}
 
 test leval-1.3 {basic, no subst} -body {
     leval {a b c}
@@ -48,7 +48,7 @@ test leval-1.6 {commands} -body {
 
 test leval-1.7 {expand} -body {
     set a {1 2}
-	set space " "
+    set space " "
     set b {3 4 5}
     leval {
         {*}$a
@@ -57,72 +57,83 @@ test leval-1.7 {expand} -body {
 } -result {1 2 1 2 3 4 5 6 7}
 
 test leval-1.8 {empty case} -body {
-	leval {
-		# Nothing
-	}
+    leval {
+        # Nothing
+    }
 } -result {}
 
 test leval-1.9 {backslash escapes} -body {
-	leval {
-		# char escapes
-		\r\n\t
-		# unicode escapes
-		\u00b5
-		# hex escapes
-		\x41\x42
-	}
+    leval {
+        # char escapes
+        \r\n\t
+        # unicode escapes
+        \u00b5
+        # hex escapes
+        \x41\x42
+    }
 } -result [list \r\n\t \u00b5 AB]
 
+test leval-1.10 {simple -line} -body {
+    set a {1 2}
+    set b {3 4 5}
+    leval -line {
+        # This line won't produce a list, but the next will produce a list with two elements
+        {*}$a
+        # And this one will have three elements
+        one two $b
+    }
+} -result {{1 2} {one two {3 4 5}}}
+
 test leval-2.1 {error, missing [} -body {
-	leval {
-		# Missing bracket
-		[string cat
-	}
+    leval {
+        # Missing bracket
+        [string cat
+    }
 } -returnCodes error -result {unmatched "["}
 
 test leval-2.2 {error, invalid command} -body {
-	leval {
-		a
-		[dummy]
-		b
-	}
+    leval {
+        a
+        [dummy]
+        b
+    }
 } -returnCodes error -result {invalid command name "dummy"}
 
 test leval-2.3 {error, unset variable} -body {
-	leval {
-		a
-		$doesnotexist
-		b
-	}
+    leval {
+        a
+        $doesnotexist
+        b
+    }
 } -returnCodes error -result {can't read "doesnotexist": no such variable}
 
 test leval-2.4 {break} -body {
-	leval {
-		a
-		[break]
-		b
-	}
+    leval {
+        a
+        [break]
+        b
+    }
 } -returnCodes error -result {invoked "break" outside of a loop}
 
 test leval-2.5 {continue} -body {
-	leval {
-		a
-		[continue]
-		b
-	}
+    leval {
+        a
+        [continue]
+        b
+    }
 } -returnCodes error -result {invoked "continue" outside of a loop}
 
 test leval-3.1 {preservation of line numbers} -body {
-	set x abc
-	set src1 [info source $x]
-	set list [leval {
-		a
-		$x
-		b
-	}]
-	if {[info source [lindex $list 1]] ne [info source $x]} {
-		error "source does not match
-	}
+    set x abc
+    set src1 [info source $x]
+    set list [leval {
+        a
+        $x
+        b
+    }]
+    if {[info source [lindex $list 1]] ne [info source $x]} {
+        error "source does not match
+    }
 } -result {}
 
 testreport

@@ -70,8 +70,9 @@ test exec2-3.2 "close pipeline return value" -constraints {pipe signal nomingw32
 	signal ignore SIGPIPE
 	# Write more than 64KB which is maximum size of the pipe buffers
 	# on all systems we have seen
-	set bigstring [string repeat a 100000]
-	set f [open [list |cat << $bigstring]]
+	set bigstring [string repeat a 100]
+	set f [open [list |dd bs=512 << $bigstring]]
+	puts pid=[$f pid]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
 	list $rc $msg $status $exitcode
@@ -81,7 +82,7 @@ test exec2-3.3 "close pipeline with SIGPIPE blocked" -constraints {pipe signal n
 	signal block SIGPIPE
 	# Write more than 64KB which is maximum size of the pipe buffers
 	# on all systems we have seen
-	set bigstring [string repeat a 100000]
+	set bigstring [string repeat a 100]
 	set f [open [list |cat << $bigstring 2>/dev/null]]
 	set rc [catch {close $f} msg opts]
 	lassign [dict get $opts -errorcode] status pid exitcode
