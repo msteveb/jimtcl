@@ -11045,6 +11045,7 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     Jim_Obj *sintv[JIM_EVAL_SINTV_LEN];
     Jim_Obj *objPtr;
     char *s;
+    const char *error_action = NULL;
 
     if (tokens <= JIM_EVAL_SINTV_LEN)
         intv = sintv;
@@ -11064,14 +11065,16 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
                     tokens = i;
                     continue;
                 }
-                /* XXX: Should probably set an error about break outside loop */
+                error_action = "break";
                 /* fall through to error */
             case JIM_CONTINUE:
                 if (flags & JIM_SUBST_FLAG) {
                     intv[i] = NULL;
                     continue;
                 }
-                /* XXX: Ditto continue outside loop */
+                if (!error_action) {
+                    error_action = "continue";
+                }
                 /* fall through to error */
             default:
                 while (i--) {
@@ -11079,6 +11082,9 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
                 }
                 if (intv != sintv) {
                     Jim_Free(intv);
+                }
+                if (error_action) {
+                    Jim_SetResultFormatted(interp, "invoked \"%s\" outside of a loop", error_action);
                 }
                 return NULL;
         }
@@ -11130,6 +11136,117 @@ static Jim_Obj *JimInterpolateTokens(Jim_Interp *interp, const ScriptToken * tok
     return objPtr;
 }
 
+#define JIM_LSUBST_LINE 0x0001
+
+/* Parse a string as an 'lsubst' argument and sets the interp result.
+ * Return JIM_OK if ok, or JIM_ERR on error.
+ *
+ * Modelled on Jim_EvalObj()
+ * 
+ * If flags contains JIM_LSUBST_LINE, each "statement" is returned as list of {command arg...}
+ */
+static int JimListSubstObj(Jim_Interp *interp, struct Jim_Obj *objPtr, unsigned flags)
+{
+    int i;
+    ScriptObj *script;
+    ScriptToken *token;
+    Jim_Obj *resultListObj;
+    int retcode = JIM_OK;
+
+    Jim_IncrRefCount(objPtr);     /* Make sure it's shared. */
+    script = JimGetScript(interp, objPtr);
+    if (JimParseCheckMissing(interp, script->missing) == JIM_ERR) {
+        JimSetErrorStack(interp, script);
+        Jim_DecrRefCount(interp, objPtr);
+        return JIM_ERR;
+    }
+
+    token = script->token;
+
+    script->inUse++;
+
+    /* Build the result list here */
+    resultListObj = Jim_NewListObj(interp, NULL, 0);
+
+    /* Add every command, arg to the result list */
+    for (i = 0; i < script->len && retcode == JIM_OK; ) {
+        int argc;
+        int j;
+        Jim_Obj *lineListObj = resultListObj;
+
+        /* First token of the line is always JIM_TT_LINE */
+        argc = token[i].objPtr->internalRep.scriptLineValue.argc;
+        script->linenr = token[i].objPtr->internalRep.scriptLineValue.line;
+
+        /* Skip the JIM_TT_LINE token */
+        i++;
+
+        if (flags & JIM_LSUBST_LINE) {
+            lineListObj = Jim_NewListObj(interp, NULL, 0);
+        }
+
+        /* Extract the words from this line */
+        for (j = 0; j < argc; j++) {
+            long wordtokens = 1;
+            int expand = 0;
+            Jim_Obj *wordObjPtr = NULL;
+
+            if (token[i].type == JIM_TT_WORD) {
+                wordtokens = JimWideValue(token[i++].objPtr);
+                if (wordtokens < 0) {
+                    expand = 1;
+                    wordtokens = -wordtokens;
+                }
+            }
+
+            /* Note we don't worry about a fast path here */
+            wordObjPtr = JimInterpolateTokens(interp, token + i, wordtokens, JIM_NONE);
+
+            if (!wordObjPtr) {
+                if (retcode == JIM_OK) {
+                    retcode = JIM_ERR;
+                }
+                break;
+            }
+
+            Jim_IncrRefCount(wordObjPtr);
+            i += wordtokens;
+
+            if (!expand) {
+                Jim_ListAppendElement(interp, lineListObj, wordObjPtr);
+            }
+            else {
+                int k;
+                /* Need to add each word of wordObjPtr list to the result list */
+                for (k = 0; k < Jim_ListLength(interp, wordObjPtr); k++) {
+                    Jim_ListAppendElement(interp, lineListObj, Jim_ListGetIndex(interp, wordObjPtr, k));
+                }
+            }
+            Jim_DecrRefCount(interp, wordObjPtr);
+        }
+
+        if (flags & JIM_LSUBST_LINE) {
+            Jim_ListAppendElement(interp, resultListObj, lineListObj);
+        }
+    }
+
+    /* Note that we don't have to decrement inUse, because the
+     * following code transfers our use of the reference again to
+     * the script object. */
+    Jim_FreeIntRep(interp, objPtr);
+    objPtr->typePtr = &scriptObjType;
+    Jim_SetIntRepPtr(objPtr, script);
+    Jim_DecrRefCount(interp, objPtr);
+
+    if (retcode == JIM_OK) {
+        Jim_SetResult(interp, resultListObj);
+    }
+    else {
+        Jim_FreeNewObj(interp, resultListObj);
+    }
+
+    return retcode;
+}
 
 /* listPtr *must* be a list.
  * The contents of the list is evaluated with the first element as the command and
@@ -15584,6 +15701,19 @@ static int Jim_SubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     return JIM_OK;
 }
 
+/* [lsubst] */
+static int Jim_LsubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (argc == 2) {
+        return JimListSubstObj(interp, argv[1], 0);
+    }
+    if (argc == 3 && Jim_CompareStringImmediate(interp, argv[1], "-line")) {
+        return JimListSubstObj(interp, argv[2], JIM_LSUBST_LINE);
+    }
+    Jim_WrongNumArgs(interp, 1, argv, "?-line? string");
+    return JIM_ERR;
+}
+
 #ifdef jim_ext_namespace
 static int JimIsGlobalNamespace(Jim_Obj *objPtr)
 {
@@ -16490,6 +16620,7 @@ static const struct {
     {"rename", Jim_RenameCoreCommand},
     {"dict", Jim_DictCoreCommand},
     {"subst", Jim_SubstCoreCommand},
+    {"lsubst", Jim_LsubstCoreCommand},
     {"info", Jim_InfoCoreCommand},
     {"exists", Jim_ExistsCoreCommand},
     {"split", Jim_SplitCoreCommand},
