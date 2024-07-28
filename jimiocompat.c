@@ -213,7 +213,9 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unli
     }
 
     /* Update the template name directly with the filename */
+#ifdef HAVE_UMASK
     mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
+#endif
 #ifdef HAVE_MKSTEMP
     fd = mkstemp(filenameObj->bytes);
 #else
@@ -224,7 +226,9 @@ int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unli
         fd = open(filenameObj->bytes, O_RDWR | O_CREAT | O_TRUNC);
     }
 #endif
+#ifdef HAVE_UMASK
     umask(mask);
+#endif
     if (fd < 0) {
         Jim_SetResultErrno(interp, Jim_String(filenameObj));
         Jim_FreeNewObj(interp, filenameObj);
