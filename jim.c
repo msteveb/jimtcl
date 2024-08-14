@@ -6904,7 +6904,8 @@ struct lsort_info {
         JIM_LSORT_NOCASE,
         JIM_LSORT_INTEGER,
         JIM_LSORT_REAL,
-        JIM_LSORT_COMMAND
+        JIM_LSORT_COMMAND,
+        JIM_LSORT_DICT
     } type;
     int order;
     Jim_Obj **indexv;
@@ -6935,6 +6936,45 @@ static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 static int ListSortStringNoCase(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     return Jim_StringCompareObj(sort_info->interp, *lhsObj, *rhsObj, 1) * sort_info->order;
+}
+
+static int ListSortDict(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
+{
+    /* XXX Does not compare past embedded nulls */
+    const char *left = Jim_String(*lhsObj);
+    const char *right = Jim_String(*rhsObj);
+
+    while (1) {
+        if (isdigit(UCHAR(*left)) && isdigit(UCHAR(*right))) {
+            /* extract and compare integers */
+            jim_wide lint, rint;
+            char *lend, *rend;
+            lint = jim_strtoull(left, &lend);
+            rint = jim_strtoull(right, &rend);
+            if (lint != rint) {
+                return JimSign(lint - rint) * sort_info->order;
+            }
+            /* If the integers are equal but of unequal length, then one must have more leading
+             * zeros. The shorter one compares less */
+            if (lend -left != rend - right) {
+                return JimSign((lend - left) - (rend - right)) * sort_info->order;
+            }
+            left = lend;
+            right = rend;
+        }
+        else {
+            int cl, cr;
+            left += utf8_tounicode_case(left, &cl, 1);
+            right += utf8_tounicode_case(right, &cr, 1);
+            if (cl != cr) {
+                return JimSign(cl - cr) * sort_info->order;
+            }
+            if (cl == 0) {
+                /* If they compare equal, use a case sensitive comparison as a tie breaker */
+                return Jim_StringCompareObj(sort_info->interp, *lhsObj, *rhsObj, 0) * sort_info->order;
+            }
+        }
+    }
 }
 
 static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
@@ -7055,6 +7095,9 @@ static int ListSortElements(Jim_Interp *interp, Jim_Obj *listObjPtr, struct lsor
             break;
         case JIM_LSORT_COMMAND:
             fn = ListSortCommand;
+            break;
+        case JIM_LSORT_DICT:
+            fn = ListSortDict;
             break;
         default:
             fn = NULL;          /* avoid warning */
@@ -13413,11 +13456,11 @@ static int Jim_LsortCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const arg
 {
     static const char * const options[] = {
         "-ascii", "-nocase", "-increasing", "-decreasing", "-command", "-integer", "-real", "-index", "-unique",
-        "-stride", NULL
+        "-stride", "-dictionary", NULL
     };
     enum {
         OPT_ASCII, OPT_NOCASE, OPT_INCREASING, OPT_DECREASING, OPT_COMMAND, OPT_INTEGER, OPT_REAL, OPT_INDEX, OPT_UNIQUE,
-        OPT_STRIDE
+        OPT_STRIDE, OPT_DICT
     };
     Jim_Obj *resObj;
     int i;
@@ -13451,6 +13494,9 @@ wrongargs:
         switch (option) {
             case OPT_ASCII:
                 info.type = JIM_LSORT_ASCII;
+                break;
+            case OPT_DICT:
+                info.type = JIM_LSORT_DICT;
                 break;
             case OPT_NOCASE:
                 info.type = JIM_LSORT_NOCASE;
