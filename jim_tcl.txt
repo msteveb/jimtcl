@@ -63,6 +63,7 @@ Changes since 0.82
 7. Add support for hinting with `history hints`
 8. Support for `proc` statics by reference (lexical closure) rather than by value
 9. `regsub` now supports '-command' (per Tcl 8.7)
+10. Add support for `lsort -dict`
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3495,17 +3496,28 @@ lsort
 Sort the elements of +'list'+, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.
 
-Note that only one sort type may be selected with +-integer+, +-real+, +-nocase+ or +-command+
+Note that only one sort type may be selected with +-ascii+, +-dict+, +-integer+, +-real+, +-nocase+ or +-command+
 with last option being used.
+
++*-ascii*+::
+    Sort using string comparison. This is the default.
+
++*-nocase*+::
+    Sort using using string comparison without regard for case.
+
++*-dict*+::
+    Sort using using string comparison without regard for case.
+    Use dictionary-style comparison. This is the same as '-ascii'
+    except (a) case is ignored except as a tie-breaker and (b) if
+    two strings contain embedded numbers, the numbers compare as
+    integers, not characters.  For example, in -dictionary mode,
+    x10y sorts between x9y and x11y.
 
 +*-integer*+::
     Sort using numeric (integer) comparison.
 
 +*-real*+::
     Sort using floating point comparison.
-
-+*-nocase*+::
-    Sort using using string comparison without regard for case.
 
 +*-command* 'cmdname'+::
     +'cmdname'+ is treated as a command name. For each comparison,
