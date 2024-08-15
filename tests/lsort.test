@@ -318,11 +318,11 @@ test cmdIL-4.22 {DictionaryCompare procedure, case} {
 test cmdIL-4.23 {DictionaryCompare procedure, case} {
     lsort -dictionary {ABcd AbCd}
 } {ABcd AbCd}
-test cmdIL-4.24 {DictionaryCompare procedure, international characters} {
+test cmdIL-4.24 {DictionaryCompare procedure, international characters} utf8 {
     set result [lsort -dictionary "a b c A B C \xe3 \xc4"]
     set result
 } "A a B b C c \xe3 \xc4"
-test cmdIL-4.25 {DictionaryCompare procedure, international characters} {
+test cmdIL-4.25 {DictionaryCompare procedure, international characters} utf8 {
     set result [lsort -dictionary "a23\xe3 a23\xc5 a23\xe4"]
     set result
 } "a23\xe3 a23\xe4 a23\xc5"
