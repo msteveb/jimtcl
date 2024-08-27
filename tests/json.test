@@ -3,7 +3,8 @@ source [file dirname [info script]]/testing.tcl
 needs cmd json::decode json
 needs cmd json::encode json
 
-set json {
+# Create a json string as though it was read from data.json
+set json [info source {
 {
 	"fossil":"9c65b5432e4aeecf3556e5550c338ce93fd861cc",
 	"timestamp":1435827337,
@@ -24,7 +25,7 @@ set json {
 			"tags":["trunk"]
 		}]
 	}
-}}
+}} data.json 1]
 
 test json-decode-001 {top level keys} {
 	lsort [dict keys [json::decode $json]]
@@ -122,6 +123,17 @@ test json-3.4 {-index array with -schema 2} {
 } "{outer {0 {key value} 1 {key2 value2}}}\
    {obj outer {mixed {obj key str} {obj key2 str}}}"
 
+test json-4.1 {source info preserved} -body {
+	info source [dict get [json::decode $json] fossil]
+} -result {data.json 3}
+
+test json-4.2 {source info preserved} -body {
+	info source [dict get [json::decode $json] procTimeUs]
+} -result {data.json 6}
+
+test json-4.3 {source info preserved} -body {
+	info source [dict get [lindex [dict get [json::decode $json] payload timeline] 0] comment]
+} -result {data.json 17}
 
 unset -nocomplain json
 
