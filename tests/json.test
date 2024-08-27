@@ -60,6 +60,7 @@ test json-decode-012 {default null value} {
 } {null}
 
 test json-decode-1.1 {Number forms} {
+	# Note that this is not strictly correct JSON, but is usable in practice
 	json::decode {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
 } {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5}
 
@@ -80,15 +81,15 @@ test json-2.4 {schema tests} {
 } {obj a num b num}
 
 test json-2.5 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":"b", "c":false}, "hello"]}] 1
 } {mixed num num {obj a str c bool} str}
 
 test json-2.6 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, Infinity]}]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":["b", 1, true, Infinity]}]}] 1
 } {mixed num num {obj a {mixed str num bool num}}}
 
 test json-2.7 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":["b", 1, true, ["d", "e", "f"]]}]}] 1
 } {mixed num num {obj a {mixed str num bool {list str}}}}
 
 test json-2.8 {schema tests} {
@@ -96,9 +97,8 @@ test json-2.8 {schema tests} {
 } {mixed num num bool bool}
 
 test json-2.9 {schema tests} {
-	lindex [json::decode -schema {[{a:1},{b:2}]}] 1
+	lindex [json::decode -schema {[{"a":1},{"b":2}]}] 1
 } {mixed {obj a num} {obj b num}}
-
 
 test json-3.1 {-index array} {
 	json::decode -index \
