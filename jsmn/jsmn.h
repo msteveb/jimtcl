@@ -42,6 +42,7 @@ typedef struct {
 	int start;
 	int end;
 	int size;
+	int line;
 #ifdef JSMN_PARENT_LINKS
 	int parent;
 #endif
@@ -56,6 +57,7 @@ typedef struct {
 	unsigned int toknext; /* next token to allocate */
 	unsigned int count; /* number of tokens parsed */
 	int toksuper; /* superior token node, e.g parent object or array */
+	int line;	/* current line number */
 } jsmn_parser;
 
 /**

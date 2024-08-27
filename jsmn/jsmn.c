@@ -18,6 +18,7 @@ static jsmntok_t *jsmn_alloc_token(jsmn_parser *parser,
 	tok = &tokens[parser->toknext++];
 	tok->start = tok->end = -1;
 	tok->size = 0;
+	tok->line = 0;
 #ifdef JSMN_PARENT_LINKS
 	tok->parent = -1;
 #endif
@@ -28,11 +29,12 @@ static jsmntok_t *jsmn_alloc_token(jsmn_parser *parser,
  * Fills token type and boundaries.
  */
 static void jsmn_fill_token(jsmntok_t *token, jsmntype_t type,
-                            int start, int end) {
+                            int start, int end, int line) {
 	token->type = type;
 	token->start = start;
 	token->end = end;
 	token->size = 0;
+	token->line = line;
 }
 
 /**
@@ -47,11 +49,13 @@ static int jsmn_parse_primitive(jsmn_parser *parser, const char *js,
 
 	for (; parser->pos < len && js[parser->pos] != '\0'; parser->pos++) {
 		switch (js[parser->pos]) {
+			case '\n' :
+				parser->line++;
+				/* fall-thru */
 #ifndef JSMN_STRICT
-			/* In strict mode primitive must be followed by "," or "}" or "]" */
 			case ':':
 #endif
-			case '\t' : case '\r' : case '\n' : case ' ' :
+			case '\t' : case '\r' : case ' ' :
 			case ','  : case ']'  : case '}' :
 				goto found;
 		}
@@ -76,7 +80,7 @@ found:
 		parser->pos = start;
 		return JSMN_ERROR_NOMEM;
 	}
-	jsmn_fill_token(token, JSMN_PRIMITIVE, start, parser->pos);
+	jsmn_fill_token(token, JSMN_PRIMITIVE, start, parser->pos, parser->line);
 #ifdef JSMN_PARENT_LINKS
 	token->parent = parser->toksuper;
 #endif
@@ -109,7 +113,7 @@ static int jsmn_parse_string(jsmn_parser *parser, const char *js,
 				parser->pos = start;
 				return JSMN_ERROR_NOMEM;
 			}
-			jsmn_fill_token(token, JSMN_STRING, start+1, parser->pos);
+			jsmn_fill_token(token, JSMN_STRING, start+1, parser->pos, parser->line);
 #ifdef JSMN_PARENT_LINKS
 			token->parent = parser->toksuper;
 #endif
@@ -242,7 +246,10 @@ int jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 				if (parser->toksuper != -1 && tokens != NULL)
 					tokens[parser->toksuper].size++;
 				break;
-			case '\t' : case '\r' : case '\n' : case ' ':
+			case '\n' :
+				parser->line++;
+				/* fall-thru */
+			case '\t' : case '\r' : case ' ':
 				break;
 			case ':':
 				parser->toksuper = parser->toknext - 1;
@@ -322,5 +329,6 @@ void jsmn_init(jsmn_parser *parser) {
 	parser->toknext = 0;
 	parser->toksuper = -1;
 	parser->count = 0;
+	parser->line = 1;
 }
 
