@@ -699,6 +699,14 @@ JIM_EXPORT int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj
 JIM_EXPORT int Jim_SubstObj (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
+/* source information */
+JIM_EXPORT Jim_Obj *Jim_GetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
+        int *lineptr);
+/* may only be called on an unshared object */
+JIM_EXPORT void Jim_SetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
+        Jim_Obj *fileNameObj, int lineNumber);
+
+
 /* stack */
 JIM_EXPORT void Jim_InitStack(Jim_Stack *stack);
 JIM_EXPORT void Jim_FreeStack(Jim_Stack *stack);
