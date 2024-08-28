@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 10.2.0" />
+<meta name="generator" content="AsciiDoc 9.0.0rc1" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Shared CSS for AsciiDoc xhtml11 and html5 backends */
@@ -739,7 +739,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.82 -
+<p>Jim Tcl v0.83 -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -879,6 +879,61 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <div class="sect1">
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_changes_since_0_82">Changes since 0.82</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Multi-level <a href="#_break"><strong><code>break</code></strong></a> and <a href="#_continue"><strong><code>continue</code></strong></a> are now supported
+</p>
+</li>
+<li>
+<p>
+<a href="#_info"><strong><code>info</code></strong></a> <code>frame</code> now only returns <em>proc</em> levels
+</p>
+</li>
+<li>
+<p>
+<a href="#_stacktrace"><strong><code>stacktrace</code></strong></a> is now a builtin command
+</p>
+</li>
+<li>
+<p>
+The stack trace on error now includes the full stack trace, not just back to where it was caught
+</p>
+</li>
+<li>
+<p>
+Improvements with <a href="#_aio"><strong><code>aio</code></strong></a>, related to eventloop and buffering. Add <a href="#_aio"><strong><code>aio</code></strong></a> <code>timeout</code>.
+</p>
+</li>
+<li>
+<p>
+<a href="#_socket"><strong><code>socket</code></strong></a> , <a href="#_open"><strong><code>open</code></strong></a> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>accept</code> now support <em>-noclose</em>
+</p>
+</li>
+<li>
+<p>
+Add support for hinting with <a href="#_history"><strong><code>history</code></strong></a> <code>hints</code>
+</p>
+</li>
+<li>
+<p>
+Support for <a href="#_proc"><strong><code>proc</code></strong></a> statics by reference (lexical closure) rather than by value
+</p>
+</li>
+<li>
+<p>
+<a href="#_regsub"><strong><code>regsub</code></strong></a> now supports <em>-command</em> (per Tcl 8.7)
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>-dict</code>
+</p>
+</li>
+</ol></div>
+</div>
 <div class="sect2">
 <h3 id="_changes_between_0_81_and_0_82">Changes between 0.81 and 0.82</h3>
 <div class="olist arabic"><ol class="arabic">
@@ -1817,7 +1872,7 @@ sequence is replaced by the given character:</p></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {x\[\ yz\141</code></pre>
+<pre><code>    set a \{x\[\ yz\141</code></pre>
 </div></div>
 <div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{x[ yza</code>.</p></div>
 <div class="paragraph"><p>If a backslash is followed by something other than one of the options
@@ -1829,7 +1884,7 @@ command</p></div>
 <div class="content">
 <pre><code>    set \*a \\{foo</code></pre>
 </div></div>
-<div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\*a</code> and the second
+<div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>*a</code> and the second
 argument will be <code>{foo</code>.</p></div>
 <div class="paragraph"><p>If an argument is enclosed in braces, then backslash sequences inside
 the argument are parsed but no substitution occurs (except for
@@ -1842,9 +1897,9 @@ For example, in the
 command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {{abc}</code></pre>
+<pre><code>    set a {\\{abc}</code></pre>
 </div></div>
-<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{abc</code>.</p></div>
+<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\\{abc</code>.</p></div>
 <div class="paragraph"><p>This backslash mechanism is not sufficient to generate absolutely
 any argument structure; it only covers the
 most common cases.  To produce particularly complicated arguments
@@ -2036,12 +2091,8 @@ it).</p></div>
 <div class="paragraph"><p>String constants representing boolean constants
 (<code><em>0</em></code>, <code><em>1</em></code>, <code><em>false</em></code>, <code><em>off</em></code>, <code><em>no</em></code>, <code><em>true</em></code>, <code><em>on</em></code>, <code><em>yes</em></code>)
 are also recognized and can be used in logical operations.</p></div>
+<div class="paragraph"><p>Operands may be specified in any of the following ways:</p></div>
 <div class="olist arabic"><ol class="arabic">
-<li>
-<p>
-Operands may be specified in any of the following ways:
-</p>
-</li>
 <li>
 <p>
 As a numeric value, either integer or floating-point.
@@ -2463,14 +2514,14 @@ arguments. Support for this feature is also available in Jim.</p></div>
 </div></div>
 <div class="paragraph"><p>This will attempt to exec a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
-it can be solved much more easily with <code>\{*}</code>.</p></div>
+it can be solved much more easily with <code>{*}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    exec {*}$cmd</code></pre>
 </div></div>
 <div class="paragraph"><p>This will expand the following argument into individual elements and then evaluate
 the resulting command.</p></div>
-<div class="paragraph"><p>Note that the official Tcl syntax is <code>\{*}</code>, however <code>{expand}</code> is retained
+<div class="paragraph"><p>Note that the official Tcl syntax is <code>{*}</code>, however <code>{expand}</code> is retained
 for backward compatibility with experimental versions of this feature.</p></div>
 </div>
 </div>
@@ -2897,6 +2948,24 @@ is no variable with the same name in the enclosing scope). However <code><em>b</
 has an initialiser, so it is initialised to 2.</p></div>
 <div class="paragraph"><p>Unlike a local variable, the value of a static variable is retained across
 invocations of the procedure.</p></div>
+<div class="paragraph"><p>In addition to static variables by value, static variables may also be
+defined by "reference" by using a leading "&amp;" character. In this case,
+the statics point to the original variable and when one changes, they
+both change.  For example, here <em>a</em> changes changes the value of the
+original <em>x</em>.</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    . set x 1
+    . proc a {} {&amp;x} {
+        incr x
+    }
+    . a
+    2
+    . a
+    3
+    . puts $x
+    3</code></pre>
+</div></div>
 <div class="paragraph"><p>See the <a href="#_proc"><strong><code>proc</code></strong></a> command for information on how to define procedures
 and what happens when they are invoked. See also <a href="#_namespaces">NAMESPACES</a>.</p></div>
 </div>
@@ -3419,6 +3488,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_stdhint"><strong><code>tcl::stdhint</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw"><strong><code>throw</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
@@ -3426,9 +3496,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>update</code></strong></a></p></td>
@@ -3436,12 +3506,11 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_wait"><strong><code>wait</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_xtrace"><strong><code>xtrace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
@@ -3591,10 +3660,23 @@ command.  The legal <code><em>options</em></code> (which may be abbreviated) are
 </div>
 <div class="sect2">
 <h3 id="_break">break</h3>
-<div class="paragraph"><p><code><strong>break</strong></code></p></div>
+<div class="paragraph"><p><code><strong>break</strong> ?n?</code></p></div>
 <div class="paragraph"><p>This command may be invoked only inside the body of a loop command
-such as <a href="#_for"><strong><code>for</code></strong></a> or <a href="#_foreach"><strong><code>foreach</code></strong></a> or <a href="#_while"><strong><code>while</code></strong></a>.  It returns a <code>JIM_BREAK</code> code
+such as <a href="#_for"><strong><code>for</code></strong></a>, <a href="#_foreach"><strong><code>foreach</code></strong></a>, <a href="#_while"><strong><code>while</code></strong></a> or <a href="#_loop"><strong><code>loop</code></strong></a>.  It returns a <code>JIM_BREAK</code> code
 to signal the innermost containing loop command to return immediately.</p></div>
+<div class="paragraph"><p>If <code><em>n</em></code> is given it breaks out of that many loops. <code><em>break 1</em></code> is equivalent
+to a simple <code><em>break</em></code> while in the following example, <code><em>break</em></code> will exit both
+loops.</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    loop i 5 {
+        loop j 6 {
+            if {$i == 3 &amp;&amp; $j == 2} {
+                break 2
+            }
+        }
+    }</code></pre>
+</div></div>
 </div>
 <div class="sect2">
 <h3 id="_case">case</h3>
@@ -3728,11 +3810,8 @@ compliant.</p></div>
 <div class="sect2">
 <h3 id="_close">close</h3>
 <div class="paragraph"><p><code><strong>close</strong> <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>close</strong></code></p></div>
-<div class="paragraph"><p>Closes the file given by <code><em>fileId</em></code>.
-<code><em>fileId</em></code> must be the return value from a previous invocation
-of the <a href="#_open"><strong><code>open</code></strong></a> command; after this command, it should not be
-used anymore.</p></div>
+<div class="paragraph"><p>Tcl-compatible version of <code><em>fileId</em> <strong>close</strong></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>close</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_collect">collect</h3>
@@ -3760,15 +3839,17 @@ the command</p></div>
 </div>
 <div class="sect2">
 <h3 id="_continue">continue</h3>
-<div class="paragraph"><p><code><strong>continue</strong></code></p></div>
+<div class="paragraph"><p><code><strong>continue</strong> ?n?</code></p></div>
 <div class="paragraph"><p>This command may be invoked only inside the body of a loop command such
-as <a href="#_for"><strong><code>for</code></strong></a> or <a href="#_foreach"><strong><code>foreach</code></strong></a> or <a href="#_while"><strong><code>while</code></strong></a>.  It returns a  <code>JIM_CONTINUE</code> code to
+as <a href="#_for"><strong><code>for</code></strong></a>, <a href="#_foreach"><strong><code>foreach</code></strong></a>, <a href="#_while"><strong><code>while</code></strong></a> or <a href="#_loop"><strong><code>loop</code></strong></a>.  It returns a  <code>JIM_CONTINUE</code> code to
 signal the innermost containing loop command to skip the remainder of
 the loop&#8217;s body but continue with the next iteration of the loop.</p></div>
+<div class="paragraph"><p>If <code><em>n</em></code> is given it breaks out of <code><em>n-1</em></code> loops and then continues the <code><em>nth</em></code> loop.
+<code><em>continue 1</em></code> is equivalent to a simple <code><em>continue</em></code>. (See also <a href="#_break"><strong><code>break</code></strong></a>).</p></div>
 </div>
 <div class="sect2">
 <h3 id="_curry">curry</h3>
-<div class="paragraph"><p><code><strong>alias</strong> <em>args...</em></code></p></div>
+<div class="paragraph"><p><code><strong>curry</strong> <em>args...</em></code></p></div>
 <div class="paragraph"><p>Similar to <a href="#_alias"><strong><code>alias</code></strong></a> except it creates an anonymous procedure (lambda) instead of
 a named procedure.</p></div>
 <div class="paragraph"><p>the following creates a local, unnamed alias for the command <a href="#_info"><strong><code>info</code></strong></a> <code>exists</code>.</p></div>
@@ -3985,12 +4066,8 @@ and their values as <code>{name value ...}</code></p></div>
 <div class="sect2">
 <h3 id="_eof">eof</h3>
 <div class="paragraph"><p><code><strong>eof</strong> <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>eof</strong></code></p></div>
-<div class="paragraph"><p>Returns 1 if an end-of-file condition has occurred on <code><em>fileId</em></code>,
-0 otherwise.</p></div>
-<div class="paragraph"><p><code><em>fileId</em></code> must have been the return value from a previous call to <a href="#_open"><strong><code>open</code></strong></a>,
-or it may be <code>stdin</code>, <code>stdout</code>, or <code>stderr</code> to refer to one of the
-standard I/O channels.</p></div>
+<div class="paragraph"><p>Tcl-compatible alternative to <code><em>fileId</em> <strong>eof</strong></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>eof</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_error">error</h3>
@@ -4273,6 +4350,21 @@ The following two are identical.</p></div>
 <div class="content">
 <pre><code>  set x [expr {3 * 2 + 1}]
   set x $(3 * 2 + 1)</code></pre>
+</div></div>
+<div class="paragraph"><p>However, note that the expr shorthand syntax may not be nested in an expression.
+This is to prevent the common mistake of writing:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>  if {$(1 + 2) == 3} {
+    ...
+  }</code></pre>
+</div></div>
+<div class="paragraph"><p>rather than:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>  if {(1 + 2) == 3} {
+    ...
+  }</code></pre>
 </div></div>
 </div>
 <div class="sect2">
@@ -4602,12 +4694,8 @@ command.</p></div>
 <div class="sect2">
 <h3 id="_flush">flush</h3>
 <div class="paragraph"><p><code><strong>flush</strong> <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>flush</strong></code></p></div>
-<div class="paragraph"><p>Flushes any output that has been buffered for <code><em>fileId</em></code>.  <code><em>fileId</em></code> must
-have been the return value from a previous call to <a href="#_open"><strong><code>open</code></strong></a>, or it may be
-<code>stdout</code> or <code>stderr</code> to access one of the standard I/O streams; it must
-refer to a file that was opened for writing.  This command returns an
-empty string.</p></div>
+<div class="paragraph"><p>Tcl-compatible alternative to <code><em>fileId</em> <strong>flush</strong></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_for">for</h3>
@@ -4684,27 +4772,8 @@ be a valid reference create with the <a href="#_ref"><strong><code>ref</code></s
 <div class="sect2">
 <h3 id="_gets">gets</h3>
 <div class="paragraph"><p><code><strong>gets</strong> <em>fileId ?varName?</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>gets</strong> <em>?varName?</em></code></p></div>
-<div class="paragraph"><p>Reads the next line from the file given by <code><em>fileId</em></code> and discards
-the terminating newline character.</p></div>
-<div class="paragraph"><p>If <code><em>varName</em></code> is specified, then the line is placed in the variable
-by that name and the return value is a count of the number of characters
-read (not including the newline).</p></div>
-<div class="paragraph"><p>If the end of the file is reached before reading
-any characters then -1 is returned and <code><em>varName</em></code> is set to an
-empty string.</p></div>
-<div class="paragraph"><p>If <code><em>varName</em></code> is not specified then the return value will be
-the line (minus the newline character) or an empty string if
-the end of the file is reached before reading any characters.</p></div>
-<div class="paragraph"><p>An empty string will also be returned if a line contains no characters
-except the newline, so <a href="#_eof"><strong><code>eof</code></strong></a> may have to be used to determine
-what really happened.</p></div>
-<div class="paragraph"><p>If the last character in the file is not a newline character, then
-<a href="#_gets"><strong><code>gets</code></strong></a> behaves as if there were an additional newline character
-at the end of the file.</p></div>
-<div class="paragraph"><p><code><em>fileId</em></code> must be <code>stdin</code> or the return value from a previous
-call to <a href="#_open"><strong><code>open</code></strong></a>; it must refer to a file that was opened
-for reading.</p></div>
+<div class="paragraph"><p>Tcl-compatible alterative version of <code><em>fileId</em> <strong>gets</strong> <em>?varName?</em></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_glob">glob</h3>
@@ -5047,7 +5116,7 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 <dd>
 <p>
     After an error is caught with <a href="#_catch"><strong><code>catch</code></strong></a>, returns the stack trace as a list
-    of <code>{procedure filename line ...}</code>.
+    of <code>{procedure filename line cmd ...}</code>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5554,9 +5623,38 @@ the list are to be matched against pattern and must have one of the values below
 <div class="paragraph"><p><code><strong>lsort</strong> <em>?options? list</em></code></p></div>
 <div class="paragraph"><p>Sort the elements of <code><em>list</em></code>, returning a new list in sorted order.
 By default, ASCII (or UTF-8) sorting is used, with the result in increasing order.</p></div>
-<div class="paragraph"><p>Note that only one sort type may be selected with <code>-integer</code>, <code>-real</code>, <code>-nocase</code> or <code>-command</code>
+<div class="paragraph"><p>Note that only one sort type may be selected with <code>-ascii</code>, <code>-dict</code>, <code>-integer</code>, <code>-real</code>, <code>-nocase</code> or <code>-command</code>
 with last option being used.</p></div>
 <div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>-ascii</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using string comparison. This is the default.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-nocase</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using using string comparison without regard for case.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-dict</strong></code>
+</dt>
+<dd>
+<p>
+    Sort using using string comparison without regard for case.
+    Use dictionary-style comparison. This is the same as <em>-ascii</em>
+    except (a) case is ignored except as a tie-breaker and (b) if
+    two strings contain embedded numbers, the numbers compare as
+    integers, not characters.  For example, in -dictionary mode,
+    x10y sorts between x9y and x11y.
+</p>
+</dd>
 <dt class="hdlist1">
 <code><strong>-integer</strong></code>
 </dt>
@@ -5571,14 +5669,6 @@ with last option being used.</p></div>
 <dd>
 <p>
     Sort using floating point comparison.
-</p>
-</dd>
-<dt class="hdlist1">
-<code><strong>-nocase</strong></code>
-</dt>
-<dd>
-<p>
-    Sort using using string comparison without regard for case.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5659,12 +5749,14 @@ with last option being used.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_open">open</h3>
-<div class="paragraph"><p><code><strong>open</strong> <em>fileName ?access?</em></code></p></div>
+<div class="paragraph"><p><code><strong>open</strong> <em>fileName <strong>?-noclose?</strong> ?access?</em></code></p></div>
 <div class="paragraph"><p><code><strong>open</strong> <em>|command-pipeline ?access?</em></code></p></div>
 <div class="paragraph"><p>Opens a file and returns an identifier
 that may be used in future invocations
 of commands like <a href="#_read"><strong><code>read</code></strong></a>, <a href="#_puts"><strong><code>puts</code></strong></a>, and <a href="#_close"><strong><code>close</code></strong></a>.
 <code><em>fileName</em></code> gives the name of the file to open.</p></div>
+<div class="paragraph"><p>If <code><em>-noclose</em></code> is given, the returned handle is not automatically
+closed for child proceses.</p></div>
 <div class="paragraph"><p>The <code><em>access</em></code> argument indicates the way in which the file is to be accessed.
 It may have any of the following values:</p></div>
 <div class="dlist"><dl>
@@ -5874,19 +5966,8 @@ procedure-as-a-whole will return that same error.</p></div>
 <div class="sect2">
 <h3 id="_puts">puts</h3>
 <div class="paragraph"><p><code><strong>puts</strong> ?<strong>-nonewline</strong>? <em>?fileId? string</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>puts</strong> ?<strong>-nonewline</strong>? <em>string</em></code></p></div>
-<div class="paragraph"><p>Writes the characters given by <code><em>string</em></code> to the file given
-by <code><em>fileId</em></code>. <code><em>fileId</em></code> must have been the return
-value from a previous call to <a href="#_open"><strong><code>open</code></strong></a>, or it may be
-<code>stdout</code> or <code>stderr</code> to refer to one of the standard I/O
-channels; it must refer to a file that was opened for
-writing.</p></div>
-<div class="paragraph"><p>In the first form, if no <code><em>fileId</em></code> is specified then it defaults to <code>stdout</code>.
-<a href="#_puts"><strong><code>puts</code></strong></a> normally outputs a newline character after <code><em>string</em></code>,
-but this feature may be suppressed by specifying the <code>-nonewline</code>
-switch.</p></div>
-<div class="paragraph"><p>Output to files is buffered internally by Tcl; the <a href="#_flush"><strong><code>flush</code></strong></a>
-command may be used to force buffered characters to be output.</p></div>
+<div class="paragraph"><p>Tcl-compatible version of <code><em>fileId</em> <strong>puts</strong> ?<strong>-nonewline</strong>? <em>string</em></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_pipe">pipe</h3>
@@ -5901,6 +5982,7 @@ command may be used to force buffered characters to be output.</p></div>
 
     $r readable ...</code></pre>
 </div></div>
+<div class="paragraph"><p>Note that if <em><code>-noclose</code></em> is desired, use <a href="#_socket"><strong><code>socket</code></strong></a> <code>-noclose pipe</code> instead.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_pwd">pwd</h3>
@@ -5934,35 +6016,9 @@ and ranging up to but not including <code><em>end</em></code> in steps of <code>
 </div>
 <div class="sect2">
 <h3 id="_read">read</h3>
-<div class="paragraph"><p><code><strong>read</strong> ?<strong>-nonewline</strong>? <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>read</strong> ?<strong>-nonewline</strong>?</code></p></div>
-<div class="paragraph"><p><code><strong>read</strong> <em>fileId numBytes</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>read</strong> <em>numBytes</em></code></p></div>
-<div class="paragraph"><p><code><strong>read</strong> ?<strong>-pending</strong>? <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>read</strong> ?<strong>-pending</strong>?</code></p></div>
-<div class="paragraph"><p>In the first form, all of the remaining bytes are read from the file
-given by <code><em>fileId</em></code>; they are returned as the result of the command.
-If the <code>-nonewline</code> switch is specified then the last
-character of the file is discarded if it is a newline.</p></div>
-<div class="paragraph"><p>In the second form, the extra argument specifies how many bytes to read;
-exactly this many bytes will be read and returned, unless there are fewer than
-<code><em>numBytes</em></code> bytes left in the file; in this case, all the remaining
-bytes are returned.</p></div>
-<div class="paragraph"><p>The third form is currently only useful with SSL sockets. It reads at least 1 byte
-and then any additional data that is buffered. This allows for use in an event handler.
-e.g.</p></div>
-<div class="listingblock">
-<div class="content">
-<pre><code>    $sock readable {
-        set buf [$sock read -pending]
-    }</code></pre>
-</div></div>
-<div class="paragraph"><p>This is necessary because otherwise pending data may be buffered, but
-the underlying socket will not be marked <em>readable</em>. This featured is not
-currently supported for regular sockets, and so these sockets must be
-set to unbufferred (<code>$sock buffering false</code>) to work in an event loop.</p></div>
-<div class="paragraph"><p><code><em>fileId</em></code> must be <code>stdin</code> or the return value from a previous call
-to <a href="#_open"><strong><code>open</code></strong></a>; it must refer to a file that was opened for reading.</p></div>
+<div class="paragraph"><p><code>*read ?-nonewline? <em>fileId ?length?</em></code></p></div>
+<div class="paragraph"><p>Tcl-compatible alterative version of <code><em>fileId</em> <strong>read ?-nonewline?</strong> <em>?length?</em></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_regexp">regexp</h3>
@@ -6076,7 +6132,7 @@ string otherwise.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_regsub">regsub</h3>
-<div class="paragraph"><p><code><strong>regsub ?-nocase? ?-all? ?-line? ?-start</strong> <em>offset</em>? ?<strong>--</strong>? <em>exp string subSpec ?varName?</em></code></p></div>
+<div class="paragraph"><p><code><strong>regsub ?-nocase? ?-all? ?-line? ?-command? ?-start</strong> <em>offset</em>? ?<strong>--</strong>? <em>exp string subSpec ?varName?</em></code></p></div>
 <div class="paragraph"><p>This command matches the regular expression <code><em>exp</em></code> against
 <code><em>string</em></code> using the rules described in REGULAR EXPRESSIONS
 above.</p></div>
@@ -6139,6 +6195,36 @@ backslashes.</p></div>
     string after any newline in the string in addition to its normal
     function, and the <code>$</code> anchor matches the empty string before any
     newline in the string in addition to its normal function.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-command</strong></code>
+</dt>
+<dd>
+<p>
+    Changes the handling of <code><em>subSpec</em></code> so that it is not treated
+    as a template for a substitution string and the substrings <code><strong>&amp;</strong></code>
+    and <code><strong>\n</strong></code> no longer have special meaning. Instead <code><em>subSpec</em></code> must
+    be a command prefix, that is, a non-empty list. The substring
+    of string that matches <code><em>exp</em></code>, and then each substring that matches
+    each capturing sub-RE within <code><em>exp</em></code>, are appended as additional
+    elements to that list. (The items appended to the list are much
+    like what <a href="#_regexp"><strong><code>regexp</code></strong></a> <code>-inline</code> would return). The completed list is
+    then evaluated as a Tcl command, and the result of that command
+    is the substitution string. Any error or exception from command
+    evaluation becomes an error or exception from the regsub command.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    If <code><strong>-all</strong></code> is not also given, the command callback will be invoked
+    at most once (exactly when the regular expression matches). If
+    <code><strong>-all</strong></code> is given, the command callback will be invoked for each
+    matched location, in sequence. The exact location indices that
+    matched are not made available to the script.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -6221,49 +6307,8 @@ specified for this conversion.</p></div>
 <div class="sect2">
 <h3 id="_seek">seek</h3>
 <div class="paragraph"><p><code><strong>seek</strong> <em>fileId offset ?origin?</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>seek</strong> <em>offset ?origin?</em></code></p></div>
-<div class="paragraph"><p>Change the current access position for <code><em>fileId</em></code>.
-The <code><em>offset</em></code> and <code><em>origin</em></code> arguments specify the position at
-which the next read or write will occur for <code><em>fileId</em></code>.
-<code><em>offset</em></code> must be a number (which may be negative) and <code><em>origin</em></code>
-must be one of the following:</p></div>
-<div class="dlist"><dl>
-<dt class="hdlist1">
-<code><strong>start</strong></code>
-</dt>
-<dd>
-<p>
-    The new access position will be <code><em>offset</em></code> bytes from the start
-    of the file.
-</p>
-</dd>
-<dt class="hdlist1">
-<code><strong>current</strong></code>
-</dt>
-<dd>
-<p>
-    The new access position will be <code><em>offset</em></code> bytes from the current
-    access position; a negative <code><em>offset</em></code> moves the access position
-    backwards in the file.
-</p>
-</dd>
-<dt class="hdlist1">
-<code><strong>end</strong></code>
-</dt>
-<dd>
-<p>
-    The new access position will be <code><em>offset</em></code> bytes from the end of
-    the file.  A negative <code><em>offset</em></code> places the access position before
-    the end-of-file, and a positive <code><em>offset</em></code> places the access position
-    after the end-of-file.
-</p>
-</dd>
-</dl></div>
-<div class="paragraph"><p>The <code><em>origin</em></code> argument defaults to <code>start</code>.</p></div>
-<div class="paragraph"><p><code><em>fileId</em></code> must have been the return value from a previous call to
-<a href="#_open"><strong><code>open</code></strong></a>, or it may be <code>stdin</code>, <code>stdout</code>, or <code>stderr</code> to refer to one
-of the standard I/O channels.</p></div>
-<div class="paragraph"><p>This command returns an empty string.</p></div>
+<div class="paragraph"><p>Tcl-compatible version of <code><em>fileId</em> <strong>seek</strong> <em>offset ?origin?</em></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>seek</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_set">set</h3>
@@ -6460,8 +6505,8 @@ For example,</p></div>
 <div class="sect2">
 <h3 id="_stacktrace">stacktrace</h3>
 <div class="paragraph"><p><code><strong>stacktrace</strong></code></p></div>
-<div class="paragraph"><p>Returns a live stack trace as a list of <code>proc file line proc file line ...</code>.
-Iteratively uses <a href="#_info"><strong><code>info</code></strong></a> <code>frame</code> to create the stack trace. This stack trace is in the
+<div class="paragraph"><p>Returns a live stack trace as a list of <code>proc file line cmd proc file line cmd ...</code>.
+uses the same information as <a href="#_info"><strong><code>info</code></strong></a> <code>frame</code> to create the stack trace. This stack trace is in the
 same form as produced by <a href="#_catch"><strong><code>catch</code></strong></a> and <a href="#_info"><strong><code>info</code></strong></a> <code>stacktrace</code></p></div>
 <div class="paragraph"><p>See also <a href="#_stackdump"><strong><code>stackdump</code></strong></a>.</p></div>
 </div>
@@ -6961,7 +7006,7 @@ is performed: open and close brackets are treated as ordinary
 characters with no special interpretation.</p></div>
 <div class="paragraph"><p><strong>Note</strong>: when it performs its substitutions, subst does not give any
 special treatment to double quotes or curly braces. For example,
-the following script returns <code>xyz {44}</code>, not <code>xyz \{$a}</code>.</p></div>
+the following script returns <code>xyz {44}</code>, not <code>xyz {$a}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    set a 44
@@ -7102,12 +7147,8 @@ the current call frame. This is similar to <em>exec</em> in Bourne Shell.</p></d
 <div class="sect2">
 <h3 id="_tell">tell</h3>
 <div class="paragraph"><p><code><strong>tell</strong> <em>fileId</em></code></p></div>
-<div class="paragraph"><p><code><em>fileId</em> <strong>tell</strong></code></p></div>
-<div class="paragraph"><p>Returns a decimal string giving the current access position in
-<code><em>fileId</em></code>.</p></div>
-<div class="paragraph"><p><code><em>fileId</em></code> must have been the return value from a previous call to
-<a href="#_open"><strong><code>open</code></strong></a>, or it may be <code>stdin</code>, <code>stdout</code>, or <code>stderr</code> to refer to one
-of the standard I/O channels.</p></div>
+<div class="paragraph"><p>Tcl-compatible version of <code><em>fileId</em> <strong>tell</strong></code></p></div>
+<div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>tell</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_throw">throw</h3>
@@ -7448,20 +7489,50 @@ what options were selected when Jim Tcl was built.</p></div>
 <div class="sect1">
 <h2 id="_ansi_i_o_aio_and_eventloop_api">ANSI I/O (aio) and EVENTLOOP API</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Jim provides an alternative object-based API for I/O.</p></div>
-<div class="paragraph"><p>See <a href="#_open"><strong><code>open</code></strong></a> and <a href="#_socket"><strong><code>socket</code></strong></a> for commands which return an I/O handle.</p></div>
+<div class="paragraph"><p>In addition to the traditional Tcl I/O commands (<a href="#_gets"><strong><code>gets</code></strong></a>, <a href="#_read"><strong><code>read</code></strong></a>, <a href="#_puts"><strong><code>puts</code></strong></a>, <a href="#_close"><strong><code>close</code></strong></a>, <a href="#_seek"><strong><code>seek</code></strong></a>, <a href="#_tell"><strong><code>tell</code></strong></a>),
+Jim provides an alternative object-based API for I/O. Commands that create a channel, <a href="#_open"><strong><code>open</code></strong></a> and <a href="#_socket"><strong><code>socket</code></strong></a>,
+return a handle to an I/O channel that is used to control that channel.</p></div>
+<div class="paragraph"><p>For example, the traditional Tcl usage would be:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    set f [open file.txt]
+    while {[gets $f buf] &gt;= 0} {
+        puts stderr $buf
+    }
+    close $f</code></pre>
+</div></div>
+<div class="paragraph"><p>While the Jim usage would be:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    set f [open file.txt]
+    while {[$f gets buf] &gt;= 0} {
+        stderr puts $buf
+    }
+    $f close</code></pre>
+</div></div>
+<div class="paragraph"><p>Thus channels are commands that support the various subcommands. They can be renamed handled
+like any other command. In additional to file I/O and stream (TCP) sockets, Jim supports many
+kinds of socket streams including UDP, Unix domain sockets, psuedo-tty pairs, pipes and others.
+(See <a href="#_socket"><strong><code>socket</code></strong></a> for more detail). The TLS (SSL) protocol may also be seamlessly layered over a channel
+with the <code>ssl</code> command. In addition Jim I/O supports both blocking and non-blocking modes,
+fully integrates with the eventloop, supports serial ports and tty control.</p></div>
+<div class="paragraph"><p>Note that while most channels are stream channels, some channels (socket types with <em>dgram</em>) are
+datagram channels. For those channels, <a href="#_aio"><strong><code>aio</code></strong></a> <code>recv</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>sendto</code> is generally preferable
+over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code>.</p></div>
 <div class="sect2">
 <h3 id="_aio">aio</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<code>$handle <strong>accept</strong> ?addrvar?</code>
+<code>$handle <strong>accept ?-noclose?</strong> ?addrvar?</code>
 </dt>
 <dd>
 <p>
-    Server socket only: Accept a connection and return stream.
-    If <code><em>addrvar</em></code> is specified, the address of the connected client is stored
-    in the named variable in the form <em>addr:port</em> for IP sockets or <em>path</em> for Unix domain sockets.
-    See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
+    Server socket only: Accept a connection and return a stream channel.
+    If <code><em>addrvar</em></code> is specified, the address of the connected client is
+    stored in the named variable in the form <em>addr:port</em> for IP sockets
+    or <em>path</em> for Unix domain sockets.  See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
+    If <code><em>-noclose</em></code> is given, the returned handle is not automatically
+    closed for child proceses.  See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7469,11 +7540,19 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Sets the buffering mode of the stream.
+    Sets the output buffering mode of the stream channel. <code><em>none</em></code> means
+    that puts immediately writes output.  <code><em>line</em></code> means output (including
+    previously buffered output) is written if a newline is to be written.
+    <code><em>full</em></code> means that data is written when the output buffer is full
+    (currently approx 64KB). Note that line buffering will also write
+    once the output buffer limit is reached, even if there is no newline.
+    Channels usually begin in full buffering mode, unless they identify
+    as a tty channel, in which case line buffering is used, and <code>stderr</code>
+    begins with no buffering. See also <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code>.
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>close ?r(ead)|w(rite)|-nodelete?</strong></code>
+<code>$handle <strong>close ?r(ead)|w(rite)? ?-nodelete?</strong></code>
 </dt>
 <dd>
 <p>
@@ -7481,16 +7560,17 @@ what options were selected when Jim Tcl was built.</p></div>
     The <code><em>read</em></code> and <code><em>write</em></code> arguments perform a "half-close" on a socket. See the <em>shutdown(2)</em> man page.
     The <code><em>-nodelete</em></code> option is applicable only for Unix domain sockets. It closes the socket
     but does not delete the bound path (e.g. after <a href="#cmd_1"><strong><code>os.fork</code></strong></a>).
+    After a full close, the channel handle is no longer valid.
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>copyto</strong> <em>tofd ?size?</em></code>
+<code>$handle <strong>copyto</strong> <em>$tohandle ?size?</em></code>
 </dt>
 <dd>
 <p>
-    Copy bytes to the file descriptor <code><em>tofd</em></code>. If <code><em>size</em></code> is specified, at most
+    Copy bytes to channel <code><em>$tohandle</em></code>. If <code><em>size</em></code> is specified, at most
     that many bytes will be copied. Otherwise copying continues until the end
-    of the input file. Returns the number of bytes actually copied.
+    of the input channel. Returns the number of bytes actually copied.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7498,7 +7578,8 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Returns 1 if stream is at eof
+    Returns 1 if an end-of-file condition has occurred on the channel. Note that
+    this condition may only be checked after reading from the channel.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7507,8 +7588,9 @@ what options were selected when Jim Tcl was built.</p></div>
 <dd>
 <p>
     Returns the original filename associated with the handle.
-    Handles returned by <a href="#_socket"><strong><code>socket</code></strong></a> provide different information.
-        See <a href="#_socket"><strong><code>socket</code></strong></a> for each socket type.
+    Handles returned by <a href="#_socket"><strong><code>socket</code></strong></a> provide different information such as the peer address
+    or a generic name if no useful filename can be provided.
+    See <a href="#_socket"><strong><code>socket</code></strong></a> for each socket type.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7516,15 +7598,42 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Flush the stream
+    Flushes any output that has been buffered for the channel.
+    In blocking mode, command does not return until all data has been written.
+    In non-blocking mode, the behaviour depends on whether an <a href="#_aio"><strong><code>aio</code></strong></a> <code>writable</code> handler
+    has been set. If it has, and not all data could be written and error will be returned
+    with the message "send buffer full". Otherwise an "autoflush" eventloop handler is installed
+    to flush the remaining data. As long as the eventloop runs (<a href="#cmd_2"><strong><code>vwait</code></strong></a>, <a href="#cmd_2"><strong><code>update</code></strong></a>), the write
+    data will be automatically flushed.
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>gets</strong> <em>?var?</em></code>
+<code>$handle <strong>gets</strong> <em>?varName?</em></code>
 </dt>
 <dd>
 <p>
-    Read one line and return it or store it in the var
+    Read one line from the cannel and return it or store it in the
+    var A terminating newline character is discarded.  If <code><em>varName</em></code>
+    is specified, then the line is placed in the variable by that name
+    and the return value is a count of the number of characters read
+    (not including the newline).  If the end of the file is reached
+    before reading any characters then -1 is returned and <code><em>varName</em></code>
+    is set to an empty string.  If <code><em>varName</em></code> is not specified then
+    the return value will be the line (minus the newline character) or
+    an empty string if the end of the file is reached before reading
+    any characters.  An empty string will also be returned if a line
+    contains no characters except the newline, so <a href="#_eof"><strong><code>eof</code></strong></a> may have to be
+    used to determine what really happened.  If the last character in
+    the file is not a newline character, then <a href="#_gets"><strong><code>gets</code></strong></a> behaves as if there
+    were an additional newline character at the end of the file.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>getfd</strong></code>
+</dt>
+<dd>
+<p>
+    Returns the underlying file descriptor. On Unix platforms this is a small integer.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7532,7 +7641,7 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Returns 1 if the stream is a tty device.
+    Returns 1 if the channel is a tty device.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7540,13 +7649,12 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Apply a POSIX lock to the open file associated with the handle using
-    <em>fcntl(F_SETLK)</em>, or <em>fcntl(F_SETLKW)</em> to wait for the lock to be available if <code><em>-wait</em></code>
-    is specified.
-    The handle must be open for write access.
-    Returns 1 if the lock was successfully obtained, 0 otherwise.
-    An error occurs if the handle is not suitable for locking (e.g.
-    if it is not open for write)
+    Apply a POSIX lock to the open file associated with the channel using
+    <em>fcntl(F_SETLK)</em>, or <em>fcntl(F_SETLKW)</em> to wait for the lock to be
+    available if <code><em>-wait</em></code> is specified.  The channel must be open for
+    write access.  Returns 1 if the lock was successfully obtained,
+    0 otherwise.  An error occurs if the channel is not suitable for
+    locking (e.g.  if it is not open for write)
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7554,9 +7662,9 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Set O_NDELAY (if arg). Returns current/new setting.
-    Note that in general ANSI I/O interacts badly with non-blocking I/O.
-    Use with care.
+    With no argument, returns the non-blocking status of the channel
+    (1 means non-blocking).  With an arguments, sets the non-blocking
+    status of the channel.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7568,11 +7676,14 @@ what options were selected when Jim Tcl was built.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>puts ?-nonewline?</strong> <em>str</em></code>
+<code>$handle <strong>puts ?-nonewline?</strong> <em>string</em></code>
 </dt>
 <dd>
 <p>
-    Write the string, with newline unless -nonewline
+    Writes the characters given by <code><em>string</em></code> to the channel given
+    With <code><em>-nonewline</em></code>, the string is written as-is to the channel.
+    Otherwise a newline character is written after the string.
+    See <a href="#_aio"><strong><code>aio</code></strong></a> <code>buffering</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code> for how output is buffered.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7580,7 +7691,15 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Read and return bytes from the stream. To eof if no len. See <a href="#_read"><strong><code>read</code></strong></a>.
+    Read and return bytes from the channel.
+    If <em>len</em> is not given, reads until end-of-file.
+    reading from non-blocking channels.
+    For backward compatibility, <code><em>-pending</em></code> is accepted, but ignored.
+    If the <code>-nonewline</code> switch is specified then the last
+    character (at end-of-file) is discarded if it is a newline.
+    Note that read on a non-blocking channel may read less than the
+    expected number of bytes (including zero). Use <a href="#_aio"><strong><code>aio</code></strong></a> <code>eof</code> to determine
+    if the end-of-file has been reached.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7588,7 +7707,7 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Receives a message from the handle via recvfrom(2) and returns it.
+    Receives a message from the datagram channel via recvfrom(2) and returns it.
     At most <code><em>maxlen</em></code> bytes are read. If <code><em>addrvar</em></code> is specified, the sending address
     of the message is stored in the named variable in the form <em>addr:port</em> for IP sockets
     or <em>path</em> for Unix domain sockets. See <a href="#_socket"><strong><code>socket</code></strong></a> for details.
@@ -7599,15 +7718,55 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Seeks in the stream (default <em>current</em>)
+    Change the current access position for the channel. This is only applicable
+    to regular files, not sockets.
+    The <code><em>offset</em></code> and <code><em>origin</em></code> arguments specify the position at
+    which the next read or write will occur for <code><em>fileId</em></code>.
+    <code><em>offset</em></code> must be a number (which may be negative) and <code><em>origin</em></code>
+    must be one of the following:
 </p>
 </dd>
+<dt class="hdlist1">
+<code><strong>start</strong></code>
+</dt>
+<dd>
+<p>
+    The new access position will be <code><em>offset</em></code> bytes from the start
+    of the file.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>current</strong></code>
+</dt>
+<dd>
+<p>
+    The new access position will be <code><em>offset</em></code> bytes from the current
+    access position; a negative <code><em>offset</em></code> moves the access position
+    backwards in the file.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>end</strong></code>
+</dt>
+<dd>
+<p>
+    The new access position will be <code><em>offset</em></code> bytes from the end of
+    the file.  A negative <code><em>offset</em></code> places the access position before
+    the end-of-file, and a positive <code><em>offset</em></code> places the access position
+    after the end-of-file.
+</p>
+</dd>
+</dl></div>
+<div class="paragraph"><p>The <code><em>origin</em></code> argument defaults to <code>start</code>.</p></div>
+<div class="paragraph"><p>This command returns an empty string.</p></div>
+<div class="dlist"><dl>
 <dt class="hdlist1">
 <code>$handle <strong>sendto</strong> <em>str ?address</em></code>
 </dt>
 <dd>
 <p>
-    Sends the string, <code><em>str</em></code>, to the given address (host:port or path) via the socket using <em>sendto(2)</em>.
+    Sends the string, <code><em>str</em></code>, to the given address (host:port or path) via datagram socket channel
+    using <em>sendto(2)</em>.
     This is intended for udp/dgram sockets and may give an error or behave in unintended
     ways for other handle types.
     Returns the number of bytes written.
@@ -7618,7 +7777,7 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Returns the bound address or path of the socket. See <em>getsockname(2)</em>.
+    Returns the bound address or path of the socket channel. See <em>getsockname(2)</em>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7626,7 +7785,7 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Implements the same functionality as <a href="#_file"><strong><code>file</code></strong></a> <code>stat</code> for a filehandle.
+    Implements the same functionality as <a href="#_file"><strong><code>file</code></strong></a> <code>stat</code> for a file channel.
     Only available on platforms that support <em>fstat(2)</em> or equivalent.
 </p>
 </dd>
@@ -7635,11 +7794,12 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    With no arguments, returns a dictionary of socket options currently set for the handle
-    (will be empty for a non-socket). With <code><em>name</em></code> and <code><em>value</em></code>, sets the socket option
-    to the given value. Currently supports the following boolean socket options:
-    <code>broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay</code>, and the following
-    integer socket options: <code>sndbuf, rcvbuf</code>
+    With no arguments, returns a dictionary of socket options currently
+    set for the socket channel (will be empty for a non-socket). With
+    <code><em>name</em></code> and <code><em>value</em></code>, sets the socket option to the given
+    value. Currently supports the following boolean socket options:
+    <code>broadcast, debug, keepalive, nosigpipe, oobinline, tcp_nodelay</code>,
+    and the following integer socket options: <code>sndbuf, rcvbuf</code>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7647,8 +7807,11 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Flush the stream, then <em>fsync(2)</em> to commit any changes to storage.
+    Flushes the channel, then calls <em>fsync(2)</em> to commit any changes to storage.
     Only available on platforms that support <em>fsync(2)</em>.
+    If the flush fails (perhaps because the channel is non-blocking), an error
+    will be returned instead. Although this is designed for normal files and
+    those should be used in blocking mode.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7656,7 +7819,18 @@ what options were selected when Jim Tcl was built.</p></div>
 </dt>
 <dd>
 <p>
-    Returns the current seek position
+    Returns the current seek position or -1 if the channel is not seekable.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>timeout</strong> <em>?ms?</em></code>
+</dt>
+<dd>
+<p>
+    With no argument, returns the current timeout of the channel, in milliseconds.
+    If an argument is given, it is set as the timeout of the channel, in milliseconds.
+    See <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code> for command that use the timeout.
+    Note that the timeout is only used if the channel is in blocking mode.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7665,7 +7839,7 @@ what options were selected when Jim Tcl was built.</p></div>
 <dd>
 <p>
     If no arguments are given, returns a dictionary containing the tty settings for the stream.
-    If arguments are given, they must either be a dictionary, or <code>setting value ...</code>
+    If arguments are given, they must either be a dictionary, or <code>setting value ...</code>.
     Abbreviations are supported for both settings and values, so the following is acceptable:
     <code>$f tty parity e input c out raw</code>.
     Only available on platforms that support <em>termios(3)</em>. Supported settings are:
@@ -7753,6 +7927,63 @@ what options were selected when Jim Tcl was built.</p></div>
         Timeout for noncanonical read (units of 0.1 seconds)
 </p>
 </dd>
+<dt class="hdlist1">
+<code><strong>vstart</strong> <em>char</em></code>
+</dt>
+<dd>
+<p>
+        Start character for xonoff, usually 0x11 (^Q)
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>vstop</strong> <em>char</em></code>
+</dt>
+<dd>
+<p>
+        Stop character for xonoff, usually 0x13 (^S)
+</p>
+</dd>
+</dl></div>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>ttycontrol</strong> ?settings?</code>
+</dt>
+<dd>
+<p>
+    If no arguments are given, returns a dictionary containing the modem control signals
+    from the stream (must be a serial-type device). e.g. <code>{rts 1 dtr 1 dcd 0 dsr 0 ring 0 cts 0}</code>.
+    Note that <code>rts</code> and <code>dtr</code> are controlled by the local system while the other signals reflect
+    the remote system.
+    If arguments are given, they must either be a dictionary, or <code>setting value ...</code>.
+    Abbreviations are supported for both settings and values.
+    Supported settings are:
+</p>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>rts 0|1</strong></code>
+</dt>
+<dd>
+<p>
+        Set the RTS (Request To Send) signal
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dtr 0|1</strong></code>
+</dt>
+<dd>
+<p>
+        Set the DTR (Data Terminal Ready) signal
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>break</strong> <em>duration</em></code>
+</dt>
+<dd>
+<p>
+        Generate a break condition. <code>duration</code> is generally ignored but may be used
+        in a platform-dependent manner.
+</p>
+</dd>
 </dl></div>
 </dd>
 <dt class="hdlist1">
@@ -7792,6 +8023,26 @@ what options were selected when Jim Tcl was built.</p></div>
 </p>
 </dd>
 </dl></div>
+<div class="paragraph"><p><strong>Buffering, non-blocking and timeouts</strong></p></div>
+<div class="paragraph"><p>Channels normally operate in blocking mode. This means that reads (gets,
+read, copyto) block until data is received or end-of-file is reached,
+or an error occurs. Similarly, writes (puts, copyto) block if the channel
+is not current writable.</p></div>
+<div class="paragraph"><p>It is possible to set a timeout for blocking reads with <a href="#_aio"><strong><code>aio</code></strong></a> <code>timeout</code>,
+generally useful on stream socket channels.  If a timeout is specified
+for a channel (the default is 0/indefinite), a blocking read will return
+with no data if the timeout expires without reading any data.</p></div>
+<div class="paragraph"><p>For some applications, and especially when using the eventloop, blocking
+I/O and timeouts are not appropriate. Instead we wish to read what is
+available, and write what is possible in the <code>readable</code> and <code>writable</code>
+scripts and then return until the next event. This can be achived by
+setting a channel non-blocking mode with <a href="#_aio"><strong><code>aio</code></strong></a> <code>ndelay</code>. In this case, <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code>, <a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code>
+and <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code> will return early if they would otherwise block, performing
+us much work as posssible. For example, <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> may return less data than requested
+and <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code> may write less data than requested (although see <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code> about
+additional write data can be automatically flushed). If <a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code> does not receive an
+entire line, it returns -1. In all these cases <a href="#_aio"><strong><code>aio</code></strong></a> <code>eof</code> can be used to determine
+if end-of-file was reached.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_fconfigure">fconfigure</h3>
@@ -7958,109 +8209,109 @@ to prevent infinite errors. (A time event handler is always removed after execut
 </div>
 <div class="sect2">
 <h3 id="_socket">socket</h3>
-<div class="paragraph"><p>Various socket types may be created.</p></div>
+<div class="paragraph"><p>Various socket types may be created as follows.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<code><strong>socket unix</strong> <em>path</em></code>
+<code><strong>socket ?-noclose? unix</strong> <em>path</em></code>
 </dt>
 <dd>
 <p>
     A unix domain socket client connected to <em>path</em>
-        <em>filename</em> returns <code><em>path</em></code>
+    <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket unix.server</strong> <em>path</em></code>
+<code><strong>socket ?-noclose? unix.server</strong> <em>path</em></code>
 </dt>
 <dd>
 <p>
     A unix domain socket server listening on <em>path</em>
-        <em>filename</em> returns <code><em>path</em></code>
+    <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket unix.dgram</strong> <em>?path?</em></code>
+<code><strong>socket ?-noclose? unix.dgram</strong> <em>?path?</em></code>
 </dt>
 <dd>
 <p>
     A unix domain socket datagram client, optionally connected to <em>path</em>
-        <em>filename</em> returns <code><em>path</em></code> if provided or "dgram" if not
+    <em>filename</em> returns <code><em>path</em></code> if provided or "dgram" if not
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket unix.dgram.server</strong> <em>path</em></code>
+<code><strong>socket ?-noclose? unix.dgram.server</strong> <em>path</em></code>
 </dt>
 <dd>
 <p>
     A unix domain socket datagram server server listening on <em>path</em>
-        <em>filename</em> returns <code><em>path</em></code>
+    <em>filename</em> returns <code><em>path</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-async? ?-ipv6? stream</strong> <em>addr:port</em></code>
+<code><strong>socket ?-noclose? ?-async? ?-ipv6? stream</strong> <em>addr:port</em></code>
 </dt>
 <dd>
 <p>
     A TCP socket client. (See the forms for <code><em>addr</em></code> below)
-        <em>filename</em> returns <code><em>addr:port</em></code>
+    <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-async? ?-ipv6? stream.server</strong> <em>?addr:?port</em></code>
+<code><strong>socket ?-noclose? ?-async? ?-ipv6? stream.server</strong> <em>?addr:?port</em></code>
 </dt>
 <dd>
 <p>
     A TCP socket server (<code><em>addr</em></code> defaults to <code>0.0.0.0</code> for IPv4 or <code>[::]</code> for IPv6).
-        <em>filename</em> returns <code><em>addr:port</em></code>
+    <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-async? ?-ipv6? dgram</strong> ?<em>addr:port</em>?</code>
+<code><strong>socket ?-noclose? ?-async? ?-ipv6? dgram</strong> ?<em>addr:port</em>?</code>
 </dt>
 <dd>
 <p>
     A UDP socket client. If the address is not specified,
     the client socket will be unbound and <em>sendto</em> must be used
     to indicated the destination.
-        <em>filename</em> returns <code><em>addr:port</em></code> if provided or "dgram" if not
+    <em>filename</em> returns <code><em>addr:port</em></code> if provided or "dgram" if not
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket ?-async? ?-ipv6? dgram.server</strong> <em>addr:port</em></code>
+<code><strong>socket ?-noclose? ?-async? ?-ipv6? dgram.server</strong> <em>addr:port</em></code>
 </dt>
 <dd>
 <p>
     A UDP socket server.
-        <em>filename</em> returns <code><em>addr:port</em></code>
+    <em>filename</em> returns <code><em>addr:port</em></code>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket pipe</strong></code>
+<code><strong>socket ?-noclose? pipe</strong></code>
 </dt>
 <dd>
 <p>
     A synonym for <a href="#_pipe"><strong><code>pipe</code></strong></a>
-        <em>filename</em> returns "pipe"
+    <em>filename</em> returns "pipe"
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket pair</strong></code>
+<code><strong>socket ?-noclose? pair</strong></code>
 </dt>
 <dd>
 <p>
     A socketpair (see socketpair(2)). Like <a href="#_pipe"><strong><code>pipe</code></strong></a>, this command returns
     a list of two channels: {s1 s2}. These channels are both readable and writable.
-        <em>filename</em> returns "pair"
+    <em>filename</em> returns "pair"
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>socket pty</strong></code>
+<code><strong>socket ?-noclose? pty</strong></code>
 </dt>
 <dd>
 <p>
     A pseudo-tty pair (see openpty(3)). Like <a href="#_pipe"><strong><code>pipe</code></strong></a>, this command returns
     a list of two channels: {primary replica}. These channels are both readable and writable.
-        <em>filename</em> for both handles returns the replica filename.
+    <em>filename</em> for both handles returns the replica filename.
 </p>
 </dd>
 </dl></div>
@@ -8148,6 +8399,14 @@ will succeed if connected or fail if connect failed. Typical usage is as follows
     }
 
     vwait done</code></pre>
+</div></div>
+<div class="paragraph"><p>If <em><code>-noclose</code></em> is specified, the socket is not automatically closed for child proceses. e.g.</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    lassign [socket -noclose pipe] r w
+    # This file descriptor will be open in the child process
+    # with the file descriptors passed on the command line
+    exec subcommand [$r getfd] [$w getfd]</code></pre>
 </div></div>
 </div>
 <div class="sect2">
@@ -8532,6 +8791,50 @@ be replaced with a custom command instead if desired.</p></div>
 </dl></div>
 </div>
 <div class="sect2">
+<h3 id="_tcl_stdhint">tcl::stdhint</h3>
+<div class="paragraph"><p>Scriptable hinting is supported in the interactive shell, <em>jimsh</em>, through
+the <a href="#_tcl_stdhint"><strong><code>tcl::stdhint</code></strong></a> callback. A simple implementation is provided, however this may
+be replaced with a custom command instead if desired.</p></div>
+<div class="paragraph"><p>In the interactive shell, press &lt;TAB&gt; to activate command line completion.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>tcl::stdhint</strong> <em>commandline</em></code>
+</dt>
+<dd>
+<p>
+    This command is called with the current command line. It should return a list of <code><strong>{hint ?ANSI cols?}</strong></code> or ""
+    if no hint is available.
+    For example, if passed <code><strong>"dict get"</strong></code> it could return <code><strong>{"dict get dictionary ?key &#8230;?" 36 1}</strong></code> to show the given hint
+    in light cyan.
+</p>
+</dd>
+</dl></div>
+<div class="paragraph"><p>The built-in <a href="#_tcl_stdhint"><strong><code>tcl::stdhint</code></strong></a> callback uses <em>tcl::stdhint_col</em> for the colour. <em>tcl::stdhint_cols</em> can be used
+to easily change this colour, e.g. in ~/.jimrc.</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><code>    . parray tcl::stdhint_cols
+    tcl::stdhint_cols(black)   = 30
+    tcl::stdhint_cols(blue)    = 34
+    tcl::stdhint_cols(cyan)    = 36
+    tcl::stdhint_cols(gray)    = 30 1
+    tcl::stdhint_cols(green)   = 32
+    tcl::stdhint_cols(grey)    = 30 1
+    tcl::stdhint_cols(lblue)   = 34 1
+    tcl::stdhint_cols(lcyan)   = 36 1
+    tcl::stdhint_cols(lgreen)  = 32 1
+    tcl::stdhint_cols(lpurple) = 35 1
+    tcl::stdhint_cols(lred)    = 31 1
+    tcl::stdhint_cols(lyellow) = 33 1
+    tcl::stdhint_cols(none)    = 0
+    tcl::stdhint_cols(normal)  = 37
+    tcl::stdhint_cols(purple)  = 35
+    tcl::stdhint_cols(red)     = 31
+    tcl::stdhint_cols(white)   = 37 1
+    tcl::stdhint_cols(yellow)  = 33</code></pre>
+</div></div>
+</div>
+<div class="sect2">
 <h3 id="_history">history</h3>
 <div class="paragraph"><p>The optional history extension provides script access to the command line editing
 and history support available in <em>jimsh</em>. See <em>examples/jtclsh.tcl</em> for an example.
@@ -8564,6 +8867,15 @@ the remaining subcommands do nothing.</p></div>
 <p>
     Sets an autocompletion command (see <a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a>) that is active during <a href="#_history"><strong><code>history</code></strong></a> <code>getline</code>.
     If the command is empty, autocompletion is disabled.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>history hints</strong> <em>command</em></code>
+</dt>
+<dd>
+<p>
+    Sets a hinting command (see <a href="#_tcl_stdhint"><strong><code>tcl::stdhint</code></strong></a>) that is active during <a href="#_history"><strong><code>history</code></strong></a> <code>getline</code>.
+    If the command is empty, hinting is disabled.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -8971,14 +9283,16 @@ by the Tcl library.</p></div>
 </dl></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    tcl_platform(byteOrder)     = littleEndian
+<pre><code>    tcl_platform(bootstrap)     = 0
+    tcl_platform(byteOrder)     = littleEndian
     tcl_platform(engine)        = Jim
-    tcl_platform(os)            = Darwin
+    tcl_platform(os)            = darwin
+    tcl_platform(pathSeparator) = :
     tcl_platform(platform)      = unix
     tcl_platform(pointerSize)   = 8
+    tcl_platform(stackFormat)   = 4
     tcl_platform(threaded)      = 0
-    tcl_platform(wordSize)      = 8
-    tcl_platform(pathSeparator) = :</code></pre>
+    tcl_platform(wordSize)      = 8</code></pre>
 </div></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
@@ -9014,6 +9328,15 @@ by the Tcl library.</p></div>
 <dd>
 <p>
     The value of argv[0] when jimsh was invoked.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>jim::lineedit</strong></code>
+</dt>
+<dd>
+<p>
+    This variables is set to 1 if jimsh was configured with line editing support,
+    or 0 if not.
 </p>
 </dd>
 </dl></div>
