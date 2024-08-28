@@ -3,7 +3,7 @@ Jim Tcl(n)
 
 NAME
 ----
-Jim Tcl v0.83 - reference manual for the Jim Tcl scripting language
+Jim Tcl v0.83+ - reference manual for the Jim Tcl scripting language
 
 SYNOPSIS
 --------
@@ -52,8 +52,12 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 RECENT CHANGES
 --------------
-Changes since 0.82
+Changes since 0.83
 ~~~~~~~~~~~~~~~~~~
+None
+
+Changes between 0.82 and 0.83
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Multi-level `break` and `continue` are now supported
 2. `info frame` now only returns 'proc' levels
 3. `stacktrace` is now a builtin command
