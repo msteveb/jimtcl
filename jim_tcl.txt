@@ -54,7 +54,7 @@ RECENT CHANGES
 --------------
 Changes since 0.83
 ~~~~~~~~~~~~~~~~~~
-None
+1. `aio` - support for configurable read and write buffering
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4982,16 +4982,19 @@ aio
     If +'-noclose'+ is given, the returned handle is not automatically
     closed for child proceses.  See `socket` for details.
 
-+$handle *buffering none|line|full*+::
++$handle *buffering none|line|full* ?size?+::
     Sets the output buffering mode of the stream channel. +'none'+ means
     that puts immediately writes output.  +'line'+ means output (including
     previously buffered output) is written if a newline is to be written.
     +'full'+ means that data is written when the output buffer is full
-    (currently approx 64KB). Note that line buffering will also write
+    (default 64KB). Size may be specified in full mode.
+    Note that line buffering will also write
     once the output buffer limit is reached, even if there is no newline.
     Channels usually begin in full buffering mode, unless they identify
     as a tty channel, in which case line buffering is used, and `stderr`
-    begins with no buffering. See also `aio puts` and `aio flush`.
+    begins with no buffering. Returns the current buffering mode (including
+    size in full mode - e.g. +'line'+ or +'full 65536+'.
+    See also `aio puts` and `aio flush`.
 
 +$handle *close ?r(ead)|w(rite)? ?-nodelete?*+::
     Closes the stream.
@@ -5078,6 +5081,12 @@ aio
     Note that read on a non-blocking channel may read less than the
     expected number of bytes (including zero). Use `aio eof` to determine
     if the end-of-file has been reached.
+
++$handle *readsize* ?size?'+::
+    Sets or returns the current size of the read buffer used
+    for read, gets and copyto.
+    Defaults to 256, but can be increased to improve performance
+    for large reads.
 
 +$handle *recvfrom* 'maxlen ?addrvar?'+::
     Receives a message from the datagram channel via recvfrom(2) and returns it.
