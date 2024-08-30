@@ -1623,6 +1623,7 @@ static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+    Jim_Obj *resultObj;
 
     static const char * const options[] = {
         "none",
@@ -1631,14 +1632,53 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         NULL
     };
 
-    if (Jim_GetEnum(interp, argv[0], options, &af->wbuft, NULL, JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
+    if (argc) {
+        if (Jim_GetEnum(interp, argv[0], options, &af->wbuft, NULL, JIM_ERRMSG) != JIM_OK) {
+            return JIM_ERR;
+        }
+
+        if (af->wbuft == WBUF_OPT_FULL && argc == 2) {
+            long l;
+            if (Jim_GetLong(interp, argv[1], &l) != JIM_OK || l <= 0) {
+                return JIM_ERR;
+            }
+            af->wbuf_limit = l;
+        }
+
+        if (af->wbuft == WBUF_OPT_NONE) {
+            if (aio_flush(interp, af) != JIM_OK) {
+                return JIM_ERR;
+            }
+        }
+        /* don't bother flushing when switching from full to line */
     }
 
-    if (af->wbuft == WBUF_OPT_NONE) {
-        return aio_flush(interp, af);
+    resultObj = Jim_NewListObj(interp, NULL, 0);
+    Jim_ListAppendElement(interp, resultObj, Jim_NewStringObj(interp, options[af->wbuft], -1));
+    if (af->wbuft == WBUF_OPT_FULL) {
+        Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, af->wbuf_limit));
     }
-    /* don't bother flushing when switching from full to line */
+    Jim_SetResult(interp, resultObj);
+
+    return JIM_OK;
+}
+
+static int aio_cmd_readsize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    AioFile *af = Jim_CmdPrivData(interp);
+
+    if (argc) {
+        long l;
+        if (Jim_GetLong(interp, argv[0], &l) != JIM_OK || l <= 0) {
+            return JIM_ERR;
+        }
+        af->rbuf_len = l;
+        if (af->rbuf) {
+            af->rbuf = Jim_Realloc(af->rbuf, af->rbuf_len);
+        }
+    }
+    Jim_SetResultInt(interp, af->rbuf_len);
+
     return JIM_OK;
 }
 
@@ -2133,11 +2173,18 @@ static const jim_subcmd_type aio_command_table[] = {
     },
 #endif
     {   "buffering",
-        "none|line|full",
+        "?none|line|full? ?size?",
         aio_cmd_buffering,
+        0,
+        2,
+        /* Description: Sets or returns write buffering */
+    },
+    {   "readsize",
+        "?size?",
+        aio_cmd_readsize,
+        0,
         1,
-        1,
-        /* Description: Sets buffering */
+        /* Description: Sets or returns read size */
     },
 #if defined(jim_ext_file) && defined(Jim_FileStat)
     {   "stat",
