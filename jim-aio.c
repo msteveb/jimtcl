@@ -1170,6 +1170,15 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Keep it simple and always go via the writebuf instead of trying to optimise
      * the case that we can write immediately
      */
+#ifdef JIM_MAINTAINER
+    if (Jim_IsShared(af->writebuf)) {
+        /* This should generally never happen since this object isn't accessible,
+         * but it is possible with 'debug objects' */
+        Jim_DecrRefCount(interp, af->writebuf);
+        af->writebuf = Jim_DuplicateObj(interp, af->writebuf);
+        Jim_IncrRefCount(af->writebuf);
+    }
+#endif
     Jim_AppendObj(interp, af->writebuf, strObj);
     if (nl) {
         Jim_AppendString(interp, af->writebuf, "\n", 1);

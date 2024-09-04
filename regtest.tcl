@@ -399,6 +399,13 @@ set json {
 catch {json::decode $json}
 puts "TEST 56 PASSED"
 
+if {[exists -command debug]} {
+    set f [open /dev/null w]
+    $f puts [debug objects]
+    $f close
+}
+puts "TEST 57 PASSED"
+
 # TAKE THE FOLLOWING puts AS LAST LINE
 
 puts "--- ALL TESTS PASSED ---"
