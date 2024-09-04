@@ -12602,7 +12602,7 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
 {
     int retval;
     jim_wide i;
-    jim_wide limit;
+    jim_wide limit = 0;
     jim_wide incr = 1;
     Jim_Obj *bodyObjPtr;
 
@@ -16272,11 +16272,12 @@ char **Jim_GetEnviron(void)
 {
 #if defined(HAVE__NSGETENVIRON)
     return *_NSGetEnviron();
+#elif defined(_environ)
+    return _environ;
 #else
     #if !defined(NO_ENVIRON_EXTERN)
     extern char **environ;
     #endif
-
     return environ;
 #endif
 }
@@ -16285,6 +16286,8 @@ void Jim_SetEnviron(char **env)
 {
 #if defined(HAVE__NSGETENVIRON)
     *_NSGetEnviron() = env;
+#elif defined(_environ)
+    _environ = env;
 #else
     #if !defined(NO_ENVIRON_EXTERN)
     extern char **environ;
