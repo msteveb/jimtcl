@@ -2,7 +2,7 @@ name: Makefile CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "master-next" ]
   pull_request:
     branches: [ "master" ]
 
