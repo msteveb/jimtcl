@@ -185,7 +185,6 @@ if {[catch {info version}]} {
 		incr skip
 		for {set level $skip} {$level < [info frame] - $last} {incr level} {
 			set frame [info frame -$level]
-			puts $frame
 			if {[dict get $frame type] ne "source"} {
 				continue
 			}
