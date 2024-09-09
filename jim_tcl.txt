@@ -5465,14 +5465,16 @@ Time-based execution is also available via the eventloop API.
     the type of the event. An error occurs if +'id'+ does not
     match an event.
 
-+*vwait ?-signal?* 'variable'+::
++*vwait ?-signal?* 'variable' ?script?+::
     A call to `vwait` enters the eventloop. `vwait` processes
     events until the named (global) variable changes or all
     event handlers are removed. The variable need not exist
     beforehand.  If there are no event handlers defined, `vwait`
-    returns immediately. If +'-signal'+ is specified, `vwait` will
+    returns immediately. If +*-signal*+ is specified, `vwait` will
     also quit if a handled signal occurs. In this case, `signal check -clear`
-    can be used to check for the signal that occurred.
+    can be used to check for the signal that occurred. If +'script'+ is given
+    it is evaluated after each event. If it returns break, `vwait` returns.
+    `vwait` also returns with an error if the script returns an error.
 
 +*update ?idletasks?*+::
     A call to `update` enters the eventloop to process expired events, but
