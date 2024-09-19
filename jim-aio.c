@@ -194,9 +194,17 @@ typedef struct AioFile
     Jim_Obj *writebuf;      /* Contains any buffered write data. refcount=1 */
 } AioFile;
 
+static void aio_consume(Jim_Obj *objPtr, int n);
+
 static int stdio_writer(struct AioFile *af, const char *buf, int len)
 {
-    return write(af->fd, buf, len);
+    int ret = write(af->fd, buf, len);
+    if (ret < 0 && errno == EPIPE) {
+        /* Also discard the write buffer since otherwise when
+         * we try to flush on shutdown we may get SIGPIPE */
+        aio_consume(af->writebuf, Jim_Length(af->writebuf));
+    }
+    return ret;
 }
 
 static int stdio_reader(struct AioFile *af, char *buf, int len, int nb)
