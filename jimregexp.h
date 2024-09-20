@@ -73,6 +73,7 @@ typedef regexp regex_t;
 #define REG_ICASE 2
 
 #define REG_NOTBOL 16
+#define REG_EXPANDED 32
 
 enum {
 	REG_NOERROR,      /* Success.  */

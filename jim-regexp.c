@@ -137,10 +137,10 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int eflags = 0;
     int option;
     enum {
-        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_END
+        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-indices", "-nocase", "-line", "-all", "-inline", "-start", "--", NULL
+        "-indices", "-nocase", "-line", "-all", "-inline", "-start", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -185,6 +185,15 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                     return JIM_ERR;
                 }
                 break;
+
+            case OPT_EXPANDED:
+#ifdef REG_EXPANDED
+                regcomp_flags |= REG_EXPANDED;
+                break;
+#else
+                Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
+                return JIM_ERR;
+#endif
         }
     }
     if (argc - i < 2) {
@@ -361,10 +370,10 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *pattern;
     int option;
     enum {
-        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_COMMAND, OPT_END
+        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_COMMAND, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-nocase", "-line", "-all", "-start", "-command", "--", NULL
+        "-nocase", "-line", "-all", "-start", "-command", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -405,6 +414,15 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             case OPT_COMMAND:
                 opt_command = 1;
                 break;
+
+            case OPT_EXPANDED:
+#ifdef REG_EXPANDED
+                regcomp_flags |= REG_EXPANDED;
+                break;
+#else
+                Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
+                return JIM_ERR;
+#endif
         }
     }
     if (argc - i != 3 && argc - i != 4) {
