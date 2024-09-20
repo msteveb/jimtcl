@@ -57,6 +57,7 @@ Changes since 0.83
 1. `aio` - support for configurable read and write buffering
 2. `exec` TIP 424 - support safer +exec | + syntax (also +open "|| pipeline..."+) (see https://core.tcl-lang.org/tips/doc/trunk/tip/424.md)
 3. New `lsubst` command to create lists using subst-style substitution
+4. Add support for `regexp -expanded` and `regsub -expanded`
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3876,7 +3877,7 @@ See `aio read`
 
 regexp
 ~~~~~~
-+*regexp ?-nocase? ?-line? ?-indices? ?-start* 'offset'? *?-all? ?-inline? ?--?* 'exp string ?matchVar? ?subMatchVar subMatchVar \...?'+
++*regexp ?-nocase? ?-line? ?-indices? ?-start* 'offset'? *?-all? ?-inline? ?-expanded? ?--?* 'exp string ?matchVar? ?subMatchVar subMatchVar \...?'+
 
 Determines whether the regular expression +'exp'+ matches part or
 all of +'string'+ and returns 1 if it does, 0 if it doesn't.
@@ -3949,13 +3950,17 @@ The following switches modify the behaviour of +'regexp'+
     data, plus one element for each subexpression in the regular
     expression.
 
++*-expanded*+::
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
+
 +*--*+::
     Marks the end of switches. The argument following this one will be
     treated as +'exp'+ even if it starts with a +-+.
 
 regsub
 ~~~~~~
-+*regsub ?-nocase? ?-all? ?-line? ?-command? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
++*regsub ?-nocase? ?-all? ?-line? ?-command? ?-expanded? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
 
 This command matches the regular expression +'exp'+ against
 +'string'+ using the rules described in REGULAR EXPRESSIONS
@@ -4036,6 +4041,10 @@ The following switches modify the behaviour of +'regsub'+
     Specifies a character index offset into the string at which to
     start matching the regular expression. +'offset'+ will be
     constrained to the bounds of the input string.
+
++*-expanded*+::
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
 
 +*--*+::
     Marks the end of switches. The argument following this one will be

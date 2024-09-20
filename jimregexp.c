@@ -948,6 +948,27 @@ cc_switch:
 
 			ret = regnode(preg, EXACTLY);
 
+			if (preg->cflags & REG_EXPANDED) {
+				/* Skip leading white space */
+				while ((ch = *preg->regparse) != 0) {
+					if (strchr(" \t\r\n\f\v", ch)) {
+							preg->regparse++;
+							continue;
+					}
+					break;
+				}
+				if (ch == '#') {
+					/* And skip comments to end of line */
+					preg->regparse++;
+					while ((ch = *preg->regparse) != 0) {
+						preg->regparse++;
+						if (ch == '\n') {
+							break;
+						}
+					}
+				}
+			}
+
 			/* Note that a META operator such as ? or * consumes the
 			 * preceding char.
 			 * Thus we must be careful to look ahead by 2 and add the
@@ -989,6 +1010,12 @@ cc_switch:
 					/* No, so add this single char and finish */
 					regc(preg, ch);
 					added++;
+					preg->regparse += n;
+					break;
+				}
+
+				/* For REG_EXPANDED, if we hit white space, stop */
+				if ((preg->cflags & REG_EXPANDED) && n == 1 && strchr(" \t\r\n\f\v", ch)) {
 					preg->regparse += n;
 					break;
 				}
