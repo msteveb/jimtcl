@@ -49,6 +49,7 @@ typedef struct regexp {
 	int regmust;		/* Internal use only. */
 	int regmlen;		/* Internal use only. */
 	int *program;		/* Allocated */
+	char *exp;			/* NULL or allocated version of regcomp expression (for REG_EXPANDED) */
 
 	/* working state - compile */
 	const char *regparse;		/* Input-scan pointer. */
@@ -73,6 +74,7 @@ typedef regexp regex_t;
 #define REG_ICASE 2
 
 #define REG_NOTBOL 16
+#define REG_EXPANDED 32
 
 enum {
 	REG_NOERROR,      /* Success.  */

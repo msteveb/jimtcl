@@ -1,5 +1,5 @@
 /*
- * vi:se ts=8:
+ * vi:se ts=8 sw=8:
  *
  * regcomp and regexec -- regsub and regerror are elsewhere
  *
@@ -216,6 +216,41 @@ static int str_int_len(const int *seq)
 	return n;
 }
 
+/* skips preg->regparse past white space and comments to end of line if REG_EXPANDED */
+static char *reg_expanded_new_pattern(const char *exp)
+{
+	/* Make a copy and do removal in place as the final will always be no longer than the original */
+	char *newexp = strdup(exp);
+	char *d = newexp;
+	const char *s = exp;
+	int escape = 0;
+
+	while (*s) {
+		if (escape) {
+			escape = 0;
+			continue;
+		}
+		else if (*s == '\\') {
+			escape = 1;
+		}
+		else if (strchr(" \t\r\n\f\v", *s)) {
+			s++;
+			continue;
+		}
+		else if (*s == '#') {
+			/* skip comments to end of line */
+			s++;
+			while (*s && *s != '\n') {
+				s++;
+			}
+			continue;
+		}
+		*d++ = *s++;
+	}
+	*d++ = '\0';
+	return newexp;
+}
+
 /*
  - regcomp - compile a regular expression into internal code
  *
@@ -245,6 +280,11 @@ int jim_regcomp(regex_t *preg, const char *exp, int cflags)
 
 	if (exp == NULL)
 		FAIL(preg, REG_ERR_NULL_ARGUMENT);
+
+	if (cflags & REG_EXPANDED) {
+		preg->exp = reg_expanded_new_pattern(exp);
+		exp = preg->exp;
+	}
 
 	/* First pass: determine size, legality. */
 	preg->cflags = cflags;
@@ -1911,6 +1951,7 @@ size_t jim_regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errb
 
 void jim_regfree(regex_t *preg)
 {
+	free(preg->exp);
 	free(preg->program);
 }
 

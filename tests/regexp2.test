@@ -463,12 +463,12 @@ test regexpComp-9.6 {-all option to regsub} {
     }
 } {1 123xxx}
 
-#test regexpComp-10.1 {expanded syntax in regsub} {
-#    evalInProc {
-#	set foo xxx
-#	list [regsub -expanded ". \#comment\n  . \#comment2" abc def foo] $foo
-#    }
-#} {1 defc}
+test regexpComp-10.1 {expanded syntax in regsub} {
+    evalInProc {
+	set foo xxx
+	list [regsub -expanded ". \#comment\n  . \#comment2" abc def foo] $foo
+    }
+} {1 defc}
 test regexpComp-10.2 {newline sensitivity in regsub} {
     evalInProc {
 	set foo xxx
@@ -523,11 +523,11 @@ test regexpComp-11.4 {regsub errors} {
 	list [catch {regsub a b c d e f} msg] $msg
     }
 } {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
-#test regexpComp-11.5 {regsub errors} {
-#    evalInProc {
-#	list [catch {regsub -gorp a b c} msg] $msg
-#    }
-#} {1 {bad switch "-gorp": must be -all, -nocase, -expanded, -line, -linestop, -lineanchor, -start, or --}}
+test regexpComp-11.5 {regsub errors} {
+    evalInProc {
+	list [catch {regsub -gorp a b c} msg] $msg
+    }
+} {1 {bad switch "-gorp": must be --, -all, -command, -expanded, -line, -nocase, or -start}}
 test regexpComp-11.6 {regsub errors} {
     evalInProc {
 	list [catch {regsub -nocase a( b c d} msg] $msg
@@ -958,5 +958,9 @@ test regexp-26.2 {regexp operator =~} {
 test regexp-26.3 {regexp operator =~ invalid regexp} -body {
     expr {"abc" =~ {[}}
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
+
+test regexp-27.1 {regexp expanded} -body {
+    regexp -expanded -all -inline { a ( b b ) + } {abbbbbbcde}
+} -returnCodes ok -result {abbbbbb bb}
 
 testreport
