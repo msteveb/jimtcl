@@ -16092,12 +16092,17 @@ static int Jim_InfoCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                 return JIM_OK;
             }
 
-        case INFO_VERSION:
-        case INFO_PATCHLEVEL:{
-                char buf[(JIM_INTEGER_SPACE * 2) + 1];
+        case INFO_PATCHLEVEL:
+           /* bootstrap jimsh doesn't have this so fall through */
+#ifdef JIM_GITVERSION
+            Jim_SetResultString(interp, JIM_GITVERSION, -1);
+            return JIM_OK;
+#endif
 
-                sprintf(buf, "%d.%d", JIM_VERSION / 100, JIM_VERSION % 100);
-                Jim_SetResultString(interp, buf, -1);
+        case INFO_VERSION:{
+                char versionbuf[64];
+                snprintf(versionbuf, sizeof(versionbuf), "%d.%d", JIM_VERSION / 100, JIM_VERSION % 100);
+                Jim_SetResultString(interp, versionbuf, -1);
                 return JIM_OK;
             }
 
