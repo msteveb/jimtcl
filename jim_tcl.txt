@@ -3034,6 +3034,10 @@ The legal +'option'+'s (which may be abbreviated) are:
     was invoked. A full path will be returned, unless the path
     can't be determined, in which case the empty string will be returned.
 
++*info patchlevel*+::
+    Returns the build (git) version if available. Otherwise
+    returns the same as `info version`.
+
 +*info procs ?-all?* ?'pattern'?+::
     Returns a list containing the names of Tcl command procedures.
     See `info commands` for the meaning of +*-all*+ and +'pattern'+.

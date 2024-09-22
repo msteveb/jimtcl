@@ -31,7 +31,7 @@ options {
     taint=1         => "Disable taint support"
     extinfo         => "Show information about available extensions"
     with-jim-shared shared => "Build a shared library instead of a static library"
-    jim-regexp=1    => "Prefer POSIX regex if over the the built-in (Tcl-compatible) regex"
+    jim-regexp=1    => "Prefer POSIX regex over the the built-in (Tcl-compatible) regex"
     docs=1          => "Don't build or install the documentation"
     docdir:path     => "Path to install docs (if built)"
     random-hash     => "Randomise hash tables. more secure but hash table results are not predicable"
@@ -499,6 +499,11 @@ if {[opt-bool shared with-jim-shared]} {
     define JIM_STATICLIB
 }
 define VERSION [format %.2f [expr {[get-define JIM_VERSION] / 100.0}]]
+set githash [get-define VERSION]
+catch {
+    set githash [exec git describe --dirty]
+}
+define JIM_GITVERSION $githash
 define LIBSOEXT [format [get-define SH_SOEXTVER] [get-define VERSION]]
 if {[get-define libdir] ni {/lib /usr/lib /usr/lib64}} {
     define SH_LINKRPATH_FLAGS [format [get-define SH_LINKRPATH] [get-define libdir]]
@@ -669,7 +674,7 @@ foreach mod $extinfo(module-c) {
 }
 define BUILD_SHOBJS [join $lines \n]
 
-make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 JIM_TAINT SIZEOF_INT} -bare JIM_VERSION -none *
+make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 JIM_TAINT JIM_GITVERSION SIZEOF_INT} -bare JIM_VERSION -none *
 make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template tests/Makefile.in
