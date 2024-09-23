@@ -78,17 +78,23 @@ test event-7.4 {bgerror throws an error} -constraints jim -body {
         }
         after 0 {error err1}
         update
-    }
+    } 2>gorp.err
+    set f [open gorp.err]
+    set err [read $f]
+    close $f
+    set err
 } -result {stdin:3: Error: inside bgerror
 Traceback (most recent call last):
   File "stdin", line 6
     bgerror err1
   File "stdin", line 3, in bgerror
-    error {inside bgerror}}
+    error {inside bgerror}
+} -cleanup {
+    file delete gorp.err
+}
 
 # end of bgerror tests
 catch {rename bgerror {}}
-
 
 test event-10.1 {Tcl_Exit procedure} exec {
     set cmd [list exec [info nameofexecutable] "<<exit 3"]
@@ -170,9 +176,10 @@ test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {s
     list $x $y $z
 } {3 3 done}
 
-test event-12.1 {Tcl_UpdateCmd procedure} {
-    list [catch {update a b} msg] $msg
-} {1 {wrong # args: should be "update ?idletasks?"}}
+test event-12.1 {Tcl_UpdateCmd procedure - usage} -body {
+    update a b
+} -returnCodes error -result {wrong # args: should be "update ?idletasks?"}
+
 test event-12.3 {Tcl_UpdateCmd procedure} {
     foreach i [after info] {
 	after cancel $i
@@ -211,8 +218,8 @@ test event-13.1 "vwait/signal" signal {
     signal handle ALRM
     list [catch -signal {
         alarm 0.1
-        # This is just to prevent the vwait from exiting immediately
-        stdin readable { format test }
+        # prevent the vwait from exiting immediately
+        after 1000 { }
         vwait forever
     } msg] $msg
 } {5 SIGALRM}

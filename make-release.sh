@@ -1,6 +1,6 @@
 #!/bin/sh
 
-version=`sed -n -e 's/.*JIM_VERSION *\([0-9]*\).*/0.\1/p' jim.h`
+version=0.`sed -n -e 's/.*JIM_VERSION *\([0-9]*\).*/\1/p' auto.def`
 
 if [ `git clean -nqx | wc -l` -ne 0 ]; then
 	git clean -nqx

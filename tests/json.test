@@ -3,7 +3,8 @@ source [file dirname [info script]]/testing.tcl
 needs cmd json::decode json
 needs cmd json::encode json
 
-set json {
+# Create a json string as though it was read from data.json
+set json [info source {
 {
 	"fossil":"9c65b5432e4aeecf3556e5550c338ce93fd861cc",
 	"timestamp":1435827337,
@@ -24,7 +25,7 @@ set json {
 			"tags":["trunk"]
 		}]
 	}
-}}
+}} data.json 1]
 
 test json-decode-001 {top level keys} {
 	lsort [dict keys [json::decode $json]]
@@ -60,6 +61,7 @@ test json-decode-012 {default null value} {
 } {null}
 
 test json-decode-1.1 {Number forms} {
+	# Note that this is not strictly correct JSON, but is usable in practice
 	json::decode {[ 1, 2, 3.0, 4, Infinity, NaN, -Infinity, -0.0, 1e5, -1e-5 ]}
 } {1 2 3.0 4 Inf NaN -Inf -0.0 1e5 -1e-5}
 
@@ -80,15 +82,15 @@ test json-2.4 {schema tests} {
 } {obj a num b num}
 
 test json-2.5 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:"b", c:false}, "hello"]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":"b", "c":false}, "hello"]}] 1
 } {mixed num num {obj a str c bool} str}
 
 test json-2.6 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, Infinity]}]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":["b", 1, true, Infinity]}]}] 1
 } {mixed num num {obj a {mixed str num bool num}}}
 
 test json-2.7 {schema tests} {
-	lindex [json::decode -schema {[1, 2, {a:["b", 1, true, ["d", "e", "f"]]}]}] 1
+	lindex [json::decode -schema {[1, 2, {"a":["b", 1, true, ["d", "e", "f"]]}]}] 1
 } {mixed num num {obj a {mixed str num bool {list str}}}}
 
 test json-2.8 {schema tests} {
@@ -96,9 +98,8 @@ test json-2.8 {schema tests} {
 } {mixed num num bool bool}
 
 test json-2.9 {schema tests} {
-	lindex [json::decode -schema {[{a:1},{b:2}]}] 1
+	lindex [json::decode -schema {[{"a":1},{"b":2}]}] 1
 } {mixed {obj a num} {obj b num}}
-
 
 test json-3.1 {-index array} {
 	json::decode -index \
@@ -122,6 +123,17 @@ test json-3.4 {-index array with -schema 2} {
 } "{outer {0 {key value} 1 {key2 value2}}}\
    {obj outer {mixed {obj key str} {obj key2 str}}}"
 
+test json-4.1 {source info preserved} -body {
+	info source [dict get [json::decode $json] fossil]
+} -result {data.json 3}
+
+test json-4.2 {source info preserved} -body {
+	info source [dict get [json::decode $json] procTimeUs]
+} -result {data.json 6}
+
+test json-4.3 {source info preserved} -body {
+	info source [dict get [lindex [dict get [json::decode $json] payload timeline] 0] comment]
+} -result {data.json 17}
 
 unset -nocomplain json
 

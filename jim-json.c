@@ -38,6 +38,8 @@ typedef enum {
 } json_schema_t;
 
 struct json_state {
+	Jim_Obj *fileNameObj;
+	int line;
 	Jim_Obj *nullObj;
 	const char *json;
 	jsmntok_t *tok;
@@ -219,6 +221,7 @@ json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *li
 		Jim_Obj	*elem;
 		int len = t->end - t->start;
 		const char *p = state->json + t->start;
+		int set_source = 1;
 		if (t->type == JSMN_STRING) {
 			/* Do we need to process backslash escapes? */
 			if (state->need_subst == 0 && memchr(p, '\\', len) != NULL) {
@@ -227,12 +230,17 @@ json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *li
 			elem = Jim_NewStringObj(interp, p, len);
 		} else if (p[0] == 'n') {	/* null */
 			elem = state->nullObj;
+			set_source = 0;
 		} else if (p[0] == 'I') {
 			elem = Jim_NewStringObj(interp, "Inf", -1);
 		} else if (p[0] == '-' && p[1] == 'I') {
 			elem = Jim_NewStringObj(interp, "-Inf", -1);
 		} else {		/* number, true or false */
 			elem = Jim_NewStringObj(interp, p, len);
+		}
+		if (set_source) {
+			/* Note we need to subtract 1 because both are 1-based values */
+			Jim_SetSourceInfo(interp, elem, state->fileNameObj, state->line + t->line - 1);
 		}
 
 		Jim_ListAppendElement(interp, list, elem);
@@ -371,6 +379,10 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 		Jim_SetResultString(interp, "empty JSON string", -1);
 		goto done;
 	}
+
+	/* Save any source information from the original string */
+	state.fileNameObj = Jim_GetSourceInfo(interp, argv[argc - 1], &state.line);
+
 	if ((tokens = json_decode_tokenize(interp, state.json, len)) == NULL) {
 		goto done;
 	}

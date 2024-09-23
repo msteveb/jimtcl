@@ -137,9 +137,6 @@ proc popen {cmd {mode r}} {
 			if {$cmd eq "pid"} {
 				return $pids
 			}
-			if {$cmd eq "getfd"} {
-				$f getfd
-			}
 			if {$cmd eq "close"} {
 				$f close
 				# And wait for the child processes to complete
