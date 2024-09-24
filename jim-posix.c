@@ -45,6 +45,9 @@
 #ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 static void Jim_PosixSetError(Jim_Interp *interp)
 {
@@ -118,6 +121,25 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 #endif
     return JIM_OK;
 }
+
+static int Jim_PosixUmaskCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    mode_t oldmask;
+
+    if (argc == 2) {
+        long mask;
+        if (Jim_GetLong(interp, argv[1], &mask) != JIM_OK) {
+            return JIM_ERR;
+        }
+        oldmask = umask(mask);
+    }
+    else {
+        oldmask = umask(0);
+        umask(oldmask);
+    }
+    Jim_SetResultInt(interp, oldmask);
+    return JIM_OK;
+}
 #endif /* JIM_BOOTSTRAP */
 
 int Jim_posixInit(Jim_Interp *interp)
@@ -130,6 +152,7 @@ int Jim_posixInit(Jim_Interp *interp)
     Jim_RegisterSimpleCmd(interp, "os.gethostname", "", 0, 0, Jim_PosixGethostnameCommand);
     Jim_RegisterSimpleCmd(interp, "os.getids", "", 0, 0, Jim_PosixGetidsCommand);
     Jim_RegisterSimpleCmd(interp, "os.uptime", "", 0, 0, Jim_PosixUptimeCommand);
+    Jim_RegisterSimpleCmd(interp, "os.umask", "?newmask?", 0, 1, Jim_PosixUmaskCommand);
 #endif /* JIM_BOOTSTRAP */
     return JIM_OK;
 }
