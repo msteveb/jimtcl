@@ -583,6 +583,11 @@ test regexp-18.12 {regexp -all -inline -indices} {
     regexp -all -inline -indices a(b(c)d|e(f)g)h abcdhaefgh
 } {{0 4} {1 3} {2 2} {-1 -1} {5 9} {6 8} {-1 -1} {7 7}}
 
+test regexp-18.13 {regexp -all with match vars} -body {
+    regexp -all a(b(c)d|e(f)g)h abcdhaefgh a b c d e
+    list $a $b $c $d $e
+} -result {aefgh efg {} f {}}
+
 test regexp-19.1 {regsub null replacement} {
     regsub -all {@} {@hel@lo@} "\0a\0" result
     list $result [string length $result]
