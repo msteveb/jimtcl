@@ -259,10 +259,11 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     num_matches++;
 
-    if (opt_all && !opt_inline) {
-        /* Just count the number of matches, so skip the substitution h */
-        goto try_next_match;
-    }
+    /* We used to not assign vars for -all if not -inline, since we can't
+     * really assign capture groups for multiple matches, but Tcl does this,
+     * just setting the last value for each capture group, so we will do the
+     * same for compatibility
+     */
 
     /*
      * If additional variable names have been specified, return
@@ -270,7 +271,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
      */
 
     j = 0;
-    for (i += 2; opt_inline ? j < num_vars : i < argc; i++, j++) {
+    for (j = 0; j < num_vars; j++) {
         Jim_Obj *resultObj;
 
         if (opt_indices) {
@@ -304,7 +305,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
         else {
             /* And now set the result variable */
-            result = Jim_SetVariable(interp, argv[i], resultObj);
+            result = Jim_SetVariable(interp, argv[i + 2 + j], resultObj);
 
             if (result != JIM_OK) {
                 Jim_FreeObj(interp, resultObj);
@@ -313,7 +314,6 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-  try_next_match:
     if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
         if (pmatch[0].rm_eo) {
             offset += utf8_strlen(source_str, pmatch[0].rm_eo);
