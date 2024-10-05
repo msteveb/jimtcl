@@ -959,4 +959,8 @@ test regexp-26.3 {regexp operator =~ invalid regexp} -body {
     expr {"abc" =~ {[}}
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
+test regexp-27.1 {regexp expanded} -body {
+    regexp -expanded -all -inline { a ( b b ) + } {abbbbbbcde}
+} -returnCodes ok -result {abbbbbb bb}
+
 testreport
