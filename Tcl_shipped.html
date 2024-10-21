@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 9.0.0rc1" />
+<meta name="generator" content="AsciiDoc 10.2.1" />
 <title>Jim Tcl(n)</title>
 <style type="text/css">
 /* Shared CSS for AsciiDoc xhtml11 and html5 backends */
@@ -739,7 +739,7 @@ Jim Tcl(n) Manual Page
 </h1>
 <h2>NAME</h2>
 <div class="sectionbody">
-<p>Jim Tcl v0.83 -
+<p>Jim Tcl v0.83+ -
    reference manual for the Jim Tcl scripting language
 </p>
 </div>
@@ -880,7 +880,17 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <h2 id="_recent_changes">RECENT CHANGES</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_changes_since_0_82">Changes since 0.82</h3>
+<h3 id="_changes_since_0_83">Changes since 0.83</h3>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<a href="#_aio"><strong><code>aio</code></strong></a> - support for configurable read and write buffering
+</p>
+</li>
+</ol></div>
+</div>
+<div class="sect2">
+<h3 id="_changes_between_0_82_and_0_83">Changes between 0.82 and 0.83</h3>
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
@@ -1872,7 +1882,7 @@ sequence is replaced by the given character:</p></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a \{x\[\ yz\141</code></pre>
+<pre><code>    set a {x\[\ yz\141</code></pre>
 </div></div>
 <div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{x[ yza</code>.</p></div>
 <div class="paragraph"><p>If a backslash is followed by something other than one of the options
@@ -1882,7 +1892,7 @@ normal processing with the next character.  For example, in the
 command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set \*a \\{foo</code></pre>
+<pre><code>    set \*a \{foo</code></pre>
 </div></div>
 <div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>*a</code> and the second
 argument will be <code>{foo</code>.</p></div>
@@ -1897,9 +1907,9 @@ For example, in the
 command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {\\{abc}</code></pre>
+<pre><code>    set a {\{abc}</code></pre>
 </div></div>
-<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\\{abc</code>.</p></div>
+<div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>\{abc</code>.</p></div>
 <div class="paragraph"><p>This backslash mechanism is not sufficient to generate absolutely
 any argument structure; it only covers the
 most common cases.  To produce particularly complicated arguments
@@ -2514,14 +2524,14 @@ arguments. Support for this feature is also available in Jim.</p></div>
 </div></div>
 <div class="paragraph"><p>This will attempt to exec a command named "ls -l", which will clearly not
 work. Typically eval and concat are required to solve this problem, however
-it can be solved much more easily with <code>{*}</code>.</p></div>
+it can be solved much more easily with <code>\{*}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    exec {*}$cmd</code></pre>
 </div></div>
 <div class="paragraph"><p>This will expand the following argument into individual elements and then evaluate
 the resulting command.</p></div>
-<div class="paragraph"><p>Note that the official Tcl syntax is <code>{*}</code>, however <code>{expand}</code> is retained
+<div class="paragraph"><p>Note that the official Tcl syntax is <code>\{*}</code>, however <code>{expand}</code> is retained
 for backward compatibility with experimental versions of this feature.</p></div>
 </div>
 </div>
@@ -7006,7 +7016,7 @@ is performed: open and close brackets are treated as ordinary
 characters with no special interpretation.</p></div>
 <div class="paragraph"><p><strong>Note</strong>: when it performs its substitutions, subst does not give any
 special treatment to double quotes or curly braces. For example,
-the following script returns <code>xyz {44}</code>, not <code>xyz {$a}</code>.</p></div>
+the following script returns <code>xyz {44}</code>, not <code>xyz \{$a}</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    set a 44
@@ -7536,7 +7546,7 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>buffering none|line|full</strong></code>
+<code>$handle <strong>buffering none|line|full</strong> ?size?</code>
 </dt>
 <dd>
 <p>
@@ -7544,11 +7554,14 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
     that puts immediately writes output.  <code><em>line</em></code> means output (including
     previously buffered output) is written if a newline is to be written.
     <code><em>full</em></code> means that data is written when the output buffer is full
-    (currently approx 64KB). Note that line buffering will also write
+    (default 64KB). Size may be specified in full mode.
+    Note that line buffering will also write
     once the output buffer limit is reached, even if there is no newline.
     Channels usually begin in full buffering mode, unless they identify
     as a tty channel, in which case line buffering is used, and <code>stderr</code>
-    begins with no buffering. See also <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code>.
+    begins with no buffering. Returns the current buffering mode (including
+    size in full mode - e.g. <code><em>line</em></code> or <code><em>full 65536</code></em>.
+    See also <a href="#_aio"><strong><code>aio</code></strong></a> <code>puts</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>flush</code>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7700,6 +7713,17 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
     Note that read on a non-blocking channel may read less than the
     expected number of bytes (including zero). Use <a href="#_aio"><strong><code>aio</code></strong></a> <code>eof</code> to determine
     if the end-of-file has been reached.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>readsize</strong> ?size?'</code>
+</dt>
+<dd>
+<p>
+    Sets or returns the current size of the read buffer used
+    for read, gets and copyto.
+    Defaults to 256, but can be increased to improve performance
+    for large reads.
 </p>
 </dd>
 <dt class="hdlist1">
