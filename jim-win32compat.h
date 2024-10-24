@@ -30,6 +30,9 @@ char *dlerror(void);
 
 #include <limits.h>
 #define jim_wide _int64
+#ifndef HAVE_LONG_LONG
+#define HAVE_LONG_LONG
+#endif
 #ifndef LLONG_MAX
 	#define LLONG_MAX    9223372036854775807I64
 #endif
@@ -43,12 +46,8 @@ char *dlerror(void);
 #define strtoull _strtoui64
 
 #include <io.h>
-
-struct timeval {
-	long tv_sec;
-	long tv_usec;
-};
-
+/* For struct timeval */
+#include <winsock.h>
 int gettimeofday(struct timeval *tv, void *unused);
 
 #define HAVE_OPENDIR
