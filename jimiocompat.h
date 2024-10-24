@@ -31,7 +31,7 @@ int Jim_OpenForWrite(const char *filename, int append);
  */
 int Jim_OpenForRead(const char *filename);
 
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(_WIN32)
     #ifndef STRICT
     #define STRICT
     #endif
@@ -69,6 +69,7 @@ int Jim_OpenForRead(const char *filename);
     #define Jim_Stat _stat64
     #define Jim_FileStat _fstat64
     #define Jim_Lseek _lseeki64
+    #define O_TEXT _O_TEXT
 
 #else
     #if defined(HAVE_STAT64)
@@ -111,10 +112,11 @@ int Jim_OpenForRead(const char *filename);
             #define execvpe(ARG0, ARGV, ENV) execvp(ARG0, ARGV)
         #endif
     #endif
-#endif
 
-#ifndef O_TEXT
-#define O_TEXT 0
+    #ifndef O_TEXT
+        #define O_TEXT 0
+    #endif
+
 #endif
 
 /* jim-file.c */
