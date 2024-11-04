@@ -231,7 +231,7 @@ static int JimNamespaceCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         JIM_DEF_SUBCMD("tail", "string", 1, 1),
         JIM_DEF_SUBCMD("upvar", "ns ?arg ...?", 1, -1),
         JIM_DEF_SUBCMD("which", "?-command|-variable? name", 1, 2),
-        { /* null terminator */ }
+        { NULL }
     };
     const jim_subcmd_type *ct = Jim_ParseSubCmd(interp, namespace_cmds, argc, argv);
     if (ct) {
