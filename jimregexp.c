@@ -164,8 +164,7 @@
  */
 
 #define	FAIL(R,M)	{ (R)->err = (M); return (M); }
-#define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?' || (c) == '{')
-#define	META		"^$.[()|?{+*"
+#define	META		"^$.[()|"
 
 /*
  * Flags to be passed up and down.
@@ -203,6 +202,22 @@ static void regdump(regex_t *preg);
 static const char *regprop( int op );
 #endif
 
+/* Returns 1 if *s is '*', '+', '?', or {n...} where n must be a number */
+static int str_is_mult(const char *s)
+{
+	switch (*s) {
+		case '*':
+		case '+':
+		case '?':
+			return 1;
+		case '{':
+			if (isdigit(UCHAR(s[1]))) {
+				return 1;
+			}
+			break;
+	}
+	return 0;
+}
 
 /**
  * Returns the length of the null-terminated integer sequence.
@@ -494,12 +509,12 @@ static int regpiece(regex_t *preg, int *flagp)
 	if (ret == 0)
 		return 0;
 
-	op = *preg->regparse;
-	if (!ISMULT(op)) {
+	if (!str_is_mult(preg->regparse)) {
 		*flagp = flags;
 		return(ret);
 	}
 
+	op = *preg->regparse;
 	if (!(flags&HASWIDTH) && op != '?') {
 		preg->err = REG_ERR_OPERAND_COULD_BE_EMPTY;
 		return 0;
@@ -568,7 +583,7 @@ static int regpiece(regex_t *preg, int *flagp)
 	}
 
 	preg->regparse++;
-	if (ISMULT(*preg->regparse)) {
+	if (str_is_mult(preg->regparse)) {
 		preg->err = REG_ERR_NESTED_COUNT;
 		return 0;
 	}
@@ -916,12 +931,6 @@ cc_switch:
 	case ')':
 		preg->err = REG_ERR_INTERNAL;
 		return 0;	/* Supposed to be caught earlier. */
-	case '?':
-	case '+':
-	case '*':
-	case '{':
-		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
-		return 0;
 	case '\\':
 		ch = *preg->regparse++;
 		switch (ch) {
@@ -986,6 +995,11 @@ cc_switch:
 			/* Back up to pick up the first char of interest */
 			preg->regparse -= n;
 
+			if (str_is_mult(preg->regparse)) {
+				preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
+				return 0;
+			}
+
 			ret = regnode(preg, EXACTLY);
 
 			/* Note that a META operator such as ? or * consumes the
@@ -995,7 +1009,7 @@ cc_switch:
 			 */
 
 			/* Until end of string or a META char is reached */
-			while (*preg->regparse && strchr(META, *preg->regparse) == NULL) {
+			while (*preg->regparse && strchr(META, *preg->regparse) == NULL && !str_is_mult(preg->regparse)) {
 				n = reg_utf8_tounicode_case(preg->regparse, &ch, (preg->cflags & REG_ICASE));
 				if (ch == '\\' && preg->regparse[n]) {
 					/* Non-trailing backslash.
@@ -1020,7 +1034,7 @@ cc_switch:
 				 * Check to see if the following char is a MULT
 				 */
 
-				if (ISMULT(preg->regparse[n])) {
+				if (str_is_mult(&preg->regparse[n])) {
 					/* Yes. But do we already have some EXACTLY chars? */
 					if (added) {
 						/* Yes, so return what we have and pick up the current char next time around */
