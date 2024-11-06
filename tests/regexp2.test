@@ -943,19 +943,31 @@ test regexp-25.3 {End of word} {
     regexp {\mcd\M} cdef
 } 0
 
-test regexp-26.1 {regexp operator =~} {
+test regexp-25.4 {Braces not a repeat count} {
+    regexp "{abc}" "test{abc}def"
+} 1
+
+test regexp-25.5 {Repeat follows nothing} -body {
+    regexp "{3}" "test{3}def"
+} -returnCodes error -match glob -result {couldn't compile regular expression pattern: *}
+
+test regexp-25.6 {Meta char after nothing is error} -body {
+    regexp "?" "te?st"
+} -returnCodes error -match glob -result {couldn't compile regular expression pattern: *}
+
+test regexp-26.1 {regexp operator =~} jim {
     expr {"abc" =~ "^a"}
 } 1
 
-test regexp-26.2 {regexp operator =~} {
+test regexp-26.2 {regexp operator =~} jim {
     expr {"abc" =~ "^b"}
 } 0
 
-test regexp-26.2 {regexp operator =~} {
+test regexp-26.2 {regexp operator =~} jim {
     expr {"abc" =~ ".b."}
 } 1
 
-test regexp-26.3 {regexp operator =~ invalid regexp} -body {
+test regexp-26.3 {regexp operator =~ invalid regexp} -constraints jim -body {
     expr {"abc" =~ {[}}
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
