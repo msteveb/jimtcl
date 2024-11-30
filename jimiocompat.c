@@ -6,7 +6,7 @@ void Jim_SetResultErrno(Jim_Interp *interp, const char *msg)
     Jim_SetResultFormatted(interp, "%s: %s", msg, strerror(Jim_Errno()));
 }
 
-#if defined(__MINGW32__)
+#if defined(_WIN32) || defined(WIN32)
 #include <sys/stat.h>
 
 int Jim_Errno(void)

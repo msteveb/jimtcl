@@ -10,8 +10,14 @@ proc _jimsh_init {} {
 		if {[string match "*/*" $jim::argv0]} {
 			set jim::exe [file join [pwd] $jim::argv0]
 		} else {
-			foreach path [split [env PATH ""] $tcl_platform(pathSeparator)] {
-				set exec [file join [pwd] [string map {\\ /} $path] $jim::argv0]
+			set jim::argv0 [file tail $jim::argv0]
+			set path [split [env PATH ""] $tcl_platform(pathSeparator)]
+			if {$tcl_platform(platform) eq "windows"} {
+				# Windows searches the current directory first, and convert backslashes to slashes
+				set path [lmap p [list "" {*}$path] { string map {\\ /} $p }]
+			}
+			foreach p $path {
+				set exec [file join [pwd] $p $jim::argv0]
 				if {[file executable $exec]} {
 					set jim::exe $exec
 					break

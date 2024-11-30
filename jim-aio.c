@@ -723,7 +723,26 @@ static void aio_consume(Jim_Obj *objPtr, int n)
 }
 
 /* forward declaration */
-static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask);
+static int aio_flush(Jim_Interp *interp, AioFile *af);
+
+#ifdef jim_ext_eventloop
+/**
+ * Called when the channel is writable.
+ * Write what we can and return -1 when the write buffer is empty to remove the handler.
+ */
+static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask)
+{
+    AioFile *af = clientData;
+
+    aio_flush(interp, af);
+    if (Jim_Length(af->writebuf) == 0) {
+        /* Done, so remove the handler */
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 
 /**
  * Flushes af->writebuf to the channel and removes that data
@@ -769,22 +788,6 @@ static int aio_flush(Jim_Interp *interp, AioFile *af)
         }
     }
     return JIM_OK;
-}
-
-/**
- * Called when the channel is writable.
- * Write what we can and return -1 when the write buffer is empty to remove the handler.
- */
-static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask)
-{
-    AioFile *af = clientData;
-
-    aio_flush(interp, af);
-    if (Jim_Length(af->writebuf) == 0) {
-        /* Done, so remove the handler */
-        return -1;
-    }
-    return 0;
 }
 
 /**
@@ -1682,6 +1685,7 @@ static int aio_cmd_readsize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+#ifdef jim_ext_eventloop
 static int aio_cmd_timeout(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #ifdef HAVE_SELECT
@@ -1699,7 +1703,6 @@ static int aio_cmd_timeout(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #endif
 }
 
-#ifdef jim_ext_eventloop
 static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask,
     int argc, Jim_Obj * const *argv)
 {
