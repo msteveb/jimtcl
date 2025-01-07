@@ -5778,6 +5778,11 @@ namespace
 ~~~~~~~~~
 Provides namespace-related functions. See also: http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm
 
++*namespace canonical* ?current? ?name?+::
+   Returns the full name of +'name'+ within namespace '+current+'.
+   If '+current+' is not given, `namespace current` is used.
+   If neither are given, returns the current namespace (not qualified with a leading '::').
+
 +*namespace code* 'script'+::
     Captures the current namespace context for later execution of
     the script +'script'+. It returns a new script in which script has
