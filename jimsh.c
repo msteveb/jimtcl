@@ -37,8 +37,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "jim.h"
 #include "jimautoconf.h"
+#include "jim.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /* From initjimsh.tcl */
 extern int Jim_initjimshInit(Jim_Interp *interp);
@@ -123,6 +127,10 @@ int main(int argc, char *const argv[])
         }
         if (retcode != JIM_EXIT) {
             JimSetArgv(interp, 0, NULL);
+            if (!isatty(STDIN_FILENO)) {
+                /* Just read from stdin and evaluate */
+                goto eval_stdin;
+            }
             retcode = Jim_InteractivePrompt(interp);
         }
     }
@@ -145,6 +153,7 @@ int main(int argc, char *const argv[])
             Jim_SetVariableStr(interp, "argv0", Jim_NewStringObj(interp, argv[1], -1));
             JimSetArgv(interp, argc - 2, argv + 2);
             if (strcmp(argv[1], "-") == 0) {
+eval_stdin:
                 retcode = Jim_Eval(interp, "eval [info source [stdin read] stdin 1]");
             } else {
                 retcode = Jim_EvalFile(interp, argv[1]);
