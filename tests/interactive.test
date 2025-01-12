@@ -23,7 +23,9 @@ $p timeout 1
 $p tty echo 1
 
 proc wait-for-prompt {p} {
-	$p expect {\. }
+	$p expect TIMEOUT {
+		error "Failed to wait for prompt"
+	} {\. }
 }
 
 # Start with an empty history
