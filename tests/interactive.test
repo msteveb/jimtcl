@@ -75,9 +75,10 @@ test interactive-1.3 {history show} -constraints lineedit -body {
 }
 
 test interactive-1.4 {history getline} -constraints lineedit -body {
-	$p send "history getline {PROMPT> }\r"
+	sleep 0.1
+	$p send "history getline {PROMPT >}\r"
 	$p expect {\r\n}
-	sleep 0.25
+	sleep 0.1
 	$p send "abc\bd\x01e\r"
 	$p expect {\r\n}
 	$p expect {\r\n}
@@ -87,14 +88,15 @@ test interactive-1.4 {history getline} -constraints lineedit -body {
 }
 
 test interactive-1.5 {history getline} -constraints lineedit -body {
+	sleep 0.1
 	$p send "set len \[history getline {PROMPT> } buf\]\r"
 	$p expect {\r\n}
-	sleep 0.25
+	sleep 0.1
 	$p send "abcde\r"
 	$p expect {\r\n}
 	$p expect {\r\n}
-	sleep 0.25
 	$p wait-for-prompt
+	sleep 0.1
 	$p send "list \$len \$buf\r"
 	$p expect {\r\n}
 	$p expect {\r\n}
@@ -111,7 +113,6 @@ test interactive-1.6 {insert wide character} -constraints {utf8 lineedit} -body 
 	$p send y
 	$p send \r
 	$p expect {\r\n}
-	sleep 0.25
 	$p expect {\r\n}
 	$p before
 } -result ay\u1100b -cleanup {
@@ -126,7 +127,6 @@ test interactive-1.7 {insert utf-8 combining character} -constraints {utf8 linee
 	$p send y
 	$p send \r
 	$p expect {\r\n}
-	sleep 0.25
 	$p expect {\r\n}
 	$p before
 } -result yx\u0300 -cleanup {
@@ -135,7 +135,6 @@ test interactive-1.7 {insert utf-8 combining character} -constraints {utf8 linee
 
 # send ^D to cause the interpeter to exit
 $p send \x04
-sleep 0.25
 $p expect EOF
 $p close
 
