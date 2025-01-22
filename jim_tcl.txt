@@ -5794,7 +5794,7 @@ Provides namespace-related functions. See also: http://www.tcl.tk/man/tcl8.6/Tcl
 +*namespace delete* '?namespace ...?'+::
     Deletes all commands and variables with the given namespace prefixes.
 
-+*namespace ensemble create*'+::
++*namespace ensemble create*+::
     Creates an ensemble command for the current namespace (requires the 'ensemble' extension').
 
 +*namespace eval* 'namespace arg ?arg...?'+::
