@@ -1,0 +1,26 @@
+source [file dirname [info script]]/testing.tcl
+
+# This is a proxy for tcl || tclcompat
+constraint cmd fconfigure
+
+# The tests in this file are intended to test Tcl-compatible I/O features
+
+test io-1.1 {translation binary} -body {
+	# write a file via stdout in binary mode
+	# This will always work on Unix
+	set script {
+		fconfigure stdout -translation binary
+		puts line1
+		puts line2
+	}
+	exec [info nameofexecutable] << $script >binary.out
+	# Read it back in binary mode
+	set f [open binary.out rb]
+	set buf [read $f]
+	close $f
+	set buf
+} -cleanup {
+	file delete binary.out
+} -result "line1\nline2\n"
+
+testreport

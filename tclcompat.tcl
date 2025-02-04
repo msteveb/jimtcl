@@ -48,7 +48,7 @@ if {[exists -command stdout]} {
 					$f buffering $v
 				}
 				-tr* {
-					# Just ignore -translation
+					$f translation $v
 				}
 				default {
 					return -code error "fconfigure: unknown option $n"
