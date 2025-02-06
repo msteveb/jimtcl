@@ -70,6 +70,9 @@ int Jim_OpenForRead(const char *filename);
     #define Jim_FileStat _fstat64
     #define Jim_Lseek _lseeki64
     #define O_TEXT _O_TEXT
+    #ifndef STDIN_FILENO
+    #define STDIN_FILENO 0
+    #endif
 
 #else
     #if defined(HAVE_STAT64)
