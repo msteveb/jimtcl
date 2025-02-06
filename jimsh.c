@@ -39,10 +39,7 @@
 
 #include "jimautoconf.h"
 #include "jim.h"
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
+#include "jimiocompat.h"
 
 /* From initjimsh.tcl */
 extern int Jim_initjimshInit(Jim_Interp *interp);
