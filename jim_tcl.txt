@@ -56,6 +56,7 @@ Changes since 0.83
 ~~~~~~~~~~~~~~~~~~
 1. `aio` - support for configurable read and write buffering
 2. Add support for `package forget`
+3. Add `aio translation` support (and fconfigure -translation)
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5166,6 +5167,12 @@ This command returns an empty string.
     See `aio read` and `aio gets` for command that use the timeout.
     Note that the timeout is only used if the channel is in blocking mode.
 
++$handle *translation binary|text*+::
+    This has no effect on Unix platforms, but on Windows it changes the mode of the file
+    handle to binary or text. In general, use "wb" as the open mode instead, but this
+    can be useful on existing filehandles such as +stdout+ and +stderr+. It is probably
+    a good idea to do this immediately before sending any output.
+
 +$handle *tty* ?settings?+::
     If no arguments are given, returns a dictionary containing the tty settings for the stream.
     If arguments are given, they must either be a dictionary, or +setting value \...+.
@@ -5277,7 +5284,7 @@ fconfigure
     command is supported.
     * `fconfigure ... -blocking` maps to `aio ndelay`
     * `fconfigure ... -buffering` maps to `aio buffering`
-    * `fconfigure ... -translation` is accepted but ignored
+    * `fconfigure ... -translation` maps to `aio translation` and suppports only +binary+ and +text+
 
 [[cmd_2]]
 eventloop: after, vwait, update
