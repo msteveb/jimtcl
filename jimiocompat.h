@@ -124,6 +124,14 @@ int Jim_OpenForRead(const char *filename);
 
 #endif
 
+# ifndef MAXPATHLEN
+# ifdef PATH_MAX
+# define MAXPATHLEN PATH_MAX
+# else
+# define MAXPATHLEN JIM_PATH_LEN
+# endif
+# endif
+
 /* jim-file.c */
 /* Note that this is currently an internal function only.
  * It does not form part of the public Jim API

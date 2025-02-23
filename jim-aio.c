@@ -116,10 +116,6 @@ enum wbuftype {
 #define UNIX_SOCKETS 0
 #endif
 
-#ifndef MAXPATHLEN
-#define MAXPATHLEN JIM_PATH_LEN
-#endif
-
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 /* Avoid type punned pointers */
 union sockaddr_any {
