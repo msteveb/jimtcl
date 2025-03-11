@@ -28,29 +28,17 @@ test jimsh-1.5 {jimsh --version} {
 
 test jimsh-1.6 {jimsh -e with error} -body {
 	exec [info nameofexecutable] -e blah
-} -returnCodes error -result {invalid command name "blah"}
+} -returnCodes error -match glob -result {invalid command name "blah"*}
 
-test jimsh-1.7 {jimsh prompt} -body {
-	exec [info nameofexecutable] << "set x 3\nincr x\nexit \$x\n"
-} -returnCodes error -match glob -result {Welcome to Jim version *
-. 3
-. 4
-. }
+test jimsh-1.7 {jimsh exit code} -body {
+	set script "set x 3\nincr x\nexit \$x\n"
+	set rc [catch {exec [info nameofexecutable] << $script} msg opts]
+	lassign [dict get $opts -errorcode] status pid exitcode
+	list $rc $status $exitcode
+} -result {1 CHILDSTATUS 4}
 
-test jimsh-1.8 {jimsh prompt - error} -body {
+test jimsh-1.8 {jimsh error} -body {
 	exec [info nameofexecutable] << "blah\n"
-} -match glob -result {Welcome to Jim version *
-. invalid command name "blah"
-\[error\] . }
-
-test jimsh-1.9 {jimsh prompt - error} -body {
-	exec [info nameofexecutable] << "throw 99\n"
-} -match glob -result {Welcome to Jim version *
-. \[99\] . }
-
-test jimsh-1.10 {jimsh prompt - continuation} -body {
-	exec [info nameofexecutable] << "set x {\nabc\n}\n"
-} -match glob -result "Welcome to Jim version *\n. {> {> \nabc\n\n. "
-
+} -returnCodes error -match glob -result {stdin:1: Error: invalid command name "blah"*}
 
 testreport

@@ -168,8 +168,8 @@ proc basename-stacktrace {stacktrace} {
 
 # If tcl, just use tcltest
 if {[catch {info version}]} {
-	package require Tcl 8.5
-	package require tcltest 2.1
+	package require Tcl 8.5-
+	package require tcltest 2.1-
 	namespace import tcltest::*
 
 	if {$testinfo(verbose)} {

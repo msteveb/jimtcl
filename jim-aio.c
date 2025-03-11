@@ -116,10 +116,6 @@ enum wbuftype {
 #define UNIX_SOCKETS 0
 #endif
 
-#ifndef MAXPATHLEN
-#define MAXPATHLEN JIM_PATH_LEN
-#endif
-
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
 /* Avoid type punned pointers */
 union sockaddr_any {
@@ -1666,6 +1662,28 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+static int aio_cmd_translation(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    enum {OPT_BINARY, OPT_TEXT};
+    static const char * const options[] = {
+        "binary",
+        "text",
+        NULL
+    };
+    int opt;
+
+    if (Jim_GetEnum(interp, argv[0], options, &opt, NULL, JIM_ERRMSG) != JIM_OK) {
+            return JIM_ERR;
+    }
+#if defined(Jim_SetMode)
+    else {
+        AioFile *af = Jim_CmdPrivData(interp);
+        Jim_SetMode(af->fd, opt == OPT_BINARY ? O_BINARY : O_TEXT);
+    }
+#endif
+    return JIM_OK;
+}
+
 static int aio_cmd_readsize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -2181,6 +2199,13 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         2,
         /* Description: Sets or returns write buffering */
+    },
+    {   "translation",
+        "binary|text",
+        aio_cmd_translation,
+        1,
+        1,
+        /* Description: Sets output translation mode */
     },
     {   "readsize",
         "?size?",

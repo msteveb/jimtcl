@@ -549,7 +549,7 @@ if {$withinfo(without) eq "default"} {
 # Now go check everything - see autosetup/local.tcl
 array set extinfo [check-extensions [opt-bool allextmod]]
 
-set buildjimext 1
+define BUILD_JIM_EXT 1
 
 # Now special checks
 if {[have-feature windows]} {
@@ -560,7 +560,7 @@ if {[have-feature windows]} {
             user-error "cygwin/mingw require --shared for dynamic modules"
         } else {
             user-notice "Building static library, so build-jim-ext will not work on cygwin/mingw"
-            set buildjimext 0
+            define BUILD_JIM_EXT 0
         }
     }
 } else {
@@ -668,7 +668,7 @@ make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE
 make-template Makefile.in
 make-template tests/Makefile.in
 make-template examples.api/Makefile.in
-if {$buildjimext} {
+if {[get-define BUILD_JIM_EXT]} {
     make-template build-jim-ext.in
     catch {exec chmod +x build-jim-ext}
 }

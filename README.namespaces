@@ -115,6 +115,7 @@ Currently, the following namespace commands are supported.
 * delete - deletes all variables and commands with the namespace prefix
 * which - implemented
 * upvar - implemented
+* ensemble - 'create' command is implemented
 
 namespace children, exists, path
 --------------------------------
@@ -125,12 +126,6 @@ or variable in the namespace.
 
 Command resolution is always done by first looking in the namespace and then
 at the global scope, so namespace path is not required.
-
-namespace ensemble
-------------------
-The namespace ensemble command is not currently supported. A future version
-of Jim Tcl will have a general-purpose ensemble creation and manipulation
-mechanism and namespace ensemble will be implemented in terms of that mechanism.
 
 namespace import, export, forget, origin
 ----------------------------------------

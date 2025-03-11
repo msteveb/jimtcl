@@ -1,3 +1,4 @@
+#line 1 "stringbuf.h"
 #ifndef STRINGBUF_H
 #define STRINGBUF_H
 /**
@@ -135,6 +136,7 @@ char *sb_to_string(stringbuf *sb);
 #endif
 
 #endif
+#line 1 "stringbuf.c"
 /**
  * resizable string buffer
  *
@@ -180,7 +182,7 @@ void sb_free(stringbuf *sb)
 	free(sb);
 }
 
-void sb_realloc(stringbuf *sb, int newlen)
+static void sb_realloc(stringbuf *sb, int newlen)
 {
 	sb->data = (char *)realloc(sb->data, newlen);
 	sb->remaining = newlen - sb->last;
@@ -308,6 +310,7 @@ void sb_clear(stringbuf *sb)
 #endif
 	}
 }
+#line 1 "linenoise.c"
 /* linenoise.c -- guerrilla line editing library against the idea that a
  * line editing lib needs to be 20,000 lines of C code.
  *
@@ -425,10 +428,6 @@ void sb_clear(stringbuf *sb)
 #define USE_WINCONSOLE
 #ifdef __MINGW32__
 #define HAVE_UNISTD_H
-#else
-/* Microsoft headers don't like old POSIX names */
-#define strdup _strdup
-#define snprintf _snprintf
 #endif
 #else
 #include <termios.h>
@@ -450,6 +449,12 @@ void sb_clear(stringbuf *sb)
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#if defined(_WIN32) && !defined(__MINGW32__)
+/* Microsoft headers don't like old POSIX names */
+#define strdup _strdup
+#define snprintf _snprintf
+#endif
 
 #include "linenoise.h"
 #ifndef STRINGBUF_H
@@ -488,6 +493,7 @@ enum {
 
 static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int history_len = 0;
+static int history_index = 0;
 static char **history = NULL;
 
 /* Structure to contain the status of the current (being edited) line */
@@ -504,6 +510,8 @@ struct current {
     stringbuf *output;  /* used only during refreshLine() - output accumulator */
 #if defined(USE_TERMIOS)
     int fd;     /* Terminal fd */
+    int pending; /* pending char fd_read_char() */
+    int query_cursor_failed; /* if 1, don't try to query the cursor position again */
 #elif defined(USE_WINCONSOLE)
     HANDLE outh; /* Console output handle */
     HANDLE inh; /* Console input handle */
@@ -529,6 +537,16 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
 static void setCursorPos(struct current *current, int x);
 static void setOutputHighlight(struct current *current, const int *props, int nprops);
 static void set_current(struct current *current, const char *str);
+
+static int fd_isatty(struct current *current)
+{
+#ifdef USE_TERMIOS
+    return isatty(current->fd);
+#else
+    (void)current;
+    return 0;
+#endif
+}
 
 void linenoiseHistoryFree(void) {
     if (history) {
@@ -832,25 +850,31 @@ void linenoiseClearScreen(void)
 }
 
 /**
- * Reads a char from 'fd', waiting at most 'timeout' milliseconds.
+ * Reads a char from 'current->fd', waiting at most 'timeout' milliseconds.
  *
  * A timeout of -1 means to wait forever.
  *
  * Returns -1 if no char is received within the time or an error occurs.
  */
-static int fd_read_char(int fd, int timeout)
+static int fd_read_char(struct current *current, int timeout)
 {
     struct pollfd p;
     unsigned char c;
 
-    p.fd = fd;
+    if (current->pending) {
+        c = current->pending;
+        current->pending = 0;
+        return c;
+    }
+
+    p.fd = current->fd;
     p.events = POLLIN;
 
     if (poll(&p, 1, timeout) == 0) {
         /* timeout */
         return -1;
     }
-    if (read(fd, &c, 1) != 1) {
+    if (read(current->fd, &c, 1) != 1) {
         return -1;
     }
     return c;
@@ -868,7 +892,11 @@ static int fd_read(struct current *current)
     int i;
     int c;
 
-    if (read(current->fd, &buf[0], 1) != 1) {
+    if (current->pending) {
+        buf[0] = current->pending;
+        current->pending = 0;
+    }
+    else if (read(current->fd, &buf[0], 1) != 1) {
         return -1;
     }
     n = utf8_charlen(buf[0]);
@@ -884,7 +912,7 @@ static int fd_read(struct current *current)
     utf8_tounicode(buf, &c);
     return c;
 #else
-    return fd_read_char(current->fd, -1);
+    return fd_read_char(current, -1);
 #endif
 }
 
@@ -898,6 +926,11 @@ static int queryCursor(struct current *current, int* cols)
     struct esc_parser parser;
     int ch;
 
+    if (current->query_cursor_failed) {
+        /* If it every fails, don't try again */
+        return 0;
+    }
+
     /* Should not be buffering this output, it needs to go immediately */
     assert(current->output == NULL);
 
@@ -906,7 +939,7 @@ static int queryCursor(struct current *current, int* cols)
 
     /* Parse the response: ESC [ rows ; cols R */
     initParseEscapeSeq(&parser, 'R');
-    while ((ch = fd_read_char(current->fd, 100)) > 0) {
+    while ((ch = fd_read_char(current, 100)) > 0) {
         switch (parseEscapeSequence(&parser, ch)) {
             default:
                 continue;
@@ -917,11 +950,14 @@ static int queryCursor(struct current *current, int* cols)
                 }
                 break;
             case EP_ERROR:
+                /* Push back the character that caused the error */
+                current->pending = ch;
                 break;
         }
         /* failed */
         break;
     }
+    current->query_cursor_failed = 1;
     return 0;
 }
 
@@ -988,20 +1024,20 @@ static int getWindowSize(struct current *current)
  * If no additional char is received within a short time,
  * CHAR_ESCAPE is returned.
  */
-static int check_special(int fd)
+static int check_special(struct current *current)
 {
-    int c = fd_read_char(fd, 50);
+    int c = fd_read_char(current, 50);
     int c2;
 
     if (c < 0) {
         return CHAR_ESCAPE;
     }
-	else if (c >= 'a' && c <= 'z') {
-		/* esc-a => meta-a */
-		return meta(c);
-	}
+    else if (c >= 'a' && c <= 'z') {
+        /* esc-a => meta-a */
+        return meta(c);
+    }
 
-    c2 = fd_read_char(fd, 50);
+    c2 = fd_read_char(current, 50);
     if (c2 < 0) {
         return c2;
     }
@@ -1024,7 +1060,7 @@ static int check_special(int fd)
     }
     if (c == '[' && c2 >= '1' && c2 <= '8') {
         /* extended escape */
-        c = fd_read_char(fd, 50);
+        c = fd_read_char(current, 50);
         if (c == '~') {
             switch (c2) {
                 case '2':
@@ -1043,7 +1079,7 @@ static int check_special(int fd)
         }
         while (c != -1 && c != '~') {
             /* .e.g \e[12~ or '\e[11;2~   discard the complete sequence */
-            c = fd_read_char(fd, 50);
+            c = fd_read_char(current, 50);
         }
     }
 
@@ -1112,7 +1148,7 @@ static linenoiseHintsCallback *hintsCallback = NULL;
 static linenoiseFreeHintsCallback *freeHintsCallback = NULL;
 static void *hintsUserdata = NULL;
 
-static void beep() {
+static void beep(void) {
 #ifdef USE_TERMIOS
     fprintf(stderr, "\x7");
     fflush(stderr);
@@ -1783,6 +1819,26 @@ static int skip_nonspace(struct current *current, int dir)
     return skip_space_nonspace(current, dir, 0);
 }
 
+static void set_history_index(struct current *current, int new_index)
+{
+    if (history_len > 1) {
+        /* Update the current history entry before to
+         * overwrite it with the next one. */
+        free(history[history_len - 1 - history_index]);
+        history[history_len - 1 - history_index] = strdup(sb_str(current->buf));
+        /* Show the new entry */
+        history_index = new_index;
+        if (history_index < 0) {
+            history_index = 0;
+        } else if (history_index >= history_len) {
+            history_index = history_len - 1;
+        } else {
+            set_current(current, history[history_len - 1 - history_index]);
+            refreshLine(current);
+        }
+    }
+}
+
 /**
  * Returns the keycode to process, or 0 if none.
  */
@@ -1816,23 +1872,35 @@ static int reverseIncrementalSearch(struct current *current)
         }
 #ifdef USE_TERMIOS
         if (c == CHAR_ESCAPE) {
-            c = check_special(current->fd);
+            c = check_special(current);
         }
 #endif
-        if (c == ctrl('P') || c == SPECIAL_UP) {
+        if (c == ctrl('R')) {
             /* Search for the previous (earlier) match */
             if (searchpos > 0) {
                 searchpos--;
             }
             skipsame = 1;
         }
-        else if (c == ctrl('N') || c == SPECIAL_DOWN) {
+        else if (c == ctrl('S')) {
             /* Search for the next (later) match */
             if (searchpos < history_len) {
                 searchpos++;
             }
             searchdir = 1;
             skipsame = 1;
+        }
+        else if (c == ctrl('P') || c == SPECIAL_UP) {
+            /* Exit Ctrl-R mode and go to the previous history line from the current search pos */
+            set_history_index(current, history_len - searchpos);
+            c = 0;
+            break;
+        }
+        else if (c == ctrl('N') || c == SPECIAL_DOWN) {
+            /* Exit Ctrl-R mode and go to the next history line from the current search pos */
+            set_history_index(current, history_len - searchpos - 2);
+            c = 0;
+            break;
         }
         else if (c >= ' ' && c <= '~') {
             /* >= here to allow for null terminator */
@@ -1863,6 +1931,7 @@ static int reverseIncrementalSearch(struct current *current)
                     continue;
                 }
                 /* Copy the matching line and set the cursor position */
+                history_index = history_len - 1 - searchpos;
                 set_current(current,history[searchpos]);
                 current->pos = utf8_strlen(history[searchpos], p - history[searchpos]);
                 break;
@@ -1878,25 +1947,25 @@ static int reverseIncrementalSearch(struct current *current)
     if (c == ctrl('G') || c == ctrl('C')) {
         /* ctrl-g terminates the search with no effect */
         set_current(current, "");
+        history_index = 0;
         c = 0;
     }
     else if (c == ctrl('J')) {
         /* ctrl-j terminates the search leaving the buffer in place */
+        history_index = 0;
         c = 0;
     }
-
     /* Go process the char normally */
     refreshLine(current);
     return c;
 }
 
 static int linenoiseEdit(struct current *current) {
-    int history_index = 0;
+    history_index = 0;
 
     refreshLine(current);
 
     while(1) {
-        int dir = -1;
         int c = fd_read(current);
 
 #ifndef NO_COMPLETION
@@ -1915,7 +1984,7 @@ static int linenoiseEdit(struct current *current) {
 
 #ifdef USE_TERMIOS
         if (c == CHAR_ESCAPE) {   /* escape sequence */
-            c = check_special(current->fd);
+            c = check_special(current);
         }
 #endif
         if (c == -1) {
@@ -2051,36 +2120,19 @@ static int linenoiseEdit(struct current *current) {
                 refreshLine(current);
             }
             break;
-        case SPECIAL_PAGE_UP:
-          dir = history_len - history_index - 1; /* move to start of history */
-          goto history_navigation;
-        case SPECIAL_PAGE_DOWN:
-          dir = -history_index; /* move to 0 == end of history, i.e. current */
-          goto history_navigation;
+        case SPECIAL_PAGE_UP: /* move to start of history */
+          set_history_index(current, history_len - 1);
+          break;
+        case SPECIAL_PAGE_DOWN: /* move to 0 == end of history, i.e. current */
+          set_history_index(current, 0);
+          break;
         case ctrl('P'):
         case SPECIAL_UP:
-            dir = 1;
-          goto history_navigation;
+            set_history_index(current, history_index + 1);
+            break;
         case ctrl('N'):
         case SPECIAL_DOWN:
-history_navigation:
-            if (history_len > 1) {
-                /* Update the current history entry before to
-                 * overwrite it with tne next one. */
-                free(history[history_len - 1 - history_index]);
-                history[history_len - 1 - history_index] = strdup(sb_str(current->buf));
-                /* Show the new entry */
-                history_index += dir;
-                if (history_index < 0) {
-                    history_index = 0;
-                    break;
-                } else if (history_index >= history_len) {
-                    history_index = history_len - 1;
-                    break;
-                }
-                set_current(current, history[history_len - 1 - history_index]);
-                refreshLine(current);
-            }
+            set_history_index(current, history_index - 1);
             break;
         case ctrl('A'): /* Ctrl+a, go to the start of the line */
         case SPECIAL_HOME:
@@ -2115,10 +2167,10 @@ history_navigation:
             refreshLine(current);
             break;
         default:
-			if (c >= meta('a') && c <= meta('z')) {
-				/* Don't insert meta chars that are not bound */
-				break;
-			}
+            if (c >= meta('a') && c <= meta('z')) {
+                /* Don't insert meta chars that are not bound */
+                break;
+            }
             /* Only tab is allowed without ^V */
             if (c == '\t' || c >= ' ') {
                 if (insert_char(current, current->pos, c) == 1) {
@@ -2169,7 +2221,7 @@ static stringbuf *sb_getline(FILE *fh)
         /* ignore the effect of character count for partial utf8 sequences */
         sb_append_len(sb, &ch, 1);
     }
-    if (n == 0) {
+    if (n == 0 || sb->data == NULL) {
         sb_free(sb);
         return NULL;
     }
@@ -2188,6 +2240,10 @@ char *linenoiseWithInitial(const char *prompt, const char *initial)
         printf("%s", prompt);
         fflush(stdout);
         sb = sb_getline(stdin);
+        if (sb && !fd_isatty(&current)) {
+            printf("%s\n", sb_str(sb));
+            fflush(stdout);
+        }
     }
     else {
         current.buf = sb_alloc();
@@ -2195,9 +2251,9 @@ char *linenoiseWithInitial(const char *prompt, const char *initial)
         current.nrows = 1;
         current.prompt = prompt;
 
-		/* The latest history entry is always our current buffer */
-		linenoiseHistoryAdd(initial);
-		set_current(&current, initial);
+        /* The latest history entry is always our current buffer */
+        linenoiseHistoryAdd(initial);
+        set_current(&current, initial);
 
         count = linenoiseEdit(&current);
 
@@ -2216,11 +2272,11 @@ char *linenoiseWithInitial(const char *prompt, const char *initial)
 
 char *linenoise(const char *prompt)
 {
-	return linenoiseWithInitial(prompt, "");
+    return linenoiseWithInitial(prompt, "");
 }
 
 /* Using a circular buffer is smarter, but a bit more complex to handle. */
-int linenoiseHistoryAddAllocated(char *line) {
+static int linenoiseHistoryAddAllocated(char *line) {
 
     if (history_max_len == 0) {
 notinserted:

@@ -148,6 +148,16 @@ int Jim_PackageRequire(Jim_Interp *interp, const char *name, int flags)
     return JIM_OK;
 }
 
+static int package_cmd_forget(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    int i;
+
+    for (i = 0; i < argc; i++) {
+        Jim_DeleteHashEntry(&interp->packages, Jim_String(argv[i]));
+    }
+    return JIM_OK;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -215,6 +225,14 @@ static int package_cmd_names(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 static const jim_subcmd_type package_command_table[] = {
+    {
+        "forget",
+        "package ...",
+        package_cmd_forget,
+        1,
+        -1,
+        /* Description: Forget that the given packages were loaded */
+    },
     {
         "provide",
         "name ?version?",

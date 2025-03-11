@@ -70,6 +70,11 @@ int Jim_OpenForRead(const char *filename);
     #define Jim_FileStat _fstat64
     #define Jim_Lseek _lseeki64
     #define O_TEXT _O_TEXT
+    #define O_BINARY _O_BINARY
+    #define Jim_SetMode _setmode
+    #ifndef STDIN_FILENO
+    #define STDIN_FILENO 0
+    #endif
 
 #else
     #if defined(HAVE_STAT64)
@@ -118,6 +123,14 @@ int Jim_OpenForRead(const char *filename);
     #endif
 
 #endif
+
+# ifndef MAXPATHLEN
+# ifdef PATH_MAX
+# define MAXPATHLEN PATH_MAX
+# else
+# define MAXPATHLEN JIM_PATH_LEN
+# endif
+# endif
 
 /* jim-file.c */
 /* Note that this is currently an internal function only.
