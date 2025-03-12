@@ -9,8 +9,16 @@ set lines {}
 set commands {}
 array set cdict {}
 set c 0
+set numlist 1
 
 while {[gets $f buf] >= 0} {
+	# Handle auto numbered lists
+	if {[string match "#. *" $buf]} {
+		set buf "$numlist. [string range $buf 3 end]"
+		incr numlist
+	} elseif {$buf eq ""} {
+		set numlist 1
+	}
 	if {[string match "~~*" $buf]} {
 		if {[string match "*: *" $prev]} {
 			incr c
