@@ -33,135 +33,135 @@ available only in Jim Tcl.
 
 Some notable differences with Tcl 8.5/8.6/8.7 are:
 
-1. Object-based I/O (aio), but with a Tcl-compatibility layer
-2. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
-3. Integers are 64bit
-4. Support for references (`ref`/`getref`/`setref`) and garbage collection
-5. Builtin dictionary type (`dict`) with some limitations compared to Tcl 8.6
-6. `env` command to access environment variables
-7. Operating system features: `os.fork`, `os.uptime`, `wait`, `signal`, `alarm`, `sleep`
-8. Much better error reporting. `info stacktrace` as a replacement for '$errorInfo', '$errorCode'
-9. Support for "static" variables in procedures
-10. Threads and coroutines are not supported
-11. Command and variable traces are not supported
-12. Built-in command line editing
-13. Expression shorthand syntax: +$(...)+
-14. Modular build allows many features to be omitted or built as dynamic, loadable modules
-15. Highly suitable for use in an embedded environment
-16. Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
+#. Object-based I/O (aio), but with a Tcl-compatibility layer
+#. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
+#. Integers are 64bit
+#. Support for references (`ref`/`getref`/`setref`) and garbage collection
+#. Builtin dictionary type (`dict`) with some limitations compared to Tcl 8.6
+#. `env` command to access environment variables
+#. Operating system features: `os.fork`, `os.uptime`, `wait`, `signal`, `alarm`, `sleep`
+#. Much better error reporting. `info stacktrace` as a replacement for '$errorInfo', '$errorCode'
+#. Support for "static" variables in procedures
+#. Threads and coroutines are not supported
+#. Command and variable traces are not supported
+#. Built-in command line editing
+#. Expression shorthand syntax: +$(...)+
+#. Modular build allows many features to be omitted or built as dynamic, loadable modules
+#. Highly suitable for use in an embedded environment
+#. Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 
 RECENT CHANGES
 --------------
 Changes since 0.83
 ~~~~~~~~~~~~~~~~~~
-1. `aio` - support for configurable read and write buffering
-2. Add support for `package forget`
-3. Add `aio translation` support (and fconfigure -translation)
+#. `aio` - support for configurable read and write buffering
+#. Add support for `package forget`
+#. Add `aio translation` support (and fconfigure -translation)
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Multi-level `break` and `continue` are now supported
-2. `info frame` now only returns 'proc' levels
-3. `stacktrace` is now a builtin command
-4. The stack trace on error now includes the full stack trace, not just back to where it was caught
-5. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
-6. `socket` , `open` and `aio accept` now support '-noclose'
-7. Add support for hinting with `history hints`
-8. Support for `proc` statics by reference (lexical closure) rather than by value
-9. `regsub` now supports '-command' (per Tcl 8.7)
-10. Add support for `lsort -dict`
+#. Multi-level `break` and `continue` are now supported
+#. `info frame` now only returns 'proc' levels
+#. `stacktrace` is now a builtin command
+#. The stack trace on error now includes the full stack trace, not just back to where it was caught
+#. Improvements with `aio`, related to eventloop and buffering. Add `aio timeout`.
+#. `socket` , `open` and `aio accept` now support '-noclose'
+#. Add support for hinting with `history hints`
+#. Support for `proc` statics by reference (lexical closure) rather than by value
+#. `regsub` now supports '-command' (per Tcl 8.7)
+#. Add support for `lsort -dict`
 
 Changes between 0.81 and 0.82
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. `try` now supports trap to match on errorcode
-2. TIP 603, `aio stat` is now supported to stat a file handle
-3. Add support for `socket -async`
-4. The handles created by `socket pty` now make the replica name available via 'filename'
-5. `info frame` now returns a (largely) Tcl-compatible dictionary, and supports 'info frame 0'
-6. `vwait -signal` is now supported
-7. ./configure now defaults to '--full'
-8. New `timerate` command as an improvement over `time`, somewhat compatible with TIP 527
-9. Add `ensemble` command and support for `namespace ensemble` (as an optional extension)
+#. `try` now supports trap to match on errorcode
+#. TIP 603, `aio stat` is now supported to stat a file handle
+#. Add support for `socket -async`
+#. The handles created by `socket pty` now make the replica name available via 'filename'
+#. `info frame` now returns a (largely) Tcl-compatible dictionary, and supports 'info frame 0'
+#. `vwait -signal` is now supported
+#. ./configure now defaults to '--full'
+#. New `timerate` command as an improvement over `time`, somewhat compatible with TIP 527
+#. Add `ensemble` command and support for `namespace ensemble` (as an optional extension)
 
 Changes between 0.80 and 0.81
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. TIP 582, comments allowed in expressions
-2. Many commands now accept "safe" integer expressions rather than simple integers:
+#. TIP 582, comments allowed in expressions
+#. Many commands now accept "safe" integer expressions rather than simple integers:
    `loop`, `range`, `incr`, `string repeat`, `lrepeat`, `pack`, `unpack`, `rand`
-3. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
-4. `loop` can now omit the start value
-5. Add the `xtrace` command for execution trace support
-6. Add `history keep`
-7. Add support for `lsearch -index` and `lsearch -stride`, the latter per TIP 351
-8. `lsort -index` now supports multiple indices
-9. Add support for `lsort -stride`
-10. `open` now supports POSIX-style access arguments
-11. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
+#. String and list indexes now accept integer expressions (<<_string_and_list_index_specifications,STRING AND LIST INDEX SPECIFICATIONS>>)
+#. `loop` can now omit the start value
+#. Add the `xtrace` command for execution trace support
+#. Add `history keep`
+#. Add support for `lsearch -index` and `lsearch -stride`, the latter per TIP 351
+#. `lsort -index` now supports multiple indices
+#. Add support for `lsort -stride`
+#. `open` now supports POSIX-style access arguments
+#. TIP 526, `expr` now only allows a single argument (unless --compat is enabled)
 
 Changes between 0.79 and 0.80
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. `regsub` now fully supports +{backslash}A+
-2. Add `socket pty` to create a pseudo-tty pair
-3. Null characters (\x00) are now supported in variable and proc names
-4. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
-5. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
-6. Add string comparison operators (lt, gt, le, ge) per TIP 461
-7. Implement 0d radix prefix for decimal per TIP 472
+#. `regsub` now fully supports +{backslash}A+
+#. Add `socket pty` to create a pseudo-tty pair
+#. Null characters (\x00) are now supported in variable and proc names
+#. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
+#. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
+#. Add string comparison operators (lt, gt, le, ge) per TIP 461
+#. Implement 0d radix prefix for decimal per TIP 472
 
 Changes between 0.78 and 0.79
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Add `file mtimeus` for high resolution file timestamps
-2. `aio` now supports datagram Unix-Domain sockets
-3. Add support for `aio lock -wait`
-4. Add `signal block` to prevent delivery of signals
-5. Add support for `file split`
-6. Add support for `json::encode` and `json::decode`
-7. `aio tty` now allows setting +echo+ without full +raw+ mode
+#. Add `file mtimeus` for high resolution file timestamps
+#. `aio` now supports datagram Unix-Domain sockets
+#. Add support for `aio lock -wait`
+#. Add `signal block` to prevent delivery of signals
+#. Add support for `file split`
+#. Add support for `json::encode` and `json::decode`
+#. `aio tty` now allows setting +echo+ without full +raw+ mode
 
 Changes between 0.77 and 0.78
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Add serial/tty support with `aio tty`
-2. Add support for 'jimsh -'
-3. Add hidden '-commands' option to many commands
-4. Add scriptable autocompletion support in interactive mode with `tcl::autocomplete`
-5. Add `aio sockopt`
-6. Add scriptable autocompletion support with `history completion`
-7. Add support for `tree delete`
-8. Add support for `defer` and '$jim::defer'
-9. Renamed `os.wait` to `wait`, now more Tcl-compatible and compatible with `exec ... &`
-10. `pipe` is now a synonym for `socket pipe`
-11. Closing a pipe open with `open |...` now returns Tcl-like status
-12. It is now possible to used `exec` redirection with a pipe opened with `open |...`
-13. Interactive line editing now supports multiline mode if $::history::multiline is set
+#. Add serial/tty support with `aio tty`
+#. Add support for 'jimsh -'
+#. Add hidden '-commands' option to many commands
+#. Add scriptable autocompletion support in interactive mode with `tcl::autocomplete`
+#. Add `aio sockopt`
+#. Add scriptable autocompletion support with `history completion`
+#. Add support for `tree delete`
+#. Add support for `defer` and '$jim::defer'
+#. Renamed `os.wait` to `wait`, now more Tcl-compatible and compatible with `exec ... &`
+#. `pipe` is now a synonym for `socket pipe`
+#. Closing a pipe open with `open |...` now returns Tcl-like status
+#. It is now possible to used `exec` redirection with a pipe opened with `open |...`
+#. Interactive line editing now supports multiline mode if $::history::multiline is set
 
 Changes between 0.76 and 0.77
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Add support for `aio sync`
-2. Add SSL and TLS support in aio
-3. Added `zlib`
-4. Added support for boolean constants in `expr`
-5. `string is` now supports 'boolean' class
-6. Add support for `aio lock` and `aio unlock`
-7. Add new `interp` command
+#. Add support for `aio sync`
+#. Add SSL and TLS support in aio
+#. Added `zlib`
+#. Added support for boolean constants in `expr`
+#. `string is` now supports 'boolean' class
+#. Add support for `aio lock` and `aio unlock`
+#. Add new `interp` command
 
 Changes between 0.75 and 0.76
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. `glob` now supports the +-tails+ option
-2. Add support for `string cat`
-3. Allow `info source` to add source info
+#. `glob` now supports the +-tails+ option
+#. Add support for `string cat`
+#. Allow `info source` to add source info
 
 Changes between 0.74 and 0.75
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. `binary`, `pack` and `unpack` now support floating point
-2. `file copy` +-force+ handles source and target as the same file
-3. `format` now supports +%b+ for binary conversion
-4. `lsort` now supports +-unique+ and +-real+
-5. Add support for half-close with `aio close` +?r|w?+
-6. Add `socket pair` for a bidirectional pipe
-7. Add '--random-hash' to randomise hash tables for greater security
-8. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
-9. `file stat` no longer requires the variable name
-10. Add support for `file link`
+#. `binary`, `pack` and `unpack` now support floating point
+#. `file copy` +-force+ handles source and target as the same file
+#. `format` now supports +%b+ for binary conversion
+#. `lsort` now supports +-unique+ and +-real+
+#. Add support for half-close with `aio close` +?r|w?+
+#. Add `socket pair` for a bidirectional pipe
+#. Add '--random-hash' to randomise hash tables for greater security
+#. `dict` now supports 'for', 'values', 'incr', 'append', 'lappend', 'update', 'info' and 'replace'
+#. `file stat` no longer requires the variable name
+#. Add support for `file link`
 
 TCL INTRODUCTION
 -----------------
