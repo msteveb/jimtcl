@@ -2613,7 +2613,7 @@ int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr)
         const char *sA = Jim_GetString(aObjPtr, &Alen);
         const char *sB = Jim_GetString(bObjPtr, &Blen);
 
-        return Alen == Blen && memcmp(sA, sB, Alen) == 0;
+        return Alen == Blen && *sA == *sB && memcmp(sA, sB, Alen) == 0;
     }
 }
 
@@ -3997,7 +3997,7 @@ static int JimCommandsHT_KeyCompare(void *privdata, const void *key1, const void
     int len1, len2;
     const char *str1 = Jim_GetStringNoQualifier((Jim_Obj *)key1, &len1);
     const char *str2 = Jim_GetStringNoQualifier((Jim_Obj *)key2, &len2);
-    return len1 == len2 && memcmp(str1, str2, len1) == 0;
+    return len1 == len2 && *str1 == *str2 && memcmp(str1, str2, len1) == 0;
 }
 
 static void JimCommandsHT_ValDestructor(void *interp, void *val)
