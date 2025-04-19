@@ -1,4 +1,5 @@
 # OO support for Jim Tcl, with multiple inheritance
+set ::oo::ignore_invalid_vars false
 
 # Create a new class $classname, with the given
 # dictionary as class variables. These are the initial
@@ -81,11 +82,14 @@ proc class {classname {baseclasses {}} classvars} {
 	$classname method defaultconstructor {{__vars {}}} {
 		set __classvars [$self classvars]
 		foreach __v [dict keys $__vars] {
-			if {![dict exists $__classvars $__v]} {
-				# level 3 because defaultconstructor is called by new
-				return -code error -level 3 "[lindex [info level 0] 0], $__v is not a class variable"
+			if {[dict exists $__classvars $__v]} {
+				set $__v [dict get $__vars $__v]
+			} else {
+				if {!$::oo::ignore_invalid_vars} {
+					# level 3 because defaultconstructor is called by new
+					return -code error -level 3 "[lindex [info level 0] 0], $__v is not a class variable"
+				}
 			}
-			set $__v [dict get $__vars $__v]
 		}
 	}
 	alias "$classname constructor" "$classname defaultconstructor"
