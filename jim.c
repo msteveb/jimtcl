@@ -8452,6 +8452,16 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
             case JIM_EXPROP_NOT:
                 wC = !bA;
                 break;
+            case JIM_EXPROP_UNARYPLUS:
+                rc = JIM_ERR;
+                Jim_SetResultString(interp, 
+                    "can't use non-numeric string as operand of \"+\"", -1);
+                break;
+            case JIM_EXPROP_UNARYMINUS:
+                rc = JIM_ERR;
+                Jim_SetResultString(interp, 
+                    "can't use non-numeric string as operand of \"-\"", -1);
+                break;
             default:
                 abort();
         }
