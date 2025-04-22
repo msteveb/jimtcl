@@ -140,6 +140,12 @@ test try-2.5 "trap match first but not second" -body {
 	}
 } -returnCodes error -result failed
 
+test try-2.6 "don't crash on empty errorcode" {
+	try {
+		return -code error -errorcode ""
+	} trap {COMPARED_AGAINST_ERRORCODE} {msg opts} {}
+} {}
+
 
 proc c {} {
 	try {

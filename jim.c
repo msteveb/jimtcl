@@ -15026,6 +15026,8 @@ wrongargs:
                     }
                     else if (errorCodeObj) {
                         int len = Jim_ListLength(interp, argv[idx + 1]);
+                        int errorCodeLen = Jim_ListLength(interp, errorCodeObj);
+                        if (errorCodeLen < len) len = errorCodeLen;
                         int i;
 
                         ret = JIM_OK;
