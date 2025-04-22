@@ -104,7 +104,7 @@ test try-2.1 "try ... trap" -body {
 	try {
 		a
 	} trap CUSTOM {msg opts} {
-		list $msg $opts(-code) $opts(-errorcode)
+		list $msg [dict get $opts -code] [dict get $opts -errorcode]
 	}
 } -result {{custom errorcode} 1 {CUSTOM RESULT}}
 
@@ -140,6 +140,13 @@ test try-2.5 "trap match first but not second" -body {
 	}
 } -returnCodes error -result failed
 
+test try-2.6 "trap match too long" -body {
+	try {
+		apply {{} {return -code error -errorcode {FOO BAR} failed}}
+	} trap {FOO BAR BAZ} {msg opts} {
+		list trapped
+	}
+} -returnCodes error -result failed
 
 proc c {} {
 	try {
