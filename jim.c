@@ -8452,6 +8452,13 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
             case JIM_EXPROP_NOT:
                 wC = !bA;
                 break;
+            case JIM_EXPROP_UNARYPLUS:
+            case JIM_EXPROP_UNARYMINUS:
+                rc = JIM_ERR;
+                Jim_SetResultFormatted(interp,
+                    "can't use non-numeric string as operand of \"%s\"",
+                        node->type == JIM_EXPROP_UNARYPLUS ? "+" : "-");
+                break;
             default:
                 abort();
         }
@@ -15016,16 +15023,22 @@ wrongargs:
                     }
                     else if (errorCodeObj) {
                         int len = Jim_ListLength(interp, argv[idx + 1]);
-                        int i;
 
-                        ret = JIM_OK;
-                        /* Try to match the sublist against errorcode */
-                        for (i = 0; i < len; i++) {
-                            Jim_Obj *matchObj = Jim_ListGetIndex(interp, argv[idx + 1], i);
-                            Jim_Obj *objPtr = Jim_ListGetIndex(interp, errorCodeObj, i);
-                            if (Jim_StringCompareObj(interp, matchObj, objPtr, 0) != 0) {
-                                ret = -1;
-                                break;
+                        if (len > Jim_ListLength(interp, errorCodeObj)) {
+                            /* More elements in the sublist than in the errorCode so we can't match */
+                            ret = -1;
+                        }
+                        else {
+                            int i;
+                            ret = JIM_OK;
+                            /* Try to match the sublist against errorcode */
+                            for (i = 0; i < len; i++) {
+                                Jim_Obj *matchObj = Jim_ListGetIndex(interp, argv[idx + 1], i);
+                                Jim_Obj *objPtr = Jim_ListGetIndex(interp, errorCodeObj, i);
+                                if (Jim_StringCompareObj(interp, matchObj, objPtr, 0) != 0) {
+                                    ret = -1;
+                                    break;
+                                }
                             }
                         }
                     }

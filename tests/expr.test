@@ -154,5 +154,12 @@ test expr-5.3 {boolean in expression} {
 	expr {true ? 4 : 5}
 } {4}
 
+test expr-6.1 "Unary negation on boolean - should return error" -body {
+	expr {-true}
+} -returnCodes error -result {can't use non-numeric string as operand of "-"}
+
+test expr-6.2 "Unary plus on boolean - should return error" -body {
+	expr {+true}
+} -returnCodes error -result {can't use non-numeric string as operand of "+"}
 
 testreport
