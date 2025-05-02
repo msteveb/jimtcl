@@ -8213,6 +8213,9 @@ static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
     else if (idx < 0) {
         idx = -INT_MAX;
     }
+    else if (idx > INT_MAX) {
+        goto badindex;
+    }
 
     /* Free the old internal repr and set the new one. */
     Jim_FreeIntRep(interp, objPtr);
