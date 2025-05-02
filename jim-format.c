@@ -221,7 +221,7 @@ Jim_Obj *Jim_FormatString(Jim_Interp *interp, Jim_Obj *fmtObjPtr, int objc, Jim_
             step = utf8_tounicode(format, &ch);
         }
         if (isdigit(ch)) {
-            precision = strtoul(format, &end, 10);
+            precision = strtol(format, &end, 10);
             format = end;
             step = utf8_tounicode(format, &ch);
         } else if (ch == '*') {
