@@ -873,6 +873,11 @@ Highly suitable for use in an embedded environment
 Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 </p>
 </li>
+<li>
+<p>
+Jim does not convert backslash-newline within braces (in order to preserve accurate line numbers)
+</p>
+</li>
 </ol></div>
 </div>
 </div>
@@ -885,6 +890,16 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <li>
 <p>
 <a href="#_aio"><strong><code>aio</code></strong></a> - support for configurable read and write buffering
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_package"><strong><code>package</code></strong></a> <code>forget</code>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_aio"><strong><code>aio</code></strong></a> <code>translation</code> support (and fconfigure -translation)
 </p>
 </li>
 </ol></div>
@@ -1770,94 +1785,20 @@ sequence is replaced by the given character:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>\{</code>
-</dt>
-<dd>
-<p>
-    Left brace ({).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\}</code>
-</dt>
-<dd>
-<p>
-    Right brace (}).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\[</code>
-</dt>
-<dd>
-<p>
-    Open bracket ([).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\]</code>
-</dt>
-<dd>
-<p>
-    Close bracket (]).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\$</code>
-</dt>
-<dd>
-<p>
-    Dollar sign ($).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\&lt;space&gt;</code>
-</dt>
-<dd>
-<p>
-    Space ( ): doesn&#8217;t terminate argument.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\;</code>
-</dt>
-<dd>
-<p>
-    Semi-colon: doesn&#8217;t terminate command.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\"</code>
-</dt>
-<dd>
-<p>
-    Double-quote.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\&lt;newline&gt;</code>
-</dt>
-<dd>
-<p>
-    Nothing:  this joins two lines together
-    into a single line.  This backslash feature is unique in that
-    it will be applied even when the sequence occurs within braces.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\\</code>
-</dt>
-<dd>
-<p>
-    Backslash (<em>\</em>).
-</p>
-</dd>
-<dt class="hdlist1">
 <code>\ddd</code>
 </dt>
 <dd>
 <p>
     The digits <code><em>ddd</em></code> (one, two, or three of them) give the octal value of
-    the character.  Note that Jim supports null characters in strings.
+    the byte.  Note that Jim supports null characters in strings.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>\xnn</code>
+</dt>
+<dd>
+<p>
+    The hexidecimal digits <code><em>nn</em></code> give the value of the byte.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1875,30 +1816,23 @@ sequence is replaced by the given character:</p></div>
     The <em>u</em> form allows for one to four hex digits.
     The <em>U</em> form allows for one to eight hex digits.
     The <em>u{nnn}</em> form allows for one to eight hex digits, but makes it easier to insert
-    characters UTF-8 characters which are followed by a hex digit.
+    UTF-8 characters that are followed by a hex digit.
 </p>
 </dd>
 </dl></div>
+<div class="paragraph"><p>If a backslash is followed by something other than one of the options
+described above, the backslash is skipped and character following the backslash is treated
+as a normal character without any special meaning. The Tcl scanner continues
+normal processing with the next character.  For example, in the
+command</p></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {x\[\ yz\141</code></pre>
+<pre><code>    set a \{x\[\ yz\141</code></pre>
 </div></div>
 <div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{x[ yza</code>.</p></div>
-<div class="paragraph"><p>If a backslash is followed by something other than one of the options
-described above, then the backslash is transmitted to the argument
-field without any special processing, and the Tcl scanner continues
-normal processing with the next character.  For example, in the
-command</p></div>
-<div class="listingblock">
-<div class="content">
-<pre><code>    set \*a \{foo</code></pre>
-</div></div>
-<div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>*a</code> and the second
-argument will be <code>{foo</code>.</p></div>
 <div class="paragraph"><p>If an argument is enclosed in braces, then backslash sequences inside
-the argument are parsed but no substitution occurs (except for
-backslash-newline):  the backslash
+the argument are parsed but no substitution occurs:  the backslash
 sequence is passed through to the argument as is, without making
 any special interpretation of the characters in the backslash sequence.
 In particular, backslashed braces are not counted in locating the
@@ -5926,6 +5860,10 @@ forming the command pipeline.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_package">package</h3>
+<div class="paragraph"><p><code><strong>package forget</strong> <em>?name &#8230;?</em></code></p></div>
+<div class="paragraph"><p>Removes the knowledge that the given packages were loaded. This allows new, replacement
+packages to be loaded. Note that it does not remove any effects of the previous packages
+being loaded.</p></div>
 <div class="paragraph"><p><code><strong>package provide</strong> <em>name ?version?</em></code></p></div>
 <div class="paragraph"><p>Indicates that the current script provides the package named <code><em>name</em></code>.
 <strong>Note</strong>: The supplied version is ignored. All packages are registered as version 1.0
@@ -7858,6 +7796,17 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>translation binary|text</strong></code>
+</dt>
+<dd>
+<p>
+    This has no effect on Unix platforms, but on Windows it changes the mode of the file
+    handle to binary or text. In general, use "wb" as the open mode instead, but this
+    can be useful on existing filehandles such as <code>stdout</code> and <code>stderr</code>. It is probably
+    a good idea to do this immediately before sending any output.
+</p>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>tty</strong> ?settings?</code>
 </dt>
 <dd>
@@ -8092,7 +8041,7 @@ if end-of-file was reached.</p></div>
 </li>
 <li>
 <p>
-<a href="#_fconfigure"><strong><code>fconfigure</code></strong></a> <code>... -translation</code> is accepted but ignored
+<a href="#_fconfigure"><strong><code>fconfigure</code></strong></a> <code>... -translation</code> maps to <a href="#_aio"><strong><code>aio</code></strong></a> <code>translation</code> and suppports only <code>binary</code> and <code>text</code>
 </p>
 </li>
 </ul></div>
@@ -8941,6 +8890,16 @@ the remaining subcommands do nothing.</p></div>
 <div class="paragraph"><p>Provides namespace-related functions. See also: <a href="http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm</a></p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
+<code><strong>namespace canonical</strong> ?current? ?name?</code>
+</dt>
+<dd>
+<p>
+   Returns the full name of <code><em>name</em></code> within namespace <em><code>current</code></em>.
+   If <em><code>current</code></em> is not given, <a href="#_namespace"><strong><code>namespace</code></strong></a> <code>current</code> is used.
+   If neither are given, returns the current namespace (not qualified with a leading <em>::</em>).
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>namespace code</strong> <em>script</em></code>
 </dt>
 <dd>
@@ -8967,7 +8926,7 @@ the remaining subcommands do nothing.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>namespace ensemble create</strong>'</code>
+<code><strong>namespace ensemble create</strong></code>
 </dt>
 <dd>
 <p>
