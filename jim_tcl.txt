@@ -49,6 +49,7 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 #. Modular build allows many features to be omitted or built as dynamic, loadable modules
 #. Highly suitable for use in an embedded environment
 #. Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
+#. Jim does not convert backslash-newline within braces (in order to preserve accurate line numbers)
 
 RECENT CHANGES
 --------------
@@ -597,41 +598,12 @@ sequence is replaced by the given character:
 +{backslash}v+::
     Vertical tab (0xb).
 
-+{backslash}{+::
-    Left brace ({).
-
-+{backslash}}+::
-    Right brace (}).
-
-+{backslash}[+::
-    Open bracket ([).
-
-+{backslash}]+::
-    Close bracket (]).
-
-+{backslash}$+::
-    Dollar sign ($).
-
-+{backslash}<space>+::
-    Space ( ): doesn't terminate argument.
-
-+{backslash};+::
-    Semi-colon: doesn't terminate command.
-
-+{backslash}"+::
-    Double-quote.
-
-+{backslash}<newline>+::
-    Nothing:  this joins two lines together
-    into a single line.  This backslash feature is unique in that
-    it will be applied even when the sequence occurs within braces.
-
-+{backslash}{backslash}+::
-    Backslash ('{backslash}').
-
 +{backslash}ddd+::
     The digits +'ddd'+ (one, two, or three of them) give the octal value of
-    the character.  Note that Jim supports null characters in strings.
+    the byte.  Note that Jim supports null characters in strings.
+
++{backslash}xnn+::
+    The hexidecimal digits +'nn'+ give the value of the byte.
 
 +{backslash}unnnn+::
 +{backslash}u\{nnn\}+::
@@ -640,32 +612,24 @@ sequence is replaced by the given character:
     The 'u' form allows for one to four hex digits.
     The 'U' form allows for one to eight hex digits.
     The 'u\{nnn\}' form allows for one to eight hex digits, but makes it easier to insert
-    characters UTF-8 characters which are followed by a hex digit.
+    UTF-8 characters that are followed by a hex digit.
+
+If a backslash is followed by something other than one of the options
+described above, the backslash is skipped and character following the backslash is treated
+as a normal character without any special meaning. The Tcl scanner continues
+normal processing with the next character.  For example, in the
+command
 
 For example, in the command
 
 ----
-    set a \{x\[\ yz\141
+    set a \\{x\[\ yz\141
 ----
 
 the second argument to `set` will be +{x[ yza+.
 
-If a backslash is followed by something other than one of the options
-described above, then the backslash is transmitted to the argument
-field without any special processing, and the Tcl scanner continues
-normal processing with the next character.  For example, in the
-command
-
-----
-    set \*a \\{foo
-----
-
-The first argument to `set` will be +*a+ and the second
-argument will be +{foo+.
-
 If an argument is enclosed in braces, then backslash sequences inside
-the argument are parsed but no substitution occurs (except for
-backslash-newline):  the backslash
+the argument are parsed but no substitution occurs:  the backslash
 sequence is passed through to the argument as is, without making
 any special interpretation of the characters in the backslash sequence.
 In particular, backslashed braces are not counted in locating the
