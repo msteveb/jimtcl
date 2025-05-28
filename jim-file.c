@@ -560,8 +560,8 @@ static int mkdir_all(char *path)
             /* Create the parent and try again */
             continue;
         }
-        /* Maybe it already exists as a directory */
-        if (errno == EEXIST) {
+        /* Maybe it already exists as a directory. MorphOS can return ENOTDIR instead of EEXIST */
+        if (errno == EEXIST || errno == ENOTDIR) {
             jim_stat_t sb;
 
             if (Jim_Stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {

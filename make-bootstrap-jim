@@ -92,7 +92,11 @@ cat <<EOF
 #else
 #define _GNU_SOURCE
 #endif
+#ifndef __ixemul__
 #define HAVE_FORK
+#else
+#define HAVE_VFORK
+#endif
 #define HAVE_WAITPID
 #define HAVE_ISATTY
 #define HAVE_MKSTEMP
