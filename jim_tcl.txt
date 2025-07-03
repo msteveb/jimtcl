@@ -34,7 +34,7 @@ available only in Jim Tcl.
 Some notable differences with Tcl 8.5/8.6/8.7 are:
 
 #. Object-based I/O (aio), but with a Tcl-compatibility layer
-#. I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
+#. I/O: Support for sockets and pipes including TCP, UDP, UNIX-Domain sockets and IPv6
 #. Integers are 64bit
 #. Support for references (`ref`/`getref`/`setref`) and garbage collection
 #. Builtin dictionary type (`dict`) with some limitations compared to Tcl 8.6
@@ -44,11 +44,10 @@ Some notable differences with Tcl 8.5/8.6/8.7 are:
 #. Support for "static" variables in procedures
 #. Threads and coroutines are not supported
 #. Command and variable traces are not supported
-#. Built-in command line editing
+#. Built-in command line editing in interactive mode with autocompletion and hints
 #. Expression shorthand syntax: +$(...)+
 #. Modular build allows many features to be omitted or built as dynamic, loadable modules
 #. Highly suitable for use in an embedded environment
-#. Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 #. Jim does not convert backslash-newline within braces (in order to preserve accurate line numbers)
 
 RECENT CHANGES
@@ -107,7 +106,7 @@ Changes between 0.79 and 0.80
 #. dictionaries and arrays now preserve insertion order, matching Tcl and the documentation
 #. Add `dict getwithdefault` (and the alias `dict getdef`) per TIP 342
 #. Add string comparison operators (lt, gt, le, ge) per TIP 461
-#. Implement 0d radix prefix for decimal per TIP 472
+#. Implement +0d+ radix prefix for decimal per TIP 472
 
 Changes between 0.78 and 0.79
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2062,7 +2061,7 @@ curry
 Similar to `alias` except it creates an anonymous procedure (lambda) instead of
 a named procedure.
 
-the following creates a local, unnamed alias for the command `info exists`.
+The following creates a local, unnamed alias for the command `info exists`.
 
 ----
     set e [local curry info exists]
@@ -2101,6 +2100,11 @@ Performs one of several operations on dictionary values.
 The +'option'+ argument determines what action is carried out by the
 command.  The legal +'options'+ are:
 
++*dict append* 'dictionaryName key ?string ...?'+::
+    This appends the given string (or strings) to the value that
+    the given key maps to in +'dictionaryName'+. Non-existent keys
+    are treated as if they map to an empty string.
+
 +*dict create* '?key value \...?'+::
     Create and return a new dictionary value that contains each of
     the key/value mappings listed as  arguments (keys and values
@@ -2112,6 +2116,9 @@ command.  The legal +'options'+ are:
     of keys through a set of nested dictionaries) exists in the given
     dictionary value.  This returns a true value exactly when `dict get`
     on that path will succeed.
+
++*dict for* '{keyvar valuevar} dictionary script'+::
+   *TBD*
 
 +*dict get* 'dictionary ?key \...?'+::
     Given a dictionary value (first argument) and a key (second argument),
@@ -2133,11 +2140,27 @@ command.  The legal +'options'+ are:
     Similar to `dict get` except if no value exists in the dictionary for the
     give key(s), returns +'default'+ instead.
 
++*dict incr* 'dictionaryName key ?increment?'+::
+    This adds the given increment value (an integer that defaults
+    to 1 if not specified) to the value that the given key maps to
+    in +'dictionaryName'+.  Non-existent keys are treated as if
+    they map to 0. It is an error to increment a value for an
+    existing key if that value is not an integer.
+
++*dict info* 'dictionary'+::
+    Returns some information about the utilisation of the data
+    within the hashtable that represents +'dictionary'+.
+
 +*dict keys* 'dictionary ?pattern?'+::
     Returns a list of the keys in the dictionary.
     If +'pattern'+ is specified, then only those keys whose
     names match +'pattern'+ (using <<_string_matching,STRING MATCHING>> rules)
     are included.
+
++*dict lappend* 'dictionaryName key ?value ...?'+::
+    This appends the given items to the list value that the given
+    key maps to in +'dictionaryName'+. Non-existent keys are treated
+    as if they map to the empty list.
 
 +*dict merge* ?'dictionary \...'?+::
     Return a dictionary that contains the contents of each of the
@@ -2145,6 +2168,13 @@ command.  The legal +'options'+ are:
     contain a mapping for the same key, the resulting dictionary
     maps that key to the value according to the last dictionary on
     the command line containing a mapping for that key.
+
++*dict replace* 'dictionary ?key value ...?'+::
+    Return a new dictionary that is a copy of +'dictionary'+
+    except with some values different or some
+    extra key/value pairs added. It is legal for this command to
+    be called with no key/value pairs, but illegal for this command
+    to be called with a key but no value.
 
 +*dict set* 'dictionaryName key ?key \...? value'+::
     This operation takes the +'name'+ of a variable containing a dictionary
@@ -2165,6 +2195,16 @@ command.  The legal +'options'+ are:
     least one key must be specified, but the last key on the key-path
     need not exist. All other components on the path must exist.
 
++*dict update* 'dictionaryName key varName ?key VarName ...? script'+::
+   *TBD*
+
++*dict values* 'dictionary ?globPattern?'+::
+    Return a list of all values in +'dictionary'+. If a pattern is
+    supplied, only those values that match it (according to the
+    rules of `string match`) will be returned. The returned values
+    will be in the order of that the keys associated with those
+    values were inserted into the dictionary.
+
 +*dict with* 'dictionaryName key ?key \...? script'+::
     Execute the Tcl script in +'script'+ with the value for each
     key in +'dictionaryName'+ mapped to a variable with the same
@@ -2184,8 +2224,6 @@ command.  The legal +'options'+ are:
     explicitly unset). Note that changes to the contents of +'dictionaryName'+
     only happen when +'script'+ terminates.
 
-+*dict for, values, incr, append, lappend, update, info, replace*+ to be documented...
-
 ensemble
 ~~~~~~~~
 +*ensemble* 'name ?*-automap*? prefix'+
@@ -2195,15 +2233,15 @@ By default, the prefix is +'name'+ followed by a single space.
 
 For example, consider:
 
+----
     proc {test open} {name} { ... }
     proc {test close} {handle} { ... }
     proc {test show} {handle} { ... }
     ensemble test
+----
 
 Now the '+test+' command has been created that redirects based on the first argument.
-e.g.
-
-    test open $filename => {test open} $filename
+e.g. +'test open $filename'+ => +'{test open} $filename'+
 
 env
 ~~~
@@ -3122,16 +3160,13 @@ continues to have global scope while it is active.
 ----
 
 In this example, the lambda is deleted at the end of the procedure rather
-than waiting until garbage collection.
+than waiting until garbage collection. Note that `local` returns the command name.
 
 ----
     proc outer {} {
-      set x [lambda inner {args} {
+      set x [local lambda {args} {
         # will be deleted when 'outer' exits
       }]
-      # Use 'function' here which simply returns $x
-      local function $x
-
       $x ...
       ...
     }
@@ -3627,38 +3662,34 @@ See also `socket`, `pid`, `exec`
 
 package
 ~~~~~~~
-+*package forget* '?name ...?'+
-
++*package forget* '?name ...?'+::
 Removes the knowledge that the given packages were loaded. This allows new, replacement
 packages to be loaded. Note that it does not remove any effects of the previous packages
 being loaded.
 
-+*package provide* 'name ?version?'+
-
++*package provide* 'name ?version?'+::
 Indicates that the current script provides the package named +'name'+.
 *Note*: The supplied version is ignored. All packages are registered as version 1.0
 (it is simply accepted for compatibility purposes).
-
+ ::
 Any script that provides a package may include this statement
 as the first statement, although it is not required.
 
-+*package require* 'name ?version?'+
-
++*package require* 'name ?version?'+::
 Searches for the package with the given +'name'+ by examining each path
 in '$::auto_path' and trying to load '$path/$name.so' as a dynamic extension,
 or '$path/$name.tcl' as a script package.
-
+ ::
 The first such file which is found is considered to provide the package.
 (The version number is ignored).
-
+ ::
 If '$name.so' exists, it is loaded with the `load` command,
 otherwise if '$name.tcl' exists it is loaded with the `source` command.
-
+ ::
 If `load` or `source` fails, `package require` will fail immediately.
 No further attempt will be made to locate the file.
 
-+*package names*+
-
++*package names*+::
 Returns a list of all known/loaded packages, including internal packages.
 
 pid
@@ -3759,7 +3790,7 @@ Integer parameters may be any integer expression.
 
 read
 ~~~~
-+*read ?-nonewline? 'fileId ?length?'+
++*read* ?-nonewline? 'fileId ?length?'+
 
 Tcl-compatible alterative version of +'fileId' *read ?-nonewline?* '?length?'+
 

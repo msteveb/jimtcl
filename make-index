@@ -37,6 +37,8 @@ while {[gets $f buf] >= 0} {
 			}
 		}
 	}
+	# Handle TIP nnn references
+	regsub -all {TIP ([0-9]+)} $buf {https://core.tcl-lang.org/tips/doc/main/tip/\1.md[TIP \1]} buf
 	lappend lines $buf
 	set prev $buf
 }
