@@ -63,6 +63,9 @@ Changes since 0.83
 #. `vwait` now accepts a script argument
 #. Add support for `os.umask`
 #. Add `taint` support for improved data security
+#. Improved API for creating C commands with +'Jim_RegisterCommand'+ for arg checking and usage
+#. New `info usage` to return the usage for a proc or native command
+#. New `info aliases` to list all aliases
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2926,17 +2929,23 @@ The legal +'option'+'s (which may be abbreviated) are:
     +'command'+ must be an alias created with `alias`. In which case the target
     command and arguments, as passed to `alias` are returned. See `exists -alias`
 
++*info aliases ?-all?* ?'pattern'?+::
+    Returns a list of alias commands.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
+
 +*info body* 'procname'+::
     Returns the body of procedure +'procname'+.  +'procname'+ must be
     the name of a Tcl command procedure.
 
-+*info channels*+::
-    Returns a list of all open file handles from `open` or `socket`
++*info channels ?-all?* ?'pattern'?+::
+    Returns a list of open file handles from `open` or `socket`.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
 
 +*info commands ?-all?* ?'pattern'?+::
     If +'pattern'+ isn't specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
-    the command procedures defined using the `proc` command.
+    the command procedures defined using the `proc` command (including aliases
+    and channels).
     If +'pattern'+ is specified, only those names matching +'pattern'+
     (using <<_string_matching,STRING MATCHING>> rules) are returned.
     Normally commands containing a space character are not returned.
@@ -3017,12 +3026,8 @@ The legal +'option'+'s (which may be abbreviated) are:
     can't be determined, in which case the empty string will be returned.
 
 +*info procs ?-all?* ?'pattern'?+::
-    If +'pattern'+ isn't specified, returns a list of all the
-    names of Tcl command procedures.
-    If +'pattern'+ is specified, only those names matching +'pattern'+
-    (using <<_string_matching,STRING MATCHING>> rules) are returned.
-    Normally commands containing a space character are not returned.
-    If +*-all*+ is given, the result does include these commands.
+    Returns a list containing the names of Tcl command procedures.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
 
 +*info references*+::
     Returns a list of all references which have not yet been garbage
@@ -3059,6 +3064,11 @@ The legal +'option'+'s (which may be abbreviated) are:
 
 +*info tainted* 'str'+::
     Returns 1 if the value is tainted, or 0 if not.
+
++*info usage* 'command'+::
+    Returns the usage for the given command. For Tcl command procedures, this is based
+    on the arguments defined for the procedure. For a C command, this is the command usage
+    that was specificied when the command was registered.
 
 +*info version*+::
     Returns the version number for this version of Jim in the form +*x.yy*+.
