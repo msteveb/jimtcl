@@ -66,6 +66,7 @@ Changes since 0.83
 #. Improved API for creating C commands with +'Jim_RegisterCommand'+ for arg checking and usage
 #. New `info usage` to return the usage for a proc or native command
 #. New `info aliases` to list all aliases
+#. `expr` supports new +'=*'+ and +'=~'+ matching operators (see <<_expressions,EXPRESSIONS>>)
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -881,6 +882,14 @@ of precedence:
 +eq ne+::
     String equal and not equal.  Uses the string value directly without
     attempting to convert to a number first.
+
++=*+::
+   String glob match. The left and side is the string to match and the right
+   and side is the pattern. See <<_string_matching,STRING MATCHING>>.
+
++=~+::
+   String regexp match. The left and side is the string to match and the right
+   and side is the regular expression. See <<_regular_expressions,REGULAR EXPRESSIONS>>.
 
 +in ni+::
     String in list and not in list. For 'in', result is 1 if the left operand (as a string)
