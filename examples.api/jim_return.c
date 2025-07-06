@@ -44,10 +44,6 @@
 static int
 CountCharsFunc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-	if (argc != 2) {
-		Jim_WrongNumArgs(interp, 1, argv, "string");
-		return (JIM_ERR);
-	}
 	Jim_SetResult(interp, Jim_NewIntObj(interp, Jim_Length(argv[1])));
 	return (JIM_OK);
 }
@@ -73,10 +69,8 @@ main(int argc, char **argv)
 	/* And initialise any static extensions */
 	Jim_InitStaticExtensions(interp);
 
-
 	/* Register our Jim command. */
-	Jim_CreateCommand(interp, "CountChars", CountCharsFunc,
-	    NULL, NULL);
+	Jim_RegisterSimpleCmd(interp, "CountChars", "string", 1, 1, CountCharsFunc);
 
 	/* Run a script. */
 	error = Jim_Eval(interp, JIM_PROGRAM);

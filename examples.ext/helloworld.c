@@ -19,6 +19,8 @@ Hello_Cmd(Jim_Interp *interp, int objc, Jim_Obj *const objv[])
 int
 Jim_helloworldInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "hello", Hello_Cmd, NULL, NULL);
+    /* Register the package with Jim and check that the ABI matches the interpreter */
+    Jim_PackageProvideCheck(interp, "helloworld");
+    Jim_RegisterSimpleCmd(interp, "hello", "", 0, 0, Hello_Cmd);
     return JIM_OK;
 }
