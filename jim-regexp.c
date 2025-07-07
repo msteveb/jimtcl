@@ -308,7 +308,6 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             result = Jim_SetVariable(interp, argv[i + 2 + j], resultObj);
 
             if (result != JIM_OK) {
-                Jim_FreeObj(interp, resultObj);
                 break;
             }
         }
@@ -617,9 +616,6 @@ cmd_error:
 
             if (result == JIM_OK) {
                 Jim_SetResultInt(interp, num_matches);
-            }
-            else {
-                Jim_FreeObj(interp, resultObj);
             }
         }
         else {

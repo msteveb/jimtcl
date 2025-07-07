@@ -371,7 +371,6 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     double fvalue;
     Jim_Obj *stringObjPtr;
     int len;
-    int freeobj = 0;
 
     if (Jim_GetEnum(interp, argv[3], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
         return JIM_ERR;
@@ -406,10 +405,8 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (!stringObjPtr) {
         /* Create the string if it doesn't exist */
         stringObjPtr = Jim_NewEmptyStringObj(interp);
-        freeobj = 1;
     }
     else if (Jim_IsShared(stringObjPtr)) {
-        freeobj = 1;
         stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
     }
 
@@ -455,10 +452,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
-        if (freeobj) {
-            Jim_FreeNewObj(interp, stringObjPtr);
-            return JIM_ERR;
-        }
+        return JIM_ERR;
     }
     return JIM_OK;
 }

@@ -4689,15 +4689,18 @@ static Jim_VarVal *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Ji
  */
 int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 {
-    int err;
+    int ret = JIM_OK;
     Jim_VarVal *vv;
 
     switch (SetVariableFromAny(interp, nameObjPtr)) {
         case JIM_DICT_SUGAR:
-            return JimDictSugarSet(interp, nameObjPtr, valObjPtr);
+            ret = JimDictSugarSet(interp, nameObjPtr, valObjPtr);
+            break;
 
         case JIM_ERR:
-            JimCreateVariable(interp, nameObjPtr, valObjPtr);
+            if (JimCreateVariable(interp, nameObjPtr, valObjPtr) == NULL) {
+                ret = JIM_ERR;
+            }
             break;
 
         case JIM_OK:
@@ -4712,13 +4715,16 @@ int Jim_SetVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 
                 savedCallFrame = interp->framePtr;
                 interp->framePtr = vv->linkFramePtr;
-                err = Jim_SetVariable(interp, vv->objPtr, valObjPtr);
+                ret = Jim_SetVariable(interp, vv->objPtr, valObjPtr);
                 interp->framePtr = savedCallFrame;
-                if (err != JIM_OK)
-                    return err;
             }
+            break;
     }
-    return JIM_OK;
+    if (ret != JIM_OK && valObjPtr->refCount == 0) {
+        /* Since we couldn't take ownership of the object, need to free it here */
+        Jim_FreeNewObj(interp, valObjPtr);
+    }
+    return ret;
 }
 
 int Jim_SetVariableStr(Jim_Interp *interp, const char *name, Jim_Obj *objPtr)
@@ -7403,8 +7409,9 @@ int Jim_ListSetIndex(Jim_Interp *interp, Jim_Obj *varNamePtr,
         goto err;
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
-    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK)
-        goto err;
+    if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK) {
+        return JIM_ERR;
+    }
     Jim_SetResult(interp, varObjPtr);
     return JIM_OK;
   err:
@@ -8040,7 +8047,6 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
         }
         varObjPtr = objPtr = Jim_NewDictObj(interp, NULL, 0);
         if (Jim_SetVariable(interp, varNamePtr, objPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, varObjPtr);
             return JIM_ERR;
         }
     }
@@ -8095,7 +8101,7 @@ int Jim_SetDictKeysVector(Jim_Interp *interp, Jim_Obj *varNamePtr,
     Jim_InvalidateStringRep(objPtr);
     Jim_InvalidateStringRep(varObjPtr);
     if (Jim_SetVariable(interp, varNamePtr, varObjPtr) != JIM_OK) {
-        goto err;
+        return JIM_ERR;
     }
 
     if (!(flags & JIM_NORESULT)) {
@@ -10832,7 +10838,6 @@ static int Jim_IncrCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     if (!intObjPtr || Jim_IsShared(intObjPtr)) {
         intObjPtr = Jim_NewIntObj(interp, wideValue + increment);
         if (Jim_SetVariable(interp, argv[1], intObjPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, intObjPtr);
             return JIM_ERR;
         }
     }
@@ -12929,9 +12934,6 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
             else {
                 objPtr = Jim_NewIntObj(interp, i);
                 retval = Jim_SetVariable(interp, argv[1], objPtr);
-                if (retval != JIM_OK) {
-                    Jim_FreeNewObj(interp, objPtr);
-                }
             }
         }
     }
@@ -13044,10 +13046,10 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
                     /* Ran out, so store the empty string */
                     valObj = interp->emptyObj;
                 }
-                /* Avoid shimmering */
-                Jim_IncrRefCount(valObj);
+                // XXX
+                //Jim_IncrRefCount(valObj);
                 result = Jim_SetVariable(interp, varName, valObj);
-                Jim_DecrRefCount(interp, valObj);
+                //Jim_DecrRefCount(interp, valObj);
                 if (result != JIM_OK) {
                     goto err;
                 }
@@ -13572,24 +13574,19 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 static int Jim_LappendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *listObjPtr;
-    int new_obj = 0;
     int i;
 
     listObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
     if (!listObjPtr) {
         /* Create the list if it does not exist */
         listObjPtr = Jim_NewListObj(interp, NULL, 0);
-        new_obj = 1;
     }
     else if (Jim_IsShared(listObjPtr)) {
         listObjPtr = Jim_DuplicateObj(interp, listObjPtr);
-        new_obj = 1;
     }
     for (i = 2; i < argc; i++)
         Jim_ListAppendElement(interp, listObjPtr, argv[i]);
     if (Jim_SetVariable(interp, argv[1], listObjPtr) != JIM_OK) {
-        if (new_obj)
-            Jim_FreeNewObj(interp, listObjPtr);
         return JIM_ERR;
     }
     Jim_SetResult(interp, listObjPtr);
@@ -13832,24 +13829,18 @@ static int Jim_AppendCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
     }
     else {
-        int new_obj = 0;
         stringObjPtr = Jim_GetVariable(interp, argv[1], JIM_UNSHARED);
         if (!stringObjPtr) {
             /* Create the string if it doesn't exist */
             stringObjPtr = Jim_NewEmptyStringObj(interp);
-            new_obj = 1;
         }
         else if (Jim_IsShared(stringObjPtr)) {
-            new_obj = 1;
             stringObjPtr = Jim_DuplicateObj(interp, stringObjPtr);
         }
         for (i = 2; i < argc; i++) {
             Jim_AppendObj(interp, stringObjPtr, argv[i]);
         }
         if (Jim_SetVariable(interp, argv[1], stringObjPtr) != JIM_OK) {
-            if (new_obj) {
-                Jim_FreeNewObj(interp, stringObjPtr);
-            }
             return JIM_ERR;
         }
     }

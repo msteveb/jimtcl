@@ -838,6 +838,7 @@ JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         Jim_Obj *oldNameObj, Jim_Obj *newNameObj);
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
+/* Note that if Jim_SetVariable() fails, and valObjPtr has a zero reference count, it will be freed */
 JIM_EXPORT int Jim_SetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
 JIM_EXPORT int Jim_SetVariableStr (Jim_Interp *interp,

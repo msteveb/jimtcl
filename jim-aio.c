@@ -637,9 +637,7 @@ static int JimSetVariableSocketAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, c
 {
     int ret;
     Jim_Obj *objPtr = JimFormatSocketAddress(interp, sa, salen);
-    Jim_IncrRefCount(objPtr);
     ret = Jim_SetVariable(interp, varObjPtr, objPtr);
-    Jim_DecrRefCount(interp, objPtr);
     return ret;
 }
 
@@ -1181,7 +1179,6 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc) {
         if (Jim_SetVariable(interp, argv[0], objPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, objPtr);
             return JIM_ERR;
         }
 
