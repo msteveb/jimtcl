@@ -11,7 +11,10 @@ def codeql_sarif_contain_error(filename):
     for run in s.get('runs', []):
         rules_metadata = run['tool']['driver']['rules']
         if not rules_metadata:
-            rules_metadata = run['tool']['extensions'][0]['rules']
+            for ext in run['tool']['extensions']:
+                if ext['name'] == 'codeql/cpp-queries':
+                    rules_metadata = ext['rules']
+                    break
 
         for res in run.get('results', []):
             if 'ruleIndex' in res:
