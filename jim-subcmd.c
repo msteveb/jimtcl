@@ -230,14 +230,22 @@ int Jim_CallSubCmd(Jim_Interp *interp, const jim_subcmd_type * ct, int argc, Jim
     int ret = JIM_ERR;
 
     if (ct) {
-        if (ct->flags & JIM_MODFLAG_FULLARGV) {
+        if ((ct->flags & JIM_MODFLAG_NOTAINT) && Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
+            ret = JIM_SUBCMD_TAINTED;
+        }
+        else if (ct->flags & JIM_MODFLAG_FULLARGV) {
             ret = ct->function(interp, argc, argv);
         }
         else {
             ret = ct->function(interp, argc - 2, argv + 2);
         }
         if (ret < 0) {
-            Jim_SubCmdArgError(interp, ct, argv[0]);
+            if (ret == JIM_SUBCMD_TAINTED) {
+                Jim_SetTaintError(interp, 2, argv);
+            }
+            else {
+                Jim_SubCmdArgError(interp, ct, argv[0]);
+            }
             ret = JIM_ERR;
         }
     }
@@ -250,4 +258,16 @@ int Jim_SubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_ParseSubCmd(interp, (const jim_subcmd_type *)Jim_CmdPrivData(interp), argc, argv);
 
     return Jim_CallSubCmd(interp, ct, argc, argv);
+}
+
+Jim_Cmd *Jim_RegisterSubCmd(Jim_Interp *interp, const char *cmdname,
+	const jim_subcmd_type *command_table, Jim_DelCmdProc *delProc)
+{
+    return Jim_RegisterCmd(interp, cmdname,
+        "subcommand ?arg ...?",
+        1, -1,
+        Jim_SubCmdProc,
+        delProc,
+        (void *)command_table,
+        0);
 }

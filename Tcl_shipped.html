@@ -800,7 +800,7 @@ Object-based I/O (aio), but with a Tcl-compatibility layer
 </li>
 <li>
 <p>
-I/O: Support for sockets and pipes including udp, unix domain sockets and IPv6
+I/O: Support for sockets and pipes including TCP, UDP, UNIX-Domain sockets and IPv6
 </p>
 </li>
 <li>
@@ -850,7 +850,7 @@ Command and variable traces are not supported
 </li>
 <li>
 <p>
-Built-in command line editing
+Built-in command line editing in interactive mode with autocompletion and hints
 </p>
 </li>
 <li>
@@ -870,7 +870,7 @@ Highly suitable for use in an embedded environment
 </li>
 <li>
 <p>
-Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
+Jim does not convert backslash-newline within braces (in order to preserve accurate line numbers)
 </p>
 </li>
 </ol></div>
@@ -885,6 +885,66 @@ Support for UDP, IPv6, Unix-Domain sockets in addition to TCP sockets
 <li>
 <p>
 <a href="#_aio"><strong><code>aio</code></strong></a> - support for configurable read and write buffering
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_package"><strong><code>package</code></strong></a> <code>forget</code>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_aio"><strong><code>aio</code></strong></a> <code>translation</code> support (and fconfigure -translation)
+</p>
+</li>
+<li>
+<p>
+<a href="#_exec"><strong><code>exec</code></strong></a> <a href="https://core.tcl-lang.org/tips/doc/main/tip/424.md">TIP 424</a> - support safer <code><em>exec |</em></code> syntax (also <code><em>open "|| pipeline&#8230;"</em></code>)
+</p>
+</li>
+<li>
+<p>
+New <a href="#_lsubst"><strong><code>lsubst</code></strong></a> command to create lists using subst-style substitution
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#_regexp"><strong><code>regexp</code></strong></a> <code>-expanded</code> and <a href="#_regsub"><strong><code>regsub</code></strong></a> <code>-expanded</code>
+</p>
+</li>
+<li>
+<p>
+<a href="#cmd_2"><strong><code>vwait</code></strong></a> now accepts a script argument
+</p>
+</li>
+<li>
+<p>
+Add support for <a href="#cmd_1"><strong><code>os.umask</code></strong></a>
+</p>
+</li>
+<li>
+<p>
+Add <a href="#_taint"><strong><code>taint</code></strong></a> support for improved data security
+</p>
+</li>
+<li>
+<p>
+Improved API for creating C commands with <code><em>Jim_RegisterCommand</em></code> for arg checking and usage
+</p>
+</li>
+<li>
+<p>
+New <a href="#_info"><strong><code>info</code></strong></a> <code>usage</code> to return the usage for a proc or native command
+</p>
+</li>
+<li>
+<p>
+New <a href="#_info"><strong><code>info</code></strong></a> <code>aliases</code> to list all aliases
+</p>
+</li>
+<li>
+<p>
+<a href="#_expr"><strong><code>expr</code></strong></a> supports new <code><em>=*</em></code> and <code><em>=~</em></code> matching operators (see <a href="#_expressions">EXPRESSIONS</a>)
 </p>
 </li>
 </ol></div>
@@ -954,7 +1014,7 @@ Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>
 </li>
 <li>
 <p>
-TIP 603, <a href="#_aio"><strong><code>aio</code></strong></a> <code>stat</code> is now supported to stat a file handle
+<a href="https://core.tcl-lang.org/tips/doc/main/tip/603.md">TIP 603</a>, <a href="#_aio"><strong><code>aio</code></strong></a> <code>stat</code> is now supported to stat a file handle
 </p>
 </li>
 <li>
@@ -984,7 +1044,7 @@ The handles created by <a href="#_socket"><strong><code>socket</code></strong></
 </li>
 <li>
 <p>
-New <a href="#_timerate"><strong><code>timerate</code></strong></a> command as an improvement over <a href="#_time"><strong><code>time</code></strong></a>, somewhat compatible with TIP 527
+New <a href="#_timerate"><strong><code>timerate</code></strong></a> command as an improvement over <a href="#_time"><strong><code>time</code></strong></a>, somewhat compatible with <a href="https://core.tcl-lang.org/tips/doc/main/tip/527.md">TIP 527</a>
 </p>
 </li>
 <li>
@@ -999,7 +1059,7 @@ Add <a href="#_ensemble"><strong><code>ensemble</code></strong></a> command and 
 <div class="olist arabic"><ol class="arabic">
 <li>
 <p>
-TIP 582, comments allowed in expressions
+<a href="https://core.tcl-lang.org/tips/doc/main/tip/582.md">TIP 582</a>, comments allowed in expressions
 </p>
 </li>
 <li>
@@ -1030,7 +1090,7 @@ Add <a href="#_history"><strong><code>history</code></strong></a> <code>keep</co
 </li>
 <li>
 <p>
-Add support for <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-index</code> and <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-stride</code>, the latter per TIP 351
+Add support for <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-index</code> and <a href="#_lsearch"><strong><code>lsearch</code></strong></a> <code>-stride</code>, the latter per <a href="https://core.tcl-lang.org/tips/doc/main/tip/351.md">TIP 351</a>
 </p>
 </li>
 <li>
@@ -1050,7 +1110,7 @@ Add support for <a href="#_lsort"><strong><code>lsort</code></strong></a> <code>
 </li>
 <li>
 <p>
-TIP 526, <a href="#_expr"><strong><code>expr</code></strong></a> now only allows a single argument (unless --compat is enabled)
+<a href="https://core.tcl-lang.org/tips/doc/main/tip/526.md">TIP 526</a>, <a href="#_expr"><strong><code>expr</code></strong></a> now only allows a single argument (unless --compat is enabled)
 </p>
 </li>
 </ol></div>
@@ -1080,17 +1140,17 @@ dictionaries and arrays now preserve insertion order, matching Tcl and the docum
 </li>
 <li>
 <p>
-Add <a href="#_dict"><strong><code>dict</code></strong></a> <code>getwithdefault</code> (and the alias <a href="#_dict"><strong><code>dict</code></strong></a> <code>getdef</code>) per TIP 342
+Add <a href="#_dict"><strong><code>dict</code></strong></a> <code>getwithdefault</code> (and the alias <a href="#_dict"><strong><code>dict</code></strong></a> <code>getdef</code>) per <a href="https://core.tcl-lang.org/tips/doc/main/tip/342.md">TIP 342</a>
 </p>
 </li>
 <li>
 <p>
-Add string comparison operators (lt, gt, le, ge) per TIP 461
+Add string comparison operators (lt, gt, le, ge) per <a href="https://core.tcl-lang.org/tips/doc/main/tip/461.md">TIP 461</a>
 </p>
 </li>
 <li>
 <p>
-Implement 0d radix prefix for decimal per TIP 472
+Implement <code>0d</code> radix prefix for decimal per <a href="https://core.tcl-lang.org/tips/doc/main/tip/472.md">TIP 472</a>
 </p>
 </li>
 </ol></div>
@@ -1484,7 +1544,7 @@ that command.  For example, the command:</p></div>
 the last two, <em>a</em> and <em>22</em>, will be passed as arguments to
 the <a href="#_set"><strong><code>set</code></strong></a> command.  The command name may refer either to a built-in
 Tcl command, an application-specific command bound in with the library
-procedure <em>Jim_CreateCommand</em>, or a command procedure defined with the
+procedure <em>Jim_RegisterCommand</em>, or a command procedure defined with the
 <a href="#_proc"><strong><code>proc</code></strong></a> built-in command.</p></div>
 <div class="paragraph"><p>Arguments are passed literally as text strings.  Individual commands may
 interpret those strings in any fashion they wish.  The <a href="#_set"><strong><code>set</code></strong></a> command,
@@ -1770,94 +1830,20 @@ sequence is replaced by the given character:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code>\{</code>
-</dt>
-<dd>
-<p>
-    Left brace ({).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\}</code>
-</dt>
-<dd>
-<p>
-    Right brace (}).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\[</code>
-</dt>
-<dd>
-<p>
-    Open bracket ([).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\]</code>
-</dt>
-<dd>
-<p>
-    Close bracket (]).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\$</code>
-</dt>
-<dd>
-<p>
-    Dollar sign ($).
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\&lt;space&gt;</code>
-</dt>
-<dd>
-<p>
-    Space ( ): doesn&#8217;t terminate argument.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\;</code>
-</dt>
-<dd>
-<p>
-    Semi-colon: doesn&#8217;t terminate command.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\"</code>
-</dt>
-<dd>
-<p>
-    Double-quote.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\&lt;newline&gt;</code>
-</dt>
-<dd>
-<p>
-    Nothing:  this joins two lines together
-    into a single line.  This backslash feature is unique in that
-    it will be applied even when the sequence occurs within braces.
-</p>
-</dd>
-<dt class="hdlist1">
-<code>\\</code>
-</dt>
-<dd>
-<p>
-    Backslash (<em>\</em>).
-</p>
-</dd>
-<dt class="hdlist1">
 <code>\ddd</code>
 </dt>
 <dd>
 <p>
     The digits <code><em>ddd</em></code> (one, two, or three of them) give the octal value of
-    the character.  Note that Jim supports null characters in strings.
+    the byte.  Note that Jim supports null characters in strings.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>\xnn</code>
+</dt>
+<dd>
+<p>
+    The hexidecimal digits <code><em>nn</em></code> give the value of the byte.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1875,30 +1861,23 @@ sequence is replaced by the given character:</p></div>
     The <em>u</em> form allows for one to four hex digits.
     The <em>U</em> form allows for one to eight hex digits.
     The <em>u{nnn}</em> form allows for one to eight hex digits, but makes it easier to insert
-    characters UTF-8 characters which are followed by a hex digit.
+    UTF-8 characters that are followed by a hex digit.
 </p>
 </dd>
 </dl></div>
+<div class="paragraph"><p>If a backslash is followed by something other than one of the options
+described above, the backslash is skipped and character following the backslash is treated
+as a normal character without any special meaning. The Tcl scanner continues
+normal processing with the next character.  For example, in the
+command</p></div>
 <div class="paragraph"><p>For example, in the command</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><code>    set a {x\[\ yz\141</code></pre>
+<pre><code>    set a \{x\[\ yz\141</code></pre>
 </div></div>
 <div class="paragraph"><p>the second argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>{x[ yza</code>.</p></div>
-<div class="paragraph"><p>If a backslash is followed by something other than one of the options
-described above, then the backslash is transmitted to the argument
-field without any special processing, and the Tcl scanner continues
-normal processing with the next character.  For example, in the
-command</p></div>
-<div class="listingblock">
-<div class="content">
-<pre><code>    set \*a \{foo</code></pre>
-</div></div>
-<div class="paragraph"><p>The first argument to <a href="#_set"><strong><code>set</code></strong></a> will be <code>*a</code> and the second
-argument will be <code>{foo</code>.</p></div>
 <div class="paragraph"><p>If an argument is enclosed in braces, then backslash sequences inside
-the argument are parsed but no substitution occurs (except for
-backslash-newline):  the backslash
+the argument are parsed but no substitution occurs:  the backslash
 sequence is passed through to the argument as is, without making
 any special interpretation of the characters in the backslash sequence.
 In particular, backslashed braces are not counted in locating the
@@ -2299,6 +2278,24 @@ of precedence:</p></div>
 <p>
     String equal and not equal.  Uses the string value directly without
     attempting to convert to a number first.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>=*</code>
+</dt>
+<dd>
+<p>
+   String glob match. The left and side is the string to match and the right
+   and side is the pattern. See <a href="#_string_matching">STRING MATCHING</a>.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>=~</code>
+</dt>
+<dd>
+<p>
+   String regexp match. The left and side is the string to match and the right
+   and side is the regular expression. See <a href="#_regular_expressions">REGULAR EXPRESSIONS</a>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -2742,6 +2739,15 @@ defined in jim.h, and are:</p></div>
 <p>
     Indicates that the command called the <a href="#_exit"><strong><code>exit</code></strong></a> command.
     The string contains the exit code.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>JIM_USAGE(-1)</code>
+</dt>
+<dd>
+<p>
+    This is a special return code that is automatically translated into JIM_ERR with the command usage
+    (from Jim_RegisterCommand()) as the message.
 </p>
 </dd>
 </dl></div>
@@ -3443,88 +3449,88 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><a href="#_lsearch"><strong><code>lsearch</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lset"><strong><code>lset</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_lsort"><strong><code>lsort</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_lsubst"><strong><code>lsubst</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_namespace"><strong><code>namespace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>oo</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_open"><strong><code>open</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_open"><strong><code>open</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.fork</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.gethostname</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.getids</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.umask</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>os.uptime</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>pack</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_package"><strong><code>package</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_pid"><strong><code>pid</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_package"><strong><code>package</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_pid"><strong><code>pid</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pipe"><strong><code>pipe</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_1"><strong><code>posix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_proc"><strong><code>proc</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_puts"><strong><code>puts</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_pwd"><strong><code>pwd</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rand"><strong><code>rand</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_range"><strong><code>range</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_read"><strong><code>read</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_range"><strong><code>range</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_read"><strong><code>read</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_ref"><strong><code>ref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regexp"><strong><code>regexp</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_regsub"><strong><code>regsub</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_rename"><strong><code>rename</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_return"><strong><code>return</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_scan"><strong><code>scan</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_seek"><strong><code>seek</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_set"><strong><code>set</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_seek"><strong><code>seek</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_set"><strong><code>set</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_setref"><strong><code>setref</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_signal"><strong><code>signal</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_sleep"><strong><code>sleep</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_socket"><strong><code>socket</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_source"><strong><code>source</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_split"><strong><code>split</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><code>stackdump</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><code>stacktrace</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_stackdump"><strong><code>stackdump</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_stacktrace"><strong><code>stacktrace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_string"><strong><code>string</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_subst"><strong><code>subst</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_4"><strong><code>super</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_switch"><strong><code>switch</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_syslog"><strong><code>syslog</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tailcall"><strong><code>tailcall</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table"><a href="#_taint"><strong><code>taint</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_autocomplete"><strong><code>tcl::autocomplete</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tcl_stdhint"><strong><code>tcl::stdhint</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_tell"><strong><code>tell</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_throw"><strong><code>throw</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_time"><strong><code>time</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_timerate"><strong><code>timerate</code></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_tree"><strong><code>tree</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_try"><strong><code>try</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unknown"><strong><code>unknown</code></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#cmd_3"><strong><code>unpack</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_unset"><strong><code>unset</code></strong></a></p></td>
+<td align="left" valign="top"><p class="table"><a href="#_untaint"><strong><code>untaint</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upcall"><strong><code>upcall</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>update</code></strong></a></p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table"><a href="#_uplevel"><strong><code>uplevel</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_upvar"><strong><code>upvar</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#cmd_2"><strong><code>vwait</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_wait"><strong><code>wait</code></strong></a></p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table"><a href="#_while"><strong><code>while</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_xtrace"><strong><code>xtrace</code></strong></a></p></td>
 <td align="left" valign="top"><p class="table"><a href="#_zlib"><strong><code>zlib</code></strong></a></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 </tr>
 </tbody>
@@ -3862,7 +3868,7 @@ the loop&#8217;s body but continue with the next iteration of the loop.</p></div
 <div class="paragraph"><p><code><strong>curry</strong> <em>args...</em></code></p></div>
 <div class="paragraph"><p>Similar to <a href="#_alias"><strong><code>alias</code></strong></a> except it creates an anonymous procedure (lambda) instead of
 a named procedure.</p></div>
-<div class="paragraph"><p>the following creates a local, unnamed alias for the command <a href="#_info"><strong><code>info</code></strong></a> <code>exists</code>.</p></div>
+<div class="paragraph"><p>The following creates a local, unnamed alias for the command <a href="#_info"><strong><code>info</code></strong></a> <code>exists</code>.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    set e [local curry info exists]
@@ -3896,6 +3902,16 @@ when the proc or interpreter exits.</p></div>
 command.  The legal <code><em>options</em></code> are:</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
+<code><strong>dict append</strong> <em>dictionaryName key ?string &#8230;?</em></code>
+</dt>
+<dd>
+<p>
+    This appends the given string (or strings) to the value that
+    the given key maps to in <code><em>dictionaryName</em></code>. Non-existent keys
+    are treated as if they map to an empty string.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>dict create</strong> <em>?key value ...?</em></code>
 </dt>
 <dd>
@@ -3915,6 +3931,14 @@ command.  The legal <code><em>options</em></code> are:</p></div>
     of keys through a set of nested dictionaries) exists in the given
     dictionary value.  This returns a true value exactly when <a href="#_dict"><strong><code>dict</code></strong></a> <code>get</code>
     on that path will succeed.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dict for</strong> <em>{keyvar valuevar} dictionary script</em></code>
+</dt>
+<dd>
+<p>
+   <strong>TBD</strong>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -3953,6 +3977,27 @@ command.  The legal <code><em>options</em></code> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<code><strong>dict incr</strong> <em>dictionaryName key ?increment?</em></code>
+</dt>
+<dd>
+<p>
+    This adds the given increment value (an integer that defaults
+    to 1 if not specified) to the value that the given key maps to
+    in <code><em>dictionaryName</em></code>.  Non-existent keys are treated as if
+    they map to 0. It is an error to increment a value for an
+    existing key if that value is not an integer.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dict info</strong> <em>dictionary</em></code>
+</dt>
+<dd>
+<p>
+    Returns some information about the utilisation of the data
+    within the hashtable that represents <code><em>dictionary</em></code>.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>dict keys</strong> <em>dictionary ?pattern?</em></code>
 </dt>
 <dd>
@@ -3961,6 +4006,16 @@ command.  The legal <code><em>options</em></code> are:</p></div>
     If <code><em>pattern</em></code> is specified, then only those keys whose
     names match <code><em>pattern</em></code> (using <a href="#_string_matching">STRING MATCHING</a> rules)
     are included.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dict lappend</strong> <em>dictionaryName key ?value &#8230;?</em></code>
+</dt>
+<dd>
+<p>
+    This appends the given items to the list value that the given
+    key maps to in <code><em>dictionaryName</em></code>. Non-existent keys are treated
+    as if they map to the empty list.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -3973,6 +4028,18 @@ command.  The legal <code><em>options</em></code> are:</p></div>
     contain a mapping for the same key, the resulting dictionary
     maps that key to the value according to the last dictionary on
     the command line containing a mapping for that key.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dict replace</strong> <em>dictionary ?key value &#8230;?</em></code>
+</dt>
+<dd>
+<p>
+    Return a new dictionary that is a copy of <code><em>dictionary</em></code>
+    except with some values different or some
+    extra key/value pairs added. It is legal for this command to
+    be called with no key/value pairs, but illegal for this command
+    to be called with a key but no value.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4010,6 +4077,26 @@ command.  The legal <code><em>options</em></code> are:</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<code><strong>dict update</strong> <em>dictionaryName key varName ?key VarName &#8230;? script</em></code>
+</dt>
+<dd>
+<p>
+   <strong>TBD</strong>
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>dict values</strong> <em>dictionary ?globPattern?</em></code>
+</dt>
+<dd>
+<p>
+    Return a list of all values in <code><em>dictionary</em></code>. If a pattern is
+    supplied, only those values that match it (according to the
+    rules of <a href="#_string"><strong><code>string</code></strong></a> <code>match</code>) will be returned. The returned values
+    will be in the order of that the keys associated with those
+    values were inserted into the dictionary.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>dict with</strong> <em>dictionaryName key ?key ...? script</em></code>
 </dt>
 <dd>
@@ -4040,7 +4127,6 @@ command.  The legal <code><em>options</em></code> are:</p></div>
 </p>
 </dd>
 </dl></div>
-<div class="paragraph"><p><code><strong>dict for, values, incr, append, lappend, update, info, replace</strong></code> to be documented&#8230;</p></div>
 </div>
 <div class="sect2">
 <h3 id="_ensemble">ensemble</h3>
@@ -4048,19 +4134,15 @@ command.  The legal <code><em>options</em></code> are:</p></div>
 <div class="paragraph"><p>Create a single ensemble command that redirects to individual commands based on the prefix.
 By default, the prefix is <code><em>name</em></code> followed by a single space.</p></div>
 <div class="paragraph"><p>For example, consider:</p></div>
-<div class="literalblock">
+<div class="listingblock">
 <div class="content">
-<pre><code>proc {test open} {name} { ... }
-proc {test close} {handle} { ... }
-proc {test show} {handle} { ... }
-ensemble test</code></pre>
+<pre><code>    proc {test open} {name} { ... }
+    proc {test close} {handle} { ... }
+    proc {test show} {handle} { ... }
+    ensemble test</code></pre>
 </div></div>
 <div class="paragraph"><p>Now the <em><code>test</code></em> command has been created that redirects based on the first argument.
-e.g.</p></div>
-<div class="literalblock">
-<div class="content">
-<pre><code>test open $filename =&gt; {test open} $filename</code></pre>
-</div></div>
+e.g. <code><em>test open $filename</em></code> &#8658; <code><em>{test open} $filename</em></code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_env">env</h3>
@@ -4126,6 +4208,7 @@ evaluation (or any error generated by it).</p></div>
 <div class="sect2">
 <h3 id="_exec">exec</h3>
 <div class="paragraph"><p><code><strong>exec</strong> <em>arg ?arg...?</em></code></p></div>
+<div class="paragraph"><p><code><strong>exec</strong> | <em>{cmdlist ...} ?redirection ...?</em></code></p></div>
 <div class="paragraph"><p>This command treats its arguments as the specification
 of one or more UNIX commands to execute as subprocesses.
 The commands take the form of a standard shell pipeline;
@@ -4152,7 +4235,8 @@ messages are suppressed.</p></div>
 is a newline then that character is deleted from the result
 or error message for consistency with normal
 Tcl return values.</p></div>
-<div class="paragraph"><p>An <code><em>arg</em></code> may have one of the following special forms:</p></div>
+<div class="paragraph"><p>An <code><em>arg</em></code> (or <code><em>redirection</em></code> in the second form) may have one of the
+following special forms:</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <code>&gt;filename</code>
@@ -4188,7 +4272,7 @@ Tcl return values.</p></div>
 </dt>
 <dd>
 <p>
-    The standard error of the last command in the pipeline
+    The standard error of all commands in the pipeline
     is redirected to the file.
 </p>
 </dd>
@@ -4205,7 +4289,7 @@ Tcl return values.</p></div>
 </dt>
 <dd>
 <p>
-    The standard error of the last command in the pipeline is
+    The standard error of all commands in the pipeline is
     redirected to the given (writable) file descriptor.
 </p>
 </dd>
@@ -4214,8 +4298,8 @@ Tcl return values.</p></div>
 </dt>
 <dd>
 <p>
-    The standard error of the last command in the pipeline is
-    redirected to the same file descriptor as the standard output.
+    The standard error of all commands in the pipeline is
+    redirected command output.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4223,8 +4307,8 @@ Tcl return values.</p></div>
 </dt>
 <dd>
 <p>
-    Both the standard output and standard error of the last command
-    in the pipeline is redirected to the file.
+    Both standard output from the last command and standard error from all commands
+    in the pipeline are redirected to the file.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -4263,21 +4347,24 @@ Tcl return values.</p></div>
 </p>
 </dd>
 </dl></div>
+<div class="paragraph"><p>Note that any of the forms that take an argument (filename, fileId or string)
+their argument may be a separate word. e.g. <code><em>&lt;&lt; $str</em></code>.</p></div>
 <div class="paragraph"><p>If there is no redirection of standard input, standard error
 or standard output, these are connected to the corresponding
 input or output of the application.</p></div>
-<div class="paragraph"><p>If the last <code><em>arg</em></code> is <code>&amp;</code> then the command will be
-executed in background.
-In this case the standard output from the last command
-in the pipeline will
-go to the application&#8217;s standard output unless
-redirected in the command, and error output from all
-the commands in the pipeline will go to the application&#8217;s
-standard error file. The return value of exec in this case
-is a list of process ids (pids) in the pipeline.</p></div>
+<div class="paragraph"><p>If the last <code><em>arg</em></code> or <code><em>redirection</em></code> is <code>&amp;</code> then the command will be
+executed in background.  In this case the standard output from the last
+command in the pipeline will go to the application&#8217;s standard output
+unless redirected in the command, and error output from all the commands
+in the pipeline will go to the application&#8217;s standard error file. The
+return value of exec in this case is a list of process ids (pids) in
+the pipeline.</p></div>
 <div class="paragraph"><p>Each <code><em>arg</em></code> becomes one word for a command, except for
 <code>|</code>, <code>&lt;</code>, <code>&lt;&lt;</code>, <code>&gt;</code>, and <code>&amp;</code> arguments, and the
 arguments that follow <code>&lt;</code>, <code>&lt;&lt;</code>, and <code>&gt;</code>.</p></div>
+<div class="paragraph"><p>In the second form, <code><em>cmdlist</em></code> is the command list, so there
+is no ambiguity about whether an argument or a redirection.
+Note that this second form is not currently supported by Tcl.</p></div>
 <div class="paragraph"><p>The first word in each command is taken as the command name;
 the directories in the PATH environment variable are searched for
 an executable by the given name.</p></div>
@@ -4333,11 +4420,11 @@ this variable is unset, in which case the original environment is used).</p></di
 </div>
 <div class="sect2">
 <h3 id="_exists">exists</h3>
-<div class="paragraph"><p><code><strong>exists ?-var|-proc|-command|-alias?</strong> <em>name</em></code></p></div>
-<div class="paragraph"><p>Checks the existence of the given variable, procedure, command
-or alias respectively and returns 1 if it exists or 0 if not.  This command
+<div class="paragraph"><p><code><strong>exists ?-var|-proc|-command|-alias|-channel?</strong> <em>name</em></code></p></div>
+<div class="paragraph"><p>Checks the existence of the given variable, procedure, command,
+alias or channel respectively and returns 1 if it exists or 0 if not.  This command
 provides a more simplified/convenient version of <a href="#_info"><strong><code>info</code></strong></a> <code>exists</code>,
-<a href="#_info"><strong><code>info</code></strong></a> <code>procs</code> and <a href="#_info"><strong><code>info</code></strong></a> <code>commands</code>.</p></div>
+<a href="#_info"><strong><code>info</code></strong></a> <code>procs</code>, <a href="#_info"><strong><code>info</code></strong></a> <code>commands</code>, <a href="#_info"><strong><code>info</code></strong></a> <code>aliases</code> and <a href="#_info"><strong><code>info</code></strong></a> <code>channels</code>.</p></div>
 <div class="paragraph"><p>If the type is omitted, a type of <em>-var</em> is used. The type may be abbreviated.</p></div>
 </div>
 <div class="sect2">
@@ -4876,6 +4963,15 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
+<code><strong>info aliases ?-all?</strong> ?<em>pattern</em>?</code>
+</dt>
+<dd>
+<p>
+    Returns a list of alias commands.
+    See <a href="#_info"><strong><code>info</code></strong></a> <code>commands</code> for the meaning of <code><strong>-all</strong></code> and <code><em>pattern</em></code>.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>info body</strong> <em>procname</em></code>
 </dt>
 <dd>
@@ -4885,23 +4981,27 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>info channels</strong></code>
+<code><strong>info channels ?-all?</strong> ?<em>pattern</em>?</code>
 </dt>
 <dd>
 <p>
-    Returns a list of all open file handles from <a href="#_open"><strong><code>open</code></strong></a> or <a href="#_socket"><strong><code>socket</code></strong></a>
+    Returns a list of open file handles from <a href="#_open"><strong><code>open</code></strong></a> or <a href="#_socket"><strong><code>socket</code></strong></a>.
+    See <a href="#_info"><strong><code>info</code></strong></a> <code>commands</code> for the meaning of <code><strong>-all</strong></code> and <code><em>pattern</em></code>.
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>info commands</strong> ?<em>pattern</em>?</code>
+<code><strong>info commands ?-all?</strong> ?<em>pattern</em>?</code>
 </dt>
 <dd>
 <p>
     If <code><em>pattern</em></code> isn&#8217;t specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
-    the command procedures defined using the <a href="#_proc"><strong><code>proc</code></strong></a> command.
+    the command procedures defined using the <a href="#_proc"><strong><code>proc</code></strong></a> command (including aliases
+    and channels).
     If <code><em>pattern</em></code> is specified, only those names matching <code><em>pattern</em></code>
     (using <a href="#_string_matching">STRING MATCHING</a> rules) are returned.
+    Normally commands containing a space character are not returned.
+    If <code><strong>-all</strong></code> is given, the result does include these commands.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5067,14 +5167,21 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>info procs</strong> ?<em>pattern</em>?</code>
+<code><strong>info patchlevel</strong></code>
 </dt>
 <dd>
 <p>
-    If <code><em>pattern</em></code> isn&#8217;t specified, returns a list of all the
-    names of Tcl command procedures.
-    If <code><em>pattern</em></code> is specified, only those names matching <code><em>pattern</em></code>
-    (using <a href="#_string_matching">STRING MATCHING</a> rules) are returned.
+    Returns the build (git) version if available. Otherwise
+    returns the same as <a href="#_info"><strong><code>info</code></strong></a> <code>version</code>.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>info procs ?-all?</strong> ?<em>pattern</em>?</code>
+</dt>
+<dd>
+<p>
+    Returns a list containing the names of Tcl command procedures.
+    See <a href="#_info"><strong><code>info</code></strong></a> <code>commands</code> for the meaning of <code><strong>-all</strong></code> and <code><em>pattern</em></code>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5138,6 +5245,24 @@ The legal <code><em>option</em></code>'s (which may be abbreviated) are:
     <code><em>procname</em></code>.  <code><em>procname</em></code> must be the name of a Tcl command
     procedure. An empty dictionary is returned if the procedure has
     no static variables.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>info tainted</strong> <em>str</em></code>
+</dt>
+<dd>
+<p>
+    Returns 1 if the value is tainted, or 0 if not.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>info usage</strong> <em>command</em></code>
+</dt>
+<dd>
+<p>
+    Returns the usage for the given command. For Tcl command procedures, this is based
+    on the arguments defined for the procedure. For a C command, this is the command usage
+    that was specificied when the command was registered.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -5252,6 +5377,51 @@ than variables, a list of unassigned elements is returned.</p></div>
 </div></div>
 </div>
 <div class="sect2">
+<h3 id="_lsubst">lsubst</h3>
+<div class="paragraph"><p><code><strong>lsubst ?-line?</strong> <em>string</em></code></p></div>
+<div class="paragraph"><p>This command is similar to <a href="#_list"><strong><code>list</code></strong></a> in that it creates a list, but uses
+the same rules as scripts when constructing the elements of the list.
+It is somewhat similar to <a href="#_subst"><strong><code>subst</code></strong></a> except it produces a list instead of a string.</p></div>
+<div class="paragraph"><p>This means that variables are substituted, commands are evaluated, backslashes are
+interpreted, the expansion operator is applied and comments are skipped.</p></div>
+<div class="paragraph"><p>Consider the following example.</p></div>
+<div class="paragraph"><p>---
+    set x 1
+    set y {2 3}
+    set z 3
+    lsubst {
+        # This is a list with interpolation
+        $x; # The x variable
+        {<strong>}$y; # The y variable expanded
+        [string cat a b c]; # A command
+        {</strong>}[list 4 5]; # A list expanded into multiple elements
+        "$z$z"; # A string with interpolation
+    }
+---</p></div>
+<div class="paragraph"><p>The result of <a href="#_lsubst"><strong><code>lsubst</code></strong></a> is the following list with 7 elements.</p></div>
+<div class="paragraph"><p>---
+    1 2 3 abc 4 5 33
+---</p></div>
+<div class="paragraph"><p>This is particularly useful when constructing a list (or dict)
+as a data structure as it easily allows for comments and variable and command
+substitution.</p></div>
+<div class="paragraph"><p>Sometimes it is useful to return each "command" as a separate list rather than
+simply running all the words together. This can be accomplished with <a href="#_lsubst"><strong><code>lsubst</code></strong></a> <code>-line</code>.</p></div>
+<div class="paragraph"><p>Consider the following example.</p></div>
+<div class="paragraph"><p>---
+    lsubst -line {
+        # two "lines" because of the semicolon
+        one a; two b
+        # one line with three elements
+        {*}{a b c}
+    }
+---</p></div>
+<div class="paragraph"><p>The result of <a href="#_lsubst"><strong><code>lsubst</code></strong></a> <code>-line</code> is the following list with 3 elements, one for each "command".</p></div>
+<div class="paragraph"><p>---
+{one a} {two b} {a b c}
+---</p></div>
+</div>
+<div class="sect2">
 <h3 id="_local">local</h3>
 <div class="paragraph"><p><code><strong>local</strong> <em>cmd ?arg...?</em></code></p></div>
 <div class="paragraph"><p>First, <a href="#_local"><strong><code>local</code></strong></a> evaluates <code><em>cmd</em></code> with the given arguments. The return value must
@@ -5278,16 +5448,13 @@ continues to have global scope while it is active.</p></div>
     }</code></pre>
 </div></div>
 <div class="paragraph"><p>In this example, the lambda is deleted at the end of the procedure rather
-than waiting until garbage collection.</p></div>
+than waiting until garbage collection. Note that <a href="#_local"><strong><code>local</code></strong></a> returns the command name.</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><code>    proc outer {} {
-      set x [lambda inner {args} {
+      set x [local lambda {args} {
         # will be deleted when 'outer' exits
       }]
-      # Use 'function' here which simply returns $x
-      local function $x
-
       $x ...
       ...
     }</code></pre>
@@ -5920,30 +6087,89 @@ pipeline is directed to the current standard output unless overridden
 by the command. If read-only access is used (e.g. <code><em>access</em></code> is r),
 standard input for the pipeline is taken from the current standard
 input unless overridden by the command.</p></div>
+<div class="paragraph"><p>Note that this incudes new style exec syntax, e.g. <code><em>open |[list | ls -l] r</em></code>.</p></div>
 <div class="paragraph"><p>The <a href="#_pid"><strong><code>pid</code></strong></a> command may be used to return the process ids of the commands
 forming the command pipeline.</p></div>
 <div class="paragraph"><p>See also <a href="#_socket"><strong><code>socket</code></strong></a>, <a href="#_pid"><strong><code>pid</code></strong></a>, <a href="#_exec"><strong><code>exec</code></strong></a></p></div>
 </div>
 <div class="sect2">
 <h3 id="_package">package</h3>
-<div class="paragraph"><p><code><strong>package provide</strong> <em>name ?version?</em></code></p></div>
-<div class="paragraph"><p>Indicates that the current script provides the package named <code><em>name</em></code>.
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>package forget</strong> <em>?name &#8230;?</em></code>
+</dt>
+<dd>
+<p>
+Removes the knowledge that the given packages were loaded. This allows new, replacement
+packages to be loaded. Note that it does not remove any effects of the previous packages
+being loaded.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>package provide</strong> <em>name ?version?</em></code>
+</dt>
+<dd>
+<p>
+Indicates that the current script provides the package named <code><em>name</em></code>.
 <strong>Note</strong>: The supplied version is ignored. All packages are registered as version 1.0
-(it is simply accepted for compatibility purposes).</p></div>
-<div class="paragraph"><p>Any script that provides a package may include this statement
-as the first statement, although it is not required.</p></div>
-<div class="paragraph"><p><code><strong>package require</strong> <em>name ?version?</em></code></p></div>
-<div class="paragraph"><p>Searches for the package with the given <code><em>name</em></code> by examining each path
+(it is simply accepted for compatibility purposes).
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+Any script that provides a package may include this statement
+as the first statement, although it is not required.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>package require</strong> <em>name ?version?</em></code>
+</dt>
+<dd>
+<p>
+Searches for the package with the given <code><em>name</em></code> by examining each path
 in <em>$::auto_path</em> and trying to load <em>$path/$name.so</em> as a dynamic extension,
-or <em>$path/$name.tcl</em> as a script package.</p></div>
-<div class="paragraph"><p>The first such file which is found is considered to provide the package.
-(The version number is ignored).</p></div>
-<div class="paragraph"><p>If <em>$name.so</em> exists, it is loaded with the <a href="#_load"><strong><code>load</code></strong></a> command,
-otherwise if <em>$name.tcl</em> exists it is loaded with the <a href="#_source"><strong><code>source</code></strong></a> command.</p></div>
-<div class="paragraph"><p>If <a href="#_load"><strong><code>load</code></strong></a> or <a href="#_source"><strong><code>source</code></strong></a> fails, <a href="#_package"><strong><code>package</code></strong></a> <code>require</code> will fail immediately.
-No further attempt will be made to locate the file.</p></div>
-<div class="paragraph"><p><code><strong>package names</strong></code></p></div>
-<div class="paragraph"><p>Returns a list of all known/loaded packages, including internal packages.</p></div>
+or <em>$path/$name.tcl</em> as a script package.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+The first such file which is found is considered to provide the package.
+(The version number is ignored).
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+If <em>$name.so</em> exists, it is loaded with the <a href="#_load"><strong><code>load</code></strong></a> command,
+otherwise if <em>$name.tcl</em> exists it is loaded with the <a href="#_source"><strong><code>source</code></strong></a> command.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+If <a href="#_load"><strong><code>load</code></strong></a> or <a href="#_source"><strong><code>source</code></strong></a> fails, <a href="#_package"><strong><code>package</code></strong></a> <code>require</code> will fail immediately.
+No further attempt will be made to locate the file.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>package names</strong></code>
+</dt>
+<dd>
+<p>
+Returns a list of all known/loaded packages, including internal packages.
+</p>
+</dd>
+</dl></div>
 </div>
 <div class="sect2">
 <h3 id="_pid">pid</h3>
@@ -6026,13 +6252,13 @@ and ranging up to but not including <code><em>end</em></code> in steps of <code>
 </div>
 <div class="sect2">
 <h3 id="_read">read</h3>
-<div class="paragraph"><p><code>*read ?-nonewline? <em>fileId ?length?</em></code></p></div>
+<div class="paragraph"><p><code><strong>read</strong> ?-nonewline? <em>fileId ?length?</em></code></p></div>
 <div class="paragraph"><p>Tcl-compatible alterative version of <code><em>fileId</em> <strong>read ?-nonewline?</strong> <em>?length?</em></code></p></div>
 <div class="paragraph"><p>See <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code></p></div>
 </div>
 <div class="sect2">
 <h3 id="_regexp">regexp</h3>
-<div class="paragraph"><p><code><strong>regexp ?-nocase? ?-line? ?-indices? ?-start</strong> <em>offset</em>? <strong>?-all? ?-inline? ?--?</strong> <em>exp string ?matchVar? ?subMatchVar subMatchVar ...?</em></code></p></div>
+<div class="paragraph"><p><code><strong>regexp ?-nocase? ?-line? ?-indices? ?-start</strong> <em>offset</em>? <strong>?-all? ?-inline? ?-expanded? ?--?</strong> <em>exp string ?matchVar? ?subMatchVar subMatchVar ...?</em></code></p></div>
 <div class="paragraph"><p>Determines whether the regular expression <code><em>exp</em></code> matches part or
 all of <code><em>string</em></code> and returns 1 if it does, 0 if it doesn&#8217;t.</p></div>
 <div class="paragraph"><p>See <a href="#_regular_expressions">REGULAR EXPRESSIONS</a> above for complete information on the
@@ -6130,6 +6356,15 @@ string otherwise.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
+<code><strong>-expanded</strong></code>
+</dt>
+<dd>
+<p>
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>--</strong></code>
 </dt>
 <dd>
@@ -6142,7 +6377,7 @@ string otherwise.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_regsub">regsub</h3>
-<div class="paragraph"><p><code><strong>regsub ?-nocase? ?-all? ?-line? ?-command? ?-start</strong> <em>offset</em>? ?<strong>--</strong>? <em>exp string subSpec ?varName?</em></code></p></div>
+<div class="paragraph"><p><code><strong>regsub ?-nocase? ?-all? ?-line? ?-command? ?-expanded? ?-start</strong> <em>offset</em>? ?<strong>--</strong>? <em>exp string subSpec ?varName?</em></code></p></div>
 <div class="paragraph"><p>This command matches the regular expression <code><em>exp</em></code> against
 <code><em>string</em></code> using the rules described in REGULAR EXPRESSIONS
 above.</p></div>
@@ -6245,6 +6480,15 @@ backslashes.</p></div>
     Specifies a character index offset into the string at which to
     start matching the regular expression. <code><em>offset</em></code> will be
     constrained to the bounds of the input string.
+</p>
+</dd>
+<dt class="hdlist1">
+<code><strong>-expanded</strong></code>
+</dt>
+<dd>
+<p>
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -7155,6 +7399,11 @@ the current call frame. This is similar to <em>exec</em> in Bourne Shell.</p></d
 </div></div>
 </div>
 <div class="sect2">
+<h3 id="_taint">taint</h3>
+<div class="paragraph"><p><code><strong>taint</strong> <em>varname</em></code></p></div>
+<div class="paragraph"><p>Set "taint" on the value contained in the given variable.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_tell">tell</h3>
 <div class="paragraph"><p><code><strong>tell</strong> <em>fileId</em></code></p></div>
 <div class="paragraph"><p>Tcl-compatible version of <code><em>fileId</em> <strong>tell</strong></code></p></div>
@@ -7305,6 +7554,11 @@ is specified. The <em>--</em> argument may be specified to stop option processin
 in case the variable name may be <em>-nocomplain</em>.</p></div>
 </div>
 <div class="sect2">
+<h3 id="_untaint">untaint</h3>
+<div class="paragraph"><p><code><strong>untaint</strong> <em>varname</em></code></p></div>
+<div class="paragraph"><p>Remove "taint" from the value contained in the given variable.</p></div>
+</div>
+<div class="sect2">
 <h3 id="_upcall">upcall</h3>
 <div class="paragraph"><p><code><strong>upcall</strong> <em>command ?args &#8230;?</em></code></p></div>
 <div class="paragraph"><p>May be used from within a proc defined as <a href="#_local"><strong><code>local</code></strong></a> <a href="#_proc"><strong><code>proc</code></strong></a> in order to call
@@ -7451,7 +7705,7 @@ the execution trace is removed.</p></div>
 <div class="paragraph"><p>The following extensions may or may not be available depending upon
 what options were selected when Jim Tcl was built.</p></div>
 <div class="sect2">
-<h3 id="cmd_1">posix: os.fork, os.gethostname, os.getids, os.uptime</h3>
+<h3 id="cmd_1">posix: os.fork, os.gethostname, os.getids, os.uptime, os.umask</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <code><strong>os.fork</strong></code>
@@ -7484,6 +7738,14 @@ what options were selected when Jim Tcl was built.</p></div>
     uid 1000 euid 1000 gid 100 egid 100</code></pre>
 </div></div>
 <div class="dlist"><dl>
+<dt class="hdlist1">
+<code><strong>os.umask</strong> ?newmask?</code>
+</dt>
+<dd>
+<p>
+    Set or return the current process <em>umask(2)</em>. Returns the previous umask.
+</p>
+</dd>
 <dt class="hdlist1">
 <code><strong>os.uptime</strong></code>
 </dt>
@@ -7839,6 +8101,20 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
 </p>
 </dd>
 <dt class="hdlist1">
+<code>$handle <strong>taint source|sink ?0:n?</strong></code>
+</dt>
+<dd>
+<p>
+    Sets the taint characteristics of the channel. Data read from
+    the channel will have a taint value as set by <code><em>source</em></code>, while
+    a check will be made against data written to the channel against
+    the <code><em>sink</em></code> value. If the taint of the data and the channel
+    match, the operation will fail. By default, channels created
+    by <a href="#_open"><strong><code>open</code></strong></a> are not tainted while channels created by <a href="#_socket"><strong><code>socket</code></strong></a>
+    have both set to 1.
+</p>
+</dd>
+<dt class="hdlist1">
 <code>$handle <strong>tell</strong></code>
 </dt>
 <dd>
@@ -7855,6 +8131,17 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
     If an argument is given, it is set as the timeout of the channel, in milliseconds.
     See <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and <a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code> for command that use the timeout.
     Note that the timeout is only used if the channel is in blocking mode.
+</p>
+</dd>
+<dt class="hdlist1">
+<code>$handle <strong>translation binary|text</strong></code>
+</dt>
+<dd>
+<p>
+    This has no effect on Unix platforms, but on Windows it changes the mode of the file
+    handle to binary or text. In general, use "wb" as the open mode instead, but this
+    can be useful on existing filehandles such as <code>stdout</code> and <code>stderr</code>. It is probably
+    a good idea to do this immediately before sending any output.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -8092,7 +8379,7 @@ if end-of-file was reached.</p></div>
 </li>
 <li>
 <p>
-<a href="#_fconfigure"><strong><code>fconfigure</code></strong></a> <code>... -translation</code> is accepted but ignored
+<a href="#_fconfigure"><strong><code>fconfigure</code></strong></a> <code>... -translation</code> maps to <a href="#_aio"><strong><code>aio</code></strong></a> <code>translation</code> and suppports only <code>binary</code> and <code>text</code>
 </p>
 </li>
 </ul></div>
@@ -8188,7 +8475,7 @@ handler is removed.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>vwait ?-signal?</strong> <em>variable</em></code>
+<code><strong>vwait ?-signal?</strong> <em>variable</em> ?script?</code>
 </dt>
 <dd>
 <p>
@@ -8196,9 +8483,11 @@ handler is removed.</p></div>
     events until the named (global) variable changes or all
     event handlers are removed. The variable need not exist
     beforehand.  If there are no event handlers defined, <a href="#cmd_2"><strong><code>vwait</code></strong></a>
-    returns immediately. If <code><em>-signal</em></code> is specified, <a href="#cmd_2"><strong><code>vwait</code></strong></a> will
+    returns immediately. If <code><strong>-signal</strong></code> is specified, <a href="#cmd_2"><strong><code>vwait</code></strong></a> will
     also quit if a handled signal occurs. In this case, <a href="#_signal"><strong><code>signal</code></strong></a> <code>check -clear</code>
-    can be used to check for the signal that occurred.
+    can be used to check for the signal that occurred. If <code><em>script</em></code> is given
+    it is evaluated after each event. If it returns break, <a href="#cmd_2"><strong><code>vwait</code></strong></a> returns.
+    <a href="#cmd_2"><strong><code>vwait</code></strong></a> also returns with an error if the script returns an error.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -8941,6 +9230,16 @@ the remaining subcommands do nothing.</p></div>
 <div class="paragraph"><p>Provides namespace-related functions. See also: <a href="http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm</a></p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
+<code><strong>namespace canonical</strong> ?current? ?name?</code>
+</dt>
+<dd>
+<p>
+   Returns the full name of <code><em>name</em></code> within namespace <em><code>current</code></em>.
+   If <em><code>current</code></em> is not given, <a href="#_namespace"><strong><code>namespace</code></strong></a> <code>current</code> is used.
+   If neither are given, returns the current namespace (not qualified with a leading <em>::</em>).
+</p>
+</dd>
+<dt class="hdlist1">
 <code><strong>namespace code</strong> <em>script</em></code>
 </dt>
 <dd>
@@ -8967,7 +9266,7 @@ the remaining subcommands do nothing.</p></div>
 </p>
 </dd>
 <dt class="hdlist1">
-<code><strong>namespace ensemble create</strong>'</code>
+<code><strong>namespace ensemble create</strong></code>
 </dt>
 <dd>
 <p>

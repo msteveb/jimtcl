@@ -152,6 +152,15 @@ test loop-2.8 {modify loop var} {
     set a
 } {1 2 3 4 5}
 
+# Previously this would leak memory (configure --maintainer)
+test loop-2.9 {fail to set loop var} -body {
+    set i 1
+    loop i(x) 1 6 {
+        incr y
+    }
+    set y
+} -returnCodes error -result {can't set "i(x)": variable isn't array}
+
 testreport
 break
 

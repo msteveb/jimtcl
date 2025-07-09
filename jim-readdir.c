@@ -77,8 +77,7 @@ int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         nocomplain = 1;
     }
     if (argc != 2 && !nocomplain) {
-        Jim_WrongNumArgs(interp, 1, argv, "?-nocomplain? dirPath");
-        return JIM_ERR;
+        return JIM_USAGE;
     }
 
     dirPath = Jim_String(argv[1 + nocomplain]);
@@ -115,6 +114,6 @@ int Jim_ReaddirCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_readdirInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "readdir");
-    Jim_CreateCommand(interp, "readdir", Jim_ReaddirCmd, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "readdir", "?-nocomplain? dirPath", 1, 2, Jim_ReaddirCmd);
     return JIM_OK;
 }

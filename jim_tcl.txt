@@ -57,6 +57,16 @@ Changes since 0.83
 #. `aio` - support for configurable read and write buffering
 #. Add support for `package forget`
 #. Add `aio translation` support (and fconfigure -translation)
+#. `exec` TIP 424 - support safer +'exec |'+ syntax (also +'open "|| pipeline..."'+)
+#. New `lsubst` command to create lists using subst-style substitution
+#. Add support for `regexp -expanded` and `regsub -expanded`
+#. `vwait` now accepts a script argument
+#. Add support for `os.umask`
+#. Add `taint` support for improved data security
+#. Improved API for creating C commands with +'Jim_RegisterCommand'+ for arg checking and usage
+#. New `info usage` to return the usage for a proc or native command
+#. New `info aliases` to list all aliases
+#. `expr` supports new +'=*'+ and +'=~'+ matching operators (see <<_expressions,EXPRESSIONS>>)
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -323,7 +333,7 @@ has three fields:  the first, `set`, is the name of a Tcl command, and
 the last two, 'a' and '22', will be passed as arguments to
 the `set` command.  The command name may refer either to a built-in
 Tcl command, an application-specific command bound in with the library
-procedure 'Jim_CreateCommand', or a command procedure defined with the
+procedure 'Jim_RegisterCommand', or a command procedure defined with the
 `proc` built-in command.
 
 Arguments are passed literally as text strings.  Individual commands may
@@ -873,6 +883,14 @@ of precedence:
     String equal and not equal.  Uses the string value directly without
     attempting to convert to a number first.
 
++=*+::
+   String glob match. The left and side is the string to match and the right
+   and side is the pattern. See <<_string_matching,STRING MATCHING>>.
+
++=~+::
+   String regexp match. The left and side is the string to match and the right
+   and side is the regular expression. See <<_regular_expressions,REGULAR EXPRESSIONS>>.
+
 +in ni+::
     String in list and not in list. For 'in', result is 1 if the left operand (as a string)
     is contained in the right operand (as a list), or 0 otherwise. The result for
@@ -1202,6 +1220,10 @@ defined in jim.h, and are:
 +JIM_EXIT(6)+::
     Indicates that the command called the `exit` command.
     The string contains the exit code.
+
++JIM_USAGE(-1)+::
+    This is a special return code that is automatically translated into JIM_ERR with the command usage
+    (from Jim_RegisterCommand()) as the message.
 
 Tcl programmers do not normally need to think about return codes,
 since +JIM_OK+ is almost always returned.  If anything else is returned
@@ -2320,6 +2342,8 @@ exec
 ~~~~
 +*exec* 'arg ?arg\...?'+
 
++*exec* | '{cmdlist \...} ?redirection \...?'+
+
 This command treats its arguments as the specification
 of one or more UNIX commands to execute as subprocesses.
 The commands take the form of a standard shell pipeline;
@@ -2353,7 +2377,8 @@ is a newline then that character is deleted from the result
 or error message for consistency with normal
 Tcl return values.
 
-An +'arg'+ may have one of the following special forms:
+An +'arg'+ (or +'redirection'+ in the second form) may have one of the
+following special forms:
 
 +>filename+::
     The standard output of the last command in the pipeline
@@ -2370,23 +2395,23 @@ An +'arg'+ may have one of the following special forms:
     will normally return an empty string.
 
 +2>filename+::
-    The standard error of the last command in the pipeline
+    The standard error of all commands in the pipeline
     is redirected to the file.
 
 +2>>filename+::
     As above, but append to the file.
 
 +2>@fileId+::
-    The standard error of the last command in the pipeline is
+    The standard error of all commands in the pipeline is
     redirected to the given (writable) file descriptor.
 
 +2>@1+::
-    The standard error of the last command in the pipeline is
-    redirected to the same file descriptor as the standard output.
+    The standard error of all commands in the pipeline is
+    redirected command output.
 
 +>&filename+::
-    Both the standard output and standard error of the last command
-    in the pipeline is redirected to the file.
+    Both standard output from the last command and standard error from all commands
+    in the pipeline are redirected to the file.
 
 +>>&filename+::
     As above, but append to the file.
@@ -2403,23 +2428,28 @@ An +'arg'+ may have one of the following special forms:
     The standard input of the first command in the pipeline
     is taken from the given (readable) file descriptor.
 
+Note that any of the forms that take an argument (filename, fileId or string)
+their argument may be a separate word. e.g. +'<< $str'+.
+
 If there is no redirection of standard input, standard error
 or standard output, these are connected to the corresponding
 input or output of the application.
 
-If the last +'arg'+ is +&+ then the command will be
-executed in background.
-In this case the standard output from the last command
-in the pipeline will
-go to the application's standard output unless
-redirected in the command, and error output from all
-the commands in the pipeline will go to the application's
-standard error file. The return value of exec in this case
-is a list of process ids (pids) in the pipeline.
+If the last +'arg'+ or +'redirection'+ is +&+ then the command will be
+executed in background.  In this case the standard output from the last
+command in the pipeline will go to the application's standard output
+unless redirected in the command, and error output from all the commands
+in the pipeline will go to the application's standard error file. The
+return value of exec in this case is a list of process ids (pids) in
+the pipeline.
 
 Each +'arg'+ becomes one word for a command, except for
 +|+, +<+, +<<+, +>+, and +&+ arguments, and the
 arguments that follow +<+, +<<+, and +>+.
+
+In the second form, +'cmdlist'+ is the command list, so there
+is no ambiguity about whether an argument or a redirection.
+Note that this second form is not currently supported by Tcl.
 
 The first word in each command is taken as the command name;
 the directories in the PATH environment variable are searched for
@@ -2462,12 +2492,12 @@ this variable is unset, in which case the original environment is used).
 
 exists
 ~~~~~~
-+*exists ?-var|-proc|-command|-alias?* 'name'+
++*exists ?-var|-proc|-command|-alias|-channel?* 'name'+
 
-Checks the existence of the given variable, procedure, command
-or alias respectively and returns 1 if it exists or 0 if not.  This command
+Checks the existence of the given variable, procedure, command,
+alias or channel respectively and returns 1 if it exists or 0 if not.  This command
 provides a more simplified/convenient version of `info exists`,
-`info procs` and `info commands`.
+`info procs`, `info commands`, `info aliases` and `info channels`.
 
 If the type is omitted, a type of '-var' is used. The type may be abbreviated.
 
@@ -2908,19 +2938,27 @@ The legal +'option'+'s (which may be abbreviated) are:
     +'command'+ must be an alias created with `alias`. In which case the target
     command and arguments, as passed to `alias` are returned. See `exists -alias`
 
++*info aliases ?-all?* ?'pattern'?+::
+    Returns a list of alias commands.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
+
 +*info body* 'procname'+::
     Returns the body of procedure +'procname'+.  +'procname'+ must be
     the name of a Tcl command procedure.
 
-+*info channels*+::
-    Returns a list of all open file handles from `open` or `socket`
++*info channels ?-all?* ?'pattern'?+::
+    Returns a list of open file handles from `open` or `socket`.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
 
-+*info commands* ?'pattern'?+::
++*info commands ?-all?* ?'pattern'?+::
     If +'pattern'+ isn't specified, returns a list of names of all the
     Tcl commands, including both the built-in commands written in C and
-    the command procedures defined using the `proc` command.
+    the command procedures defined using the `proc` command (including aliases
+    and channels).
     If +'pattern'+ is specified, only those names matching +'pattern'+
     (using <<_string_matching,STRING MATCHING>> rules) are returned.
+    Normally commands containing a space character are not returned.
+    If +*-all*+ is given, the result does include these commands.
 
 +*info complete* 'command' ?'missing'?+::
     Returns 1 if +'command'+ is a complete Tcl command in the sense of
@@ -2996,11 +3034,13 @@ The legal +'option'+'s (which may be abbreviated) are:
     was invoked. A full path will be returned, unless the path
     can't be determined, in which case the empty string will be returned.
 
-+*info procs* ?'pattern'?+::
-    If +'pattern'+ isn't specified, returns a list of all the
-    names of Tcl command procedures.
-    If +'pattern'+ is specified, only those names matching +'pattern'+
-    (using <<_string_matching,STRING MATCHING>> rules) are returned.
++*info patchlevel*+::
+    Returns the build (git) version if available. Otherwise
+    returns the same as `info version`.
+
++*info procs ?-all?* ?'pattern'?+::
+    Returns a list containing the names of Tcl command procedures.
+    See `info commands` for the meaning of +*-all*+ and +'pattern'+.
 
 +*info references*+::
     Returns a list of all references which have not yet been garbage
@@ -3034,6 +3074,14 @@ The legal +'option'+'s (which may be abbreviated) are:
     +'procname'+.  +'procname'+ must be the name of a Tcl command
     procedure. An empty dictionary is returned if the procedure has
     no static variables.
+
++*info tainted* 'str'+::
+    Returns 1 if the value is tainted, or 0 if not.
+
++*info usage* 'command'+::
+    Returns the usage for the given command. For Tcl command procedures, this is based
+    on the arguments defined for the procedure. For a C command, this is the command usage
+    that was specificied when the command was registered.
 
 +*info version*+::
     Returns the version number for this version of Jim in the form +*x.yy*+.
@@ -3128,6 +3176,63 @@ than variables, a list of unassigned elements is returned.
     3
     a=1,b=2
 ----
+
+lsubst
+~~~~
++*lsubst ?-line?* 'string'+
+
+This command is similar to `list` in that it creates a list, but uses
+the same rules as scripts when constructing the elements of the list.
+It is somewhat similar to `subst` except it produces a list instead of a string.
+
+This means that variables are substituted, commands are evaluated, backslashes are
+interpreted, the expansion operator is applied and comments are skipped.
+
+Consider the following example.
+
+---
+    set x 1
+    set y {2 3}
+    set z 3
+    lsubst {
+        # This is a list with interpolation
+        $x; # The x variable
+        {*}$y; # The y variable expanded
+        [string cat a b c]; # A command
+        {*}[list 4 5]; # A list expanded into multiple elements
+        "$z$z"; # A string with interpolation
+    }
+---
+
+The result of `lsubst` is the following list with 7 elements.
+
+---
+    1 2 3 abc 4 5 33
+---
+
+This is particularly useful when constructing a list (or dict)
+as a data structure as it easily allows for comments and variable and command
+substitution.
+
+Sometimes it is useful to return each "command" as a separate list rather than
+simply running all the words together. This can be accomplished with `lsubst -line`.
+
+Consider the following example.
+
+---
+    lsubst -line {
+        # two "lines" because of the semicolon
+        one a; two b
+        # one line with three elements
+        {*}{a b c}
+    }
+---
+
+The result of `lsubst -line` is the following list with 3 elements, one for each "command".
+
+---
+{one a} {two b} {a b c}
+---
 
 local
 ~~~~~
@@ -3655,6 +3760,8 @@ by the command. If read-only access is used (e.g. +'access'+ is r),
 standard input for the pipeline is taken from the current standard
 input unless overridden by the command.
 
+Note that this incudes new style exec syntax, e.g. +'open |[list | ls -l] r'+.
+
 The `pid` command may be used to return the process ids of the commands
 forming the command pipeline.
 
@@ -3798,7 +3905,7 @@ See `aio read`
 
 regexp
 ~~~~~~
-+*regexp ?-nocase? ?-line? ?-indices? ?-start* 'offset'? *?-all? ?-inline? ?--?* 'exp string ?matchVar? ?subMatchVar subMatchVar \...?'+
++*regexp ?-nocase? ?-line? ?-indices? ?-start* 'offset'? *?-all? ?-inline? ?-expanded? ?--?* 'exp string ?matchVar? ?subMatchVar subMatchVar \...?'+
 
 Determines whether the regular expression +'exp'+ matches part or
 all of +'string'+ and returns 1 if it does, 0 if it doesn't.
@@ -3871,13 +3978,17 @@ The following switches modify the behaviour of +'regexp'+
     data, plus one element for each subexpression in the regular
     expression.
 
++*-expanded*+::
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
+
 +*--*+::
     Marks the end of switches. The argument following this one will be
     treated as +'exp'+ even if it starts with a +-+.
 
 regsub
 ~~~~~~
-+*regsub ?-nocase? ?-all? ?-line? ?-command? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
++*regsub ?-nocase? ?-all? ?-line? ?-command? ?-expanded? ?-start* 'offset'? ?*--*? 'exp string subSpec ?varName?'+
 
 This command matches the regular expression +'exp'+ against
 +'string'+ using the rules described in REGULAR EXPRESSIONS
@@ -3958,6 +4069,10 @@ The following switches modify the behaviour of +'regsub'+
     Specifies a character index offset into the string at which to
     start matching the regular expression. +'offset'+ will be
     constrained to the bounds of the input string.
+
++*-expanded*+::
+    Enables use of the expanded regular expression syntax where whitespace
+    and comments are ignored.
 
 +*--*+::
     Marks the end of switches. The argument following this one will be
@@ -4574,6 +4689,12 @@ The following are identical except the first immediately replaces the current ca
   proc sub_cmd2 ...
 ----
 
+taint
+~~~~~
++*taint* 'varname'+
+
+Set "taint" on the value contained in the given variable.
+
 tell
 ~~~~
 +*tell* 'fileId'+
@@ -4739,6 +4860,12 @@ The `unset` command returns an empty string as result.
 An error occurs if any of the variables doesn't exist, unless '-nocomplain'
 is specified. The '--' argument may be specified to stop option processing
 in case the variable name may be '-nocomplain'.
+
+untaint
+~~~~~~~
++*untaint* 'varname'+
+
+Remove "taint" from the value contained in the given variable.
 
 upcall
 ~~~~~~~
@@ -4920,8 +5047,8 @@ what options were selected when Jim Tcl was built.
 
 
 [[cmd_1]]
-posix: os.fork, os.gethostname, os.getids, os.uptime
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+posix: os.fork, os.gethostname, os.getids, os.uptime, os.umask
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 +*os.fork*+::
     Invokes 'fork(2)' and returns the result.
 
@@ -4935,6 +5062,9 @@ posix: os.fork, os.gethostname, os.getids, os.uptime
     . os.getids
     uid 1000 euid 1000 gid 100 egid 100
 ----
+
++*os.umask* ?newmask?+::
+    Set or return the current process 'umask(2)'. Returns the previous umask.
 
 +*os.uptime*+::
     Returns the number of seconds since system boot. See description of 'uptime' in 'sysinfo(2)'.
@@ -5153,6 +5283,15 @@ This command returns an empty string.
     will be returned instead. Although this is designed for normal files and
     those should be used in blocking mode.
 
++$handle *taint source|sink ?0:n?*+::
+    Sets the taint characteristics of the channel. Data read from
+    the channel will have a taint value as set by +'source'+, while
+    a check will be made against data written to the channel against
+    the +'sink'+ value. If the taint of the data and the channel
+    match, the operation will fail. By default, channels created
+    by `open` are not tainted while channels created by `socket`
+    have both set to 1.
+
 +$handle *tell*+::
     Returns the current seek position or -1 if the channel is not seekable.
 
@@ -5329,14 +5468,16 @@ Time-based execution is also available via the eventloop API.
     the type of the event. An error occurs if +'id'+ does not
     match an event.
 
-+*vwait ?-signal?* 'variable'+::
++*vwait ?-signal?* 'variable' ?script?+::
     A call to `vwait` enters the eventloop. `vwait` processes
     events until the named (global) variable changes or all
     event handlers are removed. The variable need not exist
     beforehand.  If there are no event handlers defined, `vwait`
-    returns immediately. If +'-signal'+ is specified, `vwait` will
+    returns immediately. If +*-signal*+ is specified, `vwait` will
     also quit if a handled signal occurs. In this case, `signal check -clear`
-    can be used to check for the signal that occurred.
+    can be used to check for the signal that occurred. If +'script'+ is given
+    it is evaluated after each event. If it returns break, `vwait` returns.
+    `vwait` also returns with an error if the script returns an error.
 
 +*update ?idletasks?*+::
     A call to `update` enters the eventloop to process expired events, but

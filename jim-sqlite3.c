@@ -75,6 +75,11 @@ static Jim_Obj *JimSqliteFormatQuery(Jim_Interp *interp, Jim_Obj *fmtObjPtr,
     int fmtLen;
     Jim_Obj *resObjPtr;
 
+    if (Jim_GetObjTaint(fmtObjPtr) & JIM_TAINT_ANY) {
+        Jim_SetResultString(interp, "sqlite3 query: tainted data", -1);
+        return NULL;
+    }
+
     fmt = Jim_GetString(fmtObjPtr, &fmtLen);
     resObjPtr = Jim_NewStringObj(interp, "", 0);
     while (fmtLen) {
@@ -143,10 +148,6 @@ static int JimSqliteHandlerCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     enum
     { OPT_CLOSE, OPT_QUERY, OPT_LASTID, OPT_CHANGES };
 
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "method ?args ...?");
-        return JIM_ERR;
-    }
     if (Jim_GetEnum(interp, argv[1], options, &option, "Sqlite method", JIM_ERRMSG) != JIM_OK)
         return JIM_ERR;
     /* CLOSE */
@@ -265,10 +266,6 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     char buf[60];
     int r;
 
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "dbname");
-        return JIM_ERR;
-    }
     r = sqlite3_open(Jim_String(argv[1]), &db);
     if (r != SQLITE_OK) {
         Jim_SetResultString(interp, sqlite3_errmsg(db), -1);
@@ -277,7 +274,7 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
     }
     /* Create the file command */
     snprintf(buf, sizeof(buf), "sqlite.handle%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimSqliteHandlerCommand, db, JimSqliteDelProc);
+    Jim_RegisterCmd(interp, buf, "subcommand ?arg ...?", 1, -1, JimSqliteHandlerCommand, JimSqliteDelProc, db, 0);
 
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 
@@ -287,6 +284,6 @@ static int JimSqliteOpenCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 int Jim_sqlite3Init(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "sqlite3");
-    Jim_CreateCommand(interp, "sqlite3.open", JimSqliteOpenCommand, NULL, NULL);
+    Jim_RegisterCmd(interp, "sqlite3.open", "dbname", 1, 1, JimSqliteOpenCommand, NULL, NULL, JIM_CMD_NOTAINT);
     return JIM_OK;
 }

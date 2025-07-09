@@ -88,7 +88,7 @@ static int interp_cmd_alias(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     aliasPrefixList = Jim_NewListObj(interp, argv + 1, argc - 1);
     Jim_IncrRefCount(aliasPrefixList);
 
-    Jim_CreateCommand(child, Jim_String(argv[0]), JimInterpAliasProc, aliasPrefixList, JimInterpDelAlias);
+    Jim_RegisterCmd(child, Jim_String(argv[0]), NULL, 0, -1, JimInterpAliasProc, JimInterpDelAlias, aliasPrefixList, 0);
     return JIM_OK;
 }
 
@@ -146,11 +146,6 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         "argv", "argc", "argv0", "jim::argv0", "jim::exe", "jim::lineedit", NULL
     };
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-
     /* Create the interpreter command */
     child = Jim_CreateInterp();
     Jim_RegisterCoreCommands(child);
@@ -165,7 +160,7 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetAssocData(child, "interp.parent", NULL, interp);
 
     snprintf(buf, sizeof(buf), "interp.handle%ld", Jim_GetId(interp));
-    Jim_CreateCommand(interp, buf, JimInterpSubCmdProc, child, JimInterpDelProc);
+    Jim_RegisterCmd(interp, buf, "subcommand ?arg ...?", 1, -1, JimInterpSubCmdProc, JimInterpDelProc, child, 0);
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
     return JIM_OK;
 }
@@ -173,7 +168,7 @@ static int JimInterpCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_interpInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "interp");
-    Jim_CreateCommand(interp, "interp", JimInterpCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "interp", "", 0, 0, JimInterpCommand);
 
     return JIM_OK;
 }

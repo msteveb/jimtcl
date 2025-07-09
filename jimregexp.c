@@ -1,5 +1,5 @@
 /*
- * vi:se ts=8:
+ * vi:se ts=8 sw=8:
  *
  * regcomp and regexec -- regsub and regerror are elsewhere
  *
@@ -164,8 +164,7 @@
  */
 
 #define	FAIL(R,M)	{ (R)->err = (M); return (M); }
-#define	ISMULT(c)	((c) == '*' || (c) == '+' || (c) == '?' || (c) == '{')
-#define	META		"^$.[()|?{+*"
+#define	META		"^$.[()|"
 
 /*
  * Flags to be passed up and down.
@@ -203,6 +202,22 @@ static void regdump(regex_t *preg);
 static const char *regprop( int op );
 #endif
 
+/* Returns 1 if *s is '*', '+', '?', or {n...} where n must be a number */
+static int str_is_mult(const char *s)
+{
+	switch (*s) {
+		case '*':
+		case '+':
+		case '?':
+			return 1;
+		case '{':
+			if (isdigit(UCHAR(s[1]))) {
+				return 1;
+			}
+			break;
+	}
+	return 0;
+}
 
 /**
  * Returns the length of the null-terminated integer sequence.
@@ -214,6 +229,41 @@ static int str_int_len(const int *seq)
 		n++;
 	}
 	return n;
+}
+
+/* skips preg->regparse past white space and comments to end of line if REG_EXPANDED */
+static char *reg_expanded_new_pattern(const char *exp)
+{
+	/* Make a copy and do removal in place as the final will always be no longer than the original */
+	char *newexp = strdup(exp);
+	char *d = newexp;
+	const char *s = exp;
+	int escape = 0;
+
+	while (*s) {
+		if (escape) {
+			escape = 0;
+			continue;
+		}
+		else if (*s == '\\') {
+			escape = 1;
+		}
+		else if (strchr(" \t\r\n\f\v", *s)) {
+			s++;
+			continue;
+		}
+		else if (*s == '#') {
+			/* skip comments to end of line */
+			s++;
+			while (*s && *s != '\n') {
+				s++;
+			}
+			continue;
+		}
+		*d++ = *s++;
+	}
+	*d++ = '\0';
+	return newexp;
 }
 
 /*
@@ -245,6 +295,11 @@ int jim_regcomp(regex_t *preg, const char *exp, int cflags)
 
 	if (exp == NULL)
 		FAIL(preg, REG_ERR_NULL_ARGUMENT);
+
+	if (cflags & REG_EXPANDED) {
+		preg->exp = reg_expanded_new_pattern(exp);
+		exp = preg->exp;
+	}
 
 	/* First pass: determine size, legality. */
 	preg->cflags = cflags;
@@ -454,12 +509,12 @@ static int regpiece(regex_t *preg, int *flagp)
 	if (ret == 0)
 		return 0;
 
-	op = *preg->regparse;
-	if (!ISMULT(op)) {
+	if (!str_is_mult(preg->regparse)) {
 		*flagp = flags;
 		return(ret);
 	}
 
+	op = *preg->regparse;
 	if (!(flags&HASWIDTH) && op != '?') {
 		preg->err = REG_ERR_OPERAND_COULD_BE_EMPTY;
 		return 0;
@@ -528,7 +583,7 @@ static int regpiece(regex_t *preg, int *flagp)
 	}
 
 	preg->regparse++;
-	if (ISMULT(*preg->regparse)) {
+	if (str_is_mult(preg->regparse)) {
 		preg->err = REG_ERR_NESTED_COUNT;
 		return 0;
 	}
@@ -876,12 +931,6 @@ cc_switch:
 	case ')':
 		preg->err = REG_ERR_INTERNAL;
 		return 0;	/* Supposed to be caught earlier. */
-	case '?':
-	case '+':
-	case '*':
-	case '{':
-		preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
-		return 0;
 	case '\\':
 		ch = *preg->regparse++;
 		switch (ch) {
@@ -946,6 +995,11 @@ cc_switch:
 			/* Back up to pick up the first char of interest */
 			preg->regparse -= n;
 
+			if (str_is_mult(preg->regparse)) {
+				preg->err = REG_ERR_COUNT_FOLLOWS_NOTHING;
+				return 0;
+			}
+
 			ret = regnode(preg, EXACTLY);
 
 			/* Note that a META operator such as ? or * consumes the
@@ -955,7 +1009,7 @@ cc_switch:
 			 */
 
 			/* Until end of string or a META char is reached */
-			while (*preg->regparse && strchr(META, *preg->regparse) == NULL) {
+			while (*preg->regparse && strchr(META, *preg->regparse) == NULL && !str_is_mult(preg->regparse)) {
 				n = reg_utf8_tounicode_case(preg->regparse, &ch, (preg->cflags & REG_ICASE));
 				if (ch == '\\' && preg->regparse[n]) {
 					/* Non-trailing backslash.
@@ -980,7 +1034,7 @@ cc_switch:
 				 * Check to see if the following char is a MULT
 				 */
 
-				if (ISMULT(preg->regparse[n])) {
+				if (str_is_mult(&preg->regparse[n])) {
 					/* Yes. But do we already have some EXACTLY chars? */
 					if (added) {
 						/* Yes, so return what we have and pick up the current char next time around */
@@ -1911,6 +1965,7 @@ size_t jim_regerror(int errcode, const regex_t *preg, char *errbuf,  size_t errb
 
 void jim_regfree(regex_t *preg)
 {
+	free(preg->exp);
 	free(preg->program);
 }
 

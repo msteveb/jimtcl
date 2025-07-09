@@ -1502,10 +1502,6 @@ static int DbObjCmd(Jim_Interp *interp, int objc,Jim_Obj *const*objv){
   };
   /* don't leave trailing commas on DB_enum, it confuses the AIX xlc compiler */
 
-  if( objc<2 ){
-    Jim_WrongNumArgs(interp, 1, objv, "SUBCOMMAND ...");
-    return JIM_ERR;
-  }
   if( Jim_GetEnum(interp, objv[1], DB_strs, &choice, "option", JIM_ERRMSG | JIM_ENUM_ABBREV) ){
     return JIM_ERR;
   }
@@ -2356,19 +2352,21 @@ static int DbObjCmd(Jim_Interp *interp, int objc,Jim_Obj *const*objv){
   ** Change the encryption key on the currently open database.
   */
   case DB_REKEY: {
-    int nKey;
-    const char *pKey;
     if( objc!=3 ){
       Jim_WrongNumArgs(interp, 2, objv, "KEY");
       return JIM_ERR;
     }
-    //pKey = Jim_GetByteArrayFromObj(objv[2], &nKey);
-    pKey = Jim_GetString(objv[2], &nKey);
 #ifdef SQLITE_HAS_CODEC
-    rc = sqlite3_rekey(pDb->db, pKey, nKey);
-    if( rc ){
-      Jim_SetResultString(interp, sqlite3ErrStr(rc), -1);
-      rc = JIM_ERR;
+    else {
+      int nKey;
+      const char *pKey;
+      //pKey = Jim_GetByteArrayFromObj(objv[2], &nKey);
+      pKey = Jim_GetString(objv[2], &nKey);
+      rc = sqlite3_rekey(pDb->db, pKey, nKey);
+      if( rc ){
+        Jim_SetResultString(interp, sqlite3ErrStr(rc), -1);
+        rc = JIM_ERR;
+      }
     }
 #endif
     break;
@@ -2698,7 +2696,7 @@ static int DbMain(Jim_Interp *interp, int objc, Jim_Obj *const*objv){
   const char *zVfs = 0;
   int flags;
 
-  /* Not threading in Jim, so no mutexing is needed */
+  /* No threading in Jim, so no mutexing is needed */
   flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX;
 
   if( objc==2 ){
@@ -2765,14 +2763,7 @@ static int DbMain(Jim_Interp *interp, int objc, Jim_Obj *const*objv){
     }
   }
   if( objc<3 || (objc&1)!=1 ){
-    Jim_WrongNumArgs(interp, 1, objv, 
-      "HANDLE FILENAME ?-vfs VFSNAME? ?-readonly BOOLEAN? ?-create BOOLEAN?"
-      " ?-nomutex BOOLEAN? ?-fullmutex BOOLEAN?"
-#ifdef SQLITE_HAS_CODEC
-      " ?-key CODECKEY?"
-#endif
-    );
-    return JIM_ERR;
+    return JIM_USAGE;
   }
   zErrMsg = 0;
   p = (SqliteDb*)Jim_Alloc( sizeof(*p) );
@@ -2798,7 +2789,7 @@ static int DbMain(Jim_Interp *interp, int objc, Jim_Obj *const*objv){
   p->maxStmt = NUM_PREPARED_STMTS;
   p->interp = interp;
   zArg = Jim_String(objv[1]);
-  Jim_CreateCommand(interp, zArg, DbObjCmd, p, DbDeleteCmd);
+  Jim_RegisterCmd(interp, zArg, "SUBCOMMAND ...", 1, -1, DbObjCmd, DbDeleteCmd, p, 0);
   return JIM_OK;
 }
 
@@ -2823,6 +2814,14 @@ static int DbMain(Jim_Interp *interp, int objc, Jim_Obj *const*objv){
 */
 EXTERN int Jim_sqliteInit(Jim_Interp *interp){
   Jim_PackageProvideCheck(interp, "sqlite");
-  Jim_CreateCommand(interp, "sqlite", DbMain, 0, 0);
+
+  static const char * const usage =
+      "HANDLE FILENAME ?-vfs VFSNAME? ?-readonly BOOLEAN? ?-create BOOLEAN?"
+      " ?-nomutex BOOLEAN? ?-fullmutex BOOLEAN?"
+#ifdef SQLITE_HAS_CODEC
+      " ?-key CODECKEY?"
+#endif
+      ;
+  Jim_RegisterCmd(interp, "sqlite", usage, 2, -1, DbMain, NULL, NULL, JIM_CMD_NOTAINT);
   return JIM_OK;
 }

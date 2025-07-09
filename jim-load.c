@@ -21,7 +21,20 @@
     #define RTLD_LOCAL 0
 #endif
 
-static void JimFreeLoadHandles(Jim_Interp *interp, void *data);
+static void JimFreeOneLoadHandle(void *handle)
+{
+    dlclose(handle);
+}
+
+static void JimFreeLoadHandles(Jim_Interp *interp, void *data)
+{
+    Jim_Stack *handles = data;
+
+    if (handles) {
+        Jim_StackFree(handles);
+        Jim_Free(handles);
+    }
+}
 
 /**
  * Note that Jim_LoadLibrary() requires a path to an existing file.
@@ -72,7 +85,7 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
             Jim_Stack *loadHandles = Jim_GetAssocData(interp, "load::handles");
             if (loadHandles == NULL) {
                 loadHandles = Jim_Alloc(sizeof(*loadHandles));
-                Jim_InitStack(loadHandles);
+                Jim_StackInit(loadHandles, JimFreeOneLoadHandle);
                 Jim_SetAssocData(interp, "load::handles", JimFreeLoadHandles, loadHandles);
             }
             Jim_StackPush(loadHandles, handle);
@@ -86,22 +99,6 @@ int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName)
         dlclose(handle);
     }
     return JIM_ERR;
-}
-
-static void JimFreeOneLoadHandle(void *handle)
-{
-    dlclose(handle);
-}
-
-static void JimFreeLoadHandles(Jim_Interp *interp, void *data)
-{
-    Jim_Stack *handles = data;
-
-    if (handles) {
-        Jim_FreeStackElements(handles, JimFreeOneLoadHandle);
-        Jim_FreeStack(handles);
-        Jim_Free(handles);
-    }
 }
 
 #else /* JIM_DYNLIB */
@@ -122,15 +119,11 @@ void Jim_FreeLoadHandles(Jim_Interp *interp)
 /* [load] */
 static int Jim_LoadCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    if (argc < 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "libraryFile");
-        return JIM_ERR;
-    }
     return Jim_LoadLibrary(interp, Jim_String(argv[1]));
 }
 
 int Jim_loadInit(Jim_Interp *interp)
 {
-    Jim_CreateCommand(interp, "load", Jim_LoadCoreCommand, NULL, NULL);
+    Jim_RegisterCmd(interp, "load", "libraryFile", 1, 1, Jim_LoadCoreCommand, NULL, NULL, JIM_CMD_NOTAINT);
     return JIM_OK;
 }

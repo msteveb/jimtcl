@@ -45,6 +45,9 @@
 #ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 static void Jim_PosixSetError(Jim_Interp *interp)
 {
@@ -58,10 +61,6 @@ static int Jim_PosixForkCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 
     JIM_NOTUSED(argv);
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     if ((pid = fork()) == -1) {
         Jim_PosixSetError(interp);
         return JIM_ERR;
@@ -76,10 +75,6 @@ static int Jim_PosixGetidsCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 {
     Jim_Obj *objv[8];
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     objv[0] = Jim_NewStringObj(interp, "uid", -1);
     objv[1] = Jim_NewIntObj(interp, getuid());
     objv[2] = Jim_NewStringObj(interp, "euid", -1);
@@ -98,10 +93,6 @@ static int Jim_PosixGethostnameCommand(Jim_Interp *interp, int argc, Jim_Obj *co
     char *buf;
     int rc = JIM_OK;
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
     buf = Jim_Alloc(JIM_HOST_NAME_MAX);
     if (gethostname(buf, JIM_HOST_NAME_MAX) == -1) {
         Jim_PosixSetError(interp);
@@ -119,11 +110,6 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 #ifdef HAVE_STRUCT_SYSINFO_UPTIME
     struct sysinfo info;
 
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
-        return JIM_ERR;
-    }
-
     if (sysinfo(&info) == -1) {
         Jim_PosixSetError(interp);
         return JIM_ERR;
@@ -135,18 +121,38 @@ static int Jim_PosixUptimeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 #endif
     return JIM_OK;
 }
+
+static int Jim_PosixUmaskCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    mode_t oldmask;
+
+    if (argc == 2) {
+        long mask;
+        if (Jim_GetLong(interp, argv[1], &mask) != JIM_OK) {
+            return JIM_ERR;
+        }
+        oldmask = umask(mask);
+    }
+    else {
+        oldmask = umask(0);
+        umask(oldmask);
+    }
+    Jim_SetResultInt(interp, oldmask);
+    return JIM_OK;
+}
 #endif /* JIM_BOOTSTRAP */
 
 int Jim_posixInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "posix");
 #ifdef HAVE_FORK
-    Jim_CreateCommand(interp, "os.fork", Jim_PosixForkCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "os.fork", "", 0, 0, Jim_PosixForkCommand);
 #endif
 #if !defined(JIM_BOOTSTRAP)
-    Jim_CreateCommand(interp, "os.getids", Jim_PosixGetidsCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "os.gethostname", Jim_PosixGethostnameCommand, NULL, NULL);
-    Jim_CreateCommand(interp, "os.uptime", Jim_PosixUptimeCommand, NULL, NULL);
+    Jim_RegisterSimpleCmd(interp, "os.gethostname", "", 0, 0, Jim_PosixGethostnameCommand);
+    Jim_RegisterSimpleCmd(interp, "os.getids", "", 0, 0, Jim_PosixGetidsCommand);
+    Jim_RegisterSimpleCmd(interp, "os.uptime", "", 0, 0, Jim_PosixUptimeCommand);
+    Jim_RegisterSimpleCmd(interp, "os.umask", "?newmask?", 0, 1, Jim_PosixUmaskCommand);
 #endif /* JIM_BOOTSTRAP */
     return JIM_OK;
 }

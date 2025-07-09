@@ -5,7 +5,7 @@ constraint cmd {clock scan}
 
 test clock-1.1 {clock usage} -body {
     clock
-} -returnCodes error -match glob -result {wrong # args: should be "clock command ..."*}
+} -returnCodes error -match glob -result {wrong # args: should be "clock subcommand ?arg ...?"}
 
 test clock-1.2 {clock usage} -body {
     clock blah

@@ -175,7 +175,7 @@ test cmd-1 {standard -commands} jim {
 
 test rand-1 {rand} -constraints rand -body {
 	rand 1 2 3
-} -returnCodes error -result {wrong # args: should be "rand ?min? max"}
+} -returnCodes error -result {wrong # args: should be "rand ?min? ?max?"}
 
 test rand-2 {rand} -constraints rand -body {
 	rand foo

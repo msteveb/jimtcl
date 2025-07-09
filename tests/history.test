@@ -4,9 +4,8 @@ needs cmd {history save}
 needs expr "jim::lineedit" {$jim::lineedit}
 
 test history-1.1 {history usage} -body {
-	history
-} -returnCodes error -result {wrong # args: should be "history command ..."
-Use "history -help ?command?" for help}
+    history
+} -returnCodes error -result {wrong # args: should be "history subcommand ?arg ...?"}
 
 test history-1.2 {history -help} -body {
 	history -help

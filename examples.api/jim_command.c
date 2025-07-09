@@ -44,16 +44,11 @@ MySampleCommandFunc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 	const char *str;
 	int len;
 
-	if (argc != 2) {
-		Jim_WrongNumArgs(interp, 1, argv, "string");
-		return (JIM_ERR);
-	}
-
+	/* No need to check arg count here as this is checked by Jim_RegisterCmd() */
 	str = Jim_GetString(argv[1], &len);
-	assert(str != NULL);
 	printf("%s\n", str);
 
-	return (JIM_OK);
+	return JIM_OK;
 }
 
 /*
@@ -77,9 +72,8 @@ main(int argc, char **argv)
 	/* And initialise any static extensions */
 	Jim_InitStaticExtensions(interp);
 
-	/* Register our Jim commands. */
-	Jim_CreateCommand(interp, "MySampleCommand", MySampleCommandFunc,
-	    NULL, NULL);
+	/* Register our Jim commands. This includes usage and min/max arg count */
+	Jim_RegisterSimpleCmd(interp, "MySampleCommand", "string", 1, 1, MySampleCommandFunc);
 
 	/* Run a script. */
 	error = Jim_Eval(interp, JIM_PROGRAM);

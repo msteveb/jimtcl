@@ -24,7 +24,6 @@ static int history_cmd_getline(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     /* Returns the length of the string if varName was specified */
     if (argc == 2) {
         if (Jim_SetVariable(interp, argv[1], objPtr) != JIM_OK) {
-            Jim_FreeNewObj(interp, objPtr);
             return JIM_ERR;
         }
         Jim_SetResultInt(interp, Jim_Length(objPtr));
@@ -149,6 +148,6 @@ static const jim_subcmd_type history_command_table[] = {
 int Jim_historyInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "history");
-    Jim_CreateCommand(interp, "history", Jim_SubCmdProc, (void *)history_command_table, NULL);
+    Jim_RegisterSubCmd(interp, "history", history_command_table, NULL);
     return JIM_OK;
 }

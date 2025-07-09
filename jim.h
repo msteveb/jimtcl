@@ -125,8 +125,9 @@ extern "C" {
  * ---------------------------------------------------------------------------*/
 
 /* Increment this every time the public ABI changes */
-#define JIM_ABI_VERSION 101
+#define JIM_ABI_VERSION 102
 
+/* Tcl return codes */
 #define JIM_OK 0
 #define JIM_ERR 1
 #define JIM_RETURN 2
@@ -134,6 +135,8 @@ extern "C" {
 #define JIM_CONTINUE 4
 #define JIM_SIGNAL 5
 #define JIM_EXIT 6
+/* Special meaning */
+#define JIM_USAGE -1    /* Throw a usage error */
 /* The following are internal codes and should never been seen/used */
 #define JIM_EVAL 7      /* tailcall */
 
@@ -150,7 +153,6 @@ extern "C" {
 
 #define JIM_NONE 0              /* no flags set */
 #define JIM_ERRMSG 1            /* set an error message in the interpreter. */
-#define JIM_ENUM_ABBREV 2       /* Jim_GetEnum() - Allow unambiguous abbreviation */
 #define JIM_UNSHARED 4          /* Jim_GetVariable() - return unshared object */
 #define JIM_MUSTEXIST 8         /* Jim_SetDictKeysVector() - fail if non-existent */
 #define JIM_NORESULT 16         /* Jim_SetDictKeysVector() - don't store the result in the interp result */
@@ -160,6 +162,14 @@ extern "C" {
 #define JIM_SUBST_NOCMD 2 /* don't perform command substitutions */
 #define JIM_SUBST_NOESC 4 /* don't perform escapes substitutions */
 #define JIM_SUBST_FLAG 128 /* flag to indicate that this is a real substitution object */
+
+#define JIM_TAINT_STD   1 /* The "normal" type of taint. Allows for multiple
+                           * types of taint in the future
+                           */
+#define JIM_TAINT_ANY   ~0 /* Any type of taint at all */
+
+/* Flags for Jim_GetEnum() */
+#define JIM_ENUM_ABBREV 2    /* Allow unambiguous abbreviation */
 
 /* Flags used by API calls getting a 'nocase' argument. */
 #define JIM_CASESENS    0   /* case sensitive */
@@ -183,6 +193,7 @@ typedef struct Jim_Stack {
     int len;
     int maxlen;
     void **vector;
+    void (*freefunc) (void *ptr);
 } Jim_Stack;
 
 /* -----------------------------------------------------------------------------
@@ -285,6 +296,7 @@ typedef struct Jim_Obj {
     const struct Jim_ObjType *typePtr; /* object type. */
     int refCount; /* reference count */
     int length; /* number of bytes in 'bytes', not including the null term. */
+    unsigned taint;  /* If this object is tainted */
     /* Internal representation union */
     union {
         /* integer number type */
@@ -439,8 +451,6 @@ typedef struct Jim_CallFrame {
     Jim_Obj *procBodyObjPtr; /* body object of the running procedure */
     struct Jim_CallFrame *next; /* Callframes are in a linked list */
     Jim_Obj *nsObj;             /* Namespace for this proc call frame */
-    Jim_Obj *unused_fileNameObj;
-    int unused_line;
     Jim_Stack *localCommands; /* commands to be destroyed when the call frame is destroyed */
     struct Jim_Obj *tailcallObj;  /* Pending tailcall invocation */
     struct Jim_Cmd *tailcallCmd;  /* Resolved command for pending tailcall invocation */
@@ -494,12 +504,21 @@ typedef struct Jim_Dict {
     unsigned int dummy;         /* Number of dummy entries */
 } Jim_Dict;
 
+#define JIM_CMD_ISPROC 1
+#define JIM_CMD_ISCHANNEL 2
+#define JIM_CMD_ISALIAS 4
+
+/* When a command is registered with this flag, it can't be called with
+ * tainted data
+ */
+#define JIM_CMD_NOTAINT 0x100
+
 /* A command is implemented in C if isproc is 0, otherwise
  * it is a Tcl procedure with the arglist and body represented by the
  * two objects referenced by arglistObjPtr and bodyObjPtr. */
 typedef struct Jim_Cmd {
     int inUse;           /* Reference count */
-    int isproc;          /* Is this a procedure? */
+    int flags;           /* JIM_CMD_XXX */
     struct Jim_Cmd *prevCmd;    /* Previous command defn if cmd created 'local' */
     Jim_Obj *cmdNameObj;       /* The fully resolved command name - just a pointer, not a reference */
     union {
@@ -508,6 +527,10 @@ typedef struct Jim_Cmd {
             Jim_CmdProc *cmdProc; /* The command implementation */
             Jim_DelCmdProc *delProc; /* Called when the command is deleted if != NULL */
             void *privData; /* command-private data available via Jim_CmdPrivData() */
+            const char *usage;          /* If not NULL, usage text - used by 'info usage' */
+            const char *help;           /* If not NULL, help text - used by 'info help' */
+            short minargs;
+            short maxargs;              /* -1 for unlimited */
         } native;
         struct {
             /* Tcl procedure */
@@ -540,7 +563,6 @@ typedef struct Jim_PrngState {
  * ---------------------------------------------------------------------------*/
 typedef struct Jim_Interp {
     Jim_Obj *result; /* object returned by the last command called. */
-    int unused_errorLine; /* Error line where an error occurred. */
     Jim_Obj *currentFilenameObj; /* filename of current Jim_EvalFile() */
     int break_level;       /* break/continue level */
     int maxCallFrameDepth; /* Used for infinite loop detection. */
@@ -568,11 +590,9 @@ typedef struct Jim_Interp {
     int safeexpr; /* Set when evaluating a "safe" expression, no var subst or command eval */
     Jim_Obj *liveList; /* Linked list of all the live objects. */
     Jim_Obj *freeList; /* Linked list of all the unused objects. */
-    Jim_Obj *unused_currentScriptObj; /* Script currently in execution. */
     Jim_EvalFrame topEvalFrame;  /* dummy top evaluation frame */
     Jim_EvalFrame *evalFrame;  /* evaluation stack */
     int procLevel;
-    Jim_Obj * const *unused_argv;
     Jim_Obj *nullScriptObj; /* script representation of an empty string */
     Jim_Obj *emptyObj; /* Shared empty string object. */
     Jim_Obj *trueObj; /* Shared true int object. */
@@ -591,7 +611,7 @@ typedef struct Jim_Interp {
     Jim_Obj *defer; /* "jim::defer" */
     Jim_Obj *traceCmdObj; /* If non-null, execution trace command to invoke */
     int unknown_called; /* The unknown command has been invoked */
-    int errorFlag; /* Set if an error occurred during execution. */
+    int hasErrorStackTrace; /* If a stack trace has been set due to an error during execution. */
     void *cmdPrivData; /* Used to pass the private data pointer to
                   a command. It is set to what the user specified
                   via Jim_CreateCommand(). */
@@ -603,6 +623,7 @@ typedef struct Jim_Interp {
     Jim_PrngState *prngState; /* per interpreter Random Number Gen. state. */
     struct Jim_HashTable packages; /* Provided packages hash table */
     Jim_Stack *loadHandles; /* handles of loaded modules [load] */
+    unsigned taint;  /* Newly created objects get this taint */
 } Jim_Interp;
 
 /* Currently provided as macro that performs the increment.
@@ -708,13 +729,10 @@ JIM_EXPORT void Jim_SetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
 
 
 /* stack */
-JIM_EXPORT void Jim_InitStack(Jim_Stack *stack);
-JIM_EXPORT void Jim_FreeStack(Jim_Stack *stack);
-JIM_EXPORT int Jim_StackLen(Jim_Stack *stack);
+JIM_EXPORT void Jim_StackInit(Jim_Stack *stack, void (*freefunc) (void *ptr));
+JIM_EXPORT void Jim_StackFree(Jim_Stack *stack);
 JIM_EXPORT void Jim_StackPush(Jim_Stack *stack, void *element);
-JIM_EXPORT void * Jim_StackPop(Jim_Stack *stack);
-JIM_EXPORT void * Jim_StackPeek(Jim_Stack *stack);
-JIM_EXPORT void Jim_FreeStackElements(Jim_Stack *stack, void (*freeFunc)(void *ptr));
+JIM_EXPORT void *Jim_StackPop(Jim_Stack *stack);
 
 /* hash table */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
@@ -791,16 +809,36 @@ JIM_EXPORT const char *Jim_ReturnCode(int code);
 JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...);
 
 /* commands */
-JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
+JIM_EXPORT Jim_Cmd *Jim_RegisterCommand(Jim_Interp *interp, Jim_Obj *cmdNameObj,
+    Jim_CmdProc *cmdProc,
+    Jim_DelCmdProc *delProc,
+    const char *usage,
+    const char *help,
+    short minargs,
+    short maxargs,
+    int flags,
+    void *privData);
+/* This is a this wrapper around Jim_RegisterCommand */
 JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
         const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
          Jim_DelCmdProc *delProc);
+/* Simplify creating commands that specify minargs, maxargs and usage but
+ * don't need delProc or privData
+ */
+#define Jim_RegisterSimpleCmd(interp, name, usage, minargs, maxargs, cmdproc) \
+        Jim_RegisterCommand(interp, Jim_NewStringObj(interp, name, -1), cmdproc, NULL, usage, NULL, minargs, maxargs, 0, NULL)
+/* And also slightly more complex where delProc, privData and flags may be needed */
+#define Jim_RegisterCmd(interp, name, usage, minargs, maxargs, cmdproc, delproc, privdata, flags) \
+        Jim_RegisterCommand(interp, Jim_NewStringObj(interp, name, -1), cmdproc, delproc, usage, NULL, minargs, maxargs, flags, privdata)
+
+JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         Jim_Obj *cmdNameObj);
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         Jim_Obj *oldNameObj, Jim_Obj *newNameObj);
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
+/* Note that if Jim_SetVariable() fails, and valObjPtr has a zero reference count, it will be freed */
 JIM_EXPORT int Jim_SetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
 JIM_EXPORT int Jim_SetVariableStr (Jim_Interp *interp,
@@ -989,6 +1027,22 @@ JIM_EXPORT int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 /* type inspection - avoid where possible */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);
 JIM_EXPORT int Jim_IsList(Jim_Obj *objPtr);
+
+/* taint */
+JIM_EXPORT void Jim_SetTaintError(Jim_Interp *interp, int cmdargs, Jim_Obj *const *argv);
+JIM_EXPORT int Jim_CalcTaint(int argc, Jim_Obj *const *argv);
+
+#ifdef JIM_TAINT
+#define Jim_CheckTaint(i, t) ((i)->taint & (t))
+#define Jim_TaintObj(o,t) (o)->taint |= (t)
+#define Jim_UntaintObj(o) (o)->taint = 0
+#define Jim_GetObjTaint(o) (o)->taint
+#else
+#define Jim_CheckTaint(i, t) 0
+#define Jim_TaintObj(o,t)
+#define Jim_UntaintObj(o)
+#define Jim_GetObjTaint(o) 0
+#endif
 
 #ifdef __cplusplus
 }

@@ -999,6 +999,7 @@ static const jim_subcmd_type file_command_table[] = {
         file_cmd_delete,
         1,
         -1,
+        JIM_MODFLAG_NOTAINT,
         /* Description: Deletes the files or directories (must be empty unless -force) */
     },
     {   "mkdir",
@@ -1006,6 +1007,7 @@ static const jim_subcmd_type file_command_table[] = {
         file_cmd_mkdir,
         1,
         -1,
+        JIM_MODFLAG_NOTAINT,
         /* Description: Creates the directories */
     },
     {   "tempfile",
@@ -1013,6 +1015,7 @@ static const jim_subcmd_type file_command_table[] = {
         file_cmd_tempfile,
         0,
         1,
+        JIM_MODFLAG_NOTAINT,
         /* Description: Creates a temporary filename */
     },
     {   "rename",
@@ -1020,6 +1023,7 @@ static const jim_subcmd_type file_command_table[] = {
         file_cmd_rename,
         2,
         3,
+        JIM_MODFLAG_NOTAINT,
         /* Description: Renames a file */
     },
 #if defined(HAVE_LINK) && defined(HAVE_SYMLINK)
@@ -1098,14 +1102,7 @@ static const jim_subcmd_type file_command_table[] = {
 
 static int Jim_CdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    const char *path;
-
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, 1, argv, "dirname");
-        return JIM_ERR;
-    }
-
-    path = Jim_String(argv[1]);
+    const char *path = Jim_String(argv[1]);
 
     if (chdir(path) != 0) {
         Jim_SetResultFormatted(interp, "couldn't change working directory to \"%s\": %s", path,
@@ -1134,8 +1131,8 @@ static int Jim_PwdCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_fileInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "file");
-    Jim_CreateCommand(interp, "file", Jim_SubCmdProc, (void *)file_command_table, NULL);
-    Jim_CreateCommand(interp, "pwd", Jim_PwdCmd, NULL, NULL);
-    Jim_CreateCommand(interp, "cd", Jim_CdCmd, NULL, NULL);
+    Jim_RegisterSubCmd(interp, "file", file_command_table, NULL);
+    Jim_RegisterSimpleCmd(interp, "pwd", "", 0, 0, Jim_PwdCmd);
+    Jim_RegisterCmd(interp, "cd", "dirname", 1, 1, Jim_CdCmd, NULL, NULL, JIM_CMD_NOTAINT);
     return JIM_OK;
 }

@@ -289,9 +289,7 @@ static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *cons
 	}
 
 	if (i != argc - 1) {
-		Jim_WrongNumArgs(interp, 1, argv,
-			"?-index? ?-null nullvalue? ?-schema? json");
-		return JIM_ERR;
+		return JIM_USAGE;
 	}
 
 	return JIM_OK;
@@ -369,7 +367,7 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 	state.nullObj = Jim_NewStringObj(interp, "null", -1);
 	Jim_IncrRefCount(state.nullObj);
 
-	if (parse_json_decode_options(interp, argc, argv, &state) != JIM_OK) {
+	if ((ret = parse_json_decode_options(interp, argc, argv, &state)) != JIM_OK) {
 		goto done;
 	}
 
@@ -431,7 +429,7 @@ int
 Jim_jsonInit(Jim_Interp *interp)
 {
 	Jim_PackageProvideCheck(interp, "json");
-	Jim_CreateCommand(interp, "json::decode", json_decode, NULL, NULL);
+	Jim_RegisterSimpleCmd(interp, "json::decode", "?-index? ?-null nullvalue? ?-schema? json", 1, 5, json_decode);
 	/* Load the Tcl implementation of the json encoder if possible */
 	Jim_PackageRequire(interp, "jsonencode", 0);
 	return JIM_OK;
