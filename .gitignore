@@ -15,9 +15,11 @@ jim-oo.c
 jimsh
 *.exe
 libjim.a
+*.so
 *.so.*
 *.dll
 *.o
+*.dylib
 configure.gnu
 jimsh0
 build-jim-ext
