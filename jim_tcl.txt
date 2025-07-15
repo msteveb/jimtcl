@@ -4564,6 +4564,9 @@ For example, if +-nocommands+ is specified, no command substitution
 is performed: open and close brackets are treated as ordinary
 characters with no special interpretation.
 
+*Note*: `expr` shorthand +$(\...)+ is considered a variable substitution
+and so is disabled by +-novariables+.
+
 *Note*: when it performs its substitutions, subst does not give any
 special treatment to double quotes or curly braces. For example,
 the following script returns +xyz \{44\}+, not +xyz \{$a\}+.
