@@ -485,7 +485,11 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     n = source_len - offset;
     p = source_str + offset;
-    do {
+
+    /* To match Tcl, an empty pattern does not match at the end
+     * of the string.
+     */
+    while (n || pattern[0]) {
         int match = jim_regexec(regex, p, MAX_SUB_MATCHES, pmatch, regexec_flags);
 
         if (match >= REG_BADPAT) {
@@ -584,23 +588,22 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
 
-        /* If the pattern is empty, need to step forwards */
-        if (pattern[0] == '\0' && n) {
-            /* Need to copy the char we are moving over */
-            Jim_AppendString(interp, resultObj, p, 1);
-            p++;
-            n--;
-        }
-
+        regexec_flags = 0;
         if (pmatch[0].rm_eo == pmatch[0].rm_so) {
-            /* The match did not advance the string, so set REG_NOTBOL to force the next match */
-            regexec_flags = REG_NOTBOL;
+            /* Matched a zero length string. Need to avoid matching the same position again */
+            if (pattern[0] == '^') {
+                /* An anchored search sets REG_BOL */
+                regexec_flags = REG_NOTBOL;
+            }
+            else {
+                /* A non-anchored search advances by one char */
+                int charlen = utf8_charlen(p[0]);
+                Jim_AppendString(interp, resultObj, p, charlen);
+                p += charlen;
+                n -= charlen;
+            }
         }
-        else {
-            regexec_flags = 0;
-        }
-
-    } while (n);
+    }
 
     /*
      * Copy the portion of the string after the last match to the
