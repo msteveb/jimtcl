@@ -810,6 +810,12 @@ test regexpComp-21.10 {regexp command compiling tests} {
 #	list [regsub -all "" "" bar str] $str
 #    }
 #} {0 {}}
+test regexpComp-21.12 {regexp empty pattern with utf8} utf8 {
+    # Make sure the second char isn't sliced up
+    evalInProc {
+	regsub -all "" a\u0442bc !
+    }
+} "!a!\u0442!b!c"
 
 # We can forgive the underlying regexp engine for not supporting this.
 # Why not use this instead? "((^X)*|\$)"

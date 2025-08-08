@@ -666,6 +666,16 @@ test regexp-21.15 {Replace literal backslash} {
     set value
 } "\\abc\\def"
 
+test regexp-21.16 {Replace nothing} {
+    regsub -all {x*} anything !
+} {!a!n!y!t!h!i!n!g!}
+
+test regexp-21.17 {Replace nothing via empty pattern} {
+    # Interestingly in this case Tcl does not match
+    # at end of string while the previous case does
+    regsub -all {} anything !
+} {!a!n!y!t!h!i!n!g}
+
 test regexp-22.1 {char range} {
     regexp -all -inline {[a-c]+} "defaaghbcadfbaacccd"
 } {aa bca baaccc}
