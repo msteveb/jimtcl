@@ -193,15 +193,17 @@ test regexp-5.5 {exercise cache of compiled expressions} {
     regexp .*e xe
 } 1
 
-test regexp-6.1 {regexp errors} {
+test regexp-6.1 {regexp errors} -body {
     list [catch {regexp a} msg] $msg
-} {1 {wrong # args: should be "regexp ?-switch ...? exp string ?matchVar? ?subMatchVar ...?"}}
-test regexp-6.2 {regexp errors} {
+} -result {1 {wrong # args: should be "regexp ?-option ...? exp string ?matchVar? ?subMatchVar ...?"}}
+
+test regexp-6.2 {regexp errors} -body {
     list [catch {regexp -nocase a} msg] $msg
-} {1 {wrong # args: should be "regexp ?-switch ...? exp string ?matchVar? ?subMatchVar ...?"}}
+} -result {1 {wrong # args: should be "regexp ?-option ...? exp string ?matchVar? ?subMatchVar ...?"}}
+
 test regexp-6.3 {regexp errors} -constraints jim -body {
     list [catch {regexp -gorp a} msg] $msg
-} -result {1 {bad switch "-gorp": must be --, -all, -expanded, -indices, -inline, -line, -nocase, or -start}}
+} -result {1 {bad option "-gorp": must be --, -all, -expanded, -indices, -inline, -line, -nocase, or -start}}
 test regexp-6.4 {regexp errors} {
     catch {regexp a( b} msg
 } 1
@@ -219,13 +221,14 @@ test regexp-6.8 {regexp errors} jim {
     set f1 44
     list [catch {regexp abc abc f1(f2)} msg] $msg
 } {1 {can't set "f1(f2)": variable isn't array}}
-test regexp-6.9 {regexp errors, -start bad int check} {
-    list [catch {regexp -start bogus {^$} {}} msg] $msg
-} {1 {bad index "bogus": must be intexpr or end?[+-]intexpr?}}
-test regexp-6.10 {regexp errors, -start too few args} {
-    list [catch {regexp -all -start} msg] $msg
-} {1 {wrong # args: should be "regexp ?-switch ...? exp string ?matchVar? ?subMatchVar ...?"}}
 
+test regexp-6.9 {regexp errors, -start bad int check} -body {
+    list [catch {regexp -start bogus {^$} {}} msg] $msg
+} -match glob -result {1 {bad index "bogus": must be int* or end\?\[+-\]int*\?}}
+
+test regexp-6.10 {regexp errors, -start too few args} -body {
+    list [catch {regexp -all -start} msg] $msg
+} -result {1 {wrong # args: should be "regexp ?-option ...? exp string ?matchVar? ?subMatchVar ...?"}}
 
 test regexp-7.1 {basic regsub operation} {
     list [regsub aa+ xaxaaaxaa 111&222 foo] $foo
@@ -355,19 +358,24 @@ test regexp-10.3 {newline sensitivity in regsub} {
 
 test regexp-11.1 {regsub errors} {
     list [catch {regsub a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
 test regexp-11.2 {regsub errors} {
     list [catch {regsub -nocase a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
 test regexp-11.3 {regsub errors} {
     list [catch {regsub -nocase -all a b} msg] $msg
-} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
 test regexp-11.4 {regsub errors} {
     list [catch {regsub a b c d e f} msg] $msg
-} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
 test regexp-11.5 {regsub errors} -constraints jim -body {
     list [catch {regsub -gorp a b c} msg] $msg
-} -result {1 {bad switch "-gorp": must be --, -all, -command, -expanded, -line, -nocase, or -start}}
+} -result {1 {bad option "-gorp": must be --, -all, -command, -expanded, -line, -nocase, or -start}}
+
+test regexp-11.5 {regsub errors} -constraints tcl -body {
+    list [catch {regsub -gorp a b c} msg] $msg
+} -result {1 {bad option "-gorp": must be -all, -command, -expanded, -line, -linestop, -lineanchor, -nocase, -start, or --}}
+
 test regexp-11.6 {regsub errors} {
     catch {regsub -nocase a( b c d} msg
 } 1
@@ -376,9 +384,11 @@ test regexp-11.7 {regsub errors} jim {
     set f1 44
     list [catch {regsub -nocase aaa aaa xxx f1(f2)} msg] $msg
 } {1 {can't set "f1(f2)": variable isn't array}}
-test regexp-11.8 {regsub errors, -start bad int check} {
+
+test regexp-11.8 {regsub errors, -start bad int check} -body {
     list [catch {regsub -start bogus pattern string rep var} msg] $msg
-} {1 {bad index "bogus": must be intexpr or end?[+-]intexpr?}}
+} -match glob -result {1 {bad index "bogus": must be int* or end\?\[+-\]int*\?}}
+
 test regexp-11.9 {regsub without final variable name returns value} {
     regsub b abaca X
 } {aXaca}
@@ -394,7 +404,7 @@ test regexp-11.12 {regsub without final variable name returns value} {
 } {a,bcd,c,ea,bcfd,cf,e}
 test regexp-11.13 {regsub errors, -start too few args} {
     list [catch {regsub -all -nocase -nocase -start} msg] $msg
-} {1 {wrong # args: should be "regsub ?-switch ...? exp string subSpec ?varName?"}}
+} {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
 
 
 # This test crashes on the Mac unless you increase the Stack Space to about 1
