@@ -481,18 +481,18 @@ test regexpComp-10.3 {newline sensitivity in regsub} {
 	list [regsub -line {^a.*b$} "dabc\naxyb\nxb" 123 foo] $foo
     }
 } "1 {dabc\n123\nxb}"
-#test regexpComp-10.4 {partial newline sensitivity in regsub} {
-#    evalInProc {
-#	set foo xxx
-#	list [regsub -lineanchor {^a.*b$} "da\naxyb\nxb" 123 foo] $foo
-#    }
-#} "1 {da\n123}"
-#test regexpComp-10.5 {inverse partial newline sensitivity in regsub} {
-#    evalInProc {
-#	set foo xxx
-#	list [regsub -linestop {a.*b} "da\nbaxyb\nxb" 123 foo] $foo
-#    }
-#} "1 {da\nb123\nxb}"
+test regexpComp-10.4 {partial newline sensitivity in regsub} {
+    evalInProc {
+	set foo xxx
+	list [regsub -lineanchor {^a.*b$} "da\naxyb\nxb" 123 foo] $foo
+    }
+} "1 {da\n123}"
+test regexpComp-10.5 {inverse partial newline sensitivity in regsub} {
+    evalInProc {
+	set foo xxx
+	list [regsub -linestop {a.*b} "da\nbaxyb\nxb" 123 foo] $foo
+    }
+} "1 {da\nb123\nxb}"
 test regexpComp-10.6 {\Z only matching end of string with -line} {
     evalInProc {
 	set foo xxx
@@ -528,7 +528,7 @@ test regexpComp-11.5 {regsub errors} -body {
     evalInProc {
 	list [catch {regsub -gorp a b c} msg] $msg
     }
-} -result {1 {bad option "-gorp": must be -all, -command, -expanded, -line, -nocase, -start, or --}}
+} -result {1 {bad option "-gorp": must be -all, -command, -expanded, -line, -lineanchor, -linestop, -nocase, -start, or --}}
 
 test regexpComp-11.6 {regsub errors} {
     evalInProc {
@@ -807,11 +807,11 @@ test regexpComp-21.10 {regexp command compiling tests} {
     }
 } {3 barfbarobaro}
 # This useless expression fails. Jim returns "bar"
-#test regexpComp-21.11 {regexp command compiling tests} {
-#    evalInProc {
-#	list [regsub -all "" "" bar str] $str
-#    }
-#} {0 {}}
+test regexpComp-21.11 {regexp command compiling tests} {
+    evalInProc {
+	list [regsub -all "" "" bar str] $str
+    }
+} {0 {}}
 test regexpComp-21.12 {regexp empty pattern with utf8} utf8 {
     # Make sure the second char isn't sliced up
     evalInProc {

@@ -1234,7 +1234,7 @@ int jim_regexec(regex_t  *preg,  const  char *string, size_t nmatch, regmatch_t 
 			}
 			if (*string) {
 nextline:
-				if (preg->cflags & REG_NEWLINE) {
+				if (preg->cflags & REG_NEWLINE_ANCHOR) {
 					/* Try the next anchor? */
 					string = strchr(string, '\n');
 					if (string) {
@@ -1369,12 +1369,12 @@ static const char *str_find(const char *string, int c, int nocase)
 /**
  * Returns true if 'ch' is an end-of-line char.
  *
- * In REG_NEWLINE mode, \n is considered EOL in
+ * In REG_NEWLINE_STOP mode, \n is considered EOL in
  * addition to \0
  */
 static int reg_iseol(regex_t *preg, int ch)
 {
-	if (preg->cflags & REG_NEWLINE) {
+	if (preg->cflags & REG_NEWLINE_STOP) {
 		return ch == '\0' || ch == '\n';
 	}
 	else {
