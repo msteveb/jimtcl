@@ -348,11 +348,11 @@ test regexp-10.3 {newline sensitivity in regsub} {
     set foo xxx
     list [regsub -line {^a.*b$} "dabc\naxyb\nxb" 123 foo] $foo
 } "1 {dabc\n123\nxb}"
-test regexp-10.4 {partial newline sensitivity in regsub} {
+test regexp-10.4 {partial newline sensitivity in regsub} regexp_are {
     set foo xxx
     list [regsub -lineanchor {^a.*b$} "da\naxyb\nxb" 123 foo] $foo
 } "1 {da\n123}"
-test regexp-10.5 {inverse partial newline sensitivity in regsub} {
+test regexp-10.5 {inverse partial newline sensitivity in regsub} regexp_are {
     set foo xxx
     list [regsub -linestop {a.*b} "da\nbaxyb\nxb" 123 foo] $foo
 } "1 {da\nb123\nxb}"
@@ -497,7 +497,7 @@ test regexp-16.3 {regsub -start} {
     catch {unset x}
     list [regsub -all -start 3 {z} hello {/&} x] $x
 } {0 hello}
-test regexp-16.4 {regsub -start, \A behavior} {
+test regexp-16.4 {regsub -start, \A behavior} regexp_are {
     set out {}
     lappend out [regsub -start 0 -all {\A(\w)} {abcde} {/\1} x] $x
     lappend out [regsub -start 2 -all {\A(\w)} {abcde} {/\1} x] $x
@@ -649,7 +649,7 @@ test regexp-21.9 {regexp works with empty string offset} {
     regexp -start 3 -- \$ {123}
 } {1}
 
-test regexp-21.10 {multiple matches handle newlines} {
+test regexp-21.10 {multiple matches handle newlines} regexp_are {
     regsub -all -lineanchor -- {^#[^\n]*\n} "#one\n#two\n#three\n" foo\n
 } "foo\nfoo\nfoo\n"
 
@@ -678,7 +678,7 @@ test regexp-21.16 {Replace nothing} {
     regsub -all {x*} anything !
 } {!a!n!y!t!h!i!n!g!}
 
-test regexp-21.17 {Replace nothing via empty pattern} {
+test regexp-21.17 {Replace nothing via empty pattern} regexp_are {
     # Interestingly in this case Tcl does not match
     # at end of string while the previous case does
     regsub -all {} anything !
@@ -689,25 +689,25 @@ test regexp-22.1 {char range} {
 } {aa bca baaccc}
 
 # Tcl doesn't like this
-test regexp-22.2 {reversed char range} jim {
+test regexp-22.2 {reversed char range} {jim regexp_are} {
     regexp -all -inline {[c-a]+} "defaaghbcadfbaacccd"
 } {aa bca baaccc}
 
 # Note that here the hex escapes are interpreted by regexp, not by Tcl
-test regexp-22.3 {hex digits} {
+test regexp-22.3 {hex digits} regexp_are {
     regexp -all -inline {[\x6a-\x6c]+} "jlaksdjflkwueorilkj"
 } {jl k j lk lkj}
 
-test regexp-22.4 {uppercase hex digits} {
+test regexp-22.4 {uppercase hex digits} regexp_are {
     regexp -all -inline {[\x6A-\x6C]+} "jlaksdjflkwueorilkj"
 } {jl k j lk lkj}
 
 # Below \x9X will be treated as \x9 followed by X
-test regexp-22.5 {invalid hex digits} {
+test regexp-22.5 {invalid hex digits} regexp_are {
     regexp -all -inline {[\x9X\x6C]+} "jla\tX6djflyw\tueorilkj"
 } [list l \tX l \t l]
 
-test regexp-22.6 {unicode hex digits} jim {
+test regexp-22.6 {unicode hex digits} {jim regexp_are} {
     regexp -all -inline {[\u{41}-\u{00043}]+} "AVBASDFBABDFBAFBAFA"
 } {A BA BAB BA BA A}
 
@@ -716,15 +716,15 @@ test regexp-22.7 {unicode hex digits with invalid exscape} jim {
     regexp -all -inline {[\u{X41}]+} "uVBAX{SD4B1}DFBAFBAFA"
 } {u X\{ 4 1\}}
 
-test regexp-22.8 {unicode hex digits} {
+test regexp-22.8 {unicode hex digits} regexp_are {
     regexp -all -inline {[\u0041-\u0043]+} "AVBASDFBABDFBAFBAFA"
 } {A BA BAB BA BA A}
 
-test regexp-22.9 {\U unicode hex digits} {
+test regexp-22.9 {\U unicode hex digits} regexp_are {
     regexp -all -inline {[\U00000041-\U00000043]+} "AVBASDFBABDFBAFBAFA"
 } {A BA BAB BA BA A}
 
-test regexp-22.10 {Various char escapes} {
+test regexp-22.10 {Various char escapes} regexp_are {
     set result {}
     foreach match [regexp -all -inline {[\e\f\v\t\b]+} "A\f\vBB\b\tC\x1BG"] {
 	set chars {}
@@ -737,15 +737,15 @@ test regexp-22.10 {Various char escapes} {
     join $result |
 } {12,11|8,9|27}
 
-test regexp-22.11 {backslash as last char} -body {
+test regexp-22.11 {backslash as last char} -constraints regexp_are -body {
     regexp -all -inline "\[a\\" "ba\\d\[ef"
 } -returnCodes error -result {couldn't compile regular expression pattern: invalid escape \ sequence}
 
-test regexp-22.12 {missing closing bracket} -body {
+test regexp-22.12 {missing closing bracket} -constraints regexp_are -body {
     regexp -all -inline {[abc} "abcdefghi"
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
-test regexp-22.13 {empty alternative} {
+test regexp-22.13 {empty alternative} regexp_are {
     regexp -all -inline {a(a|b|)c} "aacbacbaa"
 } {aac a ac {}}
 
@@ -757,11 +757,11 @@ test regexp-22.15 {- in set} {
     regexp -all -inline {[-ab]+} "aac\[ba\]cb-aa"
 } {aa ba b-aa}
 
-test regexp-22.16 {\s in set} {
+test regexp-22.16 {\s in set} regexp_are {
     regexp -all -inline {[\sa]+} "aac\[b a\]c\tb-aa"
 } [list aa " a" \t aa]
 
-test regexp-22.17 {\d in set} {
+test regexp-22.17 {\d in set} regexp_are {
     regexp -all -inline {[a\d]+} "a0ac\[b a\]44c\tb-1aa7"
 } {a0a a 44 1aa7}
 
@@ -784,13 +784,13 @@ test regexp-27.5 {regsub -command} {
 test regexp-27.6 {regsub -command} {
     regsub -command -all {(.)(.)} {abcdef} {list ,}
 } {, ab a b, cd c d, ef e f}
-test regexp-27.7 {regsub -command representation smash} {
+test regexp-27.7 {regsub -command representation smash} regexp_are {
     set ::s {123=456 789}
     regsub -command -all {\d+} $::s {apply {n {
 	expr {[llength $::s] + $n}
     }}}
 } {125=458 791}
-test regexp-27.8 {regsub -command representation smash} {
+test regexp-27.8 {regsub -command representation smash} regexp_are {
     set ::t {apply {n {
 	expr {[llength [lindex $::t 1 1 1]] + $n}
     }}}
@@ -812,15 +812,15 @@ test reg-31.1 {[[:xdigit:]] behaves correctly when followed by [[:space:]]} {
     # Code used to produce {1 2:::DebugWin32 2 :::DebugWin32} !!!
 } {1 2 2 {}}
 
-test reg-31.2 {scanner not reset in failed optional group} {
+test reg-31.2 {scanner not reset in failed optional group} regexp_are {
     regexp -inline {^(?:(-)(?:(\w[\w-]*)\|)?)?(\w[\w-]*)$} -debug
 } {-debug - {} debug}
 
-test reg-31.2 {invalid digit check in class} -body {
+test reg-31.2 {invalid digit check in class} -constraints regexp_are -body {
   regexp {[[:digit:\0]} 1
 } -returnCodes error -result {couldn't compile regular expression pattern: brackets [] not balanced}
 
-test reg-31.3 {invalid trailing backslash} -body {
+test reg-31.3 {invalid trailing backslash} -constraints regexp_are -body {
   regexp "\[abc\\" a
 } -returnCodes error -result {couldn't compile regular expression pattern: invalid escape \ sequence}
 
