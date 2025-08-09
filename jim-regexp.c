@@ -454,12 +454,12 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_USAGE;
     }
 
-	/* Need to ensure that this is unshared, so just duplicate it always */
+    /* Need to ensure that this is unshared, so just duplicate it always */
     regcomp_obj = Jim_DuplicateObj(interp, argv[i]);
-	Jim_IncrRefCount(regcomp_obj);
+    Jim_IncrRefCount(regcomp_obj);
     regex = SetRegexpFromAny(interp, regcomp_obj, regcomp_flags);
     if (!regex) {
-		Jim_DecrRefCount(interp, regcomp_obj);
+        Jim_DecrRefCount(interp, regcomp_obj);
         return JIM_ERR;
     }
     pattern = Jim_String(argv[i]);
@@ -469,7 +469,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         cmd_prefix = argv[i + 2];
         if (Jim_ListLength(interp, cmd_prefix) == 0) {
             Jim_SetResultString(interp, "command prefix must be a list of at least one element", -1);
-			Jim_DecrRefCount(interp, regcomp_obj);
+            Jim_DecrRefCount(interp, regcomp_obj);
             return JIM_ERR;
         }
         Jim_IncrRefCount(cmd_prefix);
@@ -655,7 +655,7 @@ cmd_error:
         Jim_DecrRefCount(interp, cmd_prefix);
     }
 
-	Jim_DecrRefCount(interp, regcomp_obj);
+    Jim_DecrRefCount(interp, regcomp_obj);
 
     return result;
 }
