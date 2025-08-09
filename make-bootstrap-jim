@@ -4,6 +4,26 @@
 # which can be compiled to provide a bootstrap version of jimsh.
 # e.g. cc -o jimsh0 jimsh0.c
 
+JIMREGEXP_H=jimregexp.h
+JIMREGEXP_C=jimregexp.c
+JIM_REGEXP=JIM_REGEXP
+
+while [ $# -gt 0 ]; do
+        case "$1" in
+                --no-regexp)
+                # don't include builtin regexp extension
+                JIMREGEXP_H=""
+                JIMREGEXP_C=""
+                JIM_REGEXP=""
+                ;;
+                *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+        shift
+done
+
 makeext()
 {
 	source="$1"
@@ -49,7 +69,7 @@ allexts="bootstrap aio readdir regexp file glob exec clock array stdlib tclcompa
 echo "/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl.tk/ */"
 
 # define some core features
-for i in JIM_COMPAT JIM_ANSIC JIM_REGEXP HAVE_NO_AUTOCONF JIM_TINY _JIMAUTOCONF_H; do
+for i in JIM_COMPAT JIM_ANSIC $JIM_REGEXP HAVE_NO_AUTOCONF JIM_TINY _JIMAUTOCONF_H; do
 	echo "#define $i"
 done
 echo '#define TCL_LIBRARY "."'
@@ -121,7 +141,7 @@ outputsource()
 }
 
 # Now output header files, removing references to jim header files
-for i in jim-win32compat.h utf8.h jim.h jim-subcmd.h jimregexp.h jim-signal.h jimiocompat.h; do
+for i in jim-win32compat.h utf8.h jim.h jim-subcmd.h $JIMREGEXP_H jim-signal.h jimiocompat.h; do
 	outputsource $i
 done
 
@@ -135,7 +155,7 @@ done
 makeloadexts $allexts
 
 # And finally the core source code
-for i in jim.c jim-subcmd.c utf8.c jim-format.c jimregexp.c jimiocompat.c jim-win32compat.c jim-nosignal.c; do
+for i in jim.c jim-subcmd.c utf8.c jim-format.c $JIMREGEXP_C jimiocompat.c jim-win32compat.c jim-nosignal.c; do
 	outputsource $i
 done
 echo "#ifndef JIM_BOOTSTRAP_LIB_ONLY"
