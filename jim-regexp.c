@@ -122,6 +122,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int opt_indices = 0;
     int opt_all = 0;
     int opt_inline = 0;
+    int opt_lineanchor = 0;
     regex_t *regex;
     int match, i, j;
     int offset = 0;
@@ -137,10 +138,10 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int eflags = 0;
     int option;
     enum {
-        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_EXPANDED, OPT_END
+        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_LINESTOP, OPT_LINEANCHOR, OPT_ALL, OPT_INLINE, OPT_START, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-indices", "-nocase", "-line", "-all", "-inline", "-start", "-expanded", "--", NULL
+        "-indices", "-nocase", "-line", "-linestop", "-lineanchor", "-all", "-inline", "-start", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -167,8 +168,20 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
             case OPT_LINE:
                 regcomp_flags |= REG_NEWLINE;
+                opt_lineanchor = 1;
                 break;
 
+#ifdef REG_NEWLINE_STOP
+            case OPT_LINESTOP:
+                regcomp_flags |= REG_NEWLINE_STOP;
+                break;
+#endif
+#ifdef REG_NEWLINE_ANCHOR
+            case OPT_LINEANCHOR:
+                regcomp_flags |= REG_NEWLINE_ANCHOR;
+                opt_lineanchor = 1;
+                break;
+#endif
             case OPT_ALL:
                 opt_all = 1;
                 break;
@@ -186,14 +199,15 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 }
                 break;
 
-            case OPT_EXPANDED:
 #ifdef REG_EXPANDED
+            case OPT_EXPANDED:
                 regcomp_flags |= REG_EXPANDED;
                 break;
-#else
+#endif
+            default:
+                /* Could get here if -linestop or -lineanchor or -expanded is not supported */
                 Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
                 return JIM_ERR;
-#endif
         }
     }
     if (argc - i < 2) {
@@ -313,7 +327,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
+    if (opt_all && (pattern[0] != '^' || opt_lineanchor) && *source_str) {
         if (pmatch[0].rm_eo) {
             offset += utf8_strlen(source_str, pmatch[0].rm_eo);
             source_str += pmatch[0].rm_eo;
@@ -369,10 +383,10 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *pattern;
     int option;
     enum {
-        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_COMMAND, OPT_EXPANDED, OPT_END
+        OPT_NOCASE, OPT_LINE, OPT_LINESTOP, OPT_LINEANCHOR, OPT_ALL, OPT_START, OPT_COMMAND, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-nocase", "-line", "-all", "-start", "-command", "-expanded", "--", NULL
+        "-nocase", "-line", "-linestop", "-lineanchor", "-all", "-start", "-command", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -397,6 +411,16 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 regcomp_flags |= REG_NEWLINE;
                 break;
 
+#ifdef REG_NEWLINE_STOP
+            case OPT_LINESTOP:
+                regcomp_flags |= REG_NEWLINE_STOP;
+                break;
+#endif
+#ifdef REG_NEWLINE_ANCHOR
+            case OPT_LINEANCHOR:
+                regcomp_flags |= REG_NEWLINE_ANCHOR;
+                break;
+#endif
             case OPT_ALL:
                 opt_all = 1;
                 break;
@@ -414,14 +438,16 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 opt_command = 1;
                 break;
 
-            case OPT_EXPANDED:
 #ifdef REG_EXPANDED
+            case OPT_EXPANDED:
                 regcomp_flags |= REG_EXPANDED;
                 break;
-#else
+#endif
+
+            default:
+                /* Could get here if -linestop or -lineanchor or -expanded is not supported */
                 Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
                 return JIM_ERR;
-#endif
         }
     }
     if (argc - i != 3 && argc - i != 4) {
@@ -580,11 +606,6 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         /* If -all is not specified, or there is no source left, we are done */
         if (!opt_all || n == 0) {
-            break;
-        }
-
-        /* An anchored pattern without -line must be done */
-        if ((regcomp_flags & REG_NEWLINE) == 0 && pattern[0] == '^') {
             break;
         }
 
