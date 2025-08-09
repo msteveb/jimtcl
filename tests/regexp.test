@@ -203,7 +203,8 @@ test regexp-6.2 {regexp errors} -body {
 
 test regexp-6.3 {regexp errors} -constraints jim -body {
     list [catch {regexp -gorp a} msg] $msg
-} -result {1 {bad option "-gorp": must be --, -all, -expanded, -indices, -inline, -line, -nocase, or -start}}
+} -result {1 {bad option "-gorp": must be -all, -expanded, -indices, -inline, -line, -nocase, -start, or --}}
+
 test regexp-6.4 {regexp errors} {
     catch {regexp a( b} msg
 } 1
@@ -368,9 +369,10 @@ test regexp-11.3 {regsub errors} {
 test regexp-11.4 {regsub errors} {
     list [catch {regsub a b c d e f} msg] $msg
 } {1 {wrong # args: should be "regsub ?-option ...? exp string subSpec ?varName?"}}
+
 test regexp-11.5 {regsub errors} -constraints jim -body {
     list [catch {regsub -gorp a b c} msg] $msg
-} -result {1 {bad option "-gorp": must be --, -all, -command, -expanded, -line, -nocase, or -start}}
+} -result {1 {bad option "-gorp": must be -all, -command, -expanded, -line, -nocase, -start, or --}}
 
 test regexp-11.5 {regsub errors} -constraints tcl -body {
     list [catch {regsub -gorp a b c} msg] $msg
