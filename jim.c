@@ -3142,10 +3142,20 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, const char *
     }
 }
 
+/* Note that we explicitly sort -- after other options */
 static int qsortCompareStringPointers(const void *a, const void *b)
 {
     char *const *sa = (char *const *)a;
     char *const *sb = (char *const *)b;
+
+    /* Always sort "--" to the end to match Tcl 9.0 */
+    if (strcmp(*sa, "--") == 0) {
+        return 1;
+    }
+    if (strcmp(*sb, "--") == 0) {
+        /* Always sort "--" to the end */
+        return -1;
+    }
 
     return strcmp(*sa, *sb);
 }

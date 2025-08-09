@@ -122,6 +122,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int opt_indices = 0;
     int opt_all = 0;
     int opt_inline = 0;
+    int opt_lineanchor = 0;
     regex_t *regex;
     int match, i, j;
     int offset = 0;
@@ -137,10 +138,10 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int eflags = 0;
     int option;
     enum {
-        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_INLINE, OPT_START, OPT_EXPANDED, OPT_END
+        OPT_INDICES,  OPT_NOCASE, OPT_LINE, OPT_LINESTOP, OPT_LINEANCHOR, OPT_ALL, OPT_INLINE, OPT_START, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-indices", "-nocase", "-line", "-all", "-inline", "-start", "-expanded", "--", NULL
+        "-indices", "-nocase", "-line", "-linestop", "-lineanchor", "-all", "-inline", "-start", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -149,7 +150,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (*opt != '-') {
             break;
         }
-        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
             return JIM_ERR;
         }
         if (option == OPT_END) {
@@ -167,8 +168,20 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
             case OPT_LINE:
                 regcomp_flags |= REG_NEWLINE;
+                opt_lineanchor = 1;
                 break;
 
+#ifdef REG_NEWLINE_STOP
+            case OPT_LINESTOP:
+                regcomp_flags |= REG_NEWLINE_STOP;
+                break;
+#endif
+#ifdef REG_NEWLINE_ANCHOR
+            case OPT_LINEANCHOR:
+                regcomp_flags |= REG_NEWLINE_ANCHOR;
+                opt_lineanchor = 1;
+                break;
+#endif
             case OPT_ALL:
                 opt_all = 1;
                 break;
@@ -186,14 +199,15 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 }
                 break;
 
-            case OPT_EXPANDED:
 #ifdef REG_EXPANDED
+            case OPT_EXPANDED:
                 regcomp_flags |= REG_EXPANDED;
                 break;
-#else
+#endif
+            default:
+                /* Could get here if -linestop or -lineanchor or -expanded is not supported */
                 Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
                 return JIM_ERR;
-#endif
         }
     }
     if (argc - i < 2) {
@@ -313,7 +327,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
     }
 
-    if (opt_all && (pattern[0] != '^' || (regcomp_flags & REG_NEWLINE)) && *source_str) {
+    if (opt_all && (pattern[0] != '^' || opt_lineanchor) && *source_str) {
         if (pmatch[0].rm_eo) {
             offset += utf8_strlen(source_str, pmatch[0].rm_eo);
             source_str += pmatch[0].rm_eo;
@@ -369,10 +383,10 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *pattern;
     int option;
     enum {
-        OPT_NOCASE, OPT_LINE, OPT_ALL, OPT_START, OPT_COMMAND, OPT_EXPANDED, OPT_END
+        OPT_NOCASE, OPT_LINE, OPT_LINESTOP, OPT_LINEANCHOR, OPT_ALL, OPT_START, OPT_COMMAND, OPT_EXPANDED, OPT_END
     };
     static const char * const options[] = {
-        "-nocase", "-line", "-all", "-start", "-command", "-expanded", "--", NULL
+        "-nocase", "-line", "-linestop", "-lineanchor", "-all", "-start", "-command", "-expanded", "--", NULL
     };
 
     for (i = 1; i < argc; i++) {
@@ -381,7 +395,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (*opt != '-') {
             break;
         }
-        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
             return JIM_ERR;
         }
         if (option == OPT_END) {
@@ -397,6 +411,16 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 regcomp_flags |= REG_NEWLINE;
                 break;
 
+#ifdef REG_NEWLINE_STOP
+            case OPT_LINESTOP:
+                regcomp_flags |= REG_NEWLINE_STOP;
+                break;
+#endif
+#ifdef REG_NEWLINE_ANCHOR
+            case OPT_LINEANCHOR:
+                regcomp_flags |= REG_NEWLINE_ANCHOR;
+                break;
+#endif
             case OPT_ALL:
                 opt_all = 1;
                 break;
@@ -414,26 +438,28 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
                 opt_command = 1;
                 break;
 
-            case OPT_EXPANDED:
 #ifdef REG_EXPANDED
+            case OPT_EXPANDED:
                 regcomp_flags |= REG_EXPANDED;
                 break;
-#else
+#endif
+
+            default:
+                /* Could get here if -linestop or -lineanchor or -expanded is not supported */
                 Jim_SetResultFormatted(interp, "not supported: %#s", argv[i]);
                 return JIM_ERR;
-#endif
         }
     }
     if (argc - i != 3 && argc - i != 4) {
         return JIM_USAGE;
     }
 
-	/* Need to ensure that this is unshared, so just duplicate it always */
+    /* Need to ensure that this is unshared, so just duplicate it always */
     regcomp_obj = Jim_DuplicateObj(interp, argv[i]);
-	Jim_IncrRefCount(regcomp_obj);
+    Jim_IncrRefCount(regcomp_obj);
     regex = SetRegexpFromAny(interp, regcomp_obj, regcomp_flags);
     if (!regex) {
-		Jim_DecrRefCount(interp, regcomp_obj);
+        Jim_DecrRefCount(interp, regcomp_obj);
         return JIM_ERR;
     }
     pattern = Jim_String(argv[i]);
@@ -443,7 +469,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         cmd_prefix = argv[i + 2];
         if (Jim_ListLength(interp, cmd_prefix) == 0) {
             Jim_SetResultString(interp, "command prefix must be a list of at least one element", -1);
-			Jim_DecrRefCount(interp, regcomp_obj);
+            Jim_DecrRefCount(interp, regcomp_obj);
             return JIM_ERR;
         }
         Jim_IncrRefCount(cmd_prefix);
@@ -485,7 +511,11 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     n = source_len - offset;
     p = source_str + offset;
-    do {
+
+    /* To match Tcl, an empty pattern does not match at the end
+     * of the string.
+     */
+    while (n || pattern[0]) {
         int match = jim_regexec(regex, p, MAX_SUB_MATCHES, pmatch, regexec_flags);
 
         if (match >= REG_BADPAT) {
@@ -579,28 +609,22 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
         }
 
-        /* An anchored pattern without -line must be done */
-        if ((regcomp_flags & REG_NEWLINE) == 0 && pattern[0] == '^') {
-            break;
-        }
-
-        /* If the pattern is empty, need to step forwards */
-        if (pattern[0] == '\0' && n) {
-            /* Need to copy the char we are moving over */
-            Jim_AppendString(interp, resultObj, p, 1);
-            p++;
-            n--;
-        }
-
+        regexec_flags = 0;
         if (pmatch[0].rm_eo == pmatch[0].rm_so) {
-            /* The match did not advance the string, so set REG_NOTBOL to force the next match */
-            regexec_flags = REG_NOTBOL;
+            /* Matched a zero length string. Need to avoid matching the same position again */
+            if (pattern[0] == '^') {
+                /* An anchored search sets REG_BOL */
+                regexec_flags = REG_NOTBOL;
+            }
+            else {
+                /* A non-anchored search advances by one char */
+                int charlen = utf8_charlen(p[0]);
+                Jim_AppendString(interp, resultObj, p, charlen);
+                p += charlen;
+                n -= charlen;
+            }
         }
-        else {
-            regexec_flags = 0;
-        }
-
-    } while (n);
+    }
 
     /*
      * Copy the portion of the string after the last match to the
@@ -631,7 +655,7 @@ cmd_error:
         Jim_DecrRefCount(interp, cmd_prefix);
     }
 
-	Jim_DecrRefCount(interp, regcomp_obj);
+    Jim_DecrRefCount(interp, regcomp_obj);
 
     return result;
 }
@@ -639,7 +663,7 @@ cmd_error:
 int Jim_regexpInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "regexp");
-    Jim_RegisterSimpleCmd(interp, "regexp", "?-switch ...? exp string ?matchVar? ?subMatchVar ...?", 2, -1, Jim_RegexpCmd);
-    Jim_RegisterSimpleCmd(interp, "regsub", "?-switch ...? exp string subSpec ?varName?", 3, -1, Jim_RegsubCmd);
+    Jim_RegisterSimpleCmd(interp, "regexp", "?-option ...? exp string ?matchVar? ?subMatchVar ...?", 2, -1, Jim_RegexpCmd);
+    Jim_RegisterSimpleCmd(interp, "regsub", "?-option ...? exp string subSpec ?varName?", 3, -1, Jim_RegsubCmd);
     return JIM_OK;
 }

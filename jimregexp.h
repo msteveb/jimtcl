@@ -70,8 +70,11 @@ typedef struct regexp {
 typedef regexp regex_t;
 
 #define REG_EXTENDED 0
-#define REG_NEWLINE 1
 #define REG_ICASE 2
+#define REG_NEWLINE_ANCHOR 4
+#define REG_NEWLINE_STOP 8
+/* REG_NEWLINE is POSIX */
+#define REG_NEWLINE (REG_NEWLINE_ANCHOR | REG_NEWLINE_STOP)
 
 #define REG_NOTBOL 16
 #define REG_EXPANDED 32

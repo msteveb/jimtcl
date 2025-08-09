@@ -2,7 +2,7 @@
 
 set -e
 echo "Building bootstrap jimsh"
-./make-bootstrap-jim >jimsh_bootstrap.c
+./make-bootstrap-jim "$@" >jimsh_bootstrap.c
 ${CC:-cc} -o jimsh_bootstrap jimsh_bootstrap.c
 echo "Testing bootstrap jimsh"
 ( cd tests; ../jimsh_bootstrap runall.tcl )
