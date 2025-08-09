@@ -149,7 +149,7 @@ int Jim_RegexpCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (*opt != '-') {
             break;
         }
-        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
             return JIM_ERR;
         }
         if (option == OPT_END) {
@@ -381,7 +381,7 @@ int Jim_RegsubCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (*opt != '-') {
             break;
         }
-        if (Jim_GetEnum(interp, argv[i], options, &option, "switch", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+        if (Jim_GetEnum(interp, argv[i], options, &option, "option", JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
             return JIM_ERR;
         }
         if (option == OPT_END) {
@@ -642,7 +642,7 @@ cmd_error:
 int Jim_regexpInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "regexp");
-    Jim_RegisterSimpleCmd(interp, "regexp", "?-switch ...? exp string ?matchVar? ?subMatchVar ...?", 2, -1, Jim_RegexpCmd);
-    Jim_RegisterSimpleCmd(interp, "regsub", "?-switch ...? exp string subSpec ?varName?", 3, -1, Jim_RegsubCmd);
+    Jim_RegisterSimpleCmd(interp, "regexp", "?-option ...? exp string ?matchVar? ?subMatchVar ...?", 2, -1, Jim_RegexpCmd);
+    Jim_RegisterSimpleCmd(interp, "regsub", "?-option ...? exp string subSpec ?varName?", 3, -1, Jim_RegsubCmd);
     return JIM_OK;
 }
