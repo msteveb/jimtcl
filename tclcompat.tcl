@@ -65,7 +65,9 @@ proc fileevent {args} {
 
 # Second, optional argument is a glob pattern
 # Third, optional argument is a "putter" function
-proc parray {arrayname {pattern *} {puts puts}} {
+# with args being additional arguments to the putter
+# (invoked as $puts {*}$args string)
+proc parray {arrayname {pattern *} {puts puts} args} {
 	upvar $arrayname a
 
 	set max 0
@@ -77,7 +79,7 @@ proc parray {arrayname {pattern *} {puts puts}} {
 	incr max [string length $arrayname]
 	incr max 2
 	foreach name [lsort [array names a $pattern]] {
-		$puts [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
+		$puts {*}$args [format "%-${max}s = %s" $arrayname\($name\) $a($name)]
 	}
 }
 
