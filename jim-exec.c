@@ -80,7 +80,7 @@ static int Jim_ExecCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 int Jim_execInit(Jim_Interp *interp)
 {
     Jim_PackageProvideCheck(interp, "exec");
-    Jim_RegisterSimpleCmd(interp, "exec", "arg ?arg ...? ?&?", 1, -1, Jim_ExecCoreCmd);
+    Jim_RegisterSimpleCmd(interp, "exec", "arg ?arg ...? ?&?", 1, -1, Jim_ExecCmd);
     return JIM_OK;
 }
 #else
