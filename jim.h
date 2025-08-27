@@ -512,6 +512,11 @@ typedef struct Jim_Dict {
  * tainted data
  */
 #define JIM_CMD_NOTAINT 0x100
+/* Normally returning a negative return code from a native command
+ * will produce a usage error message. If the command is registered
+ * with this flag, it will be passed through
+ */
+#define JIM_CMD_NOUSAGE 0x200
 
 /* A command is implemented in C if isproc is 0, otherwise
  * it is a Tcl procedure with the arglist and body represented by the

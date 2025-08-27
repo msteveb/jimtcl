@@ -11922,13 +11922,12 @@ static int JimCallNative(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *co
     if (argsok) {
         interp->cmdPrivData = cmd->u.native.privData;
         ret = cmd->u.native.cmdProc(interp, argc, argv);
-        if (ret != JIM_USAGE) {
+        if (ret != JIM_USAGE || (cmd->flags & JIM_CMD_NOUSAGE)) {
             return ret;
         }
         /* This means an argument error */
     }
 
-    //printf("Wrong args for %s, argc=%d, minargs=%d, maxargs=%d\n", Jim_String(argv[0]), argc, cmd->u.native.minargs, cmd->u.native.maxargs);
     Jim_SetResultFormatted(interp, "wrong # args: should be \"%#s\"", JimCmdUsage(interp, argv[0], cmd));
     return JIM_ERR;
 }
