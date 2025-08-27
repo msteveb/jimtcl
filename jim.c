@@ -11922,7 +11922,7 @@ static int JimCallNative(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *co
     if (argsok) {
         interp->cmdPrivData = cmd->u.native.privData;
         ret = cmd->u.native.cmdProc(interp, argc, argv);
-        if (ret >= 0) {
+        if (ret != JIM_USAGE) {
             return ret;
         }
         /* This means an argument error */
