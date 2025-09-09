@@ -11,9 +11,9 @@ $f puts test-data
 $f close
 # create a test file file with several lines
 set f [open copy.in wb]
-$f puts line1
-$f puts line2
-$f puts line3
+$f puts line1xy
+$f puts line2xy
+$f puts line3xy
 $f close
 
 set f [open testdata.in rb]
@@ -94,9 +94,81 @@ test aio-3.2 {copy bad length} -body {
 
 set badvar a
 
-test aio-4.1 {gets invalid var} -body {
+test aio-4.1 {gets usage} -body {
+	$f gets abc def
+} -returnCodes error -match glob -result {wrong # args: should be "* gets ?-eol <str>? ?-keep 0|1? ?var?"}
+
+test aio-4.2 {gets invalid option} -body {
+	$f gets -xyz 3 def
+} -returnCodes error -result {bad option "-xyz": must be -eol, or -keep}
+
+test aio-4.3 {gets invalid var} -body {
 	$f gets badvar(abc)
 } -returnCodes error -result {can't set "badvar(abc)": variable isn't array}
+
+test aio-4.4 {gets -eol} -body {
+	set ff [open copy.in]
+	set rc [$ff gets -eol y\n buf]
+	$ff close
+	list $rc $buf
+} -result {6 line1x}
+
+test aio-4.5 {gets -eol} -body {
+	set ff [open copy.in]
+	set rc [$ff gets -eol 2xy\n buf]
+	$ff close
+	list $rc $buf
+} -result {12 {line1xy
+line}}
+
+test aio-4.6 {gets -keep} -body {
+	set ff [open copy.in]
+	set rc [$ff gets -keep 1 buf]
+	$ff close
+	list $rc $buf
+} -result {8 {line1xy
+}}
+
+test aio-4.7 {gets -eol -keep} -body {
+	set ff [open copy.in]
+	set rc [$ff gets -keep 1 -eol 2xy\n buf]
+	$ff close
+	list $rc $buf
+} -result {16 {line1xy
+line2xy
+}}
+
+test aio-4.8 {gets -eol no var} -body {
+	set ff [open copy.in]
+	set buf [$ff gets -eol xy -keep 1]
+	$ff close
+	set buf
+} -result line1xy
+
+test aio-4.9 {gets -keep 0 count} -body {
+	set ff [open copy.in]
+	set count [$ff gets -keep 0 buf]
+	$ff close
+	list $count $buf
+} -result {7 line1xy}
+
+test aio-4.10 {gets -keep 1 count} -body {
+	set ff [open copy.in]
+	set count [$ff gets -keep 1 buf]
+	$ff close
+	list $count $buf
+} -result {8 {line1xy
+}}
+
+test aio-4.11 {gets -eol multiple calls} -body {
+	set ff [open copy.in]
+	set lines {}
+	lappend lines [$ff gets -eol xy\n]
+	lappend lines [$ff gets -eol xy\n]
+	lappend lines [$ff gets -eol xy\n]
+	$ff close
+	set lines
+} -result {line1 line2 line3}
 
 test aio-5.1 {puts usage} -body {
 	stdout puts -badopt abc
@@ -188,19 +260,19 @@ test copyto-1.1 {basic copyto} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {line1 line2 line3}
+} {line1xy line2xy line3xy}
 
 test copyto-1.2 {copyto with limit} {
 	set in [open copy.in]
 	set out [open copy.out w]
-	$in copyto $out 8
+	$in copyto $out 10
 	$in close
 	$out close
 	set ff [open copy.out]
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {line1 li {}}
+} {line1xy li {}}
 
 test copyto-1.3 {copyto after gets} {
 	set in [open copy.in]
@@ -213,7 +285,7 @@ test copyto-1.3 {copyto after gets} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {line2 line3 {}}
+} {line2xy line3xy {}}
 
 test copyto-1.4 {copyto after read} {
 	set in [open copy.in]
@@ -226,7 +298,7 @@ test copyto-1.4 {copyto after read} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {e1 line2 line3}
+} {e1xy line2xy line3xy}
 
 test copyto-1.5 {copyto after gets, seek} {
 	set in [open copy.in]
@@ -240,7 +312,7 @@ test copyto-1.5 {copyto after gets, seek} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {ne1 line2 line3}
+} {ne1xy line2xy line3xy}
 
 test copyto-1.6 {copyto from pipe} {
 	set in [open "|cat copy.in"]
@@ -252,7 +324,7 @@ test copyto-1.6 {copyto from pipe} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {line1 line2 line3}
+} {line1xy line2xy line3xy}
 
 test copyto-1.6 {copyto to pipe} {
 	set out [open "|cat >copy.out" w]
@@ -264,7 +336,7 @@ test copyto-1.6 {copyto to pipe} {
 	set result [list [$ff gets] [$ff gets] [$ff gets]]
 	$ff close
 	set result
-} {line1 line2 line3}
+} {line1xy line2xy line3xy}
 
 # Creates a child process and returns {pid writehandle}
 # The child expects to read $numlines lines of input and exits with a return
