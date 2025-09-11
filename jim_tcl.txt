@@ -67,6 +67,7 @@ Changes since 0.83
 #. New `info usage` to return the usage for a proc or native command
 #. New `info aliases` to list all aliases
 #. `expr` supports new +'=*'+ and +'=~'+ matching operators (see <<_expressions,EXPRESSIONS>>)
+#. `aio gets` supports +*-eol*+ and +*-keep*+
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5163,9 +5164,9 @@ aio
     to flush the remaining data. As long as the eventloop runs (`vwait`, `update`), the write
     data will be automatically flushed.
 
-+$handle *gets* '?varName?'+::
-    Read one line from the cannel and return it or store it in the
-    var A terminating newline character is discarded.  If +'varName'+
++$handle *gets* ?*-eol* 'str'? ?*-keep 0|1*? '?varName?'+::
+    Read one line from the channel and return it or store it in the
+    variable. A terminating newline character is discarded.  If +'varName'+
     is specified, then the line is placed in the variable by that name
     and the return value is a count of the number of characters read
     (not including the newline).  If the end of the file is reached
@@ -5178,6 +5179,14 @@ aio
     used to determine what really happened.  If the last character in
     the file is not a newline character, then `gets` behaves as if there
     were an additional newline character at the end of the file.
+
+ ::
+    If +*-eol*+ is given, the end of line is considered to be the
+    given string instead of the newline character. If +*-keep 1*+
+    is given, the end-of-line string is not discarded and instead
+    is returned as part of the result (and if the return value is the
+    character count, it includes the end-of-line string).
+    The default is +*-keep 0*+.
 
 +$handle *getfd*+::
     Returns the underlying file descriptor. On Unix platforms this is a small integer.
