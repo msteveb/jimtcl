@@ -10,6 +10,11 @@
 #include <unistd.h>
 #include <hiredis.h>
 
+typedef struct {
+    redisContext *c;
+    int multi;  /* 1 if in a MULTI script */
+} jim_redis_t;
+
 /**
  * Recursively decode a redis reply as Tcl data structure.
  */
@@ -74,15 +79,15 @@ static Jim_Obj *jim_redis_get_result(Jim_Interp *interp, redisReply *reply, int 
 
 static int jim_redis_write_callback(Jim_Interp *interp, void *clientData, int mask)
 {
-    redisContext *c = clientData;
+    jim_redis_t *context = clientData;
 
     int done;
-    if (redisBufferWrite(c, &done) != REDIS_OK) {
+    if (redisBufferWrite(context->c, &done) != REDIS_OK) {
         return JIM_ERR;
     }
     if (done) {
         /* Write has completed, so remove the callback */
-        Jim_DeleteFileHandler(interp, c->fd, mask);
+        Jim_DeleteFileHandler(interp, context->c->fd, mask);
     }
     return JIM_OK;
 }
@@ -100,7 +105,8 @@ static int jim_redis_write_callback(Jim_Interp *interp, void *clientData, int ma
 static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     int i;
-    redisContext *c = Jim_CmdPrivData(interp);
+    jim_redis_t *context = Jim_CmdPrivData(interp);
+    redisContext *c = context->c;
     const char **args;
     size_t *arglens;
     int ret = JIM_OK;
@@ -139,6 +145,30 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetTaintError(interp, 1, argv);
         return JIM_ERR;
     }
+    else if (Jim_CompareStringImmediate(interp, argv[1], "multiexec")) {
+        /* $r multiexec <script> */
+        if (argc != 3) {
+            Jim_SetResultFormatted(interp, "usage: %#s multiexec <script>", argv[0]);
+            return JIM_ERR;
+        }
+        if (context->multi) {
+            Jim_SetResultFormatted(interp, "already in a multi script");
+            return JIM_ERR;
+        }
+        context->multi++;
+        reply = redisCommand(c, "MULTI");
+        ret = Jim_EvalObj(interp, argv[2]);
+        context->multi--;
+        freeReplyObject(reply);
+        if (ret == JIM_OK) {
+            reply = redisCommand(c, "EXEC");
+        }
+        else {
+            reply = redisCommand(c, "DISCARD");
+            /* Return error but don't overwrite the eval error result */
+        }
+        goto dowrite;
+    }
     else {
         int nargs = argc - 1;
         args = Jim_Alloc(sizeof(*args) * nargs);
@@ -150,11 +180,12 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         reply = redisCommandArgv(c, nargs, args, arglens);
         Jim_Free(args);
         Jim_Free(arglens);
-        if (!(c->flags & REDIS_BLOCK)) {
+        if (!(c->flags & REDIS_BLOCK) && !context->multi) {
             int done;
+dowrite:
             if (redisBufferWrite(c, &done) == REDIS_OK && !done) {
                 /* Couldn't write the entire command, so set up a writable callback to complete the job */
-                Jim_CreateFileHandler(interp, c->fd, JIM_EVENT_WRITABLE, jim_redis_write_callback, c, NULL);
+                Jim_CreateFileHandler(interp, c->fd, JIM_EVENT_WRITABLE, jim_redis_write_callback, context, NULL);
             }
         }
     }
@@ -175,10 +206,11 @@ static int jim_redis_subcmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static void jim_redis_del_proc(Jim_Interp *interp, void *privData)
 {
-    redisContext *c = privData;
+    jim_redis_t *context = privData;
     JIM_NOTUSED(interp);
-    Jim_DeleteFileHandler(interp, c->fd, JIM_EVENT_READABLE);
-    redisFree(c);
+    Jim_DeleteFileHandler(interp, context->c->fd, JIM_EVENT_READABLE | JIM_EVENT_WRITABLE);
+    redisFree(context->c);
+    Jim_Free(context);
 }
 
 /**
@@ -190,12 +222,12 @@ static void jim_redis_del_proc(Jim_Interp *interp, void *privData)
  */
 static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    redisContext *c;
     char buf[60];
     Jim_Obj *objv[2];
     long fd;
     int ret;
     int async = 0;
+    jim_redis_t *context;
 
     if (argc > 2 && Jim_CompareStringImmediate(interp, argv[1], "-async")) {
         async = 1;
@@ -218,17 +250,19 @@ static int jim_redis_cmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     /* Note that we dup the file descriptor here so that we can close the original */
     fd = dup(fd);
+    context = Jim_Alloc(sizeof(*context));
+    context->multi = 0;
     /* Can't fail */
-    c = redisConnectFd(fd);
+    context->c = redisConnectFd(fd);
     if (async) {
-        c->flags &= ~REDIS_BLOCK;
+        context->c->flags &= ~REDIS_BLOCK;
     }
     /* Enable TCP_KEEPALIVE - this is the default for later redis versions */
-    redisEnableKeepAlive(c);
+    redisEnableKeepAlive(context->c);
     /* Now delete the original stream */
     Jim_DeleteCommand(interp, argv[1 + async]);
     snprintf(buf, sizeof(buf), "redis.handle%ld", Jim_GetId(interp));
-    Jim_RegisterCmd(interp, buf, "subcommand ?arg ...?", 1, -1, jim_redis_subcmd, jim_redis_del_proc, c, 0);
+    Jim_RegisterCmd(interp, buf, "subcommand ?arg ...?", 1, -1, jim_redis_subcmd, jim_redis_del_proc, context, 0);
 
     Jim_SetResult(interp, Jim_MakeGlobalNamespaceName(interp, Jim_NewStringObj(interp, buf, -1)));
 

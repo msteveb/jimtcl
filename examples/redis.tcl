@@ -53,12 +53,19 @@ $r SET b B2
 $r EXEC
 puts "MGET: [$r MGET a b]"
 
-# disard
+# discard
 $r MULTI
 $r SET a ~A1
 $r SET b ~B2
 $r DISCARD
 puts "MGET (DISCARD): [$r MGET a b]"
+
+set result [$r -type multiexec {
+	$r SET a 1
+	$r SET b 2
+	$r INCR b
+}]
+puts "multiexec: $result"
 
 set result [$r HGET env testing]
 

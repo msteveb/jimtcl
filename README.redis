@@ -136,6 +136,28 @@ This command is equivalent to deleting the command with:
 
     rename $r ""
 
+The multiexec subcommand
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to use the 'MULTI' and 'EXEC' commands directly, however in this case
+each command is sent to the redis server immediately. To improve performance/latency, it is possible
+to queue multiple commands as a single request with the 'multiexec' subcommand. For example:
+
+    $r multiexec {
+		$r DEL key
+		$r HSET key a 1
+		$r HSET key b 2
+	}
+
+The result is a redis array of the result of each command (excluding MULTI and EXEC).
+
+Note: The performance benefits of 'multiexec' (batching multiple commands in a single request)
+only apply when the redis connection is in async mode (see Async/Non-blocking support below).
+In synchronous mode, each command within the multiexec block is still sent to the server
+immediately and waits for a response, so there is no latency improvement over using MULTI/EXEC
+directly. However, multiexec can still be used in synchronous mode for transaction semantics,
+and if the script within multiexec fails, the transaction will be automatically discarded.
+
 Async/Non-blocking support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

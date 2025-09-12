@@ -40,7 +40,12 @@ $r readable {
 proc redis_command {r args} {
 	global cmds
 	lappend cmds $args
-	$r {*}$args
+	set ret [$r {*}$args]
+	# If the command is multiexec, there will be an additional "EXEC" command to wait for the result of the transaction
+	if {[lindex $args 0] eq "multiexec"} {
+		lappend cmds EXEC
+	}
+	return $ret
 }
 
 redis_command $r SET zz 0
@@ -58,5 +63,17 @@ proc periodic {r} {
 
 set counter 0
 periodic $r
+
+# And also multiexec in async mode
+# In async mode, all commands within multiexec are batched and sent together,
+# reducing the number of round trips to the redis server
+
+redis_command $r multiexec {
+	redis_command $r DEL mykey
+	redis_command $r HSET mykey field1 value1
+	redis_command $r HSET mykey field2 value2
+	redis_command $r HSET mykey field3 value3
+	redis_command $r HGETALL mykey
+}
 
 vwait done
