@@ -1127,6 +1127,15 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
+/* Like strstr() but optimised in the case the the needle is of length 1 */
+static const char *jim_strstr(const char *haystack, int haylen, const char *needle, int needlen)
+{
+    if (needlen == 1) {
+        return (const char *)memchr(haystack, needle[0], haylen);
+    }
+    return strstr(haystack, needle);
+}
+
 static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
@@ -1134,8 +1143,44 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int len;
     int nb;
     unsigned flags = AIO_ONEREAD;
-    char *nl = NULL;
+    const char *nl = NULL;
     int offset = 0;
+    long keepnl = 0;
+    const char *nlstr = "\n";
+    int nlstrlen = 1;
+
+    while (argc >= 2) {
+        enum {OPT_EOL, OPT_KEEP};
+        static const char * const options[] = {
+            "-eol",
+            "-keep",
+            NULL
+        };
+        int opt;
+
+        /* Expect an option here */
+        if (*Jim_String(argv[0]) != '-') {
+            return JIM_USAGE;
+        }
+
+        if (Jim_GetEnum(interp, argv[0], options, &opt, NULL, JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
+            return JIM_ERR;
+        }
+
+        switch (opt) {
+            case OPT_EOL:
+                nlstr = Jim_GetString(argv[1], &nlstrlen);
+                break;
+
+            case OPT_KEEP:
+                if (Jim_GetLong(interp, argv[1], &keepnl) != JIM_OK) {
+                    return JIM_ERR;
+                }
+                break;
+        }
+        argc -= 2;
+        argv += 2;
+    }
 
     errno = 0;
 
@@ -1148,12 +1193,12 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     while (!aio_eof(af)) {
         if (af->readbuf) {
             const char *pt = Jim_GetString(af->readbuf, &len);
-            nl = memchr(pt + offset, '\n', len - offset);
+            nl = jim_strstr(pt + offset, len - offset, nlstr, nlstrlen);
             if (nl) {
                 /* got a line */
-                objPtr = Jim_NewStringObj(interp, pt, nl - pt);
-                /* And consume it plus the newline */
-                aio_consume(af->readbuf, nl - pt + 1);
+                objPtr = Jim_NewStringObj(interp, pt, nl - pt + (keepnl ? nlstrlen : 0));
+                /* And consume it plus the eol */
+                aio_consume(af->readbuf, nl - pt + nlstrlen);
                 break;
             }
             offset = len;
@@ -2169,10 +2214,10 @@ static const jim_subcmd_type aio_command_table[] = {
         /* Description: Internal command to return the taint of the channel. */
     },
     {   "gets",
-        "?var?",
+        "?-eol <str>? ?-keep 0|1? ?var?",
         aio_cmd_gets,
         0,
-        1,
+        -1,
         /* Description: Read one line and return it or store it in the var */
     },
     {   "puts",
