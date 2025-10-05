@@ -172,4 +172,13 @@ test exec2-5.6 {wait -1 to wait for any child} -constraints {after jim nomingw32
 	list $status $($waitpid == $pid) $code
 } -result {CHILDSTATUS 1 0}
 
+test exec2-5.7 {wait -nohang for child not finished} -constraints {after jim nomingw32} -body {
+	set pid [exec sleep 10 &]
+	# Get the status of the running child
+	wait -nohang $pid
+} -result {NONE 0 -1} -cleanup {
+	kill $pid
+	wait $pid
+}
+
 testreport

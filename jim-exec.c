@@ -613,6 +613,10 @@ static int Jim_WaitCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
          */
         pid = phandle;
     }
+    else if (phandle == 0) {
+        /* Child still running */
+        pid = 0;
+    }
 #endif
 
     errCodeObj = JimMakeErrorCode(interp, pid, status, NULL);
