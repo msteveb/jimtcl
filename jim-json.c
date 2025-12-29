@@ -43,7 +43,7 @@ struct json_state {
 	Jim_Obj *nullObj;
 	const char *json;
 	jsmntok_t *tok;
-	int need_subst;
+	int retcode;
 	/* The following are used for -schema */
 	int enable_schema;
 	int enable_index;
@@ -217,17 +217,33 @@ json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *li
 {
 	const jsmntok_t *t = state->tok;
 
+	if (t->type == JSMN_UNDEFINED) {
+		/* Malformed JSON - just return */
+		state->retcode = JIM_ERR;
+		Jim_SetResultString(interp, "invalid JSON string", -1);
+		return;
+	}
+
 	if (t->type == JSMN_STRING || t->type == JSMN_PRIMITIVE) {
 		Jim_Obj	*elem;
 		int len = t->end - t->start;
 		const char *p = state->json + t->start;
+
+		int decr = 0;
+
 		int set_source = 1;
 		if (t->type == JSMN_STRING) {
-			/* Do we need to process backslash escapes? */
-			if (state->need_subst == 0 && memchr(p, '\\', len) != NULL) {
-				state->need_subst = 1;
-			}
 			elem = Jim_NewStringObj(interp, p, len);
+			if (memchr(p, '\\', len) != NULL) {
+				/* Need to process backslash escapes */
+				Jim_Obj *newelem;
+				Jim_IncrRefCount(elem);
+				Jim_SubstObj(interp, elem, &newelem, JIM_SUBST_FLAG | JIM_SUBST_NOCMD | JIM_SUBST_NOVAR);
+				Jim_IncrRefCount(newelem);
+				Jim_DecrRefCount(interp, elem);
+				decr = 1;
+				elem = newelem;
+			}
 		} else if (p[0] == 'n') {	/* null */
 			elem = state->nullObj;
 			set_source = 0;
@@ -244,6 +260,9 @@ json_decode_dump_value(Jim_Interp *interp, struct json_state *state, Jim_Obj *li
 		}
 
 		Jim_ListAppendElement(interp, list, elem);
+		if (decr) {
+			Jim_DecrRefCount(interp, elem);
+		}
 		state->tok++;
 	}
 	else {
@@ -299,6 +318,8 @@ static int parse_json_decode_options(Jim_Interp *interp, int argc, Jim_Obj *cons
  * Use jsmn to tokenise the JSON string 'json' of length 'len'
  *
  * Returns an allocated array of tokens or NULL on error (and sets an error result)
+ * Note that a sentinel value is added to the end of the array (type JSMN_UNDEFINED)
+ * so the caller can detect the end of the array in the case of malformed JSON.
  */
 static jsmntok_t *
 json_decode_tokenize(Jim_Interp *interp, const char *json, size_t len)
@@ -333,7 +354,7 @@ error:
 		return NULL;
 	}
 
-	t = Jim_Alloc(n * sizeof(*t));
+	t = Jim_Alloc((n + 1) * sizeof(*t));
 
 	jsmn_init(&parser);
 	n = jsmn_parse(&parser, json, len, t, n);
@@ -344,6 +365,8 @@ error:
 		Jim_Free(t);
 		goto error;
 	}
+	/* Add a sentinel value */
+	t[n].type = JSMN_UNDEFINED;
 
 	return t;
 }
@@ -385,44 +408,39 @@ json_decode(Jim_Interp *interp, int argc, Jim_Obj *const argv[])
 		goto done;
 	}
 	state.tok = tokens;
+	state.retcode = JIM_OK;
 	json_decode_schema_push(interp, &state);
 
 	list = json_decode_dump_container(interp, &state);
 	Jim_Free(tokens);
-	ret = JIM_OK;
 
 	/* Make sure the refcount doesn't go to 0 during Jim_SubstObj() */
 	Jim_IncrRefCount(list);
 
-	if (state.need_subst) {
-		/* Subsitute backslashes in the returned dictionary.
-		 * Need to be careful of refcounts.
-		 * Note that Jim_SubstObj() supports a few more escapes than
-		 * JSON requires, but should give the same result for all legal escapes.
-		 */
-		Jim_Obj *newList;
-		Jim_SubstObj(interp, list, &newList, JIM_SUBST_FLAG | JIM_SUBST_NOCMD | JIM_SUBST_NOVAR);
-		Jim_IncrRefCount(newList);
+	if (state.retcode == JIM_OK) {
+		if (state.schemaObj) {
+			Jim_Obj *resultObj = Jim_NewListObj(interp, NULL, 0);
+			Jim_ListAppendElement(interp, resultObj, list);
+			Jim_ListAppendElement(interp, resultObj, state.schemaObj);
+			Jim_SetResult(interp, resultObj);
+			Jim_DecrRefCount(interp, state.schemaObj);
+		}
+		else {
+			Jim_SetResult(interp, list);
+		}
 		Jim_DecrRefCount(interp, list);
-		list = newList;
-	}
-
-	if (state.schemaObj) {
-		Jim_Obj *resultObj = Jim_NewListObj(interp, NULL, 0);
-		Jim_ListAppendElement(interp, resultObj, list);
-		Jim_ListAppendElement(interp, resultObj, state.schemaObj);
-		Jim_SetResult(interp, resultObj);
-		Jim_DecrRefCount(interp, state.schemaObj);
 	}
 	else {
-		Jim_SetResult(interp, list);
+		if (state.schemaObj) {
+			Jim_DecrRefCount(interp, state.schemaObj);
+		}
+		Jim_DecrRefCount(interp, list);
 	}
-	Jim_DecrRefCount(interp, list);
 
 done:
 	Jim_DecrRefCount(interp, state.nullObj);
 
-	return ret;
+	return state.retcode;
 }
 
 int
