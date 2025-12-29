@@ -135,6 +135,19 @@ test json-4.3 {source info preserved} -body {
 	info source [dict get [lindex [dict get [json::decode $json] payload timeline] 0] comment]
 } -result {data.json 17}
 
+# This test shows that the simple single-pass subst didn't work
+test json-5.1 {decode escapes} -body {
+	json::decode {{ "backslash":"This is a backslash: \\" }}
+} -result backslash\ This\\\ is\\\ a\\\ backslash:\\\ \\\\
+
+test json-5.2 {decode invalid dictionary} -body {
+    json::decode -schema {{ "key" }}
+} -returnCodes error -result {invalid JSON string}
+
+test json-5.3 {decode invalid nested dictionary} -body {
+    json::decode -schema {{"key":{ "subkey" }}}
+} -returnCodes error -result {invalid JSON string}
+
 unset -nocomplain json
 
 test json-encode-1.1 {String with backslashes}  {
