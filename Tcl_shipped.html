@@ -947,6 +947,11 @@ New <a href="#_info"><strong><code>info</code></strong></a> <code>aliases</code>
 <a href="#_expr"><strong><code>expr</code></strong></a> supports new <code><em>=*</em></code> and <code><em>=~</em></code> matching operators (see <a href="#_expressions">EXPRESSIONS</a>)
 </p>
 </li>
+<li>
+<p>
+<a href="#_aio"><strong><code>aio</code></strong></a> <code>gets</code> supports <code><strong>-eol</strong></code> and <code><strong>-keep</strong></code>
+</p>
+</li>
 </ol></div>
 </div>
 <div class="sect2">
@@ -7258,6 +7263,8 @@ specified, then the corresponding substitutions are not performed.
 For example, if <code>-nocommands</code> is specified, no command substitution
 is performed: open and close brackets are treated as ordinary
 characters with no special interpretation.</p></div>
+<div class="paragraph"><p><strong>Note</strong>: <a href="#_expr"><strong><code>expr</code></strong></a> shorthand <code>$(...)</code> is considered a variable substitution
+and so is disabled by <code>-novariables</code>.</p></div>
 <div class="paragraph"><p><strong>Note</strong>: when it performs its substitutions, subst does not give any
 special treatment to double quotes or curly braces. For example,
 the following script returns <code>xyz {44}</code>, not <code>xyz \{$a}</code>.</p></div>
@@ -7883,12 +7890,12 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
 </p>
 </dd>
 <dt class="hdlist1">
-<code>$handle <strong>gets</strong> <em>?varName?</em></code>
+<code>$handle <strong>gets</strong> ?<strong>-eol</strong> <em>str</em>? ?<strong>-keep 0|1</strong>? <em>?varName?</em></code>
 </dt>
 <dd>
 <p>
-    Read one line from the cannel and return it or store it in the
-    var A terminating newline character is discarded.  If <code><em>varName</em></code>
+    Read one line from the channel and return it or store it in the
+    variable. A terminating newline character is discarded.  If <code><em>varName</em></code>
     is specified, then the line is placed in the variable by that name
     and the return value is a count of the number of characters read
     (not including the newline).  If the end of the file is reached
@@ -7901,6 +7908,19 @@ over <a href="#_aio"><strong><code>aio</code></strong></a> <code>read</code> and
     used to determine what really happened.  If the last character in
     the file is not a newline character, then <a href="#_gets"><strong><code>gets</code></strong></a> behaves as if there
     were an additional newline character at the end of the file.
+</p>
+</dd>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<p>
+    If <code><strong>-eol</strong></code> is given, the end of line is considered to be the
+    given string instead of the newline character. If <code><strong>-keep 1</strong></code>
+    is given, the end-of-line string is not discarded and instead
+    is returned as part of the result (and if the return value is the
+    character count, it includes the end-of-line string).
+    The default is <code><strong>-keep 0</strong></code>.
 </p>
 </dd>
 <dt class="hdlist1">
