@@ -862,6 +862,10 @@ of precedence:
 +<<  >> <<< >>>+::
     Left and right shift, left and right rotate.  Valid for integer operands only.
 
+  ::
+    *NOTE* The rotate operations are specific to Jim Tcl and operate on unsigned
+    32 bit integers, even if the native word size is 64 bits.
+
 +<  >  \<=  >=+::
     Boolean less, greater, less than or equal, and greater than or equal.
     Each operator produces 1 if the condition is true, 0 otherwise.
