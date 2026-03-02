@@ -1,0 +1,259 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - UTF-8 and Unicode</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_documentation_utf8" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">Documentation</a>
+                ≫
+            
+                <a href="./">UTF-8 and Unicode</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <h1 id="utf-8-and-unicode">UTF-8 AND UNICODE</h1>
+
+<h2 id="overview">Overview</h2>
+<p>Traditionally Jim Tcl has support strings, including binary strings containing
+nulls, however it has had no support for multi-byte character encodings.</p>
+
+<p>In some fields, such as when dealing with the web or other user-generated content,
+support for multi-byte character encodings is necessary.
+In these cases it is very useful for Jim Tcl to be able to process strings
+as multi-byte character strings rather than simply binary bytes.</p>
+
+<p>Supporting multiple character encodings and translation between those encodings
+is beyond the scope of Jim Tcl. Therefore, Jim has been enhanced to add support
+for UTF-8, as probably the most common general purpose multi-byte encoding.</p>
+
+<p>UTF-8 support is optional. It can be enabled at compile time with:</p>
+
+<pre class="sh_unix">$ ./configure --enable-utf8
+</pre>
+
+<p>When UTF-8 support is enabled, most string-related commands become UTF-8 aware, including
+<code>string match</code>, <code>split</code>, <code>glob</code>, <code>scan</code> and <code>format</code>.</p>
+
+<p>UTF-8 encoding has many advantages, but one of the complications is that
+characters can take a variable number of bytes. Thus the addition of
+<code>string bytelength</code> which returns the number of bytes in a string, 
+while <code>string length</code> returns the number of characters.</p>
+
+<p>If UTF-8 support is not enabled, all commands treat bytes as characters
+and <code>string bytelength</code> returns the same value as <code>string length</code>.</p>
+
+<h2 id="unicode-vs-utf-8">Unicode vs UTF-8</h2>
+<p>It is important to understand that Unicode is an abstract representation
+of the concept of a “character”, while UTF-8 is an encoding of
+Unicode into bytes.  Thus the Unicode codepoint <code>U+00B5</code> is encoded
+in UTF-8 with the byte sequence: <code>0xc2, 0xb5</code>. This is different from
+ASCII which the same name is used interchangeably between a character
+set and an encoding.</p>
+
+<h2 id="unicode-escapes">Unicode Escapes</h2>
+<p>Even without UTF-8 enabled, it is useful to be able to encode UTF-8 characters
+in strings. This can be done with the <code>\uNNNN</code> Unicode escape. This syntax
+is compatible with Tcl and is enabled even if UTF-8 is disabled.</p>
+
+<p>Like Tcl, currently only 16-bit Unicode characters can be encoded.</p>
+
+<h2 id="utf-8-properties">UTF-8 Properties</h2>
+<p>Due to the design of the UTF-8 encoding, many (most) commands continue
+to work with UTF-8 strings. This is due to the following properties of UTF-8:</p>
+
+<ul>
+  <li>ASCII characters in strings have the same representation in UTF-8</li>
+  <li>An ASCII string will never match the middle of a multi-byte UTF-8 sequence</li>
+  <li>UTF-8 strings can be sorted as bytes and produce the same result as sorting
+by characters</li>
+  <li>UTF-8 strings in Jim continue to be null terminated</li>
+</ul>
+
+<h2 id="invalid-utf-8-sequences">Invalid UTF-8 Sequences</h2>
+<p>Some UTF-8 character sequences are invalid, such as those beginning with <code>0xff</code>,
+those which represent character sequences longer than 3 bytes (greater than U+FFFF),
+and those which end prematurely, such as a lone <code>0xc2</code>.</p>
+
+<p>In these situations, the offending bytes are treated as single characters. For example,
+the following returns 2.</p>
+
+<pre class="sh_tcl">string bytelength \xff\xff
+</pre>
+
+<h2 id="commands-supporting-utf-8">Commands Supporting UTF-8</h2>
+<p>The following commands have been enhanced to support UTF-8 strings.</p>
+
+<ul>
+  <li>array {get,names,unset}</li>
+  <li>case</li>
+  <li>glob</li>
+  <li>lsearch -glob, -regexp</li>
+  <li>switch -glob, -regexp</li>
+  <li>regexp, regsub</li>
+  <li>format</li>
+  <li>scan</li>
+  <li>split</li>
+  <li>string index, range, length, compare, equal, first, last, map, match, reverse, tolower, toupper</li>
+  <li>string bytelength (new)</li>
+  <li>info procs, commands, vars, globals, locals</li>
+</ul>
+
+<h2 id="string-matching">String Matching</h2>
+<p>Commands such as <code>string match</code>, <code>lsearch -glob</code>, <code>array names</code> and others use string
+pattern matching rules. These commands support UTF-8. For example:</p>
+
+<pre class="sh_tcl">string match a\[\ua0-\ubf\]b "a\u00a3b"
+</pre>
+
+<h2 id="format-and-scan">format and scan</h2>
+
+<p><code>format %c</code> allows a unicode codepoint to be be encoded. For example, the following will return
+a string with two bytes and one character. The same as <code>\ub5</code></p>
+
+<pre class="sh_tcl">format %c 0xb5
+</pre>
+
+<p><code>format</code> respects widths as character widths, not byte widths. For example, the following will
+return a string with three characters, not three bytes.</p>
+
+<pre class="sh_tcl">format %.3s \ub5\ub6\ub7\ub8
+</pre>
+
+<p>Similarly, <code>scan ... %c</code> allows a UTF-8 to be decoded to a unicode codepoint. The following will set
+<em>a</em> to 181 (0xb5) and <em>b</em> to 65 (0x41).</p>
+
+<pre class="sh_tcl">scan \u00b5A %c%c a b
+</pre>
+
+<p><code>scan %s</code> will also accept a character class, including unicode ranges.</p>
+
+<h2 id="string-and-character-classes">String and Character Classes</h2>
+<p><code>string is</code> has <strong>not</strong> been extended to classify UTF-8 characters. Therefore, the following
+will return <code>0</code>, even though the string may be considered to be alphabetic.</p>
+
+<pre class="sh_tcl">string is alpha \ub5Test
+</pre>
+
+<p>This does not affect the string classes <code>ascii</code>, <code>control</code>, <code>digit</code>, <code>double</code>, <code>integer</code> or <code>xdigit</code>.</p>
+
+<p>Similarly, UTF-8 character classes are not supported. Thus <code>[:alpha:]</code>
+will match <code>[a-zA-Z]</code> but not non-ASCII alphabetic characters.</p>
+
+<h2 id="case-mapping-and-conversion">Case Mapping and Conversion</h2>
+<p>Jim provides a simplified unicode case mapping. This means that case conversion
+and comparison will not increase or decrease the number of characters in a string.</p>
+
+<p><code>string toupper</code> will convert any lowercase letters to their uppercase equivalent.
+Any character which is not a letter or has no uppercase equivalent is left unchanged.
+Similarly for <code>string tolower</code>.</p>
+
+<p>Commands which perform case insensitive matches, such as <code>string compare -nocase</code>
+and <code>lsearch -nocase</code> fold both strings to uppercase before comparison.</p>
+
+<h2 id="regular-expressions">Regular Expressions</h2>
+<p>Typically systems do not provide a UTF-8 capable regex implementation,
+therefore when UTF-8 support is enabled, the built-in regex
+implementation is used which includes UTF-8 support. Both strings
+and patterns support UTF-8.</p>
+
+<h2 id="case-insensitivity">Case Insensitivity</h2>
+<p>Case folding is much more complex under Unicode than under ASCII.
+For example it is possible for a character to change the number of
+bytes required for representation when converting from one case to
+another. Jim Tcl supports only “simple” case folding, where case
+is folded only where the number of bytes does not change.</p>
+
+<p>Case folding tables are automatically generated from the official
+unicode data table at <a href="http://unicode.org/Public/UNIDATA/UnicodeData.txt">http://unicode.org/Public/UNIDATA/UnicodeData.txt</a></p>
+
+<h2 id="working-with-binary-data-and-non-utf-8-encodings">Working with Binary Data and non-UTF-8 encodings</h2>
+<p>Almost all Jim commands will work identically with binary data and
+UTF-8 encoded data, including <code>read</code>, <code>gets</code>, <code>puts</code> and <code>string eq</code>.  It
+is only certain string manipulation commands which will operate
+differently.  For example, <code>string index</code> will return UTF-8 characters,
+not bytes.</p>
+
+<p>If it is necessary to manipulate strings containing binary, non-ASCII
+data (bytes &gt;= 0x80), there are several options.</p>
+
+<ol>
+  <li>Build Jim without UTF-8 support</li>
+  <li>Arrange to encode and decode binary data or data in other encodings
+to UTF-8 before manipulation.</li>
+  <li>Use <code>string bytelength</code>, <code>string byterange</code>, <code>pack</code>, <code>unpack</code> and <code>binary</code></li>
+</ol>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

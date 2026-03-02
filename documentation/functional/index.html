@@ -1,0 +1,330 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Functional Programming</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_documentation_functional" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">Documentation</a>
+                ≫
+            
+                <a href="./">Functional Programming</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <h1 id="functional-programming-for-jim-tcl">Functional Programming for Jim Tcl</h1>
+
+<h2 id="garbage-collection-references-lambda">GARBAGE COLLECTION, REFERENCES, LAMBDA</h2>
+<p>Unlike Tcl, Jim has some sophisticated support for functional programming.
+These are described briefly below.</p>
+
+<p>More information may be found at http://wiki.tcl.tk/13847</p>
+
+<h2 id="references">References</h2>
+
+<p>A reference can be thought of as holding a value with one level of indirection,
+where the value may be garbage collected when unreferenced.
+Consider the following example:</p>
+
+<pre class="sh_tcl">. set r [ref "One String" test]
+&lt;reference.&lt;test___&gt;.00000000000000000000&gt;
+. getref $r
+One String
+</pre>
+
+<p>The operation ‘ref’ creates a references to the value specified by the
+first argument. (The second argument is a “type” used for documentation purposes).</p>
+
+<p>The operation ‘getref’ is the dereferencing operation which retrieves the value
+stored in the reference.</p>
+
+<pre class="sh_tcl">. setref $r "New String"
+New String
+. getref $r
+New String
+</pre>
+
+<p>The operation ‘setref’ replaces the value stored by the reference. If the old value
+is no longer accessible by any reference, it will eventually be automatically be garbage
+collected.</p>
+
+<h2 id="garbage-collection">Garbage Collection</h2>
+
+<p>Normally, all values in Tcl are passed by value. As such values are copied and released
+automatically as necessary.</p>
+
+<p>With the introduction of references, it is possible to create values whose lifetime
+transcend their scope. To support this, case, the Jim system will periodically identify
+and discard objects which are no longer accessible by any reference.</p>
+
+<p>The ‘collect’ command may be used to force garbage collection.  Consider a reference created
+with a finalizer:</p>
+
+<pre class="sh_tcl">. proc f {ref value} { puts "Finaliser called for $ref,$value" }
+. set r [ref "One String" test f]
+&lt;reference.&lt;test___&gt;.00000000000
+. collect
+0
+. set r ""
+. collect
+Finaliser called for &lt;reference.&lt;test___&gt;.00000000000,One String
+1
+</pre>
+
+<p>Note that once the reference, ‘r’, was modified so that it no longer
+contained a reference to the value, the garbage collector discarded
+the value (after calling the finalizer).</p>
+
+<p>The finalizer for a reference may be examined or changed with the ‘finalize’ command</p>
+
+<pre class="sh_tcl">. finalize $r
+f
+. finalize $r newf
+newf
+</pre>
+
+<h2 id="lambda">Lambda</h2>
+
+<p>Jim provides a garbage collected lambda function. This is a procedure
+which is able to create an anonymous procedure.  Consider:</p>
+
+<pre class="sh_tcl">. set f [lambda {a} {{x 0}} { incr x $a }]
+. $f 1
+1
+. $f 2
+3
+. set f ""
+</pre>
+
+<p>This create an anonymous procedure (with the name stored in ‘f’), with a static variable
+which is incremented by the supplied value and the result returned.</p>
+
+<p>Once the procedure name is no longer accessible, it will automatically be deleted
+when the garbage collector runs.</p>
+
+<p>The procedure may also be delete immediately by renaming it “”. e.g.</p>
+
+<pre class="sh_tcl">. rename $f ""
+</pre>
+
+<h1 id="background">BACKGROUND</h1>
+
+<h2 id="rationale">Rationale</h2>
+
+<p>Why did Jim add references to the language? These are the main reasons, in decreasing order of importance:</p>
+
+<ul>
+  <li>Tcl already uses references. OOP systems often return names of objects, many libraries return handles. They are an idiomatic part of the language, to have support for references directly inside the language is useful.</li>
+  <li>Putting a reference system inside the language makes possible to implement Garbage Collection in a general way.</li>
+  <li>lambda is not very useful if it is not garbage collected.</li>
+  <li>Closures (and Jim closures) are almost useless without garbage collection.</li>
+  <li>The ability to build linked data structures sometimes can be very important in order to model real problems.</li>
+</ul>
+
+<h2 id="design">Design</h2>
+
+<p>Once I decided to add references to Jim, the question was in what
+form. My goal was to get a very simple semantic, don’t violate in
+any way the Tcl semantic (i.e. be able to collect references mixed
+in strings after interpolation, shimmering, …), allow for fast
+enough garbage collection, don’t require extensions that need to
+take objects in private data structures to export objects in some
+way (and at the same time, making fragile references not an issue).</p>
+
+<p>I’ll not enter into implementation details, but in order to do so
+Jim is able to reach every object that is currently alive inside
+the script, even if this object is not reachable starting by the
+root nodes of the graph of the objects in a program. I.e. Jim is
+able to reach objects that are not reachable starting from globals
+and local variables. This feature is exposed at script level via
+the [debug objects] command.</p>
+
+<h2 id="how-they-work">How they work</h2>
+<p>References are just names with an associated string. Given the
+reference it’s possible to obtain the associated string, or to set
+a new one in place of the old.</p>
+
+<p>In order to create a new reference, the ref command is used. It has
+the following signature:</p>
+
+<pre class="sh_tcl">ref string tag ?finalizer?
+</pre>
+
+<p>The string is the initial value associated to the reference to
+create. Can be any kind of string (or object, if you like more the
+implementation point of view). The tag will be explained in a moment.
+The finalizer is the name of a procedure that will be called just
+after the reference was destroyed with two arguments: the name of
+the reference destroyed, and it’s content.</p>
+
+<p>An example of reference creation:</p>
+
+<pre class="sh_tcl">. set r [ref "My little string" test]
+&lt;reference.&lt;test___&gt;.00000000000000000001&gt;
+</pre>
+
+<p>What is returned is indeed the name of the reference. References
+are all the same length, and can’t contain spaces (this way it’s
+possible to skip many kind of objects in the GC scan stage). As you
+can see the tag argument “test” appears in the reference name. And
+actually this is the only use for the tag command, it is a little
+description of the reference content. When debugging programs or
+in interactive testing it’s handy to have a clue about what a
+reference may contain, or by its creator, just looking at his name.
+There is no semantical meaning in the tag, it’s just a programmer
+help. The tag can’t be longer than 7 characters in order to make
+references memory usage and creation/destroy time very little.</p>
+
+<p>Now, the reference containing “My little string” is contained in
+the variable ‘r’. Using getref it’s possible to obtain the string
+a reference contains:</p>
+
+<pre class="sh_tcl">. set r [ref "My little string" test]
+&lt;reference.&lt;test___&gt;.00000000000000000002&gt;
+. getref $r
+My little string
+</pre>
+
+<p>setref will instead set a new string for the specified reference:</p>
+
+<pre class="sh_tcl">. setref $r "New String"
+New String
+. getref $r
+New String
+</pre>
+
+<p>That’s it! Now… why is this special? You can already do it with
+a global array in Tcl. The unique feature of Jim references is
+indeed that they are garbage collected. Once a given reference is
+no longer found in any object, it is automatically destroyed and
+the finalizer, if there is one, called.</p>
+
+<h2 id="garbage-collection-and-finalizers">Garbage Collection and finalizers</h2>
+
+<p>Jim takes two counters:
+The number of seconds elapsed since the last collection.
+The number of references created since the last collection.
+Every time a new reference is created, if at least one of these two counters is greater than a given value, a garbage collection cycle is performed. The user may also force garbage collection if working with huge strings, or just for testing, using the collect command.
+Using the collect command we can try the effect of the finalizer.
+First of all, a reference is created, setting as finalzer procedure myfinalizer:</p>
+
+<pre class="sh_tcl">. set r [ref foobar test myfinalizer]
+&lt;reference.&lt;test___&gt;.00000000000000000004&gt;
+</pre>
+
+<p>We need to create this procedure of course. It just a one liner:</p>
+
+<pre class="sh_tcl">. proc myfinalizer {x y} {puts "Finalizer called with $x,$y"}
+</pre>
+
+<p>Now, let’s call collect to check what happens:</p>
+
+<pre class="sh_tcl">. collect
+0
+</pre>
+
+<p>It returns zero and the finalizer is not called. Because there is
+nothing to collect, there is only one reference and it is referenced
+by the variable r. The collect command returns the number of
+references collected. So let’s lose the reference we have by setting
+r to the null string, then try again to call collect:</p>
+
+<pre class="sh_tcl">. set r {}
+. collect
+Finalizer called with &lt;reference.&lt;test___&gt;.00000000000,foobar
+1
+</pre>
+
+<p>This time the reference was destroyed, and the finalizer called with its name, and the content, as arguments.
+The implementation of lambda
+Given a system like this, you can create a garbage collected lambda in Jim itself with a few lines of code:</p>
+
+<pre class="sh_tcl">proc lambda {arglist args} {
+    set name [ref {} function lambdaFinalizer]
+    uplevel 1 [list proc $name $arglist {*}$args]
+    return $name
+}
+proc lambdaFinalizer {name val} {
+    rename $name {}
+}
+</pre>
+
+<p>Indeed this is not an example! This is the real implementation of lambda in Jim. This is how it works: it creates a reference with an empty string as content, using as tag “function”, and LambdaFinalizer as finalizer procedure. Then a normal Tcl procedure having with name the reference is created, and its name returned. Done!</p>
+
+<p>Once every reference to the procedure is lost, the finalizer will be called, and it will just use rename to delete the procedure. Note that this is possible because Jim does not scan variables or command names for references.</p>
+
+<p>Jim references are the basis of the Jim Object System.</p>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

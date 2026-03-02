@@ -1,0 +1,310 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Lightweight Namespaces</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_light-weight-namespaces" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Lightweight Namespaces</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Thursday, 15 December 2011</p>
+            <h2 class="news">Lightweight Namespaces</h2>
+        
+        <p>New in Jim Tcl v0.73 is (optional) support for namespaces.</p>
+
+<p>The following is taken directly from README.namespaces in the Jim Tcl repository.</p>
+
+<hr>
+
+<h1 id="lightweight-namespaces-for-jim-tcl">Lightweight Namespaces for Jim Tcl</h1>
+
+<p>There are two broad requirements for namespace support in Jim Tcl.</p>
+
+<ul>
+  <li>(1) To allow code from multiple sources while reducing the chance of name clashes</li>
+  <li>(2) To simplify porting existing Tcl code which uses namespaces</li>
+</ul>
+
+<p>This proposal addresses both of these requirements, with the following
+additional requirements imposed by Jim Tcl.</p>
+
+<ul>
+  <li>(3) Support for namespaces should be optional, with the space and time overhead
+ when namespaces are disabled as close to zero as possible.</li>
+  <li>(4) The implementation should be small and reasonably efficient.</li>
+</ul>
+
+<p>To further expand on requirement (2), the goal is not to be able to run
+any Tcl scripts using namespaces with no changes. Rather, scripts
+which use namespaces in a straightforward manner, should be easily
+ported with changes which are compatible with Tcl.</p>
+
+<h2 id="implicit-namespaces">Implicit namespaces</h2>
+<p>Rather than supporting explicit namespaces as Tcl does, Jim Tcl
+supports implicit namespaces. Any procedure or variable which
+is defined with a name containing ::, is implicitly scoped within
+a namespace.</p>
+
+<p>For example, the following procedure and variable are created
+in the namespace ‘test’</p>
+
+<pre class="sh_tcl">proc ::test::myproc {} {
+  puts "I am in namespace [namespace current]"
+}
+set ::test::myvar 3
+</pre>
+
+<p>This approach allows much of the existing variable and command
+resolution machinery to be used with little change. It also means
+that it is possible to simply define a namespace-scoped variable
+or procedure without first creating the namespace, and similarly,
+namespaces “disappear” when all variables and procedures defined
+with the namespace scope are deleted.</p>
+
+<h2 id="namespaces-procedures-and-call-frames">Namespaces, procedures and call frames</h2>
+<p>When namespace support is enabled (at build time), each procedure has an associated
+namespace (based on the procedure name). When the procedure is evaluated,
+the namespace for the created call frame is set to the namespace associated
+with the procedure.</p>
+
+<p>Command resolution is based on the namespace of the current call frame.
+An unscoped command name will first be looked up in the current namespace,
+and then in the global namespace.</p>
+
+<p>This also means that commands which do not create a call frame (such as commands
+implemented in C) do not have an associated namespace.</p>
+
+<p>Similarly to Tcl, namespace eval introduces a temporary, anonymous
+call frame with the associated namespace. For example, the following
+will return “::test,1”.</p>
+
+<pre class="sh_tcl">namespace eval test {
+	puts [namespace current],[info level]
+}
+</pre>
+
+<h2 id="variable-resolution">Variable resolution</h2>
+<p>The variable command in Jim Tcl has the same syntax as Tcl, but is closer in behaviour to the global command.
+The variable command creates a link from a local variable to a namespace variable, possibly initialising it.</p>
+
+<p>For example, the following procedure uses ‘variable’ to initialise and access myvar.</p>
+
+<pre class="sh_tcl">proc ::test::myproc {} {
+  variable myvar 4
+  incr myvar
+}
+</pre>
+
+<p>Note that there is no automatic resolution of namespace variables.
+For example, the following will <em>not</em> work.</p>
+
+<pre class="sh_tcl">namespace eval ::test {
+  variable myvar 4
+}
+namespace eval ::test {
+  # This will increment a local variable, not ::test::myvar
+  incr myvar
+}
+</pre>
+
+<p>And similarly, the following will only access local variables</p>
+
+<pre class="sh_tcl">set x 3
+namespace eval ::test {
+	# This will increment a local variable, not ::x
+	incr x
+	# This will also increment a local variable
+	incr abc::def
+}
+</pre>
+
+<p>In the same way that variable resolution does not “fall back” to
+global variables, it also does not “fall back” to namespace variables.</p>
+
+<p>This approach allows name resolution to be simpler and more efficient
+since it uses the same variable linking mechanism as upvar/global
+and it allows namespaces to be implicit. It also solves the “creative
+writing” problem where a variable may be created in an unintentional
+scope.</p>
+
+<h2 id="the-namespace-command">The namespace command</h2>
+<p>Currently, the following namespace commands are supported.</p>
+
+<ul>
+  <li>current - returns the current, fully-qualified namespace</li>
+  <li>eval - evaluates a script in a namespace (introduces a call frame)</li>
+  <li>qualifiers, tail, parent - note that these do not check for existence</li>
+  <li>code, inscope - implemented</li>
+  <li>delete - deletes all variables and commands with the namespace prefix</li>
+  <li>which - implemented</li>
+  <li>upvar - implemented</li>
+</ul>
+
+<h2 id="namespace-children-exists-path">namespace children, exists, path</h2>
+<p>With implicit namespaces, the namespace exists and namespace children commands
+are expensive to implement and are of limited use. Checking the existence
+of a namespace can be better done by checking for the existence of a known procedure
+or variable in the namespace.</p>
+
+<p>Command resolution is always done by first looking in the namespace and then
+at the global scope, so namespace path is not required.</p>
+
+<h2 id="namespace-ensemble">namespace ensemble</h2>
+<p>The namespace ensemble command is not currently supported. A future version
+of Jim Tcl will have a general-purpose ensemble creation and manipulation
+mechanism and namespace ensemble will be implemented in terms of that mechanism.</p>
+
+<h2 id="namespace-import-export-forget-origin">namespace import, export, forget, origin</h2>
+<p>Since Jim Tcl namespaces are implicit, there is no location to store export patterns.
+Therefore the namespace export command is a dummy command which does nothing.
+All procedures in a namespace are considered to be exported.</p>
+
+<p>The namespace import command works by creating aliases to the target namespace
+procedures.</p>
+
+<p>namespace forget is not implemented.</p>
+
+<p>namespace origin understands aliases created by namespace import
+and can return the original command.</p>
+
+<h2 id="namespace-unknown">namespace unknown</h2>
+<p>If an undefined command is invoked, the “unknown” command is invoked.
+The same namespace resolution rules apply for the unknown command.
+This means that in the following example, test::unknown will be invoked
+for the missing command rather than the global ::unknown.</p>
+
+<pre class="sh_tcl">proc unknown {args} {
+	puts "global unknown"
+}
+
+proc test::unknown {args} {
+	puts "test unknown"
+}
+
+namespace eval test {
+	bogus
+}
+</pre>
+
+<p>This approach requires no special support and provides enough flexibility that
+the namespace unknown command is not implemented.</p>
+
+<h2 id="porting-namespace-code-from-tcl-to-jim-tcl">Porting namespace code from Tcl to Jim Tcl</h2>
+<p>For most code, the following changes will be sufficient to port code.</p>
+
+<ol>
+  <li>
+    <p>Canonicalise namespace names. For example, ::ns:: should be written
+as ::ns or ns as appropriate, and excess colons should be removed.
+For example ::ns:::blah should be written as ::ns::blah
+(Note that the only “excess colon” case supported is ::::abc
+in order to support [namespace current]::abc in the global namespace)</p>
+  </li>
+  <li>
+    <p>The variable command should be used within namespace eval to link
+to namespace variables, and access to variables in other namespaces
+should be fully qualified</p>
+  </li>
+</ol>
+
+<h2 id="changes-in-the-core-jim-tcl">Changes in the core Jim Tcl</h2>
+<p>Previously Jim Tcl performed no scoping of command names.  i.e. The
+::format command was considered different from the format command.</p>
+
+<p>Even if namespace support is disabled, the command resolution will
+recognised global scoping of commands and treat these as identical.</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/light-weight-namespaces/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/light-weight-namespaces/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

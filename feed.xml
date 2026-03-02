@@ -1,0 +1,1648 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:base="http://jim.tcl.tk/index.html/doc/www/www/">
+  <id>http://jim.tcl.tk/index.html/doc/www/www/</id>
+  <title>Jim Tcl News</title>
+  <updated>2024-08-28T00:00:00Z</updated>
+  <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/" type="text/html"/>
+  <link rel="self" href="http://jim.tcl.tk/index.html/doc/www/www/feed.xml" type="application/atom+xml"/>
+  <author>
+    <name>steveb@workware.net.au</name>
+    <uri>mailto:steveb@workware.net.au</uri>
+  </author>
+  <entry>
+    <id>tag:jim.tcl.tk,2024-08-28:/index.html/doc/www/www/articles/jim-release-0-83/</id>
+    <title type="html">Jim Tcl version 0.83</title>
+    <published>2024-08-28T00:00:00Z</published>
+    <updated>2024-08-28T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-83/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-083"&gt;ANNOUNCE: Jim Tcl version 0.83&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.83 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-082"&gt;CHANGES SINCE VERSION 0.82&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.83&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;stacktrace&lt;/code&gt; - support stack frames with no cmd&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;vwait&lt;/code&gt; - now with -signal, waits on the correct variable&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; - fix check for termination in [[:class:]]&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; - fix incorrect check for invalid escape sequence at end of charset&lt;/li&gt;
+  &lt;li&gt;fix rare crash on shutdown&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;subst&lt;/code&gt; - don’t ignore vars after first failed var&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsort&lt;/code&gt; - support -dict&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;json::decode&lt;/code&gt; - fix possible crash with invalid input&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features and improvements added in version 0.83&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;support multi-level continue, break from loops&lt;/li&gt;
+  &lt;li&gt;improve display of stack trace for errors&lt;/li&gt;
+  &lt;li&gt;aio - use Unix I/O rather than stdio (improves behaviour for non-blocking I/O)&lt;/li&gt;
+  &lt;li&gt;aio &lt;code&gt;open&lt;/code&gt;, &lt;code&gt;socket&lt;/code&gt;, &lt;code&gt;accept&lt;/code&gt; - add -noclose flag&lt;/li&gt;
+  &lt;li&gt;aio &lt;code&gt;tty&lt;/code&gt; - Add support for vstart, vstop and modem control signals&lt;/li&gt;
+  &lt;li&gt;tcltest - improve constraint system&lt;/li&gt;
+  &lt;li&gt;jimsh - add interactive hint support&lt;/li&gt;
+  &lt;li&gt;Add support for proc statics by reference, rather than by value&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;info script&lt;/code&gt; can now set the current script filename&lt;/li&gt;
+  &lt;li&gt;Improved error message for nested $()&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;json::decode&lt;/code&gt; - preserve line numbers if possible&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Possible incompatibilities in version 0.83&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Now that aio uses direct Unix I/O rather than stdio, if Jim Tcl is embedded within an application
+using stdio, there may be unexpected behaviour. For example output to stdout may still be buffered
+in Tcl when the application writes to stdout. Ensure that output is flushed within Tcl before
+using the same filehandle from the application.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2023-02-25:/index.html/doc/www/www/articles/jim-release-0-82/</id>
+    <title type="html">Jim Tcl version 0.82</title>
+    <published>2023-02-25T00:00:00Z</published>
+    <updated>2023-02-25T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-82/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-082"&gt;ANNOUNCE: Jim Tcl version 0.82&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.82 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-081"&gt;CHANGES SINCE VERSION 0.81&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.82&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;dict&lt;/code&gt; - under some circumstances it was possible to add duplicate keys to a dict&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file delete&lt;/code&gt; - &lt;code&gt;-force&lt;/code&gt; and &lt;code&gt;--&lt;/code&gt; were handled incorrectly&lt;/li&gt;
+  &lt;li&gt;aio: ssl - fix eof detection with openssl3&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;getref&lt;/code&gt; and &lt;code&gt;setref&lt;/code&gt; - now accept fully qualified references&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;unset&lt;/code&gt; - don’t return a result with &lt;code&gt;-nocomplain&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Garbage collection - sometimes GC was overly zealous&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; - builtin regexp fix for end of word check&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;dict with&lt;/code&gt; - now correctly returns the script result&lt;/li&gt;
+  &lt;li&gt;Unicode ranges are closed intervals. This affected the character class of the end character of each range.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features and improvements added in version 0.82&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;aio &lt;code&gt;gets&lt;/code&gt; - improve behaviour for non-blocking streams&lt;/li&gt;
+  &lt;li&gt;aio &lt;a href="https://core.tcl-lang.org/tips/doc/trunk/tip/603.md"&gt;TIP 603&lt;/a&gt; - implement &lt;code&gt;stat&lt;/code&gt; of an open file handle&lt;/li&gt;
+  &lt;li&gt;aio &lt;code&gt;socket pty&lt;/code&gt; - filename is now available&lt;/li&gt;
+  &lt;li&gt;Included sqlite updated to version 3.38.0&lt;/li&gt;
+  &lt;li&gt;redis extension - enable TCP_KEEPALIVE, add support for &lt;code&gt;-type&lt;/code&gt; and &lt;code&gt;-async&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;try&lt;/code&gt; - add support for &lt;code&gt;trap&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;oo constructor is now more flexible (possible incompatibility with 0.81)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;socket&lt;/code&gt; - add support for &lt;code&gt;-async&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Updated &lt;em&gt;linenoise&lt;/em&gt; now has support for word forward, word backward&lt;/li&gt;
+  &lt;li&gt;Updated Unicode to 14.0.0&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file normalize&lt;/code&gt; - now supported on Windows&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio copyto&lt;/code&gt; - performance improvement for large copies&lt;/li&gt;
+  &lt;li&gt;Memory allocator is now replaceable&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;info frame&lt;/code&gt; is now more Tcl compatible (incompatibility with 0.81)&lt;/li&gt;
+  &lt;li&gt;New &lt;code&gt;timerate&lt;/code&gt; command for improved benchmarking - largely compatible with &lt;a href="https://core.tcl-lang.org/tips/doc/trunk/tip/527.md"&gt;TIP 527&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;vwait&lt;/code&gt; - add support for &lt;code&gt;-signal&lt;/code&gt; for improved handling of signals in the event loop&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;clock millis&lt;/code&gt; and &lt;code&gt;clock micros&lt;/code&gt; - now use monotonic time if possible (not affected by system time changes)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;ensemble&lt;/code&gt; and &lt;code&gt;namespace ensemble&lt;/code&gt; simplify creation of ensemble commands&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Possible incompatibilities in version 0.82&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;New approach to &lt;code&gt;oo&lt;/code&gt; constructor means some existing code may need to be altered&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;info frame&lt;/code&gt; now returns a dict rather than a list and can access non-proc frames. &lt;code&gt;stacktrace&lt;/code&gt; will
+continue to work and should be preferred when retrieving a live stack trace&lt;/li&gt;
+  &lt;li&gt;New ABI version means that compiled extensions will need to be rebuilt to work with this version&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;configure&lt;/code&gt; now defaults to &lt;code&gt;--full&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2021-11-28:/index.html/doc/www/www/articles/jim-release-0-81/</id>
+    <title type="html">Jim Tcl version 0.81</title>
+    <published>2021-11-28T00:00:00Z</published>
+    <updated>2021-11-28T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-81/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-081"&gt;ANNOUNCE: Jim Tcl version 0.81&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.81 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-080"&gt;CHANGES SINCE VERSION 0.80&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.81&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;info complete&lt;/code&gt; - return 0 if the script is missing an end quote&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;sqlite3&lt;/code&gt; - return integers as 64 bit values, not 32 bit&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features and improvements added in version 0.81&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;New redis client extension&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;expr&lt;/code&gt; - TIP 582 - support comments in expressions&lt;/li&gt;
+  &lt;li&gt;Many commands now accept “safe” integer expressions rather than simple integers: &lt;code&gt;loop&lt;/code&gt;, &lt;code&gt;range&lt;/code&gt;, &lt;code&gt;incr&lt;/code&gt;, &lt;code&gt;string repeat&lt;/code&gt;, &lt;code&gt;lrepeat&lt;/code&gt;, &lt;code&gt;pack&lt;/code&gt;, &lt;code&gt;unpack&lt;/code&gt;, &lt;code&gt;rand&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;string&lt;/code&gt; and &lt;code&gt;list&lt;/code&gt; indexes now accept “safe” integer expressions&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;loop&lt;/code&gt; can now omit the start value&lt;/li&gt;
+  &lt;li&gt;New &lt;code&gt;xtrace&lt;/code&gt; command for execution trace support&lt;/li&gt;
+  &lt;li&gt;Add &lt;code&gt;history keep&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;lsearch -index&lt;/code&gt; and &lt;code&gt;lsearch -stride&lt;/code&gt;, the latter per TIP 351&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsort -index&lt;/code&gt; now supports multiple indices&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;lsort -stride&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;open&lt;/code&gt; now supports POSIX-style access arguments&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;sdl&lt;/code&gt; extension now supports SDL2, and basic text support is added as well as polling support&lt;/li&gt;
+  &lt;li&gt;ABI version checking is now available to allow dynamic modules to verify they are loaded into a compatible interpreter&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Possible incompatibilities in version 0.81&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;If the &lt;code&gt;--compat&lt;/code&gt; configure option is not set, &lt;code&gt;expr&lt;/code&gt; now only allows a single argument (per TIP 526)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2021-01-02:/index.html/doc/www/www/articles/sdl2-support/</id>
+    <title type="html">SDL2 - Jim Tcl sdl extension update</title>
+    <published>2021-01-02T00:00:00Z</published>
+    <updated>2021-01-02T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/sdl2-support/" type="text/html"/>
+    <content type="html">&lt;p&gt;Since the early days of Jim Tcl, the included &lt;a href="https://www.libsdl.org"&gt;sdl&lt;/a&gt; extension
+has provided an example of how to integrate an external library as
+a Jim Tcl extension.&lt;/p&gt;
+
+&lt;p&gt;However this extension had not been updated for some time, and did not support
+the newer SDL2 API.&lt;/p&gt;
+
+&lt;p&gt;Now the sdl extension has been updated to support both SDL and SDL2, and
+also includes some additional features.&lt;/p&gt;
+
+&lt;h2 id="building-the-extension"&gt;Building the extension&lt;/h2&gt;
+
+&lt;p&gt;configure uses pkg-config to find the required libraries, so be sure to have SDL2_gfx
+(and optionally SDL2_ttf) installed where pkg-config can find them.&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ pkg-config --modversion SDL2_gfx
+1.0.2
+&lt;/pre&gt;
+
+&lt;p&gt;Build the sdl extension as a module by specifying it at configure time.&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ ./configure --full --with-mod=sdl
+...
+Checking for SDL2_gfx ...1.0.2
+Checking for SDL2_ttf ...2.0.15
+Extension sdl...module
+...
+$ make
+...
+	CC	jim-sdl.o
+	LDSO	sdl.so
+...
+&lt;/pre&gt;
+
+&lt;h2 id="testing-the-extension"&gt;Testing the extension&lt;/h2&gt;
+
+&lt;p&gt;Some test scripts are available in the examples/ directory.&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ ./jimsh examples/sdltest.tcl
+&lt;/pre&gt;
+
+&lt;p&gt;&lt;img src="/img/sdltest-mac.png" alt="Jim-SDL sdltest" /&gt;&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ ./jimsh examples/sdlevents.tcl
+&lt;/pre&gt;
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/KAqQpL7w5fU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""&gt;&lt;/iframe&gt;
+
+&lt;h2 id="using-the-extension"&gt;Using the extension&lt;/h2&gt;
+
+&lt;p&gt;Create a window (sdl screen) with the &lt;code&gt;sdl.screen&lt;/code&gt; command&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+. package require sdl
+1.0
+. set s [sdl.screen 640 480 "Window Title"]
+::sdl.surface4
+&lt;/pre&gt;
+
+&lt;p&gt;The returned handle provides a number of subcommands. Help is available for each subcommand.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+. $s -commands
+free flip poll clear pixel circle aacircle fcircle rectangle box line aaline font text
+. $s -help fcircle
+Usage: ::sdl.surface4 fcircle x y radius red green blue ?alpha?
+. $s fcircle 100 100 30 200 0 0
+. $s flip
+&lt;/pre&gt;
+
+&lt;p&gt;Colours in SDL use separate red, green and blue components. These are specified
+as integers from 0 to 255. Similarly, the alpha (opacity) is specified from 0 (transparent)
+to 255 (opaque).&lt;/p&gt;
+
+&lt;p&gt;The image commands are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;clear&lt;/code&gt; - clear the entire window to the given colour&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;pixel&lt;/code&gt; - draw a single pixel&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;circle&lt;/code&gt; - draw a circle (outline)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aacircle&lt;/code&gt; - draw a circle (outline) with antialiasing&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;fcircle&lt;/code&gt; - draw a filled circle&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;rectangle&lt;/code&gt; - draw a rectangle (outline)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;box&lt;/code&gt; - draw a filled rectangle&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;line&lt;/code&gt; - draw a line&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aaline&lt;/code&gt; - draw a line with antialiasing&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If the SDL2_ttf package is available, basic text support is also provided.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;font&lt;/code&gt; - load a TrueType font from a file with the given point size&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;text&lt;/code&gt; - draw text with the currently loaded font&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Some notes on text:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Only one font may be loaded at a time&lt;/li&gt;
+  &lt;li&gt;The specified font may not support all unicode glyphs.&lt;/li&gt;
+  &lt;li&gt;To display utf-8 text, Jim Tcl must have been built with –utf8&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;There are several non-drawing commands.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;free&lt;/code&gt; - close the window and free the handle (the same as: &lt;code&gt;rename $s ""&lt;/code&gt;)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;flip&lt;/code&gt; - update the window to match graphics changes, then clear the background buffer and poll for events&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;poll&lt;/code&gt; - update the window to match graphics changes, then poll for events&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Note that the graphics window is double (or triple) buffered. This means that any
+graphics changes are not displayed until &lt;code&gt;flip&lt;/code&gt; or &lt;code&gt;poll&lt;/code&gt; is used.
+In general, you should display an entire frame and then call &lt;code&gt;flip&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;In order to keep the SDL window responsive, it is necessary to pump the SDL event loop.
+Both &lt;code&gt;flip&lt;/code&gt; and &lt;code&gt;poll&lt;/code&gt; can be used for this. Currently the only SDL event that is recognised is the SDL_QUIT event.
+When this event occurs, &lt;code&gt;flip&lt;/code&gt; and &lt;code&gt;poll&lt;/code&gt; return JIM_EXIT. By default, this will exit the interpreter.&lt;/p&gt;
+
+&lt;p&gt;A typical script that simply displays a single image will look like:&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+... draw the SDL image ...
+
+$s poll { sleep 0.25 }
+&lt;/pre&gt;
+
+&lt;p&gt;This will run the SDL event loop and then eval the given script.
+If SDL_QUIT is ever received, the script will exit.&lt;/p&gt;
+
+&lt;p&gt;See &lt;code&gt;examples/sdlevents.tcl&lt;/code&gt; for an example of how to integrate the SDL event loop
+with the Jim Tcl event loop.&lt;/p&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2020-10-31:/index.html/doc/www/www/articles/jim-release-0-80/</id>
+    <title type="html">Jim Tcl version 0.80</title>
+    <published>2020-10-31T00:00:00Z</published>
+    <updated>2020-10-31T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-80/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-080"&gt;ANNOUNCE: Jim Tcl version 0.80&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.80 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-079"&gt;CHANGES SINCE VERSION 0.79&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.80&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;return&lt;/code&gt; -level 0 -code xxx now returns the correct result&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; - fix an issue with failed optional group&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;oo&lt;/code&gt; - fix an issue when no class variables are given&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;oo&lt;/code&gt; - fix super invocation with multiple inheritance levels&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;tailcall&lt;/code&gt; - fix to avoid growing the C stack frame&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regsub -all&lt;/code&gt; with \A now works correctly&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;scan&lt;/code&gt; - fix an issue with chars vs bytes in utf-8 mode&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - fix eventloop and eof for ssl connections&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsearch -regexp&lt;/code&gt; - fix the case where the pattern begins with a dash&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsearch -command&lt;/code&gt; - handle the case with too few args&lt;/li&gt;
+  &lt;li&gt;Disallow renaming a local proc with upcall to avoid inconsistent behaviour&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features and improvements added in version 0.80&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Dictionaries now preserve insertion order&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;string map&lt;/code&gt; and &lt;code&gt;string compare&lt;/code&gt; now support embedded nulls&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;string match&lt;/code&gt; and other glob matches now support embedded nulls&lt;/li&gt;
+  &lt;li&gt;Variable and proc names now support embedded nulls&lt;/li&gt;
+  &lt;li&gt;Interactive mode now prints results containing embedded nulls&lt;/li&gt;
+  &lt;li&gt;Generate a build warning if system is non-Y2038 compliant&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;package names&lt;/code&gt; added as an alias for &lt;code&gt;package list&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file rootname&lt;/code&gt;, &lt;code&gt;file dirname&lt;/code&gt; are now more consistent with Tcl&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - add Server Name Indication (SNI) ssl support&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - add socket pty support&lt;/li&gt;
+  &lt;li&gt;The &lt;code&gt;0d&lt;/code&gt; radix prefix is now supported for decimal (base 10)&lt;/li&gt;
+  &lt;li&gt;String comparison operators &lt;code&gt;lt&lt;/code&gt;, &lt;code&gt;gt&lt;/code&gt;, &lt;code&gt;le&lt;/code&gt; and &lt;code&gt;ge&lt;/code&gt; are now supported&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;dict getwithdefault&lt;/code&gt; (and the alias &lt;code&gt;dict getdef&lt;/code&gt;) are now supported&lt;/li&gt;
+  &lt;li&gt;Build has coverage support, and test coverage is now over 90%&lt;/li&gt;
+  &lt;li&gt;Performance improvements in a number of areas&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2020-02-03:/index.html/doc/www/www/articles/move-to-github/</id>
+    <title type="html">Move primary repo to github</title>
+    <published>2020-02-03T00:00:00Z</published>
+    <updated>2020-02-03T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/move-to-github/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-is-moving-to-github"&gt;ANNOUNCE: Jim Tcl is moving to github&lt;/h2&gt;
+
+&lt;p&gt;As repo.or.cz has been down for some time, the mirror at github
+has now been designated as the primary repository.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2019-11-20:/index.html/doc/www/www/articles/jim-release-0-79/</id>
+    <title type="html">Jim Tcl version 0.79</title>
+    <published>2019-11-20T00:00:00Z</published>
+    <updated>2019-11-20T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-79/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-079"&gt;ANNOUNCE: Jim Tcl version 0.79&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.79 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-078"&gt;CHANGES SINCE VERSION 0.78&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.79&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - Fix closing stdin in bootstrap jimsh&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;clock scan&lt;/code&gt; - Unspecified fields use the current date/time&lt;/li&gt;
+  &lt;li&gt;Fix linenoise assertion failure on Windows&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file&lt;/code&gt; - Improved support for trailing slashes in pathnames&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt;, &lt;code&gt;regsub&lt;/code&gt; - Various fixes in UTF-8 mode&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;$(...)&lt;/code&gt; syntax now properly returns non-error codes&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.78&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;file&lt;/code&gt; - Add &lt;code&gt;mtimeus&lt;/code&gt; for microsecond resolution&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file&lt;/code&gt; - Add missing &lt;code&gt;split&lt;/code&gt; subcommand&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lreplace&lt;/code&gt; - Implement &lt;a href="https://core.tcl-lang.org/tips/doc/trunk/tip/505.md"&gt;TIP #505&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - Add dgram unix socket support&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - Add support for &lt;code&gt;lock -wait&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio copyto&lt;/code&gt; - Significantly improve performance&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio tty&lt;/code&gt; - Allow setting echo&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;signal&lt;/code&gt; - Add &lt;code&gt;block&lt;/code&gt; for blocking signals with &lt;code&gt;SIG_IGN&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add built-in JSON support with the &lt;code&gt;json&lt;/code&gt; extension&lt;/li&gt;
+  &lt;li&gt;Improve performance when indexing UTF-8 strings&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Other changes&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Documentation updates to improve consistency, remove obsolete commands, add some missing commands&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; no longer forces &lt;code&gt;SIGPIPE&lt;/code&gt; disposition to &lt;code&gt;SIG_DFL&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Update autosetup to v0.6.9 with optimised insert/delete&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2018-07-01:/index.html/doc/www/www/articles/jim-release-0-78/</id>
+    <title type="html">Jim Tcl version 0.78</title>
+    <published>2018-07-01T00:00:00Z</published>
+    <updated>2018-07-01T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-78/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-078"&gt;ANNOUNCE: Jim Tcl version 0.78&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.78 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-077"&gt;CHANGES SINCE VERSION 0.77&lt;/h2&gt;
+
+&lt;p&gt;This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.78&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;local&lt;/code&gt; - Fix crash when local command is deleted&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;history&lt;/code&gt; - When creating ~/.jim_history, set permissions to 0600 for security&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; - Fix windows exec with empty or unset env&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; - Fix check for &lt;code&gt;|&lt;/code&gt; and &lt;code&gt;|&amp;amp;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;jim.c - Fix Object leak in zlib support&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;signal&lt;/code&gt; - Restore default signal handling on interp exit&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;dict&lt;/code&gt; - Fix [dict values] with duplicate values&lt;/li&gt;
+  &lt;li&gt;Fix ‘/’ command, divide by zero&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;expr&lt;/code&gt; - Replace expression engine to fix a number of problems&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;zlib&lt;/code&gt; - Various fixes&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsort -unique&lt;/code&gt; - Fix case with no duplicates&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio tempname&lt;/code&gt; - Fix a crash when the template is invalid&lt;/li&gt;
+  &lt;li&gt;Tcl compatibility - Error on extra characters after close brace&lt;/li&gt;
+  &lt;li&gt;eventloop - Return from callback is not an error&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;oo&lt;/code&gt; - Fix &lt;code&gt;methods&lt;/code&gt; for superclasses&lt;/li&gt;
+  &lt;li&gt;Various refcount and edge case fixes found by fuzz testing&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.78&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Add support for utf-8 wide characters&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - Add &lt;code&gt;tty&lt;/code&gt; for termios settings&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - Add &lt;code&gt;sockopt&lt;/code&gt; for &lt;code&gt;broadcast&lt;/code&gt;, &lt;code&gt;tcp_nodelay&lt;/code&gt;, etc.&lt;/li&gt;
+  &lt;li&gt;utf-8 - Update UnicodeData.txt to 9.0.0&lt;/li&gt;
+  &lt;li&gt;jimsh - Add support for &lt;code&gt;jimsh -&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;jimsh - Scriptable command-line completion support via &lt;code&gt;tcl::autocomplete&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;history&lt;/code&gt; - Add autocompletion support &lt;code&gt;history completion &amp;lt;cmd&amp;gt;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;-commands&lt;/code&gt; to many commands&lt;/li&gt;
+  &lt;li&gt;Add pkg-config support - &lt;code&gt;jimtcl.pc&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;clock&lt;/code&gt; - Add &lt;code&gt;-gmt&lt;/code&gt; option to &lt;code&gt;format&lt;/code&gt; and &lt;code&gt;scan&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;tree&lt;/code&gt; - Allow nodes to be deleted&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;defer&lt;/code&gt;, &lt;code&gt;$jim::defer&lt;/code&gt; - Allow scripts to run on proc exit&lt;/li&gt;
+  &lt;li&gt;eventloop - Support sub-millisecond timer resolution&lt;/li&gt;
+  &lt;li&gt;Support &lt;code&gt;lambda&lt;/code&gt; even if references are disabled&lt;/li&gt;
+  &lt;li&gt;Performance - Improve a number of common cases through caching&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;signal&lt;/code&gt;, &lt;code&gt;exec&lt;/code&gt;, &lt;code&gt;wait&lt;/code&gt;, &lt;code&gt;pid&lt;/code&gt;, &lt;code&gt;pipe&lt;/code&gt; - Many improvements&lt;/li&gt;
+  &lt;li&gt;build - Support &lt;code&gt;--silent-rules&lt;/code&gt;, and enable by default&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; - Implement class shorthand escapes in brackets&lt;/li&gt;
+  &lt;li&gt;linenoise (&lt;code&gt;jimsh&lt;/code&gt;) - Add ^Z (SUSP) support&lt;/li&gt;
+  &lt;li&gt;linenoise (&lt;code&gt;jismh&lt;/code&gt;) - Update to support multiline mode&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Other changes&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;signal&lt;/code&gt; - Remove the signal command from child interpreters&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;os.wait&lt;/code&gt; is now &lt;code&gt;wait&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio ssl&lt;/code&gt; now upgrades the current channel rather than creating a new channel&lt;/li&gt;
+  &lt;li&gt;Update autosetup to v0.6.8&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2016-09-04:/index.html/doc/www/www/articles/jim-release-0-77/</id>
+    <title type="html">Jim Tcl version 0.77</title>
+    <published>2016-09-04T00:00:00Z</published>
+    <updated>2016-09-04T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-77/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-077"&gt;ANNOUNCE: Jim Tcl version 0.77&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.77 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-076"&gt;CHANGES SINCE VERSION 0.76&lt;/h2&gt;
+
+&lt;p&gt;This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.77&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; - better handline of pipeline abnormal termination&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; - fix append redirection on Windows&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regsub&lt;/code&gt; - fix substitution with trailing backslash&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;expr&lt;/code&gt; - improved mathfunc handling and &lt;code&gt;pow/**&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;chained tailcalls were not always being run&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.77&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Add support for &lt;code&gt;configure --docdir=...&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;jimsh --help&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add support for booleans in &lt;code&gt;string is&lt;/code&gt; and expressions (true, false, on, off, yes, no)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - add &lt;code&gt;sync&lt;/code&gt;, openssl bindings, posix locking&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;expr&lt;/code&gt; - add support for atan2, hypot and fmod&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt;, &lt;code&gt;regsub&lt;/code&gt;:
+    &lt;ul&gt;
+      &lt;li&gt;Add support for &lt;code&gt;\D&lt;/code&gt;, &lt;code&gt;\W&lt;/code&gt; and &lt;code&gt;\S&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;Add partial support for &lt;code&gt;\A&lt;/code&gt;, &lt;code&gt;\Z&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;Add support for all character classes: &lt;code&gt;[[::blank:]], [[::xdigit::]]&lt;/code&gt;, etc.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Update included sqlite3 to v3.14.1&lt;/li&gt;
+  &lt;li&gt;Add &lt;code&gt;$tcl_platform(engine)&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add basic (optional) &lt;code&gt;zlib&lt;/code&gt; support&lt;/li&gt;
+  &lt;li&gt;Add &lt;code&gt;interp&lt;/code&gt; child interprester support&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;oo&lt;/code&gt;:
+    &lt;ul&gt;
+      &lt;li&gt;Add support for constructor, runs on new object creation&lt;/li&gt;
+      &lt;li&gt;Add support for &lt;code&gt;unknown&lt;/code&gt; method&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Add Travis and AppVeyor continuous integration support&lt;/li&gt;
+  &lt;li&gt;Use &lt;code&gt;pkg-config&lt;/code&gt; in &lt;code&gt;configure&lt;/code&gt; to find packages if possibe&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2015-01-31:/index.html/doc/www/www/articles/jim-release-0-76/</id>
+    <title type="html">Jim Tcl version 0.76</title>
+    <published>2015-01-31T00:00:00Z</published>
+    <updated>2015-01-31T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-76/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-076"&gt;ANNOUNCE: Jim Tcl version 0.76&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.76 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-075"&gt;CHANGES SINCE VERSION 0.75&lt;/h2&gt;
+
+&lt;p&gt;This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.76&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;file&lt;/code&gt; - fix stat file size for large files&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;array&lt;/code&gt; - avoid crash on unset variable&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt;, file` - set umask before mkstemp&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file copy&lt;/code&gt; - use binary mode when reading and writing files (Windows)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;glob&lt;/code&gt; - work when intermediate dirs are not readable, and other fixes&lt;/li&gt;
+  &lt;li&gt;aio - fix conflict between onexception and writable&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;namespace&lt;/code&gt; - restore namespace import support&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;alias&lt;/code&gt; - don’t rely on internal list never shimmering&lt;/li&gt;
+  &lt;li&gt;Fix various minor problems reported by &lt;a href="http://www.coverity.com"&gt;coverity&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;info nameofexecutable&lt;/code&gt; after &lt;code&gt;cd&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.76&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt;, file - respect $TMPDIR&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio&lt;/code&gt; - optional argument addrvar for accept.&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;string&lt;/code&gt; - implement &lt;code&gt;string cat&lt;/code&gt; (&lt;a href="http://www.tcl.tk/cgi-bin/tct/tip/429.html"&gt;TIP #429&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file&lt;/code&gt; - add support for &lt;code&gt;file link&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;info&lt;/code&gt; - add support for &lt;code&gt;info source ?filename line?&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Better script validation (e.g. missing trailing brackets)&lt;/li&gt;
+  &lt;li&gt;Install tcltest compatibility package&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Compatiblity&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Some invalid scripts will now throw an error rather than silently executing&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;glob&lt;/code&gt; is more Tcl-compatible with respect to &lt;code&gt;-directory&lt;/code&gt; and &lt;code&gt;-tails&lt;/code&gt;, so may affect some scripts&lt;/li&gt;
+  &lt;li&gt;The output of errorInfo has changed from &lt;code&gt;"Runtime Error: &amp;lt;file&amp;gt;:&amp;lt;line&amp;gt;: ..."&lt;/code&gt; to &lt;code&gt;"&amp;lt;file&amp;gt;:&amp;lt;line&amp;gt;: Error: ..."&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2014-02-27:/index.html/doc/www/www/articles/jim-release-0-75/</id>
+    <title type="html">Jim Tcl version 0.75</title>
+    <published>2014-02-27T00:00:00Z</published>
+    <updated>2014-02-27T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-75/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-075"&gt;ANNOUNCE: Jim Tcl version 0.75&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.75 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-074"&gt;CHANGES SINCE VERSION 0.74&lt;/h2&gt;
+
+&lt;p&gt;This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.75&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;eventloop - Correct file handler should be deleted&lt;/li&gt;
+  &lt;li&gt;eventloop - Fix memory management of aio event handlers&lt;/li&gt;
+  &lt;li&gt;local - Requires at least one argument&lt;/li&gt;
+  &lt;li&gt;exec - Support nulls in &lt;code&gt;exec&lt;/code&gt; immediate redirection&lt;/li&gt;
+  &lt;li&gt;binary - More compliant with Tcl&lt;/li&gt;
+  &lt;li&gt;aio - Fix aio recvfrom for non-inet socket&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;string tolower&lt;/code&gt; buffer overflow for non-utf8&lt;/li&gt;
+  &lt;li&gt;jimsh - consider scripts with trailing backslash as unfinished&lt;/li&gt;
+  &lt;li&gt;Properly respect backslashes in comments&lt;/li&gt;
+  &lt;li&gt;Avoid infinite recursion with namespace import&lt;/li&gt;
+  &lt;li&gt;Fix dict/list shimmering with embedded nulls&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;aio close&lt;/code&gt; from non-global namespace&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;tailcall&lt;/code&gt; should resolve command in current namespace&lt;/li&gt;
+  &lt;li&gt;errors caught by &lt;code&gt;catch&lt;/code&gt; shouldn`t affect later stacktrace&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;tailcall&lt;/code&gt;: properly merge tailcall frames&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt;: fix reaping of detached processes&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;clock&lt;/code&gt;: handle case of format string too long&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;format&lt;/code&gt;: fix format %hd on some platforms&lt;/li&gt;
+  &lt;li&gt;jim.c: fix some dict/list shimmering issues&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.75&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;binary&lt;/code&gt;, &lt;code&gt;pack&lt;/code&gt; and &lt;code&gt;unpack&lt;/code&gt; now support floating point&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file copy&lt;/code&gt; &lt;code&gt;-force&lt;/code&gt; handles source and target as the same file&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;format&lt;/code&gt; now supports &lt;code&gt;%b&lt;/code&gt; for binary conversion&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;lsort&lt;/code&gt; now supports &lt;code&gt;-unique&lt;/code&gt; and &lt;code&gt;-real&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add support for half-close with &lt;code&gt;aio close ?r|w?&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Add &lt;code&gt;socket pair&lt;/code&gt; for a bidirectional pipe&lt;/li&gt;
+  &lt;li&gt;Add –random-hash to randomise hash tables for greater security&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;dict&lt;/code&gt; now supports &lt;code&gt;for&lt;/code&gt;, &lt;code&gt;values&lt;/code&gt;, &lt;code&gt;incr&lt;/code&gt;, &lt;code&gt;append&lt;/code&gt;, &lt;code&gt;lappend&lt;/code&gt;, &lt;code&gt;update&lt;/code&gt;, &lt;code&gt;info&lt;/code&gt; and &lt;code&gt;replace&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;file stat&lt;/code&gt; no longer requires the variable name&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Compatiblity&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The deprecated &lt;code&gt;case&lt;/code&gt; command has been removed&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2014-01-24:/index.html/doc/www/www/articles/binary-cheatsheet/</id>
+    <title type="html">Binary Cheatsheet</title>
+    <published>2014-01-24T00:00:00Z</published>
+    <updated>2014-01-24T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/binary-cheatsheet/" type="text/html"/>
+    <content type="html">&lt;p&gt;I have been using Tcl for years, but I &lt;em&gt;still&lt;/em&gt; need to lookup the manual every
+time I use &lt;code&gt;binary format&lt;/code&gt; and &lt;code&gt;binary scan&lt;/code&gt;. If you are like me, you will find
+this cheatsheet a handy reference.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;&lt;strong&gt;Endian&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;strong&gt;Char&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;strong&gt;Little/Big/Host&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;strong&gt;Type&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;strong&gt;Notes&lt;/strong&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;a&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;byte string&lt;/td&gt;
+      &lt;td&gt;format pads with nulls&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;A&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;byte string&lt;/td&gt;
+      &lt;td&gt;format pads with spaces, scan strips trailing spaces/nulls&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;b&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;b/B&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;binary digits&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;h&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;h/H&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;hex digits&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;c&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;8 bit integer list&lt;/td&gt;
+      &lt;td&gt;In other words, ASCII chars&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;s&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;s/S/t&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;16 bit integer list&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;i&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;i/I/n&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;32 bit integer list&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;w&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;w/W/m&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;64 bit integer list&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;r&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;r/R/f&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;single prec. float list&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;q&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code&gt;q/Q/d&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;double prec. float list&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;x&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;null bytes&lt;/td&gt;
+      &lt;td&gt;count is number of bytes&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;X&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;move cursor back&lt;/td&gt;
+      &lt;td&gt;count is number of bytes to back up&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;@&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;move cursor to location&lt;/td&gt;
+      &lt;td&gt;count is byte position, zero based&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;Examples&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+set bin [binary format I2sH2a* {0x123 0x456} 17 ab "testing"]
+
+# This returns 4 (number of conversions)
+binary scan $bin I2sH2a* intlist intval hexval str
+&lt;/pre&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2013-07-25:/index.html/doc/www/www/articles/jim-release-0-74/</id>
+    <title type="html">Jim Tcl version 0.74</title>
+    <published>2013-07-25T00:00:00Z</published>
+    <updated>2013-07-25T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-74/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-074"&gt;ANNOUNCE: Jim Tcl version 0.74&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.74 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-073"&gt;CHANGES SINCE VERSION 0.73&lt;/h2&gt;
+
+&lt;p&gt;This release is mostly a bug fix release with some performance
+enhancements and a few small additional features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.74&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Space allocated for &lt;code&gt;exec&lt;/code&gt; envenvironment may be one byte short&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;glob&lt;/code&gt; with patterns containing spaces, [ and ]&lt;/li&gt;
+  &lt;li&gt;Sense of &lt;code&gt;fconfigure -blocking&lt;/code&gt; is reversed&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;subst -noc&lt;/code&gt; should substitute vars inside brackets&lt;/li&gt;
+  &lt;li&gt;Fix a reference counting bug&lt;/li&gt;
+  &lt;li&gt;Fix invalid memory reference during finalisers&lt;/li&gt;
+  &lt;li&gt;Fix an invalid memory reference in &lt;code&gt;info references&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Fix a buffer overflow in &lt;code&gt;info references&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Ensure that the full ref is passed to finalizer&lt;/li&gt;
+  &lt;li&gt;Fix conversion of numbers &amp;gt;= 2^31&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;binary scan&lt;/code&gt; for too-few bytes.&lt;/li&gt;
+  &lt;li&gt;Fix bug that was causing the system &lt;code&gt;environ&lt;/code&gt; variable to be freed&lt;/li&gt;
+  &lt;li&gt;Fix a linenoise bug when moving off the left&lt;/li&gt;
+  &lt;li&gt;Fix linenoise serial console window size for vt102&lt;/li&gt;
+  &lt;li&gt;Fix a bug in the &lt;code&gt;sqlite3&lt;/code&gt; module (array index out of bounds)&lt;/li&gt;
+  &lt;li&gt;Fix &lt;code&gt;string replace&lt;/code&gt; replacing a single char&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.74&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Add support for &lt;code&gt;aio isatty&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Remove octal literals with a leading 0 (&lt;a href="TIP #114"&gt;http://www.tcl.tk/cgi-bin/tct/tip/114.html&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;glob -directory&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Allow abbreviations to &lt;code&gt;glob&lt;/code&gt; options&lt;/li&gt;
+  &lt;li&gt;Ensure that signals can break &lt;code&gt;vwait&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Allow &lt;code&gt;aio copyto&lt;/code&gt; and &lt;code&gt;aio read&lt;/code&gt; to copy &amp;gt;2GB&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio seek&lt;/code&gt; and &lt;code&gt;aio tell&lt;/code&gt; should allow for 64 bit offsets&lt;/li&gt;
+  &lt;li&gt;Add support for &lt;code&gt;string equal -length&lt;/code&gt; and &lt;code&gt;string compare -length&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Performance Improvements&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Thanks in large part to Lauri Kasanen, performance of Jim Tcl has
+improved by up to 20% in some areas compared to version 0.73.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    Executable Size     +1%
+          PI digits     -4%
+    [for] busy loop       .
+       [local] loop       .
+  [while] busy loop     -1%
+                ary    -10%
+         ary [dict]    -20%
+       ary [static]     -1%
+       dynamic code     -3%
+dynamic code (list)       .
+             expand     -1%
+      fibonacci(25)     +1%
+           heapsort     -4%
+             mandel     -9%
+         mini loops       .
+       nested loops       .
+             repeat       .
+             rotate       .
+              sieve    -20%
+       sieve [dict]    -20%
+              upvar    -16%
+   wiki.tcl.tk/8566       .
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2012-02-10:/index.html/doc/www/www/articles/no-namespaces-revisited/</id>
+    <title type="html">Coping without Namespaces - Revisited</title>
+    <published>2012-02-10T00:00:00Z</published>
+    <updated>2012-02-10T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/no-namespaces-revisited/" type="text/html"/>
+    <content type="html">&lt;p&gt;Back in the article &lt;a href="/articles/no-namespaces/"&gt;Coping without Namespaces&lt;/a&gt;,
+we discussed the fact that Jim Tcl did not support namespaces, but
+that small changes to the source could be made to allow namespace-based
+Tcl code to be ported for use with Jim Tcl.&lt;/p&gt;
+
+&lt;p&gt;Now with &lt;a href="/articles/light-weight-namespaces/"&gt;namespaces supported&lt;/a&gt;
+in &lt;a href="/articles/jim-release-0.73/"&gt;Jim Tcl 0.73&lt;/a&gt;, porting Tcl code
+that makes use of namespaces is easier than ever.&lt;/p&gt;
+
+&lt;p&gt;Once again, let's consider porting &lt;a href="http://tcllib.cvs.sourceforge.net/viewvc/tcllib/tcllib/modules/dns/dns.tcl"&gt;dns.tcl&lt;/a&gt;
+from &lt;a href="http://tcllib.sourceforge.net/"&gt;tcllib&lt;/a&gt; to Jim Tcl.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;Firstly an explanation of what was changed.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+--- dns.tcl.orig	2012-03-05 13:02:36.000000000 +1000
++++ dns.tcl	2012-03-05 13:02:56.000000000 +1000
+@@ -1,3 +1,15 @@
++# dns.tcl - Steve Bennett &amp;lt;steveb@workware.net.au&amp;gt;
++#
++# Modified for Jim Tcl to:
++# - use udp transport by default
++# - use sendto/recvfrom
++# - don't try to determine local nameservers
++# - remove support for dns uris and finding local nameservers
++# - remove logging calls
++#   (both of these in order to remove dependencies on tcllib)
++
++# Based on:
++
+ # dns.tcl - Copyright (C) 2002 Pat Thoyts &amp;lt;patthoyts@users.sourceforge.net&amp;gt;
+ #
+ # Provide a Tcl only Domain Name Service client. See RFC 1034 and RFC 1035
+&lt;/pre&gt;
+
+&lt;p&gt;For simplicity, we remove the dependencies on tcllib &lt;code&gt;logger&lt;/code&gt;, &lt;code&gt;uri&lt;/code&gt; and &lt;code&gt;ip&lt;/code&gt; to
+allow this example to be self contained. In Jim Tcl the &lt;code&gt;binary&lt;/code&gt; and &lt;code&gt;namespace&lt;/code&gt;
+modules are optional, so load them if required.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -31,14 +43,11 @@
+ #
+ # $Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $
+ 
+-package require Tcl 8.2;                # tcl minimum version
+-package require logger;                 # tcllib 1.3
+-package require uri;                    # tcllib 1.1
+-package require uri::urn;               # tcllib 1.2
+-package require ip;                     # tcllib 1.7
++package require binary
++package require namespace
+ 
+ namespace eval ::dns {
+-    variable version 1.3.3
++    variable version 1.3.3-jim2
+     variable rcsid {$Id: dns.tcl,v 1.36 2008/11/22 12:28:54 mic42 Exp $}
+ 
+     namespace export configure resolve name address cname \
+&lt;/pre&gt;
+
+&lt;p&gt;Since Jim Tcl supports udp out-of-the-box, and it is more efficient,
+default to udp rather than tcp. Also comment out the logging calls.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -49,23 +58,13 @@
+         array set options {
+             port       53
+             timeout    30000
+-            protocol   tcp
++            protocol   udp
+             search     {}
+             nameserver {localhost}
+             loglevel   warn
+         }
+-        variable log [logger::init dns]
+-        ${log}::setlevel $options(loglevel)
+-    }
+-
+-    # We can use either ceptcl or tcludp for UDP support.
+-    if {![catch {package require udp 1.0.4} msg]} { ;# tcludp 1.0.4+
+-        # If TclUDP 1.0.4 or better is available, use it.
+-        set options(protocol) udp
+-    } else {
+-        if {![catch {package require ceptcl} msg]} {
+-            set options(protocol) udp
+-        }
++        #variable log [logger::init dns]
++        #${log}::setlevel $options(loglevel)
+     }
+ 
+     variable types
+&lt;/pre&gt;
+
+&lt;p&gt;udp is built-in with Jim Tcl.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -248,14 +237,6 @@
+         return -code error "no nameserver specified"
+     }
+ 
+-    if {$state(-protocol) == "udp"} {
+-        if {[llength [package provide ceptcl]] == 0 \
+-                &amp;amp;&amp;amp; [llength [package provide udp]] == 0} {
+-            return -code error "udp support is not available,\
+-                get ceptcl or tcludp"
+-        }
+-    }
+-    
+     # Check for reverse lookups
+     if {[regexp {^(?:\d{0,3}\.){3}\d{0,3}$} $state(query)]} {
+         set addr [lreverse [split $state(query) .]]
+&lt;/pre&gt;
+
+&lt;p&gt;udp in Jim Tcl works just like tcp, with &lt;code&gt;readable&lt;/code&gt; event handler being
+triggered when the response is available.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -273,6 +254,7 @@
+         }
+     } else {
+         UdpTransmit $token
++        wait $token
+     }
+     
+     return $token
+&lt;/pre&gt;
+
+&lt;p&gt;Jim Tcl has no support for async connect, and the parameters to &lt;code&gt;socket&lt;/code&gt; are a little different.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -668,9 +650,9 @@
+                                    "operation timed out"]]
+     }
+ 
+-    # Sometimes DNS servers drop TCP requests. So it's better to
+-    # use asynchronous connect
+-    set s [socket -async $state(-nameserver) $state(-port)]
++    # Jim Tcl has no async connect ...
++
++    set s [socket stream $state(-nameserver):$state(-port)]
+     fileevent $s writable [list [namespace origin TcpConnected] $token $s]
+     set state(sock) $s
+     set state(status) connect
+&lt;/pre&gt;
+
+&lt;p&gt;Comment out the async connect check.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -683,11 +665,13 @@
+     upvar 0 $token state
+ 
+     fileevent $s writable {}
+-    if {[catch {fconfigure $s -peername}]} {
+-	# TCP connection failed
+-        Finish $token "can't connect to server"
+-	return
+-    }
++
++    # Jim Tcl has no async connect ...
++#    if {[catch {fconfigure $s -peername}]} {
++#	# TCP connection failed
++#        Finish $token "can't connect to server"
++#	return
++#    }
+ 
+     fconfigure $s -blocking 0 -translation binary -buffering none
+ 
+&lt;/pre&gt;
+
+&lt;p&gt;udp in Jim Tcl is easy. Simply create the socket with &lt;code&gt;socket dgram&lt;/code&gt; and
+send with &lt;code&gt;sendto&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -722,18 +706,10 @@
+                                   "operation timed out"]]
+     }
+     
+-    if {[llength [package provide ceptcl]] &amp;gt; 0} {
+-        # using ceptcl
+-        set state(sock) [cep -type datagram $state(-nameserver) $state(-port)]
+-        fconfigure $state(sock) -blocking 0
+-    } else {
+-        # using tcludp
+-        set state(sock) [udp_open]
+-        udp_conf $state(sock) $state(-nameserver) $state(-port)
+-    }
+-    fconfigure $state(sock) -translation binary -buffering none
++    set state(sock) [socket dgram]
++    #fconfigure $state(sock) -translation binary -buffering none
+     set state(status) connect
+-    puts -nonewline $state(sock) $state(request)
++    $state(sock) sendto $state(request) $state(-nameserver):$state(-port)
+     
+     fileevent $state(sock) readable [list [namespace current]::UdpEvent $token]
+     
+&lt;/pre&gt;
+
+&lt;p&gt;Reading from a udp socket is best done with &lt;code&gt;recvfrom&lt;/code&gt;&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -879,7 +855,7 @@
+     upvar 0 $token state
+     set s $state(sock)
+ 
+-    set payload [read $state(sock)]
++    set payload [$state(sock) recvfrom 1500]
+     append state(reply) $payload
+ 
+     binary scan $payload S id
+&lt;/pre&gt;
+
+&lt;p&gt;Jim Tcl has &lt;code&gt;lreverse&lt;/code&gt; built-in&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+@@ -1011,17 +987,6 @@
+ }
+ 
+ # -------------------------------------------------------------------------
+-# Description:
+-#   Reverse a list. Code from http://wiki.tcl.tk/tcl/43
+-#
+-proc ::dns::lreverse {lst} {
+-    set res {}
+-    set i [llength $lst]
+-    while {$i} {lappend res [lindex $lst [incr i -1]]}
+-    return $res
+-}
+-
+-# -------------------------------------------------------------------------
+ 
+ proc ::dns::KeyOf {arrayname value {default {}}} {
+     upvar $arrayname array
+&lt;/pre&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;Notice that no namespace-related changes were required when porting this module.&lt;/p&gt;
+
+&lt;p&gt;The latest version of &lt;a href="https://github.com/msteveb/jimtcl/blob/ad3b3c48c9d7e9/examples/dns.tcl"&gt;dns.tcl for Jim Tcl&lt;/a&gt; is
+available in git.&lt;/p&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-12-22:/index.html/doc/www/www/articles/jim-release-0-73/</id>
+    <title type="html">Jim Tcl version 0.73</title>
+    <published>2011-12-22T00:00:00Z</published>
+    <updated>2011-12-22T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-73/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-073"&gt;ANNOUNCE: Jim Tcl version 0.73&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.73 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://jim.tcl.tk/"&gt;http://jim.tcl.tk/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-072"&gt;CHANGES SINCE VERSION 0.72&lt;/h2&gt;
+
+&lt;p&gt;This release incorporates bug fixes and many new features.
+A summary is below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.73&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; on cygwin now correctly passes $::env&lt;/li&gt;
+  &lt;li&gt;On mingw and cygwin, &lt;code&gt;--shared&lt;/code&gt; creates libjim.dll rather than libjim.so&lt;/li&gt;
+  &lt;li&gt;UTF-8 case folding may change the encoded length&lt;/li&gt;
+  &lt;li&gt;Fix a &lt;code&gt;regexp&lt;/code&gt; infinite loop on invalid UTF-8 strings&lt;/li&gt;
+  &lt;li&gt;Prevent infinite recursion in &lt;code&gt;eval&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Don’t allow &lt;code&gt;upvar&lt;/code&gt; to a higher level&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; counted matches may be wrong on subsequent use&lt;/li&gt;
+  &lt;li&gt;Form feed (\f) is a valid white space character&lt;/li&gt;
+  &lt;li&gt;Parsing bug for quoted orphan $&lt;/li&gt;
+  &lt;li&gt;Standard handles were not being kept open&lt;/li&gt;
+  &lt;li&gt;Fix edge cases with &lt;code&gt;tailcall&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.73&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Added support for namespaces and the &lt;code&gt;namespace&lt;/code&gt; command&lt;/li&gt;
+  &lt;li&gt;The “full” sqlite3 extension is included in the repo&lt;/li&gt;
+  &lt;li&gt;Built-in regexp now support non-capturing parentheses: &lt;code&gt;(?:...)&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Added &lt;code&gt;string replace&lt;/code&gt; and &lt;code&gt;string totitle&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Added &lt;code&gt;info statics&lt;/code&gt; to access proc static variables&lt;/li&gt;
+  &lt;li&gt;Added &lt;code&gt;info alias&lt;/code&gt; to access the target of an alias&lt;/li&gt;
+  &lt;li&gt;Added &lt;code&gt;build-jim-ext&lt;/code&gt; for easy separate building of loadable modules (extensions)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;local&lt;/code&gt; now works with any command, not just procs&lt;/li&gt;
+  &lt;li&gt;UTF-8 encoding past the basic multilingual plane (BMP) is supported&lt;/li&gt;
+  &lt;li&gt;Added &lt;code&gt;tcl::prefix&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Added the &lt;code&gt;history&lt;/code&gt; command to access command line editing and history from scripts&lt;/li&gt;
+  &lt;li&gt;Added a Tcl-compatible &lt;code&gt;apply&lt;/code&gt; command&lt;/li&gt;
+  &lt;li&gt;Most extensions are now enabled by default&lt;/li&gt;
+  &lt;li&gt;Jim Tcl now compiles with MSVC on Windows (but no build support)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-12-15:/index.html/doc/www/www/articles/light-weight-namespaces/</id>
+    <title type="html">Lightweight Namespaces</title>
+    <published>2011-12-15T00:00:00Z</published>
+    <updated>2011-12-15T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/light-weight-namespaces/" type="text/html"/>
+    <content type="html">&lt;p&gt;New in Jim Tcl v0.73 is (optional) support for namespaces.&lt;/p&gt;
+
+&lt;p&gt;The following is taken directly from README.namespaces in the Jim Tcl repository.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h1 id="lightweight-namespaces-for-jim-tcl"&gt;Lightweight Namespaces for Jim Tcl&lt;/h1&gt;
+
+&lt;p&gt;There are two broad requirements for namespace support in Jim Tcl.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;(1) To allow code from multiple sources while reducing the chance of name clashes&lt;/li&gt;
+  &lt;li&gt;(2) To simplify porting existing Tcl code which uses namespaces&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This proposal addresses both of these requirements, with the following
+additional requirements imposed by Jim Tcl.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;(3) Support for namespaces should be optional, with the space and time overhead
+ when namespaces are disabled as close to zero as possible.&lt;/li&gt;
+  &lt;li&gt;(4) The implementation should be small and reasonably efficient.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To further expand on requirement (2), the goal is not to be able to run
+any Tcl scripts using namespaces with no changes. Rather, scripts
+which use namespaces in a straightforward manner, should be easily
+ported with changes which are compatible with Tcl.&lt;/p&gt;
+
+&lt;h2 id="implicit-namespaces"&gt;Implicit namespaces&lt;/h2&gt;
+&lt;p&gt;Rather than supporting explicit namespaces as Tcl does, Jim Tcl
+supports implicit namespaces. Any procedure or variable which
+is defined with a name containing ::, is implicitly scoped within
+a namespace.&lt;/p&gt;
+
+&lt;p&gt;For example, the following procedure and variable are created
+in the namespace ‘test’&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+proc ::test::myproc {} {
+  puts "I am in namespace [namespace current]"
+}
+set ::test::myvar 3
+&lt;/pre&gt;
+
+&lt;p&gt;This approach allows much of the existing variable and command
+resolution machinery to be used with little change. It also means
+that it is possible to simply define a namespace-scoped variable
+or procedure without first creating the namespace, and similarly,
+namespaces “disappear” when all variables and procedures defined
+with the namespace scope are deleted.&lt;/p&gt;
+
+&lt;h2 id="namespaces-procedures-and-call-frames"&gt;Namespaces, procedures and call frames&lt;/h2&gt;
+&lt;p&gt;When namespace support is enabled (at build time), each procedure has an associated
+namespace (based on the procedure name). When the procedure is evaluated,
+the namespace for the created call frame is set to the namespace associated
+with the procedure.&lt;/p&gt;
+
+&lt;p&gt;Command resolution is based on the namespace of the current call frame.
+An unscoped command name will first be looked up in the current namespace,
+and then in the global namespace.&lt;/p&gt;
+
+&lt;p&gt;This also means that commands which do not create a call frame (such as commands
+implemented in C) do not have an associated namespace.&lt;/p&gt;
+
+&lt;p&gt;Similarly to Tcl, namespace eval introduces a temporary, anonymous
+call frame with the associated namespace. For example, the following
+will return “::test,1”.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+namespace eval test {
+	puts [namespace current],[info level]
+}
+&lt;/pre&gt;
+
+&lt;h2 id="variable-resolution"&gt;Variable resolution&lt;/h2&gt;
+&lt;p&gt;The variable command in Jim Tcl has the same syntax as Tcl, but is closer in behaviour to the global command.
+The variable command creates a link from a local variable to a namespace variable, possibly initialising it.&lt;/p&gt;
+
+&lt;p&gt;For example, the following procedure uses ‘variable’ to initialise and access myvar.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+proc ::test::myproc {} {
+  variable myvar 4
+  incr myvar
+}
+&lt;/pre&gt;
+
+&lt;p&gt;Note that there is no automatic resolution of namespace variables.
+For example, the following will &lt;em&gt;not&lt;/em&gt; work.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+namespace eval ::test {
+  variable myvar 4
+}
+namespace eval ::test {
+  # This will increment a local variable, not ::test::myvar
+  incr myvar
+}
+&lt;/pre&gt;
+
+&lt;p&gt;And similarly, the following will only access local variables&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+set x 3
+namespace eval ::test {
+	# This will increment a local variable, not ::x
+	incr x
+	# This will also increment a local variable
+	incr abc::def
+}
+&lt;/pre&gt;
+
+&lt;p&gt;In the same way that variable resolution does not “fall back” to
+global variables, it also does not “fall back” to namespace variables.&lt;/p&gt;
+
+&lt;p&gt;This approach allows name resolution to be simpler and more efficient
+since it uses the same variable linking mechanism as upvar/global
+and it allows namespaces to be implicit. It also solves the “creative
+writing” problem where a variable may be created in an unintentional
+scope.&lt;/p&gt;
+
+&lt;h2 id="the-namespace-command"&gt;The namespace command&lt;/h2&gt;
+&lt;p&gt;Currently, the following namespace commands are supported.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;current - returns the current, fully-qualified namespace&lt;/li&gt;
+  &lt;li&gt;eval - evaluates a script in a namespace (introduces a call frame)&lt;/li&gt;
+  &lt;li&gt;qualifiers, tail, parent - note that these do not check for existence&lt;/li&gt;
+  &lt;li&gt;code, inscope - implemented&lt;/li&gt;
+  &lt;li&gt;delete - deletes all variables and commands with the namespace prefix&lt;/li&gt;
+  &lt;li&gt;which - implemented&lt;/li&gt;
+  &lt;li&gt;upvar - implemented&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id="namespace-children-exists-path"&gt;namespace children, exists, path&lt;/h2&gt;
+&lt;p&gt;With implicit namespaces, the namespace exists and namespace children commands
+are expensive to implement and are of limited use. Checking the existence
+of a namespace can be better done by checking for the existence of a known procedure
+or variable in the namespace.&lt;/p&gt;
+
+&lt;p&gt;Command resolution is always done by first looking in the namespace and then
+at the global scope, so namespace path is not required.&lt;/p&gt;
+
+&lt;h2 id="namespace-ensemble"&gt;namespace ensemble&lt;/h2&gt;
+&lt;p&gt;The namespace ensemble command is not currently supported. A future version
+of Jim Tcl will have a general-purpose ensemble creation and manipulation
+mechanism and namespace ensemble will be implemented in terms of that mechanism.&lt;/p&gt;
+
+&lt;h2 id="namespace-import-export-forget-origin"&gt;namespace import, export, forget, origin&lt;/h2&gt;
+&lt;p&gt;Since Jim Tcl namespaces are implicit, there is no location to store export patterns.
+Therefore the namespace export command is a dummy command which does nothing.
+All procedures in a namespace are considered to be exported.&lt;/p&gt;
+
+&lt;p&gt;The namespace import command works by creating aliases to the target namespace
+procedures.&lt;/p&gt;
+
+&lt;p&gt;namespace forget is not implemented.&lt;/p&gt;
+
+&lt;p&gt;namespace origin understands aliases created by namespace import
+and can return the original command.&lt;/p&gt;
+
+&lt;h2 id="namespace-unknown"&gt;namespace unknown&lt;/h2&gt;
+&lt;p&gt;If an undefined command is invoked, the “unknown” command is invoked.
+The same namespace resolution rules apply for the unknown command.
+This means that in the following example, test::unknown will be invoked
+for the missing command rather than the global ::unknown.&lt;/p&gt;
+
+&lt;pre class="sh_tcl"&gt;
+proc unknown {args} {
+	puts "global unknown"
+}
+
+proc test::unknown {args} {
+	puts "test unknown"
+}
+
+namespace eval test {
+	bogus
+}
+&lt;/pre&gt;
+
+&lt;p&gt;This approach requires no special support and provides enough flexibility that
+the namespace unknown command is not implemented.&lt;/p&gt;
+
+&lt;h2 id="porting-namespace-code-from-tcl-to-jim-tcl"&gt;Porting namespace code from Tcl to Jim Tcl&lt;/h2&gt;
+&lt;p&gt;For most code, the following changes will be sufficient to port code.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Canonicalise namespace names. For example, ::ns:: should be written
+as ::ns or ns as appropriate, and excess colons should be removed.
+For example ::ns:::blah should be written as ::ns::blah
+(Note that the only “excess colon” case supported is ::::abc
+in order to support [namespace current]::abc in the global namespace)&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The variable command should be used within namespace eval to link
+to namespace variables, and access to variables in other namespaces
+should be fully qualified&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id="changes-in-the-core-jim-tcl"&gt;Changes in the core Jim Tcl&lt;/h2&gt;
+&lt;p&gt;Previously Jim Tcl performed no scoping of command names.  i.e. The
+::format command was considered different from the format command.&lt;/p&gt;
+
+&lt;p&gt;Even if namespace support is disabled, the command resolution will
+recognised global scoping of commands and treat these as identical.&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-11-10:/index.html/doc/www/www/articles/jim-tcl-tk-2011-paper/</id>
+    <title type="html">Jim @ Tcl/Tk 2011</title>
+    <published>2011-11-10T00:00:00Z</published>
+    <updated>2011-11-10T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-tcl-tk-2011-paper/" type="text/html"/>
+    <content type="html">&lt;p&gt;At the &lt;a href="http://www.tcl.tk/community/tcl2011/"&gt;Tck/Tk 2011 conference&lt;/a&gt; I
+presented a paper on Jim Tcl. It seemed to be well received.&lt;/p&gt;
+
+&lt;p&gt;You can read the paper by clicking on the image below.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://workware.net.au/papers/jimtcl-tcl-tk-2011.pdf"&gt;&lt;img src="/img/jimtcl-tcl-tk-2011-front.png" /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-10-06:/index.html/doc/www/www/articles/jim-release-0-72/</id>
+    <title type="html">Jim Tcl version 0.72</title>
+    <published>2011-10-06T00:00:00Z</published>
+    <updated>2011-10-06T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-72/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-072"&gt;ANNOUNCE: Jim Tcl version 0.72&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.72 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="http://repo.or.cz/w/jimtcl.git"&gt;http://repo.or.cz/w/jimtcl.git&lt;/a&gt; or &lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-071"&gt;CHANGES SINCE VERSION 0.71&lt;/h2&gt;
+
+&lt;p&gt;This release incorporates bug fixes and many new features.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.72&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Improvements to configure (autosetup)&lt;/li&gt;
+  &lt;li&gt;Fix memory overwrite in built-in regexp&lt;/li&gt;
+  &lt;li&gt;[regexp], [regsub] could leak objects in some circumstances&lt;/li&gt;
+  &lt;li&gt;Fix [file join] in some cases&lt;/li&gt;
+  &lt;li&gt;[info nameofexecutable] now always returns an absolute path&lt;/li&gt;
+  &lt;li&gt;[catch] works correctly for platforms without long long&lt;/li&gt;
+  &lt;li&gt;[dict unset] no longer gives an error on missing last key&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features added in version 0.72&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[proc] now accepts optional parameters and “args” in any position&lt;/li&gt;
+  &lt;li&gt;Much improved support for mingw32 including 64-bit mingw
+    &lt;ul&gt;
+      &lt;li&gt;tcl_platform(platform) is set to “windows”&lt;/li&gt;
+      &lt;li&gt;[file dirname] handles leading drive (e.g. c:/)&lt;/li&gt;
+      &lt;li&gt;[pwd] returns a path containing only forward slashes&lt;/li&gt;
+      &lt;li&gt;[glob] now works correctly&lt;/li&gt;
+      &lt;li&gt;[exec] is now fully implement on mingw32&lt;/li&gt;
+      &lt;li&gt;Command line editing now works in the win32 console&lt;/li&gt;
+      &lt;li&gt;New tcl_platform(pathSeparator)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Builtin regexp is more efficient. Patterns are only compiled once.&lt;/li&gt;
+  &lt;li&gt;Add rand(), srand() and pow() math functions&lt;/li&gt;
+  &lt;li&gt;[file delete] now supports the -force option&lt;/li&gt;
+  &lt;li&gt;[fconfigure -translation] is now accepted and ignored for Tcl compatibility&lt;/li&gt;
+  &lt;li&gt;Improved diagnostics when sourcing a script with missing/mismatches brackets, quotes, etc.&lt;/li&gt;
+  &lt;li&gt;Jim Tcl now builds on Haiku (BeOS clone) and Solaris&lt;/li&gt;
+  &lt;li&gt;Build now works with BSD make&lt;/li&gt;
+  &lt;li&gt;[file mtime] can now set the file time&lt;/li&gt;
+  &lt;li&gt;New [aio listen] to set the size of the listen queue on server sockets&lt;/li&gt;
+  &lt;li&gt;Jim Tcl Manual is better formatted, commands are hyperlinked and various corrections have been made&lt;/li&gt;
+  &lt;li&gt;The oo, tree, binary and pack extensions are now documented&lt;/li&gt;
+  &lt;li&gt;New metakit extension&lt;/li&gt;
+  &lt;li&gt;The SDL extension once again builds and runs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-10-04:/index.html/doc/www/www/articles/jim-sqlite-shell/</id>
+    <title type="html">jSQLsh - Jim Tcl SQLite Shell</title>
+    <published>2011-10-04T00:00:00Z</published>
+    <updated>2011-10-04T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-sqlite-shell/" type="text/html"/>
+    <content type="html">&lt;p&gt;The jSQLsh project at &lt;a href="https://github.com/LStinson/jSQLsh"&gt;https://github.com/LStinson/jSQLsh&lt;/a&gt; provides
+a small but powerful shell for sqlite, modelled after
+&lt;a href="http://www.postgresql.org/docs/9.0/static/app-psql.html"&gt;psql&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;The creator, Lorance Stinson, wanted an sqlite command shell which
+addressed some of the deficiencies of the native sqlite command
+shell, so he decided to create his own with Jim Tcl.&lt;/p&gt;
+
+&lt;p&gt;To run it, you simply need &lt;code&gt;jimsh&lt;/code&gt; built with &lt;em&gt;sqlite3&lt;/em&gt; and &lt;em&gt;readline&lt;/em&gt; support.
+For example, to build a version of &lt;code&gt;jimsh&lt;/code&gt; with these extensions included statically:&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ ./configure --with-ext="sqlite3 rlprompt"
+...
+$ make
+...
+&lt;/pre&gt;
+
+&lt;p&gt;And then try it out:&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ ./jimsh jsqlsh
+Welcome to the SQLite Shell in Jim TCL 0.72.
+Opening the database ':memory:'.
+To execute a query type '/'. For help type '/h'.
+:memory: (0 rows, 0 changes) # /h
+Commands:
+  /A(UTO)     Toggle the auto option state.
+  /c(lear)    Clear the query buffer
+  /D(EBUG)    Toggle the debug option state.
+  /d          Display all objects in the database.
+  /d[itv]     Display all indexes (/di) / tables (/dt) / views (/dv).
+  /d OBJ      Describe the object OBJ.
+  /ds OBJ     Displays the schema for the object OBJ.
+  /e(dit)     Edit the query buffer.
+  /go | /     Execute the query in the query buffer.
+  /h(elp)     Print this help text.
+  /o(pen)     Open a database file, change directories and list files.
+  /P(AGER)    Toggle the page option state.
+  /p(rint)    Print the query buffer.
+  /s(et)      Set/List configuration options. '/s OPTION VALUE'
+              Values are treated as TCL strings and can be quoted.
+  /Q(uiet)    Toggle the quiet option state.
+  /q(uit)     Quit  (Also Ctrl-D)
+  /u(ser)     Display the user macros.
+  /u(ser)#    Copy user macro # into the query buffer.
+  /u(ser)# -  Copy the query buffer, or supplied text, into macro #.
+:memory: (0 rows, 0 changes) # 
+&lt;/pre&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:jim.tcl.tk,2011-09-06:/index.html/doc/www/www/articles/metakit-extension/</id>
+    <title type="html">New Metakit Extension</title>
+    <published>2011-09-06T00:00:00Z</published>
+    <updated>2011-09-06T00:00:00Z</updated>
+    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/metakit-extension/" type="text/html"/>
+    <content type="html">&lt;p&gt;Alexander Shpilkin has contributed the metakit extension to Jim Tcl.&lt;/p&gt;
+
+&lt;p&gt;Metakit (&lt;a href="http://equi4.com/metakit/"&gt;http://equi4.com/metakit/&lt;/a&gt;) is an embeddable non-SQL
+database with advanced data manipulation features through the use of views.
+Using metakit can be an alternative to sqlite.&lt;/p&gt;
+
+&lt;p&gt;The Jim Tcl metakit interface is different from the Tcl metakit interface as it
+makes use of unique Jim Tcl features such as references. The &lt;a href="/documentation/metakit/"&gt;metakit extension&lt;/a&gt;
+documentation fully explains the API.&lt;/p&gt;
+
+&lt;h2 id="building-the-metakit-extension"&gt;Building the Metakit Extension&lt;/h2&gt;
+
+&lt;p&gt;Building the extension requires the metakit headers and library to be
+available. Here is one way to statically build the metakit extension into jimsh.&lt;/p&gt;
+
+&lt;pre class="sh_unix"&gt;
+$ cd jimtcl
+$ svn co svn://svn.equi4.com/metakit/trunk metakit
+$ cd metakit/unix
+$ ./configure --without-tcl --without-python --disable-shared
+$ make
+$ cd ../..
+$ ./configure --with-ext=mk CFLAGS="-Imetakit/include -Lmetakit/unix"
+$ make
+$ ./jimsh examples/metakit.tcl
+  ...
+&lt;/pre&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+</feed>
+

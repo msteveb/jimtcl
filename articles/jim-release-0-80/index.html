@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Jim Tcl version 0.80</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_jim-release-0-80" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Jim Tcl version 0.80</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Saturday, 31 October 2020</p>
+            <h2 class="news">Jim Tcl version 0.80</h2>
+        
+        <h2 id="announce-jim-tcl-version-080">ANNOUNCE: Jim Tcl version 0.80</h2>
+
+<p>Jim Tcl 0.80 has been released and is available from:</p>
+
+<p><a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
+
+<p>Find out all about Jim Tcl at <a href="http://jim.tcl.tk/">http://jim.tcl.tk/</a></p>
+
+<h2 id="changes-since-version-079">CHANGES SINCE VERSION 0.79</h2>
+
+<p>This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.</p>
+
+<p>Thanks to everyone who contributed to this release.</p>
+
+<p><strong>Bugs fixed in version 0.80</strong></p>
+
+<ul>
+  <li><code>return</code> -level 0 -code xxx now returns the correct result</li>
+  <li><code>regexp</code> - fix an issue with failed optional group</li>
+  <li><code>oo</code> - fix an issue when no class variables are given</li>
+  <li><code>oo</code> - fix super invocation with multiple inheritance levels</li>
+  <li><code>tailcall</code> - fix to avoid growing the C stack frame</li>
+  <li><code>regsub -all</code> with \A now works correctly</li>
+  <li><code>scan</code> - fix an issue with chars vs bytes in utf-8 mode</li>
+  <li><code>aio</code> - fix eventloop and eof for ssl connections</li>
+  <li><code>lsearch -regexp</code> - fix the case where the pattern begins with a dash</li>
+  <li><code>lsearch -command</code> - handle the case with too few args</li>
+  <li>Disallow renaming a local proc with upcall to avoid inconsistent behaviour</li>
+</ul>
+
+<p><strong>Features and improvements added in version 0.80</strong></p>
+
+<ul>
+  <li>Dictionaries now preserve insertion order</li>
+  <li><code>string map</code> and <code>string compare</code> now support embedded nulls</li>
+  <li><code>string match</code> and other glob matches now support embedded nulls</li>
+  <li>Variable and proc names now support embedded nulls</li>
+  <li>Interactive mode now prints results containing embedded nulls</li>
+  <li>Generate a build warning if system is non-Y2038 compliant</li>
+  <li><code>package names</code> added as an alias for <code>package list</code></li>
+  <li><code>file rootname</code>, <code>file dirname</code> are now more consistent with Tcl</li>
+  <li><code>aio</code> - add Server Name Indication (SNI) ssl support</li>
+  <li><code>aio</code> - add socket pty support</li>
+  <li>The <code>0d</code> radix prefix is now supported for decimal (base 10)</li>
+  <li>String comparison operators <code>lt</code>, <code>gt</code>, <code>le</code> and <code>ge</code> are now supported</li>
+  <li><code>dict getwithdefault</code> (and the alias <code>dict getdef</code>) are now supported</li>
+  <li>Build has coverage support, and test coverage is now over 90%</li>
+  <li>Performance improvements in a number of areas</li>
+</ul>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/jim-release-0-80/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-80/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Jim Tcl version 0.82</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_jim-release-0-82" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Jim Tcl version 0.82</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Saturday, 25 February 2023</p>
+            <h2 class="news">Jim Tcl version 0.82</h2>
+        
+        <h2 id="announce-jim-tcl-version-082">ANNOUNCE: Jim Tcl version 0.82</h2>
+
+<p>Jim Tcl 0.82 has been released and is available from:</p>
+
+<p><a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
+
+<p>Find out all about Jim Tcl at <a href="http://jim.tcl.tk/">http://jim.tcl.tk/</a></p>
+
+<h2 id="changes-since-version-081">CHANGES SINCE VERSION 0.81</h2>
+
+<p>This release contains bug fixes plus a number of additional features. A summary is below. See git for the full changelog.</p>
+
+<p>Thanks to everyone who contributed to this release.</p>
+
+<p><strong>Bugs fixed in version 0.82</strong></p>
+
+<ul>
+  <li><code>dict</code> - under some circumstances it was possible to add duplicate keys to a dict</li>
+  <li><code>file delete</code> - <code>-force</code> and <code>--</code> were handled incorrectly</li>
+  <li>aio: ssl - fix eof detection with openssl3</li>
+  <li><code>getref</code> and <code>setref</code> - now accept fully qualified references</li>
+  <li><code>unset</code> - don’t return a result with <code>-nocomplain</code></li>
+  <li>Garbage collection - sometimes GC was overly zealous</li>
+  <li><code>regexp</code> - builtin regexp fix for end of word check</li>
+  <li><code>dict with</code> - now correctly returns the script result</li>
+  <li>Unicode ranges are closed intervals. This affected the character class of the end character of each range.</li>
+</ul>
+
+<p><strong>Features and improvements added in version 0.82</strong></p>
+
+<ul>
+  <li>aio <code>gets</code> - improve behaviour for non-blocking streams</li>
+  <li>aio <a href="https://core.tcl-lang.org/tips/doc/trunk/tip/603.md">TIP 603</a> - implement <code>stat</code> of an open file handle</li>
+  <li>aio <code>socket pty</code> - filename is now available</li>
+  <li>Included sqlite updated to version 3.38.0</li>
+  <li>redis extension - enable TCP_KEEPALIVE, add support for <code>-type</code> and <code>-async</code></li>
+  <li><code>try</code> - add support for <code>trap</code></li>
+  <li>oo constructor is now more flexible (possible incompatibility with 0.81)</li>
+  <li><code>socket</code> - add support for <code>-async</code></li>
+  <li>Updated <em>linenoise</em> now has support for word forward, word backward</li>
+  <li>Updated Unicode to 14.0.0</li>
+  <li><code>file normalize</code> - now supported on Windows</li>
+  <li><code>aio copyto</code> - performance improvement for large copies</li>
+  <li>Memory allocator is now replaceable</li>
+  <li><code>info frame</code> is now more Tcl compatible (incompatibility with 0.81)</li>
+  <li>New <code>timerate</code> command for improved benchmarking - largely compatible with <a href="https://core.tcl-lang.org/tips/doc/trunk/tip/527.md">TIP 527</a></li>
+  <li><code>vwait</code> - add support for <code>-signal</code> for improved handling of signals in the event loop</li>
+  <li><code>clock millis</code> and <code>clock micros</code> - now use monotonic time if possible (not affected by system time changes)</li>
+  <li><code>ensemble</code> and <code>namespace ensemble</code> simplify creation of ensemble commands</li>
+</ul>
+
+<p><strong>Possible incompatibilities in version 0.82</strong></p>
+
+<ul>
+  <li>New approach to <code>oo</code> constructor means some existing code may need to be altered</li>
+  <li><code>info frame</code> now returns a dict rather than a list and can access non-proc frames. <code>stacktrace</code> will
+continue to work and should be preferred when retrieving a live stack trace</li>
+  <li>New ABI version means that compiled extensions will need to be rebuilt to work with this version</li>
+  <li><code>configure</code> now defaults to <code>--full</code></li>
+</ul>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/jim-release-0-82/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-82/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

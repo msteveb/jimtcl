@@ -1,0 +1,362 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Object Oriented</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_documentation_oo" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">Documentation</a>
+                ≫
+            
+                <a href="./">Object Oriented</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <h1 id="object-oriented-support-for-jim-tcl">Object Oriented Support for Jim Tcl</h1>
+
+<h2 id="overview">OVERVIEW</h2>
+
+<p>The pure-Tcl oo package leverages Jim’s unique strengths
+to provide support for Object Oriented programming.</p>
+
+<p>The oo package can be statically linked with Jim or installed
+as a separate Tcl package and loaded with:</p>
+
+<pre class="sh_tcl">package require oo
+</pre>
+
+<h2 id="declaring-classes">DECLARING CLASSES</h2>
+
+<p>A class is declared with the <code>class</code> proc as follows.</p>
+
+<pre class="sh_tcl">class myclass ?baseclasses? classvars
+</pre>
+
+<p>This declares a class named <code>myclass</code> with the given dictionary,
+<code>classvars</code>, providing the initial state of all new objects.
+It is important to list all class variables in <code>classvars</code>, even
+if initialised only to the empty string, since the class makes
+these variables available in methods and via <code>[myclass vars]</code>.</p>
+
+<p>A list of zero or more base classes may also be specified from
+which methods and class variables are imported. See INHERITANCE
+below for more details.</p>
+
+<p>Declaring a class creates a procedure with the class name along
+with some related procedures. For example:</p>
+
+<pre class="sh_tcl">. class Account {balance 0}
+Account
+. info procs Account*
+{Account get} {Account methods} {Account eval} Account {Account new} {Account destroy}
+{Account vars} {Account classname} {Account classvars} {Account method}
+</pre>
+
+<p>Notice that apart from the main <code>Account</code> procedure, all the remaining procedures (methods)
+are prefixed with <code>Account</code> and a space.</p>
+
+<h2 id="predefined-class-methods">PREDEFINED CLASS METHODS</h2>
+
+<p>Declaring a class pre-defines a number of “class” methods. i.e. those which don’t
+require an object and simply return or manipulate properties of the class. These are:</p>
+
+<dl>
+  <dt><strong>new</strong> ?instancevars?</dt>
+  <dd>Creates and returns new object, optionally overriding the default class variable values.
+Note that the class name is an alias for <code>classname new {}</code> and can be used as a shorthand
+for creating new objects with default values.</dd>
+</dl>
+<dl>
+  <dt><strong>method</strong> name arglist body</dt>
+  <dd>Creates or redefines a method for the class with the given name, argument list and body.</dd>
+</dl>
+<dl>
+  <dt><strong>methods</strong></dt>
+  <dd>Returns a list of the methods supported by this class, including both class methods
+and instance methods. Also includes base class methods.</dd>
+</dl>
+<dl>
+  <dt><strong>vars</strong></dt>
+  <dd>Returns a list of the class variables for this class (names
+only). Also includes base class variables.</dd>
+</dl>
+<dl>
+  <dt><strong>classvars</strong></dt>
+  <dd>Returns a dictionary the class variables, including initial values, for this class.
+Also includes base class variables.</dd>
+</dl>
+<dl>
+  <dt><strong>classname</strong></dt>
+  <dd>Returns the classname. This can be useful as [$self classname].</dd>
+</dl>
+
+<p>Class methods may be invoked either via the class name or via an object of the class.
+For example:</p>
+
+<pre class="sh_tcl">. class Account {balance 0}
+Account
+. Account methods
+classname classvars destroy eval get method methods new vars
+. set a [Account]
+&lt;reference.&lt;Account&gt;.00000000000000000001&gt;
+. $a methods
+classname classvars destroy eval get method methods new vars
+</pre>
+
+<h2 id="predefined-object-methods">PREDEFINED OBJECT METHODS</h2>
+
+<p>Declaring a class pre-defines a number of “object” methods. i.e. those which operate
+on a specific object.</p>
+
+<dl>
+  <dt><strong>destroy</strong></dt>
+  <dd>Destroys the object. This method may be overridden, but note that it should
+delete the object with {rename $self “”}. This method will also be called
+if the object is reaped during garbage collection.</dd>
+</dl>
+<dl>
+  <dt><strong>get</strong> varname</dt>
+  <dd>Returns the value of the given instance variable.</dd>
+</dl>
+<dl>
+  <dt><strong>eval</strong> ?locals? body</dt>
+  <dd>Makes any given local variables available to the body, along with
+the instance variables, and evaluate the body in that context.
+This can be used for one-off evaluation to avoid declaring a method.</dd>
+</dl>
+
+<h2 id="creating-objects">CREATING OBJECTS</h2>
+
+<p>An object is created with the <code>new</code> method, or simply by using the classname shortcut.
+If the <code>new</code> method is used, the variables for the newly created object (instance variables)
+may be initialised. Otherwise they are set to the default values specified when the
+class was declared.</p>
+
+<p>For example:</p>
+
+<pre class="sh_tcl">. class Account {balance 0}
+Account
+. set a [Account]
+&lt;reference.&lt;Account&gt;.00000000000000000001&gt;
+. set b [Account new {balance 1000}]
+&lt;reference.&lt;Account&gt;.00000000000000000002&gt;
+. $a get balance
+0
+. $b get balance
+1000
+</pre>
+
+<h2 id="declaring-methods">DECLARING METHODS</h2>
+
+<p>In addition to the predefined methods, new methods may be declared, or existing
+methods redefined with the class method, method.</p>
+
+<p>Declaring a method is very similar to defining a proc, and the arglist
+has identical syntax. For example:</p>
+
+<pre class="sh_tcl">. Account method show {{chan stdout}} { $chan puts "Balance of account is $balance" }
+. $b show
+Balance of account is 1000
+</pre>
+
+<p>All instance variables are available within the method and any
+changes to these variables are maintained by the object.</p>
+
+<p>In addition, the $self variables is defined and refers to the current object.
+This may be used to invoke further methods on the object. For example:</p>
+
+<pre class="sh_tcl">. Account method show {} { puts "Balance of account is [$self get balance]" }
+. $b show
+Balance of account is 1000
+</pre>
+
+<p>Notes:</p>
+
+<ul>
+  <li>It is a bad idea to unset an instance variable.</li>
+  <li>In general, you should avoid redefining any of the pre-defined methods, except for <code>destroy</code>.</li>
+  <li>When accessing the caller’s scope with upvar or uplevel, note that there
+are two frame levels between the caller and the method. Thus it is necessary
+to use <code>upvar 2</code> or <code>uplevel 2</code></li>
+</ul>
+
+<h2 id="inheritance">INHERITANCE</h2>
+
+<p>For each base class given in a new class declaration, the methods
+and variables of those classes are imported into the new class being
+defined. Base classes are imported in left to right order, so that if a
+method is defined in more than one base class, the later definition
+is selected. This applies similarly to class variables.</p>
+
+<p>Within a method, <code>super</code> may be used to explicitly invoke a
+base class method on the object. This applies only to the <em>last</em>
+base class given. For example:</p>
+
+<pre class="sh_tcl"># Assumes the existence of classes Account and Client
+. Account method debit {amount} { incr balance -$amount }
+. class CreditAccount {Client Account} {type visa}
+CreditAccount
+. CreditAccount method debit {amount} {
+  puts "Debit $type card"
+  super debit $amount
+}
+. set a [CreditAccount]
+&lt;reference.&lt;Account&gt;.00000000000000000001&gt;
+. $a debit 20
+Debit visa card
+. $a balance
+-20
+</pre>
+
+<p>In the CreditAccount debit method, the call to <code>super debit</code> invokes
+the method <code>Account debit</code> since Account is the last base class listed.</p>
+
+<h2 id="object-lifetimegarbage-collection">OBJECT LIFETIME/GARBAGE COLLECTION</h2>
+
+<p>Objects are implemented as lambdas. That is, they are procedures with state
+and are named as references. This means that when an object is no longer
+reachable by any name and garbage collection runs, the object will be
+discarded and the destructor will be invoked. Note that the garbage collector
+can be invoked manually with <code>collect</code> if required.</p>
+
+<pre class="sh_tcl">. class Account {}
+Account
+. Account method destroy {} { puts dying...; rename $self "" }
+Account destroy
+. proc a {} { set b [Account]; return "" }
+a
+. a
+. collect
+dying...
+1
+</pre>
+
+<h2 id="class-methodsclass-static-variables">CLASS METHODS/CLASS STATIC VARIABLES</h2>
+
+<p>All methods defined with <code>method</code> operate on objects (instances).
+If a class method is required, it is possible to simply declare one with <code>proc</code>.
+The method dispatcher will automatically be able to dispatch to this method.
+Using this approach, it is also possible to add class static variables by
+defining static variables to the proc. Although strictly these variables
+are accessible only to that proc, not the class as a whole.</p>
+
+<p>For example:</p>
+
+<pre class="sh_tcl">. class Account {}
+Account
+. proc {Account nextid} {} {{id 0}} { incr id }
+Account nextid
+. Account nextid
+1
+. Account nextid
+2
+. set a [Account]
+&lt;reference.&lt;Account&gt;.00000000000000000001&gt;
+. $a nextid
+3
+. $a eval { $self nextid }
+4
+</pre>
+
+<h2 id="how-method-dispatch-works">HOW METHOD DISPATCH WORKS</h2>
+
+<p>All class and object methods are name “classname methodname”.</p>
+
+<p>The class method dispatcher is named “classname”. When invoked with a methodname,
+it simply invokes the method “classname methodname”.</p>
+
+<p>The method dispatch is via a two step process. Firstly the object procedure is invoked
+with the method name. This procedure then invokes “classname method” which sets up
+the appropriate access to the object variables, and then invokes the method body.</p>
+
+<h2 id="examples">EXAMPLES</h2>
+
+<h3 id="treetclhttpsgithubcommstevebjimtclblobmastertreetcl"><a href="https://github.com/msteveb/jimtcl/blob/master/tree.tcl">tree.tcl</a></h3>
+
+<p>The <code>tree</code> package is implemented using the <code>oo</code> package.
+See the source code in tree.tcl and a usage example in tests/tree.test</p>
+
+<p>Of particular note is how callbacks and recursive invocation is used in the <code>walk</code> method.</p>
+
+<h3 id="examplesootesttclhttpsgithubcommstevebjimtclblobmasterexamplesootesttcl"><a href="https://github.com/msteveb/jimtcl/blob/master/examples/ootest.tcl">examples/ootest.tcl</a></h3>
+
+<p>A comprehensive OO example is provided in examples/ootest.tcl.</p>
+
+<p>It can be run simply as:</p>
+
+<pre class="sh_unix">$ ./jimsh examples/ootest.tcl
+</pre>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

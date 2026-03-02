@@ -1,0 +1,397 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Metakit</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_documentation_metakit" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">Documentation</a>
+                ≫
+            
+                <a href="./">Metakit</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <h1 id="metakit-extension-for-jim-tcl">Metakit Extension for Jim Tcl</h1>
+
+<h2 id="overview">OVERVIEW</h2>
+<p>The mk extension provides an interface to the Metakit small-footprint
+embeddable database library (<a href="http://equi4.com/metakit/">http://equi4.com/metakit/</a>). The underlying
+library is efficient at manipulating not-so-large amounts of data and takes a
+different approach to composing database operations than common SQL-based
+relational databases.</p>
+
+<p>Both the Metakit core library and the mk package can be linked either
+statically or dynamically and loaded using</p>
+
+<pre><code>package require mk
+</code></pre>
+
+<h2 id="creating-a-database">CREATING A DATABASE</h2>
+<p>A database (called a “storage” in Metakit terms) may either reside totally in
+memory or be backed by a file. To open or create a database, call the
+<code>storage</code> command with an optional filename parameter:</p>
+
+<pre><code>set db [storage test.mk]
+</code></pre>
+
+<p>The returned handle can be used as a command name to access the database. When
+you are done, execute the <code>close</code> method, that is, run</p>
+
+<pre><code>$db close
+</code></pre>
+
+<p>A lost handle won’t be found by GC but will be closed when the interpreter
+exits. Note that by default Metakit will only record changes to the database
+when you close the handle. Use the <code>commit</code> method to record the current
+state of the database to disk.</p>
+
+<h2 id="creating-views">CREATING VIEWS</h2>
+<p><em>Views</em> in Metakit are what is called “tables” in conventional databases. A view
+may several typed <em>properties</em>, or columns, and contains homogenous <em>rows</em>, or
+records. New properties may be added to a view as needed; however, new properties
+are not stored in the database file by default. The structure method specifies
+the stored properties of a view, creating a new view or restructuring an old one
+as needed:</p>
+
+<pre><code>$db structure viewName description
+</code></pre>
+
+<p>The view description must be a list of form <code>{propName type propName type ...}</code>.
+The supported property types include:</p>
+
+<dl>
+  <dt><code>string</code></dt>
+  <dd>A NULL-terminated string, stored as an array of bytes (without any encoding
+assumptions).</dd>
+  <dt><code>binary</code></dt>
+  <dd><strong>Not yet supported by the <code>mk</code> extension.</strong>
+Blob of binary data that may contain embedded NULLs (zero bytes). Stored
+as-is. This is more efficient than <code>string</code> when storing large blocks of
+data (e.g. images) and will adjust the storage strategy as needed.</dd>
+  <dt><code>integer</code></dt>
+  <dd>A signed integer value occupying a maximum of 32 bits. If all values
+stored in a column can fit in a smaller range (16, 8, or even 4 or 2 bits),
+they are packed automatically.</dd>
+  <dt><code>long</code></dt>
+  <dd>Like <code>integer</code>, but is required to fit into 64 bits.</dd>
+  <dt><code>float</code> and <code>double</code></dt>
+  <dd>32-bit and 64-bit IEEE floating-point values respectively.</dd>
+  <dt><code>subview</code></dt>
+  <dd>This type is not usually specified directly; instead, a structure
+description of a nested view is given. <code>subview</code> properties store complete
+views as their value, creating hierarchical data structures. When retrieved
+from a view, a value of a subview property is a normal view handle.</dd>
+</dl>
+
+<p>Without a <code>description</code> parameter, the <code>structure</code> method returns the current
+structure of the named view; without any parameters, it returns a dictionary
+containing structure descriptions of all views stored in the database.</p>
+
+<p>After specifying the properties you expect to see in the view, call</p>
+
+<pre><code>[$db view $viewName] as viewHandle
+</code></pre>
+
+<p>to obtain a view handle. These handles are also commands, but are
+garbage-collected and also destroy themselves after a single method call; the
+<code>as viewHandle</code> call assigns the view handle to the specified variable and also
+tells the view not to destroy itself until all the references to it are gone.</p>
+
+<p>View handles may also be made permanent by giving them a global command name,
+e.g.</p>
+
+<pre><code>rename [$db view data] .db.data
+</code></pre>
+
+<p>However, such view handles are not managed automatically at all and must be
+destroyed using the <code>destroy</code> method, or by renaming them to <code>""</code>.</p>
+
+<h2 id="manipulating-data">MANIPULATING DATA</h2>
+<p>The value of a particular property is obtained using</p>
+
+<pre><code>cursor get $cur propName
+</code></pre>
+
+<p>where <code>$cur</code> is a string of form <code>viewHandle!index</code>. Row indices are zero-based
+and may also be specified relative to the last row of the view using the
+<code>end[+-]integer</code> notation.</p>
+
+<p>A dictionary containing all property name and value pairs can be retrieved by
+omitting the <code>propName</code> argument:</p>
+
+<pre><code>cursor get $cur
+</code></pre>
+
+<p>Setting property values is also performed either individually, using</p>
+
+<pre><code>cursor set $cur propName value ?propName value ...?
+</code></pre>
+
+<p>or via a dictionary with</p>
+
+<pre><code>cursor set $cur dictValue
+</code></pre>
+
+<p>In the first form of the command, property names may also be preceded by a
+-<em>typeName</em> option. In this case, a new property of the specified type will be
+created if it doesn’t already exist; note that this will cause <em>all</em> the rows
+in the view to have the property (but see <strong>A NOTE ON NULL</strong> below).</p>
+
+<p>If the row index points after the end of the view, an appropriate number of
+fresh rows will be inserted first. So, for example, you can use <code>end+1</code>
+to append a new row. (Note that you then have to set it all at once, though.)</p>
+
+<p>The total number of rows can be obtained using</p>
+
+<pre><code>$viewHandle size
+</code></pre>
+
+<p>and set manually with</p>
+
+<pre><code>$viewHandle resize newSize
+</code></pre>
+
+<p>For example, you can use <code>$viewHandle resize 0</code> to clear a view.</p>
+
+<h2 id="insert-and-remove">INSERT AND REMOVE</h2>
+<p>New rows may also be inserted at an arbitrary position in a view with</p>
+
+<pre><code>cursor insert $cur ?count?
+</code></pre>
+
+<p>This will insert <em>count</em> fresh rows into the view so that <em>$cur</em> points to
+the first one. The inverse of this operation is</p>
+
+<pre><code>cursor remove $cur ?count?
+</code></pre>
+
+<h2 id="composing-views">COMPOSING VIEWS</h2>
+<p>The real power of Metakit lies in the way existing views are combined to create
+new ones to obtain a particular perspective on the stored data. A single
+operation takes one or more views and possibly additional options and produces a
+new view, usually tracking notifications to the underlying views and sometimes
+even supporting modification.</p>
+
+<p>Binary operations are left-biased when there are conflicting property values;
+that is, they always prefer the values from the left view.</p>
+
+<h3 id="unary-operations">Unary operations</h3>
+
+<dl>
+  <dt><em>view</em> <code>unique</code></dt>
+  <dd>Derived view with duplicate rows removed.</dd>
+  <dt><em>view</em> <code>sort</code> <em>crit ?crit …?</em></dt>
+  <dd>Derived view sorted on the specified criteria, in order. A single <em>crit</em>
+is either a property name or a property name preceded by a dash; the latter
+specifies that the sorting is to be performed in reverse order.</dd>
+</dl>
+
+<h3 id="binary-operations">Binary operations</h3>
+
+<p>The operations taking <em>set</em> arguments require that the given views have no
+duplicate rows. The <code>unique</code> method can be used to ensure this.</p>
+
+<dl>
+  <dt><em>view1</em> <code>concat</code> <em>view2</em></dt>
+  <dd>Vertical concatenation; that is, all the rows of <em>view1</em> and then all rows
+of <em>view2</em>.</dd>
+  <dt><em>view1</em> <code>pair</code> <em>view2</em></dt>
+  <dd>Pairing, or horizontal concatenation: every row in <em>view1</em> is matched with
+a row with the same index in <em>view2</em>; the result has all the properties of
+<em>view1</em> and all the properties of <em>view2</em>.</dd>
+  <dt><em>view1</em> <code>product</code> <em>view2</em></dt>
+  <dd>Cartesian product: each row in <em>view1</em> horizontally concatenated with every
+row in <em>view2</em>.</dd>
+  <dt><em>set1</em> <code>union</code> <em>set2</em></dt>
+  <dd>Set union. Unlike <code>concat</code>, this operation removes duplicates from the
+result. A row is in the result if it is in <em>set1</em> <strong>or</strong> in <em>set2</em>.</dd>
+  <dt><em>set1</em> <code>intersect</code> <em>set2</em></dt>
+  <dd>Set intersection. A row is in the result if it is in <em>set1</em> <strong>and</strong> in
+<em>set2</em>.</dd>
+  <dt><em>set1</em> <code>different</code> <em>set2</em></dt>
+  <dd>Symmetric difference. A row is in the result if it is in <em>set1</em> <strong>xor</strong> in
+<em>set2</em>, that is, in <em>set1</em> or in <em>set2</em>, but not in both.</dd>
+  <dt><em>set1</em> <code>minus</code> <em>set2</em></dt>
+  <dd>Set minus. A row is in the result if it is in <em>set1</em> <strong>and not</strong> in <em>set2</em>.</dd>
+</dl>
+
+<h3 id="relational-operations">Relational operations</h3>
+
+<dl>
+  <dt><em>view1</em> <code>join</code> <em>view2</em> ?<code>-outer</code>? <em>prop ?prop …?</em></dt>
+  <dd>Relational join on the specified properties: the rows from <em>view1</em> and
+<em>view2</em> with all the specified properties equal are concatenated to form a
+new row. If the <code>-outer</code> option is specified, the rows from <em>view1</em> that do
+not have a corresponding one in <em>view2</em> are also left in the view, with the
+properties existing only in <em>view2</em> filled with default values.</dd>
+  <dt><em>view</em> <code>group</code> <em>subviewName prop ?prop …?</em></dt>
+  <dd>Groups the rows with all the specified properties equal; moves all the
+remaining properties into a newly created subview property called
+<em>subviewName</em>.</dd>
+  <dt><em>view</em> <code>flatten</code> <em>subviewProp</em></dt>
+  <dd>The inverse of <code>group</code>.</dd>
+</dl>
+
+<h3 id="projections-and-selections">Projections and selections</h3>
+
+<dl>
+  <dt><em>view</em> <code>project</code> <em>prop ?prop …?</em></dt>
+  <dd>Projection: a derived view with only the specified properties left.</dd>
+  <dt><em>view</em> <code>without</code> <em>prop ?prop …?</em></dt>
+  <dd>The opposite of <code>project</code>: a derived view with the specified properties
+removed.</dd>
+</dl>
+
+<p><em>view</em> <code>range</code> <em>start end ?step?</em>
+    A slice or a segment of <em>view</em>: rows at <em>start</em>, <em>start+step</em>, and so on,
+    until the row number becomes larger than <em>end</em>. The usual <code>end[+-]integer</code>
+    notation is supported, but the indices don’t change if the underlying view
+    is resized.</p>
+
+<p><strong>(!) select etc. should go here</strong></p>
+
+<h3 id="search-and-storage-optimization">Search and storage optimization</h3>
+
+<dl>
+  <dt><em>view</em> <code>blocked</code></dt>
+  <dd>Invokes an optimization designed for storing large amounts of data. <em>view</em>
+must have a single subview property called <code>_B</code> with the desired structure
+inside. This additional level of indirection is used by <code>blocked</code> to create
+a view that looks like a usual one, but can store much more data
+efficiently. As a result, indexing into the view becomes a bit slower. Once
+this method is invoked, all access to <em>view</em> must go through the returned
+view.</dd>
+  <dt><em>view</em> <code>ordered</code> <em>prop ?prop …?</em></dt>
+  <dd>Does not transform the structure of the view in any way, but signals that
+the view should be considered ordered on a unique key consisting of the
+specified properties, enabling some optimizations. Note that duplicate keys
+are not allowed in an ordered view.</dd>
+</dl>
+
+<p><strong>(!) TODO: hash, indexed(?) – these make no sense until searches are implemented</strong></p>
+
+<h3 id="pipelines">Pipelines</h3>
+
+<p>Because constructs like <code>[[view op1 ...] op2 ...] op3 ...</code> tend to be common in
+programs using Metakit, a shorthand syntax is introduced: such expressions may
+also be written as <code>view op1 ... | op2 ... | op3 ...</code>.</p>
+
+<p>Note though that this syntax is not in any way magically wired into the
+interpreter: it is understood only by the view handles and the two commands that
+can possibly return a view: <code>$db view</code> and <code>cursor get</code>. If you want to support
+this syntax in Tcl procedures, you’ll need to do this yourself, or you may want
+to create a custom view method and have the view handle work out the syntax for
+you (see <strong>USER-DEFINED METHODS</strong> below).</p>
+
+<h2 id="other-view-methods">OTHER VIEW METHODS</h2>
+
+<dl>
+  <dt><em>view</em> <code>copy</code></dt>
+  <dd>Creates a copy of view with the same data.</dd>
+  <dt><em>view</em> <code>clone</code></dt>
+  <dd>Creates a view with the same structure, but no data.</dd>
+  <dt><em>view</em> <code>pin</code></dt>
+  <dd>Specifies that the view should not be destroyed after a single method call.
+Returns <em>view</em>.</dd>
+  <dt><em>view</em> <code>as</code> <em>varName</em></dt>
+  <dd>In addition to the actions performed by <code>pin</code>, assigns the view handle to
+the variable named varName in the caller’s scope.</dd>
+  <dt><em>view</em> <code>properties</code></dt>
+  <dd>Returns the names of all properties in the view.</dd>
+  <dt><em>view</em> <code>type</code> <em>prop</em></dt>
+  <dd>Returns the type of the specified property.</dd>
+</dl>
+
+<h2 id="a-note-on-null">A NOTE ON NULL</h2>
+<p>Note that Metakit does not have a special <code>NULL</code> value like conventional
+relational databases do. Instead, it defines <em>default</em> property values: <code>""</code> for
+<code>string</code> and <code>binary</code> types, <code>0</code> for all numeric types and a view with no rows
+for subviews. These defaults are used when a fresh row is inserted and when
+a new property is added to the view to fill in the missing values.</p>
+
+<h2 id="user-defined-methods">USER-DEFINED METHODS</h2>
+<p>The storage and view handles support custom methods defined in Tcl: to define
+<em>methodName</em> on every storage or view handle, create a procedure called
+{<code>mk.storage</code> <em>methodName</em>} or {<code>mk.view</code> <em>methodName</em>} respectively. These
+procedures will receive the handle as the first argument and all the remaining
+arguments. Remember to <code>pin</code> the view handle in view methods if you call more
+than one method of it!</p>
+
+<p>Custom <code>cursor</code> subcommands may also be defined by creating a procedure called
+{<code>cursor</code> <em>methodName</em>}. These receive all the arguments without any
+modifications.</p>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Jim Tcl version 0.76</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_jim-release-0-76" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Jim Tcl version 0.76</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Saturday, 31 January 2015</p>
+            <h2 class="news">Jim Tcl version 0.76</h2>
+        
+        <h2 id="announce-jim-tcl-version-076">ANNOUNCE: Jim Tcl version 0.76</h2>
+
+<p>Jim Tcl 0.76 has been released and is available from:</p>
+
+<p><a href="http://repo.or.cz/w/jimtcl.git">http://repo.or.cz/w/jimtcl.git</a> or <a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
+
+<p>Find out all about Jim Tcl at <a href="http://jim.tcl.tk/">http://jim.tcl.tk/</a></p>
+
+<h2 id="changes-since-version-075">CHANGES SINCE VERSION 0.75</h2>
+
+<p>This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.</p>
+
+<p>Thanks to everyone who contributed to this release.</p>
+
+<p><strong>Bugs fixed in version 0.76</strong></p>
+
+<ul>
+  <li><code>file</code> - fix stat file size for large files</li>
+  <li><code>array</code> - avoid crash on unset variable</li>
+  <li><code>exec</code>, file` - set umask before mkstemp</li>
+  <li><code>file copy</code> - use binary mode when reading and writing files (Windows)</li>
+  <li><code>glob</code> - work when intermediate dirs are not readable, and other fixes</li>
+  <li>aio - fix conflict between onexception and writable</li>
+  <li><code>namespace</code> - restore namespace import support</li>
+  <li><code>alias</code> - don’t rely on internal list never shimmering</li>
+  <li>Fix various minor problems reported by <a href="http://www.coverity.com">coverity</a></li>
+  <li>Fix <code>info nameofexecutable</code> after <code>cd</code></li>
+</ul>
+
+<p><strong>Features added in version 0.76</strong></p>
+
+<ul>
+  <li><code>exec</code>, file - respect $TMPDIR</li>
+  <li><code>aio</code> - optional argument addrvar for accept.</li>
+  <li><code>string</code> - implement <code>string cat</code> (<a href="http://www.tcl.tk/cgi-bin/tct/tip/429.html">TIP #429</a>)</li>
+  <li><code>file</code> - add support for <code>file link</code></li>
+  <li><code>info</code> - add support for <code>info source ?filename line?</code></li>
+  <li>Better script validation (e.g. missing trailing brackets)</li>
+  <li>Install tcltest compatibility package</li>
+</ul>
+
+<p><strong>Compatiblity</strong></p>
+
+<ul>
+  <li>Some invalid scripts will now throw an error rather than silently executing</li>
+  <li><code>glob</code> is more Tcl-compatible with respect to <code>-directory</code> and <code>-tails</code>, so may affect some scripts</li>
+  <li>The output of errorInfo has changed from <code>"Runtime Error: &lt;file&gt;:&lt;line&gt;: ..."</code> to <code>"&lt;file&gt;:&lt;line&gt;: Error: ..."</code></li>
+</ul>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/jim-release-0-76/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-76/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

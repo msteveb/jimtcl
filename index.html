@@ -1,0 +1,125 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - The Jim Interpreter</title>
+        <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="css/sh_style.css" media="screen">
+        
+            <link rel="alternate" type="application/rss+xml" title="News" href="feed.xml">
+        
+        <script src="javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_index" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+            <a id="rss" title="News RSS Feed" href="feed.xml"><img src="img/rssicon.png"></a>
+        
+        
+            
+                <a href="./">The Jim Interpreter</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <h2 id="introduction">Introduction</h2>
+
+<p>Jim is an <strong>opensource</strong> small-footprint implementation of the
+<a href="http://wiki.tcl.tk">Tcl</a> programming language. It implements a
+large subset of Tcl and adds new features like <em>references</em> with
+garbage collection, closures, built-in Object Oriented Programming
+system, Functional Programming commands, first-class arrays and
+UTF-8 support. All this with a binary size of about <strong>100-200kB</strong>
+(depending upon selected options).</p>
+
+<p>The Jim core is very stable. Jim passes over 3000 unit tests
+and many Tcl programs run unmodified. Jim is highly modular
+with the possiblity to configure many components as loadable modules,
+or omitted entirely. A number of <a href="extensions/">extensions</a> are
+included with Jim which may be built as loadable modules.</p>
+
+<p>Jim cross compiles easily and is in use in many embedded environments.
+It runs under many operating systems, including Linux, FreeBSD, QNX, eCos,
+Windows (cygwin and mingw32).</p>
+
+<p>Jim has built-in <a href="https://github.com/msteveb/linenoise">command line editing</a>
+for the interactive shell, <strong>jimsh</strong>.</p>
+
+<h2 id="goals">Goals</h2>
+<p>Jim’s goal is to provide a powerful language implemented in
+roughly 10k lines of code. Jim is designed to be easily embedded
+in applications as a scripting language or configuration file syntax
+without depending on external libraries or other big systems.</p>
+
+<p>We believe scripting is a very interesting feature for many
+applications, but developers are often not encouraged to link the
+application to a big external system.  Jim tries to address this
+problem by providing a very simple to understand and small footprint
+implementation of a language that is ideal for scripting, and at
+the same time is powerful and scalable.</p>
+
+<p>Jim is also designed for deployment on <strong>Embedded Systems</strong>. It is
+easy to cross compile, written in portable ANSI-C, and is very small
+both in both binary size and memory requirements.</p>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><span class="active">Introduction</span></li>
+            
+                
+                <li class="stdlink"><a href="news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

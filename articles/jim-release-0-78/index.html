@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Jim Tcl version 0.78</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_jim-release-0-78" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Jim Tcl version 0.78</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Sunday, 01 July 2018</p>
+            <h2 class="news">Jim Tcl version 0.78</h2>
+        
+        <h2 id="announce-jim-tcl-version-078">ANNOUNCE: Jim Tcl version 0.78</h2>
+
+<p>Jim Tcl 0.78 has been released and is available from:</p>
+
+<p><a href="http://repo.or.cz/w/jimtcl.git">http://repo.or.cz/w/jimtcl.git</a> or <a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
+
+<p>Find out all about Jim Tcl at <a href="http://jim.tcl.tk/">http://jim.tcl.tk/</a></p>
+
+<h2 id="changes-since-version-077">CHANGES SINCE VERSION 0.77</h2>
+
+<p>This release contains some bug fixes plus a number of additional features.
+A summary is below. See git for the full changelog.</p>
+
+<p>Thanks to everyone who contributed to this release.</p>
+
+<p><strong>Bugs fixed in version 0.78</strong></p>
+
+<ul>
+  <li><code>local</code> - Fix crash when local command is deleted</li>
+  <li><code>history</code> - When creating ~/.jim_history, set permissions to 0600 for security</li>
+  <li><code>exec</code> - Fix windows exec with empty or unset env</li>
+  <li><code>exec</code> - Fix check for <code>|</code> and <code>|&amp;</code></li>
+  <li>jim.c - Fix Object leak in zlib support</li>
+  <li><code>signal</code> - Restore default signal handling on interp exit</li>
+  <li><code>dict</code> - Fix [dict values] with duplicate values</li>
+  <li>Fix ‘/’ command, divide by zero</li>
+  <li><code>expr</code> - Replace expression engine to fix a number of problems</li>
+  <li><code>zlib</code> - Various fixes</li>
+  <li><code>lsort -unique</code> - Fix case with no duplicates</li>
+  <li><code>aio tempname</code> - Fix a crash when the template is invalid</li>
+  <li>Tcl compatibility - Error on extra characters after close brace</li>
+  <li>eventloop - Return from callback is not an error</li>
+  <li><code>oo</code> - Fix <code>methods</code> for superclasses</li>
+  <li>Various refcount and edge case fixes found by fuzz testing</li>
+</ul>
+
+<p><strong>Features added in version 0.78</strong></p>
+
+<ul>
+  <li>Add support for utf-8 wide characters</li>
+  <li><code>aio</code> - Add <code>tty</code> for termios settings</li>
+  <li><code>aio</code> - Add <code>sockopt</code> for <code>broadcast</code>, <code>tcp_nodelay</code>, etc.</li>
+  <li>utf-8 - Update UnicodeData.txt to 9.0.0</li>
+  <li>jimsh - Add support for <code>jimsh -</code></li>
+  <li>jimsh - Scriptable command-line completion support via <code>tcl::autocomplete</code></li>
+  <li><code>history</code> - Add autocompletion support <code>history completion &lt;cmd&gt;</code></li>
+  <li>Add support for <code>-commands</code> to many commands</li>
+  <li>Add pkg-config support - <code>jimtcl.pc</code></li>
+  <li><code>clock</code> - Add <code>-gmt</code> option to <code>format</code> and <code>scan</code></li>
+  <li><code>tree</code> - Allow nodes to be deleted</li>
+  <li><code>defer</code>, <code>$jim::defer</code> - Allow scripts to run on proc exit</li>
+  <li>eventloop - Support sub-millisecond timer resolution</li>
+  <li>Support <code>lambda</code> even if references are disabled</li>
+  <li>Performance - Improve a number of common cases through caching</li>
+  <li><code>signal</code>, <code>exec</code>, <code>wait</code>, <code>pid</code>, <code>pipe</code> - Many improvements</li>
+  <li>build - Support <code>--silent-rules</code>, and enable by default</li>
+  <li><code>regexp</code> - Implement class shorthand escapes in brackets</li>
+  <li>linenoise (<code>jimsh</code>) - Add ^Z (SUSP) support</li>
+  <li>linenoise (<code>jismh</code>) - Update to support multiline mode</li>
+</ul>
+
+<p><strong>Other changes</strong></p>
+
+<ul>
+  <li><code>signal</code> - Remove the signal command from child interpreters</li>
+  <li><code>os.wait</code> is now <code>wait</code></li>
+  <li><code>aio ssl</code> now upgrades the current channel rather than creating a new channel</li>
+  <li>Update autosetup to v0.6.8</li>
+</ul>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/jim-release-0-78/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-78/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

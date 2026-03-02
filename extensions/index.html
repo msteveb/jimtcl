@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Extensions</title>
+        <link rel="stylesheet" type="text/css" href="../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../css/sh_style.css" media="screen">
+        
+        <script src="../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_extensions" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="./">Extensions</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+        <div>
+<!-- vim: syntax=markdown:
+-->
+</div>
+
+<h1 id="extensions-available">Extensions available</h1>
+<p>The following is a list of extensions available inside the Jim
+core distribution. Note that any pure-Tcl extension may be compiled
+statically into the core while most C extensions may be compiled
+either statically or as loadable modules.</p>
+
+<dl>
+  <dt><strong>aio</strong></dt>
+  <dd>ANSI I/O, including open and socket</dd>
+  <dd>
+    <p>This core extension provides an object-based interfaces to file and socket I/O.
+In addition to regular file I/O it support UDP, IPv6 and Unix domain sockets on
+supported systems. Combined with the <strong>tclcompat</strong> extension, it provides
+Tcl-compatible I/O.</p>
+  </dd>
+</dl>
+<dl>
+  <dt><strong>tclcompat</strong></dt>
+  <dd>Tcl compatible read, gets, puts, parray, case, try, …</dd>
+  <dd>
+    <p>A pure-Tcl extension which provides maximum Tcl compatibility</p>
+  </dd>
+</dl>
+<dl>
+  <dt><strong>eventloop</strong></dt>
+  <dd>after, vwait, update, fileevent</dd>
+  <dd>
+    <p>This extension provides a Tcl-compatible event loop.</p>
+  </dd>
+</dl>
+<dl>
+  <dt><strong>array</strong></dt>
+  <dd>Tcl-compatible array command</dd>
+</dl>
+<dl>
+  <dt><strong>clock</strong></dt>
+  <dd>Tcl-compatible clock command</dd>
+</dl>
+<dl>
+  <dt><strong>exec</strong></dt>
+  <dd>Tcl-compatible exec command</dd>
+</dl>
+<dl>
+  <dt><strong>file</strong></dt>
+  <dd>Tcl-compatible file command</dd>
+</dl>
+<dl>
+  <dt><strong>glob</strong></dt>
+  <dd>Tcl-compatible glob command</dd>
+</dl>
+<dl>
+  <dt><strong>package</strong></dt>
+  <dd>Package management with the package command</dd>
+</dl>
+<dl>
+  <dt><strong>load</strong></dt>
+  <dd>Load binary extensions at runtime</dd>
+</dl>
+<dl>
+  <dt><strong>posix</strong></dt>
+  <dd>Posix APIs including os.fork, os.wait, pid</dd>
+</dl>
+<dl>
+  <dt><strong>regexp</strong></dt>
+  <dd>Tcl-compatible regexp, regsub commands</dd>
+  <dd>
+    <p>Either the system-supplied POSIX regex (for minimal size)
+or the Jim-supplied regex (for maximum compatibility) may be selected.</p>
+  </dd>
+</dl>
+<dl>
+  <dt><strong>signal</strong></dt>
+  <dd>POSIX Signal handling</dd>
+</dl>
+<dl>
+  <dt><strong>syslog</strong></dt>
+  <dd>POSIX System logging with syslog</dd>
+</dl>
+<dl>
+  <dt><strong>oo</strong></dt>
+  <dd>Jim OO extension</dd>
+  <dd>
+    <p>A pure-Tcl extension to provide Object-Oriented support. See <a href="../documentation/oo/">OO Extension</a>
+for more information.</p>
+  </dd>
+  <dt><strong>tree</strong></dt>
+  <dd>Pure-Tcl OO tree structure, similar to tcllib ::struct::tree</dd>
+</dl>
+<dl>
+  <dt><strong>readline</strong>, <strong>rlprompt</strong></dt>
+  <dd>Interface to libreadline (deprecated in favour of the built-in line editing)</dd>
+</dl>
+<dl>
+  <dt><strong>sqlite3</strong></dt>
+  <dd>Interface to <a href="http://www.sqlite.org">sqlite</a>.
+See <a href="../documentation/sqlite/">Sqlite Extension</a> for more information.</dd>
+</dl>
+<dl>
+  <dt><strong>metakit</strong></dt>
+  <dd>Interface to <a href="http://equi4.com/metakit/">metakit</a>.
+See <a href="../documentation/metakit/">Metakit Extension</a> for more information.</dd>
+</dl>
+<dl>
+  <dt><strong>sdl</strong></dt>
+  <dd>SDL bindings for 2D graphics, with SDL_Glx primitives.</dd>
+  <dd>
+    <p>Currently experimental, but some GLX primitive are supported.
+This is an example script:</p>
+  </dd>
+  <dd>
+    <pre class="sh_tcl"> package require sdl
+   
+ set xres 200
+ set yres 200
+ set s [sdl.screen $xres $yres]
+   
+ set i 0
+ while 1 {
+     set x1 [rand $xres]
+     set y1 [rand $yres]
+     set x2 [rand $xres]
+     set y2 [rand $yres]
+     set rad [rand 40]
+     set r [rand 256]
+     set g [rand 256]
+     set b [rand 256]
+     $s fcircle $x1 $y1 $rad $r $g $b 100
+     incr i
+     if {$i &gt; 2000} {$s flip}
+     if {$i == 3000} exit
+ } </pre>
+  </dd>
+  <dd>
+    <p><img src="../img/jim-sdl-screenshot.png" alt="Jim-SDL screenshot"></p>
+  </dd>
+  <dt><strong>win32</strong></dt>
+  <dd>Experimental interface to win32</dd>
+  <dd>
+    <pre class="sh_tcl">. info commands win32.*
+win32.GetVersion win32.GetModuleFileName
+win32.GetUserName win32.GetActiveWindow
+win32.GetCursor win32.FreeLibrary
+win32.SetCursor win32.LoadLibrary
+win32.GetCursorPos  win32.GetCursorInfo
+win32.ShellExecute win32.GetComputerName
+win32.GetModuleHandle win32.SetCursorPos
+win32.CloseWindow win32.GetSystemTime
+win32.GetTickCount win32.SetActiveWindow
+win32.Beep win32.FindWindow win32.CreateWindow
+win32.SetForegroundWindow win32.SetComputerName
+win32.LoadCursor </pre>
+  </dd>
+</dl>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><span class="active">Extensions</span></li>
+            
+                
+                <li class="stdlink"><a href="../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

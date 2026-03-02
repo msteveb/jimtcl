@@ -1,0 +1,237 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - SDL2 - Jim Tcl sdl extension update</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_sdl2-support" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">SDL2 - Jim Tcl sdl extension update</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Saturday, 02 January 2021</p>
+            <h2 class="news">SDL2 - Jim Tcl sdl extension update</h2>
+        
+        <p>Since the early days of Jim Tcl, the included <a href="https://www.libsdl.org">sdl</a> extension
+has provided an example of how to integrate an external library as
+a Jim Tcl extension.</p>
+
+<p>However this extension had not been updated for some time, and did not support
+the newer SDL2 API.</p>
+
+<p>Now the sdl extension has been updated to support both SDL and SDL2, and
+also includes some additional features.</p>
+
+<h2 id="building-the-extension">Building the extension</h2>
+
+<p>configure uses pkg-config to find the required libraries, so be sure to have SDL2_gfx
+(and optionally SDL2_ttf) installed where pkg-config can find them.</p>
+
+<pre class="sh_unix">$ pkg-config --modversion SDL2_gfx
+1.0.2
+</pre>
+
+<p>Build the sdl extension as a module by specifying it at configure time.</p>
+
+<pre class="sh_unix">$ ./configure --full --with-mod=sdl
+...
+Checking for SDL2_gfx ...1.0.2
+Checking for SDL2_ttf ...2.0.15
+Extension sdl...module
+...
+$ make
+...
+	CC	jim-sdl.o
+	LDSO	sdl.so
+...
+</pre>
+
+<h2 id="testing-the-extension">Testing the extension</h2>
+
+<p>Some test scripts are available in the examples/ directory.</p>
+
+<pre class="sh_unix">$ ./jimsh examples/sdltest.tcl
+</pre>
+
+<p><img src="../../img/sdltest-mac.png" alt="Jim-SDL sdltest"></p>
+
+<pre class="sh_unix">$ ./jimsh examples/sdlevents.tcl
+</pre>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/KAqQpL7w5fU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe>
+
+<h2 id="using-the-extension">Using the extension</h2>
+
+<p>Create a window (sdl screen) with the <code>sdl.screen</code> command</p>
+
+<pre class="sh_tcl">. package require sdl
+1.0
+. set s [sdl.screen 640 480 "Window Title"]
+::sdl.surface4
+</pre>
+
+<p>The returned handle provides a number of subcommands. Help is available for each subcommand.</p>
+
+<pre class="sh_tcl">. $s -commands
+free flip poll clear pixel circle aacircle fcircle rectangle box line aaline font text
+. $s -help fcircle
+Usage: ::sdl.surface4 fcircle x y radius red green blue ?alpha?
+. $s fcircle 100 100 30 200 0 0
+. $s flip
+</pre>
+
+<p>Colours in SDL use separate red, green and blue components. These are specified
+as integers from 0 to 255. Similarly, the alpha (opacity) is specified from 0 (transparent)
+to 255 (opaque).</p>
+
+<p>The image commands are as follows:</p>
+
+<ul>
+  <li><code>clear</code> - clear the entire window to the given colour</li>
+  <li><code>pixel</code> - draw a single pixel</li>
+  <li><code>circle</code> - draw a circle (outline)</li>
+  <li><code>aacircle</code> - draw a circle (outline) with antialiasing</li>
+  <li><code>fcircle</code> - draw a filled circle</li>
+  <li><code>rectangle</code> - draw a rectangle (outline)</li>
+  <li><code>box</code> - draw a filled rectangle</li>
+  <li><code>line</code> - draw a line</li>
+  <li><code>aaline</code> - draw a line with antialiasing</li>
+</ul>
+
+<p>If the SDL2_ttf package is available, basic text support is also provided.</p>
+
+<ul>
+  <li><code>font</code> - load a TrueType font from a file with the given point size</li>
+  <li><code>text</code> - draw text with the currently loaded font</li>
+</ul>
+
+<p>Some notes on text:</p>
+
+<ul>
+  <li>Only one font may be loaded at a time</li>
+  <li>The specified font may not support all unicode glyphs.</li>
+  <li>To display utf-8 text, Jim Tcl must have been built with –utf8</li>
+</ul>
+
+<p>There are several non-drawing commands.</p>
+
+<ul>
+  <li><code>free</code> - close the window and free the handle (the same as: <code>rename $s ""</code>)</li>
+  <li><code>flip</code> - update the window to match graphics changes, then clear the background buffer and poll for events</li>
+  <li><code>poll</code> - update the window to match graphics changes, then poll for events</li>
+</ul>
+
+<p>Note that the graphics window is double (or triple) buffered. This means that any
+graphics changes are not displayed until <code>flip</code> or <code>poll</code> is used.
+In general, you should display an entire frame and then call <code>flip</code>.</p>
+
+<p>In order to keep the SDL window responsive, it is necessary to pump the SDL event loop.
+Both <code>flip</code> and <code>poll</code> can be used for this. Currently the only SDL event that is recognised is the SDL_QUIT event.
+When this event occurs, <code>flip</code> and <code>poll</code> return JIM_EXIT. By default, this will exit the interpreter.</p>
+
+<p>A typical script that simply displays a single image will look like:</p>
+
+<pre class="sh_tcl">... draw the SDL image ...
+
+$s poll { sleep 0.25 }
+</pre>
+
+<p>This will run the SDL event loop and then eval the given script.
+If SDL_QUIT is ever received, the script will exit.</p>
+
+<p>See <code>examples/sdlevents.tcl</code> for an example of how to integrate the SDL event loop
+with the Jim Tcl event loop.</p>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/sdl2-support/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/sdl2-support/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Jim Tcl - Bootstrap jimsh</title>
+        <link rel="stylesheet" type="text/css" href="../../css/style.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="../../css/sh_style.css" media="screen">
+        
+        <script src="../../javascript/sh_main.min.js" type="text/javascript"></script>
+        <script src="../../javascript/sh_lang.js" type="text/javascript"></script>
+        
+            <script type="text/javascript">
+                var _gaq = _gaq || [];
+                _gaq.push(['_setAccount', 'UA-23178588-2']);
+                _gaq.push(['_trackPageview']);
+
+                (function() {
+                var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+                var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+                })();
+            </script>
+        
+        <meta name="generator" content="Nanoc 4.12.7">
+    </head>
+    <body id="_articles_bootstrap-jimsh" class="default">
+    <div id="header">
+        <h1 id="blog-title">The Jim Interpreter</h1>
+        <p id="description">A small footprint implementation of the Tcl programming language</p>
+    </div>
+    <div id="content">
+        <div class="breadcrumbs">
+        
+        
+            
+                <a href="../../">The Jim Interpreter</a>
+                ≫
+            
+                <a href="../">All News Articles</a>
+                ≫
+            
+                <a href="./">Bootstrap jimsh</a>
+                
+            
+        
+        </div>
+        <div class="main" id="main">
+        
+            <p class="articledate">Thursday, 09 June 2011</p>
+            <h2 class="news">Bootstrap jimsh</h2>
+        
+        <p>The Jim interpreter is small, portable and full-featured. This makes
+<code>jimsh</code> an ideal tool to bootstrap a development system that
+requires an interpreter.</p>
+
+<p>Consider the case of a development configuration system such as
+<a href="http://www.gnu.org/software/autoconf/">GNU autotools</a>.  Here it
+is necessary to run fairly complex scripts that invoke external
+programs (such as the compiler) and perform intensive string
+processing. The autotools solution uses a combination of <a href="http://en.wikipedia.org/wiki/Bourne_shell">Bourne
+Shell</a>, the <a href="http://www.gnu.org/software/m4/">m4 Macro
+Processor</a> and various external
+tools such as <code>sed</code>. Since this needs to work across a wide range
+of systems, even those with buggy shells or external tools, many
+contortions are required.  The resulting system is
+<a href="http://freshmeat.net/articles/stop-the-autoconf-insanity-why-we-need-a-new-build-system">slow, cumbersome and complex</a>.</p>
+
+<p>Now consider the different approach taken by
+<a href="http://msteveb.github.com/autosetup/">autosetup</a>.  Here a scripting
+language is used that has excellent support for string processing,
+data structures (arrays/dicts and lists) and running external
+programs — Tcl. The only problem is bootstrap. What if the target
+system doesn’t have a suitable Tcl interpreter available?  The
+solution is a bootstrap version of Jim Tcl is included in the
+distribution as a <strong>single source file</strong> and simply requires a C compiler
+to create the interpreter.  In fact, autosetup automatically
+determines if no suitable and interpreter is available and seamlessly
+builds and runs the bootstrap interpreter.</p>
+
+<pre class="sh_unix">$ ./configure 
+No installed jimsh or tclsh, building local bootstrap jimsh0
+Host System...x86_64-apple-darwin10.7.0
+Build System...x86_64-apple-darwin10.7.0
+C compiler...ccache cc -g -O2
+C++ compiler...ccache c++ -g -O2
+Checking for stdlib.h...ok
+...
+</pre>
+
+<p>A script to create the bootstrap interpreter source is included in the
+<a href="https://github.com/msteveb/jimtcl/blob/master/make-bootstrap-jim">jimtcl git repository</a></p>
+
+<pre class="sh_unix">$ sh make-bootstrap-jim &gt;jimsh0.c
+$ time cc -o jimsh0 jimsh0.c
+real   0m1.339s
+user   0m1.121s
+sys    0m0.109s
+$ ./jimsh0
+Welcome to Jim version 0.71
+. 
+</pre>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+        
+            <hr id="#comments">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+	var disqus_shortname = 'jimtcl';
+	var disqus_identifier = '/articles/bootstrap-jimsh/';
+	
+	var disqus_url = 'http://jim.tcl.tk/index.html/doc/www/www/articles/bootstrap-jimsh/';
+	(function() {
+		var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+		dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+		(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	})();
+</script>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        
+        </div>
+    </div>
+    <div id="sidebar">
+        <h2>About Jim Tcl</h2>
+        <ul id="mainmenu">
+            
+                
+                <li class="stdlink"><a href="../../">Introduction</a></li>
+            
+                
+                <li class="stdlink"><a href="../../news/">News</a></li>
+            
+                
+                <li class="stdlink"><a href="../../download/">Download</a></li>
+            
+                
+                <li class="stdlink"><a href="../../documentation/">Documentation</a></li>
+            
+                
+                <li class="stdlink"><a href="../../extensions/">Extensions</a></li>
+            
+                
+                <li class="stdlink"><a href="../../license/">License</a></li>
+            
+                
+                <li class="stdlink"><a href="../../about/">About</a></li>
+            
+        </ul>
+        <h2>Community</h2>
+        <ul>
+            <li><a href="https://github.com/msteveb/jimtcl/discussions">Discussions @ github</a></li>
+            <li><a href="https://github.com/msteveb/jimtcl">Jim @ github</a></li>
+            <li><a href="http://jim.tcl.tk/fossil/timeline/">Jim in fossil</a></li>
+            <li><a href="http://wiki.tcl.tk/jim">Jim @ the Tcler's Wiki</a></li>
+        </ul>
+    </div>
+    <script language="javascript">sh_highlightDocument();</script>
+    
+
+</body></html>
