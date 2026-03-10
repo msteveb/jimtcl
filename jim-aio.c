@@ -176,7 +176,6 @@ typedef struct {
     int (*reader)(struct AioFile *af, char *buf, int len, int pending);
     int (*error)(const struct AioFile *af);
     const char *(*strerror)(struct AioFile *af);
-    int (*verify)(struct AioFile *af);
 } JimAioFopsType;
 
 typedef struct AioFile
@@ -260,7 +259,6 @@ static const JimAioFopsType stdio_fops = {
     stdio_reader,
     stdio_error,
     stdio_strerror,
-    NULL, /* verify */
 };
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -318,29 +316,11 @@ static const char *ssl_strerror(struct AioFile *af)
     }
 }
 
-static int ssl_verify(struct AioFile *af)
-{
-    X509 *cert;
-
-    cert = SSL_get_peer_certificate(af->ssl);
-    if (!cert) {
-        return JIM_ERR;
-    }
-    X509_free(cert);
-
-    if (SSL_get_verify_result(af->ssl) == X509_V_OK) {
-        return JIM_OK;
-    }
-
-    return JIM_ERR;
-}
-
 static const JimAioFopsType ssl_fops = {
     ssl_writer,
     ssl_reader,
     ssl_error,
     ssl_strerror,
-    ssl_verify,
 };
 #endif /* JIM_BOOTSTRAP */
 
@@ -2023,18 +2003,28 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     int ret;
+    X509 *cert;
 
-    if (!af->fops->verify) {
+    if (!af->ssl) {
         return JIM_OK;
     }
 
-    ret = af->fops->verify(af);
-    if (ret != JIM_OK) {
+    cert = SSL_get_peer_certificate(af->ssl);
+    if (!cert) {
         if (JimCheckStreamError(interp, af) == JIM_OK) {
             Jim_SetResultString(interp, "failed to verify the connection authenticity", -1);
         }
+        return JIM_ERR;
     }
-    return ret;
+    X509_free(cert);
+
+    ret = SSL_get_verify_result(af->ssl);
+    if (ret == X509_V_OK) {
+        return JIM_OK;
+    }
+
+    Jim_SetResultFormatted(interp, "ssl certificate verify error: %s", X509_verify_cert_error_string(ret));
+    return JIM_ERR;
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -2684,7 +2674,7 @@ static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink)
  * mode is used for open or fdopen.
  *
  * Creates the command and sets the name as the current result.
- * Returns the AioFile pointer on sucess or NULL on failure (only if fdopen fails).
+ * Returns the AioFile pointer on success or NULL on failure (only if fdopen fails).
  */
 static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, int flags)
