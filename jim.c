@@ -4220,6 +4220,11 @@ static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Ob
                     }
                     else {
                         initObjPtr = Jim_GetVariable(interp, nameObjPtr, JIM_NONE);
+                        if (!initObjPtr) {
+                            Jim_SetResultFormatted(interp, "Could not resolve upvar \"%#s\"'s value", nameObjPtr);
+                            Jim_DecrRefCount(interp, nameObjPtr);
+                            return JIM_ERR;
+                        }
                     }
                     break;
 
