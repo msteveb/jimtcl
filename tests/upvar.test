@@ -323,7 +323,14 @@ test upvar-9.4 {upvar links to static} jim {
     proc p2 {} {{a 3}} { list [p1] $a }
     p2
 } {4 4}
-test upvar-9.5 {upvar via global namespace} {
+test upvar-9.5 {upvar when uninitialized caught in static} jim {
+    proc p1 {} {
+        upvar doesNotExist x
+        proc p2 {} {x} {}
+    }
+    list [catch p1 msg] $msg
+} {1 {Could not resolve upvar "x"'s value}}
+test upvar-9.6 {upvar via global namespace} {
     set x 2
     unset -nocomplain y
     # Links ::y to ::x
@@ -332,7 +339,7 @@ test upvar-9.5 {upvar via global namespace} {
     list $x $y
 } {1 1}
 
-test upvar-9.6 {upvar via global namespace} {
+test upvar-9.7 {upvar via global namespace} {
     set x 2
     unset -nocomplain x
     # Links ::x to ::x
@@ -340,7 +347,7 @@ test upvar-9.6 {upvar via global namespace} {
     list [catch p1 msg] $msg
 } {1 {can't upvar from variable to itself}}
 
-test upvar-9.7 {upvar to higher level} {
+test upvar-9.8 {upvar to higher level} {
     proc p1 {} { upvar 0 x ::globx }
     list [catch p1 msg] $msg
 } {1 {bad variable name "::globx": upvar won't create namespace variable that refers to procedure variable}}
