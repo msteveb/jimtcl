@@ -193,6 +193,9 @@ test string-4.18 {string first, negative index} {
 test string-4.19 {string first, not found} {
     string first a bcd
 } -1
+test string-4.20 {string first, out of range} {
+    string first abc abc 1000000
+} -1
 
 test string-5.1 {string index} {
     list [catch {string index} msg]

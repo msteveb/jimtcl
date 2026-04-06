@@ -195,6 +195,9 @@ test lreplace-4.13 {lreplace empty list} {
 test lreplace-4.14 {lreplace empty list} {
     lreplace {} 2 2 2
 } 2
+test lreplace-4.15 {lreplace integer overflow} -body {
+    lreplace {} 3000000001 3000000000
+} -returnCodes error -result {bad index "3000000001": must be intexpr or end?[+-]intexpr?}
 
 test lreplace-5.1 {compiled lreplace: Bug 47ac84309b} {
     apply {x {

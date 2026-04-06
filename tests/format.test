@@ -274,6 +274,9 @@ test format-7.2 {various syntax features} {
 test format-7.3 {various syntax features} {
     format "\*\t\\n"
 } {*	\n}
+test format-7.4 {integer overflow} {
+    format %.40000000000000000000s 0
+} 0
 
 test format-8.1 {error conditions} {
     catch format
