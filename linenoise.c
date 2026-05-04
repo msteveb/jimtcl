@@ -1575,6 +1575,12 @@ static int getWindowSize(struct current *current)
 
     if (current->cols == 0) {
         int here;
+        const char *linenoise_cols = getenv("LINENOISE_COLS");
+        if (linenoise_cols) {
+            /* Just trust what we are given for testing */
+            current->cols = atoi(linenoise_cols);
+            return 0;
+        }
 
         /* If anything fails => default 80 */
         current->cols = 80;
@@ -1971,7 +1977,7 @@ static void refreshStartChars(struct current *current)
 static void refreshNewline(struct current *current)
 {
     DRL("<nl>");
-    outputChars(current, "\n", 1);
+    outputChars(current, "\r\n", 2);
 }
 
 static void refreshEndChars(struct current *current)
@@ -2127,7 +2133,7 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
             notecursor = 1;
         }
 
-        if (displaycol + width >= current->cols) {
+        if (displaycol + width >= current->cols - 3) {
             if (mlmode == 0) {
                 /* In single line mode stop once we print as much as we can on one line */
                 DRL("<slmode>");
@@ -2620,7 +2626,7 @@ static int linenoiseEdit(struct current *current) {
             current->pos = sb_chars(current->buf);
             if (mlmode || hintsCallback) {
                 showhints = 0;
-                refreshLine(current);
+                refreshLineAlt(current, current->prompt, sb_str(current->buf), 0);
                 showhints = 1;
             }
             return sb_len(current->buf);
