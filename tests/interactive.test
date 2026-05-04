@@ -116,10 +116,11 @@ test interactive-1.6 {insert wide character} -constraints {utf8 lineedit} -body 
 	wait-for-prompt $p
 }
 
-test interactive-1.7 {insert utf-8 combining character} -constraints {utf8 lineedit} -body {
-	$p send "set x x\u0300"
-	# now arrow left twice over the combining char and "x" and insert another char
-	$p send \x1bOD
+test interactive-1.7 {insert utf-8 character with variation selector} -constraints {utf8 lineedit} -body {
+    # A red heart
+	$p send "set x x\u2764\ufe0f"
+	# now arrow left over the red heart and insert another char. it should not break
+	# the red heart
 	$p send \x1bOD
 	$p send y
 	$p send \r
@@ -127,7 +128,7 @@ test interactive-1.7 {insert utf-8 combining character} -constraints {utf8 linee
 	sleep 0.25
 	$p expect "\r\n"
 	$p before
-} -result yx\u0300 -cleanup {
+} -result xy\u2764\ufe0f -cleanup {
 	wait-for-prompt $p
 }
 
