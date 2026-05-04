@@ -76,19 +76,6 @@ int utf8_strlen(const char *str, int bytelen)
     return charlen;
 }
 
-int utf8_strwidth(const char *str, int charlen)
-{
-    int width = 0;
-    while (charlen) {
-        int c;
-        int l = utf8_tounicode(str, &c);
-        width += utf8_width(c);
-        str += l;
-        charlen--;
-    }
-    return width;
-}
-
 int utf8_index(const char *str, int index)
 {
     const char *s = str;
@@ -195,30 +182,6 @@ static int utf8_map_case(const struct casemap *mapping, int num, int ch)
     return ch;
 }
 
-static int cmp_range(const void *key, const void *cm)
-{
-    const struct utf8range *range = (const struct utf8range *)cm;
-    unsigned ch = *(unsigned *)key;
-    if (ch < range->lower) {
-        return -1;
-    }
-    if (ch > range->upper) {
-        return 1;
-    }
-    return 0;
-}
-
-static int utf8_in_range(const struct utf8range *range, int num, int ch)
-{
-    const struct utf8range *r =
-        bsearch(&ch, range, num, sizeof(*range), cmp_range);
-
-    if (r) {
-        return 1;
-    }
-    return 0;
-}
-
 int utf8_upper(int ch)
 {
     if (isascii(ch)) {
@@ -244,19 +207,6 @@ int utf8_title(int ch)
         }
     }
     return utf8_upper(ch);
-}
-
-int utf8_width(int ch)
-{
-    if (!isascii(ch)) {
-        if (utf8_in_range(unicode_range_combining, ARRAYSIZE(unicode_range_combining), ch)) {
-            return 0;
-        }
-        if (utf8_in_range(unicode_range_wide, ARRAYSIZE(unicode_range_wide), ch)) {
-            return 2;
-        }
-    }
-    return 1;
 }
 
 #endif /* JIM_BOOTSTRAP */
