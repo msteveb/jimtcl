@@ -1,10 +1,490 @@
+#line 1 "utf8.h"
+#ifndef UTF8_UTIL_H
+#define UTF8_UTIL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * UTF-8 utility functions
+ *
+ * (c) 2010-2019 Steve Bennett <steveb@workware.net.au>
+ *
+ * See utf8.c for licence details.
+ */
+
+#ifndef USE_UTF8
+#include <ctype.h>
+
+#define MAX_UTF8_LEN 1
+
+/* No utf-8 support. 1 byte = 1 char */
+#define utf8_charcount(S, B) ((B) < 0 ? (int)strlen(S) : (B))
+#define utf8_strwidth(S, B) utf8_strlen((S), (B))
+#define utf8_tounicode(S, CP) (*(CP) = (unsigned char)*(S), 1)
+#define utf8_index(C, I) (I)
+#define utf8_dispwidth(C) 1
+#define utf8_str_dispwidth(S) (int)strlen(S)
+#define utf8_char_bytes(S, B) 1
+#define utf8_inspect(S, CP, DW) (*(CP) = (unsigned char)*(S), *(DW) = 1, 1)
+
+#else
+
+/* Note that below the term "character" is used to refer to a grapheme cluster,
+ * which may consist of multiple unicode code points.
+ * The term "codepoint" refers to a single unicode codepoint
+ * that may have a byte length of 1 or more
+ */
+
+#define MAX_UTF8_LEN 4
+
+/* If you don't want to use the amalgamation, define UTF8_STATIC to empty
+ * to make these functions non-static and put them in a separate .c file.
+ */
+#ifndef UTF8_STATIC
+#define UTF8_STATIC static
+#endif
+
+/**
+ * Converts the given unicode codepoint (0 - 0x1fffff) to utf-8
+ * and stores the result at 'p'.
+ *
+ * Returns the number of bytes used to store the codepoint.
+ */
+UTF8_STATIC int utf8_fromunicode(char p[MAX_UTF8_LEN], unsigned uc);
+
+/**
+ * Returns the unicode codepoint corresponding to the
+ * utf-8 sequence 'str'.
+ *
+ * Stores the result in *uc and returns the number of bytes
+ * consumed.
+ *
+ * If 'str' is null terminated, then an invalid utf-8 sequence
+ * at the end of the string will be returned as individual bytes.
+ *
+ * If it is not null terminated, the length *must* be checked first.
+ *
+ * Does not support unicode code points > \u1fffff
+ */
+UTF8_STATIC int utf8_tounicode(const char *str, int *uc);
+
+/**
+ * Returns the byte length of the utf-8 sequence starting with byte 'c'.
+ *
+ * Returns 1-4, or -1 if this is not a valid start byte.
+ */
+UTF8_STATIC int utf8_bytelen(int c);
+
+/**
+ * Returns the number of characters in the string of the given byte length.
+ * If bytelen is -1, the string is assumed to be null terminated.
+ *
+ * Any bytes which are not part of an valid utf-8
+ * sequence are treated as individual characters.
+ *
+ * Does not support unicode code points > \u1fffff
+ */
+UTF8_STATIC int utf8_charcount(const char *str, int bytelen);
+
+/**
+ * Returns the display width of the given unicode codepoint.
+ * This is 1 for normal letters and 0 for combining codepoints and 2 for wide codepoints.
+ *
+ * In general, use utf8_str_dispwidth() instead of this function as
+ * by itself it does not take into account combining characters,
+ * which may be part of a grapheme cluster.
+ */
+UTF8_STATIC int utf8_dispwidth(int cp);
+
+/**
+ * Calculates the display width of the null terminates string, 'str'.
+ */
+UTF8_STATIC int utf8_str_dispwidth(const char *str);
+
+/**
+ * Returns the byte index of the given character in the utf-8 string
+ * of the given length.
+ *
+ * This will return the byte length of a utf-8 string
+ * if given the char length.
+ */
+UTF8_STATIC int utf8_index(const char *str, int charindex);
+
+/**
+ * Returns the number of bytes used to represent the first character at 'str'
+ * of length 'len' bytes. (len < 0 means null-terminated string)
+ *
+ * A character is a utf-8 encoded base codepoint followed by any number of combining characters,
+ * and possibly ZJW-joined characters.
+ *
+ * If the first character isn't valid UTF-8, it will be treated as a single byte character.
+ */
+UTF8_STATIC int utf8_char_bytes(const char *str, int len);
+
+/**
+ * Like utf8_char_bytes(), but also returns the codepoint in *c and the display width of the character
+ * in *dispwidth.
+ */
+UTF8_STATIC int utf8_inspect(const char *str, int *c, int *dispwidth);
+
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+#line 1 "utf8.c"
+/**
+ * UTF-8 utility functions
+ *
+ * (c) 2010-2026 Steve Bennett <steveb@workware.net.au>
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <assert.h>
+#ifndef UTF8_UTIL_H
+#include "utf8.h"
+#endif
+
+#ifdef USE_UTF8
+UTF8_STATIC int utf8_fromunicode(char *p, unsigned uc)
+{
+    if (uc <= 0x7f) {
+        *p = uc;
+        return 1;
+    }
+    else if (uc <= 0x7ff) {
+        *p++ = 0xc0 | ((uc & 0x7c0) >> 6);
+        *p = 0x80 | (uc & 0x3f);
+        return 2;
+    }
+    else if (uc <= 0xffff) {
+        *p++ = 0xe0 | ((uc & 0xf000) >> 12);
+        *p++ = 0x80 | ((uc & 0xfc0) >> 6);
+        *p = 0x80 | (uc & 0x3f);
+        return 3;
+    }
+    /* Note: We silently truncate to 21 bits here: 0x1fffff */
+    else {
+        *p++ = 0xf0 | ((uc & 0x1c0000) >> 18);
+        *p++ = 0x80 | ((uc & 0x3f000) >> 12);
+        *p++ = 0x80 | ((uc & 0xfc0) >> 6);
+        *p = 0x80 | (uc & 0x3f);
+        return 4;
+    }
+}
+
+UTF8_STATIC int utf8_bytelen(int c)
+{
+    if ((c & 0x80) == 0) {
+        return 1;
+    }
+    if ((c & 0xe0) == 0xc0) {
+        return 2;
+    }
+    if ((c & 0xf0) == 0xe0) {
+        return 3;
+    }
+    if ((c & 0xf8) == 0xf0) {
+        return 4;
+    }
+    /* Invalid sequence */
+    return -1;
+}
+
+UTF8_STATIC int utf8_charcount(const char *str, int bytelen)
+{
+    int chars = 0;
+    if (bytelen < 0) {
+        bytelen = strlen(str);
+    }
+    while (bytelen > 0) {
+        int n = utf8_char_bytes(str, bytelen);
+        if (n > bytelen) {
+            /* This is an invalid sequence, so consume what is remaining */
+            n = bytelen;
+        }
+        bytelen -= n;
+        str += n;
+        chars++;
+    }
+    return chars;
+}
+
+UTF8_STATIC int utf8_index(const char *str, int index)
+{
+    const char *s = str;
+    while (index--) {
+        s += utf8_char_bytes(s, -1);
+    }
+    return s - str;
+}
+
+UTF8_STATIC int utf8_tounicode(const char *str, int *uc)
+{
+    unsigned const char *s = (unsigned const char *)str;
+
+    if (s[0] < 0xc0) {
+        *uc = s[0];
+        return 1;
+    }
+    if (s[0] < 0xe0) {
+        if ((s[1] & 0xc0) == 0x80) {
+            *uc = ((s[0] & ~0xc0) << 6) | (s[1] & ~0x80);
+            if (*uc >= 0x80) {
+                return 2;
+            }
+            /* Otherwise this is an invalid sequence */
+        }
+    }
+    else if (s[0] < 0xf0) {
+        if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80)) {
+            *uc = ((s[0] & ~0xe0) << 12) | ((s[1] & ~0x80) << 6) | (s[2] & ~0x80);
+            if (*uc >= 0x800) {
+                return 3;
+            }
+            /* Otherwise this is an invalid sequence */
+        }
+    }
+    else if (s[0] < 0xf8) {
+        if (((str[1] & 0xc0) == 0x80) && ((str[2] & 0xc0) == 0x80) && ((str[3] & 0xc0) == 0x80)) {
+            *uc = ((s[0] & ~0xf0) << 18) | ((s[1] & ~0x80) << 12) | ((s[2] & ~0x80) << 6) | (s[3] & ~0x80);
+            if (*uc >= 0x10000) {
+                return 4;
+            }
+            /* Otherwise this is an invalid sequence */
+        }
+    }
+
+    /* Invalid sequence, so just return the byte */
+    *uc = *s;
+    return 1;
+}
+
+UTF8_STATIC int utf8_inspect(const char *str, int *c, int *dispwidth)
+{
+    int n = utf8_tounicode(str, c);
+    /* Should this be utf8_str_dispwidth(str, n) instead? */
+    *dispwidth = utf8_dispwidth(*c);
+    return utf8_char_bytes(str, n);
+}
+
+UTF8_STATIC int utf8_str_dispwidth(const char *str)
+{
+    int width = 0;
+    while (*str) {
+        int w;
+        int c;
+        int n = utf8_inspect(str, &c, &w);
+        width += w;
+        str += n;
+    }
+    return width;
+}
+
+/* Note: The following functions were taken largely as-is from
+ * https://github.com/antirez/linenoise.git
+ */
+static int utf8_is_variation_selector(uint32_t cp)
+{
+    return cp == 0xFE0E || cp == 0xFE0F;  /* Text/emoji style */
+}
+
+/* Check if codepoint is a skin tone modifier. */
+static int isSkinToneModifier(uint32_t cp)
+{
+    return cp >= 0x1F3FB && cp <= 0x1F3FF;
+}
+
+/* Check if codepoint is Zero Width Joiner. */
+static int utf8_is_zero_width_joiner(uint32_t cp)
+{
+    return cp == 0x200D;
+}
+
+/* Check if codepoint is a Regional Indicator (for flag emoji). */
+static int utf8_is_regional_indicator(uint32_t cp)
+{
+    return cp >= 0x1F1E6 && cp <= 0x1F1FF;
+}
+
+/* Check if codepoint is a combining mark or other zero-width character. */
+static int utf8_is_combining_mark(uint32_t cp)
+{
+    return (cp >= 0x0300 && cp <= 0x036F) ||   /* Combining Diacriticals */
+           (cp >= 0x1AB0 && cp <= 0x1AFF) ||   /* Combining Diacriticals Extended */
+           (cp >= 0x1DC0 && cp <= 0x1DFF) ||   /* Combining Diacriticals Supplement */
+           (cp >= 0x20D0 && cp <= 0x20FF) ||   /* Combining Diacriticals for Symbols */
+           (cp >= 0xFE20 && cp <= 0xFE2F);     /* Combining Half Marks */
+}
+
+/* Check if codepoint extends the previous character (doesn't start a new grapheme). */
+static int utf8_is_grapheme_extend(uint32_t cp)
+{
+    return utf8_is_variation_selector(cp) || isSkinToneModifier(cp) ||
+           utf8_is_zero_width_joiner(cp) || utf8_is_combining_mark(cp);
+}
+
+/* Note: The following functions are based on code from
+ * https://github.com/antirez/linenoise.git
+ */
+UTF8_STATIC int utf8_char_bytes(const char *str, int len)
+{
+    /* First we get the current character. Then we look ahead
+     * to see if there are any combining characters that follow it, and if so we
+     * treat them as part of the same "character".
+     */
+    int total = 0;
+
+    int c;
+    int n = utf8_tounicode(str, &c);
+    total += n;
+    str += n;
+
+    if (len < 0) {
+        len = strlen(str);
+    }
+    const char *end = str + len;
+    int is_ri = utf8_is_regional_indicator(c);
+
+    /* Consume any extending characters that follow. */
+    while (str < end) {
+        /* Check the next character. */
+        n = utf8_tounicode(str, &c);
+
+        if (utf8_is_zero_width_joiner(c) && str + n < end) {
+            /* ZWJ: include it and the following character. */
+            total += n;
+            str += n;
+            /* Get the character after ZWJ. */
+            n = utf8_tounicode(str, &c);
+            total += n;
+            str += n;
+            continue;  /* Check for more extending after the joined char. */
+        } else if (utf8_is_grapheme_extend(c)) {
+            /* Variation selector, skin tone, combining mark, etc. */
+            total += n;
+            str += n;
+            continue;
+        } else if (is_ri && utf8_is_regional_indicator(c)) {
+            /* Second regional indicator for a flag pair. */
+            total += n;
+            str += n;
+            is_ri = 0;  /* Only pair once. */
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    return total;
+
+}
+
+/* Return the display width of a Unicode codepoint. This is a heuristic
+ * that works for most common cases:
+ * - Control chars and zero-width: 0 columns
+ * - Grapheme-extending chars (VS, skin tone, ZWJ): 0 columns
+ * - ASCII printable: 1 column
+ * - Wide chars (CJK, emoji, fullwidth): 2 columns
+ * - Everything else: 1 column
+ *
+ * This is not a full wcwidth() implementation, but a minimal heuristic
+ * that handles emoji and CJK characters reasonably well. */
+UTF8_STATIC int utf8_dispwidth(int cp)
+{
+    /* Control characters and combining marks: zero width. */
+    if (cp < 32 || (cp >= 0x7F && cp < 0xA0)) {
+        return 0;
+    }
+    if (utf8_is_combining_mark(cp)) {
+        return 0;
+    }
+
+    /* Grapheme-extending characters: zero width.
+     * These modify the preceding character rather than taking space. */
+    if (utf8_is_variation_selector(cp) || utf8_is_combining_mark(cp) || utf8_is_grapheme_extend(cp)) {
+        return 0;
+    }
+
+    /* Wide character ranges - these display as 2 columns:
+     * - CJK Unified Ideographs and Extensions
+     * - Fullwidth forms
+     * - Various emoji ranges */
+    if (cp >= 0x1100 &&
+        (cp <= 0x115F ||                      /* Hangul Jamo */
+         cp == 0x2329 || cp == 0x232A ||      /* Angle brackets */
+         (cp >= 0x231A && cp <= 0x231B) ||    /* Watch, Hourglass */
+         (cp >= 0x23E9 && cp <= 0x23F3) ||    /* Various symbols */
+         (cp >= 0x23F8 && cp <= 0x23FA) ||    /* Various symbols */
+         (cp >= 0x25AA && cp <= 0x25AB) ||    /* Small squares */
+         (cp >= 0x25B6 && cp <= 0x25C0) ||    /* Play/reverse buttons */
+         (cp >= 0x25FB && cp <= 0x25FE) ||    /* Squares */
+         (cp >= 0x2600 && cp <= 0x26FF) ||    /* Misc Symbols (sun, cloud, etc) */
+         (cp >= 0x2700 && cp <= 0x27BF) ||    /* Dingbats (❤, ✂, etc) */
+         (cp >= 0x2934 && cp <= 0x2935) ||    /* Arrows */
+         (cp >= 0x2B05 && cp <= 0x2B07) ||    /* Arrows */
+         (cp >= 0x2B1B && cp <= 0x2B1C) ||    /* Squares */
+         cp == 0x2B50 || cp == 0x2B55 ||      /* Star, circle */
+         (cp >= 0x2E80 && cp <= 0xA4CF &&
+          cp != 0x303F) ||                    /* CJK ... Yi */
+         (cp >= 0xAC00 && cp <= 0xD7A3) ||    /* Hangul Syllables */
+         (cp >= 0xF900 && cp <= 0xFAFF) ||    /* CJK Compatibility Ideographs */
+         (cp >= 0xFE10 && cp <= 0xFE1F) ||    /* Vertical forms */
+         (cp >= 0xFE30 && cp <= 0xFE6F) ||    /* CJK Compatibility Forms */
+         (cp >= 0xFF00 && cp <= 0xFF60) ||    /* Fullwidth Forms */
+         (cp >= 0xFFE0 && cp <= 0xFFE6) ||    /* Fullwidth Signs */
+         (cp >= 0x1F1E6 && cp <= 0x1F1FF) ||  /* Regional Indicators (flags) */
+         (cp >= 0x1F300 && cp <= 0x1F64F) ||  /* Misc Symbols and Emoticons */
+         (cp >= 0x1F680 && cp <= 0x1F6FF) ||  /* Transport and Map Symbols */
+         (cp >= 0x1F900 && cp <= 0x1F9FF) ||  /* Supplemental Symbols */
+         (cp >= 0x1FA00 && cp <= 0x1FAFF) ||  /* Chess, Extended-A */
+         (cp >= 0x20000 && cp <= 0x2FFFF)))   /* CJK Extension B and beyond */
+        return 2;
+
+    return 1; /* Default: single width */
+}
+
+#endif
 #line 1 "stringbuf.h"
 #ifndef STRINGBUF_H
 #define STRINGBUF_H
 /**
- * resizable string buffer
+ * resizable string buffer supporting utf8 "characters" if USE_UTF8 is defined.
  *
- * (c) 2017-2020 Steve Bennett <steveb@workware.net.au>
+ * Note that here "characters" means utf8 graphemes, which may
+ * correspond to more than one codepoint.
+ *
+ * (c) 2017-2026 Steve Bennett <steveb@workware.net.au>
  *
  * See utf8.c for licence details.
  */
@@ -66,13 +546,7 @@ static inline int sb_len(stringbuf *sb) {
  * 
  * Returns 0 for both a NULL buffer and an empty buffer.
  */
-static inline int sb_chars(stringbuf *sb) {
-#ifdef USE_UTF8
-	return sb->chars;
-#else
-	return sb->last;
-#endif
-}
+int sb_chars(stringbuf *sb);
 
 /**
  * Appends a null terminated string to the stringbuf
@@ -82,9 +556,6 @@ void sb_append(stringbuf *sb, const char *str);
 /**
  * Like sb_append() except does not require a null terminated string.
  * The length of 'str' is given as 'len'
- *
- * Note that in utf8 mode, characters will *not* be counted correctly
- * if a partial utf8 sequence is added with sb_append_len()
  */
 void sb_append_len(stringbuf *sb, const char *str, int len);
 
@@ -106,18 +577,39 @@ static inline char *sb_str(const stringbuf *sb)
  * Inserts the given string *before* (zero-based) byte 'index' in the stringbuf.
  * If index is past the end of the buffer, the string is appended,
  * just like sb_append()
+ * len is the length of 'str' in bytes, or -1 to indicate a null terminated string.
+ *
+ * In utf8 mode, be careful to only insert at the start of a char.
  */
-void sb_insert(stringbuf *sb, int index, const char *str);
+void sb_insert_len(stringbuf *sb, int index, const char *str, int len);
 
 /**
- * Delete 'len' bytes in the string at the given index.
+ * Like sb_insert_len() except 'str' is null terminated.
+ */
+#define sb_insert(SB, I, STR) sb_insert_len(SB, I, STR, -1)
+
+/**
+ * Like sb_insert_len() except position is given as a character index instead of a byte index.
+ */
+void sb_insert_chars(stringbuf *sb, int charindex, const char *str, int len);
+
+/**
+ * Delete 'len' bytes in the string at the given byte index.
  *
  * Any bytes past the end of the buffer are ignored.
  * The buffer remains null terminated.
  *
  * If len is -1, deletes to the end of the buffer.
+ *
+ * In utf8 mode, be careful to only delete whole chars.
  */
 void sb_delete(stringbuf *sb, int index, int len);
+
+/**
+ * Like sb_delete(), except position and length are given
+ * as characters instead of bytes.
+ */
+void sb_delete_chars(stringbuf *sb, int charindex, int nchars);
 
 /**
  * Clear to an empty buffer.
@@ -188,6 +680,42 @@ static void sb_realloc(stringbuf *sb, int newlen)
 	sb->remaining = newlen - sb->last;
 }
 
+/* Returns the character count, recalculating it if necessary.
+ */
+#ifdef USE_UTF8
+static int sb_get_charlen(stringbuf *sb)
+{
+	if (sb->chars < 0) {
+		sb->chars = utf8_charcount(sb->data, sb->last);
+	}
+	return sb->chars;
+}
+#endif
+
+/* Mark the char count as invalid so it can be recalculated when needed. */
+static void sb_invalidate_charlen(stringbuf *sb)
+{
+#ifdef USE_UTF8
+	sb->chars = -1;
+#else
+	(void)sb;
+#endif
+}
+
+/**
+ * Returns the utf8 character length of the buffer.
+ *
+ * Returns 0 for both a NULL buffer and an empty buffer.
+ */
+int sb_chars(stringbuf *sb)
+{
+#ifdef USE_UTF8
+	return sb_get_charlen(sb);
+#else
+	return sb->last;
+#endif
+}
+
 void sb_append(stringbuf *sb, const char *str)
 {
 	sb_append_len(sb, str, strlen(str));
@@ -203,9 +731,7 @@ void sb_append_len(stringbuf *sb, const char *str, int len)
 
 	sb->last += len;
 	sb->remaining -= len;
-#ifdef USE_UTF8
-	sb->chars += utf8_strlen(str, len);
-#endif
+	sb_invalidate_charlen(sb);
 }
 
 char *sb_to_string(stringbuf *sb)
@@ -227,7 +753,7 @@ char *sb_to_string(stringbuf *sb)
 /* Moves up all the data at position 'pos' and beyond by 'len' bytes
  * to make room for new data
  *
- * Note: Does *not* update sb->chars
+ * Note: Does *not* recalc char count
  */
 static void sb_insert_space(stringbuf *sb, int pos, int len)
 {
@@ -248,15 +774,13 @@ static void sb_insert_space(stringbuf *sb, int pos, int len)
 /**
  * Move down all the data from pos + len, effectively
  * deleting the data at position 'pos' of length 'len'
+ *
+ * Note: Does *not* recalc char count
  */
 static void sb_delete_space(stringbuf *sb, int pos, int len)
 {
 	assert(pos < sb->last);
 	assert(pos + len <= sb->last);
-
-#ifdef USE_UTF8
-	sb->chars -= utf8_strlen(sb->data + pos, len);
-#endif
 
 	/* Now move it up */
 	memmove(sb->data + pos, sb->data + pos + len, sb->last - pos - len);
@@ -266,21 +790,35 @@ static void sb_delete_space(stringbuf *sb, int pos, int len)
 	sb->data[sb->last] = 0;
 }
 
-void sb_insert(stringbuf *sb, int index, const char *str)
+void sb_insert_len(stringbuf *sb, int index, const char *str, int len)
 {
+	if (len < 0) {
+		len = strlen(str);
+	}
 	if (index >= sb->last) {
 		/* Inserting after the end of the list appends. */
-		sb_append(sb, str);
+		sb_append_len(sb, str, len);
 	}
 	else {
-		int len = strlen(str);
-
 		sb_insert_space(sb, index, len);
 		memcpy(sb->data + index, str, len);
-#ifdef USE_UTF8
-		sb->chars += utf8_strlen(str, len);
-#endif
 	}
+	sb_invalidate_charlen(sb);
+}
+
+/**
+ * Like sb_insert_len() except position is given as a character index instead of a byte index.
+ */
+void sb_insert_chars(stringbuf *sb, int charindex, const char *str, int len)
+{
+	/* Find the byte position of the char index */
+#ifdef USE_UTF8
+	int pos = utf8_index(sb->data, charindex);
+#else
+	int pos = charindex;
+#endif
+	/* And insert the string at that position */
+	sb_insert_len(sb, pos, str, len);
 }
 
 /**
@@ -296,7 +834,25 @@ void sb_delete(stringbuf *sb, int index, int len)
 		}
 
 		sb_delete_space(sb, pos - sb->data, len);
+		sb_invalidate_charlen(sb);
 	}
+}
+
+void sb_delete_chars(stringbuf *sb, int charpos, int nchars)
+{
+#ifdef USE_UTF8
+	if (charpos < sb_get_charlen(sb)) {
+		/* Find the byte position of the char index */
+		int pos = utf8_index(sb->data, charpos);
+		/* Now calculate the byte length of 'nchars' chars at this position */
+		int bytelen = utf8_index(sb->data + pos, nchars);
+		/* And delete them */
+		sb_delete(sb, pos, bytelen);
+	}
+#else
+	/* If we don't have UTF-8 support then just delete the bytes */
+	sb_delete(sb, charpos, nchars);
+#endif
 }
 
 void sb_clear(stringbuf *sb)
@@ -468,8 +1024,8 @@ void sb_clear(stringbuf *sb)
 
 /* ctrl('A') -> 0x01 */
 #define ctrl(C) ((C) - '@')
-/* meta('a') ->  0xe1 */
-#define meta(C) ((C) | 0x80)
+/* meta('a') ->  -0xe1 */
+#define meta(C) -((C) | 0x80)
 
 /* Use -ve numbers here to co-exist with normal unicode chars */
 enum {
@@ -509,9 +1065,9 @@ struct current {
     stringbuf *capture; /* capture buffer, or NULL for none. Always null terminated */
     stringbuf *output;  /* used only during refreshLine() - output accumulator */
 #if defined(USE_TERMIOS)
-    int fd;     /* Terminal fd */
+    int fdin;      /* Terminal input fd */
+    int fdout;     /* Terminal output fd */
     int pending; /* pending char fd_read_char() */
-    int query_cursor_failed; /* if 1, don't try to query the cursor position again */
 #elif defined(USE_WINCONSOLE)
     HANDLE outh; /* Console output handle */
     HANDLE inh; /* Console input handle */
@@ -541,7 +1097,7 @@ static void set_current(struct current *current, const char *str);
 static int fd_isatty(struct current *current)
 {
 #ifdef USE_TERMIOS
-    return isatty(current->fd);
+    return isatty(current->fdin);
 #else
     (void)current;
     return 0;
@@ -649,7 +1205,7 @@ donedigits:
     return parser->state;
 }
 
-/*#define DEBUG_REFRESHLINE*/
+#define DEBUG_REFRESHLINE
 
 #ifdef DEBUG_REFRESHLINE
 #define DRL(ARGS...) fprintf(dfh, ARGS)
@@ -676,10 +1232,22 @@ static void DRL_STR(const char *str)
         DRL_CHAR(ch);
     }
 }
+static void DRL_GLYPH(const char *str)
+{
+    int bytes = utf8_char_bytes(str, -1);
+    while (bytes) {
+        int ch;
+        int n = utf8_tounicode(str, &ch);
+        DRL_CHAR(ch);
+        bytes -= n;
+        str += n;
+    }
+}
 #else
 #define DRL(...)
 #define DRL_CHAR(ch)
 #define DRL_STR(str)
+#define DRL_GLYPH(str)
 #endif
 
 #if defined(USE_WINCONSOLE)
@@ -711,11 +1279,19 @@ static int isUnsupportedTerm(void) {
 static int enableRawMode(struct current *current) {
     struct termios raw;
 
-    current->fd = STDIN_FILENO;
+    current->fdin = STDIN_FILENO;
+    current->fdout = STDOUT_FILENO;
     current->cols = 0;
 
-    if (!isatty(current->fd) || isUnsupportedTerm() ||
-        tcgetattr(current->fd, &orig_termios) == -1) {
+    if (getenv("LINENOISE_ASSUME_TTY")) {
+        /* Set no buffering on stdout */
+        setvbuf(stdout, NULL, _IONBF, 0);
+        rawmode = 2;
+        return 0;
+    }
+
+    if (!isatty(current->fdin) || isUnsupportedTerm() ||
+        tcgetattr(current->fdin, &orig_termios) == -1) {
 fatal:
         errno = ENOTTY;
         return -1;
@@ -741,8 +1317,11 @@ fatal:
      * We want read to return every single byte, without timeout. */
     raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0; /* 1 byte, no timer */
 
-    /* put terminal in raw mode after flushing */
-    if (tcsetattr(current->fd,TCSADRAIN,&raw) < 0) {
+    /* put terminal in raw mode. Because we aren't changing any output
+     * settings we don't need to use TCSADRAIN and I have seen that hang on
+     * OpenBSD when running under a pty
+     */
+    if (tcsetattr(current->fdin,TCSANOW,&raw) < 0) {
         goto fatal;
     }
     rawmode = 1;
@@ -751,14 +1330,16 @@ fatal:
 
 static void disableRawMode(struct current *current) {
     /* Don't even check the return value as it's too late. */
-    if (rawmode && tcsetattr(current->fd,TCSADRAIN,&orig_termios) != -1)
-        rawmode = 0;
+    if (rawmode == 1) {
+        tcsetattr(current->fdin,TCSANOW,&orig_termios);
+    }
+    rawmode = 0;
 }
 
 /* At exit we'll try to fix the terminal to the initial conditions. */
 static void linenoiseAtExit(void) {
-    if (rawmode) {
-        tcsetattr(STDIN_FILENO, TCSADRAIN, &orig_termios);
+    if (rawmode == 1) {
+        tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
     }
     linenoiseHistoryFree();
 }
@@ -781,7 +1362,7 @@ static void outputChars(struct current *current, const char *buf, int len)
         sb_append_len(current->output, buf, len);
     }
     else {
-        IGNORE_RC(write(current->fd, buf, len));
+        IGNORE_RC(write(current->fdout, buf, len));
     }
 }
 
@@ -867,14 +1448,14 @@ static int fd_read_char(struct current *current, int timeout)
         return c;
     }
 
-    p.fd = current->fd;
+    p.fd = current->fdin;
     p.events = POLLIN;
 
     if (poll(&p, 1, timeout) == 0) {
         /* timeout */
         return -1;
     }
-    if (read(current->fd, &c, 1) != 1) {
+    if (read(current->fdin, &c, 1) != 1) {
         return -1;
     }
     return c;
@@ -896,15 +1477,15 @@ static int fd_read(struct current *current)
         buf[0] = current->pending;
         current->pending = 0;
     }
-    else if (read(current->fd, &buf[0], 1) != 1) {
+    else if (read(current->fdin, &buf[0], 1) != 1) {
         return -1;
     }
-    n = utf8_charlen(buf[0]);
+    n = utf8_bytelen(buf[0]);
     if (n < 1) {
         return -1;
     }
     for (i = 1; i < n; i++) {
-        if (read(current->fd, &buf[i], 1) != 1) {
+        if (read(current->fdin, &buf[i], 1) != 1) {
             return -1;
         }
     }
@@ -925,9 +1506,13 @@ static int queryCursor(struct current *current, int* cols)
 {
     struct esc_parser parser;
     int ch;
+    /* Unfortunately we don't have any persistent state, so assume
+     * a process will only ever interact with one terminal at a time.
+     */
+    static int query_cursor_failed;
 
-    if (current->query_cursor_failed) {
-        /* If it every fails, don't try again */
+    if (query_cursor_failed) {
+        /* If it ever fails, don't try again */
         return 0;
     }
 
@@ -957,7 +1542,7 @@ static int queryCursor(struct current *current, int* cols)
         /* failed */
         break;
     }
-    current->query_cursor_failed = 1;
+    query_cursor_failed = 1;
     return 0;
 }
 
@@ -1114,30 +1699,37 @@ static int utf8_getchars(char *buf, int c)
 }
 #endif
 
-/**
- * Returns the unicode character at the given offset,
- * or -1 if none.
+/* Returns the length (in bytes) of the character at the given character position in current->buf,
+ * and stores the byte offset in *offset. If there is no character at that position, returns -1.
+ * and *offset is unchanged.
  */
-static int get_char(struct current *current, int pos)
+static int get_char_offset(struct current *current, int pos, int *offset)
 {
     if (pos >= 0 && pos < sb_chars(current->buf)) {
-        int c;
         int i = utf8_index(sb_str(current->buf), pos);
-        (void)utf8_tounicode(sb_str(current->buf) + i, &c);
-        return c;
+        int n = utf8_char_bytes(sb_str(current->buf) + i, -1);
+        *offset = i;
+        return n;
     }
     return -1;
 }
 
-static int char_display_width(int ch)
+/**
+ * Returns the unicode character at the given character position in current->buf,
+ * or -1 if none.
+ *
+ * Note that this only returns the first codepoint of a grapheme cluster (character)
+ *
+ */
+static int get_char(struct current *current, int pos)
 {
-    if (ch < ' ') {
-        /* control chars take two positions */
-        return 2;
+    int offset;
+    if (get_char_offset(current, pos, &offset) >= 0) {
+        int c;
+        (void)utf8_tounicode(sb_str(current->buf) + offset, &c);
+        return c;
     }
-    else {
-        return utf8_width(ch);
-    }
+    return -1;
 }
 
 #ifndef NO_COMPLETION
@@ -1175,8 +1767,8 @@ static int completeLine(struct current *current) {
         while(!stop) {
             /* Show completion or original buffer */
             if (i < lc.len) {
-                int chars = utf8_strlen(lc.cvec[i], -1);
-                refreshLineAlt(current, current->prompt, lc.cvec[i], chars);
+                int display_cols = utf8_str_dispwidth(lc.cvec[i]);
+                refreshLineAlt(current, current->prompt, lc.cvec[i], display_cols);
             } else {
                 refreshLine(current);
             }
@@ -1256,11 +1848,11 @@ static const char *reduceSingleBuf(const char *buf, int availcols, int *cursor_p
     DRL("reduceSingleBuf: availcols=%d, cursor_pos=%d\n", availcols, *cursor_pos);
 
     while (*pt) {
-        int ch;
-        int n = utf8_tounicode(pt, &ch);
+        int w;
+        int c;
+        int n = utf8_inspect(pt, &c, &w);
         pt += n;
-
-        needcols += char_display_width(ch);
+        needcols += w;
 
         /* If we need too many cols, strip
          * chars off the front of buf to make it fit.
@@ -1269,10 +1861,10 @@ static const char *reduceSingleBuf(const char *buf, int availcols, int *cursor_p
          * can't be used.
          */
         while (needcols >= availcols - 3) {
-            n = utf8_tounicode(buf, &ch);
+            n = utf8_inspect(buf, &c, &w);
+            DRL_GLYPH(buf);
             buf += n;
-            needcols -= char_display_width(ch);
-            DRL_CHAR(ch);
+            needcols -= w;
 
             /* and adjust the apparent cursor position */
             new_cursor_pos--;
@@ -1330,15 +1922,15 @@ static int refreshShowHints(struct current *current, const char *buf, int availc
                 DRL("<hint bold=%d,color=%d>", bold, color);
                 pt = hint;
                 while (*pt) {
-                    int ch;
-                    int n = utf8_tounicode(pt, &ch);
-                    int width = char_display_width(ch);
+                    int width;
+                    int c;
+                    int n = utf8_inspect(pt, &c, &width);
 
                     if (width >= availcols) {
                         DRL("<hinteol>");
                         break;
                     }
-                    DRL_CHAR(ch);
+                    DRL_GLYPH(pt);
 
                     availcols -= width;
                     outputChars(current, pt, n);
@@ -1366,7 +1958,7 @@ static void refreshStart(struct current *current)
 static void refreshEnd(struct current *current)
 {
     /* Output everything at once */
-    IGNORE_RC(write(current->fd, sb_str(current->output), sb_len(current->output)));
+    IGNORE_RC(write(current->fdout, sb_str(current->output), sb_len(current->output)));
     sb_free(current->output);
     current->output = NULL;
 }
@@ -1451,7 +2043,7 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
     while (*pt) {
         int width;
         int ch;
-        int n = utf8_tounicode(pt, &ch);
+        int n = utf8_inspect(pt, &ch, &width);
 
         if (visible && ch == CHAR_ESCAPE) {
             /* The start of an escape sequence, so not visible */
@@ -1467,7 +2059,9 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
             displayrow++;
         }
         else {
-            width = visible * utf8_width(ch);
+            if (!visible) {
+                width = 0;
+            }
 
             displaycol += width;
             if (displaycol >= current->cols) {
@@ -1479,7 +2073,7 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
                 displayrow++;
             }
 
-            DRL_CHAR(ch);
+            DRL_GLYPH(pt);
 #ifdef USE_WINCONSOLE
             if (visible) {
                 outputChars(current, pt, n);
@@ -1524,9 +2118,9 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
     notecursor = -1;
 
     while (*pt) {
-        int ch;
-        int n = utf8_tounicode(pt, &ch);
-        int width = char_display_width(ch);
+        int width;
+        int c;
+        int n = utf8_inspect(pt, &c, &width);
 
         if (currentpos == cursor_pos) {
             /* (e') wherever we output this character is where we want the cursor */
@@ -1553,15 +2147,18 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
             DRL("<cursor>");
         }
 
-        displaycol += width;
-
+        int ch;
+        utf8_tounicode(pt, &ch);
         if (ch < ' ') {
             outputControlChar(current, ch + '@');
+            width = 2;
         }
         else {
             outputChars(current, pt, n);
         }
-        DRL_CHAR(ch);
+        displaycol += width;
+
+        DRL_GLYPH(pt);
         if (width != 1) {
             DRL("<w=%d>", width);
         }
@@ -1685,21 +2282,25 @@ static int remove_char(struct current *current, int pos)
 }
 
 /**
- * Insert 'ch' at position 'pos'
+ * Insert character 'ch' of length 'chbytes' at position 'pos'
+ *
+ * Note that ch must contain no more than one character
+ * (i.e. consume no more than one character position).
  *
  * Returns 1 if the line needs to be refreshed, 2 if not
  * and 0 if nothing was inserted (no room)
  */
-static int insert_char(struct current *current, int pos, int ch)
+static int insert_char(struct current *current, int pos, const char *ch, int chbytes)
 {
+    int rc = 0;
     if (pos >= 0 && pos <= sb_chars(current->buf)) {
-        char buf[MAX_UTF8_LEN + 1];
-        int offset = utf8_index(sb_str(current->buf), pos);
-        int n = utf8_getchars(buf, ch);
-        int rc = 1;
+        /* Verify that it is a single character */
+        int c;
+        int width;
+        int n = utf8_inspect(ch, &c, &width);
+        assert(n == chbytes);
 
-        /* null terminate since sb_insert() requires it */
-        buf[n] = 0;
+        rc = 1;
 
         /* Now we try to optimise in the simple but very common case that:
          * - outputChars() can be used directly (not win32)
@@ -1708,7 +2309,6 @@ static int insert_char(struct current *current, int pos, int ch)
          * - no hints are being shown
          */
         if (current->output && pos == current->pos && pos == sb_chars(current->buf)) {
-            int width = char_display_width(ch);
             if (current->colsright > width) {
                 /* Yes, can optimise */
                 current->colsright -= width;
@@ -1716,8 +2316,12 @@ static int insert_char(struct current *current, int pos, int ch)
                 rc = 2;
             }
         }
-        sb_insert(current->buf, offset, buf);
-        if (current->pos >= pos) {
+        /* Remember the old character count in case this does not increase
+         * the character count
+         */
+        int oldchars = sb_chars(current->buf);
+        sb_insert_chars(current->buf, pos, ch, chbytes);
+        if (current->pos >= pos && oldchars != sb_chars(current->buf)) {
             current->pos++;
         }
         if (rc == 2) {
@@ -1727,12 +2331,22 @@ static int insert_char(struct current *current, int pos, int ch)
             }
             else {
                 /* optimised output */
-                outputChars(current, buf, n);
+                outputChars(current, ch, n);
             }
         }
-        return rc;
     }
-    return 0;
+    return rc;
+}
+
+/* Like insert_char but takes a unicode codepoint and converts it to utf-8 before inserting.
+ * Returns the same as insert_char()
+ */
+static int insert_codepoint(struct current *current, int pos, int c)
+{
+    char buf[MAX_UTF8_LEN];
+    int n = utf8_getchars(buf, c);
+    int ret = insert_char(current, pos, buf, n);
+    return ret;
 }
 
 /**
@@ -1779,20 +2393,23 @@ static int remove_chars(struct current *current, int pos, int n)
  * Inserts the characters (string) 'chars' at the cursor position 'pos'.
  *
  * Returns 0 if no chars were inserted or non-zero otherwise.
+ *
  */
 static int insert_chars(struct current *current, int pos, const char *chars)
 {
     int inserted = 0;
 
+    /* We insert one "character" at a time, which may include multiple codepoints */
+
     while (*chars) {
-        int ch;
-        int n = utf8_tounicode(chars, &ch);
-        if (insert_char(current, pos, ch) == 0) {
+        /* Get a whole character */
+        int bytes = utf8_char_bytes(chars, -1);
+        if (insert_char(current, pos, chars, bytes) == 0) {
             break;
         }
         inserted++;
         pos++;
-        chars += n;
+        chars += bytes;
     }
     return inserted;
 }
@@ -1800,6 +2417,7 @@ static int insert_chars(struct current *current, int pos, const char *chars)
 static int skip_space_nonspace(struct current *current, int dir, int check_is_space)
 {
     int moved = 0;
+    /* need to reimplement this taking into account glyths/grapheme clusters */
     int checkoffset = (dir < 0) ? -1 : 0;
     int limit = (dir < 0) ? 0 : sb_chars(current->buf);
     while (current->pos != limit && (get_char(current, current->pos + checkoffset) == ' ') == check_is_space) {
@@ -1933,7 +2551,7 @@ static int reverseIncrementalSearch(struct current *current)
                 /* Copy the matching line and set the cursor position */
                 history_index = history_len - 1 - searchpos;
                 set_current(current,history[searchpos]);
-                current->pos = utf8_strlen(history[searchpos], p - history[searchpos]);
+                current->pos = utf8_charcount(history[searchpos], p - history[searchpos]);
                 break;
             }
         }
@@ -2084,15 +2702,24 @@ static int linenoiseEdit(struct current *current) {
             if (current->pos > 0 && current->pos <= sb_chars(current->buf)) {
                 /* If cursor is at end, transpose the previous two chars */
                 int fixer = (current->pos == sb_chars(current->buf));
-                c = get_char(current, current->pos - fixer);
-                remove_char(current, current->pos - fixer);
-                insert_char(current, current->pos - 1, c);
-                refreshLine(current);
+                int offset;
+                int n = get_char_offset(current, current->pos - fixer, &offset);
+                assert(n > 0);
+                /* We need to copy this char before we remove it so we can reinsert it
+                 * This size should be good enough for all practical purposes. If not, do nothing
+                 */
+                char buf[32];
+                if (n <= (int)sizeof(buf)) {
+                    memcpy(buf, sb_str(current->buf) + offset, n);
+                    remove_char(current, current->pos - fixer);
+                    insert_char(current, current->pos - 1, buf, n);
+                    refreshLine(current);
+                }
             }
             break;
         case ctrl('V'):    /* ctrl-v */
             /* Insert the ^V first */
-            if (insert_char(current, current->pos, c)) {
+            if (insert_codepoint(current, current->pos, c)) {
                 refreshLine(current);
                 /* Now wait for the next char. Can insert anything except \0 */
                 c = fd_read(current);
@@ -2101,7 +2728,7 @@ static int linenoiseEdit(struct current *current) {
                 remove_char(current, current->pos - 1);
                 if (c > 0) {
                     /* Insert the actual char, can't be error or null */
-                    insert_char(current, current->pos, c);
+                    insert_codepoint(current, current->pos, c);
                 }
                 refreshLine(current);
             }
@@ -2173,7 +2800,7 @@ static int linenoiseEdit(struct current *current) {
             }
             /* Only tab is allowed without ^V */
             if (c == '\t' || c >= ' ') {
-                if (insert_char(current, current->pos, c) == 1) {
+                if (insert_codepoint(current, current->pos, c) == 1) {
                     refreshLine(current);
                 }
             }
