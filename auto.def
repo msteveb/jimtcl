@@ -411,7 +411,6 @@ if {[opt-bool-unless-minimal utf8]} {
     msg-result "Enabling UTF-8"
     define JIM_UTF8
     define-append AS_CFLAGS -DUSE_UTF8
-    define PARSE_UNIDATA_FLAGS ""
     incr jimregexp
 } else {
     define JIM_UTF8 0
@@ -468,7 +467,6 @@ if {([cc-check-includes termios.h] && [have-feature isatty]) || [have-feature wi
     if {[opt-bool-unless-minimal lineedit]} {
         msg-result "Enabling line editing"
         define USE_LINENOISE
-        define-append PARSE_UNIDATA_FLAGS -width
         lappend extra_objs linenoise.o
         if {[cc-check-inline] && [is-defined inline]} {
             define-append AS_CFLAGS -Dinline=[get-define inline]

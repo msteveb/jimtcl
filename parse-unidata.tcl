@@ -8,28 +8,21 @@
 #/
 
 # Parse the unicode data from: http://unicode.org/Public/UNIDATA/UnicodeData.txt
-# and http://unicode.org/Public/UNIDATA/EastAsianWidth.txt
-# to generate case mapping and display width tables
+# to generate case mapping tables
 set map(lower) {}
 set map(upper) {}
 set map(title) {}
 set map(combining) {}
 set map(wide) {}
 
-set USAGE "Usage: parse-unidata.tcl \[-width\] UnicodeData.txt \[EastAsianWidth.txt\]"
-set do_width 0
-
-if {[lindex $argv 0] eq "-width"} {
-	set do_width 1
-	set argv [lrange $argv 1 end]
-}
+set USAGE "Usage: parse-unidata.tcl UnicodeData.txt"
 
 if {[llength $argv] ni {1 2}} {
 	puts stderr $USAGE
 	exit 1
 }
 
-lassign $argv unicodefile widthfile
+lassign $argv unicodefile
 
 set f [open $unicodefile]
 while {[gets $f buf] >= 0} {
@@ -111,33 +104,5 @@ proc combine-adjacent-ranges {list} {
 foreach type {upper lower title} {
 	puts "static const struct casemap unicode_case_mapping_$type\[\] = \{"
 	output-int-pairs $map($type)
-	puts "\};\n"
-}
-
-if {$do_width} {
-	set f [open $widthfile]
-	while {[gets $f buf] >= 0} {
-		# Remove any trailing whitespace, especially errant CR
-		set buf [string trim $buf]
-		if {[regexp {^([0-9A-Fa-f.]+);[FW]} $buf -> range]} {
-			set range [string tolower $range]
-			lassign [split $range .] lower - upper
-			if {$upper eq ""} {
-				set upper $lower
-			}
-			lappend map(wide) 0x$lower 0x$upper
-		}
-	}
-	close $f
-}
-
-foreach type {combining wide} {
-	puts "static const struct utf8range unicode_range_$type\[\] = \{"
-	if {$do_width} {
-		output-int-pairs [combine-adjacent-ranges $map($type)]
-	} else {
-		# Just produce empty width tables in this case
-		output-int-pairs {}
-	}
 	puts "\};\n"
 }
