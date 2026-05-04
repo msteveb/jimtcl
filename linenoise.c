@@ -314,31 +314,31 @@ UTF8_STATIC int utf8_str_dispwidth(const char *str)
 /* Note: The following functions were taken largely as-is from
  * https://github.com/antirez/linenoise.git
  */
-static int utf8_is_variation_selector(uint32_t cp)
+static int utf8_is_variation_selector(int cp)
 {
     return cp == 0xFE0E || cp == 0xFE0F;  /* Text/emoji style */
 }
 
 /* Check if codepoint is a skin tone modifier. */
-static int isSkinToneModifier(uint32_t cp)
+static int isSkinToneModifier(int cp)
 {
     return cp >= 0x1F3FB && cp <= 0x1F3FF;
 }
 
 /* Check if codepoint is Zero Width Joiner. */
-static int utf8_is_zero_width_joiner(uint32_t cp)
+static int utf8_is_zero_width_joiner(int cp)
 {
     return cp == 0x200D;
 }
 
 /* Check if codepoint is a Regional Indicator (for flag emoji). */
-static int utf8_is_regional_indicator(uint32_t cp)
+static int utf8_is_regional_indicator(int cp)
 {
     return cp >= 0x1F1E6 && cp <= 0x1F1FF;
 }
 
 /* Check if codepoint is a combining mark or other zero-width character. */
-static int utf8_is_combining_mark(uint32_t cp)
+static int utf8_is_combining_mark(int cp)
 {
     return (cp >= 0x0300 && cp <= 0x036F) ||   /* Combining Diacriticals */
            (cp >= 0x1AB0 && cp <= 0x1AFF) ||   /* Combining Diacriticals Extended */
@@ -348,7 +348,7 @@ static int utf8_is_combining_mark(uint32_t cp)
 }
 
 /* Check if codepoint extends the previous character (doesn't start a new grapheme). */
-static int utf8_is_grapheme_extend(uint32_t cp)
+static int utf8_is_grapheme_extend(int cp)
 {
     return utf8_is_variation_selector(cp) || isSkinToneModifier(cp) ||
            utf8_is_zero_width_joiner(cp) || utf8_is_combining_mark(cp);
