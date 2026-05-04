@@ -176,7 +176,7 @@ UTF8_STATIC int utf8_inspect(const char *str, int *c, int *dispwidth);
 #endif
 
 #ifdef USE_UTF8
-UTF8_STATIC int utf8_fromunicode(char *p, unsigned uc)
+UTF8_STATIC int utf8_fromunicode(char p[MAX_UTF8_LEN], unsigned uc)
 {
     if (uc <= 0x7f) {
         *p = uc;
