@@ -1205,13 +1205,14 @@ donedigits:
     return parser->state;
 }
 
-#define DEBUG_REFRESHLINE
+/*#define DEBUG_REFRESHLINE*/
 
 #ifdef DEBUG_REFRESHLINE
 #define DRL(ARGS...) fprintf(dfh, ARGS)
 static FILE *dfh;
 
-static void DRL_CHAR(int ch)
+/* debug output - codepoint or control char */
+static void DRL_CODEPOINT(int ch)
 {
     if (ch < ' ') {
         DRL("^%c", ch + '@');
@@ -1223,31 +1224,35 @@ static void DRL_CHAR(int ch)
         DRL("%c", ch);
     }
 }
+
+/* debug output - null terminated string */
 static void DRL_STR(const char *str)
 {
     while (*str) {
         int ch;
         int n = utf8_tounicode(str, &ch);
         str += n;
-        DRL_CHAR(ch);
+        DRL_CODEPOINT(ch);
     }
 }
-static void DRL_GLYPH(const char *str)
+
+/* debug output - first character (grapheme cluster) of str */
+static void DRL_CHAR(const char *str)
 {
     int bytes = utf8_char_bytes(str, -1);
     while (bytes) {
         int ch;
         int n = utf8_tounicode(str, &ch);
-        DRL_CHAR(ch);
+        DRL_CODEPOINT(ch);
         bytes -= n;
         str += n;
     }
 }
 #else
 #define DRL(...)
-#define DRL_CHAR(ch)
+#define DRL_CODEPOINT(ch)
 #define DRL_STR(str)
-#define DRL_GLYPH(str)
+#define DRL_CHAR(str)
 #endif
 
 #if defined(USE_WINCONSOLE)
@@ -1553,6 +1558,13 @@ static int getWindowSize(struct current *current)
 {
     struct winsize ws;
 
+    const char *linenoise_cols = getenv("LINENOISE_COLS");
+    if (linenoise_cols) {
+        /* Just trust what we are given for testing */
+        current->cols = atoi(linenoise_cols);
+        return 0;
+    }
+
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0) {
         current->cols = ws.ws_col;
         return 0;
@@ -1575,12 +1587,6 @@ static int getWindowSize(struct current *current)
 
     if (current->cols == 0) {
         int here;
-        const char *linenoise_cols = getenv("LINENOISE_COLS");
-        if (linenoise_cols) {
-            /* Just trust what we are given for testing */
-            current->cols = atoi(linenoise_cols);
-            return 0;
-        }
 
         /* If anything fails => default 80 */
         current->cols = 80;
@@ -1839,6 +1845,22 @@ void linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *callback)
 
 #endif
 
+/* Like utf8_str_dispwidth, but only for the first charlen characters of str.
+ */
+static int utf8_str_dispwidth_len(const char *str, int charlen)
+{
+    int width = 0;
+    while (*str && charlen) {
+        int w;
+        int c;
+        int n = utf8_inspect(str, &c, &w);
+        width += w;
+        str += n;
+        charlen--;
+    }
+    return width;
+}
+
 
 static const char *reduceSingleBuf(const char *buf, int availcols, int *cursor_pos)
 {
@@ -1846,55 +1868,59 @@ static const char *reduceSingleBuf(const char *buf, int availcols, int *cursor_p
      * If necessary, strip chars off the front of buf until *cursor_pos
      * fits within availcols
      */
-    int needcols = 0;
-    int pos = 0;
     int new_cursor_pos = *cursor_pos;
-    const char *pt = buf;
+    const char *pt;
 
     DRL("reduceSingleBuf: availcols=%d, cursor_pos=%d\n", availcols, *cursor_pos);
-
-    while (*pt) {
+    /* Debug print the initial state */
+    int col = 0;
+    int pos = 0;
+    for (pt = buf; *pt; ) {
         int w;
         int c;
+        if (pos == *cursor_pos) {
+            DRL("<cursor>");
+        }
+        DRL_CHAR(pt);
         int n = utf8_inspect(pt, &c, &w);
+        if (col < availcols && col + w >= availcols) {
+            DRL("<avail>");
+        }
+        col += w;
         pt += n;
-        needcols += w;
+    }
+    DRL("\n");
 
-        /* If we need too many cols, strip
-         * chars off the front of buf to make it fit.
-         * We keep 3 extra cols to the right of the cursor.
-         * 2 for possible wide chars, 1 for the last column that
-         * can't be used.
-         */
-        while (needcols >= availcols - 3) {
-            n = utf8_inspect(buf, &c, &w);
-            DRL_GLYPH(buf);
-            buf += n;
-            needcols -= w;
-
+    pt = buf;
+    while (*pt) {
+        /* Find the column of the cursor position */
+        int cursor_col = utf8_str_dispwidth_len(buf, new_cursor_pos);
+        DRL("cursor_col of pos=%d is %d vs availcols=%d\n", new_cursor_pos, cursor_col, availcols);
+        if (cursor_col > availcols) {
+            /* Cursor is not visible, so strip one char off the beginning */
+            int w;
+            int c;
+            int n = utf8_inspect(pt, &c, &w);
+            DRL("remove char from front of buffer: ");
+            DRL_CHAR(pt);
+            DRL("\n");
+            pt += n;
             /* and adjust the apparent cursor position */
             new_cursor_pos--;
-
-            if (buf == pt) {
-                /* can't remove more than this */
-                break;
-            }
+            continue;
         }
-
-        if (pos++ == *cursor_pos) {
-            break;
-        }
-
+        /* done */
+        break;
     }
     DRL("<snip>");
-    DRL_STR(buf);
-    DRL("\nafter reduce, needcols=%d, new_cursor_pos=%d\n", needcols, new_cursor_pos);
+    DRL_STR(pt);
+    DRL("\nafter reduce, new_cursor_pos=%d\n", new_cursor_pos);
 
     /* Done, now new_cursor_pos contains the adjusted cursor position
      * and buf points to he adjusted start
      */
     *cursor_pos = new_cursor_pos;
-    return buf;
+    return pt;
 }
 
 static int mlmode = 0;
@@ -1936,7 +1962,7 @@ static int refreshShowHints(struct current *current, const char *buf, int availc
                         DRL("<hinteol>");
                         break;
                     }
-                    DRL_GLYPH(pt);
+                    DRL_CHAR(pt);
 
                     availcols -= width;
                     outputChars(current, pt, n);
@@ -2079,7 +2105,7 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
                 displayrow++;
             }
 
-            DRL_GLYPH(pt);
+            DRL_CHAR(pt);
 #ifdef USE_WINCONSOLE
             if (visible) {
                 outputChars(current, pt, n);
@@ -2127,16 +2153,21 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
         int width;
         int c;
         int n = utf8_inspect(pt, &c, &width);
+        if (c < ' ') {
+            /* Control chars take up 2 spaces since we show them as ^X */
+            width = 2;
+        }
 
         if (currentpos == cursor_pos) {
             /* (e') wherever we output this character is where we want the cursor */
+            DRL("<cn>");
             notecursor = 1;
         }
 
-        if (displaycol + width >= current->cols - 3) {
+        if (displaycol + width > current->cols) {
             if (mlmode == 0) {
                 /* In single line mode stop once we print as much as we can on one line */
-                DRL("<slmode>");
+                DRL("<slmode>", displaycol, width, current->cols);
                 break;
             }
             /* need to wrap to the next line since it doesn't fit */
@@ -2153,18 +2184,15 @@ static void refreshLineAlt(struct current *current, const char *prompt, const ch
             DRL("<cursor>");
         }
 
-        int ch;
-        utf8_tounicode(pt, &ch);
-        if (ch < ' ') {
-            outputControlChar(current, ch + '@');
-            width = 2;
+        if (c < ' ') {
+            outputControlChar(current, c + '@');
         }
         else {
             outputChars(current, pt, n);
         }
         displaycol += width;
 
-        DRL_GLYPH(pt);
+        DRL_CHAR(pt);
         if (width != 1) {
             DRL("<w=%d>", width);
         }
@@ -2626,7 +2654,7 @@ static int linenoiseEdit(struct current *current) {
             current->pos = sb_chars(current->buf);
             if (mlmode || hintsCallback) {
                 showhints = 0;
-                refreshLineAlt(current, current->prompt, sb_str(current->buf), 0);
+                refreshLine(current);
                 showhints = 1;
             }
             return sb_len(current->buf);
