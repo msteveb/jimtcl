@@ -2,7 +2,7 @@ version: "0.81.0.{build}"
 image: Visual Studio 2019
 install:
   - cmd: set MSYSTEM=MINGW32
-  - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --noconfirm make mingw-w64-i686-gcc mingw-w64-i686-sqlite3"
+  - cmd: C:\msys64\usr\bin\bash -lc "pacman --sync --needed --noconfirm make mingw-w64-i686-gcc mingw-w64-i686-sqlite3"
   - cmd: cd C:\projects & mklink /D %APPVEYOR_PROJECT_NAME% %APPVEYOR_PROJECT_SLUG% & exit 0
 build_script:
   - cmd: C:\msys64\usr\bin\bash -lc "cd /c/projects/jimtcl; ./configure --ssl --with-ext='sqlite3 win32 zlib' --disable-docs CFLAGS=-D__MINGW_USE_VC2005_COMPAT"
