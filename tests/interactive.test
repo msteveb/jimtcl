@@ -138,13 +138,13 @@ $p expect EOF
 $p close
 
 test interactive-1.8 {history file fallback to USERPROFILE} -constraints lineedit -body {
-	set saved_env $env
+	set original_env $env
 	unset -nocomplain env(HOME)
 	set env(USERPROFILE) [pwd]
 	file delete .jim_history
 
 	set p [expect::spawn [list [info nameofexecutable]]]
-	set env $saved_env
+	set env $original_env
 	$p timeout 1
 	$p tty echo 1
 	wait-for-prompt $p

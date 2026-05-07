@@ -291,7 +291,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             const char *homepath = getenv("HOMEPATH");
 
             if (homedrive && homedrive[0] && homepath && homepath[0]) {
-                int history_len = strlen(homedrive) + strlen(homepath) + sizeof("\\.jim_history");
+                int history_len = strlen(homedrive) + strlen(homepath) + strlen("\\.jim_history") + 1;
                 history_file = Jim_Alloc(history_len);
                 snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);
             }
