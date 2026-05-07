@@ -32,6 +32,7 @@ local proc readdir {{-nocomplain {}} dir} {
 }
 
 local proc fslookup {path} {
+	set path [string map {\\ /} $path]
 	set type dir
 	set dict $::FAKEFS
 	foreach p [split $path /] {
@@ -78,11 +79,18 @@ set ::FAKEFS [makefakefs {
 		file "open\[bracket" {}
 		file "close\]bracket" {}
 	}
+	dir C: {
+		dir Users {
+			dir bob {
+				file profile.txt {}
+			}
+		}
+	}
 }]
 
 test glob-1.1 {Simple} {
 	lsort [glob *]
-} {abc def tmp}
+} {C: abc def tmp}
 
 test glob-1.2 {Simple} {
 	lsort [glob a*]
@@ -127,5 +135,10 @@ test glob-3.1 {Directory option} -returnCodes ok -body {
 test glob-3.2 {Directory option} -returnCodes ok -body {
 	lsort [glob -dir tmp -tails *close*]
 } -result [list close\]bracket close\}brace]
+
+test glob-4.1 {Windows-style user profile path} -returnCodes ok -body {
+	set userprofile {C:\Users\bob}
+	lsort [glob [file join $userprofile *]]
+} -result [list [file join {C:\Users\bob} profile.txt]]
 
 testreport
