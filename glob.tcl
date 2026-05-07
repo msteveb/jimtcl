@@ -99,9 +99,9 @@ proc glob.glob {base pattern} {
 		foreach name [glob.globdir $realdir $pattern] {
 			set tail [file join $dir $name]
 			if {$dir ne "" && $name eq "."} {
-				# Preserve a literal trailing "/." ("\\." on Windows).
-				# [file join $dir .] normalizes to $dir.
-				set tail [file join $dir {./.}]
+				# [file join $dir .] normalizes to $dir, so preserve
+				# a literal trailing dot component.
+				set tail [string range [file join $dir ..] 0 end-1]
 			}
 			lappend result [file join $realdir $name] $tail
 		}
