@@ -233,6 +233,7 @@ A simple, but powerful command processor, +jimsh+, is part of Jim Tcl.
 It may be invoked in interactive mode as:
 
   jimsh
+  jimsh --interactive
 
 or to process the Tcl script in a file with:
 
@@ -250,6 +251,8 @@ Interactive Mode
 ~~~~~~~~~~~~~~~~
 Interactive mode reads Tcl commands from standard input, evaluates
 those commands and prints the results.
+The +--interactive+ option forces interactive mode even when standard
+input is not a tty.
 
   $ jimsh
   Welcome to Jim version 0.73, Copyright (c) 2005-8 Salvatore Sanfilippo
