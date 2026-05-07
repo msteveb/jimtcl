@@ -101,9 +101,11 @@ proc glob.glob {base pattern} {
 			if {$dir ne "" && $name eq "."} {
 				# [file join $dir .] normalizes to $dir, so preserve
 				# a literal trailing dot component.
-				# [file join $dir ..] preserves the separator, and trimming
-				# one dot gives "$dir/." (or "$dir\\." on Windows).
-				set tail [string range [file join $dir ..] 0 end-1]
+				set sep /
+				if {[string first \\ $dir] != -1} {
+					set sep \\
+				}
+				set tail $dir$sep$name
 			}
 			lappend result [file join $realdir $name] $tail
 		}
