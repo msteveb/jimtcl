@@ -88,6 +88,7 @@ set ::FAKEFS [makefakefs {
 	}
 }]
 
+# Includes C: from the fake Windows-style drive root below.
 test glob-1.1 {Simple} {
 	lsort [glob *]
 } {C: abc def tmp}
