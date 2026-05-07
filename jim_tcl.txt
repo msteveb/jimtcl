@@ -12,7 +12,7 @@ SYNOPSIS
 
 or
 
-  jimsh [<scriptfile>|-]
+  jimsh [--interactive] [<scriptfile>|-]
   jimsh -e '<immediate-script>'
   jimsh --version
   jimsh --help
