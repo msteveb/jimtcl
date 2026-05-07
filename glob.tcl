@@ -100,9 +100,10 @@ proc glob.glob {base pattern} {
 			set tail [file join $dir $name]
 			if {$dir ne "" && $name eq "."} {
 				# [file join $dir .] normalizes to $dir, so preserve
-				# a literal trailing dot component.
+				# a literal trailing dot component to keep results like
+				# "globTest/." distinct from "globTest" when matching .*.
 				set sep /
-				if {[string first \\ $dir] != -1} {
+				if {$::tcl_platform(platform) eq "windows"} {
 					set sep \\
 				}
 				set tail $dir$sep$name
