@@ -92,16 +92,14 @@ proc glob.glob {base pattern} {
 
 	# Collect the files/directories
 	set result {}
-	set sep [string range [file join x y] 1 end-1]
 	foreach {realdir dir} $dirlist {
 		if {![file isdir $realdir]} {
 			continue
 		}
 		foreach name [glob.globdir $realdir $pattern] {
-			if {$dir eq ""} {
-				set tail $name
-			} else {
-				set tail $dir$sep$name
+			set tail [file join $dir $name]
+			if {$dir ne "" && $name eq "."} {
+				set tail [file join $dir {./.}]
 			}
 			lappend result [file join $realdir $name] $tail
 		}

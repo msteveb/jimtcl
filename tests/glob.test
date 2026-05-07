@@ -141,4 +141,8 @@ test glob-4.1 {Windows-style user profile path} -returnCodes ok -body {
 	lsort [glob [file join $userprofile *]]
 } -result [list [file join {C:\Users\bob} profile.txt]]
 
+test glob-4.2 {Windows-style drive pattern} -returnCodes ok -body {
+	lsort [glob C:*]
+} -result [list C:]
+
 testreport
