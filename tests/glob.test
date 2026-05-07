@@ -81,7 +81,7 @@ set ::FAKEFS [makefakefs {
 	}
 }]
 
-set ::WINDOWS_FAKEFS [dict merge $::FAKEFS [dict create C: [list dir [makefakefs {
+set ::windowsFakeFS [dict merge $::FAKEFS [dict create C: [list dir [makefakefs {
 	dir Users {
 		dir bob {
 			file profile.txt {}
@@ -138,32 +138,32 @@ test glob-3.2 {Directory option} -returnCodes ok -body {
 } -result [list close\]bracket close\}brace]
 
 test glob-4.1 {Windows-style user profile path} -setup {
-	set savedfakefs $::FAKEFS
-	set ::FAKEFS $::WINDOWS_FAKEFS
+	set savedFakeFS $::FAKEFS
+	set ::FAKEFS $::windowsFakeFS
 } -body {
 	set userprofile {C:\Users\bob}
 	lsort [glob [file join $userprofile *]]
 } -cleanup {
-	set ::FAKEFS $savedfakefs
+	set ::FAKEFS $savedFakeFS
 } -result [list [file join {C:\Users\bob} profile.txt]]
 
 test glob-4.2 {Windows-style drive pattern} -setup {
-	set savedfakefs $::FAKEFS
-	set ::FAKEFS $::WINDOWS_FAKEFS
+	set savedFakeFS $::FAKEFS
+	set ::FAKEFS $::windowsFakeFS
 } -body {
 	lsort [glob C:*]
 } -cleanup {
-	set ::FAKEFS $savedfakefs
+	set ::FAKEFS $savedFakeFS
 } -result [list C:]
 
 test glob-4.3 {Windows-style missing user profile path} -returnCodes error -setup {
-	set savedfakefs $::FAKEFS
-	set ::FAKEFS $::WINDOWS_FAKEFS
+	set savedFakeFS $::FAKEFS
+	set ::FAKEFS $::windowsFakeFS
 } -body {
 	set userprofile {C:\Users\alice}
 	glob [file join $userprofile *]
 } -cleanup {
-	set ::FAKEFS $savedfakefs
+	set ::FAKEFS $savedFakeFS
 } -result [format {no files matched glob pattern "%s"} [file join {C:\Users\alice} *]]
 
 testreport
