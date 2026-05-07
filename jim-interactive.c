@@ -273,14 +273,31 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     int retcode = JIM_OK;
     char *history_file = NULL;
 #ifdef USE_LINENOISE
-    const char *home;
+    if (isatty(STDIN_FILENO)) {
+        const char *home;
 
-    home = getenv("HOME");
-    if (home && isatty(STDIN_FILENO)) {
-        int history_len = strlen(home) + sizeof("/.jim_history");
-        history_file = Jim_Alloc(history_len);
-        snprintf(history_file, history_len, "%s/.jim_history", home);
-        Jim_HistoryLoad(history_file);
+        home = getenv("HOME");
+        if (home == NULL || home[0] == '\0') {
+            home = getenv("USERPROFILE");
+        }
+        if (home && home[0]) {
+            int history_len = strlen(home) + sizeof("/.jim_history");
+            history_file = Jim_Alloc(history_len);
+            snprintf(history_file, history_len, "%s/.jim_history", home);
+        }
+        else {
+            const char *homedrive = getenv("HOMEDRIVE");
+            const char *homepath = getenv("HOMEPATH");
+
+            if (homedrive && homedrive[0] && homepath && homepath[0]) {
+                int history_len = strlen(homedrive) + strlen(homepath) + sizeof("\\.jim_history");
+                history_file = Jim_Alloc(history_len);
+                snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);
+            }
+        }
+        if (history_file) {
+            Jim_HistoryLoad(history_file);
+        }
     }
 
     Jim_HistorySetCompletion(interp, Jim_NewStringObj(interp, "tcl::autocomplete", -1));
