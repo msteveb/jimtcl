@@ -32,6 +32,7 @@ local proc readdir {{-nocomplain {}} dir} {
 }
 
 local proc fslookup {path} {
+	# Normalize Windows-style separators for fake filesystem lookup.
 	set path [string map {\\ /} $path]
 	set type dir
 	set dict $::FAKEFS

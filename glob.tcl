@@ -103,7 +103,7 @@ proc glob.glob {base pattern} {
 				# a literal trailing dot component to keep results like
 				# "globTest/." distinct from "globTest" when matching .*.
 				set sep /
-				if {$::tcl_platform(platform) eq "windows"} {
+				if {[info exists ::tcl_platform(platform)] && $::tcl_platform(platform) eq "windows"} {
 					set sep \\
 				}
 				set tail $dir$sep$name
