@@ -277,7 +277,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
         const char *home;
 
         home = getenv("HOME");
-        if (home == NULL || home[0] == '\0') {
+        if (home == NULL) {
             home = getenv("USERPROFILE");
         }
         if (home && home[0]) {
@@ -285,6 +285,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
             history_file = Jim_Alloc(history_len);
             snprintf(history_file, history_len, "%s/.jim_history", home);
         }
+#ifdef _WIN32
         else {
             const char *homedrive = getenv("HOMEDRIVE");
             const char *homepath = getenv("HOMEPATH");
@@ -295,6 +296,7 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
                 snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);
             }
         }
+#endif
         if (history_file) {
             Jim_HistoryLoad(history_file);
         }
