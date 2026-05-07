@@ -92,6 +92,10 @@ proc glob.glob {base pattern} {
 
 	# Collect the files/directories
 	set result {}
+	set dotsep /
+	if {[info exists ::tcl_platform(platform)] && $::tcl_platform(platform) eq "windows"} {
+		set dotsep \\
+	}
 	foreach {realdir dir} $dirlist {
 		if {![file isdir $realdir]} {
 			continue
@@ -102,11 +106,7 @@ proc glob.glob {base pattern} {
 				# [file join $dir .] normalizes to $dir, so preserve
 				# a literal trailing dot component to keep results like
 				# "globTest/." distinct from "globTest" when matching .*.
-				set sep /
-				if {[info exists ::tcl_platform(platform)] && $::tcl_platform(platform) eq "windows"} {
-					set sep \\
-				}
-				set tail $dir$sep$name
+				set tail $dir$dotsep$name
 			}
 			lappend result [file join $realdir $name] $tail
 		}
