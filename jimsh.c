@@ -92,12 +92,6 @@ int main(int argc, char *const argv[])
     char *const orig_argv0 = argv[0];
 
     /* Parse initial arguments before interpreter is started */
-    if (argc > 1 && strcmp(argv[1], "--interactive") == 0) {
-        force_interactive = 1;
-        argc--;
-        argv++;
-    }
-
     if (argc > 1 && strcmp(argv[1], "--version") == 0) {
         printf("%d.%d\n", JIM_VERSION / 100, JIM_VERSION % 100);
         return 0;
@@ -105,6 +99,11 @@ int main(int argc, char *const argv[])
     else if (argc > 1 && strcmp(argv[1], "--help") == 0) {
         usage(argv[0]);
         return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "--interactive") == 0) {
+        force_interactive = 1;
+        argc--;
+        argv++;
     }
 
     /* Create and initialize the interpreter */
@@ -132,7 +131,7 @@ int main(int argc, char *const argv[])
         }
         if (retcode != JIM_EXIT) {
             JimSetArgv(interp, 0, NULL);
-            if (!force_interactive && !isatty(STDIN_FILENO)) {
+            if (!(force_interactive || isatty(STDIN_FILENO))) {
                 /* Just read from stdin and evaluate */
                 goto eval_stdin;
             }

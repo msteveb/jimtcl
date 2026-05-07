@@ -40,7 +40,7 @@ static char *JimHistoryFilename(void)
     if (home == NULL) {
         home = getenv("USERPROFILE");
     }
-    if (home && home[0]) {
+    if (home) {
         int history_len = strlen(home) + sizeof("/.jim_history");
         history_file = Jim_Alloc(history_len);
         snprintf(history_file, history_len, "%s/.jim_history", home);
@@ -50,7 +50,7 @@ static char *JimHistoryFilename(void)
         const char *homedrive = getenv("HOMEDRIVE");
         const char *homepath = getenv("HOMEPATH");
 
-        if (homedrive && homedrive[0] && homepath && homepath[0]) {
+        if (homedrive && homepath) {
             int history_len = strlen(homedrive) + strlen(homepath) + sizeof("\\.jim_history");
             history_file = Jim_Alloc(history_len);
             snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);

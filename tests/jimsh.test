@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+constraint cmd history
 
 test jimsh-1.1 {jimsh --help} -body {
 	exec [info nameofexecutable] --help
@@ -45,15 +46,15 @@ test jimsh-1.9 {jimsh --interactive forces interactive mode} -body {
 	exec [info nameofexecutable] --interactive << "expr {2 + 3}\nexit\n"
 } -match glob -result {Welcome to Jim version*5*}
 
-test jimsh-1.10 {jimsh --interactive history fallback to USERPROFILE} -body {
+test jimsh-1.10 {jimsh --interactive history fallback to USERPROFILE} -constraints history -body {
 	set saveenv $env
 	unset -nocomplain env(HOME)
 	set env(USERPROFILE) [pwd]
 	file delete .jim_history
-	set rc [catch {exec [info nameofexecutable] --interactive << "set x 1\nexit\n"}]
+	exec [info nameofexecutable] --interactive << "set x 1\nexit\n"
+	file exists .jim_history
+} -result 1 -cleanup {
 	set env $saveenv
-	list $rc [file exists .jim_history]
-} -result {0 1} -cleanup {
 	catch {file delete .jim_history}
 }
 
