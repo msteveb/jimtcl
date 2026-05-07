@@ -30,6 +30,36 @@ static void JimCompletionCallback(const char *prefix, linenoiseCompletions *comp
 static const char completion_callback_assoc_key[] = "interactive-completion";
 static char *JimHintsCallback(const char *prefix, int *color, int *bold, void *userdata);
 static void JimFreeHintsCallback(void *hint, void *userdata);
+
+static char *JimHistoryFilename(void)
+{
+    const char *home;
+    char *history_file = NULL;
+
+    home = getenv("HOME");
+    if (home == NULL) {
+        home = getenv("USERPROFILE");
+    }
+    if (home && home[0]) {
+        int history_len = strlen(home) + sizeof("/.jim_history");
+        history_file = Jim_Alloc(history_len);
+        snprintf(history_file, history_len, "%s/.jim_history", home);
+    }
+#ifdef _WIN32
+    else {
+        const char *homedrive = getenv("HOMEDRIVE");
+        const char *homepath = getenv("HOMEPATH");
+
+        if (homedrive && homedrive[0] && homepath && homepath[0]) {
+            int history_len = strlen(homedrive) + strlen(homepath) + sizeof("\\.jim_history");
+            history_file = Jim_Alloc(history_len);
+            snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);
+        }
+    }
+#endif
+
+    return history_file;
+}
 #endif
 
 /**
@@ -273,33 +303,9 @@ int Jim_InteractivePrompt(Jim_Interp *interp)
     int retcode = JIM_OK;
     char *history_file = NULL;
 #ifdef USE_LINENOISE
-    if (isatty(STDIN_FILENO)) {
-        const char *home;
-
-        home = getenv("HOME");
-        if (home == NULL) {
-            home = getenv("USERPROFILE");
-        }
-        if (home && home[0]) {
-            int history_len = strlen(home) + sizeof("/.jim_history");
-            history_file = Jim_Alloc(history_len);
-            snprintf(history_file, history_len, "%s/.jim_history", home);
-        }
-#ifdef _WIN32
-        else {
-            const char *homedrive = getenv("HOMEDRIVE");
-            const char *homepath = getenv("HOMEPATH");
-
-            if (homedrive && homedrive[0] && homepath && homepath[0]) {
-                int history_len = strlen(homedrive) + strlen(homepath) + sizeof("\\.jim_history");
-                history_file = Jim_Alloc(history_len);
-                snprintf(history_file, history_len, "%s%s\\.jim_history", homedrive, homepath);
-            }
-        }
-#endif
-        if (history_file) {
-            Jim_HistoryLoad(history_file);
-        }
+    history_file = JimHistoryFilename();
+    if (history_file) {
+        Jim_HistoryLoad(history_file);
     }
 
     Jim_HistorySetCompletion(interp, Jim_NewStringObj(interp, "tcl::autocomplete", -1));
