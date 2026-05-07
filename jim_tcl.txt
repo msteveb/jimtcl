@@ -68,6 +68,7 @@ Changes since 0.83
 #. New `info aliases` to list all aliases
 #. `expr` supports new +'=*'+ and +'=~'+ matching operators (see <<_expressions,EXPRESSIONS>>)
 #. `aio gets` supports +*-eol*+ and +*-keep*+
+#. Add `jimsh --interactive`
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
