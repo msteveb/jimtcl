@@ -146,4 +146,9 @@ test glob-4.2 {Windows-style drive pattern} -returnCodes ok -body {
 	lsort [glob C:*]
 } -result [list C:]
 
+test glob-4.3 {Windows-style missing user profile path} -returnCodes error -body {
+	set userprofile {C:\Users\alice}
+	glob [file join $userprofile *]
+} -result {no files matched glob pattern "C:\Users\alice/*"}
+
 testreport
