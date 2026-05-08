@@ -1,6 +1,7 @@
 source [file dirname [info script]]/testing.tcl
 
 needs constraint jim
+constraint cmd history
 
 test jimsh-1.1 {jimsh --help} -body {
 	exec [info nameofexecutable] --help
@@ -40,5 +41,9 @@ test jimsh-1.7 {jimsh exit code} -body {
 test jimsh-1.8 {jimsh error} -body {
 	exec [info nameofexecutable] << "blah\n"
 } -returnCodes error -match glob -result {stdin:1: Error: invalid command name "blah"*}
+
+test jimsh-1.9 {jimsh --interactive forces interactive mode} -body {
+    exec [info nameofexecutable] --interactive << "expr {2 + 3}\nexit\n"
+} -match glob -result {Welcome to Jim version*5*}
 
 testreport
