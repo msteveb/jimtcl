@@ -268,19 +268,45 @@ void Jim_HistorySetHints(Jim_Interp *interp, Jim_Obj *hintsCommandObj)
 #endif
 }
 
+/* Simple helper to concat the given strings (any of which may be NULL)
+ * and return the Jim_Alloc'd result.
+ */
+static char *concat_strings(const char *s1, const char *s2, const char *s3)
+{
+    int len = 0;
+    if (s1) len += strlen(s1);
+    if (s2) len += strlen(s2);
+    if (s3) len += strlen(s3);
+    char *result = Jim_Alloc(len + 1);
+    result[0] = '\0';
+    if (s1) strcat(result, s1);
+    if (s2) strcat(result, s2);
+    if (s3) strcat(result, s3);
+    return result;
+}
+
 int Jim_InteractivePrompt(Jim_Interp *interp)
 {
     int retcode = JIM_OK;
     char *history_file = NULL;
 #ifdef USE_LINENOISE
-    const char *home;
+    const char *home = getenv("HOME");
+    const char *home2 = NULL;
 
-    home = getenv("HOME");
-    if (home && isatty(STDIN_FILENO)) {
-        int history_len = strlen(home) + sizeof("/.jim_history");
-        history_file = Jim_Alloc(history_len);
-        snprintf(history_file, history_len, "%s/.jim_history", home);
+#ifdef _WIN32
+    /* On Windows HOME isn't common so try USERPROFILE first, then HOMEDRIVE + HOMEPATH */
+    if (!home) {
+        home = getenv("USERPROFILE");
+    }
+    if (!home) {
+        home = getenv("HOMEDRIVE");
+        home2 = getenv("HOMEPATH");
+    }
+#endif
+    if (home) {
+        char *history_file = concat_strings(home, home2, "/.jim_history");
         Jim_HistoryLoad(history_file);
+        Jim_Free(history_file);
     }
 
     Jim_HistorySetCompletion(interp, Jim_NewStringObj(interp, "tcl::autocomplete", -1));
