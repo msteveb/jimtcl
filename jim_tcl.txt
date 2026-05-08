@@ -277,9 +277,11 @@ terminal is detected, Emacs-style line editing commands are available, including
 arrow keys, +\^W+ to erase a word, +\^U+ to erase the line, +^R+ for reverse incremental search
 in history. Additionally, the +h+ command may be used to display the command history.
 
-Command line history is automatically saved and loaded from +~/.jim_history+
+Command line history is automatically saved and loaded from +$HOME/.jim_history+.
+On Windows, if +$HOME+ is not set, +$USERPROFILE+ is used (falling back to
++$HOMEDRIVE++ +$HOMEPATH+).
 
-In interactive mode, +jimsh+ automatically runs the script +~/.jimrc+ at startup
+In interactive mode, +jimsh+ automatically runs the script +$HOME/.jimrc+ at startup
 if it exists.
 
 INTERPRETERS
