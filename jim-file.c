@@ -94,6 +94,44 @@ static void JimFixPath(char *path)
     }
 }
 
+/**
+ * Returns true if the character is a path separator. On Windows this includes both '/' and '\\'.
+ */
+static int jim_is_path_sep(char c)
+{
+    return c == '/' || (ISWINDOWS && c == '\\');
+}
+
+/**
+ * Returns a pointer to the first path separator in the string, or NULL if there are none
+ */
+static const char *jim_find_first_path_sep(const char *path)
+{
+    const char *slash = strchr(path, '/');
+#if ISWINDOWS
+    const char *backslash = strchr(path, '\\');
+    if (backslash && (slash == NULL || backslash < slash)) {
+        slash = backslash;
+    }
+#endif
+    return slash;
+}
+
+/**
+ * Returns a pointer to the last path separator in the string, or NULL if there are none
+ */
+static const char *jim_find_last_path_sep(const char *path)
+{
+    const char *lastSlash = strrchr(path, '/');
+#if ISWINDOWS
+        const char *lastBackslash = strrchr(path, '\\');
+        if (lastBackslash > lastSlash) {
+            lastSlash = lastBackslash;
+        }
+#endif
+    return lastSlash;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -229,12 +267,12 @@ int Jim_FileStoreStatData(Jim_Interp *interp, Jim_Obj *varName, const jim_stat_t
 
 /**
  * Give a path of length 'len', returns the length of the path
- * with any trailing slashes removed.
+ * with any trailing path separators removed.
  */
-static int JimPathLenNoTrailingSlashes(const char *path, int len)
+static int jim_path_len_no_trailing_sep(const char *path, int len)
 {
     int i;
-    for (i = len; i > 1 && path[i - 1] == '/'; i--) {
+    for (i = len; i > 1 && jim_is_path_sep(path[i - 1]); i--) {
         /* Trailing slash, so remove it */
         if (ISWINDOWS && path[i - 2] == ':') {
             /* But on windows, we won't remove the trailing slash from c:/ */
@@ -245,14 +283,14 @@ static int JimPathLenNoTrailingSlashes(const char *path, int len)
 }
 
 /**
- * Give a path in objPtr, returns a new path with any trailing slash removed.
+ * Give a path in objPtr, returns a new path with any trailing path separators removed.
  * Use Jim_DecrRefCount() on the returned object (which may be identical to objPtr).
  */
-static Jim_Obj *JimStripTrailingSlashes(Jim_Interp *interp, Jim_Obj *objPtr)
+static Jim_Obj *JimStripTrailingSep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int len = Jim_Length(objPtr);
     const char *path = Jim_String(objPtr);
-    int i = JimPathLenNoTrailingSlashes(path, len);
+    int i = jim_path_len_no_trailing_sep(path, len);
     if (i != len) {
         objPtr = Jim_NewStringObj(interp, path, i);
     }
@@ -262,15 +300,15 @@ static Jim_Obj *JimStripTrailingSlashes(Jim_Interp *interp, Jim_Obj *objPtr)
 
 static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSep(interp, argv[0]);
     const char *path = Jim_String(objPtr);
-    const char *p = strrchr(path, '/');
+    const char *p = jim_find_last_path_sep(path);
 
     if (!p) {
         Jim_SetResultString(interp, ".", -1);
     }
     else if (p[1] == 0) {
-        /* Trailing slash so do nothing */
+        /* Trailing separator so do nothing */
         Jim_SetResult(interp, objPtr);
     }
     else if (p == path) {
@@ -281,8 +319,8 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         Jim_SetResultString(interp, path, p - path + 1);
     }
     else {
-        /* Strip any trailing slashes from the result */
-        int len = JimPathLenNoTrailingSlashes(path, p - path);
+        /* Strip any trailing separators from the result */
+        int len = jim_path_len_no_trailing_sep(path, p - path);
         Jim_SetResultString(interp, path, len);
     }
     Jim_DecrRefCount(interp, objPtr);
@@ -294,17 +332,17 @@ static int file_cmd_split(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
     const char *path = Jim_String(argv[0]);
 
-    if (*path == '/') {
+    if (jim_is_path_sep(path[0])) {
         Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "/", 1));
     }
 
     while (1) {
-        /* Remove leading slashes */
-        while (*path == '/') {
+        /* Remove leading separators */
+        while (jim_is_path_sep(*path)) {
             path++;
         }
         if (*path) {
-            const char *pt = strchr(path, '/');
+            const char *pt = jim_find_first_path_sep(path);
             if (pt) {
                 Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, path, pt - path));
                 path = pt;
@@ -321,10 +359,10 @@ static int file_cmd_split(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     const char *path = Jim_String(argv[0]);
-    const char *lastSlash = strrchr(path, '/');
+    const char *last_sep = jim_find_last_path_sep(path);
     const char *p = strrchr(path, '.');
 
-    if (p == NULL || (lastSlash != NULL && lastSlash > p)) {
+    if (p == NULL || (last_sep && last_sep > p)) {
         Jim_SetResult(interp, argv[0]);
     }
     else {
@@ -335,12 +373,12 @@ static int file_cmd_rootname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSep(interp, argv[0]);
     const char *path = Jim_String(objPtr);
-    const char *lastSlash = strrchr(path, '/');
+    const char *last_sep = jim_find_last_path_sep(path);
     const char *p = strrchr(path, '.');
 
-    if (p == NULL || (lastSlash != NULL && lastSlash >= p)) {
+    if (p == NULL || (last_sep != NULL && last_sep >= p)) {
         p = "";
     }
     Jim_SetResultString(interp, p, -1);
@@ -350,12 +388,12 @@ static int file_cmd_extension(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
 static int file_cmd_tail(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *objPtr = JimStripTrailingSlashes(interp, argv[0]);
+    Jim_Obj *objPtr = JimStripTrailingSep(interp, argv[0]);
     const char *path = Jim_String(objPtr);
-    const char *lastSlash = strrchr(path, '/');
+    const char *last_sep = jim_find_last_path_sep(path);
 
-    if (lastSlash) {
-        Jim_SetResultString(interp, lastSlash + 1, -1);
+    if (last_sep) {
+        Jim_SetResultString(interp, last_sep + 1, -1);
     }
     else {
         Jim_SetResult(interp, objPtr);
@@ -407,7 +445,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int len;
         const char *part = Jim_GetString(argv[i], &len);
 
-        if (*part == '/') {
+        if (jim_is_path_sep(part[0])) {
             /* Absolute component, so go back to the start */
             last = newname;
         }
@@ -416,7 +454,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             last = newname;
         }
         else if (part[0] == '.') {
-            if (part[1] == '/') {
+            if (jim_is_path_sep(part[1])) {
                 part += 2;
                 len -= 2;
             }
@@ -427,7 +465,7 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         }
 
         /* Add a slash if needed */
-        if (last != newname && last[-1] != '/') {
+        if (last != newname && !jim_is_path_sep(last[-1])) {
             *last++ = '/';
         }
 
@@ -441,8 +479,8 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             last += len;
         }
 
-        /* Remove a slash if needed */
-        if (last > newname + 1 && last[-1] == '/') {
+        /* Remove a path sep if needed */
+        if (last > newname + 1 && jim_is_path_sep(last[-1])) {
             /* but on on Windows, leave the trailing slash on "c:/ " */
             if (!ISWINDOWS || !(last > newname + 2 && last[-2] == ':')) {
                 *--last = 0;
@@ -542,14 +580,14 @@ static int mkdir_all(char *path)
     while (ok--) {
         /* Must have failed the first time, so recursively make the parent and try again */
         {
-            char *slash = strrchr(path, '/');
+            char *sep = (char *)jim_find_last_path_sep(path);
 
-            if (slash && slash != path) {
-                *slash = 0;
+            if (sep && sep != path) {
+                *sep = 0;
                 if (mkdir_all(path) != 0) {
                     return -1;
                 }
-                *slash = '/';
+                *sep = '/';
             }
         }
       first:
