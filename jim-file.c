@@ -48,6 +48,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <jimautoconf.h>
 #include <jim-subcmd.h>
@@ -67,12 +68,25 @@
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
+#ifdef JIM_TEST_COMMANDS
+/* Allow the platform to be overridden at runtime for testing purposes */
+static enum { PLATFORM_UNIX, PLATFORM_WINDOWS } platform =
+#if defined(__MINGW32__) || defined(__MSYS__) || defined(_MSC_VER)
+PLATFORM_WINDOWS;
+#else
+PLATFORM_UNIX;
+#endif
+#define ISWINDOWS (platform == PLATFORM_WINDOWS)
+#else
+/* Compile time setting */
 #if defined(__MINGW32__) || defined(__MSYS__) || defined(_MSC_VER)
 #define ISWINDOWS 1
-/* Even if we have symlink it isn't compatible enought to use */
+/* Even if we have symlink it isn't compatible enough to use */
 #undef HAVE_SYMLINK
 #else
+/* Hopefully on non-windows platform the compiler will optimize out the dead code */
 #define ISWINDOWS 0
+#endif
 #endif
 
 /* extract nanosecond resolution mtime from struct stat */
@@ -80,6 +94,22 @@
     #define STAT_MTIME_US(STAT) ((STAT).st_mtimespec.tv_sec * 1000000ll + (STAT).st_mtimespec.tv_nsec / 1000)
 #elif defined(HAVE_STRUCT_STAT_ST_MTIM)
     #define STAT_MTIME_US(STAT) ((STAT).st_mtim.tv_sec * 1000000ll + (STAT).st_mtim.tv_nsec / 1000)
+#endif
+
+#ifdef JIM_TEST_COMMANDS
+static int Jim_SetPlatformCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
+{
+    if (Jim_CompareStringImmediate(interp, argv[1], "windows")) {
+        platform = PLATFORM_WINDOWS;
+    }
+    else if (Jim_CompareStringImmediate(interp, argv[1], "unix")) {
+        platform = PLATFORM_UNIX;
+    }
+    else {
+        return JIM_USAGE;
+    }
+    return JIM_OK;
+}
 #endif
 
 /* On windows, convert backslashes to forward slashes (in place) in the null terminated path */
@@ -108,12 +138,12 @@ static int jim_is_path_sep(char c)
 static const char *jim_find_first_path_sep(const char *path)
 {
     const char *slash = strchr(path, '/');
-#if ISWINDOWS
-    const char *backslash = strchr(path, '\\');
-    if (backslash && (slash == NULL || backslash < slash)) {
-        slash = backslash;
+    if (ISWINDOWS) {
+        const char *backslash = strchr(path, '\\');
+        if (backslash && (slash == NULL || backslash < slash)) {
+            slash = backslash;
+        }
     }
-#endif
     return slash;
 }
 
@@ -123,12 +153,16 @@ static const char *jim_find_first_path_sep(const char *path)
 static const char *jim_find_last_path_sep(const char *path)
 {
     const char *lastSlash = strrchr(path, '/');
-#if ISWINDOWS
+    if (ISWINDOWS) {
         const char *lastBackslash = strrchr(path, '\\');
         if (lastBackslash > lastSlash) {
             lastSlash = lastBackslash;
         }
-#endif
+        /* We also check for a drive letter followed by a colon */
+        if (!lastSlash && isalpha(path[0]) && path[1] == ':') {
+            lastSlash = path + 1;
+        }
+    }
     return lastSlash;
 }
 
@@ -314,6 +348,10 @@ static int file_cmd_dirname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (p == path) {
         Jim_SetResultString(interp, "/", -1);
     }
+    else if (ISWINDOWS && p[0] == ':') {
+        /* z:dir => z: */
+        Jim_SetResultString(interp, path, 2);
+    }
     else if (ISWINDOWS && p[-1] == ':') {
         /* z:/dir => z:/ */
         Jim_SetResultString(interp, path, p - path + 1);
@@ -332,12 +370,39 @@ static int file_cmd_split(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_Obj *listObj = Jim_NewListObj(interp, NULL, 0);
     const char *path = Jim_String(argv[0]);
 
+    if (ISWINDOWS) {
+        /* If there is a drive letter followed by a colon, treat that as a separate component. */
+        /* c:abc -> ["c:" "abc"] */
+        /* c:/abc -> ["c:/" "abc"] */
+        /* c:\abc -> ["c:\" "abc"] */
+        if (isalpha(path[0]) && path[1] == ':') {
+            int drivelen = 2;
+            if (jim_is_path_sep(path[2])) {
+                drivelen++;
+            }
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, path, drivelen));
+            path += drivelen;
+        }
+    }
+
+    /* The Open Group Base Specifications Issue 6, paragraph 4.11 Pathname Resolution:
+     * “A pathname that begins with two successive slashes may be interpreted in an
+     * implementation-defined manner, although more than two leading slashes shall
+     * be treated as a single slash.”
+     */
     if (jim_is_path_sep(path[0])) {
-        Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "/", 1));
+        if (jim_is_path_sep(path[1]) && !jim_is_path_sep(path[2])) {
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "//", 2));
+            path += 2;
+        }
+        else {
+            /* Leading slash means an absolute path, so add an empty element for it */
+            Jim_ListAppendElement(interp, listObj, Jim_NewStringObj(interp, "/", 1));
+        }
     }
 
     while (1) {
-        /* Remove leading separators */
+        /* Remove any extra leading separators */
         while (jim_is_path_sep(*path)) {
             path++;
         }
@@ -453,16 +518,9 @@ static int file_cmd_join(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             /* Absolute component on mingw, so go back to the start */
             last = newname;
         }
-        else if (part[0] == '.') {
-            if (jim_is_path_sep(part[1])) {
-                part += 2;
-                len -= 2;
-            }
-            else if (part[1] == 0 && last != newname) {
-                /* Adding '.' to an existing path does nothing */
-                continue;
-            }
-        }
+        /* Note: We used to omit "./" components, but Tcl doesn't do this
+         * so we won't either. Use file normalize if you want to remove them.
+         */
 
         /* Add a slash if needed */
         if (last != newname && !jim_is_path_sep(last[-1])) {
@@ -666,12 +724,10 @@ static int file_cmd_rename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             argv[1]);
         return JIM_ERR;
     }
-#if ISWINDOWS
-    if (access(dest, F_OK) == 0) {
+    if (ISWINDOWS && access(dest, F_OK) == 0) {
         /* Windows won't rename over an existing file */
         remove(dest);
     }
-#endif
     if (rename(source, dest) != 0) {
         Jim_SetResultFormatted(interp, "error renaming \"%#s\" to \"%#s\": %s", argv[0], argv[1],
             strerror(errno));
@@ -1172,5 +1228,8 @@ int Jim_fileInit(Jim_Interp *interp)
     Jim_RegisterSubCmd(interp, "file", file_command_table, NULL);
     Jim_RegisterSimpleCmd(interp, "pwd", "", 0, 0, Jim_PwdCmd);
     Jim_RegisterCmd(interp, "cd", "dirname", 1, 1, Jim_CdCmd, NULL, NULL, JIM_CMD_NOTAINT);
+#ifdef JIM_TEST_COMMANDS
+    Jim_RegisterSimpleCmd(interp, "testsetplatform", "unix|windows", 1, 1, Jim_SetPlatformCmd);
+#endif
     return JIM_OK;
 }

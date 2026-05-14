@@ -5,6 +5,7 @@ constraint cmd {file link}
 constraint cmd {file lstat}
 constraint cmd {file mtimeus}
 constraint expr unix {$tcl_platform(platform) eq "unix"}
+constraint expr win {$tcl_platform(platform) eq "windows"}
 testConstraint normalize 1
 if {[testConstraint jim]} {
 	constraint expr mtimeset {!$tcl_platform(bootstrap)}
@@ -467,11 +468,7 @@ test file.13.9 "picol test" {file tail ///}   {}
 test file.14   "picol test" {file join foo}               foo
 test file.15   "picol test" {file join foo bar}           foo/bar
 test file.16   "picol test" {file join foo /bar}          /bar
-
-if {$tcl_platform(platform) eq {windows}} {
-    test file.17  "picol test" {file join foo C:/bar grill}  C:/bar/grill
-}
-
+test file.17   "picol test" -body {file join foo C:/bar grill} -constraints win -result C:/bar/grill
 test file.18   "picol test" {file split {/foo/space station/bar}}  {/ foo {space station} bar}
 test file.19   "picol test" {file split {/foo/space station/bar/}}  {/ foo {space station} bar}
 test file.20   "picol test" {file split {foo/space station/bar}}  {foo {space station} bar}

@@ -37,6 +37,7 @@ options {
     random-hash     => "Randomise hash tables. more secure but hash table results are not predicable"
     coverage        => "Build with code coverage support"
     introspection=1 => "Disable introspection"
+    testcmds=0      => "Enable additional test commands for unit testing"
     with-jim-ext: {with-ext:"ext1,ext2,..."} => {
         Specify additional Jim extensions to include.
         Use --extinfo to show information about available extensions.
@@ -513,6 +514,7 @@ if {[get-define libdir] ni {/lib /usr/lib /usr/lib64}} {
 define JIM_INSTALL [opt-bool install-jim]
 define JIM_DOCS [opt-bool docs]
 define JIM_RANDOMISE_HASH [opt-bool random-hash]
+define JIM_TEST_COMMANDS [opt-bool testcmds]
 define docdir [opt-str docdir o {${prefix}/docs/jim}]
 
 # autosetup cc-check-function-in-library can't handle C++ libraries
