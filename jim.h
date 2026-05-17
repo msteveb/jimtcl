@@ -118,6 +118,7 @@ extern "C" {
 #  endif
 #endif
 
+/** Cast a value to unsigned char before byte-oriented processing. */
 #define UCHAR(c) ((unsigned char)(c))
 
 /* -----------------------------------------------------------------------------
@@ -180,6 +181,7 @@ extern "C" {
 #define JIM_PATH_LEN 1024
 
 /* Unused arguments generate annoying warnings... */
+/** Explicitly mark a parameter or local as intentionally unused. */
 #define JIM_NOTUSED(V) ((void) V)
 
 #define JIM_LIBPATH "auto_path"
@@ -239,10 +241,12 @@ typedef struct Jim_HashTableIterator {
 #define JIM_HT_INITIAL_SIZE     16
 
 /* ------------------------------- Macros ------------------------------------*/
+/** Run the value destructor for a hash entry if one is configured. */
 #define Jim_FreeEntryVal(ht, entry) \
     if ((ht)->type->valDestructor) \
         (ht)->type->valDestructor((ht)->privdata, (entry)->u.val)
 
+/** Store a hash entry value, duplicating it first when the table type requires it. */
 #define Jim_SetHashVal(ht, entry, _val_) do { \
     if ((ht)->type->valDup) \
         (entry)->u.val = (ht)->type->valDup((ht)->privdata, (_val_)); \
@@ -250,12 +254,15 @@ typedef struct Jim_HashTableIterator {
         (entry)->u.val = (_val_); \
 } while(0)
 
+/** Store an integer payload in a hash entry. */
 #define Jim_SetHashIntVal(ht, entry, _val_) (entry)->u.intval = (_val_)
 
+/** Run the key destructor for a hash entry if one is configured. */
 #define Jim_FreeEntryKey(ht, entry) \
     if ((ht)->type->keyDestructor) \
         (ht)->type->keyDestructor((ht)->privdata, (entry)->key)
 
+/** Store a hash entry key, duplicating it first when the table type requires it. */
 #define Jim_SetHashKey(ht, entry, _key_) do { \
     if ((ht)->type->keyDup) \
         (entry)->key = (ht)->type->keyDup((ht)->privdata, (_key_)); \
@@ -263,18 +270,26 @@ typedef struct Jim_HashTableIterator {
         (entry)->key = (void *)(_key_); \
 } while(0)
 
+/** Compare two hash keys using the table's comparison hook when present. */
 #define Jim_CompareHashKeys(ht, key1, key2) \
     (((ht)->type->keyCompare) ? \
         (ht)->type->keyCompare((ht)->privdata, (key1), (key2)) : \
         (key1) == (key2))
 
+/** Compute the hash key value used for lookup in a table. */
 #define Jim_HashKey(ht, key) ((ht)->type->hashFunction(key) + (ht)->uniq)
 
+/** Return the key stored in a hash entry. */
 #define Jim_GetHashEntryKey(he) ((he)->key)
+/** Return the pointer value stored in a hash entry. */
 #define Jim_GetHashEntryVal(he) ((he)->u.val)
+/** Return the integer value stored in a hash entry. */
 #define Jim_GetHashEntryIntVal(he) ((he)->u.intval)
+/** Return the number of hash collisions recorded for a table. */
 #define Jim_GetHashTableCollisions(ht) ((ht)->collisions)
+/** Return the current bucket count for a table. */
 #define Jim_GetHashTableSize(ht) ((ht)->size)
+/** Return the number of live entries in a table. */
 #define Jim_GetHashTableUsed(ht) ((ht)->used)
 
 /* -----------------------------------------------------------------------------
@@ -371,10 +386,13 @@ typedef struct Jim_Obj {
 } Jim_Obj;
 
 /* Jim_Obj related macros */
+/** Increment an object's reference count. */
 #define Jim_IncrRefCount(objPtr) \
     ++(objPtr)->refCount
+/** Decrement an object's reference count and free it when it reaches zero. */
 #define Jim_DecrRefCount(interp, objPtr) \
     if (--(objPtr)->refCount <= 0) Jim_FreeObj(interp, objPtr)
+/** Test whether an object has more than one reference. */
 #define Jim_IsShared(objPtr) \
     ((objPtr)->refCount > 1)
 
@@ -388,14 +406,17 @@ typedef struct Jim_Obj {
 #define Jim_FreeNewObj Jim_FreeObj
 
 /* Free the internal representation of the object. */
+/** Free an object's internal representation if its type supplies a hook. */
 #define Jim_FreeIntRep(i,o) \
     if ((o)->typePtr && (o)->typePtr->freeIntRepProc) \
         (o)->typePtr->freeIntRepProc(i, o)
 
 /* Get the internal representation pointer */
+/** Return the generic pointer from an object's internal representation. */
 #define Jim_GetIntRepPtr(o) (o)->internalRep.ptr
 
 /* Set the internal representation pointer */
+/** Store a generic pointer in an object's internal representation. */
 #define Jim_SetIntRepPtr(o, p) \
     (o)->internalRep.ptr = (p)
 
@@ -630,16 +651,23 @@ typedef struct Jim_Interp {
  * At some point may be a real function doing more work.
  * The proc epoch is used in order to know when a command lookup
  * cached can no longer considered valid. */
+/** Set the interpreter result to a newly created string object. */
 #define Jim_SetResultString(i,s,l) Jim_SetResult(i, Jim_NewStringObj(i,s,l))
+/** Set the interpreter result to a newly created integer object. */
 #define Jim_SetResultInt(i,intval) Jim_SetResult(i, Jim_NewIntObj(i,intval))
 /* Note: Using trueObj and falseObj here makes some things slower...*/
+/** Set the interpreter result to a boolean value. */
 #define Jim_SetResultBool(i,b) Jim_SetResultInt(i, b)
+/** Reset the interpreter result to the shared empty object. */
 #define Jim_SetEmptyResult(i) Jim_SetResult(i, (i)->emptyObj)
+/** Return the current interpreter result object. */
 #define Jim_GetResult(i) ((i)->result)
+/** Return the private data pointer of the currently executing command. */
 #define Jim_CmdPrivData(i) ((i)->cmdPrivData)
 
 /* Note that 'o' is expanded only one time inside this macro,
  * so it's safe to use side effects. */
+/** Replace the interpreter result with the supplied object. */
 #define Jim_SetResult(i,o) do {     \
     Jim_Obj *_resultObjPtr_ = (o);    \
     Jim_IncrRefCount(_resultObjPtr_); \
@@ -648,6 +676,7 @@ typedef struct Jim_Interp {
 } while(0)
 
 /* Use this for filehandles, etc. which need a unique id */
+/** Return a new interpreter-wide unique identifier. */
 #define Jim_GetId(i) (++(i)->id)
 
 /* Reference structure. The interpreter pointer is held within privdata member in HashTable */
@@ -663,7 +692,9 @@ typedef struct Jim_Reference {
  * Exported API prototypes.
  * ---------------------------------------------------------------------------*/
 
+/** Create a new shared empty string object. */
 #define Jim_NewEmptyStringObj(i) Jim_NewStringObj(i, "", 0)
+/** Free a hash table iterator allocated by Jim_GetHashTableIterator(). */
 #define Jim_FreeHashTableIterator(iter) Jim_Free(iter)
 
 #define JIM_EXPORT extern
@@ -677,15 +708,23 @@ typedef struct Jim_Reference {
  */
 JIM_EXPORT void *(*Jim_Allocator)(void *ptr, size_t size);
 
+/** Free memory allocated through Jim_Allocator. */
 #define Jim_Free(P) Jim_Allocator((P), 0)
+/** Resize a Jim-allocated buffer. */
 #define Jim_Realloc(P, S) Jim_Allocator((P), (S))
+/** Allocate a new buffer through Jim_Allocator. */
 #define Jim_Alloc(S) Jim_Allocator(NULL, (S))
+/** Duplicate a NUL-terminated C string using the Jim allocator. */
 JIM_EXPORT char * Jim_StrDup (const char *s);
+/** Duplicate the first `l` bytes of a C string using the Jim allocator. */
 JIM_EXPORT char *Jim_StrDupLen(const char *s, int l);
 
 /* environment */
+/** Return the process environment table currently used by Jim. */
 JIM_EXPORT char **Jim_GetEnviron(void);
+/** Replace the process environment table used by Jim. */
 JIM_EXPORT void Jim_SetEnviron(char **env);
+/** Create a temporary file from a template and optionally unlink it immediately. */
 JIM_EXPORT int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_template, int unlink_file);
 #ifndef CLOCK_REALTIME
 #  define CLOCK_REALTIME 0
@@ -696,116 +735,175 @@ JIM_EXPORT int Jim_MakeTempFile(Jim_Interp *interp, const char *filename_templat
 #ifndef CLOCK_MONOTONIC_RAW
 #  define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
 #endif
+/** Return a microsecond timestamp for the requested clock source. */
 JIM_EXPORT jim_wide Jim_GetTimeUsec(unsigned type);
 
 /* evaluation */
+/** Evaluate a Tcl script string in the current scope. */
 JIM_EXPORT int Jim_Eval(Jim_Interp *interp, const char *script);
 /* in C code, you can do this and get better error messages */
 /*   Jim_EvalSource( interp, __FILE__, __LINE__ , "some tcl commands"); */
+/** Evaluate a Tcl script string with explicit filename and line metadata. */
 JIM_EXPORT int Jim_EvalSource(Jim_Interp *interp, const char *filename, int lineno, const char *script);
 /* Backwards compatibility */
+/** Backward-compatible alias for Jim_EvalSource(). */
 #define Jim_Eval_Named(I, S, F, L) Jim_EvalSource((I), (F), (L), (S))
 
+/** Evaluate a Tcl script string in the global scope. */
 JIM_EXPORT int Jim_EvalGlobal(Jim_Interp *interp, const char *script);
+/** Evaluate a script file in the current scope. */
 JIM_EXPORT int Jim_EvalFile(Jim_Interp *interp, const char *filename);
+/** Evaluate a script file in the global scope. */
 JIM_EXPORT int Jim_EvalFileGlobal(Jim_Interp *interp, const char *filename);
+/** Evaluate a script held in an object. */
 JIM_EXPORT int Jim_EvalObj (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
+/** Evaluate a command vector as if it were a parsed command. */
 JIM_EXPORT int Jim_EvalObjVector (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
+/** Evaluate a list object as a command. */
 JIM_EXPORT int Jim_EvalObjList(Jim_Interp *interp, Jim_Obj *listObj);
+/** Evaluate a command by prepending a command prefix object to an argument vector. */
 JIM_EXPORT int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix,
         int objc, Jim_Obj *const *objv);
+/** Evaluate a command using a string prefix converted to an object. */
 #define Jim_EvalPrefix(i, p, oc, ov) Jim_EvalObjPrefix((i), Jim_NewStringObj((i), (p), -1), (oc), (ov))
+/** Evaluate a script object in the specified namespace. */
 JIM_EXPORT int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj);
+/** Perform substitutions on an object and return the substituted result object. */
 JIM_EXPORT int Jim_SubstObj (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
 /* source information */
+/** Return source filename information for an object and optionally its line number. */
 JIM_EXPORT Jim_Obj *Jim_GetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
         int *lineptr);
 /* may only be called on an unshared object */
+/** Attach source filename and line metadata to an unshared object. */
 JIM_EXPORT void Jim_SetSourceInfo(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *fileNameObj, int lineNumber);
 
 
 /* stack */
+/** Initialize a stack structure. */
 JIM_EXPORT void Jim_StackInit(Jim_Stack *stack, void (*freefunc) (void *ptr));
+/** Free the storage used by a stack structure. */
 JIM_EXPORT void Jim_StackFree(Jim_Stack *stack);
+/** Push an element onto a stack. */
 JIM_EXPORT void Jim_StackPush(Jim_Stack *stack, void *element);
+/** Pop and return the top element from a stack. */
 JIM_EXPORT void *Jim_StackPop(Jim_Stack *stack);
 
 /* hash table */
+/** Initialize a hash table with the supplied type hooks and private data. */
 JIM_EXPORT int Jim_InitHashTable (Jim_HashTable *ht,
         const Jim_HashTableType *type, void *privdata);
+/** Grow a hash table to at least the requested size. */
 JIM_EXPORT void Jim_ExpandHashTable (Jim_HashTable *ht,
         unsigned int size);
+/** Add a new key/value entry to a hash table. */
 JIM_EXPORT int Jim_AddHashEntry (Jim_HashTable *ht, const void *key,
         void *val);
+/** Add or replace a key/value entry in a hash table. */
 JIM_EXPORT int Jim_ReplaceHashEntry (Jim_HashTable *ht,
         const void *key, void *val);
+/** Delete a key from a hash table. */
 JIM_EXPORT int Jim_DeleteHashEntry (Jim_HashTable *ht,
         const void *key);
+/** Free all storage owned by a hash table. */
 JIM_EXPORT int Jim_FreeHashTable (Jim_HashTable *ht);
+/** Look up a hash entry by key. */
 JIM_EXPORT Jim_HashEntry * Jim_FindHashEntry (Jim_HashTable *ht,
         const void *key);
+/** Allocate and initialize an iterator for a hash table. */
 JIM_EXPORT Jim_HashTableIterator *Jim_GetHashTableIterator
         (Jim_HashTable *ht);
+/** Return the next entry from a hash table iterator. */
 JIM_EXPORT Jim_HashEntry * Jim_NextHashEntry
         (Jim_HashTableIterator *iter);
 
 /* objects */
+/** Allocate a new empty Jim object. */
 JIM_EXPORT Jim_Obj * Jim_NewObj (Jim_Interp *interp);
+/** Free a Jim object whose reference count reached zero. */
 JIM_EXPORT void Jim_FreeObj (Jim_Interp *interp, Jim_Obj *objPtr);
+/** Invalidate an object's cached string representation. */
 JIM_EXPORT void Jim_InvalidateStringRep (Jim_Obj *objPtr);
+/** Duplicate an existing object, including its internal representation when needed. */
 JIM_EXPORT Jim_Obj * Jim_DuplicateObj (Jim_Interp *interp,
         Jim_Obj *objPtr);
+/** Return an object's string representation and optionally its byte length. */
 JIM_EXPORT const char * Jim_GetString(Jim_Obj *objPtr,
         int *lenPtr);
+/** Return an object's NUL-terminated string representation. */
 JIM_EXPORT const char *Jim_String(Jim_Obj *objPtr);
+/** Return the byte length of an object's string representation. */
 JIM_EXPORT int Jim_Length(Jim_Obj *objPtr);
 
 /* string object */
+/** Create a string object from a byte sequence. */
 JIM_EXPORT Jim_Obj * Jim_NewStringObj (Jim_Interp *interp,
         const char *s, int len);
+/** Create a UTF-8 string object from a character-counted string. */
 JIM_EXPORT Jim_Obj *Jim_NewStringObjUtf8(Jim_Interp *interp,
         const char *s, int charlen);
+/** Create a string object that takes ownership of an allocated buffer. */
 JIM_EXPORT Jim_Obj * Jim_NewStringObjNoAlloc (Jim_Interp *interp,
         char *s, int len);
+/** Append raw bytes to a string object. */
 JIM_EXPORT void Jim_AppendString (Jim_Interp *interp, Jim_Obj *objPtr,
         const char *str, int len);
+/** Append one object's string representation to another object. */
 JIM_EXPORT void Jim_AppendObj (Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *appendObjPtr);
+/** Append a NULL-terminated list of C strings to an object. */
 JIM_EXPORT void Jim_AppendStrings (Jim_Interp *interp,
         Jim_Obj *objPtr, ...);
+/** Compare two objects for string equality. */
 JIM_EXPORT int Jim_StringEqObj(Jim_Obj *aObjPtr, Jim_Obj *bObjPtr);
+/** Match an object string against a pattern object. */
 JIM_EXPORT int Jim_StringMatchObj (Jim_Interp *interp, Jim_Obj *patternObjPtr,
         Jim_Obj *objPtr, int nocase);
+/** Return a substring object selected by Tcl-style first/last indices. */
 JIM_EXPORT Jim_Obj * Jim_StringRangeObj (Jim_Interp *interp,
         Jim_Obj *strObjPtr, Jim_Obj *firstObjPtr,
         Jim_Obj *lastObjPtr);
+/** Apply Tcl-style formatting using a format object and argument vector. */
 JIM_EXPORT Jim_Obj * Jim_FormatString (Jim_Interp *interp,
         Jim_Obj *fmtObjPtr, int objc, Jim_Obj *const *objv);
+/** Parse a string with a Tcl-style scan format and return the scan result object. */
 JIM_EXPORT Jim_Obj * Jim_ScanString (Jim_Interp *interp, Jim_Obj *strObjPtr,
         Jim_Obj *fmtObjPtr, int flags);
+/** Compare an object string against a literal C string. */
 JIM_EXPORT int Jim_CompareStringImmediate (Jim_Interp *interp,
         Jim_Obj *objPtr, const char *str);
+/** Compare two object strings with optional case folding. */
 JIM_EXPORT int Jim_StringCompareObj(Jim_Interp *interp, Jim_Obj *firstObjPtr,
         Jim_Obj *secondObjPtr, int nocase);
+/** Return the number of UTF-8 characters in an object's string representation. */
 JIM_EXPORT int Jim_Utf8Length(Jim_Interp *interp, Jim_Obj *objPtr);
 
 /* reference object */
+/** Create a reference object tied to another object and optional finalizer metadata. */
 JIM_EXPORT Jim_Obj * Jim_NewReference (Jim_Interp *interp,
         Jim_Obj *objPtr, Jim_Obj *tagPtr, Jim_Obj *cmdNamePtr);
+/** Resolve a reference object to its underlying reference record. */
 JIM_EXPORT Jim_Reference * Jim_GetReference (Jim_Interp *interp,
         Jim_Obj *objPtr);
+/** Set or replace the finalizer command associated with a reference object. */
 JIM_EXPORT int Jim_SetFinalizer (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *cmdNamePtr);
+/** Retrieve the finalizer command associated with a reference object. */
 JIM_EXPORT int Jim_GetFinalizer (Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj **cmdNamePtrPtr);
 
 /* interpreter */
+/** Create and initialize a new interpreter. */
 JIM_EXPORT Jim_Interp * Jim_CreateInterp (void);
+/** Destroy an interpreter and free all resources it owns. */
 JIM_EXPORT void Jim_FreeInterp (Jim_Interp *i);
+/** Return the exit code stored in an interpreter after `exit`. */
 JIM_EXPORT int Jim_GetExitCode (Jim_Interp *interp);
+/** Return the textual name of a Jim return code. */
 JIM_EXPORT const char *Jim_ReturnCode(int code);
+/** Format and set the interpreter result using printf-style arguments. */
 JIM_EXPORT void Jim_SetResultFormatted(Jim_Interp *interp, const char *format, ...);
 
 /* commands */
@@ -831,134 +929,193 @@ JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
 #define Jim_RegisterCmd(interp, name, usage, minargs, maxargs, cmdproc, delproc, privdata, flags) \
         Jim_RegisterCommand(interp, Jim_NewStringObj(interp, name, -1), cmdproc, delproc, usage, NULL, minargs, maxargs, flags, privdata)
 
+/** Register the built-in core commands in an interpreter. */
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
+/** Create a new command backed by a C callback. */
+JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
+        const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
+         Jim_DelCmdProc *delProc);
+/** Delete a command by name object. */
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         Jim_Obj *cmdNameObj);
+/** Rename an existing command. */
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         Jim_Obj *oldNameObj, Jim_Obj *newNameObj);
+/** Look up a command by name object. */
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
+/** Set a variable using object names and values. */
 /* Note that if Jim_SetVariable() fails, and valObjPtr has a zero reference count, it will be freed */
 JIM_EXPORT int Jim_SetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr);
+/** Set a variable from a C string name. */
 JIM_EXPORT int Jim_SetVariableStr (Jim_Interp *interp,
         const char *name, Jim_Obj *objPtr);
+/** Set a global variable from a C string name. */
 JIM_EXPORT int Jim_SetGlobalVariableStr (Jim_Interp *interp,
         const char *name, Jim_Obj *objPtr);
+/** Set a variable from C string name and value inputs. */
 JIM_EXPORT int Jim_SetVariableStrWithStr (Jim_Interp *interp,
         const char *name, const char *val);
+/** Link a variable name to another variable in a target call frame. */
 JIM_EXPORT int Jim_SetVariableLink (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, Jim_Obj *targetNameObjPtr,
         Jim_CallFrame *targetCallFrame);
+/** Build the fully qualified global namespace name for an object name. */
 JIM_EXPORT Jim_Obj * Jim_MakeGlobalNamespaceName(Jim_Interp *interp,
         Jim_Obj *nameObjPtr);
+/** Get a variable by object name. */
 JIM_EXPORT Jim_Obj * Jim_GetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
+/** Get a global variable by object name. */
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
+/** Get a variable by C string name. */
 JIM_EXPORT Jim_Obj * Jim_GetVariableStr (Jim_Interp *interp,
         const char *name, int flags);
+/** Get a global variable by C string name. */
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariableStr (Jim_Interp *interp,
         const char *name, int flags);
+/** Unset a variable by object name. */
 JIM_EXPORT int Jim_UnsetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 
 /* call frame */
+/** Resolve a Tcl-style stack level to the corresponding call frame. */
 JIM_EXPORT Jim_CallFrame *Jim_GetCallFrameByLevel(Jim_Interp *interp,
         Jim_Obj *levelObjPtr);
 
 /* garbage collection */
+/** Run a garbage collection pass. */
 JIM_EXPORT int Jim_Collect (Jim_Interp *interp);
+/** Run garbage collection if the interpreter decides it is needed. */
 JIM_EXPORT void Jim_CollectIfNeeded (Jim_Interp *interp);
 
 /* index object */
+/** Extract an integer index from an object. */
 JIM_EXPORT int Jim_GetIndex (Jim_Interp *interp, Jim_Obj *objPtr,
         int *indexPtr);
 
 /* list object */
+/** Create a list object from an element vector. */
 JIM_EXPORT Jim_Obj * Jim_NewListObj (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
+/** Insert elements into a list object at the specified index. */
 JIM_EXPORT void Jim_ListInsertElements (Jim_Interp *interp,
         Jim_Obj *listPtr, int listindex, int objc, Jim_Obj *const *objVec);
+/** Append one element to a list object. */
 JIM_EXPORT void Jim_ListAppendElement (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *objPtr);
+/** Append all elements of one list object to another. */
 JIM_EXPORT void Jim_ListAppendList (Jim_Interp *interp,
         Jim_Obj *listPtr, Jim_Obj *appendListPtr);
+/** Return the element count of a list object. */
 JIM_EXPORT int Jim_ListLength (Jim_Interp *interp, Jim_Obj *objPtr);
+/** Return a list element by index, optionally reporting conversion errors. */
 JIM_EXPORT int Jim_ListIndex (Jim_Interp *interp, Jim_Obj *listPrt,
         int listindex, Jim_Obj **objPtrPtr, int seterr);
+/** Return a list element by index as an object pointer. */
 JIM_EXPORT Jim_Obj *Jim_ListGetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx);
+/** Set a list element reachable through a variable and index vector. */
 JIM_EXPORT int Jim_SetListIndex (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *indexv, int indexc,
         Jim_Obj *newObjPtr);
+/** Concatenate multiple list-like objects using Tcl list concatenation rules. */
 JIM_EXPORT Jim_Obj * Jim_ConcatObj (Jim_Interp *interp, int objc,
         Jim_Obj *const *objv);
+/** Join the elements of a list into a string with the supplied separator. */
 JIM_EXPORT Jim_Obj *Jim_ListJoin(Jim_Interp *interp,
         Jim_Obj *listObjPtr, const char *joinStr, int joinStrLen);
 
 /* dict object */
+/** Create a dictionary object from alternating key/value elements. */
 JIM_EXPORT Jim_Obj * Jim_NewDictObj (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
+/** Look up one key in a dictionary object. */
 JIM_EXPORT int Jim_DictKey (Jim_Interp *interp, Jim_Obj *dictPtr,
         Jim_Obj *keyPtr, Jim_Obj **objPtrPtr, int flags);
+/** Follow a vector of keys through nested dictionaries. */
 JIM_EXPORT int Jim_DictKeysVector (Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj **objPtrPtr, int flags);
+/** Set a nested dictionary value addressed by a key vector inside a variable. */
 JIM_EXPORT int Jim_SetDictKeysVector (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr, int flags);
+/** Return the alternating key/value object array used by a dictionary. */
 JIM_EXPORT Jim_Obj **Jim_DictPairs(Jim_Interp *interp,
         Jim_Obj *dictPtr, int *len);
+/** Add or replace one key/value pair in a dictionary object. */
 JIM_EXPORT int Jim_DictAddElement(Jim_Interp *interp, Jim_Obj *objPtr,
         Jim_Obj *keyObjPtr, Jim_Obj *valueObjPtr);
 
 #define JIM_DICTMATCH_KEYS 0x0001
 #define JIM_DICTMATCH_VALUES 0x002
 
+/** Match dictionary keys and/or values against a pattern and return the requested components. */
 JIM_EXPORT int Jim_DictMatchTypes(Jim_Interp *interp, Jim_Obj *objPtr, Jim_Obj *patternObj, int match_type, int return_types);
+/** Return the number of key/value pairs in a dictionary object. */
 JIM_EXPORT int Jim_DictSize(Jim_Interp *interp, Jim_Obj *objPtr);
+/** Return implementation-specific diagnostic information about a dictionary object. */
 JIM_EXPORT int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr);
+/** Merge multiple dictionaries and return the merged dictionary object. */
 JIM_EXPORT Jim_Obj *Jim_DictMerge(Jim_Interp *interp, int objc, Jim_Obj *const *objv);
 
 /* return code object */
+/** Extract a return code integer from an object. */
 JIM_EXPORT int Jim_GetReturnCode (Jim_Interp *interp, Jim_Obj *objPtr,
         int *intPtr);
 
 /* expression object */
+/** Evaluate an expression object and leave the result in the interpreter. */
 JIM_EXPORT int Jim_EvalExpression (Jim_Interp *interp,
         Jim_Obj *exprObjPtr);
+/** Evaluate an expression object and convert the result to boolean. */
 JIM_EXPORT int Jim_GetBoolFromExpr (Jim_Interp *interp,
         Jim_Obj *exprObjPtr, int *boolPtr);
 
 /* boolean object */
+/** Convert an object to boolean. */
 JIM_EXPORT int Jim_GetBoolean(Jim_Interp *interp, Jim_Obj *objPtr,
         int *booleanPtr);
 
 /* integer object */
+/** Convert an object to Jim's wide integer type. */
 JIM_EXPORT int Jim_GetWide (Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide *widePtr);
+/** Evaluate an expression object and convert the result to a wide integer. */
 JIM_EXPORT int Jim_GetWideExpr(Jim_Interp *interp, Jim_Obj *objPtr,
         jim_wide *widePtr);
+/** Convert an object to a C long. */
 JIM_EXPORT int Jim_GetLong (Jim_Interp *interp, Jim_Obj *objPtr,
         long *longPtr);
+/** Backward-compatible alias for Jim_NewIntObj(). */
 #define Jim_NewWideObj  Jim_NewIntObj
+/** Create an integer object from a wide integer value. */
 JIM_EXPORT Jim_Obj * Jim_NewIntObj (Jim_Interp *interp,
         jim_wide wideValue);
 
 /* double object */
+/** Convert an object to double. */
 JIM_EXPORT int Jim_GetDouble(Jim_Interp *interp, Jim_Obj *objPtr,
         double *doublePtr);
+/** Replace an object's internal value with a double. */
 JIM_EXPORT void Jim_SetDouble(Jim_Interp *interp, Jim_Obj *objPtr,
         double doubleValue);
+/** Create a new double object. */
 JIM_EXPORT Jim_Obj * Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue);
 
 /* commands utilities */
+/** Set the standard wrong-argument-count error message for a command. */
 JIM_EXPORT void Jim_WrongNumArgs (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
+/** Map an object string to an index in a name table. */
 JIM_EXPORT int Jim_GetEnum (Jim_Interp *interp, Jim_Obj *objPtr,
         const char * const *tablePtr, int *indexPtr, const char *name, int flags);
+/** Implement standard `-commands` support for subcommand tables. */
 JIM_EXPORT int Jim_CheckShowCommands(Jim_Interp *interp, Jim_Obj *objPtr,
         const char *const *tablePtr);
+/** Check whether a script object is syntactically complete. */
 JIM_EXPORT int Jim_ScriptIsComplete(Jim_Interp *interp,
         Jim_Obj *scriptObj, char *stateCharPtr);
 
@@ -973,41 +1130,62 @@ JIM_EXPORT int Jim_FindByName(const char *name, const char * const array[], size
 
 /* package utilities */
 typedef void (Jim_InterpDeleteProc)(Jim_Interp *interp, void *data);
+/** Look up interpreter-associated package data by key. */
 JIM_EXPORT void * Jim_GetAssocData(Jim_Interp *interp, const char *key);
+/** Store interpreter-associated package data with an optional delete callback. */
 JIM_EXPORT int Jim_SetAssocData(Jim_Interp *interp, const char *key,
         Jim_InterpDeleteProc *delProc, void *data);
+/** Remove interpreter-associated package data by key. */
 JIM_EXPORT int Jim_DeleteAssocData(Jim_Interp *interp, const char *key);
+/** Check that an extension was built against the current Jim ABI. */
 JIM_EXPORT int Jim_CheckAbiVersion(Jim_Interp *interp, int abi_version);
 
 /* Packages C API */
 
 /* jim-package.c */
+/** Announce that a package is now provided in the interpreter. */
 JIM_EXPORT int Jim_PackageProvide (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
+/** Require and, if needed, load a package into the interpreter. */
 JIM_EXPORT int Jim_PackageRequire (Jim_Interp *interp,
         const char *name, int flags);
+/** Verify ABI compatibility and provide a package from an extension init function. */
 #define Jim_PackageProvideCheck(INTERP, NAME) \
         if (Jim_CheckAbiVersion(INTERP, JIM_ABI_VERSION) == JIM_ERR || Jim_PackageProvide(INTERP, NAME, "1.0", JIM_ERRMSG)) \
                 return JIM_ERR
 
 /* error messages */
+/** Expand the current interpreter error state into a user-facing message. */
 JIM_EXPORT void Jim_MakeErrorMessage (Jim_Interp *interp);
 
 /* interactive mode */
+/** Run the interactive command prompt. */
 JIM_EXPORT int Jim_InteractivePrompt (Jim_Interp *interp);
+/** Load history entries from a file. */
 JIM_EXPORT void Jim_HistoryLoad(const char *filename);
+/** Save history entries to a file. */
 JIM_EXPORT void Jim_HistorySave(const char *filename);
+/** Read one line of interactive input using the configured line editor. */
 JIM_EXPORT char *Jim_HistoryGetline(Jim_Interp *interp, const char *prompt);
+/** Install the callback used for interactive completion. */
 JIM_EXPORT void Jim_HistorySetCompletion(Jim_Interp *interp, Jim_Obj *completionCommandObj);
+/** Install the callback used for interactive hints. */
 JIM_EXPORT void Jim_HistorySetHints(Jim_Interp *interp, Jim_Obj *hintsCommandObj);
+/** Append one line to the interactive history. */
 JIM_EXPORT void Jim_HistoryAdd(const char *line);
+/** Print the interactive history. */
 JIM_EXPORT void Jim_HistoryShow(void);
+/** Set the maximum retained history length. */
 JIM_EXPORT void Jim_HistorySetMaxLen(int length);
+/** Return the maximum retained history length. */
 JIM_EXPORT int Jim_HistoryGetMaxLen(void);
 
 /* Misc */
+/** Initialize all statically linked extensions in an interpreter. */
 JIM_EXPORT int Jim_InitStaticExtensions(Jim_Interp *interp);
+/** Convert a C string to a wide integer using the supplied base. */
 JIM_EXPORT int Jim_StringToWide(const char *str, jim_wide *widePtr, int base);
+/** Return non-zero on big-endian hosts. */
 JIM_EXPORT int Jim_IsBigEndian(void);
 
 /**
@@ -1015,17 +1193,23 @@ JIM_EXPORT int Jim_IsBigEndian(void);
  * in a catch -signal {} clause.
  */
 #define Jim_CheckSignal(i) ((i)->signal_level && (i)->sigmask)
+/** Mark the supplied signal mask as ignored by the signal handler layer. */
 JIM_EXPORT void Jim_SignalSetIgnored(jim_wide mask);
 
 /* jim-load.c */
+/** Load a binary extension library from disk. */
 JIM_EXPORT int Jim_LoadLibrary(Jim_Interp *interp, const char *pathName);
+/** Free all module load handles owned by an interpreter. */
 JIM_EXPORT void Jim_FreeLoadHandles(Jim_Interp *interp);
 
 /* jim-aio.c */
+/** Convert an AIO command object to its underlying filehandle. */
 JIM_EXPORT int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command);
 
 /* type inspection - avoid where possible */
+/** Return non-zero if an object is currently represented as a dictionary. */
 JIM_EXPORT int Jim_IsDict(Jim_Obj *objPtr);
+/** Return non-zero if an object is currently represented as a list. */
 JIM_EXPORT int Jim_IsList(Jim_Obj *objPtr);
 
 /* taint */
