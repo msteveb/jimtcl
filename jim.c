@@ -168,6 +168,7 @@ static int JimCallNative(Jim_Interp *interp, Jim_Cmd *cmd, int argc, Jim_Obj *co
 
 #define JimObjTypeName(O) ((O)->typePtr ? (O)->typePtr->name : "none")
 
+/* Decode one UTF-8 codepoint and optionally fold it to uppercase. */
 static int utf8_tounicode_case(const char *s, int *uc, int upper)
 {
     int l = utf8_tounicode(s, uc);
@@ -613,6 +614,7 @@ int Jim_StringToDouble(const char *str, double *doublePtr)
     return JimCheckConversion(str, endptr);
 }
 
+/* Raise a wide integer to an integer power. */
 static jim_wide JimPowWide(jim_wide b, jim_wide e)
 {
     jim_wide res = 1;
@@ -648,6 +650,7 @@ static jim_wide JimPowWide(jim_wide b, jim_wide e)
  * Special functions
  * ---------------------------------------------------------------------------*/
 #ifdef JIM_DEBUG_PANIC
+/* Print panic diagnostics and terminate the process. */
 static void JimPanicDump(int condition, const char *fmt, ...)
 {
     va_list ap;
@@ -809,6 +812,7 @@ static void JimResetHashTable(Jim_HashTable *ht)
 #endif
 }
 
+/* Initialise a hash table iterator to the start position. */
 static void JimInitHashTableIterator(Jim_HashTable *ht, Jim_HashTableIterator *iter)
 {
     iter->ht = ht;
@@ -1117,16 +1121,19 @@ static unsigned int JimStringCopyHTHashFunction(const void *key)
     return Jim_GenHashFunction(key, strlen(key));
 }
 
+/* Duplicate a NUL-terminated string key for string-keyed hash tables. */
 static void *JimStringCopyHTDup(void *privdata, const void *key)
 {
     return Jim_StrDup(key);
 }
 
+/* Compare two string keys for equality. */
 static int JimStringCopyHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
     return strcmp(key1, key2) == 0;
 }
 
+/* Free a duplicated string key. */
 static void JimStringCopyHTKeyDestructor(void *privdata, void *key)
 {
     Jim_Free(key);
@@ -1147,6 +1154,7 @@ typedef struct AssocDataValue
     void *data;
 } AssocDataValue;
 
+/* Invoke the delete callback for an assoc-data entry and free its wrapper. */
 static void JimAssocDataHashTableValueDestructor(void *privdata, void *data)
 {
     AssocDataValue *assocPtr = (AssocDataValue *) data;
@@ -1305,6 +1313,7 @@ static void JimParserInit(struct JimParserCtx *pc, const char *prg, int len, int
     pc->missing.line = linenr;
 }
 
+/* Parse the next token from a Tcl script. */
 static int JimParseScript(struct JimParserCtx *pc)
 {
     while (1) {                 /* the while is used to reiterate with continue if needed */
@@ -1366,6 +1375,7 @@ static int JimParseScript(struct JimParserCtx *pc)
     }
 }
 
+/* Parse a run of script separators, including backslash-newline continuations. */
 static int JimParseSep(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
@@ -1387,6 +1397,7 @@ static int JimParseSep(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse end-of-command separators. */
 static int JimParseEol(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
@@ -1598,6 +1609,7 @@ static void JimParseSubCmd(struct JimParserCtx *pc)
     pc->tend = pc->p - 1;
 }
 
+/* Parse a braced word token. */
 static int JimParseBrace(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p + 1;
@@ -1607,6 +1619,7 @@ static int JimParseBrace(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse a command-substitution token. */
 static int JimParseCmd(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p + 1;
@@ -1616,6 +1629,7 @@ static int JimParseCmd(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse a quoted word token. */
 static int JimParseQuote(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p + 1;
@@ -1624,6 +1638,7 @@ static int JimParseQuote(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse a variable or dict-sugar token beginning with '$'. */
 static int JimParseVar(struct JimParserCtx *pc)
 {
     /* skip the $ */
@@ -1732,6 +1747,7 @@ static int JimParseVar(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse a plain string token until substitution or word boundaries are reached. */
 static int JimParseStr(struct JimParserCtx *pc)
 {
     if (pc->tt == JIM_TT_SEP || pc->tt == JIM_TT_EOL ||
@@ -1835,6 +1851,7 @@ static int JimParseStr(struct JimParserCtx *pc)
     return JIM_OK;              /* unreached */
 }
 
+/* Skip a Tcl comment to end-of-line. */
 static int JimParseComment(struct JimParserCtx *pc)
 {
     while (*pc->p) {
@@ -1873,6 +1890,7 @@ static int xdigitval(int c)
     return -1;
 }
 
+/* Return the octal value of a digit character, or -1 if invalid. */
 static int odigitval(int c)
 {
     if (c >= '0' && c <= '7')
@@ -2099,6 +2117,7 @@ static int JimParseListSep(struct JimParserCtx *pc);
 static int JimParseListStr(struct JimParserCtx *pc);
 static int JimParseListQuote(struct JimParserCtx *pc);
 
+/* Parse the next token from a Tcl list string. */
 static int JimParseList(struct JimParserCtx *pc)
 {
     if (isspace(UCHAR(*pc->p))) {
@@ -2125,6 +2144,7 @@ static int JimParseList(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse list element separators. */
 static int JimParseListSep(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
@@ -2141,6 +2161,7 @@ static int JimParseListSep(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse a quoted list element. */
 static int JimParseListQuote(struct JimParserCtx *pc)
 {
     pc->p++;
@@ -2178,6 +2199,7 @@ static int JimParseListQuote(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse an unquoted list element. */
 static int JimParseListStr(struct JimParserCtx *pc)
 {
     pc->tstart = pc->p;
@@ -2368,6 +2390,7 @@ const char *Jim_String(Jim_Obj *objPtr)
     return objPtr->bytes;
 }
 
+/* Replace an object's string representation with a duplicated C string. */
 static void JimSetStringBytes(Jim_Obj *objPtr, const char *str)
 {
     objPtr->bytes = Jim_StrDup(str);
@@ -2396,11 +2419,13 @@ static const Jim_ObjType interpolatedObjType = {
     JIM_TYPE_NONE,
 };
 
+/* Release the extra object held by an interpolated internal representation. */
 static void FreeInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
 }
 
+/* Duplicate the internal state for an interpolated object. */
 static void DupInterpolatedInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     /* Copy the interal rep */
@@ -2423,6 +2448,7 @@ static const Jim_ObjType stringObjType = {
     JIM_TYPE_REFERENCES,
 };
 
+/* Copy cached string metadata when duplicating a string object. */
 static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     JIM_NOTUSED(interp);
@@ -2436,6 +2462,7 @@ static void DupStringInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *d
     dupPtr->internalRep.strValue.charLength = srcPtr->internalRep.strValue.charLength;
 }
 
+/* Convert an object to the canonical string internal representation. */
 static int SetStringFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     if (objPtr->typePtr != &stringObjType) {
@@ -2675,6 +2702,7 @@ static void JimRelToAbsRange(int len, int *firstPtr, int *lastPtr, int *rangeLen
     *rangeLenPtr = rangeLen;
 }
 
+/* Convert Tcl-style first/last range indices to absolute string indices. */
 static int JimStringGetRange(Jim_Interp *interp, Jim_Obj *firstObjPtr, Jim_Obj *lastObjPtr,
     int len, int *first, int *last, int *range)
 {
@@ -2935,6 +2963,7 @@ static const char default_trim_chars[] = " \t\n\r";
 /* sizeof() here includes the null byte */
 static int default_trim_chars_len = sizeof(default_trim_chars);
 
+/* Trim characters from the left side of a string object. */
 static Jim_Obj *JimStringTrimLeft(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
 {
     int len;
@@ -2955,6 +2984,7 @@ static Jim_Obj *JimStringTrimLeft(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Ob
     return Jim_NewStringObj(interp, newstr, len - (newstr - str));
 }
 
+/* Trim characters from the right side of a string object. */
 static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
 {
     int len;
@@ -2992,6 +3022,7 @@ static Jim_Obj *JimStringTrimRight(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_O
     return strObjPtr;
 }
 
+/* Trim characters from both sides of a string object. */
 static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *trimcharsObjPtr)
 {
     /* First trim left. */
@@ -3013,12 +3044,14 @@ static Jim_Obj *JimStringTrim(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *t
 #ifdef HAVE_ISASCII
 #define jim_isascii isascii
 #else
+/* Provide an isascii()-compatible helper on platforms that lack it. */
 static int jim_isascii(int c)
 {
     return !(c & ~0x7f);
 }
 #endif
 
+/* Implement the [string is] character-class checks. */
 static int JimStringIs(Jim_Interp *interp, Jim_Obj *strObjPtr, Jim_Obj *strClass, int strict)
 {
     static const char * const strclassnames[] = {
@@ -3142,7 +3175,8 @@ int Jim_CompareStringImmediate(Jim_Interp *interp, Jim_Obj *objPtr, const char *
     }
 }
 
-/* Note that we explicitly sort -- after other options */
+/* Compare two string pointers for qsort(). */
+/* Note that we explicitly sort "--" after other options */
 static int qsortCompareStringPointers(const void *a, const void *b)
 {
     char *const *sa = (char *const *)a;
@@ -3218,6 +3252,7 @@ static const Jim_ObjType scriptLineObjType = {
     JIM_NONE,
 };
 
+/* Create the compact token that records one parsed script line. */
 static Jim_Obj *JimNewScriptLineObj(Jim_Interp *interp, int argc, int line)
 {
     Jim_Obj *objPtr;
@@ -3401,6 +3436,7 @@ typedef struct
     ParseToken static_list[20]; /* Small initial token space to avoid allocation */
 } ParseTokenList;
 
+/* Initialise a temporary token list used while parsing scripts or expressions. */
 static void ScriptTokenListInit(ParseTokenList *tokenlist)
 {
     tokenlist->list = tokenlist->static_list;
@@ -3408,6 +3444,7 @@ static void ScriptTokenListInit(ParseTokenList *tokenlist)
     tokenlist->count = 0;
 }
 
+/* Free any heap storage held by a temporary token list. */
 static void ScriptTokenListFree(ParseTokenList *tokenlist)
 {
     if (tokenlist->list != tokenlist->static_list) {
@@ -3840,11 +3877,13 @@ void Jim_InterpIncrProcEpoch(Jim_Interp *interp)
     interp->oldCmdCacheSize = 0;
 }
 
+/* Increment the reference count of a command structure. */
 static void JimIncrCmdRefCount(Jim_Cmd *cmdPtr)
 {
     cmdPtr->inUse++;
 }
 
+/* Drop a command reference and delete the command when the count reaches zero. */
 static void JimDecrCmdRefCount(Jim_Interp *interp, Jim_Cmd *cmdPtr)
 {
     if (--cmdPtr->inUse == 0) {
@@ -3891,6 +3930,7 @@ static void JimIncrVarRef(Jim_VarVal *vv)
     vv->refCount++;
 }
 
+/* Drop a variable reference and free the variable when it is no longer shared. */
 static void JimDecrVarRef(Jim_Interp *interp, Jim_VarVal *vv)
 {
     assert(vv->refCount > 0);
@@ -3902,11 +3942,13 @@ static void JimDecrVarRef(Jim_Interp *interp, Jim_VarVal *vv)
     }
 }
 
+/* Destroy a variable-table value. */
 static void JimVariablesHTValDestructor(void *interp, void *val)
 {
     JimDecrVarRef(interp, val);
 }
 
+/* Hash an object key using its string representation. */
 static unsigned int JimObjectHTHashFunction(const void *key)
 {
     Jim_Obj *keyObj = (Jim_Obj *)key;
@@ -3942,6 +3984,7 @@ static unsigned int JimObjectHTHashFunction(const void *key)
     return Jim_GenHashFunction((const unsigned char *)string, length);
 }
 
+/* Compare two object keys by string value. */
 static int JimObjectHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
     return Jim_StringEqObj((Jim_Obj *)key1, (Jim_Obj *)key2);
@@ -3953,6 +3996,7 @@ static void *JimObjectHTKeyValDup(void *privdata, const void *val)
     return (void *)val;
 }
 
+/* Destroy an object-table value and release its referenced object. */
 static void JimObjectHTKeyValDestructor(void *interp, void *val)
 {
     Jim_DecrRefCount(interp, (Jim_Obj *)val);
@@ -3997,6 +4041,7 @@ static const char *Jim_GetStringNoQualifier(Jim_Obj *objPtr, int *length)
     return str;
 }
 
+/* Hash a command-table key, ignoring any namespace prefix. */
 static unsigned int JimCommandsHT_HashFunction(const void *key)
 {
     int len;
@@ -4004,6 +4049,7 @@ static unsigned int JimCommandsHT_HashFunction(const void *key)
     return Jim_GenHashFunction((const unsigned char *)str, len);
 }
 
+/* Compare command names, allowing namespace-qualified lookups to match local entries. */
 static int JimCommandsHT_KeyCompare(void *privdata, const void *key1, const void *key2)
 {
     int len1, len2;
@@ -4012,6 +4058,7 @@ static int JimCommandsHT_KeyCompare(void *privdata, const void *key1, const void
     return len1 == len2 && *str1 == *str2 && memcmp(str1, str2, len1) == 0;
 }
 
+/* Destroy a command-table value. */
 static void JimCommandsHT_ValDestructor(void *interp, void *val)
 {
     JimDecrCmdRefCount(interp, val);
@@ -4161,6 +4208,7 @@ int Jim_CreateCommand(Jim_Interp *interp, const char *cmdNameStr,
     return JIM_OK;
 }
 
+/* Create the named static variables declared for a proc body. */
 static int JimCreateProcedureStatics(Jim_Interp *interp, Jim_Cmd *cmdPtr, Jim_Obj *staticsListObjPtr)
 {
     int len, i;
@@ -4473,6 +4521,7 @@ static void FreeCommandInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_DecrRefCount(interp, objPtr->internalRep.cmdValue.nsObj);
 }
 
+/* Duplicate the cached namespace information for a resolved command object. */
 static void DupCommandInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     dupPtr->internalRep.cmdValue = srcPtr->internalRep.cmdValue;
@@ -4639,11 +4688,13 @@ static int SetVariableFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 static int JimDictSugarSet(Jim_Interp *interp, Jim_Obj *ObjPtr, Jim_Obj *valObjPtr);
 static Jim_Obj *JimDictSugarGet(Jim_Interp *interp, Jim_Obj *objPtr, int flags);
 
+/* Insert a new variable/value record into a variable table. */
 static int JimSetNewVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr, Jim_VarVal *vv)
 {
     return Jim_AddHashEntry(ht, nameObjPtr, vv);
 }
 
+/* Look up a variable/value record in a variable table. */
 static Jim_VarVal *JimFindVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr)
 {
     Jim_HashEntry *he = Jim_FindHashEntry(ht, nameObjPtr);
@@ -4653,11 +4704,13 @@ static Jim_VarVal *JimFindVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr)
     return NULL;
 }
 
+/* Remove a variable/value record from a variable table. */
 static int JimUnsetVariable(Jim_HashTable *ht, Jim_Obj *nameObjPtr)
 {
     return Jim_DeleteHashEntry(ht, nameObjPtr);
 }
 
+/* Create a new variable in the current or global frame. */
 static Jim_VarVal *JimCreateVariable(Jim_Interp *interp, Jim_Obj *nameObjPtr, Jim_Obj *valObjPtr)
 {
     const char *name;
@@ -5133,6 +5186,7 @@ void FreeDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     Jim_DecrRefCount(interp, objPtr->internalRep.dictSubstValue.indexObjPtr);
 }
 
+/* Duplicate the parsed variable/key pair stored by dict-substitution objects. */
 static void DupDictSubstInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     /* Copy the internal rep */
@@ -5237,6 +5291,7 @@ static Jim_CallFrame *JimCreateCallFrame(Jim_Interp *interp, Jim_CallFrame *pare
     return cf;
 }
 
+/* Delete any commands marked local for the current call frame. */
 static int JimDeleteLocalProcs(Jim_Interp *interp, Jim_Stack *localCommands)
 {
     /* Delete any local procs */
@@ -5328,6 +5383,7 @@ static int JimInvokeDefer(Jim_Interp *interp, int retcode)
 
 #define JIM_FCF_FULL 0          /* Always free the vars hash table */
 #define JIM_FCF_REUSE 1         /* Reuse the vars hash table if possible */
+/* Release or recycle a call frame structure. */
 static void JimFreeCallFrame(Jim_Interp *interp, Jim_CallFrame *cf, int action)
  {
     JimDeleteLocalProcs(interp, cf->localCommands);
@@ -5368,6 +5424,7 @@ static void JimReferencesHTValDestructor(void *interp, void *val)
     Jim_Free(val);
 }
 
+/* Hash a reference id for the references table. */
 static unsigned int JimReferencesHTHashFunction(const void *key)
 {
     /* Only the least significant bits are used. */
@@ -5377,6 +5434,7 @@ static unsigned int JimReferencesHTHashFunction(const void *key)
     return Jim_IntHashFunction(intValue);
 }
 
+/* Duplicate a reference-table key. */
 static void *JimReferencesHTKeyDup(void *privdata, const void *key)
 {
     void *copy = Jim_Alloc(sizeof(unsigned long));
@@ -5387,6 +5445,7 @@ static void *JimReferencesHTKeyDup(void *privdata, const void *key)
     return copy;
 }
 
+/* Compare two reference-table keys. */
 static int JimReferencesHTKeyCompare(void *privdata, const void *key1, const void *key2)
 {
     JIM_NOTUSED(privdata);
@@ -5394,6 +5453,7 @@ static int JimReferencesHTKeyCompare(void *privdata, const void *key1, const voi
     return memcmp(key1, key2, sizeof(unsigned long)) == 0;
 }
 
+/* Free a reference-table key. */
 static void JimReferencesHTKeyDestructor(void *privdata, void *key)
 {
     JIM_NOTUSED(privdata);
@@ -5423,6 +5483,7 @@ static const Jim_HashTableType JimReferencesHashTableType = {
 
 #define JIM_REFERENCE_SPACE (35+JIM_REFERENCE_TAGLEN)
 
+/* Format the canonical string representation for a reference object. */
 static int JimFormatReference(char *buf, Jim_Reference *refPtr, unsigned long id)
 {
     const char *fmt = "<reference.<%s>.%020lu>";
@@ -5441,6 +5502,7 @@ static const Jim_ObjType referenceObjType = {
     JIM_TYPE_REFERENCES,
 };
 
+/* Rebuild the string representation of a reference object. */
 static void UpdateStringOfReference(struct Jim_Obj *objPtr)
 {
     char buf[JIM_REFERENCE_SPACE + 1];
@@ -5456,6 +5518,7 @@ static int isrefchar(int c)
     return (c == '_' || isalnum(c));
 }
 
+/* Convert an object to the internal reference representation. */
 static int SetReferenceFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     unsigned long value;
@@ -6032,6 +6095,7 @@ static Jim_CallFrame *JimGetCallFrameByInteger(Jim_Interp *interp, long level)
     return NULL;
 }
 
+/* Find the evaluation frame for the requested proc nesting level. */
 static Jim_EvalFrame *JimGetEvalFrameByProcLevel(Jim_Interp *interp, int proclevel)
 {
     Jim_EvalFrame *evalFrame;
@@ -6102,6 +6166,7 @@ static void JimAddStackFrame(Jim_Interp *interp, Jim_EvalFrame *frame, Jim_Obj *
     Jim_ListAppendElement(interp, listObj, Jim_NewListObj(interp, frame->argv, frame->argc));
 }
 
+/* Replace the interpreter's cached stack trace object. */
 static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
 {
     /* Increment reference first in case these are the same object */
@@ -6111,6 +6176,7 @@ static void JimSetStackTrace(Jim_Interp *interp, Jim_Obj *stackTraceObj)
     interp->hasErrorStackTrace = 1;
 }
 
+/* Capture a stack trace for the current error if one has not already been recorded. */
 static void JimSetErrorStack(Jim_Interp *interp, ScriptObj *script)
 {
     if (!interp->hasErrorStackTrace) {
@@ -6197,6 +6263,7 @@ static const Jim_ObjType coercedDoubleObjType = {
 };
 
 
+/* Rebuild the string representation of an integer object. */
 static void UpdateStringOfInt(struct Jim_Obj *objPtr)
 {
     char buf[JIM_INTEGER_SPACE + 1];
@@ -6236,6 +6303,7 @@ static void UpdateStringOfInt(struct Jim_Obj *objPtr)
     JimSetStringBytes(objPtr, buf);
 }
 
+/* Convert an object to the integer internal representation. */
 static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     jim_wide wideValue;
@@ -6268,6 +6336,7 @@ static int SetIntFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 }
 
 #ifdef JIM_OPTIMIZATION
+/* Fast-path check for objects already represented as integers. */
 static int JimIsWide(Jim_Obj *objPtr)
 {
     return objPtr->typePtr == &intObjType;
@@ -6373,6 +6442,7 @@ static const Jim_ObjType doubleObjType = {
 #define isinf(X) (1.0 / (X) == 0.0)
 #endif
 
+/* Rebuild the string representation of a double object. */
 static void UpdateStringOfDouble(struct Jim_Obj *objPtr)
 {
     double value = objPtr->internalRep.doubleValue;
@@ -6421,6 +6491,7 @@ static void UpdateStringOfDouble(struct Jim_Obj *objPtr)
     }
 }
 
+/* Convert an object to the double internal representation. */
 static int SetDoubleFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     double doubleValue;
@@ -6520,6 +6591,7 @@ static const int jim_true_false_lens[8] = {
     1, 5, 2, 3,
 };
 
+/* Convert an object to an internal boolean value. */
 static int SetBooleanFromAny(Jim_Interp *interp, Jim_Obj *objPtr, int flags)
 {
     int index = Jim_FindByName(Jim_String(objPtr), jim_true_false_strings,
@@ -6595,6 +6667,7 @@ void DupListInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 #define JIM_ELESTR_SIMPLE 0
 #define JIM_ELESTR_BRACE 1
 #define JIM_ELESTR_QUOTE 2
+/* Classify the quoting required to emit a valid list element string. */
 static unsigned char ListElementQuotingType(const char *s, int len)
 {
     int i, level, blevel, trySimple = 1;
@@ -6747,6 +6820,7 @@ static int BackslashQuoteString(const char *s, int len, char *q)
     return p - q;
 }
 
+/* Build the string representation for a list or dictionary from its elements. */
 static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
 {
     #define STATIC_QUOTING_LEN 32
@@ -6833,11 +6907,13 @@ static void JimMakeListStringRep(Jim_Obj *objPtr, Jim_Obj **objv, int objc)
     }
 }
 
+/* Rebuild the string representation of a list object. */
 static void UpdateStringOfList(struct Jim_Obj *objPtr)
 {
     JimMakeListStringRep(objPtr, objPtr->internalRep.listValue.ele, objPtr->internalRep.listValue.len);
 }
 
+/* Convert an object to the internal list representation. */
 static int SetListFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     struct JimParserCtx parser;
@@ -6973,6 +7049,7 @@ struct lsort_info {
 
 static struct lsort_info *sort_info;
 
+/* Compare the lsort -index values extracted from two elements. */
 static int ListSortIndexHelper(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     Jim_Obj *lObj, *rObj;
@@ -6990,11 +7067,13 @@ static int ListSortString(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     return Jim_StringCompareObj(sort_info->interp, *lhsObj, *rhsObj, 0) * sort_info->order;
 }
 
+/* Compare two list elements as strings without case sensitivity. */
 static int ListSortStringNoCase(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     return Jim_StringCompareObj(sort_info->interp, *lhsObj, *rhsObj, 1) * sort_info->order;
 }
 
+/* Compare two list elements using dictionary sort order. */
 static int ListSortDict(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     /* XXX Does not compare past embedded nulls */
@@ -7034,6 +7113,7 @@ static int ListSortDict(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     }
 }
 
+/* Compare two list elements as integers. */
 static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     jim_wide lhs = 0, rhs = 0;
@@ -7046,6 +7126,7 @@ static int ListSortInteger(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     return JimSign(lhs - rhs) * sort_info->order;
 }
 
+/* Compare two list elements as floating-point numbers. */
 static int ListSortReal(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     double lhs = 0, rhs = 0;
@@ -7063,6 +7144,7 @@ static int ListSortReal(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
     return -sort_info->order;
 }
 
+/* Compare two list elements by invoking a script callback. */
 static int ListSortCommand(Jim_Obj **lhsObj, Jim_Obj **rhsObj)
 {
     Jim_Obj *compare_script;
@@ -7368,6 +7450,7 @@ err:
     return ret;
 }
 
+/* Replace one element in an already-converted list object. */
 static int ListSetIndex(Jim_Interp *interp, Jim_Obj *listPtr, int idx,
     Jim_Obj *newObjPtr, int flags)
 {
@@ -7757,11 +7840,13 @@ static Jim_Dict *JimDictNew(Jim_Interp *interp, int table_size, int ht_size)
     return dict;
 }
 
+/* Free the storage owned by a dictionary object. */
 static void FreeDictInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     JimFreeDict(interp, objPtr->internalRep.dictValue);
 }
 
+/* Deep-copy the internal representation of a dictionary object. */
 static void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     Jim_Dict *oldDict = srcPtr->internalRep.dictValue;
@@ -7787,11 +7872,13 @@ static void DupDictInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dup
     dupPtr->typePtr = &dictObjType;
 }
 
+/* Rebuild the string representation of a dictionary object. */
 static void UpdateStringOfDict(struct Jim_Obj *objPtr)
 {
     JimMakeListStringRep(objPtr, objPtr->internalRep.dictValue->table, objPtr->internalRep.dictValue->len);
 }
 
+/* Convert an object to the internal dictionary representation. */
 static int SetDictFromAny(Jim_Interp *interp, struct Jim_Obj *objPtr)
 {
     int listlen;
@@ -8144,6 +8231,7 @@ static const Jim_ObjType indexObjType = {
     JIM_TYPE_NONE,
 };
 
+/* Rebuild the string representation of an index object. */
 static void UpdateStringOfIndex(struct Jim_Obj *objPtr)
 {
     if (objPtr->internalRep.intValue == -1) {
@@ -8162,6 +8250,7 @@ static void UpdateStringOfIndex(struct Jim_Obj *objPtr)
     }
 }
 
+/* Convert an object to the cached index internal representation. */
 static int SetIndexFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     jim_wide idx;
@@ -8294,6 +8383,7 @@ const char *Jim_ReturnCode(int code)
     }
 }
 
+/* Convert an object to a cached return-code representation. */
 static int SetReturnCodeFromAny(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     int returnCode;
@@ -8436,6 +8526,7 @@ static int JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node, Jim_Obj 
 static int JimExprGetTermBoolean(Jim_Interp *interp, struct JimExprNode *node);
 static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node);
 
+/* Evaluate a numeric unary operator on an expression term. */
 static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
 {
     int intresult = 1;
@@ -8537,6 +8628,7 @@ static int JimExprOpNumUnary(Jim_Interp *interp, struct JimExprNode *node)
     return rc;
 }
 
+/* Return a pseudo-random double in the range [0, 1). */
 static double JimRandDouble(Jim_Interp *interp)
 {
     unsigned long x;
@@ -8545,6 +8637,7 @@ static double JimRandDouble(Jim_Interp *interp)
     return (double)x / (double)~0UL;
 }
 
+/* Evaluate an integer-only unary operator on an expression term. */
 static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprNode *node)
 {
     jim_wide wA;
@@ -8575,6 +8668,7 @@ static int JimExprOpIntUnary(Jim_Interp *interp, struct JimExprNode *node)
     return rc;
 }
 
+/* Return the literal value of a leaf expression node. */
 static int JimExprOpNone(Jim_Interp *interp, struct JimExprNode *node)
 {
     JimPanic((node->type != JIM_EXPROP_FUNC_RAND, "JimExprOpNone only support rand()"));
@@ -8585,6 +8679,7 @@ static int JimExprOpNone(Jim_Interp *interp, struct JimExprNode *node)
 }
 
 #ifdef JIM_MATH_FUNCTIONS
+/* Evaluate a floating-point unary operator on an expression term. */
 static int JimExprOpDoubleUnary(Jim_Interp *interp, struct JimExprNode *node)
 {
     int rc;
@@ -8947,6 +9042,7 @@ doubleresult:
     goto done;
 }
 
+/* Search a list for an element equal to valObj. */
 static int JimSearchList(Jim_Interp *interp, Jim_Obj *listObjPtr, Jim_Obj *valObj)
 {
     int listlen;
@@ -8981,6 +9077,7 @@ static int JimRegexpMatch(Jim_Interp *interp, Jim_Obj *patternObj, Jim_Obj *objP
     return eq;
 }
 
+/* Evaluate a binary string comparison or match operator. */
 static int JimExprOpStrBin(Jim_Interp *interp, struct JimExprNode *node)
 {
     Jim_Obj *A, *B;
@@ -9046,6 +9143,7 @@ error:
     return rc;
 }
 
+/* Convert an expression result object to boolean truth. */
 static int ExprBool(Jim_Interp *interp, Jim_Obj *obj)
 {
     long l;
@@ -9070,6 +9168,7 @@ static int ExprBool(Jim_Interp *interp, Jim_Obj *obj)
     return ret;
 }
 
+/* Evaluate a logical AND expression with short-circuiting. */
 static int JimExprOpAnd(Jim_Interp *interp, struct JimExprNode *node)
 {
     /* evaluate left */
@@ -9086,6 +9185,7 @@ static int JimExprOpAnd(Jim_Interp *interp, struct JimExprNode *node)
     return JIM_OK;
 }
 
+/* Evaluate a logical OR expression with short-circuiting. */
 static int JimExprOpOr(Jim_Interp *interp, struct JimExprNode *node)
 {
     /* evaluate left */
@@ -9102,6 +9202,7 @@ static int JimExprOpOr(Jim_Interp *interp, struct JimExprNode *node)
     return JIM_OK;
 }
 
+/* Evaluate a ternary conditional expression. */
 static int JimExprOpTernary(Jim_Interp *interp, struct JimExprNode *node)
 {
     /* evaluate left */
@@ -9226,6 +9327,7 @@ static const struct Jim_ExprOperator Jim_ExprOperators[] = {
 #define JIM_EXPR_OPERATORS_NUM \
     (sizeof(Jim_ExprOperators)/sizeof(struct Jim_ExprOperator))
 
+/* Parse an expression into a stream of expression tokens. */
 static int JimParseExpression(struct JimParserCtx *pc)
 {
     pc->errmsg = NULL;
@@ -9325,6 +9427,7 @@ singlechar:
     return JIM_OK;
 }
 
+/* Parse an integer or floating-point literal. */
 static int JimParseExprNumber(struct JimParserCtx *pc)
 {
     char *end;
@@ -9352,6 +9455,7 @@ static int JimParseExprNumber(struct JimParserCtx *pc)
     return JIM_OK;
 }
 
+/* Parse the Inf and NaN expression literals. */
 static int JimParseExprIrrational(struct JimParserCtx *pc)
 {
     const char *irrationals[] = { "NaN", "nan", "NAN", "Inf", "inf", "INF", NULL };
@@ -9371,6 +9475,7 @@ static int JimParseExprIrrational(struct JimParserCtx *pc)
     return JIM_ERR;
 }
 
+/* Parse a boolean expression literal. */
 static int JimParseExprBoolean(struct JimParserCtx *pc)
 {
     int i;
@@ -9395,6 +9500,7 @@ static const struct Jim_ExprOperator *JimExprOperatorInfoByOpcode(int opcode)
     return &Jim_ExprOperators[opcode - JIM_TT_EXPR_OP];
 }
 
+/* Parse a punctuation or operator token in an expression. */
 static int JimParseExprOperator(struct JimParserCtx *pc)
 {
     int i;
@@ -9492,6 +9598,7 @@ struct ExprTree
     int inUse;                  /* Used for sharing. */
 };
 
+/* Free an array of expression nodes. */
 static void ExprTreeFreeNodes(Jim_Interp *interp, struct JimExprNode *nodes, int num)
 {
     int i;
@@ -9503,12 +9610,14 @@ static void ExprTreeFreeNodes(Jim_Interp *interp, struct JimExprNode *nodes, int
     Jim_Free(nodes);
 }
 
+/* Free a parsed expression tree. */
 static void ExprTreeFree(Jim_Interp *interp, struct ExprTree *expr)
 {
     ExprTreeFreeNodes(interp, expr->nodes, expr->len);
     Jim_Free(expr);
 }
 
+/* Release the parsed expression cached by an object. */
 static void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
 {
     struct ExprTree *expr = (void *)objPtr->internalRep.ptr;
@@ -9522,6 +9631,7 @@ static void FreeExprInternalRep(Jim_Interp *interp, Jim_Obj *objPtr)
     }
 }
 
+/* Duplicate the cached parsed expression held by an object. */
 static void DupExprInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
 {
     JIM_NOTUSED(interp);
@@ -9544,6 +9654,7 @@ struct ExprBuilder {
 };
 
 #ifdef DEBUG_SHOW_EXPR
+/* Dump one expression node for debugging output. */
 static void JimShowExprNode(struct JimExprNode *node, int level)
 {
     int i;
@@ -10069,6 +10180,7 @@ static int JimExprEvalTermNode(Jim_Interp *interp, struct JimExprNode *node)
     }
 }
 
+/* Evaluate an expression term and return its result object. */
 static int JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node, Jim_Obj **objPtrPtr)
 {
     int rc = JimExprEvalTermNode(interp, node);
@@ -10079,6 +10191,7 @@ static int JimExprGetTerm(Jim_Interp *interp, struct JimExprNode *node, Jim_Obj 
     return rc;
 }
 
+/* Evaluate an expression term as a boolean value. */
 static int JimExprGetTermBoolean(Jim_Interp *interp, struct JimExprNode *node)
 {
     if (JimExprEvalTermNode(interp, node) == JIM_OK) {
@@ -10304,6 +10417,7 @@ void DupScanFmtInternalRep(Jim_Interp *interp, Jim_Obj *srcPtr, Jim_Obj *dupPtr)
     dupPtr->typePtr = &scanFmtStringObjType;
 }
 
+/* Rebuild the canonical string representation of a compiled scan format. */
 static void UpdateStringOfScanFmt(Jim_Obj *objPtr)
 {
     JimSetStringBytes(objPtr, ((ScanFmtStringObj *) objPtr->internalRep.ptr)->stringRep);
@@ -10955,6 +11069,7 @@ static int JimUnknown(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return retcode;
 }
 
+/* Push a new evaluation frame while executing a script. */
 static void JimPushEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame, Jim_Obj *scriptObj)
 {
     memset(frame, 0, sizeof(*frame));
@@ -10976,6 +11091,7 @@ static void JimPushEvalFrame(Jim_Interp *interp, Jim_EvalFrame *frame, Jim_Obj *
 #endif
 }
 
+/* Pop the current evaluation frame. */
 static void JimPopEvalFrame(Jim_Interp *interp)
 {
     interp->evalFrame = interp->evalFrame->parent;
@@ -11136,6 +11252,7 @@ int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix, int objc, Jim_Obj *co
     return ret;
 }
 
+/* Perform one substitution step for a parsed script token. */
 static int JimSubstOneToken(Jim_Interp *interp, const ScriptToken *token, Jim_Obj **objPtrPtr)
 {
     Jim_Obj *objPtr;
@@ -11672,6 +11789,7 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
     return retcode;
 }
 
+/* Bind one proc argument, applying list expansion when required. */
 static int JimSetProcArg(Jim_Interp *interp, Jim_Obj *argNameObj, Jim_Obj *argValObj)
 {
     int retcode;
@@ -12384,6 +12502,7 @@ static Jim_Obj *JimVariablesList(Jim_Interp *interp, Jim_Obj *patternObjPtr, int
     }
 }
 
+/* Return the command words for one call frame level. */
 static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objPtrPtr)
 {
     long level;
@@ -12404,6 +12523,7 @@ static int JimInfoLevel(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objP
     return JIM_ERR;
 }
 
+/* Return a dictionary describing one call frame. */
 static int JimInfoFrame(Jim_Interp *interp, Jim_Obj *levelObjPtr, Jim_Obj **objPtrPtr)
 {
     long level;
@@ -13903,6 +14023,7 @@ static Jim_Obj *JimGetExprAsList(Jim_Interp *interp, struct JimExprNode *node)
 
 /* [debug] */
 #if defined(JIM_DEBUG_COMMAND) && !defined(JIM_BOOTSTRAP)
+/* Implement the internal debug command used by the test suite and diagnostics. */
 static int Jim_DebugCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     /* Must be kept in order with the array below */
@@ -14143,6 +14264,7 @@ static int Jim_ExprCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return Jim_EvalExpression(interp, argv[1]);
 }
 
+/* Shared implementation for the break and continue core commands. */
 static int JimBreakContinueHelper(Jim_Interp *interp, int argc, Jim_Obj *const *argv, int retcode)
 {
     if (argc == 2) {
@@ -14286,6 +14408,7 @@ static int Jim_TailcallCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     return JIM_OK;
 }
 
+/* Invoke an alias by prepending its stored command prefix. */
 static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *cmdList;
@@ -14298,12 +14421,14 @@ static int JimAliasCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JimEvalObjList(interp, cmdList);
 }
 
+/* Release the command prefix stored for an alias. */
 static void JimAliasCmdDelete(Jim_Interp *interp, void *privData)
 {
     Jim_Obj *prefixListObj = privData;
     Jim_DecrRefCount(interp, prefixListObj);
 }
 
+/* Implement the alias command that creates command-prefix aliases. */
 static int Jim_AliasCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *prefixListObj = Jim_NewListObj(interp, argv + 2, argc - 2);
@@ -15093,6 +15218,7 @@ static int Jim_ExitCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     return JIM_EXIT;
 }
 
+/* Check whether a return code matches one of the requested codes. */
 static int JimMatchReturnCodes(Jim_Interp *interp, Jim_Obj *retcodeListObj, int rc)
 {
     int len = Jim_ListLength(interp, retcodeListObj);
@@ -15572,6 +15698,7 @@ int Jim_DictInfo(Jim_Interp *interp, Jim_Obj *objPtr)
     return JIM_OK;
 }
 
+/* Dispatch an ensemble subcommand after matching and expanding its prefix. */
 static int Jim_EvalEnsemble(Jim_Interp *interp, const char *basecmd, const char *subcmd, int argc, Jim_Obj *const *argv)
 {
     Jim_Obj *prefixObj = Jim_NewStringObj(interp, basecmd, -1);
@@ -15840,6 +15967,7 @@ static int Jim_LsubstCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
 }
 
 #ifdef jim_ext_namespace
+/* Test whether a namespace object names the global namespace. */
 static int JimIsGlobalNamespace(Jim_Obj *objPtr)
 {
     int len;
@@ -16597,6 +16725,7 @@ static int Jim_LreverseCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const 
     return JIM_OK;
 }
 
+/* Compute the number of elements produced by a numeric range. */
 static int JimRangeLen(jim_wide start, jim_wide end, jim_wide step)
 {
     jim_wide len;
