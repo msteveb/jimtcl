@@ -13195,10 +13195,18 @@ static int Jim_IfCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 }
 
 
-/* Returns 1 if match, 0 if no match or -<error> on error (e.g. -JIM_ERR, -JIM_BREAK)
- * flags may contain JIM_NOCASE and/or JIM_OPT_END
+/**
+ * Invoke a match command with the supplied pattern and candidate string.
+ *
+ * The command is called as:
+ *   command ?-nocase? ?--? pattern string
+ *
+ * Returns 1 for a match, 0 for no match, or the negated Jim return code if the
+ * command itself fails or returns a non-integer result. flags may contain
+ * JIM_NOCASE to support -nocase and
+ * JIM_OPT_END to support --
  */
-int Jim_CommandMatchObj(Jim_Interp *interp, Jim_Obj *commandObj, Jim_Obj *patternObj,
+static int JimCommandMatchObj(Jim_Interp *interp, Jim_Obj *commandObj, Jim_Obj *patternObj,
     Jim_Obj *stringObj, int flags)
 {
     Jim_Obj *parms[5];
@@ -13293,7 +13301,7 @@ static int Jim_SwitchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *a
                     command = Jim_NewStringObj(interp, "regexp", -1);
                     /* Fall thru intentionally */
                 case SWITCH_CMD:{
-                        int rc = Jim_CommandMatchObj(interp, command, patObj, strObj, match_flags);
+                        int rc = JimCommandMatchObj(interp, command, patObj, strObj, match_flags);
 
                         /* After the execution of a command we need to
                          * make sure to reconvert the object into a list
@@ -13516,7 +13524,7 @@ static int Jim_LsearchCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *
 
             case OPT_REGEXP:
             case OPT_COMMAND:
-                eq = Jim_CommandMatchObj(interp, commandObj, argv[1], objPtr, match_flags);
+                eq = JimCommandMatchObj(interp, commandObj, argv[1], objPtr, match_flags);
                 if (eq < 0) {
                     Jim_DecrRefCount(interp, searchListObj);
                     rc = JIM_ERR;
