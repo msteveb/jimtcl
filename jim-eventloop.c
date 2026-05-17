@@ -41,6 +41,7 @@
 #include <jim.h>
 #include <jim-eventloop.h>
 
+#include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <errno.h>

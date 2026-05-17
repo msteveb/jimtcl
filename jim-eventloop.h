@@ -39,6 +39,9 @@
 
 /* ------ USAGE -------
  * See jim-aio.c as an example of an event provider.
+ *
+ * Public event loop APIs are documented here; internal implementation
+ * details belong in jim-eventloop.c.
  */
 
 #ifndef __JIM_EVENTLOOP_H__
@@ -48,43 +51,81 @@
 extern "C" {
 #endif
 
-#include <stdio.h>
-
+/* Callback invoked when a registered file descriptor becomes ready. */
 typedef int Jim_FileProc(Jim_Interp *interp, void *clientData, int mask);
+
+/* Callback invoked when a signal event is delivered. */
 typedef int Jim_SignalProc(Jim_Interp *interp, void *clientData, void *msg);
+
+/* Callback invoked when a registered timer expires. */
 typedef void Jim_TimeProc(Jim_Interp *interp, void *clientData);
+
+/* Cleanup callback invoked when a file or time handler is deleted. */
 typedef void Jim_EventFinalizerProc(Jim_Interp *interp, void *clientData);
 
-/* File event structure */
+/* File handler mask bit for readable descriptors. */
 #define JIM_EVENT_READABLE 1
+/* File handler mask bit for writable descriptors. */
 #define JIM_EVENT_WRITABLE 2
+/* File handler mask bit for exceptional conditions. */
 #define JIM_EVENT_EXCEPTION 4
 
+/* Register a file event handler for fd and the selected JIM_EVENT_* bits. */
 JIM_EXPORT void Jim_CreateFileHandler (Jim_Interp *interp,
         int fd, int mask,
         Jim_FileProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
+
+/* Register a file handler which evaluates scriptObj in the background. */
 JIM_EXPORT void Jim_CreateScriptFileHandler(Jim_Interp *interp,
         int fd, int mask, Jim_Obj *scriptObj);
+
+/* Delete all file handlers for fd that match any bit in mask. */
 JIM_EXPORT void Jim_DeleteFileHandler (Jim_Interp *interp,
         int fd, int mask);
+
+/* Create a one-shot timer that fires after microseconds and return its id. */
 JIM_EXPORT jim_wide Jim_CreateTimeHandler (Jim_Interp *interp,
-        jim_wide milliseconds,
+        jim_wide microseconds,
         Jim_TimeProc *proc, void *clientData,
         Jim_EventFinalizerProc *finalizerProc);
+
+/*
+ * Delete the timer identified by id.
+ *
+ * Returns the remaining time in microseconds, -1 if no such timer exists,
+ * or -2 if id is larger than any timer id allocated so far.
+ */
 JIM_EXPORT jim_wide Jim_DeleteTimeHandler (Jim_Interp *interp, jim_wide id);
+
+/* Return the clientData for the first file handler on fd matching mask, or NULL. */
 JIM_EXPORT void *Jim_FindFileHandler(Jim_Interp *interp, int fd, int mask);
-/* This should probably be in jimiocompat.h */
+
+/* Wait until fd is readable or the timeout in milliseconds expires. */
 JIM_EXPORT int Jim_ReadableTimeout(int fd, long ms);
 
+/* Process registered file handlers. */
 #define JIM_FILE_EVENTS 1
+/* Process registered timer handlers. */
 #define JIM_TIME_EVENTS 2
+/* Process both file and timer handlers. */
 #define JIM_ALL_EVENTS (JIM_FILE_EVENTS|JIM_TIME_EVENTS)
+/* Poll only; do not wait for a future event to become ready. */
 #define JIM_DONT_WAIT 4
 
+/*
+ * Process pending events selected by flags.
+ *
+ * Accepted flags are JIM_FILE_EVENTS, JIM_TIME_EVENTS, JIM_ALL_EVENTS,
+ * and JIM_DONT_WAIT. Returns the number of events processed, -1 if no
+ * matching handlers exist, or -2 on error.
+ */
 JIM_EXPORT int Jim_ProcessEvents (Jim_Interp *interp, int flags);
+
+/* Evaluate a script as a background event callback and report errors via bgerror. */
 JIM_EXPORT int Jim_EvalObjBackground (Jim_Interp *interp, Jim_Obj *scriptObjPtr);
 
+/* Initialise the event loop package and register its core commands. */
 int Jim_eventloopInit(Jim_Interp *interp);
 
 #ifdef __cplusplus
