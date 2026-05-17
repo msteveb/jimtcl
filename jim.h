@@ -769,7 +769,14 @@ JIM_EXPORT int Jim_EvalObjPrefix(Jim_Interp *interp, Jim_Obj *prefix,
 #define Jim_EvalPrefix(i, p, oc, ov) Jim_EvalObjPrefix((i), Jim_NewStringObj((i), (p), -1), (oc), (ov))
 /** Evaluate a script object in the specified namespace. */
 JIM_EXPORT int Jim_EvalNamespace(Jim_Interp *interp, Jim_Obj *scriptObj, Jim_Obj *nsObj);
-/** Perform substitutions on an object and return the substituted result object. */
+/**
+ * Perform substitutions on an object and return the substituted result object.
+ *
+ * Accepts JIM_SUBST_NOVAR, JIM_SUBST_NOCMD, and JIM_SUBST_NOESC to disable
+ * variable, command, and backslash substitution respectively. JIM_SUBST_FLAG is
+ * an internal marker used by the [subst] command implementation rather than a
+ * normal external API flag.
+ */
 JIM_EXPORT int Jim_SubstObj (Jim_Interp *interp, Jim_Obj *substObjPtr,
         Jim_Obj **resObjPtrPtr, int flags);
 
@@ -870,7 +877,7 @@ JIM_EXPORT Jim_Obj * Jim_StringRangeObj (Jim_Interp *interp,
 /** Apply Tcl-style formatting using a format object and argument vector. */
 JIM_EXPORT Jim_Obj * Jim_FormatString (Jim_Interp *interp,
         Jim_Obj *fmtObjPtr, int objc, Jim_Obj *const *objv);
-/** Parse a string with a Tcl-style scan format and return the scan result object. */
+/** Parse a string with a Tcl-style scan format and return the scan result object. Accepts JIM_ERRMSG. */
 JIM_EXPORT Jim_Obj * Jim_ScanString (Jim_Interp *interp, Jim_Obj *strObjPtr,
         Jim_Obj *fmtObjPtr, int flags);
 /** Compare an object string against a literal C string. */
@@ -941,7 +948,7 @@ JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
 /** Rename an existing command. */
 JIM_EXPORT int Jim_RenameCommand (Jim_Interp *interp,
         Jim_Obj *oldNameObj, Jim_Obj *newNameObj);
-/** Look up a command by name object. */
+/** Look up a command by name object. Accepts JIM_ERRMSG. */
 JIM_EXPORT Jim_Cmd * Jim_GetCommand (Jim_Interp *interp,
         Jim_Obj *objPtr, int flags);
 /** Set a variable using object names and values. */
@@ -964,19 +971,25 @@ JIM_EXPORT int Jim_SetVariableLink (Jim_Interp *interp,
 /** Build the fully qualified global namespace name for an object name. */
 JIM_EXPORT Jim_Obj * Jim_MakeGlobalNamespaceName(Jim_Interp *interp,
         Jim_Obj *nameObjPtr);
-/** Get a variable by object name. */
+/**
+ * Get a variable by object name.
+ *
+ * Accepts JIM_ERRMSG and JIM_UNSHARED. JIM_UNSHARED only affects dict-sugar
+ * access such as foo(bar): if the backing dictionary is shared, it is
+ * duplicated before the element is returned so callers can safely update it.
+ */
 JIM_EXPORT Jim_Obj * Jim_GetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
-/** Get a global variable by object name. */
+/** Get a global variable by object name. Accepts the same flags as Jim_GetVariable(). */
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
-/** Get a variable by C string name. */
+/** Get a variable by C string name. Accepts the same flags as Jim_GetVariable(). */
 JIM_EXPORT Jim_Obj * Jim_GetVariableStr (Jim_Interp *interp,
         const char *name, int flags);
-/** Get a global variable by C string name. */
+/** Get a global variable by C string name. Accepts the same flags as Jim_GetVariable(). */
 JIM_EXPORT Jim_Obj * Jim_GetGlobalVariableStr (Jim_Interp *interp,
         const char *name, int flags);
-/** Unset a variable by object name. */
+/** Unset a variable by object name. Accepts JIM_ERRMSG. */
 JIM_EXPORT int Jim_UnsetVariable (Jim_Interp *interp,
         Jim_Obj *nameObjPtr, int flags);
 
@@ -1031,14 +1044,21 @@ JIM_EXPORT Jim_Obj *Jim_ListJoin(Jim_Interp *interp,
 /** Create a dictionary object from alternating key/value elements. */
 JIM_EXPORT Jim_Obj * Jim_NewDictObj (Jim_Interp *interp,
         Jim_Obj *const *elements, int len);
-/** Look up one key in a dictionary object. */
+/** Look up one key in a dictionary object. Accepts JIM_ERRMSG. */
 JIM_EXPORT int Jim_DictKey (Jim_Interp *interp, Jim_Obj *dictPtr,
         Jim_Obj *keyPtr, Jim_Obj **objPtrPtr, int flags);
-/** Follow a vector of keys through nested dictionaries. */
+/** Follow a vector of keys through nested dictionaries. Accepts JIM_ERRMSG. */
 JIM_EXPORT int Jim_DictKeysVector (Jim_Interp *interp,
         Jim_Obj *dictPtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj **objPtrPtr, int flags);
-/** Set a nested dictionary value addressed by a key vector inside a variable. */
+/**
+ * Set a nested dictionary value addressed by a key vector inside a variable.
+ *
+ * Accepts JIM_ERRMSG, JIM_UNSHARED, JIM_MUSTEXIST, and JIM_NORESULT.
+ * JIM_UNSHARED duplicates a shared container before modifying it.
+ * JIM_MUSTEXIST makes missing variables or keys an error during unset-style updates.
+ * JIM_NORESULT suppresses storing the updated dictionary in the interpreter result.
+ */
 JIM_EXPORT int Jim_SetDictKeysVector (Jim_Interp *interp,
         Jim_Obj *varNamePtr, Jim_Obj *const *keyv, int keyc,
         Jim_Obj *newObjPtr, int flags);
@@ -1109,7 +1129,12 @@ JIM_EXPORT Jim_Obj * Jim_NewDoubleObj(Jim_Interp *interp, double doubleValue);
 /** Set the standard wrong-argument-count error message for a command. */
 JIM_EXPORT void Jim_WrongNumArgs (Jim_Interp *interp, int argc,
         Jim_Obj *const *argv, const char *msg);
-/** Map an object string to an index in a name table. */
+/**
+ * Map an object string to an index in a name table.
+ *
+ * Accepts JIM_ERRMSG and JIM_ENUM_ABBREV. JIM_ENUM_ABBREV accepts
+ * unambiguous abbreviations.
+ */
 JIM_EXPORT int Jim_GetEnum (Jim_Interp *interp, Jim_Obj *objPtr,
         const char * const *tablePtr, int *indexPtr, const char *name, int flags);
 /** Implement standard `-commands` support for subcommand tables. */
@@ -1143,10 +1168,10 @@ JIM_EXPORT int Jim_CheckAbiVersion(Jim_Interp *interp, int abi_version);
 /* Packages C API */
 
 /* jim-package.c */
-/** Announce that a package is now provided in the interpreter. */
+/** Announce that a package is now provided in the interpreter. Accepts JIM_ERRMSG. */
 JIM_EXPORT int Jim_PackageProvide (Jim_Interp *interp,
         const char *name, const char *ver, int flags);
-/** Require and, if needed, load a package into the interpreter. */
+/** Require and, if needed, load a package into the interpreter. Accepts JIM_ERRMSG. */
 JIM_EXPORT int Jim_PackageRequire (Jim_Interp *interp,
         const char *name, int flags);
 /** Verify ABI compatibility and provide a package from an extension init function. */
