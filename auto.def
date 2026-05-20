@@ -673,7 +673,7 @@ foreach mod $extinfo(module-c) {
 define BUILD_SHOBJS [join $lines \n]
 
 make-config-header jim-config.h -auto {HAVE_LONG_LONG* JIM_UTF8 JIM_TAINT JIM_GITVERSION SIZEOF_INT} -bare JIM_VERSION -none *
-make-config-header jimautoconf.h -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
+make-config-header jimautoconf.h -none JIM_GITVERSION -auto {jim_ext_* TCL_PLATFORM_* TCL_LIBRARY USE_* JIM_* _FILE_OFFSET*} -bare {S_I*}
 make-template Makefile.in
 make-template tests/Makefile.in
 make-template examples.api/Makefile.in
