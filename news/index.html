@@ -47,6 +47,124 @@
         
         
 <div class="main" id="main">
+<p class="articledate">Thursday, 16 July 2026</p>
+<h2 class="news"><a href="../articles/jim-release-0-84/">Jim Tcl version 0.84</a></h2>
+
+
+<h2 id="announce-jim-tcl-version-084">ANNOUNCE: Jim Tcl version 0.84</h2>
+
+<p>Jim Tcl 0.84 has been released and is available from:</p>
+
+<p><a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
+
+<p>Find out all about Jim Tcl at <a href="http://msteveb.github.io/jimtcl/">http://msteveb.github.io/jimtcl/</a></p>
+
+<h2 id="changes-since-version-083">CHANGES SINCE VERSION 0.83</h2>
+
+<p>This release contains bug fixes, documentation improvements, and
+several important fixes for correctness and safety. A summary is
+below. See git for the full changelog.</p>
+
+<p>Thanks to everyone who contributed to this release.</p>
+
+<p><strong>Bugs fixed in version 0.84</strong></p>
+
+<ul>
+  <li>fix uninitialized upvar when binding procedures</li>
+  <li>fix out-of-bounds read in <code>string first</code></li>
+  <li>fix unchecked truncation in <code>SetIndexFromAny</code></li>
+  <li><code>[wait -nohang]</code> now returns correct result when child still running</li>
+  <li><code>exec</code> fall-back implementation compilation issues fixed</li>
+  <li><code>regsub</code> now properly handles usage errors (returns code -1)</li>
+  <li><code>regsub -all</code> no longer loops forever when matching everywhere</li>
+  <li><code>try</code> error handling now properly handles shorter <code>errorCode</code></li>
+  <li>abort on boolean negation/plus unary operators fixed</li>
+  <li><code>aio write</code> on EPIPE now properly discards write buffer</li>
+  <li><code>dict set/unset</code> now ensures dicts modified via dict sugar are unshared</li>
+  <li><code>Jim_SetVariable()</code> now properly frees value on error</li>
+</ul>
+
+<p><strong>Features and improvements added in version 0.84</strong></p>
+
+<ul>
+  <li><strong>Major features:</strong>
+    <ul>
+      <li>TIP 424 support: new safer <code>exec |</code> syntax and <code>open "|| pipeline..."</code> support</li>
+      <li>Optional taint support for improved data security</li>
+      <li>
+        <table>
+          <tbody>
+            <tr>
+              <td><code>aio</code> now supports translation mode (<code>binary</code></td>
+              <td><code>text</code>) and configurable buffering</td>
+            </tr>
+          </tbody>
+        </table>
+      </li>
+      <li><code>lsubst</code> command to create lists using subst-style substitution</li>
+      <li><code>package forget</code> command support</li>
+      <li><code>Jim_RegisterCommand()</code> API for improved C command registration with arg checking</li>
+      <li><code>info usage</code> returns usage for procs and native commands</li>
+      <li><code>info aliases</code> lists all aliases</li>
+    </ul>
+  </li>
+  <li><strong>Regex improvements:</strong>
+    <ul>
+      <li><code>regexp</code> and <code>regsub</code> now support <code>-expanded</code> flag</li>
+      <li><code>regexp</code> and <code>regsub</code> now support <code>-lineanchor</code> and <code>-linestop</code> flags</li>
+      <li><code>regexp</code> now properly handles non-repeat count <code>{...}</code></li>
+      <li><code>regexp -all</code> now properly assigns match variables</li>
+    </ul>
+  </li>
+  <li><strong>Expression improvements:</strong>
+    <ul>
+      <li><code>expr</code> now supports <code>=*</code> (string glob match) and <code>=~</code> (string regex match) operators</li>
+      <li><code>./configure --compat</code> now properly enables expr with multiple args</li>
+    </ul>
+  </li>
+  <li><strong>Documentation:</strong>
+    <ul>
+      <li>Extensive public API documentation added</li>
+      <li>subst with <code>$(...)</code> documented</li>
+    </ul>
+  </li>
+  <li><strong>Other improvements:</strong>
+    <ul>
+      <li><code>parray</code> now allows additional arguments per Tcl compatibility</li>
+      <li><code>vwait</code> now accepts script argument</li>
+      <li><code>regexp</code> and <code>regsub</code> now sort <code>--</code> after other options for Tcl 9.0 compatibility</li>
+      <li><code>info patchlevel</code> now returns git version if available</li>
+      <li><code>Jim_EvalFile</code> now accepts input from any readable file</li>
+      <li>linenoise updated with grapheme cluster support for better Unicode handling</li>
+      <li><code>tcltest</code> improved to support any Tcl version &gt;= 8.5</li>
+      <li><code>os.umask</code> command added</li>
+      <li>MorphOS platform support added</li>
+      <li><code>jimsh</code> improved stdin/tty handling</li>
+      <li>Improve Jim_Stack API and remove unused ABI fields</li>
+      <li>Improved build compatibility with updated autosetup to v0.7.2+</li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>Possible incompatibilities in version 0.84</strong></p>
+
+<ul>
+  <li><code>Jim_RegisterCommand()</code> API changes for C extensions using direct command registration</li>
+  <li>If taint checking is enabled (.i.e. not disabled with –disable-taint) it may block
+certain operations that otherwise would have been allowed. See README.taint.</li>
+  <li><code>Jim_SetVariable()</code> now frees the value on error so callers should not attempt to do so</li>
+</ul>
+
+<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
+
+
+<a href="../articles/jim-release-0-84.md#comments">Comments &gt;&gt;&gt;</a>
+
+
+
+</div>
+
+<div class="main" id="main">
 <p class="articledate">Wednesday, 28 August 2024</p>
 <h2 class="news"><a href="../articles/jim-release-0-83/">Jim Tcl version 0.83</a></h2>
 
@@ -448,27 +566,6 @@ with the Jim Tcl event loop.</p>
 
 
 <a href="../articles/jim-release-0-80.md#comments">Comments &gt;&gt;&gt;</a>
-
-
-
-</div>
-
-<div class="main" id="main">
-<p class="articledate">Monday, 03 February 2020</p>
-<h2 class="news"><a href="../articles/move-to-github/">Move primary repo to github</a></h2>
-
-
-<h2 id="announce-jim-tcl-is-moving-to-github">ANNOUNCE: Jim Tcl is moving to github</h2>
-
-<p>As repo.or.cz has been down for some time, the mirror at github
-has now been designated as the primary repository.</p>
-
-<p><a href="https://github.com/msteveb/jimtcl">https://github.com/msteveb/jimtcl</a></p>
-
-<p>Steve Bennett (<a href="mailto:steveb@workware.net.au">steveb@workware.net.au</a>)</p>
-
-
-<a href="../articles/move-to-github.md#comments">Comments &gt;&gt;&gt;</a>
 
 
 

@@ -1,20 +1,133 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xml:base="http://jim.tcl.tk/index.html/doc/www/www/">
-  <id>http://jim.tcl.tk/index.html/doc/www/www/</id>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:base="http://msteveb.github.io/jimtcl/">
+  <id>http://msteveb.github.io/jimtcl/</id>
   <title>Jim Tcl News</title>
-  <updated>2024-08-28T00:00:00Z</updated>
-  <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/" type="text/html"/>
-  <link rel="self" href="http://jim.tcl.tk/index.html/doc/www/www/feed.xml" type="application/atom+xml"/>
+  <updated>2026-07-16T00:00:00Z</updated>
+  <link rel="alternate" href="http://msteveb.github.io/jimtcl/" type="text/html"/>
+  <link rel="self" href="http://msteveb.github.io/jimtcl/feed.xml" type="application/atom+xml"/>
   <author>
     <name>steveb@workware.net.au</name>
     <uri>mailto:steveb@workware.net.au</uri>
   </author>
   <entry>
-    <id>tag:jim.tcl.tk,2024-08-28:/index.html/doc/www/www/articles/jim-release-0-83/</id>
+    <id>tag:msteveb.github.io,2026-07-16:/jimtcl/articles/jim-release-0-84/</id>
+    <title type="html">Jim Tcl version 0.84</title>
+    <published>2026-07-16T00:00:00Z</published>
+    <updated>2026-07-16T00:00:00Z</updated>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-84/" type="text/html"/>
+    <content type="html">&lt;h2 id="announce-jim-tcl-version-084"&gt;ANNOUNCE: Jim Tcl version 0.84&lt;/h2&gt;
+
+&lt;p&gt;Jim Tcl 0.84 has been released and is available from:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="https://github.com/msteveb/jimtcl"&gt;https://github.com/msteveb/jimtcl&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Find out all about Jim Tcl at &lt;a href="http://msteveb.github.io/jimtcl/"&gt;http://msteveb.github.io/jimtcl/&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id="changes-since-version-083"&gt;CHANGES SINCE VERSION 0.83&lt;/h2&gt;
+
+&lt;p&gt;This release contains bug fixes, documentation improvements, and
+several important fixes for correctness and safety. A summary is
+below. See git for the full changelog.&lt;/p&gt;
+
+&lt;p&gt;Thanks to everyone who contributed to this release.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bugs fixed in version 0.84&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;fix uninitialized upvar when binding procedures&lt;/li&gt;
+  &lt;li&gt;fix out-of-bounds read in &lt;code&gt;string first&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;fix unchecked truncation in &lt;code&gt;SetIndexFromAny&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;[wait -nohang]&lt;/code&gt; now returns correct result when child still running&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;exec&lt;/code&gt; fall-back implementation compilation issues fixed&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regsub&lt;/code&gt; now properly handles usage errors (returns code -1)&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;regsub -all&lt;/code&gt; no longer loops forever when matching everywhere&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;try&lt;/code&gt; error handling now properly handles shorter &lt;code&gt;errorCode&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;abort on boolean negation/plus unary operators fixed&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;aio write&lt;/code&gt; on EPIPE now properly discards write buffer&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;dict set/unset&lt;/code&gt; now ensures dicts modified via dict sugar are unshared&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;Jim_SetVariable()&lt;/code&gt; now properly frees value on error&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features and improvements added in version 0.84&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Major features:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;TIP 424 support: new safer &lt;code&gt;exec |&lt;/code&gt; syntax and &lt;code&gt;open "|| pipeline..."&lt;/code&gt; support&lt;/li&gt;
+      &lt;li&gt;Optional taint support for improved data security&lt;/li&gt;
+      &lt;li&gt;
+        &lt;table&gt;
+          &lt;tbody&gt;
+            &lt;tr&gt;
+              &lt;td&gt;&lt;code&gt;aio&lt;/code&gt; now supports translation mode (&lt;code&gt;binary&lt;/code&gt;&lt;/td&gt;
+              &lt;td&gt;&lt;code&gt;text&lt;/code&gt;) and configurable buffering&lt;/td&gt;
+            &lt;/tr&gt;
+          &lt;/tbody&gt;
+        &lt;/table&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;lsubst&lt;/code&gt; command to create lists using subst-style substitution&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;package forget&lt;/code&gt; command support&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;Jim_RegisterCommand()&lt;/code&gt; API for improved C command registration with arg checking&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;info usage&lt;/code&gt; returns usage for procs and native commands&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;info aliases&lt;/code&gt; lists all aliases&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Regex improvements:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; and &lt;code&gt;regsub&lt;/code&gt; now support &lt;code&gt;-expanded&lt;/code&gt; flag&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; and &lt;code&gt;regsub&lt;/code&gt; now support &lt;code&gt;-lineanchor&lt;/code&gt; and &lt;code&gt;-linestop&lt;/code&gt; flags&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; now properly handles non-repeat count &lt;code&gt;{...}&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;regexp -all&lt;/code&gt; now properly assigns match variables&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Expression improvements:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code&gt;expr&lt;/code&gt; now supports &lt;code&gt;=*&lt;/code&gt; (string glob match) and &lt;code&gt;=~&lt;/code&gt; (string regex match) operators&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;./configure --compat&lt;/code&gt; now properly enables expr with multiple args&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Documentation:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Extensive public API documentation added&lt;/li&gt;
+      &lt;li&gt;subst with &lt;code&gt;$(...)&lt;/code&gt; documented&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Other improvements:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code&gt;parray&lt;/code&gt; now allows additional arguments per Tcl compatibility&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;vwait&lt;/code&gt; now accepts script argument&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;regexp&lt;/code&gt; and &lt;code&gt;regsub&lt;/code&gt; now sort &lt;code&gt;--&lt;/code&gt; after other options for Tcl 9.0 compatibility&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;info patchlevel&lt;/code&gt; now returns git version if available&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;Jim_EvalFile&lt;/code&gt; now accepts input from any readable file&lt;/li&gt;
+      &lt;li&gt;linenoise updated with grapheme cluster support for better Unicode handling&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;tcltest&lt;/code&gt; improved to support any Tcl version &amp;gt;= 8.5&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;os.umask&lt;/code&gt; command added&lt;/li&gt;
+      &lt;li&gt;MorphOS platform support added&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;jimsh&lt;/code&gt; improved stdin/tty handling&lt;/li&gt;
+      &lt;li&gt;Improve Jim_Stack API and remove unused ABI fields&lt;/li&gt;
+      &lt;li&gt;Improved build compatibility with updated autosetup to v0.7.2+&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Possible incompatibilities in version 0.84&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;Jim_RegisterCommand()&lt;/code&gt; API changes for C extensions using direct command registration&lt;/li&gt;
+  &lt;li&gt;If taint checking is enabled (.i.e. not disabled with –disable-taint) it may block
+certain operations that otherwise would have been allowed. See README.taint.&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;Jim_SetVariable()&lt;/code&gt; now frees the value on error so callers should not attempt to do so&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <id>tag:msteveb.github.io,2024-08-28:/jimtcl/articles/jim-release-0-83/</id>
     <title type="html">Jim Tcl version 0.83</title>
     <published>2024-08-28T00:00:00Z</published>
     <updated>2024-08-28T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-83/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-83/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-083"&gt;ANNOUNCE: Jim Tcl version 0.83&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.83 has been released and is available from:&lt;/p&gt;
@@ -71,11 +184,11 @@ using the same filehandle from the application.&lt;/li&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2023-02-25:/index.html/doc/www/www/articles/jim-release-0-82/</id>
+    <id>tag:msteveb.github.io,2023-02-25:/jimtcl/articles/jim-release-0-82/</id>
     <title type="html">Jim Tcl version 0.82</title>
     <published>2023-02-25T00:00:00Z</published>
     <updated>2023-02-25T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-82/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-82/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-082"&gt;ANNOUNCE: Jim Tcl version 0.82&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.82 has been released and is available from:&lt;/p&gt;
@@ -141,11 +254,11 @@ continue to work and should be preferred when retrieving a live stack trace&lt;/
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2021-11-28:/index.html/doc/www/www/articles/jim-release-0-81/</id>
+    <id>tag:msteveb.github.io,2021-11-28:/jimtcl/articles/jim-release-0-81/</id>
     <title type="html">Jim Tcl version 0.81</title>
     <published>2021-11-28T00:00:00Z</published>
     <updated>2021-11-28T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-81/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-81/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-081"&gt;ANNOUNCE: Jim Tcl version 0.81&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.81 has been released and is available from:&lt;/p&gt;
@@ -195,11 +308,11 @@ continue to work and should be preferred when retrieving a live stack trace&lt;/
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2021-01-02:/index.html/doc/www/www/articles/sdl2-support/</id>
+    <id>tag:msteveb.github.io,2021-01-02:/jimtcl/articles/sdl2-support/</id>
     <title type="html">SDL2 - Jim Tcl sdl extension update</title>
     <published>2021-01-02T00:00:00Z</published>
     <updated>2021-01-02T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/sdl2-support/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/sdl2-support/" type="text/html"/>
     <content type="html">&lt;p&gt;Since the early days of Jim Tcl, the included &lt;a href="https://www.libsdl.org"&gt;sdl&lt;/a&gt; extension
 has provided an example of how to integrate an external library as
 a Jim Tcl extension.&lt;/p&gt;
@@ -340,11 +453,11 @@ with the Jim Tcl event loop.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2020-10-31:/index.html/doc/www/www/articles/jim-release-0-80/</id>
+    <id>tag:msteveb.github.io,2020-10-31:/jimtcl/articles/jim-release-0-80/</id>
     <title type="html">Jim Tcl version 0.80</title>
     <published>2020-10-31T00:00:00Z</published>
     <updated>2020-10-31T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-80/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-80/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-080"&gt;ANNOUNCE: Jim Tcl version 0.80&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.80 has been released and is available from:&lt;/p&gt;
@@ -399,11 +512,11 @@ with the Jim Tcl event loop.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2020-02-03:/index.html/doc/www/www/articles/move-to-github/</id>
+    <id>tag:msteveb.github.io,2020-02-03:/jimtcl/articles/move-to-github/</id>
     <title type="html">Move primary repo to github</title>
     <published>2020-02-03T00:00:00Z</published>
     <updated>2020-02-03T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/move-to-github/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/move-to-github/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-is-moving-to-github"&gt;ANNOUNCE: Jim Tcl is moving to github&lt;/h2&gt;
 
 &lt;p&gt;As repo.or.cz has been down for some time, the mirror at github
@@ -415,11 +528,11 @@ has now been designated as the primary repository.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2019-11-20:/index.html/doc/www/www/articles/jim-release-0-79/</id>
+    <id>tag:msteveb.github.io,2019-11-20:/jimtcl/articles/jim-release-0-79/</id>
     <title type="html">Jim Tcl version 0.79</title>
     <published>2019-11-20T00:00:00Z</published>
     <updated>2019-11-20T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-79/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-79/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-079"&gt;ANNOUNCE: Jim Tcl version 0.79&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.79 has been released and is available from:&lt;/p&gt;
@@ -472,11 +585,11 @@ has now been designated as the primary repository.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2018-07-01:/index.html/doc/www/www/articles/jim-release-0-78/</id>
+    <id>tag:msteveb.github.io,2018-07-01:/jimtcl/articles/jim-release-0-78/</id>
     <title type="html">Jim Tcl version 0.78</title>
     <published>2018-07-01T00:00:00Z</published>
     <updated>2018-07-01T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-78/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-78/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-078"&gt;ANNOUNCE: Jim Tcl version 0.78&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.78 has been released and is available from:&lt;/p&gt;
@@ -551,11 +664,11 @@ A summary is below. See git for the full changelog.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2016-09-04:/index.html/doc/www/www/articles/jim-release-0-77/</id>
+    <id>tag:msteveb.github.io,2016-09-04:/jimtcl/articles/jim-release-0-77/</id>
     <title type="html">Jim Tcl version 0.77</title>
     <published>2016-09-04T00:00:00Z</published>
     <updated>2016-09-04T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-77/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-77/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-077"&gt;ANNOUNCE: Jim Tcl version 0.77&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.77 has been released and is available from:&lt;/p&gt;
@@ -614,11 +727,11 @@ A summary is below. See git for the full changelog.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2015-01-31:/index.html/doc/www/www/articles/jim-release-0-76/</id>
+    <id>tag:msteveb.github.io,2015-01-31:/jimtcl/articles/jim-release-0-76/</id>
     <title type="html">Jim Tcl version 0.76</title>
     <published>2015-01-31T00:00:00Z</published>
     <updated>2015-01-31T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-76/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-76/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-076"&gt;ANNOUNCE: Jim Tcl version 0.76&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.76 has been released and is available from:&lt;/p&gt;
@@ -673,11 +786,11 @@ A summary is below. See git for the full changelog.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2014-02-27:/index.html/doc/www/www/articles/jim-release-0-75/</id>
+    <id>tag:msteveb.github.io,2014-02-27:/jimtcl/articles/jim-release-0-75/</id>
     <title type="html">Jim Tcl version 0.75</title>
     <published>2014-02-27T00:00:00Z</published>
     <updated>2014-02-27T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-75/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-75/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-075"&gt;ANNOUNCE: Jim Tcl version 0.75&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.75 has been released and is available from:&lt;/p&gt;
@@ -741,11 +854,11 @@ A summary is below. See git for the full changelog.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2014-01-24:/index.html/doc/www/www/articles/binary-cheatsheet/</id>
+    <id>tag:msteveb.github.io,2014-01-24:/jimtcl/articles/binary-cheatsheet/</id>
     <title type="html">Binary Cheatsheet</title>
     <published>2014-01-24T00:00:00Z</published>
     <updated>2014-01-24T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/binary-cheatsheet/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/binary-cheatsheet/" type="text/html"/>
     <content type="html">&lt;p&gt;I have been using Tcl for years, but I &lt;em&gt;still&lt;/em&gt; need to lookup the manual every
 time I use &lt;code&gt;binary format&lt;/code&gt; and &lt;code&gt;binary scan&lt;/code&gt;. If you are like me, you will find
 this cheatsheet a handy reference.&lt;/p&gt;
@@ -858,11 +971,11 @@ binary scan $bin I2sH2a* intlist intval hexval str
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2013-07-25:/index.html/doc/www/www/articles/jim-release-0-74/</id>
+    <id>tag:msteveb.github.io,2013-07-25:/jimtcl/articles/jim-release-0-74/</id>
     <title type="html">Jim Tcl version 0.74</title>
     <published>2013-07-25T00:00:00Z</published>
     <updated>2013-07-25T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-74/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-74/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-074"&gt;ANNOUNCE: Jim Tcl version 0.74&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.74 has been released and is available from:&lt;/p&gt;
@@ -946,11 +1059,11 @@ dynamic code (list)       .
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2012-02-10:/index.html/doc/www/www/articles/no-namespaces-revisited/</id>
+    <id>tag:msteveb.github.io,2012-02-10:/jimtcl/articles/no-namespaces-revisited/</id>
     <title type="html">Coping without Namespaces - Revisited</title>
     <published>2012-02-10T00:00:00Z</published>
     <updated>2012-02-10T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/no-namespaces-revisited/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/no-namespaces-revisited/" type="text/html"/>
     <content type="html">&lt;p&gt;Back in the article &lt;a href="/articles/no-namespaces/"&gt;Coping without Namespaces&lt;/a&gt;,
 we discussed the fact that Jim Tcl did not support namespaces, but
 that small changes to the source could be made to allow namespace-based
@@ -1198,11 +1311,11 @@ available in git.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2011-12-22:/index.html/doc/www/www/articles/jim-release-0-73/</id>
+    <id>tag:msteveb.github.io,2011-12-22:/jimtcl/articles/jim-release-0-73/</id>
     <title type="html">Jim Tcl version 0.73</title>
     <published>2011-12-22T00:00:00Z</published>
     <updated>2011-12-22T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-73/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-73/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-073"&gt;ANNOUNCE: Jim Tcl version 0.73&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.73 has been released and is available from:&lt;/p&gt;
@@ -1255,11 +1368,11 @@ A summary is below. See git for the full changelog.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2011-12-15:/index.html/doc/www/www/articles/light-weight-namespaces/</id>
+    <id>tag:msteveb.github.io,2011-12-15:/jimtcl/articles/light-weight-namespaces/</id>
     <title type="html">Lightweight Namespaces</title>
     <published>2011-12-15T00:00:00Z</published>
     <updated>2011-12-15T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/light-weight-namespaces/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/light-weight-namespaces/" type="text/html"/>
     <content type="html">&lt;p&gt;New in Jim Tcl v0.73 is (optional) support for namespaces.&lt;/p&gt;
 
 &lt;p&gt;The following is taken directly from README.namespaces in the Jim Tcl repository.&lt;/p&gt;
@@ -1472,11 +1585,11 @@ recognised global scoping of commands and treat these as identical.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2011-11-10:/index.html/doc/www/www/articles/jim-tcl-tk-2011-paper/</id>
+    <id>tag:msteveb.github.io,2011-11-10:/jimtcl/articles/jim-tcl-tk-2011-paper/</id>
     <title type="html">Jim @ Tcl/Tk 2011</title>
     <published>2011-11-10T00:00:00Z</published>
     <updated>2011-11-10T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-tcl-tk-2011-paper/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-tcl-tk-2011-paper/" type="text/html"/>
     <content type="html">&lt;p&gt;At the &lt;a href="http://www.tcl.tk/community/tcl2011/"&gt;Tck/Tk 2011 conference&lt;/a&gt; I
 presented a paper on Jim Tcl. It seemed to be well received.&lt;/p&gt;
 
@@ -1488,11 +1601,11 @@ presented a paper on Jim Tcl. It seemed to be well received.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2011-10-06:/index.html/doc/www/www/articles/jim-release-0-72/</id>
+    <id>tag:msteveb.github.io,2011-10-06:/jimtcl/articles/jim-release-0-72/</id>
     <title type="html">Jim Tcl version 0.72</title>
     <published>2011-10-06T00:00:00Z</published>
     <updated>2011-10-06T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-release-0-72/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-release-0-72/" type="text/html"/>
     <content type="html">&lt;h2 id="announce-jim-tcl-version-072"&gt;ANNOUNCE: Jim Tcl version 0.72&lt;/h2&gt;
 
 &lt;p&gt;Jim Tcl 0.72 has been released and is available from:&lt;/p&gt;
@@ -1549,11 +1662,11 @@ presented a paper on Jim Tcl. It seemed to be well received.&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <id>tag:jim.tcl.tk,2011-10-04:/index.html/doc/www/www/articles/jim-sqlite-shell/</id>
+    <id>tag:msteveb.github.io,2011-10-04:/jimtcl/articles/jim-sqlite-shell/</id>
     <title type="html">jSQLsh - Jim Tcl SQLite Shell</title>
     <published>2011-10-04T00:00:00Z</published>
     <updated>2011-10-04T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/jim-sqlite-shell/" type="text/html"/>
+    <link rel="alternate" href="http://msteveb.github.io/jimtcl/articles/jim-sqlite-shell/" type="text/html"/>
     <content type="html">&lt;p&gt;The jSQLsh project at &lt;a href="https://github.com/LStinson/jSQLsh"&gt;https://github.com/LStinson/jSQLsh&lt;/a&gt; provides
 a small but powerful shell for sqlite, modelled after
 &lt;a href="http://www.postgresql.org/docs/9.0/static/app-psql.html"&gt;psql&lt;/a&gt;&lt;/p&gt;
@@ -1602,43 +1715,6 @@ Commands:
   /u(ser)#    Copy user macro # into the query buffer.
   /u(ser)# -  Copy the query buffer, or supplied text, into macro #.
 :memory: (0 rows, 0 changes) # 
-&lt;/pre&gt;
-
-&lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
-</content>
-  </entry>
-  <entry>
-    <id>tag:jim.tcl.tk,2011-09-06:/index.html/doc/www/www/articles/metakit-extension/</id>
-    <title type="html">New Metakit Extension</title>
-    <published>2011-09-06T00:00:00Z</published>
-    <updated>2011-09-06T00:00:00Z</updated>
-    <link rel="alternate" href="http://jim.tcl.tk/index.html/doc/www/www/articles/metakit-extension/" type="text/html"/>
-    <content type="html">&lt;p&gt;Alexander Shpilkin has contributed the metakit extension to Jim Tcl.&lt;/p&gt;
-
-&lt;p&gt;Metakit (&lt;a href="http://equi4.com/metakit/"&gt;http://equi4.com/metakit/&lt;/a&gt;) is an embeddable non-SQL
-database with advanced data manipulation features through the use of views.
-Using metakit can be an alternative to sqlite.&lt;/p&gt;
-
-&lt;p&gt;The Jim Tcl metakit interface is different from the Tcl metakit interface as it
-makes use of unique Jim Tcl features such as references. The &lt;a href="/documentation/metakit/"&gt;metakit extension&lt;/a&gt;
-documentation fully explains the API.&lt;/p&gt;
-
-&lt;h2 id="building-the-metakit-extension"&gt;Building the Metakit Extension&lt;/h2&gt;
-
-&lt;p&gt;Building the extension requires the metakit headers and library to be
-available. Here is one way to statically build the metakit extension into jimsh.&lt;/p&gt;
-
-&lt;pre class="sh_unix"&gt;
-$ cd jimtcl
-$ svn co svn://svn.equi4.com/metakit/trunk metakit
-$ cd metakit/unix
-$ ./configure --without-tcl --without-python --disable-shared
-$ make
-$ cd ../..
-$ ./configure --with-ext=mk CFLAGS="-Imetakit/include -Lmetakit/unix"
-$ make
-$ ./jimsh examples/metakit.tcl
-  ...
 &lt;/pre&gt;
 
 &lt;p&gt;Steve Bennett (&lt;a href="mailto:steveb@workware.net.au"&gt;steveb@workware.net.au&lt;/a&gt;)&lt;/p&gt;
