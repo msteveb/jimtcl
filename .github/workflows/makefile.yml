@@ -7,8 +7,7 @@ on:
     branches: [ "**" ]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +27,45 @@ jobs:
 
     - name: Test bootstrap jimsh
       run: ./test-bootstrap-jim
+
+  build-windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: mingw32
+        install: make mingw-w64-i686-gcc mingw-w64-i686-sqlite3 mingw-w64-i686-openssl p7zip
+
+    - name: configure
+      run: ./configure --ssl --with-ext='sqlite3 win32 zlib' --disable-docs CFLAGS=-D__MINGW_USE_VC2005_COMPAT
+
+    - name: Build
+      run: make
+
+    - name: Run check
+      run: make test
+
+    - name: Create artifacts
+      run: |
+        cp jimsh.exe jimsh_debug.exe
+        strip jimsh.exe
+        cp "$MINGW_PREFIX/bin"/libcrypto-*.dll .
+        cp "$MINGW_PREFIX/bin"/libgcc_s_dw2-1.dll .
+        cp "$MINGW_PREFIX/bin"/libsqlite3-0.dll .
+        cp "$MINGW_PREFIX/bin"/libssl-*.dll .
+        cp "$MINGW_PREFIX/bin"/libwinpthread-1.dll .
+        cp "$MINGW_PREFIX/bin"/zlib1.dll .
+        7z a jimsh.zip jimsh.exe jimsh_debug.exe *.dll
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: jimsh-windows
+        path: jimsh.zip
