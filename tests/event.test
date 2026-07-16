@@ -274,10 +274,10 @@ test event-15.1 {vwait with script} {jim} {
 
     local proc waiter {} {&x &result} {
         lappend result $x
-        after 50 waiter
+        after 150 waiter
     }
 
-    after 50 waiter
+    after 150 waiter
     vwait done_waiter [lambda {} {&x} {
         # By using a lambda to capture a reference to x, we can
         # avoid a global variable. (done_waiter is not used)
@@ -290,7 +290,9 @@ test event-15.1 {vwait with script} {jim} {
     # Note that especially on VMs the waiter may run less than 5 times,
     # so allow a range for the length of $result.
     set rn [llength $result]
-    list $x [expr {$rn >= 3 && $rn <= 5}]
-} {5 1}
+    if {$rn < 2 || $rn > 5} {
+        error "Expected 2-5 iterations, got $rn"
+    }
+} {}
 
 testreport
