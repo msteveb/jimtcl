@@ -395,7 +395,7 @@ static int Jim_PackCmd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (Jim_GetWideExpr(interp, argv[5], &pos) != JIM_OK) {
             return JIM_ERR;
         }
-        if (pos < 0 || (option == OPT_STR && pos % 8)) {
+        if (pos < 0 || pos > INT_MAX - width || (option == OPT_STR && pos % 8)) {
             Jim_SetResultFormatted(interp, "bad bitoffset: %#s", argv[5]);
             return JIM_ERR;
         }
