@@ -12803,6 +12803,12 @@ static int Jim_WhileCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
         if (!boolean)
             break;
 
+        /* Allow an async signal to break a loop whose body dispatches no
+         * command (e.g. {} or the incr fast-path), which otherwise reaches
+         * no per-command signal check. */
+        if (Jim_CheckSignal(interp))
+            return JIM_SIGNAL;
+
         if ((retval = Jim_EvalObj(interp, argv[2])) != JIM_OK) {
             if (JimCheckLoopRetcode(interp, retval)) {
                 return retval;
@@ -12926,6 +12932,11 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 
         /* --- OPTIMIZED FOR --- */
         while (retval == JIM_OK) {
+            /* Break on an async signal even if the body dispatches no command. */
+            if (Jim_CheckSignal(interp)) {
+                retval = JIM_SIGNAL;
+                goto out;
+            }
             /* === Check condition === */
             /* Note that currentVal is already set here */
 
@@ -12976,6 +12987,11 @@ static int Jim_ForCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv
 #endif
 
     while (boolean && (retval == JIM_OK || retval == JIM_CONTINUE)) {
+        /* Break on an async signal even if the body dispatches no command. */
+        if (Jim_CheckSignal(interp)) {
+            retval = JIM_SIGNAL;
+            break;
+        }
         /* Body */
         retval = Jim_EvalObj(interp, argv[4]);
         if (JimCheckLoopRetcode(interp, retval)) {
@@ -13039,6 +13055,11 @@ static int Jim_LoopCoreCommand(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     retval = Jim_SetVariable(interp, argv[1], Jim_NewIntObj(interp, i));
 
     while (((i < limit && incr > 0) || (i > limit && incr < 0)) && retval == JIM_OK) {
+        /* Break on an async signal even if the body dispatches no command. */
+        if (Jim_CheckSignal(interp)) {
+            retval = JIM_SIGNAL;
+            break;
+        }
         retval = Jim_EvalObj(interp, bodyObjPtr);
         if (JimCheckLoopRetcode(interp, retval)) {
             return retval;
@@ -13161,6 +13182,11 @@ static int JimForeachMapHelper(Jim_Interp *interp, int argc, Jim_Obj *const *arg
     Jim_IncrRefCount(resultObj);
 
     while (1) {
+        /* Break on an async signal even if the body dispatches no command. */
+        if (Jim_CheckSignal(interp)) {
+            result = JIM_SIGNAL;
+            goto err;
+        }
         /* Have we expired all lists? */
         for (i = 0; i < numargs; i += 2) {
             if (!JimListIterDone(interp, &iters[i + 1])) {
