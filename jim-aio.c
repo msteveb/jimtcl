@@ -67,8 +67,19 @@
 #include <sys/un.h>
 #endif
 #define HAVE_SOCKETS
-#elif defined (__MINGW32__)
-/* currently mingw32 doesn't support sockets, but has pipe, fdopen */
+#elif defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define HAVE_SOCKETS
+#ifndef SHUT_RD
+#define SHUT_RD SD_RECEIVE
+#endif
+#ifndef SHUT_WR
+#define SHUT_WR SD_SEND
+#endif
+#ifndef SHUT_RDWR
+#define SHUT_RDWR SD_BOTH
+#endif
 #endif
 
 #if defined(JIM_SSL)
@@ -85,17 +96,14 @@
 #include "jimiocompat.h"
 
 #define AIO_CMD_LEN 32      /* e.g. aio.handleXXXXXX */
-#define AIO_DEFAULT_RBUF_LEN 256     /* read size for gets, read */
-#define AIO_DEFAULT_WBUF_LIMIT (64 * 1024)  /* max size of writebuf before flushing */
+#define AIO_BUF_LEN 256     /* read size for gets, read */
+#define AIO_WBUF_FULL_SIZE (64 * 1024)  /* This could be configurable */
 
 #define AIO_KEEPOPEN 1  /* don't set O_CLOEXEC, don't close on command delete */
 #define AIO_NODELETE 2  /* don't delete AF_UNIX path on close */
 #define AIO_EOF 4       /* EOF was reached */
 #define AIO_WBUF_NONE 8 /* default to buffering=none */
 #define AIO_NONBLOCK 16   /* socket is non-blocking */
-#define AIO_NOTAINT  32   /* Don't set taint on the channel */
-
-#define AIO_ONEREAD 32   /* passed to aio_read_len() to return after a single read */
 
 enum wbuftype {
     WBUF_OPT_NONE,      /* write immediately */
@@ -115,6 +123,10 @@ enum wbuftype {
 #define UNIX_SOCKETS 1
 #else
 #define UNIX_SOCKETS 0
+#endif
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN JIM_PATH_LEN
 #endif
 
 #if defined(HAVE_SOCKETS) && !defined(JIM_BOOTSTRAP)
@@ -176,6 +188,7 @@ typedef struct {
     int (*reader)(struct AioFile *af, char *buf, int len, int pending);
     int (*error)(const struct AioFile *af);
     const char *(*strerror)(struct AioFile *af);
+    int (*verify)(struct AioFile *af);
 } JimAioFopsType;
 
 typedef struct AioFile
@@ -185,29 +198,16 @@ typedef struct AioFile
     int flags;              /* AIO_KEEPOPEN | AIO_NODELETE | AIO_EOF */
     long timeout;           /* timeout (in ms) for read operations if blocking */
     int fd;
-    unsigned taintsource;       /* Data read from the file are tainted with this value */
-    unsigned taintsink;         /* Data with any of these taint types can't be written to this file */
     int addr_family;
     void *ssl;
     const JimAioFopsType *fops;
     Jim_Obj *readbuf;       /* Contains any buffered read data. NULL if empty. refcount=0 */
     Jim_Obj *writebuf;      /* Contains any buffered write data. refcount=1 */
-    char *rbuf;             /* Temporary read buffer (NULL if not yet allocated) */
-    size_t rbuf_len;        /* Length of rbuf */
-    size_t wbuf_limit;      /* Max size of writebuf before flushing */
 } AioFile;
-
-static void aio_consume(Jim_Obj *objPtr, int n);
 
 static int stdio_writer(struct AioFile *af, const char *buf, int len)
 {
-    int ret = write(af->fd, buf, len);
-    if (ret < 0 && errno == EPIPE) {
-        /* Also discard the write buffer since otherwise when
-         * we try to flush on shutdown we may get SIGPIPE */
-        aio_consume(af->writebuf, Jim_Length(af->writebuf));
-    }
-    return ret;
+    return write(af->fd, buf, len);
 }
 
 static int stdio_reader(struct AioFile *af, char *buf, int len, int nb)
@@ -259,6 +259,7 @@ static const JimAioFopsType stdio_fops = {
     stdio_reader,
     stdio_error,
     stdio_strerror,
+    NULL, /* verify */
 };
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -316,11 +317,29 @@ static const char *ssl_strerror(struct AioFile *af)
     }
 }
 
+static int ssl_verify(struct AioFile *af)
+{
+    X509 *cert;
+
+    cert = SSL_get_peer_certificate(af->ssl);
+    if (!cert) {
+        return JIM_ERR;
+    }
+    X509_free(cert);
+
+    if (SSL_get_verify_result(af->ssl) == X509_V_OK) {
+        return JIM_OK;
+    }
+
+    return JIM_ERR;
+}
+
 static const JimAioFopsType ssl_fops = {
     ssl_writer,
     ssl_reader,
     ssl_error,
     ssl_strerror,
+    ssl_verify,
 };
 #endif /* JIM_BOOTSTRAP */
 
@@ -363,7 +382,6 @@ static int aio_start_nonblocking(AioFile *af)
 }
 
 static int JimAioSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv);
-static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink);
 static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, int flags);
 
@@ -617,7 +635,9 @@ static int JimSetVariableSocketAddress(Jim_Interp *interp, Jim_Obj *varObjPtr, c
 {
     int ret;
     Jim_Obj *objPtr = JimFormatSocketAddress(interp, sa, salen);
+    Jim_IncrRefCount(objPtr);
     ret = Jim_SetVariable(interp, varObjPtr, objPtr);
+    Jim_DecrRefCount(interp, objPtr);
     return ret;
 }
 
@@ -701,26 +721,7 @@ static void aio_consume(Jim_Obj *objPtr, int n)
 }
 
 /* forward declaration */
-static int aio_flush(Jim_Interp *interp, AioFile *af);
-
-#ifdef jim_ext_eventloop
-/**
- * Called when the channel is writable.
- * Write what we can and return -1 when the write buffer is empty to remove the handler.
- */
-static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask)
-{
-    AioFile *af = clientData;
-
-    aio_flush(interp, af);
-    if (Jim_Length(af->writebuf) == 0) {
-        /* Done, so remove the handler */
-        return -1;
-    }
-    return 0;
-}
-#endif
-
+static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask);
 
 /**
  * Flushes af->writebuf to the channel and removes that data
@@ -769,18 +770,30 @@ static int aio_flush(Jim_Interp *interp, AioFile *af)
 }
 
 /**
+ * Called when the channel is writable.
+ * Write what we can and return -1 when the write buffer is empty to remove the handler.
+ */
+static int aio_autoflush(Jim_Interp *interp, void *clientData, int mask)
+{
+    AioFile *af = clientData;
+
+    aio_flush(interp, af);
+    if (Jim_Length(af->writebuf) == 0) {
+        /* Done, so remove the handler */
+        return -1;
+    }
+    return 0;
+}
+
+/**
  * Read until 'len' bytes are available in readbuf.
- *
- * If flags contains AIO_NONBLOCK, indicates a nonblocking read.
- * If flags contains AIO_ONEREAD, return after a single read.
- * (In this case JIM_ERR is also returned on timeout)
  *
  * If nonblocking or timeout, may return early.
  * 'len' may be -1 to read until eof (or until no more data if nonblocking)
  *
  * Returns JIM_OK if data was read or JIM_ERR on error.
  */
-static int aio_read_len(Jim_Interp *interp, AioFile *af, unsigned flags, int neededLen)
+static int aio_read_len(Jim_Interp *interp, AioFile *af, int nb, char *buf, size_t buflen, int neededLen)
 {
     if (!af->readbuf) {
         af->readbuf = Jim_NewStringObj(interp, NULL, 0);
@@ -798,29 +811,20 @@ static int aio_read_len(Jim_Interp *interp, AioFile *af, unsigned flags, int nee
         int readlen;
 
         if (neededLen == -1) {
-            readlen = af->rbuf_len;
+            readlen = AIO_BUF_LEN;
         }
         else {
-            readlen = (neededLen > af->rbuf_len ? af->rbuf_len : neededLen);
+            readlen = (neededLen > AIO_BUF_LEN ? AIO_BUF_LEN : neededLen);
         }
-        /* Allocate buffer if not already allocated */
-        if (!af->rbuf) {
-            af->rbuf = Jim_Alloc(af->rbuf_len);
-        }
-        retval = af->fops->reader(af, af->rbuf, readlen, flags & AIO_NONBLOCK);
+        retval = af->fops->reader(af, buf, readlen, nb);
         if (retval > 0) {
-            if (retval) {
-                Jim_AppendString(interp, af->readbuf, af->rbuf, retval);
-            }
+            Jim_AppendString(interp, af->readbuf, buf, retval);
             if (neededLen != -1) {
                 neededLen -= retval;
             }
-            if (flags & AIO_ONEREAD) {
-                return JIM_OK;
-            }
             continue;
         }
-        if ((flags & AIO_ONEREAD) || JimCheckStreamError(interp, af)) {
+        if (JimCheckStreamError(interp, af)) {
             return JIM_ERR;
         }
         break;
@@ -899,7 +903,6 @@ static void JimAioDelProc(Jim_Interp *interp, void *privData)
         Jim_FreeNewObj(interp, af->readbuf);
     }
 
-    Jim_Free(af->rbuf);
     Jim_Free(af);
 }
 
@@ -913,6 +916,7 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int option;
     int nb;
     Jim_Obj *objPtr;
+    char buf[AIO_BUF_LEN];
 
     if (argc) {
         if (*Jim_String(argv[0]) == '-') {
@@ -940,18 +944,17 @@ static int aio_cmd_read(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         argv++;
     }
     if (argc) {
-        return JIM_USAGE;
+        return -1;
     }
 
     /* reads are nonblocking if a timeout is given */
     nb = aio_start_nonblocking(af);
 
-    if (aio_read_len(interp, af, nb ? AIO_NONBLOCK : 0, neededLen) != JIM_OK) {
+    if (aio_read_len(interp, af, nb, buf, sizeof(buf), neededLen) != JIM_OK) {
         aio_set_nonblocking(af, nb);
         return JIM_ERR;
     }
     objPtr = aio_read_consume(interp, af, neededLen);
-    Jim_TaintObj(objPtr, af->taintsource);
 
     aio_set_nonblocking(af, nb);
 
@@ -981,7 +984,7 @@ int Jim_AioFilehandle(Jim_Interp *interp, Jim_Obj *command)
     Jim_Cmd *cmdPtr = Jim_GetCommand(interp, command, JIM_ERRMSG);
 
     /* XXX: There ought to be a supported API for this */
-    if (cmdPtr && !(cmdPtr->flags & JIM_CMD_ISPROC) && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
+    if (cmdPtr && !cmdPtr->isproc && cmdPtr->u.native.cmdProc == JimAioSubCmdProc) {
         return ((AioFile *) cmdPtr->u.native.privData)->fd;
     }
     Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", command);
@@ -1000,56 +1003,23 @@ static int aio_cmd_getfd(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-static int aio_cmd_gettaint(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *af = Jim_CmdPrivData(interp);
-
-    static const char * const options[] = { "-source", "-sink", NULL };
-    enum { OPT_SOURCE, OPT_SINK };
-    int option;
-
-    if (Jim_GetEnum(interp, argv[0], options, &option, NULL, JIM_ERRMSG) != JIM_OK) {
-        return JIM_ERR;
-    }
-    switch (option) {
-        case OPT_SOURCE:
-            Jim_SetResultInt(interp, af->taintsource);
-            break;
-
-        case OPT_SINK:
-            Jim_SetResultInt(interp, af->taintsink);
-            break;
-    }
-
-    return JIM_OK;
-}
-
 static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     jim_wide count = 0;
     jim_wide maxlen = JIM_WIDE_MAX;
+    /* Small, static buffer for small files */
+    char buf[AIO_BUF_LEN];
+    /* Will be allocated if the file is large */
+    char *bufp = buf;
+    int buflen = sizeof(buf);
     int ok = 1;
     Jim_Obj *objv[4];
-    long taintsink;
 
     if (argc == 2) {
         if (Jim_GetWide(interp, argv[1], &maxlen) != JIM_OK) {
             return JIM_ERR;
         }
-    }
-
-    objv[0] = argv[0];
-    objv[1] = Jim_NewStringObj(interp, "gettaint", -1);
-    objv[2] = Jim_NewStringObj(interp, "-sink", -1);
-    if (Jim_EvalObjVector(interp, 3, objv) != JIM_OK || Jim_GetLong(interp, Jim_GetResult(interp), &taintsink) != JIM_OK) {
-        Jim_SetResultFormatted(interp, "Not a filehandle: \"%#s\"", argv[0]);
-        return JIM_ERR;
-    }
-
-    if (af->taintsource & taintsink) {
-        Jim_SetResultString(interp, "copying tainted source", -1);
-        return JIM_ERR;
     }
 
     /* Need to flush any write data first. This could fail because of send buf full,
@@ -1072,10 +1042,10 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     while (count < maxlen) {
         jim_wide len = maxlen - count;
-        if (len > af->rbuf_len) {
-            len = af->rbuf_len;
+        if (len > buflen) {
+            len = buflen;
         }
-        if (aio_read_len(interp, af, 0, len) != JIM_OK) {
+        if (aio_read_len(interp, af, 0, bufp, buflen, len) != JIM_OK) {
             ok = 0;
             break;
         }
@@ -1088,11 +1058,15 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         if (aio_eof(af)) {
             break;
         }
-        if (count >= 16384 && af->rbuf_len < 65536) {
+        if (count >= 16384 && bufp == buf) {
             /* Heuristic check - for large copy speed-up */
-            af->rbuf_len = 65536;
-            af->rbuf = Jim_Realloc(af->rbuf, af->rbuf_len);
+            buflen = 65536;
+            bufp = Jim_Alloc(buflen);
         }
+    }
+
+    if (bufp != buf) {
+        Jim_Free(bufp);
     }
 
     Jim_DecrRefCount(interp, objv[1]);
@@ -1107,92 +1081,47 @@ static int aio_cmd_copy(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     return JIM_OK;
 }
 
-/* Like strstr() but optimised in the case the the needle is of length 1 */
-static const char *jim_strstr(const char *haystack, int haylen, const char *needle, int needlen)
-{
-    if (needlen == 1) {
-        return (const char *)memchr(haystack, needle[0], haylen);
-    }
-    return strstr(haystack, needle);
-}
-
 static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
+    char buf[AIO_BUF_LEN];
     Jim_Obj *objPtr = NULL;
     int len;
     int nb;
-    unsigned flags = AIO_ONEREAD;
-    const char *nl = NULL;
+    char *nl = NULL;
     int offset = 0;
-    long keepnl = 0;
-    const char *nlstr = "\n";
-    int nlstrlen = 1;
-
-    while (argc >= 2) {
-        enum {OPT_EOL, OPT_KEEP};
-        static const char * const options[] = {
-            "-eol",
-            "-keep",
-            NULL
-        };
-        int opt;
-
-        /* Expect an option here */
-        if (*Jim_String(argv[0]) != '-') {
-            return JIM_USAGE;
-        }
-
-        if (Jim_GetEnum(interp, argv[0], options, &opt, NULL, JIM_ERRMSG | JIM_ENUM_ABBREV) != JIM_OK) {
-            return JIM_ERR;
-        }
-
-        switch (opt) {
-            case OPT_EOL:
-                nlstr = Jim_GetString(argv[1], &nlstrlen);
-                break;
-
-            case OPT_KEEP:
-                if (Jim_GetLong(interp, argv[1], &keepnl) != JIM_OK) {
-                    return JIM_ERR;
-                }
-                break;
-        }
-        argc -= 2;
-        argv += 2;
-    }
 
     errno = 0;
 
     /* reads are non-blocking if a timeout has been given */
     nb = aio_start_nonblocking(af);
-    if (nb) {
-        flags |= AIO_NONBLOCK;
+
+    if (!af->readbuf) {
+        af->readbuf = Jim_NewStringObj(interp, NULL, 0);
     }
 
     while (!aio_eof(af)) {
-        if (af->readbuf) {
-            const char *pt = Jim_GetString(af->readbuf, &len);
-            nl = jim_strstr(pt + offset, len - offset, nlstr, nlstrlen);
-            if (nl) {
-                /* got a line */
-                objPtr = Jim_NewStringObj(interp, pt, nl - pt + (keepnl ? nlstrlen : 0));
-                /* And consume it plus the eol */
-                aio_consume(af->readbuf, nl - pt + nlstrlen);
-                break;
-            }
-            offset = len;
-        }
-
-        /* Not got a line yet, so read more */
-        if (aio_read_len(interp, af, flags, -1) != JIM_OK) {
+        const char *pt = Jim_GetString(af->readbuf, &len);
+        nl = memchr(pt + offset, '\n', len - offset);
+        if (nl) {
+            /* got a line */
+            objPtr = Jim_NewStringObj(interp, pt, nl - pt);
+            /* And consume it plus the newline */
+            aio_consume(af->readbuf, nl - pt + 1);
             break;
         }
+
+        offset = len;
+        len = af->fops->reader(af, buf, AIO_BUF_LEN, nb);
+        if (len <= 0) {
+            break;
+        }
+        Jim_AppendString(interp, af->readbuf, buf, len);
     }
 
     aio_set_nonblocking(af, nb);
 
-    if (!nl && aio_eof(af) && af->readbuf) {
+    if (!nl && aio_eof(af)) {
         /* Just take what we have as the line */
         objPtr = af->readbuf;
         af->readbuf = NULL;
@@ -1200,10 +1129,10 @@ static int aio_cmd_gets(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     else if (!objPtr) {
         objPtr = Jim_NewStringObj(interp, NULL, 0);
     }
-    Jim_TaintObj(objPtr, af->taintsource);
 
     if (argc) {
         if (Jim_SetVariable(interp, argv[0], objPtr) != JIM_OK) {
+            Jim_FreeNewObj(interp, objPtr);
             return JIM_ERR;
         }
 
@@ -1230,14 +1159,9 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int wnow = 0;
     int nl = 1;
 
-    if (Jim_CheckTaint(interp, af->taintsink)) {
-        Jim_SetResultString(interp, "puts: tainted data", -1);
-        return JIM_ERR;
-    }
-
     if (argc == 2) {
         if (!Jim_CompareStringImmediate(interp, argv[0], "-nonewline")) {
-            return JIM_USAGE;
+            return -1;
         }
         strObj = argv[1];
         nl = 0;
@@ -1249,15 +1173,6 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     /* Keep it simple and always go via the writebuf instead of trying to optimise
      * the case that we can write immediately
      */
-#ifdef JIM_MAINTAINER
-    if (Jim_IsShared(af->writebuf)) {
-        /* This should generally never happen since this object isn't accessible,
-         * but it is possible with 'debug objects' */
-        Jim_DecrRefCount(interp, af->writebuf);
-        af->writebuf = Jim_DuplicateObj(interp, af->writebuf);
-        Jim_IncrRefCount(af->writebuf);
-    }
-#endif
     Jim_AppendObj(interp, af->writebuf, strObj);
     if (nl) {
         Jim_AppendString(interp, af->writebuf, "\n", 1);
@@ -1279,7 +1194,7 @@ static int aio_cmd_puts(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
             break;
 
         case WBUF_OPT_FULL:
-            if (wlen >= af->wbuf_limit) {
+            if (wlen >= AIO_WBUF_FULL_SIZE) {
                 wnow = 1;
             }
             break;
@@ -1307,7 +1222,6 @@ static int aio_cmd_isatty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    Jim_Obj *objPtr;
     char *buf;
     union sockaddr_any sa;
     long len;
@@ -1327,10 +1241,7 @@ static int aio_cmd_recvfrom(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_ERR;
     }
     buf[rlen] = 0;
-
-    objPtr = Jim_NewStringObjNoAlloc(interp, buf, rlen);
-    Jim_TaintObj(objPtr, af->taintsource);
-    Jim_SetResult(interp, objPtr);
+    Jim_SetResult(interp, Jim_NewStringObjNoAlloc(interp, buf, rlen));
 
     if (argc > 1) {
         return JimSetVariableSocketAddress(interp, argv[1], &sa, salen);
@@ -1350,10 +1261,6 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     const char *addr = Jim_String(argv[1]);
     socklen_t salen;
 
-    if (Jim_CheckTaint(interp, af->taintsink)) {
-        Jim_SetResultString(interp, "sendto: tainted data", -1);
-        return JIM_ERR;
-    }
     if (JimParseSocketAddress(interp, af->addr_family, SOCK_DGRAM, addr, &sa, &salen) != JIM_OK) {
         return JIM_ERR;
     }
@@ -1376,8 +1283,7 @@ static int aio_cmd_sendto(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
 static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    AioFile *serv_af = Jim_CmdPrivData(interp);
-    AioFile *af;
+    AioFile *af = Jim_CmdPrivData(interp);
     int sock;
     union sockaddr_any sa;
     socklen_t salen = sizeof(sa);
@@ -1385,7 +1291,7 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int n = 0;
     int flags = AIO_NODELETE;
 
-    sock = accept(serv_af->fd, &sa.sa, &salen);
+    sock = accept(af->fd, &sa.sa, &salen);
     if (sock < 0) {
         JimAioSetError(interp, NULL);
         return JIM_ERR;
@@ -1410,13 +1316,8 @@ static int aio_cmd_accept(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     /* Create the file command */
-    af = JimMakeChannel(interp, sock, filenameObj,
-        "aio.sockstream%ld", serv_af->addr_family, flags);
-    if (af) {
-        JimAioSetTaint(af, serv_af->taintsource, serv_af->taintsink);
-        return JIM_OK;
-    }
-    return JIM_ERR;
+    return JimMakeChannel(interp, sock, filenameObj,
+        "aio.sockstream%ld", af->addr_family, flags) ? JIM_OK : JIM_ERR;
 }
 
 static int aio_cmd_sockname(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1534,7 +1435,7 @@ static int aio_cmd_seek(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         else if (Jim_CompareStringImmediate(interp, argv[1], "end"))
             orig = SEEK_END;
         else {
-            return JIM_USAGE;
+            return -1;
         }
     }
     if (Jim_GetWide(interp, argv[0], &offset) != JIM_OK) {
@@ -1571,45 +1472,6 @@ static int aio_cmd_filename(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     Jim_SetResult(interp, af->filename);
     return JIM_OK;
 }
-
-#ifdef JIM_TAINT
-static int aio_cmd_taint(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *af = Jim_CmdPrivData(interp);
-    static const char * const types[] = {
-        "sink",
-        "source",
-        NULL
-    };
-    enum
-    {
-        TAINT_TYPE_SINK,
-        TAINT_TYPE_SOURCE,
-    };
-    int type;
-    long taint;
-
-    if (Jim_GetEnum(interp, argv[0], types, &type, NULL, JIM_ERRMSG) != JIM_OK)
-        return JIM_ERR;
-
-    if (argc == 1) {
-        Jim_SetResultInt(interp, type == TAINT_TYPE_SINK ? af->taintsink : af->taintsource);
-        return JIM_OK;
-    }
-    else if (Jim_GetLong(interp, argv[1], &taint) == JIM_OK) {
-        if (type == TAINT_TYPE_SINK) {
-            af->taintsink = taint;
-        }
-        else {
-            af->taintsource = taint;
-        }
-        return JIM_OK;
-    }
-    else {
-        return JIM_ERR;
-    }
-}
-#endif
 
 #ifdef O_NDELAY
 static int aio_cmd_ndelay(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
@@ -1698,7 +1560,7 @@ static int aio_cmd_sockopt(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         return JIM_OK;
     }
     if (argc == 1) {
-        return JIM_USAGE;
+        return -1;
     }
 
     /* Set an option */
@@ -1746,7 +1608,6 @@ static int aio_cmd_sync(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
-    Jim_Obj *resultObj;
 
     static const char * const options[] = {
         "none",
@@ -1755,79 +1616,17 @@ static int aio_cmd_buffering(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         NULL
     };
 
-    if (argc) {
-        if (Jim_GetEnum(interp, argv[0], options, &af->wbuft, NULL, JIM_ERRMSG) != JIM_OK) {
-            return JIM_ERR;
-        }
-
-        if (af->wbuft == WBUF_OPT_FULL && argc == 2) {
-            long l;
-            if (Jim_GetLong(interp, argv[1], &l) != JIM_OK || l <= 0) {
-                return JIM_ERR;
-            }
-            af->wbuf_limit = l;
-        }
-
-        if (af->wbuft == WBUF_OPT_NONE) {
-            if (aio_flush(interp, af) != JIM_OK) {
-                return JIM_ERR;
-            }
-        }
-        /* don't bother flushing when switching from full to line */
+    if (Jim_GetEnum(interp, argv[0], options, &af->wbuft, NULL, JIM_ERRMSG) != JIM_OK) {
+        return JIM_ERR;
     }
 
-    resultObj = Jim_NewListObj(interp, NULL, 0);
-    Jim_ListAppendElement(interp, resultObj, Jim_NewStringObj(interp, options[af->wbuft], -1));
-    if (af->wbuft == WBUF_OPT_FULL) {
-        Jim_ListAppendElement(interp, resultObj, Jim_NewIntObj(interp, af->wbuf_limit));
+    if (af->wbuft == WBUF_OPT_NONE) {
+        return aio_flush(interp, af);
     }
-    Jim_SetResult(interp, resultObj);
-
+    /* don't bother flushing when switching from full to line */
     return JIM_OK;
 }
 
-static int aio_cmd_translation(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    enum {OPT_BINARY, OPT_TEXT};
-    static const char * const options[] = {
-        "binary",
-        "text",
-        NULL
-    };
-    int opt;
-
-    if (Jim_GetEnum(interp, argv[0], options, &opt, NULL, JIM_ERRMSG) != JIM_OK) {
-            return JIM_ERR;
-    }
-#if defined(Jim_SetMode)
-    else {
-        AioFile *af = Jim_CmdPrivData(interp);
-        Jim_SetMode(af->fd, opt == OPT_BINARY ? O_BINARY : O_TEXT);
-    }
-#endif
-    return JIM_OK;
-}
-
-static int aio_cmd_readsize(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
-{
-    AioFile *af = Jim_CmdPrivData(interp);
-
-    if (argc) {
-        long l;
-        if (Jim_GetLong(interp, argv[0], &l) != JIM_OK || l <= 0) {
-            return JIM_ERR;
-        }
-        af->rbuf_len = l;
-        if (af->rbuf) {
-            af->rbuf = Jim_Realloc(af->rbuf, af->rbuf_len);
-        }
-    }
-    Jim_SetResultInt(interp, af->rbuf_len);
-
-    return JIM_OK;
-}
-
-#ifdef jim_ext_eventloop
 static int aio_cmd_timeout(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
 #ifdef HAVE_SELECT
@@ -1845,6 +1644,7 @@ static int aio_cmd_timeout(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #endif
 }
 
+#ifdef jim_ext_eventloop
 static int aio_eventinfo(Jim_Interp *interp, AioFile * af, unsigned mask,
     int argc, Jim_Obj * const *argv)
 {
@@ -2003,28 +1803,18 @@ static int aio_cmd_verify(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
     AioFile *af = Jim_CmdPrivData(interp);
     int ret;
-    X509 *cert;
 
-    if (!af->ssl) {
+    if (!af->fops->verify) {
         return JIM_OK;
     }
 
-    cert = SSL_get_peer_certificate(af->ssl);
-    if (!cert) {
+    ret = af->fops->verify(af);
+    if (ret != JIM_OK) {
         if (JimCheckStreamError(interp, af) == JIM_OK) {
             Jim_SetResultString(interp, "failed to verify the connection authenticity", -1);
         }
-        return JIM_ERR;
     }
-    X509_free(cert);
-
-    ret = SSL_get_verify_result(af->ssl);
-    if (ret == X509_V_OK) {
-        return JIM_OK;
-    }
-
-    Jim_SetResultFormatted(interp, "ssl certificate verify error: %s", X509_verify_cert_error_string(ret));
-    return JIM_ERR;
+    return ret;
 }
 #endif /* JIM_BOOTSTRAP */
 
@@ -2037,7 +1827,7 @@ static int aio_cmd_lock(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     if (argc == 1) {
         if (!Jim_CompareStringImmediate(interp, argv[0], "-wait")) {
-            return JIM_USAGE;
+            return -1;
         }
         lockmode = F_SETLKW;
     }
@@ -2115,7 +1905,7 @@ static int aio_cmd_tty(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     if (Jim_ListLength(interp, dictObjPtr) % 2) {
         /* Must be a valid dictionary */
         Jim_DecrRefCount(interp, dictObjPtr);
-        return JIM_USAGE;
+        return -1;
     }
 
     ret = Jim_SetTtySettings(interp, af->fd, dictObjPtr);
@@ -2192,22 +1982,13 @@ static const jim_subcmd_type aio_command_table[] = {
         aio_cmd_getfd,
         0,
         0,
-        JIM_MODFLAG_HIDDEN,
         /* Description: Internal command to return the underlying file descriptor. */
     },
-    {   "gettaint",
-        "?-source|-sink?",
-        aio_cmd_gettaint,
-        1,
-        1,
-        JIM_MODFLAG_HIDDEN,
-        /* Description: Internal command to return the taint of the channel. */
-    },
     {   "gets",
-        "?-eol <str>? ?-keep 0|1? ?var?",
+        "?var?",
         aio_cmd_gets,
         0,
-        -1,
+        1,
         /* Description: Read one line and return it or store it in the var */
     },
     {   "puts",
@@ -2318,15 +2099,6 @@ static const jim_subcmd_type aio_command_table[] = {
         0,
         /* Description: Returns the original filename */
     },
-#ifdef JIM_TAINT
-    {   "taint",
-        "source|sink ?0|n?",
-        aio_cmd_taint,
-        1,
-        2,
-        /* Description: Set or return the taint setting */
-    },
-#endif
 #ifdef O_NDELAY
     {   "ndelay",
         "?0|1?",
@@ -2346,25 +2118,11 @@ static const jim_subcmd_type aio_command_table[] = {
     },
 #endif
     {   "buffering",
-        "?none|line|full? ?size?",
+        "none|line|full",
         aio_cmd_buffering,
-        0,
-        2,
-        /* Description: Sets or returns write buffering */
-    },
-    {   "translation",
-        "binary|text",
-        aio_cmd_translation,
         1,
         1,
-        /* Description: Sets output translation mode */
-    },
-    {   "readsize",
-        "?size?",
-        aio_cmd_readsize,
-        0,
-        1,
-        /* Description: Sets or returns read size */
+        /* Description: Sets buffering */
     },
 #if defined(jim_ext_file) && defined(Jim_FileStat)
     {   "stat",
@@ -2565,24 +2323,18 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
         Jim_Obj *const *argv)
 {
     int openflags;
-    AioFile *af;
     const char *filename;
     int fd = -1;
     int n = 0;
-    /* filehandles created by open are not tainted by default */
-    int flags = AIO_NOTAINT;
+    int flags = 0;
 
     if (argc > 2 && Jim_CompareStringImmediate(interp, argv[2], "-noclose")) {
         flags = AIO_KEEPOPEN;
         n++;
     }
-
-    if (Jim_CheckTaint(interp, JIM_TAINT_ANY)) {
-        Jim_SetTaintError(interp, 1, argv);
+    if (argc < 2 || argc > 3 + n) {
+        Jim_WrongNumArgs(interp, 1, argv, "filename ?-noclose? ?mode?");
         return JIM_ERR;
-    }
-    if (argc > 3 + n) {
-        return JIM_USAGE;
     }
 
     filename = Jim_String(argv[1]);
@@ -2614,20 +2366,13 @@ static int JimAioOpenCommand(Jim_Interp *interp, int argc,
     else {
         openflags = O_RDONLY;
     }
-
     fd = open(filename, openflags, 0666);
     if (fd < 0) {
         JimAioSetError(interp, argv[1]);
         return JIM_ERR;
     }
 
-    af = JimMakeChannel(interp, fd, argv[1], "aio.handle%ld", 0, flags);
-    if (af) {
-        /* filehandles created by open are not tainted by default */
-        JimAioSetTaint(af, 0, 0);
-        return JIM_OK;
-    }
-    return JIM_ERR;
+    return JimMakeChannel(interp, fd, argv[1], "aio.handle%ld", 0, flags) ? JIM_OK : JIM_ERR;
 }
 
 #if defined(JIM_SSL) && !defined(JIM_BOOTSTRAP)
@@ -2659,12 +2404,6 @@ static SSL_CTX *JimAioSslCtx(Jim_Interp *interp)
 }
 #endif /* JIM_BOOTSTRAP */
 
-static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink)
-{
-    af->taintsource = taintsource;
-    af->taintsink = taintsink;
-}
-
 /**
  * Creates a channel for fd/filename.
  *
@@ -2674,7 +2413,7 @@ static void JimAioSetTaint(AioFile *af, int taintsource, int taintsink)
  * mode is used for open or fdopen.
  *
  * Creates the command and sets the name as the current result.
- * Returns the AioFile pointer on success or NULL on failure (only if fdopen fails).
+ * Returns the AioFile pointer on sucess or NULL on failure (only if fdopen fails).
  */
 static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     const char *hdlfmt, int family, int flags)
@@ -2720,19 +2459,8 @@ static AioFile *JimMakeChannel(Jim_Interp *interp, int fd, Jim_Obj *filename,
     /* Create an empty write buf */
     af->writebuf = Jim_NewStringObj(interp, NULL, 0);
     Jim_IncrRefCount(af->writebuf);
-    af->wbuf_limit = AIO_DEFAULT_WBUF_LIMIT;
-    af->rbuf_len = AIO_DEFAULT_RBUF_LEN;
-    /* Don't allocate rbuf or readbuf until we need it */
 
-    /* By default, all channels are JIM_TAINT_STD for input and output. */
-    if (!(flags & AIO_NOTAINT)) {
-        JimAioSetTaint(af, JIM_TAINT_STD, JIM_TAINT_STD);
-    }
-    Jim_RegisterCommand(interp, cmdname,
-        JimAioSubCmdProc, JimAioDelProc,
-        NULL,   /* usage comes from -help */
-        NULL,   /* no help */
-        0, -1, JIM_CMD_ISCHANNEL, af);
+    Jim_CreateCommand(interp, buf, JimAioSubCmdProc, af, JimAioDelProc);
 
     /* Note that the command must use the global namespace, even if
      * the current namespace is something different
@@ -2783,6 +2511,10 @@ static int JimCreatePipe(Jim_Interp *interp, Jim_Obj *filenameObj, int flags)
 /* Note that if you want -noclose, use "socket -noclose pipe" instead */
 static int JimAioPipeCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
     return JimCreatePipe(interp, argv[0], 0);
 }
 #endif
@@ -2792,6 +2524,11 @@ static int JimAioOpenPtyCommand(Jim_Interp *interp, int argc, Jim_Obj *const *ar
 {
     int p[2];
     char path[MAXPATHLEN];
+
+    if (argc != 1) {
+        Jim_WrongNumArgs(interp, 1, argv, "");
+        return JIM_ERR;
+    }
 
     if (openpty(&p[0], &p[1], path, NULL, NULL) != 0) {
         JimAioSetError(interp, NULL);
@@ -2849,6 +2586,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     int do_listen = 0;
     int family = PF_INET;
     int type = SOCK_STREAM;
+    Jim_Obj *argv0 = argv[0];
     int ipv6 = 0;
     int async = 0;
     int flags = 0;
@@ -2889,7 +2627,9 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
     }
 
     if (argc < 2) {
-        return JIM_USAGE;
+      wrongargs:
+        Jim_WrongNumArgs(interp, 1, &argv0, "?-async? ?-ipv6? socktype ?address?");
+        return JIM_ERR;
     }
 
     if (Jim_GetEnum(interp, argv[1], socktypes, &socktype, "socktype", JIM_ERRMSG) != JIM_OK) {
@@ -2909,7 +2649,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int p[2];
 
         if (addr || ipv6) {
-            return JIM_USAGE;
+            goto wrongargs;
         }
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, p) < 0) {
@@ -2924,7 +2664,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #if defined(HAVE_PIPE)
     if (socktype == SOCK_STREAM_PIPE) {
         if (addr || ipv6) {
-            return JIM_USAGE;
+            goto wrongargs;
         }
         return JimCreatePipe(interp, argv[1], flags);
     }
@@ -2939,14 +2679,14 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         case SOCK_STREAM_CLIENT:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             connect_addr = addr;
             break;
 
         case SOCK_STREAM_SERVER:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             bind_addr = addr;
             reuse = 1;
@@ -2955,7 +2695,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         case SOCK_DGRAM_SERVER:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             bind_addr = addr;
             type = SOCK_DGRAM;
@@ -2965,7 +2705,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #if UNIX_SOCKETS
         case SOCK_UNIX:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             connect_addr = addr;
             family = PF_UNIX;
@@ -2992,7 +2732,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         case SOCK_UNIX_SERVER:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             bind_addr = addr;
             family = PF_UNIX;
@@ -3001,7 +2741,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         case SOCK_UNIX_DGRAM_SERVER:
             if (addr == NULL) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             bind_addr = addr;
             type = SOCK_DGRAM;
@@ -3011,7 +2751,7 @@ static int JimAioSockCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 #ifdef HAVE_OPENPTY
         case SOCK_STREAM_PTY:
             if (addr || ipv6) {
-                return JIM_USAGE;
+                goto wrongargs;
             }
             return JimAioOpenPtyCommand(interp, 1, &argv[1]);
 #endif
@@ -3077,6 +2817,11 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 {
     SSL_CTX *ssl_ctx;
 
+    if (argc != 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "dir");
+        return JIM_ERR;
+    }
+
     ssl_ctx = JimAioSslCtx(interp);
     if (!ssl_ctx) {
         return JIM_ERR;
@@ -3089,33 +2834,27 @@ static int JimAioLoadSSLCertsCommand(Jim_Interp *interp, int argc, Jim_Obj *cons
 }
 #endif /* JIM_BOOTSTRAP */
 
-/* Create filehandles for stdin, stdout and stderr */
-static void JimMakeStdioChannel(Jim_Interp *interp, FILE *fh, const char *name, unsigned flags)
-{
-    /* Note: this can't fail */
-    AioFile *af = JimMakeChannel(interp, fileno(fh), NULL, name, 0, AIO_KEEPOPEN | flags);
-    JimAioSetTaint(af, 0, 0);
-}
-
 int Jim_aioInit(Jim_Interp *interp)
 {
-    Jim_PackageProvideCheck(interp, "aio");
+    if (Jim_PackageProvide(interp, "aio", "1.0", JIM_ERRMSG))
+        return JIM_ERR;
+
 #if defined(JIM_SSL)
-    Jim_RegisterSimpleCmd(interp, "load_ssl_certs", "dir", 1, 1, JimAioLoadSSLCertsCommand);
+    Jim_CreateCommand(interp, "load_ssl_certs", JimAioLoadSSLCertsCommand, NULL, NULL);
 #endif
 
-    Jim_RegisterCmd(interp, "open", "filename ?-noclose? ?mode?", 1, 3, JimAioOpenCommand, NULL, NULL, JIM_CMD_NOTAINT);
+    Jim_CreateCommand(interp, "open", JimAioOpenCommand, NULL, NULL);
 #ifdef HAVE_SOCKETS
-    Jim_RegisterCmd(interp, "socket", "?-async? ?-ipv6? socktype ?address?", 1, 4, JimAioSockCommand, NULL, NULL, JIM_CMD_NOTAINT);
+    Jim_CreateCommand(interp, "socket", JimAioSockCommand, NULL, NULL);
 #endif
 #ifdef HAVE_PIPE
-    Jim_RegisterSimpleCmd(interp, "pipe", "", 0, 0, JimAioPipeCommand);
+    Jim_CreateCommand(interp, "pipe", JimAioPipeCommand, NULL, NULL);
 #endif
 
     /* Create filehandles for stdin, stdout and stderr */
-    JimMakeStdioChannel(interp, stdin, "stdin", 0);
-    JimMakeStdioChannel(interp, stdout, "stdout", 0);
-    JimMakeStdioChannel(interp, stderr, "stderr", AIO_WBUF_NONE);
+    JimMakeChannel(interp, fileno(stdin), NULL, "stdin", 0, AIO_KEEPOPEN);
+    JimMakeChannel(interp, fileno(stdout), NULL, "stdout", 0, AIO_KEEPOPEN);
+    JimMakeChannel(interp, fileno(stderr), NULL, "stderr", 0, AIO_KEEPOPEN | AIO_WBUF_NONE);
 
     return JIM_OK;
 }
