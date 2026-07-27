@@ -67,8 +67,19 @@
 #include <sys/un.h>
 #endif
 #define HAVE_SOCKETS
-#elif defined (__MINGW32__)
-/* currently mingw32 doesn't support sockets, but has pipe, fdopen */
+#elif defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define HAVE_SOCKETS
+#ifndef SHUT_RD
+#define SHUT_RD SD_RECEIVE
+#endif
+#ifndef SHUT_WR
+#define SHUT_WR SD_SEND
+#endif
+#ifndef SHUT_RDWR
+#define SHUT_RDWR SD_BOTH
+#endif
 #endif
 
 #if defined(JIM_SSL)
