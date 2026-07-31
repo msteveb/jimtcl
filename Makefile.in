@@ -100,6 +100,10 @@ all: $(JIMSH) @C_EXT_SHOBJS@
 	$(ECHO) "	CC	$@"
 	$(Q)$(CC) $(AS_CFLAGS) $(AS_CPPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
+.cpp.o:
+	$(ECHO) "	CXX	$@"
+	$(Q)$(CXX) $(AS_CXXFLAGS) $(AS_CPPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+
 $(JIMSH): $(LIBJIM) jimsh.o initjimsh.o
 	$(ECHO) "	LINK	$@"
 	$(Q)$(JIMSH_CC) @SH_LINKRPATH_FLAGS@ @SH_LINKFLAGS@ $(LDFLAGS) -o $@ jimsh.o initjimsh.o $(LIBJIM) $(LDLIBS) $(LIBS)

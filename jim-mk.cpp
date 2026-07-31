@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <new>
 #include <mk4.h>
@@ -875,7 +876,8 @@ static int cursor_cmd_set(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
         int objc;
         Jim_Obj **objv;
 
-        if (Jim_DictPairs(interp, argv[1], &objv, &objc) != JIM_OK)
+		objv = Jim_DictPairs(interp, argv[1], &objc);
+        if (!objv)
             goto err;
 
         for (i = 0; i < objc; i += 2) {
@@ -1173,23 +1175,25 @@ static const jim_subcmd_type cursor_command_table[] = {
 
 static int JimCursorCommand(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *cmdObj;
-
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "command ...");
         return JIM_ERR;
     }
 
-    cmdObj = Jim_NewStringObj(interp, "cursor ", -1);
+    Jim_Obj *cmdObj = Jim_NewStringObj(interp, "cursor ", -1);
     Jim_AppendObj(interp, cmdObj, argv[1]);
+	Jim_IncrRefCount(cmdObj);
 
-    if (Jim_GetCommand(interp, cmdObj, 0) != NULL)
-        return Jim_EvalObjPrefix(interp, cmdObj, argc - 2, argv + 2);
-    else {
-        Jim_FreeNewObj(interp, cmdObj);
-        return Jim_CallSubCmd(interp,
-            Jim_ParseSubCmd(interp, cursor_command_table, argc, argv), argc, argv);
-    }
+	int result;
+    if (Jim_GetCommand(interp, cmdObj, 0) != NULL) {
+		result = Jim_EvalObjPrefix(interp, cmdObj, argc, argv);
+	}
+	else {
+        result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp,
+            cursor_command_table, argc, argv), argc, argv);
+	}
+	Jim_DecrRefCount(interp, cmdObj);
+	return result;
 }
 
 /* -------------------------------------------------------------------------
@@ -1768,6 +1772,7 @@ static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
     cmdObj = Jim_NewStringObj(interp, "mk.view ", -1);
     Jim_AppendObj(interp, cmdObj, argv[1]);
+	Jim_IncrRefCount(cmdObj);
 
     /* The command will be cached even though we discard the result */
     if (Jim_GetCommand(interp, cmdObj, 0) != NULL) {
@@ -1782,9 +1787,9 @@ static int JimViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 
         Jim_Free(objv);
     } else {
-        Jim_FreeNewObj(interp, cmdObj);
         result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp, view_command_table, pipe, argv), pipe, argv);
     }
+	Jim_DecrRefCount(interp, cmdObj);
 
     if (result != JIM_OK || pipe == argc)
         return result;
@@ -1800,8 +1805,9 @@ static int JimOneShotViewSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const
     result = JimViewSubCmdProc(interp, argc, argv);
 
     cmd = Jim_GetCommand(interp, argv[0], 0);
-    if (cmd && !cmd->isproc && cmd->u.native.cmdProc == JimOneShotViewSubCmdProc)
+    if (cmd && !(cmd->flags & JIM_CMD_ISPROC) && cmd->u.native.cmdProc == JimOneShotViewSubCmdProc) {
         Jim_DeleteCommand(interp, argv[0]);
+	}
 
     return result;
 }
@@ -1828,7 +1834,7 @@ static int JimGetView(Jim_Interp *interp, Jim_Obj *obj, c4_View *viewPtr)
 {
     Jim_Cmd *cmd = Jim_GetCommand(interp, obj, 0);
 
-    if (cmd == NULL || cmd->isproc || cmd->u.native.delProc != JimViewDelProc) {
+    if (cmd == NULL || (cmd->flags & JIM_CMD_ISPROC) || cmd->u.native.delProc != JimViewDelProc) {
         Jim_SetResultFormatted(interp, "invalid view object \"%#s\"", obj);
         return JIM_ERR;
     }
@@ -1977,7 +1983,7 @@ static int storage_cmd_structure(Jim_Interp *interp, int argc, Jim_Obj *const *a
             return JIM_ERR;
         dlen = strlen(descr);
 
-        descr = (char *)Jim_Realloc(descr, dlen + len + 2);
+        descr = (char *)Jim_Realloc(descr, dlen + len + 2 + 1);
         memmove(descr + len + 1, descr, dlen);
         memcpy(descr, name, len);
         descr[len] = '[';
@@ -2117,28 +2123,28 @@ static void JimStorageDelProc(Jim_Interp *interp, void *privData)
 
 static int JimStorageSubCmdProc(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 {
-    Jim_Obj *cmdObj;
-
-    cmdObj = Jim_NewStringObj(interp, "mk.storage ", -1);
+    Jim_Obj *cmdObj = Jim_NewStringObj(interp, "mk.storage ", -1);
     Jim_AppendObj(interp, cmdObj, argv[1]);
+	Jim_IncrRefCount(cmdObj);
 
+	int result;
     if (Jim_GetCommand(interp, cmdObj, 0) != NULL) {
-        int result;
+		Jim_Obj **nargv = (Jim_Obj **)Jim_Alloc(argc * sizeof(*nargv));
 
-        Jim_Obj **objv = (Jim_Obj **)Jim_Alloc(argc * sizeof(Jim_Obj *));
-        objv[0] = cmdObj;
-        objv[1] = argv[0];
-        memcpy(objv + 2, argv + 2, (argc - 2) * sizeof(Jim_Obj *));
+		argc -= 1;
+		argv += 1;
 
-        result = Jim_EvalObjVector(interp, argc, objv);
-
-        Jim_Free(objv);
-        return result;
-    } else {
-        Jim_FreeNewObj(interp, cmdObj);
-        return Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp,
+		nargv[0] = cmdObj;
+		memcpy(&nargv[1], &argv[1], sizeof(argv[1]) * argc);
+		result = Jim_EvalObjVector(interp, argc + 1, nargv);
+		Jim_Free(nargv);
+	}
+	else {
+        result = Jim_CallSubCmd(interp, Jim_ParseSubCmd(interp,
             storage_command_table, argc, argv), argc, argv);
-    }
+	}
+	Jim_DecrRefCount(interp, cmdObj);
+	return result;
 }
 
 /* -------------------------------------------------------------------------
