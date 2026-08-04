@@ -11588,6 +11588,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
      */
     if (script->len == 0) {
         Jim_DecrRefCount(interp, scriptObjPtr);
+        /* Allow a signal to interrupt loops that dispatch no command. */
+        if (Jim_CheckSignal(interp))
+            return JIM_SIGNAL;
         return JIM_OK;
     }
     if (script->len == 3
@@ -11603,6 +11606,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             Jim_InvalidateStringRep(objPtr);
             Jim_DecrRefCount(interp, scriptObjPtr);
             Jim_SetResult(interp, objPtr);
+            /* Allow a signal to interrupt loops that dispatch no command. */
+            if (Jim_CheckSignal(interp))
+                return JIM_SIGNAL;
             return JIM_OK;
         }
     }
