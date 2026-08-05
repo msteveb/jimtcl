@@ -9,7 +9,7 @@ package require readdir
 
 # Return a list of all entries in $dir that match the pattern.
 proc glob.globdir {dir pattern} {
-	if {[file exists $dir/$pattern]} {
+	if {[file exists [file join $dir $pattern]]} {
 		# Simple case
 		return [list $pattern]
 	}
@@ -92,15 +92,23 @@ proc glob.glob {base pattern} {
 
 	# Collect the files/directories
 	set result {}
+	set dotsep /
+	if {[info exists ::tcl_platform(platform)] && $::tcl_platform(platform) eq "windows"} {
+		set dotsep \\
+	}
 	foreach {realdir dir} $dirlist {
 		if {![file isdir $realdir]} {
 			continue
 		}
-		if {[string index $dir end] ne "/" && $dir ne ""} {
-			append dir /
-		}
 		foreach name [glob.globdir $realdir $pattern] {
-			lappend result [file join $realdir $name] $dir$name
+			set tail [file join $dir $name]
+			if {$dir ne "" && $name eq "."} {
+				# [file join $dir .] normalizes to $dir, so preserve
+				# a literal trailing dot component to keep results like
+				# "globTest/." distinct from "globTest" when matching .*.
+				set tail $dir$dotsep$name
+			}
+			lappend result [file join $realdir $name] $tail
 		}
 	}
 	return $result
