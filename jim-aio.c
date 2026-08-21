@@ -547,6 +547,11 @@ static int JimParseIpAddress(Jim_Interp *interp, int socktype, const char *hostp
 static int JimParseDomainAddress(Jim_Interp *interp, const char *path, union sockaddr_any *sa, socklen_t *salen)
 {
     sa->sun.sun_family = PF_UNIX;
+    /* If the path is too long we want to return an error here */
+    if (strlen(path) + 1 >= sizeof(sa->sun.sun_path)) {
+        Jim_SetResultFormatted(interp, "Path too long for domain socket: %s", path);
+        return JIM_ERR;
+    }
     snprintf(sa->sun.sun_path, sizeof(sa->sun.sun_path), "%s", path);
     *salen = strlen(sa->sun.sun_path) + 1 + sizeof(sa->sun.sun_family);
 
