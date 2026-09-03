@@ -1,0 +1,66 @@
+VENDORED PROJECT VERSIONS
+=========================
+Recorded: 2026-09-03
+
+All projects vendored with .git/ removed. No git submodules.
+
+----------------------------------------------------------------------------
+Jim Tcl  (src/jimtcl/)
+  Source:   https://github.com/msteveb/jimtcl (fork: this repo)
+  Branch:   master
+  Based on: commit 825be07 (pack: reject bitoffset overflow)
+  License:  BSD-2-Clause (src/jimtcl/LICENSE)
+  Note:     Existing repo root; moved into src/jimtcl/ in this restructuring.
+
+----------------------------------------------------------------------------
+TinyCC  (src/tinycc/)
+  Source:   https://github.com/TinyCC/tinycc
+  Branch:   mob
+  Commit:   2ba12e83b3599ca8f5d50c179fe5138fe956f0c9
+  Date:     2026-08-09
+  Version:  0.9.28rc (mob branch)
+  License:  LGPL-2.1 (src/tinycc/COPYING)
+
+----------------------------------------------------------------------------
+MiniLua  (src/minilua/)
+  Source:   https://github.com/edubart/minilua
+  Branch:   main (default)
+  Commit:   c326bae1f2293a1ae20648669bed1a8f4585cccc
+  Date:     2026-01-05
+  Embeds:   Lua 5.5.0 (single-header amalgamation)
+  Note:     Lua 5.5.0 is NOT the same as official Lua 5.5.1.
+            It is an embedded snapshot from before the 5.5.1 release.
+  License:  MIT (src/minilua/LICENSE) + Lua 5.5 MIT
+
+----------------------------------------------------------------------------
+Fennel  (src/fennel/)
+  Source:   https://github.com/bakpakin/Fennel (GitHub mirror of sr.ht)
+  Tag:      1.6.1
+  Commit:   9af5e47fa7ddea806544d15507412ddc51bd046d
+  Date:     2025-12-30
+  Version:  1.6.1 (latest stable; 1.7.0-dev HEAD was skipped)
+  License:  MIT (src/fennel/LICENSE)
+
+----------------------------------------------------------------------------
+Nextvi  (src/nextvi/)
+  Source:   https://github.com/kyx0r/nextvi
+  Tag:      7.4
+  Commit:   4f5c2d4d3b1542ec33dcf7248af4cbe354bf7830
+  Date:     2026-08-29
+  Version:  7.4 (released August 28-29, 2026)
+  License:  GPL-3.0 (src/nextvi/LICENSE)
+
+----------------------------------------------------------------------------
+LuaX pure-Lua modules  (src/luax/)
+  Source:   https://codeberg.org/cdsoft/luax
+  Branch:   main (default)
+  Commit:   9870d9aaa7b766a1c6b61738f1d7cc99e0bbc77e
+  Date:     2026-08-27
+  License:  GPL-3.0 (src/luax/LICENSE)
+  Note:     Only pure-Lua modules included. Excluded: LuaSocket, LPeg,
+            lz4, lzlib (require C native extensions).
+            Excluded luax.lua (CLI driver, has complex native deps).
+            Modules included: F, argparse, cbor, complex, fs, imath,
+            import, json, luax-compat, luax-debug, luax-package,
+            luax-version, mathx, ps, qmath, serpent, sh, strict, sys,
+            tar, term, toml, tomlx, yaml.

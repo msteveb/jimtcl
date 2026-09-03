@@ -1,0 +1,149 @@
+name: build and test
+
+on:
+  push:
+    branches: [ mob ]
+
+jobs:
+  test-x86_64-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    steps:
+    - uses: actions/checkout@v4
+    - name: make & test tcc (x86_64-linux)
+      run: ./configure && make && make test -k
+
+  test-x86_64-osx:
+    runs-on: macos-15-intel
+    timeout-minutes: 2
+    steps:
+    - uses: actions/checkout@v4
+    - name: make & test tcc (x86_64-osx)
+      run: ./configure && make && make test -k
+
+  test-aarch64-osx:
+    runs-on: macos-15
+    timeout-minutes: 2
+    steps:
+    - uses: actions/checkout@v4
+    - name: make & test tcc (aarch64-osx)
+      run: ./configure && make && make test -k
+
+  test-x86_64-win32:
+    runs-on: windows-2025
+    timeout-minutes: 6
+    steps:
+    - uses: actions/checkout@v4
+    - name: build & test (x86_64-win32)
+      shell: cmd
+      run: |
+        cd win32
+        for /f "delims=" %%i in ('vswhere.exe -latest -property installationPath') do call "%%i\VC\Auxiliary\Build\vcvarsall.bat" amd64
+        call build-tcc.bat -c cl -t x86_64
+        cd ..\tests
+        call test-win32.bat all -k
+
+  test-i386-win32:
+    runs-on: windows-2025
+    timeout-minutes: 6
+    steps:
+    - uses: actions/checkout@v4
+    - name: build & test (i386-win32)
+      shell: cmd
+      run: |
+        cd win32
+        for /f "delims=" %%i in ('vswhere.exe -latest -property installationPath') do call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x86
+        call build-tcc.bat -c cl -t i386
+        cd ..\tests
+        call test-win32.bat -p c:\mingw32\bin all -k
+
+  test-arm64-win32:
+    runs-on: windows-11-arm
+    timeout-minutes: 6
+    steps:
+    - uses: actions/checkout@v4
+    - name: build and test (arm64-win32)
+      shell: cmd
+      run: |
+        cd win32
+        for /f "delims=" %%i in ('vswhere.exe -latest -property installationPath') do call "%%i\VC\Auxiliary\Build\vcvarsall.bat" arm64
+        call build-tcc.bat -c cl -t arm64
+        cd ..\tests
+        call test-win32.bat -c clang all -k
+
+  test-armv7-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: uraimo/run-on-arch-action@v3
+      name: make & test tcc (armv7-linux)
+      with:
+        arch: armv7
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y gcc make
+        run: |
+            echo "::endgroup::" # flatten 'run container'
+            ./configure && make && make test -k
+
+  test-aarch64-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: uraimo/run-on-arch-action@v3
+      name: make & test tcc (aarch64-linux)
+      with:
+        arch: aarch64
+        distro: ubuntu24.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y gcc make
+        run: |
+            echo "::endgroup::" # flatten 'run container'
+            ./configure && make && make test -k
+
+  test-riscv64-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: uraimo/run-on-arch-action@v3
+      name: make & test tcc (riscv64-linux)
+      with:
+        arch: riscv64
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y gcc make
+        run: |
+            echo "::endgroup::" # flatten 'run container'
+            ./configure && make && make test -k
+
+#  test-riscv64-linux-native:
+#    runs-on: ubuntu-24.04-riscv
+#    timeout-minutes: 8
+#    steps:
+#    - uses: actions/checkout@v4
+#    - name: make & test tcc (riscv64-linux native)
+#      run: |
+#        uname -m  # riscv64
+#        ./configure && make && make test -k
+
+  test-i386-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+    - uses: actions/checkout@v4
+    - name: install i386-gcc
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt-get update -q -y
+        sudo apt-get install -q -y gcc-multilib libc6-dev:i386
+    - name: make & test tcc (i386-linux)
+      run: ./configure --cpu=i386 --cc="gcc -m32" && make && make test -k

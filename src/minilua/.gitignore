@@ -1,0 +1,5 @@
+*.tar.gz
+lua
+luac
+lua-*
+*.exe

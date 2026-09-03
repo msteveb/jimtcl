@@ -1,0 +1,991 @@
+------------------
+7.4 Basilisk
+------------------
+
+New in core:
+1. :g now returns the result of its inner command. It errors if no line
+matches the pattern or if the inner command fails, and stops at the
+first failing command.
+2. Substitution with the g flag only anchors ^ at the start of the line
+on the first search. Zero match substitutions at the newline boundary
+are now allowed.
+
+Bug fixes:
+1. Defused more bad inputs. Numeric option parsing handles negative
+values, :ts and :grp clamp negative values, :ph placeholder width is
+clamped and :bx rejects a non-positive value without clobbering
+buffer state.
+2. Fixed autoindent and the :pr key recorder misfiring on negative
+option values.
+3. Fixed [#]<Space> end-of-line wrap: advancing to the next line no
+longer triggers on empty lines.
+4. Fixed screen state after a backspace or <C-w> line join in insert
+mode: the view no longer scrolls away and the status line is redrawn.
+5. Scroll direction is reset before a deferred prompt row redraw, so
+block highlights do not leak stale direction state.
+6. Fixed the libc isupper landmine with an own uc_isupper.
+7. Print with a trailing offset now places the cursor on the last
+given offset instead of the max of the last two.
+8. :f> register ranges pin an out-of-register cursor to an inbounds line
+   instead of clamping a possibly out-of-range offset. Written in the spec.
+9. Fixed C comment highlighting priority around // and " multiline blocks.
+
+Patch2vi 1.0 changes:
+1. Interactive deltas (-i, -d[N], -od) are removed from the tool and kept
+   as the optional deltas.sh on the patch2vi branch, regenerated alongside
+   it. Emission is otherwise unchanged and older scripts still load.
+2. Shell gate machinery is dropped. Compat selection lives in ex: a block
+   gates on its identity register being armed by the applied set, carried
+   through script chaining and the P2VI_PATCH environment variable. No
+   flag registers and no text probes.
+3. -co is renamed to -C, joining -I/-E as the mode family (-oco becomes
+   -oC). -C repeats to gate one block on several origins at once, each
+   origin getting its own src= line.
+4. -E preserves stored compat blocks and re-emits them unverified. Passing
+   a block's section register instead rebuilds just that block, replaying
+   its origins ahead of the target. Amend blocks are gone with this.
+5. New O(NP) differ drives re-emission, parity aligned with git's change
+   compaction.
+6. One session entry for replay and interactive handover: the -E/-C tail's
+   -a/-e/-s mode flags are honored at handover, and -m holds across replay
+   blocks and silences the loader line.
+7. -e accepts several scripts in one run, stopping at the first failure.
+8. QF2 is set on a compat target so it falls through on a failed block.
+9. Staged sections name themselves by their flag register.
+10. Script fixes: writes wrapped in vis blocks, files that exist only
+    under compat are no longer written, single quotes escaped in emitted
+    patterns, path prefixes resolved, redundant line breaks and error
+    placement fixed, xmpt clamped, atexit dropped.
+11. Relative mode is the default instead of absolute line numbers.
+12. -aE is obeyed instead of silently falling back to relative mode: the
+    re-emitted host patch stays absolute while stored compat blocks stay
+    search anchored.
+
+Patch changes:
+0. ATTENTION USERS/MAINTAINERS: the patches format changed. An argument
+   given to a shell script now chains the next patch script, and the
+   patch(1) fallback is gone. If you relied on passing an argument to
+   run patch(1), update your scripts and apply the patch manually:
+   sed '1,/^=== PATCH2VI PATCH ===$/d' script.sh | patch -p1 --merge=diff3
+1. New [tab_complete.sh](https://github.com/kyx0r/nextvi/blob/release/tab_complete.sh):
+   tab completion with a dual mode, line-only mode 1 is the default.
+   Completion wraps and anchors from the top row.
+2. Reworked [incsearch.sh](https://github.com/kyx0r/nextvi/blob/release/incsearch.sh):
+   incremental search highlighting implemented via led_attsb, color
+   configuration in conf_hlmatc, TAB and ^_ cycle searches without
+   leaving the prompt.
+3. New [cxref.sh](https://github.com/kyx0r/nextvi/blob/release/cxref.sh)
+   (formerly xref.sh): code cross reference, works with split windows.
+4. Fixed teleport bugs in
+   [linewrap_v2.sh](https://github.com/kyx0r/nextvi/blob/release/linewrap_v2.sh)
+   when lines are taller than the screen: scroll commands and H/L/M now
+   move within a wrapped line instead of clamping to it, the gutter
+   width is computed once per frame, xtopsub no longer overflows or is
+   lost on a buffer switch, and the + and - moves are symmetric again.
+5. Fixed [visual.sh](https://github.com/kyx0r/nextvi/blob/release/visual.sh):
+   a segfault, an off by 1, ex prompt range selection, and horizontal
+   ranges in the ex prompt.
+6. Fixed
+   [arrowkeys_insert.sh](https://github.com/kyx0r/nextvi/blob/release/arrowkeys_insert.sh):
+   I and A backspace no longer garble the modified flag, quality and
+   portability improvements.
+7. Fixed
+   [arrowkeys_normal.sh](https://github.com/kyx0r/nextvi/blob/release/arrowkeys_normal.sh):
+   double escape, k and j move within line regions, visual mode is
+   restored on real arrow keys.
+8. Fixed [splits.sh](https://github.com/kyx0r/nextvi/blob/release/splits.sh):
+   :td load for window splits, compat with lsp.sh and visual.sh, block
+   highlights are populated only for the focused window.
+9. [lsp.sh](https://github.com/kyx0r/nextvi/blob/release/lsp.sh) and
+   [mouse_normal.sh](https://github.com/kyx0r/nextvi/blob/release/mouse_normal.sh)
+   handle :rr recording, lsp.sh also fixes the buffer postfix on a dead
+   response edit.
+10. Fixed a read bug in
+    [chunked_read_write.sh](https://github.com/kyx0r/nextvi/blob/release/chunked_read_write.sh).
+
+------------------
+7.3 Basilisk
+------------------
+
+New in core:
+1. q in vi normal to start or stop macro recording. Less expressive
+than ex :rr, but more ergonomic. Consistent with vi design.
+
+Patch changes:
+1. Cleanup [splits.sh](https://github.com/kyx0r/nextvi/blob/release/splits.sh).
+2. Bug fixes [lsp.sh](https://github.com/kyx0r/nextvi/blob/release/lsp.sh).
+3. Compat with linewrap_v2.sh for [mouse_normal.sh](https://github.com/kyx0r/nextvi/blob/release/mouse_normal.sh)
+
+------------------
+7.2 Basilisk
+------------------
+
+New in core:
+1. Substitution backreferences accept group numbers above 9.
+
+Patch2vi changes:
+1. The generated script header no longer documents the -E comment.
+2. test_patch2vi.sh ships with the release.
+
+Patch changes:
+1. Faster line position lookup in [linewrap_v2.sh](https://github.com/kyx0r/nextvi/blob/release/linewrap_v2.sh)
+   Bound to terminal rows, not entire buffer.
+
+------------------
+7.1 Basilisk
+------------------
+
+New in core:
+1. Added [#] to ci/di in vi normal for more refined positional control.
+2. Implemented full range, multiline flag and register operation for :s command.
+3. Dynamic prompts can now render a prefix.
+
+Bug fixes:
+1. Fixed :sc command overread and incorrect :2sc behavior.
+2. Fixed incorrect :s command behavior when combined with grp.
+3. Fixed :s command backreference mapping non digits to group numbers.
+4. Fixed [range]!cmd to honor an explicit offset 0.
+
+Patch2vi changes:
+1. -e runs a patch2vi script with the built-in nextvi and no shell at all.
+   The script is parsed internally (printf bodies, variable assignment and
+   expansion, buffer numbers remapped) and replayed as one session with
+   buffers persisting across blocks.
+2. -E replays a script, drops you into nextvi and re-emits the script from
+   what you edited. An internal differ turns buffer state back into ex
+   commands; it splits large spans on unique-line anchors instead of
+   deleting and reinserting whole regions, and emitted scripts now set
+   "ic 0" so matching is case sensitive. -d[N] carries deltas across the
+   round trip. With QF2=1 the hunks that missed are placed back into the
+   buffers at the line they reported, cursor parked on the first one, so a
+   failed patch can be resolved by hand and re-emitted.
+3. -I edits arbitrary files in the built-in nextvi and emits the edits as a
+   script; the rest of the command line, EXINIT included, goes to nextvi.
+4. -o writes the script to a file atomically, so the run may safely read the
+   file it writes. Clustered with another option it takes no argument and
+   updates that option's own script in place.
+5. -co produces a compat patch: it resolves a collision with origin.sh and
+   ships the fix as a block after the target's, gated at run time on the
+   origin block being present. Gates are derived from the post-origin text
+   with shortest unique present/absent windows, probing across files when a
+   single file gives no unique window. One invocation yields exactly one
+   block, and post-only blocks are emitted as a single nextvi call. A third
+   argument pre-applies an already written fix instead of editing one.
+6. Shell variables are gone from the generated scripts. Every bit of state
+   and control flow, the debug and quit switches, the failure log, the
+   error handlers and the compat gates, lives in ex registers and is
+   evaluated inside nextvi, quitting through the guarded xquit encoding.
+   What is left of the shell is a thin control layer: locate the binary,
+   stage the body and hand it to one nextvi call.
+7. Search patterns 3 and 4 swapped priority, and :2sc! is emitted so the
+   staged expansion stays inert.
+8. Fixed-size arrays removed throughout; files, groups, blocks, sections and
+   gates all grow dynamically.
+
+Patch changes:
+1. New threaded ex commands [async.sh](https://github.com/kyx0r/nextvi/blob/release/async.sh)
+2. New incremental search [incsearch.sh](https://github.com/kyx0r/nextvi/blob/release/incsearch.sh)
+3. New runtime highlight rules [highlight_cmd.sh](https://github.com/kyx0r/nextvi/blob/release/highlight_cmd.sh)
+4. New Coders Basilisk syntax [cbas.sh](https://github.com/kyx0r/nextvi/blob/release/cbas.sh)
+5. linewrap.sh split into a buffer based [linewrap_v1.sh](https://github.com/kyx0r/nextvi/blob/release/linewrap_v1.sh)
+   and a render based [linewrap_v2.sh](https://github.com/kyx0r/nextvi/blob/release/linewrap_v2.sh),
+   both with the new "hllw" option.
+6. Cursor shape kept across mode swap and suspend [ins_cursor.sh](https://github.com/kyx0r/nextvi/blob/release/ins_cursor.sh)
+7. Fixed ":rr" recording in [lsp.sh](https://github.com/kyx0r/nextvi/blob/release/lsp.sh)
+8. Added ":rr" recording for [mouse_normal.sh](https://github.com/kyx0r/nextvi/blob/release/mouse_normal.sh)
+9. Fixed grp bound check and literal prefix in [rstr.sh](https://github.com/kyx0r/nextvi/blob/release/rstr.sh)
+10. New compat blocks in visual.sh, threaded_search.sh and linewrap_v2.sh, fixups in remove_vla_cliterals.sh
+
+------------------
+7.0 Basilisk
+------------------
+
+Breaking changes since 6.1:
+1. q's [#lvl] prefix is unchanged: local ex chain exits. q!'s [#lvl] prefix
+   is new: global recursion levels to force quit. Exit code clamped to 0-255.
+2. :f>/:f+/:f< no longer auto-search a reassigned default register. Register
+   search is now explicit via the new :fr command, is forward-only, and :f+
+   requires a range to increment from.
+
+New in core:
+1. :fr sets a register that :f>/:f+ search instead of the current buffer;
+   range maps a match back to a buffer position, no range tests in place.
+2. :rr records every byte read from the terminal into a register.
+3. Z and Zz take a [#] argument to force quit # recursion levels.
+4. q/q! recursion levels and the exit code share one xquit encoding
+   (-257 - lvl*256 - code for a leveled force quit); ex_exec and led_modeswap
+   unwind through this as recursion barriers absorb or pass along the count.
+5. New SYN_BN flag: lets a multiline block highlight nest inside itself.
+   Only the same block nests this way, not other blocks.
+6. New SYN_BATT flag: a listed attribute marked SYN_BATT is tested against
+   the enclosing block's own attribute instead of the current char's, when
+   inside a pending block highlight and the char has no attribute yet (or
+   the block itself isn't pending). Lets a rule key off block state before
+   per-char attributes have settled.
+
+Bug fixes:
+1. ] dropped from the set of ex-escaped regex specials; it was never actually
+   special outside "[]" and escaping it there was a no-op.
+2. vi_drawrow: guarded a word-highlight index against writing outside the
+   row buffer.
+3. vi_search: distinguished "invalid grp" from "syntax error" instead of
+   reporting a spurious syntax error on every search.
+4. dir_calc: check the ptrs array bound before opendir, not after, so a full
+   directory list no longer leaks an open directory handle.
+5. vc_put/vc_execute: "empty register" and "uninitialized register" are
+   reported separately instead of one message for both.
+6. <^i> (edit word under cursor) now advances by a UTF-8-aware offset
+   instead of a raw byte offset.
+7. Fixed ci{<arg>}/di{<arg>} crash on empty buffer.
+8. :w \!cmd (pipe out) now returns the pipe's error instead of always NULL.
+
+Patch2vi changes:
+1. Rewritten to run entirely in memory: interactive editing goes through
+   vi.c directly via hoisted edit_buffers instead of temp files, argv, or
+   EXINIT, and the emit layer moved from FILE*/fprintf to sbuf/sb_printf.
+2. Verbatim overrides and structured edits merge per group by edit time,
+   ties going to verbatim; a structured edit discards a stale verbatim
+   override instead of silently losing to it.
+
+Patch changes:
+1. Dropped record_input.sh, superseded by the core :rr command.
+
+------------------
+6.1 Surjective
+------------------
+
+Bug fixes:
+1. Limit strtol to base ten as in spec.
+2. Allow an optional space between [#blen] and [str] to remove the
+limitation on numerical [str].
+
+Overall not a huge breaking change. Minor spec oversight. Quick bump
+before I forget. This should have been in 6.0 in all fairness.
+
+------------------
+6.0 Surjective
+------------------
+
+This release reworks the escape model, marks and registers from the ground up.
+Two principles that drive the escape model:
+1. Complete -- every regex character is reachable across all layers.
+2. Transparent -- ex never alters backslash runs, so there is no doubling and
+   literal counts are position-independent. Escapes are now governed by a
+   single non-POSIX parity rule instead of scattered per-reader logic.
+
+Breaking changes since 5.3:
+1. Marks and registers are now identified by decimal ids, not characters. 'a
+   becomes '97, register <a> becomes 97. This removes the fixed alphabet and
+   special-mark set; any id is now valid.
+2. ya argument no longer appends. Appending is its own command ya+.
+3. The :a ex command (insert after) is removed. :i is now position-based, so
+   :-1i inserts before the position and :0i is the special case for before
+   line 1.
+4. The while loop conditional ? lost its [then]/[else] arguments. ? now repeats
+   [cond] only; all branching lives in the ?? conditional, which keys off the
+   error status of the last command. Fewer escapes, one path per construct.
+5. reg with a prefix and no argument reassigns the default register. f> and f<
+   search the default register's contents when it has been reassigned.
+6. Escape complexity concentrated at the delimiter, deterministic doubling.
+
+New in core:
+1. Marks are stored as dynamic id/row/off triplets in the line buffer instead
+   of a fixed array.
+2. Registers are a dynamically grown table with a configurable default register
+   rather than a fixed 256-slot array.
+3. Single-character classes [x] degrade to a plain CHAR at compile time,
+   matching what the escape-parity path emits.
+
+Bug fixes:
+1. Non-ranged ! returns an error when the shell exits non-zero.
+2. Catching and reporting invalid grp user errors.
+3. Reporting fork errors.
+
+Patch2vi changes:
+1. Multi anchor 9 distinct anchor patterns.
+2. 2 Phase redesign: search & mark, edit.
+3. Staging to file for infinite script length
+4. Additional multi edit substitute command. Absorption with backrefs
+
+Patch changes:
+1. Improved algorithm [detect_indent.sh](https://github.com/kyx0r/nextvi/blob/release/detect_indent.sh)
+2. Improved [visual.sh](https://github.com/kyx0r/nextvi/blob/release/visual.sh)
+3. Improved [lsp.sh](https://github.com/kyx0r/nextvi/blob/release/lsp.sh)
+4. Added write optimization [chunked_read_write.sh](https://github.com/kyx0r/nextvi/blob/release/chunked_read_write.sh)
+5. New [mhash.sh](https://github.com/kyx0r/nextvi/blob/release/mhash.sh)
+6. New [writeall.sh](https://github.com/kyx0r/nextvi/blob/release/writeall.sh)
+7. New [ins_cursor.sh](https://github.com/kyx0r/nextvi/blob/release/ins_cursor.sh)
+
+Thoughts:
+
+Patch2vi now is so darn powerful, I don't even have to do anything anymore.
+It's paying off because it eliminated a whole set of maintenance issues with
+regular diffs. Zero external tool chain, observable and scalable.
+
+I am building a text editor that is designed to be customizable in source
+code. ALMOST NOBODY in the world is doing that because ALMOST NOBODY is
+solving the divergence problem of patches. The goal is DECENTRALIZED software
+as a set of patches that automatically apply in arbitrary configuration.
+
+This gives full customization power to the user. Makes the user understand
+the code by looking at the diffs. Makes the user understand
+the core by keeping it minimal and powerful enough to do everything
+imaginable. Stops feature creep and implements only what is strictly necessary.
+
+This is only the beginning of what is possible with Nextvi and my grand vision.
+Next will be beyond fuzzing - advanced conflict resolution, heuristics all
+deterministic encoding, yet generalizable to any programming language.
+
+It will be really hard or close to impossible, it won't stop me from
+trying anyway. Help the cause by doing your own customizations sending
+patches and improving the overall system that I've established here.
+Believe in the system and the philosophy behind it.
+
+LLMs can kind of resolve the divergence problems, but they are not fully
+deterministic or more precisely - not predictable. Deterministic divergence
+encoding layer is what's missing and some form of validation.
+
+------------------
+5.3 Crescent
+------------------
+
+Core changes:
+1. Separated multi-line block highlighting to it's own attributes. Saves bits on
+the main attribute and adds more direct customization bits on how the block behaves.
+Redraw directions, starting and terminating conditions.
+2. New syntax highlight flag SYN_SKIP for advancing matcher within grp set.
+3. New syntax highlight flag SYN_MK for building transparent mark logic across multiple
+highlight passes.
+4. Specified normal commands for <.> repetition command. No more spec & implementation
+ambiguity.
+5. Backspace from insert mode is now repeatable as it's part of the insert command.
+6. ^W from insert mode no longer rounds forward. This behavior is more predictable.
+Nextvi spec does not require/mention this.
+
+Patch2vi changes:
+1. Improved delta format structure.
+2. Implemented store/application levels for deltas and new options to aid conflict
+resolutions.
+
+Patch changes:
+1. New patch [detect_indent.sh](https://github.com/kyx0r/nextvi/blob/release/detect_indent.sh)
+2. Bug fixes in [visual.sh](https://github.com/kyx0r/nextvi/blob/release/visual.sh)
+and [blockhl_cache.sh](https://github.com/kyx0r/nextvi/blob/release/blockhl_cache.sh)
+
+------------------
+5.2 Shadow
+------------------
+
+This release focuses on 3 items:
+1. Since 5.0 implicit centering on bounds checking has been removed. Due to this
+design, some operations lost their centering properties. To improve UX, in 5.2 these
+properties are restored for marks, undo/redo and : vi prompt. Centering happens only
+when appropriate. The design is powerful - each key-bind can handle their own edge
+cases independently. No more coupling problems and global fallback is less disruptive.
+2. Better handling of some niche but important edge cases for ex commands that can
+manipulate blank (0 bytes) files. Previously commands a,i,c,!,w,r would ignore range
+checks. Now, it is stricter - for example :1w will fail, but :w will not. Sub commands
+are handled correctly for example :|pac|w  writes as if it was just :w because |pac|
+is transparent in this case. |pac|1w will fail because it's not transparent. Fixes
+one more small bug in case when xrow is not clean - say ex mode $:<^M> = invalid
+range, but it retains the state so if you do :w after it also bails with invalid
+range, which doesn't make sense. Anyway as you can probably tell, there is a very
+deep point of contention various edge cases and what my ex syntax allows. Current
+solution generalizes it well enough and I'm happy with it.
+3. Only the top term_read call needs to handle terminal resize. Previous fall-through
+could break sequences in some cases which is not correct. After tracing, now I have
+a proof that confirms this is a correct way to solve it.
+
+
+------------------
+5.1 Haze
+------------------
+
+This small release includes:
+1. Significant improvements to html5/css syntax highlighting
+2. Removed strcpy() from codebase. strlen() cleanup
+
+------------------
+5.0 Telos
+------------------
+
+Breaking changes since 4.2:
+1. :u ex command renamed to :ud
+2. ci/di vi normal commands are no longer builtin macros, they are generalized algorithms
+that can match or balance any pairs of characters. Supports multi-line to satisfy
+every use case.
+3. Vi normal Z key-bind can be canceled with ESC or ^C
+4. :rcm ex option removed and the problem solved directly in the structure of the
+parser instead.
+5. No more centering when computing bounds for scrolling. Some key-binds will lose
+centering unless they are explicitly coded to perform the centering. Explicit > implicit.
+6. Multi-line <Space> and <Backspace> regions can now also be controlled with vw
+toggle.
+7. :i :a :c ex commands no longer enter interactive loop in raw ex mode when argument
+given.
+
+Bug fixes:
+1. Fixed some UB edge cases
+2. Better use of resources
+3. :? while loop command adheres to spec and only considers the [cond]
+4. Disambiguation in the manual/spec
+5. vb and Q normal take context in an & macro. Seems more consistent with expectations.
+Now `&Q` can be used instead of `@Q` which would have a blocking side effect.
+
+New in core:
+1. New ex command to print last error message/status :=?
+2. New ex command to evaluate prefix tags :???
+3. Implemented SYN_OATTSET flag for advanced syntax highlighting control
+4. ATTSET flags are supported per group for maximum flexibility
+
+Changes to patch2vi:
+1. New, custom & robust delta format
+2. Edit interactive deltas all in one file
+3. Cleaned up and improved shell script options
+4. Emits all file edits into one EXINIT string
+
+Changes to patches:
+1. Utility scripts improved, QOL for maintainers
+2. Using patch(1) for patches as an alternative is now fully supported. No more stale
+patch diffs allowed even if Nextvi script applies.
+3. Xdg directory support moved to be included in [exrc.sh](https://github.com/kyx0r/nextvi/blob/release/exrc.sh).
+Duplicate dropped.
+4. [visual.sh](https://github.com/kyx0r/nextvi/blob/release/visual.sh) Key-binds
+remapped to live under g
+5. [lsp.sh](https://github.com/kyx0r/nextvi/blob/release/lsp.sh) Functional proof
+of concept. Needs cleanup. If you're interested in LSP, send improvements.
+6. [blockhl_cache.sh](https://github.com/kyx0r/nextvi/blob/release/blockhl_cache.sh)
+New patch, caches multi-line syntax highlighting patterns.
+7. Bug fixes and improvements to old patches.
+
+Other:
+My next big goal is multi anchor logic for patch2vi. This will make all patches even
+more robust in default generation. Core Nextvi already got multiple paradigms that
+can be used to achieve this. However, I am not sure which one will be the best to
+use. This is a daunting task overall because when there are multiple anchors they
+also have to be customize-able in interactive mode. Need to escape the escape hell
+with a break for my sanity.
+
+------------------
+4.2.0 Trie
+------------------
+
+This release only touches code outside of the core. There are no significant changes
+in the core since 4.2.
+
+Understand the semantic versioning of Nextvi:
+
+Major: breaking changes in spec, user facing
+Minor: changes at API level or bug fixes
+Patch: everything else optional revolving around Nextvi that is outside of the core
+
+This is the first time I am using the 3rd digit in the version. However, that will
+not always be the case.
+If Nextvi proceeds to move towards 5.0 or 4.3, the third digit will get dropped and
+may get re-added again starting
+from 0. If 5.0 or 4.3 never happens (due to the code and spec perfection) the third
+digit will keep incrementing forever.
+
+New:
+[mouse_normal.sh](https://github.com/kyx0r/nextvi/blob/patches/mouse_normal.sh) -
+Mouse support in normal mode + scrolling
+
+Changes:
+[arrowkey_insert.sh](https://github.com/kyx0r/nextvi/blob/patches/arrowkeys_insert.sh)
+- Now also supports selecting commands from history with up/down arrow in command
+modes
+[key_remap_cmds.sh](https://github.com/kyx0r/nextvi/blob/patches/key_remap_cmds.sh)
+- Fixed normal mode remapping behavior
+[sse.sh](https://github.com/kyx0r/nextvi/blob/release/sse.sh) - dstrlen() vectorized
+
+Patch2vi:
+Significantly more powerful interactive group editing mode. Allows full customization
+of the search + edit commands.
+Updated all scripts with the new format. Improved compatibility between patches.
+Some may still need to be applied in specific order.
+
+The entropy of accumulated divergence exceeds what fuzzy matching can absorb. In
+the future, I hope to reduce this risk even further by diversifying into a deeper
+multi anchor strategy. Though this is harder to implement, the solution will be more
+heuristic in nature. Curious.
+
+------------------
+4.2 Nibble
+------------------
+
+Improvements:
+
+1. Redesigned info overlays for `<^\>` and `<^]>` in vi/ex insert. To enable register
+previews in ex mode and prompts, the `"<reg> <contents>"` formatting was dropped
+since the highlight itself serves as the visual indicator and the previews are drawn
+directly on the same line as the cursor instead of the bottom row. This also affects
+`<^X>`.
+2. SYN_OWR attribute flag - new syntax highlight flag that causes an attribute to
+fully overwrite (rather than merge with) the existing attribute.
+3. .rej files now use diff syntax highlighting.
+4. Minor rendering optimization with reordered text.
+
+Bug Fixes:
+1. Mark adjustment logic simplified and corrected. When an edit adds and deletes
+text in a single call, mark wasn't saved and got invalidated prematurely.
+2. Register cycling changed slightly, one more cycle to redraw the original line
+to indicate wraparound.
+3. `<^\>` selects once as originally specified. No more hidden retry loop if the
+register is empty/free.
+5. Small fixes and quality of life for patch2vi.
+
+Quality:
+1. Categorical layout for ex commands section in README.
+2. Better organized vi.h; consistently accurate comments.
+
+New:
+1. [sse.sh](https://github.com/kyx0r/nextvi/blob/release/sse.sh) - Experimenting
+with SIMD optimizations for Nextvi. 16x utf-8 decoding. Not really necessary; only
+for curious minds.
+
+------------------
+4.1 Modal
+------------------
+
+This release is a small bump.
+
+Changes:
+1. Improved ex [prefix] highlight pattern matching
+2. Added octal representation to character info bar.
+3. Spec clarifications and move to octal instead of hexadecimal.
+
+Apparently POSIX shell/printf to this day does not specify the hexadecimal '\x' escapes
+in the standard while octal was supported since 1990s. Typical designed by committee
+nonsense. For maximum portability, patch2vi was switched to emit octal sequences
+in format "\0ddd" which appears in POSIX.1-2008.
+
+New:
+
+[Introducing a long planned modal programming language interpreter.](https://github.com/kyx0r/nextvi/blob/patches/modal.sh)
+The best way to understand modal is by reading the C implementation ~(300) LOC or
+this [article](https://wiki.xxiivv.com/site/modal.html).
+
+While Nextvi ex implementation is already [Turing Complete](https://en.wikipedia.org/wiki/Turing_completeness),
+it follows purely concatative paradigm. It also cannot express certain concepts such
+as self modifying code easily and practically. This is where the power of a rewrite
+language comes in. The goal of modal is to be able to implement complex simulations
+within Nextvi. Modal can call to ex commands and is also Turing Complete by itself.
+Further plans are to improve modal's power by introducing Regex for the rules and
+deeper IO hooks into editor state.
+
+This is the area of my research right now.
+
+Here is probably the cleanest proof of ex turing completeness using [Counter Machine](https://en.wikipedia.org/wiki/Counter_machine):
+
+Standalone Counter (could also be any arithmetic operation on a register in numerical
+form)
+```
+:ya!b:prb:?%@a+1=1p:pr:97reg %@b
+```
+
+Branch if zero
+
+```
+:b-3:pu a:f>^0$>:??<then>?<else>:b-3
+```
+
+------------------
+4.0 Sigil
+------------------
+
+This is the biggest release yet. The editor and features specified should be stable.
+I am releasing it now because the changelog is growing too big to remember and track.
+
+New Features:
+
+1. New -a flag: enable alternate terminal screen
+2. [#]@: / [#]&: - execute the : register as an ex command # times
+3. Ex conditionals rework:
+```
+- [# <$>]?!{cond}[<?>][else][<?>][then] - inverted while-loop conditional
+- prefix is a boolean expression in DNF: ids combined with , (AND) and ; (OR)
+- [prefix]??{then}[<?>][else] / {prefix}?? - conditional with error-status capture
+- [prefix]??!{else}[<?>][then] - inverted conditional
+- {prefix}??! capture form inverts the recorded status (not of last error state)
+```
+4. b-3 /sc/ - new scratch buffer for general-purpose temporary use
+5. New ex commands:
+```
+- [range]re[regex] - sets the regex keyword directly (replacing :xkwd workflow);
+range text is auto-escaped and used as the regex
+- rcm[val=1] - new :rcm option controlling when a nested ex command inside a range
+executes (0 = at parse, 1 = at range)
+- [0-3]sc[...] / [0-3]sc![...] - new :sc command to set or clear ex special characters
+(\, :, %, !) individually
+```
+6. New behaviors for old ex commands:
+```
+- [0-255]reg+[str] - append to a register (existing :reg gains prefix register selection
+and a + append variant)
+- [0-255]reg[str] - put a string directly into a named register by ASCII code
+- [#lvl]q[#code] / [#lvl]q![#code] - :q now accepts an exit code (#code) and a scope
+depth (#lvl) to exit multiple nested scopes at once
+- [range]f>[regex] horizontal-range multi-line search: in multi-line mode <Newline>
+is a regular character; forward search now takes [range] (not [vrange])
+- Fuzzy search :f now prefixes matches with selection numbers and line numbers
+- :left with no argument now calculates the scroll value from the current character
+offset (rather than resetting to 0)
+- :mpt value 1 now also suppresses the last print (new: "block prompt but not last
+print" / "block prompt and last print" examples)
+- :m command now may load multiple marks in one command including horizontal offsets
+```
+7. {#}\ in normal now can refresh dir listing within b-2
+
+---
+Breaking Changes:
+
+1. -v no longer enters visual mode (that was the default anyway); it now unsets all
+options
+2. sep command removed - the ex command separator character can no longer be changed
+at runtime; use the new :sc command to change individual special characters instead
+3. tbs renamed to ts for the tab-width option
+4. :vis bit layout changed - old numeric examples no longer map correctly:
+- bit 1: raw ex mode, bit 2: ex mode, bit 3: disable :e message, bit 4: alternate
+screen
+- (e.g., old :vis 6 = enable raw ex → new :vis 3; old :vis 4 = disable raw ex → new
+:vis 2)
+5. :grp value no longer required to be divisible by 2
+6. fd / fp semantics clarified: :fd with no argument now uses the secondary or working
+directory path (not necessarily current directory); :fp clears or sets the secondary
+directory path
+7. v/ in normal mode now enters re ex prompt
+8. Ex parsing structure changed from [range][pad][cmd] to [prefix][cmd]. The pad
+concept inside ranges is removed; padding is collapsed except within nested structures
+9. Escape semantics changed to include the backslash character. This change makes
+backslash require more escapes, but it also removes the limitation that made it impossible
+to have a backslash literal right before ex separator which I somehow overlooked
+when designing the initial implementation.
+10. :? command works differently, with improved semantics.
+
+Other Bug Fixes And Improvements:
+1. Internal rework of ex_cprint(). Decoupling from fixed vi msg buffer. Which was
+bad, lazy, fragile design.
+2. Consistent print behaviors for internal ex print and pipe outputs. For example,
+```:p:!ls:p:p:!ls:p``` notice no extra newlines in the output anymore. It is contiguous.
+Why? P-perfection.
+3. In ex mode repeated pipe command via <Enter> no longer displays on the same line
+as prompt.
+4. New sigwinch (terminal resize) handling method for all modes. Insert and various
+input modes no longer exit prematurely on resize.
+5. Fixing edge cases in :f command family. The logic should be correct for every
+possible scenario.
+6. Fixed :;c in raw ex mode. Its quit semantics made it impossible to commit the
+edit without extra newline.
+7. Crash from %d because it could leave cursor in bad state in certain command chains.
+8. Added error codes to global and substitute commands
+9. New quit redraw behaviors that define the terminal state when quitting. For example
+ex command :x must shift the screen up one line to show the final message if there
+is one (usually notifying of successful write). Shifts like this must be conditional
+since it can be pretty expensive on the terminal side.
+11. Fixed dublicate msg propagation in ex recursion
+12. Safe self modification of register from @ vi normal commands previously leading
+to a crash.
+
+Non Core Changes:
+1. [patch2vi.c](https://github.com/kyx0r/nextvi/blob/patch2vi/patch2vi.c) utility
+created to convert .patch files to Nextvi ex commands scripts. Nextvi is a significantly
+better drop in replacement for patch(1).
+2. [Patches](https://github.com/kyx0r/nextvi/tree/patches) branch converted to Nextvi
+scripts. This is also more portable than patch(1) for a general use case.
+3. Improved [splits.sh](https://github.com/kyx0r/nextvi/blob/patches/splits.sh).
+Solid window management within Nextvi. Significantly better than Neatvi built in.
+4. New [visual.sh](https://github.com/kyx0r/nextvi/blob/patches/visual.sh). Visual
+mode implementation for Nextvi.
+5. Improved [arrowkeys_insert.sh](https://github.com/kyx0r/nextvi/blob/patches/arrowkeys_insert.sh).
+Now also supports arrow keys in ex and prompts.
+6. [alternate-w-behaviour.sh](https://github.com/kyx0r/nextvi/blob/patches/alternate-w-behaviour.sh)
+now handles more edge cases and closer to vim.
+7. New [alt_sections.sh](https://github.com/kyx0r/nextvi/blob/patches/alt_sections.sh).
+For rednecks with traditional vi muscle memory.
+8. New [key_remap_cmds.sh](https://github.com/kyx0r/nextvi/blob/patches/key_remap_cmds.sh).
+Flexible key remapping commands.
+9. New branch [test](https://github.com/kyx0r/nextvi/tree/test). Unit test coverage
+not full yet and will improve.
+
+Oh, you've read this far? Always remember that the best way to support the project
+is to talk about it online and share ideas with other people. If you have any questions
+don't hesitate to ask me. Based development will continue regardless, pushing the
+quality bar higher and higher.
+
+------------------
+3.2 Delta
+------------------
+
+Brief Changelog:
+1. Small bug fixes
+2. Added Go syntax highlight
+
+
+Included some new and missing patches:
+1. hl_naive.patch - added
+2. linewrap.patch - improved significantly
+3. splits.patch - added (implements vertical and horizontal window splits)
+
+------------------
+3.1 Paradigm
+------------------
+
+Incremental improvement from 3.0 and the last release of 2025.
+Happy holidays!
+
+Changes:
+1. Storing arguments from :f in history for improved accessibility.
+2. Implement REG_NOCAP to prevent global overflow in conf.c with capture regex and
+allow look-around expressions to use regular capture groups without side effects.
+3. Support case sensitivity for dynamic highlights on API level.
+4. Fix redraw with ruler and line numbers and with ruler plus cc command.
+5. Achieved full feature parity with ex insert in :f command.
+
+------------------
+3.0 Paradigm
+------------------
+
+In this release the major version has been bumped to 3.0 because there are breaking
+changes. I haven't been following this model very rigorously until now and I believe
+I should going forward. The major version gets bumped only when there are breaking
+changes to the old functionality.
+
+Breaking changes:
+1. :k renamed to :m because it makes more sense m = mark.
+2. :ea command got reworked and renamed to :ef because it uses :f prompt now
+3. vj normal command removed
+
+Other changes:
+1. "unnamed" buffer condition for ex ranges is handled differently fixing the calculator
+functionality inside such buffer. You may notice that :1 inside empty buffer is invalid
+range. This is correct because there are no lines in the buffer.
+2. Fixed pr ex option not handling newlines correctly in some circumstances.
+4. Implemented :j command to join lines. This replaces vj in a more useful manner.
+5. :ea needed a rework because it was based on filename and not the whole pathname
+which could be a limitation. A more flexible approach is to allow full regex use.
+However, this is not sufficient enough to warrant so many new lines of code, therefore
+the fuzzy search prompt has also been hooked up to the :f command to allow the use
+of this functionality on any buffer for more nuanced navigation or search scenarios.
+Meanwhile, to support this functionality I had to add some modes to the ex input
+mode, such that this search prompt is able to support all EX insert mode operations.
+Overall, I think the former :ea has become significantly more powerful which puts
+it in a better spot to be included in the core editor.
+6. Some adjustments to the sbuf allocator, less aggressive scaling and attempting
+to use realloc when the tradeoff is worth it.
+7. Implemented ex register expansion. This is quite important for some programs that
+need it as command line arguments. This expansion simplifies the commands. Any register
+can be used except backslash since it escapes the expansion midway.
+8. Bug fixes with bad input data, like broken utf-8.
+
+------------------
+2.5 New Way
+------------------
+
+In this release I am focusing on eliminating some existing limitations in ex syntax.
+
+Brief Changelog:
+
+1. ```:cd``` with no argument to relink working directory
+2. Support full range in ```:d```
+3. Correct range behavior for ```:c```
+4. Allow ex commands be executed within ex ranges for full state control (mainly
+grp ex option to influence regex search) using new ```|``` syntax.
+5. Optionally allow ex range surrogate to compound on the previous surrogates using
+new  ```#``` syntax. Default behavior of horizontal ranges now aligns with vertical.
+6. ```%``` in ex range can be manipulated
+7. New ex option err to control error messages and return values in commands like
+```:? :g``` and ex ranges.
+8. Spec and example updates. Various bug fixes for very very specific conditions.
+
+Reflection
+
+Brief Changelog:
+
+1. Correct ft after v/ and ^b switching.
+2. Prevent niche crash potential via :bx or :e relocation in recursive state.
+3. Bind ^o to the buffer so that recursive operation can return to original insert
+position and ^l can redraw correctly in addition
+to correct ft set.
+The idea is to be able to postpone vi/ex insert mode at any point and come back to
+it later even if the buffer was switched or buffer edited in a destructive way. This
+is possible now since Q or ```:@Q``` was implemented which can be used instead when
+state tracking not wanted.
+4. Unlocked more efficient memory reuse scenario when exiting insert.
+5. Common sense behavior when ^b used from history buffer itself.
+
+------------------
+2.4 Reflection
+------------------
+
+Brief Changelog:
+
+1. Correct ft after v/ and ^b switching.
+2. Prevent niche crash potential via :bx or :e relocation in recursive state.
+3. Bind ^o to the buffer so that recursive operation can return to original insert
+position and ^l can redraw correctly in addition
+to correct ft set.
+The idea is to be able to postpone vi/ex insert mode at any point and come back to
+it later even if the buffer was switched or buffer edited in a destructive way. This
+is possible now since Q or ```:@Q``` was implemented which can be used instead when
+state tracking not wanted.
+4. Unlocked more efficient memory reuse scenario when exiting insert.
+5. Common sense behavior when ^b used from history buffer itself.
+
+------------------
+2.3 Next
+------------------
+
+Brief Changelog:
+1. Revert join optimization because it introduced incorrect behavior when joining
+empty lines. Circa 2.1
+
+------------------
+2.2 Next
+------------------
+
+Brief Changelog:
+
+1. Improved :cd command: doesn't fail when current directory removed and more failure
+cases handled.
+2. Small improvements and corrections
+
+------------------
+2.1 Next
+------------------
+
+Brief Changelog:
+
+1. Better expected behavior of lookbehind at the beginning of string
+2. Support 0 case repetition in regex
+3. Minor maintenance changes
+
+------------------
+2.0 Next
+------------------
+
+Brief Changelog:
+1. Complete range for :w when writing to file as in the spec
+2. Change conf.c exclusion attributes to inclusion
+3. Optimize lookaround
+4. Change lookbehind default and offset behavior to address certain utf-8 limitation
+
+------------------
+1.9 Flame
+------------------
+
+Brief Changelog:
+
+1. Removed uppercase append in ex command :ya limitation
+2. Fixed curword logic, now works like it did before in pre 1.0 versions
+3. Implemented sentence boundary regions
+4. Improved :ea command with fuzzy find selector and ability to select numbers bigger
+than 9
+5. Better default :? behavior, evaluates to :1,1? (single condition).
+6. Man page corrections
+7. Syntax hl fixes
+8. Performance optimizations
+9. hl_naive.patch resurrected
+10. linewrap.patch resurrected and proof of concept
+
+------------------
+1.8 777
+------------------
+
+Brief Changelog:
+1. Small bug fixes and improvements.
+
+------------------
+1.7 777
+------------------
+
+Brief Changelog:
+1. Finalized and optimized ```<space>``` ```<backspace>``` multi-line range visual
+and logical implementation. Newline handling is correct.
+2. Added ability to print circumvent range check any number in ex using :=
+3. Implemented rest of arithmetic operations for ex ranges: * / %
+4. Improved syntax highlight capabilities, efficient attribute exclusion system.
+
+Breaking changes:
+1. To implement full arithmetic, ex search ranges have been remapped to > and < respectively.
+This is more intuitive and inline since previously ? was special in regex and / is
+not. This lead to situations where certain combination of ? and \\ was not possible
+to achieve. > and < conflict with \<, however the escape mechanism has been implemented
+properly this time. Additional slash can achieve all combinations of > or < with
+\\.
+2. When I implemented :wl command I originally wanted it to be ?. But I could not
+have used this since it was part of ex ranges. Now that I can, wl has become ? respectively.
+? better suits for this command since this is a conditional and ternary conditionals
+usually use ? syntax.
+3. Negative and positive Lookbehind syntax has been swapped, it is more intuitive
+to think of > as positive and < as negative if you imagine a number line. Similarly,
+> in search ranges is positive and < is negative. The arrow shows the direction.
+This is consistent with overall design.
+
+------------------
+1.6 SOMERSAULT
+------------------
+
+Brief Changelog:
+1. Fixed crash with invalid backspace motion arg and weird wraparound, like ```1G100d<backspace>```
+2. Better optimized file read operation
+
+------------------
+1.5 SOMERSAULT
+------------------
+
+Brief Changelog:
+1. Fixed bounds checking in :pu and :ya under some corner cases. Arg parser uses
+regular null instead of a fat null. Check your code.
+
+------------------
+1.4 SOMERSAULT
+------------------
+
+Brief Changelog:
+1. More flexible and efficient syntax highlighting system, allowing for subset regexps
+2. Cleaner block highlight attributes and control
+3. Structural changes in conf.c **(leaving as an exercise for the reader)**
+4. Balanced ex range padding, specified for artistic perfection
+5. Eliminated VLAs in ex parsing + unnecessary copies
+6. Improved regex lookaround cache flow under unbound conditions
+
+------------------
+1.3 NEARLY ELYSIUM
+------------------
+
+Brief Changelog:
+1. Fixed backspace arg interference
+
+------------------
+1.2 NEARLY ELYSIUM
+------------------
+
+Brief Changelog:
+1. Improved := command
+2. Misc improvements
+3. Misc patch improvements
+
+------------------
+1.1 NEARLY ELYSIUM
+------------------
+
+Brief Changelog:
+1. Horizontal range implementation for :w :r :!
+2. Multiline mode for `<Space> <Backspace> <^H>` which also affects x X and motions
+that can work with it.
+3. :r range inverted to match :w behavior for better compat and coherence
+4. Tracking character offset in ] mark (previously not possible)
+5. Decoupled * mark from undo system, * now has new clearly defined purpose (tracking
+last ex command position)
+6. Region performance optimizations and cleaups.
+
+As always, the number of lines of code remains basically the same while capabilities
+increase.
+
+Nextvi is very close to being able to suit any possible use case. I'm curious to
+find anything that it can't do
+yet in regards to text editing theory.
+
+------------------
+1.0 NEARLY MYRIAD
+------------------

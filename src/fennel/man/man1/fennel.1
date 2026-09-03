@@ -1,0 +1,142 @@
+.TH FENNEL 1
+
+.SH NAME
+fennel \- a lisp programming language that runs on Lua
+.SH SYNOPSIS
+.B fennel
+[\fB--repl\fR] |
+[\fB--compile \fIfilename\fR] |
+[\fB--eval \fIsource\fR] |
+[\fIfilename\fP] [\fIargs ...\fR]
+
+.SH DESCRIPTION
+This manual page documents briefly the
+.B fennel
+command.
+.PP
+.B fennel
+is the main entry point for Fennel, a lisp programming language that
+runs on Lua runtimes. With no options or arguments, it runs an
+interactive Read-Eval-Print loop (REPL).
+.PP
+Given a filename as its first argument, it runs that file and passes
+it the subsequent arguments. Ahead-of-time compilation can be invoked
+with the
+.B --compile
+flag, while short snippets can be evaluated with the
+.B --eval
+argument.
+
+.SH OPTIONS
+A summary of options is included below.
+.TP
+.B \-\-repl
+Start an interactive repl session. This is the default when given no arguments.
+.TP
+.B \-\-compile \fIfilename\fP
+Perform ahead-of-time compilation on the provided file and write the
+Lua output to standard out.
+.TP
+.B \-\-eval \fIsource\fP
+Evaluate a given piece of source code and print the result.
+.TP
+.B \-\-no-searcher
+When running a repl or a file,
+.B fennel.searcher
+is installed by default so that the
+.B require
+function can load Fennel files in addition to Lua files. This flag
+disables that behavior. Has no effect for ahead-of-time compilation.
+.TP
+.B \-\-add-package-path \fIpath\fP
+Add the given path to
+.B package.path
+so that the
+.B require
+function will know to look there when searching for Lua modules.
+.TP
+.B \-\-add-fennel-path \fIpath\fP
+Same as above, but for Fennel's path used when searching for Fennel
+modules.
+.TP
+.B \-\-globals \fIVAR1[,VAR2...]\fP
+Allow VAR1, VAR2, etc as globals in addition to the standard set of
+globals. This enables strict global checking even in ahead-of-time
+compilation where it otherwise would be disabled. Use "*" to disable
+globals checking.
+.TP
+.B \-\-globals-only \fIVAR1[,VAR2...]\fP
+Same as above, but without the inclusion of the standard set of globals.
+.TP
+.B \-\-require-as-include
+Instead of loading required modules at runtime, compile them inline
+into the main file being compiled. Only useful during ahead-of-time
+compilation.
+.TP
+.B \-\-to-be-closed
+When compiling
+.B with-open
+use the to-be-closed feature of Lua 5.4+ to avoid interfering with traces.
+.TP
+.B \-\-assert-as-repl
+Calls to the built-in function
+.B assert
+from Fennel will be replaced with calls to
+.B assert-repl
+so that when the assertion fails, a REPL will be started in which you
+can interactively debug.
+.TP
+.B \-\-lambda-as-fn
+Replace
+.B lambda
+function definitions with
+.B fn\fR,
+removing the runtime overhead from arity checking.
+.TP
+.B \-\-use-bit-lib
+Compile bitwise operations to use LuaJIT's bitop library instead of Lua
+5.3+ bitwise operators.
+.TP
+.B \-\-load \fIFILE\fP
+Load the specified file before any command is run.
+.TP
+.B \-\-compile-binary \fIFILE\fP \fIOUT\fP \fILUA_LIB\fP \fILUA_DIR\fP
+Compile FILE to a standalone binary OUT using LUA_LIB and the Lua
+header files in LUA_DIR. See
+.B \-\-compile-binary \-\-help
+for details.
+.TP
+.B \-\-no\-compiler\-sandbox
+Do not limit compiler environment (used in macros) to minimal sandbox.
+.TP
+.B \-\-keywords \fIKEYWORD1[,KEYWORD2...]\fP
+Treat these symbols as reserved Lua keywords.
+.TP
+.B \-h, \-\-help
+Print a help message and exit
+.TP
+.B \-v, \-\-version
+Print the version number and exit
+.PP
+Use the NO_COLOR environment variable to disable escape codes in error messages.
+
+.SH SEE ALSO
+
+.MR fennel-api 3 ,
+.MR fennel-reference 5 ,
+.MR fennel-tutorial 7
+
+The semantics are very close to Lua, so Lua's reference manual is also helpful.
+
+.SH COMMUNITY
+
+The mailing list is at https://lists.sr.ht/~technomancy/fennel while
+the issue tracker is at https://dev.fennel-lang.org. Most
+discussion happens on the #fennel channel of Libera chat.
+
+.SH AUTHORS
+Calvin Rose and Phil Hagelberg and contributors:
+https://github.com/bakpakin/Fennel/graphs/contributors
+
+.SH LICENSE
+Copyright © 2016-2025, Released under the MIT/X11 license

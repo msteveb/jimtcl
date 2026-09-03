@@ -1,0 +1,77 @@
+/fennel
+/fennel.lua
+/minifennel.lua
+/downloads
+/scratch
+/scratch.fnl
+/chroot
+/bootstrap/view.lua
+/bootstrap/macros.lua
+/bootstrap/match.lua
+/test/faith.lua
+
+# items related to manpage generation
+/build/manfilter.lua
+
+/lua-5.*
+/LuaJIT-*
+
+# Created by https://www.gitignore.io/api/lua
+
+# from static compilation
+/*_binary.c
+/fennel-bin
+/fennel-arm32
+/fennel-bin-luajit
+
+### Lua ###
+# Compiled Lua sources
+luac.out
+
+# luarocks build files
+*.src.rock
+*.zip
+*.tar.gz
+
+# Object files
+*.o
+*.os
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.def
+*.exp
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*x86_64
+*.hex
+
+# Tooling + transient metadata
+*.swp
+*.tmp
+tags
+**/*asc
+
+# Misc
+/wiki
+/.dir-locals-2.el
