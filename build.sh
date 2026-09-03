@@ -98,11 +98,12 @@ build_lua_linux() {
     log "MiniLua (linux): building Lua 5.5 with TCC"
     mkdir -p "$BUILD/linux-x64/minilua"
     [ -x "$TCC1" ] || die "stage-1 TCC not found"
-    "$TCC1" -I"$SRC/minilua" \
-        -o "$BUILD/linux-x64/minilua/lua" \
-        "$BUILD/linux-x64/minilua/main.c" \
+    # LUA_MAKE_LUA enables the full standard Lua CLI (lua.c) inside minilua.h
+    "$TCC1" -DLUA_IMPL -DLUA_MAKE_LUA \
+        -I"$SRC/minilua" \
+        -o "$BIN/linux-x64/lua" \
+        "$SRC/minilua/minilua.h" \
         -lm -ldl
-    cp "$BUILD/linux-x64/minilua/lua" "$BIN/linux-x64/lua"
     log "  built: $BIN/linux-x64/lua ($(ls -lh "$BIN/linux-x64/lua" | awk '{print $5}'))"
 }
 
@@ -138,11 +139,10 @@ build_lua_windows() {
     log "MiniLua (win-x64): cross-compiling with TCC win64"
     mkdir -p "$BUILD/win-x64/minilua"
     [ -x "$CROSS_TCC" ] || die "win64 cross TCC not found"
-    "$CROSS_TCC" \
+    "$CROSS_TCC" -DLUA_IMPL -DLUA_MAKE_LUA \
         -I"$SRC/minilua" \
-        -o "$BUILD/win-x64/minilua/lua.exe" \
-        "$BUILD/linux-x64/minilua/main.c"
-    cp "$BUILD/win-x64/minilua/lua.exe" "$BIN/win-x64/lua.exe"
+        -o "$BIN/win-x64/lua.exe" \
+        "$SRC/minilua/minilua.h"
     log "  built: $BIN/win-x64/lua.exe ($(ls -lh "$BIN/win-x64/lua.exe" | awk '{print $5}'))"
 }
 
