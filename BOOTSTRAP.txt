@@ -1,0 +1,78 @@
+BOOTSTRAP CHAIN EXPLANATION
+===========================
+
+This repository builds a self-contained programming environment using a
+three-stage bootstrap approach. The goal is to minimize trust in external
+tooling and establish a clear provenance chain.
+
+TRUST BOUNDARY
+--------------
+Stage 0 requires host GCC (or Clang) from the operating system.
+This is the only point where we depend on external, un-vendored tooling.
+After stage 0 completes, only TCC is used for all C compilation.
+
+STAGE 0: Host GCC -> TCC
+-------------------------
+Input:   Host system GCC (e.g., gcc 13.3 on Ubuntu 24.04)
+Source:  src/tinycc/ (vendored TinyCC mob branch @ 2ba12e83)
+Output:  build/host/bin/tcc
+
+The host GCC reads the TinyCC source and produces a native TCC binary.
+This binary is NOT used for any application code - only for stage 1.
+
+Command:
+  cd build/host
+  ../../src/tinycc/configure --prefix=$(pwd) --cc=gcc
+  make && make install
+
+STAGE 1: TCC -> TCC (self-hosting verification)
+------------------------------------------------
+Input:   build/host/bin/tcc (from stage 0)
+Source:  src/tinycc/ (same source)
+Output:  build/linux-x64/tcc-stage1/bin/tcc
+
+Stage 0 TCC compiles TCC again. This verifies that TCC can compile itself
+(self-hosting), which is a key property of a trust anchor.
+
+Command:
+  cd build/linux-x64/tcc-stage1
+  CC=../../host/bin/tcc ../../src/tinycc/configure ...
+  make && make install
+
+STAGE 2: TCC -> Everything Else
+--------------------------------
+Input:   build/linux-x64/tcc-stage1/bin/tcc (from stage 1)
+Source:  src/jimtcl/, src/minilua/, src/nextvi/
+Output:  bin/linux-x64/{jimsh, lua, vi}
+
+Everything after stage 1 uses ONLY the stage-1 TCC. There is NO fallback
+to GCC. If a component cannot compile with TCC, it is documented in
+BUILD-NOTES.txt rather than silently using a different compiler.
+
+WINDOWS CROSS-COMPILATION (stage 2 variant)
+--------------------------------------------
+The cross-compilation path uses a TCC built with --enable-cross:
+  build/linux-x64/tcc-cross/bin/x86_64-win32-tcc
+
+This is built using host GCC (same trust level as stage 0) and targets
+PE32+ executables for Windows x86_64. TCC bundles its own Win32 headers
+and MSVCRT import libraries.
+
+WHAT IS VENDORED vs. EXTERNAL
+------------------------------
+Vendored (in this repo, no network needed to build):
+  - TinyCC source          (src/tinycc/)
+  - Jim Tcl source         (src/jimtcl/)
+  - MiniLua (Lua 5.5)      (src/minilua/)
+  - Fennel Lisp            (src/fennel/)
+  - Nextvi editor          (src/nextvi/)
+  - LuaX pure-Lua modules  (src/luax/)
+
+External (required at stage 0 only):
+  - GCC or Clang (host system)
+  - GNU make (or compatible)
+  - Standard POSIX shell (sh)
+  - Python (used by Fennel's aot.lua via autosetup - NOT required)
+  - perl (used for TCC doc generation - NOT required for binaries)
+
+NO cmake, meson, ninja, or other build systems are required.

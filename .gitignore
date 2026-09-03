@@ -1,0 +1,14 @@
+# Build intermediate artifacts
+build/host/
+build/linux-x64/
+build/win-x64/
+
+# OS artifacts
+.DS_Store
+*.swp
+
+# Editor artifacts
+*.o.tmp
+
+# Do NOT ignore bin/ - those are intentional compiled outputs
+# Do NOT ignore src/ - those are vendored sources

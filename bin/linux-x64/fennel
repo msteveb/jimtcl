@@ -1,0 +1,3 @@
+#!/bin/sh
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$SELF_DIR/lua" "$SELF_DIR/../../build-support/fennel-launcher.lua" "$@"
