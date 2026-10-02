@@ -2436,14 +2436,16 @@ following special forms:
 Note that any of the forms that take an argument (filename, fileId or string)
 their argument may be a separate word. e.g. +'<< $str'+.
 
-If there is no redirection of standard input, standard error
-or standard output, these are connected to the corresponding
-input or output of the application.
+If there is no redirection of standard input, standard error or standard
+output, then by default the standard input is taken from the application's
+standard input.  However, for standard output and standard error, the output
+from the command is captured through pipes and returned in the result of
+the +exec+ command (as described at the beginning).
 
-If the last +'arg'+ or +'redirection'+ is +&+ then the command will be
-executed in background.  In this case the standard output from the last
-command in the pipeline will go to the application's standard output
-unless redirected in the command, and error output from all the commands
+The exception is when the last +'arg'+ or +'redirection'+ is +&+, in which case
+the command will be executed in background.  In this case the standard output 
+from the last command in the pipeline will go to the application's standard 
+output unless redirected in the command, and error output from all the commands
 in the pipeline will go to the application's standard error file. The
 return value of exec in this case is a list of process ids (pids) in
 the pipeline.
