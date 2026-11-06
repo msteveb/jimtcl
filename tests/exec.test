@@ -317,16 +317,12 @@ test exec-10.16 {errors in exec invocation} {
 test exec-10.17 {errors in exec invocation} {
     list [catch {exec cat << foo > a/b/c} msg] [string tolower $msg]
 } {1 {couldn't write file "a/b/c": no such file or directory}}
-set f [open gorp.file w]
-test exec-10.18 {errors in exec invocation} {
-    list [catch {exec cat <<test <@ $f} msg]
-} 1
-close $f
-set f [open gorp.file r]
-test exec-10.19 {errors in exec invocation} {
-    list [catch {exec cat <<test >@ $f} msg]
-} 1
-close $f
+
+# There used to be some tests here to ensure that input redirection from
+# a write-only file descriptor and output redirection to a read-only file
+# descriptor would fail.  However, in Jim Tcl this is really just testing
+# the underlying command behaviour as Jim Tcl doesn't do the checking itself.
+# So these tests have been removed.
 
 # Commands in background.
 

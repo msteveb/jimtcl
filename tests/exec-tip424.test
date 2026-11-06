@@ -284,16 +284,6 @@ test exec-10.16 {errors in exec invocation} {
 test exec-10.17 {errors in exec invocation} {
     list [catch {exec | cat << foo > a/b/c} msg] [string tolower $msg]
 } {1 {couldn't write file "a/b/c": no such file or directory}}
-set f [open gorp.file w]
-test exec-10.18 {errors in exec invocation} {
-    list [catch {exec | cat <<test <@ $f} msg]
-} 1
-close $f
-set f [open gorp.file r]
-test exec-10.19 {errors in exec invocation} {
-    list [catch {exec | cat <<test >@ $f} msg]
-} 1
-close $f
 
 # Commands in background.
 
