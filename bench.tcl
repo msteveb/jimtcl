@@ -385,7 +385,7 @@ proc miniloops {n} {
     }
 }
 
-### wiki.tcl.tk/8566 ###########################################################
+### wiki.tcl-lang.org/8566 ###########################################################
 
  # Internal procedure that indexes into the 2-dimensional array t,
  # which corresponds to the sequence y, looking for the (i,j)th element.
@@ -662,7 +662,7 @@ bench {dynamic code (list)} {dyncode_list 100}
 bench {PI digits} {pi_digits 100}
 bench {listcreate} {listcreate 100}
 bench {expand} {expand}
-bench {wiki.tcl.tk/8566} {commonsub_test 10}
+bench {wiki.tcl-lang.org/8566} {commonsub_test 10}
 bench {mandel} {mandel 30 30 -2 -1.5 1 1.5}
 
 if {$batchmode} {

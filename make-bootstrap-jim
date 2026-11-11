@@ -66,7 +66,7 @@ tclexts="bootstrap initjimsh glob stdlib tclcompat"
 # Note ordering
 allexts="bootstrap aio readdir regexp file glob exec clock array stdlib tclcompat"
 
-echo "/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl.tk/ */"
+echo "/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl-lang.org/ */"
 
 # define some core features
 for i in JIM_COMPAT JIM_ANSIC $JIM_REGEXP HAVE_NO_AUTOCONF JIM_TINY _JIMAUTOCONF_H; do

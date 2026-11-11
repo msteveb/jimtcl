@@ -5,7 +5,7 @@ package require dns
 dns::configure -nameserver 8.8.8.8
 
 puts "Resolve with udp"
-set tok [dns::resolve www.tcl.tk]
+set tok [dns::resolve www.tcl-lang.org]
 puts status=[dns::status $tok]
 puts address=[dns::address $tok]
 puts names=[dns::name $tok]

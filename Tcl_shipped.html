@@ -3171,7 +3171,7 @@ and the documentation of the <a href="#_namespace"><strong><code>namespace</code
 <div class="sectionbody">
 <div class="paragraph"><p>Unlike Tcl, Jim has some sophisticated support for functional programming.
 These are described briefly below.</p></div>
-<div class="paragraph"><p>More information may be found at <a href="http://wiki.tcl.tk/13847">http://wiki.tcl.tk/13847</a></p></div>
+<div class="paragraph"><p>More information may be found at <a href="http://wiki.tcl-lang.org/13847">http://wiki.tcl-lang.org/13847</a></p></div>
 <div class="sect2">
 <h3 id="_references">References</h3>
 <div class="paragraph"><p>A reference can be thought of as holding a value with one level of indirection,
@@ -4363,13 +4363,15 @@ following special forms:</p></div>
 </dl></div>
 <div class="paragraph"><p>Note that any of the forms that take an argument (filename, fileId or string)
 their argument may be a separate word. e.g. <code><em>&lt;&lt; $str</em></code>.</p></div>
-<div class="paragraph"><p>If there is no redirection of standard input, standard error
-or standard output, these are connected to the corresponding
-input or output of the application.</p></div>
-<div class="paragraph"><p>If the last <code><em>arg</em></code> or <code><em>redirection</em></code> is <code>&amp;</code> then the command will be
-executed in background.  In this case the standard output from the last
-command in the pipeline will go to the application&#8217;s standard output
-unless redirected in the command, and error output from all the commands
+<div class="paragraph"><p>If there is no redirection of standard input, standard error or standard
+output, then by default the standard input is taken from the application&#8217;s
+standard input.  However, for standard output and standard error, the output
+from the command is captured through pipes and returned in the result of
+the <code>exec</code> command (as described at the beginning).</p></div>
+<div class="paragraph"><p>The exception is when the last <code><em>arg</em></code> or <code><em>redirection</em></code> is <code>&amp;</code>, in which case
+the command will be executed in background.  In this case the standard output
+from the last command in the pipeline will go to the application&#8217;s standard
+output unless redirected in the command, and error output from all the commands
 in the pipeline will go to the application&#8217;s standard error file. The
 return value of exec in this case is a list of process ids (pids) in
 the pipeline.</p></div>
@@ -8889,14 +8891,14 @@ uucp, local0-local7</code></pre>
 <h3 id="_binary">binary</h3>
 <div class="paragraph"><p>The optional, pure-Tcl <em>binary</em> extension provides the Tcl-compatible <a href="#_binary"><strong><code>binary</code></strong></a> <code>scan</code> and <a href="#_binary"><strong><code>binary</code></strong></a> <code>format</code>
 commands based on the low-level <a href="#cmd_3"><strong><code>pack</code></strong></a> and <a href="#cmd_3"><strong><code>unpack</code></strong></a> commands.</p></div>
-<div class="paragraph"><p>See the Tcl documentation at: <a href="http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm">http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm</a></p></div>
+<div class="paragraph"><p>See the Tcl documentation at: <a href="http://www.tcl-lang.org/man/tcl8.5/TclCmd/binary.htm">http://www.tcl-lang.org/man/tcl8.5/TclCmd/binary.htm</a></p></div>
 <div class="paragraph"><p>Note that <em>binary format</em> with f/r/R specifiers (single-precision float) uses the value of Infinity
 in case of overflow.</p></div>
 </div>
 <div class="sect2">
 <h3 id="cmd_4">oo: class, super</h3>
 <div class="paragraph"><p>The optional, pure-Tcl <em>oo</em> extension provides object-oriented (OO) support for Jim Tcl.</p></div>
-<div class="paragraph"><p>See the online documentation (<a href="http://jim.tcl.tk/index.html/doc/www/www/documentation/oo/">http://jim.tcl.tk/index.html/doc/www/www/documentation/oo/</a>) for more details.</p></div>
+<div class="paragraph"><p>See the online documentation (<a href="http://jim.tcl-lang.org/index.html/doc/www/www/documentation/oo/">http://jim.tcl-lang.org/index.html/doc/www/www/documentation/oo/</a>) for more details.</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <code><strong>class</strong> <em>classname ?baseclasses? classvars</em></code>
@@ -8924,7 +8926,7 @@ in case of overflow.</p></div>
 <div class="sect2">
 <h3 id="_tree">tree</h3>
 <div class="paragraph"><p>The optional, pure-Tcl <em>tree</em> extension implements an OO, general purpose tree structure
-similar to that provided by tcllib ::struct::tree (<a href="http://core.tcl.tk/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html">http://core.tcl.tk/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html</a>)</p></div>
+similar to that provided by tcllib ::struct::tree (<a href="http://core.tcl-lang.org/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html">http://core.tcl-lang.org/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html</a>)</p></div>
 <div class="paragraph"><p>A tree is a collection of nodes, where each node (except the root node) has a single parent
 and zero or more child nodes (ordered), as well as zero or more attribute/value pairs.</p></div>
 <div class="dlist"><dl>
@@ -9061,7 +9063,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 <div class="sect2">
 <h3 id="_tcl_prefix">tcl::prefix</h3>
 <div class="paragraph"><p>The optional tclprefix extension provides the Tcl8.6-compatible <a href="#_tcl_prefix"><strong><code>tcl::prefix</code></strong></a> command
-(<a href="http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm</a>) for matching strings against a table
+(<a href="http://www.tcl-lang.org/man/tcl8.6/TclCmd/prefix.htm">http://www.tcl-lang.org/man/tcl8.6/TclCmd/prefix.htm</a>) for matching strings against a table
 of possible values (typically commands or options).</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
@@ -9256,7 +9258,7 @@ the remaining subcommands do nothing.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_namespace">namespace</h3>
-<div class="paragraph"><p>Provides namespace-related functions. See also: <a href="http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm">http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm</a></p></div>
+<div class="paragraph"><p>Provides namespace-related functions. See also: <a href="http://www.tcl-lang.org/man/tcl8.6/TclCmd/namespace.htm">http://www.tcl-lang.org/man/tcl8.6/TclCmd/namespace.htm</a></p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <code><strong>namespace canonical</strong> ?current? ?name?</code>

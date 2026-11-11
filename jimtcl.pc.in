@@ -4,7 +4,7 @@ libdir=@libdir@
 includedir=@includedir@
 
 Name: jimtcl
-URL: http://jim.tcl.tk/
+URL: http://jim.tcl-lang.org/
 Description: The Jim Interpreter - A small-footprint implementation of the Tcl programming language.
 Version: @VERSION@
 Requires: @PKG_CONFIG_REQUIRES@
