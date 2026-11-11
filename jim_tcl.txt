@@ -1573,7 +1573,7 @@ GARBAGE COLLECTION, REFERENCES, LAMBDA FUNCTION
 Unlike Tcl, Jim has some sophisticated support for functional programming.
 These are described briefly below.
 
-More information may be found at http://wiki.tcl.tk/13847
+More information may be found at http://wiki.tcl-lang.org/13847
 
 References
 ~~~~~~~~~~
@@ -5739,7 +5739,7 @@ binary
 The optional, pure-Tcl 'binary' extension provides the Tcl-compatible `binary scan` and `binary format`
 commands based on the low-level `pack` and `unpack` commands.
 
-See the Tcl documentation at: http://www.tcl.tk/man/tcl8.5/TclCmd/binary.htm
+See the Tcl documentation at: http://www.tcl-lang.org/man/tcl8.5/TclCmd/binary.htm
 
 Note that 'binary format' with f/r/R specifiers (single-precision float) uses the value of Infinity
 in case of overflow.
@@ -5748,7 +5748,7 @@ oo: class, super
 ~~~~~~~~~~~~~~~~
 The optional, pure-Tcl 'oo' extension provides object-oriented (OO) support for Jim Tcl.
 
-See the online documentation (http://jim.tcl.tk/index.html/doc/www/www/documentation/oo/) for more details.
+See the online documentation (http://jim.tcl-lang.org/index.html/doc/www/www/documentation/oo/) for more details.
 
 +*class* 'classname ?baseclasses? classvars'+::
     Create a new class, +'classname'+, with the given dictionary
@@ -5764,7 +5764,7 @@ See the online documentation (http://jim.tcl.tk/index.html/doc/www/www/documenta
 tree
 ~~~~
 The optional, pure-Tcl 'tree' extension implements an OO, general purpose tree structure
-similar to that provided by tcllib ::struct::tree (http://core.tcl.tk/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html)
+similar to that provided by tcllib ::struct::tree (http://core.tcl-lang.org/tcllib/doc/trunk/embedded/www/tcllib/files/modules/struct/struct_tree.html)
 
 A tree is a collection of nodes, where each node (except the root node) has a single parent
 and zero or more child nodes (ordered), as well as zero or more attribute/value pairs.
@@ -5825,7 +5825,7 @@ and zero or more child nodes (ordered), as well as zero or more attribute/value 
 tcl::prefix
 ~~~~~~~~~~~
 The optional tclprefix extension provides the Tcl8.6-compatible `tcl::prefix` command
-(http://www.tcl.tk/man/tcl8.6/TclCmd/prefix.htm) for matching strings against a table
+(http://www.tcl-lang.org/man/tcl8.6/TclCmd/prefix.htm) for matching strings against a table
 of possible values (typically commands or options).
 
 +*tcl::prefix all* 'table string'+::
@@ -5937,7 +5937,7 @@ the remaining subcommands do nothing.
 
 namespace
 ~~~~~~~~~
-Provides namespace-related functions. See also: http://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm
+Provides namespace-related functions. See also: http://www.tcl-lang.org/man/tcl8.6/TclCmd/namespace.htm
 
 +*namespace canonical* ?current? ?name?+::
    Returns the full name of +'name'+ within namespace '+current+'.

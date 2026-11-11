@@ -1,4 +1,4 @@
-/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl.tk/ */
+/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl-lang.org/ */
 #define JIM_COMPAT
 #define JIM_ANSIC
 #define JIM_REGEXP

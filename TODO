@@ -13,7 +13,7 @@ OTHER COMMANDS NOT IN TCL BUT THAT SHOULD BE IN JIM
 EXTENSIONS
 
 - Cryptography: hash functions, block ciphers, strim ciphers, PRNGs.
-- Tuplespace extension (http://wiki.tcl.tk/3947) (using sqlite as backend)
+- Tuplespace extension (http://wiki.tcl-lang.org/3947) (using sqlite as backend)
 - Gdlib
 - CGI (interface compatible with ncgi, but possibly written in C for speed)
 
