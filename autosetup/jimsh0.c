@@ -1,4 +1,4 @@
-/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl.tk/ */
+/* This is single source file, bootstrap version of Jim Tcl. See http://jim.tcl-lang.org/ */
 #define JIM_COMPAT
 #define JIM_ANSIC
 #define JIM_REGEXP
@@ -945,10 +945,6 @@ JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
 
 
 JIM_EXPORT void Jim_RegisterCoreCommands (Jim_Interp *interp);
-
-JIM_EXPORT int Jim_CreateCommand (Jim_Interp *interp,
-        const char *cmdName, Jim_CmdProc *cmdProc, void *privData,
-         Jim_DelCmdProc *delProc);
 
 JIM_EXPORT int Jim_DeleteCommand (Jim_Interp *interp,
         Jim_Obj *cmdNameObj);
@@ -17350,6 +17346,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
 #ifdef JIM_OPTIMIZATION
     if (script->len == 0) {
         Jim_DecrRefCount(interp, scriptObjPtr);
+
+        if (Jim_CheckSignal(interp))
+            return JIM_SIGNAL;
         return JIM_OK;
     }
     if (script->len == 3
@@ -17365,6 +17364,9 @@ int Jim_EvalObj(Jim_Interp *interp, Jim_Obj *scriptObjPtr)
             Jim_InvalidateStringRep(objPtr);
             Jim_DecrRefCount(interp, scriptObjPtr);
             Jim_SetResult(interp, objPtr);
+
+            if (Jim_CheckSignal(interp))
+                return JIM_SIGNAL;
             return JIM_OK;
         }
     }
