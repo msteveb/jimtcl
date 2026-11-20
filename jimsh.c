@@ -77,6 +77,7 @@ void usage(const char* executable_name)
     printf("Options:\n");
     printf("      --version  : prints the version string\n");
     printf("      --help     : prints this text\n");
+    printf("      --interactive : forces interactive mode even if stdin is not a tty\n");
     printf("      -e CMD     : executes command CMD\n");
     printf("                   NOTE: all subsequent options will be passed as arguments to the command\n");
     printf("    [filename|-] : executes the script contained in the named file, or from stdin if \"-\"\n");
@@ -86,6 +87,7 @@ void usage(const char* executable_name)
 int main(int argc, char *const argv[])
 {
     int retcode;
+    int force_interactive = 0;
     Jim_Interp *interp;
     char *const orig_argv0 = argv[0];
 
@@ -97,6 +99,11 @@ int main(int argc, char *const argv[])
     else if (argc > 1 && strcmp(argv[1], "--help") == 0) {
         usage(argv[0]);
         return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "--interactive") == 0) {
+        force_interactive = 1;
+        argc--;
+        argv++;
     }
 
     /* Create and initialize the interpreter */
@@ -124,7 +131,7 @@ int main(int argc, char *const argv[])
         }
         if (retcode != JIM_EXIT) {
             JimSetArgv(interp, 0, NULL);
-            if (!isatty(STDIN_FILENO)) {
+            if (!(force_interactive || isatty(STDIN_FILENO))) {
                 /* Just read from stdin and evaluate */
                 goto eval_stdin;
             }

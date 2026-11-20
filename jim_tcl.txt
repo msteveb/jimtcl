@@ -12,7 +12,7 @@ SYNOPSIS
 
 or
 
-  jimsh [<scriptfile>|-]
+  jimsh [--interactive] [<scriptfile>|-]
   jimsh -e '<immediate-script>'
   jimsh --version
   jimsh --help
@@ -68,6 +68,7 @@ Changes since 0.83
 #. New `info aliases` to list all aliases
 #. `expr` supports new +'=*'+ and +'=~'+ matching operators (see <<_expressions,EXPRESSIONS>>)
 #. `aio gets` supports +*-eol*+ and +*-keep*+
+#. Add `jimsh --interactive`
 
 Changes between 0.82 and 0.83
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -233,6 +234,7 @@ A simple, but powerful command processor, +jimsh+, is part of Jim Tcl.
 It may be invoked in interactive mode as:
 
   jimsh
+  jimsh --interactive
 
 or to process the Tcl script in a file with:
 
@@ -250,6 +252,8 @@ Interactive Mode
 ~~~~~~~~~~~~~~~~
 Interactive mode reads Tcl commands from standard input, evaluates
 those commands and prints the results.
+The +--interactive+ option forces interactive mode even when standard
+input is not a tty.
 
   $ jimsh
   Welcome to Jim version 0.73, Copyright (c) 2005-8 Salvatore Sanfilippo
@@ -273,9 +277,11 @@ terminal is detected, Emacs-style line editing commands are available, including
 arrow keys, +\^W+ to erase a word, +\^U+ to erase the line, +^R+ for reverse incremental search
 in history. Additionally, the +h+ command may be used to display the command history.
 
-Command line history is automatically saved and loaded from +~/.jim_history+
+Command line history is automatically saved and loaded from +$HOME/.jim_history+.
+On Windows, if +$HOME+ is not set, +$USERPROFILE+ is used (falling back to
++$HOMEDRIVE++ +$HOMEPATH+).
 
-In interactive mode, +jimsh+ automatically runs the script +~/.jimrc+ at startup
+In interactive mode, +jimsh+ automatically runs the script +$HOME/.jimrc+ at startup
 if it exists.
 
 INTERPRETERS
