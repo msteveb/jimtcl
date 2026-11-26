@@ -68,7 +68,7 @@ proc pkg-config-init {{required 1}} {
 				set found 0
 			}
 		}
-		if {[is-defined SYSROOT]} {
+		if {[get-define SYSROOT ""] ne ""} {
 			set sysroot [get-define SYSROOT]
 
 			# XXX: It's possible that these should be set only when invoking pkg-config
